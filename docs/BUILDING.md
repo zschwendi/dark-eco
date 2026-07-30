@@ -46,15 +46,15 @@ not physical-device validation.
 ## Build the pinned OpenGOAL ARM64 host baseline
 
 ```sh
-cmake -S OpenGOAL -B /private/tmp/GOALPad-opengoal-build \
+cmake -S OpenGOAL -B /private/tmp/GOALPad-pinned-opengoal-build \
   --preset=Release-macos-arm64-clang \
   -DOPENSSL_ROOT_DIR=/opt/homebrew/opt/openssl@3
 
-cmake --build /private/tmp/GOALPad-opengoal-build --target gk goalc-test -j 12
+cmake --build /private/tmp/GOALPad-pinned-opengoal-build --target gk goalc-test -j 12
 
-ln -s "$PWD/OpenGOAL" /private/tmp/GOALPad-opengoal-build/data
+ln -s "$PWD/OpenGOAL" /private/tmp/GOALPad-pinned-opengoal-build/data
 
-/private/tmp/GOALPad-opengoal-build/goalc-test \
+/private/tmp/GOALPad-pinned-opengoal-build/goalc-test \
   --gtest_filter='ARM64EmitterIntegerMath.*:CodeTester.*arm64'
 ```
 
