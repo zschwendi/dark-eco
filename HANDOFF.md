@@ -6,8 +6,9 @@ Branch: `feat/ipados-native-boot`
 
 Status: Partially complete. The repository now has a reproducible, pinned
 OpenGOAL ARM64 host baseline and a buildable Apple platform probe. Actual GOAL
-source does not yet compile to signed ARM64 code, and no physical-device
-install or launch has succeeded.
+source does not yet compile to signed ARM64 code. The maintainer reports the
+platform probe working on a physical iPad; the simulator path has also been
+independently built, installed, launched, and visually checked.
 
 ## Direction that must remain fixed
 
@@ -185,6 +186,56 @@ The message did not fail these three builds, but the scheme/platform
 configuration should be narrowed to iPadOS when doing so does not disrupt the
 macOS ARM64 development baseline.
 
+## iPad Pro M5 simulator validation
+
+The maintainer-created simulator was used instead of touching the physical
+iPad:
+
+```text
+Name: iPad Pro 11-inch (M5)
+Runtime: iOS 26.5
+UDID: 96C5C21A-B925-4213-82A3-90DCB8518339
+```
+
+The simulator was already booted. This incremental build reused the existing
+151 MB DerivedData directory and exited `0`:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug \
+  -destination \
+  'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-sim \
+  CODE_SIGNING_ALLOWED=NO build
+```
+
+The app installed and launched as `com.zephyrstudiosllc.GOALPad`, producing
+PID `78834`. A settled screenshot showed:
+
+```text
+GOALPad native boot
+Signed ARM64 AOT workload verified
+Architecture: arm64
+AOT result: 42
+```
+
+Simulator logs independently recorded:
+
+```text
+GOALPad runtime probe: Signed ARM64 AOT workload verified;
+architecture=arm64; result=42
+First Metal frame submitted
+```
+
+System-wide memory free percentage was 39% before the build and 43% afterward.
+The simulator device occupied 2.1 GB on disk. Builds were kept serial, no new
+DerivedData tree was created, and the simulator was shut down after validation
+to release memory.
+
+This validates the current probe on the named simulator only. It does not
+convert simulator evidence into physical-device or real GOAL execution
+evidence.
+
 ## Physical iPad status
 
 `xcrun devicectl list devices` sees:
@@ -228,9 +279,11 @@ Z iPad Pro may need to be unlocked to recover from previously reported
 preparation errors
 ```
 
-No app was installed or launched. No physical Metal or ARM64 workload result
-has been validated. Unlock/connect the iPad, wait for developer services to
-become available, then rerun build, install, launch, and log capture.
+That automated attempt did not install or launch the app. Later on 2026-07-30,
+the maintainer reported that the app was working on the physical iPad. Treat
+that as maintainer-reported runtime evidence, not an independently captured
+build/install/log result. Future physical validation should record those four
+stages separately.
 
 ## Confirmed compiler and runtime blockers
 
