@@ -8,14 +8,25 @@
 import SwiftUI
 
 struct ContentView: View {
+    private let runtimeStatus = GOALPadRuntimeBridge.initializeRuntime()
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        ZStack(alignment: .topLeading) {
+            MetalSurfaceView()
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("GOALPad native boot")
+                    .font(.headline)
+                Text(runtimeStatus.message)
+                Text("Architecture: \(runtimeStatus.architecture)")
+                Text("AOT result: \(runtimeStatus.workloadResult)")
+            }
+            .font(.system(.subheadline, design: .monospaced))
+            .foregroundStyle(runtimeStatus.isWorkloadVerified ? .green : .red)
+            .padding()
+            .background(.black.opacity(0.72), in: RoundedRectangle(cornerRadius: 10))
+            .padding()
         }
-        .padding()
     }
 }
 
