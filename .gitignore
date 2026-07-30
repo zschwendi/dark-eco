@@ -1,0 +1,19 @@
+.DS_Store
+
+# Xcode user state and local build products
+**/xcuserdata/
+*.xcuserstate
+/DerivedData/
+/build/
+
+# User-supplied or generated game data must stay local.
+/LocalGameData/
+/PreparedGameData/
+/GOALPad/GameData/
+*.iso
+*.ISO
+*.chd
+
+# Local signing material
+*.mobileprovision
+*.p12

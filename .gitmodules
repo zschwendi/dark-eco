@@ -1,0 +1,3 @@
+[submodule "OpenGOAL"]
+	path = OpenGOAL
+	url = https://github.com/open-goal/jak-project.git
