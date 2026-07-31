@@ -246,9 +246,10 @@ reorder the series.
 
 ### Validate the minimal iPhoneOS data-arena static library
 
-This checkpoint requires CMake 4.4.1 and builds only the portable
-`jak1-data-arena` archive. It is not an application, signing, simulator,
-device, runtime, or GOAL-execution validation.
+Recorded validation used CMake 4.4.1 and builds only the portable
+`jak1-data-arena` archive. Source declares CMake 3.10 compatibility, but CMake
+3.10 was not executed. This is not an application, signing, simulator, device,
+runtime, or GOAL-execution validation.
 
 ```sh
 cmake -S /private/tmp/GOALPadOpenGOAL-ios-data-arena \

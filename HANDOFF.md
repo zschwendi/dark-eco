@@ -1517,25 +1517,23 @@ git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
 
 Four non-overlapping lanes produced this checkpoint:
 
-- `arm64_next_seam` implemented and validated the portable data-arena proof in
-  its dedicated OpenGOAL worktree.
+- `arm64_next_seam` implemented and validated the portable data-arena proof
+  and its 0016 minimal-CMake follow-up in its dedicated OpenGOAL worktree.
 - `arm64_codegen` reviewed heap semantics, CMake behavior, and patch-series
   preservation.
 - `false_func_failure` performed independent regression, documentation, and
   fork/reproducibility audits.
-- The minimal-CMake implementation lane produced and validated 0016 in its
-  dedicated OpenGOAL worktree.
 - The root agent serialized the broad runtime retry, patch reconstruction, and
   parent integration, preserving memory headroom and avoiding conflicting
   worktree edits.
 
 The final `arm64_codegen` and `false_func_failure` reviews were clean after
-the canonical-bounds and host-test-gate fixes in 0014/0015. A new dedicated
-minimal-CMake lane produced 0016; the root agent preserved it as `a2f41c7`.
-`false_func_failure` independently audited the resulting cache, target graph,
-normal-mode target equivalence, archive, and tests-on rejection. The review
-found no preservation-blocking source fix: the minimal target has one source
-object and no desktop, JIT, or OpenGOAL-global dependency. The earlier full
+the canonical-bounds and host-test-gate fixes in 0014/0015, and both
+independently approved `5ad2efa3`. `false_func_failure` audited the resulting
+cache, target graph, normal-mode target equivalence, archive, and tests-on
+rejection. The reviews found no preservation-blocking source fix: the minimal
+target has one source object and no desktop, JIT, or OpenGOAL-global
+dependency. The root agent preserved 0016 as `a2f41c7`. The earlier full
 iPhoneOS CMake/OpenSSL stop and broad-runtime permission failure remain
 historical limits for the full graph, not passing evidence or source
 regressions.
@@ -1757,17 +1755,18 @@ an immutable fork commit.
 At this checkpoint, the parent history is:
 
 ```text
+a2f41c7 build(opengoal): preserve iPhoneOS data-arena target (AI-assisted)
+98880fd docs: clarify data-arena checkpoint progress (AI-assisted)
+2dee378 docs: record data-arena checkpoint (AI-assisted)
 c201ea8 Preserve Jak 1 data-arena correction series (AI-assisted)
 c95b07a docs: correct lognot generator path (AI-assisted)
 df6057d docs: record signed lognot runtime checkpoint (AI-assisted)
 f7ad14c feat(aot): bind exact Jak 1 lognot export (AI-assisted)
-bb304ce docs: record release and lognot checkpoints (AI-assisted)
-a2f41c7 build(opengoal): preserve iPhoneOS data-arena target (AI-assisted)
 ```
 
 `origin` remains configured as `https://github.com/zschwendi/GOALPad.git`.
 Publication is blocked by the unverified destination/fork decision and invalid
-local GitHub credentials; no push was attempted for `c201ea8` or this
-documentation checkpoint. Preserve the platform boundaries above so later Mac,
+local GitHub credentials; no push was attempted for `a2f41c7` or the current
+documentation checkpoints. Preserve the platform boundaries above so later Mac,
 iPhone, multiple-view, stereo, externally supplied projection, and visionOS
 presentation work remain possible without delaying the iPad Jak 1 boot path.
