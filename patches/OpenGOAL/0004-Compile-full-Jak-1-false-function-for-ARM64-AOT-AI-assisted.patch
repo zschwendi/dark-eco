@@ -1,0 +1,391 @@
+From 92c8f975efc9741c9e6a4bc4b0086f131ac9aefd Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Thu, 30 Jul 2026 19:48:35 -0600
+Subject: [PATCH] Compile full Jak 1 false function for ARM64 AOT (AI-assisted)
+
+---
+ goalc/aot_main.cpp                            | 14 ++--
+ goalc/compiler/CodeGenerator.cpp              | 66 +++++++++++++------
+ goalc/compiler/CodeGenerator.h                |  6 +-
+ goalc/compiler/Compiler.cpp                   | 11 +++-
+ goalc/compiler/Compiler.h                     |  3 +
+ goalc/compiler/IR.cpp                         |  4 +-
+ goalc/compiler/IR.h                           |  1 +
+ .../full-false-func-from-jak1-gcommon.gc      |  4 ++
+ .../full-identity-from-jak1-gcommon.gc        |  4 ++
+ test/goalc/test_arm64_aot.cpp                 | 56 +++++++++++++---
+ 10 files changed, 134 insertions(+), 35 deletions(-)
+ create mode 100644 test/goalc/source_templates/arm64-aot/full-false-func-from-jak1-gcommon.gc
+ create mode 100644 test/goalc/source_templates/arm64-aot/full-identity-from-jak1-gcommon.gc
+
+diff --git a/goalc/aot_main.cpp b/goalc/aot_main.cpp
+index b530917b..87f1c232 100644
+--- a/goalc/aot_main.cpp
++++ b/goalc/aot_main.cpp
+@@ -1,5 +1,6 @@
+ #include <cstdio>
+ #include <exception>
++#include <optional>
+ #include <string>
+ 
+ #include "common/log/log.h"
+@@ -16,12 +17,14 @@ struct Options {
+   std::string output_path;
+   std::string project_path;
+   std::string symbol = "goalpad_aot_entry";
++  std::optional<std::string> function_name;
+ };
+ 
+ void print_usage() {
+   std::fprintf(stderr,
+                "Usage: goalc-aot --input SOURCE.gc --output BUILD_OUTPUT.s "
+-               "[--project-path OPENGOAL_ROOT] [--symbol C_SYMBOL]\n");
++               "[--project-path OPENGOAL_ROOT] [--symbol C_SYMBOL] "
++               "[--function GOAL_FUNCTION]\n");
+ }
+ 
+ bool parse_options(int argc, char** argv, Options* options) {
+@@ -32,7 +35,7 @@ bool parse_options(int argc, char** argv, Options* options) {
+       return false;
+     }
+     if (argument == "--input" || argument == "--output" || argument == "--project-path" ||
+-        argument == "--symbol") {
++        argument == "--symbol" || argument == "--function") {
+       if (++i == argc) {
+         std::fprintf(stderr, "Missing value for %s\n", argument.c_str());
+         return false;
+@@ -43,8 +46,10 @@ bool parse_options(int argc, char** argv, Options* options) {
+         options->output_path = argv[i];
+       } else if (argument == "--project-path") {
+         options->project_path = argv[i];
+-      } else {
++      } else if (argument == "--symbol") {
+         options->symbol = argv[i];
++      } else {
++        options->function_name = argv[i];
+       }
+       continue;
+     }
+@@ -91,7 +96,8 @@ int main(int argc, char** argv) {
+   try {
+     Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
+     const auto source = file_util::read_text_file(options.input_path);
+-    const auto code = compiler.compile_top_level_source(source, options.input_path);
++    const auto code =
++        compiler.compile_arm64_aot_source(source, options.input_path, options.function_name);
+     aot::write_apple_arm64_assembly(options.output_path, {options.symbol, code});
+   } catch (const std::exception& error) {
+     std::fprintf(stderr, "goalc-aot: %s\n", error.what());
+diff --git a/goalc/compiler/CodeGenerator.cpp b/goalc/compiler/CodeGenerator.cpp
+index 56c7daec..608dae4d 100644
+--- a/goalc/compiler/CodeGenerator.cpp
++++ b/goalc/compiler/CodeGenerator.cpp
+@@ -163,21 +163,40 @@ std::vector<u8> CodeGenerator::run(const TypeSystem* ts) {
+   return m_gen.generate_data_v3(ts).to_vector();
+ }
+ 
+-std::vector<u8> CodeGenerator::run_arm64_aot_literal_42() {
++std::vector<u8> CodeGenerator::run_arm64_aot_function(
++    const std::optional<std::string>& function_name) {
+   if (m_gen.instr_set() != InstructionSet::ARM64) {
+     throw std::runtime_error("ARM64 AOT proof requires the ARM64 instruction set.");
+   }
+-  if (m_fe->functions().size() != 1 ||
+-      &m_fe->top_level_function() != m_fe->functions().front().get()) {
+-    throw std::runtime_error("ARM64 AOT proof only supports one top-level function.");
+-  }
+   if (!m_fe->statics().empty()) {
+     throw std::runtime_error("ARM64 AOT proof does not support static data or relocations.");
+   }
+ 
+-  auto* function = m_fe->functions().front().get();
+-  auto rec = m_gen.add_function_to_seg(
+-      function->segment, &m_debug_info->add_function(function->name(), m_fe->name()));
++  FunctionEnv* function = nullptr;
++  if (function_name) {
++    for (const auto& candidate : m_fe->functions()) {
++      if (candidate->name() == *function_name) {
++        function = candidate.get();
++        break;
++      }
++    }
++    if (!function) {
++      throw std::runtime_error(fmt::format(
++          "ARM64 AOT function '{}' was not found in the compiled source.", *function_name));
++    }
++  } else {
++    const auto* top_level = &m_fe->top_level_function();
++    for (const auto& candidate : m_fe->functions()) {
++      if (candidate.get() == top_level) {
++        function = candidate.get();
++        break;
++      }
++    }
++    ASSERT(function);
++  }
++
++  auto rec = m_gen.add_function_to_seg(function->segment,
++                                       &m_debug_info->add_function(function->name(), m_fe->name()));
+   for (const auto& source : function->code_source()) {
+     rec.debug->code_sources.push_back(source.heap_obj);
+   }
+@@ -427,9 +446,6 @@ void CodeGenerator::do_goal_function_x86(FunctionEnv* env, int f_idx) {
+ }
+ 
+ void CodeGenerator::do_goal_function_arm64(FunctionEnv* env, int f_idx) {
+-  if (env != &m_fe->top_level_function() || m_fe->functions().size() != 1) {
+-    throw std::runtime_error("ARM64 AOT proof only supports one top-level function.");
+-  }
+   if (!m_fe->statics().empty()) {
+     throw std::runtime_error("ARM64 AOT proof does not support static data or relocations.");
+   }
+@@ -458,15 +474,27 @@ void CodeGenerator::do_goal_function_arm64(FunctionEnv* env, int f_idx) {
+   }
+ 
+   const auto& code = env->code();
+-  auto* constant = code.size() == 3 ? dynamic_cast<IR_LoadConstant64*>(code.at(0).get()) : nullptr;
+-  auto* symbol =
+-      code.size() == 3 ? dynamic_cast<IR_LoadSymbolPointer*>(code.at(0).get()) : nullptr;
+-  const bool supported_first_instruction =
+-      (constant && constant->value() == 42) || (symbol && symbol->name() == "#f");
+-  if (!supported_first_instruction || !dynamic_cast<IR_Return*>(code.at(1).get()) ||
+-      !dynamic_cast<IR_Null*>(code.at(2).get())) {
++  const auto is_supported_result = [](IR* ir) {
++    if (const auto* constant = dynamic_cast<IR_LoadConstant64*>(ir)) {
++      return constant->value() == 42;
++    }
++    if (const auto* symbol = dynamic_cast<IR_LoadSymbolPointer*>(ir)) {
++      return symbol->name() == "#f";
++    }
++    return false;
++  };
++  const bool supported_top_level = code.size() == 3 && is_supported_result(code.at(0).get()) &&
++                                   dynamic_cast<IR_Return*>(code.at(1).get()) &&
++                                   dynamic_cast<IR_Null*>(code.at(2).get());
++  const auto* value_reset =
++      code.size() == 4 ? dynamic_cast<IR_ValueReset*>(code.at(0).get()) : nullptr;
++  const bool supported_false_function =
++      value_reset && value_reset->has_no_args() && is_supported_result(code.at(1).get()) &&
++      dynamic_cast<IR_Return*>(code.at(2).get()) && dynamic_cast<IR_Null*>(code.at(3).get());
++  if (!supported_top_level && !supported_false_function) {
+     throw std::runtime_error(
+-        "ARM64 AOT proof only supports literal 42 or #f followed by IR_Return and IR_Null.");
++        "ARM64 AOT proof only supports top-level literal 42, top-level #f, or the zero-argument "
++        "Jak 1 false function.");
+   }
+ 
+   auto* debug = &m_debug_info->function_by_name(env->name());
+diff --git a/goalc/compiler/CodeGenerator.h b/goalc/compiler/CodeGenerator.h
+index e8e4dbc0..9f395e48 100644
+--- a/goalc/compiler/CodeGenerator.h
++++ b/goalc/compiler/CodeGenerator.h
+@@ -7,6 +7,9 @@
+ 
+ #pragma once
+ 
++#include <optional>
++#include <string>
++
+ #include "Env.h"
+ 
+ #include "common/versions/versions.h"
+@@ -23,7 +26,8 @@ class CodeGenerator {
+                 GameVersion version,
+                 emitter::InstructionSet instruction_set);
+   std::vector<u8> run(const TypeSystem* ts);
+-  std::vector<u8> run_arm64_aot_literal_42();
++  std::vector<u8> run_arm64_aot_function(
++      const std::optional<std::string>& function_name = std::nullopt);
+   emitter::ObjectGeneratorStats get_obj_stats() const { return m_gen.get_stats(); }
+ 
+  private:
+diff --git a/goalc/compiler/Compiler.cpp b/goalc/compiler/Compiler.cpp
+index 0ac36f0c..3c5b00ae 100644
+--- a/goalc/compiler/Compiler.cpp
++++ b/goalc/compiler/Compiler.cpp
+@@ -314,7 +314,14 @@ void Compiler::color_object_file(FileEnv* env) {
+ }
+ 
+ std::vector<u8> Compiler::compile_top_level_source(const std::string& source,
+-                                                    const std::string& object_name) {
++                                                   const std::string& object_name) {
++  return compile_arm64_aot_source(source, object_name, std::nullopt);
++}
++
++std::vector<u8> Compiler::compile_arm64_aot_source(
++    const std::string& source,
++    const std::string& object_name,
++    const std::optional<std::string>& function_name) {
+   if (m_instr_set != emitter::InstructionSet::ARM64) {
+     throw std::runtime_error("Raw AOT output is only available for the ARM64 instruction set.");
+   }
+@@ -327,7 +334,7 @@ std::vector<u8> Compiler::compile_top_level_source(const std::string& source,
+     auto debug_info = &m_debugger.get_debug_info_for_object(object_file->name());
+     debug_info->clear();
+     CodeGenerator gen(object_file, debug_info, m_version, m_instr_set);
+-    auto result = gen.run_arm64_aot_literal_42();
++    auto result = gen.run_arm64_aot_function(function_name);
+     m_debug_stats.num_moves_eliminated += gen.get_obj_stats().moves_eliminated;
+     object_file->cleanup_after_codegen();
+     return result;
+diff --git a/goalc/compiler/Compiler.h b/goalc/compiler/Compiler.h
+index 0c96e46a..b9512209 100644
+--- a/goalc/compiler/Compiler.h
++++ b/goalc/compiler/Compiler.h
+@@ -80,6 +80,9 @@ class Compiler {
+                                            const std::optional<std::string>& string_name);
+   std::vector<u8> compile_top_level_source(const std::string& source,
+                                            const std::string& object_name = "aot");
++  std::vector<u8> compile_arm64_aot_source(const std::string& source,
++                                           const std::string& object_name,
++                                           const std::optional<std::string>& function_name);
+   void shutdown_target();
+   void enable_throw_on_redefines() { m_throw_on_define_extern_redefinition = true; }
+   void add_ignored_define_extern_symbol(const std::string& name) {
+diff --git a/goalc/compiler/IR.cpp b/goalc/compiler/IR.cpp
+index d56eb2e7..0ae0f21f 100644
+--- a/goalc/compiler/IR.cpp
++++ b/goalc/compiler/IR.cpp
+@@ -1232,7 +1232,9 @@ void IR_ValueReset::do_codegen_x86(emitter::ObjectGenerator* gen,
+ void IR_ValueReset::do_codegen_arm64(emitter::ObjectGenerator* gen,
+                                      const AllocationResult& allocs,
+                                      emitter::IR_Record irec) {
+-  throw std::runtime_error("NYI - IR_ValueReset::do_codegen_arm64");
++  (void)gen;
++  (void)allocs;
++  (void)irec;
+ }
+ 
+ ///////////////////////
+diff --git a/goalc/compiler/IR.h b/goalc/compiler/IR.h
+index 81e3424d..1bd8fd90 100644
+--- a/goalc/compiler/IR.h
++++ b/goalc/compiler/IR.h
+@@ -359,6 +359,7 @@ class IR_Null : public IR {
+ class IR_ValueReset : public IR {
+  public:
+   IR_ValueReset(std::vector<RegVal*> args);
++  bool has_no_args() const { return m_args.empty(); }
+   std::string print() override;
+   RegAllocInstr to_rai() override;
+   void do_codegen_x86(emitter::ObjectGenerator* gen,
+diff --git a/test/goalc/source_templates/arm64-aot/full-false-func-from-jak1-gcommon.gc b/test/goalc/source_templates/arm64-aot/full-false-func-from-jak1-gcommon.gc
+new file mode 100644
+index 00000000..d05e4376
+--- /dev/null
++++ b/test/goalc/source_templates/arm64-aot/full-false-func-from-jak1-gcommon.gc
+@@ -0,0 +1,4 @@
++;; Exact full definition from goal_src/jak1/kernel/gcommon.gc.
++(defun false-func ()
++  "Return false"
++  '#f)
+diff --git a/test/goalc/source_templates/arm64-aot/full-identity-from-jak1-gcommon.gc b/test/goalc/source_templates/arm64-aot/full-identity-from-jak1-gcommon.gc
+new file mode 100644
+index 00000000..96800a21
+--- /dev/null
++++ b/test/goalc/source_templates/arm64-aot/full-identity-from-jak1-gcommon.gc
+@@ -0,0 +1,4 @@
++(defun identity ((x object))
++  "Function which returns its input. The first function of the game!
++   This will not preserve the upper 64-bits of a 128-bit value."
++  x)
+diff --git a/test/goalc/test_arm64_aot.cpp b/test/goalc/test_arm64_aot.cpp
+index 5de62909..7f3fc5f4 100644
+--- a/test/goalc/test_arm64_aot.cpp
++++ b/test/goalc/test_arm64_aot.cpp
+@@ -1,4 +1,6 @@
+ #include <algorithm>
++#include <optional>
++#include <string>
+ #include <vector>
+ 
+ #include "common/util/FileUtil.h"
+@@ -16,14 +18,13 @@
+ namespace {
+ 
+ void expect_no_reserved_arm64_registers(const std::vector<emitter::Register>& registers) {
+-  for (const auto reserved : {emitter::X20, emitter::X21, emitter::X22, emitter::SP,
+-                              emitter::X29, emitter::X30}) {
++  for (const auto reserved :
++       {emitter::X20, emitter::X21, emitter::X22, emitter::SP, emitter::X29, emitter::X30}) {
+     EXPECT_EQ(std::find(registers.begin(), registers.end(), reserved), registers.end());
+   }
+ }
+ 
+-void expect_arm64_live_across_call_uses_saved_register(RegClass reg_class,
+-                                                       bool use_v2_allocator) {
++void expect_arm64_live_across_call_uses_saved_register(RegClass reg_class, bool use_v2_allocator) {
+   const auto& registers = emitter::get_register_info(emitter::InstructionSet::ARM64);
+   AllocationInput input;
+   input.instruction_set = emitter::InstructionSet::ARM64;
+@@ -52,8 +53,8 @@ void expect_arm64_live_across_call_uses_saved_register(RegClass reg_class,
+   const auto& expected_saved = registers.get_all_saved();
+   EXPECT_NE(std::find(expected_saved.begin(), expected_saved.end(), assignment.reg),
+             expected_saved.end());
+-  EXPECT_EQ(std::find(registers.get_call_clobbered().begin(),
+-                      registers.get_call_clobbered().end(), assignment.reg),
++  EXPECT_EQ(std::find(registers.get_call_clobbered().begin(), registers.get_call_clobbered().end(),
++                      assignment.reg),
+             registers.get_call_clobbered().end());
+   EXPECT_EQ(assignment.reg.instruction_set(), emitter::InstructionSet::ARM64);
+ }
+@@ -98,6 +99,46 @@ TEST(Arm64Aot, compiles_jak1_false_expression_and_renders_apple_text) {
+             ".subsections_via_symbols\n");
+ }
+ 
++TEST(Arm64Aot, compiles_full_jak1_false_func_and_renders_apple_text) {
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto source = file_util::read_text_file(file_util::get_file_path(
++      {"test/goalc/source_templates/arm64-aot/full-false-func-from-jak1-gcommon.gc"}));
++  const auto code = compiler.compile_arm64_aot_source(source, "full-false-func-from-jak1-gcommon",
++                                                      std::optional<std::string>{"false-func"});
++
++  EXPECT_EQ(code, (std::vector<u8>{0xe0, 0x03, 0x15, 0xaa, 0xc0, 0x03, 0x5f, 0xd6}));
++
++  const aot::AppleArm64Function function{"goalpad_aot_false_func", code};
++  EXPECT_EQ(aot::render_apple_arm64_assembly(function),
++            ".section __TEXT,__text,regular,pure_instructions\n"
++            ".p2align 2\n"
++            ".globl _goalpad_aot_false_func\n"
++            "_goalpad_aot_false_func:\n"
++            "  .long 0xaa1503e0\n"
++            "  .long 0xd65f03c0\n"
++            ".subsections_via_symbols\n");
++}
++
++TEST(Arm64Aot, rejects_unknown_named_function) {
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto source = file_util::read_text_file(file_util::get_file_path(
++      {"test/goalc/source_templates/arm64-aot/full-false-func-from-jak1-gcommon.gc"}));
++
++  EXPECT_THROW(compiler.compile_arm64_aot_source(source, "full-false-func-from-jak1-gcommon",
++                                                 std::optional<std::string>{"missing-false-func"}),
++               std::runtime_error);
++}
++
++TEST(Arm64Aot, rejects_full_jak1_identity_until_parameter_moves_are_supported) {
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto source = file_util::read_text_file(file_util::get_file_path(
++      {"test/goalc/source_templates/arm64-aot/full-identity-from-jak1-gcommon.gc"}));
++
++  EXPECT_THROW(compiler.compile_arm64_aot_source(source, "full-identity-from-jak1-gcommon",
++                                                 std::optional<std::string>{"identity"}),
++               std::runtime_error);
++}
++
+ TEST(Arm64Aot, rejects_source_outside_the_supported_aot_proof) {
+   Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
+   EXPECT_THROW(compiler.compile_top_level_source("41", "constant-41"), std::runtime_error);
+@@ -159,8 +200,7 @@ TEST(Arm64Aot, function_calls_clobber_only_target_temporaries) {
+     EXPECT_EQ(reg.instruction_set(), emitter::InstructionSet::ARM64);
+   }
+ 
+-  IR_FunctionCall x86_call(&function, &result, {}, {}, std::nullopt,
+-                           emitter::InstructionSet::X86);
++  IR_FunctionCall x86_call(&function, &result, {}, {}, std::nullopt, emitter::InstructionSet::X86);
+   const auto x86_rai = x86_call.to_rai();
+   const std::vector<emitter::Register> expected_x86_clobbers = {
+       emitter::RAX,  emitter::RCX,  emitter::RDX,  emitter::RSI,  emitter::RDI,
+-- 
+2.50.1 (Apple Git-155)
+

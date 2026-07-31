@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-extern uint64_t goalpad_aot_false(void);
+extern uint64_t goalpad_aot_false_func(void);
 
 struct goal_call_probe {
   uint64_t entry_process;
@@ -28,7 +28,7 @@ int main(void) {
   const uint64_t offset_base = 0x3003;
   struct goal_call_probe probe = {0};
   const uint64_t result = goalpad_probe_call_aot_with_state(
-      process, symbol_table, offset_base, goalpad_aot_false, &probe);
+      process, symbol_table, offset_base, goalpad_aot_false_func, &probe);
 
   return result == symbol_table && probe.entry_process == process &&
                  probe.entry_symbol_table == symbol_table &&

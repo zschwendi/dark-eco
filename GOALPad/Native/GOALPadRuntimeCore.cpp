@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <cstring>
 
-extern "C" std::uint64_t goalpad_aot_false();
+extern "C" std::uint64_t goalpad_aot_false_func();
 
 namespace {
 
@@ -42,13 +42,13 @@ extern "C" std::uint64_t goalpad_probe_call_aot_with_state(
     GoalEntry entry,
     GoalCallProbe* probe);
 
-bool has_expected_jak1_false_arm64_code() {
+bool has_expected_jak1_false_func_arm64_code() {
 #if defined(__arm64__)
   constexpr std::array<unsigned char, 8> expected = {
       0xe0, 0x03, 0x15, 0xaa, 0xc0, 0x03, 0x5f, 0xd6,
   };
   std::array<unsigned char, expected.size()> actual{};
-  std::memcpy(actual.data(), reinterpret_cast<const void*>(&goalpad_aot_false), actual.size());
+  std::memcpy(actual.data(), reinterpret_cast<const void*>(&goalpad_aot_false_func), actual.size());
   return actual == expected;
 #else
   return false;
@@ -91,14 +91,14 @@ RuntimeStatus initialize_runtime(std::string storage_path) {
   status.architecture = architecture_name();
   status.storage_path = std::move(storage_path);
   status.workload_result = goalpad_probe_call_aot_with_state(
-      process, symbol_table, offset_base, &goalpad_aot_false, &probe);
+      process, symbol_table, offset_base, &goalpad_aot_false_func, &probe);
   status.workload_verified = status.workload_result == symbol_table &&
-                             has_expected_jak1_false_arm64_code() &&
+                             has_expected_jak1_false_func_arm64_code() &&
                              has_expected_goal_state(probe, process, symbol_table, offset_base,
                                                      status.workload_result);
   status.message = status.workload_verified
-                       ? "Signed ARM64 Jak 1 false-form state call verified"
-                       : "Signed ARM64 Jak 1 false-form state call verification failed";
+                       ? "Signed ARM64 Jak 1 false-func body call verified"
+                       : "Signed ARM64 Jak 1 false-func body call verification failed";
   return status;
 }
 
