@@ -102,8 +102,19 @@ heap data whose layout the compiler also emits.
 The AOT C backend (`goalc/aot/CBackend.cpp`, `goalc/aot/goal_c_runtime.h`) emits
 C from the GOAL IR and compiles it with clang for arm64, which supplies a
 complete optimizing backend, normal Mach-O objects, and ordinary code signing.
-Whole-game coverage is a measured **9539/10601 functions (89.98%)** across all
-518 Jak 1 sources, all of which compile for `arm64-apple-ios15.0`.
+Whole-game coverage is a measured **10590/10601 functions (99.90%)** across all
+518 Jak 1 sources, all of which compile for `arm64-apple-ios15.0`. The 11
+remaining functions are precisely the register and stack manipulators — GOAL's
+thread/exception routines, `enter-state`, `set-to-run-bootstrap`,
+`(method deactivate process)`, and `(method compute-alignment! align-control)`.
+They need native implementations and must not be lowered to C arithmetic, which
+would compile and be silently wrong.
+
+The stack model is settled and documented in the fork's `docs/aot-stack-model.md`:
+**GOAL runs on stacks inside GOAL memory, as upstream does.** gkernel requires
+it — `reset-and-call` sets SP to `(-> this stack-top)` plus the memory base, and
+`thread-suspend`/`thread-resume` copy the live stack out and back to the *same
+addresses*. iPadOS objects to executable memory, not to where SP points.
 
 This superseded the hand-written ARM64 emitter (`goalc/emitter/IGenARM64.cpp`
 plus per-node lowering in `goalc/compiler/IR.cpp`), which covered roughly 8 of
@@ -163,9 +174,21 @@ The linked binary has only ordinary Mach-O segments, and the GOAL functions are
   is unusable rather than merely untested.
 - Only `LINK_TYPE_PTR` was exercised by real goalc-emitted data; the other three
   relocation kinds were exercised by a synthetic descriptor.
-- **`kernel/gkernel.gc` cannot be loaded at all** — its `top-level` fails on
-  `.pcpyld`. It and `engine/sound/gsound.gc` are the only 2 of 518 files whose
-  `top-level` fails, but gkernel is early in the build order, so this is the
-  next thing gating more of the game.
+- **Superseded:** `kernel/gkernel.gc` now loads and runs. `.pcpyld` was not the
+  real blocker; with it implemented, 0 of 518 top-levels fail to translate.
+  **207 of 518 object files now load in real `game.gp` build order and all 207
+  top-levels execute**, ending with 3048 symbols in the real symbol table — the
+  GOAL kernel, math, DMA, GS/display, loader, textures, fonts, collision,
+  camera, particles, moods, and settings.
+- The boot path stops at file 208, `engine/gfx/mood/time-of-day.gc`, whose
+  `top-level` calls `process-spawn` → `run-function-in-process` →
+  `(new 'stack 'catch-frame ...)`. `(method new catch-frame)` is one of the 11
+  unimplemented stack-switching routines, so it faults. That is the next
+  blocker, and it is now demonstrated by the boot path rather than argued.
+- Files 41–207 ran their top-levels with 7 machine-layer functions
+  (`cpad-open`, `__pc-get-mips2c`, `rpc-call`, `rpc-busy?`, `scf-get-volume`,
+  `scf-get-language`, `scf-get-aspect`) returning 0. Those files are proven to
+  LOAD, not proven to work.
+- Files 208–518 compile but have never been loaded.
 - jak2/jak3/jakx kernels still write x86-64 trampolines and remain non-functional
   on ARM64.
