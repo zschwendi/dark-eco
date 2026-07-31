@@ -1,0 +1,84 @@
+From 311be4773feaf85740427d844e1db65ba4fe5591 Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Fri, 31 Jul 2026 00:36:06 -0600
+Subject: [PATCH] fix(arm64): reject reserved constant-store operands
+ (AI-assisted)
+
+---
+ goalc/compiler/IR.cpp         | 16 +++++++++++-----
+ test/goalc/test_arm64_aot.cpp | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 5 deletions(-)
+
+diff --git a/goalc/compiler/IR.cpp b/goalc/compiler/IR.cpp
+index 73ca6c39..fd9424c7 100644
+--- a/goalc/compiler/IR.cpp
++++ b/goalc/compiler/IR.cpp
+@@ -1230,15 +1230,21 @@ void IR_StoreConstOffset::do_codegen_arm64(emitter::ObjectGenerator* gen,
+ 
+   if (m_value->ireg().reg_class == RegClass::GPR_64 &&
+       m_base->ireg().reg_class == RegClass::GPR_64 && m_size == 4) {
++    const auto goal_base = get_register_info(gen->instr_set()).get_offset_reg();
++    if (!base_reg.is_gpr(gen->instr_set()) || !value_reg.is_gpr(gen->instr_set()) ||
++        base_reg == emitter::SP || value_reg == emitter::SP) {
++      throw std::runtime_error("ARM64 constant-offset GPR stores require non-stack GPR operands");
++    }
++    if (base_reg == goal_base) {
++      throw std::runtime_error(
++          "ARM64 constant-offset GPR stores cannot use the GOAL base register as an address");
++    }
+     if (m_offset != 0 && (base_reg == emitter::X16 || value_reg == emitter::X16)) {
+       throw std::runtime_error(
+           "ARM64 constant-offset GPR stores cannot use X16 as a nonzero-offset base or value");
+     }
+-    gen->add_instr(
+-        IGen::store_goal_gpr(*gen, base_reg, value_reg,
+-                             emitter::get_register_info(gen->instr_set()).get_offset_reg(),
+-                             m_offset, m_size),
+-        irec);
++    gen->add_instr(IGen::store_goal_gpr(*gen, base_reg, value_reg, goal_base, m_offset, m_size),
++                   irec);
+     return;
+   }
+ 
+diff --git a/test/goalc/test_arm64_aot.cpp b/test/goalc/test_arm64_aot.cpp
+index 8e249aa7..0b0aec3e 100644
+--- a/test/goalc/test_arm64_aot.cpp
++++ b/test/goalc/test_arm64_aot.cpp
+@@ -725,6 +725,34 @@ TEST(Arm64Aot, rejects_arm64_constant_offset_gpr_store_that_aliases_x16) {
+   }
+ }
+ 
++TEST(Arm64Aot, rejects_arm64_constant_offset_gpr_store_with_reserved_address_operands) {
++  for (const auto [value_register, base_register] :
++       {std::pair{emitter::X1, emitter::X22}, std::pair{emitter::X1, emitter::SP},
++        std::pair{emitter::SP, emitter::X0}}) {
++    RegVal value{{RegClass::GPR_64, 0}, TypeSpec("pair")};
++    RegVal base{{RegClass::GPR_64, 1}, TypeSpec("level-group")};
++    IR_StoreConstOffset store(&value, 0x20, &base, 4);
++
++    Assignment value_assignment;
++    value_assignment.kind = Assignment::Kind::REGISTER;
++    value_assignment.reg = value_register;
++    Assignment base_assignment;
++    base_assignment.kind = Assignment::Kind::REGISTER;
++    base_assignment.reg = base_register;
++    AllocationResult allocations;
++    allocations.ass_as_ranges = {
++        AssignmentRange(0, {true}, {value_assignment}),
++        AssignmentRange(0, {true}, {base_assignment}),
++    };
++
++    FunctionDebugInfo debug{};
++    emitter::ObjectGenerator generator(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++    const auto function = generator.add_function_to_seg(MAIN_SEGMENT, &debug);
++    EXPECT_THROW(store.do_codegen_arm64(&generator, allocations, generator.add_ir(function)),
++                 std::runtime_error);
++  }
++}
++
+ TEST(Arm64Aot, rejects_arm64_constant_offset_gpr_store_outside_the_four_byte_proof) {
+   RegVal value{{RegClass::GPR_64, 0}, TypeSpec("pair")};
+   RegVal base{{RegClass::GPR_64, 1}, TypeSpec("level-group")};
+-- 
+2.50.1 (Apple Git-155)
+
