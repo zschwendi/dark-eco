@@ -1482,21 +1482,25 @@ are recorded there.
 ## Checkpoint 5: portable Jak 1 data-arena header
 
 Parent checkpoint `c201ea8a3d09934d155cb4cadca7c4ef9ad563d2` preserves the
-following unpublished OpenGOAL child series. The official submodule remains
-pinned at `a4cb1ac1f0596c8740b1c26accb24a58505cda92` and was not moved.
+first three unpublished OpenGOAL data-arena children; descendant parent
+checkpoint `a2f41c772073ee77564272cb65ed92522305c42a` preserves the fourth.
+The official submodule remains pinned at
+`a4cb1ac1f0596c8740b1c26accb24a58505cda92` and was not moved.
 
-| Order | Child commit | Patch | SHA-256 | Stable patch ID |
-| --- | --- | --- | --- | --- |
-| 0013 | `5c5368598bf808e5e8a8494679360601d42c02b4` | `0013-feat-kernel-add-portable-Jak-1-data-arena-header-pro.patch` | `60bd2a50bcac0d34bbd60913e583208f4b635cafac3a4e6303e6832015ec9602` | `9e8159a68654a4568220ea94cb36e51622a77ab3` |
-| 0014 | `b094144b27af99abd2e3b6809e8f58f93d0fb15a` | `0014-fix-build-preserve-Apple-SDK-selections-for-host-tes.patch` | `5c28722688323eba798552f6bcae10779db4152481fbe4bf57f2efaf5c549f9b` | `b47e3ae39b93f47be4fa8465a5c684b4130919d9` |
-| 0015 | `5495181f304bb63b49a82e9067d59fd27a5dd6c8` | `0015-fix-kernel-preserve-canonical-Jak-1-data-arena-bound.patch` | `ed0aba2b7d717f5a2a93099f5264bb1fc567b15c5bfd62f574e87917fbeba92b` | `1ab6fb92d40e3cc5b4e949df8e5d12da55b482d9` |
+| Order | Child commit | Patch | SHA-256 | Stable patch ID | Preserved by parent |
+| --- | --- | --- | --- | --- | --- |
+| 0013 | `5c5368598bf808e5e8a8494679360601d42c02b4` | `0013-feat-kernel-add-portable-Jak-1-data-arena-header-pro.patch` | `60bd2a50bcac0d34bbd60913e583208f4b635cafac3a4e6303e6832015ec9602` | `9e8159a68654a4568220ea94cb36e51622a77ab3` | `c201ea8` |
+| 0014 | `b094144b27af99abd2e3b6809e8f58f93d0fb15a` | `0014-fix-build-preserve-Apple-SDK-selections-for-host-tes.patch` | `5c28722688323eba798552f6bcae10779db4152481fbe4bf57f2efaf5c549f9b` | `b47e3ae39b93f47be4fa8465a5c684b4130919d9` | `c201ea8` |
+| 0015 | `5495181f304bb63b49a82e9067d59fd27a5dd6c8` | `0015-fix-kernel-preserve-canonical-Jak-1-data-arena-bound.patch` | `ed0aba2b7d717f5a2a93099f5264bb1fc567b15c5bfd62f574e87917fbeba92b` | `1ab6fb92d40e3cc5b4e949df8e5d12da55b482d9` | `c201ea8` |
+| 0016 | `5ad2efa3dac3febe642370aec39629b17039ead9` | `0016-build-ios-add-portable-Jak-1-data-arena-target-AI-as.patch` | `723ec9c96638233330b7358934b0c67a11f87ccbf00efc1e4fab866bc3b9c762` | `b0a0d2bc563b653412f75bb705edb935caa95118` | `a2f41c7` |
 
-Apply 0013, then 0014, then 0015 after the existing 0001 through 0012
-series. Patch 0013 introduces the source, static library, and test; 0014
+Apply 0013, then 0014, then 0015, then 0016 after the existing 0001 through
+0012 series. Patch 0013 introduces the source, static library, and test; 0014
 changes the test registration to preserve a caller-selected Apple SDK and
 avoid host-side discovery of a cross-compiled executable; 0015 corrects
-0013's arena bounds. Do not preserve, apply, or publish a partial or reordered
-suffix.
+0013's arena bounds; and 0016 factors that exact library definition into a
+minimal portable target mode. Do not preserve, apply, or publish a partial or
+reordered suffix.
 
 ```sh
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
@@ -1505,6 +1509,8 @@ git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0014-fix-build-preserve-Apple-SDK-selections-for-host-tes.patch"
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0015-fix-kernel-preserve-canonical-Jak-1-data-arena-bound.patch"
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0016-build-ios-add-portable-Jak-1-data-arena-target-AI-as.patch"
 ```
 
 ### Delegation and review
@@ -1517,14 +1523,22 @@ Four non-overlapping lanes produced this checkpoint:
   preservation.
 - `false_func_failure` performed independent regression, documentation, and
   fork/reproducibility audits.
+- The minimal-CMake implementation lane produced and validated 0016 in its
+  dedicated OpenGOAL worktree.
 - The root agent serialized the broad runtime retry, patch reconstruction, and
   parent integration, preserving memory headroom and avoiding conflicting
   worktree edits.
 
 The final `arm64_codegen` and `false_func_failure` reviews were clean after
-the canonical-bounds and host-test-gate fixes in 0014/0015. They retain the
-iPhoneOS CMake/OpenSSL stop and broad-runtime permission failure as explicit
-validation limits, not as passing evidence or source regressions.
+the canonical-bounds and host-test-gate fixes in 0014/0015. A new dedicated
+minimal-CMake lane produced 0016; the root agent preserved it as `a2f41c7`.
+`false_func_failure` independently audited the resulting cache, target graph,
+normal-mode target equivalence, archive, and tests-on rejection. The review
+found no preservation-blocking source fix: the minimal target has one source
+object and no desktop, JIT, or OpenGOAL-global dependency. The earlier full
+iPhoneOS CMake/OpenSSL stop and broad-runtime permission failure remain
+historical limits for the full graph, not passing evidence or source
+regressions.
 
 ### Implemented data-only boundary
 
@@ -1607,6 +1621,118 @@ main-memory mapping reported `Permission denied`; an escalated retry reached
 the 1538-test suite and then `Jak1KernelTest`, where the same error recurred.
 It was stopped with Ctrl-C (exit 130), not passed.
 
+### Verified minimal iPhoneOS data-arena target
+
+Child `5ad2efa3` introduces the deliberately narrow, portable
+`OPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY` CMake mode. It is a static-library mode,
+not an iPad application or runtime target. The option is enabled only after
+the top-level C/C++ project is declared and before CTest, desktop compiler
+flags, Apple Objective-C enablement, third-party dependencies, game runtime,
+and compiler tools. It includes the same `jak1-data-arena` target definition
+used in normal game mode, then returns from the top-level CMake file.
+
+The top-level project still performs normal C and C++ compiler detection before
+the early return. That is configuration work, not an archive dependency: the
+generated archive has no C object. The project declares CMake 3.10 and uses
+only the established no-argument top-level `return()` form, but the recorded
+configuration was CMake 4.4.1; do not describe this as a CMake 3.10 execution
+result.
+
+The following CMake 4.4.1 commands exited `0`; use `-j 4` or less to preserve
+memory headroom:
+
+```sh
+cmake -S /private/tmp/GOALPadOpenGOAL-ios-data-arena \
+  -B /private/tmp/GOALPadOpenGOAL-ios-data-arena-iphoneos-minimal-build \
+  -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphoneos \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=18.0 \
+  -DOPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY=ON -DBUILD_TESTING=OFF
+
+cmake --build /private/tmp/GOALPadOpenGOAL-ios-data-arena-iphoneos-minimal-build \
+  --target jak1-data-arena -j 4
+
+cmake -S /private/tmp/GOALPadOpenGOAL-ios-data-arena \
+  -B /private/tmp/GOALPadOpenGOAL-ios-data-arena-host-minimal-build \
+  -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DOPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY=ON -DBUILD_TESTING=OFF
+
+cmake --build /private/tmp/GOALPadOpenGOAL-ios-data-arena-host-minimal-build \
+  --target jak1-data-arena -j 4
+
+cmake -S /private/tmp/GOALPadOpenGOAL-ios-data-arena \
+  -B /private/tmp/GOALPadOpenGOAL-ios-data-arena-host-normal-build \
+  -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DOPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY=OFF
+
+cmake --build /private/tmp/GOALPadOpenGOAL-ios-data-arena-host-normal-build \
+  --target jak1-data-arena-test goalc-test goalc-aot -j 4
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-ios-data-arena-host-normal-build \
+  -R '^Jak1DataArena\\.' --output-on-failure
+
+/private/tmp/GOALPadOpenGOAL-ios-data-arena-host-normal-build/goalc-test \
+  --gtest_filter='Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-ios-data-arena-host-normal-build \
+  --output-on-failure
+```
+
+The normal host regression passed the data-arena CTest 4/4, pure compiler
+filter 122/122, and full CTest 5/5. The normal target retains its name, source,
+static output, and no link dependencies. Its factored definition explicitly
+publishes the repository root include path and C++20 usage requirement; this
+is equivalent to the normal graph's global C++20/root include setup, but is
+not a claim of byte-for-byte identical generated metadata.
+
+For the iPhoneOS minimal build, `CMakeCache.txt` records
+`CMAKE_SYSTEM_NAME=iOS`, `CMAKE_OSX_SYSROOT=iphoneos`,
+`CMAKE_OSX_ARCHITECTURES=arm64`, `CMAKE_OSX_DEPLOYMENT_TARGET=18.0`, and
+`OPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY=ON`. CMake's compiler metadata records
+AppleClang and arm64. The generated compile rule is exactly scoped to
+`game/kernel/jak1/data_arena.cpp` with:
+
+```text
+-O3 -DNDEBUG -std=gnu++20 -arch arm64
+-isysroot .../iPhoneOS26.5.sdk -miphoneos-version-min=18.0
+```
+
+`ninja -t targets all` lists only `jak1-data-arena` and CMake utility targets;
+it contains no curl, OpenSSL, SDL, runtime, goalc, gk, or gtest target. The
+archive `libjak1-data-arena.a` contains only `data_arena.cpp.o`; `lipo -info`
+reports arm64, its object has `LC_BUILD_VERSION` platform `IOS`, minimum 18.0,
+SDK 26.5, and `nm -um` reports only `_bzero`. This proves the generated static
+archive and its target graph do not pull an OpenGOAL runtime, desktop library,
+JIT path, or project global. `_bzero` is an ordinary system C-library symbol
+to be resolved by a final iOS executable; the archive alone does not prove a
+future application's complete link closure.
+
+Testing is intentionally unavailable in minimal mode. This expected command
+fails at configuration with
+`OPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY requires BUILD_TESTING=OFF.` and creates
+no `build.ninja` or archive:
+
+```sh
+cmake -S /private/tmp/GOALPadOpenGOAL-ios-data-arena \
+  -B /private/tmp/GOALPadOpenGOAL-ios-data-arena-testing-rejected-build \
+  -G Ninja -DOPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY=ON -DBUILD_TESTING=ON
+```
+
+The rejection directory may still contain `CMakeCache.txt`; that is not target
+generation. Because minimal mode returns before `include(CTest)`, an unset
+`BUILD_TESTING` value is also treated as off; the documented commands pin it
+to `OFF` and the mode rejects an explicit `ON`. A shell `test -e
+.../build.ninja` returning status `1` is the expected absence check, not a
+source failure. CMake's compiler-ABI probe also printed `clang++: warning:
+-Wl,-v: 'linker' input unused`; it is a toolchain probe diagnostic, not an
+archive-source warning. Verify the recorded 0016 digest against the stored
+patch file, not a regenerated differently formatted `format-patch --stdout
+--full-index --binary` stream.
+
+This checkpoint makes no simulator, device, application, signing, runtime,
+GOAL-execution, live-global, or physical-iPad claim. It does not satisfy the
+Stage 5 runtime-initialization exit gate.
+
 No application, simulator, generic-device, or physical-device validation ran
 for this data-only proof. Do not access **Z iPad Pro** unless the maintainer
 explicitly requests physical-device testing in the current task.
@@ -1636,6 +1762,7 @@ c95b07a docs: correct lognot generator path (AI-assisted)
 df6057d docs: record signed lognot runtime checkpoint (AI-assisted)
 f7ad14c feat(aot): bind exact Jak 1 lognot export (AI-assisted)
 bb304ce docs: record release and lognot checkpoints (AI-assisted)
+a2f41c7 build(opengoal): preserve iPhoneOS data-arena target (AI-assisted)
 ```
 
 `origin` remains configured as `https://github.com/zschwendi/GOALPad.git`.

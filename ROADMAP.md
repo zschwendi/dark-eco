@@ -348,12 +348,19 @@ Current progress:
   caller-owned Jak 1 data-arena header through the preserved 0013-0015 patch
   series. The direct source compile produced an iPhoneOS ARM64 object, and the
   focused data tests and pure compiler checks passed on the host.
+- Child `5ad2efa3`, preserved by parent `a2f41c7` as patch 0016, adds a
+  minimal CMake 4.4.1 mode for that same static library. Its iPhoneOS arm64
+  archive contains only `data_arena.cpp.o`, carries an iOS 18.0 load command,
+  and has only the system `_bzero` undefined reference. The generated target
+  graph excludes desktop libraries, tools, JIT paths, and runtime globals;
+  normal-host regressions remained 4/4, 122/122, and 5/5.
 - This is only a partial data boundary: it establishes canonical heap and
   symbol-table offsets in caller-owned storage, but does not bind
   `g_ee_main_mem`, initialize native kernel/symbol globals, create types or
   trampolines, link game data, execute GOAL code, or initialize an app runtime.
-  It therefore does not satisfy this stage's runtime initialization or
-  cross-compiled-library exit gates.
+  The CMake proof is not an app, signing, simulator, device, GOAL-execution, or
+  live-runtime proof. It therefore does not satisfy this stage's runtime
+  initialization or cross-compiled-library exit gates.
 
 ## Stage 6 — Complete the Apple platform layer
 
@@ -599,8 +606,8 @@ owner, access policy, and transport, then explicitly renews authentication.
 
 The next actions are:
 
-1. Integrate the already verified, portable Jak 1 data-arena header proof only
-   after a dedicated OpenGOAL fork makes child commit `5495181f` fetchable and
+1. Integrate the verified, portable Jak 1 data-arena 0013-0016 series only
+   after a dedicated OpenGOAL fork makes child commit `5ad2efa3` fetchable and
    pins it reproducibly. Do not copy the source into the app or use a
    machine-local worktree path.
 2. Then add the next smallest seam: a pure C++ arena-derived AOT call context

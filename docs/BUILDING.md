@@ -165,6 +165,8 @@ Apple SDK/test gate child: b094144b27af99abd2e3b6809e8f58f93d0fb15a
 Apple SDK/test gate patch: patches/OpenGOAL/0014-fix-build-preserve-Apple-SDK-selections-for-host-tes.patch
 Canonical data-arena bounds child: 5495181f304bb63b49a82e9067d59fd27a5dd6c8
 Canonical data-arena bounds patch: patches/OpenGOAL/0015-fix-kernel-preserve-canonical-Jak-1-data-arena-bound.patch
+Minimal iPhoneOS data-arena child: 5ad2efa3dac3febe642370aec39629b17039ead9
+Minimal iPhoneOS data-arena patch: patches/OpenGOAL/0016-build-ios-add-portable-Jak-1-data-arena-target-AI-as.patch
 ```
 
 Restore it into an isolated worktree:
@@ -218,6 +220,9 @@ git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
 
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0015-fix-kernel-preserve-canonical-Jak-1-data-arena-bound.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0016-build-ios-add-portable-Jak-1-data-arena-target-AI-as.patch"
 ```
 
 If that branch or worktree already exists, inspect and reuse it rather than
@@ -226,16 +231,60 @@ the unpublished child commit.
 
 The restored commits are patch-equivalent to `79f22008`, `149840cf`,
 `32cf26ae`, `92c8f975`, `b78d7c28`, `1fc20e79`, `25917e27`, `1c80b667`,
-`35d653f1`, `f979c82c`, `2475b3c1`, `9acf4e79`, `5c536859`, `b094144b`, and
-`5495181f`, but `git am` normally assigns new committer metadata and therefore
-different commit SHAs. The exact objects are available only in a checkout that
-already contains the original child commits. Compare the resulting tree or
-stable patch identities when reconstructing them from the preserved patches.
+`35d653f1`, `f979c82c`, `2475b3c1`, `9acf4e79`, `5c536859`, `b094144b`,
+`5495181f`, and `5ad2efa3`, but `git am` normally assigns new committer
+metadata and therefore different commit SHAs. The exact objects are available
+only in a checkout that already contains the original child commits. Compare
+the resulting tree or stable patch identities when reconstructing them from the
+preserved patches.
 
-Patches 0013 through 0015 are an ordered unit: 0013 creates the data-arena
+Patches 0013 through 0016 are an ordered unit: 0013 creates the data-arena
 source, library, and test; 0014 changes that new test's registration; 0015
-corrects 0013's arena bounds. Do not apply or preserve either fix without
-0013, and do not reorder the series.
+corrects 0013's arena bounds; and 0016 factors that exact library target into
+the minimal mode below. Do not apply or preserve a partial suffix, and do not
+reorder the series.
+
+### Validate the minimal iPhoneOS data-arena static library
+
+This checkpoint requires CMake 4.4.1 and builds only the portable
+`jak1-data-arena` archive. It is not an application, signing, simulator,
+device, runtime, or GOAL-execution validation.
+
+```sh
+cmake -S /private/tmp/GOALPadOpenGOAL-ios-data-arena \
+  -B /private/tmp/GOALPadOpenGOAL-ios-data-arena-iphoneos-minimal-build \
+  -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphoneos \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=18.0 \
+  -DOPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY=ON -DBUILD_TESTING=OFF
+
+cmake --build /private/tmp/GOALPadOpenGOAL-ios-data-arena-iphoneos-minimal-build \
+  --target jak1-data-arena -j 4
+
+cmake -S /private/tmp/GOALPadOpenGOAL-ios-data-arena \
+  -B /private/tmp/GOALPadOpenGOAL-ios-data-arena-host-minimal-build \
+  -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DOPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY=ON -DBUILD_TESTING=OFF
+
+cmake --build /private/tmp/GOALPadOpenGOAL-ios-data-arena-host-minimal-build \
+  --target jak1-data-arena -j 4
+```
+
+Both configurations and target builds exited `0`. The iPhoneOS cache records
+the iOS system name, `iphoneos` sysroot, arm64, deployment target 18.0, and
+the enabled minimal option. Its compile rule uses `-arch arm64`, the iPhoneOS
+26.5 SDK, and `-miphoneos-version-min=18.0`; the archive contains only
+`data_arena.cpp.o`. `lipo` reports arm64, the object reports `LC_BUILD_VERSION`
+platform iOS/minimum 18.0/SDK 26.5, and `nm -um` reports only system `_bzero`.
+The minimal Ninja graph has no curl, OpenSSL, SDL, runtime, goalc, gk, or gtest
+target.
+
+The same source definition is also exercised through normal host mode. Its
+focused data CTest passed 4/4, the pure compiler filter passed 122/122, and
+the full CTest suite passed 5/5. Minimal mode deliberately rejects
+`-DBUILD_TESTING=ON` before target generation; the expected rejected directory
+contains no `build.ninja` or archive. An unset testing value is also off because
+the mode returns before CTest is included. A cache file alone is not success.
 
 ### Validate the portable data-arena header proof
 
