@@ -1,14 +1,12 @@
 #include "GOALPadRuntimeCore.hpp"
 
+#include "GOALPadAOTExportRegistry.hpp"
+
 #include <array>
 #include <cstddef>
 #include <cstring>
 
-extern "C" std::uint64_t goalpad_aot_false_func();
-
 namespace {
-
-using GoalEntry = std::uint64_t (*)();
 
 struct GoalCallProbe {
   std::uint64_t entry_process = 0;
@@ -39,16 +37,16 @@ extern "C" std::uint64_t goalpad_probe_call_aot_with_state(
     std::uint64_t process,
     std::uint64_t symbol_table,
     std::uint64_t offset_base,
-    GoalEntry entry,
+    goalpad::AOTEntry0 entry,
     GoalCallProbe* probe);
 
-bool has_expected_jak1_false_func_arm64_code() {
+bool has_expected_jak1_false_func_arm64_code(goalpad::AOTEntry0 entry) {
 #if defined(__arm64__)
   constexpr std::array<unsigned char, 8> expected = {
       0xe0, 0x03, 0x15, 0xaa, 0xc0, 0x03, 0x5f, 0xd6,
   };
   std::array<unsigned char, expected.size()> actual{};
-  std::memcpy(actual.data(), reinterpret_cast<const void*>(&goalpad_aot_false_func), actual.size());
+  std::memcpy(actual.data(), reinterpret_cast<const void*>(entry), actual.size());
   return actual == expected;
 #else
   return false;
@@ -90,10 +88,16 @@ RuntimeStatus initialize_runtime(std::string storage_path) {
   RuntimeStatus status;
   status.architecture = architecture_name();
   status.storage_path = std::move(storage_path);
+  const auto* false_func = find_aot_export0("false-func");
+  if (!false_func || !false_func->entry) {
+    status.message = "Required signed ARM64 AOT export unavailable: false-func";
+    return status;
+  }
+
   status.workload_result = goalpad_probe_call_aot_with_state(
-      process, symbol_table, offset_base, &goalpad_aot_false_func, &probe);
+      process, symbol_table, offset_base, false_func->entry, &probe);
   status.workload_verified = status.workload_result == symbol_table &&
-                             has_expected_jak1_false_func_arm64_code() &&
+                             has_expected_jak1_false_func_arm64_code(false_func->entry) &&
                              has_expected_goal_state(probe, process, symbol_table, offset_base,
                                                      status.workload_result);
   status.message = status.workload_verified
