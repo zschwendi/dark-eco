@@ -6,8 +6,17 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A72000000000000000000001 /* data_arena.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A72000000000000000000011 /* data_arena.cpp */; };
+		A72000000000000000000002 /* data_arena_arm64_invoker.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A72000000000000000000012 /* data_arena_arm64_invoker.cpp */; };
+		A72000000000000000000003 /* data_arena_arm64_invoker.s in Sources */ = {isa = PBXBuildFile; fileRef = A72000000000000000000013 /* data_arena_arm64_invoker.s */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		92C2B202301C0D2F0025E4D5 /* GOALPad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GOALPad.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A72000000000000000000011 /* data_arena.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = data_arena.cpp; sourceTree = "<group>"; };
+		A72000000000000000000012 /* data_arena_arm64_invoker.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = data_arena_arm64_invoker.cpp; sourceTree = "<group>"; };
+		A72000000000000000000013 /* data_arena_arm64_invoker.s */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm; path = data_arena_arm64_invoker.s; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -33,6 +42,7 @@
 			isa = PBXGroup;
 			children = (
 				92C2B204301C0D2F0025E4D5 /* GOALPad */,
+				A72000000000000000000020 /* OpenGOAL Jak 1 Runtime */,
 				92C2B203301C0D2F0025E4D5 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -44,6 +54,17 @@
 			);
 			name = Products;
 			sourceTree = "<group>";
+		};
+		A72000000000000000000020 /* OpenGOAL Jak 1 Runtime */ = {
+			isa = PBXGroup;
+			children = (
+				A72000000000000000000011 /* data_arena.cpp */,
+				A72000000000000000000012 /* data_arena_arm64_invoker.cpp */,
+				A72000000000000000000013 /* data_arena_arm64_invoker.s */,
+			);
+			name = "OpenGOAL Jak 1 Runtime";
+			path = OpenGOAL/game/kernel/jak1;
+			sourceTree = SOURCE_ROOT;
 		};
 /* End PBXGroup section */
 
@@ -119,6 +140,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A72000000000000000000001 /* data_arena.cpp in Sources */,
+				A72000000000000000000002 /* data_arena_arm64_invoker.cpp in Sources */,
+				A72000000000000000000003 /* data_arena_arm64_invoker.s in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -254,6 +278,10 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/OpenGOAL",
+				);
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -299,6 +327,10 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/OpenGOAL",
+				);
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
