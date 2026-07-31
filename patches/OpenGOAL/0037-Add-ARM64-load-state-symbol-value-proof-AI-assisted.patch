@@ -1,0 +1,1236 @@
+From 0327eee4886f7a076d3b01f8e62afc3adddb8eeb Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Fri, 31 Jul 2026 06:12:24 -0600
+Subject: [PATCH] Add ARM64 load-state symbol value proof (AI-assisted)
+
+---
+ goalc/aot/AOTWriter.cpp                       | 163 +++++++++++++++++-
+ goalc/aot/AOTWriter.h                         |  21 +++
+ goalc/aot_main.cpp                            | 101 +++++++----
+ goalc/compiler/CodeGenerator.cpp              | 153 +++++++++++-----
+ goalc/compiler/CodeGenerator.h                |   3 +
+ goalc/compiler/Compiler.cpp                   |  23 +++
+ goalc/compiler/Compiler.h                     |   4 +
+ goalc/compiler/IR.h                           |   3 +
+ test/CMakeLists.txt                           |  36 +++-
+ ...te-value-from-jak1-load-boundary.exports.h |   4 +
+ ...oad-state-value-from-jak1-load-boundary.gc |  13 ++
+ ...load-state-value-from-jak1-load-boundary.s |  11 ++
+ ...m-jak1-load-boundary.symbol-value-offset.h |   4 +
+ test/goalc/test_arm64_aot.cpp                 | 101 +++++++++++
+ test/goalc/test_arm64_aot_cli.cmake           | 113 ++++++++++++
+ test/test_arm64_goal_call_abi.cpp             |  82 ++++++++-
+ 16 files changed, 752 insertions(+), 83 deletions(-)
+ create mode 100644 test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.exports.h
+ create mode 100644 test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.gc
+ create mode 100644 test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.s
+ create mode 100644 test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.symbol-value-offset.h
+
+diff --git a/goalc/aot/AOTWriter.cpp b/goalc/aot/AOTWriter.cpp
+index 20f18098..8006d0b6 100644
+--- a/goalc/aot/AOTWriter.cpp
++++ b/goalc/aot/AOTWriter.cpp
+@@ -42,14 +42,24 @@ void validate(const AppleArm64Function& function) {
+   }
+ }
+ 
++void validate(const AppleArm64LoadStateValueFunction& function) {
++  if (function.c_symbol != "goalpad_aot_load_state_value") {
++    throw std::invalid_argument(
++        "AOT load-state value proof requires goalpad_aot_load_state_value");
++  }
++}
++
+ void validate(const NativeExport0& native_export) {
+   const bool is_false_func = native_export.goal_name == "false-func" &&
+                              native_export.c_symbol == "goalpad_aot_false_func";
+   const bool is_true_func = native_export.goal_name == "true-func" &&
+                             native_export.c_symbol == "goalpad_aot_true_func";
+-  if (!is_false_func && !is_true_func) {
++  const bool is_load_state_value = native_export.goal_name == "load-state-value" &&
++                                   native_export.c_symbol == "goalpad_aot_load_state_value";
++  if (!is_false_func && !is_true_func && !is_load_state_value) {
+     throw std::invalid_argument(
+-        "AOT native export proof only supports false-func or true-func zero-argument artifacts");
++        "AOT native export proof only supports false-func, true-func, or load-state-value "
++        "zero-argument artifacts");
+   }
+ }
+ 
+@@ -94,6 +104,16 @@ void validate(const NativeExport3& native_export) {
+   }
+ }
+ 
++void validate(const SymbolValueOffset32& offset) {
++  if (offset.game_name != "jak1" || offset.goal_name != "*load-state*" ||
++      offset.value_type != "load-state" ||
++      offset.c_symbol != "goalpad_aot_jak1_load_state_symbol_offset") {
++    throw std::invalid_argument(
++        "AOT symbol-value-offset proof only supports Jak 1 *load-state* load-state values as "
++        "goalpad_aot_jak1_load_state_symbol_offset");
++  }
++}
++
+ std::filesystem::path normalized_path(const std::filesystem::path& path) {
+   return std::filesystem::weakly_canonical(std::filesystem::absolute(path));
+ }
+@@ -201,6 +221,102 @@ void write_apple_arm64_artifact_pair(const std::string& assembly_output_path,
+   }
+ }
+ 
++void write_apple_arm64_artifact_triplet(const std::string& assembly_output_path,
++                                        const std::string& export_output_path,
++                                        const std::string& data_output_path,
++                                        const std::string& assembly,
++                                        const std::string& native_export_source,
++                                        const std::string& data_source) {
++  if (normalized_path(assembly_output_path) == normalized_path(export_output_path) ||
++      normalized_path(assembly_output_path) == normalized_path(data_output_path) ||
++      normalized_path(export_output_path) == normalized_path(data_output_path)) {
++    throw std::invalid_argument("AOT assembly, export, and data output paths must differ");
++  }
++  validate_output_destination(assembly_output_path);
++  validate_output_destination(export_output_path);
++  validate_output_destination(data_output_path);
++  std::vector<std::filesystem::path> reserved_paths = {
++      assembly_output_path, export_output_path, data_output_path};
++  const auto assembly_staging_path =
++      make_auxiliary_path(assembly_output_path, "new", reserved_paths);
++  reserved_paths.push_back(assembly_staging_path);
++  const auto export_staging_path = make_auxiliary_path(export_output_path, "new", reserved_paths);
++  reserved_paths.push_back(export_staging_path);
++  const auto data_staging_path = make_auxiliary_path(data_output_path, "new", reserved_paths);
++  reserved_paths.push_back(data_staging_path);
++  const auto assembly_backup_path =
++      make_auxiliary_path(assembly_output_path, "backup", reserved_paths);
++  reserved_paths.push_back(assembly_backup_path);
++  const auto export_backup_path = make_auxiliary_path(export_output_path, "backup", reserved_paths);
++  reserved_paths.push_back(export_backup_path);
++  const auto data_backup_path = make_auxiliary_path(data_output_path, "backup", reserved_paths);
++  bool assembly_backup_created = false;
++  bool export_backup_created = false;
++  bool data_backup_created = false;
++  bool assembly_published = false;
++  bool export_published = false;
++  bool data_published = false;
++
++  try {
++    write_text_output(assembly_staging_path, assembly);
++    write_text_output(export_staging_path, native_export_source);
++    write_text_output(data_staging_path, data_source);
++    if (std::filesystem::exists(assembly_output_path)) {
++      std::filesystem::rename(assembly_output_path, assembly_backup_path);
++      assembly_backup_created = true;
++    }
++    if (std::filesystem::exists(export_output_path)) {
++      std::filesystem::rename(export_output_path, export_backup_path);
++      export_backup_created = true;
++    }
++    if (std::filesystem::exists(data_output_path)) {
++      std::filesystem::rename(data_output_path, data_backup_path);
++      data_backup_created = true;
++    }
++    std::filesystem::rename(assembly_staging_path, assembly_output_path);
++    assembly_published = true;
++    std::filesystem::rename(export_staging_path, export_output_path);
++    export_published = true;
++    std::filesystem::rename(data_staging_path, data_output_path);
++    data_published = true;
++  } catch (...) {
++    std::error_code ignored_error;
++    if (assembly_published) {
++      std::filesystem::remove(assembly_output_path, ignored_error);
++    }
++    if (export_published) {
++      std::filesystem::remove(export_output_path, ignored_error);
++    }
++    if (data_published) {
++      std::filesystem::remove(data_output_path, ignored_error);
++    }
++    if (assembly_backup_created) {
++      std::filesystem::rename(assembly_backup_path, assembly_output_path, ignored_error);
++    }
++    if (export_backup_created) {
++      std::filesystem::rename(export_backup_path, export_output_path, ignored_error);
++    }
++    if (data_backup_created) {
++      std::filesystem::rename(data_backup_path, data_output_path, ignored_error);
++    }
++    std::filesystem::remove(assembly_staging_path, ignored_error);
++    std::filesystem::remove(export_staging_path, ignored_error);
++    std::filesystem::remove(data_staging_path, ignored_error);
++    throw;
++  }
++
++  std::error_code ignored_error;
++  if (assembly_backup_created) {
++    std::filesystem::remove(assembly_backup_path, ignored_error);
++  }
++  if (export_backup_created) {
++    std::filesystem::remove(export_backup_path, ignored_error);
++  }
++  if (data_backup_created) {
++    std::filesystem::remove(data_backup_path, ignored_error);
++  }
++}
++
+ }  // namespace
+ 
+ std::string render_apple_arm64_assembly(const AppleArm64Function& function) {
+@@ -221,6 +337,23 @@ std::string render_apple_arm64_assembly(const AppleArm64Function& function) {
+   return output.str();
+ }
+ 
++std::string render_apple_arm64_load_state_value_assembly(
++    const AppleArm64LoadStateValueFunction& function) {
++  validate(function);
++
++  return ".section __TEXT,__text,regular,pure_instructions\n"
++         ".p2align 2\n"
++         ".globl _goalpad_aot_load_state_value\n"
++         ".extern _goalpad_aot_jak1_load_state_symbol_offset\n"
++         "_goalpad_aot_load_state_value:\n"
++         "  adrp x16, _goalpad_aot_jak1_load_state_symbol_offset@PAGE\n"
++         "  ldrsw x16, [x16, _goalpad_aot_jak1_load_state_symbol_offset@PAGEOFF]\n"
++         "  add x16, x21, x16\n"
++         "  ldr w0, [x16, x22]\n"
++         "  ret\n"
++         ".subsections_via_symbols\n";
++}
++
+ void write_apple_arm64_assembly(const std::string& output_path,
+                                 const AppleArm64Function& function) {
+   const auto assembly = render_apple_arm64_assembly(function);
+@@ -283,6 +416,18 @@ std::string render_cpp_xmacro_export3(const NativeExport3& native_export) {
+   return output.str();
+ }
+ 
++std::string render_cpp_xmacro_symbol_value_offset32(const SymbolValueOffset32& offset) {
++  validate(offset);
++  std::ostringstream output;
++  output << "#ifndef OPENGOAL_AOT_SYMBOL_VALUE_OFFSET32\n"
++         << "#error \"Define OPENGOAL_AOT_SYMBOL_VALUE_OFFSET32 before including this file.\"\n"
++         << "#endif\n"
++         << "OPENGOAL_AOT_SYMBOL_VALUE_OFFSET32(\"" << offset.game_name << "\", \""
++         << offset.goal_name << "\", \"" << offset.value_type << "\", " << offset.c_symbol
++         << ")\n";
++  return output.str();
++}
++
+ void write_apple_arm64_artifact_pair(const std::string& assembly_output_path,
+                                      const std::string& export_output_path,
+                                      const AppleArm64Function& function,
+@@ -293,6 +438,20 @@ void write_apple_arm64_artifact_pair(const std::string& assembly_output_path,
+                                   native_export_source);
+ }
+ 
++void write_apple_arm64_load_state_value_artifact(
++    const std::string& assembly_output_path,
++    const std::string& export_output_path,
++    const std::string& data_output_path,
++    const AppleArm64LoadStateValueFunction& function,
++    const NativeExport0& native_export,
++    const SymbolValueOffset32& offset) {
++  const auto assembly = render_apple_arm64_load_state_value_assembly(function);
++  const auto native_export_source = render_cpp_xmacro_export0(native_export);
++  const auto data_source = render_cpp_xmacro_symbol_value_offset32(offset);
++  write_apple_arm64_artifact_triplet(assembly_output_path, export_output_path, data_output_path,
++                                     assembly, native_export_source, data_source);
++}
++
+ void write_apple_arm64_artifact_pair(const std::string& assembly_output_path,
+                                      const std::string& export_output_path,
+                                      const AppleArm64Function& function,
+diff --git a/goalc/aot/AOTWriter.h b/goalc/aot/AOTWriter.h
+index 9e740f5e..7ff87f5f 100644
+--- a/goalc/aot/AOTWriter.h
++++ b/goalc/aot/AOTWriter.h
+@@ -11,6 +11,10 @@ struct AppleArm64Function {
+   std::vector<std::uint8_t> code;
+ };
+ 
++struct AppleArm64LoadStateValueFunction {
++  std::string c_symbol;
++};
++
+ struct NativeExport0 {
+   std::string goal_name;
+   std::string c_symbol;
+@@ -31,12 +35,22 @@ struct NativeExport3 {
+   std::string c_symbol;
+ };
+ 
++struct SymbolValueOffset32 {
++  std::string game_name;
++  std::string goal_name;
++  std::string value_type;
++  std::string c_symbol;
++};
++
+ std::string render_apple_arm64_assembly(const AppleArm64Function& function);
++std::string render_apple_arm64_load_state_value_assembly(
++    const AppleArm64LoadStateValueFunction& function);
+ void write_apple_arm64_assembly(const std::string& output_path, const AppleArm64Function& function);
+ std::string render_cpp_xmacro_export0(const NativeExport0& native_export);
+ std::string render_cpp_xmacro_export1(const NativeExport1& native_export);
+ std::string render_cpp_xmacro_export2(const NativeExport2& native_export);
+ std::string render_cpp_xmacro_export3(const NativeExport3& native_export);
++std::string render_cpp_xmacro_symbol_value_offset32(const SymbolValueOffset32& offset);
+ void write_apple_arm64_artifact_pair(const std::string& assembly_output_path,
+                                      const std::string& export_output_path,
+                                      const AppleArm64Function& function,
+@@ -53,5 +67,12 @@ void write_apple_arm64_artifact_pair(const std::string& assembly_output_path,
+                                      const std::string& export_output_path,
+                                      const AppleArm64Function& function,
+                                      const NativeExport3& native_export);
++void write_apple_arm64_load_state_value_artifact(
++    const std::string& assembly_output_path,
++    const std::string& export_output_path,
++    const std::string& data_output_path,
++    const AppleArm64LoadStateValueFunction& function,
++    const NativeExport0& native_export,
++    const SymbolValueOffset32& offset);
+ 
+ }  // namespace aot
+diff --git a/goalc/aot_main.cpp b/goalc/aot_main.cpp
+index a4c5d42f..41c9f4c9 100644
+--- a/goalc/aot_main.cpp
++++ b/goalc/aot_main.cpp
+@@ -20,13 +20,15 @@ struct Options {
+   std::string symbol = "goalpad_aot_entry";
+   std::optional<std::string> function_name;
+   std::optional<std::string> exports_output_path;
++  std::optional<std::string> symbol_value_offset_output_path;
+ };
+ 
+ void print_usage() {
+   std::fprintf(stderr,
+                "Usage: goalc-aot --input SOURCE.gc --output BUILD_OUTPUT.s "
+                "[--project-path OPENGOAL_ROOT] [--symbol C_SYMBOL] "
+-               "[--function GOAL_FUNCTION] [--exports-output BUILD_OUTPUT.inc]\n");
++               "[--function GOAL_FUNCTION] [--exports-output BUILD_OUTPUT.inc] "
++               "[--symbol-value-offset-output BUILD_OUTPUT.inc]\n");
+ }
+ 
+ bool parse_options(int argc, char** argv, Options* options) {
+@@ -37,7 +39,8 @@ bool parse_options(int argc, char** argv, Options* options) {
+       return false;
+     }
+     if (argument == "--input" || argument == "--output" || argument == "--project-path" ||
+-        argument == "--symbol" || argument == "--function" || argument == "--exports-output") {
++        argument == "--symbol" || argument == "--function" || argument == "--exports-output" ||
++        argument == "--symbol-value-offset-output") {
+       if (++i == argc) {
+         std::fprintf(stderr, "Missing value for %s\n", argument.c_str());
+         return false;
+@@ -52,8 +55,10 @@ bool parse_options(int argc, char** argv, Options* options) {
+         options->symbol = argv[i];
+       } else if (argument == "--function") {
+         options->function_name = argv[i];
+-      } else {
++      } else if (argument == "--exports-output") {
+         options->exports_output_path = argv[i];
++      } else {
++        options->symbol_value_offset_output_path = argv[i];
+       }
+       continue;
+     }
+@@ -70,6 +75,14 @@ bool parse_options(int argc, char** argv, Options* options) {
+     std::fprintf(stderr, "--exports-output requires --function.\n");
+     return false;
+   }
++  if (options->symbol_value_offset_output_path && !options->function_name) {
++    std::fprintf(stderr, "--symbol-value-offset-output requires --function.\n");
++    return false;
++  }
++  if (options->symbol_value_offset_output_path && !options->exports_output_path) {
++    std::fprintf(stderr, "--symbol-value-offset-output requires --exports-output.\n");
++    return false;
++  }
+   return true;
+ }
+ 
+@@ -112,38 +125,68 @@ int main(int argc, char** argv) {
+         output_paths_alias(options.output_path, *options.exports_output_path)) {
+       throw std::invalid_argument("--exports-output must differ from --output");
+     }
++    if (options.symbol_value_offset_output_path &&
++        output_paths_alias(options.output_path, *options.symbol_value_offset_output_path)) {
++      throw std::invalid_argument("--symbol-value-offset-output must differ from --output");
++    }
++    if (options.exports_output_path && options.symbol_value_offset_output_path &&
++        output_paths_alias(*options.exports_output_path,
++                           *options.symbol_value_offset_output_path)) {
++      throw std::invalid_argument(
++          "--symbol-value-offset-output must differ from --exports-output");
++    }
+ 
+     Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
+     const auto source = file_util::read_text_file(options.input_path);
+-    const auto code =
+-        compiler.compile_arm64_aot_source(source, options.input_path, options.function_name);
+-    if (options.exports_output_path) {
+-      if (*options.function_name == "false-func" || *options.function_name == "true-func") {
+-        aot::write_apple_arm64_artifact_pair(options.output_path, *options.exports_output_path,
+-                                             {options.symbol, code},
+-                                             aot::NativeExport0{*options.function_name, options.symbol});
+-      } else if (*options.function_name == "identity" || *options.function_name == "lognot" ||
+-                 *options.function_name == "glst-node-name" || *options.function_name == "reset!") {
+-        aot::write_apple_arm64_artifact_pair(
+-            options.output_path, *options.exports_output_path, {options.symbol, code},
+-            aot::NativeExport1{*options.function_name, options.symbol});
+-      } else if (*options.function_name == "level-group-load-commands-set!" ||
+-                 *options.function_name == "want-vis") {
+-        aot::write_apple_arm64_artifact_pair(
+-            options.output_path, *options.exports_output_path, {options.symbol, code},
+-            aot::NativeExport2{*options.function_name, options.symbol});
+-      } else if (*options.function_name == "want-levels") {
+-        aot::write_apple_arm64_artifact_pair(
+-            options.output_path, *options.exports_output_path, {options.symbol, code},
+-            aot::NativeExport3{*options.function_name, options.symbol});
+-      } else {
++    if (options.function_name && *options.function_name == "load-state-value") {
++      if (!options.exports_output_path || !options.symbol_value_offset_output_path) {
+         throw std::invalid_argument(
+-            "AOT native export proof only supports false-func, true-func, identity, lognot, or "
+-            "glst-node-name, reset!, level-group-load-commands-set!, want-vis, or want-levels "
+-            "function artifacts");
++            "load-state-value requires --exports-output and --symbol-value-offset-output");
+       }
++      compiler.validate_arm64_aot_load_state_value_source(source, options.input_path,
++                                                           options.function_name);
++      aot::write_apple_arm64_load_state_value_artifact(
++          options.output_path, *options.exports_output_path,
++          *options.symbol_value_offset_output_path, {options.symbol},
++          aot::NativeExport0{*options.function_name, options.symbol},
++          aot::SymbolValueOffset32{"jak1", "*load-state*", "load-state",
++                                   "goalpad_aot_jak1_load_state_symbol_offset"});
+     } else {
+-      aot::write_apple_arm64_assembly(options.output_path, {options.symbol, code});
++      if (options.symbol_value_offset_output_path) {
++        throw std::invalid_argument(
++            "--symbol-value-offset-output only supports the load-state-value artifact");
++      }
++      const auto code =
++          compiler.compile_arm64_aot_source(source, options.input_path, options.function_name);
++      if (options.exports_output_path) {
++        if (*options.function_name == "false-func" || *options.function_name == "true-func") {
++          aot::write_apple_arm64_artifact_pair(
++              options.output_path, *options.exports_output_path, {options.symbol, code},
++              aot::NativeExport0{*options.function_name, options.symbol});
++        } else if (*options.function_name == "identity" || *options.function_name == "lognot" ||
++                   *options.function_name == "glst-node-name" ||
++                   *options.function_name == "reset!") {
++          aot::write_apple_arm64_artifact_pair(
++              options.output_path, *options.exports_output_path, {options.symbol, code},
++              aot::NativeExport1{*options.function_name, options.symbol});
++        } else if (*options.function_name == "level-group-load-commands-set!" ||
++                   *options.function_name == "want-vis") {
++          aot::write_apple_arm64_artifact_pair(
++              options.output_path, *options.exports_output_path, {options.symbol, code},
++              aot::NativeExport2{*options.function_name, options.symbol});
++        } else if (*options.function_name == "want-levels") {
++          aot::write_apple_arm64_artifact_pair(
++              options.output_path, *options.exports_output_path, {options.symbol, code},
++              aot::NativeExport3{*options.function_name, options.symbol});
++        } else {
++          throw std::invalid_argument(
++              "AOT native export proof only supports false-func, true-func, identity, lognot, or "
++              "glst-node-name, reset!, level-group-load-commands-set!, want-vis, or want-levels "
++              "function artifacts");
++        }
++      } else {
++        aot::write_apple_arm64_assembly(options.output_path, {options.symbol, code});
++      }
+     }
+   } catch (const std::exception& error) {
+     std::fprintf(stderr, "goalc-aot: %s\n", error.what());
+diff --git a/goalc/compiler/CodeGenerator.cpp b/goalc/compiler/CodeGenerator.cpp
+index ccc7e551..598777c1 100644
+--- a/goalc/compiler/CodeGenerator.cpp
++++ b/goalc/compiler/CodeGenerator.cpp
+@@ -586,47 +586,7 @@ CodeGenerator::CodeGenerator(FileEnv* env,
+                              InstructionSet instruction_set)
+     : m_gen(version, instruction_set), m_fe(env), m_debug_info(debug_info) {}
+ 
+-/*!
+- * Generate an object file.
+- */
+-std::vector<u8> CodeGenerator::run(const TypeSystem* ts) {
+-  std::unordered_set<std::string> function_names;
+-
+-  // first, add each function to the ObjectGenerator (but don't add any data)
+-  for (auto& f : m_fe->functions()) {
+-    if (function_names.find(f->name()) == function_names.end()) {
+-      function_names.insert(f->name());
+-    } else {
+-      printf("Failed to codegen, there are two functions with internal names [%s]\n",
+-             f->name().c_str());
+-      throw std::runtime_error("Failed to codegen.");
+-    }
+-    auto rec =
+-        m_gen.add_function_to_seg(f->segment, &m_debug_info->add_function(f->name(), m_fe->name()));
+-    for (auto& x : f->code_source()) {
+-      rec.debug->code_sources.push_back(x.heap_obj);
+-    }
+-    for (auto& x : f->code()) {
+-      rec.debug->ir_strings.push_back(x->print());
+-    }
+-    record_local_variables(f.get(), rec.debug);
+-  }
+-
+-  // next, add all static objects.
+-  for (auto& static_obj : m_fe->statics()) {
+-    static_obj->generate(&m_gen);
+-  }
+-
+-  // next, add instructions to functions
+-  for (size_t i = 0; i < m_fe->functions().size(); i++) {
+-    do_function(m_fe->functions().at(i).get(), i);
+-  }
+-
+-  // generate a v3 object.
+-  return m_gen.generate_data_v3(ts).to_vector();
+-}
+-
+-std::vector<u8> CodeGenerator::run_arm64_aot_function(
++FunctionEnv* CodeGenerator::select_arm64_aot_function(
+     const std::optional<std::string>& function_name) {
+   if (m_gen.instr_set() != InstructionSet::ARM64) {
+     throw std::runtime_error("ARM64 AOT proof requires the ARM64 instruction set.");
+@@ -645,8 +605,8 @@ std::vector<u8> CodeGenerator::run_arm64_aot_function(
+       }
+     }
+     if (!function) {
+-      throw std::runtime_error(fmt::format(
+-          "ARM64 AOT function '{}' was not found in the compiled source.", *function_name));
++      throw std::runtime_error(
++          fmt::format("ARM64 AOT function '{}' was not found in the compiled source.", *function_name));
+     }
+     if (matching_functions != 1) {
+       throw std::runtime_error(
+@@ -685,6 +645,53 @@ std::vector<u8> CodeGenerator::run_arm64_aot_function(
+     ASSERT(function);
+   }
+ 
++  return function;
++}
++
++/*!
++ * Generate an object file.
++ */
++std::vector<u8> CodeGenerator::run(const TypeSystem* ts) {
++  std::unordered_set<std::string> function_names;
++
++  // first, add each function to the ObjectGenerator (but don't add any data)
++  for (auto& f : m_fe->functions()) {
++    if (function_names.find(f->name()) == function_names.end()) {
++      function_names.insert(f->name());
++    } else {
++      printf("Failed to codegen, there are two functions with internal names [%s]\n",
++             f->name().c_str());
++      throw std::runtime_error("Failed to codegen.");
++    }
++    auto rec =
++        m_gen.add_function_to_seg(f->segment, &m_debug_info->add_function(f->name(), m_fe->name()));
++    for (auto& x : f->code_source()) {
++      rec.debug->code_sources.push_back(x.heap_obj);
++    }
++    for (auto& x : f->code()) {
++      rec.debug->ir_strings.push_back(x->print());
++    }
++    record_local_variables(f.get(), rec.debug);
++  }
++
++  // next, add all static objects.
++  for (auto& static_obj : m_fe->statics()) {
++    static_obj->generate(&m_gen);
++  }
++
++  // next, add instructions to functions
++  for (size_t i = 0; i < m_fe->functions().size(); i++) {
++    do_function(m_fe->functions().at(i).get(), i);
++  }
++
++  // generate a v3 object.
++  return m_gen.generate_data_v3(ts).to_vector();
++}
++
++std::vector<u8> CodeGenerator::run_arm64_aot_function(
++    const std::optional<std::string>& function_name) {
++  auto* function = select_arm64_aot_function(function_name);
++
+   auto rec = m_gen.add_function_to_seg(function->segment,
+                                        &m_debug_info->add_function(function->name(), m_fe->name()));
+   for (const auto& source : function->code_source()) {
+@@ -699,6 +706,66 @@ std::vector<u8> CodeGenerator::run_arm64_aot_function(
+   return m_gen.materialize_arm64_function(rec);
+ }
+ 
++void CodeGenerator::validate_arm64_aot_load_state_value_function(
++    const std::optional<std::string>& function_name) {
++  if (!function_name || *function_name != "load-state-value") {
++    throw std::runtime_error("ARM64 AOT load-state value proof requires load-state-value.");
++  }
++
++  const auto* function = select_arm64_aot_function(function_name);
++  const auto& code = function->code();
++  const auto* reset = code.size() == 4 ? dynamic_cast<IR_ValueReset*>(code.at(0).get()) : nullptr;
++  const auto* symbol_value =
++      code.size() == 4 ? dynamic_cast<IR_GetSymbolValue*>(code.at(1).get()) : nullptr;
++  const auto* function_return =
++      code.size() == 4 ? dynamic_cast<IR_Return*>(code.at(2).get()) : nullptr;
++  const auto& allocations = function->allocations();
++  const auto is_allocated_to = [&allocations](const RegVal* value,
++                                              int instruction,
++                                              emitter::Register expected) {
++    if (!value) {
++      return false;
++    }
++    const auto ireg_id = value->ireg().id;
++    if (ireg_id < 0 || ireg_id >= int(allocations.ass_as_ranges.size())) {
++      return false;
++    }
++    const auto& assignments = allocations.ass_as_ranges.at(ireg_id);
++    if (!assignments.is_live_at_instr(instruction)) {
++      return false;
++    }
++    const auto& assignment = assignments.get(instruction);
++    return assignment.kind == Assignment::Kind::REGISTER && assignment.reg == expected;
++  };
++  const auto abi_return_register = get_register_info(InstructionSet::ARM64).get_gpr_ret_reg();
++  const bool has_no_spill_ops = std::all_of(
++      allocations.stack_ops.begin(), allocations.stack_ops.end(),
++      [](const auto& operations) { return operations.ops.empty(); });
++  const bool has_no_frame_state = allocations.ok && allocations.used_saved_regs.empty() &&
++                                  allocations.stack_slots_for_spills == 0 &&
++                                  allocations.stack_slots_for_vars == 0 &&
++                                  has_no_spill_ops &&
++                                  !allocations.needs_aligned_stack_for_spills &&
++                                  !function->needs_aligned_stack() &&
++                                  function->stack_slots_used_for_stack_vars() == 0;
++  const bool supported =
++      reset && reset->has_no_args() && symbol_value && function_return &&
++      dynamic_cast<IR_Null*>(code.at(3).get()) && function->name() == "load-state-value" &&
++      function->params.empty() && function->code_source().size() == 4 && has_no_frame_state &&
++      symbol_value->source()->name() == "*load-state*" &&
++      symbol_value->destination()->type() == TypeSpec("load-state") && !symbol_value->sign_extend() &&
++      function_return->value() == symbol_value->destination() &&
++      function_return->return_register()->type() == TypeSpec("none") &&
++      is_allocated_to(symbol_value->destination(), 1, abi_return_register) &&
++      is_allocated_to(symbol_value->destination(), 2, abi_return_register) &&
++      is_allocated_to(function_return->return_register(), 2, abi_return_register);
++  if (!supported) {
++    throw std::runtime_error(
++        "ARM64 AOT load-state value proof only supports an unsigned *load-state* read with no "
++        "arguments, method lookup, or function call.");
++  }
++}
++
+ void CodeGenerator::do_function(FunctionEnv* env, int f_idx) {
+   if (env->is_asm_func) {
+     if (m_gen.instr_set() == InstructionSet::X86) {
+diff --git a/goalc/compiler/CodeGenerator.h b/goalc/compiler/CodeGenerator.h
+index 9f395e48..1a057242 100644
+--- a/goalc/compiler/CodeGenerator.h
++++ b/goalc/compiler/CodeGenerator.h
+@@ -28,9 +28,12 @@ class CodeGenerator {
+   std::vector<u8> run(const TypeSystem* ts);
+   std::vector<u8> run_arm64_aot_function(
+       const std::optional<std::string>& function_name = std::nullopt);
++  void validate_arm64_aot_load_state_value_function(
++      const std::optional<std::string>& function_name);
+   emitter::ObjectGeneratorStats get_obj_stats() const { return m_gen.get_stats(); }
+ 
+  private:
++  FunctionEnv* select_arm64_aot_function(const std::optional<std::string>& function_name);
+   void do_function(FunctionEnv* env, int f_idx);
+   void do_goal_function_x86(FunctionEnv* env, int f_idx);
+   void do_goal_function_arm64(FunctionEnv* env, int f_idx);
+diff --git a/goalc/compiler/Compiler.cpp b/goalc/compiler/Compiler.cpp
+index 3c5b00ae..9e0fb66d 100644
+--- a/goalc/compiler/Compiler.cpp
++++ b/goalc/compiler/Compiler.cpp
+@@ -344,6 +344,29 @@ std::vector<u8> Compiler::compile_arm64_aot_source(
+   return {};
+ }
+ 
++void Compiler::validate_arm64_aot_load_state_value_source(
++    const std::string& source,
++    const std::string& object_name,
++    const std::optional<std::string>& function_name) {
++  if (m_instr_set != emitter::InstructionSet::ARM64) {
++    throw std::runtime_error("ARM64 AOT load-state value proof requires the ARM64 instruction set.");
++  }
++
++  auto code = m_goos.reader.read_from_string(source, true);
++  auto* object_file = compile_object_file(object_name, std::move(code), true);
++  color_object_file(object_file);
++
++  try {
++    auto debug_info = &m_debugger.get_debug_info_for_object(object_file->name());
++    debug_info->clear();
++    CodeGenerator gen(object_file, debug_info, m_version, m_instr_set);
++    gen.validate_arm64_aot_load_state_value_function(function_name);
++    object_file->cleanup_after_codegen();
++  } catch (std::exception& e) {
++    throw_compiler_error_no_code("Error during ARM64 AOT load-state value validation: {}", e.what());
++  }
++}
++
+ std::vector<u8> Compiler::codegen_object_file(FileEnv* env) {
+   try {
+     auto debug_info = &m_debugger.get_debug_info_for_object(env->name());
+diff --git a/goalc/compiler/Compiler.h b/goalc/compiler/Compiler.h
+index b9512209..69063a20 100644
+--- a/goalc/compiler/Compiler.h
++++ b/goalc/compiler/Compiler.h
+@@ -83,6 +83,10 @@ class Compiler {
+   std::vector<u8> compile_arm64_aot_source(const std::string& source,
+                                            const std::string& object_name,
+                                            const std::optional<std::string>& function_name);
++  void validate_arm64_aot_load_state_value_source(
++      const std::string& source,
++      const std::string& object_name,
++      const std::optional<std::string>& function_name);
+   void shutdown_target();
+   void enable_throw_on_redefines() { m_throw_on_define_extern_redefinition = true; }
+   void add_ignored_define_extern_symbol(const std::string& name) {
+diff --git a/goalc/compiler/IR.h b/goalc/compiler/IR.h
+index e65f1b7b..fc314262 100644
+--- a/goalc/compiler/IR.h
++++ b/goalc/compiler/IR.h
+@@ -115,6 +115,9 @@ class IR_GetSymbolValue : public IR {
+   void do_codegen_arm64(emitter::ObjectGenerator* gen,
+                         const AllocationResult& allocs,
+                         emitter::IR_Record irec) override;
++  const RegVal* destination() const { return m_dest; }
++  const SymbolVal* source() const { return m_src; }
++  bool sign_extend() const { return m_sext; }
+ 
+  protected:
+   const RegVal* m_dest = nullptr;
+diff --git a/test/CMakeLists.txt b/test/CMakeLists.txt
+index 5156eba5..708280d3 100644
+--- a/test/CMakeLists.txt
++++ b/test/CMakeLists.txt
+@@ -89,6 +89,12 @@ if(BUILD_TESTING AND GOAL_HOST_TESTS_ENABLED AND APPLE AND CMAKE_SYSTEM_PROCESSO
+       "${ARM64_GOAL_CALL_AOT_DIR}/OpenGOALJak1LoadStateReset.s")
+   set(ARM64_GOAL_CALL_AOT_LOAD_STATE_RESET_EXPORTS
+       "${ARM64_GOAL_CALL_AOT_DIR}/OpenGOALJak1LoadStateReset.exports.h")
++  set(ARM64_GOAL_CALL_AOT_LOAD_STATE_VALUE_ASSEMBLY
++      "${ARM64_GOAL_CALL_AOT_DIR}/OpenGOALJak1LoadStateValue.s")
++  set(ARM64_GOAL_CALL_AOT_LOAD_STATE_VALUE_EXPORTS
++      "${ARM64_GOAL_CALL_AOT_DIR}/OpenGOALJak1LoadStateValue.exports.h")
++  set(ARM64_GOAL_CALL_AOT_LOAD_STATE_VALUE_SYMBOL_VALUE_OFFSET
++      "${ARM64_GOAL_CALL_AOT_DIR}/OpenGOALJak1LoadStateValue.symbol-value-offset.h")
+   set(ARM64_GOAL_CALL_AOT_ASSEMBLIES
+       ${ARM64_GOAL_CALL_AOT_FALSE_ASSEMBLY}
+       ${ARM64_GOAL_CALL_AOT_TRUE_ASSEMBLY}
+@@ -98,8 +104,9 @@ if(BUILD_TESTING AND GOAL_HOST_TESTS_ENABLED AND APPLE AND CMAKE_SYSTEM_PROCESSO
+       ${ARM64_GOAL_CALL_AOT_LEVEL_GROUP_LOAD_COMMANDS_SET_ASSEMBLY}
+       ${ARM64_GOAL_CALL_AOT_WANT_VIS_ASSEMBLY}
+       ${ARM64_GOAL_CALL_AOT_WANT_LEVELS_ASSEMBLY}
+-      ${ARM64_GOAL_CALL_AOT_LOAD_STATE_RESET_ASSEMBLY})
+-  set(ARM64_GOAL_CALL_AOT_EXPORTS
++      ${ARM64_GOAL_CALL_AOT_LOAD_STATE_RESET_ASSEMBLY}
++      ${ARM64_GOAL_CALL_AOT_LOAD_STATE_VALUE_ASSEMBLY})
++  set(ARM64_GOAL_CALL_AOT_METADATA
+       ${ARM64_GOAL_CALL_AOT_FALSE_EXPORTS}
+       ${ARM64_GOAL_CALL_AOT_TRUE_EXPORTS}
+       ${ARM64_GOAL_CALL_AOT_IDENTITY_EXPORTS}
+@@ -108,10 +115,12 @@ if(BUILD_TESTING AND GOAL_HOST_TESTS_ENABLED AND APPLE AND CMAKE_SYSTEM_PROCESSO
+       ${ARM64_GOAL_CALL_AOT_LEVEL_GROUP_LOAD_COMMANDS_SET_EXPORTS}
+       ${ARM64_GOAL_CALL_AOT_WANT_VIS_EXPORTS}
+       ${ARM64_GOAL_CALL_AOT_WANT_LEVELS_EXPORTS}
+-      ${ARM64_GOAL_CALL_AOT_LOAD_STATE_RESET_EXPORTS})
++      ${ARM64_GOAL_CALL_AOT_LOAD_STATE_RESET_EXPORTS}
++      ${ARM64_GOAL_CALL_AOT_LOAD_STATE_VALUE_EXPORTS}
++      ${ARM64_GOAL_CALL_AOT_LOAD_STATE_VALUE_SYMBOL_VALUE_OFFSET})
+ 
+   add_custom_command(
+-      OUTPUT ${ARM64_GOAL_CALL_AOT_ASSEMBLIES} ${ARM64_GOAL_CALL_AOT_EXPORTS}
++      OUTPUT ${ARM64_GOAL_CALL_AOT_ASSEMBLIES} ${ARM64_GOAL_CALL_AOT_METADATA}
+       COMMAND ${CMAKE_COMMAND} -E make_directory "${ARM64_GOAL_CALL_AOT_DIR}"
+       COMMAND $<TARGET_FILE:goalc-aot>
+               --project-path "${CMAKE_SOURCE_DIR}"
+@@ -185,6 +194,16 @@ if(BUILD_TESTING AND GOAL_HOST_TESTS_ENABLED AND APPLE AND CMAKE_SYSTEM_PROCESSO
+               --output "${ARM64_GOAL_CALL_AOT_LOAD_STATE_RESET_ASSEMBLY}"
+               --exports-output "${ARM64_GOAL_CALL_AOT_LOAD_STATE_RESET_EXPORTS}"
+               --symbol goalpad_aot_load_state_reset
++      COMMAND $<TARGET_FILE:goalc-aot>
++              --project-path "${CMAKE_SOURCE_DIR}"
++              --input
++              "${ARM64_GOAL_CALL_AOT_SOURCE_DIR}/full-load-state-value-from-jak1-load-boundary.gc"
++              --function load-state-value
++              --output "${ARM64_GOAL_CALL_AOT_LOAD_STATE_VALUE_ASSEMBLY}"
++              --exports-output "${ARM64_GOAL_CALL_AOT_LOAD_STATE_VALUE_EXPORTS}"
++              --symbol-value-offset-output
++              "${ARM64_GOAL_CALL_AOT_LOAD_STATE_VALUE_SYMBOL_VALUE_OFFSET}"
++              --symbol goalpad_aot_load_state_value
+       DEPENDS
+               goalc-aot
+               "${ARM64_GOAL_CALL_AOT_SOURCE_DIR}/full-false-func-from-jak1-gcommon.gc"
+@@ -196,17 +215,18 @@ if(BUILD_TESTING AND GOAL_HOST_TESTS_ENABLED AND APPLE AND CMAKE_SYSTEM_PROCESSO
+               "${ARM64_GOAL_CALL_AOT_SOURCE_DIR}/full-want-vis-from-jak1-load-boundary.gc"
+               "${ARM64_GOAL_CALL_AOT_SOURCE_DIR}/full-want-levels-from-jak1-load-boundary.gc"
+               "${ARM64_GOAL_CALL_AOT_SOURCE_DIR}/full-load-state-reset-from-jak1-load-boundary.gc"
++              "${ARM64_GOAL_CALL_AOT_SOURCE_DIR}/full-load-state-value-from-jak1-load-boundary.gc"
+       COMMENT "Generating Jak 1 ARM64 AOT call artifacts"
+       VERBATIM)
+ 
+   add_custom_target(
+       arm64-goal-call-aot-artifacts
+-      DEPENDS ${ARM64_GOAL_CALL_AOT_ASSEMBLIES} ${ARM64_GOAL_CALL_AOT_EXPORTS})
++      DEPENDS ${ARM64_GOAL_CALL_AOT_ASSEMBLIES} ${ARM64_GOAL_CALL_AOT_METADATA})
+   set_source_files_properties(
+-      ${ARM64_GOAL_CALL_AOT_ASSEMBLIES} ${ARM64_GOAL_CALL_AOT_EXPORTS}
++      ${ARM64_GOAL_CALL_AOT_ASSEMBLIES} ${ARM64_GOAL_CALL_AOT_METADATA}
+       PROPERTIES GENERATED TRUE)
+   set_source_files_properties(
+-      ${ARM64_GOAL_CALL_AOT_EXPORTS}
++      ${ARM64_GOAL_CALL_AOT_METADATA}
+       PROPERTIES HEADER_FILE_ONLY TRUE)
+ 
+   add_executable(arm64-goal-call-abi-test
+@@ -214,7 +234,7 @@ if(BUILD_TESTING AND GOAL_HOST_TESTS_ENABLED AND APPLE AND CMAKE_SYSTEM_PROCESSO
+                  ${CMAKE_CURRENT_LIST_DIR}/test_arm64_goal_call_abi.s
+                  ${CMAKE_SOURCE_DIR}/game/kernel/asm_funcs_arm64.s
+                  ${ARM64_GOAL_CALL_AOT_ASSEMBLIES}
+-                 ${ARM64_GOAL_CALL_AOT_EXPORTS})
++                 ${ARM64_GOAL_CALL_AOT_METADATA})
+   add_dependencies(arm64-goal-call-abi-test arm64-goal-call-aot-artifacts)
+   target_include_directories(arm64-goal-call-abi-test
+                              PRIVATE "${ARM64_GOAL_CALL_AOT_DIR}")
+diff --git a/test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.exports.h b/test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.exports.h
+new file mode 100644
+index 00000000..be5a48e3
+--- /dev/null
++++ b/test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.exports.h
+@@ -0,0 +1,4 @@
++#ifndef OPENGOAL_AOT_EXPORT0
++#error "Define OPENGOAL_AOT_EXPORT0 before including this file."
++#endif
++OPENGOAL_AOT_EXPORT0("load-state-value", goalpad_aot_load_state_value)
+diff --git a/test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.gc b/test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.gc
+new file mode 100644
+index 00000000..fe6e2424
+--- /dev/null
++++ b/test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.gc
+@@ -0,0 +1,13 @@
++;; AOT-only direct symbol-value read for the *load-state* binding used by
++;; load-state wrappers in goal_src/jak1/engine/level/load-boundary.gc.
++;; The emitted Mach-O code reads the live GOAL symbol value through the
++;; signed S7-relative binding displacement; it does not define a shadow value.
++(deftype load-state (basic)
++  ()
++  :no-runtime-type
++  :no-inspect)
++
++(define-extern *load-state* load-state)
++
++(defun load-state-value ()
++  *load-state*)
+diff --git a/test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.s b/test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.s
+new file mode 100644
+index 00000000..fcd1f1ac
+--- /dev/null
++++ b/test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.s
+@@ -0,0 +1,11 @@
++.section __TEXT,__text,regular,pure_instructions
++.p2align 2
++.globl _goalpad_aot_load_state_value
++.extern _goalpad_aot_jak1_load_state_symbol_offset
++_goalpad_aot_load_state_value:
++  adrp x16, _goalpad_aot_jak1_load_state_symbol_offset@PAGE
++  ldrsw x16, [x16, _goalpad_aot_jak1_load_state_symbol_offset@PAGEOFF]
++  add x16, x21, x16
++  ldr w0, [x16, x22]
++  ret
++.subsections_via_symbols
+diff --git a/test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.symbol-value-offset.h b/test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.symbol-value-offset.h
+new file mode 100644
+index 00000000..ee217e2e
+--- /dev/null
++++ b/test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.symbol-value-offset.h
+@@ -0,0 +1,4 @@
++#ifndef OPENGOAL_AOT_SYMBOL_VALUE_OFFSET32
++#error "Define OPENGOAL_AOT_SYMBOL_VALUE_OFFSET32 before including this file."
++#endif
++OPENGOAL_AOT_SYMBOL_VALUE_OFFSET32("jak1", "*load-state*", "load-state", goalpad_aot_jak1_load_state_symbol_offset)
+diff --git a/test/goalc/test_arm64_aot.cpp b/test/goalc/test_arm64_aot.cpp
+index 50283ac8..dda3fa54 100644
+--- a/test/goalc/test_arm64_aot.cpp
++++ b/test/goalc/test_arm64_aot.cpp
+@@ -74,6 +74,11 @@ std::string read_load_state_reset_source() {
+       {"test/goalc/source_templates/arm64-aot/full-load-state-reset-from-jak1-load-boundary.gc"}));
+ }
+ 
++std::string read_load_state_value_source() {
++  return file_util::read_text_file(file_util::get_file_path(
++      {"test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.gc"}));
++}
++
+ void replace_once(std::string& source,
+                   const std::string& expected,
+                   const std::string& replacement) {
+@@ -96,6 +101,13 @@ void expect_load_state_reset_rejected(const std::string& source, const std::stri
+                std::runtime_error);
+ }
+ 
++void expect_load_state_value_rejected(const std::string& source, const std::string& object_name) {
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  EXPECT_THROW(compiler.validate_arm64_aot_load_state_value_source(
++                   source, object_name, std::optional<std::string>{"load-state-value"}),
++               std::runtime_error);
++}
++
+ }  // namespace
+ 
+ TEST(Arm64Aot, compiles_top_level_literal_and_renders_apple_text) {
+@@ -327,6 +339,95 @@ TEST(Arm64Aot, compiles_full_jak1_load_state_reset_without_name_gating) {
+             code);
+ }
+ 
++TEST(Arm64Aot, validates_load_state_value_and_renders_signed_symbol_offset_metadata) {
++  const auto source = read_load_state_value_source();
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  EXPECT_NO_THROW(compiler.validate_arm64_aot_load_state_value_source(
++      source, "full-load-state-value-from-jak1-load-boundary",
++      std::optional<std::string>{"load-state-value"}));
++
++  EXPECT_EQ(aot::render_apple_arm64_load_state_value_assembly(
++                {"goalpad_aot_load_state_value"}),
++            ".section __TEXT,__text,regular,pure_instructions\n"
++            ".p2align 2\n"
++            ".globl _goalpad_aot_load_state_value\n"
++            ".extern _goalpad_aot_jak1_load_state_symbol_offset\n"
++            "_goalpad_aot_load_state_value:\n"
++            "  adrp x16, _goalpad_aot_jak1_load_state_symbol_offset@PAGE\n"
++            "  ldrsw x16, [x16, _goalpad_aot_jak1_load_state_symbol_offset@PAGEOFF]\n"
++            "  add x16, x21, x16\n"
++            "  ldr w0, [x16, x22]\n"
++            "  ret\n"
++            ".subsections_via_symbols\n");
++  EXPECT_EQ(aot::render_cpp_xmacro_export0(
++                {"load-state-value", "goalpad_aot_load_state_value"}),
++            "#ifndef OPENGOAL_AOT_EXPORT0\n"
++            "#error \"Define OPENGOAL_AOT_EXPORT0 before including this file.\"\n"
++            "#endif\n"
++            "OPENGOAL_AOT_EXPORT0(\"load-state-value\", goalpad_aot_load_state_value)\n");
++  EXPECT_EQ(aot::render_cpp_xmacro_symbol_value_offset32(
++                {"jak1", "*load-state*", "load-state",
++                 "goalpad_aot_jak1_load_state_symbol_offset"}),
++            "#ifndef OPENGOAL_AOT_SYMBOL_VALUE_OFFSET32\n"
++            "#error \"Define OPENGOAL_AOT_SYMBOL_VALUE_OFFSET32 before including this file.\"\n"
++            "#endif\n"
++            "OPENGOAL_AOT_SYMBOL_VALUE_OFFSET32(\"jak1\", \"*load-state*\", \"load-state\", "
++            "goalpad_aot_jak1_load_state_symbol_offset)\n");
++}
++
++TEST(Arm64Aot, rejects_load_state_value_mutations) {
++  auto source = read_load_state_value_source();
++  replace_once(source, "(defun load-state-value ()", "(defun load-state-value ((arg object))");
++  expect_load_state_value_rejected(source, "load-state-value-with-argument");
++
++  source = read_load_state_value_source();
++  const auto value_position = source.rfind("*load-state*");
++  ASSERT_NE(value_position, std::string::npos);
++  source.replace(value_position, std::string("*load-state*").size(), "#f");
++  expect_load_state_value_rejected(source, "load-state-value-with-false-body");
++
++  source = read_load_state_value_source();
++  replace_once(source, "(define-extern *load-state* load-state)",
++               "(define-extern *load-state* object)");
++  expect_load_state_value_rejected(source, "load-state-value-with-object-global");
++
++  source = read_load_state_value_source();
++  source += "\n0\n";
++  expect_load_state_value_rejected(source, "load-state-value-with-extra-top-level-effect");
++
++  source = read_load_state_value_source();
++  source += "\n(defun another-load-state-value () *load-state*)\n";
++  expect_load_state_value_rejected(source, "load-state-value-with-extra-function");
++
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  EXPECT_THROW(compiler.validate_arm64_aot_load_state_value_source(
++                   read_load_state_value_source(), "load-state-value-under-other-name",
++                   std::optional<std::string>{"other"}),
++               std::runtime_error);
++}
++
++TEST(Arm64Aot, rejects_load_state_value_symbol_offset_metadata_mutations) {
++  EXPECT_THROW(aot::render_apple_arm64_load_state_value_assembly({"other-symbol"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export0({"load-state-value", "goalpad_aot_false_func"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_symbol_value_offset32(
++                   {"jak2", "*load-state*", "load-state",
++                    "goalpad_aot_jak1_load_state_symbol_offset"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_symbol_value_offset32(
++                   {"jak1", "*other-state*", "load-state",
++                    "goalpad_aot_jak1_load_state_symbol_offset"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_symbol_value_offset32(
++                   {"jak1", "*load-state*", "object",
++                    "goalpad_aot_jak1_load_state_symbol_offset"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_symbol_value_offset32(
++                   {"jak1", "*load-state*", "load-state", "goalpad_aot_jak1_other_offset"}),
++               std::invalid_argument);
++}
++
+ TEST(Arm64Aot, rejects_load_state_reset_with_different_required_body_data) {
+   auto source = read_load_state_reset_source();
+   replace_once(source, "((this load-state))", "((this load-state) (arg symbol))");
+diff --git a/test/goalc/test_arm64_aot_cli.cmake b/test/goalc/test_arm64_aot_cli.cmake
+index d1f0f4ac..305d5dce 100644
+--- a/test/goalc/test_arm64_aot_cli.cmake
++++ b/test/goalc/test_arm64_aot_cli.cmake
+@@ -1020,3 +1020,116 @@ if(NOT ACTUAL_WANT_LEVELS_CROSS_ASSEMBLY STREQUAL "old want-levels cross assembl
+    NOT ACTUAL_WANT_LEVELS_CROSS_EXPORTS STREQUAL "old want-levels cross exports\n")
+   message(FATAL_ERROR "Failed want-levels cross-arity validation modified an existing artifact")
+ endif()
++
++set(LOAD_STATE_VALUE_INPUT
++    "${PROJECT_ROOT}/test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.gc")
++set(LOAD_STATE_VALUE_GOLDEN
++    "${PROJECT_ROOT}/test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.s")
++set(LOAD_STATE_VALUE_EXPORTS_GOLDEN
++    "${PROJECT_ROOT}/test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.exports.h")
++set(LOAD_STATE_VALUE_OFFSET_GOLDEN
++    "${PROJECT_ROOT}/test/goalc/source_templates/arm64-aot/full-load-state-value-from-jak1-load-boundary.symbol-value-offset.h")
++set(LOAD_STATE_VALUE_ASSEMBLY "${OUTPUT_DIR}/load-state-value.s")
++set(LOAD_STATE_VALUE_EXPORTS "${OUTPUT_DIR}/load-state-value.exports.inc")
++set(LOAD_STATE_VALUE_OFFSET "${OUTPUT_DIR}/load-state-value.symbol-value-offset.inc")
++
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${LOAD_STATE_VALUE_INPUT}"
++          --function load-state-value
++          --output "${LOAD_STATE_VALUE_ASSEMBLY}"
++          --exports-output "${LOAD_STATE_VALUE_EXPORTS}"
++          --symbol-value-offset-output "${LOAD_STATE_VALUE_OFFSET}"
++          --symbol goalpad_aot_load_state_value
++  RESULT_VARIABLE LOAD_STATE_VALUE_RESULT)
++if(NOT LOAD_STATE_VALUE_RESULT EQUAL 0)
++  message(FATAL_ERROR "Signed load-state-value goalc-aot invocation failed")
++endif()
++
++file(READ "${LOAD_STATE_VALUE_GOLDEN}" EXPECTED_LOAD_STATE_VALUE_ASSEMBLY)
++file(READ "${LOAD_STATE_VALUE_EXPORTS_GOLDEN}" EXPECTED_LOAD_STATE_VALUE_EXPORTS)
++file(READ "${LOAD_STATE_VALUE_OFFSET_GOLDEN}" EXPECTED_LOAD_STATE_VALUE_OFFSET)
++file(READ "${LOAD_STATE_VALUE_ASSEMBLY}" ACTUAL_LOAD_STATE_VALUE_ASSEMBLY)
++file(READ "${LOAD_STATE_VALUE_EXPORTS}" ACTUAL_LOAD_STATE_VALUE_EXPORTS)
++file(READ "${LOAD_STATE_VALUE_OFFSET}" ACTUAL_LOAD_STATE_VALUE_OFFSET)
++if(NOT ACTUAL_LOAD_STATE_VALUE_ASSEMBLY STREQUAL EXPECTED_LOAD_STATE_VALUE_ASSEMBLY OR
++   NOT ACTUAL_LOAD_STATE_VALUE_EXPORTS STREQUAL EXPECTED_LOAD_STATE_VALUE_EXPORTS OR
++   NOT ACTUAL_LOAD_STATE_VALUE_OFFSET STREQUAL EXPECTED_LOAD_STATE_VALUE_OFFSET)
++  message(FATAL_ERROR "Signed load-state-value artifacts did not match their committed goldens")
++endif()
++
++set(LOAD_STATE_VALUE_MISSING_OFFSET_ASSEMBLY "${OUTPUT_DIR}/load-state-value-missing-offset.s")
++set(LOAD_STATE_VALUE_MISSING_OFFSET_EXPORTS "${OUTPUT_DIR}/load-state-value-missing-offset.exports.inc")
++set(LOAD_STATE_VALUE_MISSING_OFFSET_DATA "${OUTPUT_DIR}/load-state-value-missing-offset.data.inc")
++file(WRITE "${LOAD_STATE_VALUE_MISSING_OFFSET_ASSEMBLY}" "old missing offset assembly\n")
++file(WRITE "${LOAD_STATE_VALUE_MISSING_OFFSET_EXPORTS}" "old missing offset exports\n")
++file(WRITE "${LOAD_STATE_VALUE_MISSING_OFFSET_DATA}" "old missing offset data\n")
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${LOAD_STATE_VALUE_INPUT}"
++          --function load-state-value
++          --output "${LOAD_STATE_VALUE_MISSING_OFFSET_ASSEMBLY}"
++          --exports-output "${LOAD_STATE_VALUE_MISSING_OFFSET_EXPORTS}"
++          --symbol goalpad_aot_load_state_value
++  RESULT_VARIABLE LOAD_STATE_VALUE_MISSING_OFFSET_RESULT)
++if(LOAD_STATE_VALUE_MISSING_OFFSET_RESULT EQUAL 0)
++  message(FATAL_ERROR "goalc-aot accepted load-state-value without its signed offset manifest")
++endif()
++file(READ "${LOAD_STATE_VALUE_MISSING_OFFSET_ASSEMBLY}" ACTUAL_LOAD_STATE_VALUE_MISSING_OFFSET_ASSEMBLY)
++file(READ "${LOAD_STATE_VALUE_MISSING_OFFSET_EXPORTS}" ACTUAL_LOAD_STATE_VALUE_MISSING_OFFSET_EXPORTS)
++file(READ "${LOAD_STATE_VALUE_MISSING_OFFSET_DATA}" ACTUAL_LOAD_STATE_VALUE_MISSING_OFFSET_DATA)
++if(NOT ACTUAL_LOAD_STATE_VALUE_MISSING_OFFSET_ASSEMBLY STREQUAL "old missing offset assembly\n" OR
++   NOT ACTUAL_LOAD_STATE_VALUE_MISSING_OFFSET_EXPORTS STREQUAL "old missing offset exports\n" OR
++   NOT ACTUAL_LOAD_STATE_VALUE_MISSING_OFFSET_DATA STREQUAL "old missing offset data\n")
++  message(FATAL_ERROR "Failed missing-offset validation modified existing load-state-value artifacts")
++endif()
++
++set(LOAD_STATE_VALUE_WRONG_ASSEMBLY "${OUTPUT_DIR}/load-state-value-wrong.s")
++set(LOAD_STATE_VALUE_WRONG_EXPORTS "${OUTPUT_DIR}/load-state-value-wrong.exports.inc")
++set(LOAD_STATE_VALUE_WRONG_OFFSET "${OUTPUT_DIR}/load-state-value-wrong.symbol-value-offset.inc")
++file(WRITE "${LOAD_STATE_VALUE_WRONG_ASSEMBLY}" "old wrong assembly\n")
++file(WRITE "${LOAD_STATE_VALUE_WRONG_EXPORTS}" "old wrong exports\n")
++file(WRITE "${LOAD_STATE_VALUE_WRONG_OFFSET}" "old wrong offset\n")
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${LOAD_STATE_VALUE_INPUT}"
++          --function load-state-value
++          --output "${LOAD_STATE_VALUE_WRONG_ASSEMBLY}"
++          --exports-output "${LOAD_STATE_VALUE_WRONG_EXPORTS}"
++          --symbol-value-offset-output "${LOAD_STATE_VALUE_WRONG_OFFSET}"
++          --symbol goalpad_aot_false_func
++  RESULT_VARIABLE LOAD_STATE_VALUE_WRONG_SYMBOL_RESULT)
++if(LOAD_STATE_VALUE_WRONG_SYMBOL_RESULT EQUAL 0)
++  message(FATAL_ERROR "goalc-aot accepted load-state-value with a non-load-state symbol")
++endif()
++file(READ "${LOAD_STATE_VALUE_WRONG_ASSEMBLY}" ACTUAL_LOAD_STATE_VALUE_WRONG_ASSEMBLY)
++file(READ "${LOAD_STATE_VALUE_WRONG_EXPORTS}" ACTUAL_LOAD_STATE_VALUE_WRONG_EXPORTS)
++file(READ "${LOAD_STATE_VALUE_WRONG_OFFSET}" ACTUAL_LOAD_STATE_VALUE_WRONG_OFFSET)
++if(NOT ACTUAL_LOAD_STATE_VALUE_WRONG_ASSEMBLY STREQUAL "old wrong assembly\n" OR
++   NOT ACTUAL_LOAD_STATE_VALUE_WRONG_EXPORTS STREQUAL "old wrong exports\n" OR
++   NOT ACTUAL_LOAD_STATE_VALUE_WRONG_OFFSET STREQUAL "old wrong offset\n")
++  message(FATAL_ERROR "Failed load-state-value validation modified an existing artifact triplet")
++endif()
++
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${LOAD_STATE_VALUE_INPUT}"
++          --function load-state-value
++          --output "${LOAD_STATE_VALUE_WRONG_ASSEMBLY}"
++          --exports-output "${LOAD_STATE_VALUE_WRONG_EXPORTS}"
++          --symbol-value-offset-output "${LOAD_STATE_VALUE_WRONG_EXPORTS}"
++          --symbol goalpad_aot_load_state_value
++  RESULT_VARIABLE LOAD_STATE_VALUE_ALIAS_RESULT)
++if(LOAD_STATE_VALUE_ALIAS_RESULT EQUAL 0)
++  message(FATAL_ERROR "goalc-aot accepted aliased load-state-value metadata outputs")
++endif()
++file(READ "${LOAD_STATE_VALUE_WRONG_ASSEMBLY}" ACTUAL_LOAD_STATE_VALUE_ALIAS_ASSEMBLY)
++file(READ "${LOAD_STATE_VALUE_WRONG_EXPORTS}" ACTUAL_LOAD_STATE_VALUE_ALIAS_EXPORTS)
++if(NOT ACTUAL_LOAD_STATE_VALUE_ALIAS_ASSEMBLY STREQUAL "old wrong assembly\n" OR
++   NOT ACTUAL_LOAD_STATE_VALUE_ALIAS_EXPORTS STREQUAL "old wrong exports\n")
++  message(FATAL_ERROR "Aliased load-state-value metadata paths modified existing artifacts")
++endif()
+diff --git a/test/test_arm64_goal_call_abi.cpp b/test/test_arm64_goal_call_abi.cpp
+index 04a629c5..62561f6c 100644
+--- a/test/test_arm64_goal_call_abi.cpp
++++ b/test/test_arm64_goal_call_abi.cpp
+@@ -83,8 +83,18 @@ extern "C" std::uint64_t arm64_goal_call_false_like_entry(std::uint64_t,
+   extern "C" std::uint64_t c_symbol();
+ #include "OpenGOALJak1FalseFunc.exports.h"
+ #include "OpenGOALJak1TrueFunc.exports.h"
++#include "OpenGOALJak1LoadStateValue.exports.h"
+ #undef OPENGOAL_AOT_EXPORT0
+ 
++#define OPENGOAL_AOT_SYMBOL_VALUE_OFFSET32(game_name, goal_name, value_type, c_symbol) \
++  extern "C" std::int32_t c_symbol;
++#include "OpenGOALJak1LoadStateValue.symbol-value-offset.h"
++#undef OPENGOAL_AOT_SYMBOL_VALUE_OFFSET32
++
++extern "C" {
++std::int32_t goalpad_aot_jak1_load_state_symbol_offset = 0;
++}
++
+ #define OPENGOAL_AOT_EXPORT1(goal_name, c_symbol) \
+   extern "C" std::uint64_t c_symbol(std::uint64_t);
+ // clang-format off
+@@ -126,13 +136,28 @@ struct Arm64GoalExport3 {
+   Arm64GoalExport3Entry entry;
+ };
+ 
++struct Arm64GoalSymbolValueOffset32 {
++  std::string_view game_name;
++  std::string_view goal_name;
++  std::string_view value_type;
++  std::int32_t* offset;
++};
++
+ constexpr Arm64GoalExport0 kArm64GoalExports0[] = {
+ #define OPENGOAL_AOT_EXPORT0(goal_name, c_symbol) {goal_name, &c_symbol},
+ #include "OpenGOALJak1FalseFunc.exports.h"
+ #include "OpenGOALJak1TrueFunc.exports.h"
++#include "OpenGOALJak1LoadStateValue.exports.h"
+ #undef OPENGOAL_AOT_EXPORT0
+ };
+ 
++constexpr Arm64GoalSymbolValueOffset32 kArm64GoalSymbolValueOffsets32[] = {
++#define OPENGOAL_AOT_SYMBOL_VALUE_OFFSET32(game_name, goal_name, value_type, c_symbol) \
++  {game_name, goal_name, value_type, &c_symbol},
++#include "OpenGOALJak1LoadStateValue.symbol-value-offset.h"
++#undef OPENGOAL_AOT_SYMBOL_VALUE_OFFSET32
++};
++
+ constexpr Arm64GoalExport1 kArm64GoalExports1[] = {
+ #define OPENGOAL_AOT_EXPORT1(goal_name, c_symbol) {goal_name, &c_symbol},
+ // clang-format off
+@@ -157,10 +182,11 @@ constexpr Arm64GoalExport3 kArm64GoalExports3[] = {
+ #undef OPENGOAL_AOT_EXPORT3
+ };
+ 
+-static_assert(sizeof(kArm64GoalExports0) == 2 * sizeof(Arm64GoalExport0));
++static_assert(sizeof(kArm64GoalExports0) == 3 * sizeof(Arm64GoalExport0));
+ static_assert(sizeof(kArm64GoalExports1) == 4 * sizeof(Arm64GoalExport1));
+ static_assert(sizeof(kArm64GoalExports2) == 2 * sizeof(Arm64GoalExport2));
+ static_assert(sizeof(kArm64GoalExports3) == sizeof(Arm64GoalExport3));
++static_assert(sizeof(kArm64GoalSymbolValueOffsets32) == sizeof(Arm64GoalSymbolValueOffset32));
+ 
+ template <typename Entry>
+ std::uintptr_t entry_address(Entry entry) {
+@@ -251,6 +277,60 @@ TEST(Arm64GoalCallAbi, calls_a_static_false_like_entry_with_the_symbol_table_reg
+   expect_caller_registers_restored(probe);
+ }
+ 
++TEST(Arm64GoalCallAbi, reads_live_load_state_symbol_values_through_a_signed_s7_offset_binding) {
++  std::vector<std::byte> arena(jak1::minimum_data_arena_header_size());
++  const auto initialized = jak1::initialize_data_arena_header(arena.data(), arena.size());
++  ASSERT_TRUE(initialized.ok());
++
++  ASSERT_EQ(kArm64GoalExports0[2].goal_name, "load-state-value");
++  ASSERT_NE(kArm64GoalExports0[2].entry, nullptr);
++  ASSERT_EQ(kArm64GoalSymbolValueOffsets32[0].game_name, "jak1");
++  ASSERT_EQ(kArm64GoalSymbolValueOffsets32[0].goal_name, "*load-state*");
++  ASSERT_EQ(kArm64GoalSymbolValueOffsets32[0].value_type, "load-state");
++  ASSERT_EQ(kArm64GoalSymbolValueOffsets32[0].offset,
++            &goalpad_aot_jak1_load_state_symbol_offset);
++
++  const auto st = static_cast<std::uintptr_t>(initialized.header.s7);
++  const auto arena_address = reinterpret_cast<std::uintptr_t>(arena.data());
++  constexpr std::int32_t kFirstSymbolOffset = 0x400;
++  constexpr std::int32_t kSecondSymbolOffset = -0x400;
++  static_assert(kFirstSymbolOffset >= jak1_symbols::FIX_FIXED_SYM_END_OFFSET);
++  static_assert(-kSecondSymbolOffset >= jak1_symbols::FIX_FIXED_SYM_END_OFFSET);
++  ASSERT_GE(st, static_cast<std::uintptr_t>(-kSecondSymbolOffset));
++  ASSERT_LE(st + static_cast<std::uintptr_t>(kFirstSymbolOffset) + sizeof(std::uint32_t),
++            arena.size());
++  const auto first_slot = st + static_cast<std::uintptr_t>(kFirstSymbolOffset);
++  const auto second_slot = st - static_cast<std::uintptr_t>(-kSecondSymbolOffset);
++  ASSERT_EQ(read_u32(arena.data(), first_slot), 0u);
++  ASSERT_EQ(read_u32(arena.data(), second_slot), 0u);
++
++  const auto invoke = [&](std::int32_t symbol_offset) {
++    goalpad_aot_jak1_load_state_symbol_offset = symbol_offset;
++    auto probe = make_probe(entry_address(kArm64GoalExports0[2].entry), st, arena_address);
++    arm64_goal_call_abi_outer(&probe);
++    expect_caller_registers_restored(probe);
++    return probe;
++  };
++
++  write_u32(arena.data(), first_slot, 0u);
++  const auto zero_value = invoke(kFirstSymbolOffset);
++  EXPECT_EQ(zero_value.result, 0u);
++
++  constexpr std::uint32_t kReboundFirstValue = 0x00012345;
++  write_u32(arena.data(), first_slot, kReboundFirstValue);
++  const auto rebound_first_value = invoke(kFirstSymbolOffset);
++  EXPECT_EQ(rebound_first_value.result, kReboundFirstValue);
++  EXPECT_EQ(rebound_first_value.result >> 32, 0u);
++
++  constexpr std::uint32_t kSecondValue = 0x81234567;
++  write_u32(arena.data(), second_slot, kSecondValue);
++  const auto rebound_second_slot = invoke(kSecondSymbolOffset);
++  EXPECT_EQ(rebound_second_slot.result, UINT64_C(0x0000000081234567));
++  EXPECT_EQ(rebound_second_slot.result >> 32, 0u);
++  EXPECT_EQ(read_u32(arena.data(), first_slot), kReboundFirstValue);
++  EXPECT_EQ(read_u32(arena.data(), second_slot), kSecondValue);
++}
++
+ TEST(Arm64GoalCallAbi, executes_generated_jak1_aot_artifacts_against_one_data_arena) {
+   std::vector<std::byte> arena(jak1::minimum_data_arena_header_size());
+   const auto initialized = jak1::initialize_data_arena_header(arena.data(), arena.size());
+-- 
+2.50.1 (Apple Git-155)
+
