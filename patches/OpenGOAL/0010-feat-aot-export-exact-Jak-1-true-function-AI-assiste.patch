@@ -1,0 +1,216 @@
+From f979c82cb6da50b847808ebd23ec10c4fa1c1c9e Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Thu, 30 Jul 2026 20:47:44 -0600
+Subject: [PATCH] feat(aot): export exact Jak 1 true function (AI-assisted)
+
+---
+ goalc/aot/AOTWriter.cpp             |  9 ++-
+ goalc/aot_main.cpp                  |  4 +-
+ test/goalc/test_arm64_aot.cpp       | 20 ++++++-
+ test/goalc/test_arm64_aot_cli.cmake | 92 ++++++++++++++++++++++++++---
+ 4 files changed, 110 insertions(+), 15 deletions(-)
+
+diff --git a/goalc/aot/AOTWriter.cpp b/goalc/aot/AOTWriter.cpp
+index ff0b177a..b4626582 100644
+--- a/goalc/aot/AOTWriter.cpp
++++ b/goalc/aot/AOTWriter.cpp
+@@ -43,10 +43,13 @@ void validate(const AppleArm64Function& function) {
+ }
+ 
+ void validate(const NativeExport0& native_export) {
+-  if (native_export.goal_name != "false-func" ||
+-      native_export.c_symbol != "goalpad_aot_false_func") {
++  const bool is_false_func = native_export.goal_name == "false-func" &&
++                             native_export.c_symbol == "goalpad_aot_false_func";
++  const bool is_true_func = native_export.goal_name == "true-func" &&
++                            native_export.c_symbol == "goalpad_aot_true_func";
++  if (!is_false_func && !is_true_func) {
+     throw std::invalid_argument(
+-        "AOT native export proof only supports false-func as goalpad_aot_false_func");
++        "AOT native export proof only supports false-func or true-func zero-argument artifacts");
+   }
+ }
+ 
+diff --git a/goalc/aot_main.cpp b/goalc/aot_main.cpp
+index 98c1be00..d4741505 100644
+--- a/goalc/aot_main.cpp
++++ b/goalc/aot_main.cpp
+@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
+     const auto code =
+         compiler.compile_arm64_aot_source(source, options.input_path, options.function_name);
+     if (options.exports_output_path) {
+-      if (*options.function_name == "false-func") {
++      if (*options.function_name == "false-func" || *options.function_name == "true-func") {
+         aot::write_apple_arm64_artifact_pair(options.output_path, *options.exports_output_path,
+                                              {options.symbol, code},
+                                              aot::NativeExport0{*options.function_name, options.symbol});
+@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
+                                              aot::NativeExport1{*options.function_name, options.symbol});
+       } else {
+         throw std::invalid_argument(
+-            "AOT native export proof only supports false-func or identity function artifacts");
++            "AOT native export proof only supports false-func, true-func, or identity function artifacts");
+       }
+     } else {
+       aot::write_apple_arm64_assembly(options.output_path, {options.symbol, code});
+diff --git a/test/goalc/test_arm64_aot.cpp b/test/goalc/test_arm64_aot.cpp
+index 0cc6b5ce..2ca0d406 100644
+--- a/test/goalc/test_arm64_aot.cpp
++++ b/test/goalc/test_arm64_aot.cpp
+@@ -173,6 +173,16 @@ TEST(Arm64Aot, renders_zero_argument_native_export_metadata) {
+             "OPENGOAL_AOT_EXPORT0(\"false-func\", goalpad_aot_false_func)\n");
+ }
+ 
++TEST(Arm64Aot, renders_true_func_zero_argument_native_export_metadata) {
++  const aot::NativeExport0 native_export{"true-func", "goalpad_aot_true_func"};
++
++  EXPECT_EQ(aot::render_cpp_xmacro_export0(native_export),
++            "#ifndef OPENGOAL_AOT_EXPORT0\n"
++            "#error \"Define OPENGOAL_AOT_EXPORT0 before including this file.\"\n"
++            "#endif\n"
++            "OPENGOAL_AOT_EXPORT0(\"true-func\", goalpad_aot_true_func)\n");
++}
++
+ TEST(Arm64Aot, renders_one_argument_native_export_metadata) {
+   const aot::NativeExport1 native_export{"identity", "goalpad_aot_identity"};
+ 
+@@ -183,7 +193,7 @@ TEST(Arm64Aot, renders_one_argument_native_export_metadata) {
+             "OPENGOAL_AOT_EXPORT1(\"identity\", goalpad_aot_identity)\n");
+ }
+ 
+-TEST(Arm64Aot, rejects_native_exports_outside_the_false_func_proof) {
++TEST(Arm64Aot, rejects_native_exports_outside_the_zero_argument_proof) {
+   EXPECT_THROW(aot::render_cpp_xmacro_export0({"", "goalpad_aot_false_func"}),
+                std::invalid_argument);
+   EXPECT_THROW(aot::render_cpp_xmacro_export0({"other", "goalpad_aot_false_func"}),
+@@ -194,7 +204,13 @@ TEST(Arm64Aot, rejects_native_exports_outside_the_false_func_proof) {
+   EXPECT_THROW(aot::render_cpp_xmacro_export0({"false-func", "_Reserved"}), std::invalid_argument);
+   EXPECT_THROW(aot::render_cpp_xmacro_export0({"false-func", "class"}), std::invalid_argument);
+   EXPECT_THROW(aot::render_cpp_xmacro_export0({"false-func", "main"}), std::invalid_argument);
+-  EXPECT_THROW(aot::render_cpp_xmacro_export0({"true-func", "goalpad_aot_true_func"}),
++  EXPECT_THROW(aot::render_cpp_xmacro_export0({"true-func", "invalid-symbol"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export0({"false-func", "goalpad_aot_true_func"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export0({"true-func", "goalpad_aot_false_func"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export0({"identity", "goalpad_aot_identity"}),
+                std::invalid_argument);
+ }
+ 
+diff --git a/test/goalc/test_arm64_aot_cli.cmake b/test/goalc/test_arm64_aot_cli.cmake
+index d27013a2..0bd439ca 100644
+--- a/test/goalc/test_arm64_aot_cli.cmake
++++ b/test/goalc/test_arm64_aot_cli.cmake
+@@ -111,8 +111,6 @@ if(NOT ACTUAL_TRUE_ASSEMBLY STREQUAL EXPECTED_TRUE_ASSEMBLY)
+   message(FATAL_ERROR "Assembly-only true-func artifact did not match the expected ARM64 code")
+ endif()
+ 
+-file(WRITE "${TRUE_PAIRED_ASSEMBLY}" "old true assembly\n")
+-file(WRITE "${TRUE_EXPORTS}" "old true exports\n")
+ execute_process(
+   COMMAND "${GOALC_AOT}"
+           --project-path "${PROJECT_ROOT}"
+@@ -122,15 +120,93 @@ execute_process(
+           --exports-output "${TRUE_EXPORTS}"
+           --symbol goalpad_aot_true_func
+   RESULT_VARIABLE TRUE_PAIRED_RESULT)
+-if(TRUE_PAIRED_RESULT EQUAL 0)
+-  message(FATAL_ERROR "goalc-aot accepted true-func native export metadata")
++if(NOT TRUE_PAIRED_RESULT EQUAL 0)
++  message(FATAL_ERROR "Paired true-func goalc-aot invocation failed")
++endif()
++
++file(SHA256 "${TRUE_ASSEMBLY_ONLY}" TRUE_ASSEMBLY_ONLY_SHA256)
++file(SHA256 "${TRUE_PAIRED_ASSEMBLY}" TRUE_PAIRED_ASSEMBLY_SHA256)
++if(NOT TRUE_ASSEMBLY_ONLY_SHA256 STREQUAL TRUE_PAIRED_ASSEMBLY_SHA256)
++  message(FATAL_ERROR "Adding true-func export metadata changed the ARM64 assembly")
+ endif()
+ 
+-file(READ "${TRUE_PAIRED_ASSEMBLY}" ACTUAL_TRUE_PAIRED_ASSEMBLY)
+ file(READ "${TRUE_EXPORTS}" ACTUAL_TRUE_EXPORTS)
+-if(NOT ACTUAL_TRUE_PAIRED_ASSEMBLY STREQUAL "old true assembly\n" OR
+-   NOT ACTUAL_TRUE_EXPORTS STREQUAL "old true exports\n")
+-  message(FATAL_ERROR "Rejected true-func native export modified an existing artifact")
++set(EXPECTED_TRUE_EXPORTS
++    "#ifndef OPENGOAL_AOT_EXPORT0\n#error \"Define OPENGOAL_AOT_EXPORT0 before including this file.\"\n#endif\nOPENGOAL_AOT_EXPORT0(\"true-func\", goalpad_aot_true_func)\n")
++if(NOT ACTUAL_TRUE_EXPORTS STREQUAL EXPECTED_TRUE_EXPORTS)
++  message(FATAL_ERROR "Generated true-func export metadata did not match the expected record")
++endif()
++
++set(TRUE_WRONG_ASSEMBLY "${OUTPUT_DIR}/true-wrong.s")
++set(TRUE_WRONG_EXPORTS "${OUTPUT_DIR}/true-wrong.exports.inc")
++file(WRITE "${TRUE_WRONG_ASSEMBLY}" "old true wrong assembly\n")
++file(WRITE "${TRUE_WRONG_EXPORTS}" "old true wrong exports\n")
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${TRUE_INPUT}"
++          --function true-func
++          --output "${TRUE_WRONG_ASSEMBLY}"
++          --exports-output "${TRUE_WRONG_EXPORTS}"
++          --symbol goalpad_aot_false_func
++  RESULT_VARIABLE TRUE_WRONG_SYMBOL_RESULT)
++if(TRUE_WRONG_SYMBOL_RESULT EQUAL 0)
++  message(FATAL_ERROR "goalc-aot accepted true-func with the false-func symbol")
++endif()
++
++file(READ "${TRUE_WRONG_ASSEMBLY}" ACTUAL_TRUE_WRONG_ASSEMBLY)
++file(READ "${TRUE_WRONG_EXPORTS}" ACTUAL_TRUE_WRONG_EXPORTS)
++if(NOT ACTUAL_TRUE_WRONG_ASSEMBLY STREQUAL "old true wrong assembly\n" OR
++   NOT ACTUAL_TRUE_WRONG_EXPORTS STREQUAL "old true wrong exports\n")
++  message(FATAL_ERROR "Failed true-func symbol validation modified an existing artifact")
++endif()
++
++set(TRUE_CROSS_ASSEMBLY "${OUTPUT_DIR}/true-cross.s")
++set(TRUE_CROSS_EXPORTS "${OUTPUT_DIR}/true-cross.exports.inc")
++file(WRITE "${TRUE_CROSS_ASSEMBLY}" "old true cross assembly\n")
++file(WRITE "${TRUE_CROSS_EXPORTS}" "old true cross exports\n")
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${TRUE_INPUT}"
++          --function true-func
++          --output "${TRUE_CROSS_ASSEMBLY}"
++          --exports-output "${TRUE_CROSS_EXPORTS}"
++          --symbol goalpad_aot_identity
++  RESULT_VARIABLE TRUE_IDENTITY_SYMBOL_RESULT)
++if(TRUE_IDENTITY_SYMBOL_RESULT EQUAL 0)
++  message(FATAL_ERROR "goalc-aot accepted true-func with the Export1 symbol")
++endif()
++
++file(READ "${TRUE_CROSS_ASSEMBLY}" ACTUAL_TRUE_CROSS_ASSEMBLY)
++file(READ "${TRUE_CROSS_EXPORTS}" ACTUAL_TRUE_CROSS_EXPORTS)
++if(NOT ACTUAL_TRUE_CROSS_ASSEMBLY STREQUAL "old true cross assembly\n" OR
++   NOT ACTUAL_TRUE_CROSS_EXPORTS STREQUAL "old true cross exports\n")
++  message(FATAL_ERROR "Failed true-func cross-ABI generation modified an existing artifact")
++endif()
++
++set(FALSE_WRONG_ASSEMBLY "${OUTPUT_DIR}/false-wrong.s")
++set(FALSE_WRONG_EXPORTS "${OUTPUT_DIR}/false-wrong.exports.inc")
++file(WRITE "${FALSE_WRONG_ASSEMBLY}" "old false wrong assembly\n")
++file(WRITE "${FALSE_WRONG_EXPORTS}" "old false wrong exports\n")
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${INPUT}"
++          --function false-func
++          --output "${FALSE_WRONG_ASSEMBLY}"
++          --exports-output "${FALSE_WRONG_EXPORTS}"
++          --symbol goalpad_aot_true_func
++  RESULT_VARIABLE FALSE_TRUE_SYMBOL_RESULT)
++if(FALSE_TRUE_SYMBOL_RESULT EQUAL 0)
++  message(FATAL_ERROR "goalc-aot accepted false-func with the true-func symbol")
++endif()
++
++file(READ "${FALSE_WRONG_ASSEMBLY}" ACTUAL_FALSE_WRONG_ASSEMBLY)
++file(READ "${FALSE_WRONG_EXPORTS}" ACTUAL_FALSE_WRONG_EXPORTS)
++if(NOT ACTUAL_FALSE_WRONG_ASSEMBLY STREQUAL "old false wrong assembly\n" OR
++   NOT ACTUAL_FALSE_WRONG_EXPORTS STREQUAL "old false wrong exports\n")
++  message(FATAL_ERROR "Failed false-func symbol validation modified an existing artifact")
+ endif()
+ 
+ execute_process(
+-- 
+2.50.1 (Apple Git-155)
+
