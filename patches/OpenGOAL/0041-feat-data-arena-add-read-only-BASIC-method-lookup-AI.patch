@@ -1,0 +1,574 @@
+From 0ee4a48f9f58ea1504e84c500f6a0942bc8047ce Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Fri, 31 Jul 2026 07:19:18 -0600
+Subject: [PATCH] feat(data-arena): add read-only BASIC method lookup
+ (AI-assisted)
+
+---
+ game/kernel/jak1/data_arena.cpp | 118 ++++++++++++
+ game/kernel/jak1/data_arena.h   |  43 +++++
+ test/test_jak1_data_arena.cpp   | 316 ++++++++++++++++++++++++++++++++
+ 3 files changed, 477 insertions(+)
+
+diff --git a/game/kernel/jak1/data_arena.cpp b/game/kernel/jak1/data_arena.cpp
+index deb530e0..1a226bd6 100644
+--- a/game/kernel/jak1/data_arena.cpp
++++ b/game/kernel/jak1/data_arena.cpp
+@@ -38,6 +38,11 @@ static_assert(offsetof(Symbol, value) == 0);
+ static_assert(sizeof(SymInfo) == 2 * sizeof(std::uint32_t));
+ static_assert(offsetof(SymInfo, hash) == 0);
+ static_assert(offsetof(SymInfo, str) == sizeof(std::uint32_t));
++static_assert(offsetof(Type, symbol) == 0);
++static_assert(offsetof(Type, allocated_size) == 0x8);
++static_assert(offsetof(Type, padded_size) == 0xa);
++static_assert(offsetof(Type, num_methods) == 0xe);
++static_assert(offsetof(Type, new_method) == 0x10);
+ static_assert(kGlobalHeapEnd == minimum_data_arena_header_size());
+ static_assert(kSymbolTableEnd <= kGlobalHeapEnd);
+ static_assert(kSymbolTableOffset >= GLOBAL_HEAP_INFO_ADDR + sizeof(kheapinfo));
+@@ -53,6 +58,12 @@ std::uint32_t read_u32(const std::byte* storage, std::uint32_t offset) {
+   return value;
+ }
+ 
++std::uint16_t read_u16(const std::byte* storage, std::uint32_t offset) {
++  std::uint16_t value = 0;
++  std::memcpy(&value, storage + offset, sizeof(value));
++  return value;
++}
++
+ bool has_bytes(std::size_t storage_size, std::uint32_t offset, std::size_t size) {
+   const auto storage_offset = static_cast<std::size_t>(offset);
+   return storage_offset <= storage_size && size <= storage_size - storage_offset;
+@@ -63,6 +74,15 @@ bool has_aligned_word(std::size_t storage_size, std::uint32_t offset) {
+          has_bytes(storage_size, offset, sizeof(std::uint32_t));
+ }
+ 
++bool is_readable_basic_pointer(std::size_t storage_size, std::uint32_t value) {
++  if (value < BASIC_OFFSET || (value & OFFSET_MASK) != BASIC_OFFSET) {
++    return false;
++  }
++
++  const auto raw_offset = value - BASIC_OFFSET;
++  return has_aligned_word(storage_size, raw_offset) && has_aligned_word(storage_size, value);
++}
++
+ bool checked_add(std::uint32_t base, std::uint32_t delta, std::uint32_t* result) {
+   if (delta > std::numeric_limits<std::uint32_t>::max() - base) {
+     return false;
+@@ -84,6 +104,20 @@ bool checked_add_signed(std::uint32_t base, std::int32_t delta, std::uint32_t* r
+   return true;
+ }
+ 
++bool read_fixed_symbol_value(const std::byte* storage,
++                             std::size_t storage_size,
++                             const DataArenaHeader& header,
++                             std::int32_t displacement,
++                             std::uint32_t* value) {
++  std::uint32_t symbol_offset = 0;
++  if (!checked_add_signed(header.s7, displacement, &symbol_offset) ||
++      !has_aligned_word(storage_size, symbol_offset)) {
++    return false;
++  }
++  *value = read_u32(storage, symbol_offset);
++  return true;
++}
++
+ bool is_valid_header(const DataArenaHeader& header, std::size_t storage_size) {
+   if (!has_bytes(storage_size, header.global_heap_info, sizeof(kheapinfo)) ||
+       !has_bytes(storage_size, header.global_heap_base, 1) ||
+@@ -422,4 +456,88 @@ DataArenaSymbolValueLookupResult find_data_arena_symbol_value_cell(const std::by
+   return lookup_fixed_symbols(storage, storage_size, header, hash, name);
+ }
+ 
++DataArenaBasicMethodValueLookupResult read_data_arena_basic_method_value(
++    const std::byte* storage,
++    std::size_t storage_size,
++    const DataArenaHeader& header,
++    std::uint32_t object,
++    std::uint32_t method_id) {
++  if (!storage) {
++    return {.error = DataArenaBasicMethodValueLookupError::NullStorage};
++  }
++  if (storage_size > std::numeric_limits<std::uint32_t>::max()) {
++    return {.error = DataArenaBasicMethodValueLookupError::StorageTooLarge};
++  }
++  if (!is_valid_header(header, storage_size)) {
++    return {.error = DataArenaBasicMethodValueLookupError::InvalidHeader};
++  }
++  if (!is_readable_basic_pointer(storage_size, object)) {
++    return {.error = DataArenaBasicMethodValueLookupError::InvalidObject};
++  }
++
++  const auto object_raw_offset = object - BASIC_OFFSET;
++  const auto object_type = read_u32(storage, object_raw_offset);
++  if (!is_readable_basic_pointer(storage_size, object_type)) {
++    return {.error = DataArenaBasicMethodValueLookupError::InvalidObjectType};
++  }
++
++  std::uint32_t type_type = 0;
++  if (!read_fixed_symbol_value(storage, storage_size, header, jak1_symbols::FIX_SYM_TYPE_TYPE,
++                               &type_type) ||
++      !is_readable_basic_pointer(storage_size, type_type) ||
++      read_u32(storage, type_type - BASIC_OFFSET) != type_type) {
++    return {.error = DataArenaBasicMethodValueLookupError::InvalidTypeType};
++  }
++  if (read_u32(storage, object_type - BASIC_OFFSET) != type_type) {
++    return {.error = DataArenaBasicMethodValueLookupError::InvalidTypeTag};
++  }
++
++  std::uint32_t allocated_size_offset = 0;
++  std::uint32_t padded_size_offset = 0;
++  std::uint32_t method_count_offset = 0;
++  if (!checked_add(object_type, offsetof(Type, allocated_size), &allocated_size_offset) ||
++      !checked_add(object_type, offsetof(Type, padded_size), &padded_size_offset) ||
++      !checked_add(object_type, offsetof(Type, num_methods), &method_count_offset) ||
++      !has_bytes(storage_size, allocated_size_offset, sizeof(std::uint16_t)) ||
++      !has_bytes(storage_size, padded_size_offset, sizeof(std::uint16_t)) ||
++      !has_bytes(storage_size, method_count_offset, sizeof(std::uint16_t))) {
++    return {.error = DataArenaBasicMethodValueLookupError::InvalidObjectType};
++  }
++
++  const auto allocated_size = read_u16(storage, allocated_size_offset);
++  const auto padded_size = read_u16(storage, padded_size_offset);
++  const auto expected_padded_size =
++      (static_cast<std::uint32_t>(allocated_size) + 0xfU) & ~std::uint32_t{0xfU};
++  if (allocated_size < BASIC_OFFSET || allocated_size > 0xfff0 ||
++      static_cast<std::uint32_t>(padded_size) != expected_padded_size ||
++      !has_bytes(storage_size, object_raw_offset, padded_size)) {
++    return {.error = DataArenaBasicMethodValueLookupError::InvalidObjectSize};
++  }
++
++  const auto num_methods = read_u16(storage, method_count_offset);
++  if (method_id >= num_methods) {
++    return {.error = DataArenaBasicMethodValueLookupError::MethodOutOfRange};
++  }
++
++  std::uint32_t method_table_offset = 0;
++  std::uint32_t method_offset = 0;
++  if (method_id > std::numeric_limits<std::uint32_t>::max() / sizeof(std::uint32_t) ||
++      !checked_add(object_type, offsetof(Type, new_method), &method_table_offset) ||
++      !checked_add(method_table_offset, method_id * sizeof(std::uint32_t), &method_offset) ||
++      !has_aligned_word(storage_size, method_offset)) {
++    return {.error = DataArenaBasicMethodValueLookupError::InvalidMethodSlot};
++  }
++
++  return {
++      .value =
++          {
++              .object_type = object_type,
++              .allocated_size = allocated_size,
++              .padded_size = padded_size,
++              .method_value = read_u32(storage, method_offset),
++          },
++      .error = DataArenaBasicMethodValueLookupError::None,
++  };
++}
++
+ }  // namespace jak1
+diff --git a/game/kernel/jak1/data_arena.h b/game/kernel/jak1/data_arena.h
+index 7de1458c..71d7e2e4 100644
+--- a/game/kernel/jak1/data_arena.h
++++ b/game/kernel/jak1/data_arena.h
+@@ -65,6 +65,34 @@ struct DataArenaSymbolValueLookupResult {
+   [[nodiscard]] bool found() const { return error == DataArenaSymbolValueLookupError::None; }
+ };
+ 
++enum class DataArenaBasicMethodValueLookupError {
++  None,
++  NullStorage,
++  StorageTooLarge,
++  InvalidHeader,
++  InvalidObject,
++  InvalidObjectType,
++  InvalidTypeType,
++  InvalidTypeTag,
++  InvalidObjectSize,
++  MethodOutOfRange,
++  InvalidMethodSlot,
++};
++
++struct DataArenaBasicMethodValue {
++  std::uint32_t object_type = 0;
++  std::uint16_t allocated_size = 0;
++  std::uint16_t padded_size = 0;
++  std::uint32_t method_value = 0;
++};
++
++struct DataArenaBasicMethodValueLookupResult {
++  DataArenaBasicMethodValue value{};
++  DataArenaBasicMethodValueLookupError error = DataArenaBasicMethodValueLookupError::InvalidObject;
++
++  [[nodiscard]] bool found() const { return error == DataArenaBasicMethodValueLookupError::None; }
++};
++
+ [[nodiscard]] constexpr std::size_t minimum_data_arena_header_size() {
+   return static_cast<std::size_t>(GLOBAL_HEAP_END);
+ }
+@@ -101,4 +129,19 @@ struct DataArenaSymbolValueLookupResult {
+     const DataArenaHeader& header,
+     std::string_view name);
+ 
++/*!
++ * Read a BASIC object's virtual method-table value from caller-owned Jak 1 GOAL memory.
++ *
++ * This is a read-only layout check. It validates the data-only header, the object's BASIC
++ * representation, the fixed Type-Type root, the object's runtime Type, and the Type's size and
++ * method-table bounds. The returned method value remains a raw 32-bit GOAL word: this helper
++ * does not cast it to native code, inspect a function object, mutate storage, or invoke GOAL.
++ */
++[[nodiscard]] DataArenaBasicMethodValueLookupResult read_data_arena_basic_method_value(
++    const std::byte* storage,
++    std::size_t storage_size,
++    const DataArenaHeader& header,
++    std::uint32_t object,
++    std::uint32_t method_id);
++
+ }  // namespace jak1
+diff --git a/test/test_jak1_data_arena.cpp b/test/test_jak1_data_arena.cpp
+index 5c9811df..dcc46873 100644
+--- a/test/test_jak1_data_arena.cpp
++++ b/test/test_jak1_data_arena.cpp
+@@ -29,6 +29,10 @@ void write_u32(std::byte* storage, std::size_t offset, std::uint32_t value) {
+   std::memcpy(storage + offset, &value, sizeof(value));
+ }
+ 
++void write_u16(std::byte* storage, std::size_t offset, std::uint16_t value) {
++  std::memcpy(storage + offset, &value, sizeof(value));
++}
++
+ bool is_zero(std::byte value) {
+   return value == std::byte{0};
+ }
+@@ -41,6 +45,14 @@ constexpr std::uint32_t kSyntheticS7 =
+ constexpr std::uint32_t kSyntheticLastSymbol =
+     kSyntheticSymbolTable + jak1::SYM_TABLE_END * kSymbolTableEntrySize;
+ constexpr std::uint32_t kSyntheticArenaSize = kSyntheticSymbolTableEnd + 0x2000;
++constexpr std::uint32_t kResetMethodId = 9;
++
++static_assert(offsetof(jak1::Type, symbol) == 0);
++static_assert(offsetof(jak1::Type, allocated_size) == 0x8);
++static_assert(offsetof(jak1::Type, padded_size) == 0xa);
++static_assert(offsetof(jak1::Type, num_methods) == 0xe);
++static_assert(offsetof(jak1::Type, new_method) == 0x10);
++static_assert(offsetof(jak1::Type, new_method) + kResetMethodId * sizeof(std::uint32_t) == 0x34);
+ 
+ std::uint32_t stateless_goal_crc32(std::string_view name) {
+   std::uint32_t crc = 0;
+@@ -126,6 +138,44 @@ void fill_mismatching_hashes(SyntheticDataArena* arena,
+   }
+ }
+ 
++struct BasicMethodFixture {
++  static constexpr std::uint32_t kTypeType = 0x42004;
++  static constexpr std::uint32_t kFunctionType = 0x42044;
++  static constexpr std::uint32_t kObjectType = 0x42084;
++  static constexpr std::uint32_t kObject = 0x42104;
++  static constexpr std::uint32_t kFunction = 0x42a04;
++  static constexpr std::uint32_t kDerivedType = 0x42944;
++  static constexpr std::uint32_t kDerivedFunction = 0x42a44;
++  static constexpr std::uint16_t kAllocatedSize = 0x82c;
++  static constexpr std::uint16_t kPaddedSize = 0x830;
++  static constexpr std::uint16_t kMethodCount = 21;
++
++  SyntheticDataArena arena;
++
++  BasicMethodFixture() {
++    write_u32(arena.storage.data(), arena.header.s7 + jak1_symbols::FIX_SYM_TYPE_TYPE, kTypeType);
++    write_u32(arena.storage.data(), kTypeType - BASIC_OFFSET, kTypeType);
++
++    write_u32(arena.storage.data(), arena.header.s7 + jak1_symbols::FIX_SYM_FUNCTION_TYPE,
++              kFunctionType);
++    write_u32(arena.storage.data(), kFunctionType - BASIC_OFFSET, kTypeType);
++
++    write_u32(arena.storage.data(), kObjectType - BASIC_OFFSET, kTypeType);
++    write_u16(arena.storage.data(), kObjectType + offsetof(jak1::Type, allocated_size),
++              kAllocatedSize);
++    write_u16(arena.storage.data(), kObjectType + offsetof(jak1::Type, padded_size), kPaddedSize);
++    write_u16(arena.storage.data(), kObjectType + offsetof(jak1::Type, num_methods), kMethodCount);
++    write_u32(arena.storage.data(), method_slot(kObjectType, kResetMethodId), kFunction);
++
++    write_u32(arena.storage.data(), kObject - BASIC_OFFSET, kObjectType);
++    write_u32(arena.storage.data(), kFunction - BASIC_OFFSET, kFunctionType);
++  }
++
++  static constexpr std::uint32_t method_slot(std::uint32_t type, std::uint32_t method_id) {
++    return type + offsetof(jak1::Type, new_method) + method_id * sizeof(std::uint32_t);
++  }
++};
++
+ }  // namespace
+ 
+ TEST(Jak1DataArena, InitializesCanonicalDataOnlyHeader) {
+@@ -584,3 +634,269 @@ TEST(Jak1DataArena, RejectsEarlyLookupInputsWithoutMutation) {
+ 
+   EXPECT_EQ(arena.storage, before);
+ }
++
++TEST(Jak1DataArena, ReadsBasicMethodValuesWithoutMutatingStorage) {
++  auto fixture = BasicMethodFixture{};
++  const auto before = fixture.arena.storage;
++
++  const auto result = jak1::read_data_arena_basic_method_value(
++      fixture.arena.storage.data(), fixture.arena.storage.size(), fixture.arena.header,
++      BasicMethodFixture::kObject, kResetMethodId);
++
++  ASSERT_TRUE(result.found());
++  EXPECT_EQ(result.value.object_type, BasicMethodFixture::kObjectType);
++  EXPECT_EQ(result.value.allocated_size, BasicMethodFixture::kAllocatedSize);
++  EXPECT_EQ(result.value.padded_size, BasicMethodFixture::kPaddedSize);
++  EXPECT_EQ(result.value.method_value, BasicMethodFixture::kFunction);
++  EXPECT_EQ(fixture.arena.storage, before);
++}
++
++TEST(Jak1DataArena, RejectsInvalidMethodLookupHeadersWithoutMutation) {
++  auto fixture = BasicMethodFixture{};
++  auto header = fixture.arena.header;
++  header.symbol_table += 4;
++  const auto before = fixture.arena.storage;
++
++  const auto result = jak1::read_data_arena_basic_method_value(
++      fixture.arena.storage.data(), fixture.arena.storage.size(), header,
++      BasicMethodFixture::kObject, kResetMethodId);
++
++  EXPECT_EQ(result.error, jak1::DataArenaBasicMethodValueLookupError::InvalidHeader);
++  EXPECT_EQ(fixture.arena.storage, before);
++}
++
++TEST(Jak1DataArena, RejectsEarlyBasicMethodLookupInputsWithoutMutation) {
++  auto fixture = BasicMethodFixture{};
++  const auto before = fixture.arena.storage;
++
++  const auto null_storage = jak1::read_data_arena_basic_method_value(
++      nullptr, fixture.arena.storage.size(), fixture.arena.header, BasicMethodFixture::kObject,
++      kResetMethodId);
++  EXPECT_EQ(null_storage.error, jak1::DataArenaBasicMethodValueLookupError::NullStorage);
++
++  if constexpr (std::numeric_limits<std::size_t>::max() >
++                std::numeric_limits<std::uint32_t>::max()) {
++    const auto oversized_storage = jak1::read_data_arena_basic_method_value(
++        fixture.arena.storage.data(),
++        static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()) + 1,
++        fixture.arena.header, BasicMethodFixture::kObject, kResetMethodId);
++    EXPECT_EQ(oversized_storage.error, jak1::DataArenaBasicMethodValueLookupError::StorageTooLarge);
++  }
++
++  EXPECT_EQ(fixture.arena.storage, before);
++}
++
++TEST(Jak1DataArena, ReadsDerivedBasicMethodOverridesWithoutMutation) {
++  auto fixture = BasicMethodFixture{};
++  write_u32(fixture.arena.storage.data(), BasicMethodFixture::kDerivedType - BASIC_OFFSET,
++            BasicMethodFixture::kTypeType);
++  write_u32(fixture.arena.storage.data(),
++            BasicMethodFixture::kDerivedType + offsetof(jak1::Type, parent),
++            BasicMethodFixture::kObjectType);
++  write_u16(fixture.arena.storage.data(),
++            BasicMethodFixture::kDerivedType + offsetof(jak1::Type, allocated_size),
++            BasicMethodFixture::kAllocatedSize);
++  write_u16(fixture.arena.storage.data(),
++            BasicMethodFixture::kDerivedType + offsetof(jak1::Type, padded_size),
++            BasicMethodFixture::kPaddedSize);
++  write_u16(fixture.arena.storage.data(),
++            BasicMethodFixture::kDerivedType + offsetof(jak1::Type, num_methods),
++            BasicMethodFixture::kMethodCount);
++  write_u32(fixture.arena.storage.data(),
++            BasicMethodFixture::method_slot(BasicMethodFixture::kDerivedType, kResetMethodId),
++            BasicMethodFixture::kDerivedFunction);
++  write_u32(fixture.arena.storage.data(), BasicMethodFixture::kDerivedFunction - BASIC_OFFSET,
++            BasicMethodFixture::kFunctionType);
++  write_u32(fixture.arena.storage.data(), BasicMethodFixture::kObject - BASIC_OFFSET,
++            BasicMethodFixture::kDerivedType);
++  const auto before = fixture.arena.storage;
++
++  const auto result = jak1::read_data_arena_basic_method_value(
++      fixture.arena.storage.data(), fixture.arena.storage.size(), fixture.arena.header,
++      BasicMethodFixture::kObject, kResetMethodId);
++
++  ASSERT_TRUE(result.found());
++  EXPECT_EQ(result.value.object_type, BasicMethodFixture::kDerivedType);
++  EXPECT_EQ(result.value.method_value, BasicMethodFixture::kDerivedFunction);
++  EXPECT_EQ(fixture.arena.storage, before);
++}
++
++TEST(Jak1DataArena, ReturnsRawBasicMethodValuesWithoutFunctionValidation) {
++  auto fixture = BasicMethodFixture{};
++  write_u32(fixture.arena.storage.data(),
++            BasicMethodFixture::method_slot(BasicMethodFixture::kObjectType, kResetMethodId), 0);
++  const auto zero_before = fixture.arena.storage;
++
++  const auto zero = jak1::read_data_arena_basic_method_value(
++      fixture.arena.storage.data(), fixture.arena.storage.size(), fixture.arena.header,
++      BasicMethodFixture::kObject, kResetMethodId);
++
++  ASSERT_TRUE(zero.found());
++  EXPECT_EQ(zero.value.method_value, 0U);
++  EXPECT_EQ(fixture.arena.storage, zero_before);
++
++  constexpr std::uint32_t kNonBasicMethodValue = 2;
++  write_u32(fixture.arena.storage.data(),
++            BasicMethodFixture::method_slot(BasicMethodFixture::kObjectType, kResetMethodId),
++            kNonBasicMethodValue);
++  const auto non_basic_before = fixture.arena.storage;
++
++  const auto non_basic = jak1::read_data_arena_basic_method_value(
++      fixture.arena.storage.data(), fixture.arena.storage.size(), fixture.arena.header,
++      BasicMethodFixture::kObject, kResetMethodId);
++
++  ASSERT_TRUE(non_basic.found());
++  EXPECT_EQ(non_basic.value.method_value, kNonBasicMethodValue);
++  EXPECT_EQ(fixture.arena.storage, non_basic_before);
++}
++
++TEST(Jak1DataArena, RejectsMalformedBasicObjectsAndTypesWithoutMutation) {
++  {
++    auto fixture = BasicMethodFixture{};
++    const auto before = fixture.arena.storage;
++    const auto result = jak1::read_data_arena_basic_method_value(
++        fixture.arena.storage.data(), fixture.arena.storage.size(), fixture.arena.header, 0,
++        kResetMethodId);
++    EXPECT_EQ(result.error, jak1::DataArenaBasicMethodValueLookupError::InvalidObject);
++    EXPECT_EQ(fixture.arena.storage, before);
++  }
++
++  {
++    auto fixture = BasicMethodFixture{};
++    write_u32(fixture.arena.storage.data(), BasicMethodFixture::kObject - BASIC_OFFSET, 2);
++    const auto before = fixture.arena.storage;
++    const auto result = jak1::read_data_arena_basic_method_value(
++        fixture.arena.storage.data(), fixture.arena.storage.size(), fixture.arena.header,
++        BasicMethodFixture::kObject, kResetMethodId);
++    EXPECT_EQ(result.error, jak1::DataArenaBasicMethodValueLookupError::InvalidObjectType);
++    EXPECT_EQ(fixture.arena.storage, before);
++  }
++
++  {
++    auto fixture = BasicMethodFixture{};
++    write_u32(fixture.arena.storage.data(),
++              fixture.arena.header.s7 + jak1_symbols::FIX_SYM_TYPE_TYPE, 0);
++    const auto before = fixture.arena.storage;
++    const auto result = jak1::read_data_arena_basic_method_value(
++        fixture.arena.storage.data(), fixture.arena.storage.size(), fixture.arena.header,
++        BasicMethodFixture::kObject, kResetMethodId);
++    EXPECT_EQ(result.error, jak1::DataArenaBasicMethodValueLookupError::InvalidTypeType);
++    EXPECT_EQ(fixture.arena.storage, before);
++  }
++
++  {
++    auto fixture = BasicMethodFixture{};
++    write_u32(fixture.arena.storage.data(), BasicMethodFixture::kTypeType - BASIC_OFFSET, 0);
++    const auto before = fixture.arena.storage;
++    const auto result = jak1::read_data_arena_basic_method_value(
++        fixture.arena.storage.data(), fixture.arena.storage.size(), fixture.arena.header,
++        BasicMethodFixture::kObject, kResetMethodId);
++    EXPECT_EQ(result.error, jak1::DataArenaBasicMethodValueLookupError::InvalidTypeType);
++    EXPECT_EQ(fixture.arena.storage, before);
++  }
++
++  {
++    auto fixture = BasicMethodFixture{};
++    write_u32(fixture.arena.storage.data(), BasicMethodFixture::kObjectType - BASIC_OFFSET,
++              BasicMethodFixture::kFunctionType);
++    const auto before = fixture.arena.storage;
++    const auto result = jak1::read_data_arena_basic_method_value(
++        fixture.arena.storage.data(), fixture.arena.storage.size(), fixture.arena.header,
++        BasicMethodFixture::kObject, kResetMethodId);
++    EXPECT_EQ(result.error, jak1::DataArenaBasicMethodValueLookupError::InvalidTypeTag);
++    EXPECT_EQ(fixture.arena.storage, before);
++  }
++}
++
++TEST(Jak1DataArena, RejectsIncoherentAndUnreadableBasicObjectSizesWithoutMutation) {
++  {
++    auto fixture = BasicMethodFixture{};
++    write_u16(fixture.arena.storage.data(),
++              BasicMethodFixture::kObjectType + offsetof(jak1::Type, padded_size), 0x820);
++    const auto before = fixture.arena.storage;
++    const auto result = jak1::read_data_arena_basic_method_value(
++        fixture.arena.storage.data(), fixture.arena.storage.size(), fixture.arena.header,
++        BasicMethodFixture::kObject, kResetMethodId);
++    EXPECT_EQ(result.error, jak1::DataArenaBasicMethodValueLookupError::InvalidObjectSize);
++    EXPECT_EQ(fixture.arena.storage, before);
++  }
++
++  {
++    auto fixture = BasicMethodFixture{};
++    write_u16(fixture.arena.storage.data(),
++              BasicMethodFixture::kObjectType + offsetof(jak1::Type, allocated_size), 0);
++    write_u16(fixture.arena.storage.data(),
++              BasicMethodFixture::kObjectType + offsetof(jak1::Type, padded_size), 0);
++    const auto before = fixture.arena.storage;
++    const auto result = jak1::read_data_arena_basic_method_value(
++        fixture.arena.storage.data(), fixture.arena.storage.size(), fixture.arena.header,
++        BasicMethodFixture::kObject, kResetMethodId);
++    EXPECT_EQ(result.error, jak1::DataArenaBasicMethodValueLookupError::InvalidObjectSize);
++    EXPECT_EQ(fixture.arena.storage, before);
++  }
++
++  {
++    auto fixture = BasicMethodFixture{};
++    write_u16(fixture.arena.storage.data(),
++              BasicMethodFixture::kObjectType + offsetof(jak1::Type, allocated_size), 0xfff1);
++    write_u16(fixture.arena.storage.data(),
++              BasicMethodFixture::kObjectType + offsetof(jak1::Type, padded_size), 0);
++    const auto before = fixture.arena.storage;
++    const auto result = jak1::read_data_arena_basic_method_value(
++        fixture.arena.storage.data(), fixture.arena.storage.size(), fixture.arena.header,
++        BasicMethodFixture::kObject, kResetMethodId);
++    EXPECT_EQ(result.error, jak1::DataArenaBasicMethodValueLookupError::InvalidObjectSize);
++    EXPECT_EQ(fixture.arena.storage, before);
++  }
++
++  {
++    auto fixture = BasicMethodFixture{};
++    constexpr std::uint32_t kNearEndObject = kSyntheticArenaSize - 0x800 + BASIC_OFFSET;
++    static_assert((kNearEndObject & OFFSET_MASK) == BASIC_OFFSET);
++    write_u32(fixture.arena.storage.data(), kNearEndObject - BASIC_OFFSET,
++              BasicMethodFixture::kObjectType);
++    const auto before = fixture.arena.storage;
++    const auto result = jak1::read_data_arena_basic_method_value(
++        fixture.arena.storage.data(), fixture.arena.storage.size(), fixture.arena.header,
++        kNearEndObject, kResetMethodId);
++    EXPECT_EQ(result.error, jak1::DataArenaBasicMethodValueLookupError::InvalidObjectSize);
++    EXPECT_EQ(fixture.arena.storage, before);
++  }
++}
++
++TEST(Jak1DataArena, RejectsOutOfRangeAndOutOfBoundsMethodSlotsWithoutMutation) {
++  {
++    auto fixture = BasicMethodFixture{};
++    const auto before = fixture.arena.storage;
++    const auto result = jak1::read_data_arena_basic_method_value(
++        fixture.arena.storage.data(), fixture.arena.storage.size(), fixture.arena.header,
++        BasicMethodFixture::kObject, BasicMethodFixture::kMethodCount);
++    EXPECT_EQ(result.error, jak1::DataArenaBasicMethodValueLookupError::MethodOutOfRange);
++    EXPECT_EQ(fixture.arena.storage, before);
++  }
++
++  {
++    auto fixture = BasicMethodFixture{};
++    constexpr std::uint32_t kLogicalStorageSize = kSyntheticArenaSize - 4;
++    constexpr std::uint32_t kNearEndType = kLogicalStorageSize - 0x10;
++    static_assert((kNearEndType & OFFSET_MASK) == BASIC_OFFSET);
++    write_u32(fixture.arena.storage.data(), BasicMethodFixture::kObject - BASIC_OFFSET,
++              kNearEndType);
++    write_u32(fixture.arena.storage.data(), kNearEndType - BASIC_OFFSET,
++              BasicMethodFixture::kTypeType);
++    write_u16(fixture.arena.storage.data(), kNearEndType + offsetof(jak1::Type, allocated_size),
++              BasicMethodFixture::kAllocatedSize);
++    write_u16(fixture.arena.storage.data(), kNearEndType + offsetof(jak1::Type, padded_size),
++              BasicMethodFixture::kPaddedSize);
++    write_u16(fixture.arena.storage.data(), kNearEndType + offsetof(jak1::Type, num_methods), 1);
++    auto header = fixture.arena.header;
++    header.global_heap_end = kLogicalStorageSize;
++    const auto before = fixture.arena.storage;
++
++    const auto result = jak1::read_data_arena_basic_method_value(
++        fixture.arena.storage.data(), kLogicalStorageSize, header, BasicMethodFixture::kObject, 0);
++
++    EXPECT_EQ(result.error, jak1::DataArenaBasicMethodValueLookupError::InvalidMethodSlot);
++    EXPECT_EQ(fixture.arena.storage, before);
++  }
++}
+-- 
+2.50.1 (Apple Git-155)
+
