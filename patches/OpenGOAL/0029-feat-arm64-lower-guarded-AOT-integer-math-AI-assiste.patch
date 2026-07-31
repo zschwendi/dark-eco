@@ -1,0 +1,192 @@
+From 38e15824de976e4fd9d9ebbc9e2e3d70cbfbbee9 Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Fri, 31 Jul 2026 02:31:54 -0600
+Subject: [PATCH] feat(arm64): lower guarded AOT integer math (AI-assisted)
+
+---
+ goalc/compiler/IR.cpp         | 42 +++++++++++++++--
+ goalc/compiler/IR.h           |  1 +
+ test/goalc/test_arm64_aot.cpp | 86 +++++++++++++++++++++++++++++++++--
+ 3 files changed, 121 insertions(+), 8 deletions(-)
+
+diff --git a/goalc/compiler/IR.cpp b/goalc/compiler/IR.cpp
+index aef43113..b4563496 100644
+--- a/goalc/compiler/IR.cpp
++++ b/goalc/compiler/IR.cpp
+@@ -860,10 +860,46 @@ void IR_IntegerMath::do_codegen_arm64(emitter::ObjectGenerator* gen,
+     throw std::runtime_error("ARM64 AOT proof requires a non-stack GPR integer math destination.");
+   }
+ 
+-  if (m_kind != IntegerMathKind::NOT_64 || m_arg != nullptr) {
+-    throw std::runtime_error("ARM64 AOT proof only supports unary 64-bit integer NOT.");
++  const auto is_aot_temp_gpr = [](const emitter::Register& reg) {
++    return reg.instruction_set() == emitter::InstructionSet::ARM64 &&
++           reg.logical_id() >= emitter::X0 && reg.logical_id() <= emitter::X15;
++  };
++
++  switch (m_kind) {
++    case IntegerMathKind::NOT_64:
++      if (m_arg != nullptr) {
++        throw std::runtime_error("ARM64 AOT proof requires a unary 64-bit integer NOT.");
++      }
++      gen->add_instr(IGen::not_gpr64(*gen, destination), irec);
++      return;
++    case IntegerMathKind::ADD_64: {
++      if (!m_arg || m_arg->ireg().reg_class != RegClass::GPR_64) {
++        throw std::runtime_error("ARM64 AOT proof requires a GPR source for 64-bit integer ADD.");
++      }
++      const auto source = get_reg(m_arg, allocs, irec);
++      if (!is_aot_temp_gpr(destination) || !is_aot_temp_gpr(source)) {
++        throw std::runtime_error(
++            "ARM64 AOT proof requires X0-X15 operands for 64-bit integer ADD.");
++      }
++      gen->add_instr(IGen::add_gpr64_gpr64(*gen, destination, source), irec);
++      return;
++    }
++    case IntegerMathKind::SHL_64:
++      if (m_arg != nullptr) {
++        throw std::runtime_error("ARM64 AOT proof requires an immediate 64-bit integer SHL.");
++      }
++      if (!is_aot_temp_gpr(destination)) {
++        throw std::runtime_error(
++            "ARM64 AOT proof requires an X0-X15 destination for immediate 64-bit integer SHL.");
++      }
++      if (m_shift_amount != 4) {
++        throw std::runtime_error("ARM64 AOT proof requires an immediate 64-bit integer SHL by four.");
++      }
++      gen->add_instr(IGen::shl_gpr64_u8(*gen, destination, m_shift_amount), irec);
++      return;
++    default:
++      throw std::runtime_error("ARM64 AOT proof only supports 64-bit integer NOT, ADD, or SHL.");
+   }
+-  gen->add_instr(IGen::not_gpr64(*gen, destination), irec);
+ }
+ 
+ /////////////////////
+diff --git a/goalc/compiler/IR.h b/goalc/compiler/IR.h
+index 274da01e..47fc28be 100644
+--- a/goalc/compiler/IR.h
++++ b/goalc/compiler/IR.h
+@@ -273,6 +273,7 @@ class IR_IntegerMath : public IR {
+   IntegerMathKind get_kind() const { return m_kind; }
+   const RegVal* destination() const { return m_dest; }
+   const RegVal* argument() const { return m_arg; }
++  u8 shift_amount() const { return m_shift_amount; }
+ 
+  protected:
+   IntegerMathKind m_kind;
+diff --git a/test/goalc/test_arm64_aot.cpp b/test/goalc/test_arm64_aot.cpp
+index c6d03c65..90689aaa 100644
+--- a/test/goalc/test_arm64_aot.cpp
++++ b/test/goalc/test_arm64_aot.cpp
+@@ -926,10 +926,12 @@ TEST(Arm64Aot, emits_unary_gpr_integer_not) {
+             (std::vector<u8>{0xe0, 0x03, 0x20, 0xaa, 0xc0, 0x03, 0x5f, 0xd6}));
+ }
+ 
+-TEST(Arm64Aot, rejects_unsupported_arm64_integer_math) {
++TEST(Arm64Aot, emits_guarded_arm64_integer_add_and_immediate_shift) {
+   RegVal destination{{RegClass::GPR_64, 0}, TypeSpec("int")};
+   RegVal source{{RegClass::GPR_64, 1}, TypeSpec("int")};
+   IR_IntegerMath integer_add(IntegerMathKind::ADD_64, &destination, &source);
++  IR_IntegerMath integer_shift(IntegerMathKind::SHL_64, &destination, u8(4));
++  EXPECT_EQ(integer_shift.shift_amount(), 4);
+ 
+   Assignment destination_assignment;
+   destination_assignment.kind = Assignment::Kind::REGISTER;
+@@ -939,15 +941,89 @@ TEST(Arm64Aot, rejects_unsupported_arm64_integer_math) {
+   source_assignment.reg = emitter::X1;
+   AllocationResult allocations;
+   allocations.ass_as_ranges = {
+-      AssignmentRange(0, {true}, {destination_assignment}),
+-      AssignmentRange(0, {true}, {source_assignment}),
++      AssignmentRange(0, {true, true}, {destination_assignment, destination_assignment}),
++      AssignmentRange(0, {true, true}, {source_assignment, source_assignment}),
+   };
+ 
+   FunctionDebugInfo debug{};
+   emitter::ObjectGenerator generator(GameVersion::Jak1, emitter::InstructionSet::ARM64);
+   const auto function = generator.add_function_to_seg(MAIN_SEGMENT, &debug);
+-  EXPECT_THROW(integer_add.do_codegen_arm64(&generator, allocations, generator.add_ir(function)),
+-               std::runtime_error);
++  integer_add.do_codegen_arm64(&generator, allocations, generator.add_ir(function));
++  integer_shift.do_codegen_arm64(&generator, allocations, generator.add_ir(function));
++  generator.add_instr_no_ir(function, emitter::IGen::ret(generator),
++                            InstructionInfo::Kind::EPILOGUE);
++
++  EXPECT_EQ(generator.materialize_arm64_function(function),
++            (std::vector<u8>{0x00, 0x00, 0x01, 0x8b, 0x00, 0xec, 0x7c, 0xd3,
++                             0xc0, 0x03, 0x5f, 0xd6}));
++}
++
++TEST(Arm64Aot, rejects_integer_math_outside_the_guarded_arm64_aot_subset) {
++  const auto expect_rejected = [](IR_IntegerMath& math,
++                                  const std::vector<emitter::Register>& assignments) {
++    AllocationResult allocations;
++    std::vector<AssignmentRange> ranges;
++    for (size_t i = 0; i < assignments.size(); i++) {
++      Assignment assignment;
++      assignment.kind = Assignment::Kind::REGISTER;
++      assignment.reg = assignments.at(i);
++      ranges.emplace_back(0, std::vector<bool>{true}, std::vector<Assignment>{assignment});
++    }
++    allocations.ass_as_ranges = std::move(ranges);
++
++    FunctionDebugInfo debug{};
++    emitter::ObjectGenerator generator(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++    const auto function = generator.add_function_to_seg(MAIN_SEGMENT, &debug);
++    EXPECT_THROW(math.do_codegen_arm64(&generator, allocations, generator.add_ir(function)),
++                 std::runtime_error);
++  };
++
++  RegVal destination{{RegClass::GPR_64, 0}, TypeSpec("int")};
++  RegVal source{{RegClass::GPR_64, 1}, TypeSpec("int")};
++  IR_IntegerMath unsupported_subtract(IntegerMathKind::SUB_64, &destination, &source);
++  expect_rejected(unsupported_subtract, {emitter::X0, emitter::X1});
++
++  IR_IntegerMath add_without_source(IntegerMathKind::ADD_64, &destination, nullptr);
++  expect_rejected(add_without_source, {emitter::X0});
++
++  IR_IntegerMath non_immediate_shift(IntegerMathKind::SHL_64, &destination, &source);
++  expect_rejected(non_immediate_shift, {emitter::X0, emitter::X1});
++
++  RegVal float_source{{RegClass::FLOAT, 1}, TypeSpec("float")};
++  IR_IntegerMath add_with_non_gpr_source(IntegerMathKind::ADD_64, &destination, &float_source);
++  expect_rejected(add_with_non_gpr_source, {emitter::X0, emitter::V0});
++
++  RegVal float_destination{{RegClass::FLOAT, 0}, TypeSpec("float")};
++  IR_IntegerMath add_with_non_gpr_destination(IntegerMathKind::ADD_64, &float_destination,
++                                               &source);
++  expect_rejected(add_with_non_gpr_destination, {emitter::V0, emitter::X1});
++
++  const std::array<emitter::Register, 17> invalid_registers = {
++      emitter::Register{emitter::RAX}, emitter::Register{emitter::X16},
++      emitter::Register{emitter::X17}, emitter::Register{emitter::X18},
++      emitter::Register{emitter::X19}, emitter::Register{emitter::X20},
++      emitter::Register{emitter::X21}, emitter::Register{emitter::X22},
++      emitter::Register{emitter::X23}, emitter::Register{emitter::X24},
++      emitter::Register{emitter::X25}, emitter::Register{emitter::X26},
++      emitter::Register{emitter::X27}, emitter::Register{emitter::X28},
++      emitter::Register{emitter::X29}, emitter::Register{emitter::X30},
++      emitter::Register{emitter::SP},
++  };
++  for (const auto invalid : invalid_registers) {
++    IR_IntegerMath add_with_invalid_destination(IntegerMathKind::ADD_64, &destination, &source);
++    expect_rejected(add_with_invalid_destination, {invalid, emitter::X1});
++
++    IR_IntegerMath add_with_invalid_source(IntegerMathKind::ADD_64, &destination, &source);
++    expect_rejected(add_with_invalid_source, {emitter::X0, invalid});
++
++    IR_IntegerMath shift_with_invalid_destination(IntegerMathKind::SHL_64, &destination, u8(4));
++    expect_rejected(shift_with_invalid_destination, {invalid});
++  }
++
++  for (const auto shift_amount : {u8(3), u8(5), u8(63)}) {
++    IR_IntegerMath shift_by_other_amount(IntegerMathKind::SHL_64, &destination, shift_amount);
++    expect_rejected(shift_by_other_amount, {emitter::X0});
++  }
+ }
+ 
+ TEST(Arm64Aot, materializes_a_local_arm64_goto) {
+-- 
+2.50.1 (Apple Git-155)
+
