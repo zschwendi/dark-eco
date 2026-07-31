@@ -2167,3 +2167,110 @@ fetchable pinned OpenGOAL fork and the associated owner, visibility/access
 policy, and HTTPS/SSH transport. Do not move the official submodule pin,
 change `.gitmodules`, authenticate, create a fork, or push without that
 direction.
+
+## Checkpoint 9: generated host X22-backed node-name execution
+
+Parent checkpoint `faf3f1a1a9f5dfc28dc791235345b6a4b8fc6679` preserves child
+`1e43e767d66b6f554a6cc9aedb9fa024ca3130ee`, whose parent is
+`fab37c1f755aa342304db8dbf27f1fa1c42423ac`. The official OpenGOAL submodule
+remains pinned at `a4cb1ac1f0596c8740b1c26accb24a58505cda92` and was not
+moved.
+
+| Child commit | Patch | Stored SHA-256 | Stable patch ID | Preserved by parent |
+| --- | --- | --- | --- | --- |
+| `1e43e767d66b6f554a6cc9aedb9fa024ca3130ee` | `0020-test-arm64-execute-X22-backed-GOAL-field-load-AI-ass.patch` | `30d44af98ed030a4da1ac329af2aae167aa71225e82b47862a53ec7009d1c31b` | `59c59b4f6830d6d6ab91e24ab5c5b16d8301e14a` | `faf3f1a1a9f5dfc28dc791235345b6a4b8fc6679` |
+
+Patch 0020 follows the ordered 0013-0019 sequence. The parent preserves the
+saved mbox rather than the child Git object. Verify the stored artifact rather
+than a regenerated patch stream:
+
+```sh
+shasum -a 256 \
+  patches/OpenGOAL/0020-test-arm64-execute-X22-backed-GOAL-field-load-AI-ass.patch
+git patch-id --stable < \
+  patches/OpenGOAL/0020-test-arm64-execute-X22-backed-GOAL-field-load-AI-ass.patch
+```
+
+The expected outputs are the SHA-256 in the table and
+`59c59b4f6830d6d6ab91e24ab5c5b16d8301e14a 1e43e767d66b6f554a6cc9aedb9fa024ca3130ee`.
+
+### Scope and claim boundary
+
+Within the existing Apple ARM64 host-test gate, 0020 extends the one CMake
+custom command with the exact maintained debug-only Jak 1 `glst-node-name`
+source. It generates and directly links that assembly plus its guarded Export1
+header into `arm64-goal-call-abi-test`; the test remains separate from
+`libruntime.a` and the C++ `call_goal` dispatcher.
+
+The existing serial test makes one caller-owned arena allocation and initializes
+the existing data-arena header. It uses the canonical nonzero
+`global_heap_current` field as the same X0 node offset for both calls. It writes
+two high-bit unsigned 32-bit payloads at that node offset plus eight, then calls
+the production assembly dispatcher with two X22 logical bases 0x40 bytes apart.
+The exact results are `0x0000000081234567` and `0x00000000f2345678`; both have
+zero high 32 bits. The existing caller X20/X21/X22 sentinel-restoration checks
+also pass.
+
+The generated entry is exactly:
+
+```text
+add x16, x0, x22, sxtx
+ldur w0, [x16, #8]
+ret
+```
+
+This is bounded host evidence for this field load with caller-owned synthetic
+arena contents. It does not establish general ARM64 loads, native runtime or
+desktop-global initialization, a live GOAL symbol, relocation, JIT, C++ runtime
+dispatch, iPhoneOS executable behavior, an app, signing, simulator, or physical
+device behavior.
+
+An initial `clang-format` pass reordered the contiguous generated Export1
+includes and therefore changed the table expansion order. The declaration and
+table include blocks now use `clang-format off` / `clang-format on`; assertions
+protect the required `identity`, `lognot`, `glst-node-name` ordering. Final
+review found no blockers.
+
+### Recorded validation and recovery
+
+The affected host build passed:
+
+```sh
+cmake --build /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build \
+  --target runtime arm64-goal-call-abi-test jak1-data-arena-test goalc-test goalc-aot \
+  -j 4
+```
+
+ABI CTest passed 3/3, data-arena CTest passed 4/4, the established
+compiler/emitter filter passed 129/129, AOT CLI CTest passed 1/1, and full
+CTest passed 8/8. A Ninja graph query reported
+`goalc-aot -> arm64-goal-call-aot-artifacts -> arm64-goal-call-abi-test`.
+`nm` found the dispatcher plus all five generated AOT entries; disassembly
+confirmed dispatcher X22 setup and the exact `glst-node-name` sequence above.
+Import inspection found no forbidden imports.
+
+The direct minimal iPhoneOS configure/build also passed using
+`/private/tmp/GOALPadOpenGOAL-arm64-goal-call-iphoneos-0018-build`. The direct
+archive
+`/private/tmp/goalpad-ios-aot-x22.38XD72/libopengoal-jak1-aot-context-ios.a`
+is arm64 with iOS minimum 18.0. The dispatcher and generated `glst-node-name`
+assembly objects report SDK n/a; `data_arena.o` reports SDK 26.5. The archive
+defines the dispatcher and all five AOT entries, has only `_bzero` undefined,
+and its iPhoneOS `glst-node-name` disassembly is the exact three-instruction
+sequence above. This is static object/archive compatibility only, not an
+executable/app link, signing, simulator, device, or runtime-execution result.
+
+The patch was reconstructed on `fab37c1`; its resulting tree
+`26ca101158f5563789cdc8a4f2b355784a318c98` was identical to the verified child
+tree. The disposable reconstruction worktree was removed. No simulator, iOS
+app, physical device, remote, or push was used; **Z iPad Pro** was not accessed.
+
+### Next task pending independent post-0020 audit
+
+Do not choose or document a new seam in this checkpoint. Preserve the fork
+publication blocker, the official OpenGOAL pin, the ordered patch sequence, and
+the host-only claim boundary until an independent post-0020 audit selects the
+next smallest task. A maintainer must still choose a fetchable pinned OpenGOAL
+fork and its owner, visibility/access policy, and HTTPS/SSH transport before
+durable parent integration. Do not move the official submodule pin, change
+`.gitmodules`, authenticate, create a fork, or push without that direction.

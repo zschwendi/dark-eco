@@ -25,17 +25,21 @@ binding architecture, scope, and content-separation rules.
   GOALPad resolves the generated native entries through a small app-local
   registry; `true-func` returns X21 plus eight and `identity` receives its one
   object argument in Apple-ABI X0 only after that state is established. A
-  separate compiler/export-only proof covers the exact maintained debug-only
-  Jak 1 `glst-node-name` form: it emits a 32-bit field load from X22 + X0 + 8,
-  but has not been added to the app registry or a CMake executable artifact.
-  It is not a general ARM64 load claim. The established function/export
-  checkpoint is verified on ARM64 macOS and the dedicated M5 simulator. The
-  Debug generic iOS build uses an Xcode Preview split bundle and is not no-JIT
-  evidence. A separately verified Release generic iOS build disables
-  Preview/debug-dylib layout and contains a monolithic ARM64
-  executable, but is build/signing evidence only. Top-level GOAL symbol
-  installation, live runtime initialization, relocation, and physical execution
-  of these checkpoints remain pending.
+  host-only CMake artifact and serial dispatcher test now cover the exact
+  maintained debug-only Jak 1 `glst-node-name` form. It performs a 32-bit field
+  load from X22 + X0 + 8 against two logical X22 bases in one caller-owned
+  arena, returning the zero-extended high-bit values `0x81234567` and
+  `0xf2345678`. This is bounded host evidence for that exact field load, not a
+  general ARM64 load or runtime claim. A direct iPhoneOS static archive also
+  compiles the dispatcher and five generated entries, but is compatibility
+  evidence only. The established app-local function/export checkpoint is
+  verified on ARM64 macOS and the dedicated M5 simulator. The Debug generic iOS
+  build uses an Xcode Preview split bundle and is not no-JIT evidence. A
+  separately verified Release generic iOS build disables Preview/debug-dylib
+  layout and contains a monolithic ARM64 executable, but is build/signing
+  evidence only. Top-level GOAL symbol installation, live runtime
+  initialization, relocation, and physical execution of the node-name
+  checkpoint remain pending.
 - **Planned:** Initialize the full OpenGOAL runtime state, expand the ARM64
   compiler subset, and load user-prepared Jak 1 data.
 
