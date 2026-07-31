@@ -354,6 +354,16 @@ Current progress:
   and has only the system `_bzero` undefined reference. The generated target
   graph excludes desktop libraries, tools, JIT paths, and runtime globals;
   normal-host regressions remained 4/4, 122/122, and 5/5.
+- Child `45e1897f`, preserved by parent `0c0395e` as patch 0017, dispatches
+  `call_goal` to the existing ARM64 assembly helper on macOS ARM64 and adds a
+  static assembly ABI probe. The recorded host build and tests passed: ABI
+  CTest 2/2, data-arena CTest 4/4, the host compiler filter 122/122, and full
+  CTest 7/7. The probe verifies argument placement, X20/X21/X22 setup,
+  16-byte stack alignment, result propagation, and restoration of caller
+  callee-saved registers. It is a macOS-host static-test result only: the
+  target does not link the OpenGOAL runtime or CodeTester, and it does not
+  execute compiler-produced GOAL code or establish an iPhoneOS, app, signing,
+  simulator, or physical-device result.
 - This is only a partial data boundary: it establishes canonical heap and
   symbol-table offsets in caller-owned storage, but does not bind
   `g_ee_main_mem`, initialize native kernel/symbol globals, create types or
@@ -606,14 +616,16 @@ owner, access policy, and transport, then explicitly renews authentication.
 
 The next actions are:
 
-1. Integrate the verified, portable Jak 1 data-arena 0013-0016 series only
-   after a dedicated OpenGOAL fork makes child commit `5ad2efa3` fetchable and
-   pins it reproducibly. Do not copy the source into the app or use a
-   machine-local worktree path.
-2. Then add the next smallest seam: a pure C++ arena-derived AOT call context
-   with `X20 = X21 = s7` and `X22 = arena base`. Exercise only the existing
-   static signed entries; do not bind desktop globals, create live GOAL
-   symbols, add executable memory, or begin the desktop runtime-linker path.
+1. Integrate the verified portable 0013-0017 sequence only after a dedicated
+   OpenGOAL fork makes child commit `45e1897f` fetchable and pins it
+   reproducibly. Apply 0017 after its 0013-0016 data-arena prerequisite; do
+   not copy the source into the app or use a machine-local worktree path.
+2. Keep the 0017 static host ABI probe as a regression guard, then extend it
+   with build-generated, statically linked `false-func`, `true-func`,
+   `identity`, and `lognot` artifacts against one initialized data arena. This
+   remains a host-only next seam: do not represent it as an iPad result, bind
+   desktop globals, create live GOAL symbols, add executable memory, or begin
+   the desktop runtime-linker path.
 3. Keep unsupported statics, general relocations, calls, saved registers,
    spills, and stack locals explicit until a real Jak 1 boot dependency
    requires each boundary. Keep x86 behavior, the non-network compiler suite,

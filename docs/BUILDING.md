@@ -167,6 +167,8 @@ Canonical data-arena bounds child: 5495181f304bb63b49a82e9067d59fd27a5dd6c8
 Canonical data-arena bounds patch: patches/OpenGOAL/0015-fix-kernel-preserve-canonical-Jak-1-data-arena-bound.patch
 Minimal iPhoneOS data-arena child: 5ad2efa3dac3febe642370aec39629b17039ead9
 Minimal iPhoneOS data-arena patch: patches/OpenGOAL/0016-build-ios-add-portable-Jak-1-data-arena-target-AI-as.patch
+Host ARM64 GOAL-call ABI child: 45e1897f7cd560e4951f515e264078a023a2d08c
+Host ARM64 GOAL-call ABI patch: patches/OpenGOAL/0017-fix-arm64-verify-GOAL-call-context-ABI-AI-assisted.patch
 ```
 
 Restore it into an isolated worktree:
@@ -223,6 +225,9 @@ git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
 
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0016-build-ios-add-portable-Jak-1-data-arena-target-AI-as.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0017-fix-arm64-verify-GOAL-call-context-ABI-AI-assisted.patch"
 ```
 
 If that branch or worktree already exists, inspect and reuse it rather than
@@ -232,7 +237,7 @@ the unpublished child commit.
 The restored commits are patch-equivalent to `79f22008`, `149840cf`,
 `32cf26ae`, `92c8f975`, `b78d7c28`, `1fc20e79`, `25917e27`, `1c80b667`,
 `35d653f1`, `f979c82c`, `2475b3c1`, `9acf4e79`, `5c536859`, `b094144b`,
-`5495181f`, and `5ad2efa3`, but `git am` normally assigns new committer
+`5495181f`, `5ad2efa3`, and `45e1897f`, but `git am` normally assigns new committer
 metadata and therefore different commit SHAs. The exact objects are available
 only in a checkout that already contains the original child commits. Compare
 the resulting tree or stable patch identities when reconstructing them from the
@@ -243,6 +248,10 @@ source, library, and test; 0014 changes that new test's registration; 0015
 corrects 0013's arena bounds; and 0016 factors that exact library target into
 the minimal mode below. Do not apply or preserve a partial suffix, and do not
 reorder the series.
+
+Patch 0017 follows that ordered data-arena unit but is a separate macOS ARM64
+dispatcher and static-test checkpoint. It requires 0016 as its parent; it does
+not extend the iPhoneOS data-arena build proof or establish an iPad runtime.
 
 ### Validate the minimal iPhoneOS data-arena static library
 
@@ -340,6 +349,61 @@ behavior. The full desktop runtime test attempt is also not a pass: its
 inherited runtime main-memory mapping reported `Permission denied`; a retry
 progressed into `Jak1KernelTest` and was stopped with Ctrl-C (exit 130). Keep
 the data-arena result scoped to the commands above.
+
+### Validate the host ARM64 GOAL call ABI
+
+Patch 0017 adds the macOS ARM64 `call_goal` dispatch to the existing
+`call_goal_asm_arm64` helper and a static assembly probe. It is intentionally
+separate from the portable data-arena archive: the new test links its probe,
+`asm_funcs_arm64.s`, and GoogleTest, but not the OpenGOAL runtime or
+CodeTester. The test does not execute compiler-produced GOAL code.
+
+Recorded validation used a fresh disposable host build directory. CMake's
+first configuration exposed a missing internal `CMAKE_ASM_COMPILE_OBJECT`
+variable; patch 0017 fixes the source registration by enabling ASM inside the
+Apple ARM64 host-test gate. The final fresh configuration below exited `0`
+without a `CMAKE_ASM_COMPILE_OBJECT` override:
+
+```sh
+cmake --log-level=NOTICE \
+  -S /private/tmp/GOALPadOpenGOAL-arm64-goal-call \
+  -B /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build \
+  -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+/opt/homebrew/bin/ninja \
+  -C /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build \
+  -j 4 \
+  runtime arm64-goal-call-abi-test jak1-data-arena-test goalc-test goalc-aot
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build \
+  -R '^Arm64GoalCallAbi\.' --output-on-failure
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build \
+  -R '^Jak1DataArena\.' --output-on-failure
+
+cd /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build
+./goalc-test '--gtest_filter=Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build \
+  --output-on-failure
+```
+
+The focused ABI CTest passed 2/2, the data-arena CTest passed 4/4, the existing
+host compiler filter passed 122/122 (with its usual `cpuid not implemented on
+platform` warnings), and the full CTest set passed 7/7. `CodeTester.*` is part
+of that separately invoked pre-existing host compiler filter; it is not linked
+by, or evidence of JIT execution in, `arm64-goal-call-abi-test`.
+
+The static probe verifies X0/X1/X2 argument mapping, X20 = X21 = synthetic
+`st`, X22 = synthetic arena pointer, 16-byte entry-stack alignment, X0 return
+propagation, restoration of caller X20/X21/X22 sentinels, and a false-like
+entry returning X21. Link and symbol inspection identified an ARM64 Mach-O
+test executable whose `_call_goal_asm_arm64` comes from its directly linked
+`asm_funcs_arm64.s` object. Separately, `kscheme.cpp.o` references and
+`libruntime.a` defines the same symbol in the normal runtime graph; the probe
+does not link `libruntime.a`. This is host ABI evidence only, not live runtime
+initialization, data-arena binding, app/signing, simulator, iPhoneOS, physical
+iPad, or normally signed executable-GOAL evidence.
 
 Configure and build the affected tools serially enough to avoid excess memory
 pressure:

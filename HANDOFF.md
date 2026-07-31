@@ -1737,10 +1737,11 @@ explicitly requests physical-device testing in the current task.
 
 ### Current integration and publication gate
 
-The next smallest implementation seam is a pure C++ arena-derived AOT call
-context: set `X20 = X21 = s7` and `X22 = arena base`, then exercise only the
-already signed static AOT entries. Do not bind desktop globals, install a live
-GOAL symbol, add executable memory, use the desktop runtime linker, or start a
+The Darwin/macOS ARM64 host call-context ABI seam, using a synthetic arena
+pointer, is now preserved as Checkpoint 6 below. Keep it as a macOS ARM64 host
+regression guard while choosing only the next runtime-initialization dependency
+required by a real Jak 1 boot. Do not bind desktop globals, install a live GOAL
+symbol, add executable memory, use the desktop runtime linker, or start a
 renderer/camera/platform-abstraction effort.
 
 Durable parent integration is blocked until a maintainer chooses a fetchable,
@@ -1755,6 +1756,9 @@ an immutable fork commit.
 At this checkpoint, the parent history is:
 
 ```text
+0c0395e build(opengoal): preserve ARM64 GOAL call ABI proof (AI-assisted)
+1980e2f docs: clarify data-arena proof handoff (AI-assisted)
+7f4a013 docs: record minimal iPhoneOS data-arena proof (AI-assisted)
 a2f41c7 build(opengoal): preserve iPhoneOS data-arena target (AI-assisted)
 98880fd docs: clarify data-arena checkpoint progress (AI-assisted)
 2dee378 docs: record data-arena checkpoint (AI-assisted)
@@ -1766,7 +1770,134 @@ f7ad14c feat(aot): bind exact Jak 1 lognot export (AI-assisted)
 
 `origin` remains configured as `https://github.com/zschwendi/GOALPad.git`.
 Publication is blocked by the unverified destination/fork decision and invalid
-local GitHub credentials; no push was attempted for `a2f41c7` or the current
-documentation checkpoints. Preserve the platform boundaries above so later Mac,
-iPhone, multiple-view, stereo, externally supplied projection, and visionOS
-presentation work remain possible without delaying the iPad Jak 1 boot path.
+local GitHub credentials; no push was attempted for `a2f41c7`, `0c0395e`, or
+the current documentation checkpoints. Preserve the platform boundaries above
+so later Mac, iPhone, multiple-view, stereo, externally supplied projection,
+and visionOS presentation work remain possible without delaying the iPad Jak 1
+boot path.
+
+## Checkpoint 6: host ARM64 GOAL call ABI
+
+Parent checkpoint `0c0395ee1281b5fc4eaa2f58e630e907684a4af9` preserves the
+corrected child patch after data-arena parent `5ad2efa3dac3febe642370aec39629b17039ead9`.
+The official submodule remains pinned at
+`a4cb1ac1f0596c8740b1c26accb24a58505cda92` and was not moved.
+
+| Child commit | Patch | Stored SHA-256 | Stable patch ID | Preserved by parent |
+| --- | --- | --- | --- | --- |
+| `45e1897f7cd560e4951f515e264078a023a2d08c` | `0017-fix-arm64-verify-GOAL-call-context-ABI-AI-assisted.patch` | `7013f6b23da8e4d9f223b97062b4ca6d8a55cf65255849e901aa74d49bdac89d` | `62a4273278f231fc05c30e657cce9867286e777d` | `0c0395ee1281b5fc4eaa2f58e630e907684a4af9` |
+
+Patch 0017 must follow the ordered 0013-0016 data-arena unit; it is not part
+of that unit and does not expand its iPhoneOS static-library claim. The parent
+contains the saved mbox (whose `From` header is the corrected child ID), rather
+than the child Git object. Verify the recorded digest against the saved patch,
+not a regenerated `format-patch` stream:
+
+```sh
+shasum -a 256 \
+  patches/OpenGOAL/0017-fix-arm64-verify-GOAL-call-context-ABI-AI-assisted.patch
+git patch-id --stable < \
+  patches/OpenGOAL/0017-fix-arm64-verify-GOAL-call-context-ABI-AI-assisted.patch
+```
+
+The outputs are the stored SHA-256 above and
+`62a4273278f231fc05c30e657cce9867286e777d 45e1897f7cd560e4951f515e264078a023a2d08c`.
+
+### Scope and claim boundary
+
+The source change selects the existing `call_goal_asm_arm64` helper from
+`call_goal` only on `__APPLE__ && __aarch64__`. Its macOS ARM64 host-test gate
+explicitly enables ASM and builds one static probe from C++, test assembly, and
+the existing `asm_funcs_arm64.s`. The probe verifies X0/X1/X2 argument mapping;
+X20 = X21 = synthetic `st`; X22 = a synthetic arena pointer; 16-byte stack
+alignment; X0 result propagation; restoration of caller X20/X21/X22 sentinels;
+and a false-like static entry returning X21. The probe calls the production
+assembly dispatcher directly. The C++ `call_goal` selection is compile/link
+evidence only; `call_goal_on_stack` is unchanged and untested.
+
+This is host ABI evidence only. `arm64-goal-call-abi-test` does not link the
+OpenGOAL runtime or CodeTester and does not execute compiler-produced GOAL
+code. It does not bind the data arena to `g_ee_main_mem`, initialize kernel or
+symbol globals, load user data, create a live GOAL symbol, establish a runtime,
+or provide an iPhoneOS, app, signing, simulator, physical-device, or normally
+signed executable-GOAL result. The separately run host compiler filter includes
+pre-existing `CodeTester.*` coverage; that is neither a dependency of this
+target nor iPad/JIT evidence.
+
+### Recorded host validation
+
+The final fresh configuration deliberately used no
+`CMAKE_ASM_COMPILE_OBJECT` override. A prior configuration reported that
+internal variable as missing; adding `enable_language(ASM)` inside the Apple
+ARM64 host-test gate corrected the source registration. The following
+configuration, build, and tests exited `0`:
+
+```sh
+cmake --log-level=NOTICE \
+  -S /private/tmp/GOALPadOpenGOAL-arm64-goal-call \
+  -B /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build \
+  -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+/opt/homebrew/bin/ninja \
+  -C /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build \
+  -j 4 \
+  runtime arm64-goal-call-abi-test jak1-data-arena-test goalc-test goalc-aot
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build \
+  -R '^Arm64GoalCallAbi\.' --output-on-failure
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build \
+  -R '^Jak1DataArena\.' --output-on-failure
+
+cd /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build
+./goalc-test '--gtest_filter=Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build \
+  --output-on-failure
+```
+
+Results: the ABI CTest passed 2/2, the data-arena CTest passed 4/4, the host
+compiler filter passed 122/122 (with its usual `cpuid not implemented on
+platform` warnings), and the complete CTest set passed 7/7. Link/symbol
+inspection reported an ARM64 Mach-O probe whose `_call_goal_asm_arm64` comes
+from its directly linked `asm_funcs_arm64.s` object. Separately, in the normal
+runtime graph, `kscheme.cpp.o` references and `libruntime.a` defines the same
+symbol; the probe does not link `libruntime.a`.
+
+### Disposable-build incident and process recovery
+
+The first disposable final-build `data` symlink pointed to a nonexistent
+`.../data` directory, so the separately invoked `goalc-test` reported
+`Failed to initialize project path` and asserted
+`g_file_path_info.initialized`. Only the disposable build-directory link was
+corrected to the child worktree root; source, parent data, and user assets were
+not changed. The succeeding 122/122 compiler-filter result is the valid result.
+
+During the same tooling incident, foreground CMake-wrapper PIDs `1293`,
+`2604`, `3767`, `4841`, `5935`, `7195`, `90436`, `91531`, `93215`, `94086`,
+`95051`, `96187`, `97294`, `98520`, and `99523`, plus orphan Ninja-supervisor
+PIDs `7207`, `94100`, and `96198`, were terminated after process inspection.
+A final matching-process count was `0`. This was disposable `/private/tmp`
+process recovery, not build or product-validation evidence.
+
+No simulator, generic iOS build, signing, device, physical hardware, remote,
+or push was used for this checkpoint. **Z iPad Pro** was not accessed.
+
+### Next task and blocker
+
+The next actionable implementation seam is not a renderer or
+platform-abstraction campaign: extend the host ABI probe to call build-generated
+static `false-func`, `true-func`, `identity`, and `lognot` artifacts through
+the production dispatcher against one initialized data arena. Keep the existing
+hand-authored probe for direct register/alignment coverage, generate the four
+artifacts serially to bound memory use, and make the generated export metadata
+a compile-time contract. This remains host static-code evidence, not iPad
+runtime, signing, or executable-GOAL evidence.
+
+Durable parent integration remains blocked until a maintainer chooses and
+publishes a dedicated, fetchable, pinned OpenGOAL fork. At that point restore
+0013-0017 in order and retain the ABI probe as a macOS regression guard. The
+fork choice is blocked on maintainer direction for owner, visibility/access
+policy, and HTTPS/SSH transport; current local GitHub credentials are invalid.
+Do not change `.gitmodules`, move the official submodule gitlink, authenticate,
+create the fork, or push without that direction.
