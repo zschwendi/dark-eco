@@ -1,0 +1,62 @@
+From 5ad2efa3dac3febe642370aec39629b17039ead9 Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Thu, 30 Jul 2026 22:11:48 -0600
+Subject: [PATCH 16/16] build(ios): add portable Jak 1 data arena target
+ (AI-assisted)
+
+---
+ CMakeLists.txt                    | 13 +++++++++++++
+ game/CMakeLists.txt               |  2 +-
+ game/kernel/jak1/data_arena.cmake |  3 +++
+ 3 files changed, 17 insertions(+), 1 deletion(-)
+ create mode 100644 game/kernel/jak1/data_arena.cmake
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index deec4fc4..57689bb4 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -4,6 +4,19 @@ cmake_minimum_required(VERSION 3.10)
+ set(CMAKE_CXX_STANDARD 20)
+ set(CMAKE_CXX_STANDARD_REQUIRED ON)
+ project(jak)
++
++option(OPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY
++       "Build only the portable Jak 1 data-arena static library" OFF)
++if(OPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY)
++  if(BUILD_TESTING)
++    message(FATAL_ERROR
++            "OPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY requires BUILD_TESTING=OFF.")
++  endif()
++
++  include(game/kernel/jak1/data_arena.cmake)
++  return()
++endif()
++
+ include(CTest)
+ 
+ # Include third-party modules
+diff --git a/game/CMakeLists.txt b/game/CMakeLists.txt
+index 312a0cd6..3b854767 100644
+--- a/game/CMakeLists.txt
++++ b/game/CMakeLists.txt
+@@ -354,7 +354,7 @@ set(RUNTIME_SOURCE
+ 
+ add_subdirectory(sound)
+ 
+-add_library(jak1-data-arena STATIC kernel/jak1/data_arena.cpp)
++include(kernel/jak1/data_arena.cmake)
+ 
+ # we build the runtime as a static library.
+ add_library(runtime STATIC ${RUNTIME_SOURCE} "../third-party/glad/src/glad.c")
+diff --git a/game/kernel/jak1/data_arena.cmake b/game/kernel/jak1/data_arena.cmake
+new file mode 100644
+index 00000000..4d1076aa
+--- /dev/null
++++ b/game/kernel/jak1/data_arena.cmake
+@@ -0,0 +1,3 @@
++add_library(jak1-data-arena STATIC "${CMAKE_CURRENT_LIST_DIR}/data_arena.cpp")
++target_include_directories(jak1-data-arena PUBLIC "${CMAKE_CURRENT_LIST_DIR}/../../..")
++target_compile_features(jak1-data-arena PUBLIC cxx_std_20)
+-- 
+2.50.1 (Apple Git-155)
+
