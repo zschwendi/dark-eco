@@ -8,7 +8,11 @@ Read `docs/PROJECT_OVERVIEW.md` before planning or changing code. That document 
 
 Build a native ARM64 iPadOS platform port of OpenGOAL for user-supplied, legally obtained Jak game data.
 
-The first supported game is **Jak and Daxter: The Precursor Legacy**. Jak II is not active implementation scope until the Jak 1 platform foundation is stable.
+The first supported game is **Jak and Daxter: The Precursor Legacy**. Jak II
+and Jak 3 are follow-on scope only after Jak 1 is complete, or after the port
+has reached physical playtesting and physical playtesting is the sole remaining
+Jak 1 blocker while all earlier platform/runtime work is healthy. Do not use
+the follow-on games to bypass an earlier unresolved Jak 1 platform problem.
 
 This project is not a PS2 emulator, a Swift rewrite of OpenGOAL, a remake, or a repository for copyrighted game assets.
 
@@ -42,6 +46,38 @@ After editing:
 4. State clearly what was not tested and why.
 5. Summarize changed files and behavior.
 6. Call out remaining risks, temporary workarounds, and follow-up work.
+
+## Long-running work and delegation
+
+Use subagents whenever bounded work can proceed independently. Keep all four
+available concurrency slots productive when there are useful non-overlapping
+tasks. Unless a maintainer requests a different configuration, use fast
+`gpt-5.6-terra` subagents with `xhigh` reasoning. Editing subagents should use
+dedicated branches and worktrees where practical; never let agents edit the
+same files concurrently. The primary agent must review and validate every
+subagent result before integration.
+
+Preserve enough state for a context wipe at all times. When context usage
+reaches approximately 70 percent, or earlier when the platform does not expose
+an exact percentage and the transcript is becoming large:
+
+1. Stop starting new overlapping edits.
+2. Commit every verified checkpoint and leave unverified work clearly
+   identified in its dedicated worktree.
+3. Update `HANDOFF.md` with exact branches, worktrees, commits, dirty files,
+   commands, results, blockers, and the next executable task.
+4. Recheck the parent and child Git status and preserve all uncommitted work.
+5. Compact or clear context using the platform-supported mechanism, then resume
+   from `AGENTS.md`, `docs/PROJECT_OVERVIEW.md`, `HANDOFF.md`, and `ROADMAP.md`.
+
+For unattended long-running work, maintain a progress heartbeat at least every
+one to two hours of active execution. Each heartbeat should confirm the active
+goal, running subagents/builds, Git/worktree state, resource use, the most recent
+verified checkpoint, and the next task. If a worker resumes after a lapse,
+treat the resume as a heartbeat: reread the handoff and current Git state before
+continuing. Use the product's persistent-goal/continuation mechanism; do not
+install an OS daemon, cron job, or other external automation merely to restart
+an agent unless a maintainer explicitly requests that separate system change.
 
 ## Hard constraints
 
