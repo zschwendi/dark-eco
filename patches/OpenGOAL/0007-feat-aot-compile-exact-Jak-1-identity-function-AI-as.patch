@@ -1,0 +1,247 @@
+From 25917e278aeeaf6fee9faa4fbba93f4a2c64f146 Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Thu, 30 Jul 2026 20:30:47 -0600
+Subject: [PATCH] feat(aot): compile exact Jak 1 identity function
+ (AI-assisted)
+
+Add strict one-object identity lowering through ARM64 GPR register moves. Preserve false-func and Export0 behavior while covering deterministic output and unsupported identity shapes.
+---
+ goalc/compiler/CodeGenerator.cpp | 43 +++++++++++++++++-
+ goalc/compiler/IR.cpp            | 19 +++++++-
+ goalc/compiler/IR.h              |  5 ++-
+ test/goalc/test_arm64_aot.cpp    | 75 ++++++++++++++++++++++++++++++--
+ 4 files changed, 134 insertions(+), 8 deletions(-)
+
+diff --git a/goalc/compiler/CodeGenerator.cpp b/goalc/compiler/CodeGenerator.cpp
+index 5550fe39..73423b7b 100644
+--- a/goalc/compiler/CodeGenerator.cpp
++++ b/goalc/compiler/CodeGenerator.cpp
+@@ -501,6 +501,20 @@ void CodeGenerator::do_goal_function_arm64(FunctionEnv* env, int f_idx) {
+   }
+ 
+   const auto& code = env->code();
++  const auto is_allocated_to = [&allocs](const RegVal* value,
++                                         int instruction,
++                                         emitter::Register expected) {
++    const auto ireg_id = value->ireg().id;
++    if (ireg_id < 0 || ireg_id >= int(allocs.ass_as_ranges.size())) {
++      return false;
++    }
++    const auto& assignments = allocs.ass_as_ranges.at(ireg_id);
++    if (!assignments.has_info_at(instruction)) {
++      return false;
++    }
++    const auto& assignment = assignments.get(instruction);
++    return assignment.kind == Assignment::Kind::REGISTER && assignment.reg == expected;
++  };
+   const auto is_supported_top_level_result = [](IR* ir) {
+     if (const auto* constant = dynamic_cast<IR_LoadConstant64*>(ir)) {
+       return constant->value() == 42;
+@@ -521,10 +535,35 @@ void CodeGenerator::do_goal_function_arm64(FunctionEnv* env, int f_idx) {
+       env->name() == "false-func" && value_reset && value_reset->has_no_args() && false_value &&
+       false_value->name() == "#f" && dynamic_cast<IR_Return*>(code.at(2).get()) &&
+       dynamic_cast<IR_Null*>(code.at(3).get());
+-  if (!supported_top_level && !supported_false_function) {
++  const auto* identity_value_reset =
++      code.size() == 4 ? dynamic_cast<IR_ValueReset*>(code.at(0).get()) : nullptr;
++  const auto* identity_move =
++      code.size() == 4 ? dynamic_cast<IR_RegSet*>(code.at(1).get()) : nullptr;
++  const auto* identity_return =
++      code.size() == 4 ? dynamic_cast<IR_Return*>(code.at(2).get()) : nullptr;
++  const auto* identity_argument =
++      identity_value_reset && identity_value_reset->args().size() == 1
++          ? identity_value_reset->args().front()
++          : nullptr;
++  const auto& register_info = get_register_info(m_gen.instr_set());
++  const auto first_argument_register = register_info.get_gpr_arg_reg(0);
++  const bool identity_argument_uses_apple_abi =
++      identity_argument && is_allocated_to(identity_argument, 0, first_argument_register) &&
++      identity_move && is_allocated_to(identity_move->source(), 1, first_argument_register) &&
++      is_allocated_to(identity_move->destination(), 1, register_info.get_gpr_ret_reg());
++  const bool supported_identity_function =
++      env->name() == "identity" && identity_argument && identity_move && identity_return &&
++      identity_argument->type() == TypeSpec("object") &&
++      identity_argument->ireg().reg_class == RegClass::GPR_64 &&
++      identity_move->source() == identity_argument &&
++      identity_move->destination()->ireg().reg_class == RegClass::GPR_64 &&
++      identity_return->value() == identity_move->destination() &&
++      identity_argument_uses_apple_abi &&
++      dynamic_cast<IR_Null*>(code.at(3).get());
++  if (!supported_top_level && !supported_false_function && !supported_identity_function) {
+     throw std::runtime_error(
+         "ARM64 AOT proof only supports top-level literal 42, top-level #f, or the zero-argument "
+-        "Jak 1 false function.");
++        "Jak 1 false function or one-argument identity function.");
+   }
+ 
+   auto* debug = &m_debug_info->function_by_name(env->name());
+diff --git a/goalc/compiler/IR.cpp b/goalc/compiler/IR.cpp
+index 0ae0f21f..9ba0430e 100644
+--- a/goalc/compiler/IR.cpp
++++ b/goalc/compiler/IR.cpp
+@@ -422,7 +422,24 @@ void IR_RegSet::do_codegen_x86(emitter::ObjectGenerator* gen,
+ void IR_RegSet::do_codegen_arm64(emitter::ObjectGenerator* gen,
+                                  const AllocationResult& allocs,
+                                  emitter::IR_Record irec) {
+-  throw std::runtime_error("NYI - IR_RegSet::do_codegen_arm64");
++  if (m_dest->ireg().reg_class != RegClass::GPR_64 ||
++      m_src->ireg().reg_class != RegClass::GPR_64) {
++    throw std::runtime_error("ARM64 AOT proof only supports GPR register moves.");
++  }
++
++  const auto destination = get_reg(m_dest, allocs, irec);
++  const auto source = get_reg(m_src, allocs, irec);
++  if (!destination.is_gpr(gen->instr_set()) || !source.is_gpr(gen->instr_set()) ||
++      destination == ARM64_REG::SP || source == ARM64_REG::SP) {
++    throw std::runtime_error("ARM64 AOT proof requires non-stack GPR register moves.");
++  }
++
++  if (destination == source) {
++    gen->count_eliminated_move();
++    gen->add_instr(IGen::null(*gen), irec);
++  } else {
++    gen->add_instr(IGen::mov_gpr64_gpr64(*gen, destination, source), irec);
++  }
+ }
+ 
+ std::string IR_RegSet::print() {
+diff --git a/goalc/compiler/IR.h b/goalc/compiler/IR.h
+index ebc6e454..f87952a9 100644
+--- a/goalc/compiler/IR.h
++++ b/goalc/compiler/IR.h
+@@ -38,7 +38,7 @@ class IR_Return : public IR {
+   void do_codegen_arm64(emitter::ObjectGenerator* gen,
+                         const AllocationResult& allocs,
+                         emitter::IR_Record irec) override;
+-  const RegVal* value() { return m_value; }
++  const RegVal* value() const { return m_value; }
+ 
+  protected:
+   const RegVal* m_return_reg = nullptr;
+@@ -130,6 +130,8 @@ class IR_RegSet : public IR {
+   void do_codegen_arm64(emitter::ObjectGenerator* gen,
+                         const AllocationResult& allocs,
+                         emitter::IR_Record irec) override;
++  const RegVal* destination() const { return m_dest; }
++  const RegVal* source() const { return m_src; }
+ 
+  protected:
+   const RegVal* m_dest = nullptr;
+@@ -364,6 +366,7 @@ class IR_ValueReset : public IR {
+  public:
+   IR_ValueReset(std::vector<RegVal*> args);
+   bool has_no_args() const { return m_args.empty(); }
++  const std::vector<RegVal*>& args() const { return m_args; }
+   std::string print() override;
+   RegAllocInstr to_rai() override;
+   void do_codegen_x86(emitter::ObjectGenerator* gen,
+diff --git a/test/goalc/test_arm64_aot.cpp b/test/goalc/test_arm64_aot.cpp
+index 11b429f3..3fe229e2 100644
+--- a/test/goalc/test_arm64_aot.cpp
++++ b/test/goalc/test_arm64_aot.cpp
+@@ -9,7 +9,10 @@
+ #include "goalc/compiler/Compiler.h"
+ #include "goalc/compiler/IR.h"
+ #include "goalc/compiler/Val.h"
++#include "goalc/debugger/DebugInfo.h"
++#include "goalc/emitter/IGen.h"
+ #include "goalc/emitter/InstructionSet.h"
++#include "goalc/emitter/ObjectGenerator.h"
+ #include "goalc/emitter/Register.h"
+ #include "goalc/regalloc/Allocator.h"
+ #include "goalc/regalloc/Allocator_v2.h"
+@@ -119,6 +122,25 @@ TEST(Arm64Aot, compiles_full_jak1_false_func_and_renders_apple_text) {
+             ".subsections_via_symbols\n");
+ }
+ 
++TEST(Arm64Aot, compiles_full_jak1_identity_and_renders_apple_text) {
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto source = file_util::read_text_file(file_util::get_file_path(
++      {"test/goalc/source_templates/arm64-aot/full-identity-from-jak1-gcommon.gc"}));
++  const auto code = compiler.compile_arm64_aot_source(
++      source, "full-identity-from-jak1-gcommon", std::optional<std::string>{"identity"});
++
++  EXPECT_EQ(code, (std::vector<u8>{0xc0, 0x03, 0x5f, 0xd6}));
++
++  const aot::AppleArm64Function function{"goalpad_aot_identity", code};
++  EXPECT_EQ(aot::render_apple_arm64_assembly(function),
++            ".section __TEXT,__text,regular,pure_instructions\n"
++            ".p2align 2\n"
++            ".globl _goalpad_aot_identity\n"
++            "_goalpad_aot_identity:\n"
++            "  .long 0xd65f03c0\n"
++            ".subsections_via_symbols\n");
++}
++
+ TEST(Arm64Aot, renders_zero_argument_native_export_metadata) {
+   const aot::NativeExport0 native_export{"false-func", "goalpad_aot_false_func"};
+ 
+@@ -196,16 +218,61 @@ TEST(Arm64Aot, rejects_named_function_with_extra_top_level_effects) {
+                std::runtime_error);
+ }
+ 
+-TEST(Arm64Aot, rejects_full_jak1_identity_until_parameter_moves_are_supported) {
++TEST(Arm64Aot, rejects_identity_with_a_different_body) {
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++
++  EXPECT_THROW(compiler.compile_arm64_aot_source("(defun identity ((x object)) '#f)",
++                                                 "identity-with-false-body",
++                                                 std::optional<std::string>{"identity"}),
++               std::runtime_error);
++}
++
++TEST(Arm64Aot, rejects_identity_with_multiple_parameters) {
+   Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
+-  const auto source = file_util::read_text_file(file_util::get_file_path(
+-      {"test/goalc/source_templates/arm64-aot/full-identity-from-jak1-gcommon.gc"}));
+ 
+-  EXPECT_THROW(compiler.compile_arm64_aot_source(source, "full-identity-from-jak1-gcommon",
++  EXPECT_THROW(compiler.compile_arm64_aot_source("(defun identity ((x object) (y object)) x)",
++                                                 "identity-with-two-parameters",
+                                                  std::optional<std::string>{"identity"}),
+                std::runtime_error);
+ }
+ 
++TEST(Arm64Aot, rejects_identity_shaped_function_with_a_different_name) {
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++
++  EXPECT_THROW(compiler.compile_arm64_aot_source("(defun not-identity ((x object)) x)",
++                                                 "not-identity",
++                                                 std::optional<std::string>{"not-identity"}),
++               std::runtime_error);
++}
++
++TEST(Arm64Aot, emits_non_coalesced_gpr_register_move) {
++  const RegVal destination{{RegClass::GPR_64, 0}, TypeSpec("object")};
++  const RegVal source{{RegClass::GPR_64, 1}, TypeSpec("object")};
++  IR_RegSet move(&destination, &source);
++
++  Assignment destination_assignment;
++  destination_assignment.kind = Assignment::Kind::REGISTER;
++  destination_assignment.reg = emitter::X0;
++  Assignment source_assignment;
++  source_assignment.kind = Assignment::Kind::REGISTER;
++  source_assignment.reg = emitter::X1;
++  AllocationResult allocations;
++  allocations.ass_as_ranges = {
++      AssignmentRange(0, {true}, {destination_assignment}),
++      AssignmentRange(0, {true}, {source_assignment}),
++  };
++
++  FunctionDebugInfo debug{};
++  emitter::ObjectGenerator generator(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto function = generator.add_function_to_seg(MAIN_SEGMENT, &debug);
++  move.do_codegen_arm64(&generator, allocations, generator.add_ir(function));
++  generator.add_instr_no_ir(function, emitter::IGen::ret(generator),
++                            InstructionInfo::Kind::EPILOGUE);
++
++  EXPECT_EQ(generator.materialize_arm64_function(function),
++            (std::vector<u8>{0xe0, 0x03, 0x01, 0xaa, 0xc0, 0x03, 0x5f, 0xd6}));
++}
++
+ TEST(Arm64Aot, rejects_source_outside_the_supported_aot_proof) {
+   Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
+   EXPECT_THROW(compiler.compile_top_level_source("41", "constant-41"), std::runtime_error);
+-- 
+2.50.1 (Apple Git-155)
+
