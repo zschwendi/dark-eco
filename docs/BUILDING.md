@@ -93,25 +93,37 @@ xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
 ```
 
 It produced a monolithic thin ARM64 executable with no `GOALPad.debug.dylib`
-or `__preview.dylib`. The current executable SHA-256 is
-`f7fc6b8e5533105eeaa7fc3890701fb56e74ccefeea6f1d74ddf767ed26c7cd0`;
-the embedded provisioning profile SHA-256 is
-`ef4a32f9aef6cca1709423e53e66518204e49a86af4d2752139de63d21244ad1`.
-The pinned binding, typed wrapper, reset export, and assembly invoker are at
-`0x1000044ec`, `0x100004874`, `0x1000048d0`, and `0x1000074c0`. The assembly
-invoker preserves X19-X22 and calls the supplied signed entry with `blr x19`.
+or `__preview.dylib`. Those two build settings are no longer required to get
+that layout; the plain command below produces the same bundle.
 
-`__TEXT` is read/execute; data segments are non-executable. There is no
-app-root dynamic library. Undefined-symbol and strings scans contain none of
-`dlopen`, `dlsym`, `mmap`, `mprotect`, `pthread_jit`, Preview, or JIT markers.
-Keychain-backed `codesign --verify --deep --strict --verbose=4` reports `valid
-on disk` and `satisfies its Designated Requirement`. Entitlements are the
-application identifier, team identifier, and `get-task-allow = true`; there is
-no JIT or unsigned-executable-memory entitlement. This is an Apple Development
-signature, not distribution or App Store evidence. The local Xcode-managed
-profile expires at `2026-08-06T23:51:59Z`. No physical-device installation or
-execution was performed for this checkpoint; treat the Release output as
-static build/signing evidence only.
+The kernel-core checkpoint reran this as:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-device -jobs 4 \
+  -allowProvisioningUpdates build
+```
+
+The resulting executable is thin `arm64`, SHA-256
+`444513aa4fb82fc5e1d5b3ca6183539ee37d8cb3fbf148d32bf3f8a7598db134`.
+`codesign --verify --deep --strict` reports `valid on disk` and `satisfies its
+Designated Requirement`; the authority is `Apple Development:
+zschwendi@zephyrstudios.dev (BZ68MJN5R5)`, team `D2YYJ54Q6V`. Entitlements are
+the application identifier, team identifier, and `get-task-allow = true`. There
+is no JIT, unsigned-executable-memory, or other private entitlement, and no
+app-root dynamic library.
+
+**The binary does import `mmap` and `mprotect`.** Earlier checkpoints recorded
+their absence; that is no longer true and is not a regression. The kernel maps
+EE main memory and traps its low 512 kB, so those imports are expected. It asks
+for `PROT_EXEC` first and records the refusal rather than depending on it — see
+`goal_kernel_core_state::main_memory_executable`. There is still no `dlopen`,
+`dlsym`, `pthread_jit_write_protect_np`, Preview, or JIT marker.
+
+This is an Apple Development signature, not distribution or App Store evidence.
+No physical-device installation or execution was performed for this checkpoint;
+treat the Release output as static build/signing evidence only.
 
 ## The real Jak 1 kernel in the app
 
