@@ -342,6 +342,26 @@ Current progress:
   monolithic regression build passed. `lognot` returns the bitwise complement
   of its synthetic argument; it does not create a live GOAL symbol, execute a
   top-level definition, or enable relocation.
+- Child `cb1cc102`, preserved as patch 0021 by parent `c577f47`, adds the
+  direct real Jak 1 `level-group-load-commands-set!` body to the strict AOT
+  allowlist and emits guarded two-argument Export2 metadata. The resulting
+  body stores W1 at X22 + X0 + `0x20`, returns X1, and is not a live method
+  installation or dispatch. Sibling child `311be477`, preserved as patch 0022
+  by parent `6c1370c`, hardens the four-byte store lowering against stack,
+  X22-address, and unsafe X16 operand forms. Sibling child `13672fad`,
+  preserved as patch 0023 by parent `8468742`, executes the generated entry in
+  the existing host ABI test. These are sibling child commits from 0021, not a
+  linear 0021-to-0023 child history; preserve their mboxes and revalidate a
+  combined restoration before treating it as a durable fork sequence.
+- Parent commit `0da05dd` binds the generated Export2 entry into GOALPad's
+  typed registry and two-argument state wrapper. Its direct synthetic proof
+  uses two real aligned X22 bases, verifies full 64-bit returns and four-byte
+  W1 stores at the expected locations, and checks whole-buffer integrity and
+  caller-state restoration. The ARM64 macOS app build, named M5 simulator
+  build/run, and generic signed Release iOS build passed. The simulator result
+  remains simulator evidence; the Release result remains static
+  build/signing/layout evidence. Neither is a method-installation, dispatch,
+  runtime-initialization, Jak-data, title-screen, or physical-device proof.
 
 ## Stage 5 — Build a portable OpenGOAL runtime for iPadOS
 
@@ -657,8 +677,9 @@ Operating rules:
 ## Current checkpoint
 
 Stage 2 is complete. Stages 1 and 3 remain active; the typed Stage 4 static
-artifact boundaries and the bounded 0020 host X22 field-load execution proof
-are verified but do not complete the Stage 4 exit gate.
+artifact boundaries, bounded 0020 X22 field-load proof, and direct 0021-0023
+level-command store proof are verified but do not complete the Stage 4 exit
+gate.
 
 Stage 1 is blocked on a maintainer-chosen, fetchable OpenGOAL fork/pin and
 working GitHub authentication. Until publication, keep the official submodule
@@ -669,17 +690,28 @@ owner, access policy, and transport, then explicitly renews authentication.
 
 The next actions are:
 
-1. Integrate the verified portable 0013-0020 sequence only after a dedicated
-   OpenGOAL fork makes child commit `fab37c1f755aa342304db8dbf27f1fa1c42423ac`
-   and child commit `1e43e767d66b6f554a6cc9aedb9fa024ca3130ee` fetchable and
-   pins them reproducibly. Apply 0020 after its ordered 0013-0019
-   prerequisite sequence; do not copy the source into the app or use a
-   machine-local worktree path.
-2. Hold the next seam for an independent post-0020 audit; do not invent one in
-   this checkpoint. Retain `RUN_SERIAL` and every host-only claim boundary for
-   the completed node-name proof. Do not present it as general ARM64 loads,
-   iPad execution, desktop-global binding, live GOAL symbols, executable
-   memory, or the desktop runtime-linker path.
+1. Integrate the verified portable 0013-0021 work only after a dedicated
+   OpenGOAL fork makes child commits
+   `fab37c1f755aa342304db8dbf27f1fa1c42423ac`,
+   `1e43e767d66b6f554a6cc9aedb9fa024ca3130ee`, and
+   `cb1cc102ac2af46e9581ac5b47404fe797c5b582` fetchable and pins them
+   reproducibly. Patches 0022 and 0023 are sibling child changes from 0021;
+   retain their mboxes and require a fresh combined apply/build validation
+   rather than assuming a linear child history. Do not copy the source into the
+   app or use a machine-local worktree path.
+2. Implement the audited next strict direct AOT proof only: the real Jak 1
+   `load-state::want-vis` body from `level.gc:1006-1012`, whose boundary and
+   method context are in `load-boundary.gc:1101-1102` and `1074-1076`. It must
+   map `(set! (-> this vis-nick) arg0) 0` at raw field `#x24` / GOAL-relative
+   `#x20` to an Export2 entry with X0 `load-state`, X1 symbol, and exact words
+   `8b160010 91008210 b9000201 ca000000 d65f03c0`. The zero return preserves
+   existing `IR_LoadConstant64` lowering as
+   `eor x0, x0, x0`; do not add a global MOVZ special case. Reuse the strict
+   store lowering and two-argument wrapper; add exact/negative/CLI-atomicity
+   tests, a host X22 store/zero-return/register-restore proof, then app
+   integration. Do not install or dispatch the method. Leave `reset!`,
+   `want-levels`, `want-display-level`, and method dispatch deferred because
+   they require branches, indexed stores, symbols, or calls.
 3. Keep unsupported statics, general relocations, calls, saved registers,
    spills, and stack locals explicit until a real Jak 1 boot dependency
    requires each boundary. Keep x86 behavior, the non-network compiler suite,

@@ -1,30 +1,23 @@
 # GOALPad iPadOS Port Handoff
 
-Date: 2026-07-30
+Date: 2026-07-31
 
 Branch: `feat/ipados-native-boot`
 
-Status: Partially complete. Stage 2 is implemented and verified. Stage 3 now
-compiles the complete real Jak 1 `false-func`, `true-func`, one-argument
-`identity`, and one-argument `lognot` definitions as deterministic ARM64 text.
-The first typed Stage 4 artifact boundaries are verified: OpenGOAL emits
-guarded metadata for zero-argument `false-func` and `true-func`, plus
-one-argument `identity` and `lognot`, and GOALPad resolves them through
-app-local typed registries before calling static X20/X21/X22 wrappers.
-`true-func` returns the synthetic X21 `st` value plus eight; the one-argument
-wrappers establish that state before moving their ordinary Apple-ABI arguments
-into X0. `lognot` executes the signed `mvn x0, x0; ret` Export1 artifact and
-returns the bitwise complement of its synthetic X0 argument. ARM64 macOS, the
-dedicated iPad Pro M5 simulator, and generic signed iOS builds passed. The
-verified Release generic iOS build is monolithic and has no Preview/debug-dylib
-layout; the Debug generic build remains Preview-split evidence only. The
-surrounding top-level `define`, live GOAL symbol installation, relocation, and
-general static artifact model remain unimplemented. The maintainer prohibits
-physical Z iPad Pro testing unless explicitly requested in the current task;
-the local iPad Pro 11-inch (M5) simulator is the routine validation target. No
-physical device was used for this checkpoint. This proof uses synthetic state
-and does not claim general OpenGOAL runtime initialization or Jak 1 data
-loading.
+Status: Partially complete. The latest verified checkpoint is Checkpoint 10
+(`0da05dd82a7a1be9ef640a324c2bc339c5eb6a48`), which executes a direct real
+Jak 1 `level-group-load-commands-set!` body through a typed Export2 registry:
+it stores the low 32 bits of X1 at X22 + X0 + `0x20` and returns full X1. The
+host harness, ARM64 macOS build, dedicated iPad Pro 11-inch (M5) simulator, and
+generic signed iOS build passed; the generic Release artifact is monolithic
+with no Preview/debug-dylib layout. The earlier `false-func`, `true-func`,
+`identity`, and `lognot` direct-function proofs remain valid historical
+checkpoints. This work does not yet execute top-level `define`, install or
+dispatch GOAL symbols/methods, relocate code, initialize the general runtime,
+load user data, or boot Jak. The maintainer prohibits physical Z iPad Pro
+testing unless explicitly requested in the current task; only the local M5
+simulator was used here. See [Checkpoint 10](#checkpoint-10-direct-jak-1-level-command-store-aot-proof)
+for exact scope and validation.
 
 ## Active roadmap and delegated audit
 
@@ -124,34 +117,21 @@ The outer workspace is not a Git repository. The checkout is nested:
 The outer workspace contains local proprietary inputs. None were read into,
 copied into, or generated inside the Git checkout.
 
-Current history:
+Current history at this handoff (newest first):
 
 ```text
-f7ad14c feat(aot): bind exact Jak 1 lognot export (AI-assisted)
-fbfa0d5 Preserve typed Jak 1 lognot export patch (AI-assisted)
-6697d2d Preserve exact Jak 1 lognot AOT patch (AI-assisted)
-d12f732 Execute signed Jak 1 true function on ARM64 (AI-assisted)
-1d5e4bf Preserve typed Jak 1 true function export patch (AI-assisted)
-0866a1e Preserve exact Jak 1 true function AOT patch (AI-assisted)
-ffeb20d Execute typed Jak 1 identity through signed ARM64 state (AI-assisted)
-a2235da Preserve typed Jak 1 identity export patch (AI-assisted)
-9faaa0e Preserve exact Jak 1 identity AOT compiler patch (AI-assisted)
-914d307 Document signed OpenGOAL export registry checkpoint (AI-assisted)
-a5df18a Preserve atomic OpenGOAL export metadata patch (AI-assisted)
-463e366 Resolve signed OpenGOAL exports through native registry (AI-assisted)
-d48b385 Preserve strict named ARM64 AOT selection (AI-assisted)
-c3187da Document full false function AOT checkpoint (AI-assisted)
-cf73386 Preserve target-aware OpenGOAL call metadata (AI-assisted)
-6830cb4 Record physical Stage 2 completion (AI-assisted)
-f13d8f0 Add verified OpenGOAL ARM64 call boundary (AI-assisted)
-821b58c Document Stage 2 validation and Apple platform boundaries (AI-assisted)
-e77a402 Link compiler-generated ARM64 GOAL proof (AI-assisted)
-bc82c3e Add ten-stage GOALPad implementation roadmap (AI-assisted)
-7789350 Record iPad Pro M5 simulator validation (AI-assisted)
-bddb6ad Document OpenGOAL baseline and next ARM64 checkpoint (AI-assisted)
-89e4630 Pin OpenGOAL ARM64 baseline and project policy (AI-assisted)
-350867b Checkpoint signed ARM64 platform probe (AI-assisted)
-959cab6 Initial Commit
+0da05dd feat(aot): validate level command store export (AI-assisted)
+8468742 test(opengoal): preserve Jak 1 level store execution proof (AI-assisted)
+6c1370c fix(opengoal): preserve ARM64 store operand guards (AI-assisted)
+bf33dcc docs: codify long-running port workflow (AI-assisted)
+c577f47 feat(opengoal): preserve ARM64 level command store proof (AI-assisted)
+6c9574f docs: record X22-backed GOAL load checkpoint (AI-assisted)
+faf3f1a test(opengoal): preserve X22-backed GOAL load proof (AI-assisted)
+b041d59 docs: record node-name compiler proof (AI-assisted)
+8995197 feat(opengoal): preserve ARM64 node-name AOT proof (AI-assisted)
+78bb0ee docs: record generated Jak 1 AOT context checkpoint (AI-assisted)
+3cb4e16 test(opengoal): preserve generated Jak 1 AOT execution proof (AI-assisted)
+6e3579d docs: record host ARM64 GOAL call ABI checkpoint (AI-assisted)
 ```
 
 The repository remote remains:
@@ -2274,3 +2254,181 @@ next smallest task. A maintainer must still choose a fetchable pinned OpenGOAL
 fork and its owner, visibility/access policy, and HTTPS/SSH transport before
 durable parent integration. Do not move the official submodule pin, change
 `.gitmodules`, authenticate, create a fork, or push without that direction.
+
+## Checkpoint 10: direct Jak 1 level-command store AOT proof
+
+Current parent app checkpoint:
+`0da05dd82a7a1be9ef640a324c2bc339c5eb6a48`
+(`feat(aot): validate level command store export (AI-assisted)`). It leaves the
+official OpenGOAL submodule at
+`a4cb1ac1f0596c8740b1c26accb24a58505cda92`. The equivalent isolated app
+commit is `5714658e507e56acf57d2f70e91d2e062ab5f2cb` (stable patch ID
+`5796c0819854d6c12c121a1cff24f91db75b326c`).
+
+| Patch | Child commit | SHA-256 | Stable patch ID | Parent preservation commit |
+| --- | --- | --- | --- | --- |
+| `0021-feat-arm64-compile-Jak-1-level-command-store-AI-assi.patch` | `cb1cc102ac2af46e9581ac5b47404fe797c5b582` | `aa351b8ab006c5574f8c1f926873c344a16c5dfefcec50f856d1a3df3a58039a` | `a0f9f946d8dfa69176c10d48606b3b6812451d3a` | `c577f471e5cac7b774d932f9b627425a239bd8eb` |
+| `0022-fix-arm64-reject-reserved-constant-store-operands-AI.patch` | `311be4773feaf85740427d844e1db65ba4fe5591` | `b01a9cef72acb8614968fc414f84d3a24f5e4482707cfe5f1bc38fdb2768b6a0` | `96cf91c9f9b5620924fdba710bad00b8ec9ed7d6` | `6c1370c24aef5137137f8361d0acc73f5f42382a` |
+| `0023-test-arm64-execute-Jak-1-level-command-store-AI-assi.patch` | `13672fadb3fa977f407d19f15989136c38f58d61` | `68cd7a456ab2453a6614c193458458aaba9148b3721a26688a69cc9b35baea86` | `4ea0d360f9239315de845f0de6af55d4961bdc17` | `846874251af4317c1c9d91f37d227f5b54ad691e` |
+
+Verify preserved mboxes, not regenerated patch streams:
+
+```sh
+shasum -a 256 \
+  patches/OpenGOAL/0021-feat-arm64-compile-Jak-1-level-command-store-AI-assi.patch \
+  patches/OpenGOAL/0022-fix-arm64-reject-reserved-constant-store-operands-AI.patch \
+  patches/OpenGOAL/0023-test-arm64-execute-Jak-1-level-command-store-AI-assi.patch
+git patch-id --stable < patches/OpenGOAL/0021-feat-arm64-compile-Jak-1-level-command-store-AI-assi.patch
+git patch-id --stable < patches/OpenGOAL/0022-fix-arm64-reject-reserved-constant-store-operands-AI.patch
+git patch-id --stable < patches/OpenGOAL/0023-test-arm64-execute-Jak-1-level-command-store-AI-assi.patch
+```
+
+0021 descends from 0020. 0022 and 0023 are sibling child commits of 0021, not
+a linear 0021-to-0023 child history. The parent stores their mboxes in order,
+but a future fork restoration needs a fresh combined apply/build validation;
+do not claim that 0023 descends from 0022.
+
+### Scope
+
+0021 compiles only the direct real Jak 1
+`level-group-load-commands-set!` defun body to guarded Export2 metadata and:
+
+```text
+add x16, x0, x22
+add x16, x16, #0x20
+str w1, [x16]
+mov x0, x1
+ret
+```
+
+The entry stores low 32 bits of X1 at X22 + X0 + `0x20`, then returns full X1.
+0022 limits that four-byte store lowering by rejecting stack operands, X22 as a
+direct address base, and unsafe X16 use. `IR_LoadConstOffset` remains guarded
+to its current GPR-only shape; no general load expansion is included. 0023
+executes this entry through the existing host ABI test with two X22 bases,
+exact stores, full-width returns, and X20/X21/X22 restoration.
+
+This is a direct defun-body proof only. It does not execute a top-level
+`define`, install or dispatch a GOAL method/symbol, initialize the runtime,
+relocate code, load user data, boot Jak, or use JIT/writable executable memory.
+
+The checked-in generated artifacts exactly match compiler output:
+
+```text
+24e632977fca5784aabd31f8d5102b9e8f8459e2d9cd0cb9cd4464a9c45d84ed  OpenGOALJak1LevelGroupLoadCommandsSet.s
+e1ada68958c9a685ff97dab3648bfeab05934680214d642ceba8fba7930b01f8  OpenGOALJak1LevelGroupLoadCommandsSet.exports.h
+```
+
+### Validation
+
+OpenGOAL host commands:
+
+```sh
+cmake --build /private/tmp/GOALPadOpenGOAL-arm64-level-store-runtime-build \
+  --target runtime arm64-goal-call-abi-test jak1-data-arena-test goalc-test goalc-aot -j 4
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-arm64-level-store-runtime-build \
+  -R '^Arm64GoalCallAbi\.' --output-on-failure
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-arm64-level-store-runtime-build \
+  -R '^Jak1DataArena\.' --output-on-failure
+/private/tmp/GOALPadOpenGOAL-arm64-level-store-build/goalc-test \
+  '--gtest_filter=Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-arm64-level-store-runtime-build \
+  -R '^goalc-aot-artifact-pair$' --output-on-failure
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-arm64-level-store-runtime-build --output-on-failure
+```
+
+Results: target build exit 0; ABI CTest 3/3; data-arena CTest 4/4; constrained
+compiler/emitter filter 141/141; AOT artifact CTest 1/1; full CTest 8/8. This
+is macOS-host static generated-code evidence only.
+
+The app-local Export2 registry harness command in `docs/BUILDING.md` compiled
+and ran with exit 0. It uses two real aligned synthetic X22 pointers at bases
+`0x10`/`0x70`, X0 `0x4`, writes `0x34`/`0x94`, checks full X1 return versus W1
+store, whole-buffer guards, typed cross-ABI lookup rejection, and preserved
+caller X20/X21/X22 state.
+
+The current-source macOS Debug command was:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-mac -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO build
+```
+
+The first tool-sandboxed run failed only during Swift Preview macro-server
+startup with `sandbox-exec: sandbox_apply: Operation not permitted`; the same
+command in the approved unsandboxed environment exited 0. The macOS Debug
+dylib has `_goalpad_aot_level_group_load_commands_set` at `0x15d4` and the
+exact five instructions above. This is ARM64 macOS build/disassembly evidence,
+not iPad execution.
+
+The M5 simulator build was:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-sim -jobs 4 build
+```
+
+It exited 0; the app was installed/launched only on that named local simulator.
+At `2026-07-31 00:48:59`, its log reported direct proof verification,
+`architecture=arm64`, `result=8194`, then the first Metal frame. The settled
+green screenshot is `/private/tmp/goalpad-level-store-m5-sim.png` (SHA-256
+`2fda23cfb4382e79a183c74fad15342022fe0e3e8974af4528b0d52d1727c997`).
+The cleanup commands were:
+
+```sh
+xcrun simctl shutdown 96C5C21A-B925-4213-82A3-90DCB8518339
+xcrun simctl list devices
+```
+
+Explicit shutdown succeeded and final simulator inventory showed every
+simulator `Shutdown`. This is simulator evidence only.
+
+The generic signed Release iOS command was:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-device -jobs 4 \
+  ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
+```
+
+It exited 0. The monolithic main executable SHA-256 is
+`f68f6e9d2b7a7608837618d13e0a5b17b8df2697d335304c321c4dae8d9836a1`; it
+contains the new symbol at `0x10000400c` and the exact five instructions,
+has no app-root dylibs, `__TEXT` initial protection `0x5` (read/execute), and
+no `dlopen`, `dlsym`, `mmap`, `mprotect`,
+`pthread_jit_write_protect_np`, Preview, or JIT markers. `codesign -d
+--entitlements -` reports the app/team identifiers and `get-task-allow` true;
+the embedded profile remains
+`ef4a32f9aef6cca1709423e53e66518204e49a86af4d2752139de63d21244ad1`.
+`codesign --verify --deep --strict` still fails with
+`CSSMERR_TP_NOT_TRUSTED`, the known local certificate-trust caveat. This is
+compile/signing/layout evidence only, not trust, installability, or physical
+device evidence.
+
+No physical device, **Z iPad Pro**, Freemote simulator, remote, or push was
+accessed for this checkpoint.
+
+### Next exact task: strict direct `load-state::want-vis` proof
+
+Compile only the real Jak 1 `load-state::want-vis` body from
+`level.gc:1006-1012`, with wrapper context at `load-boundary.gc:1101-1102` and
+method context at `load-boundary.gc:1074-1076`:
+
+```lisp
+(set! (-> this vis-nick) arg0)
+0
+```
+
+Map raw field `#x24` / GOAL-relative `#x20` to Export2 with X0 `load-state`,
+X1 symbol, and exact words `8b160010 91008210 b9000201 ca000000 d65f03c0`.
+The zero return preserves existing `IR_LoadConstant64` lowering as
+`eor x0, x0, x0`; do not add a global MOVZ special case. Reuse the strict
+store lowering/two-argument wrapper; add exact and negative
+compiler tests, CLI atomicity tests, a host X22 store/zero-return/register
+restore proof, then app integration. Do not install or dispatch the method.
+Keep `reset!`, `want-levels`, `want-display-level`, and method dispatch
+deferred: they require branches, indexed stores, symbols, or calls.

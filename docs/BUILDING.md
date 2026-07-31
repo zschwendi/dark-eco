@@ -83,26 +83,26 @@ xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
   ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
 ```
 
-It produced a 216K monolithic app bundle with one 188,624-byte ARM64 main
-executable and no `GOALPad.debug.dylib` or `__preview.dylib`. The main contains
-false, identity, lognot, and true entries at `0x100004000`, `0x100004008`,
-`0x10000400c`, and `0x100004014`, with state-wrapper entries at `0x1000040f0`,
-`0x100004144`, `0x100004190`, and `0x1000041ec`. Its SHA-256 is
-`3a5c94892fa8d71e53f38ba2d98d08f85d171d66cbf415f136a717d220f4d794`.
-The embedded provisioning profile remains unchanged from the paired Debug
-output; its SHA-256 is
+It produced a monolithic ARM64 main executable with no `GOALPad.debug.dylib`
+or `__preview.dylib`. The current direct
+`level-group-load-commands-set!` Export2 entry is at `0x10000400c` and its
+five instructions are exactly `add x16, x0, x22`, `add x16, x16, #0x20`,
+`str w1, [x16]`, `mov x0, x1`, and `ret`. The main executable SHA-256 is
+`f68f6e9d2b7a7608837618d13e0a5b17b8df2697d335304c321c4dae8d9836a1`.
+The embedded provisioning profile remains unchanged; its SHA-256 is
 `ef4a32f9aef6cca1709423e53e66518204e49a86af4d2752139de63d21244ad1`.
-Its `__TEXT` segment is RX; undefined imports contain none of `dlopen`,
+Its `__TEXT` initial protection is `0x5` (read/execute); undefined imports
+contain none of `dlopen`,
 `dlsym`, `mmap`, `mprotect`, or `pthread_jit_write_protect_np`; and its strings
 contain no Preview/JIT marker.
 
 `codesign -d --entitlements -` reports application identifier, team identifier,
-and `get-task-allow` entitlements; there is no JIT entitlement. The
-`Authority=(unavailable)` and `Info.plist=not bound` fields appear in both
-local Debug and Release display output, so they are display limits rather than
-a Release-specific signing failure. No verification, installation, or
-physical-device execution was performed; treat this Release output as static
-build/signing evidence only.
+and `get-task-allow`; there is no JIT entitlement. The stricter local
+`codesign --verify --deep --strict` check still returns
+`CSSMERR_TP_NOT_TRUSTED`. This is a known local certificate-trust caveat, not a
+substitute for successful Xcode signing or physical-device validation. No
+physical-device installation or execution was performed; treat this Release
+output as static build/signing evidence only.
 
 ## Build the pinned OpenGOAL ARM64 host baseline
 
@@ -175,6 +175,12 @@ Jak 1 node-name compiler/export child: fab37c1f755aa342304db8dbf27f1fa1c42423ac
 Jak 1 node-name compiler/export patch: patches/OpenGOAL/0019-feat-arm64-AOT-compile-Jak-1-node-name-lookup-AI-ass.patch
 X22-backed node-name host execution child: 1e43e767d66b6f554a6cc9aedb9fa024ca3130ee
 X22-backed node-name host execution patch: patches/OpenGOAL/0020-test-arm64-execute-X22-backed-GOAL-field-load-AI-ass.patch
+Level command store compiler child: cb1cc102ac2af46e9581ac5b47404fe797c5b582
+Level command store compiler patch: patches/OpenGOAL/0021-feat-arm64-compile-Jak-1-level-command-store-AI-assi.patch
+Reserved store operand guard child: 311be4773feaf85740427d844e1db65ba4fe5591
+Reserved store operand guard patch: patches/OpenGOAL/0022-fix-arm64-reject-reserved-constant-store-operands-AI.patch
+Level command store host execution child: 13672fadb3fa977f407d19f15989136c38f58d61
+Level command store host execution patch: patches/OpenGOAL/0023-test-arm64-execute-Jak-1-level-command-store-AI-assi.patch
 ```
 
 Restore it into an isolated worktree:
@@ -243,20 +249,30 @@ git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
 
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0020-test-arm64-execute-X22-backed-GOAL-field-load-AI-ass.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0021-feat-arm64-compile-Jak-1-level-command-store-AI-assi.patch"
 ```
 
 If that branch or worktree already exists, inspect and reuse it rather than
 deleting it. Do not move the parent repository's official submodule gitlink to
 the unpublished child commit.
 
-The restored commits are patch-equivalent to `79f22008`, `149840cf`,
+Patches 0022 and 0023 are sibling child commits of 0021, not a verified linear
+continuation after it. Preserve both mboxes, but use a fresh dedicated
+restoration audit and combined build before choosing an `am --3way` or other
+merge procedure. Do not claim that 0023 descends from 0022.
+
+The restoration commands above produce commits patch-equivalent to `79f22008`, `149840cf`,
 `32cf26ae`, `92c8f975`, `b78d7c28`, `1fc20e79`, `25917e27`, `1c80b667`,
 `35d653f1`, `f979c82c`, `2475b3c1`, `9acf4e79`, `5c536859`, `b094144b`,
 `5495181f`, `5ad2efa3`, `45e1897f`, `bd3f4752`, `fab37c1f`, and `1e43e767`,
-but `git am` normally assigns new committer metadata and therefore different
-commit SHAs. The exact objects are available only in a checkout that already
-contains the original child commits. Compare the resulting tree or stable patch
-identities when reconstructing them from the preserved patches.
+and `cb1cc102`. A later combined sibling-restoration audit may establish an
+appropriate application procedure for the preserved `311be477` and `13672fad`
+patches. `git am` normally assigns new committer metadata and therefore
+different commit SHAs. The exact objects are available only in a checkout that
+already contains the original child commits. Compare the resulting tree or
+stable patch identities when reconstructing them from the preserved patches.
 
 Patches 0013 through 0016 are an ordered unit: 0013 creates the data-arena
 source, library, and test; 0014 changes that new test's registration; 0015
@@ -958,18 +974,21 @@ xcrun --sdk macosx clang++ -std=c++20 -arch arm64 \
   GOALPad/Native/Generated/OpenGOALJak1TrueFunc.s \
   GOALPad/Native/Generated/OpenGOALJak1Identity.s \
   GOALPad/Native/Generated/OpenGOALJak1Lognot.s \
+  GOALPad/Native/Generated/OpenGOALJak1LevelGroupLoadCommandsSet.s \
   GOALPad/Native/GOALPadGoalStateWrapper.s \
   -o /private/tmp/goalpad_aot_export_registry_harness
 
 /private/tmp/goalpad_aot_export_registry_harness
 ```
 
-Exit `0` requires successful typed `false-func`, `true-func`, `identity`, and
-`lognot` lookups; rejects cross-type/missing names; verifies `true-func`
-returns X21 plus eight and `lognot` complements its X0 argument; and proves
-the one-argument wrappers establish X20/X21/X22 before placing their arguments
-in X0 while preserving caller state. It is not live GOAL symbol-table,
-relocation, or runtime initialization evidence.
+Exit `0` requires successful typed `false-func`, `true-func`, `identity`,
+`lognot`, and direct `level-group-load-commands-set!` lookups; rejects every
+cross-type/missing name; verifies `true-func` returns X21 plus eight and
+`lognot` complements its X0 argument; and proves the two-argument wrapper
+establishes X20/X21/X22 before placing its values in X0/X1. The direct store
+proof uses real synthetic X22 pointers, checks full-width return values, W1
+four-byte writes, and whole-buffer guards. It is not live GOAL symbol-table,
+method-dispatch, relocation, or runtime-initialization evidence.
 
 ## Physical iPad validation
 

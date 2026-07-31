@@ -22,6 +22,15 @@ binding architecture, scope, and content-separation rules.
   Jak 1 `lognot` definition compiles to `mvn x0, x0; ret`, exports through the
   guarded `Export1` lane, and executes through the existing signed X0 and
   X20/X21/X22 state boundary, returning the bitwise complement of its argument.
+  The exact direct body of Jak 1
+  `level-group-load-commands-set!` now compiles to a guarded two-argument
+  `Export2` entry that stores the low 32 bits of X1 at X22 + X0 + `0x20`, then
+  returns the full X1 value. GOALPad calls that checked-in static artifact only
+  through a typed two-argument registry and wrapper, with two real synthetic
+  X22 bases and whole-buffer guard checks. This is a direct defun-body proof;
+  it does not install or dispatch the GOAL method. The compiler keeps its
+  current GPR-only load guard and the store lowering is deliberately limited to
+  this four-byte proof shape.
   GOALPad resolves the generated native entries through a small app-local
   registry; `true-func` returns X21 plus eight and `identity` receives its one
   object argument in Apple-ABI X0 only after that state is established. A
@@ -33,11 +42,13 @@ binding architecture, scope, and content-separation rules.
   general ARM64 load or runtime claim. A direct iPhoneOS static archive also
   compiles the dispatcher and five generated entries, but is compatibility
   evidence only. The established app-local function/export checkpoint is
-  verified on ARM64 macOS and the dedicated M5 simulator. The Debug generic iOS
-  build uses an Xcode Preview split bundle and is not no-JIT evidence. A
-  separately verified Release generic iOS build disables Preview/debug-dylib
-  layout and contains a monolithic ARM64 executable, but is build/signing
-  evidence only. Top-level GOAL symbol installation, live runtime
+  verified on ARM64 macOS and the dedicated M5 simulator. The direct
+  level-command artifact was also built on ARM64 macOS, run on the dedicated
+  M5 simulator, and included in a signed generic Release iOS build. The Debug
+  generic iOS build uses an Xcode Preview split bundle and is not no-JIT
+  evidence. The Release build disables Preview/debug-dylib layout and contains
+  a monolithic ARM64 executable, but is build/signing evidence only.
+  Top-level GOAL symbol installation, live runtime
   initialization, relocation, and physical execution of the node-name
   checkpoint remain pending.
 - **Planned:** Initialize the full OpenGOAL runtime state, expand the ARM64
