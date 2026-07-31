@@ -159,6 +159,12 @@ Lognot compiler child: 2475b3c1f097dedb60e5e78a1fc4d88aab5ab052
 Lognot compiler patch: patches/OpenGOAL/0011-feat-aot-compile-exact-Jak-1-lognot-function-AI-assi.patch
 Lognot export child: 9acf4e79751d83626915f03aebcfc738e4d0c242
 Lognot export patch: patches/OpenGOAL/0012-feat-aot-export-exact-Jak-1-lognot-function-AI-assis.patch
+Data-arena header child: 5c5368598bf808e5e8a8494679360601d42c02b4
+Data-arena header patch: patches/OpenGOAL/0013-feat-kernel-add-portable-Jak-1-data-arena-header-pro.patch
+Apple SDK/test gate child: b094144b27af99abd2e3b6809e8f58f93d0fb15a
+Apple SDK/test gate patch: patches/OpenGOAL/0014-fix-build-preserve-Apple-SDK-selections-for-host-tes.patch
+Canonical data-arena bounds child: 5495181f304bb63b49a82e9067d59fd27a5dd6c8
+Canonical data-arena bounds patch: patches/OpenGOAL/0015-fix-kernel-preserve-canonical-Jak-1-data-arena-bound.patch
 ```
 
 Restore it into an isolated worktree:
@@ -203,6 +209,15 @@ git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
 
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0012-feat-aot-export-exact-Jak-1-lognot-function-AI-assis.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0013-feat-kernel-add-portable-Jak-1-data-arena-header-pro.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0014-fix-build-preserve-Apple-SDK-selections-for-host-tes.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0015-fix-kernel-preserve-canonical-Jak-1-data-arena-bound.patch"
 ```
 
 If that branch or worktree already exists, inspect and reuse it rather than
@@ -211,11 +226,70 @@ the unpublished child commit.
 
 The restored commits are patch-equivalent to `79f22008`, `149840cf`,
 `32cf26ae`, `92c8f975`, `b78d7c28`, `1fc20e79`, `25917e27`, `1c80b667`,
-`35d653f1`, `f979c82c`, `2475b3c1`, and `9acf4e79`, but `git am` normally
-assigns new committer metadata and therefore different commit SHAs. The exact
-objects are available only in a checkout that already contains the original
-child commits. Compare the resulting tree or stable patch identities when
-reconstructing them from the preserved patches.
+`35d653f1`, `f979c82c`, `2475b3c1`, `9acf4e79`, `5c536859`, `b094144b`, and
+`5495181f`, but `git am` normally assigns new committer metadata and therefore
+different commit SHAs. The exact objects are available only in a checkout that
+already contains the original child commits. Compare the resulting tree or
+stable patch identities when reconstructing them from the preserved patches.
+
+Patches 0013 through 0015 are an ordered unit: 0013 creates the data-arena
+source, library, and test; 0014 changes that new test's registration; 0015
+corrects 0013's arena bounds. Do not apply or preserve either fix without
+0013, and do not reorder the series.
+
+### Validate the portable data-arena header proof
+
+This is a pure C++ data-layout checkpoint. It does not bind the caller-owned
+storage to `g_ee_main_mem`, initialize `kglobalheap` or the native `s7`,
+`SymbolTable2`, `LastSymbol`, or `NumSymbols` globals, create types or native
+trampolines, link game data, or execute GOAL code.
+
+```sh
+cmake -S /private/tmp/GOALPadOpenGOAL-data-arena-corrections \
+  -B /private/tmp/GOALPadOpenGOAL-data-arena-corrections-build \
+  -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+cmake --build /private/tmp/GOALPadOpenGOAL-data-arena-corrections-build \
+  --target jak1-data-arena-test --parallel 4
+
+ninja -C /private/tmp/GOALPadOpenGOAL-data-arena-corrections-build \
+  goalc-test goalc-aot jak1-data-arena-test -j4
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-corrections-build \
+  -R '^Jak1DataArena\.' --output-on-failure
+
+/private/tmp/GOALPadOpenGOAL-data-arena-corrections-build/goalc-test \
+  --gtest_filter='Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-corrections-build \
+  --output-on-failure
+```
+
+Recorded results: configuration, the focused target build, and Ninja build
+exited `0`; the focused data-arena CTest run passed 4/4; the pure compiler
+filter passed 122/122; and the complete CTest set passed 5/5, including the
+existing `goalc-aot-artifact-pair` test.
+
+The source itself was also compiled directly for iPhoneOS ARM64:
+
+```sh
+goalpad_iphoneos_sdk="$(xcrun --sdk iphoneos --show-sdk-path)"
+xcrun --sdk iphoneos clang++ -std=c++20 -arch arm64 \
+  -miphoneos-version-min=18.0 -isysroot "$goalpad_iphoneos_sdk" -I. \
+  -c game/kernel/jak1/data_arena.cpp \
+  -o /private/tmp/goalpad_jak1_data_arena_corrections_iphoneos.o
+```
+
+That command exited `0`; `otool` identified an 1848-byte `MH_MAGIC_64 ARM64`
+object. This direct compile is not an iPhoneOS CMake or application build.
+
+An iPhoneOS CMake configure preserving `CMAKE_OSX_SYSROOT=iphoneos` reached
+vendored curl, then stopped at its first missing OpenSSL dependency. It did not
+generate `build.ninja`, so it does not prove target generation or test-gate
+behavior. The full desktop runtime test attempt is also not a pass: its
+inherited runtime main-memory mapping reported `Permission denied`; a retry
+progressed into `Jak1KernelTest` and was stopped with Ctrl-C (exit 130). Keep
+the data-arena result scoped to the commands above.
 
 Configure and build the affected tools serially enough to avoid excess memory
 pressure:

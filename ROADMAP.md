@@ -577,19 +577,27 @@ Stage 2 is complete. Stages 1 and 3 remain active; the first typed Stage 4
 static artifact boundaries are verified but do not complete the Stage 4 exit
 gate.
 
-Stage 1 is blocked on the durable fork owner and working GitHub authentication.
-Until publication, keep the official submodule pin clean and preserve the
-verified child commit through the repository patch.
+Stage 1 is blocked on a maintainer-chosen, fetchable OpenGOAL fork/pin and
+working GitHub authentication. Until publication, keep the official submodule
+pin clean and preserve the verified child commits through the repository
+patches. The local `zschwendi` and `zephyrstudiosllc` GitHub CLI credentials
+are both invalid; do not attempt publication until the maintainer selects the
+owner, access policy, and transport, then explicitly renews authentication.
 
 The next actions are:
 
-1. Add a narrow read-write-only OpenGOAL data-arena/header proof, keeping
-   executable GOAL text statically linked and normally signed.
-2. Keep unsupported statics, general relocations, calls, saved registers,
+1. Integrate the already verified, portable Jak 1 data-arena header proof only
+   after a dedicated OpenGOAL fork makes child commit `5495181f` fetchable and
+   pins it reproducibly. Do not copy the source into the app or use a
+   machine-local worktree path.
+2. Then add the next smallest seam: a pure C++ arena-derived AOT call context
+   with `X20 = X21 = s7` and `X22 = arena base`. Exercise only the existing
+   static signed entries; do not bind desktop globals, create live GOAL
+   symbols, add executable memory, or begin the desktop runtime-linker path.
+3. Keep unsupported statics, general relocations, calls, saved registers,
    spills, and stack locals explicit until a real Jak 1 boot dependency
-   requires each boundary.
-3. Keep x86 behavior, the 720-test non-network suite, ARM64 host tools, and the
-   signed app path healthy after each increment.
+   requires each boundary. Keep x86 behavior, the non-network compiler suite,
+   ARM64 host tools, and the signed app path healthy after each increment.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
 Physical Z iPad Pro validation is pending and must not be attempted unless the

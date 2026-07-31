@@ -1477,3 +1477,150 @@ reconstructing them elsewhere.
 Do not use proprietary inputs yet. The next scoped task is a narrow RW-only
 OpenGOAL data-arena/header proof; it still needs no retail game data and must
 not access the physical iPad without current explicit permission.
+
+## Checkpoint 5: portable Jak 1 data-arena header
+
+Parent checkpoint `c201ea8a3d09934d155cb4cadca7c4ef9ad563d2` preserves the
+following unpublished OpenGOAL child series. The official submodule remains
+pinned at `a4cb1ac1f0596c8740b1c26accb24a58505cda92` and was not moved.
+
+| Order | Child commit | Patch | SHA-256 | Stable patch ID |
+| --- | --- | --- | --- | --- |
+| 0013 | `5c5368598bf808e5e8a8494679360601d42c02b4` | `0013-feat-kernel-add-portable-Jak-1-data-arena-header-pro.patch` | `60bd2a50bcac0d34bbd60913e583208f4b635cafac3a4e6303e6832015ec9602` | `9e8159a68654a4568220ea94cb36e51622a77ab3` |
+| 0014 | `b094144b27af99abd2e3b6809e8f58f93d0fb15a` | `0014-fix-build-preserve-Apple-SDK-selections-for-host-tes.patch` | `5c28722688323eba798552f6bcae10779db4152481fbe4bf57f2efaf5c549f9b` | `b47e3ae39b93f47be4fa8465a5c684b4130919d9` |
+| 0015 | `5495181f304bb63b49a82e9067d59fd27a5dd6c8` | `0015-fix-kernel-preserve-canonical-Jak-1-data-arena-bound.patch` | `ed0aba2b7d717f5a2a93099f5264bb1fc567b15c5bfd62f574e87917fbeba92b` | `1ab6fb92d40e3cc5b4e949df8e5d12da55b482d9` |
+
+Apply 0013, then 0014, then 0015 after the existing 0001 through 0012
+series. Patch 0013 introduces the source, static library, and test; 0014
+changes the test registration to preserve a caller-selected Apple SDK and
+avoid host-side discovery of a cross-compiled executable; 0015 corrects
+0013's arena bounds. Do not preserve, apply, or publish a partial or reordered
+suffix.
+
+```sh
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0013-feat-kernel-add-portable-Jak-1-data-arena-header-pro.patch"
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0014-fix-build-preserve-Apple-SDK-selections-for-host-tes.patch"
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0015-fix-kernel-preserve-canonical-Jak-1-data-arena-bound.patch"
+```
+
+### Implemented data-only boundary
+
+`initialize_data_arena_header` initializes caller-owned, zero-based GOAL
+storage. It requires at least `GLOBAL_HEAP_END = 0x03eb82e0` bytes, clears only
+`[storage, storage + GLOBAL_HEAP_END)`, and leaves any tail untouched. The
+verified Jak 1 header values are:
+
+```text
+global heap record: 0x13ad00
+base:               0x13fd20
+current:            0x17fd20
+top / top-base:     0x03eb82e0
+symbol table:       [0x13fd20, 0x17fd20)
+SymbolTable2:       0x13fd24
+LastSymbol:         0x15fc20
+s7:                 0x14fd24
+#f / #t:            s7 / s7 + 8
+```
+
+This is not live OpenGOAL runtime initialization. It does not bind storage to
+`g_ee_main_mem`, initialize `kglobalheap` or native `s7`, `SymbolTable2`,
+`LastSymbol`, or `NumSymbols` globals, create types, native trampolines, or
+GOAL functions, link game data, or execute GOAL code. It has no renderer,
+presentation, lifecycle, camera, or platform-view coupling.
+
+### Validation ledger
+
+The host configuration and focused target builds below exited `0`:
+
+```sh
+cmake -S /private/tmp/GOALPadOpenGOAL-data-arena-corrections \
+  -B /private/tmp/GOALPadOpenGOAL-data-arena-corrections-build \
+  -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+cmake --build /private/tmp/GOALPadOpenGOAL-data-arena-corrections-build \
+  --target jak1-data-arena-test --parallel 4
+
+ninja -C /private/tmp/GOALPadOpenGOAL-data-arena-corrections-build \
+  goalc-test goalc-aot jak1-data-arena-test -j4
+```
+
+```sh
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-corrections-build \
+  -R '^Jak1DataArena\.' --output-on-failure
+
+/private/tmp/GOALPadOpenGOAL-data-arena-corrections-build/goalc-test \
+  --gtest_filter='Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-corrections-build \
+  --output-on-failure
+```
+
+Results: focused data-arena CTest 4/4 passed; pure compiler filter 122/122
+passed; full CTest 5/5 passed, including `goalc-aot-artifact-pair`.
+
+The source compiled directly for iPhoneOS ARM64 without a desktop runtime:
+
+```sh
+goalpad_iphoneos_sdk="$(xcrun --sdk iphoneos --show-sdk-path)"
+xcrun --sdk iphoneos clang++ -std=c++20 -arch arm64 \
+  -miphoneos-version-min=18.0 -isysroot "$goalpad_iphoneos_sdk" -I. \
+  -c game/kernel/jak1/data_arena.cpp \
+  -o /private/tmp/goalpad_jak1_data_arena_corrections_iphoneos.o
+```
+
+Result: exit `0`; `otool` reported an 1848-byte `MH_MAGIC_64 ARM64` object.
+
+The tests-off configure (`-DBUILD_TESTING=OFF`) exited `0`, and its target-list
+check confirmed that `jak1-data-arena-test` was not registered. An iPhoneOS
+CMake configure with `CMAKE_SYSTEM_NAME=iOS`, `CMAKE_OSX_SYSROOT=iphoneos`,
+`CMAKE_OSX_ARCHITECTURES=arm64`, `CMAKE_OSX_DEPLOYMENT_TARGET=18.0`, and
+`BUILD_TESTING=ON` retained the iPhoneOS sysroot, then stopped at curl's first
+missing OpenSSL dependency. It generated no `build.ninja`; do not claim an
+iPhoneOS CMake library, target-gate, app, simulator, or device result from
+this checkpoint.
+
+The broad desktop runtime suite is also unvalidated: its inherited
+main-memory mapping reported `Permission denied`; an escalated retry reached
+the 1538-test suite and then `Jak1KernelTest`, where the same error recurred.
+It was stopped with Ctrl-C (exit 130), not passed.
+
+No application, simulator, generic-device, or physical-device validation ran
+for this data-only proof. Do not access **Z iPad Pro** unless the maintainer
+explicitly requests physical-device testing in the current task.
+
+### Current integration and publication gate
+
+The next smallest implementation seam is a pure C++ arena-derived AOT call
+context: set `X20 = X21 = s7` and `X22 = arena base`, then exercise only the
+already signed static AOT entries. Do not bind desktop globals, install a live
+GOAL symbol, add executable memory, use the desktop runtime linker, or start a
+renderer/camera/platform-abstraction effort.
+
+Durable parent integration is blocked until a maintainer chooses a fetchable,
+pinned OpenGOAL fork and its owner, visibility/access policy, and HTTPS/SSH
+transport. The local GitHub CLI configuration contains `zschwendi` (active)
+and `zephyrstudiosllc` (inactive), but both credentials are invalid. Do not
+authenticate, create a fork, change `.gitmodules`, move the submodule gitlink,
+or publish without that direction. The official source must remain `upstream`;
+the fork must be published and fresh-clone verified before the parent points to
+an immutable fork commit.
+
+At this checkpoint, the parent history is:
+
+```text
+c201ea8 Preserve Jak 1 data-arena correction series (AI-assisted)
+c95b07a docs: correct lognot generator path (AI-assisted)
+df6057d docs: record signed lognot runtime checkpoint (AI-assisted)
+f7ad14c feat(aot): bind exact Jak 1 lognot export (AI-assisted)
+bb304ce docs: record release and lognot checkpoints (AI-assisted)
+```
+
+`origin` remains configured as `https://github.com/zschwendi/GOALPad.git`.
+Publication is blocked by the unverified destination/fork decision and invalid
+local GitHub credentials; no push was attempted for `c201ea8` or this
+documentation checkpoint. Preserve the platform boundaries above so later Mac,
+iPhone, multiple-view, stereo, externally supplied projection, and visionOS
+presentation work remain possible without delaying the iPad Jak 1 boot path.
