@@ -4,19 +4,19 @@ Date: 2026-07-31
 
 Branch: `feat/ipados-native-boot`
 
-Status: Partially complete. The latest verified checkpoint is Checkpoint 20,
-parent commit `ce027a09693f7e010ddcf863c3f306a12ec9a503`, pushed to
-`origin/feat/ipados-native-boot`. It preserves OpenGOAL child commit
-`c7ef4691571cc462815816c098fa9d241bc58c81`, which adds a production typed
-ARM64 data-arena method invoker and validates the real generated Jak 1
-`load-state::reset!` entry through it. Host tests and a minimal iPhoneOS ARM64
-static-library build passed. The app does not yet compile these OpenGOAL
-sources, use the typed binding, or boot Jak. No simulator or physical device
-was used for Checkpoint 20. The next work is not another compiler proof: publish
-and pin the accepted OpenGOAL fork, link the pinned data-arena/invoker sources
-into Xcode, execute the trusted reset path inside GOALPad, and validate the M5
-simulator plus a generic signed iOS build. See the final transition section for
-the exact state and commands.
+Status: Partially complete. The latest verified implementation checkpoint is
+parent commit `0b413b9c760cae933509499852523fcddb139193`, pushed to
+`origin/feat/ipados-native-boot`. The dedicated public fork is
+`https://github.com/zschwendi/jak-pad.git`; branch
+`goalpad/arm64-aot-0044` resolves to the pinned child
+`9eecb9c3193ed8cb5175c9199cecbe9cfd2baa42`. GOALPad now compiles the pinned
+OpenGOAL data-arena and typed ARM64 invoker sources directly in Xcode and
+executes the signed generated Jak 1 `load-state::reset!` entry through the
+production binding/invoker path. Host, ARM64 macOS, the approved M5 simulator,
+and a normally signed generic iOS Release build passed. This remains synthetic
+arena integration, not live runtime initialization, game-data loading, Jak
+boot, or current physical-device execution. See the final checkpoint section
+for exact commands, evidence, nonclaims, and the next Stage 5 task.
 
 ## Active roadmap and delegated audit
 
@@ -24,8 +24,10 @@ the exact state and commands.
 completable Jak 1 physical-iPad result. The implementation goal remains open
 until all ten stage exit gates are satisfied.
 
-The roadmap and Stage 2 checkpoints used parallel subagents. All used the
-maintainer-requested fast `gpt-5.6-terra` model with `xhigh` reasoning:
+The roadmap and earlier Stage 2 checkpoints used parallel subagents. Current
+delegation uses non-fast `gpt-5.6-sol` with `xhigh` reasoning, per the latest
+maintainer direction. Historical model choices below do not override that
+current setting.
 
 | Delegation | Scope | Result |
 | --- | --- | --- |
@@ -4321,3 +4323,236 @@ not delay the Xcode integration for more architecture or documentation work.
 All newly started subagent audits were interrupted when the maintainer switched
 workers. They made no shared-worktree edits. The isolated documentation
 worktree `/private/tmp/GOALPad-parent-checkpoint20-docs` is clean at `ce027a0`.
+
+## Checkpoint 21: published fork and in-app typed reset composition
+
+This section supersedes the Checkpoint 20 transition above.
+
+### Published and pinned repositories
+
+The parent implementation checkpoint is:
+
+```text
+repository: /Users/zach/Developer/OS_Projects/GOALPad/GOALPad
+branch: feat/ipados-native-boot
+commit: 0b413b9c760cae933509499852523fcddb139193
+remote branch: origin/feat/ipados-native-boot
+```
+
+The workspace handoff files are ready for Claude:
+
+```text
+/Users/zach/Developer/OS_Projects/GOALPad/CLAUDE.md -> AGENTS.md
+default subagents: non-fast gpt-5.6-sol, xhigh reasoning
+context checkpoint: update this handoff near 70 percent usage before clearing
+```
+
+The dedicated public OpenGOAL fork and pin are:
+
+```text
+fork: https://github.com/zschwendi/jak-pad.git
+published branch: goalpad/arm64-aot-0044
+pin: 9eecb9c3193ed8cb5175c9199cecbe9cfd2baa42
+submodule state: detached and clean at the pin
+```
+
+The verified parent sequence is:
+
+```text
+1c64426 build(opengoal): pin dedicated ARM64 fork (AI-assisted)
+b5922f5 build(ipados): link pinned OpenGOAL data arena (AI-assisted)
+d9910ab fix(opengoal): pin canonical reset fixture (AI-assisted)
+0b413b9 feat(runtime): execute reset through pinned data arena (AI-assisted)
+```
+
+OpenGOAL child `9eecb9c3` corrects the canonical reset fixture by staging
+`kheapinfo::top_base` as the heap end, writing only the empty pair's CAR/CDR
+cells, and asserting those header values before invocation. It was pushed as a
+fast-forward update to `goalpad/arm64-aot-0044`. The parent gitlink was then
+advanced to that exact fetchable commit.
+
+A fresh lightweight parent clone and a fresh fork-branch clone both resolved
+the published pin. `.gitmodules`, the parent gitlink, the submodule checkout,
+and the remote branch all agreed on `9eecb9c3`.
+
+The post-bump fetchability check used:
+
+```sh
+git clone --filter=blob:none --no-checkout --depth 1 \
+  --branch feat/ipados-native-boot \
+  https://github.com/zschwendi/GOALPad.git \
+  /private/tmp/goalpad-pin-final.ORISUE/GOALPad
+
+git clone --filter=blob:none --no-checkout --depth 1 \
+  --branch goalpad/arm64-aot-0044 \
+  https://github.com/zschwendi/jak-pad.git \
+  /private/tmp/goalpad-pin-final.ORISUE/jak-pad
+
+git -C /private/tmp/goalpad-pin-final.ORISUE/GOALPad \
+  ls-tree HEAD OpenGOAL
+git -C /private/tmp/goalpad-pin-final.ORISUE/jak-pad rev-parse HEAD
+```
+
+Both clones exited `0`; the parent was `0b413b9`, its gitlink was `9eecb9c3`,
+and the fork branch was `9eecb9c3`. The two partial clones occupy under 1 MiB
+combined.
+
+### Xcode and runtime composition
+
+`GOALPad.xcodeproj` directly compiles these sources from the pinned submodule:
+
+```text
+OpenGOAL/game/kernel/jak1/data_arena.cpp
+OpenGOAL/game/kernel/jak1/data_arena_arm64_invoker.cpp
+OpenGOAL/game/kernel/jak1/data_arena_arm64_invoker.s
+```
+
+There is no copied archive, absolute temporary path, or alternate engine. The
+runtime proof now creates two compact caller-owned synthetic arenas, stages the
+canonical heap/type/function/load-state metadata, resolves the actual BASIC
+method tuple, exact-matches it to an immutable trusted binding, and calls the
+signed generated `load-state::reset!` Export1 only through
+`jak1::invoke_data_arena_native_basic_method1` and the typed ARM64 invoker. It
+checks the returned object, full binding tuple, every expected reset write, the
+complete arena image, metadata, sentinels, and guards for both arena bases.
+
+The negative path changes only the binding's raw GOAL method word and requires
+`UnboundMethod`, no native callback, no byte mutation, and intact outer guards.
+The raw 32-bit GOAL method value is never converted to a native pointer. The
+implementation adds no JIT, writable-executable-memory, dynamic symbol lookup,
+or UI/lifecycle coupling.
+
+An independent correctness review first rejected the inherited malformed
+empty-pair write and incorrect `top_base`. Both the fork fixture and app staging
+were corrected. The follow-up review accepted the exact corrected diff. A
+separate security/architecture review also accepted the trusted-entry
+provenance, lifetimes, bounds, fail-closed behavior, and no-JIT design.
+
+### Validation
+
+The corrected OpenGOAL ARM64 target and focused ABI suite passed:
+
+```sh
+cmake --build \
+  /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --target arm64-goal-call-abi-test -j 4
+
+ctest --test-dir \
+  /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  -R '^Arm64GoalCallAbi\\.' --output-on-failure -j 1
+```
+
+Result: build exit `0`; `Arm64GoalCallAbi` passed 10/10.
+
+The current host composition harness was built and run with the app runtime and
+pinned OpenGOAL sources:
+
+```sh
+xcrun --sdk macosx clang++ -std=c++20 -arch arm64 \
+  -I GOALPad/Native -I OpenGOAL \
+  tests/native/GOALPadAOTExportRegistryHarness.cpp \
+  GOALPad/Native/GOALPadAOTExportRegistry.cpp \
+  GOALPad/Native/GOALPadRuntimeCore.cpp \
+  GOALPad/Native/GOALPadGoalStateWrapper.s \
+  OpenGOAL/game/kernel/jak1/data_arena.cpp \
+  OpenGOAL/game/kernel/jak1/data_arena_arm64_invoker.cpp \
+  OpenGOAL/game/kernel/jak1/data_arena_arm64_invoker.s \
+  GOALPad/Native/Generated/OpenGOALJak1FalseFunc.s \
+  GOALPad/Native/Generated/OpenGOALJak1TrueFunc.s \
+  GOALPad/Native/Generated/OpenGOALJak1LoadStateValue.s \
+  GOALPad/Native/Generated/OpenGOALJak1Identity.s \
+  GOALPad/Native/Generated/OpenGOALJak1Lognot.s \
+  GOALPad/Native/Generated/OpenGOALJak1LevelGroupLoadCommandsSet.s \
+  GOALPad/Native/Generated/OpenGOALJak1WantVis.s \
+  GOALPad/Native/Generated/OpenGOALJak1WantLevels.s \
+  GOALPad/Native/Generated/OpenGOALJak1LoadStateReset.s \
+  -o /private/tmp/goalpad_pinned_runtime_composition_harness
+
+/private/tmp/goalpad_pinned_runtime_composition_harness
+
+xcrun nm -n -C /private/tmp/goalpad_pinned_runtime_composition_harness | \
+  rg 'goalpad_aot_load_state_reset|jak1_data_arena_call_native_method1_arm64|invoke_data_arena_native_method1_arm64|invoke_data_arena_native_basic_method1'
+```
+
+Result: compile and execution exited `0`. All four required symbol families
+were present.
+
+The ARM64 macOS app build passed:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-mac -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
+```
+
+Only the approved M5 simulator
+`96C5C21A-B925-4213-82A3-90DCB8518339` was used. The Debug build, boot,
+install, and launch passed; the launch PID was `99701`. The runtime logged:
+
+```text
+GOALPad runtime probe: Signed ARM64 Jak 1 false-func, true-func, identity, lognot, and direct level-group-load-commands-set!, want-vis, want-levels, and data-arena-bound load-state reset plus load-state symbol-value AOT proof verified; architecture=arm64; result=8194
+```
+
+The inspected screenshot is
+`/private/tmp/GOALPad-data-arena-reset-M5.png`, SHA-256
+`45647e0001a53147b4c43ea0bb9a9f99866eff4c95e78848d210f070c824d2df`.
+The simulator was explicitly shut down and confirmed `Shutdown` afterward.
+
+The normally signed generic iOS Release build passed:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-device -jobs 4 \
+  ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
+```
+
+The output at
+`/private/tmp/GOALPad-device/Build/Products/Release-iphoneos/GOALPad.app`
+is a monolithic thin ARM64 app. The executable SHA-256 is
+`f7fc6b8e5533105eeaa7fc3890701fb56e74ccefeea6f1d74ddf767ed26c7cd0`;
+the embedded profile SHA-256 is
+`ef4a32f9aef6cca1709423e53e66518204e49a86af4d2752139de63d21244ad1`.
+Current symbol addresses are:
+
+```text
+0x1000044ec  jak1::invoke_data_arena_native_basic_method1
+0x100004874  jak1::invoke_data_arena_native_method1_arm64
+0x1000048d0  _goalpad_aot_load_state_reset
+0x1000074c0  _jak1_data_arena_call_native_method1_arm64
+```
+
+The assembly invoker preserves X19-X22 and performs its only native entry call
+with `blr x19`. `__TEXT` is read/execute; `__DATA_CONST` and `__DATA` are
+read/write and non-executable. No app-root dynamic library exists. Undefined
+symbol and string scans found none of `dlopen`, `dlsym`, `mmap`, `mprotect`,
+`pthread_jit`, Preview, or JIT markers.
+
+Keychain-backed strict verification reported `valid on disk` and `satisfies its
+Designated Requirement`. The Apple Development signature is
+`zschwendi@zephyrstudios.dev (BZ68MJN5R5)`, Team ID `D2YYJ54Q6V`, CDHash
+`9514d2fedbdcf46985725f9ef6a277068510e647`. Entitlements are limited to the
+application identifier, team identifier, and `get-task-allow = true`; there is
+no JIT or unsigned-executable-memory entitlement. The Xcode-managed local
+development profile expires `2026-08-06T23:51:59Z`.
+
+### Not validated
+
+No physical iPad, including **Z iPad Pro**, was accessed. This checkpoint does
+not prove live OpenGOAL globals, a persistent runtime session, general symbol or
+type bootstrap, top-level GOAL initialization, linker/object loading, retail
+game data, the game renderer, title-screen boot, gameplay, distribution, or App
+Store readiness.
+
+### Next smallest task
+
+Continue Stage 5 by giving GOALPad one C++-owned Jak 1 arena with explicit
+initialization, stable lifetime, failure reporting, and teardown, using
+`jak1::initialize_data_arena_header`. Reuse that arena serially so the runtime
+does not duplicate the approximately 63 MiB canonical allocation. Then stage
+only the trusted type/function/load-state metadata needed to repeat the typed
+reset invocation through the existing signed path.
+
+Do not bind desktop globals, call `InitHeapAndSymbol`, add the general linker,
+load retail data, or start another compiler micro-proof in this checkpoint.

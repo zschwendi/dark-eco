@@ -63,15 +63,17 @@ as completing the overall goal.
 | Playable gameplay slice | Planned |
 | Jak 1 completion track | Planned |
 
-The current application proves that Swift, Objective-C++, C++, statically
-linked ARM64 code, logging, storage, and a Metal surface can coexist in an
-iPadOS process. The Stage 2 compiler path also proves that the real top-level
-GOAL expression `42` can produce deterministic ARM64 assembly that is linked
-and signed with the app and executed through the X20/X21/X22 static-call
-boundary on ARM64 macOS, the iPad Pro M5 simulator, and the physical iPad Pro
-M5. The boundary's state values are synthetic and never dereferenced. The app
-does not yet initialize general OpenGOAL runtime state, load Jak data, or
-render the game.
+The current application proves that Swift, Objective-C++, C++, real pinned
+OpenGOAL data-arena/invoker code, statically linked ARM64 code, logging,
+storage, and a Metal surface can coexist in an iPadOS process. The Stage 2
+compiler path also proves that the real top-level GOAL expression `42` can
+produce deterministic ARM64 assembly that is linked and signed with the app
+and executed through the X20/X21/X22 static-call boundary. Checkpoint 21 also
+executes the signed generated Jak 1 `load-state::reset!` method through the
+pinned production data-arena binding and typed ARM64 invoker on ARM64 macOS and
+the approved M5 simulator. The current arena state is still staged synthetic
+data. The app does not yet initialize a persistent general OpenGOAL runtime,
+load Jak data, or render the game.
 
 ## Required code and data pipelines
 
@@ -126,12 +128,17 @@ Exit gate:
   the documented remote.
 - The pinned ARM64 `gk` and `goalc-test` baseline still builds and passes.
 
-Current blocker:
+Current status:
 
-- The maintainer must choose whether the fork lives under `zschwendi`,
-  `zephyrstudiosllc`, or another explicitly named owner.
-- The configured GitHub credential is currently invalid, so the selected owner
-  must also be authenticated before publication.
+- Implemented: the public dedicated fork is
+  `https://github.com/zschwendi/jak-pad.git`; published branch
+  `goalpad/arm64-aot-0044` and the parent submodule both resolve to
+  `9eecb9c3193ed8cb5175c9199cecbe9cfd2baa42`.
+- Verified: fresh lightweight parent and fork-branch clones resolved that pin,
+  and the pinned affected host tests and application integration passed.
+- Pending: rerun the complete clean-clone Stage 1 host baseline at `9eecb9c3`
+  when a fresh full build is next useful; publication and fetchability are no
+  longer blockers.
 
 ## Stage 2 — Compile one real GOAL workload for ARM64
 
@@ -416,6 +423,15 @@ Current progress:
   storage. It does not resolve a live `*load-state*` symbol, execute top-level
   GOAL code, initialize the runtime, bind a method, dispatch virtually, load
   Jak data, boot, or establish physical-device execution.
+- Checkpoint 21 pins OpenGOAL child `9eecb9c3` and executes the real generated
+  `load-state::reset!` Export1 inside GOALPad through the production
+  `DataArenaNativeMethodBinding1`, portable method lookup, and typed ARM64
+  invoker. Two guarded synthetic arenas verify exact method metadata, reset
+  results, full-state equality, and fail-closed mismatch behavior. The same
+  path passed the ARM64 host harness, approved M5 simulator, and normal signed
+  generic iOS Release build. This advances signed static method composition,
+  but the Stage 4 exit gate remains open because no general static-object or
+  top-level initialization model exists yet.
 
 ## Stage 5 — Build a portable OpenGOAL runtime for iPadOS
 
@@ -513,6 +529,14 @@ Current progress:
   It is test-only and uses one roughly 66 MiB arena without a duplicate. It is
   not a heap advancement, linker, type-object, method-dispatch, game-data,
   app, signing, simulator, device, or boot result.
+- Checkpoint 21 publishes and pins the accepted OpenGOAL series, directly links
+  `data_arena.cpp` plus the typed ARM64 invoker C++/assembly into Xcode, and
+  runs the trusted reset composition inside the application. The host harness,
+  ARM64 macOS build, approved M5 simulator runtime, and normally signed generic
+  iOS Release build passed. This is real portable OpenGOAL source integration,
+  but the arena is still a temporary synthetic fixture local to one probe. It
+  does not yet provide a persistent initialized runtime session, lifecycle,
+  failure surface, or teardown, so Stage 5 remains partial.
 - This is only a partial data boundary: it establishes canonical heap and
   symbol-table offsets, can locate already-staged synthetic symbol metadata,
   and has one direct static composition proof in caller-owned storage, but does
@@ -710,7 +734,7 @@ creating overlapping edits.
 
 Current agent configuration:
 
-- Model: fast `gpt-5.6-terra`
+- Model: non-fast `gpt-5.6-sol`
 - Reasoning effort: `xhigh`
 - If that configuration is unavailable, report it instead of silently
   downgrading.
@@ -754,82 +778,41 @@ Operating rules:
 
 ## Current checkpoint
 
-Stage 2 is complete. Stages 1 and 3 remain active; the typed Stage 4 static
-artifact boundaries, bounded 0020 X22 field-load proof, direct 0021-0023
-level-command store proof, direct 0024-0026 `want-vis` proof, complete
-0027-0033 direct `want-levels`, 0034-0036 direct `load-state::reset!`, and
-0037 `*load-state*` value-cell shape proof plus the 0038-0039 read-only
-existing-symbol resolver, 0040 synthetic composition proof, 0041 read-only
-BASIC method-value lookup, 0042 portable trusted-native method binding, and
-0043 guarded ARM64 ABI composition of the generated `load-state::reset!`
-Export1 are verified but do not complete the Stage 4 exit gate.
+Stage 1 publication and fetchability are implemented. Stage 2 is complete.
+Stages 3, 4, and 5 remain active. The dedicated public fork
+`https://github.com/zschwendi/jak-pad.git`, published branch
+`goalpad/arm64-aot-0044`, parent gitlink, and clean detached submodule all
+resolve to `9eecb9c3193ed8cb5175c9199cecbe9cfd2baa42`.
 
-Stage 1 is blocked on a maintainer-chosen, fetchable OpenGOAL fork/pin and
-working GitHub authentication. Until publication, keep the official submodule
-pin clean and preserve the verified child commits through the repository
-patches. The local `zschwendi` and `zephyrstudiosllc` GitHub CLI credentials
-are both invalid; do not attempt publication until the maintainer selects the
-owner, access policy, and transport, then explicitly renews authentication.
+Checkpoint 21 directly compiles the pinned OpenGOAL data-arena and typed ARM64
+invoker sources in Xcode. Parent commit `0b413b9` executes the real signed
+generated `load-state::reset!` Export1 through the production lookup, exact
+trusted binding tuple, and typed ARM64 invoker in two guarded synthetic arenas.
+The corrected OpenGOAL test passed 10/10 focused ARM64 ABI cases; the parent
+host harness, ARM64 macOS build, approved M5 simulator runtime, and normally
+signed monolithic generic iOS Release build passed. The Release artifact is
+thin ARM64, has no writable/executable segment, app-root dynamic library,
+dynamic-loading/JIT import, or JIT entitlement, and passes strict signature
+verification. No physical iPad was accessed.
 
 The next actions are:
 
-1. Integrate the verified portable 0013-0043 work only after a dedicated
-   OpenGOAL fork makes the ordered changes fetchable and pins them
-   reproducibly. A read-only audit from official pin
-   `a4cb1ac1f0596c8740b1c26accb24a58505cda92` passed every numbered mbox
-   0001-0043 with no failure. Preserve every mbox and stable patch ID. The
-   topology-preserving order is 0001-0021, 0023, 0022, 0024-0043; lexical
-   0001-0043 also applies cleanly. Patches 0022 and 0023 are sibling child
-   changes from 0021; 0024-0032 have both literal and stable-equivalent
-   runtime-replay identities; 0033 follows the reviewed replay line,
-   0034-0036 form the literal
-   `71fc6918 -> e96cedd2 -> 2229c13e -> bb4b2e7e` sequence, and 0037 follows
-   with `0327eee4 -> da6cfe9e -> deebafd -> a13b42f7 -> 0ee4a48f -> 7aaaf299
-   -> e60fb292`;
-   `a13b42f7` was cherry-picked from reviewed source commit `9a830552`.
-   Both full-series audit orders yielded tree
-   `b56430db836c2f722f91f7f263692b535c820c52`, exactly equal to
-   `e60fb292b28168ad62d9345e8e0a33eea9356d82^{tree}`. The preservation audit
-   also confirmed ordered 0038-0043 replay exactly matches the `e60fb292`
-   tree, and the reverse patch check passed. No fork was created or published,
-   no network or build ran, and authentication was not attempted. After the
-   maintainer selects owner, repository, visibility, and transport, use the
-   documented `git am --3way` recipe and tree check before any push. Do not
-   copy the source into the app or use a machine-local worktree path.
-2. The next boot-flow candidate remains `load-state-want-levels` at
-   `goal_src/jak1/engine/level/load-boundary.gc:1095-1096`, called at
-   `level.gc:1007` in the `1005-1009` reset/load/want/display flow. Its
-   `(symbol symbol) -> int` wrapper invokes `want-levels` on global
-   `*load-state*`. The resolver-backed synthetic composition proof is complete
-   only for manually staged metadata and a direct export. Production symbol
-   staging is rejected now because a fresh arena has zero `symbol` and `string`
-   Type values; it would formalize fixture work before fundamental-type and
-   top-level bootstrap. Commit B now proves a portable synchronous trusted
-   tuple and caller-provided native-entry/invoker boundary. It exact-matches
-   actual `object_type`, `method_id = 9`, raw `method_value`, and
-   `allocated_size`/`padded_size` `0x82c`/`0x830` with arity one, verifies the
-   Function tag, and does not cast the raw GOAL word to a native address or add
-   JIT. Entry provenance, code signing, and the ABI remain platform-layer
-   responsibilities; callers keep the arena, header, binding span, and aliases
-   stable and exclusively serialized for the whole operation.
-   Checkpoint 19 invokes the generated `load-state::reset!` Export1 through
-   that typed binding and the existing `call_goal_asm_arm64` outer wrapper in
-   two guarded synthetic arenas. It verifies the generated Export1 selection,
-   exact reset writes, guards, caller-register restoration, and fail-closed
-   binding mismatch without treating the raw GOAL word as a native address.
-   This is still test-only host ARM64 evidence. The next task is a narrow audit
-   of the smallest GOALPad app/runtime boundary that can own a static native
-   entry and caller storage with a clear lifetime, initialization, and signing
-   story. The audit must choose a contained integration proof before changing
-   runtime code; it must not claim simulator, device, game-data, or boot
-   execution. Runtime type/method-table loading, general type creation,
-   linking, game data, and boot remain separate seams. The existing direct
-   Export3 body is not method dispatch; do not silently change the non-final
-   type's virtual semantics.
-3. Keep unsupported statics, general relocations, calls, saved registers,
-   spills, and stack locals explicit until a real Jak 1 boot dependency
-   requires each boundary. Keep x86 behavior, the non-network compiler suite,
-   ARM64 host tools, and the signed app path healthy after each increment.
+1. Give GOALPad one C++-owned Jak 1 arena with explicit initialization, stable
+   lifetime, failure reporting, and teardown through
+   `jak1::initialize_data_arena_header`. Reuse the single arena serially to
+   avoid duplicating the approximately 63 MiB canonical allocation.
+2. Move the already verified trusted type/function/load-state metadata staging
+   into that owned session and repeat the existing typed reset invocation. Do
+   not bind desktop globals, call `InitHeapAndSymbol`, add the general linker,
+   or load game data in this checkpoint.
+3. Keep the host harness, affected OpenGOAL tests, ARM64 macOS build, approved
+   M5 simulator, and generic normally signed iOS Release lane healthy. Do not
+   return to compiler micro-proofs unless this integration exposes a concrete
+   compiler failure.
+4. After the persistent arena lifecycle is proven, audit the smallest real
+   bootstrap boundary needed before `load-state-want-levels`; keep general
+   symbol/type bootstrap, object linking, game data, renderer, and boot as
+   explicit later seams.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
 Physical Z iPad Pro validation is pending and must not be attempted unless the

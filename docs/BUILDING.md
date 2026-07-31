@@ -13,11 +13,16 @@ brew install cmake ninja go-task openssl@3
 ## Initialize OpenGOAL
 
 ```sh
+git submodule sync -- OpenGOAL
 git submodule update --init --recursive
 ```
 
-The submodule commit is the authoritative upstream version. Do not substitute a
-different OpenGOAL checkout when recording validation results.
+The authoritative child is the dedicated public fork
+`https://github.com/zschwendi/jak-pad.git`, branch
+`goalpad/arm64-aot-0044`, pinned by the parent gitlink at
+`9eecb9c3193ed8cb5175c9199cecbe9cfd2baa42`. Do not substitute a different
+OpenGOAL checkout when recording validation results. The `sync` step updates
+existing clones that still remember the former upstream URL.
 
 ## Build the application
 
@@ -83,29 +88,26 @@ xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
   ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
 ```
 
-It produced a monolithic ARM64 main executable with no `GOALPad.debug.dylib`
-or `__preview.dylib`. The current complete `load-state::reset!` Export1 entry
-is at `0x100004020`; its 58 instructions occupy 232 bytes and have raw
-SHA-256
-`2f0171fc455619ad95eb20ef2686b4a8db1642cd94a727e22121051420ab4edd`,
-matching the checked-in `.long` stream. The main executable SHA-256 is
-`aae97872933a7ba266ad8041e77c076e6769a26e85cb3fc3535e121d9f117c6b`.
-The embedded provisioning profile remains unchanged; its SHA-256 is
+It produced a monolithic thin ARM64 executable with no `GOALPad.debug.dylib`
+or `__preview.dylib`. The current executable SHA-256 is
+`f7fc6b8e5533105eeaa7fc3890701fb56e74ccefeea6f1d74ddf767ed26c7cd0`;
+the embedded provisioning profile SHA-256 is
 `ef4a32f9aef6cca1709423e53e66518204e49a86af4d2752139de63d21244ad1`.
-Its `__TEXT` initial protection is `0x5` (read/execute); undefined imports
-contain none of `dlopen`,
-`dlsym`, `mmap`, `mprotect`, or `pthread_jit`; and its strings contain no
-Preview/JIT marker.
+The pinned binding, typed wrapper, reset export, and assembly invoker are at
+`0x1000044ec`, `0x100004874`, `0x1000048d0`, and `0x1000074c0`. The assembly
+invoker preserves X19-X22 and calls the supplied signed entry with `blr x19`.
 
-`codesign -d --entitlements -` reports application identifier, team identifier,
-and `get-task-allow = true`; there is no JIT entitlement. This is an
-Apple Development signature, not distribution or App Store evidence. The
-current local profile expires at `2026-08-06T23:51:59Z`. The stricter local
-`codesign --verify --deep --strict` check still returns
-`CSSMERR_TP_NOT_TRUSTED`. This is a known local certificate-trust caveat, not a
-substitute for successful Xcode signing or physical-device validation. No
-physical-device installation or execution was performed; treat this Release
-output as static build/signing evidence only.
+`__TEXT` is read/execute; data segments are non-executable. There is no
+app-root dynamic library. Undefined-symbol and strings scans contain none of
+`dlopen`, `dlsym`, `mmap`, `mprotect`, `pthread_jit`, Preview, or JIT markers.
+Keychain-backed `codesign --verify --deep --strict --verbose=4` reports `valid
+on disk` and `satisfies its Designated Requirement`. Entitlements are the
+application identifier, team identifier, and `get-task-allow = true`; there is
+no JIT or unsigned-executable-memory entitlement. This is an Apple Development
+signature, not distribution or App Store evidence. The local Xcode-managed
+profile expires at `2026-08-06T23:51:59Z`. No physical-device installation or
+execution was performed for this checkpoint; treat the Release output as
+static build/signing evidence only.
 
 ## Build the pinned OpenGOAL ARM64 host baseline
 
@@ -124,17 +126,17 @@ test -e /private/tmp/GOALPad-pinned-opengoal-build/data || \
   --gtest_filter='ARM64EmitterIntegerMath.*:CodeTester.*arm64'
 ```
 
-This is the official pinned ARM64 macOS host baseline. It does not contain the
-unpublished GOALPad ARM64 AOT child commit.
+This builds the currently pinned GOALPad OpenGOAL fork series, including the
+published ARM64 AOT and data-arena/invoker work through `9eecb9c3`.
 
 The `data` symlink is local build state. It lets OpenGOAL's test executable find
 the pinned source tree when the build directory is outside the repository.
 
-## Restore and validate the downstream OpenGOAL AOT work
+## Historical patch recovery for the downstream OpenGOAL AOT work
 
-Until a maintainer chooses and authenticates the durable OpenGOAL fork owner,
-the verified downstream child commit is preserved as a patch while the
-official submodule remains clean:
+The normal build uses the published pinned fork above. The ordered patches
+below remain recovery and review artifacts for reconstructing historical
+commits; they are not the normal submodule initialization path.
 
 ```text
 Base: a4cb1ac1f0596c8740b1c26accb24a58505cda92
@@ -1015,27 +1017,32 @@ symbol-table, or GOAL-memory initialization.
 The generated metadata is included only after the app-local registry defines
 the matching `OPENGOAL_AOT_EXPORT0`, `OPENGOAL_AOT_EXPORT1`,
 `OPENGOAL_AOT_EXPORT2`, or `OPENGOAL_AOT_EXPORT3` macro. The registry exposes
-two zero-argument, three one-argument, two two-argument, and one three-argument
+three zero-argument, three one-argument, two two-argument, and one three-argument
 native entry outside the legacy 32-bit GOAL symbol representation; it does not
 mutate a live GOAL symbol table.
 
 ```sh
 xcrun --sdk macosx clang++ -std=c++20 -arch arm64 \
-  -I GOALPad/Native \
+  -I GOALPad/Native -I OpenGOAL \
   tests/native/GOALPadAOTExportRegistryHarness.cpp \
   GOALPad/Native/GOALPadAOTExportRegistry.cpp \
+  GOALPad/Native/GOALPadRuntimeCore.cpp \
+  GOALPad/Native/GOALPadGoalStateWrapper.s \
+  OpenGOAL/game/kernel/jak1/data_arena.cpp \
+  OpenGOAL/game/kernel/jak1/data_arena_arm64_invoker.cpp \
+  OpenGOAL/game/kernel/jak1/data_arena_arm64_invoker.s \
   GOALPad/Native/Generated/OpenGOALJak1FalseFunc.s \
   GOALPad/Native/Generated/OpenGOALJak1TrueFunc.s \
+  GOALPad/Native/Generated/OpenGOALJak1LoadStateValue.s \
   GOALPad/Native/Generated/OpenGOALJak1Identity.s \
   GOALPad/Native/Generated/OpenGOALJak1Lognot.s \
   GOALPad/Native/Generated/OpenGOALJak1LevelGroupLoadCommandsSet.s \
   GOALPad/Native/Generated/OpenGOALJak1WantVis.s \
   GOALPad/Native/Generated/OpenGOALJak1WantLevels.s \
   GOALPad/Native/Generated/OpenGOALJak1LoadStateReset.s \
-  GOALPad/Native/GOALPadGoalStateWrapper.s \
-  -o /private/tmp/goalpad_aot_export_registry_harness_load_state_reset
+  -o /private/tmp/goalpad_pinned_runtime_composition_harness
 
-/private/tmp/goalpad_aot_export_registry_harness_load_state_reset
+/private/tmp/goalpad_pinned_runtime_composition_harness
 ```
 
 Exit `0` requires successful typed `false-func`, `true-func`, `identity`,
@@ -1439,10 +1446,14 @@ Use the registry harness to validate the current artifact set:
 
 ```sh
 xcrun --sdk macosx clang++ -std=c++20 -arch arm64 \
-  -I GOALPad/Native \
+  -I GOALPad/Native -I OpenGOAL \
   tests/native/GOALPadAOTExportRegistryHarness.cpp \
   GOALPad/Native/GOALPadAOTExportRegistry.cpp \
+  GOALPad/Native/GOALPadRuntimeCore.cpp \
   GOALPad/Native/GOALPadGoalStateWrapper.s \
+  OpenGOAL/game/kernel/jak1/data_arena.cpp \
+  OpenGOAL/game/kernel/jak1/data_arena_arm64_invoker.cpp \
+  OpenGOAL/game/kernel/jak1/data_arena_arm64_invoker.s \
   GOALPad/Native/Generated/OpenGOALJak1FalseFunc.s \
   GOALPad/Native/Generated/OpenGOALJak1TrueFunc.s \
   GOALPad/Native/Generated/OpenGOALJak1LoadStateValue.s \
@@ -1452,9 +1463,9 @@ xcrun --sdk macosx clang++ -std=c++20 -arch arm64 \
   GOALPad/Native/Generated/OpenGOALJak1WantVis.s \
   GOALPad/Native/Generated/OpenGOALJak1WantLevels.s \
   GOALPad/Native/Generated/OpenGOALJak1LoadStateReset.s \
-  -o /private/tmp/goalpad_aot_export_registry_harness_load_state_value_parent
+  -o /private/tmp/goalpad_pinned_runtime_composition_harness
 
-/private/tmp/goalpad_aot_export_registry_harness_load_state_value_parent
+/private/tmp/goalpad_pinned_runtime_composition_harness
 ```
 
 The current parent harness exited `0`. The OpenGOAL child test suite passed
@@ -1856,3 +1867,146 @@ test-only patch did not change production library inputs. No application build,
 runtime integration, signing, simulator, physical-device, or game-data proof
 occurred. The next step is an audit of the smallest app/runtime integration
 boundary before any production integration change.
+
+## Checkpoint 21: pinned OpenGOAL reset composition in GOALPad
+
+Parent commits `1c64426`, `b5922f5`, `d9910ab`, and `0b413b9` publish and pin
+the dedicated fork, link the pinned production data-arena/invoker sources in
+Xcode, correct the canonical fixture, and execute the generated
+`load-state::reset!` Export1 through the production typed binding path inside
+GOALPad.
+
+The current OpenGOAL pin is:
+
+```text
+remote: https://github.com/zschwendi/jak-pad.git
+branch: goalpad/arm64-aot-0044
+commit: 9eecb9c3193ed8cb5175c9199cecbe9cfd2baa42
+```
+
+Validate the affected OpenGOAL target:
+
+```sh
+cmake --build \
+  /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --target arm64-goal-call-abi-test -j 4
+
+ctest --test-dir \
+  /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  -R '^Arm64GoalCallAbi\\.' --output-on-failure -j 1
+```
+
+The recorded corrected result is build exit `0` and 10/10 focused ABI cases.
+
+Build and run the current host composition harness with the command in
+“Validate the generated native export registry” above. Exit `0` is required.
+Confirm the production composition symbols are linked:
+
+```sh
+xcrun nm -n -C /private/tmp/goalpad_pinned_runtime_composition_harness | \
+  rg 'goalpad_aot_load_state_reset|jak1_data_arena_call_native_method1_arm64|invoke_data_arena_native_method1_arm64|invoke_data_arena_native_basic_method1'
+```
+
+Build the ARM64 macOS app:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-mac -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
+```
+
+Build and run only the approved M5 simulator:
+
+```sh
+goalpad_simulator=96C5C21A-B925-4213-82A3-90DCB8518339
+goalpad_sim_app=/private/tmp/GOALPad-sim/Build/Products/Debug-iphonesimulator/GOALPad.app
+
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug \
+  -destination "platform=iOS Simulator,id=$goalpad_simulator" \
+  -derivedDataPath /private/tmp/GOALPad-sim -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO build
+
+xcrun simctl boot "$goalpad_simulator"
+xcrun simctl bootstatus "$goalpad_simulator" -b
+xcrun simctl install "$goalpad_simulator" "$goalpad_sim_app"
+xcrun simctl launch --terminate-running-process \
+  "$goalpad_simulator" com.zephyrstudiosllc.GOALPad
+xcrun simctl spawn "$goalpad_simulator" log show --last 2m --style compact \
+  --predicate 'process == "GOALPad"' | \
+  rg 'data-arena-bound load-state reset.*architecture=arm64; result=8194'
+xcrun simctl io "$goalpad_simulator" screenshot \
+  /private/tmp/GOALPad-data-arena-reset-M5.png
+xcrun simctl shutdown "$goalpad_simulator"
+```
+
+The recorded launch PID was `99701`; the runtime message ended with:
+
+```text
+data-arena-bound load-state reset plus load-state symbol-value AOT proof verified; architecture=arm64; result=8194
+```
+
+The inspected screenshot
+`/private/tmp/GOALPad-data-arena-reset-M5.png` has SHA-256
+`45647e0001a53147b4c43ea0bb9a9f99866eff4c95e78848d210f070c824d2df`.
+The simulator was confirmed `Shutdown` afterward.
+
+Build the normally signed generic iOS Release app:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-device -jobs 4 \
+  ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
+```
+
+Inspect the current artifact:
+
+```sh
+goalpad_app=/private/tmp/GOALPad-device/Build/Products/Release-iphoneos/GOALPad.app
+goalpad_binary="$goalpad_app/GOALPad"
+
+file "$goalpad_binary"
+xcrun lipo -archs "$goalpad_binary"
+xcrun nm -n -C "$goalpad_binary" | \
+  rg 'goalpad_aot_load_state_reset|jak1_data_arena_call_native_method1_arm64|invoke_data_arena_native_method1_arm64|invoke_data_arena_native_basic_method1'
+xcrun llvm-objdump --macho --disassemble \
+  --dis-symname _jak1_data_arena_call_native_method1_arm64 "$goalpad_binary"
+xcrun otool -l "$goalpad_binary"
+xcrun otool -L "$goalpad_binary"
+find "$goalpad_app" -maxdepth 1 -type f \
+  \( -name '*.dylib' -o -name '*.so' -o -name '*.bundle' \) -print
+xcrun nm -u -C "$goalpad_binary" | \
+  rg -i 'dlopen|dlsym|mmap|mprotect|pthread_jit'
+strings -a -t x "$goalpad_binary" | \
+  rg -i 'dlopen|dlsym|mmap|mprotect|pthread_jit|MAP_JIT|PROT_EXEC|executable.?memory|(^|[^[:alnum:]_])jit([^[:alnum:]_]|$)'
+codesign --verify --deep --strict --verbose=4 "$goalpad_app"
+codesign -d --verbose=4 "$goalpad_app"
+codesign -d --entitlements - "$goalpad_app"
+openssl smime -inform der -verify -noverify \
+  -in "$goalpad_app/embedded.mobileprovision" \
+  -out /private/tmp/GOALPad-runtime-composition-profile.plist
+plutil -p /private/tmp/GOALPad-runtime-composition-profile.plist
+shasum -a 256 "$goalpad_binary" "$goalpad_app/embedded.mobileprovision"
+```
+
+The recorded artifact is thin ARM64. Its executable and profile hashes are:
+
+```text
+f7fc6b8e5533105eeaa7fc3890701fb56e74ccefeea6f1d74ddf767ed26c7cd0  GOALPad
+ef4a32f9aef6cca1709423e53e66518204e49a86af4d2752139de63d21244ad1  embedded.mobileprovision
+```
+
+The restricted trust-store check first returned `CSSMERR_TP_NOT_TRUSTED`; the
+same strict verification rerun with read-only access to the host Keychain trust
+store passed with `valid on disk` and `satisfies its Designated Requirement`.
+There is no writable/executable Mach-O
+segment, app-root dynamic library, dynamic-loading/JIT import, JIT string, JIT
+entitlement, or unsigned-executable-memory entitlement. The profile is a local
+Xcode-managed development profile and expires `2026-08-06T23:51:59Z`.
+
+This validates synthetic runtime composition and the presence of the same code
+in a normally signed generic iOS artifact. It is not physical-device execution,
+live OpenGOAL initialization, Jak data loading, title-screen boot, gameplay, or
+distribution evidence.
