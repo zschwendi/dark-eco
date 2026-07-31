@@ -1,0 +1,1636 @@
+From 79f22008c3119bf79297f41d586ab4f75725a36e Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Thu, 30 Jul 2026 18:37:30 -0600
+Subject: [PATCH] Add minimal ARM64 GOAL AOT proof (AI-assisted)
+
+---
+ goalc/CMakeLists.txt                          |   3 +
+ goalc/aot/AOTWriter.cpp                       |  77 ++++++++
+ goalc/aot/AOTWriter.h                         |  18 ++
+ goalc/aot_main.cpp                            | 102 +++++++++++
+ goalc/compiler/CodeGenerator.cpp              |  74 +++++++-
+ goalc/compiler/CodeGenerator.h                |   1 +
+ goalc/compiler/Compiler.cpp                   |  34 +++-
+ goalc/compiler/Compiler.h                     |   2 +
+ goalc/compiler/IR.cpp                         |  35 +++-
+ goalc/compiler/IR.h                           |   1 +
+ goalc/compiler/compilation/Function.cpp       |  10 +-
+ goalc/compiler/compilation/Type.cpp           |  23 +--
+ goalc/emitter/CallingConvention.cpp           |  22 ++-
+ goalc/emitter/CallingConvention.h             |   8 +-
+ goalc/emitter/Instruction.h                   |   4 +-
+ goalc/emitter/ObjectGenerator.cpp             |  49 +++++
+ goalc/emitter/ObjectGenerator.h               |   1 +
+ goalc/emitter/Register.cpp                    | 169 ++++++++++++++++--
+ goalc/emitter/Register.h                      | 130 +++++++++-----
+ goalc/regalloc/Allocator.cpp                  |  26 +--
+ goalc/regalloc/Allocator_v2.cpp               |  83 ++-------
+ goalc/regalloc/allocator_interface.h          |   3 +-
+ test/goalc/CMakeLists.txt                     |   4 +
+ .../source_templates/arm64-aot/constant-42.gc |   1 +
+ test/goalc/test_arm64_aot.cpp                 |  77 ++++++++
+ test/test_emitter_arm64.cpp                   |  17 +-
+ 26 files changed, 798 insertions(+), 176 deletions(-)
+ create mode 100644 goalc/aot/AOTWriter.cpp
+ create mode 100644 goalc/aot/AOTWriter.h
+ create mode 100644 goalc/aot_main.cpp
+ create mode 100644 test/goalc/source_templates/arm64-aot/constant-42.gc
+ create mode 100644 test/goalc/test_arm64_aot.cpp
+
+diff --git a/goalc/CMakeLists.txt b/goalc/CMakeLists.txt
+index a9b02e7c..bf02b077 100644
+--- a/goalc/CMakeLists.txt
++++ b/goalc/CMakeLists.txt
+@@ -1,4 +1,5 @@
+ add_library(compiler
++        aot/AOTWriter.cpp
+         emitter/CallingConvention.cpp
+         emitter/CodeTester.cpp
+         emitter/ObjectFileData.cpp
+@@ -93,11 +94,13 @@ endif ()
+ 
+ add_executable(goalc main.cpp)
+ add_executable(goalc-simple simple_main.cpp)
++add_executable(goalc-aot aot_main.cpp)
+ 
+ add_executable(build_level build_level/main.cpp)
+ add_executable(build_actor build_actor/main.cpp)
+ 
+ target_link_libraries(goalc common Zydis compiler)
+ target_link_libraries(goalc-simple common Zydis compiler)
++target_link_libraries(goalc-aot common Zydis compiler)
+ target_link_libraries(build_level common Zydis compiler)
+ target_link_libraries(build_actor common Zydis compiler)
+diff --git a/goalc/aot/AOTWriter.cpp b/goalc/aot/AOTWriter.cpp
+new file mode 100644
+index 00000000..c4aa619c
+--- /dev/null
++++ b/goalc/aot/AOTWriter.cpp
+@@ -0,0 +1,77 @@
++#include "AOTWriter.h"
++
++#include <cctype>
++#include <fstream>
++#include <iomanip>
++#include <sstream>
++#include <stdexcept>
++
++namespace aot {
++namespace {
++
++bool is_valid_c_symbol(const std::string& symbol) {
++  if (symbol.empty() ||
++      !(std::isalpha(static_cast<unsigned char>(symbol.front())) || symbol.front() == '_')) {
++    return false;
++  }
++
++  for (const auto character : symbol) {
++    if (!(std::isalnum(static_cast<unsigned char>(character)) || character == '_')) {
++      return false;
++    }
++  }
++
++  return true;
++}
++
++std::uint32_t read_little_endian_word(const std::vector<std::uint8_t>& code, size_t offset) {
++  return static_cast<std::uint32_t>(code.at(offset)) |
++         (static_cast<std::uint32_t>(code.at(offset + 1)) << 8) |
++         (static_cast<std::uint32_t>(code.at(offset + 2)) << 16) |
++         (static_cast<std::uint32_t>(code.at(offset + 3)) << 24);
++}
++
++void validate(const AppleArm64Function& function) {
++  if (!is_valid_c_symbol(function.c_symbol)) {
++    throw std::invalid_argument("AOT output requires a valid C symbol name");
++  }
++  if (function.code.empty() || function.code.size() % sizeof(std::uint32_t) != 0) {
++    throw std::invalid_argument("AOT ARM64 code must contain whole, non-empty instruction words");
++  }
++}
++
++}  // namespace
++
++std::string render_apple_arm64_assembly(const AppleArm64Function& function) {
++  validate(function);
++
++  std::ostringstream output;
++  output << ".section __TEXT,__text,regular,pure_instructions\n"
++         << ".p2align 2\n"
++         << ".globl _" << function.c_symbol << "\n"
++         << "_" << function.c_symbol << ":\n";
++
++  for (size_t offset = 0; offset < function.code.size(); offset += sizeof(std::uint32_t)) {
++    output << "  .long 0x" << std::hex << std::nouppercase << std::setfill('0') << std::setw(8)
++           << read_little_endian_word(function.code, offset) << "\n";
++  }
++
++  output << ".subsections_via_symbols\n";
++  return output.str();
++}
++
++void write_apple_arm64_assembly(const std::string& output_path,
++                                const AppleArm64Function& function) {
++  const auto assembly = render_apple_arm64_assembly(function);
++  std::ofstream output(output_path, std::ios::binary | std::ios::trunc);
++  if (!output) {
++    throw std::runtime_error("Unable to open AOT assembly output: " + output_path);
++  }
++
++  output << assembly;
++  if (!output) {
++    throw std::runtime_error("Unable to write AOT assembly output: " + output_path);
++  }
++}
++
++}  // namespace aot
+diff --git a/goalc/aot/AOTWriter.h b/goalc/aot/AOTWriter.h
+new file mode 100644
+index 00000000..b1e1d86b
+--- /dev/null
++++ b/goalc/aot/AOTWriter.h
+@@ -0,0 +1,18 @@
++#pragma once
++
++#include <cstdint>
++#include <string>
++#include <vector>
++
++namespace aot {
++
++struct AppleArm64Function {
++  std::string c_symbol;
++  std::vector<std::uint8_t> code;
++};
++
++std::string render_apple_arm64_assembly(const AppleArm64Function& function);
++void write_apple_arm64_assembly(const std::string& output_path,
++                                const AppleArm64Function& function);
++
++}  // namespace aot
+diff --git a/goalc/aot_main.cpp b/goalc/aot_main.cpp
+new file mode 100644
+index 00000000..b530917b
+--- /dev/null
++++ b/goalc/aot_main.cpp
+@@ -0,0 +1,102 @@
++#include <cstdio>
++#include <exception>
++#include <string>
++
++#include "common/log/log.h"
++#include "common/util/FileUtil.h"
++
++#include "goalc/aot/AOTWriter.h"
++#include "goalc/compiler/Compiler.h"
++#include "goalc/emitter/InstructionSet.h"
++
++namespace {
++
++struct Options {
++  std::string input_path;
++  std::string output_path;
++  std::string project_path;
++  std::string symbol = "goalpad_aot_entry";
++};
++
++void print_usage() {
++  std::fprintf(stderr,
++               "Usage: goalc-aot --input SOURCE.gc --output BUILD_OUTPUT.s "
++               "[--project-path OPENGOAL_ROOT] [--symbol C_SYMBOL]\n");
++}
++
++bool parse_options(int argc, char** argv, Options* options) {
++  for (int i = 1; i < argc; i++) {
++    const std::string argument = argv[i];
++    if (argument == "--help" || argument == "-h") {
++      print_usage();
++      return false;
++    }
++    if (argument == "--input" || argument == "--output" || argument == "--project-path" ||
++        argument == "--symbol") {
++      if (++i == argc) {
++        std::fprintf(stderr, "Missing value for %s\n", argument.c_str());
++        return false;
++      }
++      if (argument == "--input") {
++        options->input_path = argv[i];
++      } else if (argument == "--output") {
++        options->output_path = argv[i];
++      } else if (argument == "--project-path") {
++        options->project_path = argv[i];
++      } else {
++        options->symbol = argv[i];
++      }
++      continue;
++    }
++
++    std::fprintf(stderr, "Unknown option: %s\n", argument.c_str());
++    return false;
++  }
++
++  if (options->input_path.empty() || options->output_path.empty()) {
++    print_usage();
++    return false;
++  }
++
++  return true;
++}
++
++}  // namespace
++
++int main(int argc, char** argv) {
++  Options options;
++  if (!parse_options(argc, argv, &options)) {
++    return 2;
++  }
++
++  lg::set_stdout_level(lg::level::info);
++  lg::set_flush_level(lg::level::info);
++  lg::initialize();
++
++  std::optional<fs::path> project_path;
++  if (!options.project_path.empty()) {
++    project_path = fs::path(options.project_path);
++    if (!fs::is_directory(*project_path)) {
++      std::fprintf(stderr, "OpenGOAL project path is not a directory: %s\n",
++                   options.project_path.c_str());
++      return 1;
++    }
++  }
++
++  if (!file_util::setup_project_path(project_path, true)) {
++    std::fprintf(stderr, "Could not locate the OpenGOAL project root.\n");
++    return 1;
++  }
++
++  try {
++    Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++    const auto source = file_util::read_text_file(options.input_path);
++    const auto code = compiler.compile_top_level_source(source, options.input_path);
++    aot::write_apple_arm64_assembly(options.output_path, {options.symbol, code});
++  } catch (const std::exception& error) {
++    std::fprintf(stderr, "goalc-aot: %s\n", error.what());
++    return 1;
++  }
++
++  return 0;
++}
+diff --git a/goalc/compiler/CodeGenerator.cpp b/goalc/compiler/CodeGenerator.cpp
+index 3866e884..fe594d52 100644
+--- a/goalc/compiler/CodeGenerator.cpp
++++ b/goalc/compiler/CodeGenerator.cpp
+@@ -163,6 +163,33 @@ std::vector<u8> CodeGenerator::run(const TypeSystem* ts) {
+   return m_gen.generate_data_v3(ts).to_vector();
+ }
+ 
++std::vector<u8> CodeGenerator::run_arm64_aot_literal_42() {
++  if (m_gen.instr_set() != InstructionSet::ARM64) {
++    throw std::runtime_error("ARM64 AOT proof requires the ARM64 instruction set.");
++  }
++  if (m_fe->functions().size() != 1 ||
++      &m_fe->top_level_function() != m_fe->functions().front().get()) {
++    throw std::runtime_error("ARM64 AOT proof only supports one top-level function.");
++  }
++  if (!m_fe->statics().empty()) {
++    throw std::runtime_error("ARM64 AOT proof does not support static data or relocations.");
++  }
++
++  auto* function = m_fe->functions().front().get();
++  auto rec = m_gen.add_function_to_seg(
++      function->segment, &m_debug_info->add_function(function->name(), m_fe->name()));
++  for (const auto& source : function->code_source()) {
++    rec.debug->code_sources.push_back(source.heap_obj);
++  }
++  for (const auto& ir : function->code()) {
++    rec.debug->ir_strings.push_back(ir->print());
++  }
++  record_local_variables(function, rec.debug);
++
++  do_goal_function_arm64(function, 0);
++  return m_gen.materialize_arm64_function(rec);
++}
++
+ void CodeGenerator::do_function(FunctionEnv* env, int f_idx) {
+   if (env->is_asm_func) {
+     if (m_gen.instr_set() == InstructionSet::X86) {
+@@ -400,7 +427,52 @@ void CodeGenerator::do_goal_function_x86(FunctionEnv* env, int f_idx) {
+ }
+ 
+ void CodeGenerator::do_goal_function_arm64(FunctionEnv* env, int f_idx) {
+-  throw std::runtime_error("NYI - CodeGenerator::do_goal_function_arm64");
++  if (env != &m_fe->top_level_function() || m_fe->functions().size() != 1) {
++    throw std::runtime_error("ARM64 AOT proof only supports one top-level function.");
++  }
++  if (!m_fe->statics().empty()) {
++    throw std::runtime_error("ARM64 AOT proof does not support static data or relocations.");
++  }
++
++  const auto& allocs = env->alloc_result();
++  if (!allocs.ok) {
++    throw std::runtime_error("ARM64 AOT proof requires successful register allocation.");
++  }
++  if (!allocs.used_saved_regs.empty()) {
++    throw std::runtime_error("ARM64 AOT proof does not support saved registers.");
++  }
++  if (allocs.stack_slots_for_spills || allocs.num_spills || allocs.num_spilled_vars ||
++      allocs.needs_aligned_stack_for_spills) {
++    throw std::runtime_error("ARM64 AOT proof does not support spills.");
++  }
++  if (allocs.stack_slots_for_vars || env->needs_aligned_stack()) {
++    throw std::runtime_error("ARM64 AOT proof does not support stack locals.");
++  }
++  if (allocs.stack_ops.size() != env->code().size()) {
++    throw std::runtime_error("ARM64 AOT proof received invalid stack allocation metadata.");
++  }
++  for (const auto& stack_op : allocs.stack_ops) {
++    if (!stack_op.ops.empty()) {
++      throw std::runtime_error("ARM64 AOT proof does not support spill stack operations.");
++    }
++  }
++
++  const auto& code = env->code();
++  auto* constant = code.size() == 3 ? dynamic_cast<IR_LoadConstant64*>(code.at(0).get()) : nullptr;
++  if (!constant || constant->value() != 42 || !dynamic_cast<IR_Return*>(code.at(1).get()) ||
++      !dynamic_cast<IR_Null*>(code.at(2).get())) {
++    throw std::runtime_error(
++        "ARM64 AOT proof only supports IR_LoadConstant64, IR_Return, and IR_Null for literal 42.");
++  }
++
++  auto* debug = &m_debug_info->function_by_name(env->name());
++  debug->stack_usage = 0;
++  const auto f_rec = m_gen.get_existing_function_record(f_idx);
++  for (int ir_idx = 0; ir_idx < int(code.size()); ir_idx++) {
++    const auto i_rec = m_gen.add_ir(f_rec);
++    code.at(ir_idx)->do_codegen_arm64(&m_gen, allocs, i_rec);
++  }
++  m_gen.add_instr_no_ir(f_rec, IGen::ret(m_gen), InstructionInfo::Kind::EPILOGUE);
+ }
+ 
+ void CodeGenerator::do_asm_function_x86(FunctionEnv* env, int f_idx, bool allow_saved_regs) {
+diff --git a/goalc/compiler/CodeGenerator.h b/goalc/compiler/CodeGenerator.h
+index f7e06690..e8e4dbc0 100644
+--- a/goalc/compiler/CodeGenerator.h
++++ b/goalc/compiler/CodeGenerator.h
+@@ -23,6 +23,7 @@ class CodeGenerator {
+                 GameVersion version,
+                 emitter::InstructionSet instruction_set);
+   std::vector<u8> run(const TypeSystem* ts);
++  std::vector<u8> run_arm64_aot_literal_42();
+   emitter::ObjectGeneratorStats get_obj_stats() const { return m_gen.get_stats(); }
+ 
+  private:
+diff --git a/goalc/compiler/Compiler.cpp b/goalc/compiler/Compiler.cpp
+index e61c302f..0ac36f0c 100644
+--- a/goalc/compiler/Compiler.cpp
++++ b/goalc/compiler/Compiler.cpp
+@@ -179,8 +179,13 @@ std::unique_ptr<FunctionEnv> Compiler::compile_top_level_function(const std::str
+ 
+   // only move to return register if we actually got a result
+   if (!dynamic_cast<const None*>(result)) {
+-    fe->emit_ir<IR_Return>(code, fe->make_gpr(result->type()), result->to_gpr(code, fe.get()),
+-                           emitter::gRegInfo.get_gpr_ret_reg());
++    auto* value = result->to_gpr(code, fe.get());
++    const auto return_register = emitter::get_register_info(m_instr_set).get_gpr_ret_reg();
++    if (m_instr_set == emitter::InstructionSet::ARM64) {
++      fe->emit_ir<IR_Return>(code, value, value, return_register);
++    } else {
++      fe->emit_ir<IR_Return>(code, fe->make_gpr(result->type()), value, return_register);
++    }
+   }
+ 
+   if (!fe->code().empty()) {
+@@ -256,6 +261,7 @@ void Compiler::color_object_file(FileEnv* env) {
+   int num_spills_in_file = 0;
+   for (auto& f : env->functions()) {
+     AllocationInput input;
++    input.instruction_set = m_instr_set;
+     input.is_asm_function = f->is_asm_func;
+     for (auto& i : f->code()) {
+       input.instructions.push_back(i->to_rai());
+@@ -307,6 +313,30 @@ void Compiler::color_object_file(FileEnv* env) {
+   m_debug_stats.num_spills += num_spills_in_file;
+ }
+ 
++std::vector<u8> Compiler::compile_top_level_source(const std::string& source,
++                                                    const std::string& object_name) {
++  if (m_instr_set != emitter::InstructionSet::ARM64) {
++    throw std::runtime_error("Raw AOT output is only available for the ARM64 instruction set.");
++  }
++
++  auto code = m_goos.reader.read_from_string(source, true);
++  auto* object_file = compile_object_file(object_name, std::move(code), true);
++  color_object_file(object_file);
++
++  try {
++    auto debug_info = &m_debugger.get_debug_info_for_object(object_file->name());
++    debug_info->clear();
++    CodeGenerator gen(object_file, debug_info, m_version, m_instr_set);
++    auto result = gen.run_arm64_aot_literal_42();
++    m_debug_stats.num_moves_eliminated += gen.get_obj_stats().moves_eliminated;
++    object_file->cleanup_after_codegen();
++    return result;
++  } catch (std::exception& e) {
++    throw_compiler_error_no_code("Error during ARM64 AOT code generation: {}", e.what());
++  }
++  return {};
++}
++
+ std::vector<u8> Compiler::codegen_object_file(FileEnv* env) {
+   try {
+     auto debug_info = &m_debugger.get_debug_info_for_object(env->name());
+diff --git a/goalc/compiler/Compiler.h b/goalc/compiler/Compiler.h
+index 06a8e647..0c96e46a 100644
+--- a/goalc/compiler/Compiler.h
++++ b/goalc/compiler/Compiler.h
+@@ -78,6 +78,8 @@ class Compiler {
+   void run_front_end_on_file(const std::vector<std::string>& path);
+   void run_full_compiler_on_string_no_save(const std::string& src,
+                                            const std::optional<std::string>& string_name);
++  std::vector<u8> compile_top_level_source(const std::string& source,
++                                           const std::string& object_name = "aot");
+   void shutdown_target();
+   void enable_throw_on_redefines() { m_throw_on_define_extern_redefinition = true; }
+   void add_ignored_define_extern_symbol(const std::string& name) {
+diff --git a/goalc/compiler/IR.cpp b/goalc/compiler/IR.cpp
+index ce4f98f9..eb0e1c9c 100644
+--- a/goalc/compiler/IR.cpp
++++ b/goalc/compiler/IR.cpp
+@@ -201,7 +201,26 @@ void IR_Return::do_codegen_x86(emitter::ObjectGenerator* gen,
+ void IR_Return::do_codegen_arm64(emitter::ObjectGenerator* gen,
+                                  const AllocationResult& allocs,
+                                  emitter::IR_Record irec) {
+-  throw std::runtime_error("NYI - IR_Return::do_codegen_arm64");
++  if (m_value->ireg().reg_class != RegClass::GPR_64 ||
++      m_return_reg->ireg().reg_class != RegClass::GPR_64) {
++    throw std::runtime_error("ARM64 AOT proof only supports GPR returns.");
++  }
++
++  const auto value_reg = get_reg(m_value, allocs, irec);
++  const auto return_reg = get_reg(m_return_reg, allocs, irec);
++  const auto abi_return_reg = get_register_info(gen->instr_set()).get_gpr_ret_reg();
++  if (m_ret_reg != abi_return_reg || return_reg != abi_return_reg) {
++    throw std::runtime_error("ARM64 AOT proof requires the ABI GPR return register.");
++  }
++  if (!value_reg.is_gpr(gen->instr_set()) || value_reg == ARM64_REG::SP) {
++    throw std::runtime_error("ARM64 AOT proof requires a non-stack GPR return value.");
++  }
++
++  if (value_reg == return_reg) {
++    gen->add_instr(IGen::null(*gen), irec);
++  } else {
++    gen->add_instr(IGen::mov_gpr64_gpr64(*gen, return_reg, value_reg), irec);
++  }
+ }
+ 
+ /////////////////////
+@@ -230,7 +249,15 @@ void IR_LoadConstant64::do_codegen_x86(emitter::ObjectGenerator* gen,
+ void IR_LoadConstant64::do_codegen_arm64(emitter::ObjectGenerator* gen,
+                                          const AllocationResult& allocs,
+                                          emitter::IR_Record irec) {
+-  throw std::runtime_error("NYI - IR_LoadConstant64::do_codegen_arm64");
++  if (m_dest->ireg().reg_class != RegClass::GPR_64) {
++    throw std::runtime_error("ARM64 AOT proof only supports GPR constants.");
++  }
++
++  const auto dest_reg = get_reg(m_dest, allocs, irec);
++  if (!dest_reg.is_gpr(gen->instr_set()) || dest_reg == ARM64_REG::SP) {
++    throw std::runtime_error("ARM64 AOT proof requires a non-stack GPR constant destination.");
++  }
++  load_constant(m_value, gen, irec, dest_reg);
+ }
+ 
+ /////////////////////
+@@ -1162,7 +1189,9 @@ void IR_Null::do_codegen_x86(emitter::ObjectGenerator* gen,
+ void IR_Null::do_codegen_arm64(emitter::ObjectGenerator* gen,
+                                const AllocationResult& allocs,
+                                emitter::IR_Record irec) {
+-  throw std::runtime_error("NYI - IR_Null::do_codegen_arm64");
++  (void)gen;
++  (void)allocs;
++  (void)irec;
+ }
+ 
+ ///////////////////////
+diff --git a/goalc/compiler/IR.h b/goalc/compiler/IR.h
+index 9a098864..31db7808 100644
+--- a/goalc/compiler/IR.h
++++ b/goalc/compiler/IR.h
+@@ -57,6 +57,7 @@ class IR_LoadConstant64 : public IR {
+   void do_codegen_arm64(emitter::ObjectGenerator* gen,
+                         const AllocationResult& allocs,
+                         emitter::IR_Record irec) override;
++  u64 value() const { return m_value; }
+ 
+  protected:
+   const RegVal* m_dest = nullptr;
+diff --git a/goalc/compiler/compilation/Function.cpp b/goalc/compiler/compilation/Function.cpp
+index b3c703c2..c72d7a8f 100644
+--- a/goalc/compiler/compilation/Function.cpp
++++ b/goalc/compiler/compilation/Function.cpp
+@@ -186,7 +186,7 @@ Val* Compiler::compile_lambda(const goos::Object& form, const goos::Object& rest
+     for (auto& parm : lambda.params) {
+       arg_types.push_back(parm.type);
+     }
+-    auto arg_regs = get_arg_registers(m_ts, arg_types);
++    auto arg_regs = get_arg_registers(m_ts, arg_types, m_instr_set);
+ 
+     for (u32 i = 0; i < lambda.params.size(); i++) {
+       IRegConstraint constr;
+@@ -207,7 +207,7 @@ Val* Compiler::compile_lambda(const goos::Object& form, const goos::Object& rest
+       self_var->mark_as_settable();
+       IRegConstraint constr;
+       constr.contrain_everywhere = true;
+-      constr.desired_register = emitter::gRegInfo.get_process_reg();
++      constr.desired_register = emitter::get_register_info(m_instr_set).get_process_reg();
+       constr.ireg = self_var->ireg();
+       self_var->set_rlet_constraint(constr.desired_register);
+       new_func_env->constrain(constr);
+@@ -266,9 +266,9 @@ Val* Compiler::compile_lambda(const goos::Object& form, const goos::Object& rest
+       // got a result, so to_gpr it and return it.
+ 
+       RegVal* final_result;
+-      emitter::Register ret_hw_reg = emitter::gRegInfo.get_gpr_ret_reg();
++      emitter::Register ret_hw_reg = emitter::get_register_info(m_instr_set).get_gpr_ret_reg();
+       if (m_ts.lookup_type(result->type())->get_load_size() == 16) {
+-        ret_hw_reg = emitter::gRegInfo.get_xmm_ret_reg();
++        ret_hw_reg = emitter::get_register_info(m_instr_set).get_xmm_ret_reg();
+         final_result = result->to_xmm128(form, new_func_env.get());
+         return_reg->change_class(RegClass::INT_128);
+       } else {
+@@ -608,7 +608,7 @@ Val* Compiler::compile_real_function_call(const goos::Object& form,
+     return_ts = function->type().last_arg();
+   }
+ 
+-  auto cc = get_function_calling_convention(function->type(), m_ts);
++  auto cc = get_function_calling_convention(function->type(), m_ts, m_instr_set);
+   RegClass ret_reg_class = RegClass::GPR_64;
+   if (cc.return_reg && cc.return_reg->is_128bit_simd(m_instr_set)) {
+     ret_reg_class = RegClass::INT_128;
+diff --git a/goalc/compiler/compilation/Type.cpp b/goalc/compiler/compilation/Type.cpp
+index 4d4e7d65..f65f47f3 100644
+--- a/goalc/compiler/compilation/Type.cpp
++++ b/goalc/compiler/compilation/Type.cpp
+@@ -270,7 +270,8 @@ Val* Compiler::generate_inspector_for_structure_type(const goos::Object& form,
+   IRegConstraint constraint;
+   constraint.instr_idx = 0;             // constraint at the start of the function
+   constraint.ireg = input_arg->ireg();  // constrain this register
+-  constraint.desired_register = emitter::gRegInfo.get_gpr_arg_reg(0);  // to the first argument
++  constraint.desired_register =
++      emitter::get_register_info(m_instr_set).get_gpr_arg_reg(0);  // to the first argument
+   method_env->constrain(constraint);
+   // Inform the compiler that `input`'s value will be written to `rdi` (first arg register)
+   method_env->emit_ir<IR_ValueReset>(form, std::vector<RegVal*>{input_arg});
+@@ -314,7 +315,7 @@ Val* Compiler::generate_inspector_for_structure_type(const goos::Object& form,
+   }
+ 
+   method_env->emit_ir<IR_Return>(form, method_env->make_gpr(input->type()), input,
+-                                 emitter::gRegInfo.get_gpr_ret_reg());
++                                 emitter::get_register_info(m_instr_set).get_gpr_ret_reg());
+ 
+   // add this function to the object file
+   auto fe = env->function_env();
+@@ -351,9 +352,11 @@ Val* Compiler::generate_inspector_for_bitfield_type(const goos::Object& form,
+   constraint.instr_idx = 0;             // constraint at the start of the function
+   constraint.ireg = input_arg->ireg();  // constrain this register
+   if (bitfield_128) {
+-    constraint.desired_register = emitter::gRegInfo.get_xmm_arg_reg(0);  // to the first argument
++    constraint.desired_register =
++        emitter::get_register_info(m_instr_set).get_xmm_arg_reg(0);  // to the first argument
+   } else {
+-    constraint.desired_register = emitter::gRegInfo.get_gpr_arg_reg(0);  // to the first argument
++    constraint.desired_register =
++        emitter::get_register_info(m_instr_set).get_gpr_arg_reg(0);  // to the first argument
+   }
+ 
+   method_env->constrain(constraint);
+@@ -381,10 +384,10 @@ Val* Compiler::generate_inspector_for_bitfield_type(const goos::Object& form,
+ 
+   if (bitfield_128) {
+     method_env->emit_ir<IR_Return>(form, method_env->make_ireg(input->type(), RegClass::INT_128),
+-                                   input, emitter::gRegInfo.get_gpr_ret_reg());
++                                   input, emitter::get_register_info(m_instr_set).get_gpr_ret_reg());
+   } else {
+     method_env->emit_ir<IR_Return>(form, method_env->make_gpr(input->type()), input,
+-                                   emitter::gRegInfo.get_gpr_ret_reg());
++                                   emitter::get_register_info(m_instr_set).get_gpr_ret_reg());
+   }
+ 
+   // add this function to the object file
+@@ -566,7 +569,7 @@ Val* Compiler::compile_defmethod(const goos::Object& form, const goos::Object& _
+   for (auto& parm : lambda.params) {
+     arg_types.push_back(parm.type);
+   }
+-  auto arg_regs = get_arg_registers(m_ts, arg_types);
++  auto arg_regs = get_arg_registers(m_ts, arg_types, m_instr_set);
+ 
+   for (u32 i = 0; i < lambda.params.size(); i++) {
+     IRegConstraint constr;
+@@ -587,7 +590,7 @@ Val* Compiler::compile_defmethod(const goos::Object& form, const goos::Object& _
+     auto self_var = new_func_env->make_gpr(m_ts.make_typespec(*behavior));
+     IRegConstraint constr;
+     constr.contrain_everywhere = true;
+-    constr.desired_register = emitter::gRegInfo.get_process_reg();
++    constr.desired_register = emitter::get_register_info(m_instr_set).get_process_reg();
+     constr.ireg = self_var->ireg();
+     self_var->set_rlet_constraint(constr.desired_register);
+     new_func_env->constrain(constr);
+@@ -643,9 +646,9 @@ Val* Compiler::compile_defmethod(const goos::Object& form, const goos::Object& _
+     lambda_ts.add_arg(new_func_env->asm_func_return_type);
+   } else if (result && !dynamic_cast<None*>(result) && result->type() != TypeSpec("none")) {
+     RegVal* final_result;
+-    emitter::Register ret_hw_reg = emitter::gRegInfo.get_gpr_ret_reg();
++    emitter::Register ret_hw_reg = emitter::get_register_info(m_instr_set).get_gpr_ret_reg();
+     if (m_ts.lookup_type(result->type())->get_load_size() == 16) {
+-      ret_hw_reg = emitter::gRegInfo.get_xmm_ret_reg();
++      ret_hw_reg = emitter::get_register_info(m_instr_set).get_xmm_ret_reg();
+       final_result = result->to_xmm128(form, new_func_env.get());
+       return_reg->change_class(RegClass::INT_128);
+     } else {
+diff --git a/goalc/emitter/CallingConvention.cpp b/goalc/emitter/CallingConvention.cpp
+index 0e64a9b8..70e6e58c 100644
+--- a/goalc/emitter/CallingConvention.cpp
++++ b/goalc/emitter/CallingConvention.cpp
+@@ -3,37 +3,39 @@
+ #include "common/util/Assert.h"
+ 
+ CallingConvention get_function_calling_convention(const TypeSpec& function_type,
+-                                                  const TypeSystem& type_system) {
++                                                  const TypeSystem& type_system,
++                                                  emitter::InstructionSet instruction_set) {
+   ASSERT(function_type.base_type() == "function");
+   ASSERT(function_type.arg_count() > 0);
+   ASSERT(function_type.arg_count() <= 9);
+ 
+   int gpr_idx = 0;
+   int xmm_idx = 0;
++  const auto& register_info = emitter::get_register_info(instruction_set);
+ 
+   CallingConvention cc;
+ 
+   if (function_type.arg_count() == 2 && function_type.get_arg(0).print() == "_varargs_") {
+     for (int i = 0; i < 8; i++) {
+-      cc.arg_regs.push_back(emitter::gRegInfo.get_gpr_arg_reg(gpr_idx++));
++      cc.arg_regs.push_back(register_info.get_gpr_arg_reg(gpr_idx++));
+     }
+   } else {
+     for (int i = 0; i < (int)function_type.arg_count() - 1; i++) {
+       auto info = type_system.lookup_type_allow_partial_def(function_type.get_arg(i));
+       auto load_size = type_system.get_load_size_allow_partial_def(function_type.get_arg(i));
+       if (dynamic_cast<const ValueType*>(info) && load_size == 16) {
+-        cc.arg_regs.push_back(emitter::gRegInfo.get_xmm_arg_reg(xmm_idx++));
++        cc.arg_regs.push_back(register_info.get_xmm_arg_reg(xmm_idx++));
+       } else {
+-        cc.arg_regs.push_back(emitter::gRegInfo.get_gpr_arg_reg(gpr_idx++));
++        cc.arg_regs.push_back(register_info.get_gpr_arg_reg(gpr_idx++));
+       }
+     }
+   }
+ 
+   if (function_type.last_arg() != TypeSpec("none")) {
+     if (type_system.get_load_size_allow_partial_def(function_type.last_arg()) == 16) {
+-      cc.return_reg = emitter::gRegInfo.get_xmm_ret_reg();
++      cc.return_reg = register_info.get_xmm_ret_reg();
+     } else {
+-      cc.return_reg = emitter::gRegInfo.get_gpr_ret_reg();
++      cc.return_reg = register_info.get_gpr_ret_reg();
+     }
+   }
+ 
+@@ -41,16 +43,18 @@ CallingConvention get_function_calling_convention(const TypeSpec& function_type,
+ }
+ 
+ std::vector<emitter::Register> get_arg_registers(const TypeSystem& type_system,
+-                                                 const std::vector<TypeSpec>& arg_types) {
++                                                 const std::vector<TypeSpec>& arg_types,
++                                                 emitter::InstructionSet instruction_set) {
+   std::vector<emitter::Register> result;
+   int gpr_idx = 0;
+   int xmm_idx = 0;
++  const auto& register_info = emitter::get_register_info(instruction_set);
+   for (auto& type : arg_types) {
+     auto load_size = type_system.get_load_size_allow_partial_def(type);
+     if (load_size == 16) {
+-      result.push_back(emitter::gRegInfo.get_xmm_arg_reg(xmm_idx++));
++      result.push_back(register_info.get_xmm_arg_reg(xmm_idx++));
+     } else {
+-      result.push_back(emitter::gRegInfo.get_gpr_arg_reg(gpr_idx++));
++      result.push_back(register_info.get_gpr_arg_reg(gpr_idx++));
+     }
+   }
+   return result;
+diff --git a/goalc/emitter/CallingConvention.h b/goalc/emitter/CallingConvention.h
+index 5ac144c5..e7b9f167 100644
+--- a/goalc/emitter/CallingConvention.h
++++ b/goalc/emitter/CallingConvention.h
+@@ -13,6 +13,10 @@ struct CallingConvention {
+ };
+ 
+ std::vector<emitter::Register> get_arg_registers(const TypeSystem& type_system,
+-                                                 const std::vector<TypeSpec>& arg_types);
++                                                 const std::vector<TypeSpec>& arg_types,
++                                                 emitter::InstructionSet instruction_set =
++                                                     emitter::InstructionSet::X86);
+ CallingConvention get_function_calling_convention(const TypeSpec& function_type,
+-                                                  const TypeSystem& type_system);
+\ No newline at end of file
++                                                  const TypeSystem& type_system,
++                                                  emitter::InstructionSet instruction_set =
++                                                      emitter::InstructionSet::X86);
+diff --git a/goalc/emitter/Instruction.h b/goalc/emitter/Instruction.h
+index bc998f09..9d692b02 100644
+--- a/goalc/emitter/Instruction.h
++++ b/goalc/emitter/Instruction.h
+@@ -59,7 +59,7 @@ constexpr s64 pow2s(u64 n) {
+ 
+ constexpr Field Hw(u32 x) {
+   ASSERT(x >= 0 && x <= (4 - 1));
+-  return Field{(x & 4) << 21};
++  return Field{(x & 3) << 21};
+ }
+ 
+ constexpr Field Sh(u32 x) {
+@@ -114,7 +114,7 @@ constexpr Field Imm12(u32 x) {
+ 
+ constexpr Field Imm16(u32 x) {
+   ASSERT(x >= 0 && x <= (pow2(16) - 1));
+-  return Field{static_cast<u32>((x & (pow2(16) - 1)) << 16)};
++  return Field{static_cast<u32>((x & (pow2(16) - 1)) << 5)};
+ }
+ 
+ constexpr Field Imm26(u32 x) {
+diff --git a/goalc/emitter/ObjectGenerator.cpp b/goalc/emitter/ObjectGenerator.cpp
+index 9f1ffc51..37bbd54a 100644
+--- a/goalc/emitter/ObjectGenerator.cpp
++++ b/goalc/emitter/ObjectGenerator.cpp
+@@ -15,6 +15,8 @@
+ 
+ #include "ObjectGenerator.h"
+ 
++#include <stdexcept>
++
+ #include "common/goal_constants.h"
+ #include "common/type_system/TypeSystem.h"
+ #include "common/versions/versions.h"
+@@ -145,6 +147,53 @@ FunctionRecord ObjectGenerator::get_existing_function_record(int f_idx) {
+   return m_all_function_records.at(f_idx);
+ }
+ 
++std::vector<u8> ObjectGenerator::materialize_arm64_function(
++    const FunctionRecord& function) const {
++  if (m_instruction_set != InstructionSet::ARM64) {
++    throw std::runtime_error("ARM64 AOT materialization requires the ARM64 instruction set.");
++  }
++  if (m_all_function_records.size() != 1 || m_all_function_records.front().seg != function.seg ||
++      m_all_function_records.front().func_id != function.func_id) {
++    throw std::runtime_error("ARM64 AOT materialization requires exactly one function.");
++  }
++
++  for (int seg = 0; seg < N_SEG; seg++) {
++    if (!m_static_data_by_seg.at(seg).empty() || !m_data_by_seg.at(seg).empty() ||
++        !m_link_by_seg.at(seg).empty() || !m_static_type_temp_links_by_seg.at(seg).empty() ||
++        !m_jump_temp_links_by_seg.at(seg).empty() ||
++        !m_symbol_instr_temp_links_by_seg.at(seg).empty() ||
++        !m_static_sym_temp_links_by_seg.at(seg).empty() ||
++        !m_static_data_temp_ptr_links_by_seg.at(seg).empty() ||
++        !m_static_function_temp_ptr_links_by_seg.at(seg).empty() ||
++        !m_rip_func_temp_links_by_seg.at(seg).empty() || !m_rip_data_temp_links_by_seg.at(seg).empty() ||
++        !m_type_ptr_links_by_seg.at(seg).empty() || !m_sym_links_by_seg.at(seg).empty() ||
++        !m_rip_links_by_seg.at(seg).empty() ||
++        !m_pointer_links_by_seg.at(seg).empty()) {
++      throw std::runtime_error(
++          "ARM64 AOT materialization does not support static data or relocations.");
++    }
++  }
++
++  const auto& function_data = m_function_data_by_seg.at(function.seg).at(function.func_id);
++  std::vector<u8> code;
++  for (const auto& instruction : function_data.instructions) {
++    if (!std::holds_alternative<InstructionARM64>(instruction.instr)) {
++      throw std::runtime_error("ARM64 AOT materialization received a non-ARM64 instruction.");
++    }
++    u8 encoded[InstructionARM64::kMaxInstrs * sizeof(u32)];
++    const auto count = instruction.emit(encoded);
++    if (count % sizeof(u32) != 0) {
++      throw std::runtime_error("ARM64 AOT materialization emitted a partial instruction word.");
++    }
++    code.insert(code.end(), encoded, encoded + count);
++  }
++
++  if (code.empty()) {
++    throw std::runtime_error("ARM64 AOT materialization requires generated instructions.");
++  }
++  return code;
++}
++
+ /*!
+  * Add a new IR instruction to the function. An IR instruction may contain 0, 1, or multiple
+  * actual Instructions. These Instructions can be added with add_instruction.  The IR_Record
+diff --git a/goalc/emitter/ObjectGenerator.h b/goalc/emitter/ObjectGenerator.h
+index 7638c9e7..ad72f640 100644
+--- a/goalc/emitter/ObjectGenerator.h
++++ b/goalc/emitter/ObjectGenerator.h
+@@ -71,6 +71,7 @@ class ObjectGenerator {
+                                      FunctionDebugInfo* debug,
+                                      int min_align = 16);  // should align and insert function tag
+   FunctionRecord get_existing_function_record(int f_idx);
++  std::vector<u8> materialize_arm64_function(const FunctionRecord& function) const;
+   IR_Record add_ir(const FunctionRecord& func);
+   IR_Record get_future_ir_record(const FunctionRecord& func, int ir_id);
+   IR_Record get_future_ir_record_in_same_func(const IR_Record& irec, int ir_id);
+diff --git a/goalc/emitter/Register.cpp b/goalc/emitter/Register.cpp
+index 30bd7b6d..db6afa9e 100644
+--- a/goalc/emitter/Register.cpp
++++ b/goalc/emitter/Register.cpp
+@@ -1,10 +1,82 @@
+ #include "Register.h"
+ 
++#include <algorithm>
+ #include <stdexcept>
+ 
+ namespace emitter {
+-RegisterInfo RegisterInfo::make_register_info() {
++RegisterInfo RegisterInfo::make_register_info(InstructionSet instruction_set) {
+   RegisterInfo info;
++  info.m_instruction_set = instruction_set;
++
++  if (instruction_set == InstructionSet::ARM64) {
++    for (int i = X0; i <= X30; i++) {
++      info.m_info.at(i) = {false, false, "x" + std::to_string(i)};
++    }
++    info.m_info.at(SP) = {false, true, "sp"};
++
++    for (int i = V0; i <= V31; i++) {
++      info.m_info.at(i) = {false, false, "v" + std::to_string(i - V0)};
++    }
++
++    for (const auto reg : {X16, X17, X18}) {
++      info.m_info.at(reg).special = true;
++    }
++    for (const auto reg : {X20, X21, X22, X29, X30}) {
++      info.m_info.at(reg).saved = true;
++      info.m_info.at(reg).special = true;
++    }
++    for (const auto reg : {X19, X23, X24, X25, X26, X27, X28}) {
++      info.m_info.at(reg).saved = true;
++    }
++    for (const auto reg : {V8, V9, V10, V11, V12, V13, V14, V15}) {
++      info.m_info.at(reg).saved = true;
++    }
++
++    info.m_gpr_arg_regs = {X0, X1, X2, X3, X4, X5, X6, X7};
++    info.m_xmm_arg_regs = {V0, V1, V2, V3, V4, V5, V6, V7};
++    info.m_saved_gprs = {X19, X23, X24, X25, X26, X27, X28};
++    info.m_saved_xmms = {V8, V9, V10, V11, V12, V13, V14, V15};
++    info.m_saved_all = info.m_saved_gprs;
++    info.m_saved_all.insert(info.m_saved_all.end(), info.m_saved_xmms.begin(),
++                            info.m_saved_xmms.end());
++
++    info.m_process_reg = X20;
++    info.m_st_reg = X21;
++    info.m_offset_reg = X22;
++    info.m_gpr_ret_reg = X0;
++    info.m_xmm_ret_reg = V0;
++
++    info.m_gpr_temp_only_alloc_order = {X0, X1, X2, X3, X4, X5, X6, X7,
++                                         X8, X9, X10, X11, X12, X13, X14, X15};
++    info.m_gpr_alloc_order = info.m_gpr_temp_only_alloc_order;
++    info.m_gpr_alloc_order.insert(info.m_gpr_alloc_order.end(), info.m_saved_gprs.begin(),
++                                  info.m_saved_gprs.end());
++    info.m_gpr_spill_temp_alloc_order = info.m_gpr_alloc_order;
++
++    info.m_xmm_temp_only_alloc_order = {V0, V1, V2, V3, V4, V5, V6, V7,
++                                         V16, V17, V18, V19, V20, V21, V22, V23,
++                                         V24, V25, V26, V27, V28, V29, V30, V31};
++    info.m_xmm_alloc_order = info.m_xmm_temp_only_alloc_order;
++    info.m_xmm_alloc_order.insert(info.m_xmm_alloc_order.end(), info.m_saved_xmms.begin(),
++                                  info.m_saved_xmms.end());
++    info.m_xmm_spill_temp_alloc_order = info.m_xmm_alloc_order;
++
++    info.m_gpr_v2_temp_only_alloc_order = info.m_gpr_temp_only_alloc_order;
++    info.m_xmm_v2_temp_only_alloc_order = info.m_xmm_temp_only_alloc_order;
++    info.m_gpr_v2_temp_first_alloc_order = info.m_gpr_alloc_order;
++    info.m_xmm_v2_temp_first_alloc_order = info.m_xmm_alloc_order;
++    info.m_gpr_v2_saved_first_alloc_order = info.m_saved_gprs;
++    info.m_gpr_v2_saved_first_alloc_order.insert(
++        info.m_gpr_v2_saved_first_alloc_order.end(), info.m_gpr_temp_only_alloc_order.begin(),
++        info.m_gpr_temp_only_alloc_order.end());
++    info.m_xmm_v2_saved_first_alloc_order = info.m_saved_xmms;
++    info.m_xmm_v2_saved_first_alloc_order.insert(
++        info.m_xmm_v2_saved_first_alloc_order.end(), info.m_xmm_temp_only_alloc_order.begin(),
++        info.m_xmm_temp_only_alloc_order.end());
++    info.m_gpr_v2_torture_alloc_order = {X9, X10, X11, X12, X13, X14};
++    info.m_xmm_v2_torture_alloc_order = {V0, V1, V2, V3, V4, V5, V6, V7, V16, V17};
++    return info;
++  }
+ 
+   info.m_info[RAX] = {false, false, "rax"};  // return, temp
+   info.m_info[RCX] = {false, false, "rcx"};  // gpr arg 3, temp
+@@ -41,20 +113,20 @@ RegisterInfo RegisterInfo::make_register_info() {
+   info.m_info[XMM14] = {true, false, "xmm14"};
+   info.m_info[XMM15] = {true, false, "xmm15"};
+ 
+-  info.m_gpr_arg_regs = std::array<Register, N_ARGS>({RDI, RSI, RDX, RCX, R8, R9, R10, R11});
++  info.m_gpr_arg_regs = {RDI, RSI, RDX, RCX, R8, R9, R10, R11};
+   // skip xmm0 so it can be used for return.
+-  info.m_xmm_arg_regs =
+-      std::array<Register, N_ARGS>({XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7, XMM8});
+-  info.m_saved_gprs = std::array<Register, N_SAVED_GPRS>({RBX, RBP, R10, R11, R12});
+-  info.m_saved_xmms =
+-      std::array<Register, N_SAVED_XMMS>({XMM8, XMM9, XMM10, XMM11, XMM12, XMM13, XMM14, XMM15});
+-
+-  for (size_t i = 0; i < N_SAVED_GPRS; i++) {
+-    info.m_saved_all[i] = info.m_saved_gprs[i];
+-  }
+-  for (size_t i = 0; i < N_SAVED_XMMS; i++) {
+-    info.m_saved_all[i + N_SAVED_GPRS] = info.m_saved_xmms[i];
+-  }
++  info.m_xmm_arg_regs = {XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7, XMM8};
++  info.m_saved_gprs = {RBX, RBP, R10, R11, R12};
++  info.m_saved_xmms = {XMM8, XMM9, XMM10, XMM11, XMM12, XMM13, XMM14, XMM15};
++  info.m_saved_all = info.m_saved_gprs;
++  info.m_saved_all.insert(info.m_saved_all.end(), info.m_saved_xmms.begin(),
++                          info.m_saved_xmms.end());
++
++  info.m_process_reg = R13;
++  info.m_st_reg = R14;
++  info.m_offset_reg = R15;
++  info.m_gpr_ret_reg = RAX;
++  info.m_xmm_ret_reg = XMM0;
+ 
+   // todo - experiment with better orders for allocation.
+   info.m_gpr_alloc_order = {RAX, RCX, RDX, RBX, RBP, RSI, RDI, R8, R9, R10};  // arbitrary
+@@ -69,10 +141,69 @@ RegisterInfo RegisterInfo::make_register_info() {
+                                        RDI, R8,  R9,  R10, R11, R12};  // arbitrary
+   info.m_xmm_spill_temp_alloc_order = {XMM0, XMM1, XMM2,  XMM3,  XMM4,  XMM5,  XMM6,  XMM7,
+                                        XMM8, XMM9, XMM10, XMM11, XMM12, XMM13, XMM14, XMM15};
++
++  info.m_xmm_v2_saved_first_alloc_order = {XMM8, XMM9, XMM10, XMM11, XMM12, XMM13,
++                                            XMM14, XMM15, XMM7,  XMM6,  XMM5,  XMM4,
++                                            XMM3, XMM2, XMM1,  XMM0};
++  info.m_gpr_v2_saved_first_alloc_order = {RBX, RBP, R12, R11, R10, R9,
++                                            R8,  RCX, RDX, RSI, RDI, RAX};
++  info.m_xmm_v2_temp_first_alloc_order = {XMM7, XMM6, XMM5,  XMM4,  XMM3,  XMM2,
++                                           XMM1, XMM0, XMM8,  XMM9,  XMM10, XMM11,
++                                           XMM12, XMM13, XMM14, XMM15};
++  info.m_gpr_v2_temp_first_alloc_order = {R9, R8, RCX, RDX, RSI, RDI,
++                                           RAX, RBX, RBP, R12, R11, R10};
++  info.m_xmm_v2_torture_alloc_order = {XMM7, XMM6, XMM5, XMM4, XMM3,
++                                        XMM2, XMM1, XMM0, XMM8, XMM9};
++  info.m_gpr_v2_torture_alloc_order = {R9, RSI, RDI, RAX, RBP, R12};
++  info.m_xmm_v2_temp_only_alloc_order = {XMM7, XMM6, XMM5, XMM4,
++                                          XMM3, XMM2, XMM1, XMM0};
++  info.m_gpr_v2_temp_only_alloc_order = {R9, R8, RCX, RDX, RSI, RDI, RAX};
+   return info;
+ }
+ 
+-RegisterInfo gRegInfo = RegisterInfo::make_register_info();
++RegisterInfo gRegInfo = RegisterInfo::make_register_info(InstructionSet::X86);
++RegisterInfo gArm64RegInfo = RegisterInfo::make_register_info(InstructionSet::ARM64);
++
++const RegisterInfo& get_register_info(InstructionSet instruction_set) {
++  switch (instruction_set) {
++    case InstructionSet::X86:
++      return gRegInfo;
++    case InstructionSet::ARM64:
++      return gArm64RegInfo;
++    default:
++      throw std::runtime_error("Unsupported instruction set");
++  }
++}
++
++const std::vector<Register>& RegisterInfo::get_v2_alloc_order(HWRegKind kind,
++                                                               bool saved_first,
++                                                               bool asm_function,
++                                                               bool torture_spills) const {
++  if (kind == HWRegKind::GPR) {
++    if (asm_function) {
++      return m_gpr_v2_temp_only_alloc_order;
++    }
++    if (torture_spills) {
++      return m_gpr_v2_torture_alloc_order;
++    }
++    return saved_first ? m_gpr_v2_saved_first_alloc_order : m_gpr_v2_temp_first_alloc_order;
++  }
++  if (kind == HWRegKind::XMM) {
++    if (asm_function) {
++      return m_xmm_v2_temp_only_alloc_order;
++    }
++    if (torture_spills) {
++      return m_xmm_v2_torture_alloc_order;
++    }
++    return saved_first ? m_xmm_v2_saved_first_alloc_order : m_xmm_v2_temp_first_alloc_order;
++  }
++  throw std::runtime_error("Unsupported register kind");
++}
++
++bool RegisterInfo::is_allocatable(HWRegKind kind, Register reg) const {
++  const auto& order = get_v2_alloc_order(kind, false, false, false);
++  return std::find(order.begin(), order.end(), reg) != order.end();
++}
+ 
+ std::string to_string(HWRegKind kind) {
+   switch (kind) {
+@@ -100,7 +231,11 @@ HWRegKind reg_class_to_hw(RegClass reg_class) {
+ }
+ 
+ std::string Register::print() const {
+-  return gRegInfo.get_info(*this).name;
++  return print(m_instr_set);
++}
++
++std::string Register::print(InstructionSet instr_set) const {
++  return get_register_info(instr_set).get_info(*this).name;
+ }
+ 
+-}  // namespace emitter
+\ No newline at end of file
++}  // namespace emitter
+diff --git a/goalc/emitter/Register.h b/goalc/emitter/Register.h
+index d267a765..3dd7aac2 100644
+--- a/goalc/emitter/Register.h
++++ b/goalc/emitter/Register.h
+@@ -2,7 +2,7 @@
+ 
+ /*!
+  * @file Register.h
+- * Representation of an x86-64 Register.
++ * Representation of a target register.
+  */
+ 
+ #include <array>
+@@ -103,10 +103,9 @@ enum ARM64_REG : s8 {
+ 
+   SP,  // stack pointer
+ 
+-  // quadword registers, equivalent to XMMs
+-  // the convention in arm64 is the callee preserves all Q values
+-  // at the same time though, the caller should not depend on this convention!
+-  V0 = 0,
++  // Keep SIMD registers in a distinct logical bank. Register::id() converts these back to their
++  // architectural 0-31 encoding when an ARM64 instruction is emitted.
++  V0 = 32,
+   V1,
+   V2,
+   V3,
+@@ -145,12 +144,13 @@ class Register {
+  public:
+   Register() = default;
+ 
+-  // intentionally not explicit so we can use X86_REGs in place of Registers
+-  Register(int id) : m_id(id) {}
++  // Intentionally not explicit so register enum values can be used in place of Registers.
++  Register(X86_REG id) : m_id(id), m_instr_set(InstructionSet::X86) {}
++  Register(ARM64_REG id) : m_id(id), m_instr_set(InstructionSet::ARM64) {}
++  Register(int id)
++      : m_id(id),
++        m_instr_set(id >= V0 && id <= V31 ? InstructionSet::ARM64 : InstructionSet::X86) {}
+ 
+-  // TODO ARM64 - this assertion isn't as useful for ARM
+-  // since Q/V registers are not unique in terms of their id
+-  // instead it is the instruction itself that deduces what set of registers to use
+   bool is_128bit_simd(emitter::InstructionSet instr_set) const {
+     if (instr_set == emitter::InstructionSet::X86) {
+       return m_id >= XMM0 && m_id <= XMM15;
+@@ -182,31 +182,44 @@ class Register {
+   }
+ 
+   int hw_id(emitter::InstructionSet instr_set) const {
+-    // ARM64 does not require the concept of a hw_id
+-    if (instr_set != emitter::InstructionSet::X86) {
+-      ASSERT_MSG(false, "hw_id is only applicable for x86");
+-    }
+-    if (is_xmm(instr_set)) {
++    if (instr_set == emitter::InstructionSet::X86 && is_xmm(instr_set)) {
+       return m_id - XMM0;
+-    } else if (is_gpr(instr_set)) {
++    }
++    if (instr_set == emitter::InstructionSet::X86 && is_gpr(instr_set)) {
+       return m_id - RAX;
+-    } else {
+-      ASSERT(false);
+     }
++    if (instr_set == emitter::InstructionSet::ARM64 &&
++        (is_128bit_simd(instr_set) || is_gpr(instr_set))) {
++      return id();
++    }
++    ASSERT(false);
+     return 0xff;
+   }
+ 
+-  int id() const { return m_id; }
++  int id() const {
++    if (m_id >= V0 && m_id <= V31) {
++      return m_id - V0;
++    }
++    return m_id;
++  }
++
++  int logical_id() const { return m_id; }
++  emitter::InstructionSet instruction_set() const { return m_instr_set; }
+ 
+   struct hash {
+-    auto operator()(const Register& x) const { return std::hash<u8>()(x.m_id); }
++    auto operator()(const Register& x) const {
++      return (std::hash<s8>()(x.m_id) << 1) ^ std::hash<int>()(int(x.m_instr_set));
++    }
+   };
+ 
+-  bool operator==(const Register& x) const { return m_id == x.m_id; }
++  bool operator==(const Register& x) const {
++    return m_id == x.m_id && m_instr_set == x.m_instr_set;
++  }
+ 
+-  bool operator!=(const Register& x) const { return m_id != x.m_id; }
++  bool operator!=(const Register& x) const { return !(*this == x); }
+ 
+   std::string print() const;
++  std::string print(emitter::InstructionSet instr_set) const;
+ 
+   /*
+     Our XMM Registers are 4 packed single-precision floating points
+@@ -217,20 +230,19 @@ class Register {
+ 
+  private:
+   s8 m_id = -1;
++  emitter::InstructionSet m_instr_set = emitter::InstructionSet::X86;
+ };
+ 
+ class RegisterInfo {
+  public:
+   static constexpr int N_ARGS = 8;
++  // Retained for x86 callers that enumerate the legacy register file.
+   static constexpr int N_REGS = 32;
+-  static constexpr int N_SAVED_GPRS = 5;
+-  static constexpr int N_SAVED_XMMS = 8;
+-  static constexpr int N_TEMP_GPRS = 5;
+-  static constexpr int N_TEMP_XMMS = 8;
++  static constexpr int N_LOGICAL_REGS = 64;
+ 
+   static_assert(N_REGS - 1 == XMM15, "bad register count");
+ 
+-  static RegisterInfo make_register_info();
++  static RegisterInfo make_register_info(InstructionSet instruction_set = InstructionSet::X86);
+ 
+   struct Info {
+     bool saved = false;    // does the callee save it?
+@@ -240,40 +252,70 @@ class RegisterInfo {
+     bool temp() const { return !saved && !special; }
+   };
+ 
+-  const Info& get_info(Register r) const { return m_info.at(r.id()); }
++  const Info& get_info(Register r) const { return m_info.at(r.logical_id()); }
+   Register get_gpr_arg_reg(int id) const { return m_gpr_arg_regs.at(id); }
+   Register get_xmm_arg_reg(int id) const { return m_xmm_arg_regs.at(id); }
+   Register get_saved_gpr(int id) const { return m_saved_gprs.at(id); }
+   Register get_saved_xmm(int id) const { return m_saved_xmms.at(id); }
+-  Register get_process_reg() const { return R13; }
+-  Register get_st_reg() const { return R14; }
+-  Register get_offset_reg() const { return R15; }
+-  Register get_gpr_ret_reg() const { return RAX; }
+-  Register get_xmm_ret_reg() const { return XMM0; }
+-  const std::vector<Register>& get_gpr_alloc_order() { return m_gpr_alloc_order; }
+-  const std::vector<Register>& get_xmm_alloc_order() { return m_xmm_alloc_order; }
+-  const std::vector<Register>& get_gpr_temp_alloc_order() { return m_gpr_temp_only_alloc_order; }
+-  const std::vector<Register>& get_xmm_temp_alloc_order() { return m_xmm_temp_only_alloc_order; }
+-  const std::vector<Register>& get_gpr_spill_alloc_order() { return m_gpr_spill_temp_alloc_order; }
+-  const std::vector<Register>& get_xmm_spill_alloc_order() { return m_xmm_spill_temp_alloc_order; }
+-  const std::array<Register, N_SAVED_XMMS + N_SAVED_GPRS>& get_all_saved() { return m_saved_all; }
++  Register get_process_reg() const { return m_process_reg; }
++  Register get_st_reg() const { return m_st_reg; }
++  Register get_offset_reg() const { return m_offset_reg; }
++  Register get_gpr_ret_reg() const { return m_gpr_ret_reg; }
++  Register get_xmm_ret_reg() const { return m_xmm_ret_reg; }
++  const std::vector<Register>& get_gpr_alloc_order() const { return m_gpr_alloc_order; }
++  const std::vector<Register>& get_xmm_alloc_order() const { return m_xmm_alloc_order; }
++  const std::vector<Register>& get_gpr_temp_alloc_order() const {
++    return m_gpr_temp_only_alloc_order;
++  }
++  const std::vector<Register>& get_xmm_temp_alloc_order() const {
++    return m_xmm_temp_only_alloc_order;
++  }
++  const std::vector<Register>& get_gpr_spill_alloc_order() const {
++    return m_gpr_spill_temp_alloc_order;
++  }
++  const std::vector<Register>& get_xmm_spill_alloc_order() const {
++    return m_xmm_spill_temp_alloc_order;
++  }
++  const std::vector<Register>& get_v2_alloc_order(HWRegKind kind,
++                                                   bool saved_first,
++                                                   bool asm_function,
++                                                   bool torture_spills) const;
++  bool is_allocatable(HWRegKind kind, Register reg) const;
++  const std::vector<Register>& get_all_saved() const { return m_saved_all; }
++  InstructionSet instruction_set() const { return m_instruction_set; }
+ 
+  private:
+   RegisterInfo() = default;
+-  std::array<Info, N_REGS> m_info;
++  InstructionSet m_instruction_set = InstructionSet::X86;
++  std::array<Info, N_LOGICAL_REGS> m_info;
+   std::array<Register, N_ARGS> m_gpr_arg_regs;
+   std::array<Register, N_ARGS> m_xmm_arg_regs;
+-  std::array<Register, N_SAVED_GPRS> m_saved_gprs;
+-  std::array<Register, N_SAVED_XMMS> m_saved_xmms;
+-  std::array<Register, N_SAVED_XMMS + N_SAVED_GPRS> m_saved_all;
++  std::vector<Register> m_saved_gprs;
++  std::vector<Register> m_saved_xmms;
++  std::vector<Register> m_saved_all;
++  Register m_process_reg;
++  Register m_st_reg;
++  Register m_offset_reg;
++  Register m_gpr_ret_reg;
++  Register m_xmm_ret_reg;
+   std::vector<Register> m_gpr_alloc_order;
+   std::vector<Register> m_xmm_alloc_order;
+   std::vector<Register> m_gpr_temp_only_alloc_order;
+   std::vector<Register> m_xmm_temp_only_alloc_order;
+   std::vector<Register> m_gpr_spill_temp_alloc_order;
+   std::vector<Register> m_xmm_spill_temp_alloc_order;
++  std::vector<Register> m_gpr_v2_saved_first_alloc_order;
++  std::vector<Register> m_xmm_v2_saved_first_alloc_order;
++  std::vector<Register> m_gpr_v2_temp_first_alloc_order;
++  std::vector<Register> m_xmm_v2_temp_first_alloc_order;
++  std::vector<Register> m_gpr_v2_torture_alloc_order;
++  std::vector<Register> m_xmm_v2_torture_alloc_order;
++  std::vector<Register> m_gpr_v2_temp_only_alloc_order;
++  std::vector<Register> m_xmm_v2_temp_only_alloc_order;
+ };
+ 
+ extern RegisterInfo gRegInfo;
++extern RegisterInfo gArm64RegInfo;
++const RegisterInfo& get_register_info(InstructionSet instruction_set);
+ 
+ }  // namespace emitter
+diff --git a/goalc/regalloc/Allocator.cpp b/goalc/regalloc/Allocator.cpp
+index 26fe260f..6fdb4294 100644
+--- a/goalc/regalloc/Allocator.cpp
++++ b/goalc/regalloc/Allocator.cpp
+@@ -438,14 +438,16 @@ int get_stack_slot_for_var(int var, RegAllocCache* cache) {
+ }
+ 
+ const std::vector<emitter::Register>& get_default_alloc_order_for_var_spill(int v,
+-                                                                            RegAllocCache* cache) {
++                                                                            RegAllocCache* cache,
++                                                                            const AllocationInput& in) {
+   auto& info = cache->iregs.at(v);
+   ASSERT(info.reg_class != RegClass::INVALID);
+   auto hw_kind = emitter::reg_class_to_hw(info.reg_class);
++  const auto& register_info = emitter::get_register_info(in.instruction_set);
+   if (hw_kind == emitter::HWRegKind::GPR) {
+-    return emitter::gRegInfo.get_gpr_spill_alloc_order();
++    return register_info.get_gpr_spill_alloc_order();
+   } else if (hw_kind == emitter::HWRegKind::XMM) {
+-    return emitter::gRegInfo.get_xmm_spill_alloc_order();
++    return register_info.get_xmm_spill_alloc_order();
+   } else {
+     throw std::runtime_error("Unsupported HWRegKind");
+   }
+@@ -453,21 +455,23 @@ const std::vector<emitter::Register>& get_default_alloc_order_for_var_spill(int
+ 
+ const std::vector<emitter::Register>& get_default_alloc_order_for_var(int v,
+                                                                       RegAllocCache* cache,
++                                                                      const AllocationInput& in,
+                                                                       bool get_all) {
+   auto& info = cache->iregs.at(v);
+   ASSERT(info.reg_class != RegClass::INVALID);
+   auto hw_kind = emitter::reg_class_to_hw(info.reg_class);
++  const auto& register_info = emitter::get_register_info(in.instruction_set);
+   if (hw_kind == emitter::HWRegKind::GPR || hw_kind == emitter::HWRegKind::INVALID) {
+     if (!get_all && cache->is_asm_func) {
+-      return emitter::gRegInfo.get_gpr_temp_alloc_order();
++      return register_info.get_gpr_temp_alloc_order();
+     } else {
+-      return emitter::gRegInfo.get_gpr_alloc_order();
++      return register_info.get_gpr_alloc_order();
+     }
+   } else if (hw_kind == emitter::HWRegKind::XMM) {
+     if (!get_all && cache->is_asm_func) {
+-      return emitter::gRegInfo.get_xmm_temp_alloc_order();
++      return register_info.get_xmm_temp_alloc_order();
+     } else {
+-      return emitter::gRegInfo.get_xmm_alloc_order();
++      return register_info.get_xmm_alloc_order();
+     }
+   } else {
+     throw std::runtime_error("Unsupported HWRegKind");
+@@ -553,7 +557,7 @@ bool try_spill_coloring(int var, RegAllocCache* cache, const AllocationInput& in
+ 
+         // hint didn't work
+         // auto reg_order = get_default_reg_alloc_order();
+-        auto reg_order = get_default_alloc_order_for_var_spill(var, cache);
++        auto reg_order = get_default_alloc_order_for_var_spill(var, cache, in);
+         if (spill_assignment.reg == -1) {
+           for (auto reg : reg_order) {
+             Assignment ass;
+@@ -630,8 +634,8 @@ bool do_allocation_for_var(int var,
+       }
+     }
+ 
+-    auto reg_order = get_default_alloc_order_for_var(var, cache, false);
+-    auto& all_reg_order = get_default_alloc_order_for_var(var, cache, true);
++    auto reg_order = get_default_alloc_order_for_var(var, cache, in, false);
++    auto& all_reg_order = get_default_alloc_order_for_var(var, cache, in, true);
+ 
+     // todo, try other regs..
+     if (!colored && move_eliminator) {
+@@ -817,7 +821,7 @@ AllocationResult allocate_registers(const AllocationInput& input) {
+   result.stack_slots_for_vars = input.stack_slots_for_stack_vars;
+ 
+   // check for use of saved registers
+-  for (auto sr : emitter::gRegInfo.get_all_saved()) {
++  for (auto sr : emitter::get_register_info(input.instruction_set).get_all_saved()) {
+     bool uses_sr = false;
+     for (auto& lr : cache.live_ranges) {
+       for (int instr_idx = lr.min; instr_idx <= lr.max; instr_idx++) {
+diff --git a/goalc/regalloc/Allocator_v2.cpp b/goalc/regalloc/Allocator_v2.cpp
+index 20e0788d..539efeb7 100644
+--- a/goalc/regalloc/Allocator_v2.cpp
++++ b/goalc/regalloc/Allocator_v2.cpp
+@@ -268,74 +268,13 @@ struct RACache {
+   } stats;
+ };
+ 
+-struct AssignmentOrder {
+-  std::vector<emitter::Register> xmms, gprs;
+-};
+-
+-AssignmentOrder REG_saved_first_order = {
+-    {emitter::XMM8, emitter::XMM9, emitter::XMM10, emitter::XMM11, emitter::XMM12, emitter::XMM13,
+-     emitter::XMM14, emitter::XMM15, emitter::XMM7, emitter::XMM6, emitter::XMM5, emitter::XMM4,
+-     emitter::XMM3, emitter::XMM2, emitter::XMM1, emitter::XMM0},
+-    {emitter::RBX, emitter::RBP, emitter::R12, emitter::R11, emitter::R10, emitter::R9, emitter::R8,
+-     emitter::RCX, emitter::RDX, emitter::RSI, emitter::RDI, emitter::RAX}};
+-
+-AssignmentOrder REG_temp_first_order = {
+-    {emitter::XMM7, emitter::XMM6, emitter::XMM5, emitter::XMM4, emitter::XMM3, emitter::XMM2,
+-     emitter::XMM1, emitter::XMM0, emitter::XMM8, emitter::XMM9, emitter::XMM10, emitter::XMM11,
+-     emitter::XMM12, emitter::XMM13, emitter::XMM14, emitter::XMM15},
+-    {emitter::R9, emitter::R8, emitter::RCX, emitter::RDX, emitter::RSI, emitter::RDI, emitter::RAX,
+-     emitter::RBX, emitter::RBP, emitter::R12, emitter::R11, emitter::R10}};
+-
+-AssignmentOrder REG_extra_hard_order = {
+-    {emitter::XMM7, emitter::XMM6, emitter::XMM5, emitter::XMM4, emitter::XMM3, emitter::XMM2,
+-     emitter::XMM1, emitter::XMM0, emitter::XMM8, emitter::XMM9},
+-    {emitter::R9, emitter::RSI, emitter::RDI, emitter::RAX, emitter::RBP, emitter::R12}};
+-
+-AssignmentOrder REG_temp_only_order = {{emitter::XMM7, emitter::XMM6, emitter::XMM5, emitter::XMM4,
+-                                        emitter::XMM3, emitter::XMM2, emitter::XMM1, emitter::XMM0},
+-                                       {emitter::R9, emitter::R8, emitter::RCX, emitter::RDX,
+-                                        emitter::RSI, emitter::RDI, emitter::RAX}};
+-std::vector<emitter::Register> allowable_local_var_move_elim = {
+-    emitter::R9,    emitter::R8,    emitter::RCX,   emitter::RDX,  emitter::RSI,   emitter::RDI,
+-    emitter::RAX,   emitter::RBX,   emitter::RBP,   emitter::R12,  emitter::R11,   emitter::R10,
+-    emitter::XMM7,  emitter::XMM6,  emitter::XMM5,  emitter::XMM4, emitter::XMM3,  emitter::XMM2,
+-    emitter::XMM1,  emitter::XMM0,  emitter::XMM8,  emitter::XMM9, emitter::XMM10, emitter::XMM11,
+-    emitter::XMM12, emitter::XMM13, emitter::XMM14, emitter::XMM15};
+-
+ const std::vector<emitter::Register>& get_alloc_order(int var_idx,
+                                                       const AllocationInput& in,
+                                                       const RACache& cache,
+                                                       bool saved_first) {
+-  bool is_gpr =
+-      emitter::reg_class_to_hw(cache.iregs.at(var_idx).reg_class) == emitter::HWRegKind::GPR;
+-  if (in.is_asm_function) {
+-    if (is_gpr) {
+-      return REG_temp_only_order.gprs;
+-    } else {
+-      return REG_temp_only_order.xmms;
+-    }
+-  } else {
+-    if (torture_test_spills) {
+-      if (is_gpr) {
+-        return REG_extra_hard_order.gprs;
+-      } else {
+-        return REG_extra_hard_order.xmms;
+-      }
+-    }
+-    if (saved_first) {
+-      if (is_gpr) {
+-        return REG_saved_first_order.gprs;
+-      } else {
+-        return REG_saved_first_order.xmms;
+-      }
+-    } else {
+-      if (is_gpr) {
+-        return REG_temp_first_order.gprs;
+-      } else {
+-        return REG_temp_first_order.xmms;
+-      }
+-    }
+-  }
++  const auto kind = emitter::reg_class_to_hw(cache.iregs.at(var_idx).reg_class);
++  return emitter::get_register_info(in.instruction_set)
++      .get_v2_alloc_order(kind, saved_first, in.is_asm_function, torture_test_spills);
+ }
+ 
+ /*!
+@@ -890,7 +829,9 @@ loop_top:
+       auto& check_other_var = cache->vars.at(check_other_reg);
+       if (check_other_var.assigned_to_reg()) {
+         auto reg = check_other_var.reg();
+-        if (vector_contains(allowable_local_var_move_elim, reg)) {
++        if (emitter::get_register_info(input.instruction_set)
++                .is_allocatable(
++                    emitter::reg_class_to_hw(cache->iregs.at(check_other_reg).reg_class), reg)) {
+           if (check_register_assign_at(input, *cache, var_idx, instr_idx, reg)) {
+             var.set_stack_slot_reg(reg, instr_idx);
+             bonus.reg = reg;
+@@ -1012,7 +953,10 @@ bool run_assignment_on_var(const AllocationInput& input,
+       const auto& other_var = cache->vars.at(other_live_var_idx);
+       if (other_var.assigned_to_reg() &&
+           safe_overlap(input, *cache, var, other_var, var.first_live())) {
+-        if (vector_contains(allowable_local_var_move_elim, other_var.reg())) {
++        if (emitter::get_register_info(input.instruction_set)
++                .is_allocatable(
++                    emitter::reg_class_to_hw(cache->iregs.at(other_live_var_idx).reg_class),
++                    other_var.reg())) {
+           bool worked = check_register_assign(input, *cache, var_idx, other_var.reg());
+           if (trace) {
+             lg::print("m0 trying var {} in {}: {}\n", cache->iregs.at(var_idx).to_string(),
+@@ -1040,7 +984,10 @@ bool run_assignment_on_var(const AllocationInput& input,
+ 
+       if (other_var.assigned_to_reg() &&
+           safe_overlap(input, *cache, var, other_var, var.last_live())) {
+-        if (vector_contains(allowable_local_var_move_elim, other_var.reg())) {
++        if (emitter::get_register_info(input.instruction_set)
++                .is_allocatable(
++                    emitter::reg_class_to_hw(cache->iregs.at(other_live_var_idx).reg_class),
++                    other_var.reg())) {
+           bool worked = check_register_assign(input, *cache, var_idx, other_var.reg());
+           if (trace) {
+             lg::print("m1 trying var {} in {}: {}\n", cache->iregs.at(var_idx).to_string(),
+@@ -1182,7 +1129,7 @@ AllocationResult allocate_registers_v2(const AllocationInput& input) {
+   result.stack_slots_for_vars = input.stack_slots_for_stack_vars;
+ 
+   // check for use of saved registers
+-  for (auto sr : emitter::gRegInfo.get_all_saved()) {
++  for (auto sr : emitter::get_register_info(input.instruction_set).get_all_saved()) {
+     bool uses_sr = false;
+     for (auto& lr : cache.vars) {
+       for (int instr_idx = lr.first_live(); instr_idx <= lr.last_live(); instr_idx++) {
+diff --git a/goalc/regalloc/allocator_interface.h b/goalc/regalloc/allocator_interface.h
+index 0fb93adb..ef2d14ee 100644
+--- a/goalc/regalloc/allocator_interface.h
++++ b/goalc/regalloc/allocator_interface.h
+@@ -154,6 +154,7 @@ struct AllocationResult {
+  * Input to the allocate_registers algorithm
+  */
+ struct AllocationInput {
++  emitter::InstructionSet instruction_set = emitter::InstructionSet::X86;
+   std::vector<RegAllocInstr> instructions;           // all instructions in the function
+   std::vector<IRegConstraint> constraints;           // all register constraints
+   std::unordered_set<int> force_on_stack_regs;       // registers which must be on the stack
+@@ -207,4 +208,4 @@ struct ControlFlowAnalysisCache {
+ 
+ void print_allocate_input(const AllocationInput& in);
+ void print_result(const AllocationInput& in, const AllocationResult& result);
+-void find_basic_blocks(ControlFlowAnalysisCache* cache, const AllocationInput& in);
+\ No newline at end of file
++void find_basic_blocks(ControlFlowAnalysisCache* cache, const AllocationInput& in);
+diff --git a/test/goalc/CMakeLists.txt b/test/goalc/CMakeLists.txt
+index ef59df4a..7459c9ed 100644
+--- a/test/goalc/CMakeLists.txt
++++ b/test/goalc/CMakeLists.txt
+@@ -39,6 +39,10 @@ else()
+     )
+ endif()
+ 
++list(APPEND GOALC_TEST_CASES
++    ${CMAKE_CURRENT_LIST_DIR}/test_arm64_aot.cpp
++)
++
+ set(GOALC_TEST_FRAMEWORK_SOURCES
+     ${CMAKE_CURRENT_LIST_DIR}/framework/test_runner.cpp
+     ${CMAKE_CURRENT_LIST_DIR}/framework/test_runner.h
+diff --git a/test/goalc/source_templates/arm64-aot/constant-42.gc b/test/goalc/source_templates/arm64-aot/constant-42.gc
+new file mode 100644
+index 00000000..d81cc071
+--- /dev/null
++++ b/test/goalc/source_templates/arm64-aot/constant-42.gc
+@@ -0,0 +1 @@
++42
+diff --git a/test/goalc/test_arm64_aot.cpp b/test/goalc/test_arm64_aot.cpp
+new file mode 100644
+index 00000000..5f601e38
+--- /dev/null
++++ b/test/goalc/test_arm64_aot.cpp
+@@ -0,0 +1,77 @@
++#include <algorithm>
++#include <vector>
++
++#include "common/util/FileUtil.h"
++
++#include "goalc/aot/AOTWriter.h"
++#include "goalc/compiler/Compiler.h"
++#include "goalc/emitter/InstructionSet.h"
++#include "goalc/emitter/Register.h"
++#include "gtest/gtest.h"
++
++namespace {
++
++void expect_no_reserved_arm64_registers(const std::vector<emitter::Register>& registers) {
++  for (const auto reserved : {emitter::X20, emitter::X21, emitter::X22, emitter::SP,
++                              emitter::X29, emitter::X30}) {
++    EXPECT_EQ(std::find(registers.begin(), registers.end(), reserved), registers.end());
++  }
++}
++
++}  // namespace
++
++TEST(Arm64Aot, compiles_top_level_literal_and_renders_apple_text) {
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto source = file_util::read_text_file(
++      file_util::get_file_path({"test/goalc/source_templates/arm64-aot/constant-42.gc"}));
++  const auto code = compiler.compile_top_level_source(source, "constant-42");
++
++  EXPECT_EQ(code, (std::vector<u8>{0x40, 0x05, 0x80, 0xd2, 0xc0, 0x03, 0x5f, 0xd6}));
++
++  const aot::AppleArm64Function function{"goalpad_aot_constant_42", code};
++  EXPECT_EQ(aot::render_apple_arm64_assembly(function),
++            ".section __TEXT,__text,regular,pure_instructions\n"
++            ".p2align 2\n"
++            ".globl _goalpad_aot_constant_42\n"
++            "_goalpad_aot_constant_42:\n"
++            "  .long 0xd2800540\n"
++            "  .long 0xd65f03c0\n"
++            ".subsections_via_symbols\n");
++}
++
++TEST(Arm64Aot, rejects_source_outside_the_literal_42_proof) {
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  EXPECT_THROW(compiler.compile_top_level_source("41", "constant-41"), std::runtime_error);
++}
++
++TEST(Arm64Aot, uses_apple_abi_registers_without_goal_specials) {
++  const auto& registers = emitter::get_register_info(emitter::InstructionSet::ARM64);
++
++  const std::vector<emitter::Register> expected_argument_registers = {
++      emitter::X0, emitter::X1, emitter::X2, emitter::X3,
++      emitter::X4, emitter::X5, emitter::X6, emitter::X7,
++  };
++  for (int index = 0; index < emitter::RegisterInfo::N_ARGS; index++) {
++    EXPECT_EQ(registers.get_gpr_arg_reg(index), expected_argument_registers.at(index));
++  }
++
++  EXPECT_EQ(registers.get_gpr_ret_reg(), emitter::X0);
++  EXPECT_EQ(registers.get_process_reg(), emitter::X20);
++  EXPECT_EQ(registers.get_st_reg(), emitter::X21);
++  EXPECT_EQ(registers.get_offset_reg(), emitter::X22);
++  EXPECT_NE(emitter::Register(emitter::RAX), emitter::Register(emitter::X0));
++  EXPECT_NE(emitter::Register(emitter::X0).logical_id(),
++            emitter::Register(emitter::V0).logical_id());
++
++  expect_no_reserved_arm64_registers(registers.get_gpr_temp_alloc_order());
++  expect_no_reserved_arm64_registers(registers.get_gpr_alloc_order());
++  expect_no_reserved_arm64_registers(registers.get_gpr_spill_alloc_order());
++  expect_no_reserved_arm64_registers(
++      registers.get_v2_alloc_order(emitter::HWRegKind::GPR, false, false, false));
++  expect_no_reserved_arm64_registers(
++      registers.get_v2_alloc_order(emitter::HWRegKind::GPR, true, false, false));
++  expect_no_reserved_arm64_registers(
++      registers.get_v2_alloc_order(emitter::HWRegKind::GPR, false, true, false));
++  expect_no_reserved_arm64_registers(
++      registers.get_v2_alloc_order(emitter::HWRegKind::GPR, false, false, true));
++}
+diff --git a/test/test_emitter_arm64.cpp b/test/test_emitter_arm64.cpp
+index e8b4a270..b6fd006c 100644
+--- a/test/test_emitter_arm64.cpp
++++ b/test/test_emitter_arm64.cpp
+@@ -1,11 +1,26 @@
+ #include "emitter_util.h"
+ 
++#include <array>
++
+ #include "goalc/emitter/CodeTester.h"
+ #include "goalc/emitter/IGen.h"
++#include "goalc/emitter/IGenARM64.h"
+ #include "gtest/gtest.h"
+ 
+ using namespace emitter;
+ 
++TEST(ARM64EmitterLoads, mov_gpr64_u64_encodes_immediate_and_shift) {
++  std::array<u8, 4> code{};
++
++  auto literal = IGen::ARM64::mov_gpr64_u64(X0, 42);
++  EXPECT_EQ(literal.emit(code.data()), code.size());
++  EXPECT_EQ(code, (std::array<u8, 4>{0x40, 0x05, 0x80, 0xd2}));
++
++  auto shifted = IGen::ARM64::mov_gpr64_u64(X0, 0x10000);
++  EXPECT_EQ(shifted.emit(code.data()), code.size());
++  EXPECT_EQ(code, (std::array<u8, 4>{0x20, 0x00, 0xa0, 0xd2}));
++}
++
+ TEST(ARM64EmitterIntegerMath, add_gpr64_imm8s) {
+   CodeTester tester(InstructionSet::ARM64);
+   tester.init_code_buffer(256);
+@@ -41,4 +56,4 @@ TEST(ARM64EmitterIntegerMath, add_gpr64_imm8s) {
+     }
+   }
+   tester.clear();
+-}
+\ No newline at end of file
++}
+-- 
+2.50.1 (Apple Git-155)
+
