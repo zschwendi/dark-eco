@@ -40,15 +40,17 @@ xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
-These commands validate compilation and linking only. The generic iOS build is
-not physical-device validation.
+The macOS and generic iOS commands validate compilation and linking only. The
+generic iOS build is not physical-device validation. The generic simulator
+invocation is documented below as an expected architecture mismatch, not a
+required passing build.
 
 For ARM64 runtime validation, do not substitute the generic simulator
 destination for the named M5 simulator. The generic simulator build selected
-x86_64 in the verified true-function checkpoint; its intentional `__arm64__`
-instruction-byte checks therefore report a failed runtime probe. That is an
-architecture-specific expected failure, not ARM64 simulator evidence. Use the
-maintainer-created simulator instead:
+x86_64 in the verified true-function checkpoint and failed during assembly of
+the existing ARM64-only `GOALPadGoalStateWrapper.s`; no app launched and no
+runtime probe ran. That expected architecture mismatch is not ARM64 simulator
+evidence. Use the maintainer-created simulator instead:
 
 ```sh
 xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \

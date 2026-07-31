@@ -294,9 +294,10 @@ Current progress:
   state, relocate code, or use the desktop V3 linker.
 - The registry and state harnesses, ARM64 macOS app build, dedicated M5
   simulator build/run, and generic signed iOS build passed. The generic
-  simulator destination selected x86_64 and intentionally failed the ARM64
-  byte check; use the specific M5 simulator destination for runtime evidence.
-  No physical-device validation was performed.
+  simulator destination selected x86_64 and failed assembling the existing
+  ARM64-only state wrapper before runtime; use the specific M5 simulator
+  destination for ARM64 runtime evidence. No physical-device validation was
+  performed.
 - The current Debug generic iOS artifact is only limited signing/code-layout
   evidence. Its Preview split bundle is not release-like no-JIT evidence;
   recording a Release-like signed build is the next validation before making a

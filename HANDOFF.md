@@ -956,10 +956,11 @@ xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
   -derivedDataPath /private/tmp/GOALPad-device -jobs 4 build
 ```
 
-The ARM64 macOS build passed. The generic simulator build selected x86_64; its
-runtime probe intentionally failed the `__arm64__` byte check, so it is not
-ARM64 execution evidence. The corrected explicit M5 simulator build and run
-passed. Its final launch PID was `57206` and logged:
+The ARM64 macOS build passed. The generic simulator build selected x86_64 and
+failed while assembling the existing ARM64-only `GOALPadGoalStateWrapper.s`; no
+app launched and no runtime probe ran, so it is not ARM64 execution evidence.
+The corrected explicit M5 simulator build and run passed. Its final launch PID
+was `57206` and logged:
 
 ```text
 GOALPad runtime probe: Signed ARM64 Jak 1 false-func, true-func, and identity calls verified;
