@@ -3392,3 +3392,150 @@ audit begin. Type-object and method-table reads, mapping a 32-bit GOAL function
 value to signed native text, and indirect invocation remain distinct later
 tasks. Do not shortcut the non-final `load-state` virtual semantics with a
 hard-coded direct native call.
+
+## Checkpoint 15: portable existing-symbol value-cell resolver
+
+Current parent checkpoint:
+
+```text
+b89ff6cccef73952c5f57415905d893d23267f46
+feat(opengoal): preserve Jak 1 symbol resolver (AI-assisted)
+```
+
+`b89ff6c` is pushed to `origin/feat/ipados-native-boot`. The official OpenGOAL
+submodule remains at `a4cb1ac1f0596c8740b1c26accb24a58505cda92`; do not move
+that fetchable pin until a maintainer has selected and authenticated a durable
+fork. The unpublished child changes are independently preserved:
+
+| Patch | Child commit | SHA-256 | Stable patch ID |
+| --- | --- | --- | --- |
+| `0038-feat-data-arena-add-read-only-symbol-value-lookup-AI.patch` | `da6cfe9eaf245db3d92cc69bc0074a4496b02f9d` | `a7ab385d97511c126766e5cb756eca564a1be0c3f550b2cf9d030368c7066b89` | `369d7a19a863e8dae653f0dc12ab3ef41542b5d6` |
+| `0039-fix-data-arena-validate-canonical-symbol-table-tags-.patch` | `deebafd603f702f54133a8a9e8f5ce500a113231` | `3effeea99ea54d96fde7f1489c16357d773646f282e2e955cbfbe72bc54697eb` | `8ddab02469c04970285d73a5f632ce17e05de5ea` |
+
+The literal child sequence is:
+
+```text
+71fc691895acf44746961b7c7a3910da376ed0fd
+  -> e96cedd236512ca629455e3e2bab97ae28e410a1
+  -> 2229c13ea7f1563327e03e29951425f8ce345185
+  -> bb4b2e7e8705f55e8629da10cad9fb25d10e6cba
+  -> 0327eee4886f7a076d3b01f8e62afc3adddb8eeb
+  -> da6cfe9eaf245db3d92cc69bc0074a4496b02f9d
+  -> deebafd603f702f54133a8a9e8f5ce500a113231
+```
+
+### Scope
+
+Patch 0038 adds the portable, read-only
+`jak1::find_data_arena_symbol_value_cell` boundary. Given a caller-owned byte
+arena, a separately initialized `DataArenaHeader`, and a symbol name, it
+validates bounds and the canonical Jak 1 header shape, follows the compatible
+stateless CRC probe order, and returns only the existing value-cell GOAL offset
+and signed `s7`-relative displacement. It does not read the value cell.
+
+The lookup neither calls `intern_from_c` nor allocates, mutates the arena,
+binds caller storage to `g_ee_main_mem`, or accesses global `s7` state. It
+rejects null or oversized storage, malformed headers, embedded-NUL and
+pseudo-symbol queries, unrepresentable hashes, malformed symbols, and
+malformed strings without mutation. Patch 0039 additionally rejects
+self-consistent but shifted symbol-table tags before probing.
+
+This remains a synthetic data-format proof. It does not create or populate
+symbol metadata, initialize a live OpenGOAL runtime, execute GOAL, perform
+top-level/link initialization, create a type or method table, map a 32-bit GOAL
+function value to signed native text, dispatch a method, load user data, or
+boot Jak 1. It is not evidence that the iPad app, simulator, signed bundle, or
+physical device resolves a live `*load-state*` symbol.
+
+### Validation
+
+The child worktree and host build tree were:
+
+```text
+/private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup
+goalpad/data-arena-symbol-value-lookup
+deebafd603f702f54133a8a9e8f5ce500a113231
+
+/private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build
+```
+
+The host commands were:
+
+```sh
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  -R '^Jak1DataArena\\.' --output-on-failure
+
+cmake --build /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --target arm64-goal-call-abi-test goalc-aot -j 4
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build -N
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --output-on-failure -j 1
+
+cmake --build /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --target goalc-test -j 4
+
+/private/tmp/data-arena-symbol-value-lookup-jak-project-build/goalc-test \
+  '--gtest_filter=Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
+```
+
+The direct `goalc-test` command used the no-copy aliases
+`/private/tmp/data-arena-symbol-value-lookup-jak-project` and
+`/private/tmp/data-arena-symbol-value-lookup-jak-project-build`, which point to
+the source and build trees respectively. They are needed only because the
+upstream executable locates a development checkout by the `jak-project` path
+component; the CTest targets do not need them.
+
+Before the prerequisite build, the first full CTest invocation reported
+`arm64-goal-call-abi-test_NOT_BUILT` and failed the AOT CLI script because its
+`goalc-aot` path did not exist after the resolver tests. That was an
+incomplete-target infrastructure failure, not a source-test failure. After the
+targeted builds, the focused `Jak1DataArena` suite passed 23/23, the
+established compiler/emitter filter passed 191/191, and complete CTest passed
+31/31.
+
+The fresh iPhoneOS static-library build used:
+
+```sh
+cmake -S /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup \
+  -B /private/tmp/GOALPadOpenGOAL-arm64-symbol-resolver-iphoneos-build \
+  -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=iOS \
+  -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64 \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=18.0 \
+  -DOPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY=ON -DBUILD_TESTING=OFF
+
+cmake --build /private/tmp/GOALPadOpenGOAL-arm64-symbol-resolver-iphoneos-build \
+  --target jak1-data-arena -j 4
+
+/usr/bin/ar -t /private/tmp/GOALPadOpenGOAL-arm64-symbol-resolver-iphoneos-build/libjak1-data-arena.a
+/usr/bin/lipo -info /private/tmp/GOALPadOpenGOAL-arm64-symbol-resolver-iphoneos-build/libjak1-data-arena.a
+
+cd /private/tmp/goalpad-resolver-iphoneos.YtmF1h
+/usr/bin/ar -x /private/tmp/GOALPadOpenGOAL-arm64-symbol-resolver-iphoneos-build/libjak1-data-arena.a
+/usr/bin/xcrun vtool -show-build data_arena.cpp.o
+/usr/bin/otool -l data_arena.cpp.o | rg -A8 'LC_BUILD_VERSION|LC_VERSION_MIN'
+/usr/bin/nm -gU data_arena.cpp.o
+/usr/bin/nm -um data_arena.cpp.o
+```
+
+The resulting archive contains one `data_arena.cpp.o` arm64 member. Its
+`LC_BUILD_VERSION` declares iOS 18.0 with SDK 26.5. It exports
+`initialize_data_arena_header` and `find_data_arena_symbol_value_cell`, and its
+only undefined imports are `_bzero`, `_memchr`, and `_memcmp`. This is static
+iPhoneOS compatibility evidence only; it is not an executable, app, signing,
+simulator, physical-device, or runtime-execution result.
+
+No simulator, physical device (including **Z iPad Pro**), Xcode app build,
+remote, or retail game data was accessed for this checkpoint. Builds were
+serialized with `-j 4`.
+
+### Next exact task: resolver-backed synthetic composition
+
+Compose the resolver's signed displacement with the existing signed
+`load-state-value` artifact and direct `load-state::reset!` artifact using
+guarded caller-owned synthetic storage. After the fixture setup, the resolver
+path must remain read-only with respect to symbol metadata and must not
+introduce live linking, top-level initialization, type or method-table reads,
+GOAL function-value mapping, virtual dispatch, or a Jak boot claim. Keep the
+app boundary unchanged until a separate validated integration requires it.
