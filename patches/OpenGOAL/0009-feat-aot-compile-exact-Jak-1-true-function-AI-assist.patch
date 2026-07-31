@@ -1,0 +1,249 @@
+From 35d653f1fadc52e78925e952a507d60dc4c11245 Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Thu, 30 Jul 2026 20:44:36 -0600
+Subject: [PATCH] feat(aot): compile exact Jak 1 true function (AI-assisted)
+
+---
+ goalc/compiler/CodeGenerator.cpp              | 14 +++++-
+ goalc/compiler/IR.cpp                         | 19 +++++--
+ goalc/compiler/IR.h                           |  1 +
+ .../full-true-func-from-jak1-gcommon.gc       |  4 ++
+ test/goalc/test_arm64_aot.cpp                 | 49 +++++++++++++++++++
+ test/goalc/test_arm64_aot_cli.cmake           | 46 +++++++++++++++++
+ 6 files changed, 126 insertions(+), 7 deletions(-)
+ create mode 100644 test/goalc/source_templates/arm64-aot/full-true-func-from-jak1-gcommon.gc
+
+diff --git a/goalc/compiler/CodeGenerator.cpp b/goalc/compiler/CodeGenerator.cpp
+index 73423b7b..b46dc3eb 100644
+--- a/goalc/compiler/CodeGenerator.cpp
++++ b/goalc/compiler/CodeGenerator.cpp
+@@ -535,6 +535,15 @@ void CodeGenerator::do_goal_function_arm64(FunctionEnv* env, int f_idx) {
+       env->name() == "false-func" && value_reset && value_reset->has_no_args() && false_value &&
+       false_value->name() == "#f" && dynamic_cast<IR_Return*>(code.at(2).get()) &&
+       dynamic_cast<IR_Null*>(code.at(3).get());
++  const auto* true_value =
++      code.size() == 4 ? dynamic_cast<IR_LoadSymbolPointer*>(code.at(1).get()) : nullptr;
++  const auto* true_return =
++      code.size() == 4 ? dynamic_cast<IR_Return*>(code.at(2).get()) : nullptr;
++  const bool supported_true_function =
++      env->name() == "true-func" && value_reset && value_reset->has_no_args() && true_value &&
++      true_value->name() == "#t" && true_return &&
++      true_return->value() == true_value->destination() &&
++      dynamic_cast<IR_Null*>(code.at(3).get());
+   const auto* identity_value_reset =
+       code.size() == 4 ? dynamic_cast<IR_ValueReset*>(code.at(0).get()) : nullptr;
+   const auto* identity_move =
+@@ -560,10 +569,11 @@ void CodeGenerator::do_goal_function_arm64(FunctionEnv* env, int f_idx) {
+       identity_return->value() == identity_move->destination() &&
+       identity_argument_uses_apple_abi &&
+       dynamic_cast<IR_Null*>(code.at(3).get());
+-  if (!supported_top_level && !supported_false_function && !supported_identity_function) {
++  if (!supported_top_level && !supported_false_function && !supported_true_function &&
++      !supported_identity_function) {
+     throw std::runtime_error(
+         "ARM64 AOT proof only supports top-level literal 42, top-level #f, or the zero-argument "
+-        "Jak 1 false function or one-argument identity function.");
++        "Jak 1 false or true function or one-argument identity function.");
+   }
+ 
+   auto* debug = &m_debug_info->function_by_name(env->name());
+diff --git a/goalc/compiler/IR.cpp b/goalc/compiler/IR.cpp
+index 9ba0430e..75bf0183 100644
+--- a/goalc/compiler/IR.cpp
++++ b/goalc/compiler/IR.cpp
+@@ -305,10 +305,6 @@ void IR_LoadSymbolPointer::do_codegen_x86(emitter::ObjectGenerator* gen,
+ void IR_LoadSymbolPointer::do_codegen_arm64(emitter::ObjectGenerator* gen,
+                                             const AllocationResult& allocs,
+                                             emitter::IR_Record irec) {
+-  if (m_name != "#f") {
+-    throw std::runtime_error("ARM64 AOT proof only supports the #f symbol pointer.");
+-  }
+-  static_assert(false_symbol_offset() == 0, "false symbol location");
+   if (m_dest->ireg().reg_class != RegClass::GPR_64) {
+     throw std::runtime_error("ARM64 AOT proof only supports GPR symbol pointers.");
+   }
+@@ -318,7 +314,20 @@ void IR_LoadSymbolPointer::do_codegen_arm64(emitter::ObjectGenerator* gen,
+     throw std::runtime_error("ARM64 AOT proof requires a non-stack GPR symbol destination.");
+   }
+   const auto st_reg = get_register_info(gen->instr_set()).get_st_reg();
+-  gen->add_instr(IGen::mov_gpr64_gpr64(*gen, dest_reg, st_reg), irec);
++  if (m_name == "#f") {
++    static_assert(false_symbol_offset() == 0, "false symbol location");
++    gen->add_instr(IGen::mov_gpr64_gpr64(*gen, dest_reg, st_reg), irec);
++  } else if (m_name == "#t") {
++    if (gen->version() != GameVersion::Jak1) {
++      throw std::runtime_error("ARM64 AOT proof only supports the Jak 1 #t symbol pointer.");
++    }
++    static_assert(true_symbol_offset(GameVersion::Jak1) == 0x8, "Jak 1 true symbol location");
++    gen->add_instr(IGen::mov_gpr64_gpr64(*gen, dest_reg, st_reg), irec);
++    gen->add_instr(IGen::add_gpr64_imm8s(*gen, dest_reg, true_symbol_offset(GameVersion::Jak1)),
++                   irec);
++  } else {
++    throw std::runtime_error("ARM64 AOT proof only supports the #f or #t symbol pointer.");
++  }
+ }
+ 
+ /////////////////////
+diff --git a/goalc/compiler/IR.h b/goalc/compiler/IR.h
+index f87952a9..dbe181e2 100644
+--- a/goalc/compiler/IR.h
++++ b/goalc/compiler/IR.h
+@@ -75,6 +75,7 @@ class IR_LoadSymbolPointer : public IR {
+   void do_codegen_arm64(emitter::ObjectGenerator* gen,
+                         const AllocationResult& allocs,
+                         emitter::IR_Record irec) override;
++  const RegVal* destination() const { return m_dest; }
+   const std::string& name() const { return m_name; }
+ 
+  protected:
+diff --git a/test/goalc/source_templates/arm64-aot/full-true-func-from-jak1-gcommon.gc b/test/goalc/source_templates/arm64-aot/full-true-func-from-jak1-gcommon.gc
+new file mode 100644
+index 00000000..3b7bce34
+--- /dev/null
++++ b/test/goalc/source_templates/arm64-aot/full-true-func-from-jak1-gcommon.gc
+@@ -0,0 +1,4 @@
++;; Exact full definition from goal_src/jak1/kernel/gcommon.gc.
++(defun true-func ()
++  "Return true"
++  '#t)
+diff --git a/test/goalc/test_arm64_aot.cpp b/test/goalc/test_arm64_aot.cpp
+index 3e0e7c8f..0cc6b5ce 100644
+--- a/test/goalc/test_arm64_aot.cpp
++++ b/test/goalc/test_arm64_aot.cpp
+@@ -141,6 +141,28 @@ TEST(Arm64Aot, compiles_full_jak1_identity_and_renders_apple_text) {
+             ".subsections_via_symbols\n");
+ }
+ 
++TEST(Arm64Aot, compiles_full_jak1_true_func_and_renders_apple_text) {
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto source = file_util::read_text_file(file_util::get_file_path(
++      {"test/goalc/source_templates/arm64-aot/full-true-func-from-jak1-gcommon.gc"}));
++  const auto code = compiler.compile_arm64_aot_source(source, "full-true-func-from-jak1-gcommon",
++                                                      std::optional<std::string>{"true-func"});
++
++  EXPECT_EQ(code, (std::vector<u8>{0xe0, 0x03, 0x15, 0xaa, 0x00, 0x20,
++                                   0x00, 0x91, 0xc0, 0x03, 0x5f, 0xd6}));
++
++  const aot::AppleArm64Function function{"goalpad_aot_true_func", code};
++  EXPECT_EQ(aot::render_apple_arm64_assembly(function),
++            ".section __TEXT,__text,regular,pure_instructions\n"
++            ".p2align 2\n"
++            ".globl _goalpad_aot_true_func\n"
++            "_goalpad_aot_true_func:\n"
++            "  .long 0xaa1503e0\n"
++            "  .long 0x91002000\n"
++            "  .long 0xd65f03c0\n"
++            ".subsections_via_symbols\n");
++}
++
+ TEST(Arm64Aot, renders_zero_argument_native_export_metadata) {
+   const aot::NativeExport0 native_export{"false-func", "goalpad_aot_false_func"};
+ 
+@@ -172,6 +194,8 @@ TEST(Arm64Aot, rejects_native_exports_outside_the_false_func_proof) {
+   EXPECT_THROW(aot::render_cpp_xmacro_export0({"false-func", "_Reserved"}), std::invalid_argument);
+   EXPECT_THROW(aot::render_cpp_xmacro_export0({"false-func", "class"}), std::invalid_argument);
+   EXPECT_THROW(aot::render_cpp_xmacro_export0({"false-func", "main"}), std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export0({"true-func", "goalpad_aot_true_func"}),
++               std::invalid_argument);
+ }
+ 
+ TEST(Arm64Aot, rejects_native_exports_outside_the_identity_proof) {
+@@ -264,6 +288,31 @@ TEST(Arm64Aot, rejects_identity_shaped_function_with_a_different_name) {
+                std::runtime_error);
+ }
+ 
++TEST(Arm64Aot, rejects_true_func_with_a_false_body) {
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++
++  EXPECT_THROW(compiler.compile_arm64_aot_source("(defun true-func () '#f)", "true-with-false-body",
++                                                 std::optional<std::string>{"true-func"}),
++               std::runtime_error);
++}
++
++TEST(Arm64Aot, rejects_true_body_under_a_different_name) {
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++
++  EXPECT_THROW(compiler.compile_arm64_aot_source("(defun other () '#t)", "other-true",
++                                                 std::optional<std::string>{"other"}),
++               std::runtime_error);
++}
++
++TEST(Arm64Aot, rejects_true_func_with_an_argument) {
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++
++  EXPECT_THROW(compiler.compile_arm64_aot_source("(defun true-func ((x object)) '#t)",
++                                                 "true-with-argument",
++                                                 std::optional<std::string>{"true-func"}),
++               std::runtime_error);
++}
++
+ TEST(Arm64Aot, emits_non_coalesced_gpr_register_move) {
+   const RegVal destination{{RegClass::GPR_64, 0}, TypeSpec("object")};
+   const RegVal source{{RegClass::GPR_64, 1}, TypeSpec("object")};
+diff --git a/test/goalc/test_arm64_aot_cli.cmake b/test/goalc/test_arm64_aot_cli.cmake
+index 47abbf14..d27013a2 100644
+--- a/test/goalc/test_arm64_aot_cli.cmake
++++ b/test/goalc/test_arm64_aot_cli.cmake
+@@ -10,6 +10,11 @@ set(IDENTITY_INPUT
+ set(IDENTITY_ASSEMBLY_ONLY "${OUTPUT_DIR}/identity-assembly-only.s")
+ set(IDENTITY_PAIRED_ASSEMBLY "${OUTPUT_DIR}/identity-paired.s")
+ set(IDENTITY_EXPORTS "${OUTPUT_DIR}/identity-paired.exports.inc")
++set(TRUE_INPUT
++    "${PROJECT_ROOT}/test/goalc/source_templates/arm64-aot/full-true-func-from-jak1-gcommon.gc")
++set(TRUE_ASSEMBLY_ONLY "${OUTPUT_DIR}/true-assembly-only.s")
++set(TRUE_PAIRED_ASSEMBLY "${OUTPUT_DIR}/true-paired.s")
++set(TRUE_EXPORTS "${OUTPUT_DIR}/true-paired.exports.inc")
+ 
+ execute_process(
+   COMMAND "${GOALC_AOT}"
+@@ -87,6 +92,47 @@ if(NOT ACTUAL_IDENTITY_EXPORTS STREQUAL EXPECTED_IDENTITY_EXPORTS)
+   message(FATAL_ERROR "Generated identity export metadata did not match the expected record")
+ endif()
+ 
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${TRUE_INPUT}"
++          --function true-func
++          --output "${TRUE_ASSEMBLY_ONLY}"
++          --symbol goalpad_aot_true_func
++  RESULT_VARIABLE TRUE_ASSEMBLY_ONLY_RESULT)
++if(NOT TRUE_ASSEMBLY_ONLY_RESULT EQUAL 0)
++  message(FATAL_ERROR "Assembly-only true-func goalc-aot invocation failed")
++endif()
++
++file(READ "${TRUE_ASSEMBLY_ONLY}" ACTUAL_TRUE_ASSEMBLY)
++set(EXPECTED_TRUE_ASSEMBLY
++    ".section __TEXT,__text,regular,pure_instructions\n.p2align 2\n.globl _goalpad_aot_true_func\n_goalpad_aot_true_func:\n  .long 0xaa1503e0\n  .long 0x91002000\n  .long 0xd65f03c0\n.subsections_via_symbols\n")
++if(NOT ACTUAL_TRUE_ASSEMBLY STREQUAL EXPECTED_TRUE_ASSEMBLY)
++  message(FATAL_ERROR "Assembly-only true-func artifact did not match the expected ARM64 code")
++endif()
++
++file(WRITE "${TRUE_PAIRED_ASSEMBLY}" "old true assembly\n")
++file(WRITE "${TRUE_EXPORTS}" "old true exports\n")
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${TRUE_INPUT}"
++          --function true-func
++          --output "${TRUE_PAIRED_ASSEMBLY}"
++          --exports-output "${TRUE_EXPORTS}"
++          --symbol goalpad_aot_true_func
++  RESULT_VARIABLE TRUE_PAIRED_RESULT)
++if(TRUE_PAIRED_RESULT EQUAL 0)
++  message(FATAL_ERROR "goalc-aot accepted true-func native export metadata")
++endif()
++
++file(READ "${TRUE_PAIRED_ASSEMBLY}" ACTUAL_TRUE_PAIRED_ASSEMBLY)
++file(READ "${TRUE_EXPORTS}" ACTUAL_TRUE_EXPORTS)
++if(NOT ACTUAL_TRUE_PAIRED_ASSEMBLY STREQUAL "old true assembly\n" OR
++   NOT ACTUAL_TRUE_EXPORTS STREQUAL "old true exports\n")
++  message(FATAL_ERROR "Rejected true-func native export modified an existing artifact")
++endif()
++
+ execute_process(
+   COMMAND "${GOALC_AOT}"
+           --project-path "${PROJECT_ROOT}"
+-- 
+2.50.1 (Apple Git-155)
+
