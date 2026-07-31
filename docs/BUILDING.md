@@ -1816,3 +1816,43 @@ through the typed binding and a `call_goal_asm_arm64` invoker in guarded
 synthetic arena(s). Preserve caller-register and guard checks and fail closed
 for nonmatching tuples; do not add a raw-address cast, JIT, app/runtime
 integration, signing claim, or live data path.
+
+## Checkpoint 19: generated reset! ARM64 ABI composition (test-only)
+
+Patch `0043-test-arm64-compose-native-load-state-reset-binding-A.patch`
+preserves child `e60fb292b28168ad62d9345e8e0a33eea9356d82` with SHA-256
+`b1c82bdde66acecabb5a0f1fd5c1db713e3512fb8a64d634bd340683d2ba7374` and
+stable patch ID `ac085c91b06863f4b7f3362b7eb93f6c3eaedb5d`. Ordered 0038-0043
+replay exactly matches that child, and the patch reverse check passed against
+the preserved child tree.
+
+The change is limited to `test/test_arm64_goal_call_abi.cpp`. It uses the
+generated `kArm64GoalExports1[3].entry` for `load-state::reset!` through the
+existing typed binding and `call_goal_asm_arm64` outer wrapper. The raw GOAL
+method word is never a native pointer. Two guarded synthetic arenas verify the
+expected reset state, guards, caller-register preservation, and fail-closed
+no-mutation behavior for a mismatched binding.
+
+Recorded host validation used:
+
+```sh
+cmake --build /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --target arm64-goal-call-abi-test -j 4
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  -R '^Arm64GoalCallAbi\\.' --output-on-failure -j 1
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --output-on-failure -j 1
+
+/private/tmp/data-arena-symbol-value-lookup-jak-project-build/goalc-test \
+  '--gtest_filter=Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
+```
+
+The ARM64 goal-call ABI target build passed; focused `Arm64GoalCallAbi` CTest
+passed 9/9; full CTest passed 47/47; and the direct compiler/emitter binary
+passed 191/191. No iPhoneOS static-library rebuild was run because this
+test-only patch did not change production library inputs. No application build,
+runtime integration, signing, simulator, physical-device, or game-data proof
+occurred. The next step is an audit of the smallest app/runtime integration
+boundary before any production integration change.

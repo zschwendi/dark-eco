@@ -759,9 +759,10 @@ artifact boundaries, bounded 0020 X22 field-load proof, direct 0021-0023
 level-command store proof, direct 0024-0026 `want-vis` proof, complete
 0027-0033 direct `want-levels`, 0034-0036 direct `load-state::reset!`, and
 0037 `*load-state*` value-cell shape proof plus the 0038-0039 read-only
-existing-symbol resolver, 0040 synthetic composition proof, and 0041 read-only
-BASIC method-value lookup plus 0042 portable trusted-native method binding are
-verified but do not complete the Stage 4 exit gate.
+existing-symbol resolver, 0040 synthetic composition proof, 0041 read-only
+BASIC method-value lookup, 0042 portable trusted-native method binding, and
+0043 guarded ARM64 ABI composition of the generated `load-state::reset!`
+Export1 are verified but do not complete the Stage 4 exit gate.
 
 Stage 1 is blocked on a maintainer-chosen, fetchable OpenGOAL fork/pin and
 working GitHub authentication. Until publication, keep the official submodule
@@ -772,17 +773,18 @@ owner, access policy, and transport, then explicitly renews authentication.
 
 The next actions are:
 
-1. Integrate the verified portable 0013-0042 work only after a dedicated
+1. Integrate the verified portable 0013-0043 work only after a dedicated
    OpenGOAL fork makes the ordered changes fetchable and pins them
    reproducibly. Preserve every mbox and stable patch ID. Patches 0022 and
    0023 are sibling child changes from 0021; 0024-0032 have both literal and
    stable-equivalent runtime-replay identities; 0033 follows the reviewed
    replay line, 0034-0036 form the literal
    `71fc6918 -> e96cedd2 -> 2229c13e -> bb4b2e7e` sequence, and 0037 follows
-   with `0327eee4 -> da6cfe9e -> deebafd -> a13b42f7 -> 0ee4a48f -> 7aaaf299`;
+   with `0327eee4 -> da6cfe9e -> deebafd -> a13b42f7 -> 0ee4a48f -> 7aaaf299
+   -> e60fb292`;
    `a13b42f7` was cherry-picked from reviewed source commit `9a830552`.
-   The preservation audit confirmed ordered 0038-0042 replay exactly matches
-   the `7aaaf299` tree, and the reverse patch check passed. Do not copy the
+   The preservation audit confirmed ordered 0038-0043 replay exactly matches
+   the `e60fb292` tree, and the reverse patch check passed. Do not copy the
    source into the app or use a machine-local worktree path.
 2. The next boot-flow candidate remains `load-state-want-levels` at
    `goal_src/jak1/engine/level/load-boundary.gc:1095-1096`, called at
@@ -800,13 +802,20 @@ The next actions are:
    JIT. Entry provenance, code signing, and the ABI remain platform-layer
    responsibilities; callers keep the arena, header, binding span, and aliases
    stable and exclusively serialized for the whole operation.
-   The next exact task is to invoke the actual generated `load-state::reset!`
-   Export1 through that typed binding and a `call_goal_asm_arm64` invoker in
-   guarded synthetic arena(s), preserving caller registers and guards while
-   nonmatching tuples fail closed. Runtime type/method-table loading in a live
-   runtime, general type creation, linking, game data, and boot remain later
-   separate seams. The existing direct Export3 body is not method dispatch; do
-   not silently change the non-final type's virtual semantics.
+   Checkpoint 19 invokes the generated `load-state::reset!` Export1 through
+   that typed binding and the existing `call_goal_asm_arm64` outer wrapper in
+   two guarded synthetic arenas. It verifies the generated Export1 selection,
+   exact reset writes, guards, caller-register restoration, and fail-closed
+   binding mismatch without treating the raw GOAL word as a native address.
+   This is still test-only host ARM64 evidence. The next task is a narrow audit
+   of the smallest GOALPad app/runtime boundary that can own a static native
+   entry and caller storage with a clear lifetime, initialization, and signing
+   story. The audit must choose a contained integration proof before changing
+   runtime code; it must not claim simulator, device, game-data, or boot
+   execution. Runtime type/method-table loading, general type creation,
+   linking, game data, and boot remain separate seams. The existing direct
+   Export3 body is not method dispatch; do not silently change the non-final
+   type's virtual semantics.
 3. Keep unsupported statics, general relocations, calls, saved registers,
    spills, and stack locals explicit until a real Jak 1 boot dependency
    requires each boundary. Keep x86 behavior, the non-network compiler suite,

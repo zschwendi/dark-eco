@@ -3944,3 +3944,106 @@ preserve the established caller-register and guard checks, and ensure every
 nonmatching type, id, value, size, or arity fails closed before the native call.
 Do not add a raw-address cast, JIT, app/runtime integration, signing claim, or
 live data path as part of that task.
+
+## Checkpoint 19: generated reset! through the typed ARM64 ABI boundary
+
+Current parent checkpoint:
+
+```text
+a0ce15551f3b9642c162db1a9a8dca08c7c160e7
+test(opengoal): preserve native reset binding composition (AI-assisted)
+```
+
+The official OpenGOAL submodule remains at
+`a4cb1ac1f0596c8740b1c26accb24a58505cda92`; it was not moved. Parent commit
+`a0ce155` preserves downstream child
+`e60fb292b28168ad62d9345e8e0a33eea9356d82`:
+
+| Patch | Child commit | SHA-256 | Stable patch ID |
+| --- | --- | --- | --- |
+| `0043-test-arm64-compose-native-load-state-reset-binding-A.patch` | `e60fb292b28168ad62d9345e8e0a33eea9356d82` | `b1c82bdde66acecabb5a0f1fd5c1db713e3512fb8a64d634bd340683d2ba7374` | `ac085c91b06863f4b7f3362b7eb93f6c3eaedb5d` |
+
+The literal preserved child sequence is:
+
+```text
+0327eee4886f7a076d3b01f8e62afc3adddb8eeb
+  -> da6cfe9eaf245db3d92cc69bc0074a4496b02f9d
+  -> deebafd603f702f54133a8a9e8f5ce500a113231
+  -> a13b42f7c8e67eb123f01ad0bca9ba07ad27bf96
+  -> 0ee4a48f9f58ea1504e84c500f6a0942bc8047ce
+  -> 7aaaf29942f5836dda311e173865dfcd0ea6de64
+  -> e60fb292b28168ad62d9345e8e0a33eea9356d82
+```
+
+The ordered 0038-0043 replay exactly matches the `e60fb292` tree, and the
+reverse check for patch 0043 passed against that preserved child.
+
+### Delegation and review
+
+Two independent read-only reviews returned **ACCEPT** for the exact child.
+They confirmed the generated reset Export1 selection and ordering, the typed
+binding tuple and raw-word boundary, guarded two-arena execution, exact reset
+writes, guard and caller-register restoration, and full-backing no-mutation
+failure for a mismatched binding. The root agent serialized validation and
+patch integration.
+
+### Scope
+
+Patch 0043 changes only `test/test_arm64_goal_call_abi.cpp`. It binds the
+actual generated `load-state::reset!` entry
+`kArm64GoalExports1[3].entry` through the existing typed
+`DataArenaNativeMethodBinding1` boundary, whose tuple retains the actual
+`object_type` `0x42084`, method id `9`, Function word `0x42a04`, allocated
+size `0x82c`, padded size `0x830`, and arity one. The test asserts that export
+index 3 is `reset!` and that its entry type matches the ARM64 Export1 entry.
+
+The test invokes only the trusted binding entry through the existing ARM64 ABI
+outer wrapper, which uses `call_goal_asm_arm64`. The raw 32-bit GOAL method
+word remains comparison data and is never cast to a native pointer. Two compact
+canonical caller-owned arenas run inside guarded backing storage; each full
+arena is compared with the expected reset state, including the eight `want`
+flags, empty command list, object-name and status ranges, preserved metadata,
+and a `vis-nick` sentinel. Global and inner guards, plus caller X20/X21/X22,
+must be restored. A changed binding method word must return `UnboundMethod`,
+make zero invoker calls, and leave the full backing buffer unchanged.
+
+This is a test-only child change. It did not alter production runtime or
+iPhoneOS library inputs, so no iPhoneOS static-library rebuild was run for this
+checkpoint. It is host ARM64 synthetic evidence only: no GOALPad application
+build, runtime integration, signing, simulator, physical device (including
+**Z iPad Pro**), remote, or proprietary game data was accessed. It does not
+establish static linkage, code-signature validity, live storage lifetime,
+runtime initialization, game-data loading, or Jak 1 boot.
+
+### Validation
+
+Recorded host validation used the existing configured build trees:
+
+```sh
+cmake --build /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --target arm64-goal-call-abi-test -j 4
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  -R '^Arm64GoalCallAbi\\.' --output-on-failure -j 1
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --output-on-failure -j 1
+
+/private/tmp/data-arena-symbol-value-lookup-jak-project-build/goalc-test \
+  '--gtest_filter=Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
+```
+
+The `arm64-goal-call-abi-test` target build passed. Focused
+`Arm64GoalCallAbi` CTest passed 9/9, full CTest passed 47/47, and the existing
+direct compiler/emitter binary passed 191/191. Builds used `-j 4`; CTest was
+serialized with `-j 1`.
+
+### Next exact task: audit the first app/runtime integration boundary
+
+Before altering runtime or application code, audit the smallest GOALPad
+app/runtime boundary that can provide a statically linked native entry and
+caller-owned storage with explicit initialization, lifetime, ownership, and
+normal signing responsibilities. Select one contained integration proof only
+after that audit. Do not add JIT or a raw-address cast, and do not claim app,
+signing, simulator, device, game-data, or boot execution without its own
+validation.
