@@ -1,0 +1,232 @@
+From 45e1897f7cd560e4951f515e264078a023a2d08c Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Thu, 30 Jul 2026 22:53:32 -0600
+Subject: [PATCH] fix(arm64): verify GOAL call context ABI (AI-assisted)
+
+---
+ game/kernel/common/kscheme.cpp    |   4 ++
+ test/CMakeLists.txt               |  11 ++++
+ test/test_arm64_goal_call_abi.cpp | 106 ++++++++++++++++++++++++++++++
+ test/test_arm64_goal_call_abi.s   |  53 +++++++++++++++
+ 4 files changed, 174 insertions(+)
+ create mode 100644 test/test_arm64_goal_call_abi.cpp
+ create mode 100644 test/test_arm64_goal_call_abi.s
+
+diff --git a/game/kernel/common/kscheme.cpp b/game/kernel/common/kscheme.cpp
+index ae43de72..31b62b08 100644
+--- a/game/kernel/common/kscheme.cpp
++++ b/game/kernel/common/kscheme.cpp
+@@ -101,6 +101,8 @@ uint64_t _call_goal_on_stack_asm_systemv(u64 rsp,
+                                          void* fptr,
+                                          void* st_ptr,
+                                          void* offset) asm("_call_goal_on_stack_asm_systemv");
++#elif defined(__APPLE__) && defined(__aarch64__)
++uint64_t call_goal_asm_arm64(u64 a0, u64 a1, u64 a2, void* fptr, void* st_ptr, void* offset);
+ #elif _WIN32
+ uint64_t _call_goal_asm_win32(u64 a0, u64 a1, u64 a2, void* fptr, void* st_ptr, void* offset);
+ uint64_t _call_goal_on_stack_asm_win32(u64 rsp, void* fptr, void* st_ptr, void* offset);
+@@ -120,6 +122,8 @@ u64 call_goal(Ptr<Function> f, u64 a, u64 b, u64 c, u64 st, void* offset) {
+   return _call_goal_asm_systemv(a, b, c, fptr, st_ptr, offset);
+ #elif defined __APPLE__ && defined __x86_64__
+   return _call_goal_asm_systemv(a, b, c, fptr, st_ptr, offset);
++#elif defined(__APPLE__) && defined(__aarch64__)
++  return call_goal_asm_arm64(a, b, c, fptr, st_ptr, offset);
+ #elif _WIN32
+   return _call_goal_asm_win32(a, b, c, fptr, st_ptr, offset);
+ #endif
+diff --git a/test/CMakeLists.txt b/test/CMakeLists.txt
+index c982f0d7..c8db17dd 100644
+--- a/test/CMakeLists.txt
++++ b/test/CMakeLists.txt
+@@ -46,6 +46,17 @@ if(BUILD_TESTING AND GOAL_HOST_TESTS_ENABLED)
+   gtest_discover_tests(jak1-data-arena-test)
+ endif()
+ 
++if(BUILD_TESTING AND GOAL_HOST_TESTS_ENABLED AND APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
++  enable_language(ASM)
++  add_executable(arm64-goal-call-abi-test
++                 ${CMAKE_CURRENT_LIST_DIR}/test_arm64_goal_call_abi.cpp
++                 ${CMAKE_CURRENT_LIST_DIR}/test_arm64_goal_call_abi.s
++                 ${CMAKE_SOURCE_DIR}/game/kernel/asm_funcs_arm64.s)
++  target_link_libraries(arm64-goal-call-abi-test gtest_main)
++  target_compile_features(arm64-goal-call-abi-test PRIVATE cxx_std_20)
++  gtest_discover_tests(arm64-goal-call-abi-test)
++endif()
++
+ add_executable(test_image_resize ${CMAKE_CURRENT_LIST_DIR}/common/test_image_resize.cpp)
+ target_link_libraries(test_image_resize common)
+ 
+diff --git a/test/test_arm64_goal_call_abi.cpp b/test/test_arm64_goal_call_abi.cpp
+new file mode 100644
+index 00000000..712cb92f
+--- /dev/null
++++ b/test/test_arm64_goal_call_abi.cpp
+@@ -0,0 +1,106 @@
++#include <array>
++#include <cstddef>
++#include <cstdint>
++
++#include "gtest/gtest.h"
++
++namespace {
++
++struct Arm64GoalCallProbe {
++  std::uint64_t argument0;
++  std::uint64_t argument1;
++  std::uintptr_t st;
++  std::uintptr_t arena;
++  std::uintptr_t entry;
++  std::uint64_t entry_x0;
++  std::uint64_t entry_x1;
++  std::uintptr_t entry_x2;
++  std::uintptr_t entry_x20;
++  std::uintptr_t entry_x21;
++  std::uintptr_t entry_x22;
++  std::uint64_t entry_sp_mod16;
++  std::uint64_t result;
++  std::uint64_t caller_x20_after;
++  std::uint64_t caller_x21_after;
++  std::uint64_t caller_x22_after;
++};
++
++static_assert(sizeof(Arm64GoalCallProbe) == 128);
++static_assert(offsetof(Arm64GoalCallProbe, argument0) == 0);
++static_assert(offsetof(Arm64GoalCallProbe, argument1) == 8);
++static_assert(offsetof(Arm64GoalCallProbe, st) == 16);
++static_assert(offsetof(Arm64GoalCallProbe, arena) == 24);
++static_assert(offsetof(Arm64GoalCallProbe, entry) == 32);
++static_assert(offsetof(Arm64GoalCallProbe, entry_x0) == 40);
++static_assert(offsetof(Arm64GoalCallProbe, entry_x1) == 48);
++static_assert(offsetof(Arm64GoalCallProbe, entry_x2) == 56);
++static_assert(offsetof(Arm64GoalCallProbe, entry_x20) == 64);
++static_assert(offsetof(Arm64GoalCallProbe, entry_x21) == 72);
++static_assert(offsetof(Arm64GoalCallProbe, entry_x22) == 80);
++static_assert(offsetof(Arm64GoalCallProbe, entry_sp_mod16) == 88);
++static_assert(offsetof(Arm64GoalCallProbe, result) == 96);
++static_assert(offsetof(Arm64GoalCallProbe, caller_x20_after) == 104);
++static_assert(offsetof(Arm64GoalCallProbe, caller_x21_after) == 112);
++static_assert(offsetof(Arm64GoalCallProbe, caller_x22_after) == 120);
++
++extern "C" void arm64_goal_call_abi_outer(Arm64GoalCallProbe* probe);
++using Arm64GoalEntry =
++    std::uint64_t (*)(std::uint64_t, std::uint64_t, std::uint64_t);
++
++extern "C" std::uint64_t arm64_goal_call_abi_entry(std::uint64_t,
++                                                    std::uint64_t,
++                                                    std::uint64_t);
++extern "C" std::uint64_t arm64_goal_call_false_like_entry(std::uint64_t,
++                                                           std::uint64_t,
++                                                           std::uint64_t);
++
++std::uintptr_t entry_address(Arm64GoalEntry entry) {
++  return reinterpret_cast<std::uintptr_t>(entry);
++}
++
++Arm64GoalCallProbe make_probe(std::uintptr_t entry, std::uintptr_t st, std::uintptr_t arena) {
++  return {
++      .argument0 = 0x1122334455667788,
++      .argument1 = 0x8877665544332211,
++      .st = st,
++      .arena = arena,
++      .entry = entry,
++  };
++}
++
++TEST(Arm64GoalCallAbi, forwards_goal_register_context_and_restores_caller_registers) {
++  std::array<std::byte, 64> arena{};
++  constexpr std::uintptr_t kSt = 0x14fd24;
++  auto probe = make_probe(entry_address(arm64_goal_call_abi_entry), kSt,
++                          reinterpret_cast<std::uintptr_t>(arena.data()));
++
++  arm64_goal_call_abi_outer(&probe);
++
++  EXPECT_EQ(probe.entry_x0, probe.argument0);
++  EXPECT_EQ(probe.entry_x1, probe.argument1);
++  EXPECT_EQ(probe.entry_x2, reinterpret_cast<std::uintptr_t>(&probe));
++  EXPECT_EQ(probe.entry_x20, kSt);
++  EXPECT_EQ(probe.entry_x21, kSt);
++  EXPECT_EQ(probe.entry_x22, reinterpret_cast<std::uintptr_t>(arena.data()));
++  EXPECT_EQ(probe.entry_sp_mod16, 0);
++  EXPECT_EQ(probe.result, probe.argument0 ^ probe.argument1);
++  EXPECT_EQ(probe.caller_x20_after, 0x14);
++  EXPECT_EQ(probe.caller_x21_after, 0x15);
++  EXPECT_EQ(probe.caller_x22_after, 0x16);
++}
++
++TEST(Arm64GoalCallAbi, calls_a_static_false_like_entry_with_the_symbol_table_register) {
++  std::array<std::byte, 64> arena{};
++  constexpr std::uintptr_t kSt = 0x14fd24;
++  auto probe = make_probe(entry_address(arm64_goal_call_false_like_entry), kSt,
++                          reinterpret_cast<std::uintptr_t>(arena.data()));
++
++  arm64_goal_call_abi_outer(&probe);
++
++  EXPECT_EQ(probe.result, kSt);
++  EXPECT_EQ(probe.caller_x20_after, 0x14);
++  EXPECT_EQ(probe.caller_x21_after, 0x15);
++  EXPECT_EQ(probe.caller_x22_after, 0x16);
++}
++
++}  // namespace
+diff --git a/test/test_arm64_goal_call_abi.s b/test/test_arm64_goal_call_abi.s
+new file mode 100644
+index 00000000..ea0cdef1
+--- /dev/null
++++ b/test/test_arm64_goal_call_abi.s
+@@ -0,0 +1,53 @@
++.text
++
++.global _arm64_goal_call_abi_outer
++.align 4
++_arm64_goal_call_abi_outer:
++  stp x29, x30, [sp, #-16]!
++  mov x29, sp
++  stp x19, x20, [sp, #-16]!
++  stp x21, x22, [sp, #-16]!
++
++  mov x19, x0
++  mov x20, #0x14
++  mov x21, #0x15
++  mov x22, #0x16
++
++  ldr x0, [x19, #0]
++  ldr x1, [x19, #8]
++  mov x2, x19
++  ldr x3, [x19, #32]
++  ldr x4, [x19, #16]
++  ldr x5, [x19, #24]
++  bl _call_goal_asm_arm64
++
++  str x0, [x19, #96]
++  str x20, [x19, #104]
++  str x21, [x19, #112]
++  str x22, [x19, #120]
++
++  ldp x21, x22, [sp], #16
++  ldp x19, x20, [sp], #16
++  ldp x29, x30, [sp], #16
++  ret
++
++.global _arm64_goal_call_abi_entry
++.align 4
++_arm64_goal_call_abi_entry:
++  str x0, [x2, #40]
++  str x1, [x2, #48]
++  str x2, [x2, #56]
++  str x20, [x2, #64]
++  str x21, [x2, #72]
++  str x22, [x2, #80]
++  mov x9, sp
++  and x9, x9, #0xf
++  str x9, [x2, #88]
++  eor x0, x0, x1
++  ret
++
++.global _arm64_goal_call_false_like_entry
++.align 4
++_arm64_goal_call_false_like_entry:
++  mov x0, x21
++  ret
+-- 
+2.50.1 (Apple Git-155)
+
