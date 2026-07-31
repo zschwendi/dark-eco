@@ -1,0 +1,888 @@
+From da6cfe9eaf245db3d92cc69bc0074a4496b02f9d Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Fri, 31 Jul 2026 06:44:31 -0600
+Subject: [PATCH] feat(data-arena): add read-only symbol value lookup
+ (AI-assisted)
+
+---
+ game/kernel/jak1/data_arena.cpp | 331 +++++++++++++++++++++++++
+ game/kernel/jak1/data_arena.h   |  42 ++++
+ test/test_jak1_data_arena.cpp   | 420 ++++++++++++++++++++++++++++++++
+ 3 files changed, 793 insertions(+)
+
+diff --git a/game/kernel/jak1/data_arena.cpp b/game/kernel/jak1/data_arena.cpp
+index 550a0f57..e9e932e7 100644
+--- a/game/kernel/jak1/data_arena.cpp
++++ b/game/kernel/jak1/data_arena.cpp
+@@ -23,6 +23,10 @@ constexpr std::uint32_t kS7 =
+ constexpr std::uint32_t kSymbolTable2 = kSymbolTableOffset + BASIC_OFFSET;
+ constexpr std::uint32_t kLastSymbol = kSymbolTableOffset + SYM_TABLE_END * kSymbolTableEntrySize;
+ constexpr std::uint32_t kEmptyPair = kS7 + jak1_symbols::FIX_SYM_EMPTY_PAIR;
++constexpr std::uint32_t kSymbolInfoOffset = jak1::SYM_INFO_OFFSET;
++constexpr std::uint32_t kSymbolHashBucketBits = jak1::bits_for_sym() - 1;
++constexpr std::uint32_t kSymbolHashBucketSignBit = 1U << (kSymbolHashBucketBits - 1);
++constexpr std::uint32_t kSymbolHashBucketMask = (1U << kSymbolHashBucketBits) - 1;
+ 
+ static_assert(sizeof(kheapinfo) == 4 * sizeof(std::uint32_t));
+ static_assert(offsetof(kheapinfo, base) == 0);
+@@ -31,14 +35,273 @@ static_assert(offsetof(kheapinfo, current) == 2 * sizeof(std::uint32_t));
+ static_assert(offsetof(kheapinfo, top_base) == 3 * sizeof(std::uint32_t));
+ static_assert(sizeof(Symbol) == sizeof(std::uint32_t));
+ static_assert(offsetof(Symbol, value) == 0);
++static_assert(sizeof(SymInfo) == 2 * sizeof(std::uint32_t));
++static_assert(offsetof(SymInfo, hash) == 0);
++static_assert(offsetof(SymInfo, str) == sizeof(std::uint32_t));
+ static_assert(kGlobalHeapEnd == minimum_data_arena_header_size());
+ static_assert(kSymbolTableEnd <= kGlobalHeapEnd);
+ static_assert(kSymbolTableOffset >= GLOBAL_HEAP_INFO_ADDR + sizeof(kheapinfo));
++static_assert(kSymbolHashBucketBits == 14);
+ 
+ void write_u32(std::byte* storage, std::size_t offset, std::uint32_t value) {
+   std::memcpy(storage + offset, &value, sizeof(value));
+ }
+ 
++std::uint32_t read_u32(const std::byte* storage, std::uint32_t offset) {
++  std::uint32_t value = 0;
++  std::memcpy(&value, storage + offset, sizeof(value));
++  return value;
++}
++
++bool has_bytes(std::size_t storage_size, std::uint32_t offset, std::size_t size) {
++  const auto storage_offset = static_cast<std::size_t>(offset);
++  return storage_offset <= storage_size && size <= storage_size - storage_offset;
++}
++
++bool has_aligned_word(std::size_t storage_size, std::uint32_t offset) {
++  return (offset % alignof(std::uint32_t)) == 0 &&
++         has_bytes(storage_size, offset, sizeof(std::uint32_t));
++}
++
++bool checked_add(std::uint32_t base, std::uint32_t delta, std::uint32_t* result) {
++  if (delta > std::numeric_limits<std::uint32_t>::max() - base) {
++    return false;
++  }
++  *result = base + delta;
++  return true;
++}
++
++bool checked_add_signed(std::uint32_t base, std::int32_t delta, std::uint32_t* result) {
++  if (delta >= 0) {
++    return checked_add(base, static_cast<std::uint32_t>(delta), result);
++  }
++
++  const auto magnitude = static_cast<std::uint32_t>(-static_cast<std::int64_t>(delta));
++  if (magnitude > base) {
++    return false;
++  }
++  *result = base - magnitude;
++  return true;
++}
++
++bool is_valid_header(const DataArenaHeader& header, std::size_t storage_size) {
++  if (!has_bytes(storage_size, header.global_heap_info, sizeof(kheapinfo)) ||
++      !has_bytes(storage_size, header.global_heap_base, 1) ||
++      header.global_heap_base > header.global_heap_current ||
++      header.global_heap_current > header.global_heap_end ||
++      static_cast<std::size_t>(header.global_heap_end) > storage_size) {
++    return false;
++  }
++
++  std::uint32_t expected_symbol_table_end = 0;
++  std::uint32_t expected_symbol_table2 = 0;
++  std::uint32_t expected_s7 = 0;
++  std::uint32_t expected_last_symbol = 0;
++  std::uint32_t expected_fixed_symbol_end = 0;
++  std::uint32_t expected_empty_pair = 0;
++  std::uint32_t expected_true_value = 0;
++  if (!checked_add(header.symbol_table, SYM_TABLE_MEM_SIZE, &expected_symbol_table_end) ||
++      !checked_add(header.symbol_table, BASIC_OFFSET, &expected_symbol_table2) ||
++      !checked_add(header.symbol_table,
++                   (GOAL_MAX_SYMBOLS / 2) * kSymbolTableEntrySize + BASIC_OFFSET, &expected_s7) ||
++      !checked_add(header.symbol_table, SYM_TABLE_END * kSymbolTableEntrySize,
++                   &expected_last_symbol) ||
++      !checked_add(expected_s7, jak1_symbols::FIX_FIXED_SYM_END_OFFSET,
++                   &expected_fixed_symbol_end) ||
++      !checked_add_signed(expected_s7, jak1_symbols::FIX_SYM_EMPTY_PAIR, &expected_empty_pair) ||
++      !checked_add(expected_s7, jak1_symbols::FIX_SYM_TRUE, &expected_true_value)) {
++    return false;
++  }
++
++  if (header.symbol_table != header.global_heap_base ||
++      header.symbol_table_end != expected_symbol_table_end ||
++      header.symbol_table2 != expected_symbol_table2 || header.s7 != expected_s7 ||
++      header.last_symbol != expected_last_symbol || header.empty_pair != expected_empty_pair ||
++      header.false_value != expected_s7 || header.true_value != expected_true_value ||
++      header.global_heap_current < header.symbol_table_end ||
++      header.symbol_table_end > header.global_heap_end ||
++      !has_bytes(storage_size, header.symbol_table, SYM_TABLE_MEM_SIZE) ||
++      !has_aligned_word(storage_size, header.symbol_table2) ||
++      !has_aligned_word(storage_size, header.s7) ||
++      !has_aligned_word(storage_size, header.last_symbol - sizeof(std::uint32_t)) ||
++      expected_fixed_symbol_end > header.last_symbol) {
++    return false;
++  }
++
++  return true;
++}
++
++std::uint32_t stateless_goal_crc32(std::string_view name) {
++  std::uint32_t crc = 0;
++  for (const auto character : name) {
++    std::uint32_t table_entry = (crc >> 24) << 24;
++    for (int bit = 0; bit < 8; ++bit) {
++      table_entry =
++          (table_entry & 0x80000000U) ? (table_entry << 1) ^ CRC_POLY : (table_entry << 1);
++    }
++    crc = table_entry ^ ((crc << 8) | static_cast<unsigned char>(character));
++  }
++  return ~crc;
++}
++
++std::int32_t symbol_hash_displacement(std::uint32_t hash) {
++  const auto low_bucket = hash & kSymbolHashBucketMask;
++  const auto bucket = (low_bucket & kSymbolHashBucketSignBit)
++                          ? static_cast<std::int32_t>(low_bucket) -
++                                static_cast<std::int32_t>(1U << kSymbolHashBucketBits)
++                          : static_cast<std::int32_t>(low_bucket);
++  return bucket * static_cast<std::int32_t>(kSymbolTableEntrySize);
++}
++
++enum class ProbeResult {
++  Continue,
++  Vacant,
++  Exhausted,
++  Found,
++  MalformedSymbol,
++  MalformedString,
++};
++
++ProbeResult inspect_symbol(const std::byte* storage,
++                           std::size_t storage_size,
++                           std::uint32_t symbol_offset,
++                           std::uint32_t requested_hash,
++                           std::string_view requested_name) {
++  std::uint32_t symbol_info_offset = 0;
++  if (!has_aligned_word(storage_size, symbol_offset) ||
++      !checked_add(symbol_offset, kSymbolInfoOffset, &symbol_info_offset) ||
++      !has_bytes(storage_size, symbol_info_offset, sizeof(SymInfo))) {
++    return ProbeResult::MalformedSymbol;
++  }
++
++  const auto stored_hash = read_u32(storage, symbol_info_offset);
++  if (stored_hash == 0) {
++    return ProbeResult::Vacant;
++  }
++  if (stored_hash != requested_hash) {
++    return ProbeResult::Continue;
++  }
++
++  const auto string_offset = read_u32(storage, symbol_info_offset + sizeof(std::uint32_t));
++  if (string_offset < BASIC_OFFSET || (string_offset & OFFSET_MASK) != BASIC_OFFSET ||
++      !has_aligned_word(storage_size, string_offset)) {
++    return ProbeResult::MalformedString;
++  }
++
++  const auto raw_string_offset = string_offset - BASIC_OFFSET;
++  std::uint32_t string_data_offset = 0;
++  if (!has_aligned_word(storage_size, raw_string_offset) ||
++      !checked_add(string_offset, sizeof(std::uint32_t), &string_data_offset) ||
++      !has_bytes(storage_size, string_data_offset, requested_name.size() + 1)) {
++    return ProbeResult::MalformedString;
++  }
++
++  if (!requested_name.empty() && std::memcmp(storage + string_data_offset, requested_name.data(),
++                                             requested_name.size()) != 0) {
++    return ProbeResult::Continue;
++  }
++  if (storage[string_data_offset + requested_name.size()] != std::byte{0}) {
++    return ProbeResult::Continue;
++  }
++  return ProbeResult::Found;
++}
++
++ProbeResult probe_symbol_area(const std::byte* storage,
++                              std::size_t storage_size,
++                              std::uint32_t start,
++                              std::uint32_t end,
++                              std::uint32_t requested_hash,
++                              std::string_view requested_name,
++                              std::uint32_t* found_symbol_offset) {
++  for (auto symbol_offset = start; symbol_offset < end;) {
++    const auto result =
++        inspect_symbol(storage, storage_size, symbol_offset, requested_hash, requested_name);
++    if (result != ProbeResult::Continue) {
++      if (result == ProbeResult::Found) {
++        *found_symbol_offset = symbol_offset;
++      }
++      return result;
++    }
++    if (!checked_add(symbol_offset, kSymbolTableEntrySize, &symbol_offset)) {
++      return ProbeResult::MalformedSymbol;
++    }
++  }
++  return ProbeResult::Exhausted;
++}
++
++DataArenaSymbolValueLookupResult make_found_result(const DataArenaHeader& header,
++                                                   std::uint32_t symbol_offset) {
++  const auto displacement =
++      static_cast<std::int64_t>(symbol_offset) - static_cast<std::int64_t>(header.s7);
++  if (displacement < std::numeric_limits<std::int32_t>::min() ||
++      displacement > std::numeric_limits<std::int32_t>::max()) {
++    return {.error = DataArenaSymbolValueLookupError::MalformedSymbol};
++  }
++  return {
++      .cell =
++          {
++              .goal_offset = symbol_offset,
++              .s7_relative_displacement = static_cast<std::int32_t>(displacement),
++          },
++      .error = DataArenaSymbolValueLookupError::None,
++  };
++}
++
++DataArenaSymbolValueLookupResult lookup_fixed_symbols(const std::byte* storage,
++                                                      std::size_t storage_size,
++                                                      const DataArenaHeader& header,
++                                                      std::uint32_t requested_hash,
++                                                      std::string_view requested_name) {
++  std::uint32_t fixed_symbol_end = 0;
++  if (!checked_add(header.s7, jak1_symbols::FIX_FIXED_SYM_END_OFFSET, &fixed_symbol_end)) {
++    return {.error = DataArenaSymbolValueLookupError::InvalidHeader};
++  }
++
++  for (auto symbol_offset = header.s7; symbol_offset < fixed_symbol_end;) {
++    const auto result =
++        inspect_symbol(storage, storage_size, symbol_offset, requested_hash, requested_name);
++    switch (result) {
++      case ProbeResult::Found:
++        return make_found_result(header, symbol_offset);
++      case ProbeResult::MalformedSymbol:
++        return {.error = DataArenaSymbolValueLookupError::MalformedSymbol};
++      case ProbeResult::MalformedString:
++        return {.error = DataArenaSymbolValueLookupError::MalformedString};
++      case ProbeResult::Continue:
++      case ProbeResult::Vacant:
++      case ProbeResult::Exhausted:
++        break;
++    }
++    if (!checked_add(symbol_offset, kSymbolTableEntrySize, &symbol_offset)) {
++      return {.error = DataArenaSymbolValueLookupError::MalformedSymbol};
++    }
++  }
++  return {.error = DataArenaSymbolValueLookupError::NotFound};
++}
++
++DataArenaSymbolValueLookupResult finish_symbol_probe(const std::byte* storage,
++                                                     std::size_t storage_size,
++                                                     const DataArenaHeader& header,
++                                                     ProbeResult result,
++                                                     std::uint32_t found_symbol_offset,
++                                                     std::uint32_t requested_hash,
++                                                     std::string_view requested_name) {
++  switch (result) {
++    case ProbeResult::Found:
++      return make_found_result(header, found_symbol_offset);
++    case ProbeResult::MalformedSymbol:
++      return {.error = DataArenaSymbolValueLookupError::MalformedSymbol};
++    case ProbeResult::MalformedString:
++      return {.error = DataArenaSymbolValueLookupError::MalformedString};
++    case ProbeResult::Vacant:
++      return lookup_fixed_symbols(storage, storage_size, header, requested_hash, requested_name);
++    case ProbeResult::Continue:
++    case ProbeResult::Exhausted:
++      return {.error = DataArenaSymbolValueLookupError::NotFound};
++  }
++  return {.error = DataArenaSymbolValueLookupError::NotFound};
++}
++
+ }  // namespace
+ 
+ DataArenaHeaderResult initialize_data_arena_header(std::byte* storage, std::size_t storage_size) {
+@@ -85,4 +348,72 @@ DataArenaHeaderResult initialize_data_arena_header(std::byte* storage, std::size
+   };
+ }
+ 
++DataArenaSymbolValueLookupResult find_data_arena_symbol_value_cell(const std::byte* storage,
++                                                                   std::size_t storage_size,
++                                                                   const DataArenaHeader& header,
++                                                                   std::string_view name) {
++  if (!storage) {
++    return {.error = DataArenaSymbolValueLookupError::NullStorage};
++  }
++  if (storage_size > std::numeric_limits<std::uint32_t>::max()) {
++    return {.error = DataArenaSymbolValueLookupError::StorageTooLarge};
++  }
++  if (!is_valid_header(header, storage_size)) {
++    return {.error = DataArenaSymbolValueLookupError::InvalidHeader};
++  }
++  if (name.size() > std::numeric_limits<std::int32_t>::max()) {
++    return {.error = DataArenaSymbolValueLookupError::QueryTooLong};
++  }
++  if (name.find('\0') != std::string_view::npos) {
++    return {.error = DataArenaSymbolValueLookupError::QueryContainsNull};
++  }
++  if (name == "_empty_") {
++    return {.error = DataArenaSymbolValueLookupError::UnsupportedPseudoSymbol};
++  }
++
++  const auto hash = stateless_goal_crc32(name);
++  if (hash == 0) {
++    return {.error = DataArenaSymbolValueLookupError::UnrepresentableHash};
++  }
++  const auto displacement = symbol_hash_displacement(hash);
++  std::uint32_t primary_start = 0;
++  if (!checked_add_signed(header.s7, displacement, &primary_start)) {
++    return {.error = DataArenaSymbolValueLookupError::InvalidHeader};
++  }
++
++  std::uint32_t primary_end = 0;
++  std::uint32_t overflow_start = 0;
++  std::uint32_t overflow_end = 0;
++  if (displacement > 0) {
++    primary_end = header.last_symbol;
++    overflow_start = header.symbol_table2;
++    if (!checked_add_signed(header.s7, -0x10, &overflow_end)) {
++      return {.error = DataArenaSymbolValueLookupError::InvalidHeader};
++    }
++  } else {
++    if (!checked_add_signed(header.s7, -0x10, &primary_end) ||
++        !checked_add(header.s7, jak1_symbols::FIX_FIXED_SYM_END_OFFSET, &overflow_start)) {
++      return {.error = DataArenaSymbolValueLookupError::InvalidHeader};
++    }
++    overflow_end = header.last_symbol;
++  }
++
++  std::uint32_t found_symbol_offset = 0;
++  auto result = probe_symbol_area(storage, storage_size, primary_start, primary_end, hash, name,
++                                  &found_symbol_offset);
++  if (result != ProbeResult::Exhausted) {
++    return finish_symbol_probe(storage, storage_size, header, result, found_symbol_offset, hash,
++                               name);
++  }
++
++  result = probe_symbol_area(storage, storage_size, overflow_start, overflow_end, hash, name,
++                             &found_symbol_offset);
++  if (result != ProbeResult::Exhausted) {
++    return finish_symbol_probe(storage, storage_size, header, result, found_symbol_offset, hash,
++                               name);
++  }
++
++  return lookup_fixed_symbols(storage, storage_size, header, hash, name);
++}
++
+ }  // namespace jak1
+diff --git a/game/kernel/jak1/data_arena.h b/game/kernel/jak1/data_arena.h
+index 753e0e94..7de1458c 100644
+--- a/game/kernel/jak1/data_arena.h
++++ b/game/kernel/jak1/data_arena.h
+@@ -2,6 +2,7 @@
+ 
+ #include <cstddef>
+ #include <cstdint>
++#include <string_view>
+ 
+ #include "common/goal_constants.h"
+ 
+@@ -38,6 +39,32 @@ struct DataArenaHeaderResult {
+   [[nodiscard]] bool ok() const { return error == DataArenaHeaderError::None; }
+ };
+ 
++enum class DataArenaSymbolValueLookupError {
++  None,
++  NullStorage,
++  StorageTooLarge,
++  InvalidHeader,
++  QueryContainsNull,
++  QueryTooLong,
++  UnsupportedPseudoSymbol,
++  UnrepresentableHash,
++  NotFound,
++  MalformedSymbol,
++  MalformedString,
++};
++
++struct DataArenaSymbolValueCell {
++  std::uint32_t goal_offset = 0;
++  std::int32_t s7_relative_displacement = 0;
++};
++
++struct DataArenaSymbolValueLookupResult {
++  DataArenaSymbolValueCell cell{};
++  DataArenaSymbolValueLookupError error = DataArenaSymbolValueLookupError::NotFound;
++
++  [[nodiscard]] bool found() const { return error == DataArenaSymbolValueLookupError::None; }
++};
++
+ [[nodiscard]] constexpr std::size_t minimum_data_arena_header_size() {
+   return static_cast<std::size_t>(GLOBAL_HEAP_END);
+ }
+@@ -59,4 +86,19 @@ struct DataArenaHeaderResult {
+ [[nodiscard]] DataArenaHeaderResult initialize_data_arena_header(std::byte* storage,
+                                                                  std::size_t storage_size);
+ 
++/*!
++ * Find an existing, aligned Jak 1 symbol value cell without binding caller-owned storage to the
++ * runtime. The supplied header is structurally validated before its table offsets are used.
++ *
++ * This read-only lookup uses the Jak 1 CRC_POLY hash and bounded symbol-table probe order, but
++ * computes the hash without the runtime CRC table. It does not intern symbols, allocate, mutate
++ * the arena, execute GOAL, or access g_ee_main_mem or global s7 state. The empty-pair pseudo
++ * symbol is deliberately rejected because it is not an aligned symbol value cell.
++ */
++[[nodiscard]] DataArenaSymbolValueLookupResult find_data_arena_symbol_value_cell(
++    const std::byte* storage,
++    std::size_t storage_size,
++    const DataArenaHeader& header,
++    std::string_view name);
++
+ }  // namespace jak1
+diff --git a/test/test_jak1_data_arena.cpp b/test/test_jak1_data_arena.cpp
+index cf098dcd..88187b7a 100644
+--- a/test/test_jak1_data_arena.cpp
++++ b/test/test_jak1_data_arena.cpp
+@@ -4,6 +4,7 @@
+ #include <cstdint>
+ #include <cstring>
+ #include <limits>
++#include <string_view>
+ #include <utility>
+ #include <vector>
+ 
+@@ -24,10 +25,107 @@ std::uint32_t read_u32(const std::byte* storage, std::size_t offset) {
+   return value;
+ }
+ 
++void write_u32(std::byte* storage, std::size_t offset, std::uint32_t value) {
++  std::memcpy(storage + offset, &value, sizeof(value));
++}
++
+ bool is_zero(std::byte value) {
+   return value == std::byte{0};
+ }
+ 
++constexpr std::uint32_t kSymbolTableEntrySize = 8;
++constexpr std::uint32_t kSyntheticSymbolTable = 0x1000;
++constexpr std::uint32_t kSyntheticSymbolTableEnd = kSyntheticSymbolTable + jak1::SYM_TABLE_MEM_SIZE;
++constexpr std::uint32_t kSyntheticS7 =
++    kSyntheticSymbolTable + (jak1::GOAL_MAX_SYMBOLS / 2) * kSymbolTableEntrySize + BASIC_OFFSET;
++constexpr std::uint32_t kSyntheticLastSymbol =
++    kSyntheticSymbolTable + jak1::SYM_TABLE_END * kSymbolTableEntrySize;
++constexpr std::uint32_t kSyntheticArenaSize = kSyntheticSymbolTableEnd + 0x2000;
++
++std::uint32_t stateless_goal_crc32(std::string_view name) {
++  std::uint32_t crc = 0;
++  for (const auto character : name) {
++    std::uint32_t table_entry = (crc >> 24) << 24;
++    for (int bit = 0; bit < 8; ++bit) {
++      table_entry =
++          (table_entry & 0x80000000U) ? (table_entry << 1) ^ CRC_POLY : (table_entry << 1);
++    }
++    crc = table_entry ^ ((crc << 8) | static_cast<unsigned char>(character));
++  }
++  return ~crc;
++}
++
++std::int32_t symbol_hash_displacement(std::uint32_t hash) {
++  constexpr std::uint32_t kBucketMask = (1U << 14) - 1;
++  constexpr std::uint32_t kBucketSignBit = 1U << 13;
++  const auto low_bucket = hash & kBucketMask;
++  const auto bucket = (low_bucket & kBucketSignBit)
++                          ? static_cast<std::int32_t>(low_bucket) - (1 << 14)
++                          : static_cast<std::int32_t>(low_bucket);
++  return bucket * static_cast<std::int32_t>(kSymbolTableEntrySize);
++}
++
++struct SyntheticDataArena {
++  std::vector<std::byte> storage = std::vector<std::byte>(kSyntheticArenaSize, std::byte{0});
++  jak1::DataArenaHeader header{
++      .global_heap_info = 0x100,
++      .global_heap_base = kSyntheticSymbolTable,
++      .global_heap_current = kSyntheticSymbolTableEnd,
++      .global_heap_end = kSyntheticArenaSize,
++      .symbol_table = kSyntheticSymbolTable,
++      .symbol_table_end = kSyntheticSymbolTableEnd,
++      .symbol_table2 = kSyntheticSymbolTable + BASIC_OFFSET,
++      .last_symbol = kSyntheticLastSymbol,
++      .s7 = kSyntheticS7,
++      .empty_pair = kSyntheticS7 + jak1_symbols::FIX_SYM_EMPTY_PAIR,
++      .false_value = kSyntheticS7,
++      .true_value = kSyntheticS7 + jak1_symbols::FIX_SYM_TRUE,
++  };
++  std::uint32_t next_string_offset = kSyntheticSymbolTableEnd;
++};
++
++std::uint32_t first_probe_offset(const SyntheticDataArena& arena, std::string_view name) {
++  return static_cast<std::uint32_t>(static_cast<std::int64_t>(arena.header.s7) +
++                                    symbol_hash_displacement(stateless_goal_crc32(name)));
++}
++
++std::uint32_t write_string(SyntheticDataArena* arena, std::string_view value) {
++  const auto raw_string_offset = arena->next_string_offset;
++  const auto string_offset = raw_string_offset + BASIC_OFFSET;
++  write_u32(arena->storage.data(), raw_string_offset,
++            arena->header.s7 + jak1_symbols::FIX_SYM_STRING_TYPE);
++  write_u32(arena->storage.data(), string_offset, static_cast<std::uint32_t>(value.size()));
++  if (!value.empty()) {
++    std::memcpy(arena->storage.data() + string_offset + sizeof(std::uint32_t), value.data(),
++                value.size());
++  }
++  arena->storage[string_offset + sizeof(std::uint32_t) + value.size()] = std::byte{0};
++  arena->next_string_offset = static_cast<std::uint32_t>(
++      (string_offset + sizeof(std::uint32_t) + value.size() + 1 + OFFSET_MASK) & ~OFFSET_MASK);
++  return string_offset;
++}
++
++void install_symbol(SyntheticDataArena* arena,
++                    std::uint32_t symbol_offset,
++                    std::uint32_t hash,
++                    std::string_view stored_name,
++                    std::uint32_t value = 0) {
++  const auto info_offset = symbol_offset + jak1::SYM_INFO_OFFSET;
++  write_u32(arena->storage.data(), symbol_offset, value);
++  write_u32(arena->storage.data(), info_offset, hash);
++  write_u32(arena->storage.data(), info_offset + sizeof(std::uint32_t),
++            write_string(arena, stored_name));
++}
++
++void fill_mismatching_hashes(SyntheticDataArena* arena,
++                             std::uint32_t start,
++                             std::uint32_t end,
++                             std::uint32_t requested_hash) {
++  for (auto symbol_offset = start; symbol_offset < end; symbol_offset += kSymbolTableEntrySize) {
++    write_u32(arena->storage.data(), symbol_offset + jak1::SYM_INFO_OFFSET, requested_hash ^ 1U);
++  }
++}
++
+ }  // namespace
+ 
+ TEST(Jak1DataArena, InitializesCanonicalDataOnlyHeader) {
+@@ -141,3 +239,325 @@ TEST(Jak1DataArena, UsesOpenGoalDataLayoutRepresentations) {
+   EXPECT_EQ(jak1_symbols::FIX_SYM_EMPTY_PAIR, -0xa);
+   EXPECT_EQ(jak1_symbols::FIX_SYM_EMPTY_CDR, -0x8);
+ }
++
++TEST(Jak1DataArena, MatchesJak1StatelessCrcAndSignedBucketBoundaries) {
++  EXPECT_EQ(stateless_goal_crc32("_empty_"), EMPTY_HASH);
++  EXPECT_EQ(stateless_goal_crc32("*load-state*"), 0x5c4a5241);
++  EXPECT_EQ(0x14fd24U + 0x9208U, 0x158f2cU);
++  EXPECT_EQ(symbol_hash_displacement(0x00000000), 0);
++  EXPECT_EQ(symbol_hash_displacement(0x00001fff), 0xfff8);
++  EXPECT_EQ(symbol_hash_displacement(0x00002000), -0x10000);
++  EXPECT_EQ(symbol_hash_displacement(0x00003fff), -8);
++}
++
++TEST(Jak1DataArena, FindsExistingZeroValueLoadStateCell) {
++  constexpr std::string_view kName = "*load-state*";
++  auto arena = SyntheticDataArena{};
++  const auto hash = stateless_goal_crc32(kName);
++  const auto symbol_offset = first_probe_offset(arena, kName);
++  ASSERT_EQ(symbol_hash_displacement(hash), 0x9208);
++  ASSERT_EQ(symbol_offset, 0x1a20cU);
++  install_symbol(&arena, symbol_offset, hash, kName);
++
++  const auto result = jak1::find_data_arena_symbol_value_cell(
++      arena.storage.data(), arena.storage.size(), arena.header, kName);
++
++  ASSERT_TRUE(result.found());
++  EXPECT_EQ(result.cell.goal_offset, symbol_offset);
++  EXPECT_EQ(result.cell.s7_relative_displacement, symbol_hash_displacement(hash));
++  EXPECT_EQ(read_u32(arena.storage.data(), result.cell.goal_offset), 0U);
++}
++
++TEST(Jak1DataArena, FindsNegativeS7RelativeSymbolCell) {
++  constexpr std::string_view kName = "negative";
++  auto arena = SyntheticDataArena{};
++  const auto hash = stateless_goal_crc32(kName);
++  const auto symbol_offset = first_probe_offset(arena, kName);
++  ASSERT_LT(symbol_hash_displacement(hash), 0);
++  install_symbol(&arena, symbol_offset, hash, kName, 0x12345678);
++
++  const auto result = jak1::find_data_arena_symbol_value_cell(
++      arena.storage.data(), arena.storage.size(), arena.header, kName);
++
++  ASSERT_TRUE(result.found());
++  EXPECT_EQ(result.cell.goal_offset, symbol_offset);
++  EXPECT_EQ(result.cell.s7_relative_displacement, symbol_hash_displacement(hash));
++}
++
++TEST(Jak1DataArena, DistinguishesZeroDisplacementAndZeroValueFromNotFound) {
++  constexpr std::string_view kName = "fixed-zero";
++  auto arena = SyntheticDataArena{};
++  install_symbol(&arena, arena.header.s7, stateless_goal_crc32(kName), kName);
++
++  const auto found = jak1::find_data_arena_symbol_value_cell(
++      arena.storage.data(), arena.storage.size(), arena.header, kName);
++  const auto missing = jak1::find_data_arena_symbol_value_cell(
++      arena.storage.data(), arena.storage.size(), arena.header, "fixed-zero-missing");
++
++  ASSERT_TRUE(found.found());
++  EXPECT_EQ(found.cell.goal_offset, arena.header.s7);
++  EXPECT_EQ(found.cell.s7_relative_displacement, 0);
++  EXPECT_EQ(read_u32(arena.storage.data(), found.cell.goal_offset), 0U);
++  EXPECT_FALSE(missing.found());
++  EXPECT_EQ(missing.error, jak1::DataArenaSymbolValueLookupError::NotFound);
++}
++
++TEST(Jak1DataArena, ContinuesAfterHashCollisionAndPrefixNameMismatch) {
++  constexpr std::string_view kName = "*load-state*";
++  auto arena = SyntheticDataArena{};
++  const auto hash = stateless_goal_crc32(kName);
++  const auto first_symbol_offset = first_probe_offset(arena, kName);
++  const auto second_symbol_offset = first_symbol_offset + kSymbolTableEntrySize;
++  install_symbol(&arena, first_symbol_offset, hash, "*load-state*-suffix");
++  install_symbol(&arena, second_symbol_offset, hash, kName);
++
++  const auto result = jak1::find_data_arena_symbol_value_cell(
++      arena.storage.data(), arena.storage.size(), arena.header, kName);
++
++  ASSERT_TRUE(result.found());
++  EXPECT_EQ(result.cell.goal_offset, second_symbol_offset);
++  EXPECT_EQ(result.cell.s7_relative_displacement,
++            symbol_hash_displacement(hash) + static_cast<std::int32_t>(kSymbolTableEntrySize));
++}
++
++TEST(Jak1DataArena, WrapsPositiveProbeIntoTheLowerSymbolTableArea) {
++  constexpr std::string_view kName = "*load-state*";
++  auto arena = SyntheticDataArena{};
++  const auto hash = stateless_goal_crc32(kName);
++  const auto primary_start = first_probe_offset(arena, kName);
++  ASSERT_EQ(symbol_hash_displacement(hash), 0x9208);
++  fill_mismatching_hashes(&arena, primary_start, arena.header.last_symbol, hash);
++  install_symbol(&arena, arena.header.symbol_table2, hash, kName);
++
++  const auto result = jak1::find_data_arena_symbol_value_cell(
++      arena.storage.data(), arena.storage.size(), arena.header, kName);
++
++  ASSERT_TRUE(result.found());
++  EXPECT_EQ(result.cell.goal_offset, arena.header.symbol_table2);
++  EXPECT_LT(result.cell.s7_relative_displacement, 0);
++}
++
++TEST(Jak1DataArena, WrapsNegativeProbeIntoTheUpperSymbolTableArea) {
++  constexpr std::string_view kName = "negative";
++  auto arena = SyntheticDataArena{};
++  const auto hash = stateless_goal_crc32(kName);
++  const auto primary_start = first_probe_offset(arena, kName);
++  const auto primary_end = arena.header.s7 - 0x10;
++  const auto overflow_start = arena.header.s7 + jak1_symbols::FIX_FIXED_SYM_END_OFFSET;
++  ASSERT_LT(symbol_hash_displacement(hash), 0);
++  fill_mismatching_hashes(&arena, primary_start, primary_end, hash);
++  install_symbol(&arena, overflow_start, hash, kName);
++
++  const auto result = jak1::find_data_arena_symbol_value_cell(
++      arena.storage.data(), arena.storage.size(), arena.header, kName);
++
++  ASSERT_TRUE(result.found());
++  EXPECT_EQ(result.cell.goal_offset, overflow_start);
++  EXPECT_GT(result.cell.s7_relative_displacement, 0);
++}
++
++TEST(Jak1DataArena, StopsAtVacancyBeforeALaterMatchingSymbol) {
++  constexpr std::string_view kName = "*load-state*";
++  auto arena = SyntheticDataArena{};
++  const auto hash = stateless_goal_crc32(kName);
++  const auto later_symbol_offset = first_probe_offset(arena, kName) + kSymbolTableEntrySize;
++  install_symbol(&arena, later_symbol_offset, hash, kName);
++  const auto before = arena.storage;
++
++  const auto result = jak1::find_data_arena_symbol_value_cell(
++      arena.storage.data(), arena.storage.size(), arena.header, kName);
++
++  EXPECT_EQ(result.error, jak1::DataArenaSymbolValueLookupError::NotFound);
++  EXPECT_EQ(arena.storage, before);
++}
++
++TEST(Jak1DataArena, ReturnsNotFoundWithoutMutatingCallerOwnedStorage) {
++  auto arena = SyntheticDataArena{};
++  const auto before = arena.storage;
++
++  const auto result = jak1::find_data_arena_symbol_value_cell(
++      arena.storage.data(), arena.storage.size(), arena.header, "absent");
++
++  EXPECT_FALSE(result.found());
++  EXPECT_EQ(result.error, jak1::DataArenaSymbolValueLookupError::NotFound);
++  EXPECT_EQ(arena.storage, before);
++}
++
++TEST(Jak1DataArena, RejectsEmbeddedNullAndEmptyPairPseudoSymbolWithoutMutation) {
++  auto arena = SyntheticDataArena{};
++  const auto before = arena.storage;
++
++  const auto embedded_null =
++      jak1::find_data_arena_symbol_value_cell(arena.storage.data(), arena.storage.size(),
++                                              arena.header, std::string_view("load\0state", 10));
++  const auto empty_pair = jak1::find_data_arena_symbol_value_cell(
++      arena.storage.data(), arena.storage.size(), arena.header, "_empty_");
++
++  EXPECT_EQ(embedded_null.error, jak1::DataArenaSymbolValueLookupError::QueryContainsNull);
++  EXPECT_EQ(empty_pair.error, jak1::DataArenaSymbolValueLookupError::UnsupportedPseudoSymbol);
++  EXPECT_EQ(arena.storage, before);
++}
++
++TEST(Jak1DataArena, RejectsUnrepresentableHashWithoutMutation) {
++  constexpr std::string_view kHashZeroName("\xff\xff\xff\xff", 4);
++  auto arena = SyntheticDataArena{};
++  const auto before = arena.storage;
++
++  EXPECT_EQ(stateless_goal_crc32(kHashZeroName), 0U);
++  const auto result = jak1::find_data_arena_symbol_value_cell(
++      arena.storage.data(), arena.storage.size(), arena.header, kHashZeroName);
++
++  EXPECT_EQ(result.error, jak1::DataArenaSymbolValueLookupError::UnrepresentableHash);
++  EXPECT_EQ(arena.storage, before);
++}
++
++TEST(Jak1DataArena, RejectsMalformedMatchingStringPointersWithoutMutation) {
++  constexpr std::string_view kName = "*load-state*";
++  const auto hash = stateless_goal_crc32(kName);
++
++  auto null_offset = SyntheticDataArena{};
++  const auto null_offset_symbol = first_probe_offset(null_offset, kName);
++  const auto null_offset_info = null_offset_symbol + jak1::SYM_INFO_OFFSET;
++  write_u32(null_offset.storage.data(), null_offset_info, hash);
++  write_u32(null_offset.storage.data(), null_offset_info + sizeof(std::uint32_t), 0);
++  const auto null_offset_before = null_offset.storage;
++
++  const auto null_offset_result = jak1::find_data_arena_symbol_value_cell(
++      null_offset.storage.data(), null_offset.storage.size(), null_offset.header, kName);
++
++  EXPECT_EQ(null_offset_result.error, jak1::DataArenaSymbolValueLookupError::MalformedString);
++  EXPECT_EQ(null_offset.storage, null_offset_before);
++
++  auto near_end = SyntheticDataArena{};
++  const auto near_end_symbol = first_probe_offset(near_end, kName);
++  const auto near_end_info = near_end_symbol + jak1::SYM_INFO_OFFSET;
++  const auto near_end_raw_string = static_cast<std::uint32_t>(near_end.storage.size() - 8);
++  const auto near_end_string = near_end_raw_string + BASIC_OFFSET;
++  write_u32(near_end.storage.data(), near_end_raw_string,
++            near_end.header.s7 + jak1_symbols::FIX_SYM_STRING_TYPE);
++  write_u32(near_end.storage.data(), near_end_info, hash);
++  write_u32(near_end.storage.data(), near_end_info + sizeof(std::uint32_t), near_end_string);
++  const auto near_end_before = near_end.storage;
++
++  const auto near_end_result = jak1::find_data_arena_symbol_value_cell(
++      near_end.storage.data(), near_end.storage.size(), near_end.header, kName);
++
++  EXPECT_EQ(near_end_result.error, jak1::DataArenaSymbolValueLookupError::MalformedString);
++  EXPECT_EQ(near_end.storage, near_end_before);
++}
++
++TEST(Jak1DataArena, ContinuesPastMissingNulNameMismatchWithoutMutation) {
++  constexpr std::string_view kName = "*load-state*";
++  auto arena = SyntheticDataArena{};
++  const auto hash = stateless_goal_crc32(kName);
++  const auto symbol_offset = first_probe_offset(arena, kName);
++  const auto info_offset = symbol_offset + jak1::SYM_INFO_OFFSET;
++  const auto string_offset = write_string(&arena, kName);
++  write_u32(arena.storage.data(), info_offset, hash);
++  write_u32(arena.storage.data(), info_offset + sizeof(std::uint32_t), string_offset);
++  arena.storage[string_offset + sizeof(std::uint32_t) + kName.size()] = std::byte{0xa5};
++  const auto before = arena.storage;
++
++  const auto result = jak1::find_data_arena_symbol_value_cell(
++      arena.storage.data(), arena.storage.size(), arena.header, kName);
++
++  EXPECT_EQ(result.error, jak1::DataArenaSymbolValueLookupError::NotFound);
++  EXPECT_EQ(arena.storage, before);
++}
++
++TEST(Jak1DataArena, DoesNotTrustStringLengthWordForLookupBounds) {
++  constexpr std::string_view kName = "*load-state*";
++  auto arena = SyntheticDataArena{};
++  const auto hash = stateless_goal_crc32(kName);
++  const auto symbol_offset = first_probe_offset(arena, kName);
++  const auto info_offset = symbol_offset + jak1::SYM_INFO_OFFSET;
++  const auto string_offset = write_string(&arena, kName);
++  write_u32(arena.storage.data(), string_offset, std::numeric_limits<std::uint32_t>::max());
++  write_u32(arena.storage.data(), info_offset, hash);
++  write_u32(arena.storage.data(), info_offset + sizeof(std::uint32_t), string_offset);
++
++  const auto result = jak1::find_data_arena_symbol_value_cell(
++      arena.storage.data(), arena.storage.size(), arena.header, kName);
++
++  ASSERT_TRUE(result.found());
++  EXPECT_EQ(result.cell.goal_offset, symbol_offset);
++}
++
++TEST(Jak1DataArena, AcceptsStringWithSpareCapacityAfterItsTerminator) {
++  constexpr std::string_view kName = "*load-state*";
++  auto arena = SyntheticDataArena{};
++  const auto hash = stateless_goal_crc32(kName);
++  const auto symbol_offset = first_probe_offset(arena, kName);
++  const auto info_offset = symbol_offset + jak1::SYM_INFO_OFFSET;
++  const auto string_offset = write_string(&arena, kName);
++  arena.storage[string_offset + sizeof(std::uint32_t) + kName.size() + 1] = std::byte{0xa5};
++  write_u32(arena.storage.data(), info_offset, hash);
++  write_u32(arena.storage.data(), info_offset + sizeof(std::uint32_t), string_offset);
++
++  const auto result = jak1::find_data_arena_symbol_value_cell(
++      arena.storage.data(), arena.storage.size(), arena.header, kName);
++
++  ASSERT_TRUE(result.found());
++  EXPECT_EQ(result.cell.goal_offset, symbol_offset);
++}
++
++TEST(Jak1DataArena, RejectsWrappedSymbolTableBoundsWithoutMutation) {
++  auto arena = SyntheticDataArena{};
++  auto malformed_header = arena.header;
++  malformed_header.symbol_table = std::numeric_limits<std::uint32_t>::max() - 0x100;
++  const auto before = arena.storage;
++
++  const auto result = jak1::find_data_arena_symbol_value_cell(
++      arena.storage.data(), arena.storage.size(), malformed_header, "*load-state*");
++
++  EXPECT_EQ(result.error, jak1::DataArenaSymbolValueLookupError::InvalidHeader);
++  EXPECT_EQ(arena.storage, before);
++}
++
++TEST(Jak1DataArena, RejectsShortStorageAndMalformedStringPointerWithoutMutation) {
++  constexpr std::string_view kName = "*load-state*";
++  auto short_storage = SyntheticDataArena{};
++  const auto short_storage_before = short_storage.storage;
++
++  const auto short_storage_result = jak1::find_data_arena_symbol_value_cell(
++      short_storage.storage.data(), short_storage.storage.size() - 1, short_storage.header, kName);
++
++  EXPECT_EQ(short_storage_result.error, jak1::DataArenaSymbolValueLookupError::InvalidHeader);
++  EXPECT_EQ(short_storage.storage, short_storage_before);
++
++  auto malformed_pointer = SyntheticDataArena{};
++  const auto hash = stateless_goal_crc32(kName);
++  const auto symbol_offset = first_probe_offset(malformed_pointer, kName);
++  const auto info_offset = symbol_offset + jak1::SYM_INFO_OFFSET;
++  write_u32(malformed_pointer.storage.data(), info_offset, hash);
++  write_u32(malformed_pointer.storage.data(), info_offset + sizeof(std::uint32_t),
++            malformed_pointer.next_string_offset);
++  const auto malformed_pointer_before = malformed_pointer.storage;
++
++  const auto malformed_pointer_result = jak1::find_data_arena_symbol_value_cell(
++      malformed_pointer.storage.data(), malformed_pointer.storage.size(), malformed_pointer.header,
++      kName);
++
++  EXPECT_EQ(malformed_pointer_result.error, jak1::DataArenaSymbolValueLookupError::MalformedString);
++  EXPECT_EQ(malformed_pointer.storage, malformed_pointer_before);
++}
++
++TEST(Jak1DataArena, RejectsEarlyLookupInputsWithoutMutation) {
++  auto arena = SyntheticDataArena{};
++  const auto before = arena.storage;
++
++  const auto null_storage = jak1::find_data_arena_symbol_value_cell(nullptr, arena.storage.size(),
++                                                                    arena.header, "*load-state*");
++  EXPECT_EQ(null_storage.error, jak1::DataArenaSymbolValueLookupError::NullStorage);
++
++  if constexpr (std::numeric_limits<std::size_t>::max() >
++                std::numeric_limits<std::uint32_t>::max()) {
++    const auto oversized_storage = jak1::find_data_arena_symbol_value_cell(
++        arena.storage.data(),
++        static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()) + 1, arena.header,
++        "*load-state*");
++    EXPECT_EQ(oversized_storage.error, jak1::DataArenaSymbolValueLookupError::StorageTooLarge);
++  }
++
++  EXPECT_EQ(arena.storage, before);
++}
+-- 
+2.50.1 (Apple Git-155)
+
