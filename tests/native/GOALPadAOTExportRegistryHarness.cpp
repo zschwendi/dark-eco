@@ -174,6 +174,20 @@ bool has_guard_bytes(const SyntheticGoalArena& arena, std::size_t first, std::si
                      [](std::byte value) { return value == kSyntheticArenaGuard; });
 }
 
+bool has_expected_probe(const GoalCallProbe1& probe,
+                        std::uint64_t process,
+                        std::uint64_t symbol_table,
+                        std::uint64_t offset_base,
+                        std::uint64_t arg0,
+                        std::uint64_t result) {
+  return probe.entry_process == process && probe.entry_symbol_table == symbol_table &&
+         probe.entry_offset_base == offset_base && probe.entry_arg0 == arg0 &&
+         probe.result == result && probe.exit_process == process &&
+         probe.exit_symbol_table == symbol_table && probe.exit_offset_base == offset_base &&
+         probe.restored_process == 0x14 && probe.restored_symbol_table == 0x15 &&
+         probe.restored_offset_base == 0x16;
+}
+
 bool has_expected_probe(const GoalCallProbe2& probe,
                         std::uint64_t process,
                         std::uint64_t symbol_table,
@@ -228,6 +242,30 @@ bool has_expected_jak1_want_vis_arm64_code(goalpad::AOTEntry2 entry) {
   };
   std::array<unsigned char, expected.size()> actual{};
   std::memcpy(actual.data(), reinterpret_cast<const void*>(entry), actual.size());
+  return actual == expected;
+#else
+  return false;
+#endif
+}
+
+bool has_expected_jak1_load_state_reset_arm64_code(goalpad::AOTEntry1 entry) {
+#if defined(__arm64__)
+  constexpr std::array<std::uint32_t, 58> expected = {
+      0xaa1503e1, 0xb836e801, 0xaa1503e1, 0x8b160010, 0x91001210, 0xb9000201,
+      0xaa1503e1, 0x8b160010, 0x91002210, 0xb9000201, 0xaa1503e1, 0x8b160010,
+      0x91003210, 0xb9000201, 0xaa1503e1, 0x8b160010, 0x91004210, 0xb9000201,
+      0xaa1503e1, 0x8b160010, 0x91005210, 0xb9000201, 0xaa1503e1, 0x8b160010,
+      0x91006210, 0xb9000201, 0xaa1503e1, 0x8b160010, 0x91007210, 0xb9000201,
+      0xaa1503e1, 0xd1002821, 0x8b160010, 0x91009210, 0xb9000201, 0xca010021,
+      0x14000011, 0xaa1503e2, 0xaa0103e3, 0xd37ef463, 0xd2800504, 0x8b000084,
+      0x8b040063, 0xb836e862, 0xca020042, 0xaa0103e3, 0xd37ef463, 0xd2808504,
+      0x8b000084, 0x8b040063, 0xb836e862, 0xd2800022, 0x8b020021, 0xd2802002,
+      0xeb02003f, 0x54fffdcb, 0xaa1503e1, 0xd65f03c0,
+  };
+  static_assert(expected.size() * sizeof(std::uint32_t) == 232);
+  std::array<std::uint32_t, expected.size()> actual{};
+  std::memcpy(actual.data(), reinterpret_cast<const void*>(entry),
+              actual.size() * sizeof(std::uint32_t));
   return actual == expected;
 #else
   return false;
@@ -444,11 +482,142 @@ bool verifies_want_levels(goalpad::AOTEntry3 entry, std::uint64_t process) {
   return true;
 }
 
+struct alignas(16) GuardedLoadStateArena {
+  std::array<std::byte, 16> leading_guard{};
+  std::array<std::byte, 0x112c> storage{};
+  std::array<std::byte, 16> trailing_guard{};
+};
+
+static_assert(alignof(GuardedLoadStateArena) >= 16);
+static_assert(offsetof(GuardedLoadStateArena, storage) == 16);
+
+void write_load_state_word(GuardedLoadStateArena& arena,
+                           std::size_t offset,
+                           std::uint32_t value) {
+  std::memcpy(arena.storage.data() + offset, &value, sizeof(value));
+}
+
+std::uint32_t read_load_state_word(const GuardedLoadStateArena& arena, std::size_t offset) {
+  std::uint32_t value = 0;
+  std::memcpy(&value, arena.storage.data() + offset, sizeof(value));
+  return value;
+}
+
+bool verifies_load_state_reset(goalpad::AOTEntry1 entry, std::uint64_t process) {
+  constexpr std::size_t kThis = 4;
+  constexpr std::size_t kSecondArenaBaseOffset = 0x900;
+  constexpr std::size_t kLoadStateSize = 0x82c;
+  constexpr std::size_t kWantOffset = 0x4;
+  constexpr std::size_t kWantWordCount = 8;
+  constexpr std::size_t kVisNickOffset = 0x24;
+  constexpr std::size_t kCommandListOffset = 0x28;
+  constexpr std::size_t kObjectNameOffset = 0x2c;
+  constexpr std::size_t kObjectStatusOffset = 0x42c;
+  constexpr std::size_t kObjectCount = 256;
+  constexpr std::uint64_t kFalse = 0x14fd24;
+  constexpr std::uint32_t kFalseWord = static_cast<std::uint32_t>(kFalse);
+  constexpr std::uint32_t kEmpty = 0x14fd1a;
+
+  static_assert(kThis == kWantOffset);
+  static_assert(kWantOffset + kWantWordCount * sizeof(std::uint32_t) == kVisNickOffset);
+  static_assert(kSecondArenaBaseOffset >= kLoadStateSize);
+  static_assert(kSecondArenaBaseOffset + kLoadStateSize == 0x112c);
+
+  GuardedLoadStateArena actual;
+  std::size_t seed_index = 0;
+  const auto seed_range = [&seed_index](auto& range) {
+    for (auto& byte : range) {
+      byte = static_cast<std::byte>(1 + (seed_index * 37) % 255);
+      ++seed_index;
+    }
+  };
+  seed_range(actual.leading_guard);
+  seed_range(actual.storage);
+  seed_range(actual.trailing_guard);
+  GuardedLoadStateArena expected = actual;
+
+  const auto reset_expected = [&expected](std::size_t base_offset) {
+    for (std::size_t index = 0; index < kWantWordCount; ++index) {
+      write_load_state_word(expected, base_offset + kWantOffset + index * sizeof(std::uint32_t),
+                            kFalseWord);
+    }
+    write_load_state_word(expected, base_offset + kCommandListOffset, kEmpty);
+    for (std::size_t index = 0; index < kObjectCount; ++index) {
+      write_load_state_word(expected,
+                            base_offset + kObjectNameOffset + index * sizeof(std::uint32_t),
+                            kFalseWord);
+      write_load_state_word(expected,
+                            base_offset + kObjectStatusOffset + index * sizeof(std::uint32_t), 0);
+    }
+  };
+  reset_expected(0);
+  reset_expected(kSecondArenaBaseOffset);
+
+  const auto first_offset_base = static_cast<std::uint64_t>(
+      reinterpret_cast<std::uintptr_t>(actual.storage.data()));
+  if ((first_offset_base & 0xf) != 0 ||
+      ((first_offset_base + kSecondArenaBaseOffset) & 0xf) != 0) {
+    return false;
+  }
+
+  GoalCallProbe1 first_probe{};
+  GoalCallProbe1 second_probe{};
+  const auto invoke = [&](std::size_t base_offset, GoalCallProbe1& probe) {
+    const auto offset_base = first_offset_base + base_offset;
+    const auto result = goalpad_probe_call_aot1_with_state(
+        process, kFalse, offset_base, entry, kThis, &probe);
+    return result == kThis &&
+           has_expected_probe(probe, process, kFalse, offset_base, kThis, result);
+  };
+  if (!invoke(0, first_probe) || !invoke(kSecondArenaBaseOffset, second_probe)) {
+    return false;
+  }
+
+  const auto has_expected_reset_fields = [&actual, &expected](std::size_t base_offset) {
+    if (read_load_state_word(actual, base_offset) != read_load_state_word(expected, base_offset)) {
+      return false;
+    }
+    for (std::size_t index = 0; index < kWantWordCount; ++index) {
+      if (read_load_state_word(actual,
+                               base_offset + kWantOffset + index * sizeof(std::uint32_t)) !=
+          kFalseWord) {
+        return false;
+      }
+    }
+    if (read_load_state_word(actual, base_offset + kVisNickOffset) !=
+            read_load_state_word(expected, base_offset + kVisNickOffset) ||
+        read_load_state_word(actual, base_offset + kCommandListOffset) != kEmpty) {
+      return false;
+    }
+    for (std::size_t index = 0; index < kObjectCount; ++index) {
+      if (read_load_state_word(actual,
+                               base_offset + kObjectNameOffset + index * sizeof(std::uint32_t)) !=
+              kFalseWord ||
+          read_load_state_word(actual,
+                               base_offset + kObjectStatusOffset + index * sizeof(std::uint32_t)) !=
+              0) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const auto gap_matches = std::equal(
+      actual.storage.begin() + kLoadStateSize,
+      actual.storage.begin() + kSecondArenaBaseOffset,
+      expected.storage.begin() + kLoadStateSize);
+  return has_expected_reset_fields(0) &&
+         has_expected_reset_fields(kSecondArenaBaseOffset) && gap_matches &&
+         actual.leading_guard == expected.leading_guard && actual.storage == expected.storage &&
+         actual.trailing_guard == expected.trailing_guard;
+}
+
 int main() {
   const auto* false_func = goalpad::find_aot_export0("false-func");
   const auto* true_func = goalpad::find_aot_export0("true-func");
   const auto* identity = goalpad::find_aot_export1("identity");
   const auto* lognot = goalpad::find_aot_export1("lognot");
+  const auto* load_state_reset = goalpad::find_aot_export1("reset!");
   const auto* level_group_load_commands_set =
       goalpad::find_aot_export2("level-group-load-commands-set!");
   const auto* want_vis = goalpad::find_aot_export2("want-vis");
@@ -457,21 +626,26 @@ int main() {
       !false_func->entry || !true_func || true_func->goal_name != "true-func" ||
       !true_func->entry || goalpad::find_aot_export0("identity") ||
       goalpad::find_aot_export0("lognot") ||
+      goalpad::find_aot_export0("reset!") ||
       goalpad::find_aot_export0("level-group-load-commands-set!") ||
       goalpad::find_aot_export0("") || !identity ||
       identity->goal_name != "identity" || !identity->entry ||
       !lognot || lognot->goal_name != "lognot" || !lognot->entry ||
+      !load_state_reset || load_state_reset->goal_name != "reset!" || !load_state_reset->entry ||
       goalpad::find_aot_export1("false-func") ||
       goalpad::find_aot_export1("true-func") ||
+      goalpad::find_aot_export1("glst-node-name") ||
       goalpad::find_aot_export1("level-group-load-commands-set!") ||
       goalpad::find_aot_export1("want-vis") ||
       goalpad::find_aot_export1("want-levels") ||
+      goalpad::find_aot_export1("missing") ||
       goalpad::find_aot_export1("") || !level_group_load_commands_set ||
       level_group_load_commands_set->goal_name != "level-group-load-commands-set!" ||
       !level_group_load_commands_set->entry || !want_vis || want_vis->goal_name != "want-vis" ||
       !want_vis->entry ||
       goalpad::find_aot_export2("false-func") || goalpad::find_aot_export2("true-func") ||
       goalpad::find_aot_export2("identity") || goalpad::find_aot_export2("lognot") ||
+      goalpad::find_aot_export2("reset!") ||
       goalpad::find_aot_export0("want-vis") ||
       goalpad::find_aot_export2("want-levels") ||
       goalpad::find_aot_export2("") || !want_levels ||
@@ -481,6 +655,7 @@ int main() {
       goalpad::find_aot_export3("true-func") ||
       goalpad::find_aot_export3("identity") ||
       goalpad::find_aot_export3("lognot") ||
+      goalpad::find_aot_export3("reset!") ||
       goalpad::find_aot_export3("level-group-load-commands-set!") ||
       goalpad::find_aot_export3("want-vis") ||
       goalpad::find_aot_export3("")) {
@@ -553,6 +728,8 @@ int main() {
                  lognot_probe.restored_process == 0x14 &&
                  lognot_probe.restored_symbol_table == 0x15 &&
                  lognot_probe.restored_offset_base == 0x16 &&
+                 has_expected_jak1_load_state_reset_arm64_code(load_state_reset->entry) &&
+                 verifies_load_state_reset(load_state_reset->entry, process) &&
                  has_expected_jak1_level_group_load_commands_set_arm64_code(
                      level_group_load_commands_set->entry) &&
                  verifies_level_group_load_commands_set(

@@ -10,6 +10,7 @@
   extern "C" std::uint64_t c_symbol(std::uint64_t);
 #include "Generated/OpenGOALJak1Identity.exports.h"
 #include "Generated/OpenGOALJak1Lognot.exports.h"
+#include "Generated/OpenGOALJak1LoadStateReset.exports.h"
 #undef OPENGOAL_AOT_EXPORT1
 
 #define OPENGOAL_AOT_EXPORT2(goal_name, c_symbol)                              \
@@ -36,8 +37,10 @@ constexpr goalpad::AOTExport1 kAOTExports1[] = {
 #define OPENGOAL_AOT_EXPORT1(goal_name, c_symbol) {goal_name, &c_symbol},
 #include "Generated/OpenGOALJak1Identity.exports.h"
 #include "Generated/OpenGOALJak1Lognot.exports.h"
+#include "Generated/OpenGOALJak1LoadStateReset.exports.h"
 #undef OPENGOAL_AOT_EXPORT1
 };
+static_assert(sizeof(kAOTExports1) / sizeof(kAOTExports1[0]) == 3);
 
 constexpr goalpad::AOTExport2 kAOTExports2[] = {
 #define OPENGOAL_AOT_EXPORT2(goal_name, c_symbol) {goal_name, &c_symbol},
