@@ -1,0 +1,330 @@
+From 5c5368598bf808e5e8a8494679360601d42c02b4 Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Thu, 30 Jul 2026 21:25:13 -0600
+Subject: [PATCH 13/15] feat(kernel): add portable Jak 1 data-arena header
+ proof (AI-assisted)
+
+Initialize caller-owned RW storage with the exact Jak 1 heap and fixed-symbol header layout without binding global runtime memory or producing executable code.
+---
+ game/CMakeLists.txt             |   2 +
+ game/kernel/jak1/data_arena.cpp |  87 +++++++++++++++++++++++
+ game/kernel/jak1/data_arena.h   |  54 ++++++++++++++
+ test/CMakeLists.txt             |   4 ++
+ test/test_jak1_data_arena.cpp   | 122 ++++++++++++++++++++++++++++++++
+ 5 files changed, 269 insertions(+)
+ create mode 100644 game/kernel/jak1/data_arena.cpp
+ create mode 100644 game/kernel/jak1/data_arena.h
+ create mode 100644 test/test_jak1_data_arena.cpp
+
+diff --git a/game/CMakeLists.txt b/game/CMakeLists.txt
+index 2a7b5c40..312a0cd6 100644
+--- a/game/CMakeLists.txt
++++ b/game/CMakeLists.txt
+@@ -354,6 +354,8 @@ set(RUNTIME_SOURCE
+ 
+ add_subdirectory(sound)
+ 
++add_library(jak1-data-arena STATIC kernel/jak1/data_arena.cpp)
++
+ # we build the runtime as a static library.
+ add_library(runtime STATIC ${RUNTIME_SOURCE} "../third-party/glad/src/glad.c")
+ 
+diff --git a/game/kernel/jak1/data_arena.cpp b/game/kernel/jak1/data_arena.cpp
+new file mode 100644
+index 00000000..9613bc93
+--- /dev/null
++++ b/game/kernel/jak1/data_arena.cpp
+@@ -0,0 +1,87 @@
++#include "data_arena.h"
++
++#include <cstddef>
++#include <cstring>
++#include <limits>
++
++#include "common/goal_constants.h"
++#include "common/symbols.h"
++#include "game/kernel/common/kmalloc.h"
++#include "game/kernel/common/memory_layout.h"
++#include "game/kernel/jak1/kscheme.h"
++
++namespace jak1 {
++namespace {
++
++constexpr std::uint32_t kSymbolTableEntrySize = 8;
++constexpr std::uint32_t kSymbolTableOffset = HEAP_START;
++constexpr std::uint32_t kSymbolTableEnd = kSymbolTableOffset + SYM_TABLE_MEM_SIZE;
++constexpr std::uint32_t kS7 =
++    kSymbolTableOffset + (GOAL_MAX_SYMBOLS / 2) * kSymbolTableEntrySize + BASIC_OFFSET;
++constexpr std::uint32_t kSymbolTable2 = kSymbolTableOffset + BASIC_OFFSET;
++constexpr std::uint32_t kLastSymbol = kSymbolTableOffset + SYM_TABLE_END * kSymbolTableEntrySize;
++constexpr std::uint32_t kEmptyPair = kS7 + jak1_symbols::FIX_SYM_EMPTY_PAIR;
++
++static_assert(sizeof(kheapinfo) == 4 * sizeof(std::uint32_t));
++static_assert(offsetof(kheapinfo, base) == 0);
++static_assert(offsetof(kheapinfo, top) == sizeof(std::uint32_t));
++static_assert(offsetof(kheapinfo, current) == 2 * sizeof(std::uint32_t));
++static_assert(offsetof(kheapinfo, top_base) == 3 * sizeof(std::uint32_t));
++static_assert(sizeof(Symbol) == sizeof(std::uint32_t));
++static_assert(offsetof(Symbol, value) == 0);
++static_assert(kSymbolTableEnd == minimum_data_arena_header_size());
++static_assert(kSymbolTableOffset >= GLOBAL_HEAP_INFO_ADDR + sizeof(kheapinfo));
++
++void write_u32(std::byte* storage, std::size_t offset, std::uint32_t value) {
++  std::memcpy(storage + offset, &value, sizeof(value));
++}
++
++}  // namespace
++
++DataArenaHeaderResult initialize_data_arena_header(std::byte* storage, std::size_t storage_size) {
++  if (!storage) {
++    return {.error = DataArenaHeaderError::NullStorage};
++  }
++  if (storage_size < minimum_data_arena_header_size()) {
++    return {.error = DataArenaHeaderError::StorageTooSmall};
++  }
++  if (storage_size > std::numeric_limits<std::uint32_t>::max()) {
++    return {.error = DataArenaHeaderError::StorageTooLarge};
++  }
++
++  const auto heap_end = static_cast<std::uint32_t>(storage_size);
++  std::memset(storage, 0, storage_size);
++
++  write_u32(storage, GLOBAL_HEAP_INFO_ADDR + offsetof(kheapinfo, base), HEAP_START);
++  write_u32(storage, GLOBAL_HEAP_INFO_ADDR + offsetof(kheapinfo, top), heap_end);
++  write_u32(storage, GLOBAL_HEAP_INFO_ADDR + offsetof(kheapinfo, current), kSymbolTableEnd);
++  write_u32(storage, GLOBAL_HEAP_INFO_ADDR + offsetof(kheapinfo, top_base), heap_end);
++
++  write_u32(storage, kS7 + jak1_symbols::FIX_SYM_EMPTY_CAR, kEmptyPair);
++  write_u32(storage, kS7 + jak1_symbols::FIX_SYM_EMPTY_CDR, kEmptyPair);
++  write_u32(storage, kS7 + jak1_symbols::FIX_SYM_FALSE, kS7);
++  write_u32(storage, kS7 + jak1_symbols::FIX_SYM_TRUE,
++            kS7 + jak1_symbols::FIX_SYM_TRUE);
++  write_u32(storage, kS7 + jak1_symbols::FIX_SYM_GLOBAL_HEAP, GLOBAL_HEAP_INFO_ADDR);
++
++  return {
++      .header =
++          {
++              .global_heap_info = GLOBAL_HEAP_INFO_ADDR,
++              .global_heap_base = HEAP_START,
++              .global_heap_current = kSymbolTableEnd,
++              .global_heap_end = heap_end,
++              .symbol_table = kSymbolTableOffset,
++              .symbol_table_end = kSymbolTableEnd,
++              .symbol_table2 = kSymbolTable2,
++              .last_symbol = kLastSymbol,
++              .s7 = kS7,
++              .empty_pair = kEmptyPair,
++              .false_value = kS7,
++              .true_value = kS7 + jak1_symbols::FIX_SYM_TRUE,
++          },
++      .error = DataArenaHeaderError::None,
++  };
++}
++
++}  // namespace jak1
+diff --git a/game/kernel/jak1/data_arena.h b/game/kernel/jak1/data_arena.h
+new file mode 100644
+index 00000000..aebfea1e
+--- /dev/null
++++ b/game/kernel/jak1/data_arena.h
+@@ -0,0 +1,54 @@
++#pragma once
++
++#include <cstddef>
++#include <cstdint>
++
++#include "common/goal_constants.h"
++#include "game/kernel/common/memory_layout.h"
++
++namespace jak1 {
++
++enum class DataArenaHeaderError {
++  None,
++  NullStorage,
++  StorageTooSmall,
++  StorageTooLarge,
++};
++
++struct DataArenaHeader {
++  std::uint32_t global_heap_info;
++  std::uint32_t global_heap_base;
++  std::uint32_t global_heap_current;
++  std::uint32_t global_heap_end;
++  std::uint32_t symbol_table;
++  std::uint32_t symbol_table_end;
++  std::uint32_t symbol_table2;
++  std::uint32_t last_symbol;
++  std::uint32_t s7;
++  std::uint32_t empty_pair;
++  std::uint32_t false_value;
++  std::uint32_t true_value;
++};
++
++struct DataArenaHeaderResult {
++  DataArenaHeader header{};
++  DataArenaHeaderError error = DataArenaHeaderError::None;
++
++  [[nodiscard]] bool ok() const { return error == DataArenaHeaderError::None; }
++};
++
++[[nodiscard]] constexpr std::size_t minimum_data_arena_header_size() {
++  return static_cast<std::size_t>(HEAP_START) + static_cast<std::size_t>(SYM_TABLE_MEM_SIZE);
++}
++
++/*!
++ * Initialize the data-only prefix of Jak 1's GOAL memory layout in caller-owned storage.
++ *
++ * This establishes the global heap record, symbol table extent, fixed #f/#t value cells, and
++ * empty pair representation. It neither binds the storage to g_ee_main_mem nor creates GOAL
++ * code, native-function trampolines, symbol metadata, type objects, or linked game data.
++ */
++[[nodiscard]] DataArenaHeaderResult initialize_data_arena_header(std::byte* storage,
++                                                                   std::size_t storage_size);
++
++}  // namespace jak1
+diff --git a/test/CMakeLists.txt b/test/CMakeLists.txt
+index 991fb413..84fa279c 100644
+--- a/test/CMakeLists.txt
++++ b/test/CMakeLists.txt
+@@ -40,6 +40,10 @@ add_executable(goalc-test
+ 
+ target_link_libraries(goalc-test common runtime compiler gtest decomp Zydis libzstd_static tree-sitter)
+ 
++add_executable(jak1-data-arena-test ${CMAKE_CURRENT_LIST_DIR}/test_jak1_data_arena.cpp)
++target_link_libraries(jak1-data-arena-test jak1-data-arena gtest_main)
++gtest_discover_tests(jak1-data-arena-test)
++
+ add_executable(test_image_resize ${CMAKE_CURRENT_LIST_DIR}/common/test_image_resize.cpp)
+ target_link_libraries(test_image_resize common)
+ 
+diff --git a/test/test_jak1_data_arena.cpp b/test/test_jak1_data_arena.cpp
+new file mode 100644
+index 00000000..54e47fd9
+--- /dev/null
++++ b/test/test_jak1_data_arena.cpp
+@@ -0,0 +1,122 @@
++#include <algorithm>
++#include <array>
++#include <cstddef>
++#include <cstdint>
++#include <cstring>
++#include <limits>
++#include <vector>
++
++#include "common/goal_constants.h"
++#include "common/symbols.h"
++#include "game/kernel/common/kmalloc.h"
++#include "game/kernel/common/memory_layout.h"
++#include "game/kernel/jak1/data_arena.h"
++#include "game/kernel/jak1/kscheme.h"
++#include "gtest/gtest.h"
++
++namespace {
++
++std::uint32_t read_u32(const std::byte* storage, std::size_t offset) {
++  std::uint32_t value = 0;
++  std::memcpy(&value, storage + offset, sizeof(value));
++  return value;
++}
++
++void write_u32(std::byte* storage, std::size_t offset, std::uint32_t value) {
++  std::memcpy(storage + offset, &value, sizeof(value));
++}
++
++}  // namespace
++
++TEST(Jak1DataArena, InitializesExactDataOnlyHeader) {
++  constexpr std::size_t kGuardSize = 64;
++  constexpr std::size_t kArenaSize = jak1::minimum_data_arena_header_size() + 0x2000;
++  std::vector<std::byte> storage(kGuardSize + kArenaSize + kGuardSize, std::byte{0xa5});
++  auto* arena = storage.data() + kGuardSize;
++
++  const auto result = jak1::initialize_data_arena_header(arena, kArenaSize);
++
++  ASSERT_TRUE(result.ok());
++  EXPECT_EQ(result.header.global_heap_info, GLOBAL_HEAP_INFO_ADDR);
++  EXPECT_EQ(result.header.global_heap_base, HEAP_START);
++  EXPECT_EQ(result.header.global_heap_current, 0x17fd20);
++  EXPECT_EQ(result.header.global_heap_end, kArenaSize);
++  EXPECT_EQ(result.header.symbol_table, 0x13fd20);
++  EXPECT_EQ(result.header.symbol_table_end, 0x17fd20);
++  EXPECT_EQ(result.header.symbol_table2, 0x13fd24);
++  EXPECT_EQ(result.header.last_symbol, 0x15fc20);
++  EXPECT_EQ(result.header.s7, 0x14fd24);
++  EXPECT_EQ(result.header.empty_pair, 0x14fd1a);
++  EXPECT_EQ(result.header.false_value, result.header.s7);
++  EXPECT_EQ(result.header.true_value, result.header.s7 + jak1_symbols::FIX_SYM_TRUE);
++  EXPECT_EQ(read_u32(arena, GLOBAL_HEAP_INFO_ADDR + offsetof(kheapinfo, base)), HEAP_START);
++  EXPECT_EQ(read_u32(arena, GLOBAL_HEAP_INFO_ADDR + offsetof(kheapinfo, top)), kArenaSize);
++  EXPECT_EQ(read_u32(arena, GLOBAL_HEAP_INFO_ADDR + offsetof(kheapinfo, current)), 0x17fd20);
++  EXPECT_EQ(read_u32(arena, GLOBAL_HEAP_INFO_ADDR + offsetof(kheapinfo, top_base)), kArenaSize);
++  EXPECT_EQ(read_u32(arena, result.header.s7 + jak1_symbols::FIX_SYM_EMPTY_CAR),
++            result.header.empty_pair);
++  EXPECT_EQ(read_u32(arena, result.header.s7 + jak1_symbols::FIX_SYM_EMPTY_CDR),
++            result.header.empty_pair);
++  EXPECT_EQ(read_u32(arena, result.header.s7 + jak1_symbols::FIX_SYM_FALSE),
++            result.header.false_value);
++  EXPECT_EQ(read_u32(arena, result.header.s7 + jak1_symbols::FIX_SYM_TRUE),
++            result.header.true_value);
++  EXPECT_EQ(read_u32(arena, result.header.s7 + jak1_symbols::FIX_SYM_GLOBAL_HEAP),
++            result.header.global_heap_info);
++
++  std::vector<std::byte> expected(kArenaSize, std::byte{0});
++  write_u32(expected.data(), GLOBAL_HEAP_INFO_ADDR + offsetof(kheapinfo, base), HEAP_START);
++  write_u32(expected.data(), GLOBAL_HEAP_INFO_ADDR + offsetof(kheapinfo, top), kArenaSize);
++  write_u32(expected.data(), GLOBAL_HEAP_INFO_ADDR + offsetof(kheapinfo, current), 0x17fd20);
++  write_u32(expected.data(), GLOBAL_HEAP_INFO_ADDR + offsetof(kheapinfo, top_base), kArenaSize);
++  write_u32(expected.data(), result.header.s7 + jak1_symbols::FIX_SYM_EMPTY_CAR,
++            result.header.empty_pair);
++  write_u32(expected.data(), result.header.s7 + jak1_symbols::FIX_SYM_EMPTY_CDR,
++            result.header.empty_pair);
++  write_u32(expected.data(), result.header.s7 + jak1_symbols::FIX_SYM_FALSE,
++            result.header.false_value);
++  write_u32(expected.data(), result.header.s7 + jak1_symbols::FIX_SYM_TRUE,
++            result.header.true_value);
++  write_u32(expected.data(), result.header.s7 + jak1_symbols::FIX_SYM_GLOBAL_HEAP,
++            result.header.global_heap_info);
++
++  EXPECT_EQ(std::memcmp(arena, expected.data(), kArenaSize), 0);
++  EXPECT_TRUE(std::all_of(storage.begin(), storage.begin() + kGuardSize,
++                          [](std::byte value) { return value == std::byte{0xa5}; }));
++  EXPECT_TRUE(std::all_of(storage.end() - kGuardSize, storage.end(),
++                          [](std::byte value) { return value == std::byte{0xa5}; }));
++}
++
++TEST(Jak1DataArena, PreservesStorageOnRejectedInputs) {
++  std::array<std::byte, 64> storage;
++  storage.fill(std::byte{0x5a});
++
++  const auto null_result =
++      jak1::initialize_data_arena_header(nullptr, jak1::minimum_data_arena_header_size());
++  EXPECT_EQ(null_result.error, jak1::DataArenaHeaderError::NullStorage);
++
++  const auto short_result = jak1::initialize_data_arena_header(storage.data(), storage.size());
++  EXPECT_EQ(short_result.error, jak1::DataArenaHeaderError::StorageTooSmall);
++  EXPECT_TRUE(std::all_of(storage.begin(), storage.end(),
++                          [](std::byte value) { return value == std::byte{0x5a}; }));
++
++  if constexpr (std::numeric_limits<std::size_t>::max() >
++                std::numeric_limits<std::uint32_t>::max()) {
++    const auto large_result = jak1::initialize_data_arena_header(
++        storage.data(), static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()) + 1);
++    EXPECT_EQ(large_result.error, jak1::DataArenaHeaderError::StorageTooLarge);
++    EXPECT_TRUE(std::all_of(storage.begin(), storage.end(),
++                            [](std::byte value) { return value == std::byte{0x5a}; }));
++  }
++}
++
++TEST(Jak1DataArena, UsesOpenGoalDataLayoutRepresentations) {
++  EXPECT_EQ(jak1::minimum_data_arena_header_size(), 0x17fd20);
++  EXPECT_EQ(sizeof(kheapinfo), 16);
++  EXPECT_EQ(sizeof(jak1::Symbol), 4);
++  EXPECT_EQ(jak1::SYM_TABLE_MEM_SIZE, 0x40000);
++  EXPECT_EQ(jak1::GOAL_MAX_SYMBOLS, 0x4000);
++  EXPECT_EQ(jak1_symbols::FIX_SYM_EMPTY_CAR, -0xc);
++  EXPECT_EQ(jak1_symbols::FIX_SYM_EMPTY_PAIR, -0xa);
++  EXPECT_EQ(jak1_symbols::FIX_SYM_EMPTY_CDR, -0x8);
++}
+-- 
+2.50.1 (Apple Git-155)
+
