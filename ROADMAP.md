@@ -251,6 +251,11 @@ Current progress:
   `1c80b667aa943d066c1fe2deef85c464c09996fe` adds its distinct typed export;
   the combined checkpoint passes 22 focused tests, 708 non-listener tests, and
   the paired-artifact CTest.
+- Child commits `35d653f1fadc52e78925e952a507d60dc4c11245` and
+  `f979c82cb6da50b847808ebd23ec10c4fa1c1c9e` compile and export the exact
+  zero-argument Jak 1 `true-func` body. Its signed text is `mov x0, x21; add
+  x0, x0, #8; ret`, returning `#t` as the `st` base plus eight. The combined
+  checkpoint passes 27 focused tests, 713 non-listener tests, and CTest 1/1.
 
 ## Stage 4 — Replace the desktop executable-object model
 
@@ -278,21 +283,24 @@ Exit gate:
 
 Current progress:
 
-- The first static artifact boundary is verified: the compiler emits
-  `OPENGOAL_AOT_EXPORT0("false-func", goalpad_aot_false_func)` alongside the
-  signed text. Parent commit `463e366` resolves that record through a small
-  app-local typed registry and calls it through the existing static state
-  wrapper.
+- The first static artifact boundary is verified: the compiler emits guarded
+  zero-argument metadata for `false-func` and `true-func` alongside signed
+  text, plus typed one-argument metadata for `identity`. Parent commits
+  `0866a1e`, `1d5e4bf`, and `d12f732` preserve the true-function compiler and
+  export patches, register its checked-in artifact beside `false-func`, and
+  execute all three entries through the existing static state boundaries.
 - This is build-time native binding only. It does not execute the surrounding
   top-level `define`, install a legacy GOAL symbol value, initialize live GOAL
   state, relocate code, or use the desktop V3 linker.
-- The registry harness, ARM64 macOS build, dedicated M5 simulator, and generic
-  signed iOS build passed. Physical-device validation was not performed.
-- The verified boundary also includes typed
-  `OPENGOAL_AOT_EXPORT1("identity", goalpad_aot_identity)` metadata. Parent
-  commit `ffeb20d` resolves it through a separate one-argument registry and
-  state wrapper, establishing X20/X21/X22 before placing the object argument
-  in X0. It remains build-time native binding, not a live GOAL function value.
+- The registry and state harnesses, ARM64 macOS app build, dedicated M5
+  simulator build/run, and generic signed iOS build passed. The generic
+  simulator destination selected x86_64 and intentionally failed the ARM64
+  byte check; use the specific M5 simulator destination for runtime evidence.
+  No physical-device validation was performed.
+- The current Debug generic iOS artifact is only limited signing/code-layout
+  evidence. Its Preview split bundle is not release-like no-JIT evidence;
+  recording a Release-like signed build is the next validation before making a
+  broader executable-code claim.
 
 ## Stage 5 — Build a portable OpenGOAL runtime for iPadOS
 
@@ -557,13 +565,12 @@ verified child commit through the repository patch.
 
 The next actions are:
 
-1. Compile the exact real `true-func` `#t` body to ARM64 assembly only. Its
-   expected result is X21 plus eight; do not add `Export0`, a GOAL symbol
-   installation, or a live runtime binding for it yet.
+1. Record a Release-like signed iOS build and inspect its executable layout and
+   entitlement surface before treating the static AOT path as no-JIT evidence.
 2. Keep unsupported statics, general relocations, calls, saved registers,
    spills, and stack locals explicit until a real Jak 1 boot dependency
    requires each boundary.
-3. Keep x86 behavior, the 708-test non-network suite, ARM64 host tools, and the
+3. Keep x86 behavior, the 713-test non-network suite, ARM64 host tools, and the
    signed app path healthy after each increment.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.

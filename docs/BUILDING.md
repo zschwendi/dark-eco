@@ -43,6 +43,34 @@ xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
 These commands validate compilation and linking only. The generic iOS build is
 not physical-device validation.
 
+For ARM64 runtime validation, do not substitute the generic simulator
+destination for the named M5 simulator. The generic simulator build selected
+x86_64 in the verified true-function checkpoint; its intentional `__arm64__`
+instruction-byte checks therefore report a failed runtime probe. That is an
+architecture-specific expected failure, not ARM64 simulator evidence. Use the
+maintainer-created simulator instead:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug \
+  -destination 'id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-sim -jobs 4 build
+```
+
+This command targets **iPad Pro 11-inch (M5)** and is the routine ARM64
+simulator build path. Shut it down after a validation pass when it was not
+already running.
+
+The current Debug generic iOS build is limited signing/code-layout evidence.
+Its Preview split bundle places the AOT code in signed `GOALPad.debug.dylib`
+with RX `__TEXT` and no `mmap`, `mprotect`, or JIT-protect imports, but the main
+Debug stub imports `dlopen`/`dlsym` and contains Preview JIT strings. In
+addition, `codesign` display inspection reports unavailable authority, an
+unbound Info.plist, and invalid or ignored app-executable entitlements; the
+embedded profile has no JIT entitlement. Do not treat this Debug output as
+release-like no-JIT evidence. Record and inspect a Release-like signed build
+before making that claim.
+
 ## Build the pinned OpenGOAL ARM64 host baseline
 
 ```sh
@@ -90,6 +118,10 @@ Identity compiler child: 25917e278aeeaf6fee9faa4fbba93f4a2c64f146
 Identity compiler patch: patches/OpenGOAL/0007-feat-aot-compile-exact-Jak-1-identity-function-AI-as.patch
 Identity export child: 1c80b667aa943d066c1fe2deef85c464c09996fe
 Identity export patch: patches/OpenGOAL/0008-feat-aot-add-typed-identity-export-metadata-AI-assis.patch
+True compiler child: 35d653f1fadc52e78925e952a507d60dc4c11245
+True compiler patch: patches/OpenGOAL/0009-feat-aot-compile-exact-Jak-1-true-function-AI-assist.patch
+True export child: f979c82cb6da50b847808ebd23ec10c4fa1c1c9e
+True export patch: patches/OpenGOAL/0010-feat-aot-export-exact-Jak-1-true-function-AI-assiste.patch
 ```
 
 Restore it into an isolated worktree:
@@ -122,6 +154,12 @@ git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
 
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0008-feat-aot-add-typed-identity-export-metadata-AI-assis.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0009-feat-aot-compile-exact-Jak-1-true-function-AI-assist.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0010-feat-aot-export-exact-Jak-1-true-function-AI-assiste.patch"
 ```
 
 If that branch or worktree already exists, inspect and reuse it rather than
@@ -129,11 +167,12 @@ deleting it. Do not move the parent repository's official submodule gitlink to
 the unpublished child commit.
 
 The restored commits are patch-equivalent to `79f22008`, `149840cf`,
-`32cf26ae`, `92c8f975`, `b78d7c28`, `1fc20e79`, `25917e27`, and `1c80b667`,
-but `git am` normally assigns new committer metadata and therefore different
-commit SHAs. The exact objects are available only in a checkout that already
-contains the original child commits. Compare the resulting tree or stable patch
-identities when reconstructing them from the preserved patches.
+`32cf26ae`, `92c8f975`, `b78d7c28`, `1fc20e79`, `25917e27`, `1c80b667`,
+`35d653f1`, and `f979c82c`, but `git am` normally assigns new committer
+metadata and therefore different commit SHAs. The exact objects are available
+only in a checkout that already contains the original child commits. Compare
+the resulting tree or stable patch identities when reconstructing them from
+the preserved patches.
 
 Configure and build the affected tools serially enough to avoid excess memory
 pressure:
@@ -287,6 +326,41 @@ Apple-ABI X0 object argument as its return value. The paired metadata is
 `OPENGOAL_AOT_EXPORT1("identity", goalpad_aot_identity)`. Cross-ABI metadata
 or wrong-symbol requests fail without replacing existing output artifacts.
 
+Generate and compare the complete real Jak 1 `true-func` definition:
+
+```sh
+/private/tmp/GOALPadOpenGOAL-stage2-build/goalc/goalc-aot \
+  --project-path /private/tmp/GOALPadOpenGOAL-stage2 \
+  --input \
+  /private/tmp/GOALPadOpenGOAL-stage2/test/goalc/source_templates/arm64-aot/full-true-func-from-jak1-gcommon.gc \
+  --function true-func \
+  --output /private/tmp/goalpad_aot_true_func.s \
+  --exports-output /private/tmp/goalpad_aot_true_func.exports.h \
+  --symbol goalpad_aot_true_func
+
+cmp /private/tmp/goalpad_aot_true_func.s \
+  GOALPad/Native/Generated/OpenGOALJak1TrueFunc.s
+
+cmp /private/tmp/goalpad_aot_true_func.exports.h \
+  GOALPad/Native/Generated/OpenGOALJak1TrueFunc.exports.h
+
+xcrun --sdk iphoneos clang -arch arm64 \
+  -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
+  -c /private/tmp/goalpad_aot_true_func.s \
+  -o /private/tmp/goalpad_aot_true_func.o
+
+xcrun llvm-objdump --macho --disassemble \
+  /private/tmp/goalpad_aot_true_func.o
+```
+
+The exact zero-argument body is `mov x0, x21; add x0, x0, #8; ret`, returning
+OpenGOAL `#t` as the `st` base plus eight. The paired metadata is
+`OPENGOAL_AOT_EXPORT0("true-func", goalpad_aot_true_func)`. The compiler
+rejects false-body, wrong-symbol, and cross-ABI requests without replacing
+existing paired artifacts. The selected text is build-time native binding;
+the surrounding top-level `define`, live GOAL symbol installation, and desktop
+V3 runtime linker remain unsupported.
+
 ## Validate the static OpenGOAL ARM64 call boundary
 
 The app-local boundary establishes the compiler contract's special registers:
@@ -299,10 +373,11 @@ caller's callee-saved values:
 xcrun --sdk macosx clang -arch arm64 \
   tests/native/GOALPadAOTStateHarness.c \
   GOALPad/Native/Generated/OpenGOALJak1FalseFunc.s \
+  GOALPad/Native/Generated/OpenGOALJak1TrueFunc.s \
   GOALPad/Native/GOALPadGoalStateWrapper.s \
-  -o /private/tmp/goalpad_jak1_full_false_func_state_harness
+  -o /private/tmp/goalpad_jak1_true_func_state_harness
 
-/private/tmp/goalpad_jak1_full_false_func_state_harness
+/private/tmp/goalpad_jak1_true_func_state_harness
 ```
 
 Exit `0` is required. These values are never dereferenced, so this test proves
@@ -323,6 +398,7 @@ xcrun --sdk macosx clang++ -std=c++20 -arch arm64 \
   tests/native/GOALPadAOTExportRegistryHarness.cpp \
   GOALPad/Native/GOALPadAOTExportRegistry.cpp \
   GOALPad/Native/Generated/OpenGOALJak1FalseFunc.s \
+  GOALPad/Native/Generated/OpenGOALJak1TrueFunc.s \
   GOALPad/Native/Generated/OpenGOALJak1Identity.s \
   GOALPad/Native/GOALPadGoalStateWrapper.s \
   -o /private/tmp/goalpad_aot_export_registry_harness
@@ -330,11 +406,11 @@ xcrun --sdk macosx clang++ -std=c++20 -arch arm64 \
 /private/tmp/goalpad_aot_export_registry_harness
 ```
 
-Exit `0` requires successful typed `false-func` and `identity` lookups,
-rejects cross-type/missing names, and proves the identity wrapper establishes
-X20/X21/X22 before placing its argument in X0 while preserving caller state.
-It is not live GOAL symbol-table, relocation, or runtime initialization
-evidence.
+Exit `0` requires successful typed `false-func`, `true-func`, and `identity`
+lookups; rejects cross-type/missing names; verifies `true-func` returns X21
+plus eight; and proves the identity wrapper establishes X20/X21/X22 before
+placing its argument in X0 while preserving caller state. It is not live GOAL
+symbol-table, relocation, or runtime initialization evidence.
 
 ## Physical iPad validation
 
