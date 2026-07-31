@@ -364,6 +364,21 @@ Current progress:
   target does not link the OpenGOAL runtime or CodeTester, and it does not
   execute compiler-produced GOAL code or establish an iPhoneOS, app, signing,
   simulator, or physical-device result.
+- Child `bd3f4752`, preserved by parent `3cb4e16` as patch 0018, generates
+  four exact Jak 1 AOT artifacts on the macOS ARM64 host, links them into the
+  ABI probe, and calls them through the production assembly dispatcher after
+  initializing one caller-owned data arena. The affected host build passed;
+  ABI CTest passed 3/3, data-arena CTest 4/4, the compiler filter 122/122, and
+  full CTest 8/8. This proves the generated `false-func`, `true-func`,
+  `identity`, and `lognot` entries receive the intended X21/X0 inputs and
+  return expected values. None dereferences X22 or reads arena memory, so it
+  does not prove X22-relative addressing, arena contents, C++ `call_goal`
+  runtime dispatch, globals, JIT, an iPhoneOS executable/app, signing,
+  simulator, or device behavior. A direct iPhoneOS static archive containing
+  the data-arena object, dispatcher assembly, and four generated assembly
+  files also passed object/symbol inspection; it is compatibility evidence,
+  not runtime execution. The current minimal iPhoneOS data-arena
+  configure/build still passes independently and contains no host AOT target.
 - This is only a partial data boundary: it establishes canonical heap and
   symbol-table offsets in caller-owned storage, but does not bind
   `g_ee_main_mem`, initialize native kernel/symbol globals, create types or
@@ -616,16 +631,16 @@ owner, access policy, and transport, then explicitly renews authentication.
 
 The next actions are:
 
-1. Integrate the verified portable 0013-0017 sequence only after a dedicated
-   OpenGOAL fork makes child commit `45e1897f` fetchable and pins it
-   reproducibly. Apply 0017 after its 0013-0016 data-arena prerequisite; do
-   not copy the source into the app or use a machine-local worktree path.
-2. Keep the 0017 static host ABI probe as a regression guard, then extend it
-   with build-generated, statically linked `false-func`, `true-func`,
-   `identity`, and `lognot` artifacts against one initialized data arena. This
-   remains a host-only next seam: do not represent it as an iPad result, bind
-   desktop globals, create live GOAL symbols, add executable memory, or begin
-   the desktop runtime-linker path.
+1. Integrate the verified portable 0013-0018 sequence only after a dedicated
+   OpenGOAL fork makes child commit `bd3f4752` fetchable and pins it
+   reproducibly. Apply 0018 after its 0013-0017 prerequisite sequence; do not
+   copy the source into the app or use a machine-local worktree path.
+2. Keep the host generated-artifact ABI probe as a regression guard. The next
+   seam is pending a post-0018 audit choice between the first real X22
+   data-arena dereference and a host-generated artifact handoff into an
+   iPhoneOS signed/linkable target. Do not choose between them here or present
+   either candidate as iPad execution, bind desktop globals, create live GOAL
+   symbols, add executable memory, or begin the desktop runtime-linker path.
 3. Keep unsupported statics, general relocations, calls, saved registers,
    spills, and stack locals explicit until a real Jak 1 boot dependency
    requires each boundary. Keep x86 behavior, the non-network compiler suite,

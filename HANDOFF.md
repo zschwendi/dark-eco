@@ -1737,12 +1737,14 @@ explicitly requests physical-device testing in the current task.
 
 ### Current integration and publication gate
 
-The Darwin/macOS ARM64 host call-context ABI seam, using a synthetic arena
-pointer, is now preserved as Checkpoint 6 below. Keep it as a macOS ARM64 host
-regression guard while choosing only the next runtime-initialization dependency
-required by a real Jak 1 boot. Do not bind desktop globals, install a live GOAL
-symbol, add executable memory, use the desktop runtime linker, or start a
-renderer/camera/platform-abstraction effort.
+The Darwin/macOS ARM64 host generated-artifact call-context seam is now
+preserved as Checkpoint 7 below. It links four build-generated Jak 1 entries
+through the production assembly dispatcher with an initialized synthetic arena,
+but the current entries use only X21/X0 and do not dereference X22. Keep it as
+a host regression guard while the next dependency is selected by post-0018
+audit. Do not bind desktop globals, install a live GOAL symbol, add executable
+memory, use the desktop runtime linker, or start a renderer/camera/platform-
+abstraction effort.
 
 Durable parent integration is blocked until a maintainer chooses a fetchable,
 pinned OpenGOAL fork and its owner, visibility/access policy, and HTTPS/SSH
@@ -1756,6 +1758,7 @@ an immutable fork commit.
 At this checkpoint, the parent history is:
 
 ```text
+3cb4e16 test(opengoal): preserve generated Jak 1 AOT execution proof (AI-assisted)
 0c0395e build(opengoal): preserve ARM64 GOAL call ABI proof (AI-assisted)
 1980e2f docs: clarify data-arena proof handoff (AI-assisted)
 7f4a013 docs: record minimal iPhoneOS data-arena proof (AI-assisted)
@@ -1770,11 +1773,11 @@ f7ad14c feat(aot): bind exact Jak 1 lognot export (AI-assisted)
 
 `origin` remains configured as `https://github.com/zschwendi/GOALPad.git`.
 Publication is blocked by the unverified destination/fork decision and invalid
-local GitHub credentials; no push was attempted for `a2f41c7`, `0c0395e`, or
-the current documentation checkpoints. Preserve the platform boundaries above
-so later Mac, iPhone, multiple-view, stereo, externally supplied projection,
-and visionOS presentation work remain possible without delaying the iPad Jak 1
-boot path.
+local GitHub credentials; no push was attempted for `a2f41c7`, `0c0395e`,
+`3cb4e16`, or the current documentation checkpoints. Preserve the platform
+boundaries above so later Mac, iPhone, multiple-view, stereo, externally
+supplied projection, and visionOS presentation work remain possible without
+delaying the iPad Jak 1 boot path.
 
 ## Checkpoint 6: host ARM64 GOAL call ABI
 
@@ -1883,21 +1886,197 @@ process recovery, not build or product-validation evidence.
 No simulator, generic iOS build, signing, device, physical hardware, remote,
 or push was used for this checkpoint. **Z iPad Pro** was not accessed.
 
-### Next task and blocker
+### Historical next task and blocker
 
-The next actionable implementation seam is not a renderer or
-platform-abstraction campaign: extend the host ABI probe to call build-generated
-static `false-func`, `true-func`, `identity`, and `lognot` artifacts through
-the production dispatcher against one initialized data arena. Keep the existing
-hand-authored probe for direct register/alignment coverage, generate the four
-artifacts serially to bound memory use, and make the generated export metadata
-a compile-time contract. This remains host static-code evidence, not iPad
-runtime, signing, or executable-GOAL evidence.
+The generated-artifact seam described here is completed by Checkpoint 7 below.
+The fork publication blocker remains: a maintainer must choose and publish a
+dedicated, fetchable, pinned OpenGOAL fork before durable parent integration.
+At that point restore 0013-0018 in order and retain the ABI probes as macOS
+regression guards. The fork choice remains blocked on maintainer direction for
+owner, visibility/access policy, and HTTPS/SSH transport; current local GitHub
+credentials are invalid. Do not change `.gitmodules`, move the official
+submodule gitlink, authenticate, create the fork, or push without that
+direction.
 
-Durable parent integration remains blocked until a maintainer chooses and
-publishes a dedicated, fetchable, pinned OpenGOAL fork. At that point restore
-0013-0017 in order and retain the ABI probe as a macOS regression guard. The
-fork choice is blocked on maintainer direction for owner, visibility/access
-policy, and HTTPS/SSH transport; current local GitHub credentials are invalid.
-Do not change `.gitmodules`, move the official submodule gitlink, authenticate,
-create the fork, or push without that direction.
+## Checkpoint 7: generated host Jak 1 AOT call context
+
+Parent checkpoint `3cb4e16fec1f7aadd23ae566b8fb6749b80056d9` preserves child
+`bd3f4752cea18e73fb1e5cbaec3efdd89ec38195` after parent
+`45e1897f7cd560e4951f515e264078a023a2d08c`. The official submodule remains
+pinned at `a4cb1ac1f0596c8740b1c26accb24a58505cda92` and was not moved.
+
+| Child commit | Patch | Stored SHA-256 | Stable patch ID | Preserved by parent |
+| --- | --- | --- | --- | --- |
+| `bd3f4752cea18e73fb1e5cbaec3efdd89ec38195` | `0018-test-arm64-execute-generated-Jak-1-AOT-artifacts-AI-.patch` | `bb413a73853d568ba848085735bc5817238ab1287fb16c393d24dd5bdb261fdb` | `edb9c6aa2a99d32b1d6932e8b4f6b90abe27ddfb` | `3cb4e16fec1f7aadd23ae566b8fb6749b80056d9` |
+
+Patch 0018 must follow 0017, which follows the ordered 0013-0016 data-arena
+unit. It extends only the macOS ARM64 host proof. As with 0017, the parent
+preserves the saved mbox rather than the child Git object. Verify the stored
+artifact rather than a regenerated patch stream:
+
+```sh
+shasum -a 256 \
+  patches/OpenGOAL/0018-test-arm64-execute-generated-Jak-1-AOT-artifacts-AI-.patch
+git patch-id --stable < \
+  patches/OpenGOAL/0018-test-arm64-execute-generated-Jak-1-AOT-artifacts-AI-.patch
+```
+
+The outputs are the recorded SHA-256 above and
+`edb9c6aa2a99d32b1d6932e8b4f6b90abe27ddfb bd3f4752cea18e73fb1e5cbaec3efdd89ec38195`.
+
+### Scope and claim boundary
+
+Within the existing Apple ARM64 host-test gate, 0018 adds one CMake custom
+command with four sequential `goalc-aot` invocations. It emits four assembly
+files and four X-macro export headers for `false-func`, `true-func`, `identity`,
+and `lognot`; explicit outputs, template inputs, and the `goalc-aot` target
+preserve incremental freshness. The ABI test depends on those outputs, compiles
+the generated assembly directly, and links only `jak1-data-arena`, GoogleTest,
+the test probe, and existing `asm_funcs_arm64.s`—not `libruntime.a`.
+
+The test initializes one local caller-owned data arena (about 62.7 MiB), sets
+X20 = X21 = `s7` and X22 = its base pointer, then branches directly through the
+production assembly dispatcher to the generated entries. It verifies false =
+X21, true = X21 + 8, identity = X0, lognot = `~X0`, and restoration of caller
+X20/X21/X22 sentinels. Generated export headers are included as typed X-macro
+declarations and tables, making metadata/symbol drift a compile failure.
+
+The four generated instruction streams use X21/X0 only: none dereferences X22
+or reads arena memory. The C++ `call_goal` runtime dispatcher is not called;
+`call_goal_on_stack` remains untested. Therefore this is not proof of
+X22-relative addressing, initialized arena contents, data-memory loads,
+runtime/global initialization, JIT, C++ runtime dispatch, iPhoneOS, app,
+signing, simulator, physical device, or normally signed executable-GOAL
+behavior.
+
+### Validation, graph, and artifacts
+
+The final affected build, including the tool used by the custom command,
+exited `0`:
+
+```sh
+cmake --build /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build \
+  --target runtime arm64-goal-call-abi-test jak1-data-arena-test goalc-test goalc-aot \
+  -j 4
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build \
+  -R '^Arm64GoalCallAbi\.' --output-on-failure
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build \
+  -R '^Jak1DataArena\.' --output-on-failure
+
+cd /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build
+./goalc-test '--gtest_filter=Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build \
+  --output-on-failure
+```
+
+The build completed 200 remaining curl/SDL/imgui and `goalc-test` steps; one
+duplicate-zstd linker warning did not prevent its `0` exit. ABI CTest passed
+3/3, data-arena CTest 4/4, the existing compiler filter 122/122, and full CTest
+8/8. All three discovered ABI tests are `RUN_SERIAL`, intentionally preventing
+the local 62.7 MiB arena test from competing with other CTest processes.
+
+Ninja graph inspection confirmed
+`goalc-aot -> arm64-goal-call-aot-artifacts -> arm64-goal-call-abi-test`, with
+the eight generated files also object-order dependencies. The test executable
+defines `_call_goal_asm_arm64`, `_call_goal_on_stack_asm_arm64`, and all four
+generated `_goalpad_aot_*` symbols from directly linked assembly. Its imports
+contain no `mmap`, `mprotect`, `g_ee_main_mem`, or `call_goal*` symbol. Its
+dynamic dependencies are GoogleTest, libc++, and libSystem only.
+
+Direct iPhoneOS object/archive compatibility also passed in
+`/private/tmp/goalpad-ios-aot-context.RbzOUa`: `asm_funcs_arm64.s`, the four
+fresh host-generated `.s` files, and the verified iPhoneOS `data_arena.o` were
+compiled or reused, archived, and ranlib'd. The result is arm64. The inspected
+dispatcher, false-function, and data-arena objects report `LC_BUILD_VERSION`
+platform iOS/minimum 18.0 (the assembly objects have no SDK field and
+`data_arena.o` reports SDK 26.5). It defines `initialize_data_arena_header`,
+`call_goal_asm_arm64`, and all four `goalpad_aot_*` symbols, with only `_bzero`
+undefined from the data-arena object. This is static object/archive evidence,
+not an executable/app link, signing, simulator, device, or runtime-execution
+result.
+
+Run from the 0018 child worktree, the exact direct proof was:
+
+```sh
+ios_proof_dir=$(mktemp -d /private/tmp/goalpad-ios-aot-context.XXXXXX) &&
+xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=18.0 \
+  -c game/kernel/asm_funcs_arm64.s -o "$ios_proof_dir/asm_funcs_arm64.o" &&
+xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=18.0 \
+  -c /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build/generated-arm64-goal-call/OpenGOALJak1FalseFunc.s \
+  -o "$ios_proof_dir/OpenGOALJak1FalseFunc.o" &&
+xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=18.0 \
+  -c /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build/generated-arm64-goal-call/OpenGOALJak1TrueFunc.s \
+  -o "$ios_proof_dir/OpenGOALJak1TrueFunc.o" &&
+xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=18.0 \
+  -c /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build/generated-arm64-goal-call/OpenGOALJak1Identity.s \
+  -o "$ios_proof_dir/OpenGOALJak1Identity.o" &&
+xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=18.0 \
+  -c /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build/generated-arm64-goal-call/OpenGOALJak1Lognot.s \
+  -o "$ios_proof_dir/OpenGOALJak1Lognot.o" &&
+cp /private/tmp/GOALPadOpenGOAL-arm64-goal-call-iphoneos-0018-build/CMakeFiles/jak1-data-arena.dir/game/kernel/jak1/data_arena.cpp.o \
+  "$ios_proof_dir/data_arena.o" &&
+xcrun ar qc "$ios_proof_dir/libopengoal-jak1-aot-context-ios.a" \
+  "$ios_proof_dir/data_arena.o" "$ios_proof_dir/asm_funcs_arm64.o" \
+  "$ios_proof_dir/OpenGOALJak1FalseFunc.o" "$ios_proof_dir/OpenGOALJak1TrueFunc.o" \
+  "$ios_proof_dir/OpenGOALJak1Identity.o" "$ios_proof_dir/OpenGOALJak1Lognot.o" &&
+xcrun ranlib "$ios_proof_dir/libopengoal-jak1-aot-context-ios.a"
+```
+
+The actual directory was `/private/tmp/goalpad-ios-aot-context.RbzOUa`. The
+following inspection commands all exited `0`:
+
+```sh
+lipo -info "$ios_proof_dir/libopengoal-jak1-aot-context-ios.a"
+xcrun vtool -show-build "$ios_proof_dir/asm_funcs_arm64.o"
+xcrun vtool -show-build "$ios_proof_dir/OpenGOALJak1FalseFunc.o"
+xcrun vtool -show-build "$ios_proof_dir/data_arena.o"
+nm -gU "$ios_proof_dir/libopengoal-jak1-aot-context-ios.a" | \
+  rg 'call_goal_asm_arm64|goalpad_aot_|initialize_data_arena_header'
+nm -um "$ios_proof_dir/libopengoal-jak1-aot-context-ios.a"
+```
+
+| Generated artifact | SHA-256 |
+| --- | --- |
+| `OpenGOALJak1FalseFunc.s` | `22b670ac4b318a43a8e3e049b9d576b3ad1a8292d0df3f52397d1156cca8c450` |
+| `OpenGOALJak1FalseFunc.exports.h` | `abb26d05d717d87d4a4a93fc11bd269082ba672b2fdd16d192f68667025f79ce` |
+| `OpenGOALJak1TrueFunc.s` | `dcccaaa13f07aced806cfac3a210ecd6a8b43268024fa1cf5da634f01384ff87` |
+| `OpenGOALJak1TrueFunc.exports.h` | `9fbe7cf54992385ad6c91bad9433cd716d0379bbbb424600cec7c338dfcd8629` |
+| `OpenGOALJak1Identity.s` | `ab3b9d8f63e473fee9fc108d0e38921b2cc754688924fbe473706198ad2cf246` |
+| `OpenGOALJak1Identity.exports.h` | `02e4c08a949be31945366020100e6a5be27933b09011bf5d78a16b03e39d4f83` |
+| `OpenGOALJak1Lognot.s` | `7d886912f47c51023c09dc168141598b61877bf60eceee16abdd1b84f5a79d34` |
+| `OpenGOALJak1Lognot.exports.h` | `2f8587a50c6c7d5bc7ff1f07dbd396d6fdcb37e063a05ad2d617fc9a71c55858` |
+
+The current iPhoneOS minimal data-arena configure and build also passed. The
+archive is at the build root (`libjak1-data-arena.a`), is arm64 with iOS 18.0
+and SDK 26.5 metadata, and has only `_bzero` undefined. An initial inspection
+looked incorrectly under `game/` and failed `No such file`; root-archive
+inspection then passed. That was an environment command-path error, not source
+failure. The minimal iPhoneOS graph has no host generated-AOT target.
+
+### Delegation and review
+
+`arm64_codegen` implemented and validated the generated-artifact checkpoint.
+`arm64_next_seam` performed an independent source, CMake graph, target-isolation,
+and ABI semantic audit. Its nested `cmake_incremental_review` independently
+confirmed explicit output freshness, host/iPhoneOS gating, serial generation,
+and the `RUN_SERIAL` behavior. No review found a source blocker. `RUN_SERIAL`
+does serialize all discovered ABI tests against CTest rather than artifact
+generation alone; retain it for this checkpoint because it bounds memory use.
+
+No simulator, generic iOS app build, signing, device, physical hardware,
+remote, or push was used. **Z iPad Pro** was not accessed.
+
+### Next task pending post-0018 audit
+
+Do not choose a new seam in this checkpoint. The bounded candidates are the
+first real generated X22 data-arena dereference, or a host-generated artifact
+handoff into an iPhoneOS signed/linkable target. Either must preserve the
+host-only claim boundary above until an ordinary signed app and separately
+scheduled physical-device validation exist. Durable parent integration is still
+blocked on maintainer direction for a fetchable pinned OpenGOAL fork, owner,
+visibility/access policy, and HTTPS/SSH transport; local GitHub credentials are
+invalid. Do not change `.gitmodules`, move the official submodule gitlink,
+authenticate, create a fork, or push without that direction.

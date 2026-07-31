@@ -169,6 +169,8 @@ Minimal iPhoneOS data-arena child: 5ad2efa3dac3febe642370aec39629b17039ead9
 Minimal iPhoneOS data-arena patch: patches/OpenGOAL/0016-build-ios-add-portable-Jak-1-data-arena-target-AI-as.patch
 Host ARM64 GOAL-call ABI child: 45e1897f7cd560e4951f515e264078a023a2d08c
 Host ARM64 GOAL-call ABI patch: patches/OpenGOAL/0017-fix-arm64-verify-GOAL-call-context-ABI-AI-assisted.patch
+Generated host AOT-call child: bd3f4752cea18e73fb1e5cbaec3efdd89ec38195
+Generated host AOT-call patch: patches/OpenGOAL/0018-test-arm64-execute-generated-Jak-1-AOT-artifacts-AI-.patch
 ```
 
 Restore it into an isolated worktree:
@@ -228,6 +230,9 @@ git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
 
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0017-fix-arm64-verify-GOAL-call-context-ABI-AI-assisted.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0018-test-arm64-execute-generated-Jak-1-AOT-artifacts-AI-.patch"
 ```
 
 If that branch or worktree already exists, inspect and reuse it rather than
@@ -237,7 +242,7 @@ the unpublished child commit.
 The restored commits are patch-equivalent to `79f22008`, `149840cf`,
 `32cf26ae`, `92c8f975`, `b78d7c28`, `1fc20e79`, `25917e27`, `1c80b667`,
 `35d653f1`, `f979c82c`, `2475b3c1`, `9acf4e79`, `5c536859`, `b094144b`,
-`5495181f`, `5ad2efa3`, and `45e1897f`, but `git am` normally assigns new committer
+`5495181f`, `5ad2efa3`, `45e1897f`, and `bd3f4752`, but `git am` normally assigns new committer
 metadata and therefore different commit SHAs. The exact objects are available
 only in a checkout that already contains the original child commits. Compare
 the resulting tree or stable patch identities when reconstructing them from the
@@ -252,6 +257,10 @@ reorder the series.
 Patch 0017 follows that ordered data-arena unit but is a separate macOS ARM64
 dispatcher and static-test checkpoint. It requires 0016 as its parent; it does
 not extend the iPhoneOS data-arena build proof or establish an iPad runtime.
+
+Patch 0018 follows 0017 and keeps the same macOS ARM64 host-test gate. It
+generates and links static host artifacts; it is not an iPhoneOS target or an
+iPad runtime proof.
 
 ### Validate the minimal iPhoneOS data-arena static library
 
@@ -288,6 +297,15 @@ the enabled minimal option. Its compile rule uses `-arch arm64`, the iPhoneOS
 platform iOS/minimum 18.0/SDK 26.5, and `nm -um` reports only system `_bzero`.
 The minimal Ninja graph has no curl, OpenSSL, SDL, runtime, goalc, gk, or gtest
 target.
+
+The post-0018 iPhoneOS minimal configure and `jak1-data-arena` build also
+exited `0`. Its archive is at the build root,
+`/private/tmp/GOALPadOpenGOAL-arm64-goal-call-iphoneos-0018-build/libjak1-data-arena.a`;
+it remains arm64 with iOS minimum 18.0/SDK 26.5 and only `_bzero` undefined.
+The first post-build `lipo` inspection incorrectly used a `game/` archive path
+and failed with `No such file`; inspecting the root archive above passed. This
+was an environment command-path error, not a source failure. The minimal graph
+does not register the host `arm64-goal-call-abi-test` or generated AOT target.
 
 The same source definition is also exercised through normal host mode. Its
 focused data CTest passed 4/4, the pure compiler filter passed 122/122, and
@@ -404,6 +422,107 @@ test executable whose `_call_goal_asm_arm64` comes from its directly linked
 does not link `libruntime.a`. This is host ABI evidence only, not live runtime
 initialization, data-arena binding, app/signing, simulator, iPhoneOS, physical
 iPad, or normally signed executable-GOAL evidence.
+
+### Validate generated host Jak 1 AOT call artifacts
+
+Patch 0018 keeps the existing macOS ARM64 host-test gate and uses one CMake
+custom command to invoke `goalc-aot` sequentially for `false-func`,
+`true-func`, `identity`, and `lognot`. Its eight explicit outputs are four
+Mach-O ARM64 assembly files and four X-macro export headers. They are target
+dependencies of `arm64-goal-call-abi-test`, which links the generated assembly,
+the existing assembly dispatcher, `jak1-data-arena`, and GoogleTest; it does
+not link the OpenGOAL runtime.
+
+The final affected build and tests used the existing disposable macOS ARM64
+host build directory:
+
+```sh
+cmake --build /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build \
+  --target runtime arm64-goal-call-abi-test jak1-data-arena-test goalc-test goalc-aot \
+  -j 4
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build \
+  -R '^Arm64GoalCallAbi\.' --output-on-failure
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build \
+  -R '^Jak1DataArena\.' --output-on-failure
+
+cd /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build
+./goalc-test '--gtest_filter=Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build \
+  --output-on-failure
+```
+
+The build exited `0` after 200 remaining curl/SDL/imgui and `goalc-test` steps;
+it emitted one duplicate-zstd linker warning. ABI CTest passed 3/3, data-arena
+CTest passed 4/4, the existing host compiler filter passed 122/122, and the
+complete CTest set passed 8/8. All three discovered ABI tests use `RUN_SERIAL`
+to keep the generated-artifact test's roughly 62.7 MiB local arena allocation
+from competing with other CTest processes.
+
+The generated functions execute through the production assembly dispatcher
+with a local initialized arena and X20 = X21 = `s7`, X22 = the arena pointer.
+Their current instruction streams intentionally use only X21/X0: false returns
+X21, true returns X21 + 8, identity returns X0, and lognot returns `~X0`.
+They do not dereference X22 or inspect arena contents. This proves generated
+native artifact production, linkage, and bounded ABI calls; it does not prove
+X22-relative addressing, a data-memory load, C++ `call_goal` runtime dispatch,
+globals, runtime/JIT, iPhoneOS, app, signing, simulator, physical iPad, or
+normally signed executable-GOAL behavior.
+
+The same static inputs were also directly compiled for iPhoneOS ARM64 in
+`/private/tmp/goalpad-ios-aot-context.RbzOUa`: the existing dispatcher assembly,
+the four fresh host-generated assemblies, and the verified iPhoneOS
+`data_arena.o` were archived and ranlib'd. The archive is arm64. The inspected
+dispatcher, false-function, and data-arena objects report `LC_BUILD_VERSION`
+platform iOS/minimum 18.0 (the assembly
+objects have no SDK field and `data_arena.o` reports SDK 26.5). It defines
+`initialize_data_arena_header`, `call_goal_asm_arm64`, and all four
+`goalpad_aot_*` entries, with only `_bzero` undefined from the data-arena
+object. This is direct iPhoneOS object/archive compatibility evidence only: it
+does not link an executable or app, sign code, run in the simulator, access a
+device, or execute a runtime.
+
+Recorded from the 0018 child worktree, the direct proof command was:
+
+```sh
+ios_proof_dir=$(mktemp -d /private/tmp/goalpad-ios-aot-context.XXXXXX) &&
+xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=18.0 \
+  -c game/kernel/asm_funcs_arm64.s -o "$ios_proof_dir/asm_funcs_arm64.o" &&
+xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=18.0 \
+  -c /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build/generated-arm64-goal-call/OpenGOALJak1FalseFunc.s \
+  -o "$ios_proof_dir/OpenGOALJak1FalseFunc.o" &&
+xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=18.0 \
+  -c /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build/generated-arm64-goal-call/OpenGOALJak1TrueFunc.s \
+  -o "$ios_proof_dir/OpenGOALJak1TrueFunc.o" &&
+xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=18.0 \
+  -c /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build/generated-arm64-goal-call/OpenGOALJak1Identity.s \
+  -o "$ios_proof_dir/OpenGOALJak1Identity.o" &&
+xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=18.0 \
+  -c /private/tmp/GOALPadOpenGOAL-arm64-goal-call-host-final-build/generated-arm64-goal-call/OpenGOALJak1Lognot.s \
+  -o "$ios_proof_dir/OpenGOALJak1Lognot.o" &&
+cp /private/tmp/GOALPadOpenGOAL-arm64-goal-call-iphoneos-0018-build/CMakeFiles/jak1-data-arena.dir/game/kernel/jak1/data_arena.cpp.o \
+  "$ios_proof_dir/data_arena.o" &&
+xcrun ar qc "$ios_proof_dir/libopengoal-jak1-aot-context-ios.a" \
+  "$ios_proof_dir/data_arena.o" "$ios_proof_dir/asm_funcs_arm64.o" \
+  "$ios_proof_dir/OpenGOALJak1FalseFunc.o" "$ios_proof_dir/OpenGOALJak1TrueFunc.o" \
+  "$ios_proof_dir/OpenGOALJak1Identity.o" "$ios_proof_dir/OpenGOALJak1Lognot.o" &&
+xcrun ranlib "$ios_proof_dir/libopengoal-jak1-aot-context-ios.a"
+```
+
+With `ios_proof_dir=/private/tmp/goalpad-ios-aot-context.RbzOUa`, the following
+inspection commands all exited `0`:
+
+```sh
+lipo -info "$ios_proof_dir/libopengoal-jak1-aot-context-ios.a"
+xcrun vtool -show-build "$ios_proof_dir/asm_funcs_arm64.o"
+xcrun vtool -show-build "$ios_proof_dir/OpenGOALJak1FalseFunc.o"
+xcrun vtool -show-build "$ios_proof_dir/data_arena.o"
+nm -gU "$ios_proof_dir/libopengoal-jak1-aot-context-ios.a" | \
+  rg 'call_goal_asm_arm64|goalpad_aot_|initialize_data_arena_header'
+nm -um "$ios_proof_dir/libopengoal-jak1-aot-context-ios.a"
+```
 
 Configure and build the affected tools serially enough to avoid excess memory
 pressure:
