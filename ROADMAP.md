@@ -258,9 +258,11 @@ Current progress:
   checkpoint passes 27 focused tests, 713 non-listener tests, and CTest 1/1.
 - Reviewed child commit `2475b3c1f097dedb60e5e78a1fc4d88aab5ab052`, preserved
   by parent commit `6697d2d`, compiles the exact one-argument Jak 1 `lognot`
-  definition to `mvn x0, x0; ret`. It passes 33 focused tests, 719
-  non-listener tests, and CTest 1/1. It deliberately rejects native export
-  metadata: Export1 and runtime integration remain separate next seams.
+  definition to `mvn x0, x0; ret`. Child commit
+  `9acf4e79751d83626915f03aebcfc738e4d0c242`, preserved by `fbfa0d5`, adds
+  its guarded `OPENGOAL_AOT_EXPORT1("lognot", goalpad_aot_lognot)` pair. The
+  combined checkpoint passes 34 focused tests, 720 non-listener tests, and
+  CTest 1/1; mismatched symbols or cross-ABI exports fail atomically.
 
 ## Stage 4 — Replace the desktop executable-object model
 
@@ -310,6 +312,13 @@ Current progress:
   dylib, Preview/JIT strings, or dynamic executable-memory imports. This is
   stronger static layout evidence, but not verification, installation, or
   physical-device execution evidence.
+- Parent commit `f7ad14c` registers the checked-in `lognot` Export1 artifact
+  beside `identity`, then calls it through the existing one-argument X0 and
+  X20/X21/X22 state wrapper. The host harnesses, ARM64 macOS app build,
+  dedicated M5 simulator build/run, Debug generic signed iOS build, and Release
+  monolithic regression build passed. `lognot` returns the bitwise complement
+  of its synthetic argument; it does not create a live GOAL symbol, execute a
+  top-level definition, or enable relocation.
 
 ## Stage 5 — Build a portable OpenGOAL runtime for iPadOS
 
@@ -574,12 +583,12 @@ verified child commit through the repository patch.
 
 The next actions are:
 
-1. Add the scoped signed Export1 metadata and app-local runtime boundary for
-   `lognot` only after the compiler/object contract is specified and tested.
+1. Add a narrow read-write-only OpenGOAL data-arena/header proof, keeping
+   executable GOAL text statically linked and normally signed.
 2. Keep unsupported statics, general relocations, calls, saved registers,
    spills, and stack locals explicit until a real Jak 1 boot dependency
    requires each boundary.
-3. Keep x86 behavior, the 719-test non-network suite, ARM64 host tools, and the
+3. Keep x86 behavior, the 720-test non-network suite, ARM64 host tools, and the
    signed app path healthy after each increment.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.

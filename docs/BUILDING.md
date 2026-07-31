@@ -64,10 +64,14 @@ simulator build path. Shut it down after a validation pass when it was not
 already running.
 
 The current Debug generic iOS build is limited signing/code-layout evidence.
-Its Preview split bundle places the AOT code in signed `GOALPad.debug.dylib`
-with RX `__TEXT` and no `mmap`, `mprotect`, or JIT-protect imports, but the main
-Debug stub imports `dlopen`/`dlsym` and contains Preview JIT strings. Do not
-treat this Debug output as release-like no-JIT evidence.
+Its Preview split bundle places the AOT code in signed `GOALPad.debug.dylib`:
+`false-func` is at `0x4010`, `identity` at `0x4018`, `lognot` at `0x401c`, and
+`true-func` at `0x4024`; its state-wrapper entries are at `0x44a0`, `0x44f4`,
+`0x4540`, and `0x459c`. The dylib SHA-256 is
+`38e41c1104a59257f29396b4603637f5a9d9f2709bcc473b0511bf466e9d79e6`.
+It has RX `__TEXT` and no `mmap`, `mprotect`, or JIT-protect imports, but the
+main Debug stub imports `dlopen`/`dlsym` and contains Preview JIT strings. Do
+not treat this Debug output as release-like no-JIT evidence.
 
 The verified Release generic iOS build uses the same existing device derived
 data path while explicitly disabling both Preview and debug-dylib layout:
@@ -79,16 +83,21 @@ xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
   ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
 ```
 
-It produced a 216K monolithic app bundle with one 188,560-byte ARM64 main
+It produced a 216K monolithic app bundle with one 188,624-byte ARM64 main
 executable and no `GOALPad.debug.dylib` or `__preview.dylib`. The main contains
-the false, identity, and true AOT entries at `0x100004000`, `0x100004008`, and
-`0x10000400c`, respectively; its `__TEXT` segment is RX and its undefined
-imports contain none of `dlopen`, `dlsym`, `mmap`, `mprotect`, or
-`pthread_jit_write_protect_np`. Its strings contain no Preview/JIT marker.
+false, identity, lognot, and true entries at `0x100004000`, `0x100004008`,
+`0x10000400c`, and `0x100004014`, with state-wrapper entries at `0x1000040f0`,
+`0x100004144`, `0x100004190`, and `0x1000041ec`. Its SHA-256 is
+`3a5c94892fa8d71e53f38ba2d98d08f85d171d66cbf415f136a717d220f4d794`.
+The embedded provisioning profile remains unchanged from the paired Debug
+output; its SHA-256 is
+`ef4a32f9aef6cca1709423e53e66518204e49a86af4d2752139de63d21244ad1`.
+Its `__TEXT` segment is RX; undefined imports contain none of `dlopen`,
+`dlsym`, `mmap`, `mprotect`, or `pthread_jit_write_protect_np`; and its strings
+contain no Preview/JIT marker.
 
-`codesign -d --entitlements -` (the supported display form) reports valid
-application identifier, team identifier, and `get-task-allow` entitlements;
-there is no JIT entitlement. The deprecated `:-` form must not be used. The
+`codesign -d --entitlements -` reports application identifier, team identifier,
+and `get-task-allow` entitlements; there is no JIT entitlement. The
 `Authority=(unavailable)` and `Info.plist=not bound` fields appear in both
 local Debug and Release display output, so they are display limits rather than
 a Release-specific signing failure. No verification, installation, or
@@ -148,6 +157,8 @@ True export child: f979c82cb6da50b847808ebd23ec10c4fa1c1c9e
 True export patch: patches/OpenGOAL/0010-feat-aot-export-exact-Jak-1-true-function-AI-assiste.patch
 Lognot compiler child: 2475b3c1f097dedb60e5e78a1fc4d88aab5ab052
 Lognot compiler patch: patches/OpenGOAL/0011-feat-aot-compile-exact-Jak-1-lognot-function-AI-assi.patch
+Lognot export child: 9acf4e79751d83626915f03aebcfc738e4d0c242
+Lognot export patch: patches/OpenGOAL/0012-feat-aot-export-exact-Jak-1-lognot-function-AI-assis.patch
 ```
 
 Restore it into an isolated worktree:
@@ -189,6 +200,9 @@ git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
 
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0011-feat-aot-compile-exact-Jak-1-lognot-function-AI-assi.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0012-feat-aot-export-exact-Jak-1-lognot-function-AI-assis.patch"
 ```
 
 If that branch or worktree already exists, inspect and reuse it rather than
@@ -197,11 +211,11 @@ the unpublished child commit.
 
 The restored commits are patch-equivalent to `79f22008`, `149840cf`,
 `32cf26ae`, `92c8f975`, `b78d7c28`, `1fc20e79`, `25917e27`, `1c80b667`,
-`35d653f1`, `f979c82c`, and `2475b3c1`, but `git am` normally assigns new committer
-metadata and therefore different commit SHAs. The exact objects are available
-only in a checkout that already contains the original child commits. Compare
-the resulting tree or stable patch identities when reconstructing them from
-the preserved patches.
+`35d653f1`, `f979c82c`, `2475b3c1`, and `9acf4e79`, but `git am` normally
+assigns new committer metadata and therefore different commit SHAs. The exact
+objects are available only in a checkout that already contains the original
+child commits. Compare the resulting tree or stable patch identities when
+reconstructing them from the preserved patches.
 
 Configure and build the affected tools serially enough to avoid excess memory
 pressure:
@@ -390,8 +404,8 @@ existing paired artifacts. The selected text is build-time native binding;
 the surrounding top-level `define`, live GOAL symbol installation, and desktop
 V3 runtime linker remain unsupported.
 
-Generate the exact real one-argument Jak 1 `lognot` definition as an
-assembly-only artifact:
+Generate the exact real one-argument Jak 1 `lognot` definition and its paired
+typed export metadata:
 
 ```sh
 /private/tmp/GOALPadOpenGOAL-stage3-build/goalc/goalc-aot \
@@ -400,7 +414,14 @@ assembly-only artifact:
   /private/tmp/GOALPadOpenGOAL-stage2/test/goalc/source_templates/arm64-aot/full-lognot-from-jak1-gcommon.gc \
   --function lognot \
   --output /private/tmp/goalpad_aot_lognot.s \
+  --exports-output /private/tmp/goalpad_aot_lognot.exports.h \
   --symbol goalpad_aot_lognot
+
+cmp /private/tmp/goalpad_aot_lognot.s \
+  GOALPad/Native/Generated/OpenGOALJak1Lognot.s
+
+cmp /private/tmp/goalpad_aot_lognot.exports.h \
+  GOALPad/Native/Generated/OpenGOALJak1Lognot.exports.h
 
 xcrun --sdk iphoneos clang -arch arm64 \
   -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
@@ -411,10 +432,12 @@ xcrun llvm-objdump --macho --disassemble \
   /private/tmp/goalpad_aot_lognot.o
 ```
 
-The selected one-argument `int` body is exactly `mvn x0, x0; ret`. It is not
-yet an app artifact: the current compiler deliberately rejects its native
-Export1 metadata, and app-local binding or runtime execution must wait for the
-next scoped compiler/runtime seam.
+The selected one-argument `int` body is exactly `mvn x0, x0; ret`. Its paired
+metadata is `OPENGOAL_AOT_EXPORT1("lognot", goalpad_aot_lognot)`. The compiler
+rejects mismatched symbols and cross-ABI export requests atomically, preserving
+the existing paired destinations. The checked-in artifact is bound by the
+app-local registry and called through the existing signed X0/state wrapper; it
+is not a live GOAL symbol, top-level definition, or relocation mechanism.
 
 ## Validate the static OpenGOAL ARM64 call boundary
 
@@ -455,17 +478,19 @@ xcrun --sdk macosx clang++ -std=c++20 -arch arm64 \
   GOALPad/Native/Generated/OpenGOALJak1FalseFunc.s \
   GOALPad/Native/Generated/OpenGOALJak1TrueFunc.s \
   GOALPad/Native/Generated/OpenGOALJak1Identity.s \
+  GOALPad/Native/Generated/OpenGOALJak1Lognot.s \
   GOALPad/Native/GOALPadGoalStateWrapper.s \
   -o /private/tmp/goalpad_aot_export_registry_harness
 
 /private/tmp/goalpad_aot_export_registry_harness
 ```
 
-Exit `0` requires successful typed `false-func`, `true-func`, and `identity`
-lookups; rejects cross-type/missing names; verifies `true-func` returns X21
-plus eight; and proves the identity wrapper establishes X20/X21/X22 before
-placing its argument in X0 while preserving caller state. It is not live GOAL
-symbol-table, relocation, or runtime initialization evidence.
+Exit `0` requires successful typed `false-func`, `true-func`, `identity`, and
+`lognot` lookups; rejects cross-type/missing names; verifies `true-func`
+returns X21 plus eight and `lognot` complements its X0 argument; and proves
+the one-argument wrappers establish X20/X21/X22 before placing their arguments
+in X0 while preserving caller state. It is not live GOAL symbol-table,
+relocation, or runtime initialization evidence.
 
 ## Physical iPad validation
 

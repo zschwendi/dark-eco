@@ -18,19 +18,20 @@ binding architecture, scope, and content-separation rules.
 - **Experimental:** The real OpenGOAL compiler compiles the initial top-level
   literal, the real Jak 1 `'#f` expression, and the complete real
   `false-func`, `true-func`, and `identity` definitions to deterministic ARM64
-  assembly and guarded typed X-macro export metadata. A separately reviewed
-  exact one-argument Jak 1 `lognot` definition also compiles to `mvn x0, x0;
-  ret`, but remains assembly-only pending its scoped Export1 and runtime work.
+  assembly and guarded typed X-macro export metadata. The exact one-argument
+  Jak 1 `lognot` definition compiles to `mvn x0, x0; ret`, exports through the
+  guarded `Export1` lane, and executes through the existing signed X0 and
+  X20/X21/X22 state boundary, returning the bitwise complement of its argument.
   GOALPad resolves the generated native entries through a small app-local
-  registry, then executes them through static X20/X21/X22 state boundaries;
-  `true-func` returns X21 plus eight and `identity` receives its one object
-  argument in Apple-ABI X0 only after that state is established. The literal is
-  verified on a physical iPad Pro M5; this function/export checkpoint is
-  verified on ARM64 macOS and the dedicated M5 simulator. The Debug generic iOS
-  build uses an Xcode Preview split bundle and is not no-JIT evidence. A
-  separately verified Release generic iOS build disables Preview/debug-dylib
-  layout and contains a monolithic ARM64 executable, but is build/signing
-  evidence only; physical execution of this checkpoint remains pending.
+  registry; `true-func` returns X21 plus eight and `identity` receives its one
+  object argument in Apple-ABI X0 only after that state is established. This
+  function/export checkpoint is verified on ARM64 macOS and the dedicated M5
+  simulator. The Debug generic iOS build uses an Xcode Preview split bundle and
+  is not no-JIT evidence. A separately verified Release generic iOS build
+  disables Preview/debug-dylib layout and contains a monolithic ARM64
+  executable, but is build/signing evidence only. Top-level GOAL symbol
+  installation, live runtime initialization, relocation, and physical execution
+  of these checkpoints remain pending.
 - **Planned:** Initialize the full OpenGOAL runtime state, expand the ARM64
   compiler subset, and load user-prepared Jak 1 data.
 
