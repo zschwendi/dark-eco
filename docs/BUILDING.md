@@ -210,6 +210,8 @@ Load-state reset Export1 child: 2229c13ea7f1563327e03e29951425f8ce345185
 Load-state reset Export1 patch: patches/OpenGOAL/0035-feat-aot-export-direct-Jak-1-load-state-reset-AI-ass.patch
 Load-state reset host execution child: bb4b2e7e8705f55e8629da10cad9fb25d10e6cba
 Load-state reset host execution patch: patches/OpenGOAL/0036-test-arm64-execute-Jak-1-load-state-reset-body-AI-as.patch
+Load-state symbol-value child: 0327eee4886f7a076d3b01f8e62afc3adddb8eeb
+Load-state symbol-value patch: patches/OpenGOAL/0037-Add-ARM64-load-state-symbol-value-proof-AI-assisted.patch
 ```
 
 Restore it into an isolated worktree:
@@ -1417,3 +1419,79 @@ generic-device build, or installation success must not be reported as
 physical-device execution. A console command timing out after it has launched
 the foreground app is expected; retain the runtime line that precedes the
 timeout and perform a final normal launch.
+
+## Checkpoint 14: signed `*load-state*` value-cell proof
+
+Checkpoint 14 adds the checked-in, compiler-produced
+`OpenGOALJak1LoadStateValue.s` artifact. It uses one writable, signed-image
+`int32_t` displacement cell and signed static ARM64 text to read the low 32
+bits of a symbol value cell. The host and app tests use caller-owned synthetic
+symbol arenas; they do not resolve a live OpenGOAL symbol, execute a top-level
+definition, install a method, relocate code, load Jak data, or boot the game.
+
+The downstream OpenGOAL child is
+`0327eee4886f7a076d3b01f8e62afc3adddb8eeb`, preserved as patch 0037. The
+official submodule remains at its fetchable pin. The exact patch SHA-256 is
+`b45b36e77252b7cb31f000b497f7339c27bbfb7549d8bbe375a4e7cab5783226` and its
+stable patch ID is `e23e6a2dfefbfc5d7907264ee897b9a2416faa52`.
+
+Use the registry harness to validate the current artifact set:
+
+```sh
+xcrun --sdk macosx clang++ -std=c++20 -arch arm64 \
+  -I GOALPad/Native \
+  tests/native/GOALPadAOTExportRegistryHarness.cpp \
+  GOALPad/Native/GOALPadAOTExportRegistry.cpp \
+  GOALPad/Native/GOALPadGoalStateWrapper.s \
+  GOALPad/Native/Generated/OpenGOALJak1FalseFunc.s \
+  GOALPad/Native/Generated/OpenGOALJak1TrueFunc.s \
+  GOALPad/Native/Generated/OpenGOALJak1LoadStateValue.s \
+  GOALPad/Native/Generated/OpenGOALJak1Identity.s \
+  GOALPad/Native/Generated/OpenGOALJak1Lognot.s \
+  GOALPad/Native/Generated/OpenGOALJak1LevelGroupLoadCommandsSet.s \
+  GOALPad/Native/Generated/OpenGOALJak1WantVis.s \
+  GOALPad/Native/Generated/OpenGOALJak1WantLevels.s \
+  GOALPad/Native/Generated/OpenGOALJak1LoadStateReset.s \
+  -o /private/tmp/goalpad_aot_export_registry_harness_load_state_value_parent
+
+/private/tmp/goalpad_aot_export_registry_harness_load_state_value_parent
+```
+
+The current parent harness exited `0`. The OpenGOAL child test suite passed
+12/12. A sandboxed ARM64 macOS build attempt failed because of the environment;
+the same build outside that sandbox succeeded in 5.501 seconds. Its
+`GOALPad.debug.dylib` SHA-256 is
+`a0b8b31e8dd19f84951acd4ae50f025eb6b1b520139457f5d058af483b195b57`.
+
+The approved local iPad Pro 11-inch (M5) simulator Debug build completed in
+2.225 seconds, launched PID `32186`, and logged:
+
+```text
+GOALPad runtime probe: Signed ARM64 Jak 1 false-func, true-func, identity, lognot, and direct level-group-load-commands-set!, want-vis, want-levels, and load-state reset body plus load-state symbol-value AOT proof verified; architecture=arm64; result=8194
+```
+
+The captured UI was
+`/private/tmp/GOALPad-load-state-value-M5.png` (1668 by 2420 pixels,
+SHA-256 `5e8b29ac11a4ee212f4ea144ce1b0f1aa69d1f242ba933e18f3c07440eca6139`).
+The simulator was then confirmed `Shutdown`. This remains simulator evidence,
+not physical-device evidence.
+
+The normally signed generic iOS Release build completed in 2.929 seconds. Its
+monolithic ARM64 executable SHA-256 is
+`606b7698c53bb034fee2ce3c2c860a4a8e3ba64e4186a239f4400277863dd64f`.
+`_goalpad_aot_load_state_value` is at `0x100004108`; the signed data cell is
+at `0x100014960`. Mach-O inspection reports `__TEXT` read/execute (`0x5`) and
+`__DATA` read/write (`0x3`). Strict code-signature verification passed. The
+embedded profile SHA-256 is
+`ef4a32f9aef6cca1709423e53e66518204e49a86af4d2752139de63d21244ad1`, with
+expiry `2026-08-06T23:51:59Z`. Undefined-import, app-root-dylib, and string
+scans had no JIT or dynamic-library loading hits.
+
+Memory pressure was checked at 67% free before this validation sequence and
+64% free afterward. No physical device, **Z iPad Pro**, other simulator,
+remote, or retail game data was accessed for Checkpoint 14. Parent checkpoint
+`8e3b4ac` was pushed to `origin/feat/ipados-native-boot`. The next
+implementation task is to prove a read-only existing-symbol value-cell resolver
+with synthetic fixtures. Production callers may invoke it only after real
+link/top-level initialization has created symbol metadata; only then consider
+guarded method binding and dispatch.

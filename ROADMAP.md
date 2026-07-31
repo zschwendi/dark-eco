@@ -405,6 +405,17 @@ Current progress:
   general or qualified GOAL method-resolution scheme. A future dispatch image
   must distinguish method owner/type rather than assuming every `reset!`
   denotes this body.
+- Patch 0037 preserves child `0327eee4`'s narrow ARM64 `load-state-value`
+  artifact. It reads a 32-bit value cell through a signed `int32_t`
+  displacement in normal application data, with X21 as the synthetic Jak 1
+  symbol-table base and X22 as the caller-owned arena base. Parent checkpoints
+  `7c49125` and `8e3b4ac` preserve and integrate it. The child suite (12/12),
+  parent registry harness, ARM64 macOS build, approved M5 simulator runtime,
+  and generic signed Release build passed. This proves only the signed static
+  symbol-value code/data shape and high-bit zero extension in synthetic
+  storage. It does not resolve a live `*load-state*` symbol, execute top-level
+  GOAL code, initialize the runtime, bind a method, dispatch virtually, load
+  Jak data, boot, or establish physical-device execution.
 
 ## Stage 5 — Build a portable OpenGOAL runtime for iPadOS
 
@@ -721,9 +732,10 @@ Operating rules:
 
 Stage 2 is complete. Stages 1 and 3 remain active; the typed Stage 4 static
 artifact boundaries, bounded 0020 X22 field-load proof, direct 0021-0023
-level-command store proof, direct 0024-0026 `want-vis` proof, and complete
-0027-0033 direct `want-levels` and 0034-0036 direct `load-state::reset!`
-semantic proofs are verified but do not complete the Stage 4 exit gate.
+level-command store proof, direct 0024-0026 `want-vis` proof, complete
+0027-0033 direct `want-levels`, 0034-0036 direct `load-state::reset!`, and
+0037 `*load-state*` value-cell shape proof are verified but do not complete the
+Stage 4 exit gate.
 
 Stage 1 is blocked on a maintainer-chosen, fetchable OpenGOAL fork/pin and
 working GitHub authentication. Until publication, keep the official submodule
@@ -734,25 +746,29 @@ owner, access policy, and transport, then explicitly renews authentication.
 
 The next actions are:
 
-1. Integrate the verified portable 0013-0036 work only after a dedicated
+1. Integrate the verified portable 0013-0037 work only after a dedicated
    OpenGOAL fork makes the ordered changes fetchable and pins them
    reproducibly. Preserve every mbox and stable patch ID. Patches 0022 and
    0023 are sibling child changes from 0021; 0024-0032 have both literal and
    stable-equivalent runtime-replay identities; 0033 follows the reviewed
-   replay line, and 0034-0036 form the literal
-   `71fc6918 -> e96cedd2 -> 2229c13e -> bb4b2e7e` sequence. Require a fresh
+   replay line, 0034-0036 form the literal
+   `71fc6918 -> e96cedd2 -> 2229c13e -> bb4b2e7e` sequence, and 0037 follows
+   with `0327eee4`. Require a fresh
    combined apply/build validation rather than claiming false ancestry. Do not
    copy the source into the app or use a machine-local worktree path.
-2. The next boot-flow candidate is `load-state-want-levels` at
+2. The next boot-flow candidate remains `load-state-want-levels` at
    `goal_src/jak1/engine/level/load-boundary.gc:1095-1096`, called at
    `level.gc:1007` in the `1005-1009` reset/load/want/display flow. Its
    `(symbol symbol) -> int` wrapper invokes `want-levels` on global
-   `*load-state*`. A source-faithful implementation first requires explicit,
-   signed-AOT-compatible treatment of the global symbol value, runtime type
-   and method-table load, indirect method dispatch, and native function
-   relocation/table mapping. The existing direct Export3 body is not method
-   dispatch. Do not hard-code a direct call that silently changes the
-   non-final type's virtual semantics.
+   `*load-state*`. First implement and prove a read-only existing-symbol
+   value-cell resolver now with synthetic fixtures. Production callers may use
+   it only after real link/top-level initialization creates symbol metadata.
+   Then audit a guarded method binding; runtime type/method-table loading, the
+   32-bit GOAL function-value-to-signed-native mapping, and indirect dispatch
+   remain later separate seams. The existing direct Export3 body is not method
+   dispatch.
+   Do not hard-code a direct call that silently changes the non-final type's
+   virtual semantics.
 3. Keep unsupported statics, general relocations, calls, saved registers,
    spills, and stack locals explicit until a real Jak 1 boot dependency
    requires each boundary. Keep x86 behavior, the non-network compiler suite,

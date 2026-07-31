@@ -53,6 +53,14 @@ binding architecture, scope, and content-separation rules.
   guarded arenas plus restored caller state. This is only the direct static
   method body; it does not install or dispatch `reset!`, initialize live GOAL
   globals, or boot the game.
+  A separate zero-argument `load-state-value` artifact uses one signed 32-bit
+  displacement in normal application data to read a 32-bit value cell at the
+  Jak 1 symbol-table base in X21 plus that displacement and the X22 base. The
+  app proof exercises zero, positive, and negative synthetic displacements,
+  including a high-bit value and whole-arena guards, then restores the data
+  cell. It proves the signed static code/data shape for the named
+  `*load-state*` binding metadata only; it does not resolve a live runtime
+  symbol or initialize a GOAL symbol table.
   GOALPad resolves the generated native entries through a small app-local
   registry; `true-func` returns X21 plus eight and `identity` receives its one
   object argument in Apple-ABI X0 only after that state is established. A
@@ -65,9 +73,10 @@ binding architecture, scope, and content-separation rules.
   compiles the dispatcher and five generated entries, but is compatibility
   evidence only. The established app-local function/export checkpoint is
   verified on ARM64 macOS and the dedicated M5 simulator. The direct
-  level-command, `want-vis`, complete `want-levels`, and complete
-  `load-state::reset!` artifacts were also built on ARM64 macOS, run on the
-  dedicated M5 simulator, and included in signed generic Release iOS builds.
+  level-command, `want-vis`, complete `want-levels`, complete
+  `load-state::reset!`, and `load-state-value` artifacts were also built on
+  ARM64 macOS, run on the dedicated M5 simulator, and included in signed
+  generic Release iOS builds.
   The Debug generic iOS build uses an Xcode
   Preview split bundle and is not no-JIT evidence. The Release build disables
   Preview/debug-dylib layout and contains a monolithic ARM64 executable, but

@@ -3194,3 +3194,201 @@ writable, and deterministic fixtures for global load, method lookup, and
 indirect call. Keep game simulation separate from rendering/presentation and
 do not use this compiler boundary as an excuse for a renderer, camera, or
 platform-abstraction campaign.
+
+## Checkpoint 14: signed ARM64 `*load-state*` value-cell proof
+
+Current parent checkpoints, in order:
+
+```text
+7c49125b41f4258dc5c1e70d812ad7783c22c3f4
+feat(opengoal): preserve Jak 1 symbol-value binding proof (AI-assisted)
+
+8e3b4acfb76f0a44c559c698ce58997047083552
+Integrate ARM64 load-state value binding (AI-assisted)
+```
+
+`8e3b4ac` is pushed to `origin/feat/ipados-native-boot`. The official OpenGOAL
+submodule remains at `a4cb1ac1f0596c8740b1c26accb24a58505cda92`; do not move
+that fetchable pin until a maintainer has selected and authenticated a durable
+fork. The unpublished child is preserved independently:
+
+| Patch | Child commit | SHA-256 | Stable patch ID |
+| --- | --- | --- | --- |
+| `0037-Add-ARM64-load-state-symbol-value-proof-AI-assisted.patch` | `0327eee4886f7a076d3b01f8e62afc3adddb8eeb` | `b45b36e77252b7cb31f000b497f7339c27bbfb7549d8bbe375a4e7cab5783226` | `e23e6a2dfefbfc5d7907264ee897b9a2416faa52` |
+
+The patch follows the preserved reset execution line:
+
+```text
+71fc691895acf44746961b7c7a3910da376ed0fd
+  -> e96cedd236512ca629455e3e2bab97ae28e410a1
+  -> 2229c13ea7f1563327e03e29951425f8ce345185
+  -> bb4b2e7e8705f55e8629da10cad9fb25d10e6cba
+  -> 0327eee4886f7a076d3b01f8e62afc3adddb8eeb
+```
+
+### Scope and artifact identity
+
+Patch 0037 adds one compiler-produced, zero-argument ARM64 artifact:
+
+```text
+goalpad_aot_load_state_value:
+  signed offset = app-local int32_t cell
+  address = X22 + (X21 + signed offset)
+  return zero-extended 32-bit value at address
+```
+
+The artifact is normal signed text; its one mutable offset cell is ordinary
+`__DATA`, never executable. Generated metadata identifies the intended Jak 1
+name and type: `"jak1", "*load-state*", "load-state"`. The parent registry
+contains exactly one typed `AOTSymbolValueBinding32` for that metadata.
+
+The app harness uses synthetic, caller-owned, guarded symbol arenas and
+verifies zero, positive, and negative signed displacements, including a
+high-bit `0x81234567` value that must be zero-extended. It restores the offset
+cell through RAII after the proof. This is an AOT code/data-shape proof only.
+It does **not** initialize an OpenGOAL heap or symbol table, look up a live
+`*load-state*` symbol, execute the top-level `define`, install or dispatch a
+method, relocate code, load user game data, or boot Jak 1. Imported game files
+remain data; native GOAL code remains built and signed with the application.
+
+Checked-in artifact hashes:
+
+```text
+890bccca9517a6a4de48dfdc4977b650610a7a5659d2f75a5269cc53aa8af405  OpenGOALJak1LoadStateValue.s
+ac3f611804cb3bfa934f2ed3a02b36da48be6c3d4810f82dce2d74c5934564f3  OpenGOALJak1LoadStateValue.exports.h
+f4d5029777e0eaef5d72eb173b80cce55149e944a3a6d5b517b9da522426a20d  OpenGOALJak1LoadStateValue.symbol-value-offset.h
+```
+
+### Validation
+
+The isolated child worktree was:
+
+```text
+/private/tmp/GOALPadOpenGOAL-arm64-load-state-symbol-value-binding
+goalpad/arm64-load-state-symbol-value-binding
+0327eee4886f7a076d3b01f8e62afc3adddb8eeb
+```
+
+Its configured test suite passed 12/12 with serialized resource use (`-j 4`).
+The parent registry harness was compiled and executed with:
+
+```sh
+xcrun --sdk macosx clang++ -std=c++20 -arch arm64 \
+  -I GOALPad/Native \
+  tests/native/GOALPadAOTExportRegistryHarness.cpp \
+  GOALPad/Native/GOALPadAOTExportRegistry.cpp \
+  GOALPad/Native/GOALPadGoalStateWrapper.s \
+  GOALPad/Native/Generated/OpenGOALJak1FalseFunc.s \
+  GOALPad/Native/Generated/OpenGOALJak1TrueFunc.s \
+  GOALPad/Native/Generated/OpenGOALJak1LoadStateValue.s \
+  GOALPad/Native/Generated/OpenGOALJak1Identity.s \
+  GOALPad/Native/Generated/OpenGOALJak1Lognot.s \
+  GOALPad/Native/Generated/OpenGOALJak1LevelGroupLoadCommandsSet.s \
+  GOALPad/Native/Generated/OpenGOALJak1WantVis.s \
+  GOALPad/Native/Generated/OpenGOALJak1WantLevels.s \
+  GOALPad/Native/Generated/OpenGOALJak1LoadStateReset.s \
+  -o /private/tmp/goalpad_aot_export_registry_harness_load_state_value_parent
+
+/private/tmp/goalpad_aot_export_registry_harness_load_state_value_parent
+```
+
+Compilation and execution exited `0`. The first ARM64 macOS `xcodebuild`
+attempt under the restricted sandbox failed because of that environment, not a
+source diagnostic. The same command outside the sandbox succeeded in 5.501
+seconds:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-mac -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO build
+```
+
+It compiled `OpenGOALJak1LoadStateValue.s`. `GOALPad.debug.dylib` SHA-256 is
+`a0b8b31e8dd19f84951acd4ae50f025eb6b1b520139457f5d058af483b195b57`.
+
+The only runtime validation used the approved local iPad Pro 11-inch (M5)
+simulator, UDID `96C5C21A-B925-4213-82A3-90DCB8518339`:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug \
+  -destination 'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-sim -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO build
+
+xcrun simctl boot 96C5C21A-B925-4213-82A3-90DCB8518339
+xcrun simctl bootstatus 96C5C21A-B925-4213-82A3-90DCB8518339 -b
+xcrun simctl install 96C5C21A-B925-4213-82A3-90DCB8518339 \
+  /private/tmp/GOALPad-sim/Build/Products/Debug-iphonesimulator/GOALPad.app
+xcrun simctl launch --terminate-running-process --console \
+  96C5C21A-B925-4213-82A3-90DCB8518339 com.zephyrstudiosllc.GOALPad
+xcrun simctl io 96C5C21A-B925-4213-82A3-90DCB8518339 screenshot \
+  /private/tmp/GOALPad-load-state-value-M5.png
+xcrun simctl shutdown 96C5C21A-B925-4213-82A3-90DCB8518339
+```
+
+The build completed in 2.225 seconds, launch PID was `32186`, and the exact
+runtime log was:
+
+```text
+GOALPad runtime probe: Signed ARM64 Jak 1 false-func, true-func, identity, lognot, and direct level-group-load-commands-set!, want-vis, want-levels, and load-state reset body plus load-state symbol-value AOT proof verified; architecture=arm64; result=8194
+```
+
+The screenshot is 1668 by 2420 pixels at
+`/private/tmp/GOALPad-load-state-value-M5.png`, SHA-256
+`5e8b29ac11a4ee212f4ea144ce1b0f1aa69d1f242ba933e18f3c07440eca6139`.
+The simulator was confirmed `Shutdown` afterward. This is simulator evidence
+only; it is not physical-device evidence.
+
+The normally signed generic iOS Release command was:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-device -jobs 4 \
+  ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
+```
+
+It succeeded in 2.929 seconds. The one monolithic ARM64 executable SHA-256 is
+`606b7698c53bb034fee2ce3c2c860a4a8e3ba64e4186a239f4400277863dd64f`.
+`_goalpad_aot_load_state_value` is at `0x100004108`; its signed offset cell is
+at `0x100014960`. Mach-O inspection reports `__TEXT` protections `0x5`
+(read/execute) and `__DATA` protections `0x3` (read/write). Strict
+`codesign --verify --deep --strict --verbose=4` passed. The embedded profile
+SHA-256 is `ef4a32f9aef6cca1709423e53e66518204e49a86af4d2752139de63d21244ad1`,
+and expires `2026-08-06T23:51:59Z`. Undefined-import, app-root-dylib, and
+string scans had no JIT or dynamic-library-loading hits. This is build,
+signature, and layout evidence only; no device was selected, installed to, or
+launched.
+
+Builds and simulator use were serialized. `memory_pressure -Q` reported 67%
+free before the validation sequence and 64% free afterward. Independent fast
+`gpt-5.6-terra` subagents using `xhigh` reasoning reviewed the child change and
+parent integration; the documentation was rechecked against their evidence.
+
+No physical device, **Z iPad Pro**, other simulator, remote, or retail game
+data was accessed for Checkpoint 14. Do not claim a Jak boot or physical-device
+result from this checkpoint.
+
+### Next exact task: read-only existing-symbol value-cell resolver
+
+Implement and prove now the smallest portable, read-only resolver over a
+validated caller-owned Jak 1 data arena with synthetic fixtures:
+
+1. Locate an already-initialized `*load-state*` `Symbol` without calling
+   `intern_from_c`, allocating, executing GOAL, or creating a symbol.
+2. Return only the signed `int32_t` displacement from the arena header's `s7`
+   to that symbol's value-cell GOAL offset; validate every probe and bound.
+3. Keep it in the existing portable `jak1-data-arena` boundary, test it with
+   synthetic data and a stateless compatible name hash/CRC path, and preserve
+   the host and ARM64 test suite.
+4. Production callers may invoke the resolver only after real link/top-level
+   initialization has created its symbol metadata; do not claim that the
+   synthetic fixtures initialize a live symbol.
+
+Only after that resolver is proved should a separate guarded method-binding
+audit begin. Type-object and method-table reads, mapping a 32-bit GOAL function
+value to signed native text, and indirect invocation remain distinct later
+tasks. Do not shortcut the non-final `load-state` virtual semantics with a
+hard-coded direct native call.
