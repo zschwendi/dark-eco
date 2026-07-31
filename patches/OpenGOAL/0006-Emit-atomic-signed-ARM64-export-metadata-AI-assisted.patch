@@ -1,0 +1,500 @@
+From 1fc20e793f6c7fd8db3bca3fcc458b098a8b4ea3 Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Thu, 30 Jul 2026 20:18:34 -0600
+Subject: [PATCH] Emit atomic signed ARM64 export metadata (AI-assisted)
+
+---
+ goalc/CMakeLists.txt                |   8 ++
+ goalc/aot/AOTWriter.cpp             | 131 ++++++++++++++++++++++++++++
+ goalc/aot/AOTWriter.h               |  13 ++-
+ goalc/aot_main.cpp                  |  35 ++++++--
+ test/goalc/test_arm64_aot.cpp       |  39 +++++++++
+ test/goalc/test_arm64_aot_cli.cmake | 131 ++++++++++++++++++++++++++++
+ 6 files changed, 350 insertions(+), 7 deletions(-)
+ create mode 100644 test/goalc/test_arm64_aot_cli.cmake
+
+diff --git a/goalc/CMakeLists.txt b/goalc/CMakeLists.txt
+index bf02b077..2df8e625 100644
+--- a/goalc/CMakeLists.txt
++++ b/goalc/CMakeLists.txt
+@@ -104,3 +104,11 @@ target_link_libraries(goalc-simple common Zydis compiler)
+ target_link_libraries(goalc-aot common Zydis compiler)
+ target_link_libraries(build_level common Zydis compiler)
+ target_link_libraries(build_actor common Zydis compiler)
++
++add_test(
++        NAME goalc-aot-artifact-pair
++        COMMAND ${CMAKE_COMMAND}
++        -DGOALC_AOT=$<TARGET_FILE:goalc-aot>
++        -DPROJECT_ROOT=${CMAKE_SOURCE_DIR}
++        -DOUTPUT_DIR=${CMAKE_BINARY_DIR}/test-output/goalc-aot-artifact-pair
++        -P ${CMAKE_SOURCE_DIR}/test/goalc/test_arm64_aot_cli.cmake)
+diff --git a/goalc/aot/AOTWriter.cpp b/goalc/aot/AOTWriter.cpp
+index c4aa619c..a3feea7e 100644
+--- a/goalc/aot/AOTWriter.cpp
++++ b/goalc/aot/AOTWriter.cpp
+@@ -1,6 +1,8 @@
+ #include "AOTWriter.h"
+ 
++#include <algorithm>
+ #include <cctype>
++#include <filesystem>
+ #include <fstream>
+ #include <iomanip>
+ #include <sstream>
+@@ -40,6 +42,54 @@ void validate(const AppleArm64Function& function) {
+   }
+ }
+ 
++void validate(const NativeExport0& native_export) {
++  if (native_export.goal_name != "false-func" ||
++      native_export.c_symbol != "goalpad_aot_false_func") {
++    throw std::invalid_argument(
++        "AOT native export proof only supports false-func as goalpad_aot_false_func");
++  }
++}
++
++std::filesystem::path normalized_path(const std::filesystem::path& path) {
++  return std::filesystem::weakly_canonical(std::filesystem::absolute(path));
++}
++
++std::filesystem::path make_auxiliary_path(
++    const std::string& output_path,
++    const std::string& purpose,
++    const std::vector<std::filesystem::path>& reserved_paths) {
++  for (size_t suffix = 0; suffix < 1000; suffix++) {
++    auto candidate = std::filesystem::path(output_path);
++    candidate += ".goalc-aot-" + purpose + "-" + std::to_string(suffix) + ".tmp";
++    const auto normalized_candidate = normalized_path(candidate);
++    const auto collides_with_reserved_path =
++        std::any_of(reserved_paths.begin(), reserved_paths.end(), [&](const auto& reserved_path) {
++          return normalized_candidate == normalized_path(reserved_path);
++        });
++    if (!collides_with_reserved_path && !std::filesystem::exists(candidate)) {
++      return candidate;
++    }
++  }
++  throw std::runtime_error("Unable to reserve a temporary AOT output beside: " + output_path);
++}
++
++void write_text_output(const std::filesystem::path& output_path, const std::string& contents) {
++  std::ofstream output(output_path, std::ios::binary | std::ios::trunc);
++  if (!output) {
++    throw std::runtime_error("Unable to open AOT output: " + output_path.string());
++  }
++  output << contents;
++  if (!output) {
++    throw std::runtime_error("Unable to write AOT output: " + output_path.string());
++  }
++}
++
++void validate_output_destination(const std::string& output_path) {
++  if (std::filesystem::exists(output_path) && !std::filesystem::is_regular_file(output_path)) {
++    throw std::runtime_error("AOT output destination is not a regular file: " + output_path);
++  }
++}
++
+ }  // namespace
+ 
+ std::string render_apple_arm64_assembly(const AppleArm64Function& function) {
+@@ -74,4 +124,85 @@ void write_apple_arm64_assembly(const std::string& output_path,
+   }
+ }
+ 
++std::string render_cpp_xmacro_export0(const NativeExport0& native_export) {
++  validate(native_export);
++  std::ostringstream output;
++  output << "#ifndef OPENGOAL_AOT_EXPORT0\n"
++         << "#error \"Define OPENGOAL_AOT_EXPORT0 before including this file.\"\n"
++         << "#endif\n"
++         << "OPENGOAL_AOT_EXPORT0(\"" << native_export.goal_name << "\", " << native_export.c_symbol
++         << ")\n";
++
++  return output.str();
++}
++
++void write_apple_arm64_artifact_pair(const std::string& assembly_output_path,
++                                     const std::string& export_output_path,
++                                     const AppleArm64Function& function,
++                                     const NativeExport0& native_export) {
++  const auto assembly = render_apple_arm64_assembly(function);
++  const auto native_export_source = render_cpp_xmacro_export0(native_export);
++  if (normalized_path(assembly_output_path) == normalized_path(export_output_path)) {
++    throw std::invalid_argument("AOT assembly and export output paths must differ");
++  }
++  validate_output_destination(assembly_output_path);
++  validate_output_destination(export_output_path);
++  std::vector<std::filesystem::path> reserved_paths = {assembly_output_path, export_output_path};
++  const auto assembly_staging_path =
++      make_auxiliary_path(assembly_output_path, "new", reserved_paths);
++  reserved_paths.push_back(assembly_staging_path);
++  const auto export_staging_path = make_auxiliary_path(export_output_path, "new", reserved_paths);
++  reserved_paths.push_back(export_staging_path);
++  const auto assembly_backup_path =
++      make_auxiliary_path(assembly_output_path, "backup", reserved_paths);
++  reserved_paths.push_back(assembly_backup_path);
++  const auto export_backup_path = make_auxiliary_path(export_output_path, "backup", reserved_paths);
++  bool assembly_backup_created = false;
++  bool export_backup_created = false;
++  bool assembly_published = false;
++  bool export_published = false;
++
++  try {
++    write_text_output(assembly_staging_path, assembly);
++    write_text_output(export_staging_path, native_export_source);
++    if (std::filesystem::exists(assembly_output_path)) {
++      std::filesystem::rename(assembly_output_path, assembly_backup_path);
++      assembly_backup_created = true;
++    }
++    if (std::filesystem::exists(export_output_path)) {
++      std::filesystem::rename(export_output_path, export_backup_path);
++      export_backup_created = true;
++    }
++    std::filesystem::rename(assembly_staging_path, assembly_output_path);
++    assembly_published = true;
++    std::filesystem::rename(export_staging_path, export_output_path);
++    export_published = true;
++  } catch (...) {
++    std::error_code ignored_error;
++    if (assembly_published) {
++      std::filesystem::remove(assembly_output_path, ignored_error);
++    }
++    if (export_published) {
++      std::filesystem::remove(export_output_path, ignored_error);
++    }
++    if (assembly_backup_created) {
++      std::filesystem::rename(assembly_backup_path, assembly_output_path, ignored_error);
++    }
++    if (export_backup_created) {
++      std::filesystem::rename(export_backup_path, export_output_path, ignored_error);
++    }
++    std::filesystem::remove(assembly_staging_path, ignored_error);
++    std::filesystem::remove(export_staging_path, ignored_error);
++    throw;
++  }
++
++  std::error_code ignored_error;
++  if (assembly_backup_created) {
++    std::filesystem::remove(assembly_backup_path, ignored_error);
++  }
++  if (export_backup_created) {
++    std::filesystem::remove(export_backup_path, ignored_error);
++  }
++}
++
+ }  // namespace aot
+diff --git a/goalc/aot/AOTWriter.h b/goalc/aot/AOTWriter.h
+index b1e1d86b..5d95a91b 100644
+--- a/goalc/aot/AOTWriter.h
++++ b/goalc/aot/AOTWriter.h
+@@ -11,8 +11,17 @@ struct AppleArm64Function {
+   std::vector<std::uint8_t> code;
+ };
+ 
++struct NativeExport0 {
++  std::string goal_name;
++  std::string c_symbol;
++};
++
+ std::string render_apple_arm64_assembly(const AppleArm64Function& function);
+-void write_apple_arm64_assembly(const std::string& output_path,
+-                                const AppleArm64Function& function);
++void write_apple_arm64_assembly(const std::string& output_path, const AppleArm64Function& function);
++std::string render_cpp_xmacro_export0(const NativeExport0& native_export);
++void write_apple_arm64_artifact_pair(const std::string& assembly_output_path,
++                                     const std::string& export_output_path,
++                                     const AppleArm64Function& function,
++                                     const NativeExport0& native_export);
+ 
+ }  // namespace aot
+diff --git a/goalc/aot_main.cpp b/goalc/aot_main.cpp
+index 87f1c232..7f586fd4 100644
+--- a/goalc/aot_main.cpp
++++ b/goalc/aot_main.cpp
+@@ -1,5 +1,6 @@
+ #include <cstdio>
+ #include <exception>
++#include <filesystem>
+ #include <optional>
+ #include <string>
+ 
+@@ -18,13 +19,14 @@ struct Options {
+   std::string project_path;
+   std::string symbol = "goalpad_aot_entry";
+   std::optional<std::string> function_name;
++  std::optional<std::string> exports_output_path;
+ };
+ 
+ void print_usage() {
+   std::fprintf(stderr,
+                "Usage: goalc-aot --input SOURCE.gc --output BUILD_OUTPUT.s "
+                "[--project-path OPENGOAL_ROOT] [--symbol C_SYMBOL] "
+-               "[--function GOAL_FUNCTION]\n");
++               "[--function GOAL_FUNCTION] [--exports-output BUILD_OUTPUT.inc]\n");
+ }
+ 
+ bool parse_options(int argc, char** argv, Options* options) {
+@@ -35,7 +37,7 @@ bool parse_options(int argc, char** argv, Options* options) {
+       return false;
+     }
+     if (argument == "--input" || argument == "--output" || argument == "--project-path" ||
+-        argument == "--symbol" || argument == "--function") {
++        argument == "--symbol" || argument == "--function" || argument == "--exports-output") {
+       if (++i == argc) {
+         std::fprintf(stderr, "Missing value for %s\n", argument.c_str());
+         return false;
+@@ -48,8 +50,10 @@ bool parse_options(int argc, char** argv, Options* options) {
+         options->project_path = argv[i];
+       } else if (argument == "--symbol") {
+         options->symbol = argv[i];
+-      } else {
++      } else if (argument == "--function") {
+         options->function_name = argv[i];
++      } else {
++        options->exports_output_path = argv[i];
+       }
+       continue;
+     }
+@@ -62,10 +66,20 @@ bool parse_options(int argc, char** argv, Options* options) {
+     print_usage();
+     return false;
+   }
+-
++  if (options->exports_output_path && !options->function_name) {
++    std::fprintf(stderr, "--exports-output requires --function.\n");
++    return false;
++  }
+   return true;
+ }
+ 
++bool output_paths_alias(const std::string& first, const std::string& second) {
++  const auto normalized_first = std::filesystem::weakly_canonical(std::filesystem::absolute(first));
++  const auto normalized_second =
++      std::filesystem::weakly_canonical(std::filesystem::absolute(second));
++  return normalized_first == normalized_second;
++}
++
+ }  // namespace
+ 
+ int main(int argc, char** argv) {
+@@ -94,11 +108,22 @@ int main(int argc, char** argv) {
+   }
+ 
+   try {
++    if (options.exports_output_path &&
++        output_paths_alias(options.output_path, *options.exports_output_path)) {
++      throw std::invalid_argument("--exports-output must differ from --output");
++    }
++
+     Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
+     const auto source = file_util::read_text_file(options.input_path);
+     const auto code =
+         compiler.compile_arm64_aot_source(source, options.input_path, options.function_name);
+-    aot::write_apple_arm64_assembly(options.output_path, {options.symbol, code});
++    if (options.exports_output_path) {
++      aot::write_apple_arm64_artifact_pair(options.output_path, *options.exports_output_path,
++                                           {options.symbol, code},
++                                           {*options.function_name, options.symbol});
++    } else {
++      aot::write_apple_arm64_assembly(options.output_path, {options.symbol, code});
++    }
+   } catch (const std::exception& error) {
+     std::fprintf(stderr, "goalc-aot: %s\n", error.what());
+     return 1;
+diff --git a/test/goalc/test_arm64_aot.cpp b/test/goalc/test_arm64_aot.cpp
+index a4464d9d..11b429f3 100644
+--- a/test/goalc/test_arm64_aot.cpp
++++ b/test/goalc/test_arm64_aot.cpp
+@@ -119,6 +119,29 @@ TEST(Arm64Aot, compiles_full_jak1_false_func_and_renders_apple_text) {
+             ".subsections_via_symbols\n");
+ }
+ 
++TEST(Arm64Aot, renders_zero_argument_native_export_metadata) {
++  const aot::NativeExport0 native_export{"false-func", "goalpad_aot_false_func"};
++
++  EXPECT_EQ(aot::render_cpp_xmacro_export0(native_export),
++            "#ifndef OPENGOAL_AOT_EXPORT0\n"
++            "#error \"Define OPENGOAL_AOT_EXPORT0 before including this file.\"\n"
++            "#endif\n"
++            "OPENGOAL_AOT_EXPORT0(\"false-func\", goalpad_aot_false_func)\n");
++}
++
++TEST(Arm64Aot, rejects_native_exports_outside_the_false_func_proof) {
++  EXPECT_THROW(aot::render_cpp_xmacro_export0({"", "goalpad_aot_false_func"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export0({"other", "goalpad_aot_false_func"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export0({"false-func", "invalid-symbol"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export0({"false-func", "__reserved"}), std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export0({"false-func", "_Reserved"}), std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export0({"false-func", "class"}), std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export0({"false-func", "main"}), std::invalid_argument);
++}
++
+ TEST(Arm64Aot, rejects_unknown_named_function) {
+   Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
+   const auto source = file_util::read_text_file(file_util::get_file_path(
+@@ -137,6 +160,22 @@ TEST(Arm64Aot, rejects_named_constant_function_outside_the_false_func_proof) {
+                std::runtime_error);
+ }
+ 
++TEST(Arm64Aot, rejects_false_func_name_with_a_non_false_body) {
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++
++  EXPECT_THROW(compiler.compile_arm64_aot_source("(defun false-func () 42)", "non-false-body",
++                                                 std::optional<std::string>{"false-func"}),
++               std::runtime_error);
++}
++
++TEST(Arm64Aot, rejects_false_body_under_a_different_name) {
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++
++  EXPECT_THROW(compiler.compile_arm64_aot_source("(defun other () '#f)", "other-false",
++                                                 std::optional<std::string>{"other"}),
++               std::runtime_error);
++}
++
+ TEST(Arm64Aot, rejects_duplicate_named_functions) {
+   Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
+ 
+diff --git a/test/goalc/test_arm64_aot_cli.cmake b/test/goalc/test_arm64_aot_cli.cmake
+new file mode 100644
+index 00000000..f61151e6
+--- /dev/null
++++ b/test/goalc/test_arm64_aot_cli.cmake
+@@ -0,0 +1,131 @@
++file(MAKE_DIRECTORY "${OUTPUT_DIR}")
++
++set(INPUT
++    "${PROJECT_ROOT}/test/goalc/source_templates/arm64-aot/full-false-func-from-jak1-gcommon.gc")
++set(ASSEMBLY_ONLY "${OUTPUT_DIR}/assembly-only.s")
++set(PAIRED_ASSEMBLY "${OUTPUT_DIR}/paired.s")
++set(EXPORTS "${OUTPUT_DIR}/paired.exports.inc")
++
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${INPUT}"
++          --function false-func
++          --output "${ASSEMBLY_ONLY}"
++          --symbol goalpad_aot_false_func
++  RESULT_VARIABLE ASSEMBLY_ONLY_RESULT)
++if(NOT ASSEMBLY_ONLY_RESULT EQUAL 0)
++  message(FATAL_ERROR "Assembly-only goalc-aot invocation failed")
++endif()
++
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${INPUT}"
++          --function false-func
++          --output "${PAIRED_ASSEMBLY}"
++          --exports-output "${EXPORTS}"
++          --symbol goalpad_aot_false_func
++  RESULT_VARIABLE PAIRED_RESULT)
++if(NOT PAIRED_RESULT EQUAL 0)
++  message(FATAL_ERROR "Paired goalc-aot invocation failed")
++endif()
++
++file(SHA256 "${ASSEMBLY_ONLY}" ASSEMBLY_ONLY_SHA256)
++file(SHA256 "${PAIRED_ASSEMBLY}" PAIRED_ASSEMBLY_SHA256)
++if(NOT ASSEMBLY_ONLY_SHA256 STREQUAL PAIRED_ASSEMBLY_SHA256)
++  message(FATAL_ERROR "Adding export metadata changed the ARM64 assembly")
++endif()
++
++file(READ "${EXPORTS}" ACTUAL_EXPORTS)
++set(EXPECTED_EXPORTS
++    "#ifndef OPENGOAL_AOT_EXPORT0\n#error \"Define OPENGOAL_AOT_EXPORT0 before including this file.\"\n#endif\nOPENGOAL_AOT_EXPORT0(\"false-func\", goalpad_aot_false_func)\n")
++if(NOT ACTUAL_EXPORTS STREQUAL EXPECTED_EXPORTS)
++  message(FATAL_ERROR "Generated export metadata did not match the expected record")
++endif()
++
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${INPUT}"
++          --function false-func
++          --output alias.s
++          --exports-output ./alias.s
++          --symbol goalpad_aot_false_func
++  WORKING_DIRECTORY "${OUTPUT_DIR}"
++  RESULT_VARIABLE ALIAS_RESULT)
++if(ALIAS_RESULT EQUAL 0)
++  message(FATAL_ERROR "goalc-aot accepted aliased assembly and export paths")
++endif()
++
++set(UNCHANGED_ASSEMBLY "${OUTPUT_DIR}/unchanged.s")
++set(UNCHANGED_EXPORTS "${OUTPUT_DIR}/unchanged.exports.inc")
++file(WRITE "${UNCHANGED_ASSEMBLY}" "old assembly\n")
++file(WRITE "${UNCHANGED_EXPORTS}" "old exports\n")
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${INPUT}"
++          --function false-func
++          --output "${UNCHANGED_ASSEMBLY}"
++          --exports-output "${UNCHANGED_EXPORTS}"
++          --symbol __reserved
++  RESULT_VARIABLE INVALID_METADATA_RESULT)
++if(INVALID_METADATA_RESULT EQUAL 0)
++  message(FATAL_ERROR "goalc-aot accepted invalid native export metadata")
++endif()
++
++file(READ "${UNCHANGED_ASSEMBLY}" ACTUAL_UNCHANGED_ASSEMBLY)
++file(READ "${UNCHANGED_EXPORTS}" ACTUAL_UNCHANGED_EXPORTS)
++if(NOT ACTUAL_UNCHANGED_ASSEMBLY STREQUAL "old assembly\n" OR
++   NOT ACTUAL_UNCHANGED_EXPORTS STREQUAL "old exports\n")
++  message(FATAL_ERROR "Failed paired generation modified an existing artifact")
++endif()
++
++set(BLOCKED_ASSEMBLY "${OUTPUT_DIR}/blocked.s")
++set(BLOCKED_EXPORTS "${OUTPUT_DIR}/blocked.exports.inc")
++file(WRITE "${BLOCKED_ASSEMBLY}" "old blocked assembly\n")
++file(REMOVE_RECURSE "${BLOCKED_EXPORTS}")
++file(MAKE_DIRECTORY "${BLOCKED_EXPORTS}")
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${INPUT}"
++          --function false-func
++          --output "${BLOCKED_ASSEMBLY}"
++          --exports-output "${BLOCKED_EXPORTS}"
++          --symbol goalpad_aot_false_func
++  RESULT_VARIABLE BLOCKED_EXPORT_RESULT)
++if(BLOCKED_EXPORT_RESULT EQUAL 0)
++  message(FATAL_ERROR "goalc-aot accepted a directory as an export destination")
++endif()
++
++file(READ "${BLOCKED_ASSEMBLY}" ACTUAL_BLOCKED_ASSEMBLY)
++if(NOT ACTUAL_BLOCKED_ASSEMBLY STREQUAL "old blocked assembly\n" OR
++   NOT IS_DIRECTORY "${BLOCKED_EXPORTS}")
++  message(FATAL_ERROR "Failed paired publication did not preserve both prior destinations")
++endif()
++
++set(COLLISION_EXPORTS "${OUTPUT_DIR}/collision")
++set(COLLISION_ASSEMBLY "${COLLISION_EXPORTS}.goalc-aot-new-0.tmp")
++file(WRITE "${COLLISION_ASSEMBLY}" "old collision assembly\n")
++file(WRITE "${COLLISION_EXPORTS}" "old collision exports\n")
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${INPUT}"
++          --function false-func
++          --output "${COLLISION_ASSEMBLY}"
++          --exports-output "${COLLISION_EXPORTS}"
++          --symbol goalpad_aot_false_func
++  RESULT_VARIABLE COLLISION_RESULT)
++if(NOT COLLISION_RESULT EQUAL 0)
++  message(FATAL_ERROR "Auxiliary-path collision prevented paired generation")
++endif()
++
++file(SHA256 "${COLLISION_ASSEMBLY}" COLLISION_ASSEMBLY_SHA256)
++file(READ "${COLLISION_EXPORTS}" COLLISION_EXPORTS_CONTENT)
++if(NOT COLLISION_ASSEMBLY_SHA256 STREQUAL ASSEMBLY_ONLY_SHA256 OR
++   NOT COLLISION_EXPORTS_CONTENT STREQUAL EXPECTED_EXPORTS)
++  message(FATAL_ERROR "Auxiliary-path collision corrupted a final artifact")
++endif()
+-- 
+2.50.1 (Apple Git-155)
+
