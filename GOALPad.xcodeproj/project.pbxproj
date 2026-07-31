@@ -16,7 +16,6 @@
 		A73000000000000000000206 /* common/util/string_util.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000106 /* common/util/string_util.cpp */; };
 		A73000000000000000000207 /* common/util/Timer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000107 /* common/util/Timer.cpp */; };
 		A73000000000000000000208 /* common/util/unicode_util.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000108 /* common/util/unicode_util.cpp */; };
-		A73000000000000000000209 /* common/versions/versions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000109 /* common/versions/versions.cpp */; };
 		A7300000000000000000020A /* third-party/lzokay/lzokay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000000010A /* third-party/lzokay/lzokay.cpp */; };
 		A7300000000000000000020B /* game/kernel/common/fileio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000000010B /* game/kernel/common/fileio.cpp */; };
 		A7300000000000000000020C /* game/kernel/common/kboot.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000000010C /* game/kernel/common/kboot.cpp */; };
@@ -52,7 +51,6 @@
 		A73000000000000000000106 /* common/util/string_util.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = string_util.cpp; path = common/util/string_util.cpp; sourceTree = "<group>"; };
 		A73000000000000000000107 /* common/util/Timer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Timer.cpp; path = common/util/Timer.cpp; sourceTree = "<group>"; };
 		A73000000000000000000108 /* common/util/unicode_util.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = unicode_util.cpp; path = common/util/unicode_util.cpp; sourceTree = "<group>"; };
-		A73000000000000000000109 /* common/versions/versions.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = versions.cpp; path = common/versions/versions.cpp; sourceTree = "<group>"; };
 		A7300000000000000000010A /* third-party/lzokay/lzokay.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = lzokay.cpp; path = third-party/lzokay/lzokay.cpp; sourceTree = "<group>"; };
 		A7300000000000000000010B /* game/kernel/common/fileio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = fileio.cpp; path = game/kernel/common/fileio.cpp; sourceTree = "<group>"; };
 		A7300000000000000000010C /* game/kernel/common/kboot.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kboot.cpp; path = game/kernel/common/kboot.cpp; sourceTree = "<group>"; };
@@ -125,7 +123,6 @@
 				A73000000000000000000106 /* common/util/string_util.cpp */,
 				A73000000000000000000107 /* common/util/Timer.cpp */,
 				A73000000000000000000108 /* common/util/unicode_util.cpp */,
-				A73000000000000000000109 /* common/versions/versions.cpp */,
 				A7300000000000000000010A /* third-party/lzokay/lzokay.cpp */,
 				A7300000000000000000010B /* game/kernel/common/fileio.cpp */,
 				A7300000000000000000010C /* game/kernel/common/kboot.cpp */,
@@ -236,7 +233,6 @@
 				A73000000000000000000206 /* common/util/string_util.cpp in Sources */,
 				A73000000000000000000207 /* common/util/Timer.cpp in Sources */,
 				A73000000000000000000208 /* common/util/unicode_util.cpp in Sources */,
-				A73000000000000000000209 /* common/versions/versions.cpp in Sources */,
 				A7300000000000000000020A /* third-party/lzokay/lzokay.cpp in Sources */,
 				A7300000000000000000020B /* game/kernel/common/fileio.cpp in Sources */,
 				A7300000000000000000020C /* game/kernel/common/kboot.cpp in Sources */,

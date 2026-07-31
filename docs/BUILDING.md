@@ -20,7 +20,7 @@ git submodule update --init --recursive
 The authoritative child is the dedicated public fork
 `https://github.com/zschwendi/jak-pad.git`, branch
 `goalpad/play-iosruntime`, pinned by the parent gitlink at
-`7f69d095012c8af64f61bd55dbfa12a8067183a4`. Do not substitute a different
+`e2d9aa2a08cd5f5d92463c9fd8cc3c188e453fa8`. Do not substitute a different
 OpenGOAL checkout when recording validation results. The `sync` step updates
 existing clones that still remember the former upstream URL.
 
