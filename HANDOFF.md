@@ -4550,9 +4550,61 @@ Store readiness.
 Continue Stage 5 by giving GOALPad one C++-owned Jak 1 arena with explicit
 initialization, stable lifetime, failure reporting, and teardown, using
 `jak1::initialize_data_arena_header`. Reuse that arena serially so the runtime
-does not duplicate the approximately 63 MiB canonical allocation. Then stage
-only the trusted type/function/load-state metadata needed to repeat the typed
-reset invocation through the existing signed path.
+does not duplicate the 65,766,112-byte (`0x03eb82e0`, 62.719 MiB) canonical
+allocation. Allocate the trusted type/function/load-state objects at or after
+the initialized heap current `0x17fd20`, reserve the full declared Type method
+table, and advance the live heap record past every staged object before
+repeating the typed reset invocation through the existing signed path. Do not
+reuse the compact fixture offsets `0x42004`, `0x42104`, or `0x42a04`; they are
+below canonical `HEAP_START = 0x13fd20`.
 
 Do not bind desktop globals, call `InitHeapAndSymbol`, add the general linker,
 load retail data, or start another compiler micro-proof in this checkpoint.
+
+### Audited implementation boundary for the next worker
+
+Two independent non-fast `gpt-5.6-sol`/`xhigh` read-only audits accepted the
+persistent arena as the next real Stage 5 seam with the narrowing above.
+
+Keep the implementation to the existing runtime/bridge boundary and harness:
+
+```text
+GOALPad/Native/GOALPadRuntimeCore.cpp
+GOALPad/Native/GOALPadRuntimeCore.hpp
+GOALPad/Native/GOALPadRuntimeBridge.h
+GOALPad/Native/GOALPadRuntimeBridge.mm
+tests/native/GOALPadAOTExportRegistryHarness.cpp
+```
+
+Use one private process-lifetime C++ session with a mutex, one stable nothrow
+heap allocation, the canonical `DataArenaHeader`, derived staged-object layout,
+storage identity, and an immutable external signed binding. Add an explicit,
+idempotent `shutdown_runtime()` forwarded by Objective-C++, but do not attach
+shutdown to a SwiftUI view, scene inactivity, or backgrounding. Repeated
+initialization with the same storage path must reuse the exact allocation;
+conflicting storage paths must fail without destroying a valid session; a
+shutdown followed by initialization must create clean canonical state.
+
+The initializer destructively clears the full 62.719 MiB range. Allocate only
+one canonical arena and do not retain a second full expected copy. Snapshot and
+compare only the small staged metadata/object window, plus canonical header,
+fixed-symbol, object-guard, and outer-guard checks. Leave the unrelated compact
+compiler regression probes outside the persistent session.
+
+Initialization is all-or-nothing. Allocation, header, layout, symbol resolver,
+binding, invocation, or guard failure must publish no live session and must not
+allow a C++ exception across Objective-C++. Hold the mutex across symbol-offset
+selection, lookup, invocation, verification, failure cleanup, and teardown.
+Restore `goalpad_aot_jak1_load_state_symbol_offset` on failure and teardown.
+
+The host harness must prove: exact logical size and one allocation; derived
+objects do not overlap and remain below heap end; live heap current advances;
+two resets reuse the same arena; a second initialization does not re-zero state;
+binding mismatch remains no-call/no-mutation; conflicting-path failure preserves
+the valid session; a first-initialization failure publishes no session and a
+later retry succeeds; concurrent initialization/reset callers are serialized;
+double teardown is safe; and teardown/reinitialize returns fresh working state.
+Run `/usr/bin/time -l` around the harness and keep heavy builds serial. Then
+repeat the Checkpoint 21 OpenGOAL tests, ARM64 macOS build, approved M5
+simulator build/run with RSS sampling and shutdown, and generic signed iOS
+Release inspection.

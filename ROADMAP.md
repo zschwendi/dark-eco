@@ -800,7 +800,10 @@ The next actions are:
 1. Give GOALPad one C++-owned Jak 1 arena with explicit initialization, stable
    lifetime, failure reporting, and teardown through
    `jak1::initialize_data_arena_header`. Reuse the single arena serially to
-   avoid duplicating the approximately 63 MiB canonical allocation.
+   avoid duplicating the 65,766,112-byte canonical allocation. Allocate staged
+   objects from the initialized heap current `0x17fd20`, reserve their complete
+   layouts, and advance the live heap record; the compact fixture offsets below
+   `HEAP_START` are not valid persistent allocations.
 2. Move the already verified trusted type/function/load-state metadata staging
    into that owned session and repeat the existing typed reset invocation. Do
    not bind desktop globals, call `InitHeapAndSymbol`, add the general linker,
