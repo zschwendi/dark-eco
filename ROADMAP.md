@@ -53,12 +53,12 @@ as completing the overall goal.
 | Project milestone | Current state |
 | --- | --- |
 | Reproducible OpenGOAL ARM64 baseline | Implemented and verified |
-| Native Swift/Objective-C++/C++ iPad process | Experimental; simulator verified; signed physical build and install verified |
+| Native Swift/Objective-C++/C++ iPad process | Experimental; simulator and signed physical launch verified |
 | Signed native ARM64 instruction probe | Experimental; this is handwritten C++, not GOAL |
 | Storage and Metal initialization | Experimental |
 | Controller, audio, and lifecycle integration | Planned |
 | User-owned Jak 1 import pipeline | Planned |
-| Compiler-produced ARM64 GOAL execution | Experimental; ARM64 macOS and simulator verified, physical launch pending |
+| Compiler-produced ARM64 GOAL execution | Stage 2 implemented and verified on ARM64 macOS, simulator, and physical iPad |
 | OpenGOAL game frame or title screen | Planned |
 | Playable gameplay slice | Planned |
 | Jak 1 completion track | Planned |
@@ -67,10 +67,11 @@ The current application proves that Swift, Objective-C++, C++, statically
 linked ARM64 code, logging, storage, and a Metal surface can coexist in an
 iPadOS process. The Stage 2 compiler path also proves that the real top-level
 GOAL expression `42` can produce deterministic ARM64 assembly that is linked
-and signed with the app and executed in the iPad Pro M5 simulator. The signed
-physical build is installed, but its automated launch was denied while the
-iPad was locked. The app does not yet initialize general OpenGOAL runtime
-state, load Jak data, or render the game.
+and signed with the app and executed through the X20/X21/X22 static-call
+boundary on ARM64 macOS, the iPad Pro M5 simulator, and the physical iPad Pro
+M5. The boundary's state values are synthetic and never dereferenced. The app
+does not yet initialize general OpenGOAL runtime state, load Jak data, or
+render the game.
 
 ## Required code and data pipelines
 
@@ -181,11 +182,14 @@ Current progress:
 - The generated Apple assembly is checked into the app as a transitional
   artifact and has executed on ARM64 macOS and the named iPad Pro M5
   simulator.
-- The app has built, signed, and installed on the physical iPad Pro M5.
-  Physical launch was denied because the iPad was locked.
-- Required work 9 remains incomplete: add the static X20/X21/X22 OpenGOAL
-  state wrapper and execute the generated workload through it on physical
-  hardware.
+- Parent commit `f13d8f0` implements required work 9. The wrapper sets and
+  snapshots distinct X20 process/`pp`, X21 `st`, and X22 offset-base values,
+  calls the compiler-produced entry, and proves caller-register restoration.
+- The app built, signed, installed, launched, and logged `result=42` through
+  that boundary on the physical iPad Pro M5 without JIT or writable executable
+  pages.
+- Stage 2 is complete. The synthetic register values do not constitute general
+  runtime initialization; that remains part of the portable runtime path.
 
 ## Stage 3 — Expand the ARM64 GOAL compiler backend
 
@@ -483,21 +487,21 @@ Operating rules:
 
 ## Current checkpoint
 
-Stages 1 and 2 are active in parallel.
+Stage 2 is complete. Stages 1 and 3 are active in parallel.
 
 Stage 1 is blocked on the durable fork owner and working GitHub authentication.
 Until publication, keep the official submodule pin clean and preserve the
 verified child commit through the repository patch.
 
-The next Stage 2 actions are:
+The next Stage 3 actions are:
 
-1. Retry the installed app after the physical iPad is unlocked and record
-   build, sign, install, launch, and runtime-result evidence separately.
-2. Define a minimal static wrapper for X20/X21/X22 OpenGOAL runtime state.
-3. Add deterministic macOS tests for the wrapper and compiler-produced entry.
-4. Link and execute that boundary in the simulator and then the signed
-   physical-device build.
-5. Make ARM64 call-clobber handling target-aware before enabling call-bearing
-   GOAL source in Stage 3.
+1. Make ARM64 call-clobber handling target-aware before enabling call-bearing
+   GOAL source.
+2. Select the smallest real Jak 1 initialization expression that expands the
+   compiler beyond the literal proof without requiring retail data.
+3. Compile it, preserve its first unsupported IR/object failure as the next
+   test, and implement only that boundary.
+4. Keep x86 behavior, the 689-test non-network suite, ARM64 host tools, and the
+   signed app path healthy after each increment.
 
 No proprietary game data is needed before Stage 8.

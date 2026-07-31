@@ -153,6 +153,28 @@ a transitional generated artifact; it must remain byte-for-byte reproducible
 from the documented child commit until the fork-backed build integration
 replaces it.
 
+## Validate the static OpenGOAL ARM64 call boundary
+
+The app-local boundary establishes the compiler contract's special registers:
+X20 is process/`pp`, X21 is `st`, and X22 is the GOAL memory offset base. The
+deterministic host harness uses distinct synthetic values, verifies them before
+and after the generated call, and verifies that the wrapper restores the
+caller's callee-saved values:
+
+```sh
+xcrun --sdk macosx clang -arch arm64 \
+  tests/native/GOALPadAOTStateHarness.c \
+  GOALPad/Native/Generated/OpenGOALConstant42.s \
+  GOALPad/Native/GOALPadGoalStateWrapper.s \
+  -o /private/tmp/goalpad_aot_state_harness
+
+/private/tmp/goalpad_aot_state_harness
+```
+
+Exit `0` is required. These values are never dereferenced, so this test proves
+the signed static ABI/state boundary only. It does not prove real kernel,
+symbol-table, or GOAL-memory initialization.
+
 ## Physical iPad validation
 
 A signed physical-device build must omit `CODE_SIGNING_ALLOWED=NO`. A generic
@@ -171,9 +193,16 @@ xcrun devicectl device install app \
 xcrun devicectl device process launch \
   --device <coredevice-id> \
   --terminate-existing com.zephyrstudiosllc.GOALPad
+
+xcrun devicectl device process launch \
+  --device <coredevice-id> \
+  --terminate-existing --console --timeout 10 \
+  com.zephyrstudiosllc.GOALPad
 ```
 
 Unlock the iPad before the install/launch steps. Record build, signing, install,
 launch, runtime logs, and observed screen behavior separately. Simulator,
 generic-device build, or installation success must not be reported as
-physical-device execution.
+physical-device execution. A console command timing out after it has launched
+the foreground app is expected; retain the runtime line that precedes the
+timeout and perform a final normal launch.

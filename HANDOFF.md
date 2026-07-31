@@ -4,13 +4,13 @@ Date: 2026-07-30
 
 Branch: `feat/ipados-native-boot`
 
-Status: Partially complete. Stage 2 now compiles the real top-level GOAL
-expression `42` to an ahead-of-time ARM64 assembly artifact, links that
-artifact into GOALPad before code signing, and executes it on ARM64 macOS and
-the iPad Pro M5 simulator. A normally signed physical-device build completed
-and installed on the paired iPad Pro M5; the automated launch is pending only
-because the device was locked. This proof is intentionally narrow and does
-not yet initialize general OpenGOAL runtime state or load Jak 1 data.
+Status: Partially complete. Stage 2 is implemented and verified. The real
+top-level GOAL expression `42` compiles to ahead-of-time ARM64 assembly, links
+into GOALPad before code signing, and executes through a static X20/X21/X22
+OpenGOAL state boundary on ARM64 macOS, the iPad Pro M5 simulator, and the
+normally signed physical iPad Pro M5 build. This proof uses synthetic register
+values and intentionally does not claim general OpenGOAL runtime
+initialization or Jak 1 data loading.
 
 ## Active roadmap and delegated audit
 
@@ -30,6 +30,7 @@ maintainer-requested fast `gpt-5.6-terra` model with `xhigh` reasoning:
 | ARM64 code-generation implementation | Minimal IR lowering, function emission, and raw non-V3 materialization | Implemented the exact literal-`42` slice without using the desktop runtime-linker object path |
 | AOT artifact and test implementation | Writer, CLI, fixture, CMake wiring, and deterministic tests | Added `goalc-aot`, exact instruction tests, unsupported-source rejection, and Apple assembly output |
 | Independent Stage 2 review | Cross-target register semantics, allocator regression risk, and next-boundary review | Found and prompted the x86 `hw_id` correction; identified call-clobber handling as the next compiler boundary |
+| OpenGOAL state-boundary audits | X20/X21/X22 semantics, ABI preservation, Xcode integration, and probe coverage | Confirmed the app-local static wrapper, 16-byte stack alignment, register snapshots/restoration, and ARM64-only target scope |
 
 The implementation agents edited non-overlapping files in the isolated
 OpenGOAL worktree. The primary agent reviewed and integrated every diff, fixed
@@ -83,6 +84,8 @@ copied into, or generated inside the Git checkout.
 Current history:
 
 ```text
+f13d8f0 Add verified OpenGOAL ARM64 call boundary (AI-assisted)
+821b58c Document Stage 2 validation and Apple platform boundaries (AI-assisted)
 e77a402 Link compiler-generated ARM64 GOAL proof (AI-assisted)
 bc82c3e Add ten-stage GOALPad implementation roadmap (AI-assisted)
 7789350 Record iPad Pro M5 simulator validation (AI-assisted)
@@ -107,10 +110,24 @@ fatal: repository 'https://github.com/zschwendi/GOALPad.git/' not found
 
 `gh auth status` most recently reported that the configured
 `zephyrstudiosllc` credential is invalid and did not report an authenticated
-`zschwendi` account. No push, fork creation, or pull request was attempted
-because choosing
+`zschwendi` account. No fork creation or pull request was attempted because
+choosing
 `zephyrstudiosllc` versus `zschwendi` as the durable owner would change project
 ownership and branding direction.
+
+After commits `e77a402` and `821b58c`, an explicitly requested push was
+attempted:
+
+```sh
+git push -u origin feat/ipados-native-boot
+```
+
+It failed without changing remote state:
+
+```text
+remote: Repository not found.
+fatal: repository 'https://github.com/zschwendi/GOALPad.git/' not found
+```
 
 ## Checkpoint 1: Apple platform/AOT probe
 
@@ -165,6 +182,7 @@ submodule pin:
 
 ```text
 Parent checkpoint: e77a402
+Static state boundary: f13d8f0
 Worktree: /private/tmp/GOALPadOpenGOAL-stage2
 Branch: goalpad/arm64-aot-proof
 Commit: 79f22008c3119bf79297f41d586ab4f75725a36e
@@ -210,10 +228,14 @@ a9376d35e97f966dfcced3b4f47a36045ebc60ed98d57833d7da41b0ddfac1ac  OpenGOALConsta
 2f96d9a99f1806825538fdfbd3c5d09b9a2bdc044d58ffbfaac9cf859071c68c  OpenGOAL Stage 2 patch
 ```
 
-`GOALPadRuntimeCore.cpp` calls this compiler-generated function through the
-ordinary static ARM64 ABI and verifies both the expected instruction bytes and
-the returned value. The older handwritten probe remains preserved, but it no
-longer supplies the displayed result.
+`GOALPadRuntimeCore.cpp` calls this compiler-generated function through
+`GOALPadGoalStateWrapper.s`. The wrapper establishes X20 as the GOAL
+process/`pp` value, X21 as `st`, and X22 as the GOAL memory offset base,
+captures the state before and after the generated call, and restores the
+caller's callee-saved registers. The core verifies all snapshots, the expected
+instruction bytes, and result `42`. The values are synthetic and are never
+dereferenced. The older handwritten probe remains preserved, but it no longer
+supplies the displayed result.
 
 ## Verified OpenGOAL and Stage 2 compiler
 
@@ -279,11 +301,23 @@ and 689-test non-network suite above are the final post-fix results.
 
 ## Verified GOALPad targets
 
-Before Stage 2, the unsigned ARM64 macOS, generic iOS Simulator, and generic
-iOS target builds all exited `0`. The compiler-generated Stage 2 artifact was
-then verified through the exact simulator and signed-device builds below.
+The completed Stage 2 boundary was verified through an ARM64 macOS harness,
+the macOS app target, the exact simulator, and the signed-device target.
 
 ```sh
+xcrun --sdk macosx clang -arch arm64 \
+  tests/native/GOALPadAOTStateHarness.c \
+  GOALPad/Native/Generated/OpenGOALConstant42.s \
+  GOALPad/Native/GOALPadGoalStateWrapper.s \
+  -o /private/tmp/goalpad_aot_state_harness
+
+/private/tmp/goalpad_aot_state_harness
+
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-mac -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO build
+
 xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
   -configuration Debug \
   -destination 'id=96C5C21A-B925-4213-82A3-90DCB8518339' \
@@ -294,13 +328,16 @@ xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
   -derivedDataPath /private/tmp/GOALPad-device -jobs 4 build
 ```
 
-Both commands exited `0`. Xcode compiled
-`GOALPad/Native/Generated/OpenGOALConstant42.s` into the app. The generic iOS
-build used the existing Apple Development identity and provisioning profile
-and completed normal code signing.
+All four commands exited `0`. The harness verified distinct synthetic X20,
+X21, and X22 values before and after the generated call and verified that the
+wrapper restored the caller's three sentinel values. Xcode compiled both
+`OpenGOALConstant42.s` and `GOALPadGoalStateWrapper.s`. The generic iOS build
+used the existing Apple Development identity and provisioning profile and
+completed normal code signing.
 
-The signed device app's `GOALPad.debug.dylib` contains
-`_goalpad_aot_constant_42` at `0x4000`. `llvm-objdump` confirms:
+The final signed device app's `GOALPad.debug.dylib` contains the generated
+entry at `0x4000`, the state wrapper at `0x4010`, and the restoration probe at
+`0x4064`. `llvm-objdump` confirms the generated entry remains:
 
 ```text
 4000: 40 05 80 d2  mov x0, #0x2a
@@ -332,11 +369,12 @@ xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
   -derivedDataPath /private/tmp/GOALPad-sim -jobs 4 build
 ```
 
-The app installed and launched as `com.zephyrstudiosllc.GOALPad`, producing
-PID `90815`. A settled screenshot showed:
+The final boundary build installed and launched as
+`com.zephyrstudiosllc.GOALPad`, producing PID `1067`. A settled screenshot
+showed:
 
 ```text
-Signed ARM64 OpenGOAL AOT workload verified
+Signed ARM64 OpenGOAL AOT call boundary verified
 architecture=arm64
 result=42
 ```
@@ -344,18 +382,18 @@ result=42
 Simulator logs independently recorded:
 
 ```text
-GOALPad runtime probe: Signed ARM64 OpenGOAL AOT workload verified;
+GOALPad runtime probe: Signed ARM64 OpenGOAL AOT call boundary verified;
 architecture=arm64; result=42
 ```
 
 The screenshot is preserved locally as
-`/private/tmp/GOALPad-open-goal-aot.png`. Builds used `-jobs 4`, no new
+`/private/tmp/GOALPad-open-goal-state-boundary.png`. Builds used `-jobs 4`, no new
 DerivedData tree was created, and the simulator was shut down immediately
-after validation. The last resource check showed 12 GB free disk and 41% free
+after validation. The last resource check showed 72 GB free disk and 41% free
 system memory.
 
-This is real GOAL compiler/output evidence on the named simulator, but it does
-not convert simulator evidence into physical-device execution evidence.
+This proves the signed static-call boundary on the named simulator. Physical
+evidence is recorded separately below.
 
 ## Physical iPad status
 
@@ -392,22 +430,29 @@ xcrun devicectl device install app \
   /private/tmp/GOALPad-device/Build/Products/Debug-iphoneos/GOALPad.app
 ```
 
-The launch was attempted three times. A console-attached attempt timed out
-without application output. Two normal launch attempts, including the final
-18:52 retry, returned the same actionable blocker:
+Earlier launch attempts were blocked while the iPad was locked. The final
+Stage 2 build was installed after the wrapper change and then launched
+normally:
 
-```text
-RequestDenied
-Unable to launch com.zephyrstudiosllc.GOALPad because the device was not, or
-could not be, unlocked.
+```sh
+xcrun devicectl device process launch \
+  --device 6A4111AB-1663-508A-98D9-F0C1A9EA7863 \
+  --terminate-existing com.zephyrstudiosllc.GOALPad
 ```
 
-Therefore the current independently captured evidence is: build passed, sign
-passed, and install passed. Physical launch and the `42` runtime result remain
-unvalidated until the iPad is unlocked and the launch is retried. An older
-maintainer report says the prior handwritten platform probe worked on this
-iPad; that does not substitute for executing the new compiler-generated
-artifact.
+Result at 19:06: exit `0`; `devicectl` reported the application launched.
+
+A ten-second console-attached launch captured:
+
+```text
+GOALPad runtime probe: Signed ARM64 OpenGOAL AOT call boundary verified;
+architecture=arm64; result=42
+```
+
+The command later exited `2` only because the foreground app did not terminate
+before the requested ten-second console timeout. The launch and runtime line
+preceded the timeout. A final normal launch exited `0` and left the verified
+build running on the iPad.
 
 ## Confirmed compiler and runtime blockers
 
@@ -419,8 +464,9 @@ At Stage 2:
 - `IR_FunctionCall::to_rai` still enumerates x86 call clobbers. Calls are
   rejected by the Stage 2 path, so this is safe for the current proof but must
   be fixed before enabling any call-bearing workload.
-- The static entry currently uses the ordinary ARM64 ABI. It does not yet
-  initialize OpenGOAL's X20/X21/X22 process, `st`, and offset-base state.
+- The static entry now executes through an ABI-correct X20/X21/X22 boundary,
+  but those values are synthetic and never dereferenced. This is not live
+  kernel, symbol-table, or GOAL-memory initialization.
 - `game/runtime.cpp` allocates the desktop EE region with read, write, and
   execute permissions.
 - OpenGOAL v3 objects contain executable payloads that the desktop linker
@@ -432,28 +478,31 @@ At Stage 2:
   input, audio, listener, and debugging assumptions.
 
 The lower-level ARM64 emitter, target-aware compiler slice, and static signed
-artifact path are now real and tested. The next missing layer is a defined
-static OpenGOAL call boundary and the next source-driven compiler subset.
+artifact/call-boundary path are now real and tested. The next missing layer is
+the next source-driven compiler subset and then live portable kernel state.
 
 ## Highest-value next checkpoint
 
-1. Unlock the paired iPad and retry the already installed Stage 2 app. Capture
-   launch success and the displayed/logged compiler-generated result
-   separately.
-2. Choose the durable fork owner and authenticate that GitHub account. Publish
+1. Choose the durable fork owner and authenticate that GitHub account. Publish
    child commit `79f22008`, preserve the official `upstream` remote, and only
    then update the parent submodule URL/gitlink to the fetchable fork commit.
-3. Add a small static ARM64 wrapper that deliberately initializes and
-   preserves OpenGOAL's X20/X21/X22 runtime-state contract before calling a
-   compiler-generated entry. Validate it on ARM64 macOS, then the simulator,
-   then the signed physical iPad.
-4. Make `IR_FunctionCall::to_rai` target-aware before enabling calls. Continue
+2. Make `IR_FunctionCall::to_rai` target-aware before enabling calls. Continue
    Stage 3 from the next representative Jak 1 initialization-source failure,
    adding one compiler/IR boundary at a time.
+3. Select the smallest real Jak 1 initialization expression that expands the
+   compiler beyond a literal without importing retail data. Add only the
+   integer, memory, control-flow, call, stack, symbol, or relocation operation
+   exposed by its first deterministic failure.
+4. Begin the Stage 4 static symbol/data model before any new source slice needs
+   runtime linking. Keep executable code in signed app text and relocatable
+   runtime artifacts data-only.
+5. After those compiler/object boundaries can initialize a kernel subset,
+   replace the synthetic X20/X21/X22 values with portable real process,
+   symbol-table, and GOAL-memory state.
 
 Do not introduce `MAP_JIT`, writable executable memory, or the desktop V3
-runtime-linker path. Stage 2 is not complete until the physical iPad executes
-the generated workload through the defined OpenGOAL state convention.
+runtime-linker path. Do not broaden this into renderer, camera, or future Apple
+platform work before the real Jak 1 boot path requires it.
 
 ## Next-session commands
 
@@ -467,9 +516,11 @@ git -C OpenGOAL status --short
 
 git submodule update --init --recursive
 
-xcrun devicectl device process launch \
-  --device 6A4111AB-1663-508A-98D9-F0C1A9EA7863 \
-  --terminate-existing com.zephyrstudiosllc.GOALPad
+git -C /private/tmp/GOALPadOpenGOAL-stage2 status --short
+git -C /private/tmp/GOALPadOpenGOAL-stage2 log --oneline -3
+
+/private/tmp/GOALPad-pinned-opengoal-build/goalc-test \
+  --gtest_filter='-Listener.*'
 ```
 
 Before making upstream changes, confirm:

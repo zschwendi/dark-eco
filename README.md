@@ -17,14 +17,14 @@ binding architecture, scope, and content-separation rules.
   executable code can be part of the normally signed application image.
 - **Experimental:** The real OpenGOAL compiler compiles a top-level GOAL
   literal to deterministic ARM64 assembly. GOALPad links and executes that
-  artifact on ARM64 macOS and the iPad Pro M5 simulator; a signed
-  physical-device build has installed successfully and awaits an unlocked
-  launch.
+  artifact through a static X20/X21/X22 state boundary on ARM64 macOS, the
+  iPad Pro M5 simulator, and a normally signed physical iPad Pro M5 build.
 - **Planned:** Initialize the full OpenGOAL runtime state, expand the ARM64
   compiler subset, and load user-prepared Jak 1 data.
 
 The current proof executes one intentionally narrow compiler-produced GOAL
-workload. It does not yet load Jak data or boot the general OpenGOAL runtime.
+workload with synthetic, non-dereferenced state values. It does not yet load
+Jak data or boot the general OpenGOAL runtime.
 
 See [Roadmap](ROADMAP.md) for the ten-stage path from the current probe to
 playing Jak 1 on a signed physical iPad.
@@ -39,6 +39,7 @@ docs/APPLE_PLATFORM_DIRECTION.md
                          Future-facing Apple presentation constraints
 OpenGOAL/                Pinned upstream source submodule
 ROADMAP.md               Active implementation stages and exit gates
+tests/native/             Deterministic signed-call boundary harnesses
 ```
 
 ## Build
