@@ -1,10 +1,12 @@
 #include "GOALPadAOTExportRegistry.hpp"
+#include "GOALPadRuntimeCore.hpp"
 
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 
 struct GoalCallProbe {
   std::uint64_t entry_process;
@@ -172,6 +174,18 @@ std::uint32_t read_word(const SyntheticGoalArena& arena, std::size_t offset) {
 bool has_guard_bytes(const SyntheticGoalArena& arena, std::size_t first, std::size_t last) {
   return std::all_of(arena.bytes.begin() + first, arena.bytes.begin() + last,
                      [](std::byte value) { return value == kSyntheticArenaGuard; });
+}
+
+bool has_expected_probe(const GoalCallProbe& probe,
+                        std::uint64_t process,
+                        std::uint64_t symbol_table,
+                        std::uint64_t offset_base,
+                        std::uint64_t result) {
+  return probe.entry_process == process && probe.entry_symbol_table == symbol_table &&
+         probe.entry_offset_base == offset_base && probe.result == result &&
+         probe.exit_process == process && probe.exit_symbol_table == symbol_table &&
+         probe.exit_offset_base == offset_base && probe.restored_process == 0x14 &&
+         probe.restored_symbol_table == 0x15 && probe.restored_offset_base == 0x16;
 }
 
 bool has_expected_probe(const GoalCallProbe1& probe,
@@ -612,9 +626,113 @@ bool verifies_load_state_reset(goalpad::AOTEntry1 entry, std::uint64_t process) 
          actual.trailing_guard == expected.trailing_guard;
 }
 
+class SymbolValueOffsetRestore {
+ public:
+  explicit SymbolValueOffsetRestore(std::int32_t* offset) : m_offset(offset), m_saved(*offset) {}
+
+  ~SymbolValueOffsetRestore() { *m_offset = m_saved; }
+
+ private:
+  std::int32_t* m_offset;
+  std::int32_t m_saved;
+};
+
+bool verifies_load_state_value(goalpad::AOTEntry0 entry,
+                               const goalpad::AOTSymbolValueBinding32& binding,
+                               std::uint64_t process) {
+  constexpr std::uint64_t kJak1S7 = 0x14fd24;
+  constexpr std::size_t kJak1FixedSymbolEndOffset = 0x1d0;
+  constexpr std::int32_t kPositiveSymbolOffset = 0x400;
+  constexpr std::int32_t kNegativeSymbolOffset = -0x400;
+  constexpr std::uint32_t kFirstValue = 0x00012345;
+  constexpr std::uint32_t kSecondValue = 0x81234567;
+  constexpr std::byte kArenaGuard = static_cast<std::byte>(0xa5);
+  constexpr std::size_t kGuardSize = 16;
+  constexpr auto kFirstSlot = kJak1S7 + static_cast<std::size_t>(kPositiveSymbolOffset);
+  constexpr auto kSecondSlot = kJak1S7 - static_cast<std::size_t>(-kNegativeSymbolOffset);
+  constexpr auto kArenaSize = kFirstSlot + sizeof(std::uint32_t);
+
+  static_assert(kPositiveSymbolOffset >= kJak1FixedSymbolEndOffset);
+  static_assert(-kNegativeSymbolOffset >= kJak1FixedSymbolEndOffset);
+  static_assert(kJak1S7 >= static_cast<std::uint64_t>(-kNegativeSymbolOffset));
+  static_assert(kSecondSlot + sizeof(std::uint32_t) <= kArenaSize);
+
+  struct alignas(16) GuardedJak1SymbolArena {
+    std::array<std::byte, kGuardSize> leading_guard;
+    std::array<std::byte, kArenaSize> storage;
+    std::array<std::byte, kGuardSize> trailing_guard;
+  };
+  static_assert(alignof(GuardedJak1SymbolArena) >= 16);
+  static_assert(offsetof(GuardedJak1SymbolArena, storage) == kGuardSize);
+
+  if (!entry || !binding.offset ||
+      (reinterpret_cast<std::uintptr_t>(binding.offset) % alignof(std::int32_t)) != 0) {
+    return false;
+  }
+
+  SymbolValueOffsetRestore restore(binding.offset);
+  auto actual = std::make_unique<GuardedJak1SymbolArena>();
+  actual->leading_guard.fill(kArenaGuard);
+  actual->storage.fill(kArenaGuard);
+  actual->trailing_guard.fill(kArenaGuard);
+  auto expected = std::make_unique<GuardedJak1SymbolArena>();
+  auto* arena = actual->storage.data();
+  const auto offset_base = static_cast<std::uint64_t>(
+      reinterpret_cast<std::uintptr_t>(arena));
+  if ((offset_base & 0xf) != 0) {
+    return false;
+  }
+
+  const auto write_value = [arena](std::size_t offset, std::uint32_t value) {
+    std::memcpy(arena + offset, &value, sizeof(value));
+  };
+  const auto read_value = [arena](std::size_t offset) {
+    std::uint32_t value = 0;
+    std::memcpy(&value, arena + offset, sizeof(value));
+    return value;
+  };
+  const auto matches_expected = [&actual, &expected] {
+    return actual->leading_guard == expected->leading_guard &&
+           actual->storage == expected->storage &&
+           actual->trailing_guard == expected->trailing_guard;
+  };
+  const auto invoke = [&](std::int32_t symbol_offset, std::uint32_t expected_value) {
+    *binding.offset = symbol_offset;
+    GoalCallProbe probe{};
+    const auto result = goalpad_probe_call_aot_with_state(
+        process, kJak1S7, offset_base, entry, &probe);
+    return result == expected_value && (result >> 32) == 0 &&
+           has_expected_probe(probe, process, kJak1S7, offset_base, result);
+  };
+
+  write_value(kFirstSlot, 0);
+  write_value(kSecondSlot, 0);
+  if (read_value(kFirstSlot) != 0 || read_value(kSecondSlot) != 0) {
+    return false;
+  }
+  *expected = *actual;
+  if (!invoke(kPositiveSymbolOffset, 0) || !matches_expected()) {
+    return false;
+  }
+
+  write_value(kFirstSlot, kFirstValue);
+  *expected = *actual;
+  if (!invoke(kPositiveSymbolOffset, kFirstValue) || !matches_expected()) {
+    return false;
+  }
+
+  write_value(kSecondSlot, kSecondValue);
+  *expected = *actual;
+  return invoke(kNegativeSymbolOffset, kSecondValue) && matches_expected() &&
+         read_value(kFirstSlot) == kFirstValue && read_value(kSecondSlot) == kSecondValue;
+}
+
 int main() {
   const auto* false_func = goalpad::find_aot_export0("false-func");
   const auto* true_func = goalpad::find_aot_export0("true-func");
+  const auto* load_state_value = goalpad::find_aot_export0("load-state-value");
+  const auto* load_state_binding = goalpad::find_aot_symbol_value_binding32(
+      "jak1", "*load-state*", "load-state");
   const auto* identity = goalpad::find_aot_export1("identity");
   const auto* lognot = goalpad::find_aot_export1("lognot");
   const auto* load_state_reset = goalpad::find_aot_export1("reset!");
@@ -624,7 +742,16 @@ int main() {
   const auto* want_levels = goalpad::find_aot_export3("want-levels");
   if (!false_func || false_func->goal_name != "false-func" ||
       !false_func->entry || !true_func || true_func->goal_name != "true-func" ||
-      !true_func->entry || goalpad::find_aot_export0("identity") ||
+      !true_func->entry || !load_state_value ||
+      load_state_value->goal_name != "load-state-value" || !load_state_value->entry ||
+      !load_state_binding || load_state_binding->game_name != "jak1" ||
+      load_state_binding->goal_name != "*load-state*" ||
+      load_state_binding->value_type != "load-state" || !load_state_binding->offset ||
+      goalpad::find_aot_export0("*load-state*") ||
+      goalpad::find_aot_symbol_value_binding32("jak2", "*load-state*", "load-state") ||
+      goalpad::find_aot_symbol_value_binding32("jak1", "*load-state*", "object") ||
+      goalpad::find_aot_symbol_value_binding32("jak1", "missing", "load-state") ||
+      goalpad::find_aot_export0("identity") ||
       goalpad::find_aot_export0("lognot") ||
       goalpad::find_aot_export0("reset!") ||
       goalpad::find_aot_export0("level-group-load-commands-set!") ||
@@ -681,6 +808,16 @@ int main() {
       process, symbol_table, offset_base, identity->entry, identity_arg0, &identity_probe);
   const auto lognot_result = goalpad_probe_call_aot1_with_state(
       process, symbol_table, offset_base, lognot->entry, lognot_arg0, &lognot_probe);
+  SymbolValueOffsetRestore restore_load_state_binding(load_state_binding->offset);
+  *load_state_binding->offset = 0x1d0;
+  const auto load_state_value_verified =
+      verifies_load_state_value(load_state_value->entry, *load_state_binding, process);
+  const auto load_state_value_restored = *load_state_binding->offset == 0x1d0;
+  const auto runtime_status = goalpad::initialize_runtime("native-harness");
+  const auto runtime_symbol_value_verified = runtime_status.workload_verified &&
+                                             runtime_status.message.find("load-state symbol-value") !=
+                                                 std::string::npos &&
+                                             *load_state_binding->offset == 0x1d0;
 
   return false_func_result == symbol_table &&
                  false_func_probe.entry_process == process &&
@@ -728,6 +865,8 @@ int main() {
                  lognot_probe.restored_process == 0x14 &&
                  lognot_probe.restored_symbol_table == 0x15 &&
                  lognot_probe.restored_offset_base == 0x16 &&
+                 load_state_value_verified && load_state_value_restored &&
+                 runtime_symbol_value_verified &&
                  has_expected_jak1_load_state_reset_arm64_code(load_state_reset->entry) &&
                  verifies_load_state_reset(load_state_reset->entry, process) &&
                  has_expected_jak1_level_group_load_commands_set_arm64_code(

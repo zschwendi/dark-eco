@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 
 namespace {
 
@@ -696,6 +697,107 @@ bool verifies_load_state_reset(goalpad::AOTEntry1 entry, std::uint64_t process) 
          actual.trailing_guard == expected.trailing_guard;
 }
 
+class SymbolValueOffsetRestore {
+ public:
+  explicit SymbolValueOffsetRestore(std::int32_t* offset) : m_offset(offset), m_saved(*offset) {}
+
+  ~SymbolValueOffsetRestore() { *m_offset = m_saved; }
+
+ private:
+  std::int32_t* m_offset;
+  std::int32_t m_saved;
+};
+
+bool verifies_load_state_value(goalpad::AOTEntry0 entry,
+                               const goalpad::AOTSymbolValueBinding32& binding,
+                               std::uint64_t process) {
+  constexpr std::uint64_t kJak1S7 = 0x14fd24;
+  constexpr std::size_t kJak1FixedSymbolEndOffset = 0x1d0;
+  constexpr std::int32_t kPositiveSymbolOffset = 0x400;
+  constexpr std::int32_t kNegativeSymbolOffset = -0x400;
+  constexpr std::uint32_t kFirstValue = 0x00012345;
+  constexpr std::uint32_t kSecondValue = 0x81234567;
+  constexpr std::byte kArenaGuard = static_cast<std::byte>(0xa5);
+  constexpr std::size_t kGuardSize = 16;
+  constexpr auto kFirstSlot = kJak1S7 + static_cast<std::size_t>(kPositiveSymbolOffset);
+  constexpr auto kSecondSlot = kJak1S7 - static_cast<std::size_t>(-kNegativeSymbolOffset);
+  constexpr auto kArenaSize = kFirstSlot + sizeof(std::uint32_t);
+
+  static_assert(kPositiveSymbolOffset >= kJak1FixedSymbolEndOffset);
+  static_assert(-kNegativeSymbolOffset >= kJak1FixedSymbolEndOffset);
+  static_assert(kJak1S7 >= static_cast<std::uint64_t>(-kNegativeSymbolOffset));
+  static_assert(kSecondSlot + sizeof(std::uint32_t) <= kArenaSize);
+
+  struct alignas(16) GuardedJak1SymbolArena {
+    std::array<std::byte, kGuardSize> leading_guard;
+    std::array<std::byte, kArenaSize> storage;
+    std::array<std::byte, kGuardSize> trailing_guard;
+  };
+  static_assert(alignof(GuardedJak1SymbolArena) >= 16);
+  static_assert(offsetof(GuardedJak1SymbolArena, storage) == kGuardSize);
+
+  if (!entry || !binding.offset ||
+      (reinterpret_cast<std::uintptr_t>(binding.offset) % alignof(std::int32_t)) != 0) {
+    return false;
+  }
+
+  SymbolValueOffsetRestore restore(binding.offset);
+  auto actual = std::make_unique<GuardedJak1SymbolArena>();
+  actual->leading_guard.fill(kArenaGuard);
+  actual->storage.fill(kArenaGuard);
+  actual->trailing_guard.fill(kArenaGuard);
+  auto expected = std::make_unique<GuardedJak1SymbolArena>();
+  auto* arena = actual->storage.data();
+  const auto offset_base = static_cast<std::uint64_t>(
+      reinterpret_cast<std::uintptr_t>(arena));
+  if ((offset_base & 0xf) != 0) {
+    return false;
+  }
+
+  const auto write_value = [arena](std::size_t offset, std::uint32_t value) {
+    std::memcpy(arena + offset, &value, sizeof(value));
+  };
+  const auto read_value = [arena](std::size_t offset) {
+    std::uint32_t value = 0;
+    std::memcpy(&value, arena + offset, sizeof(value));
+    return value;
+  };
+  const auto matches_expected = [&actual, &expected] {
+    return actual->leading_guard == expected->leading_guard &&
+           actual->storage == expected->storage &&
+           actual->trailing_guard == expected->trailing_guard;
+  };
+  const auto invoke = [&](std::int32_t symbol_offset, std::uint32_t expected_value) {
+    *binding.offset = symbol_offset;
+    GoalCallProbe probe{};
+    const auto result = goalpad_probe_call_aot_with_state(
+        process, kJak1S7, offset_base, entry, &probe);
+    return result == expected_value && (result >> 32) == 0 &&
+           has_expected_goal_state(probe, process, kJak1S7, offset_base, result);
+  };
+
+  write_value(kFirstSlot, 0);
+  write_value(kSecondSlot, 0);
+  if (read_value(kFirstSlot) != 0 || read_value(kSecondSlot) != 0) {
+    return false;
+  }
+  *expected = *actual;
+  if (!invoke(kPositiveSymbolOffset, 0) || !matches_expected()) {
+    return false;
+  }
+
+  write_value(kFirstSlot, kFirstValue);
+  *expected = *actual;
+  if (!invoke(kPositiveSymbolOffset, kFirstValue) || !matches_expected()) {
+    return false;
+  }
+
+  write_value(kSecondSlot, kSecondValue);
+  *expected = *actual;
+  return invoke(kNegativeSymbolOffset, kSecondValue) && matches_expected() &&
+         read_value(kFirstSlot) == kFirstValue && read_value(kSecondSlot) == kSecondValue;
+}
+
 std::string architecture_name() {
 #if defined(__arm64__)
   return "arm64";
@@ -734,6 +836,17 @@ RuntimeStatus initialize_runtime(std::string storage_path) {
   const auto* true_func = find_aot_export0("true-func");
   if (!true_func || !true_func->entry) {
     status.message = "Required signed ARM64 AOT export unavailable: true-func";
+    return status;
+  }
+  const auto* load_state_value = find_aot_export0("load-state-value");
+  if (!load_state_value || !load_state_value->entry) {
+    status.message = "Required signed ARM64 AOT export unavailable: load-state-value";
+    return status;
+  }
+  const auto* load_state_binding =
+      find_aot_symbol_value_binding32("jak1", "*load-state*", "load-state");
+  if (!load_state_binding || !load_state_binding->offset) {
+    status.message = "Required signed ARM64 AOT symbol-value binding unavailable: *load-state*";
     return status;
   }
   const auto* identity = find_aot_export1("identity");
@@ -792,6 +905,8 @@ RuntimeStatus initialize_runtime(std::string storage_path) {
                              has_expected_jak1_lognot_arm64_code(lognot->entry) &&
                              has_expected_goal_state(lognot_probe, process, symbol_table,
                                                      offset_base, lognot_arg0, lognot_result) &&
+                             verifies_load_state_value(load_state_value->entry,
+                                                      *load_state_binding, process) &&
                              has_expected_jak1_load_state_reset_arm64_code(
                                  load_state_reset->entry) &&
                              verifies_load_state_reset(load_state_reset->entry, process) &&
@@ -805,11 +920,11 @@ RuntimeStatus initialize_runtime(std::string storage_path) {
   status.message = status.workload_verified
                        ? "Signed ARM64 Jak 1 false-func, true-func, identity, lognot, and direct "
                          "level-group-load-commands-set!, want-vis, want-levels, and load-state "
-                         "reset body AOT proof "
+                         "reset body plus load-state symbol-value AOT proof "
                          "verified"
                        : "Signed ARM64 Jak 1 false-func, true-func, identity, lognot, and direct "
                          "level-group-load-commands-set!, want-vis, want-levels, and load-state "
-                         "reset body AOT proof "
+                         "reset body plus load-state symbol-value AOT proof "
                          "failed";
   return status;
 }

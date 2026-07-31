@@ -31,9 +31,20 @@ struct AOTExport3 {
   AOTEntry3 entry;
 };
 
+struct AOTSymbolValueBinding32 {
+  std::string_view game_name;
+  std::string_view goal_name;
+  std::string_view value_type;
+  std::int32_t* offset;
+};
+
 const AOTExport0* find_aot_export0(std::string_view goal_name) noexcept;
 const AOTExport1* find_aot_export1(std::string_view goal_name) noexcept;
 const AOTExport2* find_aot_export2(std::string_view goal_name) noexcept;
 const AOTExport3* find_aot_export3(std::string_view goal_name) noexcept;
+const AOTSymbolValueBinding32* find_aot_symbol_value_binding32(
+    std::string_view game_name,
+    std::string_view goal_name,
+    std::string_view value_type) noexcept;
 
 }  // namespace goalpad
