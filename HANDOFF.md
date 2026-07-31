@@ -4,7 +4,9 @@ Date: 2026-07-30
 
 Branch: `feat/ipados-native-boot`
 
-Status: Partially complete. Stage 2 is implemented and verified. The real
+Status: Partially complete. Stage 2 is implemented and verified. Stage 3 has
+its first compiler-safety checkpoint: function-call clobber metadata and both
+register allocators now honor the selected instruction set. The real
 top-level GOAL expression `42` compiles to ahead-of-time ARM64 assembly, links
 into GOALPad before code signing, and executes through a static X20/X21/X22
 OpenGOAL state boundary on ARM64 macOS, the iPad Pro M5 simulator, and the
@@ -31,6 +33,8 @@ maintainer-requested fast `gpt-5.6-terra` model with `xhigh` reasoning:
 | AOT artifact and test implementation | Writer, CLI, fixture, CMake wiring, and deterministic tests | Added `goalc-aot`, exact instruction tests, unsupported-source rejection, and Apple assembly output |
 | Independent Stage 2 review | Cross-target register semantics, allocator regression risk, and next-boundary review | Found and prompted the x86 `hw_id` correction; identified call-clobber handling as the next compiler boundary |
 | OpenGOAL state-boundary audits | X20/X21/X22 semantics, ABI preservation, Xcode integration, and probe coverage | Confirmed the app-local static wrapper, 16-byte stack alignment, register snapshots/restoration, and ARM64-only target scope |
+| Stage 3 call-clobber audit | ARM64/x86 ABI sets, register identity, and v1/v2 allocator coverage | Confirmed the implementation and prompted exact literal-set assertions instead of a self-referential test |
+| Stage 3 source-boundary audit | First real Jak 1 source form, IR seam, and ARM64 emitter operation | Selected the `'#f` body of `false-func` in `gcommon.gc`; the next bounded artifact should be `mov x0, x21; ret` |
 
 The implementation agents edited non-overlapping files in the isolated
 OpenGOAL worktree. The primary agent reviewed and integrated every diff, fixed
@@ -84,6 +88,7 @@ copied into, or generated inside the Git checkout.
 Current history:
 
 ```text
+6830cb4 Record physical Stage 2 completion (AI-assisted)
 f13d8f0 Add verified OpenGOAL ARM64 call boundary (AI-assisted)
 821b58c Document Stage 2 validation and Apple platform boundaries (AI-assisted)
 e77a402 Link compiler-generated ARM64 GOAL proof (AI-assisted)
@@ -115,8 +120,8 @@ choosing
 `zephyrstudiosllc` versus `zschwendi` as the durable owner would change project
 ownership and branding direction.
 
-After commits `e77a402` and `821b58c`, an explicitly requested push was
-attempted:
+After commits `e77a402`, `821b58c`, and `6830cb4`, explicitly requested pushes
+were attempted:
 
 ```sh
 git push -u origin feat/ipados-native-boot
@@ -187,6 +192,8 @@ Worktree: /private/tmp/GOALPadOpenGOAL-stage2
 Branch: goalpad/arm64-aot-proof
 Commit: 79f22008c3119bf79297f41d586ab4f75725a36e
 Patch: patches/OpenGOAL/0001-Add-minimal-ARM64-GOAL-AOT-proof-AI-assisted.patch
+Stage 3 child: 149840cfa8cb4cecd62c8f5c7ffe5a8b8c26ce31
+Stage 3 patch: patches/OpenGOAL/0002-Make-function-call-clobbers-target-aware-AI-assisted.patch
 ```
 
 The child commit adds:
@@ -226,6 +233,7 @@ Reproducibility hashes:
 ```text
 a9376d35e97f966dfcced3b4f47a36045ebc60ed98d57833d7da41b0ddfac1ac  OpenGOALConstant42.s
 2f96d9a99f1806825538fdfbd3c5d09b9a2bdc044d58ffbfaac9cf859071c68c  OpenGOAL Stage 2 patch
+23d33b602fdeb2da1cc9e5f47c276e24c2f2c52b86b837e6523338a19c9668d1  OpenGOAL Stage 3 call-clobber patch
 ```
 
 `GOALPadRuntimeCore.cpp` calls this compiler-generated function through
@@ -298,6 +306,39 @@ An earlier full run exposed 68 x86 regressions because ARM64 architectural
 register IDs had initially been applied to x86 SIMD registers as well. The
 target-specific `Register::hw_id` correction fixed them; the 91 focused tests
 and 689-test non-network suite above are the final post-fix results.
+
+## Verified Stage 3 call-clobber checkpoint
+
+The isolated OpenGOAL worktree advanced from `79f22008` to child commit
+`149840cfa8cb4cecd62c8f5c7ffe5a8b8c26ce31` without moving the official
+submodule pin. `IR_FunctionCall` now carries its instruction set and uses a
+target-specific call-clobber set. ARM64 clobbers X0-X15, V0-V7, and V16-V31;
+x86 preserves its previous RAX, RCX, RDX, RSI, RDI, R8, R9, and XMM0-XMM7
+behavior. Tests verify those exact vectors and prove that both v1 and v2
+allocators keep GPR and SIMD values live across calls in saved ARM64
+registers.
+
+```sh
+cmake -S /private/tmp/GOALPadOpenGOAL-stage2 \
+  -B /private/tmp/GOALPadOpenGOAL-stage3-build \
+  --preset=Release-macos-arm64-clang \
+  -DOPENSSL_ROOT_DIR=/opt/homebrew/opt/openssl@3
+
+cmake --build /private/tmp/GOALPadOpenGOAL-stage3-build \
+  --target goalc-test goalc-aot --parallel 4
+
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc-test \
+  --gtest_filter='Arm64Aot.*'
+
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc-test \
+  --gtest_filter='-Listener.*'
+```
+
+Results: configuration exited `0`; both targets built; all 5 focused tests
+passed; and all 691 non-listener tests passed. The larger count reflects the
+two new Stage 3 tests. No device build was required because this checkpoint
+changes compiler allocation metadata only and does not change the checked-in
+app artifact.
 
 ## Verified GOALPad targets
 
@@ -461,9 +502,10 @@ At Stage 2:
 - The exact top-level literal `42` has a target-aware ARM64 compiler path.
   General functions and almost all other ARM64 IR operations remain
   unsupported and reject explicitly.
-- `IR_FunctionCall::to_rai` still enumerates x86 call clobbers. Calls are
-  rejected by the Stage 2 path, so this is safe for the current proof but must
-  be fixed before enabling any call-bearing workload.
+- Function-call clobber metadata is now target-aware and both ARM64 allocator
+  paths preserve live values correctly. ARM64 function-call code generation
+  itself remains explicitly unimplemented, so call-bearing GOAL source still
+  rejects.
 - The static entry now executes through an ABI-correct X20/X21/X22 boundary,
   but those values are synthetic and never dereferenced. This is not live
   kernel, symbol-table, or GOAL-memory initialization.
@@ -484,15 +526,15 @@ the next source-driven compiler subset and then live portable kernel state.
 ## Highest-value next checkpoint
 
 1. Choose the durable fork owner and authenticate that GitHub account. Publish
-   child commit `79f22008`, preserve the official `upstream` remote, and only
+   child commit `149840cf`, preserve the official `upstream` remote, and only
    then update the parent submodule URL/gitlink to the fetchable fork commit.
-2. Make `IR_FunctionCall::to_rai` target-aware before enabling calls. Continue
-   Stage 3 from the next representative Jak 1 initialization-source failure,
-   adding one compiler/IR boundary at a time.
-3. Select the smallest real Jak 1 initialization expression that expands the
-   compiler beyond a literal without importing retail data. Add only the
-   integer, memory, control-flow, call, stack, symbol, or relocation operation
-   exposed by its first deterministic failure.
+2. Compile the exact `'#f` body of Jak 1 `false-func` from
+   `goal_src/jak1/kernel/gcommon.gc` as the next bounded source fixture.
+   Whitelist only that symbol-pointer IR and lower it to `mov x0, x21; ret`;
+   keep `'#t` and named symbols rejected.
+3. Link the generated false artifact through the existing static state wrapper
+   so the signed app returns its supplied X21 `st` value. Re-run macOS,
+   simulator, signed-device, and physical-iPad execution gates.
 4. Begin the Stage 4 static symbol/data model before any new source slice needs
    runtime linking. Keep executable code in signed app text and relocatable
    runtime artifacts data-only.
@@ -517,9 +559,9 @@ git -C OpenGOAL status --short
 git submodule update --init --recursive
 
 git -C /private/tmp/GOALPadOpenGOAL-stage2 status --short
-git -C /private/tmp/GOALPadOpenGOAL-stage2 log --oneline -3
+git -C /private/tmp/GOALPadOpenGOAL-stage2 log --oneline -4
 
-/private/tmp/GOALPad-pinned-opengoal-build/goalc-test \
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc-test \
   --gtest_filter='-Listener.*'
 ```
 
@@ -540,12 +582,15 @@ git -C OpenGOAL worktree add -b goalpad/arm64-aot-proof \
 
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0001-Add-minimal-ARM64-GOAL-AOT-proof-AI-assisted.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0002-Make-function-call-clobbers-target-aware-AI-assisted.patch"
 ```
 
-`git am` reconstructs a patch-equivalent commit but normally produces a
-different SHA because committer metadata changes. `79f22008` is the exact
-original child commit in the current isolated worktree; compare content and
-patch identity when reconstructing it elsewhere.
+`git am` reconstructs patch-equivalent commits but normally produces different
+SHAs because committer metadata changes. `79f22008` and `149840cf` are the
+exact original child commits in the current isolated worktree; compare content
+and patch identity when reconstructing them elsewhere.
 
 Do not use proprietary inputs yet. The next static-wrapper/compiler checkpoint
-still needs only source and synthetic constants.
+still needs only upstream Jak 1 GOAL source and synthetic state.

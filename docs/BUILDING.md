@@ -66,7 +66,7 @@ unpublished GOALPad ARM64 AOT child commit.
 The `data` symlink is local build state. It lets OpenGOAL's test executable find
 the pinned source tree when the build directory is outside the repository.
 
-## Restore and validate the Stage 2 OpenGOAL AOT proof
+## Restore and validate the downstream OpenGOAL AOT work
 
 Until a maintainer chooses and authenticates the durable OpenGOAL fork owner,
 the verified downstream child commit is preserved as a patch while the
@@ -76,6 +76,8 @@ official submodule remains clean:
 Base: a4cb1ac1f0596c8740b1c26accb24a58505cda92
 Child: 79f22008c3119bf79297f41d586ab4f75725a36e
 Patch: patches/OpenGOAL/0001-Add-minimal-ARM64-GOAL-AOT-proof-AI-assisted.patch
+Stage 3 child: 149840cfa8cb4cecd62c8f5c7ffe5a8b8c26ce31
+Stage 3 patch: patches/OpenGOAL/0002-Make-function-call-clobbers-target-aware-AI-assisted.patch
 ```
 
 Restore it into an isolated worktree:
@@ -87,17 +89,20 @@ git -C OpenGOAL worktree add -b goalpad/arm64-aot-proof \
 
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0001-Add-minimal-ARM64-GOAL-AOT-proof-AI-assisted.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0002-Make-function-call-clobbers-target-aware-AI-assisted.patch"
 ```
 
 If that branch or worktree already exists, inspect and reuse it rather than
 deleting it. Do not move the parent repository's official submodule gitlink to
 the unpublished child commit.
 
-The restored commit is patch-equivalent to `79f22008`, but `git am` normally
-assigns new committer metadata and therefore a different commit SHA. The exact
-`79f22008` object is available only in a checkout that already contains the
-original child commit. Compare the resulting tree or stable patch identity
-when reconstructing it from the preserved patch.
+The restored commits are patch-equivalent to `79f22008` and `149840cf`, but
+`git am` normally assigns new committer metadata and therefore different
+commit SHAs. The exact objects are available only in a checkout that already
+contains the original child commits. Compare the resulting tree or stable
+patch identities when reconstructing them from the preserved patches.
 
 Configure and build the affected tools serially enough to avoid excess memory
 pressure:

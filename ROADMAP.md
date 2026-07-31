@@ -215,6 +215,19 @@ Exit gate:
 - Compiler and register-allocation tests cover every newly supported path.
 - Existing documented host targets remain healthy.
 
+Current progress:
+
+- Child commit `149840cfa8cb4cecd62c8f5c7ffe5a8b8c26ce31` makes
+  `IR_FunctionCall` clobber metadata target-aware while preserving the prior
+  x86 set.
+- Exact ABI-set tests and live-across-call allocator tests cover ARM64 GPR and
+  SIMD behavior in both allocator versions.
+- `goalc-aot` and `goalc-test` build; all 5 focused tests and all 691
+  non-listener tests pass.
+- ARM64 function-call code generation remains unsupported. The next
+  source-driven increment is the real Jak 1 `'#f` expression from
+  `gcommon.gc`, which requires only the symbol-pointer-to-X21 path.
+
 ## Stage 4 — Replace the desktop executable-object model
 
 Outcome: OpenGOAL code and runtime data have a signed, iPad-compatible artifact
@@ -495,13 +508,14 @@ verified child commit through the repository patch.
 
 The next Stage 3 actions are:
 
-1. Make ARM64 call-clobber handling target-aware before enabling call-bearing
-   GOAL source.
-2. Select the smallest real Jak 1 initialization expression that expands the
-   compiler beyond the literal proof without requiring retail data.
-3. Compile it, preserve its first unsupported IR/object failure as the next
-   test, and implement only that boundary.
-4. Keep x86 behavior, the 689-test non-network suite, ARM64 host tools, and the
+1. Add a provenance-preserving fixture for the `'#f` body of Jak 1
+   `false-func` in `goal_src/jak1/kernel/gcommon.gc`.
+2. Compile it, preserve the literal-only gate and
+   `IR_LoadSymbolPointer::do_codegen_arm64` failure, and implement only the
+   false-symbol boundary as `mov x0, x21; ret`.
+3. Keep `'#t`, named symbols, statics, relocation, and calls explicitly
+   unsupported until a later real Jak 1 source boundary requires them.
+4. Keep x86 behavior, the 691-test non-network suite, ARM64 host tools, and the
    signed app path healthy after each increment.
 
 No proprietary game data is needed before Stage 8.

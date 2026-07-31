@@ -1,0 +1,240 @@
+From 149840cfa8cb4cecd62c8f5c7ffe5a8b8c26ce31 Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Thu, 30 Jul 2026 19:21:33 -0600
+Subject: [PATCH] Make function call clobbers target-aware (AI-assisted)
+
+---
+ goalc/compiler/IR.cpp                   | 13 ++--
+ goalc/compiler/IR.h                     |  4 +-
+ goalc/compiler/compilation/Function.cpp |  2 +-
+ goalc/emitter/Register.cpp              |  8 +++
+ goalc/emitter/Register.h                |  2 +
+ test/goalc/test_arm64_aot.cpp           | 83 +++++++++++++++++++++++++
+ 6 files changed, 102 insertions(+), 10 deletions(-)
+
+diff --git a/goalc/compiler/IR.cpp b/goalc/compiler/IR.cpp
+index eb0e1c9c..31c39c6c 100644
+--- a/goalc/compiler/IR.cpp
++++ b/goalc/compiler/IR.cpp
+@@ -469,12 +469,14 @@ IR_FunctionCall::IR_FunctionCall(const RegVal* func,
+                                  const RegVal* ret,
+                                  std::vector<RegVal*> args,
+                                  std::vector<emitter::Register> arg_regs,
+-                                 std::optional<emitter::Register> ret_reg)
++                                 std::optional<emitter::Register> ret_reg,
++                                 emitter::InstructionSet instruction_set)
+     : m_func(func),
+       m_ret(ret),
+       m_args(std::move(args)),
+       m_arg_regs(std::move(arg_regs)),
+-      m_ret_reg(ret_reg) {}
++      m_ret_reg(ret_reg),
++      m_instruction_set(instruction_set) {}
+ 
+ std::string IR_FunctionCall::print() {
+   std::string result = fmt::format("call {} (ret {}) (args ", m_func->print(), m_ret->print());
+@@ -495,12 +497,7 @@ RegAllocInstr IR_FunctionCall::to_rai() {
+     rai.read.push_back(arg->ireg());
+   }
+ 
+-  for (int i = 0; i < emitter::RegisterInfo::N_REGS; i++) {
+-    auto& info = emitter::gRegInfo.get_info(i);
+-    if (info.temp()) {
+-      rai.clobber.emplace_back(i);
+-    }
+-  }
++  rai.clobber = emitter::get_register_info(m_instruction_set).get_call_clobbered();
+ 
+   return rai;
+ }
+diff --git a/goalc/compiler/IR.h b/goalc/compiler/IR.h
+index 31db7808..8961e7b5 100644
+--- a/goalc/compiler/IR.h
++++ b/goalc/compiler/IR.h
+@@ -139,7 +139,8 @@ class IR_FunctionCall : public IR {
+                   const RegVal* ret,
+                   std::vector<RegVal*> args,
+                   std::vector<emitter::Register> arg_regs,
+-                  std::optional<emitter::Register> ret_reg);
++                  std::optional<emitter::Register> ret_reg,
++                  emitter::InstructionSet instruction_set);
+   std::string print() override;
+   RegAllocInstr to_rai() override;
+   void do_codegen_x86(emitter::ObjectGenerator* gen,
+@@ -156,6 +157,7 @@ class IR_FunctionCall : public IR {
+   std::vector<RegVal*> m_args;
+   std::vector<emitter::Register> m_arg_regs;
+   std::optional<emitter::Register> m_ret_reg;
++  emitter::InstructionSet m_instruction_set;
+ };
+ 
+ class IR_RegValAddr : public IR {
+diff --git a/goalc/compiler/compilation/Function.cpp b/goalc/compiler/compilation/Function.cpp
+index c72d7a8f..59ad7905 100644
+--- a/goalc/compiler/compilation/Function.cpp
++++ b/goalc/compiler/compilation/Function.cpp
+@@ -653,7 +653,7 @@ Val* Compiler::compile_real_function_call(const goos::Object& form,
+   auto temp_function = fe->make_gpr(function->type());
+   env->emit_ir<IR_RegSet>(form, temp_function, function);
+   env->emit_ir<IR_FunctionCall>(form, temp_function, return_reg, arg_outs, cc.arg_regs,
+-                                cc.return_reg);
++                                cc.return_reg, m_instr_set);
+ 
+   if (m_settings.emit_move_after_return) {
+     auto result_reg = env->make_ireg(return_reg->type(), ret_reg_class);
+diff --git a/goalc/emitter/Register.cpp b/goalc/emitter/Register.cpp
+index db6afa9e..ff845d2b 100644
+--- a/goalc/emitter/Register.cpp
++++ b/goalc/emitter/Register.cpp
+@@ -60,6 +60,10 @@ RegisterInfo RegisterInfo::make_register_info(InstructionSet instruction_set) {
+     info.m_xmm_alloc_order.insert(info.m_xmm_alloc_order.end(), info.m_saved_xmms.begin(),
+                                   info.m_saved_xmms.end());
+     info.m_xmm_spill_temp_alloc_order = info.m_xmm_alloc_order;
++    info.m_call_clobbered = info.m_gpr_temp_only_alloc_order;
++    info.m_call_clobbered.insert(info.m_call_clobbered.end(),
++                                 info.m_xmm_temp_only_alloc_order.begin(),
++                                 info.m_xmm_temp_only_alloc_order.end());
+ 
+     info.m_gpr_v2_temp_only_alloc_order = info.m_gpr_temp_only_alloc_order;
+     info.m_xmm_v2_temp_only_alloc_order = info.m_xmm_temp_only_alloc_order;
+@@ -136,6 +140,10 @@ RegisterInfo RegisterInfo::make_register_info(InstructionSet instruction_set) {
+   // these should only be temp registers!
+   info.m_gpr_temp_only_alloc_order = {RAX, RCX, RDX, RSI, RDI, R8, R9};
+   info.m_xmm_temp_only_alloc_order = {XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7};
++  info.m_call_clobbered = info.m_gpr_temp_only_alloc_order;
++  info.m_call_clobbered.insert(info.m_call_clobbered.end(),
++                               info.m_xmm_temp_only_alloc_order.begin(),
++                               info.m_xmm_temp_only_alloc_order.end());
+ 
+   info.m_gpr_spill_temp_alloc_order = {RAX, RCX, RDX, RBX, RBP, RSI,
+                                        RDI, R8,  R9,  R10, R11, R12};  // arbitrary
+diff --git a/goalc/emitter/Register.h b/goalc/emitter/Register.h
+index 3dd7aac2..21285415 100644
+--- a/goalc/emitter/Register.h
++++ b/goalc/emitter/Register.h
+@@ -276,6 +276,7 @@ class RegisterInfo {
+   const std::vector<Register>& get_xmm_spill_alloc_order() const {
+     return m_xmm_spill_temp_alloc_order;
+   }
++  const std::vector<Register>& get_call_clobbered() const { return m_call_clobbered; }
+   const std::vector<Register>& get_v2_alloc_order(HWRegKind kind,
+                                                    bool saved_first,
+                                                    bool asm_function,
+@@ -304,6 +305,7 @@ class RegisterInfo {
+   std::vector<Register> m_xmm_temp_only_alloc_order;
+   std::vector<Register> m_gpr_spill_temp_alloc_order;
+   std::vector<Register> m_xmm_spill_temp_alloc_order;
++  std::vector<Register> m_call_clobbered;
+   std::vector<Register> m_gpr_v2_saved_first_alloc_order;
+   std::vector<Register> m_xmm_v2_saved_first_alloc_order;
+   std::vector<Register> m_gpr_v2_temp_first_alloc_order;
+diff --git a/test/goalc/test_arm64_aot.cpp b/test/goalc/test_arm64_aot.cpp
+index 5f601e38..cef70718 100644
+--- a/test/goalc/test_arm64_aot.cpp
++++ b/test/goalc/test_arm64_aot.cpp
+@@ -5,8 +5,12 @@
+ 
+ #include "goalc/aot/AOTWriter.h"
+ #include "goalc/compiler/Compiler.h"
++#include "goalc/compiler/IR.h"
++#include "goalc/compiler/Val.h"
+ #include "goalc/emitter/InstructionSet.h"
+ #include "goalc/emitter/Register.h"
++#include "goalc/regalloc/Allocator.h"
++#include "goalc/regalloc/Allocator_v2.h"
+ #include "gtest/gtest.h"
+ 
+ namespace {
+@@ -18,6 +22,42 @@ void expect_no_reserved_arm64_registers(const std::vector<emitter::Register>& re
+   }
+ }
+ 
++void expect_arm64_live_across_call_uses_saved_register(RegClass reg_class,
++                                                       bool use_v2_allocator) {
++  const auto& registers = emitter::get_register_info(emitter::InstructionSet::ARM64);
++  AllocationInput input;
++  input.instruction_set = emitter::InstructionSet::ARM64;
++  input.max_vars = 1;
++  input.function_name = use_v2_allocator ? "arm64-call-clobber-v2" : "arm64-call-clobber-v1";
++
++  RegAllocInstr define;
++  define.write.push_back({reg_class, 0});
++  input.instructions.push_back(define);
++
++  RegAllocInstr call;
++  call.clobber = registers.get_call_clobbered();
++  input.instructions.push_back(call);
++
++  RegAllocInstr use;
++  use.read.push_back({reg_class, 0});
++  input.instructions.push_back(use);
++
++  const auto allocation =
++      use_v2_allocator ? allocate_registers_v2(input) : allocate_registers(input);
++  ASSERT_TRUE(allocation.ok);
++  ASSERT_EQ(allocation.ass_as_ranges.size(), 1);
++  const auto& assignment = allocation.ass_as_ranges.at(0).get(1);
++  ASSERT_EQ(assignment.kind, Assignment::Kind::REGISTER);
++
++  const auto& expected_saved = registers.get_all_saved();
++  EXPECT_NE(std::find(expected_saved.begin(), expected_saved.end(), assignment.reg),
++            expected_saved.end());
++  EXPECT_EQ(std::find(registers.get_call_clobbered().begin(),
++                      registers.get_call_clobbered().end(), assignment.reg),
++            registers.get_call_clobbered().end());
++  EXPECT_EQ(assignment.reg.instruction_set(), emitter::InstructionSet::ARM64);
++}
++
+ }  // namespace
+ 
+ TEST(Arm64Aot, compiles_top_level_literal_and_renders_apple_text) {
+@@ -75,3 +115,46 @@ TEST(Arm64Aot, uses_apple_abi_registers_without_goal_specials) {
+   expect_no_reserved_arm64_registers(
+       registers.get_v2_alloc_order(emitter::HWRegKind::GPR, false, false, true));
+ }
++
++TEST(Arm64Aot, function_calls_clobber_only_target_temporaries) {
++  RegVal function({RegClass::GPR_64, 0}, TypeSpec("function"));
++  RegVal result({RegClass::GPR_64, 1}, TypeSpec("object"));
++
++  IR_FunctionCall arm64_call(&function, &result, {}, {}, std::nullopt,
++                             emitter::InstructionSet::ARM64);
++  const auto arm64_rai = arm64_call.to_rai();
++  const std::vector<emitter::Register> expected_arm64_clobbers = {
++      emitter::X0,  emitter::X1,  emitter::X2,  emitter::X3,  emitter::X4,  emitter::X5,
++      emitter::X6,  emitter::X7,  emitter::X8,  emitter::X9,  emitter::X10, emitter::X11,
++      emitter::X12, emitter::X13, emitter::X14, emitter::X15, emitter::V0,  emitter::V1,
++      emitter::V2,  emitter::V3,  emitter::V4,  emitter::V5,  emitter::V6,  emitter::V7,
++      emitter::V16, emitter::V17, emitter::V18, emitter::V19, emitter::V20, emitter::V21,
++      emitter::V22, emitter::V23, emitter::V24, emitter::V25, emitter::V26, emitter::V27,
++      emitter::V28, emitter::V29, emitter::V30, emitter::V31,
++  };
++  EXPECT_EQ(arm64_rai.clobber, expected_arm64_clobbers);
++  expect_no_reserved_arm64_registers(arm64_rai.clobber);
++  for (const auto& reg : arm64_rai.clobber) {
++    EXPECT_EQ(reg.instruction_set(), emitter::InstructionSet::ARM64);
++  }
++
++  IR_FunctionCall x86_call(&function, &result, {}, {}, std::nullopt,
++                           emitter::InstructionSet::X86);
++  const auto x86_rai = x86_call.to_rai();
++  const std::vector<emitter::Register> expected_x86_clobbers = {
++      emitter::RAX,  emitter::RCX,  emitter::RDX,  emitter::RSI,  emitter::RDI,
++      emitter::R8,   emitter::R9,   emitter::XMM0, emitter::XMM1, emitter::XMM2,
++      emitter::XMM3, emitter::XMM4, emitter::XMM5, emitter::XMM6, emitter::XMM7,
++  };
++  EXPECT_EQ(x86_rai.clobber, expected_x86_clobbers);
++  for (const auto& reg : x86_rai.clobber) {
++    EXPECT_EQ(reg.instruction_set(), emitter::InstructionSet::X86);
++  }
++}
++
++TEST(Arm64Aot, allocators_preserve_values_live_across_function_calls) {
++  for (const bool use_v2_allocator : {false, true}) {
++    expect_arm64_live_across_call_uses_saved_register(RegClass::GPR_64, use_v2_allocator);
++    expect_arm64_live_across_call_uses_saved_register(RegClass::INT_128, use_v2_allocator);
++  }
++}
+-- 
+2.50.1 (Apple Git-155)
+
