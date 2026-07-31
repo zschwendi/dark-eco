@@ -4,22 +4,19 @@ Date: 2026-07-31
 
 Branch: `feat/ipados-native-boot`
 
-Status: Partially complete. The latest verified checkpoint is Checkpoint 13:
-parent commits `d843e17cd1efd3920eec6c3006ef0e4d42379623` and
-`cabb0274226dd865dda43599d2e4d7bbeb7e9908` check in and execute the complete
-real Jak 1 `load-state::reset!` body through the guarded Export1 registry and
-static X20/X21/X22 call boundary. The OpenGOAL compiler and host execution
-proofs, app-local harness, ARM64 macOS build, dedicated iPad Pro 11-inch (M5)
-simulator runtime, and generic normally signed Release iOS build passed. The
-earlier `false-func`, `true-func`, `identity`, `lognot`, direct
-`level-group-load-commands-set!`, direct `want-vis`, and complete direct
-`want-levels` proofs remain valid historical checkpoints. This work still
-does not install or dispatch the GOAL method, initialize the general runtime,
-load user data, or boot Jak. The maintainer prohibits physical **Z iPad Pro**
-testing unless explicitly requested in the current task; only the local M5
-simulator was used here. See
-[Checkpoint 13](#checkpoint-13-complete-jak-1-load-statereset-aot-proof) for
-exact scope and validation.
+Status: Partially complete. The latest verified checkpoint is Checkpoint 20,
+parent commit `ce027a09693f7e010ddcf863c3f306a12ec9a503`, pushed to
+`origin/feat/ipados-native-boot`. It preserves OpenGOAL child commit
+`c7ef4691571cc462815816c098fa9d241bc58c81`, which adds a production typed
+ARM64 data-arena method invoker and validates the real generated Jak 1
+`load-state::reset!` entry through it. Host tests and a minimal iPhoneOS ARM64
+static-library build passed. The app does not yet compile these OpenGOAL
+sources, use the typed binding, or boot Jak. No simulator or physical device
+was used for Checkpoint 20. The next work is not another compiler proof: publish
+and pin the accepted OpenGOAL fork, link the pinned data-arena/invoker sources
+into Xcode, execute the trusted reset path inside GOALPad, and validate the M5
+simulator plus a generic signed iOS build. See the final transition section for
+the exact state and commands.
 
 ## Active roadmap and delegated audit
 
@@ -4115,3 +4112,212 @@ the new upstream base before resolution; do not stack an unreviewed manual
 fix. This audit proves a local replay at the pinned base only. It does not
 prove that a remote fork exists, that the chosen remote contains the pin, or
 that authentication and push permission work.
+
+## Claude transition: Checkpoint 20 and immediate build path
+
+This section supersedes older “next task” text above it.
+
+### Verified Git state
+
+The parent repository is clean at a pushed checkpoint:
+
+```text
+/Users/zach/Developer/OS_Projects/GOALPad/GOALPad
+branch: feat/ipados-native-boot
+HEAD: ce027a09693f7e010ddcf863c3f306a12ec9a503
+origin/feat/ipados-native-boot: ce027a09693f7e010ddcf863c3f306a12ec9a503
+commit: feat(opengoal): preserve typed ARM64 method invoker (AI-assisted)
+```
+
+The official `OpenGOAL` submodule is deliberately still pinned to the
+fetchable upstream commit:
+
+```text
+a4cb1ac1f0596c8740b1c26accb24a58505cda92
+https://github.com/open-goal/jak-project.git
+```
+
+The accepted unpublished OpenGOAL child is clean in both of these worktrees:
+
+```text
+/private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup
+branch: goalpad/data-arena-symbol-value-lookup
+HEAD: c7ef4691571cc462815816c098fa9d241bc58c81
+
+/private/tmp/GOALPadOpenGOAL-data-arena-arm64-invoker
+branch: goalpad/data-arena-arm64-invoker
+HEAD: c7ef4691571cc462815816c098fa9d241bc58c81
+commit: feat(arm64): add typed data-arena method invoker (AI-assisted)
+```
+
+The parent patch worktree is clean at:
+
+```text
+/private/tmp/GOALPad-parent-symbol-resolver-patches
+branch: goalpad/symbol-resolver-patches
+HEAD: 3e5e56b314724611e06b61c4a53103ac05d85387
+```
+
+Patch 0044 is:
+
+```text
+patches/OpenGOAL/0044-feat-arm64-add-typed-data-arena-method-invoker-AI-as.patch
+SHA-256: a2a174ce14e236dc4a2691a3e5349432fea7f2eb852f47664e78df56306499ef
+stable patch ID: ec2f9c43c1984d58a12442edd1b844e7b2055f1a
+child commit: c7ef4691571cc462815816c098fa9d241bc58c81
+```
+
+The reverse-apply check passed against `c7ef4691`. The ordered 0038-0044
+replay exactly matches that child. The complete topology-preserving 0001-0044
+staged replay also exactly matches it:
+
+```text
+accepted tree: 7be1ffe4f016ed97c470c9b501231630d603e82f
+replayed tree: 7be1ffe4f016ed97c470c9b501231630d603e82f
+```
+
+Preserve the replay worktrees. They are intentionally staged/dirty audit
+evidence, not abandoned edits:
+
+```text
+/private/tmp/GOALPadOpenGOAL-resolver-ordered-replay
+  detached ordered 0038-0044 replay; new files are intent-to-add
+
+/private/tmp/GOALPadOpenGOAL-fork-readiness-0043-topological
+  detached staged topology-preserving 0001-0044 replay; directory name is stale
+
+/private/tmp/GOALPadOpenGOAL-fork-readiness-0043
+  detached staged lexical 0001-0043 historical audit
+```
+
+Do not reset, clean, discard, or “fix” those worktrees.
+
+### What Checkpoint 20 implements
+
+OpenGOAL child `c7ef4691` adds:
+
+```text
+game/kernel/jak1/data_arena_arm64_invoker.h
+game/kernel/jak1/data_arena_arm64_invoker.cpp
+game/kernel/jak1/data_arena_arm64_invoker.s
+game/kernel/jak1/data_arena_arm64_invoker.cmake
+```
+
+`jak1::invoke_data_arena_native_method1_arm64` accepts a typed
+`DataArenaNativeMethodArm64Context`, resolves the existing fail-closed binding,
+and calls only the statically linked trusted native entry. The assembly bridge
+keeps process, `s7`, and arena base distinct in X20, X21, and X22; zero-extends
+the 32-bit GOAL object; preserves the Apple ARM64 callee-saved state; and does
+not cast the GOAL method word to a native pointer. The existing real generated
+`reset!` host test now uses this production callback across two arenas and
+retains mismatch/no-call/no-mutation coverage.
+
+The root CMake file also has the narrow minimal build mode:
+
+```text
+OPENGOAL_BUILD_JAK1_DATA_ARENA_ARM64_INVOKER_ONLY=ON
+```
+
+It produces `libjak1-data-arena.a` and
+`libjak1-data-arena-arm64-invoker.a` for Apple ARM64 without configuring the
+full OpenGOAL graph.
+
+### Exact Checkpoint 20 validation
+
+Host target and tests:
+
+```sh
+cmake --build \
+  /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --target arm64-goal-call-abi-test -j 4
+
+ctest --test-dir \
+  /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  -R '^Arm64GoalCallAbi\\.' --output-on-failure -j 1
+
+ctest --test-dir \
+  /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --output-on-failure -j 1
+
+/private/tmp/data-arena-symbol-value-lookup-jak-project-build/goalc-test \
+  '--gtest_filter=Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
+```
+
+Results: target build passed; focused CTest passed 10/10; full CTest passed
+48/48; direct compiler/emitter filter passed 191/191.
+
+Minimal iPhoneOS ARM64 build:
+
+```sh
+cmake -S /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup \
+  -B /private/tmp/GOALPadOpenGOAL-data-arena-arm64-invoker-configure \
+  -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=iOS \
+  -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64 \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=18.0 \
+  -DOPENGOAL_BUILD_JAK1_DATA_ARENA_ARM64_INVOKER_ONLY=ON \
+  -DBUILD_TESTING=OFF
+
+cmake --build \
+  /private/tmp/GOALPadOpenGOAL-data-arena-arm64-invoker-configure \
+  --target jak1-data-arena-arm64-invoker -j 4
+```
+
+The build passed. Archive inspection found only the intended C++ and assembly
+invoker objects, the typed C++ entry, and the assembly call entry. Both objects
+are ARM64 Mach-O for iOS with minimum OS 18.0. The companion data-arena archive
+contains only `data_arena.cpp.o` and its expected portable APIs/imports.
+
+Not validated in Checkpoint 20: GOALPad app linkage, simulator execution,
+physical-device execution, app signing/layout, game data, or Jak boot.
+
+### Stop compiling micro-proofs; build the integration
+
+The maintainer's final direction is explicit: do not add another compiler
+micro-proof unless the integration produces a concrete compiler failure. The
+shortest route is:
+
+1. Publish `c7ef4691` to a dedicated fetchable OpenGOAL fork and branch.
+2. Change `.gitmodules` and the `OpenGOAL` gitlink to that exact published
+   commit; verify a fresh recursive checkout resolves it.
+3. Compile/link the pinned `data_arena.cpp` and ARM64 invoker C++/assembly into
+   the GOALPad Xcode build from the submodule. Do not copy a machine-local
+   archive or add an absolute `/private/tmp` path.
+4. Replace the app's direct reset proof with composition through the pinned
+   `DataArenaNativeMethodBinding1` and typed ARM64 invoker, using the already
+   signed generated `reset!` export and caller-owned arena storage.
+5. Build and run on only the local iPad Pro 11-inch (M5) simulator
+   `96C5C21A-B925-4213-82A3-90DCB8518339`, then shut it down. Also run a generic
+   Release `iphoneos` build with normal signing. Never access **Z iPad Pro**
+   without a new explicit request.
+
+The Xcode project uses a `PBXFileSystemSynchronizedRootGroup` for `GOALPad/`, so
+all app-local files below that directory are auto-included. `OpenGOAL/` is
+outside that synchronized group and currently contributes no sources or target.
+The current app already contains the generated `reset!` assembly/export in
+`GOALPad/Native/Generated`, registers it in
+`GOALPad/Native/GOALPadAOTExportRegistry.cpp`, and calls it directly from
+`GOALPad/Native/GOALPadRuntimeCore.cpp`. `ContentView.swift` triggers
+`GOALPadRuntimeBridge.initializeRuntime()`. Those are the current composition
+points; the next change should add the pinned production data-arena/invoker
+source boundary and route the existing reset validation through it.
+
+### Current external blocker
+
+The parent repository push succeeded on 2026-07-31:
+
+```text
+00e093c..ce027a0  feat/ipados-native-boot -> feat/ipados-native-boot
+```
+
+Fork creation did not occur. `gh auth status` currently reports invalid tokens
+for both configured accounts, `zschwendi` and `zephyrstudiosllc`. Neither
+`zschwendi/jak-project` nor `zephyrstudiosllc/jak-project` was established by
+this worker. A non-escalated `git credential fill` probe also failed with
+`Device not configured`; it printed no secret. The previous owner/visibility/
+transport choice was never supplied. Claude must get working GitHub auth and a
+confirmed durable owner before creating the remote. Once the fork exists, do
+not delay the Xcode integration for more architecture or documentation work.
+
+All newly started subagent audits were interrupted when the maintainer switched
+workers. They made no shared-worktree edits. The isolated documentation
+worktree `/private/tmp/GOALPad-parent-checkpoint20-docs` is clean at `ce027a0`.
