@@ -1,0 +1,221 @@
+From 2229c13ea7f1563327e03e29951425f8ce345185 Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Fri, 31 Jul 2026 05:00:42 -0600
+Subject: [PATCH 35/35] feat(aot): export direct Jak 1 load-state reset
+ (AI-assisted)
+
+---
+ goalc/aot/AOTWriter.cpp             |  7 ++-
+ goalc/aot_main.cpp                  |  6 +--
+ test/goalc/test_arm64_aot.cpp       | 37 +++++++++++++
+ test/goalc/test_arm64_aot_cli.cmake | 81 +++++++++++++++++++++++++++++
+ 4 files changed, 126 insertions(+), 5 deletions(-)
+
+diff --git a/goalc/aot/AOTWriter.cpp b/goalc/aot/AOTWriter.cpp
+index 9a58a6ae..20f18098 100644
+--- a/goalc/aot/AOTWriter.cpp
++++ b/goalc/aot/AOTWriter.cpp
+@@ -60,10 +60,13 @@ void validate(const NativeExport1& native_export) {
+       native_export.goal_name == "lognot" && native_export.c_symbol == "goalpad_aot_lognot";
+   const bool is_glst_node_name = native_export.goal_name == "glst-node-name" &&
+                                  native_export.c_symbol == "goalpad_aot_glst_node_name";
+-  if (!is_identity && !is_lognot && !is_glst_node_name) {
++  const bool is_load_state_reset = native_export.goal_name == "reset!" &&
++                                   native_export.c_symbol == "goalpad_aot_load_state_reset";
++  if (!is_identity && !is_lognot && !is_glst_node_name && !is_load_state_reset) {
+     throw std::invalid_argument(
+         "AOT native export proof only supports identity as goalpad_aot_identity or lognot as "
+-        "goalpad_aot_lognot or glst-node-name as goalpad_aot_glst_node_name");
++        "goalpad_aot_lognot or glst-node-name as goalpad_aot_glst_node_name or reset! as "
++        "goalpad_aot_load_state_reset");
+   }
+ }
+ 
+diff --git a/goalc/aot_main.cpp b/goalc/aot_main.cpp
+index 8cf274e7..a4c5d42f 100644
+--- a/goalc/aot_main.cpp
++++ b/goalc/aot_main.cpp
+@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
+                                              {options.symbol, code},
+                                              aot::NativeExport0{*options.function_name, options.symbol});
+       } else if (*options.function_name == "identity" || *options.function_name == "lognot" ||
+-                 *options.function_name == "glst-node-name") {
++                 *options.function_name == "glst-node-name" || *options.function_name == "reset!") {
+         aot::write_apple_arm64_artifact_pair(
+             options.output_path, *options.exports_output_path, {options.symbol, code},
+             aot::NativeExport1{*options.function_name, options.symbol});
+@@ -139,8 +139,8 @@ int main(int argc, char** argv) {
+       } else {
+         throw std::invalid_argument(
+             "AOT native export proof only supports false-func, true-func, identity, lognot, or "
+-            "glst-node-name, level-group-load-commands-set!, want-vis, or want-levels function "
+-            "artifacts");
++            "glst-node-name, reset!, level-group-load-commands-set!, want-vis, or want-levels "
++            "function artifacts");
+       }
+     } else {
+       aot::write_apple_arm64_assembly(options.output_path, {options.symbol, code});
+diff --git a/test/goalc/test_arm64_aot.cpp b/test/goalc/test_arm64_aot.cpp
+index a67ac0a3..50283ac8 100644
+--- a/test/goalc/test_arm64_aot.cpp
++++ b/test/goalc/test_arm64_aot.cpp
+@@ -591,6 +591,16 @@ TEST(Arm64Aot, renders_glst_node_name_one_argument_native_export_metadata) {
+             "OPENGOAL_AOT_EXPORT1(\"glst-node-name\", goalpad_aot_glst_node_name)\n");
+ }
+ 
++TEST(Arm64Aot, renders_load_state_reset_one_argument_native_export_metadata) {
++  const aot::NativeExport1 native_export{"reset!", "goalpad_aot_load_state_reset"};
++
++  EXPECT_EQ(aot::render_cpp_xmacro_export1(native_export),
++            "#ifndef OPENGOAL_AOT_EXPORT1\n"
++            "#error \"Define OPENGOAL_AOT_EXPORT1 before including this file.\"\n"
++            "#endif\n"
++            "OPENGOAL_AOT_EXPORT1(\"reset!\", goalpad_aot_load_state_reset)\n");
++}
++
+ TEST(Arm64Aot, renders_level_group_load_commands_set_two_argument_native_export_metadata) {
+   const aot::NativeExport2 native_export{"level-group-load-commands-set!",
+                                          "goalpad_aot_level_group_load_commands_set"};
+@@ -668,6 +678,21 @@ TEST(Arm64Aot, rejects_native_exports_outside_the_one_argument_proof) {
+                std::invalid_argument);
+   EXPECT_THROW(aot::render_cpp_xmacro_export1({"glst-node-name", "goalpad_aot_false_func"}),
+                std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export1({"reset!", "goalpad_aot_identity"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export1({"reset!", "goalpad_aot_lognot"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export1({"reset!", "goalpad_aot_glst_node_name"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export1({"reset!", "invalid-symbol"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export1({"identity", "goalpad_aot_load_state_reset"}),
++               std::invalid_argument);
++  EXPECT_THROW(
++      aot::render_cpp_xmacro_export1({"load-state::reset!", "goalpad_aot_load_state_reset"}),
++      std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export1({"reset!", "goalpad_aot_load_state_want_levels"}),
++               std::invalid_argument);
+ }
+ 
+ TEST(Arm64Aot, rejects_native_exports_outside_the_two_argument_proof) {
+@@ -721,6 +746,18 @@ TEST(Arm64Aot, rejects_want_levels_native_export_symbols_at_other_arities) {
+       std::invalid_argument);
+ }
+ 
++TEST(Arm64Aot, rejects_load_state_reset_native_export_symbols_at_other_arities) {
++  EXPECT_THROW(
++      aot::render_cpp_xmacro_export0({"reset!", "goalpad_aot_load_state_reset"}),
++      std::invalid_argument);
++  EXPECT_THROW(
++      aot::render_cpp_xmacro_export2({"reset!", "goalpad_aot_load_state_reset"}),
++      std::invalid_argument);
++  EXPECT_THROW(
++      aot::render_cpp_xmacro_export3({"reset!", "goalpad_aot_load_state_reset"}),
++      std::invalid_argument);
++}
++
+ TEST(Arm64Aot, rejects_unknown_named_function) {
+   Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
+   const auto source = file_util::read_text_file(file_util::get_file_path(
+diff --git a/test/goalc/test_arm64_aot_cli.cmake b/test/goalc/test_arm64_aot_cli.cmake
+index 2be69d7c..d1f0f4ac 100644
+--- a/test/goalc/test_arm64_aot_cli.cmake
++++ b/test/goalc/test_arm64_aot_cli.cmake
+@@ -50,6 +50,8 @@ set(LOAD_STATE_RESET_INPUT
+ set(LOAD_STATE_RESET_GOLDEN
+     "${PROJECT_ROOT}/test/goalc/source_templates/arm64-aot/full-load-state-reset-from-jak1-load-boundary.s")
+ set(LOAD_STATE_RESET_ASSEMBLY_ONLY "${OUTPUT_DIR}/load-state-reset-assembly-only.s")
++set(LOAD_STATE_RESET_PAIRED_ASSEMBLY "${OUTPUT_DIR}/load-state-reset-paired.s")
++set(LOAD_STATE_RESET_EXPORTS "${OUTPUT_DIR}/load-state-reset-paired.exports.inc")
+ 
+ execute_process(
+   COMMAND "${GOALC_AOT}"
+@@ -861,6 +863,85 @@ if(NOT ACTUAL_LOAD_STATE_RESET_ASSEMBLY STREQUAL EXPECTED_LOAD_STATE_RESET_ASSEM
+   message(FATAL_ERROR "Assembly-only load-state reset artifact did not match the committed ARM64 golden")
+ endif()
+ 
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${LOAD_STATE_RESET_INPUT}"
++          --function reset!
++          --output "${LOAD_STATE_RESET_PAIRED_ASSEMBLY}"
++          --exports-output "${LOAD_STATE_RESET_EXPORTS}"
++          --symbol goalpad_aot_load_state_reset
++  RESULT_VARIABLE LOAD_STATE_RESET_PAIRED_RESULT)
++if(NOT LOAD_STATE_RESET_PAIRED_RESULT EQUAL 0)
++  message(FATAL_ERROR "Paired load-state reset goalc-aot invocation failed")
++endif()
++
++file(SHA256 "${LOAD_STATE_RESET_ASSEMBLY_ONLY}" LOAD_STATE_RESET_ASSEMBLY_ONLY_SHA256)
++file(SHA256 "${LOAD_STATE_RESET_PAIRED_ASSEMBLY}" LOAD_STATE_RESET_PAIRED_ASSEMBLY_SHA256)
++if(NOT LOAD_STATE_RESET_ASSEMBLY_ONLY_SHA256 STREQUAL LOAD_STATE_RESET_PAIRED_ASSEMBLY_SHA256)
++  message(FATAL_ERROR "Adding load-state reset export metadata changed the ARM64 assembly")
++endif()
++
++file(READ "${LOAD_STATE_RESET_PAIRED_ASSEMBLY}" ACTUAL_LOAD_STATE_RESET_PAIRED_ASSEMBLY)
++file(READ "${LOAD_STATE_RESET_EXPORTS}" ACTUAL_LOAD_STATE_RESET_EXPORTS)
++if(NOT ACTUAL_LOAD_STATE_RESET_PAIRED_ASSEMBLY STREQUAL EXPECTED_LOAD_STATE_RESET_ASSEMBLY)
++  message(FATAL_ERROR "Paired load-state reset artifact did not match the committed ARM64 golden")
++endif()
++
++set(EXPECTED_LOAD_STATE_RESET_EXPORTS
++    "#ifndef OPENGOAL_AOT_EXPORT1\n#error \"Define OPENGOAL_AOT_EXPORT1 before including this file.\"\n#endif\nOPENGOAL_AOT_EXPORT1(\"reset!\", goalpad_aot_load_state_reset)\n")
++if(NOT ACTUAL_LOAD_STATE_RESET_EXPORTS STREQUAL EXPECTED_LOAD_STATE_RESET_EXPORTS)
++  message(FATAL_ERROR "Generated load-state reset export metadata did not match the expected record")
++endif()
++
++set(LOAD_STATE_RESET_WRONG_ASSEMBLY "${OUTPUT_DIR}/load-state-reset-wrong.s")
++set(LOAD_STATE_RESET_WRONG_EXPORTS "${OUTPUT_DIR}/load-state-reset-wrong.exports.inc")
++file(WRITE "${LOAD_STATE_RESET_WRONG_ASSEMBLY}" "old load-state reset wrong assembly\n")
++file(WRITE "${LOAD_STATE_RESET_WRONG_EXPORTS}" "old load-state reset wrong exports\n")
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${LOAD_STATE_RESET_INPUT}"
++          --function reset!
++          --output "${LOAD_STATE_RESET_WRONG_ASSEMBLY}"
++          --exports-output "${LOAD_STATE_RESET_WRONG_EXPORTS}"
++          --symbol goalpad_aot_identity
++  RESULT_VARIABLE LOAD_STATE_RESET_WRONG_SYMBOL_RESULT)
++if(LOAD_STATE_RESET_WRONG_SYMBOL_RESULT EQUAL 0)
++  message(FATAL_ERROR "goalc-aot accepted load-state reset with the identity symbol")
++endif()
++
++file(READ "${LOAD_STATE_RESET_WRONG_ASSEMBLY}" ACTUAL_LOAD_STATE_RESET_WRONG_ASSEMBLY)
++file(READ "${LOAD_STATE_RESET_WRONG_EXPORTS}" ACTUAL_LOAD_STATE_RESET_WRONG_EXPORTS)
++if(NOT ACTUAL_LOAD_STATE_RESET_WRONG_ASSEMBLY STREQUAL "old load-state reset wrong assembly\n" OR
++   NOT ACTUAL_LOAD_STATE_RESET_WRONG_EXPORTS STREQUAL "old load-state reset wrong exports\n")
++  message(FATAL_ERROR "Failed load-state reset export validation modified an existing artifact")
++endif()
++
++set(LOAD_STATE_RESET_CROSS_ASSEMBLY "${OUTPUT_DIR}/load-state-reset-cross.s")
++set(LOAD_STATE_RESET_CROSS_EXPORTS "${OUTPUT_DIR}/load-state-reset-cross.exports.inc")
++file(WRITE "${LOAD_STATE_RESET_CROSS_ASSEMBLY}" "old load-state reset cross assembly\n")
++file(WRITE "${LOAD_STATE_RESET_CROSS_EXPORTS}" "old load-state reset cross exports\n")
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${LOAD_STATE_RESET_INPUT}"
++          --function reset!
++          --output "${LOAD_STATE_RESET_CROSS_ASSEMBLY}"
++          --exports-output "${LOAD_STATE_RESET_CROSS_EXPORTS}"
++          --symbol goalpad_aot_load_state_want_levels
++  RESULT_VARIABLE LOAD_STATE_RESET_CROSS_ARITY_RESULT)
++if(LOAD_STATE_RESET_CROSS_ARITY_RESULT EQUAL 0)
++  message(FATAL_ERROR "goalc-aot accepted load-state reset with the Export3 symbol")
++endif()
++
++file(READ "${LOAD_STATE_RESET_CROSS_ASSEMBLY}" ACTUAL_LOAD_STATE_RESET_CROSS_ASSEMBLY)
++file(READ "${LOAD_STATE_RESET_CROSS_EXPORTS}" ACTUAL_LOAD_STATE_RESET_CROSS_EXPORTS)
++if(NOT ACTUAL_LOAD_STATE_RESET_CROSS_ASSEMBLY STREQUAL "old load-state reset cross assembly\n" OR
++   NOT ACTUAL_LOAD_STATE_RESET_CROSS_EXPORTS STREQUAL "old load-state reset cross exports\n")
++  message(FATAL_ERROR "Failed load-state reset cross-arity validation modified an existing artifact")
++endif()
++
+ execute_process(
+   COMMAND "${GOALC_AOT}"
+           --project-path "${PROJECT_ROOT}"
+-- 
+2.50.1 (Apple Git-155)
+
