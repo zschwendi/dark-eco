@@ -1,0 +1,157 @@
+From b78d7c28c5f4f034e020a4ace48c10a9190d7fa1 Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Thu, 30 Jul 2026 20:01:16 -0600
+Subject: [PATCH] Constrain named ARM64 AOT function selection (AI-assisted)
+
+---
+ goalc/compiler/CodeGenerator.cpp | 44 +++++++++++++++++++++++++++-----
+ goalc/compiler/IR.h              |  4 +++
+ test/goalc/test_arm64_aot.cpp    | 28 ++++++++++++++++++++
+ 3 files changed, 69 insertions(+), 7 deletions(-)
+
+diff --git a/goalc/compiler/CodeGenerator.cpp b/goalc/compiler/CodeGenerator.cpp
+index 608dae4d..5550fe39 100644
+--- a/goalc/compiler/CodeGenerator.cpp
++++ b/goalc/compiler/CodeGenerator.cpp
+@@ -174,17 +174,44 @@ std::vector<u8> CodeGenerator::run_arm64_aot_function(
+ 
+   FunctionEnv* function = nullptr;
+   if (function_name) {
++    size_t matching_functions = 0;
+     for (const auto& candidate : m_fe->functions()) {
+       if (candidate->name() == *function_name) {
+         function = candidate.get();
+-        break;
++        matching_functions++;
+       }
+     }
+     if (!function) {
+       throw std::runtime_error(fmt::format(
+           "ARM64 AOT function '{}' was not found in the compiled source.", *function_name));
+     }
++    if (matching_functions != 1) {
++      throw std::runtime_error(
++          fmt::format("ARM64 AOT function '{}' is defined more than once.", *function_name));
++    }
++    if (m_fe->functions().size() != 2) {
++      throw std::runtime_error(
++          "Named ARM64 AOT proof requires exactly one function and its top-level installer.");
++    }
++
++    const auto& installer = m_fe->top_level_function().code();
++    const auto* function_address =
++        installer.size() == 4 ? dynamic_cast<IR_FunctionAddr*>(installer.at(0).get()) : nullptr;
++    const auto* symbol_value =
++        installer.size() == 4 ? dynamic_cast<IR_SetSymbolValue*>(installer.at(1).get()) : nullptr;
++    const bool supported_installer =
++        function_address && symbol_value && dynamic_cast<IR_Return*>(installer.at(2).get()) &&
++        dynamic_cast<IR_Null*>(installer.at(3).get()) && function_address->function() == function &&
++        symbol_value->source() == function_address->destination() &&
++        symbol_value->destination()->name() == *function_name;
++    if (!supported_installer) {
++      throw std::runtime_error(
++          "Named ARM64 AOT proof only supports an unmodified top-level defun installer.");
++    }
+   } else {
++    if (m_fe->functions().size() != 1) {
++      throw std::runtime_error("ARM64 AOT proof only supports one top-level function.");
++    }
+     const auto* top_level = &m_fe->top_level_function();
+     for (const auto& candidate : m_fe->functions()) {
+       if (candidate.get() == top_level) {
+@@ -474,7 +501,7 @@ void CodeGenerator::do_goal_function_arm64(FunctionEnv* env, int f_idx) {
+   }
+ 
+   const auto& code = env->code();
+-  const auto is_supported_result = [](IR* ir) {
++  const auto is_supported_top_level_result = [](IR* ir) {
+     if (const auto* constant = dynamic_cast<IR_LoadConstant64*>(ir)) {
+       return constant->value() == 42;
+     }
+@@ -483,14 +510,17 @@ void CodeGenerator::do_goal_function_arm64(FunctionEnv* env, int f_idx) {
+     }
+     return false;
+   };
+-  const bool supported_top_level = code.size() == 3 && is_supported_result(code.at(0).get()) &&
+-                                   dynamic_cast<IR_Return*>(code.at(1).get()) &&
+-                                   dynamic_cast<IR_Null*>(code.at(2).get());
++  const bool supported_top_level =
++      code.size() == 3 && is_supported_top_level_result(code.at(0).get()) &&
++      dynamic_cast<IR_Return*>(code.at(1).get()) && dynamic_cast<IR_Null*>(code.at(2).get());
+   const auto* value_reset =
+       code.size() == 4 ? dynamic_cast<IR_ValueReset*>(code.at(0).get()) : nullptr;
++  const auto* false_value =
++      code.size() == 4 ? dynamic_cast<IR_LoadSymbolPointer*>(code.at(1).get()) : nullptr;
+   const bool supported_false_function =
+-      value_reset && value_reset->has_no_args() && is_supported_result(code.at(1).get()) &&
+-      dynamic_cast<IR_Return*>(code.at(2).get()) && dynamic_cast<IR_Null*>(code.at(3).get());
++      env->name() == "false-func" && value_reset && value_reset->has_no_args() && false_value &&
++      false_value->name() == "#f" && dynamic_cast<IR_Return*>(code.at(2).get()) &&
++      dynamic_cast<IR_Null*>(code.at(3).get());
+   if (!supported_top_level && !supported_false_function) {
+     throw std::runtime_error(
+         "ARM64 AOT proof only supports top-level literal 42, top-level #f, or the zero-argument "
+diff --git a/goalc/compiler/IR.h b/goalc/compiler/IR.h
+index 1bd8fd90..ebc6e454 100644
+--- a/goalc/compiler/IR.h
++++ b/goalc/compiler/IR.h
+@@ -93,6 +93,8 @@ class IR_SetSymbolValue : public IR {
+   void do_codegen_arm64(emitter::ObjectGenerator* gen,
+                         const AllocationResult& allocs,
+                         emitter::IR_Record irec) override;
++  const SymbolVal* destination() const { return m_dest; }
++  const RegVal* source() const { return m_src; }
+ 
+  protected:
+   const SymbolVal* m_dest = nullptr;
+@@ -223,6 +225,8 @@ class IR_FunctionAddr : public IR {
+   void do_codegen_arm64(emitter::ObjectGenerator* gen,
+                         const AllocationResult& allocs,
+                         emitter::IR_Record irec) override;
++  const RegVal* destination() const { return m_dest; }
++  const FunctionEnv* function() const { return m_src; }
+ 
+  protected:
+   const RegVal* m_dest = nullptr;
+diff --git a/test/goalc/test_arm64_aot.cpp b/test/goalc/test_arm64_aot.cpp
+index 7f3fc5f4..a4464d9d 100644
+--- a/test/goalc/test_arm64_aot.cpp
++++ b/test/goalc/test_arm64_aot.cpp
+@@ -129,6 +129,34 @@ TEST(Arm64Aot, rejects_unknown_named_function) {
+                std::runtime_error);
+ }
+ 
++TEST(Arm64Aot, rejects_named_constant_function_outside_the_false_func_proof) {
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++
++  EXPECT_THROW(compiler.compile_arm64_aot_source("(defun answer () 42)", "answer",
++                                                 std::optional<std::string>{"answer"}),
++               std::runtime_error);
++}
++
++TEST(Arm64Aot, rejects_duplicate_named_functions) {
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++
++  EXPECT_THROW(compiler.compile_arm64_aot_source("(defun false-func () '#f)\n"
++                                                 "(defun false-func () '#f)",
++                                                 "duplicate-false-func",
++                                                 std::optional<std::string>{"false-func"}),
++               std::runtime_error);
++}
++
++TEST(Arm64Aot, rejects_named_function_with_extra_top_level_effects) {
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++
++  EXPECT_THROW(compiler.compile_arm64_aot_source("(defun false-func () '#f)\n"
++                                                 "42",
++                                                 "false-func-with-extra-top-level-effect",
++                                                 std::optional<std::string>{"false-func"}),
++               std::runtime_error);
++}
++
+ TEST(Arm64Aot, rejects_full_jak1_identity_until_parameter_moves_are_supported) {
+   Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
+   const auto source = file_util::read_text_file(file_util::get_file_path(
+-- 
+2.50.1 (Apple Git-155)
+

@@ -1,0 +1,2 @@
+# Unified-diff context and email signatures contain required trailing spaces.
+patches/OpenGOAL/*.patch -whitespace

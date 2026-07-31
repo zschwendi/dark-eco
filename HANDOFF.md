@@ -9,6 +9,8 @@ compiles the complete real Jak 1 `false-func` definition and selects its named
 body as deterministic signed ARM64 text. GOALPad executes that body through
 the static X20/X21/X22 boundary on ARM64 macOS and the dedicated iPad Pro M5
 simulator; it is also present in a normally signed generic iOS build. The
+named-function proof now rejects duplicate definitions, non-`#f` bodies, and
+top-level effects outside the exact `defun` installer. The
 surrounding top-level `define`, live GOAL symbol installation, and general
 static artifact model remain unimplemented. The maintainer prohibits physical
 Z iPad Pro testing unless explicitly requested in the current task; the local
@@ -43,6 +45,8 @@ maintainer-requested fast `gpt-5.6-terra` model with `xhigh` reasoning:
 | Named-function compiler audit | Frontend lowering, Apple ABI parameter path, x86 parity, and regression requirements | Confirmed complete `false-func` needs only selected-body emission; `identity` additionally needs GPR `IR_RegSet` |
 | Stage 4 artifact audit | V3 links, GOAL pointer representation, symbol storage, and signed export options | Confirmed top-level installation cannot reuse the RWX desktop linker or store a native pointer in the legacy 32-bit-offset symbol value |
 | Full `false-func` test implementation | Exact upstream fixtures, named selection, deterministic bytes, missing-name and identity rejection | Added the non-overlapping fixture/test lane; primary agent reviewed, integrated, and ran all validation |
+| Named-selection checkpoint review | Selected-function semantics, duplicate definitions, top-level IR, and saved patch integrity | Found that constant-return functions and extra top-level effects could pass or be discarded; prompted the strict corrective checkpoint |
+| Static export design audits | Compiler artifact ownership, app registry ABI, linker behavior, and missing-export handling | Independently selected a generated zero-argument X-macro manifest plus an app-local typed registry; no live GOAL symbol-table mutation |
 
 The implementation agents edited non-overlapping files in the isolated
 OpenGOAL worktree. The primary agent reviewed and integrated every diff, fixed
@@ -110,6 +114,7 @@ copied into, or generated inside the Git checkout.
 Current history:
 
 ```text
+c3187da Document full false function AOT checkpoint (AI-assisted)
 eea1031 Execute full Jak 1 false function through signed ARM64 state (AI-assisted)
 07e9031 Document Jak 1 false-form checkpoint and device policy (AI-assisted)
 7edf514 Execute Jak 1 false form through signed ARM64 state (AI-assisted)
@@ -167,9 +172,9 @@ unverified. No remote state changed. Do not work around that rejection; the
 maintainer must explicitly confirm the durable destination and authenticate
 it.
 
-No push was attempted for child commit `92c8f975` or parent commit `eea1031`.
-The same destination/authentication blocker remains, and the earlier rejected
-escalation must not be bypassed.
+No push was attempted for child commits `92c8f975`/`b78d7c28` or parent commits
+`eea1031`/`c3187da`. The same destination/authentication blocker remains, and
+the earlier rejected escalation must not be bypassed.
 
 ## Checkpoint 1: Apple platform/AOT probe
 
@@ -235,6 +240,8 @@ Jak 1 false child: 32cf26aef8c61cecdceeb07ed90e0296e1e8e052
 Jak 1 false patch: patches/OpenGOAL/0003-Compile-Jak-1-false-form-for-ARM64-AI-assisted.patch
 Full false-func child: 92c8f975efc9741c9e6a4bc4b0086f131ac9aefd
 Full false-func patch: patches/OpenGOAL/0004-Compile-full-Jak-1-false-function-for-ARM64-AOT-AI-assisted.patch
+Named-selection child: b78d7c28c5f4f034e020a4ace48c10a9190d7fa1
+Named-selection patch: patches/OpenGOAL/0005-Constrain-named-ARM64-AOT-function-selection-AI-assi.patch
 ```
 
 The child commit adds:
@@ -533,6 +540,40 @@ Its SHA-256 is
 the child commit and saved patch share stable patch ID
 `bfde6607109f75e86c0ef09246e0bbca758aea99`.
 
+### Strict named-selection corrective checkpoint
+
+Child commit `b78d7c28c5f4f034e020a4ace48c10a9190d7fa1` narrows the
+selected-function proof to what the checkpoint claims. A zero-argument
+function returning `42` can no longer pass as Jak 1 `false-func`; the selected
+body must be named `false-func` and load `#f`. Duplicate definitions are
+rejected. Named selection also requires exactly one named function plus the
+unmodified top-level `IR_FunctionAddr`/`IR_SetSymbolValue`/`IR_Return`/`IR_Null`
+installer tied to that function and symbol, so unrelated top-level effects
+cannot be silently discarded.
+
+```sh
+cmake --build /private/tmp/GOALPadOpenGOAL-stage3-build \
+  --target goalc-test goalc-aot --parallel 4
+
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc-test \
+  '--gtest_filter=Arm64Aot.*'
+
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc-test \
+  '--gtest_filter=-Listener.*'
+
+git apply --check --reverse \
+  patches/OpenGOAL/0005-Constrain-named-ARM64-AOT-function-selection-AI-assi.patch
+```
+
+Results: both targets built; all 12 focused tests and all 698 non-listener
+tests passed. The first focused invocation omitted quotes around the zsh glob
+and exited before running tests with
+`zsh:1: no matches found: --gtest_filter=Arm64Aot.*`; the quoted command above
+is the successful rerun. The saved patch SHA-256 is
+`6e02050128cfdbbf275f516d6a76fa92956efa693d1ecc07f7c30cfc249639a9`.
+The child commit and saved patch share stable patch ID
+`45d430b5e0d1520a15707b5e49f35a14ff36e802`.
+
 ## Verified GOALPad targets
 
 The completed Stage 2 boundary was verified through an ARM64 macOS harness,
@@ -801,12 +842,15 @@ git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
 
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0004-Compile-full-Jak-1-false-function-for-ARM64-AOT-AI-assisted.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0005-Constrain-named-ARM64-AOT-function-selection-AI-assi.patch"
 ```
 
 `git am` reconstructs patch-equivalent commits but normally produces different
 SHAs because committer metadata changes. `79f22008`, `149840cf`, `32cf26ae`,
-and `92c8f975` are the exact original child commits in the current isolated
-worktree; compare content and patch identity when reconstructing them
+`92c8f975`, and `b78d7c28` are the exact original child commits in the current
+isolated worktree; compare content and patch identity when reconstructing them
 elsewhere.
 
 Do not use proprietary inputs yet. The next static-wrapper/compiler checkpoint
