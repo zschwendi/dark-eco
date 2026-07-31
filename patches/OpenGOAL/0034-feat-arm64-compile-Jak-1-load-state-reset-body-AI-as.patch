@@ -1,0 +1,606 @@
+From e96cedd236512ca629455e3e2bab97ae28e410a1 Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Fri, 31 Jul 2026 04:40:08 -0600
+Subject: [PATCH 34/34] feat(arm64): compile Jak 1 load-state reset body
+ (AI-assisted)
+
+---
+ goalc/compiler/CodeGenerator.cpp              | 166 +++++++++++++++++-
+ goalc/compiler/IR.cpp                         |  21 ++-
+ ...oad-state-reset-from-jak1-load-boundary.gc |  39 ++++
+ ...load-state-reset-from-jak1-load-boundary.s |  63 +++++++
+ test/goalc/test_arm64_aot.cpp                 | 136 +++++++++++++-
+ test/goalc/test_arm64_aot_cli.cmake           |  23 +++
+ 6 files changed, 438 insertions(+), 10 deletions(-)
+ create mode 100644 test/goalc/source_templates/arm64-aot/full-load-state-reset-from-jak1-load-boundary.gc
+ create mode 100644 test/goalc/source_templates/arm64-aot/full-load-state-reset-from-jak1-load-boundary.s
+
+diff --git a/goalc/compiler/CodeGenerator.cpp b/goalc/compiler/CodeGenerator.cpp
+index 841ad877..ccc7e551 100644
+--- a/goalc/compiler/CodeGenerator.cpp
++++ b/goalc/compiler/CodeGenerator.cpp
+@@ -422,6 +422,162 @@ bool is_supported_want_levels_function(const FunctionEnv* env,
+   return true;
+ }
+ 
++bool is_supported_load_state_reset_function(const FunctionEnv* env,
++                                            const AllocationResult& allocations) {
++  const auto& code = env->code();
++  if (code.size() != 50) {
++    return false;
++  }
++
++  const TypeSpec load_state_type("load-state");
++  const TypeSpec basic_type("basic");
++  const TypeSpec none_type("none");
++  const auto ir_at = [&code](int index) -> const IR* {
++    return index >= 0 && index < int(code.size()) ? code.at(index).get() : nullptr;
++  };
++  const auto is_allocated_to = [&allocations](const RegVal* value,
++                                              int instruction,
++                                              emitter::Register expected) {
++    if (!value) {
++      return false;
++    }
++    const auto ireg_id = value->ireg().id;
++    if (ireg_id < 0 || ireg_id >= int(allocations.ass_as_ranges.size())) {
++      return false;
++    }
++    const auto& assignments = allocations.ass_as_ranges.at(ireg_id);
++    if (!assignments.is_live_at_instr(instruction)) {
++      return false;
++    }
++    const auto& assignment = assignments.get(instruction);
++    return assignment.kind == Assignment::Kind::REGISTER && assignment.reg == expected;
++  };
++  const auto reg_set_destination = [&](int index, const RegVal* source) -> const RegVal* {
++    const auto* set = dynamic_cast<const IR_RegSet*>(ir_at(index));
++    return set && set->source() == source && set->destination() ? set->destination() : nullptr;
++  };
++  const auto constant_destination = [&](int index, u64 value) -> const RegVal* {
++    const auto* constant = dynamic_cast<const IR_LoadConstant64*>(ir_at(index));
++    return constant && constant->value() == value && constant->destination()
++               ? constant->destination()
++               : nullptr;
++  };
++  const auto symbol_destination = [&](int index, const char* symbol) -> const RegVal* {
++    const auto* load = dynamic_cast<const IR_LoadSymbolPointer*>(ir_at(index));
++    return load && load->name() == symbol && load->destination()
++               ? load->destination()
++               : nullptr;
++  };
++  const auto matches_store = [&](int index, const RegVal* value, const RegVal* base, int offset) {
++    const auto* store = dynamic_cast<const IR_StoreConstOffset*>(ir_at(index));
++    return store && store->value() == value && store->base() == base && store->offset() == offset &&
++           store->size() == 4;
++  };
++  const auto matches_integer_math = [&](int index,
++                                        IntegerMathKind kind,
++                                        const RegVal* destination,
++                                        const RegVal* argument,
++                                        u8 shift_amount = 0) {
++    const auto* math = dynamic_cast<const IR_IntegerMath*>(ir_at(index));
++    return math && math->get_kind() == kind && math->destination() == destination &&
++           math->argument() == argument && math->shift_amount() == shift_amount;
++  };
++  const auto matches_goto = [&](int index, int destination_index) {
++    const auto* jump = dynamic_cast<const IR_GotoLabel*>(ir_at(index));
++    const auto* destination = jump ? jump->destination() : nullptr;
++    return jump && jump->is_resolved() && destination && destination->func == env &&
++           destination->idx == destination_index;
++  };
++  const auto matches_signed_lt_branch = [&](int index,
++                                            const RegVal* left,
++                                            const RegVal* right,
++                                            int destination_index) {
++    const auto* branch = dynamic_cast<const IR_ConditionalBranch*>(ir_at(index));
++    return branch && branch->is_resolved() &&
++           (branch->label.func == nullptr || branch->label.func == env) &&
++           branch->label.idx >= 0 && branch->label.idx < int(code.size()) &&
++           branch->label.idx == destination_index && branch->condition.kind == ConditionKind::LT &&
++           branch->condition.a == left && branch->condition.b == right &&
++           branch->condition.is_signed && !branch->condition.is_float;
++  };
++
++  const auto* value_reset = dynamic_cast<const IR_ValueReset*>(ir_at(0));
++  if (!value_reset || value_reset->args().size() != 1 ||
++      value_reset->args().front()->type() != load_state_type ||
++      !is_allocated_to(value_reset->args().front(), 0, emitter::X0)) {
++    return false;
++  }
++  const auto* this_value = reg_set_destination(1, value_reset->args().front());
++  if (!this_value || this_value->type() != load_state_type ||
++      !is_allocated_to(this_value, 1, emitter::X0)) {
++    return false;
++  }
++
++  for (int field = 0; field < 8; field++) {
++    const auto* false_value = symbol_destination(2 + 2 * field, "#f");
++    if (!false_value || !matches_store(3 + 2 * field, false_value, this_value, 4 * field)) {
++      return false;
++    }
++  }
++  const auto* empty_pair = symbol_destination(18, "_empty_");
++  if (!empty_pair || !matches_store(19, empty_pair, this_value, 36)) {
++    return false;
++  }
++
++  const auto* first_zero = constant_destination(20, 0);
++  const auto* counter = reg_set_destination(21, first_zero);
++  if (!first_zero || !counter || !matches_goto(22, 44)) {
++    return false;
++  }
++
++  const auto* object_name_false = symbol_destination(23, "#f");
++  const auto* object_name_shift = reg_set_destination(24, counter);
++  const auto* object_name_address = reg_set_destination(26, object_name_shift);
++  const auto* object_name_offset = constant_destination(27, 40);
++  const auto* object_name_base = object_name_offset;
++  if (!object_name_false || !object_name_shift || !object_name_address || !object_name_offset ||
++      !object_name_base ||
++      !matches_integer_math(25, IntegerMathKind::SHL_64, object_name_shift, nullptr, 2) ||
++      !matches_integer_math(28, IntegerMathKind::ADD_64, object_name_base, this_value) ||
++      !matches_integer_math(29, IntegerMathKind::ADD_64, object_name_address, object_name_base) ||
++      !matches_store(30, object_name_false, object_name_address, 0)) {
++    return false;
++  }
++
++  const auto* object_status_zero = constant_destination(31, 0);
++  const auto* object_status_value = reg_set_destination(32, object_status_zero);
++  const auto* object_status_shift = reg_set_destination(33, counter);
++  const auto* object_status_address = reg_set_destination(35, object_status_shift);
++  const auto* object_status_offset = constant_destination(36, 1064);
++  const auto* object_status_base = object_status_offset;
++  if (!object_status_zero || !object_status_value || object_status_value->type() != basic_type ||
++      !object_status_shift || !object_status_address ||
++      !object_status_offset || !object_status_base ||
++      !matches_integer_math(34, IntegerMathKind::SHL_64, object_status_shift, nullptr, 2) ||
++      !matches_integer_math(37, IntegerMathKind::ADD_64, object_status_base, this_value) ||
++      !matches_integer_math(38, IntegerMathKind::ADD_64, object_status_address, object_status_base) ||
++      !matches_store(39, object_status_value, object_status_address, 0)) {
++    return false;
++  }
++
++  const auto* increment = reg_set_destination(40, counter);
++  const auto* one = constant_destination(41, 1);
++  const auto* bound = constant_destination(44, 256);
++  const auto* result = symbol_destination(46, "#f");
++  const auto* function_return = dynamic_cast<const IR_Return*>(ir_at(48));
++  if (!increment || !one || !bound || !result ||
++      !matches_integer_math(42, IntegerMathKind::ADD_64, increment, one) ||
++      reg_set_destination(43, increment) != counter ||
++      !matches_signed_lt_branch(45, counter, bound, 23) || !dynamic_cast<const IR_Null*>(ir_at(47)) ||
++      !function_return || function_return->value() != this_value ||
++      function_return->return_register()->type() != none_type ||
++      !dynamic_cast<const IR_Null*>(ir_at(49))) {
++    return false;
++  }
++
++  return true;
++}
++
+ }  // namespace
+ 
+ CodeGenerator::CodeGenerator(FileEnv* env,
+@@ -1061,16 +1217,20 @@ void CodeGenerator::do_goal_function_arm64(FunctionEnv* env, int f_idx) {
+       want_vis_zero->value() == 0 && want_vis_return->value() == want_vis_zero->destination() &&
+       want_vis_uses_apple_abi && dynamic_cast<IR_Null*>(code.at(6).get());
+   const bool supported_want_levels_function = is_supported_want_levels_function(env, allocs);
++  const bool supported_load_state_reset_function =
++      is_supported_load_state_reset_function(env, allocs);
+   if (!supported_top_level && !supported_false_function && !supported_true_function &&
+       !supported_lognot_function && !supported_identity_function &&
+       !supported_glst_node_name_function && !supported_level_group_load_commands_set_function &&
+-      !supported_want_vis_function && !supported_want_levels_function) {
++      !supported_want_vis_function && !supported_want_levels_function &&
++      !supported_load_state_reset_function) {
+     throw std::runtime_error(
+         "ARM64 AOT proof only supports top-level literal 42, top-level #f, or the zero-argument "
+         "Jak 1 false or true function, one-argument identity function, or one-argument int lognot "
+         "function, the one-argument Jak 1 glst-node-name function, the direct two-argument Jak "
+-        "1 level-group load-commands-set! body, the direct two-argument Jak 1 want-vis body, or "
+-        "the direct three-argument Jak 1 want-levels body.");
++        "1 level-group load-commands-set! body, the direct two-argument Jak 1 want-vis body, the "
++        "direct three-argument Jak 1 want-levels body, or the direct one-argument Jak 1 load-state "
++        "reset body.");
+   }
+ 
+   auto* debug = &m_debug_info->function_by_name(env->name());
+diff --git a/goalc/compiler/IR.cpp b/goalc/compiler/IR.cpp
+index 0a709170..54a8e5cc 100644
+--- a/goalc/compiler/IR.cpp
++++ b/goalc/compiler/IR.cpp
+@@ -325,8 +325,22 @@ void IR_LoadSymbolPointer::do_codegen_arm64(emitter::ObjectGenerator* gen,
+     gen->add_instr(IGen::mov_gpr64_gpr64(*gen, dest_reg, st_reg), irec);
+     gen->add_instr(IGen::add_gpr64_imm8s(*gen, dest_reg, true_symbol_offset(GameVersion::Jak1)),
+                    irec);
++  } else if (m_name == "_empty_") {
++    if (gen->version() != GameVersion::Jak1) {
++      throw std::runtime_error("ARM64 AOT proof only supports the Jak 1 empty-pair symbol pointer.");
++    }
++    if (dest_reg.logical_id() < emitter::X0 || dest_reg.logical_id() > emitter::X15) {
++      throw std::runtime_error(
++          "ARM64 AOT proof requires an X0-X15 destination for the empty-pair symbol pointer.");
++    }
++    static_assert(empty_pair_offset_from_s7(GameVersion::Jak1) == -0xa,
++                  "Jak 1 empty pair symbol location");
++    gen->add_instr(IGen::mov_gpr64_gpr64(*gen, dest_reg, st_reg), irec);
++    gen->add_instr(IGen::add_gpr64_imm8s(*gen, dest_reg,
++                                         empty_pair_offset_from_s7(GameVersion::Jak1)),
++                   irec);
+   } else {
+-    throw std::runtime_error("ARM64 AOT proof only supports the #f or #t symbol pointer.");
++    throw std::runtime_error("ARM64 AOT proof only supports the #f, #t, or _empty_ symbol pointer.");
+   }
+ }
+ 
+@@ -892,8 +906,9 @@ void IR_IntegerMath::do_codegen_arm64(emitter::ObjectGenerator* gen,
+         throw std::runtime_error(
+             "ARM64 AOT proof requires an X0-X15 destination for immediate 64-bit integer SHL.");
+       }
+-      if (m_shift_amount != 4) {
+-        throw std::runtime_error("ARM64 AOT proof requires an immediate 64-bit integer SHL by four.");
++      if (m_shift_amount != 2 && m_shift_amount != 4) {
++        throw std::runtime_error(
++            "ARM64 AOT proof requires an immediate 64-bit integer SHL by two or four.");
+       }
+       gen->add_instr(IGen::shl_gpr64_u8(*gen, destination, m_shift_amount), irec);
+       return;
+diff --git a/test/goalc/source_templates/arm64-aot/full-load-state-reset-from-jak1-load-boundary.gc b/test/goalc/source_templates/arm64-aot/full-load-state-reset-from-jak1-load-boundary.gc
+new file mode 100644
+index 00000000..e2b877ef
+--- /dev/null
++++ b/test/goalc/source_templates/arm64-aot/full-load-state-reset-from-jak1-load-boundary.gc
+@@ -0,0 +1,39 @@
++;; AOT-only direct function form of the exact body of
++;; load-state::reset! in goal_src/jak1/engine/level/load-boundary.gc.
++;; This does not install or replace the runtime method.
++;; Preserve the real packed inline want-array and the complete load-state
++;; layout so dynamic field accesses retain their source offsets and stride.
++(deftype level-buffer-state (structure)
++  ((name symbol :offset-assert 0)
++   (display? symbol :offset-assert 4)
++   (force-vis? symbol :offset-assert 8)
++   (force-inside? symbol :offset-assert 12))
++  :pack-me
++  :size-assert #x10
++  :no-runtime-type
++  :no-inspect)
++
++(deftype load-state (basic)
++  ((want level-buffer-state 2 :inline :offset-assert #x4)
++   (vis-nick symbol :offset-assert #x24)
++   (command-list pair :offset-assert #x28)
++   (object-name symbol 256 :offset-assert #x2c)
++   (object-status basic 256 :offset-assert #x42c))
++  :size-assert #x82c
++  :no-runtime-type
++  :no-inspect)
++
++(defun reset! ((this load-state))
++  (set! (-> this want 0 name) #f)
++  (set! (-> this want 0 display?) #f)
++  (set! (-> this want 0 force-vis?) #f)
++  (set! (-> this want 0 force-inside?) #f)
++  (set! (-> this want 1 name) #f)
++  (set! (-> this want 1 display?) #f)
++  (set! (-> this want 1 force-vis?) #f)
++  (set! (-> this want 1 force-inside?) #f)
++  (set! (-> this command-list) '())
++  (dotimes (v1-1 256)
++    (set! (-> this object-name v1-1) #f)
++    (set! (-> this object-status v1-1) (the-as basic 0)))
++  this)
+diff --git a/test/goalc/source_templates/arm64-aot/full-load-state-reset-from-jak1-load-boundary.s b/test/goalc/source_templates/arm64-aot/full-load-state-reset-from-jak1-load-boundary.s
+new file mode 100644
+index 00000000..d4eda7d0
+--- /dev/null
++++ b/test/goalc/source_templates/arm64-aot/full-load-state-reset-from-jak1-load-boundary.s
+@@ -0,0 +1,63 @@
++.section __TEXT,__text,regular,pure_instructions
++.p2align 2
++.globl _goalpad_aot_load_state_reset
++_goalpad_aot_load_state_reset:
++  .long 0xaa1503e1
++  .long 0xb836e801
++  .long 0xaa1503e1
++  .long 0x8b160010
++  .long 0x91001210
++  .long 0xb9000201
++  .long 0xaa1503e1
++  .long 0x8b160010
++  .long 0x91002210
++  .long 0xb9000201
++  .long 0xaa1503e1
++  .long 0x8b160010
++  .long 0x91003210
++  .long 0xb9000201
++  .long 0xaa1503e1
++  .long 0x8b160010
++  .long 0x91004210
++  .long 0xb9000201
++  .long 0xaa1503e1
++  .long 0x8b160010
++  .long 0x91005210
++  .long 0xb9000201
++  .long 0xaa1503e1
++  .long 0x8b160010
++  .long 0x91006210
++  .long 0xb9000201
++  .long 0xaa1503e1
++  .long 0x8b160010
++  .long 0x91007210
++  .long 0xb9000201
++  .long 0xaa1503e1
++  .long 0xd1002821
++  .long 0x8b160010
++  .long 0x91009210
++  .long 0xb9000201
++  .long 0xca010021
++  .long 0x14000011
++  .long 0xaa1503e2
++  .long 0xaa0103e3
++  .long 0xd37ef463
++  .long 0xd2800504
++  .long 0x8b000084
++  .long 0x8b040063
++  .long 0xb836e862
++  .long 0xca020042
++  .long 0xaa0103e3
++  .long 0xd37ef463
++  .long 0xd2808504
++  .long 0x8b000084
++  .long 0x8b040063
++  .long 0xb836e862
++  .long 0xd2800022
++  .long 0x8b020021
++  .long 0xd2802002
++  .long 0xeb02003f
++  .long 0x54fffdcb
++  .long 0xaa1503e1
++  .long 0xd65f03c0
++.subsections_via_symbols
+diff --git a/test/goalc/test_arm64_aot.cpp b/test/goalc/test_arm64_aot.cpp
+index 228f9b39..a67ac0a3 100644
+--- a/test/goalc/test_arm64_aot.cpp
++++ b/test/goalc/test_arm64_aot.cpp
+@@ -69,6 +69,11 @@ std::string read_want_levels_source() {
+       {"test/goalc/source_templates/arm64-aot/full-want-levels-from-jak1-load-boundary.gc"}));
+ }
+ 
++std::string read_load_state_reset_source() {
++  return file_util::read_text_file(file_util::get_file_path(
++      {"test/goalc/source_templates/arm64-aot/full-load-state-reset-from-jak1-load-boundary.gc"}));
++}
++
+ void replace_once(std::string& source,
+                   const std::string& expected,
+                   const std::string& replacement) {
+@@ -84,6 +89,13 @@ void expect_want_levels_rejected(const std::string& source, const std::string& o
+                std::runtime_error);
+ }
+ 
++void expect_load_state_reset_rejected(const std::string& source, const std::string& object_name) {
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  EXPECT_THROW(compiler.compile_arm64_aot_source(source, object_name,
++                                                 std::optional<std::string>{"reset!"}),
++               std::runtime_error);
++}
++
+ }  // namespace
+ 
+ TEST(Arm64Aot, compiles_top_level_literal_and_renders_apple_text) {
+@@ -293,6 +305,67 @@ TEST(Arm64Aot, compiles_full_jak1_want_levels_and_renders_apple_text) {
+                                           "full-want-levels-from-jak1-load-boundary.s"})));
+ }
+ 
++TEST(Arm64Aot, compiles_full_jak1_load_state_reset_without_name_gating) {
++  const auto source = read_load_state_reset_source();
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto code = compiler.compile_arm64_aot_source(
++      source, "full-load-state-reset-from-jak1-load-boundary", std::optional<std::string>{"reset!"});
++
++  ASSERT_EQ(code.size(), 232);
++  const aot::AppleArm64Function function{"goalpad_aot_load_state_reset", code};
++  EXPECT_EQ(aot::render_apple_arm64_assembly(function),
++            file_util::read_text_file(file_util::get_file_path(
++                {"test/goalc/source_templates/arm64-aot/"
++                 "full-load-state-reset-from-jak1-load-boundary.s"})));
++
++  auto renamed_source = source;
++  replace_once(renamed_source, "(defun reset!", "(defun reset-candidate");
++  Compiler renamed_compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  EXPECT_EQ(renamed_compiler.compile_arm64_aot_source(
++                renamed_source, "renamed-load-state-reset",
++                std::optional<std::string>{"reset-candidate"}),
++            code);
++}
++
++TEST(Arm64Aot, rejects_load_state_reset_with_different_required_body_data) {
++  auto source = read_load_state_reset_source();
++  replace_once(source, "((this load-state))", "((this load-state) (arg symbol))");
++  expect_load_state_reset_rejected(source, "load-state-reset-with-extra-argument");
++
++  source = read_load_state_reset_source();
++  replace_once(source, "(set! (-> this want 0 name) #f)",
++               "(set! (-> this want 0 name) #t)");
++  expect_load_state_reset_rejected(source, "load-state-reset-with-true-want-clear");
++
++  source = read_load_state_reset_source();
++  replace_once(source, "(set! (-> this command-list) '())", "(set! (-> this command-list) #f)");
++  expect_load_state_reset_rejected(source, "load-state-reset-with-false-command-list");
++
++  source = read_load_state_reset_source();
++  replace_once(source, "(dotimes (v1-1 256)", "(dotimes (v1-1 255)");
++  expect_load_state_reset_rejected(source, "load-state-reset-with-different-loop-bound");
++
++  source = read_load_state_reset_source();
++  replace_once(source, "(set! (-> this object-name v1-1) #f)",
++               "(set! (-> this object-name 0) #f)");
++  expect_load_state_reset_rejected(source, "load-state-reset-with-different-array-index");
++
++  source = read_load_state_reset_source();
++  replace_once(source, "(set! (-> this object-status v1-1) (the-as basic 0))",
++               "(set! (-> this object-status v1-1) (the-as basic 1))");
++  expect_load_state_reset_rejected(source, "load-state-reset-without-basic-zero");
++
++  source = read_load_state_reset_source();
++  const auto return_position = source.rfind("  this)");
++  ASSERT_NE(return_position, std::string::npos);
++  source.replace(return_position, 7, "  #f)");
++  expect_load_state_reset_rejected(source, "load-state-reset-with-different-return");
++
++  source = read_load_state_reset_source();
++  source += "\n0\n";
++  expect_load_state_reset_rejected(source, "load-state-reset-with-trailing-top-level-code");
++}
++
+ TEST(Arm64Aot, exposes_arm64_aot_control_flow_and_return_metadata) {
+   Label label{nullptr, 7};
+   IR_GotoLabel jump;
+@@ -1175,12 +1248,64 @@ TEST(Arm64Aot, emits_unary_gpr_integer_not) {
+             (std::vector<u8>{0xe0, 0x03, 0x20, 0xaa, 0xc0, 0x03, 0x5f, 0xd6}));
+ }
+ 
++TEST(Arm64Aot, emits_jak1_empty_pair_symbol_pointer_without_clobbering_goal_context) {
++  RegVal destination{{RegClass::GPR_64, 0}, TypeSpec("pair")};
++  IR_LoadSymbolPointer empty_pair(&destination, "_empty_");
++
++  Assignment assignment;
++  assignment.kind = Assignment::Kind::REGISTER;
++  assignment.reg = emitter::X0;
++  AllocationResult allocations;
++  allocations.ass_as_ranges = {AssignmentRange(0, {true}, {assignment})};
++
++  FunctionDebugInfo debug{};
++  emitter::ObjectGenerator generator(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto function = generator.add_function_to_seg(MAIN_SEGMENT, &debug);
++  empty_pair.do_codegen_arm64(&generator, allocations, generator.add_ir(function));
++  generator.add_instr_no_ir(function, emitter::IGen::ret(generator),
++                            InstructionInfo::Kind::EPILOGUE);
++
++  EXPECT_EQ(generator.materialize_arm64_function(function),
++            (std::vector<u8>{0xe0, 0x03, 0x15, 0xaa, 0x00, 0x28,
++                             0x00, 0xd1, 0xc0, 0x03, 0x5f, 0xd6}));
++}
++
++TEST(Arm64Aot, rejects_empty_pair_symbol_pointer_outside_jak1_aot_temporaries) {
++  const auto expect_rejected = [](GameVersion version,
++                                  RegClass reg_class,
++                                  const TypeSpec& type,
++                                  emitter::Register destination_register) {
++    RegVal destination{{reg_class, 0}, type};
++    IR_LoadSymbolPointer empty_pair(&destination, "_empty_");
++
++    Assignment assignment;
++    assignment.kind = Assignment::Kind::REGISTER;
++    assignment.reg = destination_register;
++    AllocationResult allocations;
++    allocations.ass_as_ranges = {AssignmentRange(0, {true}, {assignment})};
++
++    FunctionDebugInfo debug{};
++    emitter::ObjectGenerator generator(version, emitter::InstructionSet::ARM64);
++    const auto function = generator.add_function_to_seg(MAIN_SEGMENT, &debug);
++    EXPECT_THROW(empty_pair.do_codegen_arm64(&generator, allocations, generator.add_ir(function)),
++                 std::runtime_error);
++  };
++
++  expect_rejected(GameVersion::Jak2, RegClass::GPR_64, TypeSpec("pair"), emitter::X0);
++  for (const auto destination : {emitter::X16, emitter::X21, emitter::SP}) {
++    expect_rejected(GameVersion::Jak1, RegClass::GPR_64, TypeSpec("pair"), destination);
++  }
++  expect_rejected(GameVersion::Jak1, RegClass::FLOAT, TypeSpec("float"), emitter::V0);
++}
++
+ TEST(Arm64Aot, emits_guarded_arm64_integer_add_and_immediate_shift) {
+   RegVal destination{{RegClass::GPR_64, 0}, TypeSpec("int")};
+   RegVal source{{RegClass::GPR_64, 1}, TypeSpec("int")};
+   IR_IntegerMath integer_add(IntegerMathKind::ADD_64, &destination, &source);
+   IR_IntegerMath integer_shift(IntegerMathKind::SHL_64, &destination, u8(4));
++  IR_IntegerMath integer_shift_two(IntegerMathKind::SHL_64, &destination, u8(2));
+   EXPECT_EQ(integer_shift.shift_amount(), 4);
++  EXPECT_EQ(integer_shift_two.shift_amount(), 2);
+ 
+   Assignment destination_assignment;
+   destination_assignment.kind = Assignment::Kind::REGISTER;
+@@ -1190,8 +1315,10 @@ TEST(Arm64Aot, emits_guarded_arm64_integer_add_and_immediate_shift) {
+   source_assignment.reg = emitter::X1;
+   AllocationResult allocations;
+   allocations.ass_as_ranges = {
+-      AssignmentRange(0, {true, true}, {destination_assignment, destination_assignment}),
+-      AssignmentRange(0, {true, true}, {source_assignment, source_assignment}),
++      AssignmentRange(0, {true, true, true},
++                      {destination_assignment, destination_assignment, destination_assignment}),
++      AssignmentRange(0, {true, true, false},
++                      {source_assignment, source_assignment, source_assignment}),
+   };
+ 
+   FunctionDebugInfo debug{};
+@@ -1199,12 +1326,13 @@ TEST(Arm64Aot, emits_guarded_arm64_integer_add_and_immediate_shift) {
+   const auto function = generator.add_function_to_seg(MAIN_SEGMENT, &debug);
+   integer_add.do_codegen_arm64(&generator, allocations, generator.add_ir(function));
+   integer_shift.do_codegen_arm64(&generator, allocations, generator.add_ir(function));
++  integer_shift_two.do_codegen_arm64(&generator, allocations, generator.add_ir(function));
+   generator.add_instr_no_ir(function, emitter::IGen::ret(generator),
+                             InstructionInfo::Kind::EPILOGUE);
+ 
+   EXPECT_EQ(generator.materialize_arm64_function(function),
+             (std::vector<u8>{0x00, 0x00, 0x01, 0x8b, 0x00, 0xec, 0x7c, 0xd3,
+-                             0xc0, 0x03, 0x5f, 0xd6}));
++                             0x00, 0xf4, 0x7e, 0xd3, 0xc0, 0x03, 0x5f, 0xd6}));
+ }
+ 
+ TEST(Arm64Aot, rejects_integer_math_outside_the_guarded_arm64_aot_subset) {
+@@ -1269,7 +1397,7 @@ TEST(Arm64Aot, rejects_integer_math_outside_the_guarded_arm64_aot_subset) {
+     expect_rejected(shift_with_invalid_destination, {invalid});
+   }
+ 
+-  for (const auto shift_amount : {u8(3), u8(5), u8(63)}) {
++  for (const auto shift_amount : {u8(0), u8(3), u8(5), u8(63)}) {
+     IR_IntegerMath shift_by_other_amount(IntegerMathKind::SHL_64, &destination, shift_amount);
+     expect_rejected(shift_by_other_amount, {emitter::X0});
+   }
+diff --git a/test/goalc/test_arm64_aot_cli.cmake b/test/goalc/test_arm64_aot_cli.cmake
+index 4b38afab..2be69d7c 100644
+--- a/test/goalc/test_arm64_aot_cli.cmake
++++ b/test/goalc/test_arm64_aot_cli.cmake
+@@ -45,6 +45,11 @@ set(WANT_LEVELS_GOLDEN
+ set(WANT_LEVELS_ASSEMBLY_ONLY "${OUTPUT_DIR}/want-levels-assembly-only.s")
+ set(WANT_LEVELS_PAIRED_ASSEMBLY "${OUTPUT_DIR}/want-levels-paired.s")
+ set(WANT_LEVELS_EXPORTS "${OUTPUT_DIR}/want-levels-paired.exports.inc")
++set(LOAD_STATE_RESET_INPUT
++    "${PROJECT_ROOT}/test/goalc/source_templates/arm64-aot/full-load-state-reset-from-jak1-load-boundary.gc")
++set(LOAD_STATE_RESET_GOLDEN
++    "${PROJECT_ROOT}/test/goalc/source_templates/arm64-aot/full-load-state-reset-from-jak1-load-boundary.s")
++set(LOAD_STATE_RESET_ASSEMBLY_ONLY "${OUTPUT_DIR}/load-state-reset-assembly-only.s")
+ 
+ execute_process(
+   COMMAND "${GOALC_AOT}"
+@@ -838,6 +843,24 @@ if(NOT ACTUAL_WANT_LEVELS_ASSEMBLY STREQUAL EXPECTED_WANT_LEVELS_ASSEMBLY)
+   message(FATAL_ERROR "Assembly-only want-levels artifact did not match the committed ARM64 golden")
+ endif()
+ 
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${LOAD_STATE_RESET_INPUT}"
++          --function reset!
++          --output "${LOAD_STATE_RESET_ASSEMBLY_ONLY}"
++          --symbol goalpad_aot_load_state_reset
++  RESULT_VARIABLE LOAD_STATE_RESET_ASSEMBLY_ONLY_RESULT)
++if(NOT LOAD_STATE_RESET_ASSEMBLY_ONLY_RESULT EQUAL 0)
++  message(FATAL_ERROR "Assembly-only load-state reset goalc-aot invocation failed")
++endif()
++
++file(READ "${LOAD_STATE_RESET_GOLDEN}" EXPECTED_LOAD_STATE_RESET_ASSEMBLY)
++file(READ "${LOAD_STATE_RESET_ASSEMBLY_ONLY}" ACTUAL_LOAD_STATE_RESET_ASSEMBLY)
++if(NOT ACTUAL_LOAD_STATE_RESET_ASSEMBLY STREQUAL EXPECTED_LOAD_STATE_RESET_ASSEMBLY)
++  message(FATAL_ERROR "Assembly-only load-state reset artifact did not match the committed ARM64 golden")
++endif()
++
+ execute_process(
+   COMMAND "${GOALC_AOT}"
+           --project-path "${PROJECT_ROOT}"
+-- 
+2.50.1 (Apple Git-155)
+
