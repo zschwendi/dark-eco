@@ -15,12 +15,16 @@ binding architecture, scope, and content-separation rules.
   builds for ARM64 macOS, iOS Simulator, and generic iOS device destinations.
 - **Experimental:** A statically linked ARM64 instruction probe verifies that
   executable code can be part of the normally signed application image.
-- **Planned:** Compile representative OpenGOAL GOAL source into a build-time
-  ARM64 artifact, link it into the application, and validate it in a signed
-  physical-device build.
+- **Experimental:** The real OpenGOAL compiler compiles a top-level GOAL
+  literal to deterministic ARM64 assembly. GOALPad links and executes that
+  artifact on ARM64 macOS and the iPad Pro M5 simulator; a signed
+  physical-device build has installed successfully and awaits an unlocked
+  launch.
+- **Planned:** Initialize the full OpenGOAL runtime state, expand the ARM64
+  compiler subset, and load user-prepared Jak 1 data.
 
-The current probe does not execute GOAL source, load Jak data, or boot the
-OpenGOAL runtime.
+The current proof executes one intentionally narrow compiler-produced GOAL
+workload. It does not yet load Jak data or boot the general OpenGOAL runtime.
 
 See [Roadmap](ROADMAP.md) for the ten-stage path from the current probe to
 playing Jak 1 on a signed physical iPad.
@@ -31,6 +35,8 @@ playing Jak 1 on a signed physical iPad.
 GOALPad/                 SwiftUI application and narrow native bridge
 GOALPad.xcodeproj/       Application project
 docs/                    Project policy and build documentation
+docs/APPLE_PLATFORM_DIRECTION.md
+                         Future-facing Apple presentation constraints
 OpenGOAL/                Pinned upstream source submodule
 ROADMAP.md               Active implementation stages and exit gates
 ```

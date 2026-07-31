@@ -37,6 +37,14 @@ as completing the overall goal.
   CI artifacts, or hosted services.
 - Jak 1 is the only active game implementation scope until its platform
   foundation is stable.
+- Keep game simulation separate from rendering and presentation. iPadOS is the
+  first implementation, but the runtime must not become directly dependent on
+  one view, layer, screen size, lifecycle, or fixed camera.
+- Where the current port already needs a platform boundary, prefer an equally
+  small choice that leaves room for other Apple targets, multiple render
+  views, stereo, and externally supplied view/projection matrices.
+- Record future Apple-platform work instead of implementing it now. It must
+  not delay booting and making Jak 1 playable on iPad.
 - Simulator results support rapid iteration but do not establish physical-iPad
   compatibility.
 
@@ -45,20 +53,24 @@ as completing the overall goal.
 | Project milestone | Current state |
 | --- | --- |
 | Reproducible OpenGOAL ARM64 baseline | Implemented and verified |
-| Native Swift/Objective-C++/C++ iPad process | Experimental; simulator verified and physical run maintainer-reported |
+| Native Swift/Objective-C++/C++ iPad process | Experimental; simulator verified; signed physical build and install verified |
 | Signed native ARM64 instruction probe | Experimental; this is handwritten C++, not GOAL |
 | Storage and Metal initialization | Experimental |
 | Controller, audio, and lifecycle integration | Planned |
 | User-owned Jak 1 import pipeline | Planned |
-| Compiler-produced ARM64 GOAL execution | Planned; primary blocker |
+| Compiler-produced ARM64 GOAL execution | Experimental; ARM64 macOS and simulator verified, physical launch pending |
 | OpenGOAL game frame or title screen | Planned |
 | Playable gameplay slice | Planned |
 | Jak 1 completion track | Planned |
 
 The current application proves that Swift, Objective-C++, C++, statically
 linked ARM64 code, logging, storage, and a Metal surface can coexist in an
-iPadOS process. It does not initialize the OpenGOAL runtime, execute GOAL
-source, load Jak data, or render the game.
+iPadOS process. The Stage 2 compiler path also proves that the real top-level
+GOAL expression `42` can produce deterministic ARM64 assembly that is linked
+and signed with the app and executed in the iPad Pro M5 simulator. The signed
+physical build is installed, but its automated launch was denied while the
+iPad was locked. The app does not yet initialize general OpenGOAL runtime
+state, load Jak data, or render the game.
 
 ## Required code and data pipelines
 
@@ -117,6 +129,8 @@ Current blocker:
 
 - The maintainer must choose whether the fork lives under `zschwendi`,
   `zephyrstudiosllc`, or another explicitly named owner.
+- The configured GitHub credential is currently invalid, so the selected owner
+  must also be authenticated before publication.
 
 ## Stage 2 — Compile one real GOAL workload for ARM64
 
@@ -155,6 +169,23 @@ Exit gate:
 
 This isolated artifact proves the chosen direction. It does not complete the
 general signed code/data object and loading model in Stage 4.
+
+Current progress:
+
+- Child commit
+  `79f22008c3119bf79297f41d586ab4f75725a36e` implements required work 1-8
+  for the exact top-level literal `42`.
+- The parent preserves that unpublished child commit as
+  `patches/OpenGOAL/0001-Add-minimal-ARM64-GOAL-AOT-proof-AI-assisted.patch`
+  while the official submodule stays at its fetchable upstream pin.
+- The generated Apple assembly is checked into the app as a transitional
+  artifact and has executed on ARM64 macOS and the named iPad Pro M5
+  simulator.
+- The app has built, signed, and installed on the physical iPad Pro M5.
+  Physical launch was denied because the iPad was locked.
+- Required work 9 remains incomplete: add the static X20/X21/X22 OpenGOAL
+  state wrapper and execute the generated workload through it on physical
+  hardware.
 
 ## Stage 3 — Expand the ARM64 GOAL compiler backend
 
@@ -216,7 +247,8 @@ Required work:
    tools outside the iPad target.
 3. Add a narrow ownership-safe Objective-C++ API instead of exposing broad C++
    implementation details to Swift.
-4. Make platform assumptions explicit behind portable interfaces.
+4. Make currently required platform assumptions explicit behind narrow
+   interfaces without beginning a speculative abstraction campaign.
 5. Add integration tests for initialization, failure reporting, and teardown.
 
 Exit gate:
@@ -239,8 +271,8 @@ Required work:
 5. Implement save and load operations with recoverable error handling.
 6. Establish frame timing and display lifecycle behavior.
 7. Narrow the application to documented iPadOS destinations or split
-   diagnostic targets deliberately, eliminating implicit iPhone, macOS, and
-   visionOS claims without weakening the ARM64 macOS OpenGOAL baseline.
+   diagnostic targets deliberately, eliminating unsupported platform claims
+   without hard-coding the runtime against later Mac or iPhone frontends.
 
 Exit gate:
 
@@ -263,6 +295,10 @@ Required work:
 5. Implement direct Metal support where it is the smallest maintainable
    long-term solution.
 6. Preserve renderer correctness before adding resolution or visual polish.
+7. Keep final presentation separate from simulation and avoid an unnecessary
+   one-view, one-layer, fixed-size, or fixed-camera contract. Do not implement
+   multi-view, stereo, external-camera, or visionOS behavior during this stage
+   unless the iPad path directly requires the same boundary.
 
 Exit gate:
 
@@ -447,16 +483,21 @@ Operating rules:
 
 ## Current checkpoint
 
-Stage 1 is active. The durable fork owner is the only maintainer decision
-required before publishing downstream OpenGOAL commits.
+Stages 1 and 2 are active in parallel.
 
-While that decision is pending, the narrow technical preparation for Stage 2
-is:
+Stage 1 is blocked on the durable fork owner and working GitHub authentication.
+Until publication, keep the official submodule pin clean and preserve the
+verified child commit through the repository patch.
 
-1. Identify the exact architecture-aware register metadata changes.
-2. Define the source-backed GOAL constant compiler test.
-3. Identify the minimal ARM64 CodeGenerator and IR implementation boundary.
-4. Keep the official submodule pin clean until a fork can fetch the first
-   downstream commit.
+The next Stage 2 actions are:
+
+1. Retry the installed app after the physical iPad is unlocked and record
+   build, sign, install, launch, and runtime-result evidence separately.
+2. Define a minimal static wrapper for X20/X21/X22 OpenGOAL runtime state.
+3. Add deterministic macOS tests for the wrapper and compiler-produced entry.
+4. Link and execute that boundary in the simulator and then the signed
+   physical-device build.
+5. Make ARM64 call-clobber handling target-aware before enabling call-bearing
+   GOAL source in Stage 3.
 
 No proprietary game data is needed before Stage 8.

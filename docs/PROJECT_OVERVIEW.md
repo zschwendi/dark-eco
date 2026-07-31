@@ -273,6 +273,30 @@ Required sequence:
 
 A direct Metal backend is the preferred long-term direction, not permission to rewrite every rendering subsystem immediately.
 
+### Simulation and presentation boundary
+
+iPadOS is the first Apple frontend/backend implementation, not a reason to
+make the OpenGOAL runtime inseparable from one `UIView`, `CAMetalLayer`, screen
+size, platform lifecycle, fixed camera, or render target.
+
+Keep game simulation separate from rendering and final presentation. Where the
+current iPad port directly needs a boundary, prefer narrow interfaces for the
+graphics surface, input, audio, filesystem, timing, lifecycle, and display
+configuration. Preserve the distinction between the gameplay camera and the
+final viewer/render camera where the existing architecture already allows it.
+
+Do not undertake a renderer rewrite, camera refactor, abstraction campaign,
+visionOS implementation, or speculative multi-platform work to satisfy this
+direction. When two implementations are equally small, prefer the one that
+does not prevent Mac or iPhone targets, multiple render views, stereo
+rendering, externally supplied view/projection matrices, or a future visionOS
+volumetric or immersive presentation layer.
+
+Larger future-facing notes live in
+[`APPLE_PLATFORM_DIRECTION.md`](APPLE_PLATFORM_DIRECTION.md). They constrain
+avoidable coupling but do not expand the current milestone: boot and make the
+real OpenGOAL Jak 1 runtime playable on iPadOS first.
+
 ## Import and ownership model
 
 The project follows a bring-your-own-game model.

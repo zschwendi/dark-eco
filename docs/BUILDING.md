@@ -50,31 +50,130 @@ cmake -S OpenGOAL -B /private/tmp/GOALPad-pinned-opengoal-build \
   --preset=Release-macos-arm64-clang \
   -DOPENSSL_ROOT_DIR=/opt/homebrew/opt/openssl@3
 
-cmake --build /private/tmp/GOALPad-pinned-opengoal-build --target gk goalc-test -j 12
+cmake --build /private/tmp/GOALPad-pinned-opengoal-build \
+  --target gk goalc-test -j 4
 
-ln -s "$PWD/OpenGOAL" /private/tmp/GOALPad-pinned-opengoal-build/data
+test -e /private/tmp/GOALPad-pinned-opengoal-build/data || \
+  ln -s "$PWD/OpenGOAL" /private/tmp/GOALPad-pinned-opengoal-build/data
 
 /private/tmp/GOALPad-pinned-opengoal-build/goalc-test \
   --gtest_filter='ARM64EmitterIntegerMath.*:CodeTester.*arm64'
 ```
 
-This is an experimental ARM64 macOS host baseline. It does not prove that
-OpenGOAL can execute GOAL code on ARM64 or iPadOS.
+This is the official pinned ARM64 macOS host baseline. It does not contain the
+unpublished GOALPad ARM64 AOT child commit.
 
 The `data` symlink is local build state. It lets OpenGOAL's test executable find
 the pinned source tree when the build directory is outside the repository.
 
-## Physical iPad validation
+## Restore and validate the Stage 2 OpenGOAL AOT proof
 
-A signed physical-device build must omit `CODE_SIGNING_ALLOWED=NO` and use a
-paired iPad destination:
+Until a maintainer chooses and authenticates the durable OpenGOAL fork owner,
+the verified downstream child commit is preserved as a patch while the
+official submodule remains clean:
 
-```sh
-xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
-  -configuration Debug \
-  -destination 'platform=iOS,id=<device-udid>' \
-  -derivedDataPath /private/tmp/GOALPad-physical build
+```text
+Base: a4cb1ac1f0596c8740b1c26accb24a58505cda92
+Child: 79f22008c3119bf79297f41d586ab4f75725a36e
+Patch: patches/OpenGOAL/0001-Add-minimal-ARM64-GOAL-AOT-proof-AI-assisted.patch
 ```
 
-Record build, install, launch, and runtime-log results separately. Simulator or
-generic-device success must not be reported as physical-device compatibility.
+Restore it into an isolated worktree:
+
+```sh
+git -C OpenGOAL worktree add -b goalpad/arm64-aot-proof \
+  /private/tmp/GOALPadOpenGOAL-stage2 \
+  a4cb1ac1f0596c8740b1c26accb24a58505cda92
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0001-Add-minimal-ARM64-GOAL-AOT-proof-AI-assisted.patch"
+```
+
+If that branch or worktree already exists, inspect and reuse it rather than
+deleting it. Do not move the parent repository's official submodule gitlink to
+the unpublished child commit.
+
+The restored commit is patch-equivalent to `79f22008`, but `git am` normally
+assigns new committer metadata and therefore a different commit SHA. The exact
+`79f22008` object is available only in a checkout that already contains the
+original child commit. Compare the resulting tree or stable patch identity
+when reconstructing it from the preserved patch.
+
+Configure and build the affected tools serially enough to avoid excess memory
+pressure:
+
+```sh
+cmake -S /private/tmp/GOALPadOpenGOAL-stage2 \
+  -B /private/tmp/GOALPadOpenGOAL-stage2-build \
+  --preset=Release-macos-arm64-clang \
+  -DOPENSSL_ROOT_DIR=/opt/homebrew/opt/openssl@3
+
+test -e /private/tmp/GOALPadOpenGOAL-stage2-build/data || \
+  ln -s /private/tmp/GOALPadOpenGOAL-stage2 \
+  /private/tmp/GOALPadOpenGOAL-stage2-build/data
+
+cmake --build /private/tmp/GOALPadOpenGOAL-stage2-build \
+  --target goalc-aot goalc-test gk -j 4
+```
+
+Run the deterministic affected tests and the complete non-network suite:
+
+```sh
+/private/tmp/GOALPadOpenGOAL-stage2-build/goalc-test \
+  --gtest_filter='Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
+
+/private/tmp/GOALPadOpenGOAL-stage2-build/goalc-test \
+  --gtest_filter='-Listener.*'
+```
+
+Generate and compare the signed-build input:
+
+```sh
+/private/tmp/GOALPadOpenGOAL-stage2-build/goalc/goalc-aot \
+  --project-path /private/tmp/GOALPadOpenGOAL-stage2 \
+  --input \
+  /private/tmp/GOALPadOpenGOAL-stage2/test/goalc/source_templates/arm64-aot/constant-42.gc \
+  --output /private/tmp/goalpad_aot_constant_42.s \
+  --symbol goalpad_aot_constant_42
+
+cmp /private/tmp/goalpad_aot_constant_42.s \
+  GOALPad/Native/Generated/OpenGOALConstant42.s
+
+xcrun --sdk iphoneos clang -arch arm64 \
+  -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
+  -c /private/tmp/goalpad_aot_constant_42.s \
+  -o /private/tmp/goalpad_aot_constant_42.o
+
+xcrun llvm-objdump --macho --disassemble \
+  /private/tmp/goalpad_aot_constant_42.o
+```
+
+The expected function is exactly `mov x0, #42; ret`. The checked-in assembly is
+a transitional generated artifact; it must remain byte-for-byte reproducible
+from the documented child commit until the fork-backed build integration
+replaces it.
+
+## Physical iPad validation
+
+A signed physical-device build must omit `CODE_SIGNING_ALLOWED=NO`. A generic
+iOS build can complete signing even while the device is locked:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug \
+  -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-device -jobs 4 build
+
+xcrun devicectl device install app \
+  --device <coredevice-id> \
+  /private/tmp/GOALPad-device/Build/Products/Debug-iphoneos/GOALPad.app
+
+xcrun devicectl device process launch \
+  --device <coredevice-id> \
+  --terminate-existing com.zephyrstudiosllc.GOALPad
+```
+
+Unlock the iPad before the install/launch steps. Record build, signing, install,
+launch, runtime logs, and observed screen behavior separately. Simulator,
+generic-device build, or installation success must not be reported as
+physical-device execution.
