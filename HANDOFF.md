@@ -4047,3 +4047,71 @@ normal signing responsibilities. Select one contained integration proof only
 after that audit. Do not add JIT or a raw-address cast, and do not claim app,
 signing, simulator, device, game-data, or boot execution without its own
 validation.
+
+## Fork readiness audit: complete 0001-0043 replay
+
+This read-only audit started from the official OpenGOAL pin
+`a4cb1ac1f0596c8740b1c26accb24a58505cda92`. It did not create or publish a
+fork, contact a network service, use GitHub authentication, run a build, or
+create commits. The GOALPad parent worktree was not edited.
+
+Two detached temporary OpenGOAL audit worktrees were preserved with their
+staged replay result and no new commits:
+
+```text
+/private/tmp/GOALPadOpenGOAL-fork-readiness-0043
+/private/tmp/GOALPadOpenGOAL-fork-readiness-0043-topological
+```
+
+All 43 numbered mbox files in `patches/OpenGOAL` applied with
+`git apply --index --whitespace=nowarn`; there was no first failure. The
+literal lexical order `0001` through `0043` applies cleanly. The
+topology-preserving publication order is:
+
+```text
+0001-0021, 0023, 0022, 0024-0043
+```
+
+The intentional `0023`/`0022` swap accounts for their sibling relationship
+from 0021. The historical replay contains the stable-equivalent identities for
+0022 and 0024-0032, while 0023, 0026, and 0033 retain their literal commits.
+Both audit orders produced tree
+`b56430db836c2f722f91f7f263692b535c820c52`, exactly equal to
+`e60fb292b28168ad62d9345e8e0a33eea9356d82^{tree}`. The final preserved child
+`e60fb292` descends from the official pin.
+
+### Conditional publication recipe
+
+Only after a maintainer selects the fork owner, repository, visibility, and
+SSH-versus-HTTPS transport, create a clean clone of that fork and replay the
+preserved mboxes. Do not put credentials or tokens in commands, shell history,
+or documentation.
+
+```sh
+git clone "$FORK_URL" jak-project-goalpad
+cd jak-project-goalpad
+git switch -c goalpad/arm64-aot-0043 \
+  a4cb1ac1f0596c8740b1c26accb24a58505cda92
+
+patch_dir=/absolute/path/to/GOALPad/patches/OpenGOAL
+git am --3way \
+  "$patch_dir"/000{1,2,3,4,5,6,7,8,9}-*.patch \
+  "$patch_dir"/001{0,1,2,3,4,5,6,7,8,9}-*.patch \
+  "$patch_dir"/002{0,1}-*.patch \
+  "$patch_dir"/0023-*.patch \
+  "$patch_dir"/0022-*.patch \
+  "$patch_dir"/002{4,5,6,7,8,9}-*.patch \
+  "$patch_dir"/003{0,1,2,3,4,5,6,7,8,9}-*.patch \
+  "$patch_dir"/004{0,1,2,3}-*.patch
+
+test "$(git rev-parse HEAD^{tree})" = \
+  b56430db836c2f722f91f7f263692b535c820c52
+git diff --check a4cb1ac1f0596c8740b1c26accb24a58505cda92..HEAD
+git push -u origin goalpad/arm64-aot-0043
+```
+
+If replay conflicts in the selected fork, stop with `git am --abort` and audit
+the new upstream base before resolution; do not stack an unreviewed manual
+fix. This audit proves a local replay at the pinned base only. It does not
+prove that a remote fork exists, that the chosen remote contains the pin, or
+that authentication and push permission work.

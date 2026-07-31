@@ -775,17 +775,27 @@ The next actions are:
 
 1. Integrate the verified portable 0013-0043 work only after a dedicated
    OpenGOAL fork makes the ordered changes fetchable and pins them
-   reproducibly. Preserve every mbox and stable patch ID. Patches 0022 and
-   0023 are sibling child changes from 0021; 0024-0032 have both literal and
-   stable-equivalent runtime-replay identities; 0033 follows the reviewed
-   replay line, 0034-0036 form the literal
+   reproducibly. A read-only audit from official pin
+   `a4cb1ac1f0596c8740b1c26accb24a58505cda92` passed every numbered mbox
+   0001-0043 with no failure. Preserve every mbox and stable patch ID. The
+   topology-preserving order is 0001-0021, 0023, 0022, 0024-0043; lexical
+   0001-0043 also applies cleanly. Patches 0022 and 0023 are sibling child
+   changes from 0021; 0024-0032 have both literal and stable-equivalent
+   runtime-replay identities; 0033 follows the reviewed replay line,
+   0034-0036 form the literal
    `71fc6918 -> e96cedd2 -> 2229c13e -> bb4b2e7e` sequence, and 0037 follows
    with `0327eee4 -> da6cfe9e -> deebafd -> a13b42f7 -> 0ee4a48f -> 7aaaf299
    -> e60fb292`;
    `a13b42f7` was cherry-picked from reviewed source commit `9a830552`.
-   The preservation audit confirmed ordered 0038-0043 replay exactly matches
-   the `e60fb292` tree, and the reverse patch check passed. Do not copy the
-   source into the app or use a machine-local worktree path.
+   Both full-series audit orders yielded tree
+   `b56430db836c2f722f91f7f263692b535c820c52`, exactly equal to
+   `e60fb292b28168ad62d9345e8e0a33eea9356d82^{tree}`. The preservation audit
+   also confirmed ordered 0038-0043 replay exactly matches the `e60fb292`
+   tree, and the reverse patch check passed. No fork was created or published,
+   no network or build ran, and authentication was not attempted. After the
+   maintainer selects owner, repository, visibility, and transport, use the
+   documented `git am --3way` recipe and tree check before any push. Do not
+   copy the source into the app or use a machine-local worktree path.
 2. The next boot-flow candidate remains `load-state-want-levels` at
    `goal_src/jak1/engine/level/load-boundary.gc:1095-1096`, called at
    `level.gc:1007` in the `1005-1009` reset/load/want/display flow. Its
