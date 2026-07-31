@@ -83,7 +83,7 @@ Note that a build which drops the debug heap needs only about 64 MiB rather
 than 128 MiB, which would sometimes fit. That is a coincidence of ASLR
 placement, not a guarantee, and must not be relied on.
 
-### B. Function objects carry a native pointer — recommended
+### B. Function objects carry a native pointer — ADOPTED, implemented
 
 The AOT compiler generates the static data for function objects as well as the
 code, and GOALPad controls every call site: the AOT backend emits GOAL-to-GOAL
@@ -99,24 +99,16 @@ heap data whose layout the compiler also emits.
 
 ## Where AOT code comes from
 
-Separately tracked. The existing hand-written ARM64 emitter
-(`goalc/emitter/IGenARM64.cpp` plus per-node lowering in
-`goalc/compiler/IR.cpp`) covers roughly 8 of 42 IR node types, each artificially
-restricted, with `IR_FunctionCall`, `IR_GetSymbolValue`, `IR_SetSymbolValue`,
-`IR_FloatMath`, `IR_StaticVarAddr`, `IR_StaticVarLoad`, and `IR_FunctionAddr`
-all `throw "NYI"`. Roughly a dozen hand-picked Jak 1 functions have been
-compiled this way. Jak 1 contains tens of thousands.
+The AOT C backend (`goalc/aot/CBackend.cpp`, `goalc/aot/goal_c_runtime.h`) emits
+C from the GOAL IR and compiles it with clang for arm64, which supplies a
+complete optimizing backend, normal Mach-O objects, and ordinary code signing.
+Whole-game coverage is a measured **9539/10601 functions (89.98%)** across all
+518 Jak 1 sources, all of which compile for `arm64-apple-ios15.0`.
 
-An alternative under active evaluation is to emit C from the GOAL IR and compile
-it with clang for arm64, which supplies a complete optimizing backend, normal
-Mach-O objects, and ordinary code signing. That evaluation must produce a
-working prototype over real Jak 1 source before it is adopted or rejected.
-
-## What this does not claim
-
-Nothing here is implemented. No approach has been validated on a physical iPad.
-The linker analysis is read from source and has not been exercised against real
-extracted game data.
+This superseded the hand-written ARM64 emitter (`goalc/emitter/IGenARM64.cpp`
+plus per-node lowering in `goalc/compiler/IR.cpp`), which covered roughly 8 of
+42 IR node types, each artificially restricted, and had compiled about a dozen
+hand-picked functions. That emitter is now dead code pending removal.
 
 ## What was implemented
 
