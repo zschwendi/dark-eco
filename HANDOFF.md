@@ -1024,7 +1024,7 @@ The constrained compiler/test checkpoint used the actual build directory:
 cmake --build /private/tmp/GOALPadOpenGOAL-stage3-build \
   --target goalc-test goalc-aot gk -j 4
 
-/private/tmp/GOALPadOpenGOAL-stage3-build/goalc-aot \
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc/goalc-aot \
   --project-path /private/tmp/GOALPadOpenGOAL-stage2 \
   --input \
   /private/tmp/GOALPadOpenGOAL-stage2/test/goalc/source_templates/arm64-aot/full-lognot-from-jak1-gcommon.gc \
