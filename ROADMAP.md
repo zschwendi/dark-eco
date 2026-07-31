@@ -759,8 +759,9 @@ artifact boundaries, bounded 0020 X22 field-load proof, direct 0021-0023
 level-command store proof, direct 0024-0026 `want-vis` proof, complete
 0027-0033 direct `want-levels`, 0034-0036 direct `load-state::reset!`, and
 0037 `*load-state*` value-cell shape proof plus the 0038-0039 read-only
-existing-symbol resolver and 0040 synthetic composition proof are verified but
-do not complete the Stage 4 exit gate.
+existing-symbol resolver, 0040 synthetic composition proof, and 0041 read-only
+BASIC method-value lookup are verified but do not complete the Stage 4 exit
+gate.
 
 Stage 1 is blocked on a maintainer-chosen, fetchable OpenGOAL fork/pin and
 working GitHub authentication. Until publication, keep the official submodule
@@ -778,10 +779,11 @@ The next actions are:
    stable-equivalent runtime-replay identities; 0033 follows the reviewed
    replay line, 0034-0036 form the literal
    `71fc6918 -> e96cedd2 -> 2229c13e -> bb4b2e7e` sequence, and 0037 follows
-   with `0327eee4 -> da6cfe9e -> deebafd -> a13b42f7`; `a13b42f7` was
-   cherry-picked from reviewed source commit `9a830552`. The preservation audit
-   confirmed ordered 0038-0040 replay exactly matches the `a13b42f7` tree. Do
-   not copy the source into the app or use a machine-local worktree path.
+   with `0327eee4 -> da6cfe9e -> deebafd -> a13b42f7 -> 0ee4a48f`;
+   `a13b42f7` was cherry-picked from reviewed source commit `9a830552`.
+   The preservation audit confirmed ordered 0038-0041 replay exactly matches
+   the `0ee4a48f` tree, and the reverse patch check passed. Do not copy the
+   source into the app or use a machine-local worktree path.
 2. The next boot-flow candidate remains `load-state-want-levels` at
    `goal_src/jak1/engine/level/load-boundary.gc:1095-1096`, called at
    `level.gc:1007` in the `1005-1009` reset/load/want/display flow. Its
@@ -790,14 +792,17 @@ The next actions are:
    only for manually staged metadata and a direct export. Production symbol
    staging is rejected now because a fresh arena has zero `symbol` and `string`
    Type values; it would formalize fixture work before fundamental-type and
-   top-level bootstrap. The next narrow task is a guarded existing-object
-   type/method binding plus 32-bit GOAL method-value-to-signed-native mapping
-   audit/proof, without hard-coded direct dispatch. Runtime type/method-table
+   top-level bootstrap. Commit B is the next narrow task: bind the exact
+   `load-state` method using the lookup's actual `object_type`, `method_id = 9`,
+   raw `method_value`, and exact `allocated_size`/`padded_size` values
+   `0x82c`/`0x830` to an immutable, statically linked signed entry. It must not
+   cast the raw method word to a native address, introduce JIT, or hard-code a
+   direct registry call. Keep one caller-owned arena stable and exclusively
+   owned across lookup, binding, and invocation. Runtime type/method-table
    loading in a live runtime, general type creation, indirect dispatch, and
    linking remain later separate seams. The existing direct Export3 body is not
-   method dispatch.
-   Do not hard-code a direct call that silently changes the non-final type's
-   virtual semantics.
+   method dispatch; do not silently change the non-final type's virtual
+   semantics.
 3. Keep unsupported statics, general relocations, calls, saved registers,
    spills, and stack locals explicit until a real Jak 1 boot dependency
    requires each boundary. Keep x86 behavior, the non-network compiler suite,

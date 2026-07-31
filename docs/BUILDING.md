@@ -1640,3 +1640,89 @@ exists. The next task is a guarded existing-object type/method binding plus
 32-bit GOAL method-value-to-signed-native mapping audit/proof, without a
 hard-coded direct dispatch. It remains separate from linking, live runtime
 initialization, general type creation, game data, and boot.
+
+## Checkpoint 17: read-only BASIC method-value lookup
+
+Patch 0041 preserves child commit
+`0ee4a48f9f58ea1504e84c500f6a0942bc8047ce` through parent checkpoint
+`98a007148619c9e2a8e1bcddb01a09ae4af2e8f3`. The official OpenGOAL submodule
+remains at its fetchable pin. The exact preserved patch identity is:
+
+| Patch | SHA-256 | Stable patch ID |
+| --- | --- | --- |
+| `0041-feat-data-arena-add-read-only-BASIC-method-lookup-AI.patch` | `92fb8c378e666626c8656473451a8d024a2eb4b9f78dcf99e3bc6b518d6089cb` | `477d57e981399206ca7c890f66235153eee5554c` |
+
+The ordered 0038-0041 replay exactly matches the `0ee4a48f` tree, and the
+reverse patch check passed.
+
+The portable `read_data_arena_basic_method_value` API reads a caller-owned
+synthetic BASIC object's method-table word only after validating the header,
+BASIC representation, actual object type, Type-Type root and tag, object size,
+and slot bounds. It returns the raw 32-bit GOAL method value with the actual
+object type and validated sizes; it does not mutate storage, cast a method word
+to native code, inspect a function object, map to signed text, or invoke GOAL.
+The retained synthetic fixture uses `method_id = 9`, `allocated_size = 0x82c`,
+and `padded_size = 0x830` for the next `load-state` binding seam.
+
+Recorded host validation used the existing configured build tree:
+
+```sh
+cmake --build /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --target jak1-data-arena-test -j 4
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  -R '^Jak1DataArena\\.' --output-on-failure -j 1
+
+cmake --build /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --target arm64-goal-call-abi-test -j 4
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --output-on-failure -j 1
+
+/private/tmp/data-arena-symbol-value-lookup-jak-project-build/goalc-test \
+  '--gtest_filter=Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
+```
+
+The focused data-arena target build passed; `Jak1DataArena` CTest passed 31/31.
+The ARM64 goal-call ABI target build passed, full CTest passed 40/40, and the
+already-existing direct compiler binary passed the compiler/emitter filter
+191/191.
+
+The fresh iPhoneOS minimal archive proof used:
+
+```sh
+cmake -S /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup \
+  -B /private/tmp/GOALPadOpenGOAL-arm64-method-value-iphoneos-build \
+  -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=iOS \
+  -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64 \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=18.0 \
+  -DOPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY=ON -DBUILD_TESTING=OFF
+
+cmake --build /private/tmp/GOALPadOpenGOAL-arm64-method-value-iphoneos-build \
+  --target jak1-data-arena -j 4
+
+xcrun ar -t /private/tmp/GOALPadOpenGOAL-arm64-method-value-iphoneos-build/libjak1-data-arena.a
+file /private/tmp/GOALPadOpenGOAL-arm64-method-value-iphoneos-build/libjak1-data-arena.a
+xcrun nm -g /private/tmp/GOALPadOpenGOAL-arm64-method-value-iphoneos-build/libjak1-data-arena.a
+
+cd /private/tmp/goalpad-method-iphoneos.lQaWHf
+xcrun ar -x /private/tmp/GOALPadOpenGOAL-arm64-method-value-iphoneos-build/libjak1-data-arena.a
+file data_arena.cpp.o
+xcrun vtool -show-build data_arena.cpp.o
+xcrun nm -u data_arena.cpp.o
+```
+
+The fresh configure and `jak1-data-arena` build both passed. The archive
+inspections reported one ARM64 Mach-O object whose build version is iOS minimum
+18.0 with SDK 26.5. It exports
+`initialize_data_arena_header`, `find_data_arena_symbol_value_cell`, and
+`read_data_arena_basic_method_value`, and imports only `bzero`, `memchr`, and
+`memcmp`. This remains static-library compatibility evidence only: no app or
+runtime integration, signing, simulator, or physical-device validation occurred
+in Checkpoint 17.
+
+Commit B is the next task: bind the exact `load-state` method by actual
+`object_type`, `method_id = 9`, raw `method_value`, and exact
+`0x82c`/`0x830` sizes to an immutable, statically linked signed entry. Do not
+cast the raw method word to a native address or add JIT; keep the caller-owned
+arena stable and exclusively owned through lookup, binding, and invocation.
