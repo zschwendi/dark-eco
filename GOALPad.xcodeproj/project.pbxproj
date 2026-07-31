@@ -7,16 +7,74 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A72000000000000000000001 /* data_arena.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A72000000000000000000011 /* data_arena.cpp */; };
-		A72000000000000000000002 /* data_arena_arm64_invoker.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A72000000000000000000012 /* data_arena_arm64_invoker.cpp */; };
-		A72000000000000000000003 /* data_arena_arm64_invoker.s in Sources */ = {isa = PBXBuildFile; fileRef = A72000000000000000000013 /* data_arena_arm64_invoker.s */; };
+		A73000000000000000000200 /* common/cross_os_debug/xdbg.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000100 /* common/cross_os_debug/xdbg.cpp */; };
+		A73000000000000000000201 /* common/log/log.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000101 /* common/log/log.cpp */; };
+		A73000000000000000000202 /* common/util/Assert.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000102 /* common/util/Assert.cpp */; };
+		A73000000000000000000203 /* common/util/crc32.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000103 /* common/util/crc32.cpp */; };
+		A73000000000000000000204 /* common/util/diff.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000104 /* common/util/diff.cpp */; };
+		A73000000000000000000205 /* common/util/FileUtil.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000105 /* common/util/FileUtil.cpp */; };
+		A73000000000000000000206 /* common/util/string_util.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000106 /* common/util/string_util.cpp */; };
+		A73000000000000000000207 /* common/util/Timer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000107 /* common/util/Timer.cpp */; };
+		A73000000000000000000208 /* common/util/unicode_util.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000108 /* common/util/unicode_util.cpp */; };
+		A73000000000000000000209 /* common/versions/versions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000109 /* common/versions/versions.cpp */; };
+		A7300000000000000000020A /* third-party/lzokay/lzokay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000000010A /* third-party/lzokay/lzokay.cpp */; };
+		A7300000000000000000020B /* game/kernel/common/fileio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000000010B /* game/kernel/common/fileio.cpp */; };
+		A7300000000000000000020C /* game/kernel/common/kboot.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000000010C /* game/kernel/common/kboot.cpp */; };
+		A7300000000000000000020D /* game/kernel/common/kdgo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000000010D /* game/kernel/common/kdgo.cpp */; };
+		A7300000000000000000020E /* game/kernel/common/kdsnetm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000000010E /* game/kernel/common/kdsnetm.cpp */; };
+		A7300000000000000000020F /* game/kernel/common/klink.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000000010F /* game/kernel/common/klink.cpp */; };
+		A73000000000000000000210 /* game/kernel/common/klisten.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000110 /* game/kernel/common/klisten.cpp */; };
+		A73000000000000000000211 /* game/kernel/common/kmalloc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000111 /* game/kernel/common/kmalloc.cpp */; };
+		A73000000000000000000212 /* game/kernel/common/kmemcard.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000112 /* game/kernel/common/kmemcard.cpp */; };
+		A73000000000000000000213 /* game/kernel/common/kprint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000113 /* game/kernel/common/kprint.cpp */; };
+		A73000000000000000000214 /* game/kernel/common/kscheme.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000114 /* game/kernel/common/kscheme.cpp */; };
+		A73000000000000000000215 /* game/kernel/common/ksocket.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000115 /* game/kernel/common/ksocket.cpp */; };
+		A73000000000000000000216 /* game/kernel/jak1/fileio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000116 /* game/kernel/jak1/fileio.cpp */; };
+		A73000000000000000000217 /* game/kernel/jak1/kdgo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000117 /* game/kernel/jak1/kdgo.cpp */; };
+		A73000000000000000000218 /* game/kernel/jak1/klink.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000118 /* game/kernel/jak1/klink.cpp */; };
+		A73000000000000000000219 /* game/kernel/jak1/klisten.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000000119 /* game/kernel/jak1/klisten.cpp */; };
+		A7300000000000000000021A /* game/kernel/jak1/kprint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000000011A /* game/kernel/jak1/kprint.cpp */; };
+		A7300000000000000000021B /* game/kernel/jak1/kscheme.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000000011B /* game/kernel/jak1/kscheme.cpp */; };
+		A7300000000000000000021C /* game/sce/sif_ee_memcard.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000000011C /* game/sce/sif_ee_memcard.cpp */; };
+		A7300000000000000000021D /* game/kernel/core/kernel_core.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000000011D /* game/kernel/core/kernel_core.cpp */; };
+		A7300000000000000000021E /* game/kernel/core/desktop_seams.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000000011E /* game/kernel/core/desktop_seams.cpp */; };
+		A7300000000000000000021F /* game/kernel/asm_funcs_arm64.s in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000000011F /* game/kernel/asm_funcs_arm64.s */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		92C2B202301C0D2F0025E4D5 /* GOALPad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GOALPad.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A72000000000000000000011 /* data_arena.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = data_arena.cpp; sourceTree = "<group>"; };
-		A72000000000000000000012 /* data_arena_arm64_invoker.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = data_arena_arm64_invoker.cpp; sourceTree = "<group>"; };
-		A72000000000000000000013 /* data_arena_arm64_invoker.s */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm; path = data_arena_arm64_invoker.s; sourceTree = "<group>"; };
+		A73000000000000000000100 /* common/cross_os_debug/xdbg.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = xdbg.cpp; path = common/cross_os_debug/xdbg.cpp; sourceTree = "<group>"; };
+		A73000000000000000000101 /* common/log/log.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = log.cpp; path = common/log/log.cpp; sourceTree = "<group>"; };
+		A73000000000000000000102 /* common/util/Assert.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Assert.cpp; path = common/util/Assert.cpp; sourceTree = "<group>"; };
+		A73000000000000000000103 /* common/util/crc32.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = crc32.cpp; path = common/util/crc32.cpp; sourceTree = "<group>"; };
+		A73000000000000000000104 /* common/util/diff.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = diff.cpp; path = common/util/diff.cpp; sourceTree = "<group>"; };
+		A73000000000000000000105 /* common/util/FileUtil.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = FileUtil.cpp; path = common/util/FileUtil.cpp; sourceTree = "<group>"; };
+		A73000000000000000000106 /* common/util/string_util.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = string_util.cpp; path = common/util/string_util.cpp; sourceTree = "<group>"; };
+		A73000000000000000000107 /* common/util/Timer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Timer.cpp; path = common/util/Timer.cpp; sourceTree = "<group>"; };
+		A73000000000000000000108 /* common/util/unicode_util.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = unicode_util.cpp; path = common/util/unicode_util.cpp; sourceTree = "<group>"; };
+		A73000000000000000000109 /* common/versions/versions.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = versions.cpp; path = common/versions/versions.cpp; sourceTree = "<group>"; };
+		A7300000000000000000010A /* third-party/lzokay/lzokay.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = lzokay.cpp; path = third-party/lzokay/lzokay.cpp; sourceTree = "<group>"; };
+		A7300000000000000000010B /* game/kernel/common/fileio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = fileio.cpp; path = game/kernel/common/fileio.cpp; sourceTree = "<group>"; };
+		A7300000000000000000010C /* game/kernel/common/kboot.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kboot.cpp; path = game/kernel/common/kboot.cpp; sourceTree = "<group>"; };
+		A7300000000000000000010D /* game/kernel/common/kdgo.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kdgo.cpp; path = game/kernel/common/kdgo.cpp; sourceTree = "<group>"; };
+		A7300000000000000000010E /* game/kernel/common/kdsnetm.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kdsnetm.cpp; path = game/kernel/common/kdsnetm.cpp; sourceTree = "<group>"; };
+		A7300000000000000000010F /* game/kernel/common/klink.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = klink.cpp; path = game/kernel/common/klink.cpp; sourceTree = "<group>"; };
+		A73000000000000000000110 /* game/kernel/common/klisten.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = klisten.cpp; path = game/kernel/common/klisten.cpp; sourceTree = "<group>"; };
+		A73000000000000000000111 /* game/kernel/common/kmalloc.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kmalloc.cpp; path = game/kernel/common/kmalloc.cpp; sourceTree = "<group>"; };
+		A73000000000000000000112 /* game/kernel/common/kmemcard.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kmemcard.cpp; path = game/kernel/common/kmemcard.cpp; sourceTree = "<group>"; };
+		A73000000000000000000113 /* game/kernel/common/kprint.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kprint.cpp; path = game/kernel/common/kprint.cpp; sourceTree = "<group>"; };
+		A73000000000000000000114 /* game/kernel/common/kscheme.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kscheme.cpp; path = game/kernel/common/kscheme.cpp; sourceTree = "<group>"; };
+		A73000000000000000000115 /* game/kernel/common/ksocket.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ksocket.cpp; path = game/kernel/common/ksocket.cpp; sourceTree = "<group>"; };
+		A73000000000000000000116 /* game/kernel/jak1/fileio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = fileio.cpp; path = game/kernel/jak1/fileio.cpp; sourceTree = "<group>"; };
+		A73000000000000000000117 /* game/kernel/jak1/kdgo.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kdgo.cpp; path = game/kernel/jak1/kdgo.cpp; sourceTree = "<group>"; };
+		A73000000000000000000118 /* game/kernel/jak1/klink.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = klink.cpp; path = game/kernel/jak1/klink.cpp; sourceTree = "<group>"; };
+		A73000000000000000000119 /* game/kernel/jak1/klisten.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = klisten.cpp; path = game/kernel/jak1/klisten.cpp; sourceTree = "<group>"; };
+		A7300000000000000000011A /* game/kernel/jak1/kprint.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kprint.cpp; path = game/kernel/jak1/kprint.cpp; sourceTree = "<group>"; };
+		A7300000000000000000011B /* game/kernel/jak1/kscheme.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kscheme.cpp; path = game/kernel/jak1/kscheme.cpp; sourceTree = "<group>"; };
+		A7300000000000000000011C /* game/sce/sif_ee_memcard.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sif_ee_memcard.cpp; path = game/sce/sif_ee_memcard.cpp; sourceTree = "<group>"; };
+		A7300000000000000000011D /* game/kernel/core/kernel_core.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kernel_core.cpp; path = game/kernel/core/kernel_core.cpp; sourceTree = "<group>"; };
+		A7300000000000000000011E /* game/kernel/core/desktop_seams.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = desktop_seams.cpp; path = game/kernel/core/desktop_seams.cpp; sourceTree = "<group>"; };
+		A7300000000000000000011F /* game/kernel/asm_funcs_arm64.s */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm; name = asm_funcs_arm64.s; path = game/kernel/asm_funcs_arm64.s; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -42,7 +100,7 @@
 			isa = PBXGroup;
 			children = (
 				92C2B204301C0D2F0025E4D5 /* GOALPad */,
-				A72000000000000000000020 /* OpenGOAL Jak 1 Runtime */,
+				A73000000000000000000000 /* OpenGOAL Jak 1 Kernel Core */,
 				92C2B203301C0D2F0025E4D5 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -55,15 +113,44 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		A72000000000000000000020 /* OpenGOAL Jak 1 Runtime */ = {
+		A73000000000000000000000 /* OpenGOAL Jak 1 Kernel Core */ = {
 			isa = PBXGroup;
 			children = (
-				A72000000000000000000011 /* data_arena.cpp */,
-				A72000000000000000000012 /* data_arena_arm64_invoker.cpp */,
-				A72000000000000000000013 /* data_arena_arm64_invoker.s */,
+				A73000000000000000000100 /* common/cross_os_debug/xdbg.cpp */,
+				A73000000000000000000101 /* common/log/log.cpp */,
+				A73000000000000000000102 /* common/util/Assert.cpp */,
+				A73000000000000000000103 /* common/util/crc32.cpp */,
+				A73000000000000000000104 /* common/util/diff.cpp */,
+				A73000000000000000000105 /* common/util/FileUtil.cpp */,
+				A73000000000000000000106 /* common/util/string_util.cpp */,
+				A73000000000000000000107 /* common/util/Timer.cpp */,
+				A73000000000000000000108 /* common/util/unicode_util.cpp */,
+				A73000000000000000000109 /* common/versions/versions.cpp */,
+				A7300000000000000000010A /* third-party/lzokay/lzokay.cpp */,
+				A7300000000000000000010B /* game/kernel/common/fileio.cpp */,
+				A7300000000000000000010C /* game/kernel/common/kboot.cpp */,
+				A7300000000000000000010D /* game/kernel/common/kdgo.cpp */,
+				A7300000000000000000010E /* game/kernel/common/kdsnetm.cpp */,
+				A7300000000000000000010F /* game/kernel/common/klink.cpp */,
+				A73000000000000000000110 /* game/kernel/common/klisten.cpp */,
+				A73000000000000000000111 /* game/kernel/common/kmalloc.cpp */,
+				A73000000000000000000112 /* game/kernel/common/kmemcard.cpp */,
+				A73000000000000000000113 /* game/kernel/common/kprint.cpp */,
+				A73000000000000000000114 /* game/kernel/common/kscheme.cpp */,
+				A73000000000000000000115 /* game/kernel/common/ksocket.cpp */,
+				A73000000000000000000116 /* game/kernel/jak1/fileio.cpp */,
+				A73000000000000000000117 /* game/kernel/jak1/kdgo.cpp */,
+				A73000000000000000000118 /* game/kernel/jak1/klink.cpp */,
+				A73000000000000000000119 /* game/kernel/jak1/klisten.cpp */,
+				A7300000000000000000011A /* game/kernel/jak1/kprint.cpp */,
+				A7300000000000000000011B /* game/kernel/jak1/kscheme.cpp */,
+				A7300000000000000000011C /* game/sce/sif_ee_memcard.cpp */,
+				A7300000000000000000011D /* game/kernel/core/kernel_core.cpp */,
+				A7300000000000000000011E /* game/kernel/core/desktop_seams.cpp */,
+				A7300000000000000000011F /* game/kernel/asm_funcs_arm64.s */,
 			);
-			name = "OpenGOAL Jak 1 Runtime";
-			path = OpenGOAL/game/kernel/jak1;
+			name = "OpenGOAL Jak 1 Kernel Core";
+			path = OpenGOAL;
 			sourceTree = SOURCE_ROOT;
 		};
 /* End PBXGroup section */
@@ -140,9 +227,38 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A72000000000000000000001 /* data_arena.cpp in Sources */,
-				A72000000000000000000002 /* data_arena_arm64_invoker.cpp in Sources */,
-				A72000000000000000000003 /* data_arena_arm64_invoker.s in Sources */,
+				A73000000000000000000200 /* common/cross_os_debug/xdbg.cpp in Sources */,
+				A73000000000000000000201 /* common/log/log.cpp in Sources */,
+				A73000000000000000000202 /* common/util/Assert.cpp in Sources */,
+				A73000000000000000000203 /* common/util/crc32.cpp in Sources */,
+				A73000000000000000000204 /* common/util/diff.cpp in Sources */,
+				A73000000000000000000205 /* common/util/FileUtil.cpp in Sources */,
+				A73000000000000000000206 /* common/util/string_util.cpp in Sources */,
+				A73000000000000000000207 /* common/util/Timer.cpp in Sources */,
+				A73000000000000000000208 /* common/util/unicode_util.cpp in Sources */,
+				A73000000000000000000209 /* common/versions/versions.cpp in Sources */,
+				A7300000000000000000020A /* third-party/lzokay/lzokay.cpp in Sources */,
+				A7300000000000000000020B /* game/kernel/common/fileio.cpp in Sources */,
+				A7300000000000000000020C /* game/kernel/common/kboot.cpp in Sources */,
+				A7300000000000000000020D /* game/kernel/common/kdgo.cpp in Sources */,
+				A7300000000000000000020E /* game/kernel/common/kdsnetm.cpp in Sources */,
+				A7300000000000000000020F /* game/kernel/common/klink.cpp in Sources */,
+				A73000000000000000000210 /* game/kernel/common/klisten.cpp in Sources */,
+				A73000000000000000000211 /* game/kernel/common/kmalloc.cpp in Sources */,
+				A73000000000000000000212 /* game/kernel/common/kmemcard.cpp in Sources */,
+				A73000000000000000000213 /* game/kernel/common/kprint.cpp in Sources */,
+				A73000000000000000000214 /* game/kernel/common/kscheme.cpp in Sources */,
+				A73000000000000000000215 /* game/kernel/common/ksocket.cpp in Sources */,
+				A73000000000000000000216 /* game/kernel/jak1/fileio.cpp in Sources */,
+				A73000000000000000000217 /* game/kernel/jak1/kdgo.cpp in Sources */,
+				A73000000000000000000218 /* game/kernel/jak1/klink.cpp in Sources */,
+				A73000000000000000000219 /* game/kernel/jak1/klisten.cpp in Sources */,
+				A7300000000000000000021A /* game/kernel/jak1/kprint.cpp in Sources */,
+				A7300000000000000000021B /* game/kernel/jak1/kscheme.cpp in Sources */,
+				A7300000000000000000021C /* game/sce/sif_ee_memcard.cpp in Sources */,
+				A7300000000000000000021D /* game/kernel/core/kernel_core.cpp in Sources */,
+				A7300000000000000000021E /* game/kernel/core/desktop_seams.cpp in Sources */,
+				A7300000000000000000021F /* game/kernel/asm_funcs_arm64.s in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -278,9 +394,16 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"FMT_HEADER_ONLY=1",
+				);
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/OpenGOAL",
+					"$(SRCROOT)/OpenGOAL/third-party",
+					"$(SRCROOT)/OpenGOAL/third-party/fmt/include",
+					"$(SRCROOT)/OpenGOAL/third-party/SDL/include",
 				);
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -327,9 +450,16 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"FMT_HEADER_ONLY=1",
+				);
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/OpenGOAL",
+					"$(SRCROOT)/OpenGOAL/third-party",
+					"$(SRCROOT)/OpenGOAL/third-party/fmt/include",
+					"$(SRCROOT)/OpenGOAL/third-party/SDL/include",
 				);
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;

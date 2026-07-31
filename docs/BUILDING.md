@@ -19,10 +19,14 @@ git submodule update --init --recursive
 
 The authoritative child is the dedicated public fork
 `https://github.com/zschwendi/jak-pad.git`, branch
-`goalpad/arm64-aot-0044`, pinned by the parent gitlink at
-`9eecb9c3193ed8cb5175c9199cecbe9cfd2baa42`. Do not substitute a different
+`goalpad/play-iosruntime`, pinned by the parent gitlink at
+`7f69d095012c8af64f61bd55dbfa12a8067183a4`. Do not substitute a different
 OpenGOAL checkout when recording validation results. The `sync` step updates
 existing clones that still remember the former upstream URL.
+
+That branch descends from the previously pinned
+`9eecb9c3193ed8cb5175c9199cecbe9cfd2baa42` and adds `game/kernel/core/`, the
+portable `jak1-kernel-core` library described below.
 
 ## Build the application
 
@@ -108,6 +112,58 @@ signature, not distribution or App Store evidence. The local Xcode-managed
 profile expires at `2026-08-06T23:51:59Z`. No physical-device installation or
 execution was performed for this checkpoint; treat the Release output as
 static build/signing evidence only.
+
+## The real Jak 1 kernel in the app
+
+**Implemented.** The app target compiles the `jak1-kernel-core` source set
+directly out of the `OpenGOAL/` submodule. There is no prebuilt archive, no
+generated framework, and no absolute path in the project file: the Xcode group
+`OpenGOAL Jak 1 Kernel Core` is rooted at `$(SRCROOT)/OpenGOAL` and its member
+list mirrors `JAK1_KERNEL_CORE_SOURCES` in
+`OpenGOAL/game/kernel/core/kernel_core.cmake`. Keep the two lists in step when
+either changes. `OpenGOAL/` sits outside the `GOALPad/`
+`PBXFileSystemSynchronizedRootGroup`, so those files are listed explicitly;
+everything under `GOALPad/` is still picked up automatically.
+
+The target adds `FMT_HEADER_ONLY=1` and four header search paths
+(`OpenGOAL`, `OpenGOAL/third-party`, `OpenGOAL/third-party/fmt/include`,
+`OpenGOAL/third-party/SDL/include`). The SDL path only satisfies a declaration
+include reached through `game/kernel/common/kmachine.h`; no SDL code is
+compiled and no SDL library is linked.
+
+`GOALPadRuntimeCore.{hpp,cpp}` wraps the C entry point in
+`OpenGOAL/game/kernel/core/kernel_core.h`. `GOALPadRuntimeBridge.{h,mm}`
+exposes exactly two operations to Swift — `startKernel` and `stopKernel` — plus
+a read-only status object. Startup is all-or-nothing: any failure, including a
+fundamental type that cannot be read back out of the heap, tears the session
+down before returning, and no C++ exception can reach Objective-C.
+
+On launch the app maps 128 MiB of EE main memory, initializes the global and
+debug kernel heaps, and runs `jak1::InitSymbolAndTypes()`. The on-screen
+readout is the live state, not a fixture. Observed on the iPad Pro 11-inch (M5)
+simulator and identical to the ARM64 macOS host smoke test: global heap base
+`#x0013fd20`, current `#x001c1f2a`, 533002 bytes used; `s7` `#x0018fe04`; 90
+hashed symbols; and the bootstrapped `object`, `structure`, `basic`, `symbol`,
+`type`, `string`, `function`, and `pair` types read out of the heap.
+
+**Known limitation.** `PROT_EXEC` is refused for anonymous mappings on both
+ARM64 macOS and iOS, so the readout reports `PROT_EXEC granted: NO`. No native
+code can execute out of the GOAL heap; that remains the AOT track's problem.
+The kernel also has no file access — `ee::sceOpen` and the rest of the desktop
+seams in `OpenGOAL/game/kernel/core/desktop_seams.cpp` abort loudly — so no
+game data is loaded.
+
+Run the host smoke test for the same values outside the app:
+
+```sh
+cd OpenGOAL
+cmake --preset=Release-macos-arm64-clang
+cmake --build build/Release/bin -j 4 --target jak1-kernel-core-smoke-test
+./build/Release/bin/game/jak1-kernel-core-smoke-test
+```
+
+It is also registered with CTest, so `ctest --output-on-failure` in
+`OpenGOAL/build/Release/bin` covers it alongside the rest of the suite.
 
 ## Build the pinned OpenGOAL ARM64 host baseline
 
