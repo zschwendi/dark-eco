@@ -229,9 +229,18 @@ Current progress:
 - The false-form artifact passes 6 focused and 692 non-listener tests, executes
   through the static state wrapper on ARM64 macOS and the dedicated M5
   simulator, and is installed in a normally signed physical build.
-- Physical false-form execution is deferred until the maintainer explicitly
-  schedules a device pass. ARM64 general function and function-call code
-  generation remain unsupported.
+- Child commit `92c8f975efc9741c9e6a4bc4b0086f131ac9aefd` adds named-function
+  AOT selection and compiles the complete real Jak 1 `false-func` definition.
+  Empty `IR_ValueReset` is treated as function-entry metadata while the
+  selected body remains exactly `mov x0, x21; ret`.
+- The complete-function checkpoint passes 9 focused and 695 non-listener
+  tests, executes through the static state wrapper on ARM64 macOS and the
+  dedicated M5 simulator, and is present in a normally signed generic iOS
+  build. Its top-level `define` and live GOAL symbol installation remain
+  explicitly unsupported.
+- Physical execution of the false-form and complete-function checkpoints is
+  deferred until the maintainer explicitly schedules a device pass. ARM64
+  general function and function-call code generation remain unsupported.
 
 ## Stage 4 — Replace the desktop executable-object model
 
@@ -510,20 +519,28 @@ Operating rules:
 
 ## Current checkpoint
 
-Stage 2 is complete. Stages 1 and 3 are active in parallel.
+Stage 2 is complete. Stages 1, 3, and the first Stage 4 artifact boundary are
+active in parallel.
 
 Stage 1 is blocked on the durable fork owner and working GitHub authentication.
 Until publication, keep the official submodule pin clean and preserve the
 verified child commit through the repository patch.
 
-The next Stage 3 actions are:
+The next actions are:
 
-1. Compile the full real Jak 1 `false-func` in a temporary fixture, compare its
-   first deterministic AOT failure with the nearby real `identity` function,
-   and implement only the smaller IR/function/static/artifact boundary.
-2. Keep unsupported named symbols, statics, relocation, and calls explicit
-   until real Jak 1 source requires each boundary.
-3. Keep x86 behavior, the 692-test non-network suite, ARM64 host tools, and the
+1. Define the smallest build-time AOT export record that maps the compiled
+   GOAL name `false-func` to its normally linked Mach-O entry without using the
+   desktop V3 runtime linker or storing a native pointer in the legacy
+   32-bit-offset symbol representation.
+2. Generate immutable export metadata alongside signed text and validate it
+   through a tiny app-local registry. This is build-time binding evidence, not
+   yet live GOAL symbol-table initialization.
+3. Then compile the complete real `identity` function, adding only the required
+   GPR `IR_RegSet`/Apple-ABI parameter seam.
+4. Keep unsupported statics, general relocations, calls, saved registers,
+   spills, and stack locals explicit until a real Jak 1 boot dependency
+   requires each boundary.
+5. Keep x86 behavior, the 695-test non-network suite, ARM64 host tools, and the
    signed app path healthy after each increment.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.

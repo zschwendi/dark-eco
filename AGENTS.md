@@ -131,6 +131,23 @@ Do not commit fixtures extracted from retail game data.
 
 Simulator results are useful but are not proof of physical-device compatibility.
 
+### Physical-device access
+
+Use simulators for routine build, launch, rendering, and runtime validation.
+The local **iPad Pro 11-inch (M5)** simulator is explicitly approved for
+routine use without additional permission; keep its resource use bounded and
+shut it down after validation when it was not already running.
+Do not install, launch, attach logs, capture the screen, or otherwise test on
+the physical device named **Z iPad Pro** unless the maintainer explicitly asks
+for physical-device testing in the current request. Do not infer permission
+from an earlier request or from the device being paired and available.
+
+A generic signed iOS build that does not access the physical device is allowed
+when needed to validate compilation and code signing. Record it as build
+evidence only. When a milestone still requires physical-device evidence, leave
+that gate pending and ask the maintainer to schedule it rather than accessing
+the device automatically.
+
 ## iPadOS executable-code policy
 
 Treat iPadOS code signing as a primary architectural constraint.

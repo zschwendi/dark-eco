@@ -80,6 +80,8 @@ Stage 3 child: 149840cfa8cb4cecd62c8f5c7ffe5a8b8c26ce31
 Stage 3 patch: patches/OpenGOAL/0002-Make-function-call-clobbers-target-aware-AI-assisted.patch
 Jak 1 false child: 32cf26aef8c61cecdceeb07ed90e0296e1e8e052
 Jak 1 false patch: patches/OpenGOAL/0003-Compile-Jak-1-false-form-for-ARM64-AI-assisted.patch
+Full false-func child: 92c8f975efc9741c9e6a4bc4b0086f131ac9aefd
+Full false-func patch: patches/OpenGOAL/0004-Compile-full-Jak-1-false-function-for-ARM64-AOT-AI-assisted.patch
 ```
 
 Restore it into an isolated worktree:
@@ -97,17 +99,21 @@ git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
 
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0003-Compile-Jak-1-false-form-for-ARM64-AI-assisted.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0004-Compile-full-Jak-1-false-function-for-ARM64-AOT-AI-assisted.patch"
 ```
 
 If that branch or worktree already exists, inspect and reuse it rather than
 deleting it. Do not move the parent repository's official submodule gitlink to
 the unpublished child commit.
 
-The restored commits are patch-equivalent to `79f22008`, `149840cf`, and
-`32cf26ae`, but `git am` normally assigns new committer metadata and therefore
-different commit SHAs. The exact objects are available only in a checkout that
-already contains the original child commits. Compare the resulting tree or
-stable patch identities when reconstructing them from the preserved patches.
+The restored commits are patch-equivalent to `79f22008`, `149840cf`,
+`32cf26ae`, and `92c8f975`, but `git am` normally assigns new committer
+metadata and therefore different commit SHAs. The exact objects are available
+only in a checkout that already contains the original child commits. Compare
+the resulting tree or stable patch identities when reconstructing them from
+the preserved patches.
 
 Configure and build the affected tools serially enough to avoid excess memory
 pressure:
@@ -188,6 +194,37 @@ xcrun llvm-objdump --macho --disassemble \
 The expected function is exactly `mov x0, x21; ret`. It returns OpenGOAL
 `#f`, which is the X21 `st` base at offset zero.
 
+Generate and compare the selected body from the complete real Jak 1
+`false-func` definition:
+
+```sh
+/private/tmp/GOALPadOpenGOAL-stage2-build/goalc/goalc-aot \
+  --project-path /private/tmp/GOALPadOpenGOAL-stage2 \
+  --input \
+  /private/tmp/GOALPadOpenGOAL-stage2/test/goalc/source_templates/arm64-aot/full-false-func-from-jak1-gcommon.gc \
+  --function false-func \
+  --output /private/tmp/goalpad_aot_full_false_func.s \
+  --symbol goalpad_aot_false_func
+
+cmp /private/tmp/goalpad_aot_full_false_func.s \
+  GOALPad/Native/Generated/OpenGOALJak1FalseFunc.s
+
+xcrun --sdk iphoneos clang -arch arm64 \
+  -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
+  -c /private/tmp/goalpad_aot_full_false_func.s \
+  -o /private/tmp/goalpad_aot_full_false_func.o
+
+xcrun llvm-objdump --macho --disassemble \
+  /private/tmp/goalpad_aot_full_false_func.o
+```
+
+The selected body is exactly `mov x0, x21; ret`. The compiler processes the
+complete `defun`, but the current artifact contains only the named signed text
+function. It does not yet apply the surrounding top-level `define` or install
+`false-func` in a live GOAL symbol table. That requires the Stage 4 static
+export and runtime-data model; do not substitute the desktop V3 runtime
+linker.
+
 ## Validate the static OpenGOAL ARM64 call boundary
 
 The app-local boundary establishes the compiler contract's special registers:
@@ -199,11 +236,11 @@ caller's callee-saved values:
 ```sh
 xcrun --sdk macosx clang -arch arm64 \
   tests/native/GOALPadAOTStateHarness.c \
-  GOALPad/Native/Generated/OpenGOALJak1False.s \
+  GOALPad/Native/Generated/OpenGOALJak1FalseFunc.s \
   GOALPad/Native/GOALPadGoalStateWrapper.s \
-  -o /private/tmp/goalpad_jak1_false_state_harness
+  -o /private/tmp/goalpad_jak1_full_false_func_state_harness
 
-/private/tmp/goalpad_jak1_false_state_harness
+/private/tmp/goalpad_jak1_full_false_func_state_harness
 ```
 
 Exit `0` is required. These values are never dereferenced, so this test proves
