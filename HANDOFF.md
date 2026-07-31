@@ -1474,9 +1474,10 @@ SHAs because committer metadata changes. `79f22008`, `149840cf`, `32cf26ae`,
 the current isolated worktree; compare content and patch identity when
 reconstructing them elsewhere.
 
-Do not use proprietary inputs yet. The next scoped task is a narrow RW-only
-OpenGOAL data-arena/header proof; it still needs no retail game data and must
-not access the physical iPad without current explicit permission.
+This pre-checkpoint instruction is superseded by Checkpoint 5 below. The
+narrow RW-only OpenGOAL data-arena/header proof was completed without retail
+data or physical-device access; its next seam and remaining publication gate
+are recorded there.
 
 ## Checkpoint 5: portable Jak 1 data-arena header
 
@@ -1505,6 +1506,25 @@ git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0015-fix-kernel-preserve-canonical-Jak-1-data-arena-bound.patch"
 ```
+
+### Delegation and review
+
+Four non-overlapping lanes produced this checkpoint:
+
+- `arm64_next_seam` implemented and validated the portable data-arena proof in
+  its dedicated OpenGOAL worktree.
+- `arm64_codegen` reviewed heap semantics, CMake behavior, and patch-series
+  preservation.
+- `false_func_failure` performed independent regression, documentation, and
+  fork/reproducibility audits.
+- The root agent serialized the broad runtime retry, patch reconstruction, and
+  parent integration, preserving memory headroom and avoiding conflicting
+  worktree edits.
+
+The final `arm64_codegen` and `false_func_failure` reviews were clean after
+the canonical-bounds and host-test-gate fixes in 0014/0015. They retain the
+iPhoneOS CMake/OpenSSL stop and broad-runtime permission failure as explicit
+validation limits, not as passing evidence or source regressions.
 
 ### Implemented data-only boundary
 

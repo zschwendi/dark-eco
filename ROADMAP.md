@@ -342,6 +342,19 @@ Exit gate:
 - GOALPad initializes and tears down real OpenGOAL runtime state.
 - The ARM64 macOS development target and upstream host tools remain healthy.
 
+Current progress:
+
+- Child commits `5c536859`, `b094144b`, and `5495181f` verify a portable,
+  caller-owned Jak 1 data-arena header through the preserved 0013-0015 patch
+  series. The direct source compile produced an iPhoneOS ARM64 object, and the
+  focused data tests and pure compiler checks passed on the host.
+- This is only a partial data boundary: it establishes canonical heap and
+  symbol-table offsets in caller-owned storage, but does not bind
+  `g_ee_main_mem`, initialize native kernel/symbol globals, create types or
+  trampolines, link game data, execute GOAL code, or initialize an app runtime.
+  It therefore does not satisfy this stage's runtime initialization or
+  cross-compiled-library exit gates.
+
 ## Stage 6 — Complete the Apple platform layer
 
 Outcome: OpenGOAL receives the iPad services required for sustained gameplay.
