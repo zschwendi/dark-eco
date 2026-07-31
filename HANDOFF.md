@@ -4,14 +4,16 @@ Date: 2026-07-30
 
 Branch: `feat/ipados-native-boot`
 
-Status: Partially complete. Stage 2 is implemented and verified. Stage 3 has
-its first compiler-safety checkpoint: function-call clobber metadata and both
-register allocators now honor the selected instruction set. The real
-top-level GOAL expression `42` compiles to ahead-of-time ARM64 assembly, links
-into GOALPad before code signing, and executes through a static X20/X21/X22
-OpenGOAL state boundary on ARM64 macOS, the iPad Pro M5 simulator, and the
-normally signed physical iPad Pro M5 build. This proof uses synthetic register
-values and intentionally does not claim general OpenGOAL runtime
+Status: Partially complete. Stage 2 is implemented and verified. Stage 3 now
+has target-aware call-clobber metadata and compiles the real Jak 1 `'#f`
+expression from `false-func` to `mov x0, x21; ret`. GOALPad executes that
+artifact through the static X20/X21/X22 boundary on ARM64 macOS and the
+dedicated iPad Pro M5 simulator. A normally signed physical build installed
+successfully; physical execution remains unverified because two launch
+attempts found the iPad locked. The maintainer subsequently prohibited further
+physical Z iPad Pro testing unless explicitly requested in the current task;
+the local iPad Pro 11-inch (M5) simulator is the routine validation target.
+This proof uses synthetic state and does not claim general OpenGOAL runtime
 initialization or Jak 1 data loading.
 
 ## Active roadmap and delegated audit
@@ -35,6 +37,8 @@ maintainer-requested fast `gpt-5.6-terra` model with `xhigh` reasoning:
 | OpenGOAL state-boundary audits | X20/X21/X22 semantics, ABI preservation, Xcode integration, and probe coverage | Confirmed the app-local static wrapper, 16-byte stack alignment, register snapshots/restoration, and ARM64-only target scope |
 | Stage 3 call-clobber audit | ARM64/x86 ABI sets, register identity, and v1/v2 allocator coverage | Confirmed the implementation and prompted exact literal-set assertions instead of a self-referential test |
 | Stage 3 source-boundary audit | First real Jak 1 source form, IR seam, and ARM64 emitter operation | Selected the `'#f` body of `false-func` in `gcommon.gc`; the next bounded artifact should be `mov x0, x21; ret` |
+| Stage 3 false-form implementation | Narrow symbol-pointer lowering, provenance fixture, compiler tests, and signed-app integration | Compiled real Jak 1 `'#f`, preserved all other symbol rejection, and made the app return its supplied X21 `st` value |
+| Stage 3 false-form review | x86 semantic parity, ARM64 bytes, fixture provenance, and app boundary | Confirmed `#f == st+0`, `mov x0, x21; ret`, byte checks, wrapper reuse, and no renderer or lifecycle coupling |
 
 The implementation agents edited non-overlapping files in the isolated
 OpenGOAL worktree. The primary agent reviewed and integrated every diff, fixed
@@ -73,6 +77,20 @@ The larger future-facing notes are recorded in
 `docs/APPLE_PLATFORM_DIRECTION.md`; they are constraints against avoidable
 coupling, not current implementation scope.
 
+## Device validation rule
+
+Use the local iPad Pro 11-inch (M5) simulator freely for routine app build,
+launch, log, screenshot, and runtime validation. Keep memory use bounded and
+shut down that simulator after a validation pass when it was not already
+running.
+
+Do not access the physical device named **Z iPad Pro** unless the maintainer
+explicitly asks for physical-device testing in the current request. This
+includes install, launch, console/log attachment, screenshot, and other
+CoreDevice actions. A generic signed iOS build that does not access the device
+is allowed and is build/signing evidence only. The authoritative rule is also
+recorded in the workspace `AGENTS.md`.
+
 ## Repository state
 
 The outer workspace is not a Git repository. The checkout is nested:
@@ -88,6 +106,8 @@ copied into, or generated inside the Git checkout.
 Current history:
 
 ```text
+7edf514 Execute Jak 1 false form through signed ARM64 state (AI-assisted)
+cf73386 Preserve target-aware OpenGOAL call metadata (AI-assisted)
 6830cb4 Record physical Stage 2 completion (AI-assisted)
 f13d8f0 Add verified OpenGOAL ARM64 call boundary (AI-assisted)
 821b58c Document Stage 2 validation and Apple platform boundaries (AI-assisted)
@@ -133,6 +153,13 @@ It failed without changing remote state:
 remote: Repository not found.
 fatal: repository 'https://github.com/zschwendi/GOALPad.git/' not found
 ```
+
+After parent commit `cf73386`, another requested push first failed in the
+sandbox with `Could not resolve host: github.com`. The required external
+network escalation was then rejected because the destination remote is still
+unverified. No remote state changed. Do not work around that rejection; the
+maintainer must explicitly confirm the durable destination and authenticate
+it.
 
 ## Checkpoint 1: Apple platform/AOT probe
 
@@ -194,6 +221,8 @@ Commit: 79f22008c3119bf79297f41d586ab4f75725a36e
 Patch: patches/OpenGOAL/0001-Add-minimal-ARM64-GOAL-AOT-proof-AI-assisted.patch
 Stage 3 child: 149840cfa8cb4cecd62c8f5c7ffe5a8b8c26ce31
 Stage 3 patch: patches/OpenGOAL/0002-Make-function-call-clobbers-target-aware-AI-assisted.patch
+Jak 1 false child: 32cf26aef8c61cecdceeb07ed90e0296e1e8e052
+Jak 1 false patch: patches/OpenGOAL/0003-Compile-Jak-1-false-form-for-ARM64-AI-assisted.patch
 ```
 
 The child commit adds:
@@ -234,16 +263,20 @@ Reproducibility hashes:
 a9376d35e97f966dfcced3b4f47a36045ebc60ed98d57833d7da41b0ddfac1ac  OpenGOALConstant42.s
 2f96d9a99f1806825538fdfbd3c5d09b9a2bdc044d58ffbfaac9cf859071c68c  OpenGOAL Stage 2 patch
 23d33b602fdeb2da1cc9e5f47c276e24c2f2c52b86b837e6523338a19c9668d1  OpenGOAL Stage 3 call-clobber patch
+42a8d20a4d9f1b5edd7ef5e5a11d6a0e6239d1cc4d1a1323c9ac6aa5ccffe369  OpenGOALJak1False.s
+fd9ddb6491c6b45250e44169dac84d3b70405b37d87b8b9d76b4c9968be53bcb  OpenGOAL Stage 3 false-form patch
 ```
 
-`GOALPadRuntimeCore.cpp` calls this compiler-generated function through
+`GOALPadRuntimeCore.cpp` now calls the compiler-generated Jak 1 false function
+in `GOALPad/Native/Generated/OpenGOALJak1False.s` through
 `GOALPadGoalStateWrapper.s`. The wrapper establishes X20 as the GOAL
 process/`pp` value, X21 as `st`, and X22 as the GOAL memory offset base,
 captures the state before and after the generated call, and restores the
 caller's callee-saved registers. The core verifies all snapshots, the expected
-instruction bytes, and result `42`. The values are synthetic and are never
-dereferenced. The older handwritten probe remains preserved, but it no longer
-supplies the displayed result.
+instruction bytes, and that the result equals the supplied X21 `st` value
+`0x2002`. The values remain synthetic and are never dereferenced. The earlier
+literal artifact and handwritten probe remain preserved, but neither supplies
+the displayed result.
 
 ## Verified OpenGOAL and Stage 2 compiler
 
@@ -339,6 +372,66 @@ passed; and all 691 non-listener tests passed. The larger count reflects the
 two new Stage 3 tests. No device build was required because this checkpoint
 changes compiler allocation metadata only and does not change the checked-in
 app artifact.
+
+## Verified Stage 3 Jak 1 false-form checkpoint
+
+Child commit `32cf26aef8c61cecdceeb07ed90e0296e1e8e052` adds a
+provenance-preserving fixture containing the `'#f` expression from the body of
+Jak 1 `false-func` in `goal_src/jak1/kernel/gcommon.gc`. The AOT path accepts
+only the original literal `42` or `#f`; `#t`, named symbols, statics, calls,
+and other IR remain rejected. ARM64 `IR_LoadSymbolPointer` implements only
+`#f` by moving X21 `st` to the allocated return register.
+
+```sh
+cmake --build /private/tmp/GOALPadOpenGOAL-stage3-build \
+  --target goalc-test goalc-aot --parallel 4
+
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc-test \
+  --gtest_filter='Arm64Aot.*'
+
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc-test \
+  --gtest_filter='-Listener.*'
+
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc/goalc-aot \
+  --project-path /private/tmp/GOALPadOpenGOAL-stage2 \
+  --input /private/tmp/GOALPadOpenGOAL-stage2/test/goalc/source_templates/arm64-aot/false-from-jak1-gcommon.gc \
+  --output /private/tmp/goalpad_aot_false.s \
+  --symbol goalpad_aot_false
+```
+
+Results: both targets built; all 6 focused tests and all 692 non-listener tests
+passed. The compiler output is exactly:
+
+```text
+mov x0, x21
+ret
+```
+
+The iPhoneOS assembler produced a Mach-O 64-bit ARM64 object and
+`llvm-objdump` confirmed those instructions. `cmp` verified the output is
+byte-identical to `GOALPad/Native/Generated/OpenGOALJak1False.s`.
+
+The host harness exited `0`, and the ARM64 macOS app target built. The
+dedicated M5 simulator built, installed, launched as PID `22771`, and logged:
+
+```text
+GOALPad runtime probe: Signed ARM64 Jak 1 false-form state call verified;
+architecture=arm64; result=8194
+```
+
+The settled screenshot at `/private/tmp/GOALPad-jak1-false-m5.png` visually
+shows the same success and `AOT result: 8,194`. Only the dedicated M5
+simulator was shut down afterward; the already-running user-owned Freemote
+simulator was not changed.
+
+The generic iOS build completed normal Apple Development signing. The signed
+binary contains `_goalpad_aot_false` at `0x4008`, and disassembly confirms
+`mov x0, x21; ret`. Installation on the physical M5 iPad succeeded. Two normal
+launch attempts failed only because SpringBoard reported the device was
+locked. After those attempts, the maintainer directed agents not to access the
+physical Z iPad Pro unless explicitly requested in the current task. Physical
+execution of this new false-form build is therefore deferred; the earlier
+literal Stage 2 build remains the latest physically executed checkpoint.
 
 ## Verified GOALPad targets
 
@@ -497,11 +590,11 @@ build running on the iPad.
 
 ## Confirmed compiler and runtime blockers
 
-At Stage 2:
+At the current Stage 3 checkpoint:
 
-- The exact top-level literal `42` has a target-aware ARM64 compiler path.
-  General functions and almost all other ARM64 IR operations remain
-  unsupported and reject explicitly.
+- The top-level literal `42` and the real Jak 1 `'#f` expression have
+  target-aware ARM64 compiler paths. General functions and almost all other
+  ARM64 IR operations remain unsupported and reject explicitly.
 - Function-call clobber metadata is now target-aware and both ARM64 allocator
   paths preserve live values correctly. ARM64 function-call code generation
   itself remains explicitly unimplemented, so call-bearing GOAL source still
@@ -526,21 +619,23 @@ the next source-driven compiler subset and then live portable kernel state.
 ## Highest-value next checkpoint
 
 1. Choose the durable fork owner and authenticate that GitHub account. Publish
-   child commit `149840cf`, preserve the official `upstream` remote, and only
+   child commit `32cf26ae`, preserve the official `upstream` remote, and only
    then update the parent submodule URL/gitlink to the fetchable fork commit.
-2. Compile the exact `'#f` body of Jak 1 `false-func` from
-   `goal_src/jak1/kernel/gcommon.gc` as the next bounded source fixture.
-   Whitelist only that symbol-pointer IR and lower it to `mov x0, x21; ret`;
-   keep `'#t` and named symbols rejected.
-3. Link the generated false artifact through the existing static state wrapper
-   so the signed app returns its supplied X21 `st` value. Re-run macOS,
-   simulator, signed-device, and physical-iPad execution gates.
-4. Begin the Stage 4 static symbol/data model before any new source slice needs
+2. Compile the full real Jak 1 `false-func` form shown at
+   `goal_src/jak1/kernel/gcommon.gc:173` in a temporary fixture. Preserve its
+   first deterministic AOT failure and compare it with the nearby real
+   `identity` function before choosing the next slice. Add only the smaller
+   first required IR, function-entry, static-symbol, or artifact-model seam.
+3. Begin the Stage 4 static symbol/data model before any new source slice needs
    runtime linking. Keep executable code in signed app text and relocatable
    runtime artifacts data-only.
-5. After those compiler/object boundaries can initialize a kernel subset,
+4. After those compiler/object boundaries can initialize a kernel subset,
    replace the synthetic X20/X21/X22 values with portable real process,
    symbol-table, and GOAL-memory state.
+
+The false-form physical execution gate remains pending. Do not attempt it
+unless the maintainer explicitly schedules physical-device testing in the
+current request.
 
 Do not introduce `MAP_JIT`, writable executable memory, or the desktop V3
 runtime-linker path. Do not broaden this into renderer, camera, or future Apple
@@ -565,6 +660,11 @@ git -C /private/tmp/GOALPadOpenGOAL-stage2 log --oneline -4
   --gtest_filter='-Listener.*'
 ```
 
+Routine Apple runtime validation should use only simulator
+`96C5C21A-B925-4213-82A3-90DCB8518339`. It was shut down after the last pass.
+Do not run `devicectl` against Z iPad Pro unless the maintainer explicitly asks
+for physical testing in that request.
+
 Before making upstream changes, confirm:
 
 - Which GitHub account or organization owns the dedicated OpenGOAL fork.
@@ -585,12 +685,16 @@ git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
 
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0002-Make-function-call-clobbers-target-aware-AI-assisted.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0003-Compile-Jak-1-false-form-for-ARM64-AI-assisted.patch"
 ```
 
 `git am` reconstructs patch-equivalent commits but normally produces different
-SHAs because committer metadata changes. `79f22008` and `149840cf` are the
-exact original child commits in the current isolated worktree; compare content
-and patch identity when reconstructing them elsewhere.
+SHAs because committer metadata changes. `79f22008`, `149840cf`, and
+`32cf26ae` are the exact original child commits in the current isolated
+worktree; compare content and patch identity when reconstructing them
+elsewhere.
 
 Do not use proprietary inputs yet. The next static-wrapper/compiler checkpoint
 still needs only upstream Jak 1 GOAL source and synthetic state.

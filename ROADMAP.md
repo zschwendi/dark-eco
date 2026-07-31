@@ -224,9 +224,14 @@ Current progress:
   SIMD behavior in both allocator versions.
 - `goalc-aot` and `goalc-test` build; all 5 focused tests and all 691
   non-listener tests pass.
-- ARM64 function-call code generation remains unsupported. The next
-  source-driven increment is the real Jak 1 `'#f` expression from
-  `gcommon.gc`, which requires only the symbol-pointer-to-X21 path.
+- Child commit `32cf26aef8c61cecdceeb07ed90e0296e1e8e052` compiles the
+  real Jak 1 `'#f` expression from `gcommon.gc` to `mov x0, x21; ret`.
+- The false-form artifact passes 6 focused and 692 non-listener tests, executes
+  through the static state wrapper on ARM64 macOS and the dedicated M5
+  simulator, and is installed in a normally signed physical build.
+- Physical false-form execution is deferred until the maintainer explicitly
+  schedules a device pass. ARM64 general function and function-call code
+  generation remain unsupported.
 
 ## Stage 4 — Replace the desktop executable-object model
 
@@ -437,7 +442,12 @@ logging, storage, and deterministic integration checks.
 
 ### Physical iPad
 
-Use physical hardware at authoritative gates:
+Physical hardware remains required for authoritative final gates, but agents
+must not access **Z iPad Pro** unless the maintainer explicitly requests a
+physical-device pass in the current task. Until then, leave these gates
+pending and continue routine work on the approved M5 simulator.
+
+When explicitly scheduled, use physical hardware to validate:
 
 - Compiler-produced signed GOAL execution.
 - Metal rendering and presentation.
@@ -508,14 +518,16 @@ verified child commit through the repository patch.
 
 The next Stage 3 actions are:
 
-1. Add a provenance-preserving fixture for the `'#f` body of Jak 1
-   `false-func` in `goal_src/jak1/kernel/gcommon.gc`.
-2. Compile it, preserve the literal-only gate and
-   `IR_LoadSymbolPointer::do_codegen_arm64` failure, and implement only the
-   false-symbol boundary as `mov x0, x21; ret`.
-3. Keep `'#t`, named symbols, statics, relocation, and calls explicitly
-   unsupported until a later real Jak 1 source boundary requires them.
-4. Keep x86 behavior, the 691-test non-network suite, ARM64 host tools, and the
+1. Compile the full real Jak 1 `false-func` in a temporary fixture, compare its
+   first deterministic AOT failure with the nearby real `identity` function,
+   and implement only the smaller IR/function/static/artifact boundary.
+2. Keep unsupported named symbols, statics, relocation, and calls explicit
+   until real Jak 1 source requires each boundary.
+3. Keep x86 behavior, the 692-test non-network suite, ARM64 host tools, and the
    signed app path healthy after each increment.
+
+Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
+Physical Z iPad Pro validation is pending and must not be attempted unless the
+maintainer explicitly requests it in the current task.
 
 No proprietary game data is needed before Stage 8.

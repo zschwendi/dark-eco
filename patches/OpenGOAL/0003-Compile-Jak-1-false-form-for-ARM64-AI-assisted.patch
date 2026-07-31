@@ -1,0 +1,120 @@
+From 32cf26aef8c61cecdceeb07ed90e0296e1e8e052 Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Thu, 30 Jul 2026 19:28:09 -0600
+Subject: [PATCH] Compile Jak 1 false form for ARM64 (AI-assisted)
+
+---
+ goalc/compiler/CodeGenerator.cpp              |  8 +++++--
+ goalc/compiler/IR.cpp                         | 15 +++++++++++-
+ goalc/compiler/IR.h                           |  1 +
+ .../arm64-aot/false-from-jak1-gcommon.gc      |  2 ++
+ test/goalc/test_arm64_aot.cpp                 | 23 ++++++++++++++++++-
+ 5 files changed, 45 insertions(+), 4 deletions(-)
+ create mode 100644 test/goalc/source_templates/arm64-aot/false-from-jak1-gcommon.gc
+
+diff --git a/goalc/compiler/CodeGenerator.cpp b/goalc/compiler/CodeGenerator.cpp
+index fe594d52..56c7daec 100644
+--- a/goalc/compiler/CodeGenerator.cpp
++++ b/goalc/compiler/CodeGenerator.cpp
+@@ -459,10 +459,14 @@ void CodeGenerator::do_goal_function_arm64(FunctionEnv* env, int f_idx) {
+ 
+   const auto& code = env->code();
+   auto* constant = code.size() == 3 ? dynamic_cast<IR_LoadConstant64*>(code.at(0).get()) : nullptr;
+-  if (!constant || constant->value() != 42 || !dynamic_cast<IR_Return*>(code.at(1).get()) ||
++  auto* symbol =
++      code.size() == 3 ? dynamic_cast<IR_LoadSymbolPointer*>(code.at(0).get()) : nullptr;
++  const bool supported_first_instruction =
++      (constant && constant->value() == 42) || (symbol && symbol->name() == "#f");
++  if (!supported_first_instruction || !dynamic_cast<IR_Return*>(code.at(1).get()) ||
+       !dynamic_cast<IR_Null*>(code.at(2).get())) {
+     throw std::runtime_error(
+-        "ARM64 AOT proof only supports IR_LoadConstant64, IR_Return, and IR_Null for literal 42.");
++        "ARM64 AOT proof only supports literal 42 or #f followed by IR_Return and IR_Null.");
+   }
+ 
+   auto* debug = &m_debug_info->function_by_name(env->name());
+diff --git a/goalc/compiler/IR.cpp b/goalc/compiler/IR.cpp
+index 31c39c6c..d56eb2e7 100644
+--- a/goalc/compiler/IR.cpp
++++ b/goalc/compiler/IR.cpp
+@@ -305,7 +305,20 @@ void IR_LoadSymbolPointer::do_codegen_x86(emitter::ObjectGenerator* gen,
+ void IR_LoadSymbolPointer::do_codegen_arm64(emitter::ObjectGenerator* gen,
+                                             const AllocationResult& allocs,
+                                             emitter::IR_Record irec) {
+-  throw std::runtime_error("NYI - IR_LoadSymbolPointer::do_codegen_arm64");
++  if (m_name != "#f") {
++    throw std::runtime_error("ARM64 AOT proof only supports the #f symbol pointer.");
++  }
++  static_assert(false_symbol_offset() == 0, "false symbol location");
++  if (m_dest->ireg().reg_class != RegClass::GPR_64) {
++    throw std::runtime_error("ARM64 AOT proof only supports GPR symbol pointers.");
++  }
++
++  const auto dest_reg = get_reg(m_dest, allocs, irec);
++  if (!dest_reg.is_gpr(gen->instr_set()) || dest_reg == ARM64_REG::SP) {
++    throw std::runtime_error("ARM64 AOT proof requires a non-stack GPR symbol destination.");
++  }
++  const auto st_reg = get_register_info(gen->instr_set()).get_st_reg();
++  gen->add_instr(IGen::mov_gpr64_gpr64(*gen, dest_reg, st_reg), irec);
+ }
+ 
+ /////////////////////
+diff --git a/goalc/compiler/IR.h b/goalc/compiler/IR.h
+index 8961e7b5..81e3424d 100644
+--- a/goalc/compiler/IR.h
++++ b/goalc/compiler/IR.h
+@@ -75,6 +75,7 @@ class IR_LoadSymbolPointer : public IR {
+   void do_codegen_arm64(emitter::ObjectGenerator* gen,
+                         const AllocationResult& allocs,
+                         emitter::IR_Record irec) override;
++  const std::string& name() const { return m_name; }
+ 
+  protected:
+   const RegVal* m_dest = nullptr;
+diff --git a/test/goalc/source_templates/arm64-aot/false-from-jak1-gcommon.gc b/test/goalc/source_templates/arm64-aot/false-from-jak1-gcommon.gc
+new file mode 100644
+index 00000000..d94f6265
+--- /dev/null
++++ b/test/goalc/source_templates/arm64-aot/false-from-jak1-gcommon.gc
+@@ -0,0 +1,2 @@
++;; Exact expression from the body of false-func in goal_src/jak1/kernel/gcommon.gc.
++'#f
+diff --git a/test/goalc/test_arm64_aot.cpp b/test/goalc/test_arm64_aot.cpp
+index cef70718..5de62909 100644
+--- a/test/goalc/test_arm64_aot.cpp
++++ b/test/goalc/test_arm64_aot.cpp
+@@ -79,9 +79,30 @@ TEST(Arm64Aot, compiles_top_level_literal_and_renders_apple_text) {
+             ".subsections_via_symbols\n");
+ }
+ 
+-TEST(Arm64Aot, rejects_source_outside_the_literal_42_proof) {
++TEST(Arm64Aot, compiles_jak1_false_expression_and_renders_apple_text) {
++  Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto source = file_util::read_text_file(file_util::get_file_path(
++      {"test/goalc/source_templates/arm64-aot/false-from-jak1-gcommon.gc"}));
++  const auto code = compiler.compile_top_level_source(source, "false-from-jak1-gcommon");
++
++  EXPECT_EQ(code, (std::vector<u8>{0xe0, 0x03, 0x15, 0xaa, 0xc0, 0x03, 0x5f, 0xd6}));
++
++  const aot::AppleArm64Function function{"goalpad_aot_false", code};
++  EXPECT_EQ(aot::render_apple_arm64_assembly(function),
++            ".section __TEXT,__text,regular,pure_instructions\n"
++            ".p2align 2\n"
++            ".globl _goalpad_aot_false\n"
++            "_goalpad_aot_false:\n"
++            "  .long 0xaa1503e0\n"
++            "  .long 0xd65f03c0\n"
++            ".subsections_via_symbols\n");
++}
++
++TEST(Arm64Aot, rejects_source_outside_the_supported_aot_proof) {
+   Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
+   EXPECT_THROW(compiler.compile_top_level_source("41", "constant-41"), std::runtime_error);
++  EXPECT_THROW(compiler.compile_top_level_source("'#t", "true-from-jak1-gcommon"),
++               std::runtime_error);
+ }
+ 
+ TEST(Arm64Aot, uses_apple_abi_registers_without_goal_specials) {
+-- 
+2.50.1 (Apple Git-155)
+

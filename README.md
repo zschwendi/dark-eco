@@ -15,15 +15,19 @@ binding architecture, scope, and content-separation rules.
   builds for ARM64 macOS, iOS Simulator, and generic iOS device destinations.
 - **Experimental:** A statically linked ARM64 instruction probe verifies that
   executable code can be part of the normally signed application image.
-- **Experimental:** The real OpenGOAL compiler compiles a top-level GOAL
-  literal to deterministic ARM64 assembly. GOALPad links and executes that
-  artifact through a static X20/X21/X22 state boundary on ARM64 macOS, the
-  iPad Pro M5 simulator, and a normally signed physical iPad Pro M5 build.
+- **Experimental:** The real OpenGOAL compiler compiles both the initial
+  top-level literal and the real Jak 1 `'#f` expression from `false-func` to
+  deterministic ARM64 assembly. GOALPad links and executes those artifacts
+  through a static X20/X21/X22 state boundary. The literal is verified on a
+  physical iPad Pro M5; the Jak 1 false form is verified on ARM64 macOS and the
+  dedicated M5 simulator and is installed in a normally signed physical build
+  with physical execution deferred until the maintainer explicitly schedules
+  another device pass.
 - **Planned:** Initialize the full OpenGOAL runtime state, expand the ARM64
   compiler subset, and load user-prepared Jak 1 data.
 
-The current proof executes one intentionally narrow compiler-produced GOAL
-workload with synthetic, non-dereferenced state values. It does not yet load
+The current proof executes intentionally narrow compiler-produced GOAL
+workloads with synthetic, non-dereferenced state values. It does not yet load
 Jak data or boot the general OpenGOAL runtime.
 
 See [Roadmap](ROADMAP.md) for the ten-stage path from the current probe to
