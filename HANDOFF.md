@@ -4,19 +4,21 @@ Date: 2026-07-31
 
 Branch: `feat/ipados-native-boot`
 
-Status: Partially complete. The latest verified implementation checkpoint is
-parent commit `0b413b9c760cae933509499852523fcddb139193`, pushed to
-`origin/feat/ipados-native-boot`. The dedicated public fork is
-`https://github.com/zschwendi/jak-pad.git`; branch
-`goalpad/arm64-aot-0044` resolves to the pinned child
-`9eecb9c3193ed8cb5175c9199cecbe9cfd2baa42`. GOALPad now compiles the pinned
-OpenGOAL data-arena and typed ARM64 invoker sources directly in Xcode and
-executes the signed generated Jak 1 `load-state::reset!` entry through the
-production binding/invoker path. Host, ARM64 macOS, the approved M5 simulator,
-and a normally signed generic iOS Release build passed. This remains synthetic
-arena integration, not live runtime initialization, game-data loading, Jak
-boot, or current physical-device execution. See the final checkpoint section
-for exact commands, evidence, nonclaims, and the next Stage 5 task.
+Status: Partially complete. **The strategy changed materially on 2026-07-31 —
+read "Checkpoint 22" at the end of this file before doing anything else.** The
+synthetic-arena era is over: the app now initializes the real OpenGOAL Jak 1
+kernel, and the hand-written ARM64 emitter has been superseded by an AOT C
+backend that compiles 82.63% of Jak 1 to native ARM64.
+
+Everything above and below this note, up to Checkpoint 22, is HISTORICAL. It
+describes the previous approach of compiling individual hand-picked GOAL
+functions to byte-exact golden ARM64 assembly against a hand-staged synthetic
+memory arena. That approach reached roughly a dozen functions and did not
+converge; the maintainer directed a change of course. Do not resume it, and do
+not treat its "next smallest task" sections as current direction.
+
+The prior checkpoint was parent commit `0b413b9c`, pinned to OpenGOAL child
+`9eecb9c3` on `https://github.com/zschwendi/jak-pad.git`.
 
 ## Active roadmap and delegated audit
 
@@ -4608,3 +4610,118 @@ Run `/usr/bin/time -l` around the harness and keep heavy builds serial. Then
 repeat the Checkpoint 21 OpenGOAL tests, ARM64 macOS build, approved M5
 simulator build/run with RSS sampling and shutdown, and generic signed iOS
 Release inspection.
+
+---
+
+# Checkpoint 22: strategy change, real kernel, and the AOT C backend
+
+Date: 2026-07-31. This checkpoint supersedes all earlier direction in this file.
+
+## Maintainer direction (explicit, this session)
+
+- **Hard fork.** No effort is spent keeping changes upstreamable.
+- **Zero x86 is the end state.** x86 is removed from everything shipped or
+  targeted. `goalc`'s x86 emitter is deleted once ARM64 compiles Jak 1.
+- **Progress is judged by movement toward a playable game.** Passing unit tests
+  is explicitly *not* sufficient. The maintainer said this directly after many
+  checkpoints of byte-exact golden tests produced no runnable game.
+- Subagents this session were Fable/Opus by maintainer request. That was
+  session-only; do NOT edit the `AGENTS.md` subagent policy for it.
+
+## Why the previous approach was abandoned
+
+The ARM64 backend was a proof backend: ~8 of 42 IR node types had any lowering,
+each artificially gated, with `IR_FunctionCall`, `IR_GetSymbolValue`,
+`IR_SetSymbolValue`, `IR_FloatMath`, `IR_StaticVarAddr/Load`, and
+`IR_FunctionAddr` all `throw "NYI"`. Roughly a dozen Jak 1 functions had been
+compiled. Jak 1 has 10,601.
+
+## The blocking mechanism, now measured
+
+Recorded in `docs/AOT_EXECUTION_MODEL.md`. Desktop OpenGOAL executes GOAL out of
+the GOAL heap: `game/runtime.cpp:160` maps it `PROT_EXEC|READ|WRITE`,
+`game/kernel/jak1/klink.cpp:216` copies code segments into it, and
+`game/mips2c/mips2c_table.cpp:663` writes x86 trampolines at runtime.
+
+Measured facts (do not re-derive):
+- `mmap` refuses `PROT_EXEC` here; the app reports `PROT_EXEC granted: NO`.
+- Native code is NOT reachable via a 32-bit GOAL offset. arm64 reserves the low
+  4 GiB and app `__TEXT` lands only 40-77 MiB above it, so a 128 MiB GOAL heap
+  cannot fit below it. `__PAGEZERO` is linker-capped at 4 GB, and dyld places
+  dylibs within ~150 KiB of the main image. Function objects must therefore
+  carry a native pointer / tagged index.
+- All four V3 relocation kinds (`common/link_types.h:11`) are DATA relocations,
+  so static data can keep using the real linker at runtime. Only code must be
+  ahead-of-time. This is a much smaller problem than "replace the linker".
+
+## What now exists (all independently re-verified by the primary agent)
+
+**Real kernel in the app.** `game/kernel/core/**` in the fork. The app
+initializes real EE memory, real global/debug heaps, a real symbol table
+(90 symbols, `s7 #x0018fe04`, 533,002 bytes used) and real type bootstrap, with
+values byte-identical between the macOS ARM64 host and the M5 simulator. The
+~1000-line synthetic-arena probe is deleted. Two real bugs were found and fixed:
+`call_goal_on_stack` had no ARM64 branch and fell off the end returning garbage,
+and `versions.cpp` broke fresh clones via a generated header.
+
+**AOT C backend.** `goalc/aot/{CBackend.cpp,goal_c_runtime.h}`, drivers
+`goalc-cbackend` and `goalc-cbackend-sweep`. Emits C from the GOAL IR so clang
+is the ARM64 backend. Whole-game coverage measured across all 518 sources
+(derived from `game.gp` via the make system, not globbing):
+
+| stage | coverage |
+| --- | --- |
+| first pass | 5828/10601 (54.98%) |
+| after r13 process register | 8760/10601 (82.63%) |
+
+All 518 generated files compile clean for `arm64-apple-ios15.0`.
+
+**Remaining blockers:** `rlet` on `rsp` 1059 (needs the AOT stack model
+decision — the single biggest lever), `.blend.vf` 545, `.pcpyld` 188, lane ops
+~49, and **3 genuinely fundamental functions** (`.push`/`.pop`/`.add` in GOAL's
+cooperative-thread asm, which manipulate the real machine stack pointer;
+lowering them to arithmetic compiles and is SILENTLY WRONG — keep them failing).
+
+**Real game data.** 4.8 GB under `/Users/zach/Developer/OS_Projects/GOALPad/Jak1/`
+(outside every checkout), validated by OpenGOAL's own extractor as Black Label
+NTSC-U SCUS-97124. 28 CGO/DGO, 26 fr3. Pipeline documented in
+`docs/setup/jak1-data-pipeline-macos-arm64.md`. Note its GOAL code is x86 —
+`goalc` hardcodes `InstructionSet::X86`. Assets are architecture-independent.
+
+**Metal renderer.** Apple runs GL 4.1, not 4.3, with zero compute/SSBO/geometry
+shaders, so the gap is small. Direct Metal backend behind `GfxRendererModule`;
+stage 2 adds per-frame command buffers, offscreen target + letterbox present
+pass, a PSO cache, and build-time MSL (no runtime shader compilation — signing
+clean). `send_chain` is still an honest no-op; no game content renders.
+
+## Branches (OpenGOAL fork worktrees under /private/tmp/GP-*)
+
+`goalpad/play-cbackend` (compiler), `goalpad/play-iosruntime` (kernel, pinned as
+`e2d9aa2a`), `goalpad/play-renderer` (Metal, `f95d668a3`),
+`goalpad/play-datapipe` (docs), `goalpad/play-exec` (kernel+compiler merged, the
+execution track). Parent `feat/ipados-native-boot` had 5 unpushed commits.
+
+## Honest limits
+
+82.63% COMPILES; only `gcommon.gc` and a process fixture are proven to RUN. The
+other 516 files are compile-proven, not correct-proven. Nothing has been linked
+together, so cross-file symbols and the static/relocation tables are
+unexercised. No GOAL code has executed through the real runtime yet. No physical
+device has been touched. Coverage percentages are not progress toward playable
+on their own.
+
+## Next tasks, in value order
+
+1. **Decide the AOT stack model** — do AOT GOAL functions keep running on
+   GOAL-memory stacks? Unblocks 1059 functions. Entangled with the execution
+   track; do not decide it blind.
+2. **Execute real GOAL through the real runtime** (branch `goalpad/play-exec`).
+   Expect trouble in cross-file linking and relocation.
+3. Retire the dead hand-written emitter (`goalc/emitter/IGenARM64.*`, ARM64
+   lowering in `IR.cpp`, golden-byte tests) and the now-unreferenced app
+   artifacts `GOALPadAOTExportRegistry.cpp`, `GOALPadGoalStateWrapper.s`,
+   `GOALPadAOTWorkload.cpp`, `Generated/*.s`. Then delete the x86 emitter.
+4. Renderer stage 3: TexturePool/TextureUploadHandler on `MTLTexture`.
+
+Require behavioral tests with mutation checks on compiler work. Emit counts are
+not evidence of correctness.
