@@ -2080,3 +2080,90 @@ blocked on maintainer direction for a fetchable pinned OpenGOAL fork, owner,
 visibility/access policy, and HTTPS/SSH transport; local GitHub credentials are
 invalid. Do not change `.gitmodules`, move the official submodule gitlink,
 authenticate, create a fork, or push without that direction.
+
+## Checkpoint 8: strict Jak 1 node-name compiler/export proof
+
+Parent checkpoint `899519733fa12e57a913ca186cbae3d1931b5189` preserves child
+`fab37c1f755aa342304db8dbf27f1fa1c42423ac`, whose parent is
+`bd3f4752cea18e73fb1e5cbaec3efdd89ec38195`. The official OpenGOAL submodule
+remains pinned at `a4cb1ac1f0596c8740b1c26accb24a58505cda92` and was not
+moved.
+
+| Child commit | Patch | Stored SHA-256 | Stable patch ID | Preserved by parent |
+| --- | --- | --- | --- | --- |
+| `fab37c1f755aa342304db8dbf27f1fa1c42423ac` | `0019-feat-arm64-AOT-compile-Jak-1-node-name-lookup-AI-ass.patch` | `09cbeebe9924e5e17c3e7e0631ffb655bd19aa3365c6c0f82fc8df47627a3dc8` | `6b49a5f014bc23d4c0d4cadb9a68aba8fce2068d` | `899519733fa12e57a913ca186cbae3d1931b5189` |
+
+Patch 0019 follows 0018, which follows 0017 and the ordered 0013-0016
+data-arena unit. The parent preserves the saved mbox rather than the child Git
+object. Verify the stored artifact rather than a regenerated patch stream:
+
+```sh
+shasum -a 256 \
+  patches/OpenGOAL/0019-feat-arm64-AOT-compile-Jak-1-node-name-lookup-AI-ass.patch
+git patch-id --stable < \
+  patches/OpenGOAL/0019-feat-arm64-AOT-compile-Jak-1-node-name-lookup-AI-ass.patch
+```
+
+The expected outputs are the SHA-256 in the table and
+`6b49a5f014bc23d4c0d4cadb9a68aba8fce2068d fab37c1f755aa342304db8dbf27f1fa1c42423ac`.
+
+### Scope and claim boundary
+
+Within the existing compiler/export proof, 0019 recognizes only the exact
+maintained debug-only Jak 1 `glst-node-name` definition. It accepts its one
+`glst-named-node` argument in X0, combines it with the X22 GOAL-memory logical
+base, and loads the unsigned 32-bit `privname` field at X22 + X0 + 8. The
+generated ARM64 words are `8b36e010`, `b8408200`, and `d65f03c0`, disassembling
+as:
+
+```text
+add x16, x0, x22, sxtx
+ldur w0, [x16, #8]
+ret
+```
+
+The paired output is the guarded one-argument export
+`OPENGOAL_AOT_EXPORT1("glst-node-name", goalpad_aot_glst_node_name)`. Exact
+name, body, type, field offset, field type, arity, symbol, and Export1 ABI are
+validated; mismatches fail without replacing an existing paired output.
+
+This is strict compiler/export evidence only. It does not establish a general
+ARM64 load implementation, CMake artifact generation or execution, a host ABI
+runtime result, initialized arena contents, C++ dispatcher behavior, desktop
+global binding, live GOAL symbols, relocations, JIT, iPhoneOS, app, signing,
+simulator, or physical-device behavior.
+
+### Recorded validation and recovery
+
+The affected `goalc-test` and `goalc-aot` build with `-j4` passed. The focused
+`Arm64Aot.*` suite passed 41/41; the type/form regression passed 190/190; the
+established compiler/emitter filter passed 129/129; the AOT CLI CTest passed
+1/1; and full CTest passed 8/8. Host disassembly of the generated function
+reported `add x16, x0, x22, sxtx; ldur w0, [x16, #8]; ret`.
+
+An attempted `goalc-test --gtest_filter=-Listener.*` entered desktop
+`Jak1KernelTest`, logged `Failed to initialize main memory! Permission denied`,
+hung, and was interrupted with Ctrl-C (exit 130). It is not validation evidence
+and left no source changes.
+
+The patch was reconstructed on `bd3f4752`; its resulting tree
+`7912442f30be55ab08ab75494ae44043b02b6137` was identical to the verified
+child tree. The disposable
+reconstruction worktree was removed. No simulator, iOS app, physical device,
+remote, or push was used; **Z iPad Pro** was not accessed.
+
+### Next exact task: 0020
+
+Add a generated CMake artifact and host-dispatcher execution proof for only
+this `glst-node-name` form. Use one allocation, two distinct X22 logical bases,
+the same nonzero node offset, and two high-bit unsigned 32-bit payloads at
+offset eight. Retain `RUN_SERIAL` and all present host-only claim boundaries.
+Do not generalize ARM64 loads, bind desktop globals, create live GOAL symbols,
+introduce executable memory or the desktop runtime linker, or claim iPhoneOS,
+app, signing, simulator, or device execution.
+
+Durable parent integration remains blocked until a maintainer chooses a
+fetchable pinned OpenGOAL fork and the associated owner, visibility/access
+policy, and HTTPS/SSH transport. Do not move the official submodule pin,
+change `.gitmodules`, authenticate, create a fork, or push without that
+direction.

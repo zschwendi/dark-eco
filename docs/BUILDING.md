@@ -171,6 +171,8 @@ Host ARM64 GOAL-call ABI child: 45e1897f7cd560e4951f515e264078a023a2d08c
 Host ARM64 GOAL-call ABI patch: patches/OpenGOAL/0017-fix-arm64-verify-GOAL-call-context-ABI-AI-assisted.patch
 Generated host AOT-call child: bd3f4752cea18e73fb1e5cbaec3efdd89ec38195
 Generated host AOT-call patch: patches/OpenGOAL/0018-test-arm64-execute-generated-Jak-1-AOT-artifacts-AI-.patch
+Jak 1 node-name compiler/export child: fab37c1f755aa342304db8dbf27f1fa1c42423ac
+Jak 1 node-name compiler/export patch: patches/OpenGOAL/0019-feat-arm64-AOT-compile-Jak-1-node-name-lookup-AI-ass.patch
 ```
 
 Restore it into an isolated worktree:
@@ -233,6 +235,9 @@ git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
 
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0018-test-arm64-execute-generated-Jak-1-AOT-artifacts-AI-.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0019-feat-arm64-AOT-compile-Jak-1-node-name-lookup-AI-ass.patch"
 ```
 
 If that branch or worktree already exists, inspect and reuse it rather than
@@ -242,7 +247,7 @@ the unpublished child commit.
 The restored commits are patch-equivalent to `79f22008`, `149840cf`,
 `32cf26ae`, `92c8f975`, `b78d7c28`, `1fc20e79`, `25917e27`, `1c80b667`,
 `35d653f1`, `f979c82c`, `2475b3c1`, `9acf4e79`, `5c536859`, `b094144b`,
-`5495181f`, `5ad2efa3`, `45e1897f`, and `bd3f4752`, but `git am` normally assigns new committer
+`5495181f`, `5ad2efa3`, `45e1897f`, `bd3f4752`, and `fab37c1f`, but `git am` normally assigns new committer
 metadata and therefore different commit SHAs. The exact objects are available
 only in a checkout that already contains the original child commits. Compare
 the resulting tree or stable patch identities when reconstructing them from the
@@ -261,6 +266,12 @@ not extend the iPhoneOS data-arena build proof or establish an iPad runtime.
 Patch 0018 follows 0017 and keeps the same macOS ARM64 host-test gate. It
 generates and links static host artifacts; it is not an iPhoneOS target or an
 iPad runtime proof.
+
+Patch 0019 follows 0018. It is a strict compiler/export-only checkpoint for
+the exact maintained debug-only Jak 1 `glst-node-name` form. It does not add a
+CMake generated artifact or execute through the host ABI test; those remain
+the separate 0020 task. It is not a general ARM64 load, iPhoneOS, app, signing,
+simulator, or device proof.
 
 ### Validate the minimal iPhoneOS data-arena static library
 
@@ -745,6 +756,39 @@ rejects mismatched symbols and cross-ABI export requests atomically, preserving
 the existing paired destinations. The checked-in artifact is bound by the
 app-local registry and called through the existing signed X0/state wrapper; it
 is not a live GOAL symbol, top-level definition, or relocation mechanism.
+
+### Validate the strict Jak 1 node-name compiler/export proof
+
+Patch 0019 accepts only the exact maintained debug-only Jak 1
+`glst-node-name` definition. The one `glst-named-node` argument is combined
+with the X22 GOAL-memory logical base; the result loads the unsigned 32-bit
+`privname` field at byte offset eight. The generated text is exactly:
+
+```text
+add x16, x0, x22, sxtx
+ldur w0, [x16, #8]
+ret
+```
+
+Its words are `8b36e010`, `b8408200`, and `d65f03c0`. The paired typed export
+is `OPENGOAL_AOT_EXPORT1("glst-node-name", goalpad_aot_glst_node_name)`.
+Body, name, field-type, field-offset, arity, cross-ABI, and symbol mismatches
+are rejected before existing paired outputs are replaced.
+
+Recorded validation built `goalc-test` and `goalc-aot` with `-j4`. The
+`Arm64Aot.*` filter passed 41/41; the type/form regression passed 190/190; the
+established compiler/emitter filter passed 129/129; the AOT CLI CTest passed
+1/1; and full CTest passed 8/8. Host disassembly of the generated assembly
+reported the three instructions above.
+
+No generated CMake artifact was linked or executed for 0019. In particular,
+this is not evidence for a general ARM64 load implementation, initialized
+arena memory, C++ runtime dispatch, an iPhoneOS executable, an app, signing,
+simulator, or physical hardware. Checkpoint 0020 must add only a generated
+CMake artifact plus host-dispatcher execution: one allocation, two distinct
+X22 logical bases, the same nonzero node offset, and two high-bit unsigned
+32-bit payloads at offset eight. Retain `RUN_SERIAL` and the existing host-only
+claim boundary.
 
 ## Validate the static OpenGOAL ARM64 call boundary
 

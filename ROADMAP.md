@@ -263,6 +263,15 @@ Current progress:
   its guarded `OPENGOAL_AOT_EXPORT1("lognot", goalpad_aot_lognot)` pair. The
   combined checkpoint passes 34 focused tests, 720 non-listener tests, and
   CTest 1/1; mismatched symbols or cross-ABI exports fail atomically.
+- Child commit `fab37c1f755aa342304db8dbf27f1fa1c42423ac`, preserved by parent
+  `8995197`, compiles and exports only the exact maintained debug-only Jak 1
+  `glst-node-name` form. Its one-argument code adds X22 and X0, then loads the
+  32-bit unsigned field at offset eight; the generated words are
+  `8b36e010`, `b8408200`, and `d65f03c0`. This is strict compiler/export
+  evidence, not general ARM64 load support or CMake artifact execution.
+- The 0019 compiler/export proof built `goalc-test` and `goalc-aot` with `-j4`;
+  Arm64Aot passed 41/41, the type/form regression 190/190, the established
+  compiler/emitter filter 129/129, CLI CTest 1/1, and full CTest 8/8.
 
 ## Stage 4 — Replace the desktop executable-object model
 
@@ -631,16 +640,18 @@ owner, access policy, and transport, then explicitly renews authentication.
 
 The next actions are:
 
-1. Integrate the verified portable 0013-0018 sequence only after a dedicated
-   OpenGOAL fork makes child commit `bd3f4752` fetchable and pins it
-   reproducibly. Apply 0018 after its 0013-0017 prerequisite sequence; do not
-   copy the source into the app or use a machine-local worktree path.
-2. Keep the host generated-artifact ABI probe as a regression guard. The next
-   seam is pending a post-0018 audit choice between the first real X22
-   data-arena dereference and a host-generated artifact handoff into an
-   iPhoneOS signed/linkable target. Do not choose between them here or present
-   either candidate as iPad execution, bind desktop globals, create live GOAL
-   symbols, add executable memory, or begin the desktop runtime-linker path.
+1. Integrate the verified portable 0013-0019 sequence only after a dedicated
+   OpenGOAL fork makes child commit `fab37c1f755aa342304db8dbf27f1fa1c42423ac`
+   fetchable and pins it reproducibly. Apply 0019 after its 0013-0018
+   prerequisite sequence; do not copy the source into the app or use a
+   machine-local worktree path.
+2. Make checkpoint 0020 a generated CMake artifact plus host-dispatcher
+   execution proof for `glst-node-name`: use one allocation, two distinct X22
+   logical bases, the same nonzero node offset, and two high-bit unsigned
+   32-bit payloads at offset eight. Retain `RUN_SERIAL` and every host-only
+   claim boundary. Do not present this as general ARM64 loads, iPad execution,
+   desktop-global binding, live GOAL symbols, executable memory, or the
+   desktop runtime-linker path.
 3. Keep unsupported statics, general relocations, calls, saved registers,
    spills, and stack locals explicit until a real Jak 1 boot dependency
    requires each boundary. Keep x86 behavior, the non-network compiler suite,

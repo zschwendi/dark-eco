@@ -24,11 +24,15 @@ binding architecture, scope, and content-separation rules.
   X20/X21/X22 state boundary, returning the bitwise complement of its argument.
   GOALPad resolves the generated native entries through a small app-local
   registry; `true-func` returns X21 plus eight and `identity` receives its one
-  object argument in Apple-ABI X0 only after that state is established. This
-  function/export checkpoint is verified on ARM64 macOS and the dedicated M5
-  simulator. The Debug generic iOS build uses an Xcode Preview split bundle and
-  is not no-JIT evidence. A separately verified Release generic iOS build
-  disables Preview/debug-dylib layout and contains a monolithic ARM64
+  object argument in Apple-ABI X0 only after that state is established. A
+  separate compiler/export-only proof covers the exact maintained debug-only
+  Jak 1 `glst-node-name` form: it emits a 32-bit field load from X22 + X0 + 8,
+  but has not been added to the app registry or a CMake executable artifact.
+  It is not a general ARM64 load claim. The established function/export
+  checkpoint is verified on ARM64 macOS and the dedicated M5 simulator. The
+  Debug generic iOS build uses an Xcode Preview split bundle and is not no-JIT
+  evidence. A separately verified Release generic iOS build disables
+  Preview/debug-dylib layout and contains a monolithic ARM64
   executable, but is build/signing evidence only. Top-level GOAL symbol
   installation, live runtime initialization, relocation, and physical execution
   of these checkpoints remain pending.
