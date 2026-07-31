@@ -2,12 +2,21 @@
 
 #include "GOALPadAOTExportRegistry.hpp"
 
+#include "common/goal_constants.h"
+#include "common/symbols.h"
+#include "game/kernel/common/kmalloc.h"
+#include "game/kernel/jak1/data_arena.h"
+#include "game/kernel/jak1/data_arena_arm64_invoker.h"
+#include "game/kernel/jak1/kscheme.h"
+
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <type_traits>
+#include <vector>
 
 namespace {
 
@@ -567,134 +576,241 @@ bool verifies_want_levels(goalpad::AOTEntry3 entry, std::uint64_t process) {
   return true;
 }
 
-struct alignas(16) GuardedLoadStateArena {
-  std::array<std::byte, 16> leading_guard{};
-  std::array<std::byte, 0x112c> storage{};
-  std::array<std::byte, 16> trailing_guard{};
-};
-
-static_assert(alignof(GuardedLoadStateArena) >= 16);
-static_assert(offsetof(GuardedLoadStateArena, storage) == 16);
-
-void write_load_state_word(GuardedLoadStateArena& arena,
-                           std::size_t offset,
-                           std::uint32_t value) {
-  std::memcpy(arena.storage.data() + offset, &value, sizeof(value));
+void write_data_arena_word(std::byte* storage, std::uint32_t offset, std::uint32_t value) {
+  std::memcpy(storage + offset, &value, sizeof(value));
 }
 
-std::uint32_t read_load_state_word(const GuardedLoadStateArena& arena, std::size_t offset) {
+void write_data_arena_halfword(std::byte* storage,
+                               std::uint32_t offset,
+                               std::uint16_t value) {
+  std::memcpy(storage + offset, &value, sizeof(value));
+}
+
+std::uint32_t read_data_arena_word(const std::byte* storage, std::uint32_t offset) {
   std::uint32_t value = 0;
-  std::memcpy(&value, arena.storage.data() + offset, sizeof(value));
+  std::memcpy(&value, storage + offset, sizeof(value));
   return value;
 }
 
+struct NativeMethodInvocationCounter {
+  std::size_t calls = 0;
+};
+
+std::uint64_t count_native_method_invocation(const jak1::DataArenaNativeMethodCall1&,
+                                             void* user_context) {
+  auto* counter = static_cast<NativeMethodInvocationCounter*>(user_context);
+  ++counter->calls;
+  return 0;
+}
+
 bool verifies_load_state_reset(goalpad::AOTEntry1 entry, std::uint64_t process) {
-  constexpr std::size_t kThis = 4;
-  constexpr std::size_t kSecondArenaBaseOffset = 0x900;
-  constexpr std::size_t kLoadStateSize = 0x82c;
-  constexpr std::size_t kWantOffset = 0x4;
-  constexpr std::size_t kWantWordCount = 8;
-  constexpr std::size_t kVisNickOffset = 0x24;
-  constexpr std::size_t kCommandListOffset = 0x28;
-  constexpr std::size_t kObjectNameOffset = 0x2c;
-  constexpr std::size_t kObjectStatusOffset = 0x42c;
-  constexpr std::size_t kObjectCount = 256;
-  constexpr std::uint64_t kFalse = 0x14fd24;
-  constexpr std::uint32_t kFalseWord = static_cast<std::uint32_t>(kFalse);
-  constexpr std::uint32_t kEmpty = 0x14fd1a;
+  constexpr std::size_t kGuardSize = 16;
+  constexpr std::byte kCanary = std::byte{0xa5};
+  constexpr std::byte kSeed = std::byte{0x3c};
+  constexpr std::uint32_t kSymbolTableEntrySize = 8;
+  constexpr std::uint32_t kSymbolTable = 0x1000;
+  constexpr std::uint32_t kSymbolTableEnd = kSymbolTable + jak1::SYM_TABLE_MEM_SIZE;
+  constexpr std::uint32_t kS7 =
+      kSymbolTable + (jak1::GOAL_MAX_SYMBOLS / 2) * kSymbolTableEntrySize + BASIC_OFFSET;
+  constexpr std::uint32_t kLastSymbol =
+      kSymbolTable + jak1::SYM_TABLE_END * kSymbolTableEntrySize;
+  constexpr std::size_t kArenaSize = kSymbolTableEnd + 0x2000;
+  constexpr std::size_t kLaneSize = kGuardSize + kArenaSize + kGuardSize;
+  constexpr std::uint32_t kTypeType = 0x42004;
+  constexpr std::uint32_t kFunctionType = 0x42044;
+  constexpr std::uint32_t kLoadStateType = 0x42084;
+  constexpr std::uint32_t kObject = 0x42104;
+  constexpr std::uint32_t kObjectRaw = kObject - BASIC_OFFSET;
+  constexpr std::uint32_t kFunction = 0x42a04;
+  constexpr std::uint16_t kLoadStateAllocatedSize = 0x82c;
+  constexpr std::uint16_t kLoadStatePaddedSize = 0x830;
+  constexpr std::uint16_t kLoadStateMethodCount = 21;
+  constexpr std::uint32_t kResetMethodId = 9;
+  constexpr std::uint32_t kWantWordCount = 8;
+  constexpr std::uint32_t kVisNickOffset = 0x20;
+  constexpr std::uint32_t kCommandListOffset = 0x24;
+  constexpr std::uint32_t kObjectNameOffset = 0x28;
+  constexpr std::uint32_t kObjectStatusOffset = 0x428;
+  constexpr std::uint32_t kObjectCount = 256;
+  constexpr std::uint32_t kVisNickSentinel = 0xdecafbad;
+  constexpr std::uint32_t kObjectEnd =
+      kObject + kLoadStateAllocatedSize - BASIC_OFFSET;
+  constexpr std::uint32_t kObjectGuardBegin = kObjectRaw - kGuardSize;
+  constexpr std::uint32_t kObjectGuardEnd = kObjectEnd + kGuardSize;
 
-  static_assert(kThis == kWantOffset);
-  static_assert(kWantOffset + kWantWordCount * sizeof(std::uint32_t) == kVisNickOffset);
-  static_assert(kSecondArenaBaseOffset >= kLoadStateSize);
-  static_assert(kSecondArenaBaseOffset + kLoadStateSize == 0x112c);
+  static_assert(std::is_same_v<goalpad::AOTEntry1, jak1::DataArenaNativeMethodEntry1>);
+  static_assert(offsetof(jak1::Type, allocated_size) == 0x8);
+  static_assert(offsetof(jak1::Type, padded_size) == 0xa);
+  static_assert(offsetof(jak1::Type, num_methods) == 0xe);
+  static_assert(offsetof(jak1::Type, new_method) == 0x10);
+  static_assert(offsetof(jak1::Type, new_method) +
+                    kResetMethodId * sizeof(std::uint32_t) ==
+                0x34);
+  static_assert(kSymbolTableEnd == 0x41000);
+  static_assert(kArenaSize == 0x43000);
+  static_assert(kObjectStatusOffset + kObjectCount * sizeof(std::uint32_t) == 0x828);
+  static_assert(kFunction - BASIC_OFFSET >= kObjectGuardEnd);
 
-  GuardedLoadStateArena actual;
-  std::size_t seed_index = 0;
-  const auto seed_range = [&seed_index](auto& range) {
-    for (auto& byte : range) {
-      byte = static_cast<std::byte>(1 + (seed_index * 37) % 255);
-      ++seed_index;
-    }
-  };
-  seed_range(actual.leading_guard);
-  seed_range(actual.storage);
-  seed_range(actual.trailing_guard);
-  GuardedLoadStateArena expected = actual;
-
-  const auto reset_expected = [&expected](std::size_t base_offset) {
-    for (std::size_t index = 0; index < kWantWordCount; ++index) {
-      write_load_state_word(expected, base_offset + kWantOffset + index * sizeof(std::uint32_t),
-                            kFalseWord);
-    }
-    write_load_state_word(expected, base_offset + kCommandListOffset, kEmpty);
-    for (std::size_t index = 0; index < kObjectCount; ++index) {
-      write_load_state_word(expected,
-                            base_offset + kObjectNameOffset + index * sizeof(std::uint32_t),
-                            kFalseWord);
-      write_load_state_word(expected,
-                            base_offset + kObjectStatusOffset + index * sizeof(std::uint32_t), 0);
-    }
-  };
-  reset_expected(0);
-  reset_expected(kSecondArenaBaseOffset);
-
-  const auto first_offset_base = static_cast<std::uint64_t>(
-      reinterpret_cast<std::uintptr_t>(actual.storage.data()));
-  if ((first_offset_base & 0xf) != 0 ||
-      ((first_offset_base + kSecondArenaBaseOffset) & 0xf) != 0) {
+  if (!entry) {
     return false;
   }
 
-  GoalCallProbe1 first_probe{};
-  GoalCallProbe1 second_probe{};
-  const auto invoke = [&](std::size_t base_offset, GoalCallProbe1& probe) {
-    const auto offset_base = first_offset_base + base_offset;
-    const auto result = goalpad_probe_call_aot1_with_state(
-        process, kFalse, offset_base, entry, kThis, &probe);
-    return result == kThis &&
-           has_expected_goal_state(probe, process, kFalse, offset_base, kThis, result);
+  const jak1::DataArenaHeader header{
+      .global_heap_info = 0x100,
+      .global_heap_base = kSymbolTable,
+      .global_heap_current = kSymbolTableEnd,
+      .global_heap_end = static_cast<std::uint32_t>(kArenaSize),
+      .symbol_table = kSymbolTable,
+      .symbol_table_end = kSymbolTableEnd,
+      .symbol_table2 = kSymbolTable + BASIC_OFFSET,
+      .last_symbol = kLastSymbol,
+      .s7 = kS7,
+      .empty_pair = kS7 + jak1_symbols::FIX_SYM_EMPTY_PAIR,
+      .false_value = kS7,
+      .true_value = kS7 + jak1_symbols::FIX_SYM_TRUE,
   };
-  if (!invoke(0, first_probe) || !invoke(kSecondArenaBaseOffset, second_probe)) {
+  const std::array bindings{
+      jak1::DataArenaNativeMethodBinding1{
+          .object_type = kLoadStateType,
+          .method_id = kResetMethodId,
+          .method_value = kFunction,
+          .allocated_size = kLoadStateAllocatedSize,
+          .padded_size = kLoadStatePaddedSize,
+          .arity = 1,
+          .entry = entry,
+      },
+  };
+  jak1::DataArenaNativeMethodArm64Context context{.process = process};
+
+  std::vector<std::byte> backing(2 * kLaneSize, kCanary);
+  auto* first_arena = backing.data() + kGuardSize;
+  auto* second_arena = backing.data() + kLaneSize + kGuardSize;
+
+  const auto stage_arena = [&](std::byte* storage) {
+    std::fill(storage, storage + kArenaSize, std::byte{0});
+    write_data_arena_word(storage, header.global_heap_info + offsetof(kheapinfo, base),
+                          header.global_heap_base);
+    write_data_arena_word(storage, header.global_heap_info + offsetof(kheapinfo, top),
+                          header.global_heap_end);
+    write_data_arena_word(storage, header.global_heap_info + offsetof(kheapinfo, current),
+                          header.global_heap_current);
+    write_data_arena_word(storage, header.global_heap_info + offsetof(kheapinfo, top_base),
+                          header.global_heap_end);
+    write_data_arena_word(storage, header.s7 + jak1_symbols::FIX_SYM_EMPTY_CAR,
+                          header.empty_pair);
+    write_data_arena_word(storage, header.s7 + jak1_symbols::FIX_SYM_EMPTY_CDR,
+                          header.empty_pair);
+    write_data_arena_word(storage, header.s7 + jak1_symbols::FIX_SYM_FALSE,
+                          header.false_value);
+    write_data_arena_word(storage, header.s7 + jak1_symbols::FIX_SYM_TRUE,
+                          header.true_value);
+    write_data_arena_word(storage, header.s7 + jak1_symbols::FIX_SYM_TYPE_TYPE, kTypeType);
+    write_data_arena_word(storage, header.s7 + jak1_symbols::FIX_SYM_FUNCTION_TYPE,
+                          kFunctionType);
+
+    write_data_arena_word(storage, kTypeType - BASIC_OFFSET, kTypeType);
+    write_data_arena_word(storage, kFunctionType - BASIC_OFFSET, kTypeType);
+    write_data_arena_word(storage, kLoadStateType - BASIC_OFFSET, kTypeType);
+    write_data_arena_halfword(storage, kLoadStateType + offsetof(jak1::Type, allocated_size),
+                              kLoadStateAllocatedSize);
+    write_data_arena_halfword(storage, kLoadStateType + offsetof(jak1::Type, padded_size),
+                              kLoadStatePaddedSize);
+    write_data_arena_halfword(storage, kLoadStateType + offsetof(jak1::Type, num_methods),
+                              kLoadStateMethodCount);
+    write_data_arena_word(
+        storage,
+        kLoadStateType + offsetof(jak1::Type, new_method) +
+            kResetMethodId * sizeof(std::uint32_t),
+        kFunction);
+    write_data_arena_word(storage, kObjectRaw, kLoadStateType);
+    write_data_arena_word(storage, kFunction - BASIC_OFFSET, kFunctionType);
+
+    std::fill(storage + kObject, storage + kObjectEnd, kSeed);
+    write_data_arena_word(storage, kObjectRaw, kLoadStateType);
+    write_data_arena_word(storage, kObject + kVisNickOffset, kVisNickSentinel);
+    std::fill(storage + kObjectGuardBegin, storage + kObjectRaw, kCanary);
+    std::fill(storage + kObjectEnd, storage + kObjectGuardEnd, kCanary);
+
+    return read_data_arena_word(storage,
+                                header.global_heap_info + offsetof(kheapinfo, base)) ==
+               header.global_heap_base &&
+           read_data_arena_word(storage,
+                                header.global_heap_info + offsetof(kheapinfo, top)) ==
+               header.global_heap_end &&
+           read_data_arena_word(storage,
+                                header.global_heap_info + offsetof(kheapinfo, current)) ==
+               header.global_heap_current &&
+           read_data_arena_word(storage,
+                                header.global_heap_info + offsetof(kheapinfo, top_base)) ==
+               header.global_heap_end &&
+           read_data_arena_word(storage,
+                                header.s7 + jak1_symbols::FIX_SYM_EMPTY_CAR) ==
+               header.empty_pair &&
+           read_data_arena_word(storage,
+                                header.s7 + jak1_symbols::FIX_SYM_EMPTY_CDR) ==
+               header.empty_pair;
+  };
+
+  const auto invoke_and_verify = [&](std::byte* storage) {
+    std::vector<std::byte> expected(storage, storage + kArenaSize);
+    const auto write_expected = [&](std::uint32_t object_offset, std::uint32_t value) {
+      write_data_arena_word(expected.data(), kObject + object_offset, value);
+    };
+    for (std::uint32_t index = 0; index < kWantWordCount; ++index) {
+      write_expected(index * sizeof(std::uint32_t), header.false_value);
+    }
+    write_expected(kCommandListOffset, header.empty_pair);
+    for (std::uint32_t index = 0; index < kObjectCount; ++index) {
+      write_expected(kObjectNameOffset + index * sizeof(std::uint32_t), header.false_value);
+      write_expected(kObjectStatusOffset + index * sizeof(std::uint32_t), 0);
+    }
+
+    const auto result = jak1::invoke_data_arena_native_basic_method1(
+        storage, kArenaSize, header, kObject, kResetMethodId, bindings,
+        &jak1::invoke_data_arena_native_method1_arm64, &context);
+    return result.invoked() && result.value == kObject &&
+           result.basic_method.object_type == kLoadStateType &&
+           result.basic_method.allocated_size == kLoadStateAllocatedSize &&
+           result.basic_method.padded_size == kLoadStatePaddedSize &&
+           result.basic_method.method_value == kFunction &&
+           read_data_arena_word(storage, kObjectRaw) == kLoadStateType &&
+           read_data_arena_word(storage,
+                                kLoadStateType + offsetof(jak1::Type, new_method) +
+                                    kResetMethodId * sizeof(std::uint32_t)) == kFunction &&
+           read_data_arena_word(storage, kFunction - BASIC_OFFSET) == kFunctionType &&
+           read_data_arena_word(storage, kObject + kVisNickOffset) == kVisNickSentinel &&
+           std::equal(storage, storage + kArenaSize, expected.begin());
+  };
+
+  if (!stage_arena(first_arena) || !invoke_and_verify(first_arena)) {
+    return false;
+  }
+  if (!stage_arena(second_arena) || !invoke_and_verify(second_arena)) {
     return false;
   }
 
-  const auto has_expected_reset_fields = [&actual, &expected](std::size_t base_offset) {
-    if (read_load_state_word(actual, base_offset) != read_load_state_word(expected, base_offset)) {
-      return false;
-    }
-    for (std::size_t index = 0; index < kWantWordCount; ++index) {
-      if (read_load_state_word(actual,
-                               base_offset + kWantOffset + index * sizeof(std::uint32_t)) !=
-          kFalseWord) {
-        return false;
-      }
-    }
-    if (read_load_state_word(actual, base_offset + kVisNickOffset) !=
-            read_load_state_word(expected, base_offset + kVisNickOffset) ||
-        read_load_state_word(actual, base_offset + kCommandListOffset) != kEmpty) {
-      return false;
-    }
-    for (std::size_t index = 0; index < kObjectCount; ++index) {
-      if (read_load_state_word(actual,
-                               base_offset + kObjectNameOffset + index * sizeof(std::uint32_t)) !=
-              kFalseWord ||
-          read_load_state_word(actual,
-                               base_offset + kObjectStatusOffset + index * sizeof(std::uint32_t)) !=
-              0) {
-        return false;
-      }
-    }
-    return true;
-  };
-
-  const auto gap_matches = std::equal(
-      actual.storage.begin() + kLoadStateSize,
-      actual.storage.begin() + kSecondArenaBaseOffset,
-      expected.storage.begin() + kLoadStateSize);
-  return has_expected_reset_fields(0) &&
-         has_expected_reset_fields(kSecondArenaBaseOffset) && gap_matches &&
-         actual.leading_guard == expected.leading_guard && actual.storage == expected.storage &&
-         actual.trailing_guard == expected.trailing_guard;
+  if (!stage_arena(first_arena)) {
+    return false;
+  }
+  const auto before_unbound = backing;
+  auto unbound_binding = bindings[0];
+  unbound_binding.method_value += BASIC_OFFSET;
+  const std::array unbound_bindings{unbound_binding};
+  NativeMethodInvocationCounter counter;
+  const auto unbound = jak1::invoke_data_arena_native_basic_method1(
+      first_arena, kArenaSize, header, kObject, kResetMethodId, unbound_bindings,
+      &count_native_method_invocation, &counter);
+  const auto is_canary = [](std::byte value) { return value == kCanary; };
+  return unbound.error == jak1::DataArenaNativeMethodInvokeError::UnboundMethod &&
+         unbound.lookup_error == jak1::DataArenaBasicMethodValueLookupError::None &&
+         unbound.basic_method.method_value == kFunction && counter.calls == 0 &&
+         backing == before_unbound &&
+         std::all_of(backing.begin(), backing.begin() + kGuardSize, is_canary) &&
+         std::all_of(backing.begin() + kLaneSize - kGuardSize,
+                     backing.begin() + kLaneSize, is_canary) &&
+         std::all_of(backing.begin() + kLaneSize,
+                     backing.begin() + kLaneSize + kGuardSize, is_canary) &&
+         std::all_of(backing.end() - kGuardSize, backing.end(), is_canary);
 }
 
 class SymbolValueOffsetRestore {
@@ -919,12 +1035,12 @@ RuntimeStatus initialize_runtime(std::string storage_path) {
                              verifies_want_levels(want_levels->entry, process);
   status.message = status.workload_verified
                        ? "Signed ARM64 Jak 1 false-func, true-func, identity, lognot, and direct "
-                         "level-group-load-commands-set!, want-vis, want-levels, and load-state "
-                         "reset body plus load-state symbol-value AOT proof "
+                         "level-group-load-commands-set!, want-vis, want-levels, and "
+                         "data-arena-bound load-state reset plus load-state symbol-value AOT proof "
                          "verified"
                        : "Signed ARM64 Jak 1 false-func, true-func, identity, lognot, and direct "
-                         "level-group-load-commands-set!, want-vis, want-levels, and load-state "
-                         "reset body plus load-state symbol-value AOT proof "
+                         "level-group-load-commands-set!, want-vis, want-levels, and "
+                         "data-arena-bound load-state reset plus load-state symbol-value AOT proof "
                          "failed";
   return status;
 }

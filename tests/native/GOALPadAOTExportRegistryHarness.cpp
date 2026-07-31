@@ -815,6 +815,9 @@ int main() {
   const auto load_state_value_restored = *load_state_binding->offset == 0x1d0;
   const auto runtime_status = goalpad::initialize_runtime("native-harness");
   const auto runtime_symbol_value_verified = runtime_status.workload_verified &&
+                                             runtime_status.message.find(
+                                                 "data-arena-bound load-state reset") !=
+                                                 std::string::npos &&
                                              runtime_status.message.find("load-state symbol-value") !=
                                                  std::string::npos &&
                                              *load_state_binding->offset == 0x1d0;
