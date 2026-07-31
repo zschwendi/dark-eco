@@ -1,0 +1,500 @@
+From c7ef4691571cc462815816c098fa9d241bc58c81 Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Fri, 31 Jul 2026 11:05:43 -0600
+Subject: [PATCH] feat(arm64): add typed data-arena method invoker
+ (AI-assisted)
+
+Add a minimal Apple ARM64 microtarget that invokes trusted arity-one native bindings with distinct process, symbol-table, and arena registers. Exercise the real generated Jak 1 reset entry through the production boundary without interpreting GOAL method words as code pointers.
+---
+ CMakeLists.txt                                |  35 +++++
+ game/CMakeLists.txt                           |   7 +
+ .../jak1/data_arena_arm64_invoker.cmake       |  22 +++
+ game/kernel/jak1/data_arena_arm64_invoker.cpp |  28 ++++
+ game/kernel/jak1/data_arena_arm64_invoker.h   |  22 +++
+ game/kernel/jak1/data_arena_arm64_invoker.s   |  24 ++++
+ test/CMakeLists.txt                           |   5 +-
+ test/test_arm64_goal_call_abi.cpp             | 126 ++++++++++++------
+ test/test_arm64_goal_call_abi.s               |  40 ++++++
+ 9 files changed, 265 insertions(+), 44 deletions(-)
+ create mode 100644 game/kernel/jak1/data_arena_arm64_invoker.cmake
+ create mode 100644 game/kernel/jak1/data_arena_arm64_invoker.cpp
+ create mode 100644 game/kernel/jak1/data_arena_arm64_invoker.h
+ create mode 100644 game/kernel/jak1/data_arena_arm64_invoker.s
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 57689bb4..95e749cd 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -7,6 +7,15 @@ project(jak)
+ 
+ option(OPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY
+        "Build only the portable Jak 1 data-arena static library" OFF)
++option(OPENGOAL_BUILD_JAK1_DATA_ARENA_ARM64_INVOKER_ONLY
++       "Build only the Jak 1 data-arena ARM64 native-method invoker libraries" OFF)
++
++if(OPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY AND OPENGOAL_BUILD_JAK1_DATA_ARENA_ARM64_INVOKER_ONLY)
++  message(FATAL_ERROR
++          "OPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY and "
++          "OPENGOAL_BUILD_JAK1_DATA_ARENA_ARM64_INVOKER_ONLY are mutually exclusive.")
++endif()
++
+ if(OPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY)
+   if(BUILD_TESTING)
+     message(FATAL_ERROR
+@@ -17,6 +26,32 @@ if(OPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY)
+   return()
+ endif()
+ 
++if(OPENGOAL_BUILD_JAK1_DATA_ARENA_ARM64_INVOKER_ONLY)
++  if(BUILD_TESTING)
++    message(FATAL_ERROR
++            "OPENGOAL_BUILD_JAK1_DATA_ARENA_ARM64_INVOKER_ONLY requires BUILD_TESTING=OFF.")
++  endif()
++  if(NOT APPLE)
++    message(FATAL_ERROR
++            "OPENGOAL_BUILD_JAK1_DATA_ARENA_ARM64_INVOKER_ONLY requires Apple ARM64.")
++  endif()
++  if(CMAKE_OSX_ARCHITECTURES)
++    if(NOT CMAKE_OSX_ARCHITECTURES STREQUAL "arm64")
++      message(FATAL_ERROR
++              "OPENGOAL_BUILD_JAK1_DATA_ARENA_ARM64_INVOKER_ONLY requires "
++              "CMAKE_OSX_ARCHITECTURES=arm64.")
++    endif()
++  elseif(NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
++    message(FATAL_ERROR
++            "OPENGOAL_BUILD_JAK1_DATA_ARENA_ARM64_INVOKER_ONLY requires Apple ARM64.")
++  endif()
++
++  enable_language(ASM)
++  include(game/kernel/jak1/data_arena.cmake)
++  include(game/kernel/jak1/data_arena_arm64_invoker.cmake)
++  return()
++endif()
++
+ include(CTest)
+ 
+ # Include third-party modules
+diff --git a/game/CMakeLists.txt b/game/CMakeLists.txt
+index 3b854767..e2171a55 100644
+--- a/game/CMakeLists.txt
++++ b/game/CMakeLists.txt
+@@ -355,6 +355,13 @@ set(RUNTIME_SOURCE
+ add_subdirectory(sound)
+ 
+ include(kernel/jak1/data_arena.cmake)
++if(APPLE)
++    if(CMAKE_OSX_ARCHITECTURES STREQUAL "arm64")
++        include(kernel/jak1/data_arena_arm64_invoker.cmake)
++    elseif(NOT CMAKE_OSX_ARCHITECTURES AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
++        include(kernel/jak1/data_arena_arm64_invoker.cmake)
++    endif()
++endif()
+ 
+ # we build the runtime as a static library.
+ add_library(runtime STATIC ${RUNTIME_SOURCE} "../third-party/glad/src/glad.c")
+diff --git a/game/kernel/jak1/data_arena_arm64_invoker.cmake b/game/kernel/jak1/data_arena_arm64_invoker.cmake
+new file mode 100644
+index 00000000..650f133b
+--- /dev/null
++++ b/game/kernel/jak1/data_arena_arm64_invoker.cmake
+@@ -0,0 +1,22 @@
++if(NOT APPLE)
++  message(FATAL_ERROR "jak1-data-arena-arm64-invoker requires Apple ARM64.")
++endif()
++if(CMAKE_OSX_ARCHITECTURES)
++  if(NOT CMAKE_OSX_ARCHITECTURES STREQUAL "arm64")
++    message(FATAL_ERROR
++            "jak1-data-arena-arm64-invoker requires CMAKE_OSX_ARCHITECTURES=arm64.")
++  endif()
++elseif(NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
++  message(FATAL_ERROR "jak1-data-arena-arm64-invoker requires Apple ARM64.")
++endif()
++
++enable_language(ASM)
++set(CMAKE_ASM_SOURCE_FILE_EXTENSIONS ${CMAKE_ASM_SOURCE_FILE_EXTENSIONS} s)
++
++add_library(jak1-data-arena-arm64-invoker STATIC
++            "${CMAKE_CURRENT_LIST_DIR}/data_arena_arm64_invoker.cpp"
++            "${CMAKE_CURRENT_LIST_DIR}/data_arena_arm64_invoker.s")
++target_link_libraries(jak1-data-arena-arm64-invoker PUBLIC jak1-data-arena)
++target_include_directories(jak1-data-arena-arm64-invoker
++                           PUBLIC "${CMAKE_CURRENT_LIST_DIR}/../../..")
++target_compile_features(jak1-data-arena-arm64-invoker PUBLIC cxx_std_20)
+diff --git a/game/kernel/jak1/data_arena_arm64_invoker.cpp b/game/kernel/jak1/data_arena_arm64_invoker.cpp
+new file mode 100644
+index 00000000..0cfa69d8
+--- /dev/null
++++ b/game/kernel/jak1/data_arena_arm64_invoker.cpp
+@@ -0,0 +1,28 @@
++#include "data_arena_arm64_invoker.h"
++
++#include <cassert>
++
++namespace jak1 {
++namespace {
++
++extern "C" std::uint64_t jak1_data_arena_call_native_method1_arm64(
++    std::uint64_t process,
++    std::uint32_t s7,
++    std::byte* arena,
++    DataArenaNativeMethodEntry1 entry,
++    std::uint32_t object);
++
++}  // namespace
++
++std::uint64_t invoke_data_arena_native_method1_arm64(const DataArenaNativeMethodCall1& call,
++                                                     void* user_context) {
++  assert(user_context);
++  assert(call.entry);
++  assert(call.arena);
++
++  const auto* context = static_cast<const DataArenaNativeMethodArm64Context*>(user_context);
++  return jak1_data_arena_call_native_method1_arm64(context->process, call.s7, call.arena,
++                                                   call.entry, call.object);
++}
++
++}  // namespace jak1
+diff --git a/game/kernel/jak1/data_arena_arm64_invoker.h b/game/kernel/jak1/data_arena_arm64_invoker.h
+new file mode 100644
+index 00000000..d1049bf9
+--- /dev/null
++++ b/game/kernel/jak1/data_arena_arm64_invoker.h
+@@ -0,0 +1,22 @@
++#pragma once
++
++#include <cstdint>
++
++#include "game/kernel/jak1/data_arena.h"
++
++namespace jak1 {
++
++// The caller owns this context and keeps it valid for the whole synchronous invocation.
++// The data-arena layer does not retain it or assign a process value itself.
++struct DataArenaNativeMethodArm64Context {
++  std::uint64_t process = 0;
++};
++
++// Apple ARM64 platform callback for a statically linked arity-one native entry. user_context must
++// point to a non-null DataArenaNativeMethodArm64Context that remains valid for the entire call.
++// The call's entry remains a typed native pointer outside the GOAL data arena; the raw method-table
++// word is validated by the data-arena layer but is never converted into a code address.
++std::uint64_t invoke_data_arena_native_method1_arm64(const DataArenaNativeMethodCall1& call,
++                                                     void* user_context);
++
++}  // namespace jak1
+diff --git a/game/kernel/jak1/data_arena_arm64_invoker.s b/game/kernel/jak1/data_arena_arm64_invoker.s
+new file mode 100644
+index 00000000..a14da6d3
+--- /dev/null
++++ b/game/kernel/jak1/data_arena_arm64_invoker.s
+@@ -0,0 +1,24 @@
++.text
++
++; Apple ARM64 ABI:
++;   x0: process, w1: s7, x2: data arena, x3: typed native entry, w4: object
++; The generated GOAL entry receives X20/X21/X22 and its ordinary arity-one argument in X0.
++.global _jak1_data_arena_call_native_method1_arm64
++.align 4
++_jak1_data_arena_call_native_method1_arm64:
++  stp x29, x30, [sp, #-16]!
++  mov x29, sp
++  stp x19, x20, [sp, #-16]!
++  stp x21, x22, [sp, #-16]!
++
++  mov x20, x0
++  uxtw x21, w1
++  mov x22, x2
++  mov x19, x3
++  uxtw x0, w4
++  blr x19
++
++  ldp x21, x22, [sp], #16
++  ldp x19, x20, [sp], #16
++  ldp x29, x30, [sp], #16
++  ret
+diff --git a/test/CMakeLists.txt b/test/CMakeLists.txt
+index 708280d3..de3dcbc4 100644
+--- a/test/CMakeLists.txt
++++ b/test/CMakeLists.txt
+@@ -46,7 +46,7 @@ if(BUILD_TESTING AND GOAL_HOST_TESTS_ENABLED)
+   gtest_discover_tests(jak1-data-arena-test)
+ endif()
+ 
+-if(BUILD_TESTING AND GOAL_HOST_TESTS_ENABLED AND APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
++if(BUILD_TESTING AND GOAL_HOST_TESTS_ENABLED AND TARGET jak1-data-arena-arm64-invoker)
+   enable_language(ASM)
+ 
+   set(ARM64_GOAL_CALL_AOT_DIR
+@@ -238,7 +238,8 @@ if(BUILD_TESTING AND GOAL_HOST_TESTS_ENABLED AND APPLE AND CMAKE_SYSTEM_PROCESSO
+   add_dependencies(arm64-goal-call-abi-test arm64-goal-call-aot-artifacts)
+   target_include_directories(arm64-goal-call-abi-test
+                              PRIVATE "${ARM64_GOAL_CALL_AOT_DIR}")
+-  target_link_libraries(arm64-goal-call-abi-test jak1-data-arena gtest_main)
++  target_link_libraries(arm64-goal-call-abi-test
++                        PRIVATE jak1-data-arena-arm64-invoker gtest_main)
+   target_compile_features(arm64-goal-call-abi-test PRIVATE cxx_std_20)
+   gtest_discover_tests(arm64-goal-call-abi-test PROPERTIES RUN_SERIAL TRUE)
+ endif()
+diff --git a/test/test_arm64_goal_call_abi.cpp b/test/test_arm64_goal_call_abi.cpp
+index 13854b74..5ec0261a 100644
+--- a/test/test_arm64_goal_call_abi.cpp
++++ b/test/test_arm64_goal_call_abi.cpp
+@@ -11,6 +11,7 @@
+ #include "game/kernel/common/kmalloc.h"
+ #include "game/kernel/common/memory_layout.h"
+ #include "game/kernel/jak1/data_arena.h"
++#include "game/kernel/jak1/data_arena_arm64_invoker.h"
+ #include "game/kernel/jak1/kscheme.h"
+ #include "gtest/gtest.h"
+ 
+@@ -53,7 +54,41 @@ static_assert(offsetof(Arm64GoalCallProbe, caller_x20_after) == 104);
+ static_assert(offsetof(Arm64GoalCallProbe, caller_x21_after) == 112);
+ static_assert(offsetof(Arm64GoalCallProbe, caller_x22_after) == 120);
+ 
++struct Arm64DataArenaNativeMethodInvokerProbe {
++  jak1::DataArenaNativeMethodCall1 call{};
++  jak1::DataArenaNativeMethodArm64Context context{};
++  std::uint64_t entry_x0 = 0;
++  std::uint64_t entry_x20 = 0;
++  std::uint64_t entry_x21 = 0;
++  std::uint64_t entry_x22 = 0;
++  std::uint64_t entry_sp_mod16 = 0;
++  std::uint64_t result = 0;
++  std::uint64_t caller_x20_after = 0;
++  std::uint64_t caller_x21_after = 0;
++  std::uint64_t caller_x22_after = 0;
++};
++
++static_assert(sizeof(jak1::DataArenaNativeMethodCall1) == 24);
++static_assert(offsetof(jak1::DataArenaNativeMethodCall1, entry) == 0);
++static_assert(offsetof(jak1::DataArenaNativeMethodCall1, object) == 8);
++static_assert(offsetof(jak1::DataArenaNativeMethodCall1, s7) == 12);
++static_assert(offsetof(jak1::DataArenaNativeMethodCall1, arena) == 16);
++static_assert(sizeof(Arm64DataArenaNativeMethodInvokerProbe) == 104);
++static_assert(offsetof(Arm64DataArenaNativeMethodInvokerProbe, call) == 0);
++static_assert(offsetof(Arm64DataArenaNativeMethodInvokerProbe, context) == 24);
++static_assert(offsetof(Arm64DataArenaNativeMethodInvokerProbe, entry_x0) == 32);
++static_assert(offsetof(Arm64DataArenaNativeMethodInvokerProbe, entry_x20) == 40);
++static_assert(offsetof(Arm64DataArenaNativeMethodInvokerProbe, entry_x21) == 48);
++static_assert(offsetof(Arm64DataArenaNativeMethodInvokerProbe, entry_x22) == 56);
++static_assert(offsetof(Arm64DataArenaNativeMethodInvokerProbe, entry_sp_mod16) == 64);
++static_assert(offsetof(Arm64DataArenaNativeMethodInvokerProbe, result) == 72);
++static_assert(offsetof(Arm64DataArenaNativeMethodInvokerProbe, caller_x20_after) == 80);
++static_assert(offsetof(Arm64DataArenaNativeMethodInvokerProbe, caller_x21_after) == 88);
++static_assert(offsetof(Arm64DataArenaNativeMethodInvokerProbe, caller_x22_after) == 96);
++
+ extern "C" void arm64_goal_call_abi_outer(Arm64GoalCallProbe* probe);
++extern "C" void arm64_data_arena_native_method_invoker_outer(
++    Arm64DataArenaNativeMethodInvokerProbe* probe);
+ extern "C" std::uint64_t call_goal_asm_arm64(std::uint64_t,
+                                              std::uint64_t,
+                                              std::uint64_t,
+@@ -79,6 +114,13 @@ extern "C" std::uint64_t arm64_goal_call_abi_entry(std::uint64_t,
+ extern "C" std::uint64_t arm64_goal_call_false_like_entry(std::uint64_t,
+                                                            std::uint64_t,
+                                                            std::uint64_t);
++extern "C" std::uint64_t arm64_data_arena_native_method_invoker_entry(std::uint64_t);
++
++extern "C" std::uint64_t arm64_data_arena_native_method_invoker_test_callback(
++    const jak1::DataArenaNativeMethodCall1* call,
++    void* user_context) {
++  return jak1::invoke_data_arena_native_method1_arm64(*call, user_context);
++}
+ 
+ #define OPENGOAL_AOT_EXPORT0(goal_name, c_symbol) \
+   extern "C" std::uint64_t c_symbol();
+@@ -195,17 +237,6 @@ std::uintptr_t entry_address(Entry entry) {
+   return reinterpret_cast<std::uintptr_t>(entry);
+ }
+ 
+-struct Arm64NativeMethodInvocation {
+-  jak1::DataArenaNativeMethodEntry1 entry = nullptr;
+-  std::uint32_t object = 0;
+-  std::uint32_t s7 = 0;
+-  std::byte* arena = nullptr;
+-  std::size_t calls = 0;
+-  std::uint64_t caller_x20_after = 0;
+-  std::uint64_t caller_x21_after = 0;
+-  std::uint64_t caller_x22_after = 0;
+-};
+-
+ Arm64GoalCallProbe make_probe(std::uintptr_t entry, std::uintptr_t st, std::uintptr_t arena) {
+   return {
+       .argument0 = 0x1122334455667788,
+@@ -216,25 +247,15 @@ Arm64GoalCallProbe make_probe(std::uintptr_t entry, std::uintptr_t st, std::uint
+   };
+ }
+ 
+-std::uint64_t invoke_native_method1_through_arm64_abi(
+-    const jak1::DataArenaNativeMethodCall1& call,
+-    void* user_context) {
+-  auto* invocation = static_cast<Arm64NativeMethodInvocation*>(user_context);
+-  invocation->entry = call.entry;
+-  invocation->object = call.object;
+-  invocation->s7 = call.s7;
+-  invocation->arena = call.arena;
+-  ++invocation->calls;
+-
+-  // The assembly outer calls call_goal_asm_arm64 and records restored callee-saved GOAL registers.
+-  auto probe = make_probe(entry_address(call.entry), call.s7,
+-                          reinterpret_cast<std::uintptr_t>(call.arena));
+-  probe.argument0 = call.object;
+-  arm64_goal_call_abi_outer(&probe);
+-  invocation->caller_x20_after = probe.caller_x20_after;
+-  invocation->caller_x21_after = probe.caller_x21_after;
+-  invocation->caller_x22_after = probe.caller_x22_after;
+-  return probe.result;
++struct NativeMethodInvocationCounter {
++  std::size_t calls = 0;
++};
++
++std::uint64_t count_native_method_invocation(const jak1::DataArenaNativeMethodCall1&,
++                                             void* user_context) {
++  auto* counter = static_cast<NativeMethodInvocationCounter*>(user_context);
++  ++counter->calls;
++  return 0;
+ }
+ 
+ void expect_caller_registers_restored(const Arm64GoalCallProbe& probe) {
+@@ -243,6 +264,34 @@ void expect_caller_registers_restored(const Arm64GoalCallProbe& probe) {
+   EXPECT_EQ(probe.caller_x22_after, 0x16);
+ }
+ 
++TEST(Arm64GoalCallAbi,
++     forwards_distinct_native_method_register_context_and_restores_caller_registers) {
++  constexpr std::uint64_t kProcess = UINT64_C(0xfedcba9876543210);
++  constexpr std::uint32_t kS7 = 0xf1234567;
++  constexpr std::uint32_t kObject = 0x81234567;
++  Arm64DataArenaNativeMethodInvokerProbe probe{
++      .call = {
++          .entry = arm64_data_arena_native_method_invoker_entry,
++          .object = kObject,
++          .s7 = kS7,
++      },
++      .context = {.process = kProcess},
++  };
++  probe.call.arena = reinterpret_cast<std::byte*>(&probe);
++
++  arm64_data_arena_native_method_invoker_outer(&probe);
++
++  EXPECT_EQ(probe.entry_x0, static_cast<std::uint64_t>(kObject));
++  EXPECT_EQ(probe.entry_x20, kProcess);
++  EXPECT_EQ(probe.entry_x21, static_cast<std::uint64_t>(kS7));
++  EXPECT_EQ(probe.entry_x22, reinterpret_cast<std::uintptr_t>(&probe));
++  EXPECT_EQ(probe.entry_sp_mod16, 0u);
++  EXPECT_EQ(probe.result, static_cast<std::uint64_t>(kObject) ^ kProcess);
++  EXPECT_EQ(probe.caller_x20_after, 0x14u);
++  EXPECT_EQ(probe.caller_x21_after, 0x15u);
++  EXPECT_EQ(probe.caller_x22_after, 0x16u);
++}
++
+ std::uint32_t read_u32(const std::byte* storage, std::size_t offset) {
+   std::uint32_t value = 0;
+   std::memcpy(&value, storage + offset, sizeof(value));
+@@ -948,6 +997,7 @@ TEST(Arm64GoalCallAbi, executes_generated_jak1_load_state_reset_against_two_guar
+ 
+ TEST(Arm64GoalCallAbi,
+      binds_jak1_load_state_reset_to_the_real_aot_entry_across_two_synthetic_arena_bases) {
++  constexpr std::uint64_t kProcess = UINT64_C(0xfedcba9876543210);
+   constexpr std::size_t kGuardSize = 16;
+   constexpr std::byte kCanary = std::byte{0xa5};
+   constexpr std::byte kSeed = std::byte{0x3c};
+@@ -1020,6 +1070,7 @@ TEST(Arm64GoalCallAbi,
+           .entry = kArm64GoalExports1[3].entry,
+       },
+   };
++  jak1::DataArenaNativeMethodArm64Context context{.process = kProcess};
+ 
+   std::vector<std::byte> backing(2 * kLaneSize, kCanary);
+   auto* first_arena = backing.data() + kGuardSize;
+@@ -1081,10 +1132,9 @@ TEST(Arm64GoalCallAbi,
+       write_expected(kObjectStatusOffset + index * sizeof(std::uint32_t), 0);
+     }
+ 
+-    Arm64NativeMethodInvocation invocation;
+     const auto result = jak1::invoke_data_arena_native_basic_method1(
+         storage, kArenaSize, header, kObject, kResetMethodId, bindings,
+-        &invoke_native_method1_through_arm64_abi, &invocation);
++        &jak1::invoke_data_arena_native_method1_arm64, &context);
+ 
+     ASSERT_TRUE(result.invoked());
+     EXPECT_EQ(result.value, kObject);
+@@ -1092,14 +1142,6 @@ TEST(Arm64GoalCallAbi,
+     EXPECT_EQ(result.basic_method.allocated_size, kLoadStateAllocatedSize);
+     EXPECT_EQ(result.basic_method.padded_size, kLoadStatePaddedSize);
+     EXPECT_EQ(result.basic_method.method_value, kFunction);
+-    EXPECT_EQ(invocation.calls, 1u);
+-    EXPECT_EQ(invocation.entry, kArm64GoalExports1[3].entry);
+-    EXPECT_EQ(invocation.object, kObject);
+-    EXPECT_EQ(invocation.s7, header.s7);
+-    EXPECT_EQ(invocation.arena, storage);
+-    EXPECT_EQ(invocation.caller_x20_after, 0x14);
+-    EXPECT_EQ(invocation.caller_x21_after, 0x15);
+-    EXPECT_EQ(invocation.caller_x22_after, 0x16);
+     EXPECT_EQ(read_u32(storage, kObjectRaw), kLoadStateType);
+     EXPECT_EQ(read_u32(storage, kLoadStateType + offsetof(jak1::Type, new_method) +
+                              kResetMethodId * sizeof(std::uint32_t)),
+@@ -1120,10 +1162,10 @@ TEST(Arm64GoalCallAbi,
+   auto unbound_binding = bindings[0];
+   unbound_binding.method_value += BASIC_OFFSET;
+   const std::array unbound_bindings{unbound_binding};
+-  Arm64NativeMethodInvocation unbound_invocation;
++  NativeMethodInvocationCounter unbound_invocation;
+   const auto unbound = jak1::invoke_data_arena_native_basic_method1(
+       first_arena, kArenaSize, header, kObject, kResetMethodId, unbound_bindings,
+-      &invoke_native_method1_through_arm64_abi, &unbound_invocation);
++      &count_native_method_invocation, &unbound_invocation);
+   EXPECT_EQ(unbound.error, jak1::DataArenaNativeMethodInvokeError::UnboundMethod);
+   EXPECT_EQ(unbound.lookup_error, jak1::DataArenaBasicMethodValueLookupError::None);
+   EXPECT_EQ(unbound.basic_method.method_value, kFunction);
+diff --git a/test/test_arm64_goal_call_abi.s b/test/test_arm64_goal_call_abi.s
+index ea0cdef1..9bbda3a9 100644
+--- a/test/test_arm64_goal_call_abi.s
++++ b/test/test_arm64_goal_call_abi.s
+@@ -51,3 +51,43 @@ _arm64_goal_call_abi_entry:
+ _arm64_goal_call_false_like_entry:
+   mov x0, x21
+   ret
++
++.global _arm64_data_arena_native_method_invoker_outer
++.align 4
++_arm64_data_arena_native_method_invoker_outer:
++  stp x29, x30, [sp, #-16]!
++  mov x29, sp
++  stp x19, x20, [sp, #-16]!
++  stp x21, x22, [sp, #-16]!
++
++  mov x19, x0
++  mov x20, #0x14
++  mov x21, #0x15
++  mov x22, #0x16
++
++  mov x0, x19
++  add x1, x19, #24
++  bl _arm64_data_arena_native_method_invoker_test_callback
++
++  str x0, [x19, #72]
++  str x20, [x19, #80]
++  str x21, [x19, #88]
++  str x22, [x19, #96]
++
++  ldp x21, x22, [sp], #16
++  ldp x19, x20, [sp], #16
++  ldp x29, x30, [sp], #16
++  ret
++
++.global _arm64_data_arena_native_method_invoker_entry
++.align 4
++_arm64_data_arena_native_method_invoker_entry:
++  str x0, [x22, #32]
++  str x20, [x22, #40]
++  str x21, [x22, #48]
++  str x22, [x22, #56]
++  mov x9, sp
++  and x9, x9, #0xf
++  str x9, [x22, #64]
++  eor x0, x0, x20
++  ret
+-- 
+2.50.1 (Apple Git-155)
+
