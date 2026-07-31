@@ -84,17 +84,18 @@ xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
 ```
 
 It produced a monolithic ARM64 main executable with no `GOALPad.debug.dylib`
-or `__preview.dylib`. The current direct
-`level-group-load-commands-set!` Export2 entry is at `0x10000400c` and its
-five instructions are exactly `add x16, x0, x22`, `add x16, x16, #0x20`,
-`str w1, [x16]`, `mov x0, x1`, and `ret`. The main executable SHA-256 is
-`f68f6e9d2b7a7608837618d13e0a5b17b8df2697d335304c321c4dae8d9836a1`.
+or `__preview.dylib`. The current complete
+`load-state::want-levels` Export3 entry is at `0x100004034`; its 142
+instructions occupy 568 bytes and have raw SHA-256
+`a4a511c21f024e5e5fc3c9dc0c03513b7aab3415604521258559361231b8e6ea`,
+matching the checked-in `.long` stream. The main executable SHA-256 is
+`1e7fb1f902794bf0104516974ce84b6fceaa2aff7c71a12df977927693116bee`.
 The embedded provisioning profile remains unchanged; its SHA-256 is
 `ef4a32f9aef6cca1709423e53e66518204e49a86af4d2752139de63d21244ad1`.
 Its `__TEXT` initial protection is `0x5` (read/execute); undefined imports
 contain none of `dlopen`,
-`dlsym`, `mmap`, `mprotect`, or `pthread_jit_write_protect_np`; and its strings
-contain no Preview/JIT marker.
+`dlsym`, `mmap`, `mprotect`, or `pthread_jit`; and its strings contain no
+Preview/JIT marker.
 
 `codesign -d --entitlements -` reports application identifier, team identifier,
 and `get-task-allow`; there is no JIT entitlement. The stricter local
@@ -181,6 +182,26 @@ Reserved store operand guard child: 311be4773feaf85740427d844e1db65ba4fe5591
 Reserved store operand guard patch: patches/OpenGOAL/0022-fix-arm64-reject-reserved-constant-store-operands-AI.patch
 Level command store host execution child: 13672fadb3fa977f407d19f15989136c38f58d61
 Level command store host execution patch: patches/OpenGOAL/0023-test-arm64-execute-Jak-1-level-command-store-AI-assi.patch
+Want-vis compiler child: 3c6d7f871a86ecfa53a3cbd94e90237986c68219
+Want-vis compiler patch: patches/OpenGOAL/0024-feat-arm64-compile-Jak-1-load-state-vis-store-AI-ass.patch
+Want-vis layout child: d3492375caf8de14815133c3597eb65efb44bca2
+Want-vis layout patch: patches/OpenGOAL/0025-test-arm64-preserve-want-vis-inline-layout-AI-assist.patch
+Want-vis host execution child: 3b821e75b4995a6e9a81f2624beb2485191e4e96
+Want-vis host execution patch: patches/OpenGOAL/0026-test-arm64-execute-Jak-1-want-vis-store-AI-assisted.patch
+ARM64 encoder correction child: 732a99553a5208b0f58b70d43f146592496a8863
+ARM64 encoder correction patch: patches/OpenGOAL/0027-fix-arm64-correct-AOT-encoder-primitives-AI-assisted.patch
+Local control-flow child: e5daa70a8ebaa569859acf3f5d51a56a4f727287
+Local control-flow patch: patches/OpenGOAL/0028-feat-arm64-materialize-local-AOT-control-flow-AI-ass.patch
+Guarded integer-math child: 38e15824de976e4fd9d9ebbc9e2e3d70cbfbbee9
+Guarded integer-math patch: patches/OpenGOAL/0029-feat-arm64-lower-guarded-AOT-integer-math-AI-assiste.patch
+Signed-loop child: f514c40ff8205760d3219a4676747218f5418cb3
+Signed-loop patch: patches/OpenGOAL/0030-feat-arm64-lower-signed-AOT-loop-backedges-AI-assist.patch
+Complete want-levels compiler child: 0b461a5619397e3a6f1c9699436023b088ba6814
+Complete want-levels compiler patch: patches/OpenGOAL/0031-feat-arm64-compile-complete-Jak-1-want-levels-body-A.patch
+Want-levels Export3 child: 16123d8d317704e9f18cccbd124a1615824e5ae2
+Want-levels Export3 patch: patches/OpenGOAL/0032-feat-aot-export-Jak-1-want-levels-with-three-argumen.patch
+Want-levels host execution child: 71fc691895acf44746961b7c7a3910da376ed0fd
+Want-levels host execution patch: patches/OpenGOAL/0033-test-arm64-execute-Jak-1-want-levels-branch-matrix-A.patch
 ```
 
 Restore it into an isolated worktree:
@@ -262,6 +283,21 @@ Patches 0022 and 0023 are sibling child commits of 0021, not a verified linear
 continuation after it. Preserve both mboxes, but use a fresh dedicated
 restoration audit and combined build before choosing an `am --3way` or other
 merge procedure. Do not claim that 0023 descends from 0022.
+
+Do not append patches 0024-0033 blindly to that historical `git am` example.
+Patches 0027-0032 form the reviewed literal compiler/export line
+`732a9955 -> e5daa70a -> 38e15824 -> f514c40f -> 0b461a56 -> 16123d8d`.
+Patch 0033 follows a runtime line based on 3b821e75 with stable-equivalent
+replays of 0027-0032:
+
+```text
+3b821e75 -> a09cd329 -> ec0bcc31 -> 57ecc6e8
+           -> 0291745c -> f1975b56 -> 93a97199 -> 71fc6918
+```
+
+Preserve all mboxes and stable patch IDs, then reconstruct and validate a
+combined branch in a dedicated worktree. Do not claim literal ancestry between
+the replay commits and original child objects.
 
 The restoration commands above produce commits patch-equivalent to `79f22008`, `149840cf`,
 `32cf26ae`, `92c8f975`, `b78d7c28`, `1fc20e79`, `25917e27`, `1c80b667`,
@@ -960,10 +996,11 @@ symbol-table, or GOAL-memory initialization.
 ## Validate the generated native export registry
 
 The generated metadata is included only after the app-local registry defines
-the matching `OPENGOAL_AOT_EXPORT0`, `OPENGOAL_AOT_EXPORT1`, or
-`OPENGOAL_AOT_EXPORT2` macro. The registry exposes two zero-argument, two
-one-argument, and two two-argument native entries outside the legacy 32-bit
-GOAL symbol representation; it does not mutate a live GOAL symbol table.
+the matching `OPENGOAL_AOT_EXPORT0`, `OPENGOAL_AOT_EXPORT1`,
+`OPENGOAL_AOT_EXPORT2`, or `OPENGOAL_AOT_EXPORT3` macro. The registry exposes
+two zero-argument, two one-argument, two two-argument, and one three-argument
+native entry outside the legacy 32-bit GOAL symbol representation; it does not
+mutate a live GOAL symbol table.
 
 ```sh
 xcrun --sdk macosx clang++ -std=c++20 -arch arm64 \
@@ -976,15 +1013,17 @@ xcrun --sdk macosx clang++ -std=c++20 -arch arm64 \
   GOALPad/Native/Generated/OpenGOALJak1Lognot.s \
   GOALPad/Native/Generated/OpenGOALJak1LevelGroupLoadCommandsSet.s \
   GOALPad/Native/Generated/OpenGOALJak1WantVis.s \
+  GOALPad/Native/Generated/OpenGOALJak1WantLevels.s \
   GOALPad/Native/GOALPadGoalStateWrapper.s \
-  -o /private/tmp/goalpad_aot_export_registry_harness_want_vis
+  -o /private/tmp/goalpad_aot_export_registry_harness_want_levels
 
-/private/tmp/goalpad_aot_export_registry_harness_want_vis
+/private/tmp/goalpad_aot_export_registry_harness_want_levels
 ```
 
 Exit `0` requires successful typed `false-func`, `true-func`, `identity`,
-`lognot`, direct `level-group-load-commands-set!`, and direct `want-vis`
-lookups; rejects every cross-type or missing name; verifies `true-func`
+`lognot`, direct `level-group-load-commands-set!`, direct `want-vis`, and
+complete direct `want-levels` lookups; rejects every cross-type or missing
+name; verifies `true-func`
 returns X21 plus eight and `lognot` complements its X0 argument; and proves
 the two-argument wrapper establishes X20/X21/X22 before placing its values in
 X0/X1. The level-command proof checks full-width returns and W1 stores. The
@@ -993,19 +1032,25 @@ low-word stores only at raw offsets `0x34` and `0x94`, requires a zero return,
 preserves the first write across the second call, verifies whole-buffer guard
 bytes, and checks caller-register restoration. It is not live GOAL
 symbol-table, method-installation, dispatch, relocation, or
-runtime-initialization evidence.
+runtime-initialization evidence. The `want-levels` proof supplies X0
+`this = 4`, two level arguments in X1/X2, Jak 1 `#f = 0x14fd24` in X21, and
+an aligned arena in X22. It verifies all six retained/replaced/duplicate/false
+argument cases, the exact two inline `want` slots, whole-arena equality,
+explicit guard regions, and caller-register restoration.
 
 The checked-in `want-vis` artifacts must match the compiler outputs exactly:
 
 ```text
 718e440c35491569102a22ea6bf9fb204ec60fa6ade91c54dbb4602c25c081f0  OpenGOALJak1WantVis.s
 18bc127bd7bfd2af14bd40a6db0277d0a0ce0ce97778f7fd2ead4fc78493d23f  OpenGOALJak1WantVis.exports.h
+b02fe8ba458f85597d1900c854dca08cdaf001e9b56b854e6de81f16259e8f96  OpenGOALJak1WantLevels.s
+840388bd896ceb4b98e6b6365175fe7328f0096f6cd659fbd301e923d509effc  OpenGOALJak1WantLevels.exports.h
 ```
 
-### Checkpoint 11 validation evidence
+### Historical Checkpoint 11 validation evidence
 
-The command above compiled and the harness exited `0`. The current ARM64
-macOS Debug build also passed:
+The then-current `want-vis` registry harness command compiled and exited `0`.
+The corresponding ARM64 macOS Debug build also passed:
 
 ```sh
 xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
@@ -1056,6 +1101,78 @@ still `ef4a32f9aef6cca1709423e53e66518204e49a86af4d2752139de63d21244ad1`.
 Strict verification reports the expected local `CSSMERR_TP_NOT_TRUSTED`
 certificate-trust caveat. This is build, signing, and layout evidence only,
 not installability or physical-device execution evidence.
+
+### Checkpoint 12 validation evidence
+
+The updated registry command above compiled and executed with exit `0`. It
+requires the complete `want-levels` Export3 body to pass all six guarded
+semantic cases.
+
+The combined OpenGOAL runtime worktree at commit `71fc6918` was built with
+Release Ninja and `-j 4`. Its focused branch-matrix test passed 1/1,
+`Arm64GoalCallAbi` passed 5/5, `Jak1DataArena` passed 4/4, the paired-artifact
+CTest passed 1/1, the ARM64 emitter/AOT filter passed 99/99, and full CTest
+passed 10/10.
+
+The current ARM64 macOS Debug command is:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-mac -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO build
+```
+
+It succeeded outside the execution sandbox. The initial sandboxed run failed
+only because the Swift Preview macro could not apply its nested
+`sandbox-exec` profile. The resulting `GOALPad.debug.dylib` SHA-256 is
+`b4a2b583a9ab52af9ffc591de3fe3e4d8955d947f094a2da6fdb58a30f8a315d`;
+`_goalpad_aot_load_state_want_levels` is at `0x15fc`.
+
+The exact M5 simulator build used:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug \
+  -destination 'id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-sim -jobs 4 build
+```
+
+Build, boot, install, and launch succeeded only on that named simulator.
+Launch returned PID `15755`. The green UI reported the complete
+`want-levels AOT proof verified`, `Architecture: arm64`, and
+`AOT result: 8,194`. Screenshot
+`/private/tmp/GOALPad-want-levels-M5.png` has SHA-256
+`17348c1dab472dc1012029daa708b5696ec378a4b1f3282ab18e99246aab2646`.
+Explicit shutdown succeeded, and the M5 was confirmed `Shutdown`. No Freemote
+simulator was accessed. This is simulator evidence only.
+
+The normally signed generic Release command is:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-device -jobs 4 \
+  ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
+```
+
+Compilation and Xcode signing passed. The monolithic ARM64 main executable
+SHA-256 is
+`1e7fb1f902794bf0104516974ce84b6fceaa2aff7c71a12df977927693116bee`.
+It contains `_goalpad_aot_load_state_want_levels` at `0x100004034`; its 142
+instructions occupy 568 bytes and have raw SHA-256
+`a4a511c21f024e5e5fc3c9dc0c03513b7aab3415604521258559361231b8e6ea`.
+`__TEXT` maximum and initial protections are `0x5` (read/execute), data
+segments are non-executable, and there are no app-root dylibs. Undefined-
+import and string scans found no `dlopen`, `dlsym`, `mmap`, `mprotect`,
+`pthread_jit`, Preview, or JIT marker.
+
+`codesign -d --entitlements -` reports the app/team identifiers and
+`get-task-allow`, with no JIT entitlement. The embedded profile SHA-256 remains
+`ef4a32f9aef6cca1709423e53e66518204e49a86af4d2752139de63d21244ad1`.
+Strict verification still reports the known local
+`CSSMERR_TP_NOT_TRUSTED` caveat. This is static build, signing, and layout
+evidence only, not trust, installability, or physical-device execution.
 
 ## Physical iPad validation
 

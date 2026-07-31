@@ -36,7 +36,14 @@ binding architecture, scope, and content-separation rules.
   `#x24`, returns zero, and executes twice against separate aligned X22 bases
   while the app verifies exact stores, untouched guard bytes, and restored
   caller state. This proves only the direct method body; it does not install
-  or dispatch `want-vis`.
+  or dispatch `want-vis`. The complete real Jak 1
+  `load-state::want-levels` body is now a distinct guarded three-argument
+  `Export3` entry containing 142 deterministic ARM64 instructions. The host
+  and app execute all six retained/replaced/duplicate/false argument cases
+  against two inline `want` slots, with Jak 1 `#f` in X21, an aligned
+  caller-owned arena in X22, whole-buffer equality, explicit canaries, and
+  caller-register restoration. This remains a direct body proof; it does not
+  install or dispatch `want-levels`.
   GOALPad resolves the generated native entries through a small app-local
   registry; `true-func` returns X21 plus eight and `identity` receives its one
   object argument in Apple-ABI X0 only after that state is established. A
@@ -49,14 +56,14 @@ binding architecture, scope, and content-separation rules.
   compiles the dispatcher and five generated entries, but is compatibility
   evidence only. The established app-local function/export checkpoint is
   verified on ARM64 macOS and the dedicated M5 simulator. The direct
-  level-command and `want-vis` artifacts were also built on ARM64 macOS, run
-  on the dedicated M5 simulator, and included in signed generic Release iOS
-  builds. The Debug generic iOS build uses an Xcode Preview split bundle and
-  is not no-JIT evidence. The Release build disables Preview/debug-dylib
-  layout and contains a monolithic ARM64 executable, but is build/signing
-  evidence only. Top-level GOAL symbol or method installation, live runtime
-  initialization, relocation, and physical execution of the current AOT
-  checkpoints remain pending.
+  level-command, `want-vis`, and complete `want-levels` artifacts were also
+  built on ARM64 macOS, run on the dedicated M5 simulator, and included in
+  signed generic Release iOS builds. The Debug generic iOS build uses an Xcode
+  Preview split bundle and is not no-JIT evidence. The Release build disables
+  Preview/debug-dylib layout and contains a monolithic ARM64 executable, but
+  is build/signing evidence only. Top-level GOAL symbol or method
+  installation, live runtime initialization, relocation, and physical
+  execution of the current AOT checkpoints remain pending.
 - **Planned:** Initialize the full OpenGOAL runtime state, expand the ARM64
   compiler subset, and load user-prepared Jak 1 data.
 
