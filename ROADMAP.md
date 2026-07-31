@@ -387,6 +387,24 @@ Current progress:
   passed. This is still direct body evidence only; there is no method
   installation, live runtime initialization, Jak data, boot, or current
   physical-device execution.
+- Patches 0034-0036 compile, export, and execute the complete real
+  `load-state::reset!` body from
+  `goal_src/jak1/engine/level/load-boundary.gc:1027-1040`. The exact
+  50-IR match emits 58 ARM64 instructions (232 bytes), and the host proof
+  executes it against two disjoint guarded arenas with Jak 1 `#f` in X21.
+  It verifies all eight `want` words, the empty `command-list`, all 256
+  `object-name` and 256 `object-status` entries, full-arena equality, caller
+  state, and return value. Parent commits `53f7422`, `27e3a57`, and `379949e`
+  preserve the ordered child patches; `d843e17` checks in the exact artifact;
+  and `cabb027` registers and repeats the proof in GOALPad. Host tests, the
+  ARM64 macOS app, the named M5 simulator runtime, and the normally signed
+  monolithic generic iOS Release build passed. This is direct static body
+  evidence only: there is no method installation or dispatch, live global
+  binding, relocation, Jak data, boot, or current physical-device execution.
+  The bare name `reset!` is a known artifact identity only; it is not a
+  general or qualified GOAL method-resolution scheme. A future dispatch image
+  must distinguish method owner/type rather than assuming every `reset!`
+  denotes this body.
 
 ## Stage 5 — Build a portable OpenGOAL runtime for iPadOS
 
@@ -704,8 +722,8 @@ Operating rules:
 Stage 2 is complete. Stages 1 and 3 remain active; the typed Stage 4 static
 artifact boundaries, bounded 0020 X22 field-load proof, direct 0021-0023
 level-command store proof, direct 0024-0026 `want-vis` proof, and complete
-0027-0033 direct `want-levels` semantic proof are verified but do not complete
-the Stage 4 exit gate.
+0027-0033 direct `want-levels` and 0034-0036 direct `load-state::reset!`
+semantic proofs are verified but do not complete the Stage 4 exit gate.
 
 Stage 1 is blocked on a maintainer-chosen, fetchable OpenGOAL fork/pin and
 working GitHub authentication. Until publication, keep the official submodule
@@ -716,23 +734,25 @@ owner, access policy, and transport, then explicitly renews authentication.
 
 The next actions are:
 
-1. Integrate the verified portable 0013-0033 work only after a dedicated
+1. Integrate the verified portable 0013-0036 work only after a dedicated
    OpenGOAL fork makes the ordered changes fetchable and pins them
    reproducibly. Preserve every mbox and stable patch ID. Patches 0022 and
    0023 are sibling child changes from 0021; 0024-0032 have both literal and
    stable-equivalent runtime-replay identities; 0033 follows the reviewed
-   replay line. Require a fresh combined apply/build validation rather than
-   claiming a false literal ancestry. Do not copy the source into the app or
-   use a machine-local worktree path.
-2. Implement the next compiler-only proof: the complete real Jak 1
-   `load-state::reset!` body from
-   `goal_src/jak1/engine/level/load-boundary.gc:1027-1040`. Audit and add only
-   the `_empty_`, constant/basic value, shift/index, 256-iteration loop, and
-   stores required by the exact lowered IR. Defer metadata, app integration,
-   method installation/dispatch, and broader abstractions until the strict
-   body passes independent review. Its only direct game-flow call is at
-   `level.gc:1005`, immediately before the verified `want-levels` caller; the
-   `load-state` constructor also invokes it.
+   replay line, and 0034-0036 form the literal
+   `71fc6918 -> e96cedd2 -> 2229c13e -> bb4b2e7e` sequence. Require a fresh
+   combined apply/build validation rather than claiming false ancestry. Do not
+   copy the source into the app or use a machine-local worktree path.
+2. The next boot-flow candidate is `load-state-want-levels` at
+   `goal_src/jak1/engine/level/load-boundary.gc:1095-1096`, called at
+   `level.gc:1007` in the `1005-1009` reset/load/want/display flow. Its
+   `(symbol symbol) -> int` wrapper invokes `want-levels` on global
+   `*load-state*`. A source-faithful implementation first requires explicit,
+   signed-AOT-compatible treatment of the global symbol value, runtime type
+   and method-table load, indirect method dispatch, and native function
+   relocation/table mapping. The existing direct Export3 body is not method
+   dispatch. Do not hard-code a direct call that silently changes the
+   non-final type's virtual semantics.
 3. Keep unsupported statics, general relocations, calls, saved registers,
    spills, and stack locals explicit until a real Jak 1 boot dependency
    requires each boundary. Keep x86 behavior, the non-network compiler suite,

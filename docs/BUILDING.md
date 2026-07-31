@@ -84,12 +84,12 @@ xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
 ```
 
 It produced a monolithic ARM64 main executable with no `GOALPad.debug.dylib`
-or `__preview.dylib`. The current complete
-`load-state::want-levels` Export3 entry is at `0x100004034`; its 142
-instructions occupy 568 bytes and have raw SHA-256
-`a4a511c21f024e5e5fc3c9dc0c03513b7aab3415604521258559361231b8e6ea`,
+or `__preview.dylib`. The current complete `load-state::reset!` Export1 entry
+is at `0x100004020`; its 58 instructions occupy 232 bytes and have raw
+SHA-256
+`2f0171fc455619ad95eb20ef2686b4a8db1642cd94a727e22121051420ab4edd`,
 matching the checked-in `.long` stream. The main executable SHA-256 is
-`1e7fb1f902794bf0104516974ce84b6fceaa2aff7c71a12df977927693116bee`.
+`aae97872933a7ba266ad8041e77c076e6769a26e85cb3fc3535e121d9f117c6b`.
 The embedded provisioning profile remains unchanged; its SHA-256 is
 `ef4a32f9aef6cca1709423e53e66518204e49a86af4d2752139de63d21244ad1`.
 Its `__TEXT` initial protection is `0x5` (read/execute); undefined imports
@@ -98,7 +98,9 @@ contain none of `dlopen`,
 Preview/JIT marker.
 
 `codesign -d --entitlements -` reports application identifier, team identifier,
-and `get-task-allow`; there is no JIT entitlement. The stricter local
+and `get-task-allow = true`; there is no JIT entitlement. This is an
+Apple Development signature, not distribution or App Store evidence. The
+current local profile expires at `2026-08-06T23:51:59Z`. The stricter local
 `codesign --verify --deep --strict` check still returns
 `CSSMERR_TP_NOT_TRUSTED`. This is a known local certificate-trust caveat, not a
 substitute for successful Xcode signing or physical-device validation. No
@@ -202,6 +204,12 @@ Want-levels Export3 child: 16123d8d317704e9f18cccbd124a1615824e5ae2
 Want-levels Export3 patch: patches/OpenGOAL/0032-feat-aot-export-Jak-1-want-levels-with-three-argumen.patch
 Want-levels host execution child: 71fc691895acf44746961b7c7a3910da376ed0fd
 Want-levels host execution patch: patches/OpenGOAL/0033-test-arm64-execute-Jak-1-want-levels-branch-matrix-A.patch
+Load-state reset compiler child: e96cedd236512ca629455e3e2bab97ae28e410a1
+Load-state reset compiler patch: patches/OpenGOAL/0034-feat-arm64-compile-Jak-1-load-state-reset-body-AI-as.patch
+Load-state reset Export1 child: 2229c13ea7f1563327e03e29951425f8ce345185
+Load-state reset Export1 patch: patches/OpenGOAL/0035-feat-aot-export-direct-Jak-1-load-state-reset-AI-ass.patch
+Load-state reset host execution child: bb4b2e7e8705f55e8629da10cad9fb25d10e6cba
+Load-state reset host execution patch: patches/OpenGOAL/0036-test-arm64-execute-Jak-1-load-state-reset-body-AI-as.patch
 ```
 
 Restore it into an isolated worktree:
@@ -284,7 +292,7 @@ continuation after it. Preserve both mboxes, but use a fresh dedicated
 restoration audit and combined build before choosing an `am --3way` or other
 merge procedure. Do not claim that 0023 descends from 0022.
 
-Do not append patches 0024-0033 blindly to that historical `git am` example.
+Do not append patches 0024-0036 blindly to that historical `git am` example.
 Patches 0027-0032 form the reviewed literal compiler/export line
 `732a9955 -> e5daa70a -> 38e15824 -> f514c40f -> 0b461a56 -> 16123d8d`.
 Patch 0033 follows a runtime line based on 3b821e75 with stable-equivalent
@@ -293,6 +301,13 @@ replays of 0027-0032:
 ```text
 3b821e75 -> a09cd329 -> ec0bcc31 -> 57ecc6e8
            -> 0291745c -> f1975b56 -> 93a97199 -> 71fc6918
+```
+
+Patches 0034-0036 then depend on that reconstructed `71fc6918` runtime line,
+not the historical 0021 `git am` example:
+
+```text
+71fc6918 -> e96cedd2 -> 2229c13e -> bb4b2e7e
 ```
 
 Preserve all mboxes and stable patch IDs, then reconstruct and validate a
@@ -998,7 +1013,7 @@ symbol-table, or GOAL-memory initialization.
 The generated metadata is included only after the app-local registry defines
 the matching `OPENGOAL_AOT_EXPORT0`, `OPENGOAL_AOT_EXPORT1`,
 `OPENGOAL_AOT_EXPORT2`, or `OPENGOAL_AOT_EXPORT3` macro. The registry exposes
-two zero-argument, two one-argument, two two-argument, and one three-argument
+two zero-argument, three one-argument, two two-argument, and one three-argument
 native entry outside the legacy 32-bit GOAL symbol representation; it does not
 mutate a live GOAL symbol table.
 
@@ -1014,16 +1029,17 @@ xcrun --sdk macosx clang++ -std=c++20 -arch arm64 \
   GOALPad/Native/Generated/OpenGOALJak1LevelGroupLoadCommandsSet.s \
   GOALPad/Native/Generated/OpenGOALJak1WantVis.s \
   GOALPad/Native/Generated/OpenGOALJak1WantLevels.s \
+  GOALPad/Native/Generated/OpenGOALJak1LoadStateReset.s \
   GOALPad/Native/GOALPadGoalStateWrapper.s \
-  -o /private/tmp/goalpad_aot_export_registry_harness_want_levels
+  -o /private/tmp/goalpad_aot_export_registry_harness_load_state_reset
 
-/private/tmp/goalpad_aot_export_registry_harness_want_levels
+/private/tmp/goalpad_aot_export_registry_harness_load_state_reset
 ```
 
 Exit `0` requires successful typed `false-func`, `true-func`, `identity`,
 `lognot`, direct `level-group-load-commands-set!`, direct `want-vis`, and
-complete direct `want-levels` lookups; rejects every cross-type or missing
-name; verifies `true-func`
+complete direct `want-levels` and `reset!` lookups; rejects every cross-type or
+missing name; verifies `true-func`
 returns X21 plus eight and `lognot` complements its X0 argument; and proves
 the two-argument wrapper establishes X20/X21/X22 before placing its values in
 X0/X1. The level-command proof checks full-width returns and W1 stores. The
@@ -1036,15 +1052,22 @@ runtime-initialization evidence. The `want-levels` proof supplies X0
 `this = 4`, two level arguments in X1/X2, Jak 1 `#f = 0x14fd24` in X21, and
 an aligned arena in X22. It verifies all six retained/replaced/duplicate/false
 argument cases, the exact two inline `want` slots, whole-arena equality,
-explicit guard regions, and caller-register restoration.
+explicit guard regions, and caller-register restoration. The `reset!` proof
+uses X0 `this = 4`, Jak 1 `#f` in X21, and two disjoint aligned X22 arena
+bases. It checks all eight `want` fields, the empty-list `command-list`, all
+256 `object-name` and 256 `object-status` entries, the complete untouched gap
+and canaries, the full-width return, and caller-register restoration. It is a
+direct static method-body proof, not installation or virtual dispatch.
 
-The checked-in `want-vis` artifacts must match the compiler outputs exactly:
+The checked-in method-body artifacts must match the compiler outputs exactly:
 
 ```text
 718e440c35491569102a22ea6bf9fb204ec60fa6ade91c54dbb4602c25c081f0  OpenGOALJak1WantVis.s
 18bc127bd7bfd2af14bd40a6db0277d0a0ce0ce97778f7fd2ead4fc78493d23f  OpenGOALJak1WantVis.exports.h
 b02fe8ba458f85597d1900c854dca08cdaf001e9b56b854e6de81f16259e8f96  OpenGOALJak1WantLevels.s
 840388bd896ceb4b98e6b6365175fe7328f0096f6cd659fbd301e923d509effc  OpenGOALJak1WantLevels.exports.h
+b6c9baab7b6bb5b94a282013aeaf28adf29894644adeacff0f27873740110964  OpenGOALJak1LoadStateReset.s
+51df1b61f6a9e134307300958564bd0fa66c3fc6fddda385040f7abdcf0371fb  OpenGOALJak1LoadStateReset.exports.h
 ```
 
 ### Historical Checkpoint 11 validation evidence
@@ -1173,6 +1196,188 @@ import and string scans found no `dlopen`, `dlsym`, `mmap`, `mprotect`,
 Strict verification still reports the known local
 `CSSMERR_TP_NOT_TRUSTED` caveat. This is static build, signing, and layout
 evidence only, not trust, installability, or physical-device execution.
+
+### Checkpoint 13 validation evidence
+
+The complete real Jak 1 `load-state::reset!` body is preserved as three
+ordered OpenGOAL patches while the official submodule remains clean at
+`a4cb1ac1f0596c8740b1c26accb24a58505cda92`:
+
+| Patch | Child commit | SHA-256 | Stable patch ID |
+| --- | --- | --- | --- |
+| `0034-feat-arm64-compile-Jak-1-load-state-reset-body-AI-as.patch` | `e96cedd236512ca629455e3e2bab97ae28e410a1` | `fd7dccae28bd9b6ef44213dc61a1fff1f780598f31481d5edee9a7e59a3860fb` | `a5c7198d70c35be5695a5ac288b7b6cc2bb3404b` |
+| `0035-feat-aot-export-direct-Jak-1-load-state-reset-AI-ass.patch` | `2229c13ea7f1563327e03e29951425f8ce345185` | `a8eb87d556812780b1abaf9a205e297ddd4e507bbdcfafa847c988e9233117f3` | `b850708e2df5c0c4486e49b093fd155e3bd4deb1` |
+| `0036-test-arm64-execute-Jak-1-load-state-reset-body-AI-as.patch` | `bb4b2e7e8705f55e8629da10cad9fb25d10e6cba` | `58b3a5f1ad13d691bbed9ca310e6275faaf4a6a5e6d822585915ab15ccf40ab8` | `47ef21e55cd67d023bf7c17c4143b4bb57967064` |
+
+Their literal child sequence is:
+
+```text
+71fc6918 -> e96cedd2 -> 2229c13e -> bb4b2e7e
+```
+
+The compiler artifact is an exact 50-IR match for the source body at
+`goal_src/jak1/engine/level/load-boundary.gc:1027-1040`. It emits 58 ARM64
+instructions (232 bytes), and the guarded metadata maps only:
+
+```text
+reset! -> goalpad_aot_load_state_reset
+```
+
+The combined OpenGOAL worktree is
+`/private/tmp/GOALPadOpenGOAL-arm64-load-state-reset-runtime`, branch
+`goalpad/arm64-load-state-reset-runtime`, at `bb4b2e7e`. Its Release build tree
+is `/private/tmp/GOALPadOpenGOAL-arm64-load-state-reset-runtime-build`.
+Memory-heavy builds were serialized with `-j 4`. The verified results were:
+
+```text
+Arm64GoalCallAbi:             6/6 passed
+Jak1DataArena:                4/4 passed
+goalc-aot-artifact-pair:      1/1 passed
+compiler/emitter selection: 186/186 passed
+full CTest:                  11/11 passed
+```
+
+The first direct `goalc-test` command failed before tests because its
+executable path did not contain the required `jak-project` component. Temporary
+no-copy aliases
+`/private/tmp/load-state-reset-jak-project` and
+`/private/tmp/load-state-reset-jak-project-build` resolved that path
+requirement. A disposable export-child build also exposed an incomplete
+generated cubeb archive; after confirming that no active process owned it, a
+clean rebuild of that disposable output passed. Neither was a source-test
+failure. The runtime implementation's first commands were interrupted by a
+short tool yield; the same work completed in a persistent terminal.
+
+The checked-in artifact and app integration are parent commits:
+
+```text
+d843e17 feat(aot): add generated Jak 1 load-state reset artifact (AI-assisted)
+cabb027 feat(aot): integrate direct Jak 1 load-state reset proof (AI-assisted)
+```
+
+The parent native registry harness command above compiled and ran with exit
+`0`. The ARM64 macOS build was:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-mac -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO build
+```
+
+It succeeded. The resulting `GOALPad.debug.dylib` SHA-256 is
+`b39e999f78d75a755490f6ca87eac26beb3f86207c321cbf3d33eeccd3ecf42d`;
+`_goalpad_aot_load_state_reset` is at `0x15e8` and contains the exact 58
+instructions.
+
+Only the approved local iPad Pro 11-inch (M5) simulator UDID
+`96C5C21A-B925-4213-82A3-90DCB8518339` was used:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug \
+  -destination 'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-sim -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO build
+
+xcrun simctl boot 96C5C21A-B925-4213-82A3-90DCB8518339
+xcrun simctl bootstatus 96C5C21A-B925-4213-82A3-90DCB8518339 -b
+xcrun simctl install 96C5C21A-B925-4213-82A3-90DCB8518339 \
+  /private/tmp/GOALPad-sim/Build/Products/Debug-iphonesimulator/GOALPad.app
+xcrun simctl launch --terminate-running-process --console \
+  96C5C21A-B925-4213-82A3-90DCB8518339 \
+  com.zephyrstudiosllc.GOALPad
+xcrun simctl shutdown 96C5C21A-B925-4213-82A3-90DCB8518339
+```
+
+Build, boot, install, and launch passed. The launch PID was `1794`; the log and
+green UI reported the direct load-state reset AOT proof, `Architecture: arm64`,
+and `AOT result: 8,194`. Screenshot
+`/private/tmp/GOALPad-load-state-reset-M5.png` is 1668 by 2420 pixels with
+SHA-256
+`353dd362039be3486a65c49006800f9bc8fbc9ce687009598b10884a43af7d9f`.
+The simulator was confirmed `Shutdown` afterward.
+
+The generic normally signed Release build used the command documented above
+and succeeded. The current monolithic ARM64 binary is
+`/private/tmp/GOALPad-device/Build/Products/Release-iphoneos/GOALPad.app/GOALPad`.
+Its SHA-256 is
+`aae97872933a7ba266ad8041e77c076e6769a26e85cb3fc3535e121d9f117c6b`.
+The reset symbol is at `0x100004020`; exactly 232 bytes have SHA-256
+`2f0171fc455619ad95eb20ef2686b4a8db1642cd94a727e22121051420ab4edd`.
+`__TEXT` maximum and initial protections are `0x5` (read/execute), while
+`__DATA_CONST` and `__DATA` are `0x3` (read/write), with no execute
+permission. Inspection found no app-root dylibs and no `dlopen`, `dlsym`,
+`mmap`, `mprotect`, `pthread_jit`, Preview, or JIT import/string marker.
+
+The exact static-inspection commands were:
+
+```sh
+app=/private/tmp/GOALPad-device/Build/Products/Release-iphoneos/GOALPad.app
+binary="$app/GOALPad"
+profile="$app/embedded.mobileprovision"
+
+file "$binary"
+xcrun lipo -archs "$binary"
+shasum -a 256 "$binary" "$profile"
+xcrun nm -nm "$binary" |
+  rg 'goalpad_aot_load_state_reset|goalpad_probe_call_aot1_with_state'
+xcrun otool -l "$binary"
+xcrun otool -L "$binary"
+find "$app" -maxdepth 1 -type f -name '*.dylib'
+xcrun nm -u "$binary" |
+  rg -i '(^|_)(dlopen|dlsym|mmap|mprotect|pthread_jit)'
+strings -a "$binary" |
+  rg -i 'pthread_jit|mprotect|mmap|dlopen|dlsym|preview|jit'
+
+symbol_address=$(xcrun nm -nm "$binary" |
+  awk '$NF == "_goalpad_aot_load_state_reset" { print "0x" $1; exit }')
+read -r text_address text_offset <<< "$(
+  xcrun otool -l "$binary" |
+    awk '
+      $1 == "sectname" { section = $2 }
+      $1 == "segname" { segment = $2 }
+      $1 == "addr" && section == "__text" && segment == "__TEXT" { address = $2 }
+      $1 == "offset" && section == "__text" && segment == "__TEXT" {
+        print address, $2
+        exit
+      }'
+)"
+body_offset=$((text_offset + symbol_address - text_address))
+dd if="$binary" bs=1 skip="$body_offset" count=232 2>/dev/null |
+  shasum -a 256
+
+codesign -d --entitlements - "$app"
+openssl smime -inform der -verify -noverify -in "$profile" 2>/dev/null |
+  plutil -extract Entitlements xml1 -o - - |
+  plutil -p -
+codesign --verify --deep --strict --verbose=4 "$app"
+```
+
+The empty `find`, undefined-import, and string scans are required results. An
+unexpected match is a failure; do not hide it with a shell fallback.
+
+The app entitlements contain only the expected application identifier, team
+identifier, and `get-task-allow = true`; this is Apple Development signing,
+not distribution evidence. The decoded local provisioning profile has the
+same identifiers, expires at `2026-08-06T23:51:59Z`, and has no JIT or
+unsigned-executable-memory entitlement.
+The profile SHA-256 remains
+`ef4a32f9aef6cca1709423e53e66518204e49a86af4d2752139de63d21244ad1`.
+Strict verification exits `1` with the known local
+`CSSMERR_TP_NOT_TRUSTED` certificate-trust caveat. Xcode's build/signing step
+itself succeeded. This is static build, signature, and layout evidence, not
+physical-device installation or execution.
+
+A first sandboxed `security cms -D` inspection returned `cert import failed`
+and `problem decoding`; the identical read-only decode outside the sandbox
+succeeded. The local non-network OpenSSL CMS command above also succeeded in
+the restricted environment. Use
+`codesign -d --entitlements -`, not the deprecated `:-` output-path spelling,
+with the current local toolchain.
+
+No physical device, **Z iPad Pro**, Freemote simulator, remote, proprietary
+game data, or push was accessed for this checkpoint.
 
 ## Physical iPad validation
 
