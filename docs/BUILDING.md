@@ -82,6 +82,10 @@ Jak 1 false child: 32cf26aef8c61cecdceeb07ed90e0296e1e8e052
 Jak 1 false patch: patches/OpenGOAL/0003-Compile-Jak-1-false-form-for-ARM64-AI-assisted.patch
 Full false-func child: 92c8f975efc9741c9e6a4bc4b0086f131ac9aefd
 Full false-func patch: patches/OpenGOAL/0004-Compile-full-Jak-1-false-function-for-ARM64-AOT-AI-assisted.patch
+Named-selection child: b78d7c28c5f4f034e020a4ace48c10a9190d7fa1
+Named-selection patch: patches/OpenGOAL/0005-Constrain-named-ARM64-AOT-function-selection-AI-assi.patch
+Export-metadata child: 1fc20e793f6c7fd8db3bca3fcc458b098a8b4ea3
+Export-metadata patch: patches/OpenGOAL/0006-Emit-atomic-signed-ARM64-export-metadata-AI-assisted.patch
 ```
 
 Restore it into an isolated worktree:
@@ -102,6 +106,12 @@ git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
 
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0004-Compile-full-Jak-1-false-function-for-ARM64-AOT-AI-assisted.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0005-Constrain-named-ARM64-AOT-function-selection-AI-assi.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0006-Emit-atomic-signed-ARM64-export-metadata-AI-assisted.patch"
 ```
 
 If that branch or worktree already exists, inspect and reuse it rather than
@@ -109,11 +119,11 @@ deleting it. Do not move the parent repository's official submodule gitlink to
 the unpublished child commit.
 
 The restored commits are patch-equivalent to `79f22008`, `149840cf`,
-`32cf26ae`, and `92c8f975`, but `git am` normally assigns new committer
-metadata and therefore different commit SHAs. The exact objects are available
-only in a checkout that already contains the original child commits. Compare
-the resulting tree or stable patch identities when reconstructing them from
-the preserved patches.
+`32cf26ae`, `92c8f975`, `b78d7c28`, and `1fc20e79`, but `git am` normally
+assigns new committer metadata and therefore different commit SHAs. The exact
+objects are available only in a checkout that already contains the original
+child commits. Compare the resulting tree or stable patch identities when
+reconstructing them from the preserved patches.
 
 Configure and build the affected tools serially enough to avoid excess memory
 pressure:
@@ -140,6 +150,9 @@ Run the deterministic affected tests and the complete non-network suite:
 
 /private/tmp/GOALPadOpenGOAL-stage2-build/goalc-test \
   --gtest_filter='-Listener.*'
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-stage2-build \
+  -R '^goalc-aot-artifact-pair$' --output-on-failure
 ```
 
 Generate and compare the signed-build input:
@@ -204,10 +217,14 @@ Generate and compare the selected body from the complete real Jak 1
   /private/tmp/GOALPadOpenGOAL-stage2/test/goalc/source_templates/arm64-aot/full-false-func-from-jak1-gcommon.gc \
   --function false-func \
   --output /private/tmp/goalpad_aot_full_false_func.s \
+  --exports-output /private/tmp/goalpad_aot_full_false_func.exports.h \
   --symbol goalpad_aot_false_func
 
 cmp /private/tmp/goalpad_aot_full_false_func.s \
   GOALPad/Native/Generated/OpenGOALJak1FalseFunc.s
+
+cmp /private/tmp/goalpad_aot_full_false_func.exports.h \
+  GOALPad/Native/Generated/OpenGOALJak1FalseFunc.exports.h
 
 xcrun --sdk iphoneos clang -arch arm64 \
   -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
@@ -218,12 +235,15 @@ xcrun llvm-objdump --macho --disassemble \
   /private/tmp/goalpad_aot_full_false_func.o
 ```
 
-The selected body is exactly `mov x0, x21; ret`. The compiler processes the
-complete `defun`, but the current artifact contains only the named signed text
-function. It does not yet apply the surrounding top-level `define` or install
-`false-func` in a live GOAL symbol table. That requires the Stage 4 static
-export and runtime-data model; do not substitute the desktop V3 runtime
-linker.
+The selected body is exactly `mov x0, x21; ret`. Paired output also emits the
+guarded C++ X-macro record
+`OPENGOAL_AOT_EXPORT0("false-func", goalpad_aot_false_func)`. The pair is
+published together with recovery if either destination cannot be replaced;
+the CTest covers same-assembly output, invalid metadata, path aliases,
+destination failures, and temporary-name collisions. The compiler processes
+the complete `defun`, but the current artifact still does not apply the
+surrounding top-level `define` or install `false-func` in a live GOAL symbol
+table. Do not substitute the desktop V3 runtime linker.
 
 ## Validate the static OpenGOAL ARM64 call boundary
 
@@ -246,6 +266,29 @@ xcrun --sdk macosx clang -arch arm64 \
 Exit `0` is required. These values are never dereferenced, so this test proves
 the signed static ABI/state boundary only. It does not prove real kernel,
 symbol-table, or GOAL-memory initialization.
+
+## Validate the generated native export registry
+
+The generated metadata is included only after the app-local registry defines
+`OPENGOAL_AOT_EXPORT0`. The registry exposes a typed zero-argument native entry
+outside the legacy 32-bit GOAL symbol representation; it does not mutate a
+live GOAL symbol table.
+
+```sh
+xcrun --sdk macosx clang++ -std=c++20 -arch arm64 \
+  -I GOALPad/Native \
+  tests/native/GOALPadAOTExportRegistryHarness.cpp \
+  GOALPad/Native/GOALPadAOTExportRegistry.cpp \
+  GOALPad/Native/Generated/OpenGOALJak1FalseFunc.s \
+  GOALPad/Native/GOALPadGoalStateWrapper.s \
+  -o /private/tmp/goalpad_aot_export_registry_harness
+
+/private/tmp/goalpad_aot_export_registry_harness
+```
+
+Exit `0` requires a successful `false-func` lookup, rejects missing names, and
+proves the resolved entry keeps the X20/X21/X22 state contract. It is not live
+GOAL symbol-table, relocation, or runtime initialization evidence.
 
 ## Physical iPad validation
 

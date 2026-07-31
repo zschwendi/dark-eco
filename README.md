@@ -17,12 +17,15 @@ binding architecture, scope, and content-separation rules.
   executable code can be part of the normally signed application image.
 - **Experimental:** The real OpenGOAL compiler compiles the initial top-level
   literal, the real Jak 1 `'#f` expression, and the complete real
-  `false-func` definition to deterministic ARM64 assembly. GOALPad links and
-  executes the selected signed `false-func` body through a static X20/X21/X22
-  state boundary. The literal is verified on a physical iPad Pro M5; the
-  complete function body is verified on ARM64 macOS and the dedicated M5
-  simulator and is present in a normally signed generic iOS build. Its
-  top-level GOAL symbol installation and physical execution remain pending.
+  `false-func` definition to deterministic ARM64 assembly and guarded
+  X-macro export metadata. GOALPad resolves the generated zero-argument
+  native export through a small app-local registry, then executes the selected
+  signed `false-func` body through a static X20/X21/X22 state boundary. The
+  literal is verified on a physical iPad Pro M5; this complete-function/export
+  checkpoint is verified on ARM64 macOS and the dedicated M5 simulator and is
+  present in a normally signed generic iOS build. It is build-time native
+  binding only: top-level GOAL symbol installation, live GOAL runtime state,
+  and physical execution of this checkpoint remain pending.
 - **Planned:** Initialize the full OpenGOAL runtime state, expand the ARM64
   compiler subset, and load user-prepared Jak 1 data.
 

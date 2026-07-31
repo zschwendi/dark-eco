@@ -241,6 +241,10 @@ Current progress:
 - Physical execution of the false-form and complete-function checkpoints is
   deferred until the maintainer explicitly schedules a device pass. ARM64
   general function and function-call code generation remain unsupported.
+- Child commit `1fc20e793f6c7fd8db3bca3fcc458b098a8b4ea3` emits the selected
+  signed text and a guarded zero-argument X-macro export record as a paired
+  build-time artifact. It passes 16 focused ARM64 AOT tests, 702 non-listener
+  tests, and the deterministic paired-artifact CTest.
 
 ## Stage 4 — Replace the desktop executable-object model
 
@@ -265,6 +269,19 @@ Exit gate:
   and runtime data model.
 - No ordinary iPad path allocates writable executable memory.
 - Unsupported object or mod forms fail clearly.
+
+Current progress:
+
+- The first static artifact boundary is verified: the compiler emits
+  `OPENGOAL_AOT_EXPORT0("false-func", goalpad_aot_false_func)` alongside the
+  signed text. Parent commit `463e366` resolves that record through a small
+  app-local typed registry and calls it through the existing static state
+  wrapper.
+- This is build-time native binding only. It does not execute the surrounding
+  top-level `define`, install a legacy GOAL symbol value, initialize live GOAL
+  state, relocate code, or use the desktop V3 linker.
+- The registry harness, ARM64 macOS build, dedicated M5 simulator, and generic
+  signed iOS build passed. Physical-device validation was not performed.
 
 ## Stage 5 — Build a portable OpenGOAL runtime for iPadOS
 
@@ -519,8 +536,8 @@ Operating rules:
 
 ## Current checkpoint
 
-Stage 2 is complete. Stages 1, 3, and the first Stage 4 artifact boundary are
-active in parallel.
+Stage 2 is complete. Stages 1 and 3 remain active; the first Stage 4 static
+artifact boundary is verified but does not complete the Stage 4 exit gate.
 
 Stage 1 is blocked on the durable fork owner and working GitHub authentication.
 Until publication, keep the official submodule pin clean and preserve the
@@ -528,19 +545,14 @@ verified child commit through the repository patch.
 
 The next actions are:
 
-1. Define the smallest build-time AOT export record that maps the compiled
-   GOAL name `false-func` to its normally linked Mach-O entry without using the
-   desktop V3 runtime linker or storing a native pointer in the legacy
-   32-bit-offset symbol representation.
-2. Generate immutable export metadata alongside signed text and validate it
-   through a tiny app-local registry. This is build-time binding evidence, not
-   yet live GOAL symbol-table initialization.
-3. Then compile the complete real `identity` function, adding only the required
-   GPR `IR_RegSet`/Apple-ABI parameter seam.
-4. Keep unsupported statics, general relocations, calls, saved registers,
+1. Compile the complete real `identity` function, adding only the required
+   GPR `IR_RegSet`/Apple-ABI parameter seam. Keep it assembly-only until a
+   separate typed one-argument export record and state wrapper are verified;
+   never place it in the zero-argument registry.
+2. Keep unsupported statics, general relocations, calls, saved registers,
    spills, and stack locals explicit until a real Jak 1 boot dependency
    requires each boundary.
-5. Keep x86 behavior, the 695-test non-network suite, ARM64 host tools, and the
+3. Keep x86 behavior, the 702-test non-network suite, ARM64 host tools, and the
    signed app path healthy after each increment.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
