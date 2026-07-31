@@ -15,6 +15,7 @@
 #define OPENGOAL_AOT_EXPORT2(goal_name, c_symbol)                              \
   extern "C" std::uint64_t c_symbol(std::uint64_t, std::uint64_t);
 #include "Generated/OpenGOALJak1LevelGroupLoadCommandsSet.exports.h"
+#include "Generated/OpenGOALJak1WantVis.exports.h"
 #undef OPENGOAL_AOT_EXPORT2
 
 namespace {
@@ -36,6 +37,7 @@ constexpr goalpad::AOTExport1 kAOTExports1[] = {
 constexpr goalpad::AOTExport2 kAOTExports2[] = {
 #define OPENGOAL_AOT_EXPORT2(goal_name, c_symbol) {goal_name, &c_symbol},
 #include "Generated/OpenGOALJak1LevelGroupLoadCommandsSet.exports.h"
+#include "Generated/OpenGOALJak1WantVis.exports.h"
 #undef OPENGOAL_AOT_EXPORT2
 };
 

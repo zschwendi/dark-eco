@@ -167,6 +167,20 @@ bool has_expected_jak1_level_group_load_commands_set_arm64_code(goalpad::AOTEntr
 #endif
 }
 
+bool has_expected_jak1_want_vis_arm64_code(goalpad::AOTEntry2 entry) {
+#if defined(__arm64__)
+  constexpr std::array<unsigned char, 20> expected = {
+      0x10, 0x00, 0x16, 0x8b, 0x10, 0x82, 0x00, 0x91, 0x01, 0x02,
+      0x00, 0xb9, 0x00, 0x00, 0x00, 0xca, 0xc0, 0x03, 0x5f, 0xd6,
+  };
+  std::array<unsigned char, expected.size()> actual{};
+  std::memcpy(actual.data(), reinterpret_cast<const void*>(entry), actual.size());
+  return actual == expected;
+#else
+  return false;
+#endif
+}
+
 bool verifies_level_group_load_commands_set(goalpad::AOTEntry2 entry,
                                             std::uint64_t process,
                                             std::uint64_t symbol_table) {
@@ -214,6 +228,65 @@ bool verifies_level_group_load_commands_set(goalpad::AOTEntry2 entry,
          arena.bytes == expected.bytes;
 }
 
+bool verifies_want_vis(goalpad::AOTEntry2 entry,
+                       std::uint64_t process,
+                       std::uint64_t symbol_table) {
+  constexpr std::uint64_t first_value = 0xaabbccdd81234567ULL;
+  constexpr std::uint64_t second_value = 0x11223344f2345678ULL;
+  constexpr std::uint64_t load_state_pointer = 0x4;
+  constexpr std::size_t emitted_store_offset = 0x20;
+  constexpr std::size_t raw_vis_nick_offset = 0x24;
+  constexpr std::size_t first_store_offset =
+      kFirstOffsetBase + load_state_pointer + emitted_store_offset;
+  constexpr std::size_t second_store_offset =
+      kSecondOffsetBase + load_state_pointer + emitted_store_offset;
+  static_assert(load_state_pointer + emitted_store_offset == raw_vis_nick_offset);
+  static_assert(first_store_offset == 0x34);
+  static_assert(second_store_offset == 0x94);
+  static_assert(second_store_offset + sizeof(std::uint32_t) <= sizeof(SyntheticGoalArena::bytes));
+
+  SyntheticGoalArena arena;
+  arena.bytes.fill(kSyntheticArenaGuard);
+  SyntheticGoalArena expected = arena;
+  GoalCallProbe2 first_probe{};
+  GoalCallProbe2 second_probe{};
+
+  const auto first_offset_base = static_cast<std::uint64_t>(
+      reinterpret_cast<std::uintptr_t>(arena.bytes.data() + kFirstOffsetBase));
+  const auto second_offset_base = static_cast<std::uint64_t>(
+      reinterpret_cast<std::uintptr_t>(arena.bytes.data() + kSecondOffsetBase));
+  if ((first_offset_base & 0xf) != 0 || (second_offset_base & 0xf) != 0) {
+    return false;
+  }
+
+  write_low_word(expected, first_store_offset, first_value);
+  const auto first_result = goalpad_probe_call_aot2_with_state(
+      process, symbol_table, first_offset_base, entry, load_state_pointer, first_value, &first_probe);
+  if (first_result != 0 ||
+      !has_expected_probe(first_probe, process, symbol_table, first_offset_base,
+                          load_state_pointer, first_value, first_result) ||
+      read_word(arena, first_store_offset) != static_cast<std::uint32_t>(first_value) ||
+      !has_guard_bytes(arena, 0, first_store_offset) ||
+      !has_guard_bytes(arena, first_store_offset + sizeof(std::uint32_t), arena.bytes.size()) ||
+      arena.bytes != expected.bytes) {
+    return false;
+  }
+
+  write_low_word(expected, second_store_offset, second_value);
+  const auto second_result = goalpad_probe_call_aot2_with_state(
+      process, symbol_table, second_offset_base, entry, load_state_pointer, second_value,
+      &second_probe);
+  return second_result == 0 &&
+         has_expected_probe(second_probe, process, symbol_table, second_offset_base,
+                            load_state_pointer, second_value, second_result) &&
+         read_word(arena, first_store_offset) == static_cast<std::uint32_t>(first_value) &&
+         read_word(arena, second_store_offset) == static_cast<std::uint32_t>(second_value) &&
+         has_guard_bytes(arena, 0, first_store_offset) &&
+         has_guard_bytes(arena, first_store_offset + sizeof(std::uint32_t), second_store_offset) &&
+         has_guard_bytes(arena, second_store_offset + sizeof(std::uint32_t), arena.bytes.size()) &&
+         arena.bytes == expected.bytes;
+}
+
 int main() {
   const auto* false_func = goalpad::find_aot_export0("false-func");
   const auto* true_func = goalpad::find_aot_export0("true-func");
@@ -221,6 +294,7 @@ int main() {
   const auto* lognot = goalpad::find_aot_export1("lognot");
   const auto* level_group_load_commands_set =
       goalpad::find_aot_export2("level-group-load-commands-set!");
+  const auto* want_vis = goalpad::find_aot_export2("want-vis");
   if (!false_func || false_func->goal_name != "false-func" ||
       !false_func->entry || !true_func || true_func->goal_name != "true-func" ||
       !true_func->entry || goalpad::find_aot_export0("identity") ||
@@ -232,11 +306,14 @@ int main() {
       goalpad::find_aot_export1("false-func") ||
       goalpad::find_aot_export1("true-func") ||
       goalpad::find_aot_export1("level-group-load-commands-set!") ||
+      goalpad::find_aot_export1("want-vis") ||
       goalpad::find_aot_export1("") || !level_group_load_commands_set ||
       level_group_load_commands_set->goal_name != "level-group-load-commands-set!" ||
-      !level_group_load_commands_set->entry ||
+      !level_group_load_commands_set->entry || !want_vis || want_vis->goal_name != "want-vis" ||
+      !want_vis->entry ||
       goalpad::find_aot_export2("false-func") || goalpad::find_aot_export2("true-func") ||
       goalpad::find_aot_export2("identity") || goalpad::find_aot_export2("lognot") ||
+      goalpad::find_aot_export0("want-vis") ||
       goalpad::find_aot_export2("")) {
     return 1;
   }
@@ -310,7 +387,9 @@ int main() {
                  has_expected_jak1_level_group_load_commands_set_arm64_code(
                      level_group_load_commands_set->entry) &&
                  verifies_level_group_load_commands_set(
-                     level_group_load_commands_set->entry, process, symbol_table)
+                     level_group_load_commands_set->entry, process, symbol_table) &&
+                 has_expected_jak1_want_vis_arm64_code(want_vis->entry) &&
+                 verifies_want_vis(want_vis->entry, process, symbol_table)
              ? 0
              : 1;
 }

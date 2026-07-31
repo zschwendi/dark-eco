@@ -182,6 +182,20 @@ bool has_expected_jak1_level_group_load_commands_set_arm64_code(goalpad::AOTEntr
 #endif
 }
 
+bool has_expected_jak1_want_vis_arm64_code(goalpad::AOTEntry2 entry) {
+#if defined(__arm64__)
+  constexpr std::array<unsigned char, 20> expected = {
+      0x10, 0x00, 0x16, 0x8b, 0x10, 0x82, 0x00, 0x91, 0x01, 0x02,
+      0x00, 0xb9, 0x00, 0x00, 0x00, 0xca, 0xc0, 0x03, 0x5f, 0xd6,
+  };
+  std::array<unsigned char, expected.size()> actual{};
+  std::memcpy(actual.data(), reinterpret_cast<const void*>(entry), actual.size());
+  return actual == expected;
+#else
+  return false;
+#endif
+}
+
 bool has_expected_goal_state(const GoalCallProbe& probe,
                              std::uint64_t process,
                              std::uint64_t symbol_table,
@@ -307,6 +321,65 @@ bool verifies_level_group_load_commands_set(goalpad::AOTEntry2 entry,
          arena.bytes == expected.bytes;
 }
 
+bool verifies_want_vis(goalpad::AOTEntry2 entry,
+                       std::uint64_t process,
+                       std::uint64_t symbol_table) {
+  constexpr std::uint64_t first_value = 0xaabbccdd81234567ULL;
+  constexpr std::uint64_t second_value = 0x11223344f2345678ULL;
+  constexpr std::uint64_t load_state_pointer = 0x4;
+  constexpr std::size_t emitted_store_offset = 0x20;
+  constexpr std::size_t raw_vis_nick_offset = 0x24;
+  constexpr std::size_t first_store_offset =
+      kFirstOffsetBase + load_state_pointer + emitted_store_offset;
+  constexpr std::size_t second_store_offset =
+      kSecondOffsetBase + load_state_pointer + emitted_store_offset;
+  static_assert(load_state_pointer + emitted_store_offset == raw_vis_nick_offset);
+  static_assert(first_store_offset == 0x34);
+  static_assert(second_store_offset == 0x94);
+  static_assert(second_store_offset + sizeof(std::uint32_t) <= sizeof(SyntheticGoalArena::bytes));
+
+  SyntheticGoalArena arena;
+  arena.bytes.fill(kSyntheticArenaGuard);
+  SyntheticGoalArena expected = arena;
+  GoalCallProbe2 first_probe;
+  GoalCallProbe2 second_probe;
+
+  const auto first_offset_base = static_cast<std::uint64_t>(
+      reinterpret_cast<std::uintptr_t>(arena.bytes.data() + kFirstOffsetBase));
+  const auto second_offset_base = static_cast<std::uint64_t>(
+      reinterpret_cast<std::uintptr_t>(arena.bytes.data() + kSecondOffsetBase));
+  if ((first_offset_base & 0xf) != 0 || (second_offset_base & 0xf) != 0) {
+    return false;
+  }
+
+  write_low_word(expected, first_store_offset, first_value);
+  const auto first_result = goalpad_probe_call_aot2_with_state(
+      process, symbol_table, first_offset_base, entry, load_state_pointer, first_value, &first_probe);
+  if (first_result != 0 ||
+      !has_expected_goal_state(first_probe, process, symbol_table, first_offset_base,
+                               load_state_pointer, first_value, first_result) ||
+      read_word(arena, first_store_offset) != static_cast<std::uint32_t>(first_value) ||
+      !has_guard_bytes(arena, 0, first_store_offset) ||
+      !has_guard_bytes(arena, first_store_offset + sizeof(std::uint32_t), arena.bytes.size()) ||
+      arena.bytes != expected.bytes) {
+    return false;
+  }
+
+  write_low_word(expected, second_store_offset, second_value);
+  const auto second_result = goalpad_probe_call_aot2_with_state(
+      process, symbol_table, second_offset_base, entry, load_state_pointer, second_value,
+      &second_probe);
+  return second_result == 0 &&
+         has_expected_goal_state(second_probe, process, symbol_table, second_offset_base,
+                                 load_state_pointer, second_value, second_result) &&
+         read_word(arena, first_store_offset) == static_cast<std::uint32_t>(first_value) &&
+         read_word(arena, second_store_offset) == static_cast<std::uint32_t>(second_value) &&
+         has_guard_bytes(arena, 0, first_store_offset) &&
+         has_guard_bytes(arena, first_store_offset + sizeof(std::uint32_t), second_store_offset) &&
+         has_guard_bytes(arena, second_store_offset + sizeof(std::uint32_t), arena.bytes.size()) &&
+         arena.bytes == expected.bytes;
+}
+
 std::string architecture_name() {
 #if defined(__arm64__)
   return "arm64";
@@ -363,6 +436,11 @@ RuntimeStatus initialize_runtime(std::string storage_path) {
     status.message = "Required signed ARM64 AOT export unavailable: level-group-load-commands-set!";
     return status;
   }
+  const auto* want_vis = find_aot_export2("want-vis");
+  if (!want_vis || !want_vis->entry) {
+    status.message = "Required signed ARM64 AOT export unavailable: want-vis";
+    return status;
+  }
 
   status.workload_result = goalpad_probe_call_aot_with_state(
       process, symbol_table, offset_base, false_func->entry, &false_func_probe);
@@ -391,12 +469,14 @@ RuntimeStatus initialize_runtime(std::string storage_path) {
                              has_expected_jak1_level_group_load_commands_set_arm64_code(
                                  level_group_load_commands_set->entry) &&
                              verifies_level_group_load_commands_set(
-                                 level_group_load_commands_set->entry, process, symbol_table);
+                                 level_group_load_commands_set->entry, process, symbol_table) &&
+                             has_expected_jak1_want_vis_arm64_code(want_vis->entry) &&
+                             verifies_want_vis(want_vis->entry, process, symbol_table);
   status.message = status.workload_verified
                        ? "Signed ARM64 Jak 1 false-func, true-func, identity, lognot, and direct "
-                         "level-group-load-commands-set! AOT proof verified"
+                         "level-group-load-commands-set! and want-vis AOT proof verified"
                        : "Signed ARM64 Jak 1 false-func, true-func, identity, lognot, and direct "
-                         "level-group-load-commands-set! AOT proof failed";
+                         "level-group-load-commands-set! and want-vis AOT proof failed";
   return status;
 }
 
