@@ -10,6 +10,27 @@ source does not yet compile to signed ARM64 code. The maintainer reports the
 platform probe working on a physical iPad; the simulator path has also been
 independently built, installed, launched, and visually checked.
 
+## Active roadmap and delegated audit
+
+`ROADMAP.md` is the active ten-stage path from the current probe through a
+completable Jak 1 physical-iPad result. The implementation goal remains open
+until all ten stage exit gates are satisfied.
+
+The roadmap checkpoint used three parallel, read-only subagents from base
+commit `7789350`. All used the maintainer-requested fast `gpt-5.6-terra` model
+with `xhigh` reasoning:
+
+| Delegation | Scope | Result |
+| --- | --- | --- |
+| Documentation and milestone audit | Project overview, handoff, build docs, and roadmap structure | Confirmed no prior roadmap; corrected evidence labels, stage ordering, and milestone mapping |
+| OpenGOAL compiler audit | ARM64 registers, allocators, IR, CodeGenerator, AOT artifact, and tests | Defined the top-level GOAL literal `42` slice and recommended generated Apple assembly |
+| Xcode and validation audit | Target configuration, simulator/device evidence, test surface, and memory-conscious validation | Confirmed simulator gates, physical authority boundaries, and a future need to narrow broad platform declarations |
+
+The subagents made no edits and ran no builds. The primary agent reviewed and
+integrated their findings. One generic audit recommendation to remove the
+documented subagent model policy was not adopted because the maintainer
+explicitly required xhigh fast subagents.
+
 ## Direction that must remain fixed
 
 - OpenGOAL C++, GOAL source, tooling, runtime behavior, and formats are the

@@ -22,6 +22,9 @@ binding architecture, scope, and content-separation rules.
 The current probe does not execute GOAL source, load Jak data, or boot the
 OpenGOAL runtime.
 
+See [Roadmap](ROADMAP.md) for the ten-stage path from the current probe to
+playing Jak 1 on a signed physical iPad.
+
 ## Repository layout
 
 ```text
@@ -29,6 +32,7 @@ GOALPad/                 SwiftUI application and narrow native bridge
 GOALPad.xcodeproj/       Application project
 docs/                    Project policy and build documentation
 OpenGOAL/                Pinned upstream source submodule
+ROADMAP.md               Active implementation stages and exit gates
 ```
 
 ## Build
