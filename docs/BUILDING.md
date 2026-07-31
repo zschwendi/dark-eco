@@ -960,10 +960,10 @@ symbol-table, or GOAL-memory initialization.
 ## Validate the generated native export registry
 
 The generated metadata is included only after the app-local registry defines
-the matching `OPENGOAL_AOT_EXPORT0` or `OPENGOAL_AOT_EXPORT1` macro. The
-registry exposes typed zero- and one-argument native entries outside the
-legacy 32-bit GOAL symbol representation; it does not mutate a live GOAL
-symbol table.
+the matching `OPENGOAL_AOT_EXPORT0`, `OPENGOAL_AOT_EXPORT1`, or
+`OPENGOAL_AOT_EXPORT2` macro. The registry exposes two zero-argument, two
+one-argument, and two two-argument native entries outside the legacy 32-bit
+GOAL symbol representation; it does not mutate a live GOAL symbol table.
 
 ```sh
 xcrun --sdk macosx clang++ -std=c++20 -arch arm64 \
@@ -975,20 +975,87 @@ xcrun --sdk macosx clang++ -std=c++20 -arch arm64 \
   GOALPad/Native/Generated/OpenGOALJak1Identity.s \
   GOALPad/Native/Generated/OpenGOALJak1Lognot.s \
   GOALPad/Native/Generated/OpenGOALJak1LevelGroupLoadCommandsSet.s \
+  GOALPad/Native/Generated/OpenGOALJak1WantVis.s \
   GOALPad/Native/GOALPadGoalStateWrapper.s \
-  -o /private/tmp/goalpad_aot_export_registry_harness
+  -o /private/tmp/goalpad_aot_export_registry_harness_want_vis
 
-/private/tmp/goalpad_aot_export_registry_harness
+/private/tmp/goalpad_aot_export_registry_harness_want_vis
 ```
 
 Exit `0` requires successful typed `false-func`, `true-func`, `identity`,
-`lognot`, and direct `level-group-load-commands-set!` lookups; rejects every
-cross-type/missing name; verifies `true-func` returns X21 plus eight and
-`lognot` complements its X0 argument; and proves the two-argument wrapper
-establishes X20/X21/X22 before placing its values in X0/X1. The direct store
-proof uses real synthetic X22 pointers, checks full-width return values, W1
-four-byte writes, and whole-buffer guards. It is not live GOAL symbol-table,
-method-dispatch, relocation, or runtime-initialization evidence.
+`lognot`, direct `level-group-load-commands-set!`, and direct `want-vis`
+lookups; rejects every cross-type or missing name; verifies `true-func`
+returns X21 plus eight and `lognot` complements its X0 argument; and proves
+the two-argument wrapper establishes X20/X21/X22 before placing its values in
+X0/X1. The level-command proof checks full-width returns and W1 stores. The
+`want-vis` proof uses X0 `0x4` and two aligned synthetic X22 bases, checks
+low-word stores only at raw offsets `0x34` and `0x94`, requires a zero return,
+preserves the first write across the second call, verifies whole-buffer guard
+bytes, and checks caller-register restoration. It is not live GOAL
+symbol-table, method-installation, dispatch, relocation, or
+runtime-initialization evidence.
+
+The checked-in `want-vis` artifacts must match the compiler outputs exactly:
+
+```text
+718e440c35491569102a22ea6bf9fb204ec60fa6ade91c54dbb4602c25c081f0  OpenGOALJak1WantVis.s
+18bc127bd7bfd2af14bd40a6db0277d0a0ce0ce97778f7fd2ead4fc78493d23f  OpenGOALJak1WantVis.exports.h
+```
+
+### Checkpoint 11 validation evidence
+
+The command above compiled and the harness exited `0`. The current ARM64
+macOS Debug build also passed:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-mac -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO build
+```
+
+`GOALPad.debug.dylib` has SHA-256
+`5d802533222b9a89a1d599562b8e99673f5457c62d3bd1f00700ae4e75d84de0`.
+It contains `_goalpad_aot_load_state_want_vis` at `0x15fc` with:
+
+```text
+add x16, x0, x22
+add x16, x16, #0x20
+str w1, [x16]
+eor x0, x0, x0
+ret
+```
+
+The dedicated M5 simulator build used only destination
+`id=96C5C21A-B925-4213-82A3-90DCB8518339`. Build, install, and launch passed;
+the runtime log reported the exact `want-vis AOT proof verified` status with
+`architecture=arm64; result=8194`, followed by
+`First Metal frame submitted`. The settled green screenshot is
+`/private/tmp/goalpad-want-vis-m5-sim.png`, SHA-256
+`bffe8a0de4fd0c4b06af9d51b90393ffa5da3c57153ed171be29c5e2db9bd2c9`.
+The simulator was `Shutdown` before the pass and again after explicit cleanup.
+This is simulator evidence only.
+
+The normally signed generic Release command was:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-device -jobs 4 \
+  ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
+```
+
+Compilation and Xcode signing passed. The monolithic main executable SHA-256
+is `0f9174ef92687a036af6ea0b6400d9f01d4fedab4532fb261253c8931ff67c94`;
+`_goalpad_aot_load_state_want_vis` is at `0x100004034` with the exact five
+instructions above. Mach-O `__TEXT` maximum and initial protections are both
+`0x5`. Inspection found no app-root dylibs, forbidden dynamic-executable-memory
+imports, Preview artifacts, or JIT markers. The entitlements include the
+app/team identifiers and `get-task-allow`; the embedded profile SHA-256 is
+still `ef4a32f9aef6cca1709423e53e66518204e49a86af4d2752139de63d21244ad1`.
+Strict verification reports the expected local `CSSMERR_TP_NOT_TRUSTED`
+certificate-trust caveat. This is build, signing, and layout evidence only,
+not installability or physical-device execution evidence.
 
 ## Physical iPad validation
 

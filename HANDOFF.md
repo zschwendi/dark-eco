@@ -4,20 +4,20 @@ Date: 2026-07-31
 
 Branch: `feat/ipados-native-boot`
 
-Status: Partially complete. The latest verified checkpoint is Checkpoint 10
-(`0da05dd82a7a1be9ef640a324c2bc339c5eb6a48`), which executes a direct real
-Jak 1 `level-group-load-commands-set!` body through a typed Export2 registry:
-it stores the low 32 bits of X1 at X22 + X0 + `0x20` and returns full X1. The
-host harness, ARM64 macOS build, dedicated iPad Pro 11-inch (M5) simulator, and
-generic signed iOS build passed; the generic Release artifact is monolithic
-with no Preview/debug-dylib layout. The earlier `false-func`, `true-func`,
-`identity`, and `lognot` direct-function proofs remain valid historical
-checkpoints. This work does not yet execute top-level `define`, install or
-dispatch GOAL symbols/methods, relocate code, initialize the general runtime,
-load user data, or boot Jak. The maintainer prohibits physical Z iPad Pro
-testing unless explicitly requested in the current task; only the local M5
-simulator was used here. See [Checkpoint 10](#checkpoint-10-direct-jak-1-level-command-store-aot-proof)
-for exact scope and validation.
+Status: Partially complete. The latest verified checkpoint is Checkpoint 11
+(`3ce59d478abe2562021bd42f3b65e0ac041847c7`), which executes the exact real
+Jak 1 `load-state::want-vis` method body through the typed Export2 registry.
+It stores the low 32 bits of X1 at X22 + X0 + `0x20` and returns zero. The
+OpenGOAL host proof, app-local harness, ARM64 macOS build, dedicated iPad Pro
+11-inch (M5) simulator, and generic signed Release iOS build passed. The
+earlier `false-func`, `true-func`, `identity`, `lognot`, and direct
+`level-group-load-commands-set!` proofs remain valid historical checkpoints.
+This work does not install or dispatch the GOAL method, initialize the general
+runtime, load user data, or boot Jak. The maintainer prohibits physical
+**Z iPad Pro** testing unless explicitly requested in the current task; only
+the local M5 simulator was used here. See
+[Checkpoint 11](#checkpoint-11-direct-jak-1-want-vis-aot-proof) for exact
+scope and validation.
 
 ## Active roadmap and delegated audit
 
@@ -53,6 +53,11 @@ maintainer-requested fast `gpt-5.6-terra` model with `xhigh` reasoning:
 | Identity compiler implementation | Exact Jak 1 `identity` IR shape, GPR `IR_RegSet`, Apple-ABI allocation, and negative tests | Compiled only the one-argument identity proof, preserving explicit failure for other function shapes and unsupported IR |
 | Typed identity export implementation | Distinct `OPENGOAL_AOT_EXPORT1` contract, paired artifact behavior, and cross-ABI rejection | Added a one-argument metadata lane without broadening the zero-argument export contract |
 | Identity registry and wrapper integration | Typed lookup, X20/X21/X22-before-X0 order, probe offsets, combined harness, and app validation | Added the smallest separate one-argument wrapper and required both signed calls without live GOAL pointers or symbol-table mutation |
+| `want-vis` compiler implementation | Exact method-body source, strict store lowering, Export2 metadata, and CLI atomicity | Compiled only the real two-form body to five deterministic ARM64 instructions |
+| `want-vis` execution review | Combined patch ancestry, guarded arenas, caller-register restoration, and generated artifacts | Verified the host execution proof and identified the non-linear restoration order |
+| `want-vis` app integration | Typed registry, runtime verification, app harness, and generated artifacts | Added the second Export2 entry without method installation, dispatch, or lifecycle coupling |
+| Validation and claim audit | macOS, named M5 simulator, generic Release signing/layout, and physical-device exclusions | Confirmed each evidence boundary and preserved the no-device rule |
+| Checkpoint documentation audit | Commit identities, patch hashes, source citations, status text, and next seam | Corrected the method-body citation and selected compiler-only `want-levels` |
 
 The implementation agents edited non-overlapping files in the isolated
 OpenGOAL worktree. The primary agent reviewed and integrated every diff, fixed
@@ -120,6 +125,10 @@ copied into, or generated inside the Git checkout.
 Current history at this handoff (newest first):
 
 ```text
+3ce59d4 feat(aot): validate Jak 1 want-vis export (AI-assisted)
+78e2c66 test(opengoal): preserve Jak 1 want-vis execution proof (AI-assisted)
+4580cf3 feat(opengoal): preserve ARM64 want-vis proof (AI-assisted)
+5f5b99c docs: record level command AOT checkpoint (AI-assisted)
 0da05dd feat(aot): validate level command store export (AI-assisted)
 8468742 test(opengoal): preserve Jak 1 level store execution proof (AI-assisted)
 6c1370c fix(opengoal): preserve ARM64 store operand guards (AI-assisted)
@@ -2412,23 +2421,194 @@ device evidence.
 No physical device, **Z iPad Pro**, Freemote simulator, remote, or push was
 accessed for this checkpoint.
 
-### Next exact task: strict direct `load-state::want-vis` proof
+## Checkpoint 11: direct Jak 1 `want-vis` AOT proof
 
-Compile only the real Jak 1 `load-state::want-vis` body from
-`level.gc:1006-1012`, with wrapper context at `load-boundary.gc:1101-1102` and
-method context at `load-boundary.gc:1074-1076`:
+Current parent app checkpoint:
+`3ce59d478abe2562021bd42f3b65e0ac041847c7`
+(`feat(aot): validate Jak 1 want-vis export (AI-assisted)`). Parent commits
+`4580cf33ed2a03dabc1b209a4c0b352f2c5ff58a` and
+`78e2c6699ec0a77fef0ea8e0a59527bd41b253e7` preserve the OpenGOAL work while
+the official submodule remains at
+`a4cb1ac1f0596c8740b1c26accb24a58505cda92`.
+
+| Patch | Child commit | SHA-256 | Stable patch ID | Parent preservation commit |
+| --- | --- | --- | --- | --- |
+| `0024-feat-arm64-compile-Jak-1-load-state-vis-store-AI-ass.patch` | `3c6d7f871a86ecfa53a3cbd94e90237986c68219` | `e62ff82f5155882c545798af57ae5467b7346c8a132670cf3d21175949bfd986` | `43b327f7d72bce0c8c08f017fd2d4280f4df1319` | `4580cf33ed2a03dabc1b209a4c0b352f2c5ff58a` |
+| `0025-test-arm64-preserve-want-vis-inline-layout-AI-assist.patch` | `d3492375caf8de14815133c3597eb65efb44bca2` | `ff6061bce14fa515d56ab92dbaa852e1a8e19effb98cbc851ed4ff1ee5af3c7f` | `159a5f6c36302627cb605d2cb1e54fad459ac302` | `4580cf33ed2a03dabc1b209a4c0b352f2c5ff58a` |
+| `0026-test-arm64-execute-Jak-1-want-vis-store-AI-assisted.patch` | `3b821e75b4995a6e9a81f2624beb2485191e4e96` | `f065e49cc0975f36034ae024b3e76ae03cb0e3c1c5bd60f4090e51430fa45af1` | `7c5d6169eaa4b42bb7239639ea499a4bc4a3f492` | `78e2c6699ec0a77fef0ea8e0a59527bd41b253e7` |
+
+Use the full `git rev-parse`-verified 0026 child above; an earlier reported
+expansion of short commit `3b821e75` was incorrect. Verify the preserved
+mboxes directly:
+
+```sh
+shasum -a 256 \
+  patches/OpenGOAL/0024-feat-arm64-compile-Jak-1-load-state-vis-store-AI-ass.patch \
+  patches/OpenGOAL/0025-test-arm64-preserve-want-vis-inline-layout-AI-assist.patch \
+  patches/OpenGOAL/0026-test-arm64-execute-Jak-1-want-vis-store-AI-assisted.patch
+git patch-id --stable < patches/OpenGOAL/0024-feat-arm64-compile-Jak-1-load-state-vis-store-AI-ass.patch
+git patch-id --stable < patches/OpenGOAL/0025-test-arm64-preserve-want-vis-inline-layout-AI-assist.patch
+git patch-id --stable < patches/OpenGOAL/0026-test-arm64-execute-Jak-1-want-vis-store-AI-assisted.patch
+```
+
+0024 and 0025 form the literal compiler-only line
+`311be477 -> 3c6d7f87 -> d3492375`. Patch 0026 was exported from the separately
+combined runtime line:
+
+```text
+cb1cc102 -> 13672fad (0023)
+           -> e81d001b (0022 replay)
+           -> 3ac22e28 (0024 replay)
+           -> 420a01cc (0025 replay)
+           -> 3b821e75 (0026)
+```
+
+The replay commits have the same stable patch IDs as preserved patches 0022,
+0024, and 0025. Patch 0026 is not a Git-object descendant of the literal 0024
+or 0025 child commits, and it does not apply directly after `d3492375`.
+A future fork restoration must integrate 0023 and the stable-equivalent
+0022/0024/0025 changes before 0026, then repeat the combined build and tests.
+
+### Scope
+
+The exact method body is in
+`OpenGOAL/goal_src/jak1/engine/level/load-boundary.gc:1074-1076`:
 
 ```lisp
 (set! (-> this vis-nick) arg0)
 0
 ```
 
-Map raw field `#x24` / GOAL-relative `#x20` to Export2 with X0 `load-state`,
-X1 symbol, and exact words `8b160010 91008210 b9000201 ca000000 d65f03c0`.
-The zero return preserves existing `IR_LoadConstant64` lowering as
-`eor x0, x0, x0`; do not add a global MOVZ special case. Reuse the strict
-store lowering/two-argument wrapper; add exact and negative
-compiler tests, CLI atomicity tests, a host X22 store/zero-return/register
-restore proof, then app integration. Do not install or dispatch the method.
-Keep `reset!`, `want-levels`, `want-display-level`, and method dispatch
-deferred: they require branches, indexed stores, symbols, or calls.
+`load-boundary.gc:1101-1102` is the wrapper and
+`OpenGOAL/goal_src/jak1/engine/level/level.gc:1006-1012` is caller context,
+with the call at line 1009. Patch 0024 maps raw field `#x24`, represented by
+GOAL-relative `#x20` plus the basic-pointer bias in X0, to a guarded Export2
+entry:
+
+```text
+add x16, x0, x22
+add x16, x16, #0x20
+str w1, [x16]
+eor x0, x0, x0
+ret
+```
+
+Patch 0025 requires the expected packed inline layout. Patch 0026 executes the
+generated entry on the ARM64 host against two guarded arena bases and verifies
+the zero return, exact low-word stores, offset isolation, and restored
+registers.
+
+Parent `3ce59d4` changes exactly five files: the app-local export registry,
+runtime core, generated `want-vis` assembly and header, and native registry
+harness (`180` insertions, `5` deletions). The app adds `want-vis` as its
+second Export2 entry. Its host and runtime checks use X0 `0x4`, X1 values
+`0xaabbccdd81234567` and
+`0x11223344f2345678`, and aligned X22 bases at arena offsets `0x10` and
+`0x70`. The low words land only at raw arena offsets `0x34` and `0x94`; the
+first write survives the second call, all other bytes retain their guard
+value, the result is zero, and X20/X21/X22 state is restored. A missing entry
+fails initialization with
+`Required signed ARM64 AOT export unavailable: want-vis`.
+
+The checked-in generated artifacts are byte-identical to the OpenGOAL build
+outputs:
+
+```text
+718e440c35491569102a22ea6bf9fb204ec60fa6ade91c54dbb4602c25c081f0  OpenGOALJak1WantVis.s
+18bc127bd7bfd2af14bd40a6db0277d0a0ce0ce97778f7fd2ead4fc78493d23f  OpenGOALJak1WantVis.exports.h
+```
+
+This is a direct method-body proof only. It does not execute the surrounding
+top-level flow, install or dispatch `want-vis`, mutate a live GOAL symbol
+table, initialize the OpenGOAL runtime, relocate code, load Jak data, boot the
+game, or use JIT/writable executable memory.
+
+### Validation
+
+The combined OpenGOAL worktree built the affected targets with `-j 4`. Its
+focused `Arm64Aot` suite passed 62/62, the ARM64 ABI CTest passed 4/4, the
+data-arena CTest remained 4/4, the paired-artifact CTest passed 1/1, and the
+full host CTest passed 9/9. The new host test was
+`Arm64GoalCallAbi.executes_generated_jak1_want_vis_against_two_guarded_arena_bases`.
+
+The app-local registry harness command in `docs/BUILDING.md`, including
+`OpenGOALJak1WantVis.s`, compiled and ran with exit `0`.
+
+The ARM64 macOS Debug command was:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-mac -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO build
+```
+
+It exited `0`. The resulting `GOALPad.debug.dylib` SHA-256 is
+`5d802533222b9a89a1d599562b8e99673f5457c62d3bd1f00700ae4e75d84de0`.
+Symbol `_goalpad_aot_load_state_want_vis` is at `0x15fc`, and disassembly
+matches the five instructions above. This is macOS build and execution
+evidence, not iPad evidence.
+
+The dedicated M5 simulator build used only UDID
+`96C5C21A-B925-4213-82A3-90DCB8518339`:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-sim -jobs 4 build
+```
+
+The simulator was `Shutdown` initially. Build, install, and launch succeeded
+only on that simulator. Its log reported:
+
+```text
+GOALPad runtime probe: Signed ARM64 Jak 1 false-func, true-func, identity, lognot, and direct level-group-load-commands-set! and want-vis AOT proof verified; architecture=arm64; result=8194
+First Metal frame submitted
+```
+
+The settled screenshot
+`/private/tmp/goalpad-want-vis-m5-sim.png` is visually green and has SHA-256
+`bffe8a0de4fd0c4b06af9d51b90393ffa5da3c57153ed171be29c5e2db9bd2c9`.
+Explicit shutdown succeeded, and the final simulator inventory again showed
+the M5 simulator `Shutdown`. This is simulator evidence only.
+
+The generic signed Release build was:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-device -jobs 4 \
+  ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
+```
+
+Xcode compilation and signing exited `0`. The monolithic main executable
+SHA-256 is
+`0f9174ef92687a036af6ea0b6400d9f01d4fedab4532fb261253c8931ff67c94`;
+`_goalpad_aot_load_state_want_vis` is at `0x100004034` with the exact five
+instructions. The Mach-O `__TEXT` maximum and initial protections are both
+`0x5` (read/execute). Inspection found no app-root dylibs and no `dlopen`,
+`dlsym`, `mmap`, `mprotect`, `pthread_jit_write_protect_np`, Preview, or JIT
+markers. The signed entitlements include the app/team identifiers and
+`get-task-allow`; the embedded profile SHA-256 remains
+`ef4a32f9aef6cca1709423e53e66518204e49a86af4d2752139de63d21244ad1`.
+`codesign --verify --deep --strict` still reports
+`CSSMERR_TP_NOT_TRUSTED`, the expected local certificate-trust caveat. This is
+build, signing, and layout evidence only, not trust, installability, or
+physical-device execution evidence.
+
+No physical device, **Z iPad Pro**, Freemote simulator, remote, or push was
+accessed for this checkpoint.
+
+### Next exact task: compiler-only full real `want-levels` body
+
+Compile the complete real Jak 1 `load-state::want-levels` method body from
+`OpenGOAL/goal_src/jak1/engine/level/load-boundary.gc:1042-1064`. Its wrapper
+is at `load-boundary.gc:1095-1096`, and its first boot-flow caller is
+`level.gc:1007` within the `1006-1012` caller context.
+
+Keep this next checkpoint compiler-only. Audit and implement only the missing
+control flow, two-iteration loops, comparisons, indexed field accesses, and
+conditional stores required by that exact body, with exact and negative
+compiler tests. Do not add Export3 metadata, an app wrapper, app integration,
+method installation/dispatch, or broader branch/indexed-store abstractions
+until the compiler proof is complete and independently reviewed.

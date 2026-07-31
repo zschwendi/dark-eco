@@ -362,6 +362,18 @@ Current progress:
   remains simulator evidence; the Release result remains static
   build/signing/layout evidence. Neither is a method-installation, dispatch,
   runtime-initialization, Jak-data, title-screen, or physical-device proof.
+- Patches 0024 and 0025 compile the exact
+  `load-state::want-vis` body from
+  `goal_src/jak1/engine/level/load-boundary.gc:1074-1076` to a guarded
+  Export2 artifact and preserve its required packed inline layout. Patch 0026
+  executes the generated entry on the ARM64 host against two guarded arena
+  bases. Parent `3ce59d4` registers the checked-in artifact as the app's second
+  Export2 entry and verifies its low-word stores at raw field `#x24`, zero
+  return, arena isolation, and caller-state restoration. The app harness,
+  ARM64 macOS build, named M5 simulator run, and generic signed monolithic
+  Release build passed. This remains direct method-body evidence only; it does
+  not install or dispatch `want-vis`, initialize the runtime, load Jak data,
+  boot the game, or establish physical-device execution.
 
 ## Stage 5 — Build a portable OpenGOAL runtime for iPadOS
 
@@ -677,9 +689,9 @@ Operating rules:
 ## Current checkpoint
 
 Stage 2 is complete. Stages 1 and 3 remain active; the typed Stage 4 static
-artifact boundaries, bounded 0020 X22 field-load proof, and direct 0021-0023
-level-command store proof are verified but do not complete the Stage 4 exit
-gate.
+artifact boundaries, bounded 0020 X22 field-load proof, direct 0021-0023
+level-command store proof, and direct 0024-0026 `want-vis` proof are verified
+but do not complete the Stage 4 exit gate.
 
 Stage 1 is blocked on a maintainer-chosen, fetchable OpenGOAL fork/pin and
 working GitHub authentication. Until publication, keep the official submodule
@@ -690,28 +702,26 @@ owner, access policy, and transport, then explicitly renews authentication.
 
 The next actions are:
 
-1. Integrate the verified portable 0013-0021 work only after a dedicated
+1. Integrate the verified portable 0013-0026 work only after a dedicated
    OpenGOAL fork makes child commits
    `fab37c1f755aa342304db8dbf27f1fa1c42423ac`,
    `1e43e767d66b6f554a6cc9aedb9fa024ca3130ee`, and
    `cb1cc102ac2af46e9581ac5b47404fe797c5b582` fetchable and pins them
    reproducibly. Patches 0022 and 0023 are sibling child changes from 0021;
-   retain their mboxes and require a fresh combined apply/build validation
-   rather than assuming a linear child history. Do not copy the source into the
-   app or use a machine-local worktree path.
-2. Implement the audited next strict direct AOT proof only: the real Jak 1
-   `load-state::want-vis` body from `level.gc:1006-1012`, whose boundary and
-   method context are in `load-boundary.gc:1101-1102` and `1074-1076`. It must
-   map `(set! (-> this vis-nick) arg0) 0` at raw field `#x24` / GOAL-relative
-   `#x20` to an Export2 entry with X0 `load-state`, X1 symbol, and exact words
-   `8b160010 91008210 b9000201 ca000000 d65f03c0`. The zero return preserves
-   existing `IR_LoadConstant64` lowering as
-   `eor x0, x0, x0`; do not add a global MOVZ special case. Reuse the strict
-   store lowering and two-argument wrapper; add exact/negative/CLI-atomicity
-   tests, a host X22 store/zero-return/register-restore proof, then app
-   integration. Do not install or dispatch the method. Leave `reset!`,
-   `want-levels`, `want-display-level`, and method dispatch deferred because
-   they require branches, indexed stores, symbols, or calls.
+   0024 and 0025 form a separate literal compiler line; 0026 descends from a
+   combined line containing 0023 and stable-equivalent replays of 0022, 0024,
+   and 0025. Retain the mboxes and require a fresh combined apply/build
+   validation rather than claiming a linear literal child history. Do not copy
+   the source into the app or use a machine-local worktree path.
+2. Implement the next compiler-only proof: the complete real Jak 1
+   `load-state::want-levels` body from
+   `goal_src/jak1/engine/level/load-boundary.gc:1042-1064`. Audit and add only
+   the control flow, two-iteration loops, comparisons, indexed field accesses,
+   and conditional stores required by that exact body, with exact and negative
+   compiler tests. Defer Export3 metadata, app integration, method dispatch,
+   and broader abstractions until the compiler proof passes independent
+   review. Its wrapper is at `load-boundary.gc:1095-1096`; the first boot-flow
+   call is at `level.gc:1007`.
 3. Keep unsupported statics, general relocations, calls, saved registers,
    spills, and stack locals explicit until a real Jak 1 boot dependency
    requires each boundary. Keep x86 behavior, the non-network compiler suite,
