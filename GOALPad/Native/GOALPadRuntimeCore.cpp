@@ -115,6 +115,19 @@ bool has_expected_jak1_identity_arm64_code(goalpad::AOTEntry1 entry) {
 #endif
 }
 
+bool has_expected_jak1_lognot_arm64_code(goalpad::AOTEntry1 entry) {
+#if defined(__arm64__)
+  constexpr std::array<unsigned char, 8> expected = {
+      0xe0, 0x03, 0x20, 0xaa, 0xc0, 0x03, 0x5f, 0xd6,
+  };
+  std::array<unsigned char, expected.size()> actual{};
+  std::memcpy(actual.data(), reinterpret_cast<const void*>(entry), actual.size());
+  return actual == expected;
+#else
+  return false;
+#endif
+}
+
 bool has_expected_goal_state(const GoalCallProbe& probe,
                              std::uint64_t process,
                              std::uint64_t symbol_table,
@@ -161,10 +174,13 @@ RuntimeStatus initialize_runtime(std::string storage_path) {
   constexpr std::uint64_t offset_base = 0x3003;
   constexpr std::uint64_t true_symbol_offset = 0x8;
   constexpr std::uint64_t identity_arg0 = 0x4a5b6c7d8e9fa0b1;
+  constexpr std::uint64_t lognot_arg0 = 0x0123456789abcdefULL;
+  constexpr std::uint64_t lognot_expected_result = 0xfedcba9876543210ULL;
 
   GoalCallProbe false_func_probe;
   GoalCallProbe true_func_probe;
   GoalCallProbe1 identity_probe;
+  GoalCallProbe1 lognot_probe;
   RuntimeStatus status;
   status.architecture = architecture_name();
   status.storage_path = std::move(storage_path);
@@ -183,6 +199,11 @@ RuntimeStatus initialize_runtime(std::string storage_path) {
     status.message = "Required signed ARM64 AOT export unavailable: identity";
     return status;
   }
+  const auto* lognot = find_aot_export1("lognot");
+  if (!lognot || !lognot->entry) {
+    status.message = "Required signed ARM64 AOT export unavailable: lognot";
+    return status;
+  }
 
   status.workload_result = goalpad_probe_call_aot_with_state(
       process, symbol_table, offset_base, false_func->entry, &false_func_probe);
@@ -190,6 +211,8 @@ RuntimeStatus initialize_runtime(std::string storage_path) {
       process, symbol_table, offset_base, true_func->entry, &true_func_probe);
   const auto identity_result = goalpad_probe_call_aot1_with_state(
       process, symbol_table, offset_base, identity->entry, identity_arg0, &identity_probe);
+  const auto lognot_result = goalpad_probe_call_aot1_with_state(
+      process, symbol_table, offset_base, lognot->entry, lognot_arg0, &lognot_probe);
   status.workload_verified = status.workload_result == symbol_table &&
                              has_expected_jak1_false_func_arm64_code(false_func->entry) &&
                              has_expected_goal_state(false_func_probe, process, symbol_table,
@@ -201,10 +224,14 @@ RuntimeStatus initialize_runtime(std::string storage_path) {
                              identity_result == identity_arg0 &&
                              has_expected_jak1_identity_arm64_code(identity->entry) &&
                              has_expected_goal_state(identity_probe, process, symbol_table,
-                                                     offset_base, identity_arg0, identity_result);
+                                                     offset_base, identity_arg0, identity_result) &&
+                             lognot_result == lognot_expected_result &&
+                             has_expected_jak1_lognot_arm64_code(lognot->entry) &&
+                             has_expected_goal_state(lognot_probe, process, symbol_table,
+                                                     offset_base, lognot_arg0, lognot_result);
   status.message = status.workload_verified
-                       ? "Signed ARM64 Jak 1 false-func, true-func, and identity calls verified"
-                       : "Signed ARM64 Jak 1 false-func, true-func, and identity call "
+                       ? "Signed ARM64 Jak 1 false-func, true-func, identity, and lognot calls verified"
+                       : "Signed ARM64 Jak 1 false-func, true-func, identity, and lognot call "
                          "verification failed";
   return status;
 }

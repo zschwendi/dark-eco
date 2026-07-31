@@ -68,11 +68,13 @@ int main() {
   const auto* false_func = goalpad::find_aot_export0("false-func");
   const auto* true_func = goalpad::find_aot_export0("true-func");
   const auto* identity = goalpad::find_aot_export1("identity");
+  const auto* lognot = goalpad::find_aot_export1("lognot");
   if (!false_func || false_func->goal_name != "false-func" ||
       !false_func->entry || !true_func || true_func->goal_name != "true-func" ||
       !true_func->entry || goalpad::find_aot_export0("identity") ||
-      goalpad::find_aot_export0("") || !identity ||
+      goalpad::find_aot_export0("lognot") || goalpad::find_aot_export0("") || !identity ||
       identity->goal_name != "identity" || !identity->entry ||
+      !lognot || lognot->goal_name != "lognot" || !lognot->entry ||
       goalpad::find_aot_export1("false-func") ||
       goalpad::find_aot_export1("true-func") || goalpad::find_aot_export1("")) {
     return 1;
@@ -83,15 +85,20 @@ int main() {
   constexpr std::uint64_t offset_base = 0x3003;
   constexpr std::uint64_t true_symbol_offset = 0x8;
   constexpr std::uint64_t identity_arg0 = 0x4a5b6c7d8e9fa0b1;
+  constexpr std::uint64_t lognot_arg0 = 0x0123456789abcdefULL;
+  constexpr std::uint64_t lognot_expected_result = 0xfedcba9876543210ULL;
   GoalCallProbe false_func_probe{};
   GoalCallProbe true_func_probe{};
   GoalCallProbe1 identity_probe{};
+  GoalCallProbe1 lognot_probe{};
   const auto false_func_result = goalpad_probe_call_aot_with_state(
       process, symbol_table, offset_base, false_func->entry, &false_func_probe);
   const auto true_func_result = goalpad_probe_call_aot_with_state(
       process, symbol_table, offset_base, true_func->entry, &true_func_probe);
   const auto identity_result = goalpad_probe_call_aot1_with_state(
       process, symbol_table, offset_base, identity->entry, identity_arg0, &identity_probe);
+  const auto lognot_result = goalpad_probe_call_aot1_with_state(
+      process, symbol_table, offset_base, lognot->entry, lognot_arg0, &lognot_probe);
 
   return false_func_result == symbol_table &&
                  false_func_probe.entry_process == process &&
@@ -126,7 +133,19 @@ int main() {
                  identity_probe.exit_offset_base == offset_base &&
                  identity_probe.restored_process == 0x14 &&
                  identity_probe.restored_symbol_table == 0x15 &&
-                 identity_probe.restored_offset_base == 0x16
+                 identity_probe.restored_offset_base == 0x16 &&
+                 lognot_result == lognot_expected_result &&
+                 lognot_probe.entry_process == process &&
+                 lognot_probe.entry_symbol_table == symbol_table &&
+                 lognot_probe.entry_offset_base == offset_base &&
+                 lognot_probe.entry_arg0 == lognot_arg0 &&
+                 lognot_probe.result == lognot_result &&
+                 lognot_probe.exit_process == process &&
+                 lognot_probe.exit_symbol_table == symbol_table &&
+                 lognot_probe.exit_offset_base == offset_base &&
+                 lognot_probe.restored_process == 0x14 &&
+                 lognot_probe.restored_symbol_table == 0x15 &&
+                 lognot_probe.restored_offset_base == 0x16
              ? 0
              : 1;
 }
