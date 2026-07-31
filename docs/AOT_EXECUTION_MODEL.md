@@ -1,8 +1,16 @@
 # AOT execution model for iPadOS
 
-Status: **Investigating.** This document records the analysis that must be
-settled before any further ARM64 compiler work. It describes findings from the
-existing OpenGOAL source, not implemented GOALPad behavior.
+Status: **Implemented**, with the limits recorded at the end of this file.
+
+Real Jak 1 GOAL code, compiled by the AOT C backend, executes inside the real
+OpenGOAL kernel on ARM64 with no writable-executable memory anywhere. Verified
+on the ARM64 macOS host and the iPad Pro 11-inch (M5) simulator, and link plus
+code-sign verified for `arm64-apple-ios`. See `game/kernel/core/aot_loader.*`
+and `game/kernel/core/aot_execution_test.cpp` in the OpenGOAL fork.
+
+This document originally recorded the analysis that had to be settled before
+further compiler work. That analysis held up, and the approach it recommended
+is the one that shipped.
 
 ## The single blocking mechanism
 
@@ -109,3 +117,63 @@ working prototype over real Jak 1 source before it is adopted or rejected.
 Nothing here is implemented. No approach has been validated on a physical iPad.
 The linker analysis is read from source and has not been exercised against real
 extracted game data.
+
+## What was implemented
+
+A GOAL function object stays an ordinary basic of type `function` on the GOAL
+heap. On ARM64 it holds the **64-bit native entry point** at its address
+instead of machine code. `call_goal` / `call_goal_on_stack` load that pointer
+through a new `goal_function_entry_point()` rather than jumping into the heap,
+which is exactly the load the emitted C already performed via `GOAL_FN`. AOT
+functions and the kernel's own C functions therefore become one uniform kind.
+`make_function_from_c`, `make_nothing_func`, and `make_zero_func` no longer
+emit x86 on ARM64.
+
+Static data and relocations keep using the real linker rules at runtime, as
+this document predicted: the loader implements all four V3 kinds with the
+semantics from `jak1/klink.cpp`, including `symlink_v3`'s convention that -1
+stores the address and anything else stores the s7 offset.
+`LINK_DISTANCE_TO_OTHER_SEG_32/64` has no counterpart in this model, because it
+is a RIP-relative fixup between code segments and there is no emitted code
+segment.
+
+## Evidence
+
+`goal_src/jak1/kernel/gcommon.gc` and `kernel/gstring.gc` load into the real
+global heap, their `top-level` functions run through `call_goal`, and functions
+are then reached by looking their symbol up in the real symbol table. Observed
+identically on host and simulator, both reporting `EE main memory executable:
+NO`:
+
+- `top-level` defined 66 symbols and called the kernel's own `(method new type)`
+  to create `vec4s` (parent `uint128`, size 16, 9 methods), plus `method-set!`
+  for every method.
+- Arithmetic and logic including PS2 32-bit sign-extension:
+  `(* 100000 100000)` = 1410065408, `(/ -7 2)` = -3, `(mod -7 3)` = -1,
+  `(ash -16 -2)` = -4, `(lognot 0)` = `#xffffffffffffffff`.
+- `(fact 5)` = 120 and `(fact 10)` = 3628800 — GOAL recursing into itself
+  through the `fact` symbol.
+- Real heap pairs via the kernel's `new_pair`, with `(method length pair)`
+  dispatched through `jak1::call_method_of_type`.
+- Cross-file calls into the second object file: `string=`, `string->int`,
+  `(method length string)`, and `string-upcase` mutating a real heap string.
+- `printl` / `print` reaching the real GOAL print buffer through the string
+  type's print method and `format_impl_jak1`.
+
+The linked binary has only ordinary Mach-O segments, and the GOAL functions are
+`T` symbols in `__TEXT,__text` — normal signed code.
+
+## Limits
+
+- **No physical-device run.** The device build is link and code-sign evidence
+  only.
+- **Process allocation from GOAL is shimmed** to `UNKNOWN_PP`, so the `pp` path
+  is unusable rather than merely untested.
+- Only `LINK_TYPE_PTR` was exercised by real goalc-emitted data; the other three
+  relocation kinds were exercised by a synthetic descriptor.
+- **`kernel/gkernel.gc` cannot be loaded at all** — its `top-level` fails on
+  `.pcpyld`. It and `engine/sound/gsound.gc` are the only 2 of 518 files whose
+  `top-level` fails, but gkernel is early in the build order, so this is the
+  next thing gating more of the game.
+- jak2/jak3/jakx kernels still write x86-64 trampolines and remain non-functional
+  on ARM64.
