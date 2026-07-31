@@ -5,26 +5,25 @@ Date: 2026-07-30
 Branch: `feat/ipados-native-boot`
 
 Status: Partially complete. Stage 2 is implemented and verified. Stage 3 now
-compiles the complete real Jak 1 `false-func`, `true-func`, and one-argument
-`identity` definitions as deterministic signed ARM64 text. The first typed
-Stage 4 artifact boundaries are verified: OpenGOAL emits guarded metadata for
-zero-argument `false-func` and `true-func`, plus one-argument `identity`, and
-GOALPad resolves them through app-local typed registries before calling static
-X20/X21/X22 wrappers. `true-func` returns the synthetic X21 `st` value plus
-eight; the identity wrapper establishes that state before moving its ordinary
-Apple-ABI object argument into X0. ARM64 macOS, the dedicated iPad Pro M5
-simulator, and a normally signed generic iOS build passed. The named-function
-proof rejects duplicate definitions, wrong bodies, wrong symbols, cross-ABI
-exports, and top-level effects outside the exact `defun` installer. The
-surrounding top-level `define`, live GOAL symbol installation, and general
-static artifact model remain unimplemented. The current Debug generic iOS
-build is not release-like no-JIT evidence because of its Xcode Preview split
-bundle; a Release-like signed build is the next executable-code validation.
-The maintainer prohibits physical Z iPad Pro testing unless explicitly
-requested in the current task; the local iPad Pro 11-inch (M5) simulator is
-the routine validation target. No physical device was used for this checkpoint.
-This proof uses synthetic state and does not claim general OpenGOAL runtime
-initialization or Jak 1 data loading.
+compiles the complete real Jak 1 `false-func`, `true-func`, one-argument
+`identity`, and one-argument `lognot` definitions as deterministic ARM64 text.
+The first typed Stage 4 artifact boundaries are verified: OpenGOAL emits
+guarded metadata for zero-argument `false-func` and `true-func`, plus
+one-argument `identity`, and GOALPad resolves them through app-local typed
+registries before calling static X20/X21/X22 wrappers. `true-func` returns the
+synthetic X21 `st` value plus eight; the identity wrapper establishes that
+state before moving its ordinary Apple-ABI object argument into X0. `lognot`
+is deliberately assembly-only (`mvn x0, x0; ret`) pending a separately scoped
+Export1 and runtime boundary. ARM64 macOS, the dedicated iPad Pro M5 simulator,
+and generic signed iOS builds passed. The verified Release generic iOS build
+is monolithic and has no Preview/debug-dylib layout; the Debug generic build
+remains Preview-split evidence only. The surrounding top-level `define`, live
+GOAL symbol installation, and general static artifact model remain
+unimplemented. The maintainer prohibits physical Z iPad Pro testing unless
+explicitly requested in the current task; the local iPad Pro 11-inch (M5)
+simulator is the routine validation target. No physical device was used for
+this checkpoint. This proof uses synthetic state and does not claim general
+OpenGOAL runtime initialization or Jak 1 data loading.
 
 ## Active roadmap and delegated audit
 
@@ -127,6 +126,7 @@ copied into, or generated inside the Git checkout.
 Current history:
 
 ```text
+6697d2d Preserve exact Jak 1 lognot AOT patch (AI-assisted)
 d12f732 Execute signed Jak 1 true function on ARM64 (AI-assisted)
 1d5e4bf Preserve typed Jak 1 true function export patch (AI-assisted)
 0866a1e Preserve exact Jak 1 true function AOT patch (AI-assisted)
@@ -322,6 +322,8 @@ dcccaaa13f07aced806cfac3a210ecd6a8b43268024fa1cf5da634f01384ff87  OpenGOALJak1Tr
 9fbe7cf54992385ad6c91bad9433cd716d0379bbbb424600cec7c338dfcd8629  OpenGOALJak1TrueFunc.exports.h
 4ce50d86b4d44730f1c6e847aabe59cfcb8c95bb2e01660d210b3d4e7f92bffe  OpenGOAL true-func compiler patch
 a625a581402bd08546e28b5a3ba9c72556a44db21ffed026497cfef4e5910f46  OpenGOAL true-func export patch
+7d886912f47c51023c09dc168141598b61877bf60eceee16abdd1b84f5a79d34  OpenGOAL lognot assembly-only artifact
+18339711be9d4bbde58dced7f2f208cdb0799c938052fbbc04023dd47e3ec087  OpenGOAL lognot compiler patch
 ```
 
 `GOALPadRuntimeCore.cpp` now calls the compiler-generated Jak 1 false function
@@ -877,16 +879,16 @@ The compiler checkpoint was validated with the existing constrained build and
 test surface:
 
 ```sh
-cmake --build /private/tmp/GOALPadOpenGOAL-stage2-build \
+cmake --build /private/tmp/GOALPadOpenGOAL-stage3-build \
   --target goalc-test goalc-aot gk -j 4
 
-/private/tmp/GOALPadOpenGOAL-stage2-build/goalc-test \
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc-test \
   --gtest_filter='Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
 
-/private/tmp/GOALPadOpenGOAL-stage2-build/goalc-test \
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc-test \
   --gtest_filter='-Listener.*'
 
-ctest --test-dir /private/tmp/GOALPadOpenGOAL-stage2-build \
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-stage3-build \
   -R '^goalc-aot-artifact-pair$' --output-on-failure
 
 git -C /private/tmp/GOALPadOpenGOAL-stage2 apply --check --reverse \
@@ -973,23 +975,104 @@ only, not physical-device validation. The M5 simulator was shut down after the
 pass. No state-changing Freemote command was issued, and no physical device was
 accessed.
 
-### Signed-binary scope caveat
+## Reviewed assembly-only Jak 1 `lognot` compiler checkpoint
 
-The current generic iOS evidence is intentionally limited. In the Debug
-Preview split bundle, the AOT entries are in the signed
-`GOALPad.debug.dylib`: `false-func` at `0x4010`, `identity` at `0x4018`, and
-`true-func` at `0x401c`; the static call-boundary wrapper entries are at
-`0x4498`, `0x44ec`, `0x4538`, and `0x4594`. That dylib has RX `__TEXT` and no
-`mmap`, `mprotect`, or JIT-protect imports. The main Debug stub, however,
-imports `dlopen` and `dlsym` and contains Preview JIT strings. It is therefore
-not release-like no-JIT evidence.
+Reviewed child commit `2475b3c1f097dedb60e5e78a1fc4d88aab5ab052`
+(`feat(aot): compile exact Jak 1 lognot function (AI-assisted)`) compiles the
+exact full one-argument `int` `lognot` definition from upstream Jak 1
+`gcommon.gc`. The constrained ARM64 path moves the Apple-ABI X0 argument into
+the return register and produces exactly:
 
-`codesign` display inspection also reported unavailable authority, an unbound
-Info.plist, and invalid or ignored app-executable entitlements. The embedded
-profile lists only application identifier, team identifier, keychain access,
-and `get-task-allow`; it has no JIT entitlement. These observations do not
-establish release-signing validity. Record and inspect a Release-like signed
-iOS build before making a broader ordinary-iPadOS executable-code claim.
+```text
+mvn x0, x0
+ret
+```
+
+Parent commit `6697d2d` preserves the reviewed child change as
+`patches/OpenGOAL/0011-feat-aot-compile-exact-Jak-1-lognot-function-AI-assi.patch`.
+Its SHA-256 is
+`18339711be9d4bbde58dced7f2f208cdb0799c938052fbbc04023dd47e3ec087`
+and its stable patch ID is `d5cb8ecafda681d8583e30f94ec76a4d09213d75`.
+The assembly-only artifact SHA-256 is
+`7d886912f47c51023c09dc168141598b61877bf60eceee16abdd1b84f5a79d34`.
+
+The constrained compiler/test checkpoint used the actual build directory:
+
+```sh
+cmake --build /private/tmp/GOALPadOpenGOAL-stage3-build \
+  --target goalc-test goalc-aot gk -j 4
+
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc-test \
+  --gtest_filter='Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
+
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc-test \
+  --gtest_filter='-Listener.*'
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-stage3-build \
+  -R '^goalc-aot-artifact-pair$' --output-on-failure
+```
+
+Results: affected targets built; all 33 focused tests, all 719 non-listener
+tests, and CTest 1/1 passed. The artifact checks prove the MVN/RET text and
+also prove that `goalc-aot` rejects a paired native export for `lognot` without
+replacing existing destinations. There is no checked-in app artifact, Export1
+metadata, registry entry, wrapper call, or runtime execution for `lognot`.
+The next smallest compiler/runtime seam is the separately scoped typed Export1
+contract and signed app-local binding for this one function only.
+
+### Debug Preview caveat and verified Release generic iOS layout
+
+The Debug generic iOS build remains limited evidence. Its Preview split bundle
+places the AOT entries in `GOALPad.debug.dylib`: `false-func` at `0x4010`,
+`identity` at `0x4018`, and `true-func` at `0x401c`; its static call-boundary
+entries are at `0x4498`, `0x44ec`, `0x4538`, and `0x4594`. That dylib has RX
+`__TEXT` and no executable-memory imports, but the main Debug stub imports
+`dlopen`/`dlsym` and contains Preview JIT strings. It is not release-like
+no-JIT evidence.
+
+The verified Release generic iOS build used the existing device derived-data
+path and explicitly disabled Preview/debug-dylib layout:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-device -jobs 4 \
+  ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
+```
+
+It produced a 216K app bundle containing only a 188,560-byte monolithic ARM64
+main executable plus normal bundle metadata, signature, and embedded profile;
+there is no `GOALPad.debug.dylib` or `__preview.dylib`. SHA-256 values are:
+
+```text
+b09fbab5a6bfd403266b969321a727ac2cd356090a1de299b06fe5fa4d4b90f6  GOALPad
+ef4a32f9aef6cca1709423e53e66518204e49a86af4d2752139de63d21244ad1  embedded.mobileprovision
+```
+
+The Release main contains the AOT entries at `0x100004000` (`false-func`),
+`0x100004008` (`identity`), and `0x10000400c` (`true-func`), with exact text:
+
+```text
+false-func: e0 03 15 aa c0 03 5f d6
+identity:   c0 03 5f d6
+true-func:  e0 03 15 aa 00 20 00 91 c0 03 5f d6
+```
+
+The zero- and one-argument state wrappers are at `0x10000410c` and
+`0x1000041b4`. `__TEXT` has `maxprot r-x` and `initprot r-x`; undefined-import
+and string scans found no `dlopen`, `dlsym`, `mmap`, `mprotect`,
+`pthread_jit_write_protect_np`, Preview, or JIT markers. The Release embedded
+profile is byte-identical to the prior Debug profile.
+
+Use the supported display command `codesign -d --entitlements -`: both local
+Debug and Release outputs show valid application identifier, team identifier,
+and `get-task-allow` entitlements, with no JIT entitlement. The earlier `:-`
+form is deprecated and its warning must not be treated as app-signature
+evidence. `codesign -dvv` displays `Authority=(unavailable)` and
+`Info.plist=not bound` for both local outputs; these are display limits, not a
+Release-specific signing failure. No `codesign --verify`, installation, or
+physical-device execution was performed, so this remains static build/signing
+evidence rather than trust, installability, or physical-runtime proof.
 
 ## Verified GOALPad targets
 
@@ -1183,29 +1266,32 @@ At the current Stage 4 artifact-boundary checkpoint:
 
 The lower-level ARM64 emitter, target-aware compiler slice, named-function
 selection, generated typed export metadata, typed native registry, and static
-signed call-boundary paths are real and tested. `true-func` now proves the
-second zero-argument value shape (X21 plus eight) through a signed static
-artifact, but does not create a GOAL function value or live runtime binding.
-The next executable-code evidence is a Release-like signed build; live portable
-kernel state remains a later separate boundary.
+signed call-boundary paths are real and tested. `true-func` proves the second
+zero-argument value shape (X21 plus eight) through a signed static artifact,
+and the Release generic build proves that current linked entries can reside in
+a monolithic ARM64 executable without Preview/debug-dylib layout. `lognot`
+now proves a first constrained one-argument integer MVN/RET compiler path, but
+does not have export metadata, a GOAL function value, or a live runtime binding.
+Live portable kernel state remains a later separate boundary.
 
 ## Highest-value next checkpoint
 
-1. Record a Release-like signed iOS build and inspect its executable layout,
-   imports, and entitlements. Do not treat the Debug Preview split bundle as
-   no-JIT proof.
+1. Specify and test the exact typed Export1 metadata, app-local registry, and
+   signed static-call contract for the one-argument `int` `lognot` artifact.
+   Do not add a general Export1 path, runtime linker, or live GOAL symbol
+   installation as part of that checkpoint.
 2. Choose the durable fork owner and authenticate that GitHub account. Publish
-   child commits `35d653f1` and `f979c82c` with their predecessors, preserve
-   the official `upstream` remote, and only then update the parent submodule
-   URL/gitlink to the fetchable fork commit.
+   child commit `2475b3c1` with its predecessors, preserve the official
+   `upstream` remote, and only then update the parent submodule URL/gitlink to
+   the fetchable fork commit.
 3. After the static artifact boundaries can initialize a kernel subset, replace
    the synthetic X20/X21/X22 values with portable real process, symbol-table,
    and GOAL-memory state. Keep unsupported compiler paths explicit until a
    real Jak 1 boot dependency requires them.
 
-Physical execution of the false-form, complete-function, true-function, and
-identity checkpoints remains pending. Do not attempt it unless the maintainer
-explicitly schedules physical-device testing in the current request.
+Physical execution of the false-form, complete-function, true-function,
+identity, and lognot checkpoints remains pending. Do not attempt it unless the
+maintainer explicitly schedules physical-device testing in the current request.
 
 Do not introduce `MAP_JIT`, writable executable memory, or the desktop V3
 runtime-linker path. Do not broaden this into renderer, camera, or future Apple
@@ -1282,14 +1368,18 @@ git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
 
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0010-feat-aot-export-exact-Jak-1-true-function-AI-assiste.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0011-feat-aot-compile-exact-Jak-1-lognot-function-AI-assi.patch"
 ```
 
 `git am` reconstructs patch-equivalent commits but normally produces different
 SHAs because committer metadata changes. `79f22008`, `149840cf`, `32cf26ae`,
-`92c8f975`, `b78d7c28`, `1fc20e79`, `25917e27`, `1c80b667`, `35d653f1`, and
-`f979c82c` are the exact original child commits in the current isolated
-worktree; compare content and patch identity when reconstructing them elsewhere.
+`92c8f975`, `b78d7c28`, `1fc20e79`, `25917e27`, `1c80b667`, `35d653f1`,
+`f979c82c`, and `2475b3c1` are the exact original child commits in the current
+isolated worktree; compare content and patch identity when reconstructing them
+elsewhere.
 
-Do not use proprietary inputs yet. The next validation is a Release-like signed
-build of the existing synthetic-state artifacts; it still needs no retail game
-data and must not access the physical iPad without current explicit permission.
+Do not use proprietary inputs yet. The next scoped task is `lognot` Export1 and
+signed app-local binding; it still needs no retail game data and must not access
+the physical iPad without current explicit permission.

@@ -256,6 +256,11 @@ Current progress:
   zero-argument Jak 1 `true-func` body. Its signed text is `mov x0, x21; add
   x0, x0, #8; ret`, returning `#t` as the `st` base plus eight. The combined
   checkpoint passes 27 focused tests, 713 non-listener tests, and CTest 1/1.
+- Reviewed child commit `2475b3c1f097dedb60e5e78a1fc4d88aab5ab052`, preserved
+  by parent commit `6697d2d`, compiles the exact one-argument Jak 1 `lognot`
+  definition to `mvn x0, x0; ret`. It passes 33 focused tests, 719
+  non-listener tests, and CTest 1/1. It deliberately rejects native export
+  metadata: Export1 and runtime integration remain separate next seams.
 
 ## Stage 4 — Replace the desktop executable-object model
 
@@ -298,10 +303,13 @@ Current progress:
   ARM64-only state wrapper before runtime; use the specific M5 simulator
   destination for ARM64 runtime evidence. No physical-device validation was
   performed.
-- The current Debug generic iOS artifact is only limited signing/code-layout
-  evidence. Its Preview split bundle is not release-like no-JIT evidence;
-  recording a Release-like signed build is the next validation before making a
-  broader executable-code claim.
+- The Debug generic iOS artifact remains only limited signing/code-layout
+  evidence because it uses an Xcode Preview split bundle. The verified Release
+  generic iOS build used `ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO` and contains
+  a 216K monolithic app bundle with one ARM64 executable; it has no Preview
+  dylib, Preview/JIT strings, or dynamic executable-memory imports. This is
+  stronger static layout evidence, but not verification, installation, or
+  physical-device execution evidence.
 
 ## Stage 5 — Build a portable OpenGOAL runtime for iPadOS
 
@@ -566,12 +574,12 @@ verified child commit through the repository patch.
 
 The next actions are:
 
-1. Record a Release-like signed iOS build and inspect its executable layout and
-   entitlement surface before treating the static AOT path as no-JIT evidence.
+1. Add the scoped signed Export1 metadata and app-local runtime boundary for
+   `lognot` only after the compiler/object contract is specified and tested.
 2. Keep unsupported statics, general relocations, calls, saved registers,
    spills, and stack locals explicit until a real Jak 1 boot dependency
    requires each boundary.
-3. Keep x86 behavior, the 713-test non-network suite, ARM64 host tools, and the
+3. Keep x86 behavior, the 719-test non-network suite, ARM64 host tools, and the
    signed app path healthy after each increment.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.

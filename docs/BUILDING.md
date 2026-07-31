@@ -66,12 +66,34 @@ already running.
 The current Debug generic iOS build is limited signing/code-layout evidence.
 Its Preview split bundle places the AOT code in signed `GOALPad.debug.dylib`
 with RX `__TEXT` and no `mmap`, `mprotect`, or JIT-protect imports, but the main
-Debug stub imports `dlopen`/`dlsym` and contains Preview JIT strings. In
-addition, `codesign` display inspection reports unavailable authority, an
-unbound Info.plist, and invalid or ignored app-executable entitlements; the
-embedded profile has no JIT entitlement. Do not treat this Debug output as
-release-like no-JIT evidence. Record and inspect a Release-like signed build
-before making that claim.
+Debug stub imports `dlopen`/`dlsym` and contains Preview JIT strings. Do not
+treat this Debug output as release-like no-JIT evidence.
+
+The verified Release generic iOS build uses the same existing device derived
+data path while explicitly disabling both Preview and debug-dylib layout:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-device -jobs 4 \
+  ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
+```
+
+It produced a 216K monolithic app bundle with one 188,560-byte ARM64 main
+executable and no `GOALPad.debug.dylib` or `__preview.dylib`. The main contains
+the false, identity, and true AOT entries at `0x100004000`, `0x100004008`, and
+`0x10000400c`, respectively; its `__TEXT` segment is RX and its undefined
+imports contain none of `dlopen`, `dlsym`, `mmap`, `mprotect`, or
+`pthread_jit_write_protect_np`. Its strings contain no Preview/JIT marker.
+
+`codesign -d --entitlements -` (the supported display form) reports valid
+application identifier, team identifier, and `get-task-allow` entitlements;
+there is no JIT entitlement. The deprecated `:-` form must not be used. The
+`Authority=(unavailable)` and `Info.plist=not bound` fields appear in both
+local Debug and Release display output, so they are display limits rather than
+a Release-specific signing failure. No verification, installation, or
+physical-device execution was performed; treat this Release output as static
+build/signing evidence only.
 
 ## Build the pinned OpenGOAL ARM64 host baseline
 
@@ -124,6 +146,8 @@ True compiler child: 35d653f1fadc52e78925e952a507d60dc4c11245
 True compiler patch: patches/OpenGOAL/0009-feat-aot-compile-exact-Jak-1-true-function-AI-assist.patch
 True export child: f979c82cb6da50b847808ebd23ec10c4fa1c1c9e
 True export patch: patches/OpenGOAL/0010-feat-aot-export-exact-Jak-1-true-function-AI-assiste.patch
+Lognot compiler child: 2475b3c1f097dedb60e5e78a1fc4d88aab5ab052
+Lognot compiler patch: patches/OpenGOAL/0011-feat-aot-compile-exact-Jak-1-lognot-function-AI-assi.patch
 ```
 
 Restore it into an isolated worktree:
@@ -162,6 +186,9 @@ git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
 
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0010-feat-aot-export-exact-Jak-1-true-function-AI-assiste.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0011-feat-aot-compile-exact-Jak-1-lognot-function-AI-assi.patch"
 ```
 
 If that branch or worktree already exists, inspect and reuse it rather than
@@ -170,7 +197,7 @@ the unpublished child commit.
 
 The restored commits are patch-equivalent to `79f22008`, `149840cf`,
 `32cf26ae`, `92c8f975`, `b78d7c28`, `1fc20e79`, `25917e27`, `1c80b667`,
-`35d653f1`, and `f979c82c`, but `git am` normally assigns new committer
+`35d653f1`, `f979c82c`, and `2475b3c1`, but `git am` normally assigns new committer
 metadata and therefore different commit SHAs. The exact objects are available
 only in a checkout that already contains the original child commits. Compare
 the resulting tree or stable patch identities when reconstructing them from
@@ -181,35 +208,35 @@ pressure:
 
 ```sh
 cmake -S /private/tmp/GOALPadOpenGOAL-stage2 \
-  -B /private/tmp/GOALPadOpenGOAL-stage2-build \
+  -B /private/tmp/GOALPadOpenGOAL-stage3-build \
   --preset=Release-macos-arm64-clang \
   -DOPENSSL_ROOT_DIR=/opt/homebrew/opt/openssl@3
 
-test -e /private/tmp/GOALPadOpenGOAL-stage2-build/data || \
+test -e /private/tmp/GOALPadOpenGOAL-stage3-build/data || \
   ln -s /private/tmp/GOALPadOpenGOAL-stage2 \
-  /private/tmp/GOALPadOpenGOAL-stage2-build/data
+  /private/tmp/GOALPadOpenGOAL-stage3-build/data
 
-cmake --build /private/tmp/GOALPadOpenGOAL-stage2-build \
+cmake --build /private/tmp/GOALPadOpenGOAL-stage3-build \
   --target goalc-aot goalc-test gk -j 4
 ```
 
 Run the deterministic affected tests and the complete non-network suite:
 
 ```sh
-/private/tmp/GOALPadOpenGOAL-stage2-build/goalc-test \
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc-test \
   --gtest_filter='Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
 
-/private/tmp/GOALPadOpenGOAL-stage2-build/goalc-test \
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc-test \
   --gtest_filter='-Listener.*'
 
-ctest --test-dir /private/tmp/GOALPadOpenGOAL-stage2-build \
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-stage3-build \
   -R '^goalc-aot-artifact-pair$' --output-on-failure
 ```
 
 Generate and compare the signed-build input:
 
 ```sh
-/private/tmp/GOALPadOpenGOAL-stage2-build/goalc/goalc-aot \
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc/goalc-aot \
   --project-path /private/tmp/GOALPadOpenGOAL-stage2 \
   --input \
   /private/tmp/GOALPadOpenGOAL-stage2/test/goalc/source_templates/arm64-aot/constant-42.gc \
@@ -236,7 +263,7 @@ replaces it.
 Generate and compare the real Jak 1 false-form input:
 
 ```sh
-/private/tmp/GOALPadOpenGOAL-stage2-build/goalc/goalc-aot \
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc/goalc-aot \
   --project-path /private/tmp/GOALPadOpenGOAL-stage2 \
   --input \
   /private/tmp/GOALPadOpenGOAL-stage2/test/goalc/source_templates/arm64-aot/false-from-jak1-gcommon.gc \
@@ -262,7 +289,7 @@ Generate and compare the selected body from the complete real Jak 1
 `false-func` definition:
 
 ```sh
-/private/tmp/GOALPadOpenGOAL-stage2-build/goalc/goalc-aot \
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc/goalc-aot \
   --project-path /private/tmp/GOALPadOpenGOAL-stage2 \
   --input \
   /private/tmp/GOALPadOpenGOAL-stage2/test/goalc/source_templates/arm64-aot/full-false-func-from-jak1-gcommon.gc \
@@ -299,7 +326,7 @@ table. Do not substitute the desktop V3 runtime linker.
 Generate and compare the complete real Jak 1 `identity` definition:
 
 ```sh
-/private/tmp/GOALPadOpenGOAL-stage2-build/goalc/goalc-aot \
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc/goalc-aot \
   --project-path /private/tmp/GOALPadOpenGOAL-stage2 \
   --input \
   /private/tmp/GOALPadOpenGOAL-stage2/test/goalc/source_templates/arm64-aot/full-identity-from-jak1-gcommon.gc \
@@ -331,7 +358,7 @@ or wrong-symbol requests fail without replacing existing output artifacts.
 Generate and compare the complete real Jak 1 `true-func` definition:
 
 ```sh
-/private/tmp/GOALPadOpenGOAL-stage2-build/goalc/goalc-aot \
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc/goalc-aot \
   --project-path /private/tmp/GOALPadOpenGOAL-stage2 \
   --input \
   /private/tmp/GOALPadOpenGOAL-stage2/test/goalc/source_templates/arm64-aot/full-true-func-from-jak1-gcommon.gc \
@@ -362,6 +389,32 @@ rejects false-body, wrong-symbol, and cross-ABI requests without replacing
 existing paired artifacts. The selected text is build-time native binding;
 the surrounding top-level `define`, live GOAL symbol installation, and desktop
 V3 runtime linker remain unsupported.
+
+Generate the exact real one-argument Jak 1 `lognot` definition as an
+assembly-only artifact:
+
+```sh
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc/goalc-aot \
+  --project-path /private/tmp/GOALPadOpenGOAL-stage2 \
+  --input \
+  /private/tmp/GOALPadOpenGOAL-stage2/test/goalc/source_templates/arm64-aot/full-lognot-from-jak1-gcommon.gc \
+  --function lognot \
+  --output /private/tmp/goalpad_aot_lognot.s \
+  --symbol goalpad_aot_lognot
+
+xcrun --sdk iphoneos clang -arch arm64 \
+  -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
+  -c /private/tmp/goalpad_aot_lognot.s \
+  -o /private/tmp/goalpad_aot_lognot.o
+
+xcrun llvm-objdump --macho --disassemble \
+  /private/tmp/goalpad_aot_lognot.o
+```
+
+The selected one-argument `int` body is exactly `mvn x0, x0; ret`. It is not
+yet an app artifact: the current compiler deliberately rejects its native
+Export1 metadata, and app-local binding or runtime execution must wait for the
+next scoped compiler/runtime seam.
 
 ## Validate the static OpenGOAL ARM64 call boundary
 
