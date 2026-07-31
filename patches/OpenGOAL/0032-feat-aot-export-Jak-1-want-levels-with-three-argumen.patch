@@ -1,0 +1,303 @@
+From 16123d8d317704e9f18cccbd124a1615824e5ae2 Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Fri, 31 Jul 2026 03:22:33 -0600
+Subject: [PATCH] feat(aot): export Jak 1 want-levels with three arguments
+ (AI-assisted)
+
+---
+ goalc/aot/AOTWriter.cpp             |  32 +++++++++
+ goalc/aot/AOTWriter.h               |  10 +++
+ goalc/aot_main.cpp                  |   7 +-
+ test/goalc/test_arm64_aot.cpp       |  39 ++++++++++
+ test/goalc/test_arm64_aot_cli.cmake | 106 ++++++++++++++++++++++++++++
+ 5 files changed, 193 insertions(+), 1 deletion(-)
+
+diff --git a/goalc/aot/AOTWriter.cpp b/goalc/aot/AOTWriter.cpp
+index c1367faf..9a58a6ae 100644
+--- a/goalc/aot/AOTWriter.cpp
++++ b/goalc/aot/AOTWriter.cpp
+@@ -81,6 +81,16 @@ void validate(const NativeExport2& native_export) {
+   }
+ }
+ 
++void validate(const NativeExport3& native_export) {
++  const bool is_want_levels = native_export.goal_name == "want-levels" &&
++                              native_export.c_symbol == "goalpad_aot_load_state_want_levels";
++  if (!is_want_levels) {
++    throw std::invalid_argument(
++        "AOT native export proof only supports want-levels as "
++        "goalpad_aot_load_state_want_levels three-argument artifacts");
++  }
++}
++
+ std::filesystem::path normalized_path(const std::filesystem::path& path) {
+   return std::filesystem::weakly_canonical(std::filesystem::absolute(path));
+ }
+@@ -258,6 +268,18 @@ std::string render_cpp_xmacro_export2(const NativeExport2& native_export) {
+   return output.str();
+ }
+ 
++std::string render_cpp_xmacro_export3(const NativeExport3& native_export) {
++  validate(native_export);
++  std::ostringstream output;
++  output << "#ifndef OPENGOAL_AOT_EXPORT3\n"
++         << "#error \"Define OPENGOAL_AOT_EXPORT3 before including this file.\"\n"
++         << "#endif\n"
++         << "OPENGOAL_AOT_EXPORT3(\"" << native_export.goal_name << "\", " << native_export.c_symbol
++         << ")\n";
++
++  return output.str();
++}
++
+ void write_apple_arm64_artifact_pair(const std::string& assembly_output_path,
+                                      const std::string& export_output_path,
+                                      const AppleArm64Function& function,
+@@ -288,4 +310,14 @@ void write_apple_arm64_artifact_pair(const std::string& assembly_output_path,
+                                   native_export_source);
+ }
+ 
++void write_apple_arm64_artifact_pair(const std::string& assembly_output_path,
++                                     const std::string& export_output_path,
++                                     const AppleArm64Function& function,
++                                     const NativeExport3& native_export) {
++  const auto assembly = render_apple_arm64_assembly(function);
++  const auto native_export_source = render_cpp_xmacro_export3(native_export);
++  write_apple_arm64_artifact_pair(assembly_output_path, export_output_path, assembly,
++                                  native_export_source);
++}
++
+ }  // namespace aot
+diff --git a/goalc/aot/AOTWriter.h b/goalc/aot/AOTWriter.h
+index f152f27a..9e740f5e 100644
+--- a/goalc/aot/AOTWriter.h
++++ b/goalc/aot/AOTWriter.h
+@@ -26,11 +26,17 @@ struct NativeExport2 {
+   std::string c_symbol;
+ };
+ 
++struct NativeExport3 {
++  std::string goal_name;
++  std::string c_symbol;
++};
++
+ std::string render_apple_arm64_assembly(const AppleArm64Function& function);
+ void write_apple_arm64_assembly(const std::string& output_path, const AppleArm64Function& function);
+ std::string render_cpp_xmacro_export0(const NativeExport0& native_export);
+ std::string render_cpp_xmacro_export1(const NativeExport1& native_export);
+ std::string render_cpp_xmacro_export2(const NativeExport2& native_export);
++std::string render_cpp_xmacro_export3(const NativeExport3& native_export);
+ void write_apple_arm64_artifact_pair(const std::string& assembly_output_path,
+                                      const std::string& export_output_path,
+                                      const AppleArm64Function& function,
+@@ -43,5 +49,9 @@ void write_apple_arm64_artifact_pair(const std::string& assembly_output_path,
+                                      const std::string& export_output_path,
+                                      const AppleArm64Function& function,
+                                      const NativeExport2& native_export);
++void write_apple_arm64_artifact_pair(const std::string& assembly_output_path,
++                                     const std::string& export_output_path,
++                                     const AppleArm64Function& function,
++                                     const NativeExport3& native_export);
+ 
+ }  // namespace aot
+diff --git a/goalc/aot_main.cpp b/goalc/aot_main.cpp
+index 626aa9ec..8cf274e7 100644
+--- a/goalc/aot_main.cpp
++++ b/goalc/aot_main.cpp
+@@ -132,10 +132,15 @@ int main(int argc, char** argv) {
+         aot::write_apple_arm64_artifact_pair(
+             options.output_path, *options.exports_output_path, {options.symbol, code},
+             aot::NativeExport2{*options.function_name, options.symbol});
++      } else if (*options.function_name == "want-levels") {
++        aot::write_apple_arm64_artifact_pair(
++            options.output_path, *options.exports_output_path, {options.symbol, code},
++            aot::NativeExport3{*options.function_name, options.symbol});
+       } else {
+         throw std::invalid_argument(
+             "AOT native export proof only supports false-func, true-func, identity, lognot, or "
+-            "glst-node-name, level-group-load-commands-set!, or want-vis function artifacts");
++            "glst-node-name, level-group-load-commands-set!, want-vis, or want-levels function "
++            "artifacts");
+       }
+     } else {
+       aot::write_apple_arm64_assembly(options.output_path, {options.symbol, code});
+diff --git a/test/goalc/test_arm64_aot.cpp b/test/goalc/test_arm64_aot.cpp
+index 56f9f026..228f9b39 100644
+--- a/test/goalc/test_arm64_aot.cpp
++++ b/test/goalc/test_arm64_aot.cpp
+@@ -540,6 +540,16 @@ TEST(Arm64Aot, renders_want_vis_two_argument_native_export_metadata) {
+             "OPENGOAL_AOT_EXPORT2(\"want-vis\", goalpad_aot_load_state_want_vis)\n");
+ }
+ 
++TEST(Arm64Aot, renders_want_levels_three_argument_native_export_metadata) {
++  const aot::NativeExport3 native_export{"want-levels", "goalpad_aot_load_state_want_levels"};
++
++  EXPECT_EQ(aot::render_cpp_xmacro_export3(native_export),
++            "#ifndef OPENGOAL_AOT_EXPORT3\n"
++            "#error \"Define OPENGOAL_AOT_EXPORT3 before including this file.\"\n"
++            "#endif\n"
++            "OPENGOAL_AOT_EXPORT3(\"want-levels\", goalpad_aot_load_state_want_levels)\n");
++}
++
+ TEST(Arm64Aot, rejects_native_exports_outside_the_zero_argument_proof) {
+   EXPECT_THROW(aot::render_cpp_xmacro_export0({"", "goalpad_aot_false_func"}),
+                std::invalid_argument);
+@@ -609,6 +619,35 @@ TEST(Arm64Aot, rejects_native_exports_outside_the_two_argument_proof) {
+                std::invalid_argument);
+ }
+ 
++TEST(Arm64Aot, rejects_native_exports_outside_the_three_argument_proof) {
++  EXPECT_THROW(aot::render_cpp_xmacro_export3({"", "goalpad_aot_load_state_want_levels"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export3({"false-func", "goalpad_aot_false_func"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export3({"identity", "goalpad_aot_identity"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export3({"want-vis", "goalpad_aot_load_state_want_vis"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export3({"want-levels", "invalid-symbol"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export3({"want-levels", "goalpad_aot_want_levels"}),
++               std::invalid_argument);
++  EXPECT_THROW(aot::render_cpp_xmacro_export3({"want-levels", "goalpad_aot_load_state_want_vis"}),
++               std::invalid_argument);
++}
++
++TEST(Arm64Aot, rejects_want_levels_native_export_symbols_at_other_arities) {
++  EXPECT_THROW(
++      aot::render_cpp_xmacro_export0({"want-levels", "goalpad_aot_load_state_want_levels"}),
++      std::invalid_argument);
++  EXPECT_THROW(
++      aot::render_cpp_xmacro_export1({"want-levels", "goalpad_aot_load_state_want_levels"}),
++      std::invalid_argument);
++  EXPECT_THROW(
++      aot::render_cpp_xmacro_export2({"want-levels", "goalpad_aot_load_state_want_levels"}),
++      std::invalid_argument);
++}
++
+ TEST(Arm64Aot, rejects_unknown_named_function) {
+   Compiler compiler(GameVersion::Jak1, emitter::InstructionSet::ARM64);
+   const auto source = file_util::read_text_file(file_util::get_file_path(
+diff --git a/test/goalc/test_arm64_aot_cli.cmake b/test/goalc/test_arm64_aot_cli.cmake
+index 9712a5a7..4b38afab 100644
+--- a/test/goalc/test_arm64_aot_cli.cmake
++++ b/test/goalc/test_arm64_aot_cli.cmake
+@@ -38,6 +38,13 @@ set(WANT_VIS_INPUT
+ set(WANT_VIS_ASSEMBLY_ONLY "${OUTPUT_DIR}/want-vis-assembly-only.s")
+ set(WANT_VIS_PAIRED_ASSEMBLY "${OUTPUT_DIR}/want-vis-paired.s")
+ set(WANT_VIS_EXPORTS "${OUTPUT_DIR}/want-vis-paired.exports.inc")
++set(WANT_LEVELS_INPUT
++    "${PROJECT_ROOT}/test/goalc/source_templates/arm64-aot/full-want-levels-from-jak1-load-boundary.gc")
++set(WANT_LEVELS_GOLDEN
++    "${PROJECT_ROOT}/test/goalc/source_templates/arm64-aot/full-want-levels-from-jak1-load-boundary.s")
++set(WANT_LEVELS_ASSEMBLY_ONLY "${OUTPUT_DIR}/want-levels-assembly-only.s")
++set(WANT_LEVELS_PAIRED_ASSEMBLY "${OUTPUT_DIR}/want-levels-paired.s")
++set(WANT_LEVELS_EXPORTS "${OUTPUT_DIR}/want-levels-paired.exports.inc")
+ 
+ execute_process(
+   COMMAND "${GOALC_AOT}"
+@@ -810,3 +817,102 @@ if(NOT ACTUAL_WANT_VIS_WRONG_ASSEMBLY STREQUAL "old want-vis wrong assembly\n" O
+    NOT ACTUAL_WANT_VIS_WRONG_EXPORTS STREQUAL "old want-vis wrong exports\n")
+   message(FATAL_ERROR "Failed want-vis export validation modified an existing artifact")
+ endif()
++
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${WANT_LEVELS_INPUT}"
++          --function want-levels
++          --output "${WANT_LEVELS_ASSEMBLY_ONLY}"
++          --symbol goalpad_aot_load_state_want_levels
++  RESULT_VARIABLE WANT_LEVELS_ASSEMBLY_ONLY_RESULT)
++if(NOT WANT_LEVELS_ASSEMBLY_ONLY_RESULT EQUAL 0)
++  message(FATAL_ERROR "Assembly-only want-levels goalc-aot invocation failed")
++endif()
++
++file(READ "${WANT_LEVELS_GOLDEN}" WANT_LEVELS_GENERIC_GOLDEN_ASSEMBLY)
++string(REPLACE "_goalpad_aot_want_levels" "_goalpad_aot_load_state_want_levels"
++       EXPECTED_WANT_LEVELS_ASSEMBLY "${WANT_LEVELS_GENERIC_GOLDEN_ASSEMBLY}")
++file(READ "${WANT_LEVELS_ASSEMBLY_ONLY}" ACTUAL_WANT_LEVELS_ASSEMBLY)
++if(NOT ACTUAL_WANT_LEVELS_ASSEMBLY STREQUAL EXPECTED_WANT_LEVELS_ASSEMBLY)
++  message(FATAL_ERROR "Assembly-only want-levels artifact did not match the committed ARM64 golden")
++endif()
++
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${WANT_LEVELS_INPUT}"
++          --function want-levels
++          --output "${WANT_LEVELS_PAIRED_ASSEMBLY}"
++          --exports-output "${WANT_LEVELS_EXPORTS}"
++          --symbol goalpad_aot_load_state_want_levels
++  RESULT_VARIABLE WANT_LEVELS_PAIRED_RESULT)
++if(NOT WANT_LEVELS_PAIRED_RESULT EQUAL 0)
++  message(FATAL_ERROR "Paired want-levels goalc-aot invocation failed")
++endif()
++
++file(SHA256 "${WANT_LEVELS_ASSEMBLY_ONLY}" WANT_LEVELS_ASSEMBLY_ONLY_SHA256)
++file(SHA256 "${WANT_LEVELS_PAIRED_ASSEMBLY}" WANT_LEVELS_PAIRED_ASSEMBLY_SHA256)
++if(NOT WANT_LEVELS_ASSEMBLY_ONLY_SHA256 STREQUAL WANT_LEVELS_PAIRED_ASSEMBLY_SHA256)
++  message(FATAL_ERROR "Adding want-levels export metadata changed the ARM64 assembly")
++endif()
++
++file(READ "${WANT_LEVELS_PAIRED_ASSEMBLY}" ACTUAL_WANT_LEVELS_PAIRED_ASSEMBLY)
++file(READ "${WANT_LEVELS_EXPORTS}" ACTUAL_WANT_LEVELS_EXPORTS)
++if(NOT ACTUAL_WANT_LEVELS_PAIRED_ASSEMBLY STREQUAL EXPECTED_WANT_LEVELS_ASSEMBLY)
++  message(FATAL_ERROR "Paired want-levels artifact did not match the committed ARM64 golden")
++endif()
++
++set(EXPECTED_WANT_LEVELS_EXPORTS
++    "#ifndef OPENGOAL_AOT_EXPORT3\n#error \"Define OPENGOAL_AOT_EXPORT3 before including this file.\"\n#endif\nOPENGOAL_AOT_EXPORT3(\"want-levels\", goalpad_aot_load_state_want_levels)\n")
++if(NOT ACTUAL_WANT_LEVELS_EXPORTS STREQUAL EXPECTED_WANT_LEVELS_EXPORTS)
++  message(FATAL_ERROR "Generated want-levels export metadata did not match the expected record")
++endif()
++
++set(WANT_LEVELS_WRONG_ASSEMBLY "${OUTPUT_DIR}/want-levels-wrong.s")
++set(WANT_LEVELS_WRONG_EXPORTS "${OUTPUT_DIR}/want-levels-wrong.exports.inc")
++file(WRITE "${WANT_LEVELS_WRONG_ASSEMBLY}" "old want-levels wrong assembly\n")
++file(WRITE "${WANT_LEVELS_WRONG_EXPORTS}" "old want-levels wrong exports\n")
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${WANT_LEVELS_INPUT}"
++          --function want-levels
++          --output "${WANT_LEVELS_WRONG_ASSEMBLY}"
++          --exports-output "${WANT_LEVELS_WRONG_EXPORTS}"
++          --symbol goalpad_aot_want_levels
++  RESULT_VARIABLE WANT_LEVELS_WRONG_SYMBOL_RESULT)
++if(WANT_LEVELS_WRONG_SYMBOL_RESULT EQUAL 0)
++  message(FATAL_ERROR "goalc-aot accepted want-levels with an unsupported symbol")
++endif()
++
++file(READ "${WANT_LEVELS_WRONG_ASSEMBLY}" ACTUAL_WANT_LEVELS_WRONG_ASSEMBLY)
++file(READ "${WANT_LEVELS_WRONG_EXPORTS}" ACTUAL_WANT_LEVELS_WRONG_EXPORTS)
++if(NOT ACTUAL_WANT_LEVELS_WRONG_ASSEMBLY STREQUAL "old want-levels wrong assembly\n" OR
++   NOT ACTUAL_WANT_LEVELS_WRONG_EXPORTS STREQUAL "old want-levels wrong exports\n")
++  message(FATAL_ERROR "Failed want-levels export validation modified an existing artifact")
++endif()
++
++set(WANT_LEVELS_CROSS_ASSEMBLY "${OUTPUT_DIR}/want-levels-cross.s")
++set(WANT_LEVELS_CROSS_EXPORTS "${OUTPUT_DIR}/want-levels-cross.exports.inc")
++file(WRITE "${WANT_LEVELS_CROSS_ASSEMBLY}" "old want-levels cross assembly\n")
++file(WRITE "${WANT_LEVELS_CROSS_EXPORTS}" "old want-levels cross exports\n")
++execute_process(
++  COMMAND "${GOALC_AOT}"
++          --project-path "${PROJECT_ROOT}"
++          --input "${WANT_LEVELS_INPUT}"
++          --function want-levels
++          --output "${WANT_LEVELS_CROSS_ASSEMBLY}"
++          --exports-output "${WANT_LEVELS_CROSS_EXPORTS}"
++          --symbol goalpad_aot_load_state_want_vis
++  RESULT_VARIABLE WANT_LEVELS_CROSS_ARITY_RESULT)
++if(WANT_LEVELS_CROSS_ARITY_RESULT EQUAL 0)
++  message(FATAL_ERROR "goalc-aot accepted want-levels with the Export2 symbol")
++endif()
++
++file(READ "${WANT_LEVELS_CROSS_ASSEMBLY}" ACTUAL_WANT_LEVELS_CROSS_ASSEMBLY)
++file(READ "${WANT_LEVELS_CROSS_EXPORTS}" ACTUAL_WANT_LEVELS_CROSS_EXPORTS)
++if(NOT ACTUAL_WANT_LEVELS_CROSS_ASSEMBLY STREQUAL "old want-levels cross assembly\n" OR
++   NOT ACTUAL_WANT_LEVELS_CROSS_EXPORTS STREQUAL "old want-levels cross exports\n")
++  message(FATAL_ERROR "Failed want-levels cross-arity validation modified an existing artifact")
++endif()
+-- 
+2.50.1 (Apple Git-155)
+
