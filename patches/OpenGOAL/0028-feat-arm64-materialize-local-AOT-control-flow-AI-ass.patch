@@ -1,0 +1,500 @@
+From e5daa70a8ebaa569859acf3f5d51a56a4f727287 Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Fri, 31 Jul 2026 02:18:54 -0600
+Subject: [PATCH] feat(arm64): materialize local AOT control flow (AI-assisted)
+
+---
+ goalc/compiler/IR.cpp             |  48 ++++-
+ goalc/emitter/ObjectGenerator.cpp |  56 +++++-
+ test/goalc/test_arm64_aot.cpp     | 310 ++++++++++++++++++++++++++++++
+ 3 files changed, 408 insertions(+), 6 deletions(-)
+
+diff --git a/goalc/compiler/IR.cpp b/goalc/compiler/IR.cpp
+index fd9424c7..aef43113 100644
+--- a/goalc/compiler/IR.cpp
++++ b/goalc/compiler/IR.cpp
+@@ -491,7 +491,12 @@ void IR_GotoLabel::do_codegen_x86(emitter::ObjectGenerator* gen,
+ void IR_GotoLabel::do_codegen_arm64(emitter::ObjectGenerator* gen,
+                                     const AllocationResult& allocs,
+                                     emitter::IR_Record irec) {
+-  throw std::runtime_error("NYI - IR_GotoLabel::do_codegen_arm64");
++  (void)allocs;
++  if (!m_resolved || !m_dest || m_dest->idx < 0) {
++    throw std::runtime_error("ARM64 AOT proof requires a resolved forward or backward label.");
++  }
++  const auto jump = gen->add_instr(IGen::jmp_imm(*gen), irec);
++  gen->link_instruction_jump(jump, gen->get_future_ir_record_in_same_func(irec, m_dest->idx));
+ }
+ 
+ void IR_GotoLabel::resolve(const Label* dest) {
+@@ -1103,7 +1108,46 @@ void IR_ConditionalBranch::do_codegen_x86(emitter::ObjectGenerator* gen,
+ void IR_ConditionalBranch::do_codegen_arm64(emitter::ObjectGenerator* gen,
+                                             const AllocationResult& allocs,
+                                             emitter::IR_Record irec) {
+-  throw std::runtime_error("NYI - IR_ConditionalBranch::do_codegen_arm64");
++  if (!m_resolved || label.idx < 0) {
++    throw std::runtime_error("ARM64 AOT proof requires a resolved conditional branch label.");
++  }
++  if (condition.is_float || condition.a->ireg().reg_class != RegClass::GPR_64 ||
++      condition.b->ireg().reg_class != RegClass::GPR_64) {
++    throw std::runtime_error("ARM64 AOT proof only supports GPR conditional branches.");
++  }
++
++  const auto a = get_reg(condition.a, allocs, irec);
++  const auto b = get_reg(condition.b, allocs, irec);
++  if (!a.is_gpr(gen->instr_set()) || !b.is_gpr(gen->instr_set()) || a == ARM64_REG::SP ||
++      b == ARM64_REG::SP) {
++    throw std::runtime_error("ARM64 AOT proof requires non-stack GPR conditional operands.");
++  }
++
++  Instruction jump = InstructionARM64(0);
++  switch (condition.kind) {
++    case ConditionKind::EQUAL:
++      jump = IGen::je_imm(*gen);
++      break;
++    case ConditionKind::NOT_EQUAL:
++      jump = IGen::jne_imm(*gen);
++      break;
++    case ConditionKind::GEQ:
++      if (!condition.is_signed) {
++        throw std::runtime_error(
++            "ARM64 AOT proof only supports signed greater-than-or-equal conditional branches.");
++      }
++      jump = IGen::jge_imm(*gen);
++      break;
++    default:
++      throw std::runtime_error(
++          "ARM64 AOT proof only supports equality or signed greater-than-or-equal conditional "
++          "branches.");
++  }
++
++  gen->add_instr(IGen::cmp_gpr64_gpr64(*gen, a, b), irec);
++  const auto jump_record = gen->add_instr(jump, irec);
++  gen->link_instruction_jump(jump_record,
++                             gen->get_future_ir_record_in_same_func(irec, label.idx));
+ }
+ 
+ /////////////////////
+diff --git a/goalc/emitter/ObjectGenerator.cpp b/goalc/emitter/ObjectGenerator.cpp
+index 37bbd54a..2fafaaa6 100644
+--- a/goalc/emitter/ObjectGenerator.cpp
++++ b/goalc/emitter/ObjectGenerator.cpp
+@@ -158,9 +158,12 @@ std::vector<u8> ObjectGenerator::materialize_arm64_function(
+   }
+ 
+   for (int seg = 0; seg < N_SEG; seg++) {
++    if (seg != function.seg && !m_jump_temp_links_by_seg.at(seg).empty()) {
++      throw std::runtime_error(
++          "ARM64 AOT materialization does not support branch links outside the target segment.");
++    }
+     if (!m_static_data_by_seg.at(seg).empty() || !m_data_by_seg.at(seg).empty() ||
+         !m_link_by_seg.at(seg).empty() || !m_static_type_temp_links_by_seg.at(seg).empty() ||
+-        !m_jump_temp_links_by_seg.at(seg).empty() ||
+         !m_symbol_instr_temp_links_by_seg.at(seg).empty() ||
+         !m_static_sym_temp_links_by_seg.at(seg).empty() ||
+         !m_static_data_temp_ptr_links_by_seg.at(seg).empty() ||
+@@ -176,10 +179,12 @@ std::vector<u8> ObjectGenerator::materialize_arm64_function(
+ 
+   const auto& function_data = m_function_data_by_seg.at(function.seg).at(function.func_id);
+   std::vector<u8> code;
++  std::vector<int> instruction_offsets;
+   for (const auto& instruction : function_data.instructions) {
+     if (!std::holds_alternative<InstructionARM64>(instruction.instr)) {
+       throw std::runtime_error("ARM64 AOT materialization received a non-ARM64 instruction.");
+     }
++    instruction_offsets.push_back(int(code.size()));
+     u8 encoded[InstructionARM64::kMaxInstrs * sizeof(u32)];
+     const auto count = instruction.emit(encoded);
+     if (count % sizeof(u32) != 0) {
+@@ -188,6 +193,49 @@ std::vector<u8> ObjectGenerator::materialize_arm64_function(
+     code.insert(code.end(), encoded, encoded + count);
+   }
+ 
++  for (const auto& link : m_jump_temp_links_by_seg.at(function.seg)) {
++    if (link.jump_instr.func_id != function.func_id || link.dest.func_id != function.func_id ||
++        link.jump_instr.ir_id < 0 || link.dest.ir_id < 0 ||
++        link.jump_instr.instr_id < 0 ||
++        link.jump_instr.instr_id >= int(instruction_offsets.size()) ||
++        link.dest.ir_id >= int(function_data.ir_to_instruction.size())) {
++      throw std::runtime_error("ARM64 AOT materialization received an invalid local branch link.");
++    }
++
++    const auto destination_instruction = function_data.ir_to_instruction.at(link.dest.ir_id);
++    if (destination_instruction < 0 || destination_instruction >= int(instruction_offsets.size())) {
++      throw std::runtime_error("ARM64 AOT materialization received an invalid branch destination.");
++    }
++
++    const auto branch_offset = instruction_offsets.at(link.jump_instr.instr_id);
++    const auto destination_offset = instruction_offsets.at(destination_instruction);
++    const auto byte_distance = destination_offset - branch_offset;
++    if (byte_distance % int(sizeof(u32)) != 0 || branch_offset < 0 ||
++        branch_offset + int(sizeof(u32)) > int(code.size())) {
++      throw std::runtime_error("ARM64 AOT materialization received an unaligned branch link.");
++    }
++
++    u32 instruction = 0;
++    memcpy(&instruction, code.data() + branch_offset, sizeof(instruction));
++    const auto instruction_distance = byte_distance / int(sizeof(u32));
++    if ((instruction & 0xfc000000u) == 0x14000000u) {
++      if (instruction_distance < -(1 << 25) || instruction_distance >= (1 << 25)) {
++        throw std::runtime_error("ARM64 AOT unconditional branch exceeds its signed 26-bit range.");
++      }
++      instruction = (instruction & ~0x03ffffffu) |
++                    (static_cast<u32>(instruction_distance) & 0x03ffffffu);
++    } else if ((instruction & 0xff000010u) == 0x54000000u) {
++      if (instruction_distance < -(1 << 18) || instruction_distance >= (1 << 18)) {
++        throw std::runtime_error("ARM64 AOT conditional branch exceeds its signed 19-bit range.");
++      }
++      instruction = (instruction & ~0x00ffffe0u) |
++                    ((static_cast<u32>(instruction_distance) & 0x0007ffffu) << 5);
++    } else {
++      throw std::runtime_error("ARM64 AOT materialization received an unsupported branch opcode.");
++    }
++    memcpy(code.data() + branch_offset, &instruction, sizeof(instruction));
++  }
++
+   if (code.empty()) {
+     throw std::runtime_error("ARM64 AOT materialization requires generated instructions.");
+   }
+@@ -294,9 +342,9 @@ void ObjectGenerator::link_static_type_ptr(StaticRecord rec,
+  * use get_future_ir.
+  */
+ void ObjectGenerator::link_instruction_jump(InstructionRecord jump_instr, IR_Record destination) {
+-  // must jump within our own function.
+-  ASSERT(jump_instr.seg == destination.seg);
+-  ASSERT(jump_instr.func_id == destination.func_id);
++  if (jump_instr.seg != destination.seg || jump_instr.func_id != destination.func_id) {
++    throw std::runtime_error("Instruction jumps must remain within one function and segment.");
++  }
+   m_jump_temp_links_by_seg.at(jump_instr.seg).push_back({jump_instr, destination});
+ }
+ 
+diff --git a/test/goalc/test_arm64_aot.cpp b/test/goalc/test_arm64_aot.cpp
+index dea93854..c6d03c65 100644
+--- a/test/goalc/test_arm64_aot.cpp
++++ b/test/goalc/test_arm64_aot.cpp
+@@ -1,4 +1,5 @@
+ #include <algorithm>
++#include <array>
+ #include <optional>
+ #include <string>
+ #include <utility>
+@@ -949,6 +950,315 @@ TEST(Arm64Aot, rejects_unsupported_arm64_integer_math) {
+                std::runtime_error);
+ }
+ 
++TEST(Arm64Aot, materializes_a_local_arm64_goto) {
++  FunctionDebugInfo debug{};
++  emitter::ObjectGenerator generator(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto function = generator.add_function_to_seg(MAIN_SEGMENT, &debug);
++  const Label destination(nullptr, 1);
++  IR_GotoLabel jump(&destination);
++  const AllocationResult allocations;
++
++  jump.do_codegen_arm64(&generator, allocations, generator.add_ir(function));
++  const auto destination_ir = generator.add_ir(function);
++  generator.add_instr(emitter::IGen::ret(generator), destination_ir);
++
++  EXPECT_EQ(generator.materialize_arm64_function(function),
++            (std::vector<u8>{0x01, 0x00, 0x00, 0x14, 0xc0, 0x03, 0x5f, 0xd6}));
++}
++
++TEST(Arm64Aot, materializes_a_local_arm64_goto_across_a_two_word_instruction_record) {
++  FunctionDebugInfo debug{};
++  emitter::ObjectGenerator generator(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto function = generator.add_function_to_seg(MAIN_SEGMENT, &debug);
++  const AllocationResult allocations;
++  const Label destination(nullptr, 2);
++  IR_GotoLabel jump(&destination);
++
++  jump.do_codegen_arm64(&generator, allocations, generator.add_ir(function));
++  const auto filler_ir = generator.add_ir(function);
++  const emitter::InstructionARM64 ret_instruction(0xd65f03c0u);
++  generator.add_instr(emitter::InstructionARM64(ret_instruction, ret_instruction), filler_ir);
++  const auto destination_ir = generator.add_ir(function);
++  generator.add_instr(emitter::IGen::ret(generator), destination_ir);
++
++  EXPECT_EQ(generator.materialize_arm64_function(function),
++            (std::vector<u8>{0x03, 0x00, 0x00, 0x14, 0xc0, 0x03, 0x5f, 0xd6,
++                             0xc0, 0x03, 0x5f, 0xd6, 0xc0, 0x03, 0x5f, 0xd6}));
++}
++
++TEST(Arm64Aot, materializes_a_backward_local_arm64_goto) {
++  FunctionDebugInfo debug{};
++  emitter::ObjectGenerator generator(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto function = generator.add_function_to_seg(MAIN_SEGMENT, &debug);
++  const AllocationResult allocations;
++
++  const auto destination_ir = generator.add_ir(function);
++  generator.add_instr(emitter::IGen::ret(generator), destination_ir);
++  const Label destination(nullptr, 0);
++  IR_GotoLabel jump(&destination);
++  jump.do_codegen_arm64(&generator, allocations, generator.add_ir(function));
++
++  EXPECT_EQ(generator.materialize_arm64_function(function),
++            (std::vector<u8>{0xc0, 0x03, 0x5f, 0xd6, 0xff, 0xff, 0xff, 0x17}));
++}
++
++TEST(Arm64Aot, materializes_an_equality_branch_with_a_local_arm64_label) {
++  RegVal left{{RegClass::GPR_64, 0}, TypeSpec("symbol")};
++  RegVal right{{RegClass::GPR_64, 1}, TypeSpec("symbol")};
++  const Condition condition{ConditionKind::EQUAL, &left, &right, false, false};
++  IR_ConditionalBranch branch(condition, Label(nullptr, 1));
++  branch.mark_as_resolved();
++
++  Assignment left_assignment;
++  left_assignment.kind = Assignment::Kind::REGISTER;
++  left_assignment.reg = emitter::X0;
++  Assignment right_assignment;
++  right_assignment.kind = Assignment::Kind::REGISTER;
++  right_assignment.reg = emitter::X1;
++  AllocationResult allocations;
++  allocations.ass_as_ranges = {
++      AssignmentRange(0, {true}, {left_assignment}),
++      AssignmentRange(0, {true}, {right_assignment}),
++  };
++
++  FunctionDebugInfo debug{};
++  emitter::ObjectGenerator generator(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto function = generator.add_function_to_seg(MAIN_SEGMENT, &debug);
++  branch.do_codegen_arm64(&generator, allocations, generator.add_ir(function));
++  const auto destination_ir = generator.add_ir(function);
++  generator.add_instr(emitter::IGen::ret(generator), destination_ir);
++
++  EXPECT_EQ(generator.materialize_arm64_function(function),
++            (std::vector<u8>{0x1f, 0x00, 0x01, 0xeb, 0x20, 0x00, 0x00, 0x54,
++                             0xc0, 0x03, 0x5f, 0xd6}));
++}
++
++TEST(Arm64Aot, materializes_a_backward_inequality_branch_with_a_local_arm64_label) {
++  RegVal left{{RegClass::GPR_64, 0}, TypeSpec("symbol")};
++  RegVal right{{RegClass::GPR_64, 1}, TypeSpec("symbol")};
++  const Condition condition{ConditionKind::NOT_EQUAL, &left, &right, false, false};
++  IR_ConditionalBranch branch(condition, Label(nullptr, 0));
++  branch.mark_as_resolved();
++
++  Assignment left_assignment;
++  left_assignment.kind = Assignment::Kind::REGISTER;
++  left_assignment.reg = emitter::X0;
++  Assignment right_assignment;
++  right_assignment.kind = Assignment::Kind::REGISTER;
++  right_assignment.reg = emitter::X1;
++  AllocationResult allocations;
++  allocations.ass_as_ranges = {
++      AssignmentRange(0, {true, true}, {left_assignment, left_assignment}),
++      AssignmentRange(0, {true, true}, {right_assignment, right_assignment}),
++  };
++
++  FunctionDebugInfo debug{};
++  emitter::ObjectGenerator generator(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto function = generator.add_function_to_seg(MAIN_SEGMENT, &debug);
++  const auto destination_ir = generator.add_ir(function);
++  generator.add_instr(emitter::IGen::ret(generator), destination_ir);
++  branch.do_codegen_arm64(&generator, allocations, generator.add_ir(function));
++
++  EXPECT_EQ(generator.materialize_arm64_function(function),
++            (std::vector<u8>{0xc0, 0x03, 0x5f, 0xd6, 0x1f, 0x00, 0x01, 0xeb,
++                             0xc1, 0xff, 0xff, 0x54}));
++}
++
++TEST(Arm64Aot, materializes_a_signed_geq_branch_with_a_local_arm64_label) {
++  RegVal left{{RegClass::GPR_64, 0}, TypeSpec("int")};
++  RegVal right{{RegClass::GPR_64, 1}, TypeSpec("int")};
++  const Condition condition{ConditionKind::GEQ, &left, &right, true, false};
++  IR_ConditionalBranch branch(condition, Label(nullptr, 1));
++  branch.mark_as_resolved();
++
++  Assignment left_assignment;
++  left_assignment.kind = Assignment::Kind::REGISTER;
++  left_assignment.reg = emitter::X0;
++  Assignment right_assignment;
++  right_assignment.kind = Assignment::Kind::REGISTER;
++  right_assignment.reg = emitter::X1;
++  AllocationResult allocations;
++  allocations.ass_as_ranges = {
++      AssignmentRange(0, {true}, {left_assignment}),
++      AssignmentRange(0, {true}, {right_assignment}),
++  };
++
++  FunctionDebugInfo debug{};
++  emitter::ObjectGenerator generator(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto function = generator.add_function_to_seg(MAIN_SEGMENT, &debug);
++  branch.do_codegen_arm64(&generator, allocations, generator.add_ir(function));
++  const auto destination_ir = generator.add_ir(function);
++  generator.add_instr(emitter::IGen::ret(generator), destination_ir);
++
++  EXPECT_EQ(generator.materialize_arm64_function(function),
++            (std::vector<u8>{0x1f, 0x00, 0x01, 0xeb, 0x2a, 0x00, 0x00, 0x54,
++                             0xc0, 0x03, 0x5f, 0xd6}));
++}
++
++TEST(Arm64Aot, materializes_a_branch_to_a_zero_emission_label_before_the_epilogue) {
++  FunctionDebugInfo debug{};
++  emitter::ObjectGenerator generator(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto function = generator.add_function_to_seg(MAIN_SEGMENT, &debug);
++  const AllocationResult allocations;
++
++  const Label destination(nullptr, 1);
++  IR_GotoLabel jump(&destination);
++  jump.do_codegen_arm64(&generator, allocations, generator.add_ir(function));
++  const auto destination_ir = generator.add_ir(function);
++  generator.add_instr(emitter::IGen::null(generator), destination_ir);
++  generator.add_instr_no_ir(function, emitter::IGen::ret(generator),
++                            InstructionInfo::Kind::EPILOGUE);
++
++  EXPECT_EQ(generator.materialize_arm64_function(function),
++            (std::vector<u8>{0x01, 0x00, 0x00, 0x14, 0xc0, 0x03, 0x5f, 0xd6}));
++}
++
++TEST(Arm64Aot, rejects_a_branch_to_a_non_ir_end_label) {
++  FunctionDebugInfo debug{};
++  emitter::ObjectGenerator generator(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto function = generator.add_function_to_seg(MAIN_SEGMENT, &debug);
++  const AllocationResult allocations;
++
++  const Label end_label(nullptr, 1);
++  IR_GotoLabel jump(&end_label);
++  jump.do_codegen_arm64(&generator, allocations, generator.add_ir(function));
++  generator.add_instr_no_ir(function, emitter::IGen::ret(generator),
++                            InstructionInfo::Kind::EPILOGUE);
++
++  EXPECT_THROW(generator.materialize_arm64_function(function), std::runtime_error);
++}
++
++TEST(Arm64Aot, rejects_a_non_branch_instruction_linked_as_an_arm64_branch) {
++  FunctionDebugInfo debug{};
++  emitter::ObjectGenerator generator(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto function = generator.add_function_to_seg(MAIN_SEGMENT, &debug);
++
++  const auto invalid_branch =
++      generator.add_instr(emitter::IGen::ret(generator), generator.add_ir(function));
++  generator.link_instruction_jump(invalid_branch, generator.get_future_ir_record(function, 1));
++  const auto destination_ir = generator.add_ir(function);
++  generator.add_instr(emitter::IGen::ret(generator), destination_ir);
++
++  EXPECT_THROW(generator.materialize_arm64_function(function), std::runtime_error);
++}
++
++TEST(Arm64Aot, rejects_a_jump_link_with_mismatched_function_or_segment) {
++  FunctionDebugInfo debug{};
++  emitter::ObjectGenerator generator(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto function = generator.add_function_to_seg(MAIN_SEGMENT, &debug);
++  const auto instruction =
++      generator.add_instr(emitter::IGen::ret(generator), generator.add_ir(function));
++  const std::array<emitter::IR_Record, 2> invalid_destinations = {
++      emitter::IR_Record{MAIN_SEGMENT + 1, instruction.func_id, instruction.ir_id},
++      emitter::IR_Record{instruction.seg, instruction.func_id + 1, instruction.ir_id},
++  };
++  for (const auto& destination : invalid_destinations) {
++    EXPECT_THROW(generator.link_instruction_jump(instruction, destination), std::runtime_error);
++  }
++}
++
++TEST(Arm64Aot, rejects_a_foreign_segment_branch_link_during_materialization) {
++  FunctionDebugInfo debug{};
++  emitter::ObjectGenerator generator(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto function = generator.add_function_to_seg(MAIN_SEGMENT, &debug);
++  const auto target_ir = generator.add_ir(function);
++  generator.add_instr(emitter::IGen::ret(generator), target_ir);
++
++  const emitter::InstructionRecord foreign_instruction{MAIN_SEGMENT + 1, 0, 0, 0};
++  const emitter::IR_Record foreign_destination{MAIN_SEGMENT + 1, 0, 0};
++  generator.link_instruction_jump(foreign_instruction, foreign_destination);
++
++  EXPECT_THROW(generator.materialize_arm64_function(function), std::runtime_error);
++}
++
++TEST(Arm64Aot, rejects_a_conditional_branch_outside_the_signed_19_bit_range) {
++  RegVal left{{RegClass::GPR_64, 0}, TypeSpec("int")};
++  RegVal right{{RegClass::GPR_64, 1}, TypeSpec("int")};
++  const Condition condition{ConditionKind::GEQ, &left, &right, true, false};
++  IR_ConditionalBranch branch(condition, Label(nullptr, 2));
++  branch.mark_as_resolved();
++
++  Assignment left_assignment;
++  left_assignment.kind = Assignment::Kind::REGISTER;
++  left_assignment.reg = emitter::X0;
++  Assignment right_assignment;
++  right_assignment.kind = Assignment::Kind::REGISTER;
++  right_assignment.reg = emitter::X1;
++  AllocationResult allocations;
++  allocations.ass_as_ranges = {
++      AssignmentRange(0, {true}, {left_assignment}),
++      AssignmentRange(0, {true}, {right_assignment}),
++  };
++
++  FunctionDebugInfo debug{};
++  emitter::ObjectGenerator generator(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto function = generator.add_function_to_seg(MAIN_SEGMENT, &debug);
++  branch.do_codegen_arm64(&generator, allocations, generator.add_ir(function));
++
++  const auto filler_ir = generator.add_ir(function);
++  const std::vector<emitter::InstructionARM64> filler_words(63,
++                                                              emitter::InstructionARM64(0xd65f03c0u));
++  const emitter::InstructionARM64 filler(filler_words);
++  for (int i = 0; i < 4161; i++) {
++    generator.add_instr(filler, filler_ir);
++  }
++
++  const auto destination_ir = generator.add_ir(function);
++  generator.add_instr(emitter::IGen::ret(generator), destination_ir);
++
++  EXPECT_THROW(generator.materialize_arm64_function(function), std::runtime_error);
++}
++
++TEST(Arm64Aot, rejects_unresolved_arm64_goto_and_conditional_branch_labels) {
++  FunctionDebugInfo goto_debug{};
++  emitter::ObjectGenerator goto_generator(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto goto_function = goto_generator.add_function_to_seg(MAIN_SEGMENT, &goto_debug);
++  const AllocationResult no_allocations;
++  IR_GotoLabel unresolved_goto;
++  EXPECT_THROW(unresolved_goto.do_codegen_arm64(&goto_generator, no_allocations,
++                                                goto_generator.add_ir(goto_function)),
++               std::runtime_error);
++
++  RegVal left{{RegClass::GPR_64, 0}, TypeSpec("symbol")};
++  RegVal right{{RegClass::GPR_64, 1}, TypeSpec("symbol")};
++  const Condition condition{ConditionKind::EQUAL, &left, &right, false, false};
++  IR_ConditionalBranch unresolved_branch(condition, Label(nullptr, 1));
++  FunctionDebugInfo conditional_debug{};
++  emitter::ObjectGenerator conditional_generator(GameVersion::Jak1,
++                                                  emitter::InstructionSet::ARM64);
++  const auto conditional_function =
++      conditional_generator.add_function_to_seg(MAIN_SEGMENT, &conditional_debug);
++  EXPECT_THROW(unresolved_branch.do_codegen_arm64(&conditional_generator, no_allocations,
++                                                  conditional_generator.add_ir(conditional_function)),
++               std::runtime_error);
++}
++
++TEST(Arm64Aot, rejects_an_unsupported_signed_lt_arm64_conditional_branch) {
++  RegVal left{{RegClass::GPR_64, 0}, TypeSpec("int")};
++  RegVal right{{RegClass::GPR_64, 1}, TypeSpec("int")};
++  const Condition condition{ConditionKind::LT, &left, &right, true, false};
++  IR_ConditionalBranch branch(condition, Label(nullptr, 1));
++  branch.mark_as_resolved();
++
++  Assignment left_assignment;
++  left_assignment.kind = Assignment::Kind::REGISTER;
++  left_assignment.reg = emitter::X0;
++  Assignment right_assignment;
++  right_assignment.kind = Assignment::Kind::REGISTER;
++  right_assignment.reg = emitter::X1;
++  AllocationResult allocations;
++  allocations.ass_as_ranges = {
++      AssignmentRange(0, {true}, {left_assignment}),
++      AssignmentRange(0, {true}, {right_assignment}),
++  };
++
++  FunctionDebugInfo debug{};
++  emitter::ObjectGenerator generator(GameVersion::Jak1, emitter::InstructionSet::ARM64);
++  const auto function = generator.add_function_to_seg(MAIN_SEGMENT, &debug);
++  EXPECT_THROW(branch.do_codegen_arm64(&generator, allocations, generator.add_ir(function)),
++               std::runtime_error);
++}
++
+ TEST(Arm64Aot, emits_non_coalesced_gpr_register_move) {
+   const RegVal destination{{RegClass::GPR_64, 0}, TypeSpec("object")};
+   const RegVal source{{RegClass::GPR_64, 1}, TypeSpec("object")};
+-- 
+2.50.1 (Apple Git-155)
+
