@@ -502,11 +502,23 @@ Current progress:
   an iOS 18.0 load command and exports the initializer and resolver. This is
   static-library compatibility evidence only, not app, signing, simulator,
   device, or runtime execution.
+- Child `a13b42f7`, reviewed from source commit `9a830552` and preserved by
+  parent `bea6550` as patch 0040, composes the existing resolver,
+  `load-state-value` artifact, and direct `reset!` export in one manually
+  staged synthetic arena. The new ARM64 ABI test validates the resolver's
+  displacement, the signed value read, reset writes, string/symbol/value-cell
+  preservation, object and outer guards, and caller-register restoration. The
+  incremental target build passed; focused ABI CTest passed 8/8, full CTest
+  passed 32/32, and the established compiler/emitter filter passed 191/191.
+  It is test-only and uses one roughly 66 MiB arena without a duplicate. It is
+  not a heap advancement, linker, type-object, method-dispatch, game-data,
+  app, signing, simulator, device, or boot result.
 - This is only a partial data boundary: it establishes canonical heap and
-  symbol-table offsets and can locate already-staged synthetic symbol metadata
-  in caller-owned storage, but does not bind `g_ee_main_mem`, initialize native
-  kernel/symbol globals, create symbol metadata, types, or trampolines, link
-  game data, execute GOAL code, or initialize an app runtime.
+  symbol-table offsets, can locate already-staged synthetic symbol metadata,
+  and has one direct static composition proof in caller-owned storage, but does
+  not bind `g_ee_main_mem`, advance a heap, initialize native kernel/symbol
+  globals, create symbol metadata or types, link game data, execute GOAL
+  through the runtime, or initialize an app runtime.
   The CMake proof is not an app, signing, simulator, device, GOAL-execution, or
   live-runtime proof. It therefore does not satisfy this stage's runtime
   initialization or cross-compiled-library exit gates.
@@ -747,8 +759,8 @@ artifact boundaries, bounded 0020 X22 field-load proof, direct 0021-0023
 level-command store proof, direct 0024-0026 `want-vis` proof, complete
 0027-0033 direct `want-levels`, 0034-0036 direct `load-state::reset!`, and
 0037 `*load-state*` value-cell shape proof plus the 0038-0039 read-only
-existing-symbol resolver are verified but do not complete the Stage 4 exit
-gate.
+existing-symbol resolver and 0040 synthetic composition proof are verified but
+do not complete the Stage 4 exit gate.
 
 Stage 1 is blocked on a maintainer-chosen, fetchable OpenGOAL fork/pin and
 working GitHub authentication. Until publication, keep the official submodule
@@ -759,26 +771,31 @@ owner, access policy, and transport, then explicitly renews authentication.
 
 The next actions are:
 
-1. Integrate the verified portable 0013-0039 work only after a dedicated
+1. Integrate the verified portable 0013-0040 work only after a dedicated
    OpenGOAL fork makes the ordered changes fetchable and pins them
    reproducibly. Preserve every mbox and stable patch ID. Patches 0022 and
    0023 are sibling child changes from 0021; 0024-0032 have both literal and
    stable-equivalent runtime-replay identities; 0033 follows the reviewed
    replay line, 0034-0036 form the literal
    `71fc6918 -> e96cedd2 -> 2229c13e -> bb4b2e7e` sequence, and 0037 follows
-   with `0327eee4 -> da6cfe9e -> deebafd`. Require a fresh combined
-   apply/build validation rather than claiming false ancestry. Do not copy the
-   source into the app or use a machine-local worktree path.
+   with `0327eee4 -> da6cfe9e -> deebafd -> a13b42f7`; `a13b42f7` was
+   cherry-picked from reviewed source commit `9a830552`. The preservation audit
+   confirmed ordered 0038-0040 replay exactly matches the `a13b42f7` tree. Do
+   not copy the source into the app or use a machine-local worktree path.
 2. The next boot-flow candidate remains `load-state-want-levels` at
    `goal_src/jak1/engine/level/load-boundary.gc:1095-1096`, called at
    `level.gc:1007` in the `1005-1009` reset/load/want/display flow. Its
    `(symbol symbol) -> int` wrapper invokes `want-levels` on global
-   `*load-state*`. The resolver is available only for already-created synthetic
-   metadata. The next bounded seam is resolver-backed synthetic composition
-   through the signed `load-state-value` and direct `reset!` artifacts, not
-   live linking. Runtime type/method-table loading, the 32-bit GOAL
-   function-value-to-signed-native mapping, and indirect dispatch remain later
-   separate seams. The existing direct Export3 body is not method dispatch.
+   `*load-state*`. The resolver-backed synthetic composition proof is complete
+   only for manually staged metadata and a direct export. Production symbol
+   staging is rejected now because a fresh arena has zero `symbol` and `string`
+   Type values; it would formalize fixture work before fundamental-type and
+   top-level bootstrap. The next narrow task is a guarded existing-object
+   type/method binding plus 32-bit GOAL method-value-to-signed-native mapping
+   audit/proof, without hard-coded direct dispatch. Runtime type/method-table
+   loading in a live runtime, general type creation, indirect dispatch, and
+   linking remain later separate seams. The existing direct Export3 body is not
+   method dispatch.
    Do not hard-code a direct call that silently changes the non-final type's
    virtual semantics.
 3. Keep unsupported statics, general relocations, calls, saved registers,

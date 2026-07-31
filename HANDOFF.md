@@ -3539,3 +3539,110 @@ path must remain read-only with respect to symbol metadata and must not
 introduce live linking, top-level initialization, type or method-table reads,
 GOAL function-value mapping, virtual dispatch, or a Jak boot claim. Keep the
 app boundary unchanged until a separate validated integration requires it.
+
+## Checkpoint 16: synthetic resolver and reset composition
+
+Current parent checkpoint:
+
+```text
+bea65508b83261b58b11cde89efb1daa445aeaa6
+test(opengoal): preserve load-state composition proof (AI-assisted)
+```
+
+`bea6550` is pushed to `origin/feat/ipados-native-boot`. The official OpenGOAL
+submodule remains at `a4cb1ac1f0596c8740b1c26accb24a58505cda92`; the reviewed
+source commit and preserved child commit are:
+
+```text
+9a830552
+reviewed source commit
+
+a13b42f7c8e67eb123f01ad0bca9ba07ad27bf96
+test(arm64): compose load-state resolver and reset coverage (AI-assisted)
+```
+
+| Patch | Child commit | SHA-256 | Stable patch ID |
+| --- | --- | --- | --- |
+| `0040-test-arm64-compose-load-state-resolver-and-reset-cov.patch` | `a13b42f7c8e67eb123f01ad0bca9ba07ad27bf96` | `c90826e4d56bbff5b91c9a11b74f1c01488b1e64ec1899021446eb37b129d975` | `34929147e5b019a1b9298b0c27ae5fa604c5498a` |
+
+`a13b42f7` is the literal child of `deebafd`, cherry-picked from reviewed
+source commit `9a830552`:
+
+```text
+0327eee4886f7a076d3b01f8e62afc3adddb8eeb
+  -> da6cfe9eaf245db3d92cc69bc0074a4496b02f9d
+  -> deebafd603f702f54133a8a9e8f5ce500a113231
+  -> a13b42f7c8e67eb123f01ad0bca9ba07ad27bf96
+```
+
+The preservation audit confirmed that ordered patches 0038-0040 replay to the
+same tree as `a13b42f7`.
+
+### Scope
+
+Patch 0040 changes only `test/test_arm64_goal_call_abi.cpp`. Its one new ABI
+test manually stages a synthetic `*load-state*` name string, `SymInfo` record,
+symbol value cell, and `load-state` object in a single guarded data arena. It
+uses the portable resolver to derive the signed displacement, installs that
+value in the existing signed `load-state-value` offset cell, invokes the
+existing static artifact to read the synthetic object pointer, and passes that
+pointer to the existing direct `reset!` export.
+
+The test verifies the resolver result, zero-extended signed-artifact return,
+direct reset writes, unchanged staged string/symbol/value-cell data, immutable
+arena values, object guards, outer arena guards, and caller-register
+restoration. Its one roughly 66 MiB arena allocation is retained; no duplicate
+arena is introduced.
+
+This is a manually staged, test-only composition proof. It does not advance the
+heap, bind `g_ee_main_mem`, create a real symbol or type object, run a linker,
+execute a top-level form, map a GOAL method value to signed native text,
+perform virtual method dispatch, load game data, boot Jak 1, or prove iPhoneOS,
+app, signing, simulator, or physical-device behavior.
+
+### Validation
+
+The child commit was validated in the existing resolver host build tree:
+
+```text
+/private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build
+```
+
+The exact host commands were:
+
+```sh
+cmake --build /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --target arm64-goal-call-abi-test -j 4
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  -R '^Arm64GoalCallAbi\\.' --output-on-failure -j 1
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --output-on-failure -j 1
+
+cmake --build /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --target goalc-test -j 4
+
+/private/tmp/data-arena-symbol-value-lookup-jak-project-build/goalc-test \
+  '--gtest_filter=Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
+```
+
+The incremental `arm64-goal-call-abi-test` build passed. Focused
+`Arm64GoalCallAbi` CTest passed 8/8, full CTest passed 32/32, and the
+established direct compiler/emitter filter passed 191/191. No iPhoneOS rebuild
+was run because this patch does not change the `jak1-data-arena` library
+source. No simulator, physical device (including **Z iPad Pro**), Xcode app
+build, remote, or retail game data was accessed. Builds used `-j 4`; CTest was
+serialized with `-j 1`.
+
+### Next exact task: guarded existing-object binding audit
+
+Reject production symbol staging for now: a fresh data arena has zero
+`symbol` and `string` Type values, so staging would formalize synthetic fixture
+work before fundamental-type and top-level bootstrap exists. Instead, audit and
+prove the narrower guarded existing-object path: validate supplied object type
+and method-table data, read the 32-bit GOAL method value, and resolve it through
+an explicit signed-native mapping. Do not hard-code a direct `reset!` registry
+call in place of that mapping. This remains separate from live linking,
+top-level initialization, general type creation, method dispatch in a live
+runtime, game data, and boot.

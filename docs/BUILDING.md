@@ -1585,3 +1585,58 @@ The next seam is resolver-backed synthetic composition through the signed
 `load-state-value` and direct `reset!` artifacts. It must remain a guarded
 synthetic proof rather than live linking, top-level initialization, virtual
 method dispatch, or a Jak boot claim.
+
+## Checkpoint 16: synthetic resolver and reset composition
+
+Patch 0040 preserves child commit
+`a13b42f7c8e67eb123f01ad0bca9ba07ad27bf96`, reviewed from source commit
+`9a830552`, through parent checkpoint
+`bea65508b83261b58b11cde89efb1daa445aeaa6`, which is pushed to
+`origin/feat/ipados-native-boot`:
+
+| Patch | SHA-256 | Stable patch ID |
+| --- | --- | --- |
+| `0040-test-arm64-compose-load-state-resolver-and-reset-cov.patch` | `c90826e4d56bbff5b91c9a11b74f1c01488b1e64ec1899021446eb37b129d975` | `34929147e5b019a1b9298b0c27ae5fa604c5498a` |
+
+The one new ARM64 ABI test manually stages a synthetic Jak 1 symbol, string,
+value cell, and `load-state` object in one guarded arena. It resolves the
+existing `*load-state*` cell, applies the resulting signed displacement to the
+existing signed `load-state-value` artifact, and passes that value to the
+direct `reset!` export. It verifies reset output, preserved staged metadata,
+object and outer guards, and restored caller registers. The test allocates one
+roughly 66 MiB arena and does not add a duplicate allocation.
+
+The exact host validation was:
+
+```sh
+cmake --build /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --target arm64-goal-call-abi-test -j 4
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  -R '^Arm64GoalCallAbi\\.' --output-on-failure -j 1
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --output-on-failure -j 1
+
+cmake --build /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --target goalc-test -j 4
+
+/private/tmp/data-arena-symbol-value-lookup-jak-project-build/goalc-test \
+  '--gtest_filter=Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
+```
+
+The incremental ABI target build passed. Focused ABI CTest passed 8/8, full
+CTest passed 32/32, and the established direct compiler/emitter filter passed
+191/191. No iPhoneOS rebuild was run because the `jak1-data-arena` library
+source is unchanged. No simulator, physical device, Xcode app build, remote,
+or retail game data was accessed.
+
+This is test-only, manually staged synthetic composition. It does not advance
+the heap, link code, initialize types or a live runtime, dispatch a method,
+load game data, or boot Jak 1. Production symbol staging is rejected now: a
+fresh arena has zero `symbol` and `string` Type values, so staging would
+formalize synthetic fixture work before fundamental-type and top-level bootstrap
+exists. The next task is a guarded existing-object type/method binding plus
+32-bit GOAL method-value-to-signed-native mapping audit/proof, without a
+hard-coded direct dispatch. It remains separate from linking, live runtime
+initialization, general type creation, game data, and boot.
