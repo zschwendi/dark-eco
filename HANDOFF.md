@@ -3792,3 +3792,155 @@ owned across lookup, binding, and invocation.
 This remains separate from live linking, top-level initialization, general type
 creation, production method-table loading, indirect dispatch in a live runtime,
 game data, and boot. Do not claim native invocation from the raw method word.
+
+## Checkpoint 18: portable trusted-native BASIC method binding
+
+Current parent checkpoint:
+
+```text
+eaa649934ce3ba7523529bef30b39729c06d4af4
+feat(opengoal): preserve trusted method binding (AI-assisted)
+```
+
+The official OpenGOAL submodule remains at
+`a4cb1ac1f0596c8740b1c26accb24a58505cda92`; it was not moved. Parent commit
+`eaa6499` preserves downstream child
+`7aaaf29942f5836dda311e173865dfcd0ea6de64`:
+
+| Patch | Child commit | SHA-256 | Stable patch ID |
+| --- | --- | --- | --- |
+| `0042-feat-data-arena-bind-trusted-native-BASIC-methods-AI.patch` | `7aaaf29942f5836dda311e173865dfcd0ea6de64` | `7bc05ccdd163742fd0701d7bd350bebecef79ccb5d1b422be403085adf428af3` | `9ddfba8fcf1a5c1416266aae51c6d66c7fbe7c73` |
+
+The literal preserved child sequence is:
+
+```text
+0327eee4886f7a076d3b01f8e62afc3adddb8eeb
+  -> da6cfe9eaf245db3d92cc69bc0074a4496b02f9d
+  -> deebafd603f702f54133a8a9e8f5ce500a113231
+  -> a13b42f7c8e67eb123f01ad0bca9ba07ad27bf96
+  -> 0ee4a48f9f58ea1504e84c500f6a0942bc8047ce
+  -> 7aaaf29942f5836dda311e173865dfcd0ea6de64
+```
+
+The ordered 0038-0042 replay exactly matches the `7aaaf299` tree, and the
+reverse check for patch 0042 passed.
+
+### Delegation and review
+
+A fast `gpt-5.6-terra` editor with xhigh reasoning produced `7aaaf299` in its
+dedicated worktree. Independent read-only review accepted the exact tuple,
+Function-tag, virtual-semantics, raw-word non-execution, and lifetime boundary.
+The root agent serialized builds and patch integration.
+
+### Scope
+
+Patch 0042 adds the portable, synchronous
+`jak1::invoke_data_arena_native_basic_method1` boundary. It first reads the
+actual BASIC method value from caller-owned storage, validates the resulting
+Function-tagged BASIC object, then matches a caller-provided native entry only
+when the complete tuple agrees: actual `object_type`, requested `method_id`,
+raw 32-bit GOAL `method_value`, allocated size, padded size, and arity one.
+The retained `load-state` fixture uses `method_id = 9`, `allocated_size =
+0x82c`, and `padded_size = 0x830`.
+
+The raw GOAL method word is comparison data only. It is never cast to a native
+pointer; the only callable entry comes from the external binding table and is
+passed to the caller-provided invoker. The neutral `native` API name does not
+claim C++ proves static linkage, code signatures, entry provenance, or the
+platform ABI. Production callers must provide those properties outside this
+portable boundary.
+
+The binding records, header, arena, binding span, and exposed aliases must stay
+alive, immutable where required, and free of concurrent mutation or reallocation
+for the entire synchronous lookup-to-invocation operation. The boundary itself
+does not synchronize access. Tests cover the exact tuple; derived overrides;
+wrong type, id, raw value, and each size; zero, malformed, and out-of-bounds
+Function values; duplicate, null, invalid-arity, and unknown bindings; lookup
+failure; and no mutation.
+
+This is a guarded synthetic native-entry proof only. It does not call a
+generated AOT Export1 through the ARM64 GOAL ABI, integrate with the GOALPad
+app or OpenGOAL runtime, establish signing, perform simulator or device
+execution, load game data, or boot Jak 1.
+
+### Validation
+
+The child source and host build tree were:
+
+```text
+/private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup
+goalpad/data-arena-symbol-value-lookup
+7aaaf29942f5836dda311e173865dfcd0ea6de64
+
+/private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build
+```
+
+Recorded host validation used:
+
+```sh
+cmake --build /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --target jak1-data-arena-test -j 4
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  -R '^Jak1DataArena\\.' --output-on-failure -j 1
+
+cmake --build /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --target arm64-goal-call-abi-test -j 4
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --output-on-failure -j 1
+
+/private/tmp/data-arena-symbol-value-lookup-jak-project-build/goalc-test \
+  '--gtest_filter=Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
+```
+
+The focused `jak1-data-arena-test` build passed; focused `Jak1DataArena` CTest
+passed 37/37. The `arm64-goal-call-abi-test` target build passed, full CTest
+passed 46/46, and the existing direct compiler binary passed the
+compiler/emitter filter 191/191.
+
+The fresh minimal iPhoneOS static-library configure, build, and inspection used:
+
+```sh
+cmake -S /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup \
+  -B /private/tmp/GOALPadOpenGOAL-arm64-native-binding-iphoneos-build \
+  -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=iOS \
+  -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64 \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=18.0 \
+  -DOPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY=ON -DBUILD_TESTING=OFF
+
+cmake --build /private/tmp/GOALPadOpenGOAL-arm64-native-binding-iphoneos-build \
+  --target jak1-data-arena -j 4
+
+xcrun ar -t /private/tmp/GOALPadOpenGOAL-arm64-native-binding-iphoneos-build/libjak1-data-arena.a
+file /private/tmp/GOALPadOpenGOAL-arm64-native-binding-iphoneos-build/libjak1-data-arena.a
+xcrun nm -g /private/tmp/GOALPadOpenGOAL-arm64-native-binding-iphoneos-build/libjak1-data-arena.a
+
+cd /private/tmp/goalpad-native-binding-iphoneos.yGWxmo
+xcrun ar -x /private/tmp/GOALPadOpenGOAL-arm64-native-binding-iphoneos-build/libjak1-data-arena.a
+file data_arena.cpp.o
+xcrun vtool -show-build data_arena.cpp.o
+xcrun nm -u data_arena.cpp.o
+```
+
+The fresh configure and `jak1-data-arena` build passed. The archive inspection
+reported one ARM64 Mach-O object with iOS minimum 18.0 and SDK 26.5. It exports
+`initialize_data_arena_header`, `find_data_arena_symbol_value_cell`,
+`read_data_arena_basic_method_value`, and
+`invoke_data_arena_native_basic_method1`; its only undefined imports are
+`bzero`, `memchr`, and `memcmp`. This is static iPhoneOS compatibility evidence
+only, not app, runtime, signing, simulator, physical-device, or AOT ABI
+invocation evidence.
+
+No GOALPad app build, runtime integration, simulator, physical device
+(including **Z iPad Pro**), remote, or retail game data was accessed for this
+checkpoint. Builds used `-j 4`; CTest was serialized with `-j 1`.
+
+### Next exact task: generated reset! Export1 through the typed binding
+
+Invoke the actual generated `load-state::reset!` Export1 only through this typed
+binding and a `call_goal_asm_arm64` invoker. Use guarded synthetic arena(s),
+preserve the established caller-register and guard checks, and ensure every
+nonmatching type, id, value, size, or arity fails closed before the native call.
+Do not add a raw-address cast, JIT, app/runtime integration, signing claim, or
+live data path as part of that task.

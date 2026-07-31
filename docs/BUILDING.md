@@ -1726,3 +1726,93 @@ Commit B is the next task: bind the exact `load-state` method by actual
 `0x82c`/`0x830` sizes to an immutable, statically linked signed entry. Do not
 cast the raw method word to a native address or add JIT; keep the caller-owned
 arena stable and exclusively owned through lookup, binding, and invocation.
+
+## Checkpoint 18: portable trusted-native BASIC method binding
+
+Patch 0042 preserves child commit
+`7aaaf29942f5836dda311e173865dfcd0ea6de64` through parent checkpoint
+`eaa649934ce3ba7523529bef30b39729c06d4af4`. The official OpenGOAL submodule
+remains at its fetchable pin. The exact preserved patch identity is:
+
+| Patch | SHA-256 | Stable patch ID |
+| --- | --- | --- |
+| `0042-feat-data-arena-bind-trusted-native-BASIC-methods-AI.patch` | `7bc05ccdd163742fd0701d7bd350bebecef79ccb5d1b422be403085adf428af3` | `9ddfba8fcf1a5c1416266aae51c6d66c7fbe7c73` |
+
+The ordered 0038-0042 replay exactly matches the `7aaaf299` tree, and the
+reverse patch check passed.
+
+The portable `invoke_data_arena_native_basic_method1` API synchronously reads
+the actual BASIC method, validates its Function tag, and accepts a
+caller-provided native entry only when actual object type, method id, raw GOAL
+method value, allocated and padded sizes, and arity one all exact-match the
+binding tuple. The fixture uses `method_id = 9` and exact sizes
+`0x82c`/`0x830`. The raw GOAL word remains data: it is never cast to native code
+and the only callable entry originates in the binding table.
+
+`native` is intentionally neutral: this portable C++ boundary does not prove
+static linkage, code signing, native-entry provenance, or the platform ABI.
+Production callers provide those properties and keep the arena, header, binding
+span, and aliases alive and exclusively serialized through lookup, binding, and
+invocation. The boundary supplies no internal synchronization.
+
+Recorded host validation used:
+
+```sh
+cmake --build /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --target jak1-data-arena-test -j 4
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  -R '^Jak1DataArena\\.' --output-on-failure -j 1
+
+cmake --build /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --target arm64-goal-call-abi-test -j 4
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup-build \
+  --output-on-failure -j 1
+
+/private/tmp/data-arena-symbol-value-lookup-jak-project-build/goalc-test \
+  '--gtest_filter=Arm64Aot.*:ARM64EmitterLoads.*:ARM64EmitterIntegerMath.*:CodeTester.*:X86EmitterXMM.*:EmitterAVX.*'
+```
+
+The focused data-arena target build passed; `Jak1DataArena` CTest passed 37/37.
+The ARM64 goal-call ABI target build passed, full CTest passed 46/46, and the
+existing direct compiler binary passed the compiler/emitter filter 191/191.
+
+The fresh iPhoneOS minimal archive proof used:
+
+```sh
+cmake -S /private/tmp/GOALPadOpenGOAL-data-arena-symbol-value-lookup \
+  -B /private/tmp/GOALPadOpenGOAL-arm64-native-binding-iphoneos-build \
+  -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=iOS \
+  -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64 \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=18.0 \
+  -DOPENGOAL_BUILD_JAK1_DATA_ARENA_ONLY=ON -DBUILD_TESTING=OFF
+
+cmake --build /private/tmp/GOALPadOpenGOAL-arm64-native-binding-iphoneos-build \
+  --target jak1-data-arena -j 4
+
+xcrun ar -t /private/tmp/GOALPadOpenGOAL-arm64-native-binding-iphoneos-build/libjak1-data-arena.a
+file /private/tmp/GOALPadOpenGOAL-arm64-native-binding-iphoneos-build/libjak1-data-arena.a
+xcrun nm -g /private/tmp/GOALPadOpenGOAL-arm64-native-binding-iphoneos-build/libjak1-data-arena.a
+
+cd /private/tmp/goalpad-native-binding-iphoneos.yGWxmo
+xcrun ar -x /private/tmp/GOALPadOpenGOAL-arm64-native-binding-iphoneos-build/libjak1-data-arena.a
+file data_arena.cpp.o
+xcrun vtool -show-build data_arena.cpp.o
+xcrun nm -u data_arena.cpp.o
+```
+
+The fresh configure and `jak1-data-arena` build passed. The archive contains
+one ARM64 Mach-O object with iOS minimum 18.0 and SDK 26.5. It exports
+`initialize_data_arena_header`, `find_data_arena_symbol_value_cell`,
+`read_data_arena_basic_method_value`, and
+`invoke_data_arena_native_basic_method1`; it imports only `bzero`, `memchr`,
+and `memcmp`. This remains static-library compatibility evidence only: no app,
+runtime, signing, simulator, physical-device, or AOT ABI invocation validation
+occurred in Checkpoint 18.
+
+The next task is to invoke the actual generated `load-state::reset!` Export1
+through the typed binding and a `call_goal_asm_arm64` invoker in guarded
+synthetic arena(s). Preserve caller-register and guard checks and fail closed
+for nonmatching tuples; do not add a raw-address cast, JIT, app/runtime
+integration, signing claim, or live data path.
