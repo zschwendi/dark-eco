@@ -174,4 +174,65 @@ _goalpad_probe_call_aot2_with_state:
   ldp x29, x30, [sp], #16
   ret
 
+; Three-argument variant. The generated entry receives X20/X21/X22 before the
+; ordinary Apple ABI arguments are established in x0, x1, and x2.
+.globl _goalpad_call_aot3_with_state
+_goalpad_call_aot3_with_state:
+  stp x29, x30, [sp, #-16]!
+  mov x29, sp
+  stp x19, x20, [sp, #-16]!
+  stp x21, x22, [sp, #-16]!
+  str x23, [sp, #-16]!
+
+  mov x20, x0
+  mov x21, x1
+  mov x22, x2
+  mov x19, x3
+  mov x23, x7
+  mov x0, x4
+  mov x1, x5
+  mov x2, x6
+
+  stp x20, x21, [x23, #0]
+  str x22, [x23, #16]
+  stp x0, x1, [x23, #24]
+  str x2, [x23, #40]
+  blr x19
+  str x0, [x23, #48]
+  stp x20, x21, [x23, #56]
+  str x22, [x23, #72]
+
+  ldr x23, [sp], #16
+  ldp x21, x22, [sp], #16
+  ldp x19, x20, [sp], #16
+  ldp x29, x30, [sp], #16
+  ret
+
+; Set distinct caller values before the three-argument boundary and record
+; their restoration after it returns.
+.globl _goalpad_probe_call_aot3_with_state
+_goalpad_probe_call_aot3_with_state:
+  stp x29, x30, [sp, #-16]!
+  mov x29, sp
+  stp x19, x20, [sp, #-16]!
+  stp x21, x22, [sp, #-16]!
+  str x23, [sp, #-16]!
+
+  mov x23, x7
+  mov x20, #0x14
+  mov x21, #0x15
+  mov x22, #0x16
+  bl _goalpad_call_aot3_with_state
+  mov x19, x0
+
+  stp x20, x21, [x23, #80]
+  str x22, [x23, #96]
+  mov x0, x19
+
+  ldr x23, [sp], #16
+  ldp x21, x22, [sp], #16
+  ldp x19, x20, [sp], #16
+  ldp x29, x30, [sp], #16
+  ret
+
 .subsections_via_symbols

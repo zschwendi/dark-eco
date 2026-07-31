@@ -91,6 +91,37 @@ static_assert(offsetof(GoalCallProbe2, restored_process) == 72);
 static_assert(offsetof(GoalCallProbe2, restored_symbol_table) == 80);
 static_assert(offsetof(GoalCallProbe2, restored_offset_base) == 88);
 
+struct GoalCallProbe3 {
+  std::uint64_t entry_process = 0;
+  std::uint64_t entry_symbol_table = 0;
+  std::uint64_t entry_offset_base = 0;
+  std::uint64_t entry_arg0 = 0;
+  std::uint64_t entry_arg1 = 0;
+  std::uint64_t entry_arg2 = 0;
+  std::uint64_t result = 0;
+  std::uint64_t exit_process = 0;
+  std::uint64_t exit_symbol_table = 0;
+  std::uint64_t exit_offset_base = 0;
+  std::uint64_t restored_process = 0;
+  std::uint64_t restored_symbol_table = 0;
+  std::uint64_t restored_offset_base = 0;
+};
+
+static_assert(sizeof(GoalCallProbe3) == 104);
+static_assert(offsetof(GoalCallProbe3, entry_process) == 0);
+static_assert(offsetof(GoalCallProbe3, entry_symbol_table) == 8);
+static_assert(offsetof(GoalCallProbe3, entry_offset_base) == 16);
+static_assert(offsetof(GoalCallProbe3, entry_arg0) == 24);
+static_assert(offsetof(GoalCallProbe3, entry_arg1) == 32);
+static_assert(offsetof(GoalCallProbe3, entry_arg2) == 40);
+static_assert(offsetof(GoalCallProbe3, result) == 48);
+static_assert(offsetof(GoalCallProbe3, exit_process) == 56);
+static_assert(offsetof(GoalCallProbe3, exit_symbol_table) == 64);
+static_assert(offsetof(GoalCallProbe3, exit_offset_base) == 72);
+static_assert(offsetof(GoalCallProbe3, restored_process) == 80);
+static_assert(offsetof(GoalCallProbe3, restored_symbol_table) == 88);
+static_assert(offsetof(GoalCallProbe3, restored_offset_base) == 96);
+
 extern "C" std::uint64_t goalpad_probe_call_aot_with_state(
     std::uint64_t process,
     std::uint64_t symbol_table,
@@ -114,6 +145,16 @@ extern "C" std::uint64_t goalpad_probe_call_aot2_with_state(
     std::uint64_t arg0,
     std::uint64_t arg1,
     GoalCallProbe2* probe);
+
+extern "C" std::uint64_t goalpad_probe_call_aot3_with_state(
+    std::uint64_t process,
+    std::uint64_t symbol_table,
+    std::uint64_t offset_base,
+    goalpad::AOTEntry3 entry,
+    std::uint64_t arg0,
+    std::uint64_t arg1,
+    std::uint64_t arg2,
+    GoalCallProbe3* probe);
 
 bool has_expected_jak1_false_func_arm64_code(goalpad::AOTEntry0 entry) {
 #if defined(__arm64__)
@@ -235,6 +276,23 @@ bool has_expected_goal_state(const GoalCallProbe2& probe,
          probe.exit_process == process && probe.exit_symbol_table == symbol_table &&
          probe.exit_offset_base == offset_base && probe.restored_process == 0x14 &&
          probe.restored_symbol_table == 0x15 && probe.restored_offset_base == 0x16;
+}
+
+bool has_expected_goal_state(const GoalCallProbe3& probe,
+                             std::uint64_t process,
+                             std::uint64_t symbol_table,
+                             std::uint64_t offset_base,
+                             std::uint64_t arg0,
+                             std::uint64_t arg1,
+                             std::uint64_t arg2,
+                             std::uint64_t result) {
+  return probe.entry_process == process && probe.entry_symbol_table == symbol_table &&
+         probe.entry_offset_base == offset_base && probe.entry_arg0 == arg0 &&
+         probe.entry_arg1 == arg1 && probe.entry_arg2 == arg2 &&
+         probe.result == result && probe.exit_process == process &&
+         probe.exit_symbol_table == symbol_table && probe.exit_offset_base == offset_base &&
+         probe.restored_process == 0x14 && probe.restored_symbol_table == 0x15 &&
+         probe.restored_offset_base == 0x16;
 }
 
 struct alignas(16) SyntheticGoalArena {
@@ -380,6 +438,110 @@ bool verifies_want_vis(goalpad::AOTEntry2 entry,
          arena.bytes == expected.bytes;
 }
 
+bool verifies_want_levels(goalpad::AOTEntry3 entry, std::uint64_t process) {
+  struct WantLevelsSlot {
+    std::uint32_t name;
+    std::uint32_t display;
+    std::uint32_t force_vis;
+    std::uint32_t force_inside;
+  };
+  struct WantLevelsCase {
+    std::array<WantLevelsSlot, 2> initial;
+    std::uint32_t argument0;
+    std::uint32_t argument1;
+    std::array<WantLevelsSlot, 2> expected;
+  };
+
+  constexpr std::uint64_t kFalse = 0x14fd24;
+  constexpr std::uint64_t kThis = 4;
+  constexpr std::size_t kSlotSize = 0x10;
+  constexpr std::uint32_t kLevelA = 0x81234567;
+  constexpr std::uint32_t kLevelB = 0xf2345678;
+  constexpr std::uint32_t kLevelC = 0x89abcdef;
+  constexpr std::uint32_t kLevelD = 0xcafebabe;
+  constexpr std::uint32_t kFirstDisplay = 0x91a2b3c4;
+  constexpr std::uint32_t kFirstForceVis = 0xa1b2c3d4;
+  constexpr std::uint32_t kFirstForceInside = 0xb1c2d3e4;
+  constexpr std::uint32_t kSecondDisplay = 0xc1d2e3f4;
+  constexpr std::uint32_t kSecondForceVis = 0xd1e2f304;
+  constexpr std::uint32_t kSecondForceInside = 0xe1f20314;
+  constexpr WantLevelsSlot kSlotA{
+      kLevelA, kFirstDisplay, kFirstForceVis, kFirstForceInside};
+  constexpr WantLevelsSlot kSlotB{
+      kLevelB, kSecondDisplay, kSecondForceVis, kSecondForceInside};
+  constexpr WantLevelsSlot kSlotC{
+      kLevelC, kFirstDisplay, kFirstForceVis, kFirstForceInside};
+  constexpr WantLevelsSlot kSlotD{
+      kLevelD, kSecondDisplay, kSecondForceVis, kSecondForceInside};
+  constexpr WantLevelsSlot kSlotAReset{kLevelA, kFalse, kFalse, kFalse};
+  constexpr WantLevelsSlot kSlotBReset{kLevelB, kFalse, kFalse, kFalse};
+  constexpr std::array cases{
+      WantLevelsCase{{kSlotA, kSlotB}, kLevelA, kLevelB, {kSlotA, kSlotB}},
+      WantLevelsCase{{kSlotC, kSlotD}, kLevelA, kLevelB, {kSlotAReset, kSlotBReset}},
+      WantLevelsCase{{kSlotA, kSlotC}, kLevelA, kLevelA, {kSlotA, kSlotAReset}},
+      WantLevelsCase{
+          {kSlotC, kSlotD},
+          kFalse,
+          kLevelB,
+          {kSlotBReset,
+           WantLevelsSlot{kFalse, kSecondDisplay, kSecondForceVis, kSecondForceInside}}},
+      WantLevelsCase{
+          {kSlotC, kSlotD},
+          kLevelA,
+          kFalse,
+          {kSlotAReset,
+           WantLevelsSlot{kFalse, kSecondDisplay, kSecondForceVis, kSecondForceInside}}},
+      WantLevelsCase{
+          {kSlotC, kSlotD},
+          kFalse,
+          kFalse,
+          {WantLevelsSlot{kFalse, kFirstDisplay, kFirstForceVis, kFirstForceInside},
+           WantLevelsSlot{kFalse, kSecondDisplay, kSecondForceVis, kSecondForceInside}}},
+  };
+  constexpr std::size_t kFirstWriteOffset = kFirstOffsetBase + kThis;
+  constexpr std::size_t kEndWriteOffset = kFirstWriteOffset + 2 * kSlotSize;
+  static_assert(kEndWriteOffset <= sizeof(SyntheticGoalArena::bytes));
+
+  const auto write_slot = [](SyntheticGoalArena& arena,
+                             std::size_t index,
+                             const WantLevelsSlot& slot) {
+    const auto offset = kFirstOffsetBase + kThis + index * kSlotSize;
+    write_low_word(arena, offset, slot.name);
+    write_low_word(arena, offset + 4, slot.display);
+    write_low_word(arena, offset + 8, slot.force_vis);
+    write_low_word(arena, offset + 12, slot.force_inside);
+  };
+
+  for (const auto& test_case : cases) {
+    SyntheticGoalArena arena;
+    arena.bytes.fill(kSyntheticArenaGuard);
+    SyntheticGoalArena expected = arena;
+    for (std::size_t index = 0; index < test_case.initial.size(); ++index) {
+      write_slot(arena, index, test_case.initial[index]);
+      write_slot(expected, index, test_case.expected[index]);
+    }
+
+    const auto offset_base = static_cast<std::uint64_t>(
+        reinterpret_cast<std::uintptr_t>(arena.bytes.data() + kFirstOffsetBase));
+    if ((offset_base & 0xf) != 0) {
+      return false;
+    }
+    GoalCallProbe3 probe;
+    const auto result = goalpad_probe_call_aot3_with_state(
+        process, kFalse, offset_base, entry, kThis, test_case.argument0,
+        test_case.argument1, &probe);
+    if (result != 0 ||
+        !has_expected_goal_state(probe, process, kFalse, offset_base, kThis,
+                                 test_case.argument0, test_case.argument1, result) ||
+        !has_guard_bytes(arena, 0, kFirstWriteOffset) ||
+        !has_guard_bytes(arena, kEndWriteOffset, arena.bytes.size()) ||
+        arena.bytes != expected.bytes) {
+      return false;
+    }
+  }
+  return true;
+}
+
 std::string architecture_name() {
 #if defined(__arm64__)
   return "arm64";
@@ -441,6 +603,11 @@ RuntimeStatus initialize_runtime(std::string storage_path) {
     status.message = "Required signed ARM64 AOT export unavailable: want-vis";
     return status;
   }
+  const auto* want_levels = find_aot_export3("want-levels");
+  if (!want_levels || !want_levels->entry) {
+    status.message = "Required signed ARM64 AOT export unavailable: want-levels";
+    return status;
+  }
 
   status.workload_result = goalpad_probe_call_aot_with_state(
       process, symbol_table, offset_base, false_func->entry, &false_func_probe);
@@ -471,12 +638,15 @@ RuntimeStatus initialize_runtime(std::string storage_path) {
                              verifies_level_group_load_commands_set(
                                  level_group_load_commands_set->entry, process, symbol_table) &&
                              has_expected_jak1_want_vis_arm64_code(want_vis->entry) &&
-                             verifies_want_vis(want_vis->entry, process, symbol_table);
+                             verifies_want_vis(want_vis->entry, process, symbol_table) &&
+                             verifies_want_levels(want_levels->entry, process);
   status.message = status.workload_verified
                        ? "Signed ARM64 Jak 1 false-func, true-func, identity, lognot, and direct "
-                         "level-group-load-commands-set! and want-vis AOT proof verified"
+                         "level-group-load-commands-set!, want-vis, and want-levels AOT proof "
+                         "verified"
                        : "Signed ARM64 Jak 1 false-func, true-func, identity, lognot, and direct "
-                         "level-group-load-commands-set! and want-vis AOT proof failed";
+                         "level-group-load-commands-set!, want-vis, and want-levels AOT proof "
+                         "failed";
   return status;
 }
 
