@@ -1,0 +1,130 @@
+From 732a99553a5208b0f58b70d43f146592496a8863 Mon Sep 17 00:00:00 2001
+From: zephyrstudiosllc <zschwendi@zephyrstudios.dev>
+Date: Fri, 31 Jul 2026 02:07:03 -0600
+Subject: [PATCH] fix(arm64): correct AOT encoder primitives (AI-assisted)
+
+---
+ goalc/emitter/IGenARM64.cpp | 10 +++++-----
+ goalc/emitter/Instruction.h |  8 ++++----
+ test/test_emitter_arm64.cpp | 37 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 46 insertions(+), 9 deletions(-)
+
+diff --git a/goalc/emitter/IGenARM64.cpp b/goalc/emitter/IGenARM64.cpp
+index 1180f722..a04fc85f 100644
+--- a/goalc/emitter/IGenARM64.cpp
++++ b/goalc/emitter/IGenARM64.cpp
+@@ -759,14 +759,14 @@ InstructionARM64 store32_gpr64_gpr64_plus_gpr64_plus_s32(Register addr1,
+ InstructionARM64 load32u_gpr64_gpr64_plus_gpr64(Register dst, Register addr1, Register addr2) {
+   // https://www.scs.stanford.edu/~zyedidia/arm64/ldr_reg_gen.html
+   // 32-bit variant
+-  // LDR <Wt>, [<Xn|SP>, (<Wm>|<Xm>){, <extend> {<amount>}}]
++  // LDR <Wt>, [<Xn|SP>, <Xm>{, LSL #0}]
+   ASSERT(dst.is_gpr(instr_set));
+   ASSERT(addr1.is_gpr(instr_set));
+   ASSERT(addr2.is_gpr(instr_set));
+   ASSERT(addr1 != addr2);
+   ASSERT(addr1 != SP);
+   ASSERT(addr2 != SP);
+-  return InstructionARM64(Base(0b1011100001100000000010, 22), Rt(dst.id()), Rn(addr1.id()),
++  return InstructionARM64(0xb8606800u, Rt(dst.id()), Rn(addr1.id()),
+                           Rm(addr2.id()));
+ }
+ 
+@@ -2134,9 +2134,9 @@ InstructionARM64 movsx_r64_r32(Register dst, Register src) {
+ }
+ 
+ InstructionARM64 cmp_gpr64_gpr64(Register a, Register b) {
+-  // https://www.scs.stanford.edu/~zyedidia/arm64/cmp_subs_addsub_ext.html
+-  // CMP <Xn|SP>, <R><m>{, <extend> {#<amount>}}
+-  return InstructionARM64(Base(0b11101011001000000000000000011111, 32), Rn(a.id()), Rn(b.id()));
++  // https://www.scs.stanford.edu/~zyedidia/arm64/cmp_subs_addsub_shift.html
++  // CMP <Xn|SP>, <Xm>{, <shift> #<amount>}
++  return InstructionARM64(0xeb00001fu, Rn(a.id()), Rm(b.id()));
+ }
+ 
+ //;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+diff --git a/goalc/emitter/Instruction.h b/goalc/emitter/Instruction.h
+index 9d692b02..fd7ea5cb 100644
+--- a/goalc/emitter/Instruction.h
++++ b/goalc/emitter/Instruction.h
+@@ -123,7 +123,7 @@ constexpr Field Imm26(u32 x) {
+ }
+ 
+ constexpr Field Imm19(u32 x) {
+-  ASSERT(x >= 0 && x <= ((2 ^ 19) - 1));
++  ASSERT(x <= (pow2(19) - 1));
+   return Field{(static_cast<uint32_t>(x) & 0b1111111111111111111) << 5};
+ }
+ 
+@@ -138,12 +138,12 @@ constexpr Field Immhi(u32 x) {
+ }
+ 
+ constexpr Field Imms(u32 x) {
+-  ASSERT(x >= 0 && x <= ((2 ^ 6) - 1));
++  ASSERT(x <= (pow2(6) - 1));
+   return Field{(static_cast<uint32_t>(x) & 0b111111) << 10};
+ }
+ 
+ constexpr Field Immr(u32 x) {
+-  ASSERT(x >= 0 && x <= ((2 ^ 6) - 1));
++  ASSERT(x <= (pow2(6) - 1));
+   return Field{(static_cast<uint32_t>(x) & 0b111111) << 16};
+ }
+ 
+@@ -158,7 +158,7 @@ constexpr Field Immb(u32 x) {
+ }
+ 
+ constexpr Field Cond(u32 x) {
+-  ASSERT(x >= 0 && x <= ((2 ^ 4) - 1));
++  ASSERT(x <= (pow2(4) - 1));
+   return Field{(static_cast<uint32_t>(x) & 0b1111) << 0};
+ }
+ }  // namespace ARM64
+diff --git a/test/test_emitter_arm64.cpp b/test/test_emitter_arm64.cpp
+index b6fd006c..d030cf49 100644
+--- a/test/test_emitter_arm64.cpp
++++ b/test/test_emitter_arm64.cpp
+@@ -57,3 +57,40 @@ TEST(ARM64EmitterIntegerMath, add_gpr64_imm8s) {
+   }
+   tester.clear();
+ }
++
++TEST(ARM64EmitterExactEncodings, cmp_and_register_add) {
++  std::array<u8, 4> code{};
++
++  const auto compare = IGen::ARM64::cmp_gpr64_gpr64(X0, X1);
++  EXPECT_EQ(compare.emit(code.data()), code.size());
++  EXPECT_EQ(code, (std::array<u8, 4>{0x1f, 0x00, 0x01, 0xeb}));
++
++  const auto add = IGen::ARM64::add_gpr64_gpr64(X3, X4);
++  EXPECT_EQ(add.emit(code.data()), code.size());
++  EXPECT_EQ(code, (std::array<u8, 4>{0x63, 0x00, 0x04, 0x8b}));
++}
++
++TEST(ARM64EmitterExactEncodings, lsl_and_condition_branch) {
++  std::array<u8, 4> code{};
++
++  const auto shift = IGen::ARM64::shl_gpr64_u8(X3, 4);
++  EXPECT_EQ(shift.emit(code.data()), code.size());
++  EXPECT_EQ(code, (std::array<u8, 4>{0x63, 0xec, 0x7c, 0xd3}));
++
++  const auto geq = IGen::ARM64::jge_imm();
++  EXPECT_EQ(geq.emit(code.data()), code.size());
++  EXPECT_EQ(code, (std::array<u8, 4>{0x0a, 0x00, 0x00, 0x54}));
++
++  const auto signed_negative_conditional_offset =
++      InstructionARM64(ARM64::Base(0b01010100, 8), ARM64::Imm19(0x7ffff), ARM64::Cond(0xa));
++  EXPECT_EQ(signed_negative_conditional_offset.emit(code.data()), code.size());
++  EXPECT_EQ(code, (std::array<u8, 4>{0xea, 0xff, 0xff, 0x54}));
++}
++
++TEST(ARM64EmitterExactEncodings, dynamic_word_load) {
++  std::array<u8, 4> code{};
++
++  const auto load = IGen::ARM64::load32u_gpr64_gpr64_plus_gpr64(X0, X1, X2);
++  EXPECT_EQ(load.emit(code.data()), code.size());
++  EXPECT_EQ(code, (std::array<u8, 4>{0x20, 0x68, 0x62, 0xb8}));
++}
+-- 
+2.50.1 (Apple Git-155)
+
