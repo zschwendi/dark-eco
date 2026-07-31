@@ -6,19 +6,21 @@ Branch: `feat/ipados-native-boot`
 
 Status: Partially complete. Stage 2 is implemented and verified. Stage 3 now
 compiles the complete real Jak 1 `false-func` definition and selects its named
-body as deterministic signed ARM64 text. The first Stage 4 artifact boundary
-is verified: OpenGOAL emits guarded immutable metadata alongside that text,
-and GOALPad resolves the generated native entry through an app-local typed
-registry before calling it through the static X20/X21/X22 boundary. ARM64
-macOS, the dedicated iPad Pro M5 simulator, and a normally signed generic iOS
-build passed. The named-function proof rejects duplicate definitions,
-non-`#f` bodies, and top-level effects outside the exact `defun` installer.
-The surrounding top-level `define`, live GOAL symbol installation, and general
-static artifact model remain unimplemented. The maintainer prohibits physical
-Z iPad Pro testing unless explicitly requested in the current task; the local
-iPad Pro 11-inch (M5) simulator is the routine validation target. No physical
-device was used for this checkpoint. This proof uses synthetic state and does
-not claim general OpenGOAL runtime initialization or Jak 1 data loading.
+body as deterministic signed ARM64 text. The first typed Stage 4 artifact
+boundaries are verified: OpenGOAL emits guarded metadata for `false-func` and
+one-argument `identity`, and GOALPad resolves both through app-local typed
+registries before calling static X20/X21/X22 wrappers. The identity wrapper
+establishes that state before moving its ordinary Apple-ABI object argument
+into X0. ARM64 macOS, the dedicated iPad Pro M5 simulator, and a normally
+signed generic iOS build passed. The named-function proof rejects duplicate
+definitions, non-`#f` bodies, and top-level effects outside the exact `defun`
+installer. The surrounding top-level `define`, live GOAL symbol installation,
+and general static artifact model remain unimplemented. The maintainer
+prohibits physical Z iPad Pro testing unless explicitly requested in the
+current task; the local iPad Pro 11-inch (M5) simulator is the routine
+validation target. No physical device was used for this checkpoint. This proof
+uses synthetic state and does not claim general OpenGOAL runtime initialization
+or Jak 1 data loading.
 
 ## Active roadmap and delegated audit
 
@@ -51,6 +53,9 @@ maintainer-requested fast `gpt-5.6-terra` model with `xhigh` reasoning:
 | Static export design audits | Compiler artifact ownership, app registry ABI, linker behavior, and missing-export handling | Independently selected a generated zero-argument X-macro manifest plus an app-local typed registry; no live GOAL symbol-table mutation |
 | Stage 4 export-metadata implementation | Paired compiler artifacts, CLI behavior, failure preservation, and CTest coverage | Added guarded `OPENGOAL_AOT_EXPORT0` output for the exact `false-func` proof; validates paired output without changing the signed assembly |
 | Stage 4 registry integration and validation | Generated metadata inclusion, typed lookup, host harness, app targets, simulator, and signing evidence | Added app-local zero-argument lookup without writing a native pointer into GOAL data; validated missing-name rejection, ABI state, M5 runtime, and generic signed bundle contents |
+| Identity compiler implementation | Exact Jak 1 `identity` IR shape, GPR `IR_RegSet`, Apple-ABI allocation, and negative tests | Compiled only the one-argument identity proof, preserving explicit failure for other function shapes and unsupported IR |
+| Typed identity export implementation | Distinct `OPENGOAL_AOT_EXPORT1` contract, paired artifact behavior, and cross-ABI rejection | Added a one-argument metadata lane without broadening the zero-argument export contract |
+| Identity registry and wrapper integration | Typed lookup, X20/X21/X22-before-X0 order, probe offsets, combined harness, and app validation | Added the smallest separate one-argument wrapper and required both signed calls without live GOAL pointers or symbol-table mutation |
 
 The implementation agents edited non-overlapping files in the isolated
 OpenGOAL worktree. The primary agent reviewed and integrated every diff, fixed
@@ -118,11 +123,14 @@ copied into, or generated inside the Git checkout.
 Current history:
 
 ```text
+ffeb20d Execute typed Jak 1 identity through signed ARM64 state (AI-assisted)
+a2235da Preserve typed Jak 1 identity export patch (AI-assisted)
+9faaa0e Preserve exact Jak 1 identity AOT compiler patch (AI-assisted)
+914d307 Document signed OpenGOAL export registry checkpoint (AI-assisted)
 a5df18a Preserve atomic OpenGOAL export metadata patch (AI-assisted)
 463e366 Resolve signed OpenGOAL exports through native registry (AI-assisted)
 d48b385 Preserve strict named ARM64 AOT selection (AI-assisted)
 c3187da Document full false function AOT checkpoint (AI-assisted)
-eea1031 Execute full Jak 1 false function through signed ARM64 state (AI-assisted)
 cf73386 Preserve target-aware OpenGOAL call metadata (AI-assisted)
 6830cb4 Record physical Stage 2 completion (AI-assisted)
 f13d8f0 Add verified OpenGOAL ARM64 call boundary (AI-assisted)
@@ -249,6 +257,10 @@ Named-selection child: b78d7c28c5f4f034e020a4ace48c10a9190d7fa1
 Named-selection patch: patches/OpenGOAL/0005-Constrain-named-ARM64-AOT-function-selection-AI-assi.patch
 Export-metadata child: 1fc20e793f6c7fd8db3bca3fcc458b098a8b4ea3
 Export-metadata patch: patches/OpenGOAL/0006-Emit-atomic-signed-ARM64-export-metadata-AI-assisted.patch
+Identity compiler child: 25917e278aeeaf6fee9faa4fbba93f4a2c64f146
+Identity compiler patch: patches/OpenGOAL/0007-feat-aot-compile-exact-Jak-1-identity-function-AI-as.patch
+Identity export child: 1c80b667aa943d066c1fe2deef85c464c09996fe
+Identity export patch: patches/OpenGOAL/0008-feat-aot-add-typed-identity-export-metadata-AI-assis.patch
 ```
 
 The child commit adds:
@@ -295,6 +307,10 @@ fd9ddb6491c6b45250e44169dac84d3b70405b37d87b8b9d76b4c9968be53bcb  OpenGOAL Stage
 65116d095cc43dd09e26222d2f7702a30dba6bbb0559f951f33458e27ecace3f  OpenGOAL full false-func patch
 abb26d05d717d87d4a4a93fc11bd269082ba672b2fdd16d192f68667025f79ce  OpenGOALJak1FalseFunc.exports.h
 d6930f33b01f004682da2232b773bfcc5f8a5192d62bbce5f3ee9e49826fd069  OpenGOAL export-metadata patch
+ab3b9d8f63e473fee9fc108d0e38921b2cc754688924fbe473706198ad2cf246  OpenGOALJak1Identity.s
+02e4c08a949be31945366020100e6a5be27933b09011bf5d78a16b03e39d4f83  OpenGOALJak1Identity.exports.h
+b6e27d488849bca0c2e27095b16c458f8d152f0a297d9b109329ad974645162c  OpenGOAL identity compiler patch
+57fbf8e6d38be489abeba80c1b3664fa899db742fbd387282e0ff628346ba2eb  OpenGOAL identity export patch
 ```
 
 `GOALPadRuntimeCore.cpp` now calls the compiler-generated Jak 1 false function
@@ -451,8 +467,8 @@ architecture=arm64; result=8194
 
 The settled screenshot at `/private/tmp/GOALPad-jak1-false-m5.png` visually
 shows the same success and `AOT result: 8,194`. Only the dedicated M5
-simulator was shut down afterward; the already-running user-owned Freemote
-simulator was not changed.
+simulator was shut down afterward; no state-changing command targeted a
+Freemote simulator in that historical pass.
 
 The generic iOS build completed normal Apple Development signing. The signed
 binary contains `_goalpad_aot_false` at `0x4008`, and disassembly confirms
@@ -533,8 +549,8 @@ architecture=arm64; result=8194
 ```
 
 The screenshot `/private/tmp/GOALPad-full-false-func-m5.png` shows the same
-success. The M5 simulator was shut down afterward; the already-running
-Freemote simulator was left untouched.
+success. The M5 simulator was shut down afterward; no state-changing command
+targeted a Freemote simulator in that historical pass.
 
 The generic iOS build completed normal Apple Development signing without
 accessing a physical device. The signed binary contains
@@ -672,8 +688,8 @@ architecture=arm64; result=8194
 ```
 
 `/private/tmp/GOALPad-stage4-export-registry-final-m5.png` was inspected and
-shows that result. The M5 simulator was shut down afterward; Freemote
-simulators were untouched. The generic signed app is thin ARM64 and contains
+shows that result. The M5 simulator was shut down afterward; no Freemote
+command was issued in that pass. The generic signed app is thin ARM64 and contains
 `_goalpad_aot_false_func` at `0x4010`, the registry lookup, and the state
 wrapper; disassembly confirms `mov x0, x21; ret`. Xcode completed normal Apple
 Development signing. A subsequent `codesign --verify --deep --strict` returned
@@ -685,6 +701,117 @@ The first sandboxed macOS build failed in `sandbox-exec` while Swift Preview
 processing. The successful escalated build is the recorded macOS evidence.
 An initial `.inc` metadata suffix also produced an Xcode warning, so the
 checked-in generated metadata is deliberately named `.exports.h`.
+
+### Typed `identity` function and export checkpoint
+
+Child commit `25917e278aeeaf6fee9faa4fbba93f4a2c64f146` compiles the exact
+one-argument real Jak 1 `identity` function from `gcommon.gc`. Its narrow
+ARM64 path supports only the GPR `IR_RegSet` that moves the one `object`
+argument through Apple-ABI X0; the selected body therefore contains exactly:
+
+```text
+ret
+```
+
+Child commit `1c80b667aa943d066c1fe2deef85c464c09996fe` pairs that text with
+the distinct typed metadata record:
+
+```text
+OPENGOAL_AOT_EXPORT1("identity", goalpad_aot_identity)
+```
+
+The one-argument record cannot be emitted for `false-func`, and the
+zero-argument record cannot be emitted for `identity`. Cross-ABI or
+wrong-symbol requests fail while preserving existing paired artifacts.
+
+```sh
+cmake --build /private/tmp/GOALPadOpenGOAL-stage3-build \
+  --target goalc-test goalc-aot --parallel 4
+
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc-test \
+  '--gtest_filter=Arm64Aot.*'
+
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc-test \
+  '--gtest_filter=-Listener.*'
+
+ctest --test-dir /private/tmp/GOALPadOpenGOAL-stage3-build --output-on-failure
+
+/private/tmp/GOALPadOpenGOAL-stage3-build/goalc/goalc-aot \
+  --project-path /private/tmp/GOALPadOpenGOAL-stage2 \
+  --input /private/tmp/GOALPadOpenGOAL-stage2/test/goalc/source_templates/arm64-aot/full-identity-from-jak1-gcommon.gc \
+  --function identity \
+  --output /private/tmp/goalpad_aot_identity.s \
+  --exports-output /private/tmp/goalpad_aot_identity.exports.h \
+  --symbol goalpad_aot_identity
+
+cmp /private/tmp/goalpad_aot_identity.s \
+  GOALPad/Native/Generated/OpenGOALJak1Identity.s
+
+cmp /private/tmp/goalpad_aot_identity.exports.h \
+  GOALPad/Native/Generated/OpenGOALJak1Identity.exports.h
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 apply --check --reverse \
+  "$PWD/patches/OpenGOAL/0007-feat-aot-compile-exact-Jak-1-identity-function-AI-as.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 apply --check --reverse \
+  "$PWD/patches/OpenGOAL/0008-feat-aot-add-typed-identity-export-metadata-AI-assis.patch"
+```
+
+Results: both targets built; all 22 focused tests and all 708 non-listener
+tests passed; CTest passed 1/1; both comparisons and both reverse patch checks
+passed. The compiler patch SHA-256 is
+`b6e27d488849bca0c2e27095b16c458f8d152f0a297d9b109329ad974645162c`
+with stable patch ID `aacd14b605e40ae1651c860ae2d98d426fcdd845`. The typed
+export patch SHA-256 is
+`57fbf8e6d38be489abeba80c1b3664fa899db742fbd387282e0ff628346ba2eb`
+with stable patch ID `d5c5ce0a113a6d023f14804caf8792c473e1e54e`.
+Parent commits `9faaa0e` and `a2235da` preserve the two child patches.
+
+Parent commit `ffeb20d` adds a separate `AOTEntry1`/`AOTExport1` registry lane
+and one-argument wrapper. The wrapper sets synthetic X20/X21/X22 state before
+copying its X4 argument to X0, then invokes only the typed registry entry.
+The `GoalCallProbe1` test record captures input argument, result, entry/exit
+state, and caller-restoration sentinels; no native pointer enters a live GOAL
+symbol value or table.
+
+```sh
+xcrun --sdk macosx clang++ -std=c++20 -arch arm64 \
+  -I GOALPad/Native \
+  tests/native/GOALPadAOTExportRegistryHarness.cpp \
+  GOALPad/Native/GOALPadAOTExportRegistry.cpp \
+  GOALPad/Native/Generated/OpenGOALJak1FalseFunc.s \
+  GOALPad/Native/Generated/OpenGOALJak1Identity.s \
+  GOALPad/Native/GOALPadGoalStateWrapper.s \
+  -o /private/tmp/goalpad_aot_export_registry_harness
+
+/private/tmp/goalpad_aot_export_registry_harness
+```
+
+The combined host harness exited `0`. It resolves both typed entries, rejects
+cross-type/missing names, exercises the wrapper that establishes X20/X21/X22
+before placing the identity argument in X0, verifies identity returns the
+exact object argument, and checks both wrappers restore caller state.
+
+The current-source ARM64 macOS build, M5 simulator build/run, and generic
+signed iOS build passed with reused build trees and `-jobs 4`. The final M5
+launch ran as PID `50618` and logged:
+
+```text
+GOALPad runtime probe: Signed ARM64 Jak 1 false-func and identity calls verified;
+architecture=arm64; result=8194
+```
+
+`/private/tmp/GOALPad-stage4-identity-final-m5.png` was inspected and shows
+that result. The M5 simulator was shut down. No state-changing command targeted
+a Freemote simulator; final observed Freemote simulator states had changed
+externally (two shut down and one booted), so this checkpoint makes no
+attribution about them. The thin
+ARM64 signed dylib contains `goalpad_aot_false_func` at `0x4010` and
+`goalpad_aot_identity` at `0x4018`, both typed lookups/wrappers, and the exact
+`mov x0, x21; ret` and `ret` instruction sequences. No physical device was
+accessed. The prior `codesign --verify --deep --strict`
+`CSSMERR_TP_NOT_TRUSTED` certificate-trust caveat remains unresolved and was
+not rerun.
 
 ## Verified GOALPad targets
 
@@ -845,10 +972,10 @@ build running on the iPad.
 
 At the current Stage 4 artifact-boundary checkpoint:
 
-- The top-level literal `42`, real Jak 1 `'#f` expression, and selected body of
-  the complete real `false-func` definition have target-aware ARM64 compiler
-  paths. General functions and almost all other ARM64 IR operations remain
-  unsupported and reject explicitly.
+- The top-level literal `42`, real Jak 1 `'#f` expression, and selected bodies
+  of the complete real `false-func` and one-argument `identity` definitions
+  have target-aware ARM64 compiler paths. General functions and almost all
+  other ARM64 IR operations remain unsupported and reject explicitly.
 - A complete `defun` creates a named function plus top-level
   `IR_FunctionAddr`/`IR_SetSymbolValue` installation. The selected text now
   has compiler-generated metadata and app-local lookup, but the installation
@@ -861,9 +988,10 @@ At the current Stage 4 artifact-boundary checkpoint:
   paths preserve live values correctly. ARM64 function-call code generation
   itself remains explicitly unimplemented, so call-bearing GOAL source still
   rejects.
-- The static entry now executes through an ABI-correct X20/X21/X22 boundary,
-  but those values are synthetic and never dereferenced. This is not live
-  kernel, symbol-table, or GOAL-memory initialization.
+- The static entries now execute through ABI-correct X20/X21/X22 boundaries.
+  The one-argument wrapper establishes those registers before setting X0; all
+  values remain synthetic and never dereferenced. This is not live kernel,
+  symbol-table, or GOAL-memory initialization.
 - `game/runtime.cpp` allocates the desktop EE region with read, write, and
   execute permissions.
 - OpenGOAL v3 objects contain executable payloads that the desktop linker
@@ -875,27 +1003,27 @@ At the current Stage 4 artifact-boundary checkpoint:
   input, audio, listener, and debugging assumptions.
 
 The lower-level ARM64 emitter, target-aware compiler slice, named-function
-selection, generated export metadata, native registry, and static signed
-call-boundary path are real and tested. The next smallest compiler seam is the
-exact real `identity` function's GPR `IR_RegSet`/Apple-ABI parameter entry;
-live portable kernel state remains a later separate boundary.
+selection, generated typed export metadata, typed native registry, and static
+signed call-boundary paths are real and tested. The next smallest compiler seam
+is the exact real `true-func` `#t` body: assembly-only X21 plus eight, with no
+export, symbol installation, or runtime binding. Live portable kernel state
+remains a later separate boundary.
 
 ## Highest-value next checkpoint
 
 1. Choose the durable fork owner and authenticate that GitHub account. Publish
-   child commit `1fc20e79`, preserve the official `upstream` remote, and only
+   child commit `1c80b667`, preserve the official `upstream` remote, and only
    then update the parent submodule URL/gitlink to the fetchable fork commit.
-2. Compile the complete real `identity` definition next, adding only GPR
-   `IR_RegSet` and the ARM64 Apple-ABI parameter-entry seam. Keep all other
-   unsupported IR explicit and do not generalize the zero-argument export
-   registry before a real supported function signature requires it.
+2. Compile the exact real `true-func` `#t` body next as assembly only, adding
+   only the X21-plus-eight emitter seam. Do not add `Export0`, a native
+   registry entry, a GOAL symbol installation, or a live runtime binding.
 3. After those compiler/object boundaries can initialize a kernel subset,
    replace the synthetic X20/X21/X22 values with portable real process,
    symbol-table, and GOAL-memory state.
 
-Physical execution of the false-form and complete-function checkpoints remains
-pending. Do not attempt it unless the maintainer explicitly schedules
-physical-device testing in the current request.
+Physical execution of the false-form, complete-function, and identity
+checkpoints remains pending. Do not attempt it unless the maintainer explicitly
+schedules physical-device testing in the current request.
 
 Do not introduce `MAP_JIT`, writable executable memory, or the desktop V3
 runtime-linker path. Do not broaden this into renderer, camera, or future Apple
@@ -960,14 +1088,20 @@ git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
 
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0006-Emit-atomic-signed-ARM64-export-metadata-AI-assisted.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0007-feat-aot-compile-exact-Jak-1-identity-function-AI-as.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0008-feat-aot-add-typed-identity-export-metadata-AI-assis.patch"
 ```
 
 `git am` reconstructs patch-equivalent commits but normally produces different
 SHAs because committer metadata changes. `79f22008`, `149840cf`, `32cf26ae`,
-`92c8f975`, `b78d7c28`, and `1fc20e79` are the exact original child commits in
-the current isolated worktree; compare content and patch identity when
-reconstructing them elsewhere.
+`92c8f975`, `b78d7c28`, `1fc20e79`, `25917e27`, and `1c80b667` are the exact
+original child commits in the current isolated worktree; compare content and
+patch identity when reconstructing them elsewhere.
 
-Do not use proprietary inputs yet. The next exact `identity`
-`IR_RegSet`/Apple-ABI checkpoint still needs only upstream Jak 1 GOAL source
-and synthetic state.
+Do not use proprietary inputs yet. The next exact `true-func` `#t`
+assembly-only checkpoint still needs only upstream Jak 1 GOAL source and
+synthetic state.

@@ -245,6 +245,12 @@ Current progress:
   signed text and a guarded zero-argument X-macro export record as a paired
   build-time artifact. It passes 16 focused ARM64 AOT tests, 702 non-listener
   tests, and the deterministic paired-artifact CTest.
+- Child commit `25917e278aeeaf6fee9faa4fbba93f4a2c64f146` compiles the exact
+  one-argument Jak 1 `identity` body using GPR `IR_RegSet` and the Apple-ABI
+  X0 argument/return register. Child commit
+  `1c80b667aa943d066c1fe2deef85c464c09996fe` adds its distinct typed export;
+  the combined checkpoint passes 22 focused tests, 708 non-listener tests, and
+  the paired-artifact CTest.
 
 ## Stage 4 — Replace the desktop executable-object model
 
@@ -282,6 +288,11 @@ Current progress:
   state, relocate code, or use the desktop V3 linker.
 - The registry harness, ARM64 macOS build, dedicated M5 simulator, and generic
   signed iOS build passed. Physical-device validation was not performed.
+- The verified boundary also includes typed
+  `OPENGOAL_AOT_EXPORT1("identity", goalpad_aot_identity)` metadata. Parent
+  commit `ffeb20d` resolves it through a separate one-argument registry and
+  state wrapper, establishing X20/X21/X22 before placing the object argument
+  in X0. It remains build-time native binding, not a live GOAL function value.
 
 ## Stage 5 — Build a portable OpenGOAL runtime for iPadOS
 
@@ -536,8 +547,9 @@ Operating rules:
 
 ## Current checkpoint
 
-Stage 2 is complete. Stages 1 and 3 remain active; the first Stage 4 static
-artifact boundary is verified but does not complete the Stage 4 exit gate.
+Stage 2 is complete. Stages 1 and 3 remain active; the first typed Stage 4
+static artifact boundaries are verified but do not complete the Stage 4 exit
+gate.
 
 Stage 1 is blocked on the durable fork owner and working GitHub authentication.
 Until publication, keep the official submodule pin clean and preserve the
@@ -545,14 +557,13 @@ verified child commit through the repository patch.
 
 The next actions are:
 
-1. Compile the complete real `identity` function, adding only the required
-   GPR `IR_RegSet`/Apple-ABI parameter seam. Keep it assembly-only until a
-   separate typed one-argument export record and state wrapper are verified;
-   never place it in the zero-argument registry.
+1. Compile the exact real `true-func` `#t` body to ARM64 assembly only. Its
+   expected result is X21 plus eight; do not add `Export0`, a GOAL symbol
+   installation, or a live runtime binding for it yet.
 2. Keep unsupported statics, general relocations, calls, saved registers,
    spills, and stack locals explicit until a real Jak 1 boot dependency
    requires each boundary.
-3. Keep x86 behavior, the 702-test non-network suite, ARM64 host tools, and the
+3. Keep x86 behavior, the 708-test non-network suite, ARM64 host tools, and the
    signed app path healthy after each increment.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.

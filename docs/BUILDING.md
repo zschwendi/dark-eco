@@ -86,6 +86,10 @@ Named-selection child: b78d7c28c5f4f034e020a4ace48c10a9190d7fa1
 Named-selection patch: patches/OpenGOAL/0005-Constrain-named-ARM64-AOT-function-selection-AI-assi.patch
 Export-metadata child: 1fc20e793f6c7fd8db3bca3fcc458b098a8b4ea3
 Export-metadata patch: patches/OpenGOAL/0006-Emit-atomic-signed-ARM64-export-metadata-AI-assisted.patch
+Identity compiler child: 25917e278aeeaf6fee9faa4fbba93f4a2c64f146
+Identity compiler patch: patches/OpenGOAL/0007-feat-aot-compile-exact-Jak-1-identity-function-AI-as.patch
+Identity export child: 1c80b667aa943d066c1fe2deef85c464c09996fe
+Identity export patch: patches/OpenGOAL/0008-feat-aot-add-typed-identity-export-metadata-AI-assis.patch
 ```
 
 Restore it into an isolated worktree:
@@ -112,6 +116,12 @@ git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
 
 git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
   "$PWD/patches/OpenGOAL/0006-Emit-atomic-signed-ARM64-export-metadata-AI-assisted.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0007-feat-aot-compile-exact-Jak-1-identity-function-AI-as.patch"
+
+git -C /private/tmp/GOALPadOpenGOAL-stage2 am \
+  "$PWD/patches/OpenGOAL/0008-feat-aot-add-typed-identity-export-metadata-AI-assis.patch"
 ```
 
 If that branch or worktree already exists, inspect and reuse it rather than
@@ -119,11 +129,11 @@ deleting it. Do not move the parent repository's official submodule gitlink to
 the unpublished child commit.
 
 The restored commits are patch-equivalent to `79f22008`, `149840cf`,
-`32cf26ae`, `92c8f975`, `b78d7c28`, and `1fc20e79`, but `git am` normally
-assigns new committer metadata and therefore different commit SHAs. The exact
-objects are available only in a checkout that already contains the original
-child commits. Compare the resulting tree or stable patch identities when
-reconstructing them from the preserved patches.
+`32cf26ae`, `92c8f975`, `b78d7c28`, `1fc20e79`, `25917e27`, and `1c80b667`,
+but `git am` normally assigns new committer metadata and therefore different
+commit SHAs. The exact objects are available only in a checkout that already
+contains the original child commits. Compare the resulting tree or stable patch
+identities when reconstructing them from the preserved patches.
 
 Configure and build the affected tools serially enough to avoid excess memory
 pressure:
@@ -245,6 +255,38 @@ the complete `defun`, but the current artifact still does not apply the
 surrounding top-level `define` or install `false-func` in a live GOAL symbol
 table. Do not substitute the desktop V3 runtime linker.
 
+Generate and compare the complete real Jak 1 `identity` definition:
+
+```sh
+/private/tmp/GOALPadOpenGOAL-stage2-build/goalc/goalc-aot \
+  --project-path /private/tmp/GOALPadOpenGOAL-stage2 \
+  --input \
+  /private/tmp/GOALPadOpenGOAL-stage2/test/goalc/source_templates/arm64-aot/full-identity-from-jak1-gcommon.gc \
+  --function identity \
+  --output /private/tmp/goalpad_aot_identity.s \
+  --exports-output /private/tmp/goalpad_aot_identity.exports.h \
+  --symbol goalpad_aot_identity
+
+cmp /private/tmp/goalpad_aot_identity.s \
+  GOALPad/Native/Generated/OpenGOALJak1Identity.s
+
+cmp /private/tmp/goalpad_aot_identity.exports.h \
+  GOALPad/Native/Generated/OpenGOALJak1Identity.exports.h
+
+xcrun --sdk iphoneos clang -arch arm64 \
+  -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
+  -c /private/tmp/goalpad_aot_identity.s \
+  -o /private/tmp/goalpad_aot_identity.o
+
+xcrun llvm-objdump --macho --disassemble \
+  /private/tmp/goalpad_aot_identity.o
+```
+
+The exact supported one-argument body is `ret`: it preserves the ordinary
+Apple-ABI X0 object argument as its return value. The paired metadata is
+`OPENGOAL_AOT_EXPORT1("identity", goalpad_aot_identity)`. Cross-ABI metadata
+or wrong-symbol requests fail without replacing existing output artifacts.
+
 ## Validate the static OpenGOAL ARM64 call boundary
 
 The app-local boundary establishes the compiler contract's special registers:
@@ -270,9 +312,10 @@ symbol-table, or GOAL-memory initialization.
 ## Validate the generated native export registry
 
 The generated metadata is included only after the app-local registry defines
-`OPENGOAL_AOT_EXPORT0`. The registry exposes a typed zero-argument native entry
-outside the legacy 32-bit GOAL symbol representation; it does not mutate a
-live GOAL symbol table.
+the matching `OPENGOAL_AOT_EXPORT0` or `OPENGOAL_AOT_EXPORT1` macro. The
+registry exposes typed zero- and one-argument native entries outside the
+legacy 32-bit GOAL symbol representation; it does not mutate a live GOAL
+symbol table.
 
 ```sh
 xcrun --sdk macosx clang++ -std=c++20 -arch arm64 \
@@ -280,15 +323,18 @@ xcrun --sdk macosx clang++ -std=c++20 -arch arm64 \
   tests/native/GOALPadAOTExportRegistryHarness.cpp \
   GOALPad/Native/GOALPadAOTExportRegistry.cpp \
   GOALPad/Native/Generated/OpenGOALJak1FalseFunc.s \
+  GOALPad/Native/Generated/OpenGOALJak1Identity.s \
   GOALPad/Native/GOALPadGoalStateWrapper.s \
   -o /private/tmp/goalpad_aot_export_registry_harness
 
 /private/tmp/goalpad_aot_export_registry_harness
 ```
 
-Exit `0` requires a successful `false-func` lookup, rejects missing names, and
-proves the resolved entry keeps the X20/X21/X22 state contract. It is not live
-GOAL symbol-table, relocation, or runtime initialization evidence.
+Exit `0` requires successful typed `false-func` and `identity` lookups,
+rejects cross-type/missing names, and proves the identity wrapper establishes
+X20/X21/X22 before placing its argument in X0 while preserving caller state.
+It is not live GOAL symbol-table, relocation, or runtime initialization
+evidence.
 
 ## Physical iPad validation
 
