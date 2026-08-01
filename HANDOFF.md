@@ -5132,3 +5132,86 @@ Implement the smallest Jak 2 sound-RPC handshake needed for
 `check-irx-version`, with a focused behavioral test and unchanged Jak 1
 behavior. Do not broaden this into VAG multi-stream audio, rendering, or
 gameplay work in the same checkpoint.
+
+---
+
+# Checkpoint 28: Jak 2 accepts the sound-loader IRX 4.0 handshake
+
+Date: 2026-08-01. Extends Checkpoint 27. Submodule pin:
+`7e69774a0c91ff804f165df574f919afc6e7b826` on `goalpad/play-fusion`.
+
+## Integrated work
+
+The focused branch `goalpad/play-jak2-sound-rpc` landed as
+`711300ae68218237a15798193e9c8780d25c8b9a` and is merged into fusion by
+`7e69774a0c91ff804f165df574f919afc6e7b826`.
+
+- `sound_rpc_jak2.cpp` replaces only Jak 2's reporting stubs for `rpc-call`
+  and `rpc-busy?`. Loader channel 1, command 16 receives the exact upstream
+  80-byte message, replies synchronously with IRX 4.0, and retains the EE
+  sound-info address. All other channels, commands, and malformed buffers
+  remain loud missing-machine diagnostics.
+- The eight-register wrapper preserves the GOAL stack-argument ABI. EE spans
+  are checked before access; malformed sizes, nulls, end-crossing spans, and
+  out-of-range addresses do not touch memory.
+- SIF semantics are preserved: a separate EE send buffer stays unchanged and
+  only the receive buffer gets the IOP-side response. The game's in-place
+  send/receive alias still works.
+- `jak2-sound-rpc-test` calls the actual installed GOAL function objects and
+  covers separate and aliased buffers, IRX 4.0, retained `ee_addr`, complete
+  response copying, canaries, pre-init installation, unsupported channels and
+  commands, malformed sizes, and address boundaries without retail data.
+- `jak2-data-boot-test --with-game` now requires exactly one successful
+  version request and verifies that the retained address equals GOAL's
+  `*sound-iop-info*` value.
+
+An independent patch review caught the initial separate-buffer implementation
+writing back into both EE buffers. That mismatch was corrected before the
+checkpoint was committed, and the focused, real-data, full-suite, and iOS
+validations below were rerun against the corrected implementation.
+
+## Validation
+
+All final commands ran from `/private/tmp/GP-audio`.
+
+- `cmake --build build/Release/bin -j 4 --target jak2-sound-rpc-test jak2-data-boot-test`
+  — passed. The new seam, focused test, and the full 840-unit Jak 2 AOT boot
+  bundle compiled and linked.
+- `ctest --test-dir build/Release/bin -R '^jak2-sound-rpc-test$' --output-on-failure`
+  — passed 1/1 after the separate-buffer and address-boundary corrections.
+- `GOALPAD_JAK2_DATA_DIR=/Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 ctest --test-dir build/Release/bin -R '^jak2-data-boot-test$' --output-on-failure`
+  — passed 1/1.
+- `./build/Release/bin/game/jak2-data-boot-test --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 --frames 100 --with-game`
+  — passed. KERNEL.CGO loaded 8/8, GAME.CGO loaded 465/465, GOAL printed
+  `IRX version 4.0`, the retained info block was `#x138cbd0`, and the kernel
+  dispatcher completed 100 frames.
+- `GOALPAD_JAK1_DATA_DIR=/Users/zach/Developer/OS_Projects/GOALPad/Jak1/projdata/out/jak1 GOALPAD_JAK2_DATA_DIR=/Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 ctest --test-dir build/Release/bin --output-on-failure -j 1`
+  — passed 66/66 in 109.22 seconds.
+- `cmake --build build/ios-kernel-core -j 4 --target jak1-kernel-core jak2-kernel-core`
+  — passed for the iPhoneOS configuration. Existing unrelated format and
+  switch warnings remain.
+- `xcrun lipo -info build/ios-kernel-core/libjak1-kernel-core.a` and
+  `xcrun lipo -info build/ios-kernel-core/libjak2-kernel-core.a` — both report
+  non-fat `arm64` archives.
+- `xcrun nm -g build/ios-kernel-core/libjak2-kernel-core.a | rg 'goal_jak2_sound_rpc'`
+  — exports both `goal_jak2_sound_rpc_install` and
+  `goal_jak2_sound_rpc_stats_get`.
+- `git diff --cached --check` — passed before the focused commit.
+
+No simulator or physical device was accessed. This checkpoint proves a
+headless host handshake and an iPhoneOS archive build, not sound playback,
+rendering, title-screen behavior, gameplay, or physical-iPad execution.
+
+## Remaining boundary and next task
+
+The real GAME probe now passes the wrong-IRX-version gate, but later valid
+sound traffic still reports loudly: additional loader messages, player RPC,
+busy queries on other channels, STR, sound-info frame updates, banks, streams,
+and audio output are unimplemented. The repeated `Game subtitle2 heap overrun!`
+diagnostic is unchanged because channel 4 STR still returns through the
+reporting stub without a real transfer size.
+
+Before implementing another sound subsystem, capture and classify the first
+post-handshake RPC calls by channel, function, sizes, and command. Use that
+evidence to select one bounded protocol seam with a synthetic behavioral test;
+do not jump directly to the full desktop IOP or VAG stack.
