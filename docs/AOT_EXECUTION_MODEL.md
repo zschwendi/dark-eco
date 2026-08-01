@@ -174,21 +174,32 @@ The linked binary has only ordinary Mach-O segments, and the GOAL functions are
   is unusable rather than merely untested.
 - Only `LINK_TYPE_PTR` was exercised by real goalc-emitted data; the other three
   relocation kinds were exercised by a synthetic descriptor.
-- **Superseded:** `kernel/gkernel.gc` now loads and runs. `.pcpyld` was not the
-  real blocker; with it implemented, 0 of 518 top-levels fail to translate.
-  **207 of 518 object files now load in real `game.gp` build order and all 207
-  top-levels execute**, ending with 3048 symbols in the real symbol table — the
-  GOAL kernel, math, DMA, GS/display, loader, textures, fonts, collision,
-  camera, particles, moods, and settings.
-- The boot path stops at file 208, `engine/gfx/mood/time-of-day.gc`, whose
-  `top-level` calls `process-spawn` → `run-function-in-process` →
-  `(new 'stack 'catch-frame ...)`. `(method new catch-frame)` is one of the 11
-  unimplemented stack-switching routines, so it faults. That is the next
-  blocker, and it is now demonstrated by the boot path rather than argued.
-- Files 41–207 ran their top-levels with 7 machine-layer functions
-  (`cpad-open`, `__pc-get-mips2c`, `rpc-call`, `rpc-busy?`, `scf-get-volume`,
-  `scf-get-language`, `scf-get-aspect`) returning 0. Those files are proven to
-  LOAD, not proven to work.
-- Files 208–518 compile but have never been loaded.
+- **The thread and stack routines are implemented.** Seven native ARM64
+  routines (`game/kernel/core/goal_native_kernel.cpp` + `goal_thread_arm64.s`)
+  cover `return-from-thread`, `reset-and-call`, `thread-suspend`,
+  `thread-resume`, `(method new catch-frame)`, `throw-dispatch`, and
+  `enter-state-run-code`, built on three assembly primitives (context
+  save-and-call, context restore, call-on-stack). The other four of the
+  original 11 were rewritten as plain GOAL with identical effect. Zero
+  functions remain untranslated: 10595 lowered to C plus 7 native.
+- **511 of 518 object files load in real `game.gp` build order and all 511
+  top-levels execute**, reaching 7877 symbols. `time-of-day.gc` spawns a real
+  process and `go`es to a state, so catch-frame, throw-dispatch, and
+  enter-state run for real. Verified on host and the M5 simulator; the iOS
+  build ad-hoc signs with no writable-executable segment.
+- A dedicated thread-switch test proves callee-saved register preservation
+  across context round-trips, real stack switching, catch/throw with live
+  locals, and a suspend/resume round trip in which the C side overwrites all
+  368 live stack bytes between resumes and the values still restore.
+- **What stops the boot path now is game data, not runtime**: file 512,
+  `pc/hud-classes-pc.gc`, dereferences the `*fuelcell-naked-sg*` art group,
+  which only exists once level art is loaded. The library has no file I/O yet.
+- Machine-layer functions (`cpad-open`, `rpc-call`, `scf-get-*`, …) still
+  return 0 through loud stubs; files are proven to LOAD, not proven to work.
+- Known tuning debt: `PROCESS_STACK_SAVE_SIZE` (256 bytes) and per-process
+  stack sizes were chosen for the PS2; an ARM64 context is 176 bytes and a
+  trivial suspending state measured 368 live. `thread-suspend` fails loudly
+  with both numbers rather than overrunning; values need retuning as processes
+  begin suspending for real.
 - jak2/jak3/jakx kernels still write x86-64 trampolines and remain non-functional
   on ARM64.
