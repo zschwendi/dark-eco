@@ -5010,3 +5010,55 @@ validated by the extractor (`-g jak2`). `iso_data/jak2` 4.1 GB;
   at ~97%.
 - jak1-gameplay-test now takes ~61 s (it plays the whole intro); suite total
   ~115 s.
+
+---
+
+# Checkpoint 26: Jak 1 polish integrated; the Jak 2 kernel boots
+
+Date: 2026-08-01. Extends Checkpoint 25. Submodule pin: `f210265273e90d55a9bda5df4b7c898b25e0d9ba` on
+`goalpad/play-fusion`. Full dual-game suite: 65/65.
+
+## Landed since Checkpoint 25 (all merged into play-fusion, all validated)
+
+- **Merc blerc/mod-vtx ported to Metal** (`play-blerc`). Pixel-proven by a
+  new synthetic metal-proof test (weighted blend target shifts a quad);
+  retail replays byte-identical where weights are zero. Open game-side gap:
+  no retail frame ever sends nonzero weights — `pc-merc-blend-shape`
+  returns false during cutscenes (suspect missing blerc-data on STR-streamed
+  anims). Faces will not animate until that trigger is found. mod-vtx
+  (texscroll/ripple) implemented but unvalidated against retail content.
+- **Level-art eviction** (`play-art-residency`). Mirrors upstream Loader:
+  180-frame grace, >=3 resident, one eviction/frame, TexturePool under
+  pool.mutex(). Seven-level tour: loaded list converges to the wanted set,
+  RSS bounded (peak 1.5 GB vs 2.0 GB before), return visits reload
+  pixel-equivalent.
+- **C backend sweep gained --game** (`play-jak2-sweep`).
+- **Jak 2 kernel boots headless** (`play-jak2-kernel`): jak2 KERNEL.CGO
+  (8 objects) loads through the AOT path, Symbol4 table + kernel version 2.0
+  verified, kernel-dispatcher ran 100 frames; only `pc-prof` touched among
+  machine stubs (loud). goal_src/jak2 got the same hard-fork thread-primitive
+  rewrites as jak1, so **jak2 AOT coverage is 100%** (18,478 emitted + 7
+  shared native routines; 0 failures across all 840 sources; all files
+  compile for arm64). New per-game seam `kernel_game.h` +
+  `kernel_game_jak{1,2}.cpp` (process field offsets are the only layout
+  delta); jak2-kernel-core library, dgo_loader_jak2, jak2-data-boot-test,
+  jak2-thread-switch-test. GOALPAD_JAK2_DATA_DIR points at the prepared data.
+- **Full-system live proof on the merged head**: windowed run with sound
+  through the whole intro to Geyser Rock — 60.0 fps, 16.68 ms +/- 0.01,
+  0 late frames across 25,435; natural state chain through
+  target-hit-ground into walking.
+
+## Jak 2 next, in value order
+
+1. Port/register the jak2 mips2c library (mips2c_jak2.cpp mirroring
+   mips2c_jak1.cpp; jak2_functions TUs exist upstream). GAME.CGO currently
+   stops honestly at object 67/465 (`texture` wants
+   `adgif-shader<-texture-with-update!`).
+2. Sound-RPC seam for jak2 (check-irx-version gate in gsound; different
+   command enum; VAG multi-stream layer later).
+3. Renderer lane: bucket table 70->327, then TextureAnimator (largest),
+   etie envmap, Shadow2, Glow.
+4. kmachine subset + kmachine_extras (37.6K, jak2-only GOAL<->C surface).
+
+Scoping detail (coverage tables, kernel/renderer/sound deltas) is in the
+Checkpoint 25 sweep report summary and /private/tmp/jak2-sweep-out.
