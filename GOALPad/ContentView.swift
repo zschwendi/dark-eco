@@ -1,128 +1,161 @@
-//
-//  ContentView.swift
-//  GOALPad
-//
-//  Created by Zach on 7/30/26.
-//
-
 import SwiftUI
 
-/// Owns the lifetime of the process-wide GOAL kernel session.
-@MainActor
-@Observable
-final class KernelSession {
-    private(set) var status: GOALPadKernelStatus?
-
-    var isRunning: Bool { status?.isRunning ?? false }
-
-    func start() {
-        guard status?.isRunning != true else { return }
-        status = GOALPadRuntimeBridge.startKernel()
-    }
-
-    func stop() {
-        GOALPadRuntimeBridge.stopKernel()
-        status = nil
-    }
-}
-
 struct ContentView: View {
-    @State private var session = KernelSession()
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var session = GameSession()
+    @State private var showDiagnostics = true
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            MetalSurfaceView()
+            GameSurfaceView { session.tick() }
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
-                    header
-                    if let status = session.status {
-                        readout(for: status)
-                    } else {
-                        Text("No kernel session.")
-                    }
+            if session.isRunning {
+                if showDiagnostics {
+                    DiagnosticsOverlay(session: session)
+                        .frame(maxWidth: 620, alignment: .leading)
+                        .padding()
                 }
-                .font(.system(.footnote, design: .monospaced))
-                .foregroundStyle(.white)
-                .padding()
-                .background(.black.opacity(0.72), in: RoundedRectangle(cornerRadius: 10))
-                .padding()
+                Button(showDiagnostics ? "Hide" : "Info") { showDiagnostics.toggle() }
+                    .buttonStyle(.bordered)
+                    .padding()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            } else {
+                GameDataSetupView(session: session)
             }
         }
-        .onAppear { session.start() }
+        .task { await session.prepare() }
+        .onChange(of: scenePhase) { _, phase in session.scenePhaseChanged(to: phase) }
+    }
+}
+
+/// The live state of every piece of the shell. This is a readout, not a fixture: every number is
+/// read back out of the running kernel, the surface, the controller, or the audio device.
+private struct DiagnosticsOverlay: View {
+    @Bindable var session: GameSession
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                header
+                seams
+                surface
+                controller
+                audio
+                kernel
+            }
+            .font(.system(.footnote, design: .monospaced))
+            .foregroundStyle(.white)
+            .padding()
+            .background(.black.opacity(0.72), in: RoundedRectangle(cornerRadius: 10))
+        }
     }
 
     private var header: some View {
         HStack {
-            Text("OpenGOAL Jak 1 kernel")
+            Text("GOALPad")
                 .font(.headline)
             Spacer()
-            Button(session.isRunning ? "Shut down" : "Start") {
-                if session.isRunning {
-                    session.stop()
-                } else {
-                    session.start()
+            Button("Shut down") { session.shutdown() }
+                .buttonStyle(.bordered)
+        }
+    }
+
+    private var seams: some View {
+        section("Engine seams in this build", [
+            ("game data", flag(GOALPadRuntimeBridge.isDataSeamLinked)),
+            ("controller", flag(GOALPadRuntimeBridge.isInputSeamLinked)),
+            ("audio", flag(GOALPadRuntimeBridge.isAudioSeamLinked)),
+            ("renderer", flag(GOALPadRenderSurface.shared.isRendererLinked)),
+        ])
+    }
+
+    private var surface: some View {
+        let geometry = session.geometry
+        return VStack(alignment: .leading, spacing: 4) {
+            section("Presentation surface", [
+                ("drawable", "\(geometry.drawableWidth)x\(geometry.drawableHeight)"),
+                ("internal", "\(geometry.internalWidth)x\(geometry.internalHeight)"),
+                ("draw region", "\(geometry.drawRegionWidth)x\(geometry.drawRegionHeight)"),
+                ("frames presented", "\(session.framesPresented)"),
+                ("memory warnings", "\(session.memoryWarnings)"),
+            ])
+            let scale = Binding(get: { session.settings.internalResolutionScale },
+                                set: { session.settings.internalResolutionScale = $0 })
+            Picker("Internal resolution", selection: scale) {
+                ForEach(RenderSettings.availableScales, id: \.self) { scale in
+                    Text("\(scale)x  \(session.settings.label(for: scale))").tag(scale)
                 }
             }
-            .buttonStyle(.bordered)
-        }
-    }
-
-    @ViewBuilder
-    private func readout(for status: GOALPadKernelStatus) -> some View {
-        Text(status.message)
-            .foregroundStyle(status.isRunning ? .green : .red)
-
-        if status.isRunning {
-            section("EE main memory", [
-                ("base", String(format: "%p", UInt(status.mainMemoryAddress))),
-                ("size", String(format: "#x%x (%.0f MiB)", status.mainMemorySize,
-                                Double(status.mainMemorySize) / 1_048_576)),
-                ("PROT_EXEC granted", status.isMainMemoryExecutable ? "yes" : "NO"),
-            ])
-
-            section("Kernel heaps", [
-                ("global base", goalPointer(status.globalHeapBaseOffset)),
-                ("global current", goalPointer(status.globalHeapCurrentOffset)),
-                ("global top base", goalPointer(status.globalHeapTopBaseOffset)),
-                ("global used", "\(status.globalHeapUsedBytes) bytes"),
-                ("debug base", goalPointer(status.debugHeapBaseOffset)),
-            ])
-
-            section("Symbol table", [
-                ("table", goalPointer(status.symbolTableOffset)),
-                ("s7", goalPointer(status.s7Offset)),
-                ("last symbol", goalPointer(status.lastSymbolOffset)),
-                ("hashed symbols", "\(status.symbolCount)"),
-            ])
-
-            Text("Bootstrapped types (read out of the live heap)")
-                .font(.system(.footnote, design: .monospaced).weight(.semibold))
-            ForEach(status.types, id: \.symbolName) { type in
-                Text("  \(type.typeName) : \(type.parentName)  " +
-                     "\(goalPointer(type.typeOffset))  size \(type.allocatedSize)  " +
-                     "methods \(type.methodCount)")
+            .pickerStyle(.menu)
+            if !GOALPadRenderSurface.shared.lastError.isEmpty {
+                Text(GOALPadRenderSurface.shared.lastError).foregroundStyle(.red)
             }
-
-            Text("Architecture: \(status.architecture)")
-            Text("Storage: \(status.storagePath)")
         }
+    }
+
+    private var controller: some View {
+        section("Controller", [
+            ("device", session.input.controllerName ?? "none connected"),
+            ("DualSense", flag(session.input.isDualSense)),
+            ("held", buttonNames(session.input.buttons)),
+            ("left stick", "\(session.input.leftStick.x), \(session.input.leftStick.y)"),
+            ("right stick", "\(session.input.rightStick.x), \(session.input.rightStick.y)"),
+            ("rumble", "large \(session.input.rumble.large), small \(session.input.rumble.small)"),
+            ("reads by GOAL", "\(GOALPadInputReadCount(ControllerInput.primaryPort))"),
+        ])
+    }
+
+    private var audio: some View {
+        section("Audio", [
+            ("device", session.audio.isRunning ? "running" : "stopped"),
+            ("rate", "\(session.audio.sampleRate) Hz stereo"),
+            ("frames asked for", "\(session.audio.framesRequested)"),
+            ("frames produced", "\(session.audio.framesProduced)"),
+            ("error", session.audio.lastError ?? "none"),
+        ])
     }
 
     @ViewBuilder
-    private func section(_ title: String, _ rows: [(String, String)]) -> some View {
-        Text(title)
-            .font(.system(.footnote, design: .monospaced).weight(.semibold))
-        ForEach(rows, id: \.0) { row in
-            Text("  \(row.0): \(row.1)")
+    private var kernel: some View {
+        if let status = session.kernel {
+            section("GOAL kernel", [
+                ("state", status.isRunning ? "live" : "down"),
+                ("architecture", status.architecture),
+                ("EE main memory", String(format: "%p, #x%x", UInt(status.mainMemoryAddress),
+                                          status.mainMemorySize)),
+                ("PROT_EXEC granted", status.isMainMemoryExecutable ? "yes" : "NO"),
+                ("s7", String(format: "#x%08x", status.s7Offset)),
+                ("hashed symbols", "\(status.symbolCount)"),
+                ("global heap used", "\(status.globalHeapUsedBytes) bytes"),
+                ("data directory", status.isDataDirectoryAccepted ? status.dataDirectory
+                    : "NOT connected"),
+            ])
+            Text(status.message)
+                .foregroundStyle(status.isRunning ? .green : .red)
         }
     }
 
-    private func goalPointer(_ offset: UInt32) -> String {
-        String(format: "#x%08x", offset)
+    private func section(_ title: String, _ rows: [(String, String)]) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.system(.footnote, design: .monospaced).weight(.semibold))
+            ForEach(rows, id: \.0) { row in
+                Text("  \(row.0): \(row.1)")
+            }
+        }
     }
-}
 
-#Preview {
-    ContentView()
+    private func flag(_ value: Bool) -> String {
+        value ? "linked" : "not in this build"
+    }
+
+    private func buttonNames(_ buttons: GOALPadButton) -> String {
+        let names: [(GOALPadButton, String)] = [
+            (.cross, "X"), (.circle, "O"), (.square, "[]"), (.triangle, "/\\"),
+            (.up, "up"), (.down, "down"), (.left, "left"), (.right, "right"),
+            (.L1, "L1"), (.R1, "R1"), (.L2, "L2"), (.R2, "R2"),
+            (.L3, "L3"), (.R3, "R3"), (.start, "start"), (.select, "select"),
+        ]
+        let held = names.filter { buttons.contains($0.0) }.map(\.1)
+        return held.isEmpty ? "-" : held.joined(separator: " ")
+    }
 }

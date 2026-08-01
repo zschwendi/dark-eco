@@ -105,8 +105,10 @@ xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
   -allowProvisioningUpdates build
 ```
 
-The resulting executable is thin `arm64`, SHA-256
-`444513aa4fb82fc5e1d5b3ca6183539ee37d8cb3fbf148d32bf3f8a7598db134`.
+The kernel-core checkpoint's executable was thin `arm64`, SHA-256
+`444513aa4fb82fc5e1d5b3ca6183539ee37d8cb3fbf148d32bf3f8a7598db134`. After the
+app-shell change it is SHA-256
+`a3797df3f7aa17204eb5c4b5d9834ab6f08f0505c3d6fa355483a3c3a487ab8b`.
 `codesign --verify --deep --strict` reports `valid on disk` and `satisfies its
 Designated Requirement`; the authority is `Apple Development:
 zschwendi@zephyrstudios.dev (BZ68MJN5R5)`, team `D2YYJ54Q6V`. Entitlements are
@@ -118,8 +120,16 @@ app-root dynamic library.
 their absence; that is no longer true and is not a regression. The kernel maps
 EE main memory and traps its low 512 kB, so those imports are expected. It asks
 for `PROT_EXEC` first and records the refusal rather than depending on it — see
-`goal_kernel_core_state::main_memory_executable`. There is still no `dlopen`,
-`dlsym`, `pthread_jit_write_protect_np`, Preview, or JIT marker.
+`goal_kernel_core_state::main_memory_executable`. There is no `dlopen`,
+`pthread_jit_write_protect_np`, Preview, or JIT marker.
+
+**The app-shell build also imports `dlsym`.** The kernel-core build did not; a
+Release build of the immediately preceding tree was checked and has only `mmap`
+and `mprotect`. No GOALPad object file references `dlsym` — every `.o` in the
+link was scanned — so it arrives with the Apple runtime support the shell's new
+frameworks pull in (AVFAudio, GameController, Core Haptics, Swift
+`Synchronization`). It is a symbol lookup in already-loaded images, not code
+generation, and there is still no `dlopen` to load anything new.
 
 This is an Apple Development signature, not distribution or App Store evidence.
 No physical-device installation or execution was performed for this checkpoint;
@@ -145,8 +155,8 @@ compiled and no SDL library is linked.
 
 `GOALPadRuntimeCore.{hpp,cpp}` wraps the C entry point in
 `OpenGOAL/game/kernel/core/kernel_core.h`. `GOALPadRuntimeBridge.{h,mm}`
-exposes exactly two operations to Swift — `startKernel` and `stopKernel` — plus
-a read-only status object. Startup is all-or-nothing: any failure, including a
+exposes `startKernelWithDataDirectory:` and `stopKernel` to Swift, plus a
+read-only status object. Startup is all-or-nothing: any failure, including a
 fundamental type that cannot be read back out of the heap, tears the session
 down before returning, and no C++ exception can reach Objective-C.
 
@@ -176,6 +186,175 @@ cmake --build build/Release/bin -j 4 --target jak1-kernel-core-smoke-test
 
 It is also registered with CTest, so `ctest --output-on-failure` in
 `OpenGOAL/build/Release/bin` covers it alongside the rest of the suite.
+
+## The iPad app shell
+
+**Implemented**, except where noted. This is everything the application needs
+that does not depend on the engine and the Metal renderer being fused into one
+process: game data on the device, controller input, audio output, the
+presentation surface, and app lifecycle.
+
+### Engine seams and why they are gated
+
+The shell is written against three narrow C seams in
+`OpenGOAL/game/kernel/core/`:
+
+| Seam | Header | What the shell calls |
+| --- | --- | --- |
+| game data | `kernel_core.h` (ships with `dgo_loader.h`) | `goal_kernel_core_set_data_directory` |
+| controller | `pad.h` | `goal_pad_state_neutral`, `goal_pad_set_state`, `goal_pad_get_rumble`, `goal_pad_read_count` |
+| audio | `sound_rpc.h` | `goal_sound_sample_rate`, `goal_sound_pull_audio`, `goal_sound_shutdown` |
+
+None of them is in the pinned submodule yet; they live on the OpenGOAL branches
+that the engine/renderer fusion is merging. `GOALPad/Native/GOALPadEngineSeams.h`
+is the only file that knows this: it detects each seam with `__has_include` and
+defines `GOALPAD_HAVE_DATA_SEAM`, `GOALPAD_HAVE_PAD_SEAM`, and
+`GOALPAD_HAVE_SOUND_SEAM`. Where a seam is missing the shell reports its absence
+on screen and in the log rather than pretending to work — a run today says
+`Game data was NOT connected: this build has no data-directory entry point`, the
+audio device produces silence, and `reads by GOAL` stays 0. When the submodule
+pin carries the headers and their translation units, the seams light up with no
+source change.
+
+`GOALPadRuntimeBridge.mm` static-asserts every button bit, the analog neutral
+value, and the port count against `goal_pad_button` whenever the pad seam is
+present, so the two definitions cannot drift apart silently.
+
+### Game data on the device
+
+The player's own prepared data lives in `Documents/Jak1/iso` and
+`Documents/Jak1/fr3` — the `iso/` and `fr3/` directories the OpenGOAL Jak 1
+extraction produces, about 1.5 GB. No game data ships with GOALPad, none is
+downloaded, and `Documents/Jak1` is marked `isExcludedFromBackup`.
+
+`GOALPad-Info.plist` supplies `UIFileSharingEnabled` and
+`LSSupportsOpeningDocumentsInPlace`, which together expose that directory to
+Finder and the Files app. Xcode's generated `Info.plist` does not emit
+`UIFileSharingEnabled` from an `INFOPLIST_KEY_` build setting — it was tried and
+silently dropped — so the target sets `INFOPLIST_FILE = GOALPad-Info.plist` and
+Xcode merges the generated keys into that partial file. The file deliberately
+sits outside the `GOALPad/` synchronized group so it is not also copied in as a
+bundle resource.
+
+Copying the two directories in from Finder or Files is the primary route: it
+writes the data once. `GameDataImporter` is the secondary route, for data on an
+external drive or in iCloud Drive; it copies file by file with progress and
+cancellation, skips files already present at the same size, and needs the free
+space twice over. It only ever reads the folder the player picked.
+
+`GameDataInspector` reports what is actually on disk against the manifest in
+`GameData.swift`: `KERNEL.CGO` and `GAME.CGO` (without which the game cannot
+boot), 25 level DGOs, and 26 `.fr3` files. Missing names are listed individually.
+The resolved directory is handed to `GOALPadRuntimeBridge.startKernel(withDataDirectory:)`.
+
+The app can only read inside its own container. A symlink from
+`Documents/Jak1/iso` to a directory elsewhere on the host reads as empty, which
+was confirmed on the simulator; the data has to actually be in `Documents`.
+
+### Controller
+
+`ControllerInput` uses GameController: connect/disconnect notifications,
+wireless discovery, and `GCExtendedGamepad`. GameController names face buttons by
+position and the DualSense's are where the PS2's were, so A/B/X/Y map to
+cross/circle/square/triangle directly. Shoulders are L1/R1, triggers are L2/R2
+plus an analog pressure byte, thumbstick buttons are L3/R3, `buttonMenu`
+(Options) is Start and `buttonOptions` (Create) is Select. Sticks become a byte
+per axis with 127 at rest, growing right and down — the Y axis is negated
+because GameController reports up as positive and the PS2 pad did not. With no
+controller attached the port is pushed as disconnected, so GOAL is told the port
+is empty rather than told a pad with nothing pressed is attached.
+
+Rumble reads `goal_pad_get_rumble` each frame and drives two Core Haptics
+engines, `.leftHandle` for the on/off motor and `.rightHandle` for the analog
+one, through a continuous event whose intensity is updated in place. The
+DualSense's adaptive triggers are deliberately not driven: the PS2 pad had none,
+so nothing in the game asks for them.
+
+**Not validated:** no physical controller. The simulator's virtual "Gamepad" was
+detected, adopted, and polled, which exercises discovery, adoption and the push
+path, but no real button mapping, stick range, or haptic output has been
+confirmed on hardware, and no DualSense has ever been connected.
+
+### Audio
+
+`AudioOutput` opens an `AVAudioEngine` source node at `GOALPadAudioSampleRate()`
+— 48 kHz stereo — and connects it to the main mixer with that format, so the
+engine's output chain resamples to whatever the hardware is running at rather
+than asking 989snd for a different rate. The render block is real-time safe: it
+pulls into a preallocated 4096-frame interleaved `Int16` buffer, converts to the
+node's two deinterleaved float channels, allocates nothing and takes no
+Objective-C path. When the seam returns 0 frames it sets the silence flag and
+zeroes the buffers.
+
+The session category is `.playback`. Interruptions suspend and resume on
+`.shouldResume`, losing the old route (headphones out) suspends,
+`mediaServicesWereReset` and `AVAudioEngineConfigurationChange` rebuild the
+graph, and backgrounding gives up the device entirely.
+
+### Presentation surface
+
+`GameSurfaceView` hosts a `UIView` whose `layerClass` is `CAMetalLayer` and hands
+the layer to `GOALPadRenderSurface`, which sets the device, `BGRA8Unorm`, and
+`framebufferOnly`. A `CADisplayLink` at a preferred 60 Hz drives one frame.
+
+The geometry matches what `MetalRenderer::encode_present_pass` in the OpenGOAL
+fork expects: the game renders into an offscreen target at its internal
+resolution, and a present pass draws that target into a centred, letterboxed
+draw region of the drawable. The draw region is the largest rectangle of the
+game's own aspect that fits the drawable.
+
+**Internal render resolution is 2x — 1280x960 — by default,** settable to 1x, 2x,
+3x or 4x and persisted in `UserDefaults`. The scale is a whole multiple of the
+PS2's 640x480 so the game keeps its 4:3 aspect and its HUD keeps its
+proportions. 2x is clearly better than the PS2 and leaves headroom; 3x
+(1920x1440) is close to one-to-one with an 11-inch iPad's 1668-pixel short edge
+and is the obvious next step. The default should be revisited once the fused
+renderer can be measured on hardware — it was chosen for headroom, not from a
+measurement.
+
+Until the Metal renderer is part of this build, `-[GOALPadRenderSurface
+presentPlaceholder:drawable:geometry:]` stands in for
+`MetalRenderer::render_frame`. It is one function and does the same two things
+the real one does — render an offscreen target at the internal resolution, then
+present it into the draw region — so the surface, the drawable, and the letterbox
+arithmetic are exercised for real. `rendererLinked` reports `NO` and the overlay
+says so.
+
+### Lifecycle
+
+`GameSession` owns the kernel session, the controller, the audio device and the
+frame loop. One frame is: push the controller state, run the engine, present,
+then read the vibration request back out. The engine step is a marked gap.
+
+`scenePhase` drives it. Going inactive or background stops the frame loop —
+asking a backgrounded layer for a drawable blocks until the app returns —
+suspends the audio device, and stops rumble. Coming back resumes both. The idle
+timer is disabled only while a session is live. `willTerminate` shuts the session
+down cleanly through the bridge. A memory warning is counted and logged; the
+kernel's 128 MiB is fixed for the life of the session so the shell has nothing to
+give back, and dropping cached level data will be the fused renderer's decision.
+
+### What was observed on the simulator
+
+iPad Pro 11-inch (M5), `id=96C5C21A-B925-4213-82A3-90DCB8518339`, Debug, with the
+player's own `iso/` and `fr3/` hard-linked into the app container:
+
+- Game data: `Complete: 321 files in iso/, 26 in fr3/, 1.63 GB.`
+- Kernel: live, `arm64`, `PROT_EXEC granted: NO`, `s7 #x0018fe04`, 90 hashed
+  symbols, 533002 bytes of global heap — the same values the kernel-core
+  checkpoint recorded — and `data directory: NOT connected`.
+- Surface: drawable 1668x2420, internal 1280x960, draw region 1668x1251, 1184
+  frames presented in 20 s (~59 fps).
+- Audio: running, 48000 Hz stereo, 949760 frames asked for in 20 s (48 kHz
+  exactly), 0 produced because the seam is absent.
+- Lifecycle: backgrounding logged `Audio suspended after 372736 frames` (7.8 s of
+  the 8 s it had been in the foreground) and returning logged `Audio resuming`
+  followed by a fresh `Audio started at 48000 Hz stereo`.
+- Controller: the simulator's virtual `Gamepad` was discovered and adopted.
+
+Only the portrait drawable was exercised, so the draw region's width-limited
+branch is the one with evidence; the height-limited branch is the same
+arithmetic with the operands swapped.
 
 ## Build the pinned OpenGOAL ARM64 host baseline
 

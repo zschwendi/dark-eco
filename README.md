@@ -97,6 +97,7 @@ playing Jak 1 on a signed physical iPad.
 
 ```text
 GOALPad/                 SwiftUI application and narrow native bridge
+GOALPad-Info.plist       Partial Info.plist: Files/Finder access to the game directory
 GOALPad.xcodeproj/       Application project
 docs/                    Project policy and build documentation
 docs/APPLE_PLATFORM_DIRECTION.md

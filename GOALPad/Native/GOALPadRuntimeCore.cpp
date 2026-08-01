@@ -1,6 +1,6 @@
 #include "GOALPadRuntimeCore.hpp"
 
-#include "game/kernel/core/kernel_core.h"
+#include "GOALPadEngineSeams.h"
 #include "game/kernel/jak1/kscheme.h"
 
 #include <array>
@@ -73,7 +73,26 @@ goalpad::KernelStatus failure(std::string message, std::string architecture) {
 
 namespace goalpad {
 
-KernelStatus start_kernel(std::string storage_path) noexcept {
+/*!
+ * Point the kernel at the player's own prepared data. Reports whether this build could accept it
+ * rather than silently succeeding: without the data seam nothing can open a game file, and the app
+ * has to say so instead of leaving the player to discover it at the title screen.
+ */
+static bool set_data_directory(const std::string& path, std::string* out_error) {
+#if GOALPAD_HAVE_DATA_SEAM
+  if (goal_kernel_core_set_data_directory(path.c_str()) != GOAL_KERNEL_CORE_OK) {
+    *out_error = goal_kernel_core_last_error();
+    return false;
+  }
+  return true;
+#else
+  (void)path;
+  *out_error = "this build has no data-directory entry point";
+  return false;
+#endif
+}
+
+KernelStatus start_kernel(std::string data_directory) noexcept {
   try {
     std::string architecture = architecture_name();
 
@@ -99,7 +118,7 @@ KernelStatus start_kernel(std::string storage_path) noexcept {
 
     KernelStatus status;
     status.architecture = std::move(architecture);
-    status.storage_path = std::move(storage_path);
+    status.data_directory = std::move(data_directory);
     status.main_memory_address = state.main_memory_address;
     status.main_memory_size = state.main_memory_size;
     status.main_memory_executable = state.main_memory_executable != 0;
@@ -124,9 +143,17 @@ KernelStatus start_kernel(std::string storage_path) noexcept {
       status.types.push_back(std::move(type));
     }
 
+    std::string data_error;
+    if (!status.data_directory.empty()) {
+      status.data_directory_accepted = set_data_directory(status.data_directory, &data_error);
+    }
+
     status.running = true;
     status.message = "Real OpenGOAL Jak 1 kernel initialized: heaps, symbol table, and " +
                      std::to_string(status.types.size()) + " fundamental types are live.";
+    if (!status.data_directory.empty() && !status.data_directory_accepted) {
+      status.message += " Game data was NOT connected: " + data_error + ".";
+    }
     return status;
   } catch (const std::exception& e) {
     return failure(std::string("kernel startup threw: ") + e.what(), architecture_name());

@@ -21,7 +21,11 @@ struct KernelStatus {
   bool running = false;
   std::string message;
   std::string architecture;
-  std::string storage_path;
+
+  /*! The directory holding the player's own `iso/` and `fr3/` data, as the kernel was told it. */
+  std::string data_directory;
+  /*! False when a data directory was supplied but this build has no entry point to hand it to. */
+  bool data_directory_accepted = false;
 
   std::uint64_t main_memory_address = 0;
   std::uint32_t main_memory_size = 0;
@@ -46,10 +50,14 @@ struct KernelStatus {
  * table, and the fundamental types. All-or-nothing: on any failure the kernel is torn back down
  * and the returned status has `running == false` and a message naming the failure.
  *
+ * `data_directory` is the directory holding the player's own prepared `iso/` and `fr3/` data, or
+ * empty to start without game data. No game data ships with this application and none is ever
+ * written into it.
+ *
  * Never throws. The kernel is a process-wide singleton, so a second call while a session is live
  * fails instead of starting a second one.
  */
-KernelStatus start_kernel(std::string storage_path) noexcept;
+KernelStatus start_kernel(std::string data_directory) noexcept;
 
 /*! Tear the kernel down. Safe to call when no session is live. Never throws. */
 void stop_kernel() noexcept;

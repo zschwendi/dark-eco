@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The player's own Jak 1 data lives in Documents/Jak1. These two keys are what let them put
+	     it there from Finder or the Files app, which is the only practical way to move ~1.5 GB
+	     onto an iPad. Xcode's generated Info.plist does not support UIFileSharingEnabled through
+	     an INFOPLIST_KEY_ build setting, so this partial file supplies it and Xcode merges the
+	     generated keys into it. -->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+</dict>
+</plist>

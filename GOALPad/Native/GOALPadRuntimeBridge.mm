@@ -1,8 +1,33 @@
 #import "GOALPadRuntimeBridge.h"
 
+#include "GOALPadEngineSeams.h"
 #include "GOALPadRuntimeCore.hpp"
 
+#include <algorithm>
 #include <string>
+
+#if GOALPAD_HAVE_PAD_SEAM
+// The app's button bits are the game's button bits. If either side ever moves, this build stops
+// rather than silently sending Jak the wrong buttons.
+static_assert((uint32_t)GOALPadButtonSelect == (uint32_t)GOAL_PAD_SELECT, "pad bit drift");
+static_assert((uint32_t)GOALPadButtonL3 == (uint32_t)GOAL_PAD_L3, "pad bit drift");
+static_assert((uint32_t)GOALPadButtonR3 == (uint32_t)GOAL_PAD_R3, "pad bit drift");
+static_assert((uint32_t)GOALPadButtonStart == (uint32_t)GOAL_PAD_START, "pad bit drift");
+static_assert((uint32_t)GOALPadButtonUp == (uint32_t)GOAL_PAD_UP, "pad bit drift");
+static_assert((uint32_t)GOALPadButtonRight == (uint32_t)GOAL_PAD_RIGHT, "pad bit drift");
+static_assert((uint32_t)GOALPadButtonDown == (uint32_t)GOAL_PAD_DOWN, "pad bit drift");
+static_assert((uint32_t)GOALPadButtonLeft == (uint32_t)GOAL_PAD_LEFT, "pad bit drift");
+static_assert((uint32_t)GOALPadButtonL2 == (uint32_t)GOAL_PAD_L2, "pad bit drift");
+static_assert((uint32_t)GOALPadButtonR2 == (uint32_t)GOAL_PAD_R2, "pad bit drift");
+static_assert((uint32_t)GOALPadButtonL1 == (uint32_t)GOAL_PAD_L1, "pad bit drift");
+static_assert((uint32_t)GOALPadButtonR1 == (uint32_t)GOAL_PAD_R1, "pad bit drift");
+static_assert((uint32_t)GOALPadButtonTriangle == (uint32_t)GOAL_PAD_TRIANGLE, "pad bit drift");
+static_assert((uint32_t)GOALPadButtonCircle == (uint32_t)GOAL_PAD_CIRCLE, "pad bit drift");
+static_assert((uint32_t)GOALPadButtonCross == (uint32_t)GOAL_PAD_X, "pad bit drift");
+static_assert((uint32_t)GOALPadButtonSquare == (uint32_t)GOAL_PAD_SQUARE, "pad bit drift");
+static_assert(GOALPadAnalogNeutral == GOAL_PAD_ANALOG_NEUTRAL, "analog neutral drift");
+static_assert(GOALPadPortCount == GOAL_PAD_PORTS, "port count drift");
+#endif
 
 @interface GOALPadKernelType ()
 @property(nonatomic, readwrite) NSString *symbolName;
@@ -20,7 +45,8 @@
 @property(nonatomic, readwrite, getter=isRunning) BOOL running;
 @property(nonatomic, readwrite) NSString *message;
 @property(nonatomic, readwrite) NSString *architecture;
-@property(nonatomic, readwrite) NSString *storagePath;
+@property(nonatomic, readwrite) NSString *dataDirectory;
+@property(nonatomic, readwrite, getter=isDataDirectoryAccepted) BOOL dataDirectoryAccepted;
 @property(nonatomic, readwrite) uint64_t mainMemoryAddress;
 @property(nonatomic, readwrite) uint32_t mainMemorySize;
 @property(nonatomic, readwrite, getter=isMainMemoryExecutable) BOOL mainMemoryExecutable;
@@ -45,70 +71,38 @@ static NSString *GOALPadString(const std::string &value) {
   return string ?: @"";
 }
 
-/// Where prepared, user-supplied game data will live. Created up front so a failure to prepare
-/// application storage is reported instead of surfacing later as a mysterious load failure.
-static NSString *GOALPadStoragePath(NSError **outError) {
-  NSFileManager *manager = [NSFileManager defaultManager];
-  NSURL *applicationSupport = [manager URLForDirectory:NSApplicationSupportDirectory
-                                              inDomain:NSUserDomainMask
-                                     appropriateForURL:nil
-                                                create:YES
-                                                 error:outError];
-  if (applicationSupport == nil) {
-    return nil;
-  }
-  NSURL *storageURL =
-      [[applicationSupport URLByAppendingPathComponent:@"GOALPad" isDirectory:YES]
-          URLByAppendingPathComponent:@"Jak1"
-                          isDirectory:YES];
-  if (![manager createDirectoryAtURL:storageURL
-         withIntermediateDirectories:YES
-                          attributes:nil
-                               error:outError]) {
-    return nil;
-  }
-  return @(storageURL.fileSystemRepresentation);
+static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dataDirectory) {
+  GOALPadKernelStatus *status = [[GOALPadKernelStatus alloc] init];
+  status.running = NO;
+  status.message = message;
+  status.architecture = @"";
+  status.dataDirectory = dataDirectory ?: @"";
+  status.types = @[];
+  NSLog(@"GOALPad kernel: %@", message);
+  return status;
 }
 
 @implementation GOALPadRuntimeBridge
 
-+ (GOALPadKernelStatus *)startKernel {
-  NSError *error = nil;
-  NSString *storagePath = GOALPadStoragePath(&error);
-  if (storagePath == nil) {
-    GOALPadKernelStatus *status = [[GOALPadKernelStatus alloc] init];
-    status.running = NO;
-    status.message = [NSString stringWithFormat:@"Application storage is unavailable: %@",
-                                                error.localizedDescription ?: @"unknown error"];
-    status.architecture = @"";
-    status.storagePath = @"";
-    status.types = @[];
-    NSLog(@"GOALPad kernel: %@", status.message);
-    return status;
-  }
++ (GOALPadKernelStatus *)startKernelWithDataDirectory:(NSString *)dataDirectory {
+  NSString *path = dataDirectory ?: @"";
 
-  // goalpad::start_kernel is noexcept and reports failure in its status, but the conversions
-  // below allocate, so nothing C++ is allowed to escape into Objective-C either way.
+  // goalpad::start_kernel is noexcept and reports failure in its status, but the conversions below
+  // allocate, so nothing C++ is allowed to escape into Objective-C either way.
   goalpad::KernelStatus core;
   try {
-    core = goalpad::start_kernel(storagePath.UTF8String);
+    core = goalpad::start_kernel(path.UTF8String);
   } catch (...) {
     goalpad::stop_kernel();
-    GOALPadKernelStatus *status = [[GOALPadKernelStatus alloc] init];
-    status.running = NO;
-    status.message = @"The native kernel bridge threw; no session is live.";
-    status.architecture = @"";
-    status.storagePath = storagePath;
-    status.types = @[];
-    NSLog(@"GOALPad kernel: %@", status.message);
-    return status;
+    return GOALPadFailedStatus(@"The native kernel bridge threw; no session is live.", path);
   }
 
   GOALPadKernelStatus *status = [[GOALPadKernelStatus alloc] init];
   status.running = core.running;
   status.message = GOALPadString(core.message);
   status.architecture = GOALPadString(core.architecture);
-  status.storagePath = GOALPadString(core.storage_path);
+  status.dataDirectory = GOALPadString(core.data_directory);
+  status.dataDirectoryAccepted = core.data_directory_accepted;
   status.mainMemoryAddress = core.main_memory_address;
   status.mainMemorySize = core.main_memory_size;
   status.mainMemoryExecutable = core.main_memory_executable;
@@ -122,8 +116,7 @@ static NSString *GOALPadStoragePath(NSError **outError) {
   status.lastSymbolOffset = core.last_symbol;
   status.symbolCount = core.symbol_count;
 
-  NSMutableArray<GOALPadKernelType *> *types =
-      [NSMutableArray arrayWithCapacity:core.types.size()];
+  NSMutableArray<GOALPadKernelType *> *types = [NSMutableArray arrayWithCapacity:core.types.size()];
   for (const auto &coreType : core.types) {
     GOALPadKernelType *type = [[GOALPadKernelType alloc] init];
     type.symbolName = GOALPadString(coreType.symbol_name);
@@ -136,13 +129,17 @@ static NSString *GOALPadStoragePath(NSError **outError) {
   }
   status.types = types;
 
-  NSLog(@"GOALPad kernel: %@ (arch=%@, s7=#x%08x, symbols=%d, PROT_EXEC=%@)", status.message,
-        status.architecture, status.s7Offset, status.symbolCount,
-        status.isMainMemoryExecutable ? @"yes" : @"no");
+  NSLog(@"GOALPad kernel: %@ (arch=%@, s7=#x%08x, symbols=%d, PROT_EXEC=%@, data=%@)",
+        status.message, status.architecture, status.s7Offset, status.symbolCount,
+        status.isMainMemoryExecutable ? @"yes" : @"no",
+        status.isDataDirectoryAccepted ? status.dataDirectory : @"not connected");
   return status;
 }
 
 + (void)stopKernel {
+#if GOALPAD_HAVE_SOUND_SEAM
+  goal_sound_shutdown();
+#endif
   goalpad::stop_kernel();
   NSLog(@"GOALPad kernel: shut down.");
 }
@@ -151,4 +148,105 @@ static NSString *GOALPadStoragePath(NSError **outError) {
   return goalpad::kernel_is_running() ? YES : NO;
 }
 
++ (BOOL)isDataSeamLinked {
+  return GOALPAD_HAVE_DATA_SEAM ? YES : NO;
+}
+
++ (BOOL)isInputSeamLinked {
+  return GOALPAD_HAVE_PAD_SEAM ? YES : NO;
+}
+
++ (BOOL)isAudioSeamLinked {
+  return GOALPAD_HAVE_SOUND_SEAM ? YES : NO;
+}
+
 @end
+
+#pragma mark - Controller input
+
+void GOALPadInputSetState(int32_t port, GOALPadControllerState state) {
+#if GOALPAD_HAVE_PAD_SEAM
+  goal_pad_state pad;
+  goal_pad_state_neutral(&pad);
+  pad.buttons = state.buttons;
+  pad.left_x = state.leftX;
+  pad.left_y = state.leftY;
+  pad.right_x = state.rightX;
+  pad.right_y = state.rightY;
+
+  // The DualShock 2 pressure bytes, in the order `hw-cpad`'s `abutton` reports them. Jak 1 reads
+  // the digital word rather than these, so full pressure for a held button is enough; the two
+  // triggers are the only ones the app has a real analog value for.
+  const uint32_t pressure_button[GOAL_PAD_PRESSURE_BYTES] = {
+      GOAL_PAD_RIGHT, GOAL_PAD_LEFT,   GOAL_PAD_UP, GOAL_PAD_DOWN,
+      GOAL_PAD_TRIANGLE, GOAL_PAD_CIRCLE, GOAL_PAD_X,  GOAL_PAD_SQUARE,
+      GOAL_PAD_L1,    GOAL_PAD_R1,     GOAL_PAD_L2, GOAL_PAD_R2};
+  for (int i = 0; i < GOAL_PAD_PRESSURE_BYTES; ++i) {
+    pad.pressure[i] = (state.buttons & pressure_button[i]) ? 255 : 0;
+  }
+  pad.pressure[10] = state.leftTrigger;
+  pad.pressure[11] = state.rightTrigger;
+
+  goal_pad_set_state(port, &pad);
+#else
+  (void)port;
+  (void)state;
+#endif
+}
+
+void GOALPadInputSetDisconnected(int32_t port) {
+#if GOALPAD_HAVE_PAD_SEAM
+  goal_pad_state pad;
+  goal_pad_state_neutral(&pad);
+  pad.connected = 0;
+  goal_pad_set_state(port, &pad);
+#else
+  (void)port;
+#endif
+}
+
+GOALPadRumble GOALPadInputRumble(int32_t port) {
+  GOALPadRumble rumble = {0, 0};
+#if GOALPAD_HAVE_PAD_SEAM
+  uint8_t large = 0;
+  uint8_t small = 0;
+  if (goal_pad_get_rumble(port, &large, &small) == GOAL_KERNEL_CORE_OK) {
+    rumble.large = large;
+    rumble.small = small;
+  }
+#else
+  (void)port;
+#endif
+  return rumble;
+}
+
+int32_t GOALPadInputReadCount(int32_t port) {
+#if GOALPAD_HAVE_PAD_SEAM
+  return goal_pad_read_count(port);
+#else
+  (void)port;
+  return 0;
+#endif
+}
+
+#pragma mark - Audio output
+
+int32_t GOALPadAudioSampleRate(void) {
+#if GOALPAD_HAVE_SOUND_SEAM
+  return goal_sound_sample_rate();
+#else
+  // The rate the engine's mixer runs at, so the device is opened at the right rate before the seam
+  // lands and does not have to be reopened afterwards.
+  return 48000;
+#endif
+}
+
+int32_t GOALPadAudioPull(int16_t *out, int32_t frames) {
+#if GOALPAD_HAVE_SOUND_SEAM
+  return goal_sound_pull_audio(out, frames);
+#else
+  (void)out;
+  (void)frames;
+  return 0;
+#endif
+}
