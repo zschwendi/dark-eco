@@ -4806,3 +4806,64 @@ Backups: `/private/tmp/goalpad-backup/`.
 macOS crash dialogs were disabled for this session
 (`defaults write com.apple.CrashReporter DialogType none`); revert with
 `defaults delete com.apple.CrashReporter DialogType`.
+
+---
+
+# Checkpoint 24: the iPad draws the game
+
+Date: 2026-08-01. Extends Checkpoint 23; nothing in it is superseded.
+
+Parent commit `df69d1b`, branch `feat/ipados-native-boot`. Submodule pinned to
+`d0794462dbe1a87d427568e133f9b6c499de6dd1` on `goalpad/play-fusion`.
+
+## State
+
+**The iPad app shows the game.** On the iPad Pro 11-inch (M5) simulator
+(`96C5C21A-B925-4213-82A3-90DCB8518339`), `GOALPad.app` boots Jak 1, runs its
+frames and draws them with OpenGOAL's Metal renderer: the title screen with the
+logo, the sky, the ocean and Sandover Village, at a sustained 60 fps. The
+placeholder blue box is gone.
+
+Measured over ~50 s of the title sequence: 600 dispatcher frames every
+10.00-10.05 s with 599 of every 600 presented; 2915 DMA chains sent, 2915 drawn,
+0 dropped; 285 draw calls and 485,590 triangles in the last frame; drawable
+2420x1668, internal 1280x960, draw region 2224x1668; level art `title+village1`
+loaded with 0 failures; audio still 517632/517632 frames at 48 kHz.
+
+Screenshots: `/private/tmp/goalpad-ipad-shots/jak1-title-ipad-sim.png` and
+`jak1-title-ipad-sim-readout.png`.
+
+## How it is wired
+
+`GOALPad/Native/GOALPadMetalHost.mm` is the iPad's `goalpad_play.cpp`: it fills
+in the `goal_gfx_host` table from `game/kernel/core/gfx_host.h` and owns the
+`MetalRenderer`, the `TexturePool`, the `FixedChunkDmaCopier` and the level-art
+loading. `GOALPadGameBoot.cpp` starts it and installs the seam before the first
+DGO load. `metal_pipeline.mm` is not compiled — it is the SDL window — but the
+renderer under it is, plus 61 other files mirroring `goalpad-metal-gfx`.
+
+**Threading: one thread does everything.** The GOAL frame, the texture calls,
+the level loads and the render are the main thread inside one `CADisplayLink`
+tick, so the `TexturePool` race in Checkpoint 23's open-bugs list cannot happen
+here — there is no second thread. `syncv` returns immediately (the display link
+is the clock) and `__pc-set-levels` loads synchronously where the game asked.
+Anything that later moves the engine off the main thread has to take
+`pool.mutex()` and re-read that section of `docs/BUILDING.md` first.
+
+Shaders are compiled by a build phase with `xcrun metal` and embedded as a byte
+array; nothing is compiled on the iPad. The signed generic-iOS Release build is
+thin arm64, 26,466,656 bytes, SHA-256
+`8adcabf623df9c4d8dde1bc7ae51e88e56a235fb94a3102a54b564a772f379c6`, entitlements
+unchanged (application-identifier, team-identifier, get-task-allow), no
+writable-executable segment, no `newLibraryWithSource:`.
+
+## Next, in value order
+
+1. Drive a controller past the title screen on the simulator and confirm
+   gameplay draws, not just the title. Nothing here is evidence that it does.
+2. Physical iPad: install, measure frame rate and thermals at 2x and 3x, and
+   check memory as levels accumulate (they are never unloaded).
+3. The unported buckets the renderer names once per run: `l0-tfrag-generic`,
+   `l1-tfrag-generic`, `l1-shrub-generic`, `common-alpha-generic`, tfrag-trans
+   inside the sky-blend buckets, sprite distort. Fork-side work, not iPad work.
+4. Re-test backgrounding and returning now that the renderer holds drawables.
