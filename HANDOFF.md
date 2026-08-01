@@ -4725,3 +4725,75 @@ on their own.
 
 Require behavioral tests with mutation checks on compiler work. Emit counts are
 not evidence of correctness.
+
+---
+
+# Checkpoint 23: Jak 1 is playable
+
+Date: 2026-08-01. Supersedes Checkpoint 22.
+
+## State
+
+**The game plays.** On macOS, `goalpad-play` runs the real engine driving the
+Metal renderer: title screen, progress menu, new game, Sandover Village,
+walking, jumping, swimming, with a **DualSense over SDL including rumble**, and
+music plus sound effects. On the iPad Pro M5 simulator, the SwiftUI app boots
+the real kernel, loads the player's DGOs, runs `kernel_dispatcher`, and plays
+audio — the renderer link is the last piece before it shows picture.
+
+| Piece | State |
+| --- | --- |
+| Compiler | 10595 AOT C + 7 native ARM64 routines, 0 untranslated |
+| Runtime | Full engine loop, real DGO/STR/ramdisk RPCs, level heaps |
+| Renderers | sky, direct, sprite, tfrag/tie/shrub, ocean, merc, eyes, Generic2, shadow; **0 skipped bucket bytes** |
+| Audio | Sequenced music + SFX; streamed VAG (dialogue) in progress |
+| Input | Pad seam with no windowing dependency; SDL host + GameController on iPad |
+| macOS host | `goalpad-play` — this IS the Mac build; no SwiftUI needed |
+| iPad app | Shell complete; boots engine + audio; renderer link in flight |
+
+## Architecture that settled
+
+One shared core, two thin hosts. `game/kernel/core/` (no SDL, no windowing, no
+input, no audio backend) plus the Metal renderer behind `GfxRendererModule`;
+`gfx_host.{cpp,h}` is the host-agnostic glue. `goalpad_play.cpp` is the macOS
+host and the worked example; `GOALPad.app` is the iPadOS host. Seams:
+`goal_pad_set_state`, `goal_sound_pull_audio`, `goal_kernel_core_set_data_directory`.
+
+## Branches (fork: zschwendi/jak-pad)
+
+`goalpad/play-fusion` (everything + the live host), `play-exec` (runtime),
+`play-renderer` (all renderers), `play-r-extra` (eyes/Generic2/shadow/envmap),
+`play-audio`, `play-cleanup` (x86 + dead emitter removed, -11,521 lines).
+Parent: `feat/ipados-native-boot`.
+
+## Open bugs, from real play
+
+- Jak collapses to a plane while rotating on Y — suspect bone-matrix `std140`
+  layout in the merc shader. Being fixed with a Y-rotation sweep regression test.
+- World/camera and sprite jitter when stationary — suspect the DMA chain
+  snapshot racing the game thread.
+- **`TexturePool` data race** — it does NOT lock internally; callers must hold
+  `pool.mutex()` (see `Loader.cpp:341,538,635,698`). The game thread's
+  `texture_relocate` races the render thread's level loading. Do not hold the
+  lock across `waitUntilCompleted`.
+- Streamed VAG dialogue not implemented.
+- Level transitions beyond title→village1 unexplored.
+
+## Deferred, counted
+
+TIE wind, DepthCue, sprite distort/glow, merc blerc/mod-vtx, ocean-near
+geometry (no capture near water), and the duplicate `.fr3` parse between the
+background and merc level pools.
+
+## Housekeeping
+
+**Never put Claude attribution in git** — no `Co-Authored-By`, no "Generated
+with Claude Code". The project's own `(AI-assisted)` suffix stays. ~42 existing
+commits carry the trailer and are to be scrubbed once the in-flight agents land;
+bound the rewrite to OpenGOAL commits at or after `9eecb9c3` so upstream keeps
+its SHAs, and remap the parent's submodule gitlinks. Backups:
+`/private/tmp/goalpad-backup/`.
+
+macOS crash dialogs were disabled for this session
+(`defaults write com.apple.CrashReporter DialogType none`); revert with
+`defaults delete com.apple.CrashReporter DialogType`.
