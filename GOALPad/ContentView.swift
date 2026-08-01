@@ -10,6 +10,8 @@ struct ContentView: View {
             GameSurfaceView { session.tick() }
 
             if session.isRunning {
+                TouchControlsView(controls: session.touch, isSuppressed: session.input.isDriving)
+
                 if showDiagnostics {
                     DiagnosticsOverlay(session: session)
                         .frame(maxWidth: 620, alignment: .leading)

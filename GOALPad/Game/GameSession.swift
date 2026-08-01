@@ -18,6 +18,7 @@ nonisolated private let sessionLog = Logger(subsystem: "com.zephyrstudiosllc.GOA
 @Observable
 final class GameSession {
     let input = ControllerInput()
+    let touch = TouchControls()
     let audio = AudioOutput()
     let settings = RenderSettings()
     let importer = GameDataImporter()
@@ -131,7 +132,7 @@ final class GameSession {
 
     func tick() {
         guard isRunning, isForeground else { return }
-        input.pushFrame()
+        input.pushFrame(merging: touch.frameState())
 
         // The GOAL kernel's own frame: every process and state, then the overlord's vblank work.
         if GOALPadRuntimeBridge.runFrame() {
