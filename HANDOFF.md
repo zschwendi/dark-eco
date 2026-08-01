@@ -5215,3 +5215,43 @@ Before implementing another sound subsystem, capture and classify the first
 post-handshake RPC calls by channel, function, sizes, and command. Use that
 evidence to select one bounded protocol seam with a synthetic behavioral test;
 do not jump directly to the full desktop IOP or VAG stack.
+
+## Context-clear resume note
+
+The maintainer requested a context reset immediately after Checkpoint 28 and
+asked that work continue until Jak 1 is ready to play on the physical iPad Pro.
+A persistent goal records that outcome. The physical device `Z iPad Pro` must
+still not be accessed until the maintainer explicitly authorizes that install
+and test in the current request. Current evidence is only a signed-compatible
+arm64 iPhoneOS static-library build; it is not a playable iPad app claim.
+
+Clean resume state:
+
+- Parent `feat/ipados-native-boot`: `cb4bbe3e95177595c3f2f2ca863f85d4751e6334`.
+- Fusion `/private/tmp/GP-fusion`: `goalpad/play-fusion` at
+  `7e69774a0c91ff804f165df574f919afc6e7b826`.
+- Next worktree `/private/tmp/GP-audio`: clean branch
+  `goalpad/play-jak2-str-file`, based on the fusion head, with no code changes.
+- A documentation subagent is creating `HowToPortDecompsToApple.md`: a generic,
+  phase-gated Apple-port workflow whose worked example is the proven Jak 1
+  path. Review and commit it before starting overlapping parent-repo edits.
+
+The post-handshake trace is now concrete. GAME.CGO sends four fire-and-forget
+loader-channel 1 command-2 bank requests (`common`, `empty0`, `empty1`,
+`empty2`) after the successful version query. They must remain visibly
+unimplemented until real bank state exists. The first dispatcher frame then
+sends channel 4, function 0, async 1, a 64-byte request with a 32-byte aliased
+reply: section `-1`, max length `#x96000`, destination `#x01c0a340`, basename
+`0subti2.TXT`. The reporting stub leaves result 666 and the offered max length
+in place, so GOAL mistakes the request for a complete 614,400-byte read and
+prints the false heap-overrun once per frame.
+
+The next bounded Jak 2 implementation is therefore a synchronous ordinary-file
+STR channel-4 seam. Validate the exact 64-byte request/32-byte reply wire format,
+only read the transmitted 32 basename bytes, bounds-check the EE destination,
+load `iso/<uppercase basename>` from the configured user-data directory, reply
+with result 0 plus the actual length or result 1 plus zero length, and return
+idle for `rpc-busy?(4)`. Keep chunked sections, bank loading, player RPC,
+streamed playback, and fabricated sound-info values out of that first slice.
+Use a synthetic file test, then the real headless GAME probe, full host suite,
+and both iPhoneOS archives; no physical device is needed for this checkpoint.
