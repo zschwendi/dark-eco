@@ -5062,3 +5062,73 @@ Date: 2026-08-01. Extends Checkpoint 25. Submodule pin: `f210265273e90d55a9bda5d
 
 Scoping detail (coverage tables, kernel/renderer/sound deltas) is in the
 Checkpoint 25 sweep report summary and /private/tmp/jak2-sweep-out.
+
+---
+
+# Checkpoint 27: Jak 2 GAME.CGO loads through the native mips2c seam
+
+Date: 2026-08-01. Extends Checkpoint 26. Submodule pin:
+`162442960bdf5ceec11532200b1a114d2cce2579` on `goalpad/play-fusion`.
+
+## Integrated work
+
+The interrupted `goalpad/play-jak2-mips2c` worktree was clean and contained
+three complete commits. They are merged into `goalpad/play-fusion` by
+`7b8bfd677222d5ec5fd239e834ef3757633ddcb2`:
+
+- `a48706c3c49aafdc1160366090b5f15be91cff85` compiles the 28 existing Jak 2
+  mips2c translation units into `jak2-kernel-core` and registers the 137 unique
+  functions from upstream's Jak 2 table. Upstream names 138 entries because
+  `method_33_sky_work` appears twice; the native registry intentionally adds it
+  once.
+- `d8ec459942bbbd7dcea259df70233f2ddb35022e` routes the remaining trans, post,
+  and main-thread backup buffers through `PROCESS_STACK_SAVE_SIZE`. The first
+  full GAME load measured a 336-byte subtitle2 suspension against the old raw
+  256-byte buffer; the converted buffer is 1,280 bytes.
+- `0c7ac0db1272fa45bda713103b9170ffc594bc53` calls
+  `adgif-shader<-texture-with-update!` through the real name lookup, native
+  trampoline, mips2c scratch stack, and `ExecutionContext`, then checks the
+  resulting TEX0, TEX1, and MIPTBP1 words for a synthetic texture.
+- `162442960bdf5ceec11532200b1a114d2cce2579` documents the current Jak 2
+  headless boundary and makes explicit that `--with-game` remains an
+  exploratory, non-CTest mode.
+
+## Validation
+
+All commands ran from `/private/tmp/GP-audio` before the branch was merged.
+
+- `cmake --build build/Release/bin -j 4 --target jak2-data-boot-test` — passed;
+  the existing build was current (`ninja: no work to do`).
+- `GOALPAD_JAK2_DATA_DIR=/Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 ctest --test-dir build/Release/bin -R '^jak2-data-boot-test$' --output-on-failure`
+  — passed 1/1.
+- `./build/Release/bin/game/jak2-data-boot-test --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 --frames 100 --with-game`
+  — passed. KERNEL.CGO loaded 8/8 objects, the behavioral mips2c check passed,
+  GAME.CGO loaded 465/465 objects, and the kernel dispatcher completed 100
+  frames.
+- `GOALPAD_JAK1_DATA_DIR=/Users/zach/Developer/OS_Projects/GOALPad/Jak1/projdata/out/jak1 GOALPAD_JAK2_DATA_DIR=/Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 ctest --test-dir build/Release/bin --output-on-failure -j 1`
+  — passed 65/65 in 113.88 seconds.
+- `cmake --build build/ios-kernel-core -j 4 --target jak2-kernel-core` — passed;
+  the static library and all 28 Jak 2 mips2c translation units compiled for
+  `arm64` with the `iphoneos` SDK. Existing format/deprecation warnings remain.
+- `git diff --check goalpad/play-fusion...goalpad/play-jak2-mips2c` — passed.
+
+No simulator or physical device was accessed. No renderer, controller, audio,
+streaming, title-screen, gameplay, or physical-iPad behavior is established by
+this checkpoint.
+
+## Expected headless diagnostics
+
+The exploratory run prints `Game subtitle2 heap overrun!` once per dispatcher
+frame. This is not an observed memory overwrite. The reporting-mode sound RPC
+stubs return zero without replacing the requested STR transfer size;
+`str-load-status` therefore reports the full requested size and the original
+GOAL subtitle heap guard fires. Subtitle text remains unloaded and retries once
+per frame. This is part of the missing sound-RPC seam, not a reason to weaken
+the guard or suppress the diagnostic.
+
+## Next Jak 2 task
+
+Implement the smallest Jak 2 sound-RPC handshake needed for
+`check-irx-version`, with a focused behavioral test and unchanged Jak 1
+behavior. Do not broaden this into VAG multi-stream audio, rendering, or
+gameplay work in the same checkpoint.
