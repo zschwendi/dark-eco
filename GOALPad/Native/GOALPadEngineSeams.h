@@ -38,6 +38,16 @@
 #define GOALPAD_HAVE_SOUND_SEAM 0
 #endif
 
+/* The renderer seam: the machine layer's graphics functions, answered by whatever host installs a
+ * table of C function pointers. `gfx_host.h` arrived with the Metal renderer; without it the app
+ * has no way to put a renderer behind `__send-gfx-dma-chain` and says so on screen. */
+#if __has_include("game/kernel/core/gfx_host.h")
+#define GOALPAD_HAVE_GFX_SEAM 1
+#include "game/kernel/core/gfx_host.h"
+#else
+#define GOALPAD_HAVE_GFX_SEAM 0
+#endif
+
 /* Jak 1's own GOAL code, compiled ahead of time to C on the host and built into this app. It is
  * generated rather than committed - Scripts/generate-jak1-aot.sh - so a checkout that has not run
  * that script still builds, and says on screen that it cannot boot the game. */

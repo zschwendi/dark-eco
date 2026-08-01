@@ -1,6 +1,7 @@
 #include "GOALPadGameBoot.hpp"
 
 #include "GOALPadEngineSeams.h"
+#include "GOALPadMetalHost.hpp"
 
 #include <chrono>
 #include <climits>
@@ -274,7 +275,23 @@ BootStatus boot_game() noexcept {
       return failure("Could not install the controller seam.");
     }
     goal_dgo_install_goal_loader();
-    goal_gfx_dma_install();
+    // The renderer, in place of the machine layer's graphics stubs. It has to be answering before
+    // GAME.CGO is read: the game uploads texture pages while it loads, and a page that arrives
+    // with no pool behind it is a texture missing for the rest of the session.
+    std::string renderer_error;
+    if (goalpad::metal_host_start(&renderer_error) && goalpad::metal_host_install_seam()) {
+      status.renderer_installed = true;
+      char fr3[PATH_MAX] = {};
+      if (goal_kernel_core_resolve_data_path("fr3", fr3, sizeof(fr3)) == GOAL_KERNEL_CORE_OK) {
+        goalpad::metal_host_set_level_art_directory(fr3);
+      }
+    } else {
+      os_log_error(boot_log(), "The Metal renderer did not start: %{public}s",
+                   renderer_error.c_str());
+      // Nothing will be drawn, but a frame still builds a chain, so measure it rather than
+      // silently dropping it.
+      goal_gfx_dma_install();
+    }
     // gsound.gc's top level loads the common sound banks while GAME.CGO is still being read, so
     // 989snd has to be answering the sound RPC before that load starts.
     if (goal_sound_install() == GOAL_KERNEL_CORE_OK) {

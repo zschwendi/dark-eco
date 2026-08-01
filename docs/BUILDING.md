@@ -20,16 +20,20 @@ git submodule update --init --recursive
 The authoritative child is the dedicated public fork
 `https://github.com/zschwendi/jak-pad.git`, branch
 `goalpad/play-fusion`, pinned by the parent gitlink at
-`b62bef25c710e20ab4deed7541767c801c87ec38`. Do not substitute a different
+`d0794462dbe1a87d427568e133f9b6c499de6dd1`. Do not substitute a different
 OpenGOAL checkout when recording validation results, and pin that exact commit
 rather than the branch tip: work continues on `goalpad/play-fusion`. The `sync`
 step updates existing clones that still remember the former upstream URL.
 
-That commit unifies the runtime and renderer lines. It descends from the
-previously pinned `e2d9aa2a08cd5f5d92463c9fd8cc3c188e453fa8` and completes
-`game/kernel/core/` - the portable `jak1-kernel-core` library described below -
-with the DGO loader, the controller seam, the sound RPC and 989snd, the AOT
-object loader, and the native GOAL thread routines.
+That commit is `b62bef25c710e20ab4deed7541767c801c87ec38` - which unified the
+runtime and renderer lines and completed `game/kernel/core/`, the portable
+`jak1-kernel-core` library described below, with the DGO loader, the controller
+seam, the sound RPC and 989snd, the AOT object loader and the native GOAL thread
+routines - plus one commit: the renderer seam. `game/kernel/core/gfx_host.{cpp,h}`
+answers the machine layer's graphics functions out of a table of plain C function
+pointers a host installs, and `game/goalpad_play.cpp` is the desktop host that
+fills it in with the Metal renderer and an SDL window. The iPad's equivalent is
+`GOALPad/Native/GOALPadMetalHost.mm`; see "The Metal renderer in the app" below.
 
 ## Generate Jak 1's ahead-of-time GOAL code
 
@@ -308,16 +312,197 @@ cmake --build build/Release/bin -j 4 --target jak1-kernel-core-smoke-test
 It is also registered with CTest, so `ctest --output-on-failure` in
 `OpenGOAL/build/Release/bin` covers it alongside the rest of the suite.
 
+## The Metal renderer in the app
+
+**Implemented.** The game is drawn by OpenGOAL's Metal renderer, the same source
+the Mac plays Jak 1 with. The iPad app boots the game, runs its frames and
+presents them at 60 fps on the iPad Pro 11-inch (M5) simulator.
+
+### Where the two halves meet
+
+The kernel library names no renderer and the renderer names no host. Between
+them is `OpenGOAL/game/kernel/core/gfx_host.h`: a table of plain C function
+pointers - `send_chain`, `vsync`, `sync_path`, `texture_upload_now`,
+`texture_relocate`, `set_levels`, `set_pmode_alp` - that `goal_gfx_host_install`
+puts behind `__send-gfx-dma-chain`, `syncv`, `sync-path`,
+`__pc-texture-upload-now`, `__pc-texture-relocate`, `__pc-set-levels` and
+`put-display-env`, replacing the machine-layer stubs.
+
+`GOALPad/Native/GOALPadMetalHost.mm` fills that table in. It is the iPad's
+answer to `OpenGOAL/game/goalpad_play.cpp`, the desktop host, and it owns the
+same four things that host owns: a `MetalRenderer`, a `TexturePool`, a
+`FixedChunkDmaCopier`, and the level-art bookkeeping. `GOALPadGameBoot.cpp`
+starts it and installs the seam where `goalpad_play.cpp` does - after
+`goal_kernel_core_stub_machine_layer` and before the first DGO load, because the
+game uploads texture pages while GAME.CGO is read and a page that arrives with no
+pool behind it is a texture missing for the rest of the session.
+
+`OpenGOAL/game/graphics/pipelines/metal/metal_pipeline.mm` is deliberately not
+compiled. That file is the desktop *display*: an SDL window, the SDL event queue
+and a frame limiter. Everything below it - `MetalRenderer` and all fifteen bucket
+renderers - is compiled unchanged.
+
+### Threading and the TexturePool
+
+**One thread does everything.** `CADisplayLink` calls `GameSession.tick()` on the
+main thread; that pushes the controller state, runs one `kernel-dispatcher`
+frame, and then presents. `__send-gfx-dma-chain`, `__pc-texture-upload-now`,
+`__pc-texture-relocate` and `__pc-set-levels` are all called from inside that
+GOAL frame, on that thread, and the render that follows is on the same thread in
+the same tick. Boot is the one thing that runs elsewhere, on its own queue, and
+no frame is rendered until it has finished.
+
+That is the whole locking story, and it is deliberate. `TexturePool` does not
+lock internally - its callers are expected to hold `pool.mutex()`, as
+`Loader.cpp:341,538,635,698` does - and the desktop host, whose engine runs on
+its own thread, hit a real data race between the game thread's
+`texture_relocate` and the render thread's level loading. Here there is no second
+thread to race with, so nothing is taken and nothing can be forgotten.
+
+Two seam functions change shape because of it:
+
+- `syncv` returns immediately rather than blocking until the renderer presents.
+  On the desktop that block is where the game's frame rate comes from; here it
+  would deadlock, because the render is downstream of the GOAL frame on the same
+  thread. `CADisplayLink` is the clock instead, which is what a display-linked
+  application should be paced by.
+- `sync_path` returns immediately as well, and correctly: `send_chain` copies the
+  chain through `FixedChunkDmaCopier` before it returns, so the renderer already
+  works from a stable snapshot and EE memory is free to be reused.
+
+`__pc-set-levels` also loads synchronously, where the game asked, rather than
+being deferred to the next frame the way `metal_pipeline.mm` defers it. It has
+to: `__pc-texture-relocate` points an uploaded texture page at its real data, and
+the pool asserts (`!tex->is_placeholder`, `TexturePool.cpp:72`) when the level
+that data lives in is not loaded yet. The desktop gets away with deferring
+because its render thread is already running frames while the game boots. The
+cost is the same on both: a level load is one very long frame.
+
+Levels are never unloaded - nothing here knows when the last draw referencing a
+level's buffers has retired, which is what the GL loader's reference counting is
+for - so memory grows with the number of distinct levels a session visits.
+
+### The renderer's sources in the Xcode target
+
+The Xcode group `OpenGOAL Metal Renderer` is rooted at `$(SRCROOT)/OpenGOAL` and
+mirrors the `goalpad-metal-gfx` target in `OpenGOAL/game/CMakeLists.txt`, minus
+`metal_pipeline.mm` and `common/versions/versions.cpp` (which needs a generated
+`revision.h` the app does not build). It is 62 files: the fourteen Metal
+`.mm` translation units, `metal_host_seams.cpp` (the three runtime globals the
+renderer reads, which live in the desktop `runtime` library upstream),
+`metal_kernel_bridge.cpp`, `metal_texture_upload_handler.cpp`, the texture pool
+and converter, the tpage directories, the ocean VU emulators, `dma_helpers.cpp`,
+five `common/` translation units, four imgui sources (TexturePool's debug view
+calls imgui; no debug UI is created), and zstd's twenty-five C files (`.fr3`
+level art is zstd-compressed). `gfx_host.cpp` joins the kernel-core group, which
+still mirrors `JAK1_KERNEL_CORE_SOURCES` in `kernel_core.cmake`.
+
+Three build settings changed with it:
+
+- `HEADER_SEARCH_PATHS` gained `OpenGOAL/third-party/glad/include`,
+  `OpenGOAL/third-party/zstd/lib`, `OpenGOAL/third-party/zstd/lib/common`, and
+  `$(DERIVED_SOURCES_DIR)/goalpad-metal`. glad is headers only - the Metal
+  renderers include GL headers through `BucketRenderer.h`, but no GL symbol is
+  referenced and no GL library is linked.
+- **`GCC_PREPROCESSOR_DEFINITIONS` no longer defines `DEBUG=1`.** Jak 1's bucket
+  enums have a member named `DEBUG`
+  (`game/graphics/opengl_renderer/buckets.h:74,1066`), so Xcode's default
+  `-DDEBUG=1` makes the renderer's own headers unparseable. Nothing in this
+  repository reads the `DEBUG` macro. Swift's `DEBUG` condition is
+  `SWIFT_ACTIVE_COMPILATION_CONDITIONS` and is unaffected.
+- imgui and zstd compile with `-w`; they are third-party C the project's warning
+  settings were never meant for.
+
+### Shaders are compiled at build time, never at runtime
+
+The "Compile Metal shaders" build phase runs `Scripts/compile-metal-shaders.sh`
+before Compile Sources. It compiles the six checked-in `.metal` files with
+`xcrun -sdk "$PLATFORM_NAME" metal -Wall -Werror` into
+`$(DERIVED_SOURCES_DIR)/goalpad-metal/goalpad.metallib`, then writes that
+metallib out as a C byte array in `goalpad_metallib_embed.h`.
+`GOALPad/Native/GOALPadMetallib.c` includes that header, so the compiled GPU
+library ends up in the app's own signed data and `MetalRenderer::init` loads it
+with `newLibraryWithData:`. This is the Xcode equivalent of the metallib +
+`embed_metallib.cmake` step in `game/CMakeLists.txt`.
+
+No shader is compiled on the iPad, for the same reason no GOAL code is: a shader
+built at runtime is code the signature does not cover. The signed Release
+binary has no `newLibraryWithSource:` reference and the bundle has no
+`default.metallib`; the iPhoneOS-SDK metallib is 166,980 bytes and is inside the
+executable.
+
+### What was observed on the simulator
+
+iPad Pro 11-inch (M5), `id=96C5C21A-B925-4213-82A3-90DCB8518339`, Debug, with the
+player's own `iso/` and `fr3/` in the app container:
+
+- **The Jak 1 title screen renders**: the Jak & Daxter logo, the sky, the ocean
+  and Sandover Village, with "PRESS START". The renderer's own readout says
+  `renderer: linked`.
+- 60 fps, sustained: 600 dispatcher frames every 10.00-10.05 s over eleven
+  consecutive ten-second reports, with 599 of every 600 presented.
+- Drawable 2420x1668, internal 1280x960 (2x), draw region 2224x1668.
+- 2915 DMA chains sent, 2915 drawn, **0 dropped**. The last frame drew 285 draw
+  calls and 485,590 triangles.
+- Level art: `title+village1` wanted, `title+village1` loaded, 0 failures.
+  `GAME.fr3` (common) took 226 ms and gave 346 textures and 27 merc models,
+  `title` 46 ms, `village1` 603 ms for 667 textures and 4/3/1 tfrag/tie/shrub
+  trees and 50 merc models.
+- Audio still produces every frame it is asked for: 48000 Hz, 517632/517632 in
+  the first ten seconds.
+
+Screenshots: `/private/tmp/goalpad-ipad-shots/jak1-title-ipad-sim.png` (the title
+screen) and `jak1-title-ipad-sim-readout.png` (the same frame with the
+diagnostics overlay showing the numbers above). `simctl io screenshot` captures
+the unrotated framebuffer, so both were turned 90 degrees with `sips -r 90`.
+
+**Not drawn yet.** The renderer reports each unported bucket once: `l0-tfrag-generic`,
+`l1-tfrag-generic`, `l1-shrub-generic` and `common-alpha-generic` (240 bytes of
+DMA each), the tfrag-trans content inside the sky-blend buckets (992 bytes), and
+sprite distort (9 sprites consumed, not drawn). Those are ports that have not
+been done in the fork yet, not iPad problems - the Mac skips exactly the same
+buckets.
+
+**Not validated.** No physical device. No controller input past the title screen
+was exercised on the simulator, so nothing here says gameplay renders correctly;
+the desktop host does play it. Only the landscape drawable was exercised.
+Backgrounding and returning with the renderer live was not re-tested after the
+renderer was linked.
+
+### The signed generic iOS Release build
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-device -jobs 4 \
+  -allowProvisioningUpdates build
+```
+
+Build evidence only; nothing was installed on a device. The executable is thin
+`arm64`, 26,466,656 bytes, SHA-256
+`8adcabf623df9c4d8dde1bc7ae51e88e56a235fb94a3102a54b564a772f379c6`.
+`codesign --verify --deep --strict` reports `valid on disk` and `satisfies its
+Designated Requirement`, team `D2YYJ54Q6V`. Entitlements are unchanged: the
+application identifier, the team identifier, and `get-task-allow = true`, and
+nothing else.
+
+**No writable-executable segment.** `__TEXT` is `r-x` (initprot and maxprot both
+`0x5`), `__DATA` and `__DATA_CONST` are `rw-` (`0x3`), `__LINKEDIT` is `r--`, and
+`__PAGEZERO` is `---`. No segment is `0x7`. There is no app-root dynamic library.
+The imports are still `mmap`, `mprotect` and `dlsym` and no others of interest -
+the same three the kernel-core and app-shell checkpoints recorded, for the same
+reasons - with no `dlopen`, no `pthread_jit_write_protect_np`, and no
+`newLibraryWithSource:`.
+
 ## The iPad app shell
 
-**Implemented**, except where noted. This is everything the application needs
-that does not depend on the engine and the Metal renderer being fused into one
-process: game data on the device, controller input, audio output, the
+**Implemented**, except where noted. This is everything around the engine and
+the renderer: game data on the device, controller input, audio output, the
 presentation surface, and app lifecycle.
 
 ### Engine seams and why they are gated
 
-The shell is written against three narrow C seams in
+The shell is written against four narrow C seams in
 `OpenGOAL/game/kernel/core/`:
 
 | Seam | Header | What the shell calls |
@@ -325,14 +510,15 @@ The shell is written against three narrow C seams in
 | game data | `kernel_core.h` (ships with `dgo_loader.h`) | `goal_kernel_core_set_data_directory` |
 | controller | `pad.h` | `goal_pad_state_neutral`, `goal_pad_set_state`, `goal_pad_get_rumble`, `goal_pad_read_count` |
 | audio | `sound_rpc.h` | `goal_sound_sample_rate`, `goal_sound_pull_audio`, `goal_sound_shutdown` |
+| renderer | `gfx_host.h` | `goal_gfx_host_install` |
 
-**All three are in the pinned submodule and all three are linked.**
+**All four are in the pinned submodule and all four are linked.**
 `GOALPad/Native/GOALPadEngineSeams.h` is the only file that knows how to tell:
 it detects each seam with `__has_include` and defines `GOALPAD_HAVE_DATA_SEAM`,
-`GOALPAD_HAVE_PAD_SEAM` and `GOALPAD_HAVE_SOUND_SEAM`, plus
-`GOALPAD_HAVE_GAME_BOOT` for the generated `aot_boot_manifest.h`. Where a seam
-is missing the shell reports its absence on screen and in the log rather than
-pretending to work. The readout says `linked` for all four today.
+`GOALPAD_HAVE_PAD_SEAM`, `GOALPAD_HAVE_SOUND_SEAM` and `GOALPAD_HAVE_GFX_SEAM`,
+plus `GOALPAD_HAVE_GAME_BOOT` for the generated `aot_boot_manifest.h`. Where a
+seam is missing the shell reports its absence on screen and in the log rather
+than pretending to work. The readout says `linked` for all five today.
 
 `GOALPadRuntimeBridge.mm` static-asserts every button bit, the analog neutral
 value, and the port count against `goal_pad_button` whenever the pad seam is
@@ -430,13 +616,10 @@ and is the obvious next step. The default should be revisited once the fused
 renderer can be measured on hardware — it was chosen for headroom, not from a
 measurement.
 
-Until the Metal renderer is part of this build, `-[GOALPadRenderSurface
-presentPlaceholder:drawable:geometry:]` stands in for
-`MetalRenderer::render_frame`. It is one function and does the same two things
-the real one does — render an offscreen target at the internal resolution, then
-present it into the draw region — so the surface, the drawable, and the letterbox
-arithmetic are exercised for real. `rendererLinked` reports `NO` and the overlay
-says so.
+`-[GOALPadRenderSurface renderFrame]` turns that geometry into a
+`MetalRenderOptions` - `game_res_w/h` from the internal resolution,
+`draw_region_w/h` from the letterbox - and hands it to
+`goalpad::metal_host_render`. `rendererLinked` reports `YES`.
 
 ### Lifecycle
 

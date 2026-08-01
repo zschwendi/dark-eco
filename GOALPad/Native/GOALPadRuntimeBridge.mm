@@ -1,5 +1,7 @@
 #import "GOALPadRuntimeBridge.h"
 
+#include "GOALPadMetalHost.hpp"
+
 #include "GOALPadEngineSeams.h"
 #include "GOALPadGameBoot.hpp"
 #include "GOALPadRuntimeCore.hpp"
@@ -76,6 +78,7 @@ static_assert(GOALPadPortCount == GOAL_PAD_PORTS, "port count drift");
 @property(nonatomic, readwrite) uint32_t kernelVersion;
 @property(nonatomic, readwrite) uint32_t globalHeapUsedBytes;
 @property(nonatomic, readwrite) int32_t symbolCount;
+@property(nonatomic, readwrite, getter=isRendererInstalled) BOOL rendererInstalled;
 @property(nonatomic, readwrite, getter=isSoundInstalled) BOOL soundInstalled;
 @property(nonatomic, readwrite) int32_t soundSampleRate;
 @property(nonatomic, readwrite, getter=didPlay) BOOL played;
@@ -175,6 +178,7 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
   status.kernelVersion = core.kernel_version;
   status.globalHeapUsedBytes = core.global_heap_used_bytes;
   status.symbolCount = core.symbol_count;
+  status.rendererInstalled = core.renderer_installed;
   status.soundInstalled = core.sound_installed;
   status.soundSampleRate = core.sound_sample_rate;
   status.played = core.played;
@@ -203,6 +207,7 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
 
 + (void)stopKernel {
   goalpad::reset_game();
+  goalpad::metal_host_stop();
 #if GOALPAD_HAVE_SOUND_SEAM
   goal_sound_shutdown();
 #endif

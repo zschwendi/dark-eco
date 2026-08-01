@@ -21,6 +21,10 @@ struct BootStatus {
   bool sound_installed = false;
   int sound_sample_rate = 0;
 
+  /*! Whether the Metal renderer answered the machine layer's graphics functions. When it did not,
+   *  the frame's DMA chain is only measured and nothing is drawn. */
+  bool renderer_installed = false;
+
   bool played = false;
   double seconds = 0;
 };

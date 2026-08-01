@@ -69,14 +69,18 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, readonly, getter=isSoundInstalled) BOOL soundInstalled;
 @property(nonatomic, readonly) int32_t soundSampleRate;
 
+/// Whether the Metal renderer answered the machine layer's graphics functions. NO means the
+/// frame's DMA chain was only measured and nothing was drawn.
+@property(nonatomic, readonly, getter=isRendererInstalled) BOOL rendererInstalled;
+
 /// Whether the engine's own `play` ran: the level heaps and the title level's load.
 @property(nonatomic, readonly, getter=didPlay) BOOL played;
 @property(nonatomic, readonly) NSTimeInterval duration;
 
 @end
 
-/// What the frames' DMA chains carried. Nothing is drawn until the Metal renderer is linked; this
-/// measures what a frame handed `__send-gfx-dma-chain`, which is what says whether it drew.
+/// What the frames' DMA chains carried. Only measured when the Metal renderer did not start: the
+/// renderer answers `__send-gfx-dma-chain` itself and reports through `GOALPadRenderSurface`.
 typedef struct GOALPadFrameChainStats {
   int32_t chains;
   uint32_t lastPayloadBytes;
@@ -219,6 +223,18 @@ typedef struct GOALPadSurfaceGeometry {
   int32_t drawRegionHeight;
 } GOALPadSurfaceGeometry;
 
+/// What the Metal renderer has been asked to do since the game booted.
+typedef struct GOALPadRendererStats {
+  uint64_t chainsSent;      ///< frames that handed over a DMA chain
+  uint64_t chainsRendered;  ///< chains that reached the GPU
+  uint64_t chainsDropped;   ///< chains replaced before a tick consumed them
+  uint64_t textureUploads;  ///< `__pc-texture-upload-now` calls
+  int32_t levelsLoaded;     ///< levels whose `.fr3` art is on the GPU
+  int32_t levelFailures;    ///< levels the game asked for that would not load
+  int32_t lastDrawCalls;
+  int32_t lastTriangles;
+} GOALPadRendererStats;
+
 /// The one presentation surface. The app's Metal view owns the layer and hands it here; the native
 /// side owns everything drawn into it.
 @interface GOALPadRenderSurface : NSObject
@@ -241,9 +257,13 @@ typedef struct GOALPadSurfaceGeometry {
 - (BOOL)renderFrame;
 
 @property(nonatomic, readonly) uint64_t framesPresented;
-/// NO while the real Metal renderer is not part of this build, in which case `renderFrame`
-/// presents a placeholder that exercises the surface and the letterbox geometry only.
+/// NO until the Metal renderer has been started, in which case `renderFrame` draws nothing.
 @property(nonatomic, readonly, getter=isRendererLinked) BOOL rendererLinked;
+
+@property(nonatomic, readonly) GOALPadRendererStats stats;
+/// The levels the game last asked for, and every level whose art has been read, joined with '+'.
+@property(nonatomic, readonly) NSString *levelsWanted;
+@property(nonatomic, readonly) NSString *levelsLoaded;
 /// The last Metal failure, or "" if there has been none.
 @property(nonatomic, readonly) NSString *lastError;
 

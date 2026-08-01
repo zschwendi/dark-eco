@@ -56,6 +56,7 @@ private struct DiagnosticsOverlay: View {
                 header
                 seams
                 game
+                renderer
                 surface
                 controller
                 audio
@@ -103,10 +104,32 @@ private struct DiagnosticsOverlay: View {
                 ("symbols after boot", "\(boot.symbolCount)"),
                 ("989snd", boot.isSoundInstalled ? "\(boot.soundSampleRate) Hz" : "NOT running"),
                 ("dispatcher frames", "\(session.framesRun)"),
+            ] + (boot.isRendererInstalled ? [] : [
+                // Only measured when the renderer did not start; otherwise it owns the chain and
+                // the renderer section below reports it.
                 ("DMA chains built", "\(chain.chains)"),
                 ("last chain payload", "\(chain.lastPayloadBytes) bytes, "
                     + "\(chain.lastTextureUploads) texture uploads"),
                 ("largest chain payload", "\(chain.largestPayloadBytes) bytes"),
+            ]))
+        }
+    }
+
+    /// The Metal renderer: what the game handed it, and what it read off the player's own disc.
+    @ViewBuilder
+    private var renderer: some View {
+        if GOALPadRenderSurface.shared.isRendererLinked {
+            let stats = GOALPadRenderSurface.shared.stats
+            let wanted = GOALPadRenderSurface.shared.levelsWanted
+            let loaded = GOALPadRenderSurface.shared.levelsLoaded
+            section("Metal renderer", [
+                ("DMA chains", "\(stats.chainsSent) sent, \(stats.chainsRendered) drawn, "
+                    + "\(stats.chainsDropped) dropped"),
+                ("last frame", "\(stats.lastDrawCalls) draws, \(stats.lastTriangles) triangles"),
+                ("texture uploads", "\(stats.textureUploads)"),
+                ("levels wanted", wanted.isEmpty ? "-" : wanted),
+                ("level art loaded", loaded.isEmpty ? "-" : loaded),
+                ("level art failures", "\(stats.levelFailures)"),
             ])
         }
     }
