@@ -5255,3 +5255,15 @@ idle for `rpc-busy?(4)`. Keep chunked sections, bank loading, player RPC,
 streamed playback, and fabricated sound-info values out of that first slice.
 Use a synthetic file test, then the real headless GAME probe, full host suite,
 and both iPhoneOS archives; no physical device is needed for this checkpoint.
+
+Maintainer priority after the context reset is Jak 1 physical-iPad readiness,
+not immediate continuation of the parked Jak 2 branch. Resume by auditing the
+current Swift/Objective-C++ iPad host against Checkpoint 24, rebuilding the
+approved M5 simulator and a generic signed iOS Release, and listing the exact
+remaining gap between the proven simulator title screen and a playable
+physical-device run. Do not install or launch on `Z iPad Pro` during that audit.
+Once source, signing, app-container data, rendering, input, audio, lifecycle,
+and resource limits are ready for the physical gate, notify the maintainer and
+ask for explicit permission to perform the install and run. The clean
+`goalpad/play-jak2-str-file` worktree remains the exact Jak 2 resume point after
+that higher-priority Jak 1 device gate.
