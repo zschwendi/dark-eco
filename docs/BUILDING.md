@@ -155,12 +155,35 @@ The kernel-core checkpoint's executable was thin `arm64`, SHA-256
 `444513aa4fb82fc5e1d5b3ca6183539ee37d8cb3fbf148d32bf3f8a7598db134`. After the
 app-shell change it is SHA-256
 `a3797df3f7aa17204eb5c4b5d9834ab6f08f0505c3d6fa355483a3c3a487ab8b`.
+
+**With Jak 1's own GOAL code in it** the executable is thin `arm64`, SHA-256
+`529c07d4348e0d2807ba5ae6dd9fd1a63113d7a590f20ac276516912baa5ea06`, and
+**25775776 bytes** - a 25 MB bundle, with no `GOALPad.debug.dylib`, no
+`__preview.dylib`, and nothing else in the app root. That is the whole game's
+code: `__TEXT` is 10715136 bytes, `__DATA_CONST` 5586944, `__DATA` 1343488, and
+`__LINKEDIT` 9453568. For scale, the host's own `jak1-data-boot-test`, which
+links the same generated C at `-O3`, is 22948976 bytes.
+
 `codesign --verify --deep --strict` reports `valid on disk` and `satisfies its
 Designated Requirement`; the authority is `Apple Development:
 zschwendi@zephyrstudios.dev (BZ68MJN5R5)`, team `D2YYJ54Q6V`. Entitlements are
 the application identifier, team identifier, and `get-task-allow = true`. There
 is no JIT, unsigned-executable-memory, or other private entitlement, and no
 app-root dynamic library.
+
+**There is no writable-executable segment.** Every segment's `initprot` and
+`maxprot` are the same and neither ever pairs write with execute:
+
+| segment | initprot | maxprot |
+| --- | --- | --- |
+| `__PAGEZERO` | `0x0` | `0x0` |
+| `__TEXT` | `0x5` (r-x) | `0x5` |
+| `__DATA_CONST` | `0x3` (rw-) | `0x3` |
+| `__DATA` | `0x3` (rw-) | `0x3` |
+| `__LINKEDIT` | `0x1` (r--) | `0x1` |
+
+Jak 1's GOAL code is in `__TEXT`, read-only and signed, like the rest of the
+app.
 
 **The binary does import `mmap` and `mprotect`.** Earlier checkpoints recorded
 their absence; that is no longer true and is not a regression. The kernel maps
@@ -181,6 +204,55 @@ This is an Apple Development signature, not distribution or App Store evidence.
 No physical-device installation or execution was performed for this checkpoint;
 treat the Release output as static build/signing evidence only.
 
+## Jak 1 running in the app
+
+**Implemented.** The app boots the game and runs its frames. What it does not
+have is the renderer: the picture is still the presentation surface's
+placeholder.
+
+`GOALPadGameBoot` boots the game the way the game boots, off the main thread,
+in the order `jak1::InitHeapAndSymbol` and `jak1::InitMachineScheme` run:
+
+1. register the 518 ahead-of-time translation units by DGO object name,
+2. `KERNEL.CGO` - the GOAL kernel,
+3. `InitListener`, the machine-layer stubs, the pad seam, the DGO and STR RPCs,
+   the DMA chain measurement, and 989snd on the sound RPC,
+4. `GAME.CGO` - the engine and the game,
+5. record `engine`, `art` and `common` in `*kernel-packages*`, which is what the
+   C kernel does for a release build's merged `GAME.CGO`,
+6. the engine's own `play`, which allocates the level heaps and drives the title
+   level's load through GOAL's own loader.
+
+`GameSession.tick`, on the display link, then does one frame: push the
+controller, run `kernel-dispatcher`, run `goal_sound_frame`, present, read the
+vibration request back. That is `KernelCheckAndDispatch`'s loop body without the
+listener half.
+
+### The app's own machine layer
+
+`game/kernel/core/` deliberately has no machine layer:
+`goal_kernel_core_stub_machine_layer` puts a stub in each of its 117 symbols
+that names itself once and returns 0. The app supplies the file half itself,
+copied from `game/kernel/{common,jak1}/kmachine.cpp` for the same reason
+`pad.cpp` copies `CPadOpen` - those translation units are the desktop machine
+layer and are not in the library. `file-stream-open`, `-close`, `-length`,
+`-seek`, `-read` and `-write` go through `ee::sceOpen` and friends, which
+resolve every name under the configured data directory, and
+`pc-filepath-exists?` answers with a real `stat`.
+
+A stub is not good enough for either. GOAL's `#f` is `s7`, not 0, so a stub
+answers "yes" to every predicate: the PC settings loader believed
+`pc-filepath-exists?` and opened a settings file that is not there.
+`(method new file-stream)` returns whatever `file-stream-open` returns, so the
+stub handed GOAL a null stream and the next field read faulted in the guard
+page. Upstream always returns the stream and records the failure inside it,
+which is what lets `pc-settings` say "not found ... initializing with defaults"
+instead of crashing.
+
+Everything else in the machine layer is still a stub and still says so:
+`scf-get-*`, `pc-get-os`, `pc-rand`, `reset-graph` and the rest of the display
+functions. A frame's simulation is real; what it would have shown is not.
+
 ## The real Jak 1 kernel in the app
 
 **Implemented.** The app target compiles the `jak1-kernel-core` source set
@@ -189,15 +261,20 @@ generated framework, and no absolute path in the project file: the Xcode group
 `OpenGOAL Jak 1 Kernel Core` is rooted at `$(SRCROOT)/OpenGOAL` and its member
 list mirrors `JAK1_KERNEL_CORE_SOURCES` in
 `OpenGOAL/game/kernel/core/kernel_core.cmake`. Keep the two lists in step when
-either changes. `OpenGOAL/` sits outside the `GOALPad/`
-`PBXFileSystemSynchronizedRootGroup`, so those files are listed explicitly;
-everything under `GOALPad/` is still picked up automatically.
+either changes; it is 86 files today, including the four overlord sound tables,
+989snd, the Jak 1 mips2c function library, and the ARM64 GOAL thread routines.
+`OpenGOAL/` sits outside the `GOALPad/` `PBXFileSystemSynchronizedRootGroup`, so
+those files are listed explicitly; everything under `GOALPad/` and
+`Generated/jak1-aot/` is still picked up automatically.
 
-The target adds `FMT_HEADER_ONLY=1` and four header search paths
-(`OpenGOAL`, `OpenGOAL/third-party`, `OpenGOAL/third-party/fmt/include`,
-`OpenGOAL/third-party/SDL/include`). The SDL path only satisfies a declaration
-include reached through `game/kernel/common/kmachine.h`; no SDL code is
-compiled and no SDL library is linked.
+The target adds `FMT_HEADER_ONLY=1`, `GOALPAD_SND_NO_CUBEB=1` - 989snd's own
+output backend needs a desktop audio device, and `goal_sound_pull_audio` is the
+seam instead - and five header search paths (`OpenGOAL`,
+`OpenGOAL/third-party`, `OpenGOAL/third-party/fmt/include`,
+`OpenGOAL/third-party/SDL/include`, `Generated/jak1-aot`). The SDL path only
+satisfies a declaration include reached through
+`game/kernel/common/kmachine.h`; no SDL code is compiled and no SDL library is
+linked.
 
 `GOALPadRuntimeCore.{hpp,cpp}` wraps the C entry point in
 `OpenGOAL/game/kernel/core/kernel_core.h`. `GOALPadRuntimeBridge.{h,mm}`
@@ -216,10 +293,8 @@ hashed symbols; and the bootstrapped `object`, `structure`, `basic`, `symbol`,
 
 **Known limitation.** `PROT_EXEC` is refused for anonymous mappings on both
 ARM64 macOS and iOS, so the readout reports `PROT_EXEC granted: NO`. No native
-code can execute out of the GOAL heap; that remains the AOT track's problem.
-The kernel also has no file access — `ee::sceOpen` and the rest of the desktop
-seams in `OpenGOAL/game/kernel/core/desktop_seams.cpp` abort loudly — so no
-game data is loaded.
+code executes out of the GOAL heap: a function object holds the 64-bit native
+entry point of ahead-of-time code in `__TEXT`, and `call_goal` loads it.
 
 Run the host smoke test for the same values outside the app:
 
@@ -251,16 +326,13 @@ The shell is written against three narrow C seams in
 | controller | `pad.h` | `goal_pad_state_neutral`, `goal_pad_set_state`, `goal_pad_get_rumble`, `goal_pad_read_count` |
 | audio | `sound_rpc.h` | `goal_sound_sample_rate`, `goal_sound_pull_audio`, `goal_sound_shutdown` |
 
-None of them is in the pinned submodule yet; they live on the OpenGOAL branches
-that the engine/renderer fusion is merging. `GOALPad/Native/GOALPadEngineSeams.h`
-is the only file that knows this: it detects each seam with `__has_include` and
-defines `GOALPAD_HAVE_DATA_SEAM`, `GOALPAD_HAVE_PAD_SEAM`, and
-`GOALPAD_HAVE_SOUND_SEAM`. Where a seam is missing the shell reports its absence
-on screen and in the log rather than pretending to work — a run today says
-`Game data was NOT connected: this build has no data-directory entry point`, the
-audio device produces silence, and `reads by GOAL` stays 0. When the submodule
-pin carries the headers and their translation units, the seams light up with no
-source change.
+**All three are in the pinned submodule and all three are linked.**
+`GOALPad/Native/GOALPadEngineSeams.h` is the only file that knows how to tell:
+it detects each seam with `__has_include` and defines `GOALPAD_HAVE_DATA_SEAM`,
+`GOALPAD_HAVE_PAD_SEAM` and `GOALPAD_HAVE_SOUND_SEAM`, plus
+`GOALPAD_HAVE_GAME_BOOT` for the generated `aot_boot_manifest.h`. Where a seam
+is missing the shell reports its absence on screen and in the log rather than
+pretending to work. The readout says `linked` for all four today.
 
 `GOALPadRuntimeBridge.mm` static-asserts every button bit, the analog neutral
 value, and the port count against `goal_pad_button` whenever the pad seam is
@@ -369,8 +441,16 @@ says so.
 ### Lifecycle
 
 `GameSession` owns the kernel session, the controller, the audio device and the
-frame loop. One frame is: push the controller state, run the engine, present,
-then read the vibration request back out. The engine step is a marked gap.
+frame loop. One frame is: push the controller state, run one `kernel-dispatcher`
+frame and one `goal_sound_frame`, present, then read the vibration request back
+out.
+
+Booting runs the game's own startup - two DGO archives and `play` - so it runs
+on its own queue and the UI says `Booting Jak 1` until it finishes. The frame
+loop and the boot never overlap: the loop only starts once the boot has
+returned. 989snd is the exception and is designed to be: it takes its own lock,
+so the audio device's render thread pulls from it while the game frame runs on
+the main thread.
 
 `scenePhase` drives it. Going inactive or background stops the frame loop —
 asking a backgrounded layer for a drawable blocks until the app returns —
@@ -383,24 +463,64 @@ give back, and dropping cached level data will be the fused renderer's decision.
 ### What was observed on the simulator
 
 iPad Pro 11-inch (M5), `id=96C5C21A-B925-4213-82A3-90DCB8518339`, Debug, with the
-player's own `iso/` and `fr3/` hard-linked into the app container:
+player's own `iso/` and `fr3/` hard-linked into the app container. **The game
+boots and runs.**
 
-- Game data: `Complete: 321 files in iso/, 26 in fr3/, 1.63 GB.`
-- Kernel: live, `arm64`, `PROT_EXEC granted: NO`, `s7 #x0018fe04`, 90 hashed
-  symbols, 533002 bytes of global heap — the same values the kernel-core
-  checkpoint recorded — and `data directory: NOT connected`.
-- Surface: drawable 1668x2420, internal 1280x960, draw region 1668x1251, 1184
-  frames presented in 20 s (~59 fps).
-- Audio: running, 48000 Hz stereo, 949760 frames asked for in 20 s (48 kHz
-  exactly), 0 produced because the seam is absent.
-- Lifecycle: backgrounding logged `Audio suspended after 372736 frames` (7.8 s of
-  the 8 s it had been in the foreground) and returning logged `Audio resuming`
-  followed by a fresh `Audio started at 48000 Hz stereo`.
-- Controller: the simulator's virtual `Gamepad` was discovered and adopted.
+- Seams: `game data: linked`, `controller: linked`, `audio: linked`,
+  `Jak 1 GOAL code: linked`, `renderer: not in this build`.
+- Boot, in 0.1 s: `KERNEL.CGO: 8 objects`, then
+  `GAME.CGO: 346 objects: 326 code, 20 data` - the code from the ahead-of-time
+  path, the data off the player's own disc image - `GOAL kernel version 2.0`,
+  55472784 bytes of global heap and 5721 symbols. The host's
+  `jak1-data-boot-test` reports the same 8 and 346 and the same heap.
+- `play` ran: `(play :use-vis 0 :init-game 0) has been called!`,
+  `begin load title-vis [tit.DGO]`, `TIT.DGO: 15 objects`,
+  `GAMEPLAY: enter title`, then `village1` streaming in behind the logo
+  (`VI1.DGO`, the 7.3 MB `village1-vis`, `Swapping in vi1 VIS`,
+  `Displaying level village1`).
+- Frames: 6000 consecutive `kernel-dispatcher` frames in 100.0 s - exactly 600
+  per 10 s, so a full 60 fps - with no drift and no fault. Each frame built a
+  DMA chain; payloads ran 97 kB to 195792 bytes with 10 texture uploads in the
+  last one, which is the title screen with Sandover Village behind it.
+- **Audio: 4808192 frames asked for and 4808192 produced, 48000 Hz stereo, peak
+  sample 3709 of 32767.** 989snd loaded `common`, `empty1`, `empty2` and
+  `village1` and started `VILLAGE1.MUS`; the peak matches the 3416 the host
+  records for the same title theme, which is the game's own volume - the PC
+  port's music default is 40 of 100. Nothing is silent and nothing is clipped.
+- Controller: the simulator's virtual `Gamepad` was discovered and adopted, and
+  `reads by GOAL` tracked the frame count exactly (5996 reads at frame 6000).
+- Surface: drawable 1668x2420, internal 1280x960, draw region 1668x1251, one
+  presented frame per game frame.
+- Memory warnings: 0.
 
 Only the portrait drawable was exercised, so the draw region's width-limited
 branch is the one with evidence; the height-limited branch is the same
 arithmetic with the operands swapped.
+
+Nothing is drawn. `renderer: not in this build` is the truth: the frame's DMA
+chain is measured by `dma_capture.cpp` and dropped, and the surface presents its
+placeholder. What a frame *computes* is real; what it would have *shown* is not.
+
+To reproduce, stage the data into the app container rather than symlinking it -
+the app can only read inside its own container:
+
+```sh
+DEV=96C5C21A-B925-4213-82A3-90DCB8518339
+C=$(xcrun simctl get_app_container "$DEV" com.zephyrstudiosllc.GOALPad data)
+SRC=/path/to/out/jak1
+mkdir -p "$C/Documents/Jak1/iso" "$C/Documents/Jak1/fr3"
+for d in iso fr3; do
+  for f in "$SRC/$d"/*; do
+    t="$C/Documents/Jak1/$d/$(basename "$f")"
+    [ -e "$t" ] || ln "$f" "$t"
+  done
+done
+```
+
+Hard links keep the 1.5 GB in one place and never write to the source. Launch
+the app detached - `nohup xcrun simctl launch --console-pty ... &` - because
+`--console-pty` ties the app's lifetime to the launching process, and a shell
+that is interrupted takes the app down with it.
 
 ## Build the pinned OpenGOAL ARM64 host baseline
 
