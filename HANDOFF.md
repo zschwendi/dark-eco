@@ -4928,3 +4928,85 @@ The attribution scrub. Script is ready and dry-run clean at
 authored as Claude and ~42 carrying the trailer. Backups in
 `/private/tmp/goalpad-backup/`. **Note `/private/tmp` does not survive a
 reboot** — re-bundle before rebooting, or run the scrub first.
+
+---
+
+# Checkpoint 25: Mac Jak 1 bug sweep complete; Jak II data prepared
+
+Date: 2026-08-01. Extends Checkpoint 24. Maintainer direction this session:
+validate on macOS only (the iPad translation is treated as 1:1 — no simulator
+runs), fix all Mac Jak 1 bugs, then bring up Jak II, then Jak 3/X (their data
+is not on this device).
+
+Submodule pin: `4788b64af` on `goalpad/play-fusion`. All work below is merged
+there and validated by the full non-listener suite (63/63) plus scripted
+windowed runs at 57.5-60 fps.
+
+## What landed
+
+- **Streamed VAG dialogue merged** (`play-audio2-vag`). The intro now plays
+  out fully (~23,600 frames from new game to control). The scripted gameplay
+  test re-keys off `target-hit-ground` (the warp drop onto Geyser Rock).
+  Three ambient names (`EIA2`, `LOI2`, `FIBRTMIS`) are genuinely absent from
+  this VAGDIR and are reported honestly.
+- **x86 + dead-emitter cleanup merged** (`play-cleanup`, -11,522 lines) plus
+  the data-pipeline doc (`play-datapipe`). One test removed with its subject
+  (`goalc-aot-artifact-pair`).
+- **Y-rotation collapse and stationary jitter: both no longer reproduce** —
+  the Checkpoint 24 skeleton-snapshot fix was the shared root cause. Proven
+  with a 141-consecutive-frame turn sweep, the committed 241-check rotation
+  test, and pixel-diffed idle frames. No code change.
+- **Save games work end to end** (`play-saves`). kmemcard was already
+  compiled in; the port now sets a saves directory seam
+  (`goal_kernel_core_set_saves_directory`), goalpad-play defaults to
+  `<data-dir>/saves` (`--saves-dir` overrides). Proven: new-game slot write,
+  manual SAVE GAME with double-bank rotation, fresh-process reload of the
+  newer bank, corrupt-save and no-saves boots. The boot-test harness always
+  redirects saves to a temp scratch dir so no test touches player saves.
+  Not exercised: autosave from a power-cell pickup.
+- **Real level transitions work** (`play-levels`). village1→beach walked
+  through the stream culvert with the SENTINEL BEACH banner, and back.
+  Root cause of the historic block: the `intro-start` continue point's
+  `intro` flag suppresses `(-> *level* border?)`. With the intro now playing,
+  border checks enable naturally (verified: `want training+village1`,
+  "on a border", frame 23488). New tools in both hosts: `--warp` (any
+  continue point), `--walk-to` autopilot, `--report-levels`; new CTests
+  `jak1-level-boundary-test`, `jak1-level-tour-test`. GOAL level slots
+  recycle correctly; RSS flat across crossings.
+- **Eye rendering in texture buckets + sprite distort ported**
+  (`play-buckets`). The "unported generic buckets" list in Checkpoint 24 was
+  stale — those already route to MetalGeneric2. Characters now have composed
+  eye textures; heat shimmer draws. 0 skipped bucket bytes; deterministic
+  .gpdma before/after replays.
+
+## In flight (branches, unmerged until validated)
+
+- `goalpad/play-blerc` — merc blerc/mod-vtx facial morphs, the last named
+  visual gap ("Metal merc: blerc/mod-vtx not ported").
+- `goalpad/play-art-residency` — the Metal host keeps every visited level's
+  art resident (~1.16 GB after four levels); eviction keyed to GOAL slots.
+- `goalpad/play-jak2-sweep` — Jak II scoping: cbackend coverage over
+  goal_src/jak2, kernel/renderer/sound deltas, attack order.
+
+## Jak II data (prepared, outside all checkouts)
+
+`/Users/zach/Developer/OS_Projects/GOALPad/Jak2/` — NTSC-U SCUS-97265 v2.01,
+validated by the extractor (`-g jak2`). `iso_data/jak2` 4.1 GB;
+`projdata/out/jak2/iso` 4.3 GB; `fr3/` 628 MB. Note: the extractor writes to
+`iso_data/_temp` and errors if run without `-g jak2` (it defaults to jak1);
+`buildinfo.json` had to be reconstructed (serial + ELF hash
+18445016742498932084 from the extractor database) before `-d`/`-c` ran clean.
+
+## Housekeeping
+
+- The attribution scrub is staged as
+  `../.goalpad-local/scrub-attribution-v2.sh` (the v1 script had an invalid
+  filter-branch range and relied on a map file git deletes; v2 rebuilds and
+  verifies the map from refs/original). History backups are durably copied to
+  `../.goalpad-local/backup/*.bundle`. Run the scrub after in-flight branches
+  land, then re-point /private/tmp worktrees and force-push.
+- Dead historical worktrees/build trees under /private/tmp (~10 GB) were NOT
+  deleted: the bulk removal was blocked by the permission classifier. Disk is
+  at ~97%.
+- jak1-gameplay-test now takes ~61 s (it plays the whole intro); suite total
+  ~115 s.
