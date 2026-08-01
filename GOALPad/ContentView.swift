@@ -99,6 +99,8 @@ private struct DiagnosticsOverlay: View {
                     + "\(boot.dataObjects) data"),
                 ("GOAL kernel version", "\(boot.kernelVersion >> 0x13).\((boot.kernelVersion >> 3) & 0xffff)"),
                 ("boot took", String(format: "%.1f s", boot.duration)),
+                ("global heap after boot", "\(boot.globalHeapUsedBytes) bytes"),
+                ("symbols after boot", "\(boot.symbolCount)"),
                 ("989snd", boot.isSoundInstalled ? "\(boot.soundSampleRate) Hz" : "NOT running"),
                 ("dispatcher frames", "\(session.framesRun)"),
                 ("DMA chains built", "\(chain.chains)"),
@@ -156,10 +158,12 @@ private struct DiagnosticsOverlay: View {
         ])
     }
 
+    /// What `start_kernel` found, before any game data was loaded. The live heap and symbol counts
+    /// are in the Jak 1 section above.
     @ViewBuilder
     private var kernel: some View {
         if let status = session.kernel {
-            section("GOAL kernel", [
+            section("GOAL kernel at startup", [
                 ("state", status.isRunning ? "live" : "down"),
                 ("architecture", status.architecture),
                 ("EE main memory", String(format: "%p, #x%x", UInt(status.mainMemoryAddress),
