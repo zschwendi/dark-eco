@@ -4867,3 +4867,64 @@ writable-executable segment, no `newLibraryWithSource:`.
    `l1-tfrag-generic`, `l1-shrub-generic`, `common-alpha-generic`, tfrag-trans
    inside the sky-blend buckets, sprite distort. Fork-side work, not iPad work.
 4. Re-test backgrounding and returning now that the renderer holds drawables.
+
+---
+
+## Session end: 2026-08-01, ~02:00
+
+Stopped mid-flight so the maintainer could sleep. Nothing is lost; everything
+is committed and pushed.
+
+### Where to pick up
+
+1. **Physical iPad.** Still ungated — the maintainer must ask in the moment.
+   Everything is staged: 26 MB signed bundle, entitlements correct, no
+   writable-executable segment, touch controls landing. This is the only
+   remaining unknown about real iPadOS behaviour.
+2. **`wip/touch-controls` (parent repo) — DOES NOT COMPILE.** Touch controls
+   were interrupted. Spec, as given by the maintainer and revised twice:
+   stationary stick origin on the left half; swipe above the stick controls the
+   camera (right analog stick); right-half swipes up/left/right = cross/square/
+   circle; tap repeats the last swiped button; SELECT and START pills at bottom
+   centre; everything hidden when untouched; **stick deflection also synthesizes
+   D-pad presses** (edge-detect + auto-repeat) because the menus read the D-pad
+   and the analog stick cannot navigate them. Missing piece: the bridge symbols
+   (`GOALPadButton`, `GOALPadAnalogNeutral`, `GOALPadInputSetState`, …) are not
+   exposed to Swift, which is why it does not build.
+   **Constraint from the maintainer: iOS-layer changes only for now — nothing in
+   the submodule, no GOAL source modding yet.**
+3. **`goalpad/play-levels` (fork) — WIP, unvalidated.** Real level transitions
+   beyond title→village1 have still never run. This is the biggest unknown for
+   "beatable start to finish".
+4. **Save games — never verified.** No run has ever saved and reloaded.
+   `kmemcard` was on the excluded list when the portable library was carved out.
+   If saving does not work the game cannot be completed. An agent had just
+   started on this.
+5. **Y-rotation collapse** (Jak goes 1-pixel-thin while turning) — still open.
+   The bone-UBO-layout hypothesis is disproved with an injected-defect sweep.
+   May share a root cause with the shiver, so re-check on current `play-fusion`
+   first. F9/F10 in `goalpad-play` capture a `.gpdma` for replay.
+
+### Landed this session
+
+Playable on macOS and the iPad simulator. Shiver fixed (bones were read from
+live EE memory while the chain was a snapshot — measured 162/500 frames stale,
+now 0/500, frame rate unchanged). Ambient audio fixed (`scf-get-volume` stub
+returned 0, muting 989snd's ambient group entirely). VAG dialogue works on
+`goalpad/play-audio2-vag`, unmerged because the intro cutscene now plays out
+and re-times the scripted gameplay test. README and both repo descriptions now
+credit OpenGOAL.
+
+### Machine state, restored
+
+Simulators shut down. `com.apple.CrashReporter DialogType` deleted (crash
+dialogs back to normal — it was set to `none` during the session). Stray
+`goalpad-play` / `metal-proof` processes killed.
+
+### Still pending
+
+The attribution scrub. Script is ready and dry-run clean at
+`…/scratchpad/scrub-attribution.sh` (`check` | `run`); scope is 16 commits
+authored as Claude and ~42 carrying the trailer. Backups in
+`/private/tmp/goalpad-backup/`. **Note `/private/tmp` does not survive a
+reboot** — re-bundle before rebooting, or run the scrub first.
