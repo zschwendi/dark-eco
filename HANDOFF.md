@@ -4788,11 +4788,20 @@ background and merc level pools.
 ## Housekeeping
 
 **Never put Claude attribution in git** — no `Co-Authored-By`, no "Generated
-with Claude Code". The project's own `(AI-assisted)` suffix stays. ~42 existing
-commits carry the trailer and are to be scrubbed once the in-flight agents land;
-bound the rewrite to OpenGOAL commits at or after `9eecb9c3` so upstream keeps
-its SHAs, and remap the parent's submodule gitlinks. Backups:
-`/private/tmp/goalpad-backup/`.
+with Claude Code", and never author or commit as `Claude`. Every commit is
+authored AND committed as `zephyrstudiosllc <zschwendi@zephyrstudios.dev>`, the
+repo's configured identity. The project's own `(AI-assisted)` suffix stays.
+
+Pending scrub, to run once the in-flight agents land. Three separate fixes:
+1. rewrite author and committer to `zephyrstudiosllc <zschwendi@zephyrstudios.dev>`
+   on all commits — **16 are currently authored as `Claude`** (6 parent, 10 in
+   the fork range);
+2. strip the `Co-Authored-By: Claude ...` trailer — ~42 commits;
+3. remove any other Claude mention from messages and bodies.
+
+Bound the rewrite to OpenGOAL commits at or after `9eecb9c3` so upstream keeps
+its SHAs, and remap the parent's submodule gitlinks or they will dangle.
+Backups: `/private/tmp/goalpad-backup/`.
 
 macOS crash dialogs were disabled for this session
 (`defaults write com.apple.CrashReporter DialogType none`); revert with
