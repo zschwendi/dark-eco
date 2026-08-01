@@ -1,6 +1,7 @@
 #import "GOALPadRuntimeBridge.h"
 
 #include "GOALPadEngineSeams.h"
+#include "GOALPadGameBoot.hpp"
 #include "GOALPadRuntimeCore.hpp"
 
 #include <algorithm>
@@ -63,6 +64,25 @@ static_assert(GOALPadPortCount == GOAL_PAD_PORTS, "port count drift");
 @end
 
 @implementation GOALPadKernelStatus
+@end
+
+@interface GOALPadGameBootStatus ()
+@property(nonatomic, readwrite, getter=isBooted) BOOL booted;
+@property(nonatomic, readwrite) NSString *message;
+@property(nonatomic, readwrite) int32_t kernelObjects;
+@property(nonatomic, readwrite) int32_t gameObjects;
+@property(nonatomic, readwrite) int32_t codeObjects;
+@property(nonatomic, readwrite) int32_t dataObjects;
+@property(nonatomic, readwrite) uint32_t kernelVersion;
+@property(nonatomic, readwrite) uint32_t globalHeapUsedBytes;
+@property(nonatomic, readwrite) int32_t symbolCount;
+@property(nonatomic, readwrite, getter=isSoundInstalled) BOOL soundInstalled;
+@property(nonatomic, readwrite) int32_t soundSampleRate;
+@property(nonatomic, readwrite, getter=didPlay) BOOL played;
+@property(nonatomic, readwrite) NSTimeInterval duration;
+@end
+
+@implementation GOALPadGameBootStatus
 @end
 
 /// Kernel strings come out of the GOAL heap, so never hand Swift a nil for a nonnull property.
@@ -136,7 +156,53 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
   return status;
 }
 
++ (GOALPadGameBootStatus *)bootGame {
+  goalpad::BootStatus core;
+  try {
+    core = goalpad::boot_game();
+  } catch (...) {
+    core = goalpad::BootStatus();
+    core.message = "The native boot threw; no game is running.";
+  }
+
+  GOALPadGameBootStatus *status = [[GOALPadGameBootStatus alloc] init];
+  status.booted = core.booted;
+  status.message = GOALPadString(core.message);
+  status.kernelObjects = core.kernel_objects;
+  status.gameObjects = core.game_objects;
+  status.codeObjects = core.code_objects;
+  status.dataObjects = core.data_objects;
+  status.kernelVersion = core.kernel_version;
+  status.globalHeapUsedBytes = core.global_heap_used_bytes;
+  status.symbolCount = core.symbol_count;
+  status.soundInstalled = core.sound_installed;
+  status.soundSampleRate = core.sound_sample_rate;
+  status.played = core.played;
+  status.duration = core.seconds;
+  return status;
+}
+
++ (BOOL)runFrame {
+  return goalpad::run_frame() ? YES : NO;
+}
+
++ (uint64_t)framesRun {
+  return goalpad::frames_run();
+}
+
++ (BOOL)isGameBooted {
+  return goalpad::game_is_booted() ? YES : NO;
+}
+
++ (GOALPadFrameChainStats)frameChainStats {
+  const auto core = goalpad::frame_chain_stats();
+  GOALPadFrameChainStats stats = {core.chains, core.last_payload_bytes,
+                                  core.largest_payload_bytes, core.last_texture_uploads};
+  return stats;
+}
+
 + (void)stopKernel {
+  goalpad::reset_game();
 #if GOALPAD_HAVE_SOUND_SEAM
   goal_sound_shutdown();
 #endif
@@ -158,6 +224,10 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
 
 + (BOOL)isAudioSeamLinked {
   return GOALPAD_HAVE_SOUND_SEAM ? YES : NO;
+}
+
++ (BOOL)isGameCodeLinked {
+  return GOALPAD_HAVE_GAME_BOOT ? YES : NO;
 }
 
 @end

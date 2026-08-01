@@ -37,3 +37,13 @@
 #else
 #define GOALPAD_HAVE_SOUND_SEAM 0
 #endif
+
+/* Jak 1's own GOAL code, compiled ahead of time to C on the host and built into this app. It is
+ * generated rather than committed - Scripts/generate-jak1-aot.sh - so a checkout that has not run
+ * that script still builds, and says on screen that it cannot boot the game. */
+#if GOALPAD_HAVE_DATA_SEAM && GOALPAD_HAVE_PAD_SEAM && GOALPAD_HAVE_SOUND_SEAM && \
+    __has_include("aot_boot_manifest.h")
+#define GOALPAD_HAVE_GAME_BOOT 1
+#else
+#define GOALPAD_HAVE_GAME_BOOT 0
+#endif

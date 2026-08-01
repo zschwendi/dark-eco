@@ -19,14 +19,60 @@ git submodule update --init --recursive
 
 The authoritative child is the dedicated public fork
 `https://github.com/zschwendi/jak-pad.git`, branch
-`goalpad/play-iosruntime`, pinned by the parent gitlink at
-`e2d9aa2a08cd5f5d92463c9fd8cc3c188e453fa8`. Do not substitute a different
-OpenGOAL checkout when recording validation results. The `sync` step updates
-existing clones that still remember the former upstream URL.
+`goalpad/play-fusion`, pinned by the parent gitlink at
+`b62bef25c4785ff42f0f42a0d6b8e2f8c6a2f31e`. Do not substitute a different
+OpenGOAL checkout when recording validation results, and pin that exact commit
+rather than the branch tip: work continues on `goalpad/play-fusion`. The `sync`
+step updates existing clones that still remember the former upstream URL.
 
-That branch descends from the previously pinned
-`9eecb9c3193ed8cb5175c9199cecbe9cfd2baa42` and adds `game/kernel/core/`, the
-portable `jak1-kernel-core` library described below.
+That commit unifies the runtime and renderer lines. It descends from the
+previously pinned `e2d9aa2a08cd5f5d92463c9fd8cc3c188e453fa8` and completes
+`game/kernel/core/` - the portable `jak1-kernel-core` library described below -
+with the DGO loader, the controller seam, the sound RPC and 989snd, the AOT
+object loader, and the native GOAL thread routines.
+
+## Generate Jak 1's ahead-of-time GOAL code
+
+The app compiles Jak 1's own GOAL code. That code is compiled to C on this Mac
+by goalc's AOT C backend and then compiled for `arm64-apple-ios` by Xcode like
+any other source, so the game's code arrives in the app's ordinary signed
+`__TEXT`; nothing is generated on the iPad.
+
+```sh
+Scripts/generate-jak1-aot.sh
+```
+
+Run it once after cloning and again whenever the submodule pin moves. It builds
+the host `goalc-cbackend-sweep` and writes 1038 files - one `.c` and one
+`_generated.h` for each of Jak 1's 518 object files, plus `aot_boot_manifest.c`
+- into `Generated/jak1-aot/`. That is about 85 MB of C and takes a few seconds
+once the host tool is built.
+
+The output is never committed. `Generated/jak1-aot/` itself is, because the app
+target picks the directory up as an Xcode synchronized folder and Xcode needs it
+to exist; everything in it except `README.md` is ignored by Git.
+
+A build without it still succeeds and still brings the kernel up. It reports
+`Jak 1 GOAL code: not in this build` on screen and refuses to start a session,
+rather than pretending to boot - see `GOALPAD_HAVE_GAME_BOOT` in
+`GOALPad/Native/GOALPadEngineSeams.h`.
+
+Two target build settings are not optional:
+
+- `GCC_STRICT_ALIASING = NO`. GOAL reads and writes the same memory at several
+  widths, exactly as the x86-64 backend does, so the generated C must not be
+  optimized under strict aliasing rules. It is set for the whole target rather
+  than per file because the file list is generated: a static per-file list would
+  silently stop covering whatever the sweep emits next.
+- `GCC_OPTIMIZATION_LEVEL = s` in **both** configurations. GOAL's cooperative
+  threads copy their stacks in and out of backup buffers sized by
+  `process-stack-save-size` in `kernel/gkernel-h.gc`, and those sizes are for
+  optimized code generation. Unoptimized, the generated C's frames are large
+  enough to overflow them: a Debug build at `-O0` reached the title level and
+  then stopped at the loud guard in `goal_native_kernel.cpp` with
+  `the cpu-thread 'code' ... used 1424 bytes of stack but its backup buffer is
+  only 1280`. Swift is unaffected - `SWIFT_OPTIMIZATION_LEVEL` is still `-Onone`
+  in Debug - so the app shell stays debuggable.
 
 ## Build the application
 

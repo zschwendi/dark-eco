@@ -23,6 +23,9 @@ final class AudioOutput {
     /// How many stereo frames the device has asked for, and how many the engine actually produced.
     var framesRequested: Int { pull.requested.load(ordering: .relaxed) }
     var framesProduced: Int { pull.produced.load(ordering: .relaxed) }
+    /// The loudest sample the engine has produced so far, of 32767. Zero means silence: the device
+    /// is running and the frames are arriving, but nothing in them can be heard.
+    var peakAmplitude: Int { pull.peak.load(ordering: .relaxed) }
 
     private let pull = EnginePull()
     private var engine: AVAudioEngine?
@@ -209,6 +212,8 @@ nonisolated private final class EnginePull: Sendable {
 
     let requested = Atomic<Int>(0)
     let produced = Atomic<Int>(0)
+    /// Loudest sample the engine has produced, 0...32767. Written only by the render thread.
+    let peak = Atomic<Int>(0)
 
     private nonisolated(unsafe) let scratch: UnsafeMutablePointer<Int16>
 
@@ -238,6 +243,12 @@ nonisolated private final class EnginePull: Sendable {
             }
             return noErr
         }
+
+        var loudest = peak.load(ordering: .relaxed)
+        for sample in 0..<(written * 2) {
+            loudest = max(loudest, abs(Int(scratch[sample])))
+        }
+        peak.store(loudest, ordering: .relaxed)
 
         // The seam hands back interleaved stereo; the source node's standard format is two
         // deinterleaved float channels.

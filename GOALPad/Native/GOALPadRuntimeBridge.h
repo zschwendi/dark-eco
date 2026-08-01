@@ -48,6 +48,42 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
+/// What booting the game did, read out of the live kernel.
+@interface GOALPadGameBootStatus : NSObject
+
+@property(nonatomic, readonly, getter=isBooted) BOOL booted;
+@property(nonatomic, readonly) NSString *message;
+
+/// Object files loaded out of each archive, and the code/data split of GAME.CGO's. Code comes from
+/// the ahead-of-time C this app was built with; data comes off the player's own disc image.
+@property(nonatomic, readonly) int32_t kernelObjects;
+@property(nonatomic, readonly) int32_t gameObjects;
+@property(nonatomic, readonly) int32_t codeObjects;
+@property(nonatomic, readonly) int32_t dataObjects;
+
+@property(nonatomic, readonly) uint32_t kernelVersion;
+@property(nonatomic, readonly) uint32_t globalHeapUsedBytes;
+@property(nonatomic, readonly) int32_t symbolCount;
+
+/// Whether 989snd started and is answering the sound RPC, and the rate it mixes at.
+@property(nonatomic, readonly, getter=isSoundInstalled) BOOL soundInstalled;
+@property(nonatomic, readonly) int32_t soundSampleRate;
+
+/// Whether the engine's own `play` ran: the level heaps and the title level's load.
+@property(nonatomic, readonly, getter=didPlay) BOOL played;
+@property(nonatomic, readonly) NSTimeInterval duration;
+
+@end
+
+/// What the frames' DMA chains carried. Nothing is drawn until the Metal renderer is linked; this
+/// measures what a frame handed `__send-gfx-dma-chain`, which is what says whether it drew.
+typedef struct GOALPadFrameChainStats {
+  int32_t chains;
+  uint32_t lastPayloadBytes;
+  uint32_t largestPayloadBytes;
+  int32_t lastTextureUploads;
+} GOALPadFrameChainStats;
+
 /// The whole Swift-facing surface of the native runtime. The GOAL kernel is a process-wide
 /// singleton, so this is a class API rather than an instantiable object.
 @interface GOALPadRuntimeBridge : NSObject
@@ -62,11 +98,26 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (BOOL)isKernelRunning;
 
+/// Boot Jak 1: KERNEL.CGO, the machine layer, GAME.CGO, then the engine's own `play`. The kernel
+/// must already be up. This takes seconds and runs the game's own startup code, so call it off the
+/// main thread; nothing else may touch the kernel while it runs.
++ (GOALPadGameBootStatus *)bootGame;
+
+/// Run one frame of the game: `kernel-dispatcher`, then the overlord's vblank work. NO when the
+/// game is not booted. Call from one thread only.
++ (BOOL)runFrame;
+
+@property(class, nonatomic, readonly) uint64_t framesRun;
+@property(class, nonatomic, readonly, getter=isGameBooted) BOOL gameBooted;
+@property(class, nonatomic, readonly) GOALPadFrameChainStats frameChainStats;
+
 /// Whether this build carries each engine host seam. A seam that is not linked reports its absence
 /// instead of pretending to work; see `GOALPadEngineSeams.h`.
 @property(class, nonatomic, readonly, getter=isDataSeamLinked) BOOL dataSeamLinked;
 @property(class, nonatomic, readonly, getter=isInputSeamLinked) BOOL inputSeamLinked;
 @property(class, nonatomic, readonly, getter=isAudioSeamLinked) BOOL audioSeamLinked;
+/// NO when this build has no ahead-of-time Jak 1 code, in which case the game cannot boot at all.
+@property(class, nonatomic, readonly, getter=isGameCodeLinked) BOOL gameCodeLinked;
 
 @end
 

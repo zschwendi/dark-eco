@@ -19,12 +19,29 @@ struct ContentView: View {
                     .buttonStyle(.bordered)
                     .padding()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            } else if session.isBooting {
+                BootingView()
             } else {
                 GameDataSetupView(session: session)
             }
         }
         .task { await session.prepare() }
         .onChange(of: scenePhase) { _, phase in session.scenePhaseChanged(to: phase) }
+    }
+}
+
+/// The game's own startup: two DGO archives and `play`, which take seconds.
+private struct BootingView: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+            Text("Booting Jak 1")
+                .font(.system(.headline, design: .monospaced))
+            Text("KERNEL.CGO, GAME.CGO, then the title level")
+                .font(.system(.footnote, design: .monospaced))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -38,6 +55,7 @@ private struct DiagnosticsOverlay: View {
             VStack(alignment: .leading, spacing: 10) {
                 header
                 seams
+                game
                 surface
                 controller
                 audio
@@ -65,8 +83,30 @@ private struct DiagnosticsOverlay: View {
             ("game data", flag(GOALPadRuntimeBridge.isDataSeamLinked)),
             ("controller", flag(GOALPadRuntimeBridge.isInputSeamLinked)),
             ("audio", flag(GOALPadRuntimeBridge.isAudioSeamLinked)),
+            ("Jak 1 GOAL code", flag(GOALPadRuntimeBridge.isGameCodeLinked)),
             ("renderer", flag(GOALPadRenderSurface.shared.isRendererLinked)),
         ])
+    }
+
+    /// The game itself: what booted out of the player's own archives and what the frames are doing.
+    @ViewBuilder
+    private var game: some View {
+        if let boot = session.boot {
+            let chain = session.frameChain
+            section("Jak 1", [
+                ("KERNEL.CGO", "\(boot.kernelObjects) objects"),
+                ("GAME.CGO", "\(boot.gameObjects) objects: \(boot.codeObjects) code, "
+                    + "\(boot.dataObjects) data"),
+                ("GOAL kernel version", "\(boot.kernelVersion >> 0x13).\((boot.kernelVersion >> 3) & 0xffff)"),
+                ("boot took", String(format: "%.1f s", boot.duration)),
+                ("989snd", boot.isSoundInstalled ? "\(boot.soundSampleRate) Hz" : "NOT running"),
+                ("dispatcher frames", "\(session.framesRun)"),
+                ("DMA chains built", "\(chain.chains)"),
+                ("last chain payload", "\(chain.lastPayloadBytes) bytes, "
+                    + "\(chain.lastTextureUploads) texture uploads"),
+                ("largest chain payload", "\(chain.largestPayloadBytes) bytes"),
+            ])
+        }
     }
 
     private var surface: some View {
@@ -111,6 +151,7 @@ private struct DiagnosticsOverlay: View {
             ("rate", "\(session.audio.sampleRate) Hz stereo"),
             ("frames asked for", "\(session.audio.framesRequested)"),
             ("frames produced", "\(session.audio.framesProduced)"),
+            ("peak sample", "\(session.audio.peakAmplitude) of 32767"),
             ("error", session.audio.lastError ?? "none"),
         ])
     }
