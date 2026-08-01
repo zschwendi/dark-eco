@@ -5267,3 +5267,65 @@ and resource limits are ready for the physical gate, notify the maintainer and
 ask for explicit permission to perform the install and run. The clean
 `goalpad/play-jak2-str-file` worktree remains the exact Jak 2 resume point after
 that higher-priority Jak 1 device gate.
+
+---
+
+# Checkpoint 29: current-head Jak 1 app installed with complete data on Z iPad Pro
+
+Date: 2026-08-01. Parent base `9e35203` on `feat/ipados-native-boot`; OpenGOAL
+submodule `7e69774a0c91ff804f165df574f919afc6e7b826` on
+`goalpad/play-fusion`. The maintainer explicitly authorized physical-device
+build, install, launch, and validation in the current request.
+
+## Current-head Xcode repair
+
+The first current-pin Release build reached the final arm64 link and failed
+because the manually maintained Xcode source list had drifted behind the
+OpenGOAL Jak 1 kernel-core and Metal targets. The focused parent patch adds the
+nine existing translation units now required by those targets:
+
+- `game/sce/libscf.cpp`
+- `game/kernel/core/kernel_game_jak1.cpp`
+- `game/kernel/core/vag_stream.cpp`
+- `game/kernel/core/mips2c_jak1.cpp`
+- `game/graphics/pipelines/metal/metal_eye_renderer.mm`
+- `game/graphics/pipelines/metal/metal_generic2.mm`
+- `game/graphics/pipelines/metal/metal_shadow_renderer.mm`
+- `game/graphics/opengl_renderer/Shadow_PS2.cpp`
+- `game/graphics/opengl_renderer/ShadowVu.cpp`
+
+The build phase and `Scripts/compile-metal-shaders.sh` now compile the existing
+`eye.metal`, `generic.metal`, and `shadow.metal` sources. `metal_pipeline.mm`
+remains intentionally excluded: `GOALPadMetalHost` replaces that desktop SDL
+display/event owner with `CAMetalLayer` and the app display link.
+
+## Validation and physical install
+
+- `plutil -lint GOALPad.xcodeproj/project.pbxproj` — passed.
+- `sh -n Scripts/compile-metal-shaders.sh` — passed.
+- `git diff --check` — passed.
+- `xcodebuild -project GOALPad.xcodeproj -scheme GOALPad -configuration Release -destination 'id=6A4111AB-1663-508A-98D9-F0C1A9EA7863' -derivedDataPath /private/tmp/GOALPad-current-device -jobs 4 -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO -quiet build` — passed after the focused source-list repair. Existing upstream conversion/uninitialized warnings remain.
+- The result is a thin arm64 `iPhoneOS` app, bundle
+  `com.zephyrstudiosllc.GOALPad`, minimum iOS 26.5. Its parsed entitlements are
+  only the development application identifier, team identifier, and
+  `get-task-allow`. `__TEXT` is RX rather than writable/executable. Local
+  `codesign --verify --deep --strict` could not establish the certificate trust
+  chain (`CSSMERR_TP_NOT_TRUSTED`), but CoreDevice accepted the embedded
+  signature and installed the app successfully.
+- `xcrun devicectl device install app --device 6A4111AB-1663-508A-98D9-F0C1A9EA7863 /private/tmp/GOALPad-current-device/Build/Products/Release-iphoneos/GOALPad.app` — passed; existing app-container data was preserved.
+- The container was empty. `xcrun devicectl device copy to` transferred the
+  maintainer's prepared local `iso` and `fr3` directories to
+  `Documents/Jak1`. A recursive device-side listing verifies 321 `iso` files,
+  26 `fr3` files, 1,628,186,274 bytes, and exactly one each of `KERNEL.CGO` and
+  `GAME.CGO`.
+
+The app and complete data are now installed on physical **Z iPad Pro**. Three
+remote launch attempts reached SpringBoard but were denied because the device
+was locked. This is not an app crash or signature/install failure. Physical
+Jak 1 boot, rendered title screen, controller, audio, and gameplay remain
+unvalidated until the device is unlocked and the installed app is launched.
+
+The next executable step is only: unlock **Z iPad Pro**, launch
+`com.zephyrstudiosllc.GOALPad`, capture the boot/runtime evidence, and test a
+controller past the title screen. Do not resume Jak 2 before recording that
+physical Jak 1 result.

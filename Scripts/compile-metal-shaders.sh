@@ -20,6 +20,9 @@ mkdir -p "$out_dir"
 xcrun -sdk "$PLATFORM_NAME" metal -Wall -Werror -o "$metallib" \
     "$shader_dir/scaffold.metal" \
     "$shader_dir/direct.metal" \
+    "$shader_dir/eye.metal" \
+    "$shader_dir/generic.metal" \
+    "$shader_dir/shadow.metal" \
     "$shader_dir/sprite.metal" \
     "$shader_dir/background.metal" \
     "$shader_dir/ocean.metal" \

@@ -40,6 +40,10 @@
 		A7300000000000000002001E /* game/kernel/core/dgo_loader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001001E /* game/kernel/core/dgo_loader.cpp */; };
 		A7300000000000000002001F /* game/kernel/core/pad.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001001F /* game/kernel/core/pad.cpp */; };
 		A73000000000000000020020 /* game/kernel/core/sound_rpc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010020 /* game/kernel/core/sound_rpc.cpp */; };
+		A73000000000000000020056 /* game/sce/libscf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010056 /* game/sce/libscf.cpp */; };
+		A73000000000000000020057 /* game/kernel/core/kernel_game_jak1.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010057 /* game/kernel/core/kernel_game_jak1.cpp */; };
+		A73000000000000000020058 /* game/kernel/core/vag_stream.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010058 /* game/kernel/core/vag_stream.cpp */; };
+		A73000000000000000020059 /* game/kernel/core/mips2c_jak1.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010059 /* game/kernel/core/mips2c_jak1.cpp */; };
 		A73000000000000000020021 /* game/overlord/common/sbank.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010021 /* game/overlord/common/sbank.cpp */; };
 		A73000000000000000020022 /* game/overlord/common/soundcommon.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010022 /* game/overlord/common/soundcommon.cpp */; };
 		A73000000000000000020023 /* game/overlord/common/srpc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010023 /* game/overlord/common/srpc.cpp */; };
@@ -95,6 +99,11 @@
 		A73000000000000000020055 /* game/mips2c/jak1_functions/time_of_day.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010055 /* game/mips2c/jak1_functions/time_of_day.cpp */; };
 		A73100000000000000020000 /* game/graphics/pipelines/metal/metal_bucket_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010000 /* game/graphics/pipelines/metal/metal_bucket_renderer.mm */; };
 		A73100000000000000020001 /* game/graphics/pipelines/metal/metal_direct_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010001 /* game/graphics/pipelines/metal/metal_direct_renderer.mm */; };
+		A73200000000000000020000 /* game/graphics/pipelines/metal/metal_eye_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73200000000000000010000 /* game/graphics/pipelines/metal/metal_eye_renderer.mm */; };
+		A73200000000000000020001 /* game/graphics/pipelines/metal/metal_generic2.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73200000000000000010001 /* game/graphics/pipelines/metal/metal_generic2.mm */; };
+		A73200000000000000020002 /* game/graphics/pipelines/metal/metal_shadow_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73200000000000000010002 /* game/graphics/pipelines/metal/metal_shadow_renderer.mm */; };
+		A73200000000000000020003 /* game/graphics/opengl_renderer/Shadow_PS2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73200000000000000010003 /* game/graphics/opengl_renderer/Shadow_PS2.cpp */; };
+		A73200000000000000020004 /* game/graphics/opengl_renderer/ShadowVu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73200000000000000010004 /* game/graphics/opengl_renderer/ShadowVu.cpp */; };
 		A73100000000000000020002 /* game/graphics/pipelines/metal/metal_level_data.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010002 /* game/graphics/pipelines/metal/metal_level_data.mm */; };
 		A73100000000000000020003 /* game/graphics/pipelines/metal/metal_merc.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010003 /* game/graphics/pipelines/metal/metal_merc.mm */; };
 		A73100000000000000020004 /* game/graphics/pipelines/metal/metal_merc_model_pool.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010004 /* game/graphics/pipelines/metal/metal_merc_model_pool.mm */; };
@@ -193,6 +202,10 @@
 		A7300000000000000001001E /* game/kernel/core/dgo_loader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dgo_loader.cpp; path = game/kernel/core/dgo_loader.cpp; sourceTree = "<group>"; };
 		A7300000000000000001001F /* game/kernel/core/pad.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = pad.cpp; path = game/kernel/core/pad.cpp; sourceTree = "<group>"; };
 		A73000000000000000010020 /* game/kernel/core/sound_rpc.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sound_rpc.cpp; path = game/kernel/core/sound_rpc.cpp; sourceTree = "<group>"; };
+		A73000000000000000010056 /* game/sce/libscf.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = libscf.cpp; path = game/sce/libscf.cpp; sourceTree = "<group>"; };
+		A73000000000000000010057 /* game/kernel/core/kernel_game_jak1.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kernel_game_jak1.cpp; path = game/kernel/core/kernel_game_jak1.cpp; sourceTree = "<group>"; };
+		A73000000000000000010058 /* game/kernel/core/vag_stream.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = vag_stream.cpp; path = game/kernel/core/vag_stream.cpp; sourceTree = "<group>"; };
+		A73000000000000000010059 /* game/kernel/core/mips2c_jak1.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = mips2c_jak1.cpp; path = game/kernel/core/mips2c_jak1.cpp; sourceTree = "<group>"; };
 		A73000000000000000010021 /* game/overlord/common/sbank.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sbank.cpp; path = game/overlord/common/sbank.cpp; sourceTree = "<group>"; };
 		A73000000000000000010022 /* game/overlord/common/soundcommon.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = soundcommon.cpp; path = game/overlord/common/soundcommon.cpp; sourceTree = "<group>"; };
 		A73000000000000000010023 /* game/overlord/common/srpc.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = srpc.cpp; path = game/overlord/common/srpc.cpp; sourceTree = "<group>"; };
@@ -248,6 +261,11 @@
 		A73000000000000000010055 /* game/mips2c/jak1_functions/time_of_day.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = time_of_day.cpp; path = game/mips2c/jak1_functions/time_of_day.cpp; sourceTree = "<group>"; };
 		A73100000000000000010000 /* game/graphics/pipelines/metal/metal_bucket_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_bucket_renderer.mm; path = game/graphics/pipelines/metal/metal_bucket_renderer.mm; sourceTree = "<group>"; };
 		A73100000000000000010001 /* game/graphics/pipelines/metal/metal_direct_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_direct_renderer.mm; path = game/graphics/pipelines/metal/metal_direct_renderer.mm; sourceTree = "<group>"; };
+		A73200000000000000010000 /* game/graphics/pipelines/metal/metal_eye_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_eye_renderer.mm; path = game/graphics/pipelines/metal/metal_eye_renderer.mm; sourceTree = "<group>"; };
+		A73200000000000000010001 /* game/graphics/pipelines/metal/metal_generic2.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_generic2.mm; path = game/graphics/pipelines/metal/metal_generic2.mm; sourceTree = "<group>"; };
+		A73200000000000000010002 /* game/graphics/pipelines/metal/metal_shadow_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_shadow_renderer.mm; path = game/graphics/pipelines/metal/metal_shadow_renderer.mm; sourceTree = "<group>"; };
+		A73200000000000000010003 /* game/graphics/opengl_renderer/Shadow_PS2.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Shadow_PS2.cpp; path = game/graphics/opengl_renderer/Shadow_PS2.cpp; sourceTree = "<group>"; };
+		A73200000000000000010004 /* game/graphics/opengl_renderer/ShadowVu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ShadowVu.cpp; path = game/graphics/opengl_renderer/ShadowVu.cpp; sourceTree = "<group>"; };
 		A73100000000000000010002 /* game/graphics/pipelines/metal/metal_level_data.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_level_data.mm; path = game/graphics/pipelines/metal/metal_level_data.mm; sourceTree = "<group>"; };
 		A73100000000000000010003 /* game/graphics/pipelines/metal/metal_merc.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_merc.mm; path = game/graphics/pipelines/metal/metal_merc.mm; sourceTree = "<group>"; };
 		A73100000000000000010004 /* game/graphics/pipelines/metal/metal_merc_model_pool.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_merc_model_pool.mm; path = game/graphics/pipelines/metal/metal_merc_model_pool.mm; sourceTree = "<group>"; };
@@ -397,12 +415,15 @@
 				A73000000000000000010018 /* game/kernel/jak1/kprint.cpp */,
 				A73000000000000000010019 /* game/kernel/jak1/kscheme.cpp */,
 				A7300000000000000001001A /* game/sce/sif_ee_memcard.cpp */,
+				A73000000000000000010056 /* game/sce/libscf.cpp */,
 				A7300000000000000001001B /* game/kernel/core/kernel_core.cpp */,
 				A7300000000000000001001C /* game/kernel/core/desktop_seams.cpp */,
+				A73000000000000000010057 /* game/kernel/core/kernel_game_jak1.cpp */,
 				A7300000000000000001001D /* game/kernel/core/aot_loader.cpp */,
 				A7300000000000000001001E /* game/kernel/core/dgo_loader.cpp */,
 				A7300000000000000001001F /* game/kernel/core/pad.cpp */,
 				A73000000000000000010020 /* game/kernel/core/sound_rpc.cpp */,
+				A73000000000000000010058 /* game/kernel/core/vag_stream.cpp */,
 				A73000000000000000010021 /* game/overlord/common/sbank.cpp */,
 				A73000000000000000010022 /* game/overlord/common/soundcommon.cpp */,
 				A73000000000000000010023 /* game/overlord/common/srpc.cpp */,
@@ -429,6 +450,7 @@
 				A73000000000000000010037 /* common/dma/dma_copy.cpp */,
 				A73000000000000000010038 /* common/dma/dma.cpp */,
 				A73000000000000000010039 /* game/kernel/core/mips2c_seam.cpp */,
+				A73000000000000000010059 /* game/kernel/core/mips2c_jak1.cpp */,
 				A7300000000000000001003A /* game/kernel/core/goal_native_kernel.cpp */,
 				A7300000000000000001003B /* game/kernel/core/goal_thread_arm64.s */,
 				A7300000000000000001003C /* game/kernel/asm_funcs_arm64.s */,
@@ -467,6 +489,9 @@
 			children = (
 				A73100000000000000010000 /* game/graphics/pipelines/metal/metal_bucket_renderer.mm */,
 				A73100000000000000010001 /* game/graphics/pipelines/metal/metal_direct_renderer.mm */,
+				A73200000000000000010000 /* game/graphics/pipelines/metal/metal_eye_renderer.mm */,
+				A73200000000000000010001 /* game/graphics/pipelines/metal/metal_generic2.mm */,
+				A73200000000000000010002 /* game/graphics/pipelines/metal/metal_shadow_renderer.mm */,
 				A73100000000000000010002 /* game/graphics/pipelines/metal/metal_level_data.mm */,
 				A73100000000000000010003 /* game/graphics/pipelines/metal/metal_merc.mm */,
 				A73100000000000000010004 /* game/graphics/pipelines/metal/metal_merc_model_pool.mm */,
@@ -483,6 +508,8 @@
 				A7310000000000000001000F /* game/graphics/pipelines/metal/metal_kernel_bridge.cpp */,
 				A73100000000000000010010 /* game/graphics/pipelines/metal/metal_texture_upload_handler.cpp */,
 				A73100000000000000010011 /* game/graphics/opengl_renderer/dma_helpers.cpp */,
+				A73200000000000000010003 /* game/graphics/opengl_renderer/Shadow_PS2.cpp */,
+				A73200000000000000010004 /* game/graphics/opengl_renderer/ShadowVu.cpp */,
 				A73100000000000000010012 /* game/graphics/opengl_renderer/ocean/OceanMid_PS2.cpp */,
 				A73100000000000000010013 /* game/graphics/opengl_renderer/ocean/OceanNear_PS2.cpp */,
 				A73100000000000000010014 /* game/graphics/opengl_renderer/ocean/OceanTexture_VU.cpp */,
@@ -613,6 +640,9 @@
 			inputPaths = (
 				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/scaffold.metal",
 				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/direct.metal",
+				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/eye.metal",
+				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/generic.metal",
+				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/shadow.metal",
 				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/sprite.metal",
 				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/background.metal",
 				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/ocean.metal",
@@ -662,12 +692,15 @@
 				A73000000000000000020018 /* game/kernel/jak1/kprint.cpp in Sources */,
 				A73000000000000000020019 /* game/kernel/jak1/kscheme.cpp in Sources */,
 				A7300000000000000002001A /* game/sce/sif_ee_memcard.cpp in Sources */,
+				A73000000000000000020056 /* game/sce/libscf.cpp in Sources */,
 				A7300000000000000002001B /* game/kernel/core/kernel_core.cpp in Sources */,
 				A7300000000000000002001C /* game/kernel/core/desktop_seams.cpp in Sources */,
+				A73000000000000000020057 /* game/kernel/core/kernel_game_jak1.cpp in Sources */,
 				A7300000000000000002001D /* game/kernel/core/aot_loader.cpp in Sources */,
 				A7300000000000000002001E /* game/kernel/core/dgo_loader.cpp in Sources */,
 				A7300000000000000002001F /* game/kernel/core/pad.cpp in Sources */,
 				A73000000000000000020020 /* game/kernel/core/sound_rpc.cpp in Sources */,
+				A73000000000000000020058 /* game/kernel/core/vag_stream.cpp in Sources */,
 				A73000000000000000020021 /* game/overlord/common/sbank.cpp in Sources */,
 				A73000000000000000020022 /* game/overlord/common/soundcommon.cpp in Sources */,
 				A73000000000000000020023 /* game/overlord/common/srpc.cpp in Sources */,
@@ -693,6 +726,7 @@
 				A73000000000000000020037 /* common/dma/dma_copy.cpp in Sources */,
 				A73000000000000000020038 /* common/dma/dma.cpp in Sources */,
 				A73000000000000000020039 /* game/kernel/core/mips2c_seam.cpp in Sources */,
+				A73000000000000000020059 /* game/kernel/core/mips2c_jak1.cpp in Sources */,
 				A7300000000000000002003A /* game/kernel/core/goal_native_kernel.cpp in Sources */,
 				A7300000000000000002003B /* game/kernel/core/goal_thread_arm64.s in Sources */,
 				A7300000000000000002003C /* game/kernel/asm_funcs_arm64.s in Sources */,
@@ -723,6 +757,9 @@
 				A73000000000000000020055 /* game/mips2c/jak1_functions/time_of_day.cpp in Sources */,
 				A73100000000000000020000 /* game/graphics/pipelines/metal/metal_bucket_renderer.mm in Sources */,
 				A73100000000000000020001 /* game/graphics/pipelines/metal/metal_direct_renderer.mm in Sources */,
+				A73200000000000000020000 /* game/graphics/pipelines/metal/metal_eye_renderer.mm in Sources */,
+				A73200000000000000020001 /* game/graphics/pipelines/metal/metal_generic2.mm in Sources */,
+				A73200000000000000020002 /* game/graphics/pipelines/metal/metal_shadow_renderer.mm in Sources */,
 				A73100000000000000020002 /* game/graphics/pipelines/metal/metal_level_data.mm in Sources */,
 				A73100000000000000020003 /* game/graphics/pipelines/metal/metal_merc.mm in Sources */,
 				A73100000000000000020004 /* game/graphics/pipelines/metal/metal_merc_model_pool.mm in Sources */,
@@ -739,6 +776,8 @@
 				A7310000000000000002000F /* game/graphics/pipelines/metal/metal_kernel_bridge.cpp in Sources */,
 				A73100000000000000020010 /* game/graphics/pipelines/metal/metal_texture_upload_handler.cpp in Sources */,
 				A73100000000000000020011 /* game/graphics/opengl_renderer/dma_helpers.cpp in Sources */,
+				A73200000000000000020003 /* game/graphics/opengl_renderer/Shadow_PS2.cpp in Sources */,
+				A73200000000000000020004 /* game/graphics/opengl_renderer/ShadowVu.cpp in Sources */,
 				A73100000000000000020012 /* game/graphics/opengl_renderer/ocean/OceanMid_PS2.cpp in Sources */,
 				A73100000000000000020013 /* game/graphics/opengl_renderer/ocean/OceanNear_PS2.cpp in Sources */,
 				A73100000000000000020014 /* game/graphics/opengl_renderer/ocean/OceanTexture_VU.cpp in Sources */,
