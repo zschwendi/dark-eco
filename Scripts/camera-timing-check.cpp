@@ -91,16 +91,16 @@ int main() {
                                               0.5 * kFramePeriod,
                                               1.5 * kFramePeriod,
                                               0.5 * kFramePeriod});
-  const auto accumulated_slow = display_trace(1.5 * kFramePeriod, 1.5 * kFramePeriod);
-  const auto capped_with_residual = display_trace({1.5 * kFramePeriod,
-                                                   3.75 * kFramePeriod,
-                                                   0.75 * kFramePeriod,
-                                                   2.0 * kFramePeriod});
-  expect_trace("late then early", late_then_early, {1, 1});
-  expect_trace("early then late", early_then_late, {1, 1});
-  expect_trace("repeated boundary jitter", boundary_jitter, {1, 1, 1, 1});
-  expect_trace("accumulated slow cadence", accumulated_slow, {1, 2});
-  expect_trace("capped interval preserves residual", capped_with_residual, {1, 4, 1, 2});
+  const auto repeated_slow = display_trace(1.5 * kFramePeriod, 1.5 * kFramePeriod);
+  const auto independently_rounded = display_trace({1.5 * kFramePeriod,
+                                                     3.75 * kFramePeriod,
+                                                     0.75 * kFramePeriod,
+                                                     2.0 * kFramePeriod});
+  expect_trace("late then early", late_then_early, {2, 1});
+  expect_trace("early then late", early_then_late, {1, 2});
+  expect_trace("repeated boundary jitter", boundary_jitter, {2, 1, 2, 1});
+  expect_trace("repeated slow cadence", repeated_slow, {2, 2});
+  expect_trace("independent interval rounding", independently_rounded, {2, 4, 1, 2});
 
   goalpad::DisplayClock lifecycle;
   assert(lifecycle.advance(200.0) == 1);
@@ -143,10 +143,10 @@ int main() {
 
   std::cout << "ordinary targets       [1, 1]\n"
             << "skipped targets        [1, 2]\n"
-            << "1.5 + 0.5 targets      [1, 1]\n"
-            << "0.5 + 1.5 targets      [1, 1]\n"
-            << "1.5 + 1.5 targets      [1, 2]\n"
-            << "capped residual        [1, 4, 1, 2]\n"
+            << "1.5 + 0.5 targets      [2, 1]\n"
+            << "0.5 + 1.5 targets      [1, 2]\n"
+            << "1.5 + 1.5 targets      [2, 2]\n"
+            << "independent rounding   [2, 4, 1, 2]\n"
             << "workload-only targets  [1, 1]\n"
             << "pre-draw work timer    [2, 1]\n"
             << "rejected fixed step    [1, 1]\n"

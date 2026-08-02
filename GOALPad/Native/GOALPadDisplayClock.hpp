@@ -26,27 +26,18 @@ class DisplayClock {
       reset();
       return 1;
     }
-    if (elapsed_frames >= 4.0) {
-      frame_debt_ = 0.0;
-      return 4;
-    }
-
-    const double accumulated_debt = frame_debt_ + elapsed_frames - 1.0;
-    const int extra_frames =
-        std::clamp(static_cast<int>(std::floor(accumulated_debt + 1e-6)), 0, 3);
-    frame_debt_ = std::clamp(accumulated_debt - extra_frames, -1.0, 1.0);
-    return 1 + extra_frames;
+    return elapsed_frames >= 4.0
+               ? 4
+               : std::clamp(static_cast<int>(std::lround(elapsed_frames)), 1, 4);
   }
 
   void reset() noexcept {
     previous_target_ = 0.0;
-    frame_debt_ = 0.0;
     has_previous_target_ = false;
   }
 
  private:
   double previous_target_ = 0.0;
-  double frame_debt_ = 0.0;
   bool has_previous_target_ = false;
 };
 

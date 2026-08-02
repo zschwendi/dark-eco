@@ -49,9 +49,9 @@ no private entitlement anywhere in the build.
   resolution controls remain hidden behind the three-line menu button.
 - **Experimental — iPad.** Jak 1 boots, renders, and plays on physical iPad. A
   forced fixed-step camera experiment was rejected on hardware and removed;
-  current source instead requests fixed 60 Hz callbacks and accumulates
-  fractional frame debt from display-target timestamps. Deterministic checks,
-  the named M5 simulator, signed
+  current source instead requests fixed 60 Hz callbacks and independently
+  rounds each display-target interval to Jak's integral 1-through-4 frame
+  ratio. Deterministic checks, the named M5 simulator, signed
   physical launch, and real kernel/audio boot path pass. The Checkpoint 37 run
   reached the farthest gameplay yet, but was physically rejected: camera and
   depth fighting felt worse than Checkpoint 36, Merc deformation remained, and
