@@ -1,6 +1,10 @@
-# Eco dark-sheen icon concepts
+# Eco Pro dark-sheen icon concepts
 
 Exploratory only. These files do not replace the active AppIcon. Each candidate is an original, opaque, full-bleed 1024 × 1024 PNG generated with built-in ImageGen and normalized to the required dimensions.
+
+The exact prompts below retain the working name **Eco** used when the images
+were generated. The artwork contains no text and remains applicable to the
+current public name **Eco Pro**.
 
 | Void Lens | Fault Stone | Abyss Fold |
 | --- | --- | --- |

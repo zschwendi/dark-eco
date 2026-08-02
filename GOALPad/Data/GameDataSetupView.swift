@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// What the player sees until their own game data is in place, and the two ways of getting it
-/// there. Eco ships with no game data and never downloads any.
+/// there. Eco Pro ships with no game data and never downloads any.
 struct GameDataSetupView: View {
     @Bindable var session: GameSession
     @State private var isChoosingFolder = false
@@ -41,7 +41,7 @@ struct GameDataSetupView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Add compatible game data")
                 .font(.title2.weight(.semibold))
-            Text("Eco runs compatible data you provide. No game data ships with this app.")
+            Text("Eco Pro runs compatible data you provide. No game data ships with this app.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
         }
@@ -95,7 +95,7 @@ struct GameDataSetupView: View {
         2. Choose Import from a folder below.
         3. Select the `jak1` folder in the system file picker.
 
-        Import copies `iso/` and `fr3/` into Eco's sandbox, so the device needs enough free \
+        Import copies `iso/` and `fr3/` into Eco Pro's sandbox, so the device needs enough free \
         space for a second copy.
         """
         #else
@@ -104,8 +104,8 @@ struct GameDataSetupView: View {
         directory holding `iso/` and `fr3/` — about 1.5 GB.
 
         1. Connect the iPad and open it in Finder, or open the Files app on the iPad.
-        2. Find Eco under On My iPad / the device's Files section.
-        3. Copy the whole `iso` and `fr3` directories into Eco's `Jak1` folder.
+        2. Find Eco Pro under On My iPad / the device's Files section.
+        3. Copy the whole `iso` and `fr3` directories into Eco Pro's `Jak1` folder.
 
         Or use Import below to copy them in from an external drive or iCloud Drive. That reads \
         the folder you pick and writes a second copy into the app, so it needs the free space \

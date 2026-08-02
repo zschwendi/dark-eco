@@ -105,7 +105,7 @@ private struct DiagnosticsOverlay: View {
 
     private var header: some View {
         HStack {
-            Text("Eco")
+            Text("Eco Pro")
                 .font(.headline)
             Spacer()
             Button("Shut down") { session.shutdown() }

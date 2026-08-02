@@ -7488,3 +7488,39 @@ account, then provision the App ID and iCloud container before signed iOS or
 visionOS builds. Real iCloud transfer/conflict behavior, cross-device save
 migration, and physical Eco installs remain unvalidated. No device was accessed
 and no user game data was read or changed in this checkpoint.
+
+# Checkpoint 44: Eco Pro public-name correction
+
+The App Store and display name is **Eco Pro** because **Eco** was unavailable.
+This changes only public naming: the paid-team bundle identifier remains
+`com.zephyrstudiosllc.eco`, the private iCloud container remains
+`iCloud.com.zephyrstudiosllc.eco`, and the internal target, executable, source,
+runtime, diagnostics, and save-state names remain GOALPad.
+
+Both target configurations resolve `CFBundleDisplayName` to `Eco Pro`. The
+first-run setup, diagnostics header, conflict explanation, current public docs,
+and App Store metadata use the same name. The dark-sheen icon concepts contain
+no text and remain valid; their recorded exact generation prompts retain the
+then-current working name Eco rather than being rewritten after generation.
+
+Validation for this naming-only correction is limited to plist/project parsing,
+current-string consistency, and resolved build settings. It does not repeat the
+already completed OpenGOAL/AOT platform compilation:
+
+```sh
+plutil -lint GOALPad.xcodeproj/project.pbxproj \
+  GOALPad/GOALPad.entitlements GOALPad-Info.plist
+
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'generic/platform=iOS' \
+  CODE_SIGNING_ALLOWED=NO -showBuildSettings
+
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'generic/platform=visionOS' \
+  CODE_SIGNING_ALLOWED=NO -showBuildSettings
+```
+
+Both settings queries must continue to report paid team `V729QMY3V6`, bundle
+`com.zephyrstudiosllc.eco`, display name `Eco Pro`, the shared platform list,
+and `GOALPad/GOALPad.entitlements`. Signed provisioning and physical-device
+validation remain pending for the reasons recorded in Checkpoint 43.

@@ -37,7 +37,7 @@ as completing the overall goal.
   CI artifacts, or hosted services.
 - The preferred public distribution path is TestFlight followed by the App
   Store, while source and supported sideloading remain first-class. Storefront
-  and first-run presentation use the neutral **Eco** identity and calm
+  and first-run presentation use the neutral **Eco Pro** identity and calm
   **compatible user-supplied data** language rather than franchise marketing;
   technical documentation and App Review notes remain precise and transparent.
 - GitHub, TestFlight, and App Store archives fail closed unless the complete
@@ -790,7 +790,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 43 is the latest verified checkpoint. Checkpoint 37 remains the
+Checkpoint 44 is the latest verified checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -809,6 +809,9 @@ Checkpoint 43 selects the public **Eco** identity,
 `com.zephyrstudiosllc.eco`, its matching private iCloud container, and the paid
 team. The shared standard-window visionOS architecture remains unchanged;
 signed provisioning and real transfer remain separate validation gates.
+Checkpoint 44 changes only the public display and App Store name to **Eco Pro**
+after **Eco** proved unavailable; the registered bundle and iCloud identifiers
+remain unchanged.
 The full build, diagnostic, signing, and physical evidence is recorded in
 `HANDOFF.md`; older checkpoint sections remain historical.
 

@@ -2,7 +2,7 @@
 
 > **Status:** Early feasibility and platform-port project
 > **Working name:** GOALPad
-> **Public product name:** Eco
+> **Public product name:** Eco Pro
 > **App Store subtitle:** Native OpenGOAL Runtime
 > **Primary target:** iPadOS on Apple silicon; the shared windowed app also supports macOS and visionOS
 > **Initial game target:** *Jak and Daxter: The Precursor Legacy*
@@ -392,7 +392,7 @@ boundary and does not make a legal guarantee.
 
 ### Public product identity
 
-Public-facing product surfaces use **Eco**, with the App Store subtitle
+Public-facing product surfaces use **Eco Pro**, with the App Store subtitle
 **Native OpenGOAL Runtime**, and a calm, platform-oriented voice. GOALPad
 remains the repository, target, scheme, and internal runtime name. The App
 Store name, subtitle, icon, screenshots, preview media, and first-run setup

@@ -8,7 +8,7 @@ GOALPad is a native ARM64 port of OpenGOAL for Apple platforms. The first
 supported game is *Jak and Daxter: The Precursor Legacy*, using game data
 supplied and prepared by the user.
 
-**Eco** is the public App Store-facing product name; GOALPad remains the
+**Eco Pro** is the public App Store-facing product name; GOALPad remains the
 repository, Xcode target, and internal runtime name.
 
 It is not a PS2 emulator, not a Swift rewrite of OpenGOAL, and not a source of
@@ -119,7 +119,7 @@ app.
 Gameplay uses OpenGOAL's desktop-compatible memcard files under Application
 Support. The optional iCloud Saves setting mirrors those files into the app's
 iCloud Documents container; the runtime never plays from iCloud paths. When the
-two copies diverge, Eco leaves both originals in place, archives both
+two copies diverge, Eco Pro leaves both originals in place, archives both
 versions, and reports the conflict in Settings.
 
 The mirror is implemented with Apple's standard iCloud Documents entitlements;
