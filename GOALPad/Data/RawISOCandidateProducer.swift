@@ -1,14 +1,18 @@
 import Foundation
 
 /// Produces a complete desktop-compatible candidate from one supported Jak 1 disc image.
-/// The prepared-folder producer remains the active importer until this path passes its simulator
-/// proof and the picker is deliberately enabled.
 nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
     private static let projectResourceName = "OpenGOALProjectResources"
     private static let sourceObjectPackName = "Jak1SourceObjectPack"
 
     private let projectResourceURL: URL?
     private let sourceObjectPackURL: URL?
+
+    static func isAvailable(in bundle: Bundle = .main) -> Bool {
+        GOALPadGameDataPreparationIsAvailable()
+            && bundle.url(forResource: projectResourceName, withExtension: nil) != nil
+            && bundle.url(forResource: sourceObjectPackName, withExtension: nil) != nil
+    }
 
     init(bundle: Bundle = .main) {
         projectResourceURL = bundle.url(

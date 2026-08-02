@@ -5,7 +5,7 @@ import OSLog
 nonisolated private let installLog = Logger(subsystem: "com.zephyrstudiosllc.eco",
                                             category: "GameDataInstall")
 
-/// Progress shared by prepared-folder imports and the future raw-disc candidate producer.
+/// Progress shared by prepared-folder and raw-disc imports.
 nonisolated struct GameDataImportProgress: Sendable {
     nonisolated enum Phase: String, Sendable {
         case scanning
@@ -51,6 +51,7 @@ nonisolated struct GameDataImportFailure: Error, Sendable {
         case busy
         case sourceUnavailable
         case invalidPreparedFolder
+        case unsupportedArchive
         case invalidDiscImage
         case unsupportedDiscRevision
         case insufficientStorage
@@ -77,9 +78,6 @@ nonisolated struct GameDataImportResult: Sendable {
 }
 
 /// Typed boundary for producing a desktop-compatible `iso/` plus `fr3/` candidate.
-///
-/// The active picker still supplies only `PreparedFolderCandidateProducer`. The raw-disc adapter
-/// remains dormant until the native composition path completes its simulator proof.
 nonisolated protocol GameDataCandidateProducing: Sendable {
     func prepareCandidate(
         from source: URL,

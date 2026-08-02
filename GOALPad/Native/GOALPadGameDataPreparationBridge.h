@@ -3,6 +3,7 @@
 NS_ASSUME_NONNULL_BEGIN
 
 FOUNDATION_EXPORT NSErrorDomain const GOALPadGameDataPreparationErrorDomain;
+FOUNDATION_EXPORT BOOL GOALPadGameDataPreparationIsAvailable(void);
 
 typedef NS_ENUM(NSInteger, GOALPadGameDataPreparationErrorCode) {
   GOALPadGameDataPreparationErrorInvalidArgument = 1,

@@ -4,7 +4,7 @@ import OSLog
 nonisolated private let importLog = Logger(subsystem: "com.zephyrstudiosllc.eco",
                                            category: "Import")
 
-/// Main-actor state for the prepared-folder picker.
+/// Main-actor state for compatible game-data selection.
 ///
 /// File work is serialized by `GameDataInstallWorker`: it writes a recoverable candidate in
 /// Application Support, validates that candidate, and only then switches `Documents/Jak1`.
@@ -25,6 +25,7 @@ final class GameDataImporter {
     private(set) var state: State = .idle
     private let worker: GameDataInstallWorker
     private let preparedFolderProducer = PreparedFolderCandidateProducer()
+    private let rawISOProducer = RawISOCandidateProducer()
     private var task: Task<Void, Never>?
 
     init(worker: GameDataInstallWorker = GameDataInstallWorker()) {
@@ -38,17 +39,42 @@ final class GameDataImporter {
         }
     }
 
-    /// `source` may be the directory that holds `iso/` and `fr3/` (an OpenGOAL `out/jak1`), or
-    /// either of those two directories on its own. Raw-disc selection remains disabled until a
-    /// producer can satisfy `GameDataCandidateProducing` end to end.
+    /// `source` may be a supported raw disc image, the directory holding `iso/` and `fr3/`, or
+    /// either of those two prepared directories on its own.
     func start(from source: URL, onFinish: @escaping @MainActor () -> Void) {
         guard task == nil else { return }
+        let producer: any GameDataCandidateProducing
+        switch GameDataImportSource(url: source) {
+        case .preparedFolder:
+            producer = preparedFolderProducer
+        case .rawISO where RawISOCandidateProducer.isAvailable():
+            producer = rawISOProducer
+        case .rawISO:
+            state = .failed(GameDataImportFailure(
+                code: .appResourcesUnavailable,
+                message: "Raw .iso preparation is not available in this build. "
+                    + "Choose a prepared game-data folder instead.",
+                candidatePreserved: false
+            ))
+            onFinish()
+            return
+        case .unsupportedArchive:
+            state = .failed(GameDataImportFailure(
+                code: .unsupportedArchive,
+                message: "Compressed archives such as .zip are not supported. "
+                    + "Extract the .iso file, then choose that file.",
+                candidatePreserved: false
+            ))
+            onFinish()
+            return
+        }
+
         state = .scanning
-        task = Task { [self] in
+        task = Task { [self, producer] in
             do {
                 let result = try await worker.install(
                     from: source,
-                    using: preparedFolderProducer
+                    using: producer
                 ) { progress in
                     guard !Task.isCancelled else { return }
                     await MainActor.run {
@@ -59,7 +85,7 @@ final class GameDataImporter {
                     filesCopied: result.filesCopied,
                     filesSkipped: result.filesSkipped
                 )
-                importLog.notice("Activated prepared Jak 1 data with \(result.filesCopied) copied file(s)")
+                importLog.notice("Activated compatible game data with \(result.filesCopied) prepared file(s)")
                 onFinish()
             } catch is CancellationError {
                 state = .cancelled

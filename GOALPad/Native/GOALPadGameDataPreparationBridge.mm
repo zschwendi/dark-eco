@@ -18,6 +18,14 @@
 NSErrorDomain const GOALPadGameDataPreparationErrorDomain =
     @"com.zephyrstudiosllc.eco.GameDataPreparation";
 
+BOOL GOALPadGameDataPreparationIsAvailable(void) {
+#if GOALPAD_HAS_JAK1_IMPORT_COMPOSER
+  return YES;
+#else
+  return NO;
+#endif
+}
+
 #if GOALPAD_HAS_JAK1_IMPORT_COMPOSER
 static NSString *GOALPadPreparationString(const std::string &value, NSString *fallback) {
   NSString *string = [[NSString alloc] initWithBytes:value.data()

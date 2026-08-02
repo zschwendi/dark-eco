@@ -4,8 +4,10 @@ import UniformTypeIdentifiers
 /// What the player sees until their own game data is in place, and the two ways of getting it
 /// there. Eco Pro ships with no game data and never downloads any.
 struct GameDataSetupView: View {
+    private static let rawISOType = UTType(filenameExtension: "iso", conformingTo: .data)
+
     @Bindable var session: GameSession
-    @State private var isChoosingFolder = false
+    @State private var isChoosingSource = false
 
     var body: some View {
         ScrollView {
@@ -26,8 +28,8 @@ struct GameDataSetupView: View {
         .safeAreaPadding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.black.opacity(0.85))
-        .fileImporter(isPresented: $isChoosingFolder,
-                      allowedContentTypes: [.folder],
+        .fileImporter(isPresented: $isChoosingSource,
+                      allowedContentTypes: importContentTypes,
                       allowsMultipleSelection: false) { result in
             if case .success(let urls) = result, let source = urls.first {
                 session.importer.start(from: source) {
@@ -75,7 +77,7 @@ struct GameDataSetupView: View {
             Text(setupInstructions)
             .font(.callout)
             .foregroundStyle(.secondary)
-            Text("Import expects the prepared `out/jak1` folder. Raw `.iso` disc images are not supported in this build, so Files shows them dimmed.")
+            Text(importCompatibilityNote)
                 .font(.callout.weight(.medium))
                 .foregroundStyle(.orange)
             Text(GameDataLayout.gameDirectory.path)
@@ -86,33 +88,45 @@ struct GameDataSetupView: View {
     }
 
     private var setupInstructions: String {
-        #if os(visionOS)
-        """
-        Extract Jak 1 with the OpenGOAL tools on a computer. That produces an `out/jak1` \
-        directory holding `iso/` and `fr3/` — about 1.5 GB.
+        if canImportRawISO {
+            return """
+            Eco Pro can prepare a supported `.iso` disc image on this device, or import an existing \
+            OpenGOAL `out/jak1` folder containing `iso/` and `fr3/`.
 
-        1. Put `out/jak1` in iCloud Drive, an external drive, or another Files provider.
-        2. Choose Import from a folder below.
-        3. Select the `jak1` folder in the system file picker.
+            1. Put the `.iso` or prepared folder in Files, iCloud Drive, or an external drive.
+            2. Choose Import game data below.
+            3. Select the `.iso` file or prepared folder in the system picker.
 
-        Import stages `iso/` and `fr3/` privately, validates the complete candidate, and only then \
-        activates it. Existing game data stays playable if preparation fails, so the device needs \
-        enough free space for the staged copy.
-        """
-        #else
-        """
-        Extract Jak 1 with the OpenGOAL tools on a computer. That produces an `out/jak1` \
-        directory holding `iso/` and `fr3/` — about 1.5 GB.
+            Import prepares and validates a private candidate before activation. Existing game data \
+            stays playable if preparation fails, so the device needs enough free space for the source, \
+            preparation work, and final data.
+            """
+        }
 
-        1. Connect the iPad and open it in Finder, or open the Files app on the iPad.
-        2. Find Eco Pro under On My iPad / the device's Files section.
-        3. Copy the whole `iso` and `fr3` directories into Eco Pro's `Jak1` folder.
+        return """
+        Prepare the compatible game data with OpenGOAL on a computer. That produces an `out/jak1` \
+        folder containing `iso/` and `fr3/`.
 
-        Or use Import below to stage them from an external drive or iCloud Drive. Eco Pro validates \
-        the complete candidate before activation and leaves existing game data untouched on \
-        failure, so it needs free space for the staged copy — the Files route does not.
+        1. Put the prepared folder in Files, iCloud Drive, or an external drive.
+        2. Choose Import game data below.
+        3. Select the prepared folder in the system picker.
+
+        Import validates a private candidate before activation and leaves existing game data \
+        untouched if the import fails.
         """
-        #endif
+    }
+
+    private var importCompatibilityNote: String {
+        if canImportRawISO {
+            return "Choose a supported `.iso` disc image or an already prepared `out/jak1` "
+                + "folder. `.zip` and other archive files are not supported; extract the `.iso` first."
+        }
+        return "This build accepts an already prepared `out/jak1` folder. Raw `.iso`, `.zip`, "
+            + "and other archive files are not supported in this build."
+    }
+
+    private var canImportRawISO: Bool {
+        RawISOCandidateProducer.isAvailable()
     }
 
     @ViewBuilder
@@ -162,7 +176,7 @@ struct GameDataSetupView: View {
 
     private var buttons: some View {
         HStack(spacing: 12) {
-            Button("Import from a folder…") { isChoosingFolder = true }
+            Button("Import game data…") { isChoosingSource = true }
                 .buttonStyle(.bordered)
             Button("Recheck") {
                 Task { await session.refreshDataReport() }
@@ -172,6 +186,13 @@ struct GameDataSetupView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(!session.dataReport.canBoot)
         }
+    }
+
+    private var importContentTypes: [UTType] {
+        if canImportRawISO, let rawISOType = Self.rawISOType {
+            return [.folder, rawISOType]
+        }
+        return [.folder]
     }
 
     private func icon(for status: GameDataReport.Status) -> String {
