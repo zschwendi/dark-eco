@@ -349,6 +349,7 @@
 		A73000000000000000000002 /* Exceptions for "Generated/jak1-aot" folder in "GOALPad" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				coverage.tsv,
 				README.md,
 			);
 			target = 92C2B201301C0D2F0025E4D5 /* GOALPad */;
@@ -566,6 +567,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 92C2B20D301C0D300025E4D5 /* Build configuration list for PBXNativeTarget "GOALPad" */;
 			buildPhases = (
+				A73200000000000000000001 /* Verify release AOT */,
 				A73100000000000000000001 /* Compile Metal shaders */,
 				92C2B1FE301C0D2F0025E4D5 /* Sources */,
 				92C2B1FF301C0D2F0025E4D5 /* Frameworks */,
@@ -636,6 +638,24 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		A73200000000000000000001 /* Verify release AOT */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/Scripts/verify-generated-aot.sh",
+				"$(GOALPAD_AOT_MANIFEST_INPUT)",
+				"$(GOALPAD_AOT_COVERAGE_INPUT)",
+			);
+			name = "Verify release AOT";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"$CONFIGURATION\" = \"Release\" ]; then\n  \"$SRCROOT/Scripts/verify-generated-aot.sh\" \"$SRCROOT/Generated/jak1-aot\" 518 --manifest-only\nfi\n";
+		};
 		A73100000000000000000001 /* Compile Metal shaders */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 0;
@@ -962,6 +982,8 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				GOALPAD_AOT_COVERAGE_INPUT = "$(SRCROOT)/Scripts/verify-generated-aot.sh";
+				GOALPAD_AOT_MANIFEST_INPUT = "$(SRCROOT)/Scripts/verify-generated-aot.sh";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
 					"FMT_HEADER_ONLY=1",
@@ -1027,6 +1049,8 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				GOALPAD_AOT_COVERAGE_INPUT = "$(SRCROOT)/Generated/jak1-aot/coverage.tsv";
+				GOALPAD_AOT_MANIFEST_INPUT = "$(SRCROOT)/Generated/jak1-aot/aot_boot_manifest.c";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
 					"FMT_HEADER_ONLY=1",

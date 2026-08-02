@@ -7524,3 +7524,53 @@ Both settings queries must continue to report paid team `V729QMY3V6`, bundle
 `com.zephyrstudiosllc.eco`, display name `Eco Pro`, the shared platform list,
 and `GOALPad/GOALPad.entitlements`. Signed provisioning and physical-device
 validation remain pending for the reasons recorded in Checkpoint 43.
+
+# Checkpoint 45: enforced Jak 1 release corpus and Jak II iPhoneOS link proof
+
+The parent now has one generic generated-AOT verifier and host generators for
+the mutually exclusive Jak 1 and Jak II corpora. `Scripts/generate-jak1-aot.sh`
+and `Scripts/generate-jak2-aot.sh` clear only their fixed generated directories,
+write `coverage.tsv`, and fail unless the complete build graph, manifest, file
+counts, and coverage are complete. Current verified totals are 518 Jak 1
+objects with 10,596 emitted and 7 native functions, and 840 Jak II objects with
+18,479 emitted and 7 native functions. Generated C, headers, and coverage remain
+ignored build products.
+
+The GOALPad Xcode target runs the Jak 1 manifest-and-coverage preflight before
+every Release compile. Its inputs are explicit so Xcode's user-script sandbox
+can read them, and `coverage.tsv` is excluded from target membership so the
+private build report is not copied into the application bundle. The generated
+source compile and final application link prove the individual files are
+present. A fresh generic iPhoneOS Release build with an empty DerivedData
+directory passed. After excluding `coverage.tsv`, an unsigned generic iOS
+Release rebuild explicitly removed that stale resource and produced no
+`coverage.tsv` anywhere in the app bundle. Both builds produced the same thin
+ARM64 app binary hash as the pre-phase clean-build audit:
+
+```text
+99ada6eaf3446bf0105df2995028fca8e9f0da2387021e9fdae565f94051781e
+```
+
+The same audit passed fresh ARM64 macOS Debug and generic iOS Release builds,
+the camera/touch/save deterministic checks, and four focused host tests: Metal
+camera trace, Jak 1 MIPS2C joint regression, kernel-core smoke, and representative
+AOT execution. The artifact is unsigned build evidence; no device was accessed.
+
+OpenGOAL commit `7a9341c461dde54928588aa26b5a1beb7ca4bb21` adds a separate strict
+iPhoneOS/ARM64-only Jak II full-AOT final-link product. It validates exactly 840
+manifest entries and generated C/header pairs, compiles all 840 translations
+plus the manifest with `-fno-strict-aliasing`, and links only
+`jak2-kernel-core`. The isolated implementation build produced a thin ARM64
+iOS Mach-O, compiled 841 generated C files with the required aliasing flag, and
+resolved the manifest, first/last corpus entries, Jak II kernel core, and zstd.
+Fresh host regressions passed 3/3, and the explicit user-data `--with-game`
+probe registered all 840 units, loaded KERNEL 8/8 and GAME 465/465, then ran 100
+dispatcher frames. No signing, app launch, simulator, or device claim is made.
+
+The generated games remain separate because their AOT symbols overlap. Jak II
+is not wired into the Eco Pro application target and does not supersede Jak 1.
+The active Jak 1 blocker is now the raw-disc preparation path: Checkpoint 41's
+change only explained why a naked ISO is dimmed; it did not implement ISO to
+`iso/` plus `fr3/` conversion. The next executable work is the bounded,
+recoverable ISO reader and synthetic fixtures, followed by revision validation,
+bounded FR3 generation, and the flat runtime `iso/` builder.

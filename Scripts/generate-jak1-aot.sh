@@ -29,10 +29,11 @@ cmake -S "$root/OpenGOAL" -B "$build" --preset=Release-macos-arm64-clang \
 cmake --build "$build" --target goalc-cbackend-sweep -j 4
 
 mkdir -p "$out"
+find "$out" -maxdepth 1 -type f \( -name '*.c' -o -name '*.h' -o -name 'coverage.tsv' \) \
+  -delete
 "$build/goalc/goalc-cbackend-sweep" \
   --project-path "$root/OpenGOAL" \
-  --limit 518 \
   --c-output-dir "$out" \
-  --report "$build/jak1-aot-coverage.tsv"
+  --report "$out/coverage.tsv"
 
-echo "Wrote $(ls "$out"/*.c | wc -l | tr -d ' ') C files to $out"
+"$root/Scripts/verify-generated-aot.sh" "$out" 518

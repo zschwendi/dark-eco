@@ -65,7 +65,7 @@ as completing the overall goal.
 | Signed native ARM64 execution | Implemented through linked AOT game code; physical runtime reports `PROT_EXEC=no` |
 | Storage and Metal initialization | Implemented; user-local data and physical Metal rendering verified |
 | Controller, audio, and lifecycle integration | Experimental; core paths run, physical controller and side-by-side media remain open |
-| User-owned Jak 1 import pipeline | Planned; current testing uses manually placed user-local data |
+| User-owned Jak 1 import pipeline | Investigating; prepared-folder import works, raw ISO preparation is the active blocker |
 | Compiler-produced ARM64 GOAL execution | Implemented for the current Jak 1 AOT set; seven native routines remain |
 | OpenGOAL game frame or title screen | Implemented and physically verified |
 | Playable gameplay slice | Experimental; sustained physical play reached Misty and Training |
@@ -790,7 +790,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 44 is the latest verified checkpoint. Checkpoint 37 remains the
+Checkpoint 45 is the latest verified build checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -812,23 +812,30 @@ signed provisioning and real transfer remain separate validation gates.
 Checkpoint 44 changes only the public display and App Store name to **Eco Pro**
 after **Eco** proved unavailable; the registered bundle and iCloud identifiers
 remain unchanged.
+Checkpoint 45 adds an enforced Jak 1 Release-AOT preflight and a separately
+generated, mutually exclusive Jak II iPhoneOS full-AOT final-link proof. It does
+not make Jak II an app target or displace Jak 1 as the active product scope.
 The full build, diagnostic, signing, and physical evidence is recorded in
 `HANDOFF.md`; older checkpoint sections remain historical.
 
 The next actions are:
 
-1. Run a narrow camera A/B that restores Checkpoint 36's per-callback interval
+1. Implement the raw Jak 1 ISO preparation path in bounded phases: a streaming,
+   bounds-checked reader with synthetic fixtures; supported-revision validation;
+   bounded FR3 generation; and the flat `out/jak1/iso` builder. Keep the working
+   prepared-folder importer available throughout.
+2. Run a narrow camera A/B that restores Checkpoint 36's per-callback interval
    rounding while retaining Checkpoint 37 diagnostics and holding its fixed-60
    display-link range constant. Compare the same route and save where practical;
    provenance-return incidence is not a visual score.
-2. Add a 28-bit non-finite lane mask and Jak-only consecutive-frame scale/aspect
+3. Add a 28-bit non-finite lane mask and Jak-only consecutive-frame scale/aspect
    tracking for `eichar-lod0` at the existing behavior-neutral Merc seam.
-3. Add deterministic Merc/TIE two-pass envmap blend, ordering, color, and depth
+4. Add deterministic Merc/TIE two-pass envmap blend, ordering, color, and depth
    parity coverage before changing material behavior. Keep metallic flicker and
    broader world-depth fighting separate until that evidence links them.
-4. Preserve the deterministic checks, ARM64 macOS build, approved M5 simulator,
+5. Preserve the deterministic checks, ARM64 macOS build, approved M5 simulator,
    generic signed iOS lane, and the current real-kernel/runtime path.
-5. Restore the Zephyr Studios LLC signing identity and Xcode account, then
+6. Restore the Zephyr Studios LLC signing identity and Xcode account, then
    provision and verify `com.zephyrstudiosllc.eco` with
    `iCloud.com.zephyrstudiosllc.eco`, then run signed and real two-device save
    migration/conflict tests.

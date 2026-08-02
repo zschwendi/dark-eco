@@ -20,15 +20,14 @@ git submodule update --init --recursive
 The authoritative child is the dedicated public fork
 `https://github.com/zschwendi/jak-pad.git`, branch
 `goalpad/ipad-demo-pacing`, pinned by the parent gitlink at
-`7e69774a0c91ff804f165df574f919afc6e7b826`. Do not substitute a different
+`7a9341c461dde54928588aa26b5a1beb7ca4bb21`. Do not substitute a different
 OpenGOAL checkout when recording validation results, and pin that exact commit
 rather than the branch tip. The `sync` step updates existing clones that still
 remember the former upstream URL.
 
-The uncommitted Checkpoint 33 work described below is applied on top of that
-pin, so the pin alone does not reproduce the current dirty tree. It extends the
-portable `jak1-kernel-core`, Metal renderer, display-time seam, and one Jak 1
-MIPS2C joint translation without replacing those OpenGOAL systems.
+The pin includes the portable `jak1-kernel-core`, Metal renderer,
+display-time seam, and Jak 1 MIPS2C joint correction without replacing those
+OpenGOAL systems.
 `game/kernel/core/gfx_host.{cpp,h}` answers the machine layer's graphics
 functions through plain C function pointers a host installs, and
 `game/goalpad_play.cpp` is the desktop host that fills them in with the Metal
@@ -47,10 +46,10 @@ Scripts/generate-jak1-aot.sh
 ```
 
 Run it once after cloning and again whenever the submodule pin moves. It builds
-the host `goalc-cbackend-sweep` and writes 1038 files - one `.c` and one
-`_generated.h` for each of Jak 1's 518 object files, plus `aot_boot_manifest.c`
-- into `Generated/jak1-aot/`. That is about 85 MB of C and takes a few seconds
-once the host tool is built.
+the host `goalc-cbackend-sweep` and writes 1,039 files: one `.c` and one
+`_generated.h` for each of Jak 1's 518 object files, both AOT manifest files,
+and `coverage.tsv`. The directory is about 85 MB and generation takes a few
+seconds once the host tool is built.
 
 The output is never committed. `Generated/jak1-aot/` itself is, because the app
 target picks the directory up as an Xcode synchronized folder and Xcode needs it
@@ -66,17 +65,52 @@ fail before Xcode builds when this generated output is absent or incomplete.
 For the current pinned Jak 1 source, the release preflight is:
 
 ```sh
-test -f Generated/jak1-aot/aot_boot_manifest.c
-test "$(find Generated/jak1-aot -maxdepth 1 -type f -name '*.c' | wc -l | tr -d ' ')" = 519
-rg -q 'const int goal_aot_boot_file_count = 518;' \
-  Generated/jak1-aot/aot_boot_manifest.c
+Scripts/verify-generated-aot.sh Generated/jak1-aot 518
 ```
 
 The 519 C files are 518 generated object translations plus the manifest. A pin
 that deliberately changes the supported build graph may change these numbers,
 but updating the expected count must be an explicit reviewed release change.
-Release automation must run `Scripts/generate-jak1-aot.sh`, run this preflight,
-and then archive; it must not silently publish the buildable shell.
+The verifier also requires a coverage report with no source-file or function
+failures and proves that emitted plus native functions equals the total. The
+Xcode target runs it automatically for every Release build, so release
+automation cannot silently publish the buildable shell. The sandboxed Xcode
+phase reads the manifest and coverage report explicitly; the following source
+compile and final link prove that every manifest entry is present.
+
+Jak II's corresponding generated corpus is prepared separately:
+
+```sh
+Scripts/generate-jak2-aot.sh
+Scripts/verify-generated-aot.sh Generated/jak2-aot 840
+```
+
+That output contains 841 C files: 840 object translations plus its manifest.
+It is intentionally excluded from the Jak 1 app because the two games export
+overlapping AOT symbols. Use the documented Jak II iPhoneOS link-check target
+rather than adding both generated directories to one product.
+
+The Jak II iPhoneOS final-link proof is a separate unsigned build product:
+
+```sh
+cmake -S OpenGOAL -B /private/tmp/GOALPad-jak2-ios-aot -G Ninja \
+  -DOPENGOAL_BUILD_JAK2_IPHONEOS_AOT_LINK_ONLY=ON \
+  -DOPENGOAL_JAK2_AOT_DIR="$PWD/Generated/jak2-aot" \
+  -DBUILD_TESTING=OFF \
+  -DCMAKE_SYSTEM_NAME=iOS \
+  -DCMAKE_OSX_SYSROOT=iphoneos \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=18.0 \
+  -DCMAKE_BUILD_TYPE=Release
+cmake --build /private/tmp/GOALPad-jak2-ios-aot -j 4 \
+  --target jak2-iphoneos-full-aot-link
+```
+
+This compiles the manifest and all 840 Jak II translations with
+`-fno-strict-aliasing`, validates that the corpus exactly matches the manifest,
+and final-links only `jak2-kernel-core`. It proves iPhoneOS compilation and
+symbol resolution; it is not a signed app, launch, title-screen, or gameplay
+claim.
 
 Two target build settings are not optional:
 

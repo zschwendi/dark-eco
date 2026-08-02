@@ -14,10 +14,10 @@
 *.ISO
 *.chd
 
-# The AOT C for Jak 1's object files, emitted by goalc-cbackend-sweep. Generated, never committed:
-# Scripts/generate-jak1-aot.sh rebuilds it from the OpenGOAL submodule.
-/Generated/jak1-aot/*.c
-/Generated/jak1-aot/*.h
+# AOT C emitted by goalc-cbackend-sweep. Generated, never committed.
+/Generated/*-aot/*.c
+/Generated/*-aot/*.h
+/Generated/*-aot/coverage.tsv
 
 # Local signing material
 *.mobileprovision
