@@ -65,7 +65,7 @@ as completing the overall goal.
 | Signed native ARM64 execution | Implemented through linked AOT game code; physical runtime reports `PROT_EXEC=no` |
 | Storage and Metal initialization | Implemented; user-local data and physical Metal rendering verified |
 | Controller, audio, and lifecycle integration | Experimental; core paths run, physical controller and side-by-side media remain open |
-| User-owned Jak 1 import pipeline | Experimental; prepared-folder import remains available, while isolated raw-ISO parsing, revision validation, checked DGO/FR3 preparation, output materialization, public-artifact generation, and source-pack validation are implemented; app orchestration is not |
+| User-owned Jak 1 import pipeline | Experimental; the prepared-folder flow remains available. Isolated raw-ISO parsing, revision validation, checked DGO/FR3 preparation, the `jak1-base-retail` graph/recipe/materializer, public-artifact generation, and source-pack validation are implemented; C++ composition, the Objective-C++ producer bridge, and end-to-end simulator proof are still required before raw ISO selection can be enabled |
 | Compiler-produced ARM64 GOAL execution | Implemented for the current Jak 1 AOT set; seven native routines remain |
 | OpenGOAL game frame or title screen | Implemented and physically verified |
 | Playable gameplay slice | Experimental; sustained physical play reached Misty and Training |
@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness, raw-import app orchestration, and remaining
 platform gaps, not the earlier synthetic arena or literal-instruction probes.
-`HANDOFF.md` Checkpoint 47 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 48 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical gameplay evidence.
 
 ## Required code and data pipelines
@@ -749,12 +749,14 @@ Record build, install, launch, logs, and observed behavior separately.
 Subagents are required whenever a bounded task can run independently without
 creating overlapping edits.
 
-Current agent configuration:
+Current checkpoint lanes:
 
-- Model: non-fast `gpt-5.6-sol`
-- Reasoning effort: `xhigh`
-- If that configuration is unavailable, report it instead of silently
-  downgrading.
+- One Sol `xhigh` integration lane owns scope, review, integration, and the
+  checkpoint gate.
+- Up to two Sol `xhigh` implementation lanes own non-overlapping importer
+  architecture, renderer bugs, ABI/AOT, or unsafe-file-handling work.
+- One Terra `medium` or `high` mechanical lane owns bounded CMake, documents,
+  fixtures, build-log triage, formatting, or API plumbing.
 
 Operating rules:
 
@@ -774,11 +776,19 @@ Operating rules:
    is not validation by itself.
 7. Record material delegation, conclusions, exact commands, and unresolved
    disagreements in `HANDOFF.md` at each checkpoint.
-8. Keep builds serial when parallel compilation would create memory pressure.
-   Agent parallelism does not imply parallel heavy builds.
-9. Do not delegate maintainer decisions, destructive actions, credential
+8. Workers run focused checks only; run medium checks per integrated subsystem,
+   then the expensive compiler, Metal, AOT, and Xcode matrix once per
+   checkpoint.
+9. Keep one canonical OpenGOAL build, `/private/tmp/GOALPad-sim` DerivedData,
+   and bounded `/private/tmp/GOALPad-ccache`; never run heavy builds in
+   parallel. Generate the 518-object source pack once and subsequently verify
+   its recorded identity unless its writer or embedded graph changes. Delete
+   only obsolete disposable builds after recording their results.
+10. Pause the visual lane at a physical A/B gate unless a deterministic
+    hypothesis and test can distinguish the next change.
+11. Do not delegate maintainer decisions, destructive actions, credential
    entry, proprietary-data handling, or physical-device claims.
-10. Stop delegation when it no longer improves the narrow current checkpoint.
+12. Stop delegation when it no longer improves the narrow current checkpoint.
 
 ## Checkpoint and commit policy
 
@@ -795,7 +805,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 47 is the latest verified build checkpoint. Checkpoint 37 remains the
+Checkpoint 48 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -831,19 +841,29 @@ the app's prepared corpus to 25 FR3 files. Raw ISO selection remains disabled:
 the `jak1-base-retail` profile and empty-subtitle mode, app worker bridge,
 recoverable staging/activation, and end-to-end app validation are not complete.
 ZIP ingestion is still out of scope for this checkpoint.
+Checkpoint 48 adds the tested `jak1-base-retail` profile: it retains the user's
+seven COMMON text banks, excludes `TSZ.DGO` and test-zone/custom-actor outputs,
+and creates seven structurally valid zero-scene subtitle banks. It also records
+the existing 518-object source-pack verifier result (`e3ed59b376d6a079`,
+10,729,469 object bytes) and the serial staging/activation worker in parent
+`a8f3d040`. Raw ISO selection remains disabled until C++ graph/builder/
+materializer composition, the Objective-C++ producer bridge, and an end-to-end
+approved-simulator proof succeed; the prepared-folder flow remains supported.
+The final nested OpenGOAL SHA and generic macOS result are **[PENDING
+INTEGRATION LANE]**; `HANDOFF.md` records the exact provisional status.
 The full build, diagnostic, signing, and physical evidence is recorded in
 `HANDOFF.md`; older checkpoint sections remain historical.
 
 The next actions are:
 
-1. Implement and validate the `jak1-base-retail` graph profile: retain the
-   user's seven COMMON banks, exclude `TSZ.DGO` and its generated test-zone/test-
-   actor outputs, and emit seven structurally valid empty subtitle banks. Do not
-   bundle repository dialogue. Keep the prepared-folder importer available.
-2. Add the minimal serial Swift/Objective-C++ import worker with recoverable
-   Application Support staging, explicit cancellation/progress, candidate
-   validation, and an atomic active-install switch. Prove the raw-ISO flow end
-   to end on the approved simulator before scheduling physical validation.
+1. Compose the implemented `jak1-base-retail` graph, builder, and materializer
+   into one bounded C++ producer. Keep the prepared-folder importer available
+   and do not bundle repository dialogue.
+2. Add the narrow Objective-C++ producer bridge to the serial staging/activation
+   worker, with recoverable Application Support staging, cancellation/progress,
+   candidate validation, and atomic activation. Prove the raw-ISO path end to
+   end on the approved simulator before enabling selection or scheduling
+   physical validation.
 3. Keep the implemented nontrivial TIE camera A/B/A proof and retained
    `eichar-lod0` scale/aspect diagnostics green. Do not make another speculative
    visual change until a physical capture uses these signals to distinguish

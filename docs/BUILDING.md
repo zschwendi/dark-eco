@@ -32,6 +32,20 @@ per worktree. The current machine keeps that bounded cache at
 `/private/tmp/GOALPad-ccache`; `ccache --show-config` must still report the
 512 MiB limit before it is used.
 
+### Checkpoint execution lanes
+
+Use one Sol `xhigh` integration lane, up to two non-overlapping Sol `xhigh`
+implementation lanes for importer architecture, renderer bugs, ABI/AOT, and
+unsafe file handling, and one Terra `medium` or `high` mechanical lane for
+CMake, docs, fixtures, build-log triage, formatting, and API plumbing. Each
+worker runs focused checks only; run medium checks after integrating a subsystem,
+then run the compiler, Metal, AOT, and Xcode matrix once per checkpoint.
+
+Do not parallelize heavy builds. Generate the 518-object source pack once and
+subsequently verify its recorded identity unless its writer or embedded graph
+changes. At a physical visual A/B gate, stop speculative renderer work unless a
+deterministic hypothesis and test can distinguish the next change.
+
 ## Initialize OpenGOAL
 
 ```sh
@@ -39,13 +53,16 @@ git submodule sync -- OpenGOAL
 git submodule update --init --recursive
 ```
 
-The authoritative child is the dedicated public fork
+The prior authoritative child was the dedicated public fork
 `https://github.com/zschwendi/jak-pad.git`, branch
 `goalpad/ipad-demo-pacing`, pinned by the parent gitlink at
-`7cf217fea8885d82fe033d7467fb86d02feb808e`. Do not substitute a different
-OpenGOAL checkout when recording validation results, and pin that exact commit
-rather than the branch tip. The `sync` step updates existing clones that still
-remember the former upstream URL.
+`7cf217fea8885d82fe033d7467fb86d02feb808e`. Checkpoint 48 incorporates
+`fd20ddfcb` (`jak1-base-retail`) and `211cbc4dd` (existing source-pack
+verification); its final nested gitlink is **[INTEGRATION LANE: replace with
+the final nested commit SHA]**. Do not substitute a different OpenGOAL checkout
+when recording validation results, and pin the final exact commit rather than a
+branch tip. The `sync` step updates existing clones that still remember the
+former upstream URL.
 
 The pin includes the portable `jak1-kernel-core`, Metal renderer,
 display-time seam, and Jak 1 MIPS2C joint correction without replacing those
@@ -99,6 +116,13 @@ Xcode target runs it automatically for every Release build, so release
 automation cannot silently publish the buildable shell. The sandboxed Xcode
 phase reads the manifest and coverage report explicitly; the following source
 compile and final link prove that every manifest entry is present.
+
+For Checkpoint 48, generate the pack once on canonical code. Subsequent checks
+must use the existing-pack verifier and require 518 objects, aggregate identity
+`e3ed59b376d6a079`, and `10,729,469` object bytes. A caller-supplied wrong
+expected identity must fail. Regenerate only when the source-pack writer or its
+embedded graph changes; otherwise regeneration wastes the checkpoint's heavy
+build budget without adding evidence.
 
 Jak II's corresponding generated corpus is prepared separately:
 
@@ -3092,3 +3116,25 @@ ownership, and iPhoneOS compilation. They do not produce `fr3/`, the flat
 runtime `iso/` directory, or a playable app import. Keep the existing
 prepared-folder importer in use until those later phases and the app bridge are
 validated end to end.
+
+## Checkpoint 48 importer and platform status
+
+The isolated `jak1-base-retail` graph/recipe/materializer tests pass. The
+profile preserves seven user retail COMMON text banks, excludes `TSZ.DGO` and
+its generated test-zone/custom-actor outputs, and writes seven zero-scene
+subtitle banks. It is not yet composed into the app's producer path.
+
+Raw ISO selection remains disabled until the C++ graph/builder/materializer
+composition, Objective-C++ producer bridge, and end-to-end approved-simulator
+proof pass. The prepared-folder flow remains the supported import path. The
+serial staging/activation worker in parent `a8f3d040` is not a substitute for
+those gates.
+
+Recorded Checkpoint 48 results are: host compiler pass; Metal target pass; 34
+camera assertions pass; Metal proof outside the sandbox pass; Jak 1 AOT
+preflight `518/10596/7`; approved M5 simulator compile-only pass; generic
+iPhoneOS pass; and generic visionOS pass. The focused importer suite passed all
+named cases. Generic macOS currently fails in `kscheme` at `ScopedCurrentProcess`
+because of an older platform guard. **[PENDING INTEGRATION LANE: replace with
+the final macOS command and result after the Sol fix lands.]** No physical device
+was accessed for these results.

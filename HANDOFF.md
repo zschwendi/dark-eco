@@ -7873,3 +7873,78 @@ fighting, metallic flicker, real raw-ISO app import, custom outputs, and ZIP
 handling remain unvalidated. The separately isolated Jak II 840-object AOT
 final-link proof remains green but is not app-wired and does not displace Jak 1
 as the active scope.
+
+# Checkpoint 48: base-retail importer profile, existing-pack verification, and serial activation
+
+The parent checkpoint is `a8f3d040d5ffa5aae0b5824ec5e20b9fd5538394`
+(`feat(import): stage and atomically activate game data`). It adds the serial
+staging/activation worker but does not make raw ISO files selectable. The final
+Checkpoint 48 nested OpenGOAL gitlink is **[INTEGRATION LANE: replace with the
+final nested commit SHA before publishing this checkpoint]**. The reviewed child
+work included `fd20ddfcb` (`jak1-base-retail`) and `211cbc4dd` (verification of
+an existing public source-object pack).
+
+## Current importer boundary
+
+`jak1-base-retail` is implemented and tested in the isolated C++ pipeline. It
+preserves the user's seven retail COMMON text banks, excludes `TSZ.DGO` and its
+generated test-zone/custom-actor outputs, and writes seven structurally valid
+zero-scene subtitle banks. The graph, recipe, and materializer checks passed.
+The existing-source-pack verifier also passed against a 518-object pack with
+aggregate identity `e3ed59b376d6a079` and `10,729,469` object bytes; an override
+with the wrong expected identity failed as required.
+
+Raw ISO selection remains deliberately disabled. It may be enabled only after
+the C++ graph/builder/materializer composition, the Objective-C++ producer
+bridge, and an end-to-end approved-simulator proof all pass. The prepared-folder
+flow remains the supported app path throughout that work. The serial worker is
+not evidence that the native producer exists or that an ISO can reach an active
+install.
+
+## Validation recorded for this checkpoint
+
+- Host compiler pass, Metal target pass, all 34 camera assertions, and the
+  Metal proof outside the sandbox passed.
+- The Jak 1 AOT preflight passed with 518 objects, 10,596 emitted functions,
+  and 7 native functions.
+- The approved M5 simulator compile-only build, generic iPhoneOS build, and
+  generic visionOS build passed. These are not physical-device evidence.
+- The focused importer suite passed all named cases. The base-retail
+  graph/recipe/materializer tests passed, as did the existing-pack identity
+  verifier and its wrong-override rejection.
+- Generic macOS currently fails in `kscheme` at `ScopedCurrentProcess` because
+  of an older platform guard. A separate Sol lane is correcting it. **[PENDING
+  INTEGRATION LANE: replace this item with the final macOS result and command.]**
+
+No physical device was accessed for this checkpoint. Do not turn the successful
+simulator or generic-platform builds into a physical-iPad claim.
+
+## Checkpoint execution discipline
+
+Use one Sol `xhigh` integration lane; up to two Sol `xhigh` implementation
+lanes for importer architecture, renderer bugs, ABI/AOT, and unsafe file
+handling; and one Terra `medium` or `high` mechanical lane for CMake,
+documentation, fixtures, build-log triage, formatting, and API plumbing.
+Workers run focused checks only. Run medium checks after integrating a subsystem,
+then run the expensive compiler, Metal, AOT, and Xcode matrix once per
+checkpoint.
+
+Keep one canonical OpenGOAL build, `/private/tmp/GOALPad-sim` DerivedData, and
+the bounded `/private/tmp/GOALPad-ccache`; never run heavy builds in parallel.
+Generate the 518-object source pack once, then verify its recorded identity
+unless the writer or embedded graph changes. Delete only obsolete disposable
+build directories after recording their results. Pause visual work at a physical
+A/B gate unless a deterministic hypothesis and test can still distinguish the
+next change.
+
+## Next executable work
+
+1. Compose the checked C++ base-retail graph, builder, and materializer behind
+   one bounded producer contract; retain failure, cancellation, and staging
+   ownership semantics.
+2. Add the narrow Objective-C++ producer bridge to the serial worker and prove
+   the raw-ISO path end to end on the approved simulator before changing the
+   picker.
+3. Integrate the outstanding macOS `ScopedCurrentProcess` platform-guard fix,
+   rerun its appropriate build, and replace the two marked placeholders with
+   the final child SHA and exact macOS result.
