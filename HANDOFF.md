@@ -7574,3 +7574,46 @@ change only explained why a naked ISO is dimmed; it did not implement ISO to
 `iso/` plus `fr3/` conversion. The next executable work is the bounded,
 recoverable ISO reader and synthetic fixtures, followed by revision validation,
 bounded FR3 generation, and the flat runtime `iso/` builder.
+
+# Checkpoint 46: bounded Jak 1 ISO reader and fail-closed revision validation
+
+OpenGOAL commit `5cffc4d10fa0f23feb7c2ae109d9f93417f25494` adds the first two
+native raw-disc preparation phases without enabling the app picker. The
+portable ISO9660 reader uses typed recoverable errors, strict descriptor,
+extent, record, path, depth, entry, file, image, and total-output limits,
+bounded chunked reads and writes, progress and cancellation callbacks,
+incremental XXH64 hashing, and owned-staging cleanup. The legacy desktop
+reader APIs remain as adapters, including the `WATER_AN.CGO` to
+`WATER-AN.CGO` compatibility rewrite.
+
+The second isolated library forces hashing, requires a root DGO directory and
+exactly one game executable, and fails closed against the five Jak 1 revision
+fingerprints already supported by OpenGOAL. It verifies serial, executable
+hash, file count, and aggregate contents hash, then atomically writes the same
+desktop-compatible `buildinfo.json`. Reader cancellation retains its typed
+cause, and a pre-existing staging directory is never overwritten or removed.
+The desktop extractor database now consumes the same catalog; its real lookup
+caller and full extractor link passed.
+
+Independent validation passed 11/11 safe-reader synthetic cases, the isolated
+host CTest suites at 1/1 and 2/2, all nine direct revision-validator cases, the
+desktop database parity test, and normal desktop extractor link/caller smoke.
+Both isolated libraries compiled for generic iPhoneOS as thin ARM64 archives;
+the validator archive SHA-256 was:
+
+```text
+463fdfb6029ae30e9e600528d00b44e26e733888243abca7dc9ba475495d351d
+```
+
+An inspection-only run of the new reader against the maintainer's local naked
+ISO performed no writes and reported 337 files, 9 directories, a root DGO
+directory, and executable `SCUS_971.24`. The existing extracted copy's
+`buildinfo.json` identifies the matching `SCUS-97124` revision and known ELF
+hash. No retail data was committed or copied into the repository.
+
+This checkpoint is not a complete importer. It does not generate the 25 retail
+FR3 files, `test-zone.fr3`, CGO/DGO archives, or the final 321-file runtime
+`iso/` directory, and it does not add ZIP ingestion or change the folder-only
+Swift picker. The next executable phase is a bounded, one-DGO-at-a-time FR3
+preparer plus a checked test-zone retail catalog, followed by the isolated
+offline Jak 1 output builder and only then the app bridge and raw-ISO UI.

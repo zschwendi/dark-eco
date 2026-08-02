@@ -65,7 +65,7 @@ as completing the overall goal.
 | Signed native ARM64 execution | Implemented through linked AOT game code; physical runtime reports `PROT_EXEC=no` |
 | Storage and Metal initialization | Implemented; user-local data and physical Metal rendering verified |
 | Controller, audio, and lifecycle integration | Experimental; core paths run, physical controller and side-by-side media remain open |
-| User-owned Jak 1 import pipeline | Investigating; prepared-folder import works, raw ISO preparation is the active blocker |
+| User-owned Jak 1 import pipeline | Experimental; prepared-folder import plus bounded raw-ISO parsing and fail-closed revision validation work, but FR3/output generation is not implemented |
 | Compiler-produced ARM64 GOAL execution | Implemented for the current Jak 1 AOT set; seven native routines remain |
 | OpenGOAL game frame or title screen | Implemented and physically verified |
 | Playable gameplay slice | Experimental; sustained physical play reached Misty and Training |
@@ -620,9 +620,10 @@ Required work:
 6. Import through supported Apple file workflows.
 7. Validate compatibility before starting the runtime.
 8. Keep imported data separate from saves and settings.
-9. For on-device preparation, first prove a streaming, bounds-checked raw ISO
-   reader with synthetic fixtures; then add bounded level-data generation and
-   the offline `out/jak1/iso` builder as separately validated phases.
+9. Preserve the implemented streaming, bounds-checked raw ISO reader and
+   fail-closed five-revision validator while adding bounded level-data
+   generation and the offline `out/jak1/iso` builder as separately validated
+   phases.
 10. Keep the current prepared-folder importer available throughout this work.
 
 Exit gate:
@@ -790,7 +791,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 45 is the latest verified build checkpoint. Checkpoint 37 remains the
+Checkpoint 46 is the latest verified build checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -815,15 +816,18 @@ remain unchanged.
 Checkpoint 45 adds an enforced Jak 1 Release-AOT preflight and a separately
 generated, mutually exclusive Jak II iPhoneOS full-AOT final-link proof. It does
 not make Jak II an app target or displace Jak 1 as the active product scope.
+Checkpoint 46 adds bounded raw-ISO parsing and fail-closed Jak 1 revision
+validation as isolated host/iPhoneOS libraries. It does not yet generate FR3 or
+the final runtime `iso/` directory, so raw ISO selection remains disabled.
 The full build, diagnostic, signing, and physical evidence is recorded in
 `HANDOFF.md`; older checkpoint sections remain historical.
 
 The next actions are:
 
-1. Implement the raw Jak 1 ISO preparation path in bounded phases: a streaming,
-   bounds-checked reader with synthetic fixtures; supported-revision validation;
-   bounded FR3 generation; and the flat `out/jak1/iso` builder. Keep the working
-   prepared-folder importer available throughout.
+1. Continue the raw Jak 1 ISO preparation path with bounded FR3 generation and
+   the flat `out/jak1/iso` builder, building on the verified reader and
+   supported-revision validator. Keep the working prepared-folder importer
+   available throughout.
 2. Run a narrow camera A/B that restores Checkpoint 36's per-callback interval
    rounding while retaining Checkpoint 37 diagnostics and holding its fixed-60
    display-link range constant. Compare the same route and save where practical;

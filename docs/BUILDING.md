@@ -20,7 +20,7 @@ git submodule update --init --recursive
 The authoritative child is the dedicated public fork
 `https://github.com/zschwendi/jak-pad.git`, branch
 `goalpad/ipad-demo-pacing`, pinned by the parent gitlink at
-`7a9341c461dde54928588aa26b5a1beb7ca4bb21`. Do not substitute a different
+`5cffc4d10fa0f23feb7c2ae109d9f93417f25494`. Do not substitute a different
 OpenGOAL checkout when recording validation results, and pin that exact commit
 rather than the branch tip. The `sync` step updates existing clones that still
 remember the former upstream URL.
@@ -3022,3 +3022,52 @@ This validates synthetic runtime composition and the presence of the same code
 in a normally signed generic iOS artifact. It is not physical-device execution,
 live OpenGOAL initialization, Jak data loading, title-screen boot, gameplay, or
 distribution evidence.
+
+## Build the isolated Jak 1 raw-ISO preparation foundations
+
+The first two raw-disc preparation phases deliberately build without the full
+desktop decompiler/compiler dependency graph. Build and test the bounded ISO
+reader on the host with:
+
+```sh
+cmake -S OpenGOAL -B /private/tmp/GOALPad-jak1-iso-reader -G Ninja \
+  -DOPENGOAL_BUILD_SAFE_ISO_READER_ONLY=ON \
+  -DBUILD_TESTING=ON \
+  -DCMAKE_BUILD_TYPE=Debug
+cmake --build /private/tmp/GOALPad-jak1-iso-reader -j 4
+ctest --test-dir /private/tmp/GOALPad-jak1-iso-reader \
+  --output-on-failure -j 1
+```
+
+Build the fail-closed Jak 1 revision validator with:
+
+```sh
+cmake -S OpenGOAL -B /private/tmp/GOALPad-jak1-iso-validation -G Ninja \
+  -DOPENGOAL_BUILD_JAK1_ISO_VALIDATION_ONLY=ON \
+  -DBUILD_TESTING=ON \
+  -DCMAKE_BUILD_TYPE=Release
+cmake --build /private/tmp/GOALPad-jak1-iso-validation -j 4
+ctest --test-dir /private/tmp/GOALPad-jak1-iso-validation \
+  --output-on-failure -j 1
+```
+
+The corresponding generic iPhoneOS compile proof is:
+
+```sh
+cmake -S OpenGOAL -B /private/tmp/GOALPad-jak1-iso-validation-ios -G Ninja \
+  -DOPENGOAL_BUILD_JAK1_ISO_VALIDATION_ONLY=ON \
+  -DBUILD_TESTING=OFF \
+  -DCMAKE_SYSTEM_NAME=iOS \
+  -DCMAKE_OSX_SYSROOT=iphoneos \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=18.0 \
+  -DCMAKE_BUILD_TYPE=Release
+cmake --build /private/tmp/GOALPad-jak1-iso-validation-ios \
+  --target jak1-iso-validation -j 4
+```
+
+These targets prove safe parsing, exact supported-revision validation, staging
+ownership, and iPhoneOS compilation. They do not produce `fr3/`, the flat
+runtime `iso/` directory, or a playable app import. Keep the existing
+prepared-folder importer in use until those later phases and the app bridge are
+validated end to end.
