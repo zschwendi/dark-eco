@@ -7680,9 +7680,14 @@ keeps the two TIE envmap passes adjacent per tree, matching the OpenGL order.
 A read-only follow-up found no remaining source-proven blend/order or stale-
 buffer patch: prior GPU work is awaited, Merc stream ranges are per frame and
 flush, and the iOS host renders synchronously. Remaining Merc deformation is
-still most plausibly upstream palette input. The existing pre-upload
-`eichar-lod0` scale/aspect tracker is only a native log and should be bridged
-into retained app diagnostics. Metallic flicker remains unattributed.
+still most plausibly upstream palette input. `b96b549b` bridges the existing
+pre-upload `eichar-lod0` scale/aspect tracker through MetalHost and the C bridge
+into the periodic log, persisted diagnostic snapshot, and diagnostics overlay.
+It retains the first and latest discontinuity with frame/tick/chain identity,
+matrix hashes, all three axis norms, scale, aspect, and palette source bases so
+the next run can distinguish uniform oversizing from aspect collapse. This is
+diagnostic-only and does not change a transform or renderer behavior. Metallic
+flicker remains unattributed.
 `3b2fa5549` adds the next deterministic gate: a nontrivial camera A/B/A TIE
 base/shine color identity proof. Both moved camera states retain identical
 coplanar base/shine coverage, and the repeated A frame is byte-identical after
@@ -7775,6 +7780,23 @@ destination build passed with existing conversion warnings and did not boot
 the simulator. Its app executable is thin ARM64 with SHA-256
 `b6f7a9cd5608e03176eae7f1d5111a755f7055034f621b12abe2d0da4601708d`,
 display name `Eco Pro`, and bundle identifier `com.zephyrstudiosllc.eco`.
+
+The retained Merc transform test passed all 15 checks, including reversible
+uniform-scale and flattened A/B/A sequences. The Swift/C bridge check, changed
+Swift parse, shell syntax check, and focused Objective-C++ syntax checks for
+`GOALPadRenderSurface.mm` and `GOALPadMetalHost.mm` also passed. No full
+compiler, Metal, AOT, or Xcode matrix was repeated for this diagnostic-only
+patch.
+
+Build-cache discipline is now recorded in `AGENTS.md` and `docs/BUILDING.md`.
+OpenGOAL has an opt-in `Release-macos-arm64-clang-ccache` preset while the normal
+preset remains dependency-free. The existing canonical build was not
+reconfigured, avoiding a duplicate rebuild. After preserving recorded results,
+12 obsolete Xcode DerivedData directories, 16 clean OpenGOAL worktrees whose
+commits are ancestors of canonical, and obsolete proof caches were removed.
+Their Git commits remain recoverable; dirty/divergent worktrees and the recorded
+camera DMA captures were preserved. Available disk space rose from under 1 GiB
+to approximately 10 GiB.
 
 No physical device was accessed. Camera quality, Merc deformation, world-depth
 fighting, metallic flicker, real raw-ISO app import, custom outputs, and ZIP

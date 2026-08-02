@@ -38,7 +38,7 @@ git submodule update --init --recursive
 The authoritative child is the dedicated public fork
 `https://github.com/zschwendi/jak-pad.git`, branch
 `goalpad/ipad-demo-pacing`, pinned by the parent gitlink at
-`3c0c8c00565da6ce86408bd3a3c07a53861be21f`. Do not substitute a different
+`10ef5aa1de2930255cb61f13fc6075d94f15c224`. Do not substitute a different
 OpenGOAL checkout when recording validation results, and pin that exact commit
 rather than the branch tip. The `sync` step updates existing clones that still
 remember the former upstream URL.
