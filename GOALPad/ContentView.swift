@@ -4,6 +4,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var session = GameSession()
     @State private var showDiagnostics = false
+    @State private var showSettings = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -19,22 +20,47 @@ struct ContentView: View {
                         .frame(maxWidth: 620, alignment: .leading)
                         .padding()
                 }
-                Button { showDiagnostics.toggle() } label: {
-                    Image(systemName: "line.3.horizontal")
-                        .frame(minWidth: 24, minHeight: 24)
-                }
-                    .accessibilityLabel(showDiagnostics ? "Hide diagnostics" : "Show diagnostics")
-                    .buttonStyle(.bordered)
-                    .padding()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             } else if session.isBooting {
                 BootingView()
             } else {
                 GameDataSetupView(session: session)
             }
+
+            HStack {
+                if session.isRunning {
+                    Button { showDiagnostics.toggle() } label: {
+                        Image(systemName: "line.3.horizontal")
+                            .frame(minWidth: 24, minHeight: 24)
+                    }
+                    .accessibilityLabel(showDiagnostics ? "Hide diagnostics" : "Show diagnostics")
+                }
+                Button { showSettings = true } label: {
+                    Image(systemName: "gearshape")
+                        .frame(minWidth: 24, minHeight: 24)
+                }
+                .accessibilityLabel("Settings")
+            }
+            .buttonStyle(.bordered)
+            .padding()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+
+            if !session.saveSync.conflictFiles.isEmpty {
+                Button { showSettings = true } label: {
+                    Label("iCloud save conflict — both versions were preserved",
+                          systemImage: "exclamationmark.triangle")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.orange)
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+            }
         }
         .task { await session.prepare() }
         .onChange(of: scenePhase) { _, phase in session.scenePhaseChanged(to: phase) }
+        .sheet(isPresented: $showSettings) {
+            NavigationStack { SaveSettingsView(sync: session.saveSync) }
+                .frame(minWidth: 360, minHeight: 360)
+        }
     }
 }
 

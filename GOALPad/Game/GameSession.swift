@@ -24,6 +24,7 @@ final class GameSession {
     let audio = AudioOutput()
     let settings = RenderSettings()
     let importer = GameDataImporter()
+    let saveSync = SaveSyncController()
 
     private(set) var dataReport = GameDataReport()
     private(set) var kernel: GOALPadKernelStatus?
@@ -75,6 +76,7 @@ final class GameSession {
         sessionLog.notice("prepare")
         observeSystem()
         try? GameDataLayout.prepare()
+        await saveSync.prepare()
         await refreshDataReport()
         // Data that can boot means there is nothing to set up, so go straight to the game.
         if dataReport.canBoot {
@@ -186,6 +188,7 @@ final class GameSession {
         if GOALPadRuntimeBridge.runFrame(at: targetPresentationTime) {
             framesRun = GOALPadRuntimeBridge.framesRun
             shouldLog = framesRun % 600 == 0
+            saveSync.gameplayFrameCompleted()
         }
 
         if surface.endFrame() {
@@ -524,10 +527,12 @@ final class GameSession {
         switch phase {
         case .active:
             isForeground = true
+            Task { await saveSync.syncNow() }
             guard isRunning else { return }
             audio.resumeIfSuspended()
             setIdleTimerDisabled(true)
         case .inactive:
+            saveSync.gameplayFrameCompleted()
             #if os(iOS)
             persistCameraDiagnosticsForLifecycleEvent()
             #endif
@@ -539,6 +544,7 @@ final class GameSession {
             audio.suspend()
             input.stopRumble()
         case .background:
+            saveSync.gameplayFrameCompleted()
             #if os(iOS)
             persistCameraDiagnosticsForLifecycleEvent()
             #endif

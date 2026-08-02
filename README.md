@@ -107,6 +107,18 @@ OpenGOAL's own extraction tooling; see
 prepared data is placed in the app's Documents directory via Finder or the Files
 app.
 
+## Saves
+
+Gameplay uses OpenGOAL's desktop-compatible memcard files under Application
+Support. The optional iCloud Saves setting mirrors those files into the app's
+iCloud Documents container; the runtime never plays from iCloud paths. When the
+two copies diverge, GOALPad leaves both originals in place, archives both
+versions, and reports the conflict in Settings.
+
+The app target uses Apple's standard iCloud Documents capability for this
+mirror. A signing team must provision the app identifier and its default iCloud
+container; no CloudKit database or private entitlement is used.
+
 ## Content policy
 
 Do not commit disc images, extracted retail files, prepared game packages,
