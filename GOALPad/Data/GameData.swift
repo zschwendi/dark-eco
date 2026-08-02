@@ -53,11 +53,12 @@ nonisolated enum GameDataManifest {
     /// The two archives the boot path loads before anything else exists.
     static let bootArchives = ["KERNEL.CGO", "GAME.CGO"]
 
-    /// One DGO per level, loaded by the level system as the player moves through the world.
+    /// Retail DGOs loaded by normal title/gameplay. The repository example `TSZ.DGO` is not part
+    /// of the no-dialogue `jak1-base-retail` install profile.
     static let levelArchives = [
         "BEA.DGO", "CIT.DGO", "DAR.DGO", "DEM.DGO", "FIC.DGO", "FIN.DGO", "INT.DGO", "JUB.DGO",
         "JUN.DGO", "LAV.DGO", "MAI.DGO", "MIS.DGO", "OGR.DGO", "ROB.DGO", "ROL.DGO", "SNO.DGO",
-        "SUB.DGO", "SUN.DGO", "SWA.DGO", "TIT.DGO", "TRA.DGO", "TSZ.DGO", "VI1.DGO", "VI2.DGO",
+        "SUB.DGO", "SUN.DGO", "SWA.DGO", "TIT.DGO", "TRA.DGO", "VI1.DGO", "VI2.DGO",
         "VI3.DGO",
     ]
 

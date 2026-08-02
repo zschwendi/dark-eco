@@ -98,9 +98,7 @@ struct GameLibraryView: View {
             return .preparing(nil)
         case .copying(let progress):
             return .preparing(progress.fraction)
-        case .failed:
-            return .needsAttention
-        case .idle, .finished:
+        case .idle, .finished, .failed, .cancelled:
             break
         }
 

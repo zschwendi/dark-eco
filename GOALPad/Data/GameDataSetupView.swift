@@ -95,8 +95,9 @@ struct GameDataSetupView: View {
         2. Choose Import from a folder below.
         3. Select the `jak1` folder in the system file picker.
 
-        Import copies `iso/` and `fr3/` into Eco Pro's sandbox, so the device needs enough free \
-        space for a second copy.
+        Import stages `iso/` and `fr3/` privately, validates the complete candidate, and only then \
+        activates it. Existing game data stays playable if preparation fails, so the device needs \
+        enough free space for the staged copy.
         """
         #else
         """
@@ -107,9 +108,9 @@ struct GameDataSetupView: View {
         2. Find Eco Pro under On My iPad / the device's Files section.
         3. Copy the whole `iso` and `fr3` directories into Eco Pro's `Jak1` folder.
 
-        Or use Import below to copy them in from an external drive or iCloud Drive. That reads \
-        the folder you pick and writes a second copy into the app, so it needs the free space \
-        twice over — the Files route does not.
+        Or use Import below to stage them from an external drive or iCloud Drive. Eco Pro validates \
+        the complete candidate before activation and leaves existing game data untouched on \
+        failure, so it needs free space for the staged copy — the Files route does not.
         """
         #endif
     }
@@ -119,16 +120,33 @@ struct GameDataSetupView: View {
         switch session.importer.state {
         case .copying(let progress):
             VStack(alignment: .leading, spacing: 6) {
-                ProgressView(value: progress.fraction)
-                Text("\(progress.filesCopied) / \(progress.filesTotal)  \(progress.currentFile)")
-                    .font(.system(.caption, design: .monospaced))
-                Button("Cancel", role: .destructive) { session.importer.cancel() }
+                if let fraction = progress.fraction {
+                    ProgressView(value: fraction)
+                } else {
+                    ProgressView()
+                }
+                Text(progress.phase.label)
+                    .font(.callout.weight(.medium))
+                if progress.filesTotal > 0 {
+                    Text("\(progress.filesCopied) / \(progress.filesTotal)  \(progress.currentFile)")
+                        .font(.system(.caption, design: .monospaced))
+                }
+                if progress.phase != .activatingCandidate {
+                    Button("Cancel", role: .destructive) { session.importer.cancel() }
+                }
             }
         case .scanning:
             ProgressView("Scanning…")
-        case .failed(let message):
+        case .failed(let failure):
             VStack(alignment: .leading, spacing: 6) {
-                Text(message).foregroundStyle(.red).font(.callout)
+                Text(failure.recoveryMessage).foregroundStyle(.red).font(.callout)
+                buttons
+            }
+        case .cancelled:
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Import cancelled. The active game data was not changed. Staged data was kept for recovery.")
+                    .foregroundStyle(.orange)
+                    .font(.callout)
                 buttons
             }
         case .finished(let copied, let skipped):
