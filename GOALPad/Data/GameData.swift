@@ -66,8 +66,8 @@ nonisolated enum GameDataManifest {
         "GAME.fr3", "beach.fr3", "citadel.fr3", "darkcave.fr3", "demo.fr3", "finalboss.fr3",
         "firecanyon.fr3", "intro.fr3", "jungle.fr3", "jungleb.fr3", "lavatube.fr3", "maincave.fr3",
         "misty.fr3", "ogre.fr3", "robocave.fr3", "rolling.fr3", "snow.fr3", "sunken.fr3",
-        "sunkenb.fr3", "swamp.fr3", "test-zone.fr3", "title.fr3", "training.fr3", "village1.fr3",
-        "village2.fr3", "village3.fr3",
+        "sunkenb.fr3", "swamp.fr3", "title.fr3", "training.fr3", "village1.fr3", "village2.fr3",
+        "village3.fr3",
     ]
 
     /// Sound banks and music, which the sound RPC loads out of `iso/`.
@@ -118,10 +118,19 @@ nonisolated enum GameDataInspector {
     private static let log = Logger(subsystem: "com.zephyrstudiosllc.eco", category: "GameData")
 
     nonisolated static func inspect() -> GameDataReport {
+        inspect(gameDirectory: GameDataLayout.gameDirectory)
+    }
+
+    nonisolated static func inspect(gameDirectory: URL) -> GameDataReport {
         var report = GameDataReport()
 
-        let iso = names(in: GameDataLayout.isoDirectory)
-        let fr3 = names(in: GameDataLayout.fr3Directory)
+        let isoDirectory = gameDirectory.appending(
+            path: GameDataLayout.isoDirectoryName, directoryHint: .isDirectory)
+        let fr3Directory = gameDirectory.appending(
+            path: GameDataLayout.fr3DirectoryName, directoryHint: .isDirectory)
+
+        let iso = names(in: isoDirectory)
+        let fr3 = names(in: fr3Directory)
         report.isoFileCount = iso.count
         report.fr3FileCount = fr3.count
         report.audioBankCount = iso.filter {
@@ -142,10 +151,9 @@ nonisolated enum GameDataInspector {
             report.status = .incomplete
         }
 
-        report.totalBytes = size(of: GameDataLayout.isoDirectory)
-            + size(of: GameDataLayout.fr3Directory)
+        report.totalBytes = size(of: isoDirectory) + size(of: fr3Directory)
 
-        log.notice("Game data at \(GameDataLayout.gameDirectory.path, privacy: .public): \(report.summary, privacy: .public)")
+        log.notice("Game data at \(gameDirectory.path, privacy: .public): \(report.summary, privacy: .public)")
         return report
     }
 

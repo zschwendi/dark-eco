@@ -787,7 +787,7 @@ space twice over. It only ever reads the folder the player picked.
 
 `GameDataInspector` reports what is actually on disk against the manifest in
 `GameData.swift`: `KERNEL.CGO` and `GAME.CGO` (without which the game cannot
-boot), 25 level DGOs, and 26 `.fr3` files. Missing names are listed individually.
+boot), 25 level DGOs, and 25 `.fr3` files. Missing names are listed individually.
 The resolved directory is handed to `GOALPadRuntimeBridge.startKernel(withDataDirectory:)`.
 
 The app can only read inside its own container. A symlink from
