@@ -37,7 +37,10 @@ nonisolated struct GameDataImportProgress: Sendable {
         case .scanning, .validatingCandidate, .activatingCandidate:
             return nil
         case .stagingCurrentInstall, .preparingCandidate:
-            return bytesTotal > 0 ? Double(bytesCopied) / Double(bytesTotal) : nil
+            if bytesTotal > 0 {
+                return Double(bytesCopied) / Double(bytesTotal)
+            }
+            return filesTotal > 0 ? Double(filesCopied) / Double(filesTotal) : nil
         }
     }
 }
@@ -48,6 +51,11 @@ nonisolated struct GameDataImportFailure: Error, Sendable {
         case busy
         case sourceUnavailable
         case invalidPreparedFolder
+        case invalidDiscImage
+        case unsupportedDiscRevision
+        case insufficientStorage
+        case appResourcesUnavailable
+        case preparationFailed
         case stagingFailed
         case candidateIncomplete
         case activationFailed
@@ -70,9 +78,8 @@ nonisolated struct GameDataImportResult: Sendable {
 
 /// Typed boundary for producing a desktop-compatible `iso/` plus `fr3/` candidate.
 ///
-/// The app currently supplies only `PreparedFolderCandidateProducer`. A future Objective-C++
-/// adapter can conform after the portable raw-disc composition API exists; the picker remains
-/// folder-only until that producer can complete this contract.
+/// The active picker still supplies only `PreparedFolderCandidateProducer`. The raw-disc adapter
+/// remains dormant until the native composition path completes its simulator proof.
 nonisolated protocol GameDataCandidateProducing: Sendable {
     func prepareCandidate(
         from source: URL,
