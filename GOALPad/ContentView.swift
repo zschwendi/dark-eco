@@ -218,8 +218,10 @@ private struct DiagnosticsOverlay: View {
                     + "/" + String(stats.lastCameraAlternationCurrentFingerprint, radix: 16)
                     + " producer, "
                     + String(stats.lastCameraAlternationPacketFingerprint, radix: 16)
-                    + " packet; qwords \(stats.lastCameraAlternationLiveMismatchQwords)/"
-                    + "\(stats.lastCameraAlternationPacketMismatchQwords)"),
+                    + " packet; subset qwords \(stats.lastCameraAlternationLiveMismatchQwords)/"
+                    + "\(stats.lastCameraAlternationPacketMismatchQwords), full qwords "
+                    + "\(stats.lastCameraAlternationRenderLiveMismatchQwords)/"
+                    + "\(stats.lastCameraAlternationRenderPacketMismatchQwords)"),
                 ("alternation distance", String(
                     format: "%.6f / %.6f / %.6f older-prev/prev-current/older-current",
                     stats.lastCameraOlderToPreviousDistance,

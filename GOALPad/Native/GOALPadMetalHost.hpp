@@ -95,6 +95,8 @@ struct MetalHostStats {
   std::uint64_t last_camera_alternation_packet_fingerprint = 0;
   std::uint8_t last_camera_alternation_live_mismatch_qwords = 0;
   std::uint8_t last_camera_alternation_packet_mismatch_qwords = 0;
+  std::uint16_t last_camera_alternation_render_live_mismatch_qwords = 0;
+  std::uint16_t last_camera_alternation_render_packet_mismatch_qwords = 0;
   double last_camera_older_to_previous_distance = 0.0;
   double last_camera_previous_to_current_distance = 0.0;
   double last_camera_older_to_current_distance = 0.0;

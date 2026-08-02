@@ -226,9 +226,11 @@ final class GameSession {
             \(renderer.lastCameraAlternationOlderFingerprint)/\
             \(renderer.lastCameraAlternationPreviousFingerprint)/\
             \(renderer.lastCameraAlternationCurrentFingerprint)/\
-            \(renderer.lastCameraAlternationPacketFingerprint), qwords \
+            \(renderer.lastCameraAlternationPacketFingerprint), subset/full qwords \
             \(renderer.lastCameraAlternationLiveMismatchQwords)/\
-            \(renderer.lastCameraAlternationPacketMismatchQwords), distance \
+            \(renderer.lastCameraAlternationPacketMismatchQwords)/\
+            \(renderer.lastCameraAlternationRenderLiveMismatchQwords)/\
+            \(renderer.lastCameraAlternationRenderPacketMismatchQwords), distance \
             \(renderer.lastCameraOlderToPreviousDistance, format: .fixed(precision: 6))/\
             \(renderer.lastCameraPreviousToCurrentDistance, format: .fixed(precision: 6))/\
             \(renderer.lastCameraOlderToCurrentDistance, format: .fixed(precision: 6)), mismatches \
@@ -409,6 +411,10 @@ final class GameSession {
                 + "\(renderer.lastCameraAlternationLiveMismatchQwords)",
             "alternation_packet_mismatch_qwords="
                 + "\(renderer.lastCameraAlternationPacketMismatchQwords)",
+            "alternation_render_live_mismatch_qwords="
+                + "\(renderer.lastCameraAlternationRenderLiveMismatchQwords)",
+            "alternation_render_packet_mismatch_qwords="
+                + "\(renderer.lastCameraAlternationRenderPacketMismatchQwords)",
             "distance_older_previous=\(decimal(renderer.lastCameraOlderToPreviousDistance))",
             "distance_previous_current=\(decimal(renderer.lastCameraPreviousToCurrentDistance))",
             "distance_older_current=\(decimal(renderer.lastCameraOlderToCurrentDistance))",

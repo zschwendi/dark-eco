@@ -128,6 +128,8 @@ static const int32_t kMaxInternalScale = 4;
                                 core.last_camera_alternation_packet_fingerprint,
                                 core.last_camera_alternation_live_mismatch_qwords,
                                 core.last_camera_alternation_packet_mismatch_qwords,
+                                core.last_camera_alternation_render_live_mismatch_qwords,
+                                core.last_camera_alternation_render_packet_mismatch_qwords,
                                 core.last_camera_older_to_previous_distance,
                                 core.last_camera_previous_to_current_distance,
                                 core.last_camera_older_to_current_distance,

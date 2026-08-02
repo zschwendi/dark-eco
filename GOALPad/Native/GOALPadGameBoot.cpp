@@ -25,6 +25,7 @@
 #include "game/kernel/core/dgo_loader.h"
 #include "game/kernel/core/dma_capture.h"
 #include "game/kernel/core/kernel_game.h"
+#include "game/graphics/pipelines/metal/metal_camera_trace.h"
 #include "game/kernel/jak1/klisten.h"
 #include "game/kernel/jak1/kscheme.h"
 #include "game/runtime.h"
@@ -439,21 +440,32 @@ CameraFrameIdentity current_camera_frame_identity() noexcept {
     return out;
   }
 
-  // `add-pc-tfrag3-data` copies camera-temp (four qwords at 572) and trans (one qword at 844)
-  // from *math-camera* into every background packet. Snapshot at __send-gfx-dma-chain, after the
-  // producer ran and before the next dispatcher frame can rewrite the object.
-  constexpr uint32_t kCameraTempOffset = 572;
-  constexpr uint32_t kTransOffset = 844;
-  constexpr uint32_t kCameraTempBytes = 64;
-  constexpr uint32_t kTransBytes = 16;
+  // Snapshot at __send-gfx-dma-chain, after the producer ran and before the next dispatcher frame
+  // can rewrite *math-camera*. The helper uses the asserted Jak 1 object layout and serializes the
+  // same 15 qwords as add-pc-tfrag3-data.
   const uint32_t camera = static_cast<uint32_t>(*g_math_camera);
   if (camera < static_cast<uint32_t>(EE_MAIN_MEM_LOW_PROTECT) ||
-      camera > static_cast<uint32_t>(EE_MAIN_MEM_SIZE - kTransOffset - kTransBytes)) {
+      camera >= static_cast<uint32_t>(EE_MAIN_MEM_SIZE)) {
     return out;
   }
-  std::memcpy(out.camera.data(), g_ee_main_mem + camera + kCameraTempOffset, kCameraTempBytes);
-  std::memcpy(out.camera.data() + kCameraTempBytes, g_ee_main_mem + camera + kTransOffset,
-              kTransBytes);
+
+  metal_camera_trace::RenderSnapshot render_camera;
+  static_assert(sizeof(out.render_camera) == metal_camera_trace::kRenderSnapshotBytes);
+  static_assert(sizeof(out.camera) == metal_camera_trace::kSnapshotBytes);
+  if (!metal_camera_trace::try_make_jak1_live_render_snapshot(
+          g_ee_main_mem + camera, static_cast<std::size_t>(EE_MAIN_MEM_SIZE - camera),
+          &render_camera)) {
+    return out;
+  }
+  std::memcpy(out.render_camera.data(), render_camera.bytes.data(), out.render_camera.size());
+  out.render_camera_valid = true;
+
+  constexpr std::size_t kCameraTempBytes = 64;
+  constexpr std::size_t kTranslationQword = 6;
+  constexpr std::size_t kQwordBytes = 16;
+  std::memcpy(out.camera.data(), render_camera.bytes.data(), kCameraTempBytes);
+  std::memcpy(out.camera.data() + kCameraTempBytes,
+              render_camera.bytes.data() + kTranslationQword * kQwordBytes, kQwordBytes);
   out.camera_valid = true;
   return out;
 }

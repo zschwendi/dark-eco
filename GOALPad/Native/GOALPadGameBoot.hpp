@@ -58,6 +58,8 @@ struct CameraFrameIdentity {
   std::uint64_t engine_frame_id = 0;
   bool camera_valid = false;
   std::array<std::uint8_t, 80> camera = {};
+  bool render_camera_valid = false;
+  std::array<std::uint8_t, 240> render_camera = {};
 };
 CameraFrameIdentity current_camera_frame_identity() noexcept;
 

@@ -257,6 +257,8 @@ typedef struct GOALPadRendererStats {
   uint64_t lastCameraAlternationPacketFingerprint;
   uint8_t lastCameraAlternationLiveMismatchQwords;
   uint8_t lastCameraAlternationPacketMismatchQwords;
+  uint16_t lastCameraAlternationRenderLiveMismatchQwords;
+  uint16_t lastCameraAlternationRenderPacketMismatchQwords;
   double lastCameraOlderToPreviousDistance;
   double lastCameraPreviousToCurrentDistance;
   double lastCameraOlderToCurrentDistance;

@@ -192,6 +192,11 @@ void render_chain() {
   if (camera.camera_valid) {
     std::copy(camera.camera.begin(), camera.camera.end(), opts.expected_camera.bytes.begin());
   }
+  opts.expected_render_camera_valid = camera.render_camera_valid;
+  if (camera.render_camera_valid) {
+    std::copy(camera.render_camera.begin(), camera.render_camera.end(),
+              opts.expected_render_camera.bytes.begin());
+  }
 
   const auto& chain = g_host.copier->get_last_result();
   const bool drawable_acquired = g_host.renderer->render_chain_frame(
@@ -273,6 +278,10 @@ void render_chain() {
       stats.last_camera_alternation_live_mismatch_qwords;
   g_host.stats.last_camera_alternation_packet_mismatch_qwords =
       stats.last_camera_alternation_packet_mismatch_qwords;
+  g_host.stats.last_camera_alternation_render_live_mismatch_qwords =
+      stats.last_camera_alternation_render_live_mismatch_qwords;
+  g_host.stats.last_camera_alternation_render_packet_mismatch_qwords =
+      stats.last_camera_alternation_render_packet_mismatch_qwords;
   g_host.stats.last_camera_older_to_previous_distance =
       stats.last_camera_older_to_previous_distance;
   g_host.stats.last_camera_previous_to_current_distance =
