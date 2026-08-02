@@ -10,6 +10,24 @@
 brew install cmake ninja go-task openssl@3
 ```
 
+## Build-cache discipline
+
+Use `OpenGOAL/build/Release/bin` as the single canonical host CMake build and
+`/private/tmp/GOALPad-sim` as the current Xcode DerivedData directory. Run only
+one heavy C++, AOT, Metal, or Xcode build at a time; agents can inspect, edit,
+and review independently while that build owns the machine.
+
+Name isolated proof configurations `/private/tmp/GOALPad-<proof>` and remove
+them after their results are recorded and they are confirmed not to be source
+worktrees. Do not create a second full host or Xcode cache for a focused test.
+
+`ccache` is an optional local accelerator, not a product dependency. When it is
+installed, new host worktrees can use the opt-in
+`Release-macos-arm64-clang-ccache` preset; the normal preset remains portable to
+machines without it. Do not reconfigure an active canonical build merely to
+enable the launcher, because that invalidates the existing compilation commands
+and can trigger the duplicate rebuild this rule is intended to avoid.
+
 ## Initialize OpenGOAL
 
 ```sh
@@ -20,7 +38,7 @@ git submodule update --init --recursive
 The authoritative child is the dedicated public fork
 `https://github.com/zschwendi/jak-pad.git`, branch
 `goalpad/ipad-demo-pacing`, pinned by the parent gitlink at
-`5cffc4d10fa0f23feb7c2ae109d9f93417f25494`. Do not substitute a different
+`3c0c8c00565da6ce86408bd3a3c07a53861be21f`. Do not substitute a different
 OpenGOAL checkout when recording validation results, and pin that exact commit
 rather than the branch tip. The `sync` step updates existing clones that still
 remember the former upstream URL.
