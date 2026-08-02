@@ -7617,3 +7617,160 @@ FR3 files, `test-zone.fr3`, CGO/DGO archives, or the final 321-file runtime
 Swift picker. The next executable phase is a bounded, one-DGO-at-a-time FR3
 preparer plus a checked test-zone retail catalog, followed by the isolated
 offline Jak 1 output builder and only then the app bridge and raw-ISO UI.
+
+# Checkpoint 47: checked Jak 1 preparation graph and full camera provenance
+
+The parent is now at `7e3d0e89` with nested OpenGOAL at `4dd438f39`.
+`f03806f7` corrects the prepared-data contract to the exact 25-file FR3 corpus:
+`GAME.fr3` plus 24 retail level files. `test-zone.fr3` is not a required player
+output. `GameDataInspector` also accepts an explicit staging directory so a
+future importer can validate a candidate install before changing the active
+game directory. The only known parent dirt is the maintainer-owned
+`GOALPad.xcodeproj/project.pbxproj` normalization; it remains unstaged and must
+not be discarded or swept into an agent commit.
+
+The Library-first shell from parent `0712ba8c` remains the launch surface. It
+shows four game tiles, exposes import through the menu, boots only a ready Jak 1
+install, preserves local user-selected artwork, and does not imply that Jak II,
+Jak 3, or Jak X are playable. It does not yet enable raw ISO selection.
+
+## Import preparation now implemented
+
+The isolated OpenGOAL pipeline now contains:
+
+- a bounded ISO9660 reader and fail-closed five-revision Jak 1 validator;
+- checked DGO/CGO readers and writers, a strict prepared-retail catalog, and a
+  bounded one-archive-at-a-time FR3 preparer;
+- a deterministic output-recipe schema tied to supported revisions, an atomic
+  output materializer, and an embedded public output graph;
+- a real-catalog proof that matches the checked graph against the maintainer's
+  existing extracted copy without reading unrelated objects;
+- portable byte-exact generation for directory tpages, game count, and all 14
+  game-text/subtitle flat outputs; and
+- a deterministic 518-object public reconstructed-source pack plus a bounded
+  portable validator. Generated packs remain ignored build products and no
+  retail or generated object bytes were committed.
+
+The real-catalog proof passed with 518 selected sources, 27 source archives,
+645 prepared catalog entries, 628 retail occurrences, and aggregate XXH64
+`5e920612f4055c04`. The independently generated public source pack contains 518
+objects plus its manifest, totals 10,729,469 object bytes, and has aggregate
+identity `e3ed59b376d6a079`. Three agent-generated packs were byte-identical; the
+canonical checkout revalidated the portable reader and iPhoneOS link seam.
+
+This is still not an end-to-end app importer. Missing work is the portable
+adapter from the validated extracted tree into the typed public-artifact
+inputs, custom actor and custom level outputs, the Swift/Objective-C++ worker
+bridge, recoverable Application Support staging and active-install switch, and
+an end-to-end app run. The current prepared-folder importer must remain
+available. ZIP ingestion remains out of this checkpoint.
+
+## Camera, Merc, and material diagnostics
+
+OpenGOAL now traces the exact 15-qword Jak 1 background view/projection packet
+layout. The app samples that 240-byte live `*math-camera*` state synchronously
+at the DMA send boundary, forwards it only as expected diagnostic state, and
+retains full 15-bit live/packet mismatch masks on producer alternation events.
+The existing five-qword producer subset remains separately labeled. No camera
+math, pacing, DMA order, presentation threshold, or renderer behavior changed.
+
+`80af1f0e2` restores Merc envmap destination-alpha blending and `818a3291d`
+keeps the two TIE envmap passes adjacent per tree, matching the OpenGL order.
+A read-only follow-up found no remaining source-proven blend/order or stale-
+buffer patch: prior GPU work is awaited, Merc stream ranges are per frame and
+flush, and the iOS host renders synchronously. Remaining Merc deformation is
+still most plausibly upstream palette input. The existing pre-upload
+`eichar-lod0` scale/aspect tracker is only a native log and should be bridged
+into retained app diagnostics. Metallic flicker remains unattributed; the next
+deterministic evidence is a nontrivial camera A/B/A TIE base/shine color/depth
+identity proof, followed by a separately authorized physical TIE-versus-Merc
+envmap isolation pass.
+
+## Validation
+
+Canonical host compiler and importer checks:
+
+```sh
+cmake --build OpenGOAL/build/Release/bin --target compiler -j4
+
+cmake -S OpenGOAL -B /private/tmp/GOALPad-jak1-public-generated-current \
+  -DOPENGOAL_BUILD_JAK1_PUBLIC_GENERATED_ARTIFACTS_ONLY=ON \
+  -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build /private/tmp/GOALPad-jak1-public-generated-current \
+  --target jak1-public-generated-artifacts-test \
+           jak1-public-generated-artifacts-exactness-test -j4
+ctest --test-dir /private/tmp/GOALPad-jak1-public-generated-current \
+  --output-on-failure -R '^jak1-public-generated-artifacts' -j1
+
+cmake --build OpenGOAL/build/Release/bin --target goalc-cbackend-sweep -j4
+cmake -S OpenGOAL -B /private/tmp/GOALPad-jak1-source-pack-current \
+  -DOPENGOAL_BUILD_JAK1_SOURCE_OBJECT_PACK_ONLY=ON \
+  -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build /private/tmp/GOALPad-jak1-source-pack-current \
+  --target jak1-output-recipe-core-test jak1-source-object-pack-test \
+           jak1-source-object-pack-link-proof -j4
+ctest --test-dir /private/tmp/GOALPad-jak1-source-pack-current \
+  --output-on-failure \
+  -R 'jak1-output-recipe-core-test|jak1-source-object-pack-test' -j1
+```
+
+The compiler build passed with existing upstream warnings. Generated-artifact
+tests passed 2/2 and reported all 16 outputs byte-identical to the desktop
+generator. Source-pack tests passed 2/2. The first source-pack CTest attempt
+had one Not Run result because only the pack target, not the registered recipe-
+core test executable, had been built; building that target and rerunning the
+same tests passed 2/2.
+
+The isolated source-pack final-link proof also passed with:
+
+```sh
+cmake -S OpenGOAL \
+  -B /private/tmp/GOALPad-jak1-source-pack-current-iphoneos \
+  -DOPENGOAL_BUILD_JAK1_SOURCE_OBJECT_PACK_ONLY=ON \
+  -DBUILD_TESTING=OFF -DCMAKE_SYSTEM_NAME=iOS \
+  -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64 \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
+  -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
+  -DCMAKE_BUILD_TYPE=Release
+cmake --build /private/tmp/GOALPad-jak1-source-pack-current-iphoneos \
+  --target jak1-source-object-pack-link-proof -j4
+```
+
+The result is thin ARM64, platform iOS, minimum iOS 15.0, SDK 26.5, SHA-256
+`e8b66c51f5edbfa15a167b9e19d47cf0f72d66a551ae66cb672ffe65bccf1052`.
+
+Renderer and Apple checks:
+
+```sh
+cmake --build OpenGOAL/build/Release/bin \
+  --target metal-camera-trace-test metal-proof -j4
+OpenGOAL/build/Release/bin/game/metal-camera-trace-test
+OpenGOAL/build/Release/bin/game/metal-proof
+
+Scripts/run-camera-timing-check.sh
+xcrun swiftc -parse GOALPad/ContentView.swift \
+  GOALPad/Game/GameSession.swift GOALPad/Data/GameData.swift
+plutil -lint GOALPad.xcodeproj/project.pbxproj \
+  GOALPad/GOALPad.entitlements GOALPad-Info.plist
+
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug \
+  -destination 'id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-sim -jobs 2 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO build
+```
+
+All 34 camera-trace assertions passed. The sandboxed Metal proof could not see
+a display and failed renderer initialization; the unchanged proof passed
+outside the sandbox and ended `METAL PROOF PASSED`. Swift parsing, plist
+validation, and camera timing passed. The compile-only approved M5 simulator
+destination build passed with existing conversion warnings and did not boot
+the simulator. Its app executable is thin ARM64 with SHA-256
+`b6f7a9cd5608e03176eae7f1d5111a755f7055034f621b12abe2d0da4601708d`,
+display name `Eco Pro`, and bundle identifier `com.zephyrstudiosllc.eco`.
+
+No physical device was accessed. Camera quality, Merc deformation, world-depth
+fighting, metallic flicker, real raw-ISO app import, custom outputs, and ZIP
+handling remain unvalidated. The separately isolated Jak II 840-object AOT
+final-link proof remains green but is not app-wired and does not displace Jak 1
+as the active scope.

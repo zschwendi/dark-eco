@@ -65,7 +65,7 @@ as completing the overall goal.
 | Signed native ARM64 execution | Implemented through linked AOT game code; physical runtime reports `PROT_EXEC=no` |
 | Storage and Metal initialization | Implemented; user-local data and physical Metal rendering verified |
 | Controller, audio, and lifecycle integration | Experimental; core paths run, physical controller and side-by-side media remain open |
-| User-owned Jak 1 import pipeline | Experimental; prepared-folder import plus bounded raw-ISO parsing and fail-closed revision validation work, but FR3/output generation is not implemented |
+| User-owned Jak 1 import pipeline | Experimental; prepared-folder import remains available, while isolated raw-ISO parsing, revision validation, checked DGO/FR3 preparation, output materialization, public-artifact generation, and source-pack validation are implemented; app orchestration is not |
 | Compiler-produced ARM64 GOAL execution | Implemented for the current Jak 1 AOT set; seven native routines remain |
 | OpenGOAL game frame or title screen | Implemented and physically verified |
 | Playable gameplay slice | Experimental; sustained physical play reached Misty and Training |
@@ -75,9 +75,10 @@ The current application initializes the real OpenGOAL Jak 1 kernel, loads
 user-local game data, runs linked AOT/native game code without executable arena
 pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
-blockers are visual correctness and remaining platform gaps, not the earlier
-synthetic arena or literal-instruction probes. `HANDOFF.md` Checkpoint 37 is the
-authoritative current evidence and next-task record.
+blockers are visual correctness, raw-import app orchestration, and remaining
+platform gaps, not the earlier synthetic arena or literal-instruction probes.
+`HANDOFF.md` Checkpoint 47 is the authoritative current build and next-task
+record; Checkpoint 37 remains the latest sustained physical gameplay evidence.
 
 ## Required code and data pipelines
 
@@ -620,10 +621,11 @@ Required work:
 6. Import through supported Apple file workflows.
 7. Validate compatibility before starting the runtime.
 8. Keep imported data separate from saves and settings.
-9. Preserve the implemented streaming, bounds-checked raw ISO reader and
-   fail-closed five-revision validator while adding bounded level-data
-   generation and the offline `out/jak1/iso` builder as separately validated
-   phases.
+9. Preserve the implemented streaming, bounds-checked raw ISO reader,
+   fail-closed five-revision validator, checked DGO/FR3 preparation, output
+   graph/materializer, exact public-artifact generator, and checked public
+   source pack while adding the remaining extracted-tree adapter and app
+   orchestration as separately validated phases.
 10. Keep the current prepared-folder importer available throughout this work.
 
 Exit gate:
@@ -791,7 +793,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 46 is the latest verified build checkpoint. Checkpoint 37 remains the
+Checkpoint 47 is the latest verified build checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -817,26 +819,36 @@ Checkpoint 45 adds an enforced Jak 1 Release-AOT preflight and a separately
 generated, mutually exclusive Jak II iPhoneOS full-AOT final-link proof. It does
 not make Jak II an app target or displace Jak 1 as the active product scope.
 Checkpoint 46 adds bounded raw-ISO parsing and fail-closed Jak 1 revision
-validation as isolated host/iPhoneOS libraries. It does not yet generate FR3 or
-the final runtime `iso/` directory, so raw ISO selection remains disabled.
+validation as isolated host/iPhoneOS libraries.
+Checkpoint 47 adds checked DGO/FR3 preparation, the revision-bound output graph
+and materializer, real-catalog proof, 16 byte-exact public generated artifacts,
+and a deterministic checked 518-object public source pack. It also forwards the
+complete 15-qword live Jak 1 camera state as retained diagnostics, fixes Merc
+envmap destination-alpha semantics and TIE envmap tree ordering, and corrects
+the app's prepared corpus to 25 FR3 files. Raw ISO selection remains disabled:
+the extracted-tree typed-input adapter, custom actor/level outputs, app worker
+bridge, recoverable staging/activation, and end-to-end app validation are not
+complete. ZIP ingestion is still out of scope for this checkpoint.
 The full build, diagnostic, signing, and physical evidence is recorded in
 `HANDOFF.md`; older checkpoint sections remain historical.
 
 The next actions are:
 
-1. Continue the raw Jak 1 ISO preparation path with bounded FR3 generation and
-   the flat `out/jak1/iso` builder, building on the verified reader and
-   supported-revision validator. Keep the working prepared-folder importer
-   available throughout.
-2. Run a narrow camera A/B that restores Checkpoint 36's per-callback interval
-   rounding while retaining Checkpoint 37 diagnostics and holding its fixed-60
-   display-link range constant. Compare the same route and save where practical;
-   provenance-return incidence is not a visual score.
-3. Add a 28-bit non-finite lane mask and Jak-only consecutive-frame scale/aspect
-   tracking for `eichar-lod0` at the existing behavior-neutral Merc seam.
-4. Add deterministic Merc/TIE two-pass envmap blend, ordering, color, and depth
-   parity coverage before changing material behavior. Keep metallic flicker and
-   broader world-depth fighting separate until that evidence links them.
+1. Complete the portable extracted-tree adapter for directory tpages, game
+   count, game text, and subtitles, then add the remaining custom actor/level
+   outputs. Keep the prepared-folder importer available throughout.
+2. Add the minimal serial Swift/Objective-C++ import worker with recoverable
+   Application Support staging, explicit cancellation/progress, candidate
+   validation, and an atomic active-install switch. Prove the raw-ISO flow end
+   to end on the approved simulator before scheduling physical validation.
+3. Extend the deterministic TIE base/shine proof through nontrivial camera
+   A/B/A states with per-pass color/depth identity, and expose the existing
+   pre-upload `eichar-lod0` scale/aspect discontinuity event through retained
+   app diagnostics. Do not attribute metallic flicker or Merc deformation until
+   these signals distinguish their paths.
+4. When the maintainer explicitly schedules it, run the narrow physical camera
+   and TIE-versus-Merc envmap isolation passes using the same route and save
+   where practical. Provenance incidence is not a visual-quality score.
 5. Preserve the deterministic checks, ARM64 macOS build, approved M5 simulator,
    generic signed iOS lane, and the current real-kernel/runtime path.
 6. Restore the Zephyr Studios LLC signing identity and Xcode account, then
