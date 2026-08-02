@@ -51,11 +51,37 @@ After editing:
 
 Use subagents whenever bounded work can proceed independently. Keep all four
 available concurrency slots productive when there are useful non-overlapping
-tasks. Unless a maintainer requests a different configuration, use fast
-`gpt-5.6-terra` subagents with `xhigh` reasoning. Editing subagents should use
-dedicated branches and worktrees where practical; never let agents edit the
-same files concurrently. The primary agent must review and validate every
-subagent result before integration.
+tasks. Use one `gpt-5.6-sol` `xhigh` integration lane, up to two
+`gpt-5.6-sol` `xhigh` implementation lanes for importer architecture,
+renderer behavior, ABI/AOT work, and unsafe file handling, and one
+`gpt-5.6-terra` `medium` or `high` lane for bounded CMake wiring,
+documentation, fixture expansion, build-log triage, formatting, and mechanical
+API plumbing. Editing subagents should use dedicated branches and worktrees
+where practical; never let agents edit the same files concurrently. The
+primary agent must review and validate every subagent result before
+integration.
+
+Avoid duplicated validation work:
+
+1. Each worker runs only `git diff --check`, changed-file parse or compile
+   checks, focused unit tests, and the smallest isolated compile for its patch.
+2. Integrate several reviewed non-overlapping commits before running the full
+   compiler, Metal proof, AOT build, or Xcode matrix once per checkpoint.
+3. Do not rebuild Eco Pro for an importer-only nested OpenGOAL change that is
+   not part of the Xcode target.
+4. Keep one canonical OpenGOAL CMake build directory and one current Xcode
+   DerivedData directory. Do not run multiple heavy C++, AOT, or Xcode builds
+   simultaneously.
+5. Use `ccache` through `CMAKE_C_COMPILER_LAUNCHER` and
+   `CMAKE_CXX_COMPILER_LAUNCHER` for new host build directories when it is
+   installed. Keep its cache bounded; do not make it a product dependency.
+6. Generate the 518-object public source pack once on canonical code. Reuse its
+   recorded identity unless its writer or embedded graph changes.
+7. Delete obsolete reproducible build directories after recording results and
+   checking that they are not source worktrees.
+8. Stop speculative visual work when static review reaches a physical A/B
+   gate. Continue only with a bounded deterministic test or existing diagnostic
+   seam until a newly authorized capture can distinguish explicit hypotheses.
 
 Preserve enough state for a context wipe at all times. When context usage
 reaches approximately 70 percent, or earlier when the platform does not expose
