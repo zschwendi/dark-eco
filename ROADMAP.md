@@ -137,13 +137,14 @@ Current status:
 
 - Implemented: the public dedicated fork is
   `https://github.com/zschwendi/jak-pad.git`; published branch
-  `goalpad/arm64-aot-0044` and the parent submodule both resolve to
-  `9eecb9c3193ed8cb5175c9199cecbe9cfd2baa42`.
-- Verified: fresh lightweight parent and fork-branch clones resolved that pin,
-  and the pinned affected host tests and application integration passed.
-- Pending: rerun the complete clean-clone Stage 1 host baseline at `9eecb9c3`
-  when a fresh full build is next useful; publication and fetchability are no
-  longer blockers.
+  `goalpad/ipad-demo-pacing` and the parent submodule both resolve to
+  `7cf217fea8885d82fe033d7467fb86d02feb808e`.
+- Verified: the remote branch resolves to that exact pin, and the affected host
+  tests and application integration passed. Earlier fresh-clone evidence was
+  recorded against the historical `9eecb9c3` checkpoint.
+- Pending: rerun the complete clean-clone Stage 1 host baseline at the current
+  pin when a fresh full build is next useful; publication and fetchability are
+  no longer blockers.
 
 ## Stage 2 — Compile one real GOAL workload for ARM64
 
@@ -624,8 +625,9 @@ Required work:
 9. Preserve the implemented streaming, bounds-checked raw ISO reader,
    fail-closed five-revision validator, checked DGO/FR3 preparation, output
    graph/materializer, exact public-artifact generator, and checked public
-   source pack while adding the remaining extracted-tree adapter and app
-   orchestration as separately validated phases.
+   source pack, and extracted-tree adapter while adding the no-dialogue
+   `jak1-base-retail` profile, composition, and app orchestration as separately
+   validated phases.
 10. Keep the current prepared-folder importer available throughout this work.
 
 Exit gate:
@@ -826,26 +828,26 @@ and a deterministic checked 518-object public source pack. It also forwards the
 complete 15-qword live Jak 1 camera state as retained diagnostics, fixes Merc
 envmap destination-alpha semantics and TIE envmap tree ordering, and corrects
 the app's prepared corpus to 25 FR3 files. Raw ISO selection remains disabled:
-the extracted-tree typed-input adapter, custom actor/level outputs, app worker
-bridge, recoverable staging/activation, and end-to-end app validation are not
-complete. ZIP ingestion is still out of scope for this checkpoint.
+the `jak1-base-retail` profile and empty-subtitle mode, app worker bridge,
+recoverable staging/activation, and end-to-end app validation are not complete.
+ZIP ingestion is still out of scope for this checkpoint.
 The full build, diagnostic, signing, and physical evidence is recorded in
 `HANDOFF.md`; older checkpoint sections remain historical.
 
 The next actions are:
 
-1. Complete the portable extracted-tree adapter for directory tpages, game
-   count, game text, and subtitles, then add the remaining custom actor/level
-   outputs. Keep the prepared-folder importer available throughout.
+1. Implement and validate the `jak1-base-retail` graph profile: retain the
+   user's seven COMMON banks, exclude `TSZ.DGO` and its generated test-zone/test-
+   actor outputs, and emit seven structurally valid empty subtitle banks. Do not
+   bundle repository dialogue. Keep the prepared-folder importer available.
 2. Add the minimal serial Swift/Objective-C++ import worker with recoverable
    Application Support staging, explicit cancellation/progress, candidate
    validation, and an atomic active-install switch. Prove the raw-ISO flow end
    to end on the approved simulator before scheduling physical validation.
-3. Extend the deterministic TIE base/shine proof through nontrivial camera
-   A/B/A states with per-pass color/depth identity, and expose the existing
-   pre-upload `eichar-lod0` scale/aspect discontinuity event through retained
-   app diagnostics. Do not attribute metallic flicker or Merc deformation until
-   these signals distinguish their paths.
+3. Keep the implemented nontrivial TIE camera A/B/A proof and retained
+   `eichar-lod0` scale/aspect diagnostics green. Do not make another speculative
+   visual change until a physical capture uses these signals to distinguish
+   metallic TIE flicker from Merc deformation.
 4. When the maintainer explicitly schedules it, run the narrow physical camera
    and TIE-versus-Merc envmap isolation passes using the same route and save
    where practical. Provenance incidence is not a visual-quality score.

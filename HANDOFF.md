@@ -7621,7 +7621,7 @@ offline Jak 1 output builder and only then the app bridge and raw-ISO UI.
 # Checkpoint 47: checked Jak 1 preparation graph and full camera provenance
 
 The parent baseline entering this checkpoint was `7e3d0e89`; the reviewed
-nested OpenGOAL checkpoint is now `3b2fa5549`.
+nested OpenGOAL checkpoint is now `7cf217fea`.
 `f03806f7` corrects the prepared-data contract to the exact 25-file FR3 corpus:
 `GAME.fr3` plus 24 retail level files. `test-zone.fr3` is not a required player
 output. `GameDataInspector` also accepts an explicit staging directory so a
@@ -7648,6 +7648,12 @@ The isolated OpenGOAL pipeline now contains:
   existing extracted copy without reading unrelated objects;
 - portable byte-exact generation for directory tpages, game count, and all 14
   game-text/subtitle flat outputs; and
+- a bounded portable adapter from an already validated extracted tree into the
+  typed generated-artifact inputs. It reads only fixed `CGO/GAME.CGO` and
+  `TEXT/0COMMON.TXT` through `TEXT/6COMMON.TXT` paths, rejects symlinks and
+  noncanonical GOAL objects, retains cancellation/progress context, and is
+  deliberately limited to the initial SCUS-97124 revision supported by the
+  current output recipe; and
 - a deterministic 518-object public reconstructed-source pack plus a bounded
   portable validator. Generated packs remain ignored build products and no
   retail or generated object bytes were committed.
@@ -7659,12 +7665,18 @@ objects plus its manifest, totals 10,729,469 object bytes, and has aggregate
 identity `e3ed59b376d6a079`. Three agent-generated packs were byte-identical; the
 canonical checkout revalidated the portable reader and iPhoneOS link seam.
 
-This is still not an end-to-end app importer. Missing work is the portable
-adapter from the validated extracted tree into the typed public-artifact
-inputs, custom actor and custom level outputs, the Swift/Objective-C++ worker
-bridge, recoverable Application Support staging and active-install switch, and
-an end-to-end app run. The current prepared-folder importer must remain
-available. ZIP ingestion remains out of this checkpoint.
+This is still not an end-to-end app importer. A read-only base-game graph audit
+found that normal title/gameplay boot does not require repository dialogue or
+the example test zone. The next narrow profile is `jak1-base-retail`: preserve
+the seven retail COMMON text banks, project `TSZ.DGO` and its generated custom
+actor/level outputs out of the graph, and generate seven structurally valid
+zero-scene subtitle banks instead of bundling repository subtitle scenes. This
+profile and its exact graph/recipe/materializer tests are planned, not yet
+implemented. Remaining work also includes adapter-to-builder-to-materializer
+composition, the Swift/Objective-C++ worker bridge, recoverable Application
+Support staging and active-install switch, and an end-to-end app run. The
+current prepared-folder importer must remain available. ZIP ingestion remains
+out of this checkpoint.
 
 ## Camera, Merc, and material diagnostics
 
@@ -7747,6 +7759,64 @@ cmake --build /private/tmp/GOALPad-jak1-source-pack-current-iphoneos \
 
 The result is thin ARM64, platform iOS, minimum iOS 15.0, SDK 26.5, SHA-256
 `e8b66c51f5edbfa15a167b9e19d47cf0f72d66a551ae66cb672ffe65bccf1052`.
+
+Extracted-tree generated-input adapter checks:
+
+```sh
+cmake -S OpenGOAL -B /private/tmp/goalpad-jak1-extracted-inputs-host -G Ninja \
+  -DOPENGOAL_BUILD_JAK1_EXTRACTED_GENERATED_INPUTS_ONLY=ON \
+  -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_C_COMPILER_LAUNCHER=/opt/homebrew/bin/ccache \
+  -DCMAKE_CXX_COMPILER_LAUNCHER=/opt/homebrew/bin/ccache
+CCACHE_DIR=/private/tmp/goalpad-jak1-extracted-inputs-ccache \
+  cmake --build /private/tmp/goalpad-jak1-extracted-inputs-host \
+  --target jak1-extracted-generated-inputs-test \
+           jak1-extracted-generated-inputs-exactness-test \
+           jak1-checked-dgo-test jak1-public-generated-artifacts-test \
+           jak1-public-generated-artifacts-exactness-test \
+           jak1-extracted-generated-inputs-link-proof -j4
+ctest --test-dir /private/tmp/goalpad-jak1-extracted-inputs-host \
+  --output-on-failure \
+  -R 'jak1-(extracted-generated-inputs|checked-dgo|public-generated-artifacts)'
+
+cmake -S OpenGOAL -B /private/tmp/goalpad-jak1-output-recipe-core-host -G Ninja \
+  -DOPENGOAL_BUILD_JAK1_OUTPUT_RECIPE_CORE_ONLY=ON \
+  -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_C_COMPILER_LAUNCHER=/opt/homebrew/bin/ccache \
+  -DCMAKE_CXX_COMPILER_LAUNCHER=/opt/homebrew/bin/ccache
+CCACHE_DIR=/private/tmp/goalpad-jak1-extracted-inputs-ccache \
+  cmake --build /private/tmp/goalpad-jak1-output-recipe-core-host \
+  --target jak1-output-recipe-core-test -j4
+ctest --test-dir /private/tmp/goalpad-jak1-output-recipe-core-host \
+  --output-on-failure -R 'jak1-output-recipe-core-test'
+
+cmake -S OpenGOAL -B /private/tmp/goalpad-jak1-extracted-inputs-iphoneos \
+  -G Ninja -DOPENGOAL_BUILD_JAK1_EXTRACTED_GENERATED_INPUTS_ONLY=ON \
+  -DBUILD_TESTING=OFF -DCMAKE_SYSTEM_NAME=iOS \
+  -DCMAKE_OSX_SYSROOT=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=17.0 \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_C_COMPILER_LAUNCHER=/opt/homebrew/bin/ccache \
+  -DCMAKE_CXX_COMPILER_LAUNCHER=/opt/homebrew/bin/ccache
+CCACHE_DIR=/private/tmp/goalpad-jak1-extracted-inputs-ccache \
+  cmake --build /private/tmp/goalpad-jak1-extracted-inputs-iphoneos \
+  --target jak1-extracted-generated-inputs-link-proof -j4
+```
+
+The focused adapter/artifact/DGO suite passed 5/5 and the isolated recipe-core
+regression passed 1/1. The adapter-only target graph contains no recipe-core
+target. The iPhoneOS proof final-linked as a Mach-O arm64 executable. A
+temporary read-only probe against the maintainer's already validated local tree
+parsed 1,610 tpage entries, 16 game-count entries, and seven text banks; the
+probe and its binary were not committed and were removed. No retail bytes were
+added to a test fixture or source control.
+
+The first ccache-launched build failed before compilation with
+`ccache: error: Operation not permitted` because the sandbox could not write its
+default Library cache. The successful build used the explicit temporary cache
+shown above. That 12 MiB cache was then moved to the shared, bounded
+`/private/tmp/GOALPad-ccache`, and the local ccache configuration now points
+there with a 512 MiB maximum.
 
 Renderer and Apple checks:
 

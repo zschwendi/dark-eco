@@ -27,6 +27,10 @@ installed, new host worktrees can use the opt-in
 machines without it. Do not reconfigure an active canonical build merely to
 enable the launcher, because that invalidates the existing compilation commands
 and can trigger the duplicate rebuild this rule is intended to avoid.
+Sandboxed local agents must use one writable shared cache rather than a cache
+per worktree. The current machine keeps that bounded cache at
+`/private/tmp/GOALPad-ccache`; `ccache --show-config` must still report the
+512 MiB limit before it is used.
 
 ## Initialize OpenGOAL
 
@@ -38,7 +42,7 @@ git submodule update --init --recursive
 The authoritative child is the dedicated public fork
 `https://github.com/zschwendi/jak-pad.git`, branch
 `goalpad/ipad-demo-pacing`, pinned by the parent gitlink at
-`10ef5aa1de2930255cb61f13fc6075d94f15c224`. Do not substitute a different
+`7cf217fea8885d82fe033d7467fb86d02feb808e`. Do not substitute a different
 OpenGOAL checkout when recording validation results, and pin that exact commit
 rather than the branch tip. The `sync` step updates existing clones that still
 remember the former upstream URL.
@@ -1154,7 +1158,9 @@ test -e /private/tmp/GOALPad-pinned-opengoal-build/data || \
 ```
 
 This builds the currently pinned GOALPad OpenGOAL fork series, including the
-published ARM64 AOT and data-arena/invoker work through `9eecb9c3`.
+published ARM64 AOT and data-arena/invoker work. Use the exact current pin from
+the initialization section above; older hashes in historical recovery sections
+are not the normal build target.
 
 The `data` symlink is local build state. It lets OpenGOAL's test executable find
 the pinned source tree when the build directory is outside the repository.
@@ -2903,7 +2909,7 @@ Xcode, correct the canonical fixture, and execute the generated
 `load-state::reset!` Export1 through the production typed binding path inside
 GOALPad.
 
-The current OpenGOAL pin is:
+The Checkpoint 21 OpenGOAL pin was:
 
 ```text
 remote: https://github.com/zschwendi/jak-pad.git
