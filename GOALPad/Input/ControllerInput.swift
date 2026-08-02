@@ -1,12 +1,14 @@
 import CoreHaptics
 import GameController
 import OSLog
+import QuartzCore
 
 nonisolated private let inputLog = Logger(subsystem: "com.zephyrstudiosllc.GOALPad",
                                           category: "Input")
 
-/// Reads a physical controller through GameController and pushes it at the engine once per frame,
-/// then reads the engine's vibration request back out and drives the controller's haptics.
+/// Reads a physical controller through GameController, merges it with the on-screen controls, and
+/// pushes the result at the engine once per frame, then reads the engine's vibration request back
+/// out and drives the controller's haptics.
 ///
 /// The engine has no input library of its own: `game/kernel/core/pad.h` is a state the host pushes
 /// in, shaped like the PS2 pad `engine/ps2/pad.gc` expects. Everything Apple-specific stops here.
@@ -15,6 +17,14 @@ nonisolated private let inputLog = Logger(subsystem: "com.zephyrstudiosllc.GOALP
 final class ControllerInput {
     /// The port the engine reads first, and the only one GOALPad drives.
     static let primaryPort: Int32 = 0
+
+    /// How long after a physical control was last moved the controller still counts as the one
+    /// being played with, which is what keeps the on-screen controls off the screen.
+    private static let drivingTimeout: TimeInterval = 2
+
+    /// Match the smallest deadzone used by Jak 1's GOAL analog readers. Drift the game treats as
+    /// neutral must not override a deliberate on-screen stick or hide its controls.
+    private static let stickDeadzone: UInt8 = 32
 
     private(set) var controllerName: String?
     private(set) var isDualSense = false
@@ -27,9 +37,13 @@ final class ControllerInput {
 
     var isConnected: Bool { controller != nil }
 
+    /// True while a physical controller is the thing being played with.
+    private(set) var isDriving = false
+
     private var controller: GCController?
     private var motors: ControllerRumble?
     private var observers: [NSObjectProtocol] = []
+    @ObservationIgnored private var lastControllerActivity = -Double.infinity
 
     func startWatching() {
         guard observers.isEmpty else { return }
@@ -55,31 +69,57 @@ final class ControllerInput {
         release()
     }
 
-    /// Read the controller and hand the engine this frame's pad state. Call before the frame runs.
+    /// Read the physical controller and hand the engine this frame's pad state. Non-iOS hosts use
+    /// this path so no controller remains a disconnected port rather than a synthetic neutral pad.
     func pushFrame() {
-        guard let gamepad = controller?.extendedGamepad else {
-            buttons = []
-            leftStick = (UInt8(GOALPadAnalogNeutral), UInt8(GOALPadAnalogNeutral))
-            rightStick = (UInt8(GOALPadAnalogNeutral), UInt8(GOALPadAnalogNeutral))
-            GOALPadInputSetDisconnected(Self.primaryPort)
-            return
+        pushFrame(merging: nil)
+    }
+
+    /// Read the controller, merge the on-screen controls into it, and hand the engine this frame's
+    /// pad state. Call before the frame runs.
+    ///
+    /// The two sources are one pad: the buttons are the union, and each stick is the controller's
+    /// whenever it is off centre and the on-screen one otherwise, so a real stick always wins and a
+    /// stray finger can never fight it. The port is reported as connected either way - on an iPad
+    /// the on-screen controls are always there, so there is always a pad.
+    func pushFrame(merging touch: TouchPadState) {
+        pushFrame(merging: Optional(touch))
+    }
+
+    private func pushFrame(merging touch: TouchPadState?) {
+        var state = Self.neutralState()
+        if let gamepad = controller?.extendedGamepad {
+            state.buttons = Self.buttons(of: gamepad)
+            state.leftX = Self.axisByte(gamepad.leftThumbstick.xAxis.value)
+            state.leftY = Self.axisByte(-gamepad.leftThumbstick.yAxis.value)
+            state.rightX = Self.axisByte(gamepad.rightThumbstick.xAxis.value)
+            state.rightY = Self.axisByte(-gamepad.rightThumbstick.yAxis.value)
+            state.leftTrigger = Self.triggerByte(gamepad.leftTrigger.value)
+            state.rightTrigger = Self.triggerByte(gamepad.rightTrigger.value)
+            if Self.isActive(state) { lastControllerActivity = CACurrentMediaTime() }
+        }
+        noteDriving()
+
+        if let touch {
+            if !Self.isDeflected(state.leftX, state.leftY), touch.isLeftDeflected {
+                state.leftX = touch.leftX
+                state.leftY = touch.leftY
+            }
+            if !Self.isDeflected(state.rightX, state.rightY), touch.isRightDeflected {
+                state.rightX = touch.rightX
+                state.rightY = touch.rightY
+            }
+            state.buttons.formUnion(touch.buttons)
         }
 
-        buttons = Self.buttons(of: gamepad)
-        leftStick = (Self.axisByte(gamepad.leftThumbstick.xAxis.value),
-                     Self.axisByte(-gamepad.leftThumbstick.yAxis.value))
-        rightStick = (Self.axisByte(gamepad.rightThumbstick.xAxis.value),
-                      Self.axisByte(-gamepad.rightThumbstick.yAxis.value))
-
-        var state = GOALPadControllerState()
-        state.buttons = buttons
-        state.leftX = leftStick.x
-        state.leftY = leftStick.y
-        state.rightX = rightStick.x
-        state.rightY = rightStick.y
-        state.leftTrigger = Self.triggerByte(gamepad.leftTrigger.value)
-        state.rightTrigger = Self.triggerByte(gamepad.rightTrigger.value)
-        GOALPadInputSetState(Self.primaryPort, state)
+        buttons = state.buttons
+        leftStick = (state.leftX, state.leftY)
+        rightStick = (state.rightX, state.rightY)
+        if controller != nil || touch != nil {
+            GOALPadInputSetState(Self.primaryPort, state)
+        } else {
+            GOALPadInputSetDisconnected(Self.primaryPort)
+        }
     }
 
     /// Read what GOAL asked the two motors to do and drive them.
@@ -94,6 +134,34 @@ final class ControllerInput {
     }
 
     // MARK: - Mapping
+
+    private static func neutralState() -> GOALPadControllerState {
+        GOALPadControllerState(buttons: [],
+                               leftX: UInt8(GOALPadAnalogNeutral),
+                               leftY: UInt8(GOALPadAnalogNeutral),
+                               rightX: UInt8(GOALPadAnalogNeutral),
+                               rightY: UInt8(GOALPadAnalogNeutral),
+                               leftTrigger: 0,
+                               rightTrigger: 0)
+    }
+
+    private static func isDeflected(_ x: UInt8, _ y: UInt8) -> Bool {
+        let neutral = Int(GOALPadAnalogNeutral)
+        return abs(Int(x) - neutral) > Int(stickDeadzone) || abs(Int(y) - neutral) > Int(stickDeadzone)
+    }
+
+    private static func isActive(_ state: GOALPadControllerState) -> Bool {
+        !state.buttons.isEmpty || isDeflected(state.leftX, state.leftY)
+            || isDeflected(state.rightX, state.rightY)
+    }
+
+    /// Only assigned when it changes: this runs every frame and every assignment to an observed
+    /// property redraws whatever is watching it.
+    private func noteDriving() {
+        let driving = controller != nil
+            && CACurrentMediaTime() - lastControllerActivity < Self.drivingTimeout
+        if driving != isDriving { isDriving = driving }
+    }
 
     /// The DualSense face buttons sit exactly where the PS2 ones did, and GameController names its
     /// face buttons by position, so A/B/X/Y are cross/circle/square/triangle without a special
@@ -163,10 +231,11 @@ final class ControllerInput {
         controller = nil
         controllerName = nil
         isDualSense = false
+        isDriving = false
+        lastControllerActivity = -.infinity
         GOALPadInputSetDisconnected(Self.primaryPort)
     }
 }
-
 /// The two vibration motors, driven by Core Haptics. The engine's `large` motor is the on/off one
 /// the PS2 pulsed to fake an intensity and `small` is the analog one; the two controller handles
 /// are the closest thing a DualSense offers.

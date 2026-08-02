@@ -1,6 +1,7 @@
 #include "GOALPadMetalHost.hpp"
 
 #include "GOALPadEngineSeams.h"
+#include "GOALPadGameBoot.hpp"
 
 #include <os/log.h>
 
@@ -8,6 +9,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <thread>
 #include <vector>
 
 #include "common/dma/dma_copy.h"
@@ -51,9 +53,17 @@ struct MetalHost {
   std::shared_ptr<TexturePool> texture_pool;
   std::unique_ptr<FixedChunkDmaCopier> copier;
 
-  // the chain the engine handed over this frame, waiting for the tick's render
-  bool has_chain = false;
   float pmode_alp = 1.f;
+
+  // Retained for one CADisplayLink tick. send_chain consumes each submitted chain synchronously
+  // while its out-of-chain Merc bone pointers still name this frame's live EE data.
+  CAMetalLayer* frame_layer = nil;
+  goalpad::MetalHostFrame frame;
+  std::thread::id frame_thread;
+  bool frame_open = false;
+  bool frame_rendered = false;
+  std::uint64_t chains_in_frame = 0;
+  bool reported_wrong_frame_thread = false;
 
   // the level art the game asked for, and what has been read off disk because of it
   std::string art_directory;
@@ -166,6 +176,116 @@ void service_level_requests() {
   }
 }
 
+void render_chain() {
+  MetalRenderOptions opts;
+  opts.game_res_w = g_host.frame.game_res_w;
+  opts.game_res_h = g_host.frame.game_res_h;
+  opts.draw_region_w = g_host.frame.draw_region_w;
+  opts.draw_region_h = g_host.frame.draw_region_h;
+  opts.pmode_alp = g_host.pmode_alp;
+  opts.presentation_time = g_host.frame.presentation_time;
+  opts.host_tick_id = g_host.stats.frames_armed;
+  opts.chain_ordinal = g_host.chains_in_frame;
+  const auto camera = goalpad::current_camera_frame_identity();
+  opts.engine_frame_id = camera.engine_frame_id;
+  opts.expected_camera_valid = camera.camera_valid;
+  if (camera.camera_valid) {
+    std::copy(camera.camera.begin(), camera.camera.end(), opts.expected_camera.bytes.begin());
+  }
+
+  const auto& chain = g_host.copier->get_last_result();
+  const bool drawable_acquired = g_host.renderer->render_chain_frame(
+      opts, g_host.frame_layer, chain.data.data(), chain.start_offset);
+  g_host.frame_rendered = drawable_acquired || g_host.frame_rendered;
+
+  const auto stats = g_host.renderer->chain_stats();
+  g_host.stats.merc_models = stats.merc_models;
+  g_host.stats.merc_draws = stats.merc_draws;
+  g_host.stats.merc_bone_vectors = stats.merc_bone_vectors;
+  g_host.stats.merc_missing_bone_slots = stats.merc_missing_bone_slots;
+  g_host.stats.merc_models_with_missing_bone_slots = stats.merc_models_with_missing_bone_slots;
+  if (stats.merc_missing_bone_slots > 0) {
+    g_host.stats.merc_missing_bone_slots_total += stats.merc_missing_bone_slots;
+    g_host.stats.merc_models_with_missing_bone_slots_total +=
+        stats.merc_models_with_missing_bone_slots;
+    g_host.stats.last_merc_missing_bone_engine_frame_id = stats.last_engine_frame_id;
+    g_host.stats.last_merc_missing_bone_host_tick_id = stats.last_host_tick_id;
+    g_host.stats.last_merc_missing_bone_chain_ordinal = stats.last_chain_ordinal;
+    g_host.stats.last_merc_missing_bone_slots = stats.merc_missing_bone_slots;
+    g_host.stats.last_merc_models_with_missing_bone_slots =
+        stats.merc_models_with_missing_bone_slots;
+  }
+  g_host.stats.merc_nonfinite_bone_matrices = stats.merc_nonfinite_bone_matrices;
+  g_host.stats.merc_degenerate_bone_matrices = stats.merc_degenerate_bone_matrices;
+  g_host.stats.merc_incoherent_bone_sources = stats.merc_incoherent_bone_sources;
+  g_host.stats.merc_models_with_palette_health_issues =
+      stats.merc_models_with_palette_health_issues;
+  if (stats.merc_models_with_palette_health_issues > 0) {
+    g_host.stats.merc_nonfinite_bone_matrices_total += stats.merc_nonfinite_bone_matrices;
+    g_host.stats.merc_degenerate_bone_matrices_total += stats.merc_degenerate_bone_matrices;
+    g_host.stats.merc_incoherent_bone_sources_total += stats.merc_incoherent_bone_sources;
+    g_host.stats.merc_models_with_palette_health_issues_total +=
+        stats.merc_models_with_palette_health_issues;
+    g_host.stats.last_merc_palette_health_engine_frame_id = stats.last_engine_frame_id;
+    g_host.stats.last_merc_palette_health_host_tick_id = stats.last_host_tick_id;
+    g_host.stats.last_merc_palette_health_chain_ordinal = stats.last_chain_ordinal;
+    const auto& event = stats.last_merc_palette_health_event;
+    g_host.stats.last_merc_palette_health_issue_mask = event.issue_mask;
+    g_host.stats.last_merc_palette_health_bone_slot = event.bone_slot;
+    g_host.stats.last_merc_palette_health_model_name_hash = event.model_name_hash;
+    g_host.stats.last_merc_palette_health_matrix_hash = event.matrix_hash;
+    g_host.stats.last_merc_palette_health_axis_norm_x = event.axis_norm_x;
+    g_host.stats.last_merc_palette_health_axis_norm_y = event.axis_norm_y;
+    g_host.stats.last_merc_palette_health_axis_norm_z = event.axis_norm_z;
+    g_host.stats.last_merc_palette_health_normalized_abs_determinant =
+        event.normalized_abs_determinant;
+    g_host.stats.last_merc_palette_health_source_address = event.source_address;
+    g_host.stats.last_merc_palette_health_source_base = event.source_base;
+    g_host.stats.last_merc_palette_health_expected_source_base = event.expected_source_base;
+  }
+  g_host.stats.merc_bad_bone_pointers += stats.merc_bad_bone_pointers;
+  g_host.stats.merc_bad_draw_ranges += stats.merc_bad_draw_ranges;
+  g_host.stats.last_host_tick_id = stats.last_host_tick_id;
+  g_host.stats.last_chain_ordinal = stats.last_chain_ordinal;
+  g_host.stats.last_engine_frame_id = stats.last_engine_frame_id;
+  g_host.stats.last_camera_fingerprint = stats.last_camera_fingerprint;
+  g_host.stats.last_camera_packets = stats.last_camera_packets;
+  g_host.stats.producer_camera_alternations = stats.producer_camera_alternations;
+  g_host.stats.last_camera_alternation_older_frame_id =
+      stats.last_camera_alternation_older_frame_id;
+  g_host.stats.last_camera_alternation_previous_frame_id =
+      stats.last_camera_alternation_previous_frame_id;
+  g_host.stats.last_camera_alternation_current_frame_id =
+      stats.last_camera_alternation_current_frame_id;
+  g_host.stats.last_camera_alternation_older_fingerprint =
+      stats.last_camera_alternation_older_fingerprint;
+  g_host.stats.last_camera_alternation_previous_fingerprint =
+      stats.last_camera_alternation_previous_fingerprint;
+  g_host.stats.last_camera_alternation_current_fingerprint =
+      stats.last_camera_alternation_current_fingerprint;
+  g_host.stats.last_camera_alternation_host_tick_id =
+      stats.last_camera_alternation_host_tick_id;
+  g_host.stats.last_camera_alternation_chain_ordinal =
+      stats.last_camera_alternation_chain_ordinal;
+  g_host.stats.last_camera_alternation_packet_fingerprint =
+      stats.last_camera_alternation_packet_fingerprint;
+  g_host.stats.last_camera_alternation_live_mismatch_qwords =
+      stats.last_camera_alternation_live_mismatch_qwords;
+  g_host.stats.last_camera_alternation_packet_mismatch_qwords =
+      stats.last_camera_alternation_packet_mismatch_qwords;
+  g_host.stats.last_camera_older_to_previous_distance =
+      stats.last_camera_older_to_previous_distance;
+  g_host.stats.last_camera_previous_to_current_distance =
+      stats.last_camera_previous_to_current_distance;
+  g_host.stats.last_camera_older_to_current_distance = stats.last_camera_older_to_current_distance;
+  g_host.stats.last_live_camera_mismatches = stats.last_live_camera_mismatches;
+  g_host.stats.last_packet_camera_mismatches = stats.last_packet_camera_mismatches;
+  g_host.stats.last_live_camera_mismatch_qwords = stats.last_live_camera_mismatch_qwords;
+  g_host.stats.last_packet_camera_mismatch_qwords = stats.last_packet_camera_mismatch_qwords;
+  g_host.stats.live_camera_mismatches = stats.live_camera_mismatches;
+  g_host.stats.packet_camera_mismatches = stats.packet_camera_mismatches;
+}
+
 // ---------------------------------------------------------------------------------------------
 // the seam: the C hooks in game/kernel/core/gfx_host.h, answered by the renderer above
 // ---------------------------------------------------------------------------------------------
@@ -175,13 +295,25 @@ void host_send_chain(const void* ee_base, uint32_t chain_offset) {
     return;
   }
   g_host.stats.chains_sent++;
-  if (g_host.has_chain) {
-    // The previous chain never reached a frame - the display link did not tick between two game
-    // frames. Drawing the older one would show the past, so it is dropped and counted.
+  if (!g_host.frame_open || g_host.frame_layer == nil) {
+    // Boot can send display chains before the first CADisplayLink tick. They cannot safely be
+    // deferred because their live Merc bones will be gone, so there is deliberately no pending
+    // chain outside an armed gameplay frame.
     g_host.stats.chains_dropped++;
+    return;
   }
+  if (g_host.frame_thread != std::this_thread::get_id()) {
+    g_host.stats.chains_dropped++;
+    if (!g_host.reported_wrong_frame_thread) {
+      os_log_error(gfx_log(),
+                   "Dropping a DMA chain sent from a thread other than the armed frame thread.");
+      g_host.reported_wrong_frame_thread = true;
+    }
+    return;
+  }
+  g_host.chains_in_frame++;
   g_host.copier->set_input_data(ee_base, chain_offset, /*run*/ true);
-  g_host.has_chain = true;
+  render_chain();
 }
 
 /*!
@@ -195,9 +327,9 @@ uint32_t host_vsync(void) {
 }
 
 /*!
- * `sync-path`: the game asking whether the renderer is done with the chain it sent. It is - the
- * copy in `host_send_chain` finished before that call returned, so the renderer works from a
- * snapshot and EE memory is free to be reused immediately.
+ * `sync-path`: the game asking whether the renderer is done with the chain it sent. During a
+ * display-link tick `host_send_chain` renders before returning, so both the copied DMA chain and
+ * its live Merc bone matrices have been consumed and EE memory is free to be reused.
  */
 uint32_t host_sync_path(void) {
   return 0;
@@ -319,6 +451,23 @@ MetalHostStats metal_host_stats() {
     g_host.stats.chains_rendered = chain.chains_rendered;
     g_host.stats.last_draw_calls = chain.draw_calls;
     g_host.stats.last_triangles = chain.triangles;
+    g_host.stats.drawables_acquired = chain.drawables_acquired;
+    g_host.stats.drawable_misses = chain.drawable_misses;
+    g_host.stats.late_present_submissions = chain.late_present_submissions;
+    g_host.stats.submissions = chain.submissions;
+    g_host.stats.presentations_completed = chain.presentations_completed;
+    g_host.stats.presentation_drops = chain.presentation_drops;
+    g_host.stats.presentation_order_mismatches = chain.presentation_order_mismatches;
+    g_host.stats.last_submission_id = chain.last_submission_id;
+    g_host.stats.last_presented_submission_id = chain.last_presented_submission_id;
+    g_host.stats.last_dropped_submission_id = chain.last_dropped_submission_id;
+    g_host.stats.last_drawable_id = chain.last_drawable_id;
+    g_host.stats.last_presented_drawable_id = chain.last_presented_drawable_id;
+    g_host.stats.last_presented_engine_frame_id = chain.last_presented_engine_frame_id;
+    g_host.stats.last_presented_host_tick_id = chain.last_presented_host_tick_id;
+    g_host.stats.last_presented_chain_ordinal = chain.last_presented_chain_ordinal;
+    g_host.stats.last_requested_presentation_time = chain.last_requested_presentation_time;
+    g_host.stats.last_actual_presentation_time = chain.last_actual_presentation_time;
   }
   return g_host.stats;
 }
@@ -333,7 +482,7 @@ void metal_host_attach_layer(CAMetalLayer* layer) {
   }
 }
 
-bool metal_host_render(CAMetalLayer* layer, const MetalHostFrame& frame) {
+bool metal_host_begin_frame(CAMetalLayer* layer, const MetalHostFrame& frame) {
   if (!g_host.running || layer == nil) {
     return false;
   }
@@ -345,21 +494,42 @@ bool metal_host_render(CAMetalLayer* layer, const MetalHostFrame& frame) {
   // only catches a request that arrived before the art directory was known.
   service_level_requests();
 
-  if (!g_host.has_chain) {
-    return false;
+  if (g_host.frame_open) {
+    os_log_error(gfx_log(), "Beginning a Metal frame before the previous frame was closed.");
+    g_host.frame_layer = nil;
+    g_host.frame_thread = std::thread::id();
+    g_host.frame_open = false;
+    g_host.frame_rendered = false;
   }
-  g_host.has_chain = false;
 
-  MetalRenderOptions opts;
-  opts.game_res_w = frame.game_res_w;
-  opts.game_res_h = frame.game_res_h;
-  opts.draw_region_w = frame.draw_region_w;
-  opts.draw_region_h = frame.draw_region_h;
-  opts.pmode_alp = g_host.pmode_alp;
-
-  const auto& chain = g_host.copier->get_last_result();
-  g_host.renderer->render_chain_frame(opts, layer, chain.data.data(), chain.start_offset);
+  g_host.frame_layer = layer;
+  g_host.frame = frame;
+  g_host.frame_thread = std::this_thread::get_id();
+  g_host.frame_open = true;
+  g_host.frame_rendered = false;
+  g_host.chains_in_frame = 0;
+  g_host.stats.frames_armed++;
   return true;
+}
+
+bool metal_host_end_frame() {
+  const bool rendered = g_host.frame_open && g_host.frame_rendered;
+  if (g_host.frame_open) {
+    if (g_host.chains_in_frame == 0) {
+      g_host.stats.frames_without_chain++;
+    }
+    if (g_host.chains_in_frame > 1) {
+      g_host.stats.frames_with_multiple_chains++;
+    }
+    g_host.stats.max_chains_per_frame =
+        std::max(g_host.stats.max_chains_per_frame, g_host.chains_in_frame);
+  }
+  g_host.frame_layer = nil;
+  g_host.frame_thread = std::thread::id();
+  g_host.frame_open = false;
+  g_host.frame_rendered = false;
+  g_host.chains_in_frame = 0;
+  return rendered;
 }
 
 #else  // GOALPAD_HAVE_GFX_SEAM
@@ -388,7 +558,11 @@ MetalHostStats metal_host_stats() {
 
 void metal_host_attach_layer(CAMetalLayer*) {}
 
-bool metal_host_render(CAMetalLayer*, const MetalHostFrame&) {
+bool metal_host_begin_frame(CAMetalLayer*, const MetalHostFrame&) {
+  return false;
+}
+
+bool metal_host_end_frame() {
   return false;
 }
 

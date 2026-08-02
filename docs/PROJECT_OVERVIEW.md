@@ -104,7 +104,7 @@ Jak II begins only after Jak 1 has a stable platform foundation. Work that is na
 These are allowed later but are not prerequisites for the first complete port:
 
 - Jak II support
-- Touch controls
+- Touch-control polish, accessibility, and physical-device validation
 - Keyboard support
 - Higher frame-rate modes
 - External display support

@@ -1,14 +1,13 @@
 # GOALPad iPadOS Port Handoff
 
-Date: 2026-07-31
+Date: 2026-08-01
 
 Branch: `feat/ipados-native-boot`
 
-Status: Partially complete. **The strategy changed materially on 2026-07-31 —
-read "Checkpoint 22" at the end of this file before doing anything else.** The
-synthetic-arena era is over: the app now initializes the real OpenGOAL Jak 1
-kernel, and the hand-written ARM64 emitter has been superseded by an AOT C
-backend that compiles 82.63% of Jak 1 to native ARM64.
+Status: Partially complete. **Read "Checkpoint 38" at the end of this file
+before doing anything else.** The synthetic-arena era is over: the app now
+initializes the real OpenGOAL Jak 1 kernel, and the AOT C backend currently
+emits 10,596 of Jak 1's 10,603 functions, with seven native routines retained.
 
 Everything above and below this note, up to Checkpoint 22, is HISTORICAL. It
 describes the previous approach of compiling individual hand-picked GOAL
@@ -135,7 +134,7 @@ The outer workspace is not a Git repository. The checkout is nested:
 The outer workspace contains local proprietary inputs. None were read into,
 copied into, or generated inside the Git checkout.
 
-Current history at this handoff (newest first):
+History at the original 2026-07-31 handoff (newest first):
 
 ```text
 cabb027 feat(aot): integrate direct Jak 1 load-state reset proof (AI-assisted)
@@ -5329,3 +5328,1791 @@ The next executable step is only: unlock **Z iPad Pro**, launch
 `com.zephyrstudiosllc.GOALPad`, capture the boot/runtime evidence, and test a
 controller past the title screen. Do not resume Jak 2 before recording that
 physical Jak 1 result.
+
+---
+
+# Checkpoint 30: iPad host consumes each frame with its matching skeleton
+
+Date: 2026-08-01. Parent base `8c7bbfe` on `feat/ipados-native-boot`; OpenGOAL
+remains clean and pinned at `7e69774a0c91ff804f165df574f919afc6e7b826`.
+
+The maintainer launched Checkpoint 29 manually and reported playable Jak 1 on
+physical **Z iPad Pro**, with violent camera/world shiver while Jak stood still.
+This is user-reported physical runtime evidence; no agent accessed the device
+during this checkpoint.
+
+## Root cause
+
+The known fix is already in the OpenGOAL pin: `8543c0cad` is an ancestor of the
+current commit and measured stale live-bone data on 162/500 frames before the
+fix and 0/500 after it. Its wait lives in desktop-only `metal_pipeline.mm`,
+which the Xcode target intentionally excludes. The app instead compiled
+`GOALPadMetalHost.mm`, whose `send_chain` copied only DMA-tagged chunks and
+deferred drawing until after the whole GOAL dispatcher returned. Merc resolves
+bone pointers from live EE memory outside that compact copy, so the deferred
+iPad draw could combine an older chain with a newer skeleton. The earlier
+same-thread/same-tick argument was insufficient; the chain must be consumed
+before GOAL continues past its send.
+
+## Focused iPad adaptation
+
+- `GOALPadRenderSurface.beginFrame` validates and arms the current layer and
+  geometry before GOAL runs; `endFrame` clears that one-tick context and counts
+  a presentation.
+- `host_send_chain` now copies and renders synchronously on the armed frame
+  thread. It returns to GOAL only after Merc has copied the matching live bone
+  matrices into renderer-owned buffers.
+- A send outside an armed frame, including boot-time display traffic, is
+  dropped and counted rather than deferred with stale live pointers. A
+  wrong-thread send is also rejected and reported once.
+- `GameSession.tick` does not advance GOAL when no drawable surface can be
+  armed. The active order is now `begin -> input -> GOAL/send/render -> end ->
+  rumble` with no condition-variable wait and therefore no same-thread
+  deadlock.
+- `docs/BUILDING.md` now describes the actual ordering and the reason for it.
+
+## Validation
+
+- `git diff --check` — passed.
+- `plutil -lint GOALPad.xcodeproj/project.pbxproj` — passed.
+- `xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad -configuration Debug -destination 'platform=macOS,arch=arm64' -derivedDataPath /private/tmp/GOALPad-shiver-mac CODE_SIGNING_ALLOWED=NO -jobs 4 build` — passed; existing upstream warnings remain.
+- `xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad -configuration Release -destination 'generic/platform=iOS' -derivedDataPath /private/tmp/GOALPad-current-device -jobs 4 -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build` — passed; existing upstream warnings remain.
+- The Release result is a signed thin `arm64` iPhoneOS executable. Parsed
+  entitlements are the development application identifier, team identifier,
+  and `get-task-allow`.
+- The approved M5 simulator build was attempted with destination
+  `96C5C21A-B925-4213-82A3-90DCB8518339` and failed in unchanged pinned source:
+  `metal_renderer.mm` calls
+  `presentDrawable:afterMinimumDuration:`, which the iPhone Simulator 26.5 SDK
+  does not expose. `git blame` attributes both calls to OpenGOAL commit
+  `aae65e76bc`, predating this parent-host patch. This is a current-pin
+  simulator compatibility regression, not a failure caused by the synchronous
+  iPad host change. The simulator remained shut down.
+
+## Physical update-install and relaunch
+
+The maintainer then explicitly requested a physical relaunch. `Z iPad Pro` was
+connected as `6A4111AB-1663-508A-98D9-F0C1A9EA7863`.
+
+- `xcrun devicectl device install app --device 6A4111AB-1663-508A-98D9-F0C1A9EA7863 /private/tmp/GOALPad-current-device/Build/Products/Release-iphoneos/GOALPad.app` — passed as an update-install of bundle `com.zephyrstudiosllc.GOALPad`; the existing app container was not uninstalled.
+- `xcrun devicectl device process launch --device 6A4111AB-1663-508A-98D9-F0C1A9EA7863 --terminate-existing --activate com.zephyrstudiosllc.GOALPad` — passed and launched the updated app in the foreground.
+
+No debugger or console was attached. Runtime acceptance remains the
+maintainer's direct observation: idle in one controllable area for at least 60
+seconds, turn through a full circle, and idle again. Accept only when Jak, the
+world, and the camera no longer shiver, sent/rendered counts advance together,
+and no new chain drops accrue after boot.
+
+---
+
+# Checkpoint 31: physical Jak 1 camera A/B and paused Merc deformation hunt
+
+Date: 2026-08-01. This is an intentionally uncommitted context-clear
+checkpoint. Parent branch `feat/ipados-native-boot` is at `8c7bbfe`, three
+commits ahead of its remote. Nested OpenGOAL branch
+`goalpad/ipad-demo-pacing` is at
+`7e69774a0c91ff804f165df574f919afc6e7b826`. Preserve every dirty file listed
+below; do not reset, clean, or replace either checkout.
+
+The maintainer explicitly authorized continuing signed update-installs and
+runtime testing on physical **Z iPad Pro** during this session. Device ID was
+`6A4111AB-1663-508A-98D9-F0C1A9EA7863`; bundle ID is
+`com.zephyrstudiosllc.GOALPad`. Every install was an update-install, never an
+uninstall, so `Documents/Jak1` and saves remained in the existing container.
+After a context clear, follow the current physical-device policy and obtain a
+fresh explicit device-test request if the maintainer's resume message does not
+itself authorize another install or launch.
+
+## Last installed and physically observed build
+
+The app currently on the iPad came from:
+
+`/private/tmp/GOALPad-fixedtick-device/Build/Products/Release-iphoneos/GOALPad.app`
+
+Its executable SHA-256 is
+`7b6af06f70ef29ff0befbe9b5a6e8da116478798ac56e98655c4e2adef0d3c56`.
+It is thin arm64, bundle `com.zephyrstudiosllc.GOALPad`, TeamIdentifier
+`D2YYJ54Q6V`. The generic iOS Release build exited 0, CoreDevice update-install
+exited 0 at 13:25, launch with `--terminate-existing` exited 0, and a later
+process query found the app still alive as PID 6558. Local strict codesign
+verification continued to report the already-known untrusted local certificate
+chain, while CoreDevice accepted the signature.
+
+That installed build combines two iOS-only runtime experiments in
+`GOALPadGameBoot.cpp`:
+
+- It sets `*use-new-bones*` to Jak 1 false after GAME.CGO loading and before
+  `play`, selecting OpenGOAL's already-linked MIPS2C `bones-mtx-calc` instead
+  of the AOT `new-bones-mtx-calc-asm`.
+- Immediately before each `kernel-dispatcher` call it resets
+  `*timer-reset-value*` from `__read-ee-timer >> 9`. This excludes the outside
+  CADisplayLink wait from the next `display-frame-start` measurement, but a
+  dispatcher/render workload above about 1.3 frames can still produce
+  `time-ratio == 2`.
+
+Exact final iOS build command for that installed artifact:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-fixedtick-device \
+  -jobs 4 -allowProvisioningUpdates ENABLE_PREVIEWS=NO \
+  ENABLE_DEBUG_DYLIB=NO build
+```
+
+The corresponding arm64 macOS Debug build also passed with
+`/private/tmp/GOALPad-fixedtick-mac` and `CODE_SIGNING_ALLOWED=NO`. Existing
+upstream warnings remained.
+
+## Physical result
+
+Maintainer observations, in order:
+
+- The earlier MIPS2C-only A/B initially made Jak look volumetric through a full
+  rotation. Its executable is preserved at
+  `/private/tmp/GOALPad-mips2c-bones-device/Build/Products/Release-iphoneos/GOALPad.app`
+  with SHA-256
+  `e185654142f2518a1546975b91880729ee6e8a4c4c6f67caf683ce91ede483ca`.
+- The fixed-timer build removed the worst violent camera shake. Hiding the
+  diagnostics overlay improves cadence but does not remove the root problem.
+- With no controller input, the remaining camera motion is a slower
+  left/right sway roughly once per second, like alternating right-stick input.
+  The maintainer verified the raw input readout is not oscillating, ruling out
+  controller drift or spoofed input.
+- Flat Jak returned despite the MIPS2C selector. The deformation is a stable
+  plane: at an edge-on view Jak becomes a vertical line of pixels; changing
+  Jak's facing direction changes the apparent thickness, and the camera can
+  rotate around that proportionate result.
+- Jak also becomes briefly large or balloon-like for several frames,
+  especially during rapid camera rotation.
+
+These observations separate the remaining work into two bugs. The slow camera
+sway is the game's idle auto-centering spring reacting to occasional ratio-2
+simulation steps. Flat/balloon Jak is bad or incomplete Merc skinning state,
+not controller input and not merely drawable presentation cadence.
+
+## Verified source findings
+
+- `*use-new-bones*` is not being reset by `play` or level loading. Jak 1 has
+  only its top-level true initialization and the branch read in `bones.gc`.
+  `bones.o` is only in ENGINE.CGO/GAME.CGO, already-loaded AOT objects do not
+  rerun top level, and the generated AOT rereads the live symbol slot each call.
+- The false branch passes `(output, joints, bones, count, camera)` correctly.
+  The iPad MIPS2C seam forwards the fifth native argument into MIPS `t0`, and
+  the translated bones function reads its camera rows from `t0`.
+- MIPS2C is therefore not an independent end-to-end baseline. It shares the
+  joints, bones, camera, output allocation, seven-qword palette layout, packet
+  pointers, and Metal consumer with the AOT producer.
+- The current synchronous host and Metal stream-buffer lifetime do not support
+  an ordinary CPU-copy/GPU-read race: `host_send_chain` consumes each chain
+  before GOAL resumes, the renderer waits for the preceding GPU command buffer,
+  and each flush receives its own stream range.
+- Multiple chains are serialized, but every chain currently acquires a
+  drawable and schedules it at the same display-link target time. On resume,
+  record the overlay's exact `tick chains 0/1/>1` and `max` values before
+  deciding whether multi-chain presentation is involved. `last merc 2/3`
+  describes only the last chain and is not sufficient evidence.
+- Metal initializes the 128-entry skeleton palette to zero and fills only the
+  packet's supplied slots. It does not verify that positive-weight vertices
+  reference only supplied slots. Its bad-pointer message claims an identity
+  fallback, but the implementation actually leaves a zero matrix. That is a
+  source-proven flattening hazard, though it does not yet explain ballooning.
+
+## Unbuilt fixed-step experiment
+
+Immediately before the clear request, a narrower production-shaped camera fix
+was started but not generated, built, installed, or tested:
+
+- `OpenGOAL/goal_src/jak1/engine/draw/drawable.gc` defines default-false
+  `*pc-fixed-step*` and forces the local `time-ratio` to 1 immediately before
+  `set-time-ratios` when that flag is true.
+- `GOALPad/Native/GOALPadGameBoot.cpp` verifies `*timer-reset-value*`, caches
+  its slot, verifies `*pc-fixed-step*`, and enables the flag only under
+  `TARGET_OS_IOS` after `play` and before the first gameplay dispatcher.
+
+The exact generation command was started:
+
+```sh
+Scripts/generate-jak1-aot.sh /private/tmp/GOALPad-aot-host
+```
+
+It configured successfully and compiled through about 240 of 438 host-tool
+steps, then was deliberately interrupted with Ctrl-C for the requested context
+clear. Exit was 130. The sweep itself had not run, so
+`Generated/jak1-aot/drawable.c` does not yet contain `*pc-fixed-step*`. No app
+build or physical install contains this change. The incremental resume command
+is exactly the same command above; it should reuse the partial host build.
+
+## Exact next executable sequence
+
+1. Reread `AGENTS.md`, `docs/PROJECT_OVERVIEW.md`, this checkpoint, and the
+   current Git status. Preserve all dirty work.
+2. Finish `Scripts/generate-jak1-aot.sh /private/tmp/GOALPad-aot-host` and verify
+   the generated `drawable.c` contains `*pc-fixed-step*` and the ratio-one
+   branch.
+3. Run `git diff --check` in both checkouts. Build arm64 macOS Debug and generic
+   signed iOS Release into new `/private/tmp` derived-data directories.
+4. With fresh explicit physical authorization, update-install and relaunch the
+   fixed-step A/B. Test diagnostics hidden: rotate for 10 seconds, release all
+   input, idle at least 30 seconds, and verify whether the one-second sway is
+   gone. Also record whether flat/balloon Jak changes.
+5. If deformation remains, add the smallest decisive Merc probe before another
+   speculative fix. Label by display tick, chain ordinal, Merc bucket/model,
+   and model name. For Jak record supplied slots, `addr - 128 * slot` base
+   consistency, producer/live/copied/uploaded palette hashes, finite values,
+   transform determinant/axis norms, and perspective hash. Compare positive-
+   weight used slots against supplied slots. CPU-skin a small deterministic
+   sample of Jak vertices and record bounds before and after perspective.
+6. Classify before patching: bad at producer means bone input/producer;
+   producer healthy but live mismatch means matrix-area reuse; palette-stage
+   mismatch means packet/copy; healthy pre-perspective but bad post-perspective
+   means camera constants; all CPU stages healthy means GPU binding or
+   multi-chain presentation.
+7. Independently correct the false identity fallback only with its own test:
+   initialize unsupplied matrices as Merc identity (`tmat = -I4`, `nmat = I3`)
+   and count or skip any model whose positive-weight used-slot mask is not
+   covered. Do not present that defensive fix as the balloon root cause without
+   probe evidence.
+
+## Dirty state to preserve
+
+Parent checkout modifications at clear:
+
+- `GOALPad/ContentView.swift`
+- `GOALPad/Game/GameSession.swift`
+- `GOALPad/Game/GameSurfaceView.swift`
+- `GOALPad/Native/GOALPadGameBoot.cpp`
+- `GOALPad/Native/GOALPadMetalHost.hpp`
+- `GOALPad/Native/GOALPadMetalHost.mm`
+- `GOALPad/Native/GOALPadRenderSurface.mm`
+- `GOALPad/Native/GOALPadRuntimeBridge.h`
+- `HANDOFF.md`
+- `docs/BUILDING.md`
+- dirty nested `OpenGOAL` gitlink
+
+Nested OpenGOAL modifications at clear:
+
+- `game/graphics/pipelines/metal/metal_pipeline.h`
+- `game/graphics/pipelines/metal/metal_renderer.h`
+- `game/graphics/pipelines/metal/metal_renderer.mm`
+- `goal_src/jak1/engine/draw/drawable.gc`
+
+`git diff --check` passed in both checkouts after the fixed-step source patch.
+All three read-only subagents completed; no subagent edited files. The AOT build
+was interrupted and no build process should remain. No checkpoint commit was
+made because the latest fixed-step code is explicitly unbuilt and physically
+unvalidated.
+
+---
+
+# Checkpoint 32: fixed-step simulator validation and Experimental touch controls
+
+Date: 2026-08-01. This is an intentionally uncommitted continuation checkpoint.
+Parent branch `feat/ipados-native-boot` remains at
+`8c7bbfe517aef11455bac7045d1e1940ef94eed2`, three commits ahead of its remote.
+Nested OpenGOAL branch `goalpad/ipad-demo-pacing` remains at
+`7e69774a0c91ff804f165df574f919afc6e7b826`. Preserve all dirty work listed
+below. No physical device was accessed in this checkpoint; the current request
+authorized only the local iPad Pro simulator.
+
+## Checkpoint 31 fixed-step experiment completed through the simulator
+
+The interrupted AOT sweep resumed with:
+
+```sh
+Scripts/generate-jak1-aot.sh /private/tmp/GOALPad-aot-host
+```
+
+It exited 0. The sweep found 518 reachable GOAL source files, emitted 10,596 of
+10,603 functions through the C AOT backend, retained 7 native functions, and
+reported 0 source-file failures. The ignored generated
+`Generated/jak1-aot/drawable.c` now contains the `*pc-fixed-step*` symbol, its
+default-false top-level initialization, and the live conditional which forces
+the `display-frame-start` ratio to 1.0. The Xcode builds below used fresh
+DerivedData after that generation.
+
+`GOALPadGameBoot.cpp` still owns the platform decision: after `play`, it resolves
+and enables `*pc-fixed-step*` only under `TARGET_OS_IOS`, before the first
+gameplay dispatcher. Named-simulator unified logs contain:
+
+```text
+Using one fixed 60 Hz simulation step per iPad display-link tick.
+```
+
+The missing-symbol warning did not occur. This proves the branch is generated,
+linked, and active in the simulator build. It does not prove that the physical
+one-second camera sway is gone.
+
+The focused log query was:
+
+```sh
+xcrun simctl spawn 96C5C21A-B925-4213-82A3-90DCB8518339 \
+  log show --style compact --last 20m \
+  --predicate 'process == "GOALPad" AND (eventMessage CONTAINS "fixed 60 Hz" OR eventMessage CONTAINS "pc-fixed-step" OR eventMessage BEGINSWITH "frame " OR eventMessage CONTAINS "Session started" OR eventMessage CONTAINS[c] "dropped" OR eventMessage CONTAINS[c] "merc")'
+```
+
+## Complete touch branch port
+
+The entire intentional change range from parent branch `wip/touch-controls`
+was ported:
+
+- `eccb5ee` — iPad touch implementation.
+- `6d4ce70` — deterministic host harness.
+
+All seven files in that range are represented in the current tree:
+
+- `GOALPad/ContentView.swift`
+- `GOALPad/Game/GameSession.swift`
+- `GOALPad/Game/TouchControls.swift`
+- `GOALPad/Game/TouchControlsView.swift`
+- `GOALPad/Input/ControllerInput.swift`
+- `Scripts/run-touch-controls-check.sh`
+- `Scripts/touch-controls-check.swift`
+
+The two overlapping files were manually adapted rather than cherry-picked:
+
+- `ContentView` preserves Checkpoint 31 target-presentation-time forwarding,
+  current renderer diagnostics, and the existing overlay order. The touch view
+  is iOS-only and remains below diagnostics so Info/Hide and other controls are
+  usable.
+- `GameSession` preserves the synchronous `beginFrame -> input -> GOAL/send ->
+  endFrame -> rumble` lifetime. It samples touch exactly once after a surface is
+  armed and before GOAL runs.
+
+The current port intentionally differs from the old branch where current
+architecture or live validation required it:
+
+- Non-iOS hosts retain the no-argument physical-controller path, including a
+  disconnected port when no controller is present. iOS passes an optional
+  touch state and therefore has a neutral connected virtual pad.
+- Controller activity and stick precedence use a 32-count deadzone, matching
+  the minimum deadzone in Jak 1's analog readers instead of allowing small
+  physical drift to override touch.
+- Shutdown, inactive, and background transitions reset touches, queued button
+  pulses, D-pad repeat, fade state, and the remembered tap button.
+- A current on-screen touch overrides the two-second physical-controller
+  artwork suppression interval.
+- The host wrapper uses an explicit `/tmp` Swift module cache because the
+  sandbox cannot write the default user cache.
+- The deterministic harness includes interrupted-input reset coverage.
+
+`GOALPad/` is an Xcode filesystem-synchronized group, so the new Swift files
+need no manual project membership. The scripts correctly remain outside the app
+target.
+
+## Deterministic validation and builds
+
+```sh
+Scripts/run-touch-controls-check.sh
+```
+
+Passed every check: stationary/full/partial/clamped/neutral stick state,
+directional swipes and holds, repeated taps with release gaps, lingering and
+simultaneous touches, synthesized D-pad edge/repeat, camera state-machine
+movement, pill hit testing, visibility, and reset. The first sandboxed attempt
+could not load Swift's macro plugin from its user cache; the exact same wrapper
+passed after running with the required local tool access, and the wrapper now
+uses `/tmp` for its module cache.
+
+```sh
+git diff --check
+git -C OpenGOAL diff --check
+plutil -lint GOALPad.xcodeproj/project.pbxproj
+```
+
+All passed after the touch integration and documentation edits.
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-cp31-touch-mac -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
+```
+
+Passed as a fresh build and again after the final touch-source adjustment.
+Established upstream warnings remain.
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-cp31-touch-device -jobs 4 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
+```
+
+Passed as a fresh build and again after the final touch-source adjustment. Xcode
+warned that `zschwendi@gmail.com` has no `Xcode-Token`, but the available signing
+identity still produced a signed thin-arm64 app. No credential state was
+changed. The executable is 26,857,216 bytes and its SHA-256 is
+`6f5fb61e30baf514541cfaff027696aea9f0f9c93afc07f041f133c9a5dc1563`.
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug \
+  -destination 'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-cp31-touch-sim -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
+```
+
+Passed. The simulator executable SHA-256 is
+`9fdd9eb568d5a8ed206f6ff4209bbd835f616258f253f66807cd0d93866fd57f`.
+
+## Approved simulator interaction
+
+The initially shut-down iPad Pro 11-inch (M5) simulator
+`96C5C21A-B925-4213-82A3-90DCB8518339` was booted, update-installed without an
+uninstall, and launched as `com.zephyrstudiosllc.GOALPad`. Its existing
+`Documents/Jak1` data and save remained in place.
+
+The combined build booted 8 KERNEL objects and 346 GAME objects in 0.3 seconds,
+loaded `title+village1`, and reached the title screen. Direct UI interaction
+then established:
+
+- Diagnostics Hide/Info remained clickable through the full-screen touch view.
+- The Start pill entered the main menu.
+- A right-half tap emitted Cross and opened the new-game save flow.
+- The existing save was detected and was not overwritten.
+- Diagnostics scrolling and the internal-resolution picker remained usable;
+  the resolution stayed at 2x.
+- The touch layer reported a neutral connected `Gamepad`, GOAL pad reads
+  advanced with frames, audio stayed live, and `PROT_EXEC granted` remained
+  `NO`.
+
+At frame 15,000, runtime logging reported tick chains `0/1/>1` as
+`0/15000/0`, 15,000 drawables scheduled with 0 missed, and Merc at 16 models / 82
+draws with 0 bad bone pointers and 0 rejected draw ranges. Later on-screen
+diagnostics still had equal sent/encoded DMA counts and 0 dropped chains.
+
+The simulator UI driver can deliver taps but cannot hold two simultaneous
+hardware-like contacts, and its instantaneous drag did not establish live
+stick/menu movement. The deterministic harness covers stick, D-pad, camera,
+and multi-touch state transitions; actual movement, camera drag, and ergonomics
+remain physical-touch gates. No claim is made that this combined build fixes
+the visible camera sway or Merc deformation because gameplay was not entered in
+this run. The simulator was shut down after validation because it was initially
+off.
+
+## Documentation and unrelated project-file state
+
+`README.md`, `docs/PROJECT_OVERVIEW.md`, and `docs/BUILDING.md` now label touch
+input Experimental, describe the iOS/non-iOS ownership boundary and lifecycle,
+provide the host-check command, and separate simulator evidence from
+physical-device evidence.
+
+`GOALPad.xcodeproj/project.pbxproj` became dirty during this checkpoint without
+an intentional project edit. It is a large serialization/normalization change;
+semantic comparison found no touch membership requirement and only removal of
+`alwaysOutOfDate = 0` from the Metal shader phase. It is preserved rather than
+reset because its ownership is unknown. Review or discard it separately only
+with maintainer direction.
+
+## Remaining validation and next executable task
+
+- The host harness does not directly test `ControllerInput`'s physical/touch
+  merge. The affected macOS/iOS builds and simulator interactions pass, but a
+  future focused pure merge test would close that deterministic gap.
+- No physical controller, physical multitouch, haptics, or physical-device
+  touch behavior was tested.
+- No build from this checkpoint was installed or launched on `Z iPad Pro`.
+- Fixed-step activation is proven on the simulator; the physical visual A/B is
+  still required before declaring the slow sway fixed.
+- Flat/balloon Jak remains an independent Merc investigation. Do not infer a
+  fix from healthy simulator chain counts.
+
+The next executable task requires a fresh explicit physical-device request:
+update-install the Checkpoint 32 Release app, rotate for 10 seconds with
+diagnostics hidden, release all input, idle for at least 30 seconds, and record
+whether the one-second sway is gone and whether flat/balloon Jak remains. If
+Merc deformation remains, implement the bounded producer/live/palette/uploaded
+probe specified in Checkpoint 31 before making another speculative fix.
+
+## Dirty state to preserve
+
+Parent checkout:
+
+- `GOALPad.xcodeproj/project.pbxproj` (unattributed normalization; not required
+  by touch controls)
+- `GOALPad/ContentView.swift`
+- `GOALPad/Game/GameSession.swift`
+- `GOALPad/Game/GameSurfaceView.swift`
+- `GOALPad/Input/ControllerInput.swift`
+- `GOALPad/Native/GOALPadGameBoot.cpp`
+- `GOALPad/Native/GOALPadMetalHost.hpp`
+- `GOALPad/Native/GOALPadMetalHost.mm`
+- `GOALPad/Native/GOALPadRenderSurface.mm`
+- `GOALPad/Native/GOALPadRuntimeBridge.h`
+- `HANDOFF.md`
+- `README.md`
+- `docs/BUILDING.md`
+- `docs/PROJECT_OVERVIEW.md`
+- dirty nested `OpenGOAL` gitlink
+- untracked `GOALPad/Game/TouchControls.swift`
+- untracked `GOALPad/Game/TouchControlsView.swift`
+- untracked executable `Scripts/run-touch-controls-check.sh`
+- untracked `Scripts/touch-controls-check.swift`
+
+Nested OpenGOAL checkout:
+
+- `game/graphics/pipelines/metal/metal_pipeline.h`
+- `game/graphics/pipelines/metal/metal_renderer.h`
+- `game/graphics/pipelines/metal/metal_renderer.mm`
+- `goal_src/jak1/engine/draw/drawable.gc`
+
+Generated AOT output is ignored. No checkpoint commit was made so the existing
+Checkpoint 30/31 work and this touch port remain together exactly as validated.
+
+---
+
+# Checkpoint 33: display-target cadence, Jak 1 joint parity, RW-only arena, and default-clean UI
+
+Date: 2026-08-01. This is an intentionally uncommitted continuation checkpoint.
+Parent branch `feat/ipados-native-boot` remains at
+`8c7bbfe517aef11455bac7045d1e1940ef94eed2`, three commits ahead of its remote.
+The parent gitlink and nested OpenGOAL branch `goalpad/ipad-demo-pacing` remain
+at `7e69774a0c91ff804f165df574f919afc6e7b826`. Preserve the complete dirty state
+listed below; the child pin alone does not reproduce these changes.
+
+The maintainer explicitly authorized physical testing on **Z iPad Pro** during
+this request. Device ID is `6A4111AB-1663-508A-98D9-F0C1A9EA7863`; bundle ID is
+`com.zephyrstudiosllc.GOALPad`. Every device installation remained an
+update-install, never an uninstall, so the existing `Documents/Jak1` data and
+saves stayed in the application container.
+
+## Rejected fixed-step A/B and restored artifact
+
+Checkpoint 32's forced ratio-one display step was subsequently built and
+update-installed on the physical iPad. The maintainer reported that camera
+auto-rotation and blocker correction became substantially more aggressive than
+the prior build. A follow-up variation was less severe but remained worse. This
+was decisive physical rejection, not an invitation for another speculative
+device build, so the forced-fixed-step source was removed.
+
+The prior artifact was restored while the seams were investigated:
+
+```text
+/private/tmp/GOALPad-fixedtick-device/Build/Products/Release-iphoneos/GOALPad.app
+SHA-256 7b6af06f70ef29ff0befbe9b5a6e8da116478798ac56e98655c4e2adef0d3c56
+```
+
+That restoration preserved the user's data and supplied the known physical
+baseline. It is historical now that the integrated Checkpoint 33 artifact has
+also been update-installed and launched, but the user's visual comparison of
+that newest build remains pending.
+
+## Camera root cause and target-presentation-time fix
+
+The earlier iOS timer reset occurred immediately before `kernel-dispatcher`.
+`display-frame-start` therefore measured callback dispatcher/render workload,
+not consecutive display targets. A normal callback followed by a skipped
+display interval could be presented to GOAL as ratios 2 then 1 instead of the
+display's actual 1 then 2. Camera seeker acceleration and displacement both
+consume that ratio, amplifying the phase error during auto-rotation and blocker
+correction even when ordinary follow behavior looks healthy.
+
+The replacement keeps OpenGOAL's normal timing boundary:
+
+- `CADisplayLink.targetTimestamp` passes through `GameSession`, the Objective-C++
+  bridge, and `GOALPadGameBoot::run_frame`.
+- `GOALPadDisplayClock` rounds consecutive target intervals to 60 Hz steps and
+  clamps them to 1 through 4. First, invalid, and lifecycle-reset samples return
+  1.
+- The native host writes the resulting float to
+  `*host-display-time-ratio*`. Jak 1 `display-frame-start` consumes a positive
+  host value immediately before `set-time-ratios`; zero keeps the upstream
+  timer-derived behavior for other hosts.
+- Resetting the timer still excludes CADisplayLink's outside wait from the
+  fallback, but no longer decides the iOS frame ratio.
+
+`Scripts/run-camera-timing-check.sh` passed normal cadence, skipped-display,
+clamping, invalid-sample, and reset coverage. It also preserves the regression
+case showing why callback-workload timing assigns the ratio to the wrong game
+frame. The generated `drawable.c` contains and consumes the host-ratio symbol at
+the intended frame-start boundary.
+
+## Merc attack behavior and Jak 1/Jak 2/Jak 3 parity
+
+The Merc investigation separated two different behaviors instead of treating
+every visible size change as one renderer bug:
+
+- Localized squash/stretch in Jak's positive-scale attack animation is authored
+  behavior. The validated host path retains it; the timing and joint fixes do
+  not normalize or suppress those positive authored scales.
+- A separate real robustness defect existed in Jak 1's MIPS2C translation of
+  `cspace<-parented-transformq-joint!`. With a negative parent scale,
+  `mfc1`/`pcpyld` sign extension could put `0xffffffff` into `vf16.w`. The host
+  interprets that lane as NaN, so multiplying the child basis by it can poison
+  all three basis rows while leaving translation apparently valid.
+
+Jak 2 and Jak 3 already clear the homogeneous W lane before the vector
+multiply. Jak 1 now performs the same clear, preserving cross-game behavior
+parity without changing authored scale values. The permanent
+`jak1-mips2c-joint-regression-test` invokes the real translated function and
+covers both ordinary and negative parent scale. The physical iOS build retains
+the justified MIPS2C bones compatibility selection because that path restored
+Jak's volumetric shape; the new lane fix hardens the producer it selects.
+
+Temporary Merc hashing, inventory, and renderer probes were removed after the
+first bad producer stage was proven. No `MERC_PROBE`, `--merc-inventory`, or
+probe-only build remains in the final source or validation path.
+
+## EE arena is read/write, never executable
+
+The portable kernel previously tried an RWX anonymous mapping first and fell
+back to RW only if the platform refused it. A physical build unexpectedly
+granted the unused permission, leaving the GOAL heap and stacks writable and
+executable even though all native code comes from signed AOT or MIPS2C text.
+
+`kernel_core.cpp` now maps the arena RW directly by policy and has a compile-time
+assertion forbidding `PROT_EXEC`. The exported state always reports the arena as
+non-executable. Guard-page setup, stable allocation ownership, and teardown are
+unchanged. On Apple hosts the AOT execution test uses `mach_vm_region` to require
+the live mapping to remain `rw-` before and after real AOT calls, including the
+GOAL-stack `(fact 10)` execution path.
+
+The app's diagnostic label is now `EE arena executable`, not the misleading
+`PROT_EXEC granted`; the validated simulator and physical runtime both reported
+`NO`/`PROT_EXEC=no` respectively.
+
+## Touch and diagnostics defaults
+
+The complete Checkpoint 32 touch implementation remains. Per maintainer request,
+the diagnostics overlay and internal-resolution picker are now hidden by
+default. A compact top-right button using SwiftUI's `line.3.horizontal` symbol
+opens or closes the diagnostics. The default game view therefore has no zoom
+controls and no keyboard/ellipsis icon over the game.
+
+The named simulator directly established that only the three-line button was
+shown by default and that the diagnostics and resolution picker appeared after
+opening it. `Scripts/run-touch-controls-check.sh` still passes the deterministic
+touch state machine. Physical multitouch, ergonomics, controller mapping, and
+haptics remain unvalidated.
+
+## Deterministic and build validation
+
+Both focused parent checks passed:
+
+```sh
+Scripts/run-camera-timing-check.sh
+Scripts/run-touch-controls-check.sh
+```
+
+The three affected OpenGOAL tests passed 3/3:
+
+```sh
+cmake --build OpenGOAL/build/Release/bin --target \
+  jak1-mips2c-joint-regression-test \
+  jak1-kernel-core-smoke-test \
+  jak1-aot-execution-test -j4
+
+ctest --test-dir OpenGOAL/build/Release/bin --output-on-failure \
+  -R 'jak1-(mips2c-joint-regression|kernel-core-smoke|aot-execution)-test'
+```
+
+The passing tests were:
+
+- `jak1-mips2c-joint-regression-test`
+- `jak1-kernel-core-smoke-test`
+- `jak1-aot-execution-test`
+
+Ahead-of-time regeneration also passed:
+
+```sh
+Scripts/generate-jak1-aot.sh /private/tmp/GOALPad-aot-host
+```
+
+The sweep found 518 reachable source files, emitted 10,596 of 10,603 functions,
+retained seven native functions, and reported zero source-file failures.
+
+Fresh ARM64 macOS Debug and named iPad Pro 11-inch (M5) simulator Debug builds
+passed:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-cp33-macos \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO build
+
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug \
+  -destination 'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-cp33-sim \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO build
+```
+
+The simulator build was update-installed without uninstalling, preserving its
+data and save. The real runtime loaded the title and Village1 and produced 48
+kHz audio. The captured diagnostics showed:
+
+- zero Merc bad-bone-pointer and bad-draw-range rejects;
+- zero drawable misses;
+- `EE arena executable: NO`;
+- display cadence 17.00/16.97/66.44 ms mean/p95/max;
+- 2 callbacks below 12 ms and 10 callbacks at least 24 ms in that sample.
+
+The simulator was shut down after validation.
+
+## Signed generic iOS and physical runtime evidence
+
+The fresh signed generic iOS Release build passed:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-cp33-device \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
+```
+
+The result is a thin ARM64 iPhoneOS executable with SHA-256:
+
+```text
+0b2e2ad81af7c3575e5ff9fb180c2957fec46a74daf61c956cad0588f4b9fcae
+```
+
+Parsed entitlements are only the development application identifier, team
+identifier, and `get-task-allow`; there is no JIT or unsigned-executable-memory
+entitlement. Standalone `codesign --verify --deep --strict` returned the known
+`CSSMERR_TP_NOT_TRUSTED` local certificate-chain result.
+
+The final binary also contains the exact Jak 1 parity instruction: its
+`cspace_parented_transformq_joint::execute` stores zero to the translated
+`vf16.w` lane before all three vector multiplies. The iOS boot function contains
+the pre-`play` `*use-new-bones* = #f` selection, and neither source nor artifact
+contains the temporary Merc probe markers.
+
+CoreDevice accepted the same embedded signature. The update-install passed, and
+the console launch succeeded and produced the runtime evidence below. Ending
+that attachment with Ctrl-C also terminated the app with signal 2, so a final
+detached `--activate` launch was run and passed:
+
+```sh
+xcrun devicectl device install app \
+  --device 6A4111AB-1663-508A-98D9-F0C1A9EA7863 \
+  /private/tmp/GOALPad-cp33-device/Build/Products/Release-iphoneos/GOALPad.app
+
+xcrun devicectl device process launch \
+  --device 6A4111AB-1663-508A-98D9-F0C1A9EA7863 \
+  --console com.zephyrstudiosllc.GOALPad
+
+xcrun devicectl device process launch \
+  --device 6A4111AB-1663-508A-98D9-F0C1A9EA7863 \
+  --activate com.zephyrstudiosllc.GOALPad
+```
+
+The attached physical console booted the real ARM64 kernel with
+`PROT_EXEC=no`, loaded the title and Village1, and started 48 kHz audio. It then
+discarded the title level, loaded the training level (`TRA.DGO`, 334 textures,
+45.7 MB vertex data and 6.4 MB index data), and loaded the training sound bank.
+After the final detached relaunch, a process query found the app live as PID
+6970.
+
+The console also repeatedly emitted the existing/runtime error
+`sp-launch-particles called during processing, and queue is full`. Its cause and
+whether it predates the Checkpoint 33 changes were not established; do not
+attribute it to this checkpoint or hide it in later acceptance work.
+
+## Not yet validated and next gate
+
+The build, update-install, native kernel, level loading, renderer, and audio
+paths are physically established. The maintainer has not yet visually accepted
+the combined camera behavior or Merc appearance. Do not report either bug fixed
+on physical hardware until that observation is recorded. Physical controller
+mapping, physical multitouch ergonomics, and haptics also remain unvalidated.
+
+The next executable task is one final maintainer visual acceptance on the
+already-installed Checkpoint 33 build: exercise ordinary running, blocker and
+auto-rotate camera correction, and attack animation. Compare against the
+restored `7b6af06f...` baseline without installing another speculative variant.
+If the result fails, use the deterministic seam evidence and the attached
+runtime error as inputs to a new bounded investigation; do not resume dart-like
+device A/B changes.
+
+## Dirty state to preserve
+
+Parent checkout (`git status --short`):
+
+```text
+ M GOALPad.xcodeproj/project.pbxproj
+ M GOALPad/ContentView.swift
+ M GOALPad/Game/GameSession.swift
+ M GOALPad/Game/GameSurfaceView.swift
+ M GOALPad/Input/ControllerInput.swift
+ M GOALPad/Native/GOALPadGameBoot.cpp
+ M GOALPad/Native/GOALPadGameBoot.hpp
+ M GOALPad/Native/GOALPadMetalHost.hpp
+ M GOALPad/Native/GOALPadMetalHost.mm
+ M GOALPad/Native/GOALPadRenderSurface.mm
+ M GOALPad/Native/GOALPadRuntimeBridge.h
+ M GOALPad/Native/GOALPadRuntimeBridge.mm
+ M HANDOFF.md
+ m OpenGOAL
+ M README.md
+ M docs/BUILDING.md
+ M docs/PROJECT_OVERVIEW.md
+?? GOALPad/Game/TouchControls.swift
+?? GOALPad/Game/TouchControlsView.swift
+?? GOALPad/Native/GOALPadDisplayClock.hpp
+?? Scripts/camera-timing-check.cpp
+?? Scripts/run-camera-timing-check.sh
+?? Scripts/run-touch-controls-check.sh
+?? Scripts/touch-controls-check.swift
+```
+
+Nested OpenGOAL checkout (`git -C OpenGOAL status --short`):
+
+```text
+ M game/CMakeLists.txt
+ M game/graphics/pipelines/metal/metal_pipeline.h
+ M game/graphics/pipelines/metal/metal_renderer.h
+ M game/graphics/pipelines/metal/metal_renderer.mm
+ M game/kernel/core/README.md
+ M game/kernel/core/aot_execution_test.cpp
+ M game/kernel/core/host_smoke_test.cpp
+ M game/kernel/core/kernel_core.cpp
+ M game/kernel/core/kernel_core.h
+ M game/mips2c/jak1_functions/joint.cpp
+ M goal_src/jak1/engine/draw/drawable.gc
+?? game/kernel/core/jak1_mips2c_joint_regression_test.cpp
+```
+
+`GOALPad.xcodeproj/project.pbxproj` remains the preserved unattributed
+normalization change. The Checkpoint 30 renderer-lifetime files, Checkpoint 32
+touch files, Checkpoint 33 camera/UI files, RW-only kernel files, Jak 1 parity
+test, and documentation remain intentionally uncommitted together. Generated
+AOT output is ignored. No temporary Merc renderer probe is present.
+
+# Checkpoint 34: physical visual rejection, camera-zone contract, and context-reset handoff
+
+Date: 2026-08-01. This is a documentation-only context-reset checkpoint. It
+supersedes Checkpoint 33's pending visual-acceptance gate; it does not supersede
+the deterministic build, binary, simulator, or physical boot evidence recorded
+there.
+
+The active parent checkout is
+`/Users/zach/Developer/OS_Projects/GOALPad/GOALPad`, branch
+`feat/ipados-native-boot`, HEAD
+`8c7bbfe517aef11455bac7045d1e1940ef94eed2` (three commits ahead of its remote).
+The nested checkout is `OpenGOAL`, branch `goalpad/ipad-demo-pacing`, HEAD
+`7e69774a0c91ff804f165df574f919afc6e7b826`. Both contain the intentional dirty
+state listed in Checkpoint 33; `git status --short` was rechecked immediately
+before this handoff and the inventory is unchanged except for this additional
+`HANDOFF.md` edit. No code was committed, discarded, reset, or cleaned.
+
+The installed physical artifact remains the Checkpoint 33 Release app at:
+
+```text
+/private/tmp/GOALPad-cp33-device/Build/Products/Release-iphoneos/GOALPad.app
+SHA-256 0b2e2ad81af7c3575e5ff9fb180c2957fec46a74daf61c956cad0588f4b9fcae
+```
+
+Do not infer renewed physical-device permission after the context reset. The
+maintainer must explicitly authorize any later install, launch, log attachment,
+screen capture, or other access to **Z iPad Pro** in the then-current request.
+
+## Maintainer physical visual result
+
+Physical visual acceptance of the combined Checkpoint 33 build **failed**. The
+maintainer described it as one of the better builds so far and said the camera
+is smoother in more sections, especially ordinary follow while Jak runs, but
+the remaining camera behavior is still broken.
+
+The current camera defect is an apparent fight between multiple positions or
+states. It looks like z-fighting in camera space: the view shakes or teleports
+back and forth between positions. The maintainer explicitly distinguished this
+from the previous defect where auto-rotation or blocker correction became
+extremely aggressive. Do not collapse these into one symptom, and do not treat
+the target-presentation-time change as proof that the camera is fixed.
+
+Jak's volumetric appearance is also regressing again in the same combined
+build. Earlier physical observations in this sequence were that Jak's general
+3D shape had recovered while the Merc could still enlarge strangely across his
+whole body during attacks, like a whole-body version of big-head mode. The
+latest observation is that Jak's volumetrics are having issues again. The
+MIPS2C path selection, the Jak 1 W-lane correction, the Jak 2/Jak 3 parity audit,
+and the signed-binary instruction proof remain valid evidence, but they are not
+sufficient to claim the physical rendering defect solved.
+
+Cross-game parity is a standing requirement for these seams: compare Jak 1,
+Jak 2, and Jak 3 implementations when diagnosing shared transform, animation,
+camera, or renderer behavior. Port parity fixes across the games when the seam
+is shared; preserve a divergence only when repository evidence shows it is
+intentional or game-specific, and document that reason.
+
+## Touch layout contract for the next implementation
+
+The current touch layout is not the desired final zoning. The next touch patch
+must preserve these maintainer requirements:
+
+- Reserve the upper portion of the display for camera gestures. The maintainer
+  described this as the top half or top third; choose the exact boundary during
+  implementation from the existing layout and ergonomic evidence rather than
+  silently treating the current split as accepted.
+- Reserve the lower half for movement and action touch controls.
+- A tap on the left side must be able to emit the same tap action as a tap on
+  the right side, so either finger/thumb can perform it. Movement ownership and
+  tap recognition must coexist deterministically rather than stealing or
+  cancelling each other unpredictably.
+- Keep the zoom/resolution diagnostics hidden by default and retain the compact
+  three-horizontal-line diagnostics button; do not restore the keyboard or
+  ellipsis icon.
+
+Add deterministic touch tests for zone ownership, boundary behavior,
+simultaneous movement plus camera input, and equivalent left/right tap actions
+before asking for physical ergonomics feedback.
+
+## Workflow constraint and next executable tasks
+
+Do not resume speculative build-to-build device A/B changes. The maintainer
+explicitly asked for agents to own each seam until it is actually explained and
+solved, with physical trials only after deterministic seam evidence and
+simulator validation. Use independent subagents for non-overlapping camera,
+volumetric/Merc, and touch investigations; keep their edits isolated and have
+the primary agent review and validate every result. Preserve cross-game bug/fix
+parity as described above.
+
+Resume in this order:
+
+1. Reproduce the current multi-position camera oscillation without changing
+   cadence constants blindly. Trace one frame identity from camera-state
+   production through DMA/render submission and presentation, looking for two
+   competing update paths, stale/current state alternation, duplicate camera
+   chains, or presentation of mismatched frame state. Establish the first bad
+   seam with logs or a deterministic test before editing behavior.
+2. Reproduce the physical volumetric regression across the producer, live joint
+   state, palette, upload, and presented frame seams. The existing W-lane parity
+   test only proves one producer invariant; it does not close the end-to-end
+   visual bug. Preserve authored positive attack squash/stretch while isolating
+   the unintended whole-body enlargement or loss of volume.
+3. Implement the touch-zone contract as a separate patch with deterministic
+   tests. Do not couple it to camera-timing or Merc-rendering experiments.
+4. Build all affected host and simulator targets after the seam fixes. Do not
+   access the physical iPad until the maintainer explicitly authorizes that in
+   a new current request.
+
+The repeated runtime warning
+`sp-launch-particles called during processing, and queue is full` remains an
+unattributed observation. Do not hide it or assume it causes either visual bug
+without evidence. Physical controller mapping, physical multitouch ergonomics,
+and haptics remain unvalidated.
+
+## Delegation state at context clear
+
+- `checkpoint33_docs_audit` completed its documentation audit; its shared
+  checkout edits are the current `README.md`, `docs/BUILDING.md`, and
+  `HANDOFF.md` changes already inventoried above.
+- `merc_probe_audit` completed without edits. It confirmed the signed artifact
+  contains the linked Jak 1 MIPS2C joint implementation and W-lane clear, that
+  boot selects `*use-new-bones* = #f`, and that temporary probe markers are
+  absent. Its only signing caveat was the already-recorded local
+  `CSSMERR_TP_NOT_TRUSTED` result.
+- `attack_timing_causality` never started (`pending_init`) and was interrupted
+  before the context clear. It made no edits and supplied no result. Spawn a
+  fresh bounded camera worker after resuming rather than assuming this audit ran.
+
+## Context-clear validation
+
+This checkpoint changed documentation only. The current branches, HEADs,
+worktrees, and both dirty inventories were inspected with `git rev-parse`,
+`git branch --show-current`, `git worktree list --porcelain`, and
+`git status --short --branch`. `git diff --check` passed in both the parent and
+nested checkout after this edit. No new build, simulator launch, installation,
+or physical-device action was performed for Checkpoint 34.
+
+# Checkpoint 35: end-to-end camera provenance instrumentation
+
+Date: 2026-08-01. This checkpoint implements behavior-neutral diagnostics for
+Checkpoint 34's first camera task. It does not change camera math, cadence
+constants, DMA ordering, touch behavior, or Merc behavior, and it does not
+claim that the physical camera defect is fixed.
+
+The parent checkout remains
+`/Users/zach/Developer/OS_Projects/GOALPad/GOALPad`, branch
+`feat/ipados-native-boot`, HEAD
+`8c7bbfe517aef11455bac7045d1e1940ef94eed2` (three commits ahead of its remote).
+The nested checkout remains `OpenGOAL`, branch `goalpad/ipad-demo-pacing`, HEAD
+`7e69774a0c91ff804f165df574f919afc6e7b826`. Both retain all intentional dirty
+Checkpoint 30-34 work. Nothing was committed, reset, cleaned, or discarded.
+
+## Camera seam result
+
+The camera worker traced the live Jak 1 producer and found that
+`add-pc-tfrag3-data` copies `*math-camera*`'s four `camera-temp` qwords and one
+`trans` qword into every 25-qword tfrag, tie, and shrub PC-port packet. Existing
+frame identity stopped at separate engine, host, chain, renderer, and drawable
+counters; no value associated those seams end to end.
+
+A sound-enabled host gameplay run captured frames 24793 through 24800 after the
+title, clone animation, ground contact, walking, and jumping gates all passed.
+Each frame had five background-camera packets. All 40 packets agreed exactly
+within their frame. The camera transform fingerprint was unique on all eight
+frames, no frame matched the frame two positions earlier, and there was no
+`A -> B -> A` alternation. The translation qword was unchanged while the
+combined camera transform evolved each frame. This rules out alternating or
+mixed tfrag/tie/shrub camera packets in that eight-frame host window. It does
+not rule out a live-producer mismatch outside the capture or physical Metal
+presentation order.
+
+The implemented diagnostic now carries one identity from the live producer to
+the asynchronous presentation callback:
+
+- `GOALPadGameBoot` snapshots the exact 80 producer bytes at the synchronous
+  DMA-send seam and associates them with the dispatcher frame.
+- `GOALPadMetalHost` attaches dispatcher frame, display-link tick, and chain
+  ordinal to the renderer submission.
+- the tfrag, tie, and shrub renderers fingerprint every background packet,
+  compare it with the live snapshot and the chain's first packet, and attribute
+  mismatches to the five source qwords and first bucket name;
+- `MetalRenderer` records submission and drawable identity and, on iPhoneOS and
+  macOS, the actual `presentedTime` callback with the matching frame/tick/chain;
+- the bridge, diagnostics overlay, and ten-second Session log expose the
+  counters. Only the first mismatch is logged loudly so a bad run remains
+  readable.
+
+`metal_camera_trace.h` is plain C++ and has a deterministic host test covering
+the 80-byte layout, fingerprint stability, exact qword attribution,
+producer-to-packet and packet-to-packet comparison, monotonic presentation
+order, and a deliberately reversed presentation sequence.
+
+The current iPhone Simulator 26.5 SDK omits `MTLDrawable`'s presentation
+callback, presented-time, and drawable-ID members even though the iPhoneOS SDK
+contains them. The first named-simulator build exposed this with four compiler
+errors in `metal_renderer.mm`. The final implementation has a simulator-only
+compile boundary: simulator runs retain frame, chain, camera, drawable-acquire,
+and submission evidence while actual presentation counts and drawable IDs stay
+zero; real iPhoneOS builds retain the callback path.
+
+## Delegated audits
+
+Three bounded read-only workers were used and reviewed:
+
+- The camera worker found no second ordinary `update-camera` call per display
+  loop, documented the legitimate combiner transition slaves, located the exact
+  packet producer fields, and extracted the dynamic host capture above.
+- The Merc worker found the first unclosed volumetric seam between live joint
+  output and old-bones `pris-mtx`. The existing joint test stops before the
+  bones producer and `metal-proof` starts from authored matrices. The next
+  deterministic Merc task is a joint-to-bones-to-palette-to-alternating-pixel
+  provenance ladder, not another camera edit.
+- The touch worker confirmed that the current horizontal topology is the
+  rejected layout. The later isolated patch should use the upper half for
+  camera, lower-left for movement with tap coexistence, and the remaining lower
+  region for action, with the half boundary owned deterministically by the
+  lower region. It should not be mixed into this camera checkpoint.
+
+## Validation
+
+Host camera trace and related renderer tests:
+
+```sh
+cmake --build OpenGOAL/build/Release/bin \
+  --target metal-camera-trace-test -j4
+OpenGOAL/build/Release/bin/game/metal-camera-trace-test
+
+ctest --test-dir OpenGOAL/build/Release/bin \
+  -R 'metal-camera-trace-test|jak1-mips2c-joint-regression-test' \
+  --output-on-failure
+
+cmake --build OpenGOAL/build/Release/bin --target metal-proof -j4
+OpenGOAL/build/Release/bin/game/metal-proof
+
+Scripts/run-camera-timing-check.sh
+Scripts/run-touch-controls-check.sh
+```
+
+Results: the trace binary passed all 13 assertions; focused CTest passed 2/2;
+the Jak 1 joint regression passed both scale cases; `metal-proof` ended
+`METAL PROOF PASSED`; the camera timing check passed; and the touch harness
+passed all checks. The first sandboxed touch-script attempt failed because the
+Observation macro plugin could not run under `sandbox-exec`; the same unchanged
+script passed outside that sandbox.
+
+The dynamic host capture used the player's existing local prepared data and a
+temporary output directory only:
+
+```sh
+OpenGOAL/build/Release/bin/game/jak1-data-boot-test \
+  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak1/projdata/out/jak1 \
+  --play --frames 24800 \
+  --press start@target-title-wait+60 \
+  --press x@target-title-wait+160 \
+  --press down@target-title-wait+240 \
+  --press down@target-title-wait+260 \
+  --press down@target-title-wait+280 \
+  --press down@target-title-wait+300 \
+  --press x@target-title-wait+340 \
+  --stick 127,0@target-hit-ground+120:400 \
+  --press x@target-walk+700 \
+  --capture-dma-dir /private/tmp/GOALPad-cp34-camera-dynamic.fYRjwd \
+  --capture-dma-frames 24793,24794,24795,24796,24797,24798,24799,24800 \
+  --expect-state target-title-wait \
+  --expect-state target-clone-anim \
+  --expect-state target-hit-ground \
+  --expect-state target-walk \
+  --expect-state target-jump \
+  --expect-travel 10
+```
+
+It exited 0 with all requested state and travel gates and all eight captures.
+No retail data was added to Git.
+
+Application builds:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-cp35-macos -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO build
+
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug \
+  -destination 'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-cp35-sim -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO build
+
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-cp35-device -jobs 4 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
+```
+
+All three final builds succeeded. The first sandboxed macOS attempt failed only
+because the shader phase's nested `sandbox-exec` was not permitted; the same
+build succeeded outside that sandbox. The first simulator compile found the SDK
+split described above; after the narrow conditional, the named simulator build
+succeeded. Existing upstream and generated warnings remain.
+
+The M5 simulator was already booted, so it was not booted or shut down by this
+checkpoint. The Debug app was update-installed without uninstalling or erasing
+its data and launched with bounded console capture. The existing local Jak 1
+data booted through the intro and active renderer. Unified Session logs reached
+frame 3600 with 3600 scheduled drawables, zero misses, exactly one chain per
+tick, five camera packets in active frames, zero live-camera mismatches, and
+zero within-chain packet mismatches. Presentation completion remains zero on
+the simulator for the documented SDK reason.
+
+The generic Release artifact is a thin ARM64 Mach-O signed by Xcode with team
+`D2YYJ54Q6V`. Its executable SHA-256 is
+`cc9620e7cc0fcc4e9c529c5d914a60e5ae79176a42c50403be7a194a9d395f5f`.
+`codesign -d --entitlements -` reports only application identifier, team
+identifier, and `get-task-allow = true`. A local strict trust-chain check
+returned `CSSMERR_TP_NOT_TRUSTED`; this is not reported as a passing signature
+verification. Xcode's compile, link, and CodeSign phases all succeeded.
+
+`git diff --check` passed in both parent and nested checkouts after the code
+changes and before this documentation append. Recheck it after any later edit.
+
+## Not validated and next executable task
+
+No install, launch, log attachment, screen capture, or other access to physical
+**Z iPad Pro** occurred. Therefore actual device presentation callbacks,
+physical display order, and the maintainer's camera visual result remain
+pending. A generic signed build is build/signing evidence only.
+
+The next camera step requires fresh explicit physical-device authorization:
+update-install this Checkpoint 35 artifact, reproduce the multi-position camera
+oscillation with diagnostics hidden, then read the bounded Session log. The
+first nonzero live-camera, packet-camera, or presentation-order mismatch names
+the first bad seam. If all remain zero while the defect is visible, capture the
+matching frame/tick/chain identities before changing camera behavior.
+
+While that physical gate is pending, the next independent deterministic task is
+the Merc joint-to-bones-to-palette-to-pixel provenance ladder described above.
+The touch zoning contract remains a separate later patch. Physical controller
+mapping, multitouch ergonomics, haptics, the camera visual defect, and the Merc
+visual defect are not validated by this checkpoint.
+
+## Physical validation after explicit authorization
+
+Later on 2026-08-01 the maintainer explicitly authorized running the build on
+**Z iPad Pro**. The device was available and paired as CoreDevice identifier
+`6A4111AB-1663-508A-98D9-F0C1A9EA7863`, physical UDID
+`00008142-000A504C3CC2401C`, model `iPad17,1`, on iPadOS 26.6. The installed
+bundle remained `com.zephyrstudiosllc.GOALPad` version/build `1.0 (1)`.
+
+The exact Checkpoint 35 Release artifact was reverified before use:
+
+```text
+/private/tmp/GOALPad-cp35-device/Build/Products/Release-iphoneos/GOALPad.app
+GOALPad SHA-256 cc9620e7cc0fcc4e9c529c5d914a60e5ae79176a42c50403be7a194a9d395f5f
+```
+
+It was update-installed and launched with bounded console attachment:
+
+```sh
+xcrun devicectl device install app \
+  --device 6A4111AB-1663-508A-98D9-F0C1A9EA7863 \
+  /private/tmp/GOALPad-cp35-device/Build/Products/Release-iphoneos/GOALPad.app
+
+xcrun devicectl device process launch \
+  --device 6A4111AB-1663-508A-98D9-F0C1A9EA7863 \
+  --terminate-existing --console com.zephyrstudiosllc.GOALPad
+```
+
+Both commands succeeded. This was an update install only: the app was not
+uninstalled, its container was not erased, and the existing user-local Jak 1
+data booted from `Documents/Jak1`. The physical ARM64 kernel reported
+`PROT_EXEC=no`; KERNEL.CGO, GAME.CGO, title, village1, and training loaded; the
+Metal renderer loaded the corresponding art and gameplay ran for roughly 100
+seconds under the attached console.
+
+### Maintainer visual result
+
+The maintainer reported during that exact attached run:
+
+> it is jittering like crazy. this is one of the worser builds. and jak is
+> sometiems going flat stanley on us again. overall very good representation of
+> current bugs.
+
+This is decisive physical visual rejection of Checkpoint 35 and a useful
+combined reproduction of both active defects. The camera is not fixed. Jak's
+volumetric/Merc deformation is not fixed. Keep this maintainer-observed visual
+evidence separate from the agent-observed console evidence below.
+
+### Agent-observed console result and limitation
+
+Across the attached failure window the console emitted neither of the new loud
+first-failure records:
+
+- no `Metal camera provenance mismatch` line;
+- no `Metal presentation order mismatch` line.
+
+Because those are logged immediately on the first detected mismatch, the
+attached output contains no evidence of a live-snapshot-to-background-packet
+disagreement, within-chain camera-packet disagreement, or detected reversal of
+presentation callback submission/time order during the observed run. This does
+not prove that the live producer camera state was visually correct: producer
+and packets can agree on the same wrong or alternating state. It also does not
+close Merc, shader, compositor, cadence, or final scanout seams.
+
+The structured ten-second Swift `Session` notices did not appear on
+`devicectl --console`. A filtered attempt to collect the previous ten minutes
+with:
+
+```sh
+/usr/bin/log collect --device-udid 00008142-000A504C3CC2401C \
+  --last 10m --output /private/tmp/GOALPad-cp35-physical.logarchive \
+  --size 20m \
+  --predicate 'subsystem == "com.zephyrstudiosllc.GOALPad"'
+```
+
+failed without changing the device because macOS requires root to collect logs
+from an attached device. No broad sysdiagnose was taken. Therefore exact
+submission/completion counts and first/last frame/tick/chain values are not
+available from this run and must not be invented.
+
+The console did repeatedly emit the already-known
+`sp-launch-particles called during processing, and queue is full` error during
+training gameplay. It occurred in the same broad run but remains unattributed;
+do not claim it causes either visual defect without a deterministic link.
+
+Ending the console attachment forwarded SIGINT and terminated GOALPad, matching
+the maintainer's stated intent to close the app. It did not uninstall the app
+or remove its data. The app was not relaunched.
+
+### Revised next step
+
+Do not make another speculative camera timing change. The physical failure with
+no loud producer-to-packet or presentation-order mismatch makes the next narrow
+camera task a consecutive-frame live-producer provenance capture capable of
+showing `A/B/A/B` camera fingerprints, rather than only ten-second cumulative
+counters. That capture must write or print a bounded ring so it can be recovered
+without privileged unified-log collection.
+
+In parallel, implement the already-audited deterministic Merc
+joint-to-bones-to-palette-to-pixel ladder. The same physical run reproduced
+Flat-Stanley deformation, while the present W-lane and authored-matrix tests do
+not cover that full path. Keep camera and Merc changes isolated and do not ask
+for another physical A/B until one of those tests identifies a first bad seam.
+
+# Checkpoint 36: recoverable camera returns and complete Merc palette proof
+
+## Scope and interpretation
+
+Checkpoint 36 implements the two next tasks named by Checkpoint 35 without
+changing camera scheduling or hiding either visual defect:
+
+- retain strong consecutive-frame `A/B/A` returns from the live Jak 1
+  `*math-camera*` producer in a recoverable numeric cache record;
+- execute the real Jak 1 joint-to-bones-to-Merc-palette-to-pixel path with
+  deterministic synthetic inputs, including the first 16-bone batch boundary;
+- count exact missing weighted Merc palette slots in live rendering without
+  skipping the draw;
+- preserve actual Metal presentation/drop evidence independently of callback
+  arrival order.
+
+The only pre-existing Jak 2/Jak 3 behavior carried into Jak 1 is the
+homogeneous-W safety clear in the translated parented-joint routine. Jak 1 has
+its own independently translated routine and had missed that three-instruction
+clear. This is not evidence that Jak 2 or Jak 3 already contained a complete
+fix for GOALPad's camera or Flat-Stanley defects.
+
+## Implementation
+
+`metal_camera_trace.{h,cpp}` now compares the 80-byte producer snapshot formed
+from four `camera-temp` qwords plus `trans`. It records a return only when the
+older-to-current normalized distance is at most half the smaller adjacent leg,
+both adjacent legs are material, and engine frame IDs are consecutive. Duplicate
+engine-frame chains and gaps reset the sequence. The first match is logged
+loudly; durable event frame IDs, fingerprints, host tick/chain, packet
+fingerprint, mismatch masks, distances, and the cumulative count are retained
+until a later real match replaces them.
+
+Presentation accounting retains a fixed 64-pair history of successful
+presentations. A zero `presentedTime` is a dropped drawable, not a successful
+completion or order reversal. A reversal is counted only when submission order
+and actual presentation-time order disagree, so out-of-order callback delivery
+does not create a false reversal. Drops do not replace last-presented identity.
+
+The app writes one atomic, versioned, numeric-only record at:
+
+```text
+Library/Caches/GOALPadDiagnostics/camera-provenance-v1.log
+```
+
+Each session replaces the prior record with a random numeric run ID. The file
+is refreshed at startup, every 600 frames, immediately on a new camera return
+or Merc omission, on inactive/background transitions, and before kernel
+shutdown. A failed write does not advance the persisted event cursor, so the
+next periodic or lifecycle write retries it. The record contains no game-data
+path, device identifier, raw asset data, or raw camera matrix.
+
+The Merc proof now exercises the real Jak 1 parented joint, the real
+`bones_mtx_calc::exec_mpg` routine, and the real `bones_mtx_calc::execute`
+wrapper with its scratchpad, bones-init, and DMA input/output layout. It proves:
+
+- direct and wrapper count-one output are bit-identical;
+- an `A/B/A/B` joint sequence produces exact repeated 80x138 and 40x172 pixels
+  after poisoning EE palette memory following synchronous submission;
+- 17 bones force a 16-bone first batch plus bone 16 in the second batch, with
+  all matrices distinct, sentinels 15/16 correct, expected 128-byte strides and
+  padding, and guards intact.
+
+Required Merc slots are precomputed per model effect as four immutable 64-bit
+masks when a level is loaded. At runtime the renderer ORs only enabled-effect
+masks, compares them with slots populated by valid 112-byte EE copies, and
+enumerates individual slots only for the first error log. A missing required
+slot remains zero and the draw still submits. The deterministic omitted-slot
+case reports exactly one slot in one model and collapses the authored-origin
+pixel to black; the complete packet reports zero.
+
+The remaining unproved Merc seam is the outer GOAL calculation-list dispatcher
+and larger live batches. The live counter also does not yet reject finite but
+degenerate palette matrices.
+
+## Deterministic and build validation
+
+The final shared tree passed:
+
+```sh
+cd OpenGOAL
+cmake --build build/Release/bin --target metal-camera-trace-test -j4
+build/Release/bin/game/metal-camera-trace-test
+
+cmake --build build/Release/bin --target jak1-mips2c-joint-regression-test -j4
+build/Release/bin/game/jak1-mips2c-joint-regression-test
+
+cmake --build build/Release/bin --target metal-proof -j4
+build/Release/bin/game/metal-proof
+```
+
+The camera trace test passed all 23 assertions, the joint regression passed both
+cases, and the Metal proof ended with `METAL PROOF PASSED`. The first sandboxed
+Metal-proof launch could not access a display; the approved unsandboxed rerun
+passed. Existing upstream/generated warnings remain.
+
+All three application builds passed:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-cp36-macos -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO build
+
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug \
+  -destination 'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-cp36-sim -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO build
+
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-cp36-device -jobs 4 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
+```
+
+The macOS build succeeded in 61.029 seconds, the corrected named-simulator
+build in 58.840 seconds, and the signed Release build in 66.605 seconds. One
+earlier simulator command omitted shell quoting around the destination and was
+parsed as an ambiguous physical-iOS destination; it failed before building or
+accessing a device. The corrected command above is the recorded result.
+
+The signed binary is thin ARM64 with SHA-256:
+
+```text
+b30e8490fa9c2e223c6cf871b4a0dd45bff47c8b175c8f88011321fb15c1f704
+```
+
+Xcode signed it with team `D2YYJ54Q6V`; decoded entitlements are only the
+application identifier, team identifier, and `get-task-allow = true`. The
+embedded development profile expires `2026-08-06T23:51:59Z`. The local strict
+trust-chain check returned `CSSMERR_TP_NOT_TRUSTED`, so it is not reported as a
+passing independent trust verification; Xcode's CodeSign phase and the later
+physical install/launch both succeeded.
+
+## Simulator persistence result
+
+The approved M5 simulator began `Shutdown`, was booted, update-installed without
+an uninstall, launched against its preserved local data, and returned to
+`Shutdown`. Its one-line record at frame 1800 contained:
+
+```text
+producer_alternations=3
+live_mismatches=0 packet_mismatches=0
+merc_missing_bone_slots_total=0 merc_models_with_missing_bone_slots_total=0
+```
+
+The retained return was engine frames 1090/1091/1092 with normalized distances
+`0.011923487/0.009847786/0.004462195`. Simulator presentation completions remain
+zero because the simulator build does not compile the physical drawable timing
+API path.
+
+## Authorized physical result
+
+The maintainer's current-request authorization was used to refresh paired
+**Z iPad Pro**, update-install the exact Checkpoint 36 artifact without an
+uninstall or data erase, and launch the preserved user-local Jak 1 data with:
+
+```sh
+xcrun devicectl device install app \
+  --device 6A4111AB-1663-508A-98D9-F0C1A9EA7863 \
+  /private/tmp/GOALPad-cp36-device/Build/Products/Release-iphoneos/GOALPad.app
+
+xcrun devicectl device process launch \
+  --device 6A4111AB-1663-508A-98D9-F0C1A9EA7863 \
+  --terminate-existing --console com.zephyrstudiosllc.GOALPad
+```
+
+The first loud producer-return record occurred at engine frames 815/816/817.
+After roughly 8 minutes 45 seconds, the exact cache file was copied from only
+the app data-container cache domain to:
+
+```text
+/private/tmp/GOALPad-cp36-camera-physical-final.log
+SHA-256 b8b45f06e74a04ed05a321a12a369af1fada1414a9e4ffe344b3ef395f93cb6b
+```
+
+Its final values were:
+
+```text
+run=16568035587374465836 frame=31396 engine=31396 tick=31396 chain=1
+chains_sent=31396 chains_rendered=31396 chains_dropped=0
+frames_without_chain=0 frames_with_multiple_chains=0 drawable_misses=0
+producer_alternations=4711
+live_mismatches=0 packet_mismatches=0
+presentations_completed=31394 presentation_drops=1 presentation_order_mismatches=0
+merc_missing_bone_slots_total=0 merc_models_with_missing_bone_slots_total=0
+```
+
+The retained final return was engine frames 31394/31395/31396 with distances
+`0.026232720/0.026596263/0.005119924`. Thus approximately 15 percent of physical
+frames completed a strong consecutive producer `A/B/A` return, while the
+submitted packets exactly matched that producer, physical presentation order
+did not reverse, and no enabled Merc effect referenced an unpopulated palette
+slot. This localizes the measured camera oscillation before the renderer packet
+copy; it does not yet name which Jak 1 camera input or update is wrong.
+
+No broad app container, retail data, unified log archive, screenshot, or
+sysdiagnose was copied. After the final record was secured, PID 7385 received
+normal SIGTERM and the attached console confirmed signal 15. The app remains
+installed and its data remains intact.
+
+### Maintainer visual result
+
+After the bounded run, the maintainer reported that this was one of the best
+runs yet. The camera had only slight "Parkinson's" rather than the violent
+Checkpoint 35 jitter, and normal gameplay was enjoyable enough to collect
+several power cells. This is a meaningful physical improvement, but not a full
+camera fix.
+
+Jak still became incorrectly oversized, and the volumetric/Flat-Stanley defect
+returned. Therefore the Jak 1 W-lane addition is insufficient to fix live Merc
+deformation. Keep that visual result paired with the numeric finding that every
+required weighted palette slot was present: the next probe must validate the
+values and provenance of those present matrices rather than rechecking slot
+membership.
+
+The console again repeated `sp-launch-particles called during processing, and
+queue is full`. It remains unattributed and is not evidence for either visual
+defect.
+
+## Next executable task
+
+For camera, inspect the Jak 1 live producer inputs and update ordering around
+`cam-update`/`*camera-combiner*`; renderer packet copying, chain cadence, and
+physical presentation order are now clean for the captured run. The next test
+must classify which producer component returns and compare the same gameplay
+path with the ordinary OpenGOAL host before changing behavior.
+
+For Merc, add a bounded live diagnostic at the next unproved seam: validate
+finite/non-degenerate required palette matrices after the GOAL calculation-list
+dispatcher and before Metal upload. Keep it behavior-neutral until it identifies
+the first invalid live value. Do not fold the unrelated particle queue into
+either fix without a deterministic link.
+
+# Checkpoint 37: fractional display debt, explicit touch controls, and Merc palette health
+
+## Scope and implementation
+
+Checkpoint 37 makes two related camera-cadence behavior changes and two
+independent bounded additions.
+
+`GOALPadDisplayClock` now accumulates fractional 60 Hz frame debt across
+`CADisplayLink.targetTimestamp` intervals rather than rounding every callback
+independently. It emits one through four integral game steps, carries only the
+fractional residual, and clears residual debt after invalid input, lifecycle
+reset, or a capped long stall. Complementary early/late intervals therefore do
+not become a false alternating integral cadence. The display link also requests
+a fixed 60 Hz minimum/maximum rather than the prior adaptive 30-through-60
+range. Those changes must be separated in any causal A/B.
+
+The touch layer now has a stationary left movement stick. Free camera dragging
+is removed while generic face-button taps and up/left/right swipes remain. A
+small yellow C-stick to the right of Start snaps outside its deadzone to eight
+GameCube-like directions. A rectangular Roll control holds L1 continuously; an
+upward drag pulses Cross for six frames without releasing L1, and finger-up
+immediately clears L1.
+
+The Merc renderer now inspects present, required weighted palette slots without
+changing the draw. It counts non-finite matrices, degenerate bases, incoherent
+source bases, and affected models. The bridge and diagnostics overlay expose
+current and cumulative counts plus the latest numeric slot, model/matrix hashes,
+axis norms, normalized determinant, and source-base evidence.
+
+Checkpoint 34's camera-zone proposal remains historical. This checkpoint
+supersedes that touch direction because the maintainer explicitly removed free
+camera swipe in favor of an explicit C-stick.
+
+## Deterministic and build validation
+
+The final shared tree passed:
+
+```sh
+Scripts/run-camera-timing-check.sh
+Scripts/run-touch-controls-check.sh
+
+cmake --build OpenGOAL/build/Release/bin \
+  --target metal-camera-trace-test \
+           jak1-mips2c-joint-regression-test \
+           metal-proof -j4
+
+OpenGOAL/build/Release/bin/game/metal-camera-trace-test
+OpenGOAL/build/Release/bin/game/jak1-mips2c-joint-regression-test
+OpenGOAL/build/Release/bin/game/metal-proof
+```
+
+The camera timing and touch host checks passed. The camera trace passed 23/23,
+the Jak 1 joint regression passed 2/2, and the deterministic Metal proof ended
+with `METAL PROOF PASSED`, including healthy, missing, non-finite,
+rank-deficient, coherent, and incoherent palette cases. The first sandboxed
+touch invocation could not run Swift's Observation macro plugin, and the first
+sandboxed Metal launch could not access an SDL display; the corresponding
+approved unsandboxed reruns passed.
+
+The following application builds passed:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-cp37-macos -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO build
+
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug \
+  -destination 'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-cp37-sim -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO build
+
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-cp37-device -jobs 4 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
+```
+
+The approved M5 simulator was update-installed without an uninstall, launched
+with preserved data, and returned to `Shutdown`. The signed Release executable
+is thin ARM64 with SHA-256:
+
+```text
+5a64d0e15fb54715f5e2aea6bb5b626474a23a12829d73104e1a78dd3c41540f
+```
+
+Xcode signed it with team `D2YYJ54Q6V`; decoded entitlements remain limited to
+the application identifier, team identifier, and `get-task-allow`. The embedded
+development profile expires `2026-08-06T23:51:59Z`.
+
+## Simulator diagnostic result
+
+The simulator's final copied record reached frame 3,000 with matched live and
+packet camera values, equal sent/rendered chains, and no missing Merc palette
+slots. Earlier simulator sampling retained an intro-logo event; the exact final
+record retained a later non-Jak model hash. The copied record is:
+
+```text
+/private/tmp/GOALPad-cp37-camera-sim.log
+SHA-256 689c79cd737daa2cbd59b198ee0519ce7463830c5ca5e57810d1fcc060ed6de6
+```
+
+Simulator presentation completions remain zero because its SDK path omits the
+physical drawable timing API.
+
+## Authorized physical result
+
+The maintainer explicitly kept physical access authorized. The signed
+Checkpoint 37 app was update-installed on **Z iPad Pro** without uninstalling
+or erasing its preserved data. The first launch's recoverable record stopped at
+frame 1,681; its current palette health was zero and its retained non-finite
+event was confined to the intro logo. At the maintainer's request, that process
+was terminated and the same installed build was relaunched with an attached
+console as PID 7692.
+
+The second run lasted about eight minutes, reached Misty Island and later
+Training, and ended at frame 29,666. The exact final cache was copied to:
+
+```text
+/private/tmp/GOALPad-cp37-camera-physical-final.log
+SHA-256 18d8352ea285d2c5123dd73120175843e7ff748af4851e5762bdba79e490243f
+```
+
+Its final values were:
+
+```text
+run=9157121099970670899 frame=29666 engine=29666 tick=29666 chain=1
+chains_sent=29666 chains_rendered=29666 chains_dropped=0
+frames_without_chain=0 frames_with_multiple_chains=0 drawable_misses=0
+late_present_submissions=41 producer_alternations=1661
+live_mismatches=0 packet_mismatches=0
+presentations_completed=29645 presentation_drops=21 presentation_order_mismatches=0
+merc_missing_bone_slots_total=0 merc_models_with_missing_bone_slots_total=0
+merc_nonfinite_bone_matrices_total=7706 merc_degenerate_bone_matrices_total=343
+merc_incoherent_bone_sources_total=0 merc_models_with_palette_health_issues_total=1388
+```
+
+The final current-frame palette-health counts were zero. The retained event was
+frame 27,647, model hash `1739199570720925712`, slot 4. Repository FNV matching
+resolves the hash to `speaker-lod0`; slot 4 is its `speaker` joint. The earlier
+event resolves to `logo-volumes-english-lod0`. Neither retained event is Jak,
+so the diagnostic did not capture the reported Jak deformation and its totals
+are not attributed to that visual bug.
+
+All 29,666 sent chains rendered, producer and submitted camera packets matched,
+and Metal recorded no presentation-order reversal. The strong producer-return
+rate was about 5.6 percent, lower than Checkpoint 36's roughly 15 percent, yet
+the maintainer found this camera visually worse. The return count is therefore
+not a camera-quality score and does not validate the fractional-debt change.
+
+Only the numeric cache file was copied. No broad app container, retail data,
+unified log archive, screenshot, or sysdiagnose was captured. The attached
+process shut down the kernel and exited with code zero. The app remains
+installed and its data remains intact.
+
+### Maintainer visual result
+
+The maintainer reached the farthest point yet in a GOALPad run, which is useful
+sustained-runtime evidence. Nevertheless, Checkpoint 37 felt worse than
+Checkpoint 36 for camera movement, world-depth/z-fighting, and Merc deformation.
+Metallic textures also developed a new flicker that looked like a localized
+z-fight. Checkpoint 37 is physically rejected as a camera or visual-fidelity
+improvement. No separate physical verdict was given for the revised touch
+ergonomics, so physical multitouch remains unvalidated.
+
+## Planned side-by-side media behavior
+
+The maintainer requested Hearthstone-like iPad multitasking behavior: when
+GOALPad remains visible beside another app, gameplay and game audio should keep
+running while outside music or video audio also plays. `ROADMAP.md` Stage 6 now
+records this as planned work. Implementation must distinguish actual iPad
+multitasking/focus signals from true backgrounding and select an explicit audio-
+mix policy; the current app still stops frames and audio on every inactive or
+background transition.
+
+## Next executable task
+
+Do not tune the producer-return threshold or presentation path from this run.
+For camera, run the smallest A/B that restores Checkpoint 36's interval rounding
+while retaining all Checkpoint 37 diagnostics and holding the fixed-60 display-
+link policy constant; the current provenance counters do not explain why
+fractional debt looked worse.
+
+For Merc, extend the existing behavior-neutral seam with a 28-bit non-finite
+lane mask and Jak-only consecutive-frame scale/aspect tracking for
+`eichar-lod0`. Retain previous/current hashes, axis norms, source base, slot, and
+frame only when a finite scale or aspect discontinuity crosses a conspicuous
+bounded threshold. This can capture uniform ultrasize and Flat-Stanley collapse
+without conflating them with zero-scale intro or prop models.
+
+Treat the new metallic-material flicker and the broader world-depth fighting as
+separate renderer observations. A read-only audit found no Checkpoint 37 shader,
+PSO, or material-state change; timing can expose an existing shimmer but does
+not directly reach a Metal pipeline key. Two pre-existing seams now need
+deterministic coverage: Merc's `SRC_0_DST_DST` Metal alpha factors differ from
+the OpenGL blend formula, and Metal TIE batches coplanar envmap base passes for
+all trees before their second passes while OpenGL pairs each tree's passes.
+
+Extend `metal-proof` with overlapping translucent Merc envmap draws that assert
+RGBA against the OpenGL blend formula, plus a two-tree TIE envmap fixture that
+compares current category-batched order with paired order and proves repeated-A
+color/depth hashes under nearby `A/B/A` cameras. For bounded live evidence, add
+only display-ratio 1/2/3/4 totals and Merc envmap zero/nonzero transition counts.
+Do not attribute either flicker to camera cadence, Merc matrices, or the
+particle-queue warning until one of those proofs or a single-toggle physical A/B
+identifies the seam.
+
+# Checkpoint 38: original GOALPad app icon
+
+## Scope
+
+Checkpoint 38 adds one original app-icon design requested by the maintainer. It
+uses a centered segmented ancient-machine glyph in dark forged metal, restrained
+cyan recess reflections, a cold upper-edge glint, and hot orange backlight on an
+opaque near-black field. The mark is intentionally abstract: it does not copy a
+Jak character, franchise logo, Son of Mar seal, or Precursor rune.
+
+The built-in image generation path produced one square raster master. The
+selected art was resized into the normal iOS 1024-pixel slot and the complete
+macOS 16-through-1024-pixel ladder in:
+
+```text
+GOALPad/Assets.xcassets/AppIcon.appiconset/
+```
+
+`Contents.json` names each of the 11 new PNGs. The existing optional iOS dark
+and tinted appearances remain unassigned; iOS falls back to the normal dark
+artwork rather than using an improvised monochrome variant.
+
+## Validation
+
+`jq empty` accepted `Contents.json`. Every PNG has the exact catalog dimension,
+is opaque RGB with no alpha, and retains background pixels in all four corners;
+the artwork has no baked rounded-corner mask. Visual checks at 64 and 32 pixels
+kept the orange core and segmented silhouette recognizable.
+
+Fresh unsigned builds passed:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-icon-macos -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO build
+
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-icon-ios -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO build
+```
+
+The macOS build succeeded in 65.681 seconds. The generic iOS build succeeded in
+64.615 seconds with no asset-catalog warning or notice and emitted opaque
+120x120 iPhone and 152x152 iPad icons. Existing unrelated generated-source
+warnings and the AppIntents metadata-skipped warning remain.
+
+No simulator or physical device was accessed for this icon checkpoint. Actual
+Home Screen/Dock appearance and dedicated dark/tinted variants remain
+unvalidated.

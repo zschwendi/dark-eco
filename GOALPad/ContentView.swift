@@ -3,19 +3,27 @@ import SwiftUI
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var session = GameSession()
-    @State private var showDiagnostics = true
+    @State private var showDiagnostics = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            GameSurfaceView { session.tick() }
+            GameSurfaceView { session.tick(targetPresentationTime: $0) }
 
             if session.isRunning {
+                #if os(iOS)
+                TouchControlsView(controls: session.touch, isSuppressed: session.input.isDriving)
+                #endif
+
                 if showDiagnostics {
                     DiagnosticsOverlay(session: session)
                         .frame(maxWidth: 620, alignment: .leading)
                         .padding()
                 }
-                Button(showDiagnostics ? "Hide" : "Info") { showDiagnostics.toggle() }
+                Button { showDiagnostics.toggle() } label: {
+                    Image(systemName: "line.3.horizontal")
+                        .frame(minWidth: 24, minHeight: 24)
+                }
+                    .accessibilityLabel(showDiagnostics ? "Hide diagnostics" : "Show diagnostics")
                     .buttonStyle(.bordered)
                     .padding()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
@@ -122,10 +130,82 @@ private struct DiagnosticsOverlay: View {
             let stats = GOALPadRenderSurface.shared.stats
             let wanted = GOALPadRenderSurface.shared.levelsWanted
             let loaded = GOALPadRenderSurface.shared.levelsLoaded
+            let oneChainTicks = stats.framesArmed
+                - stats.framesWithoutChain
+                - stats.framesWithMultipleChains
             section("Metal renderer", [
-                ("DMA chains", "\(stats.chainsSent) sent, \(stats.chainsRendered) drawn, "
+                ("DMA chains", "\(stats.chainsSent) sent, \(stats.chainsRendered) encoded, "
                     + "\(stats.chainsDropped) dropped"),
+                ("tick chains 0/1/>1", "\(stats.framesWithoutChain)/\(oneChainTicks)/"
+                    + "\(stats.framesWithMultipleChains) (max \(stats.maxChainsPerFrame))"),
+                ("drawables", "\(stats.drawablesAcquired) scheduled, \(stats.drawableMisses) missed, "
+                    + "\(stats.latePresentSubmissions) submitted late"),
+                ("camera provenance", "frame \(stats.lastEngineFrameID), tick/chain "
+                    + "\(stats.lastHostTickID)/\(stats.lastChainOrdinal), "
+                    + "\(stats.lastCameraPackets) packets, hash "
+                    + String(stats.lastCameraFingerprint, radix: 16)),
+                ("camera alternation", "\(stats.producerCameraAlternations) total; frames "
+                    + "\(stats.lastCameraAlternationOlderFrameID)/"
+                    + "\(stats.lastCameraAlternationPreviousFrameID)/"
+                    + "\(stats.lastCameraAlternationCurrentFrameID), tick/chain "
+                    + "\(stats.lastCameraAlternationHostTickID)/"
+                    + "\(stats.lastCameraAlternationChainOrdinal)"),
+                ("alternation fingerprints", String(
+                    stats.lastCameraAlternationOlderFingerprint, radix: 16)
+                    + "/" + String(stats.lastCameraAlternationPreviousFingerprint, radix: 16)
+                    + "/" + String(stats.lastCameraAlternationCurrentFingerprint, radix: 16)
+                    + " producer, "
+                    + String(stats.lastCameraAlternationPacketFingerprint, radix: 16)
+                    + " packet; qwords \(stats.lastCameraAlternationLiveMismatchQwords)/"
+                    + "\(stats.lastCameraAlternationPacketMismatchQwords)"),
+                ("alternation distance", String(
+                    format: "%.6f / %.6f / %.6f older-prev/prev-current/older-current",
+                    stats.lastCameraOlderToPreviousDistance,
+                    stats.lastCameraPreviousToCurrentDistance,
+                    stats.lastCameraOlderToCurrentDistance)),
+                ("camera mismatches", "\(stats.liveCameraMismatches) live / "
+                    + "\(stats.packetCameraMismatches) packet total; last qwords "
+                    + "\(stats.lastLiveCameraMismatchQwords)/"
+                    + "\(stats.lastPacketCameraMismatchQwords)"),
+                ("presentation identity", "submit/present/drop \(stats.lastSubmissionID)/"
+                    + "\(stats.lastPresentedSubmissionID)/\(stats.lastDroppedSubmissionID), "
+                    + "drawable \(stats.lastDrawableID)/"
+                    + "\(stats.lastPresentedDrawableID), reversed "
+                    + "\(stats.presentationOrderMismatches)"),
+                ("presented frame", "\(stats.lastPresentedEngineFrameID), tick/chain "
+                    + "\(stats.lastPresentedHostTickID)/\(stats.lastPresentedChainOrdinal), "
+                    + "\(stats.presentationsCompleted)/\(stats.presentationDrops)/"
+                    + "\(stats.submissions) completed/dropped/submitted"),
                 ("last frame", "\(stats.lastDrawCalls) draws, \(stats.lastTriangles) triangles"),
+                ("last merc", "\(stats.mercModels) models, \(stats.mercDraws) draws, "
+                    + "\(stats.mercBoneVectors) bone vectors"),
+                ("merc missing bones", "current \(stats.mercMissingBoneSlots) slots / "
+                    + "\(stats.mercModelsWithMissingBoneSlots) models; total "
+                    + "\(stats.mercMissingBoneSlotsTotal) / "
+                    + "\(stats.mercModelsWithMissingBoneSlotsTotal); last "
+                    + "\(stats.lastMercMissingBoneSlots) / "
+                    + "\(stats.lastMercModelsWithMissingBoneSlots) at frame/tick/chain "
+                    + "\(stats.lastMercMissingBoneEngineFrameID)/"
+                    + "\(stats.lastMercMissingBoneHostTickID)/"
+                    + "\(stats.lastMercMissingBoneChainOrdinal)"),
+                ("merc palette health", "current \(stats.mercNonfiniteBoneMatrices)/"
+                    + "\(stats.mercDegenerateBoneMatrices)/"
+                    + "\(stats.mercIncoherentBoneSources)/"
+                    + "\(stats.mercModelsWithPaletteHealthIssues) "
+                    + "nonfinite/degenerate/source/models; total "
+                    + "\(stats.mercNonfiniteBoneMatricesTotal)/"
+                    + "\(stats.mercDegenerateBoneMatricesTotal)/"
+                    + "\(stats.mercIncoherentBoneSourcesTotal)/"
+                    + "\(stats.mercModelsWithPaletteHealthIssuesTotal)"),
+                ("merc palette event", "issue/slot \(stats.lastMercPaletteHealthIssueMask)/"
+                    + "\(stats.lastMercPaletteHealthBoneSlot), frame/tick/chain "
+                    + "\(stats.lastMercPaletteHealthEngineFrameID)/"
+                    + "\(stats.lastMercPaletteHealthHostTickID)/"
+                    + "\(stats.lastMercPaletteHealthChainOrdinal), model/matrix "
+                    + String(stats.lastMercPaletteHealthModelNameHash, radix: 16)
+                    + "/" + String(stats.lastMercPaletteHealthMatrixHash, radix: 16)),
+                ("merc rejects total", "\(stats.mercBadBonePointers) bone pointers, "
+                    + "\(stats.mercBadDrawRanges) draw ranges total"),
                 ("texture uploads", "\(stats.textureUploads)"),
                 ("levels wanted", wanted.isEmpty ? "-" : wanted),
                 ("level art loaded", loaded.isEmpty ? "-" : loaded),
@@ -141,7 +221,14 @@ private struct DiagnosticsOverlay: View {
                 ("drawable", "\(geometry.drawableWidth)x\(geometry.drawableHeight)"),
                 ("internal", "\(geometry.internalWidth)x\(geometry.internalHeight)"),
                 ("draw region", "\(geometry.drawRegionWidth)x\(geometry.drawRegionHeight)"),
-                ("frames presented", "\(session.framesPresented)"),
+                ("ticks with drawable", "\(session.framesPresented)"),
+                ("display cadence", String(format: "%.2f / %.2f / %.2f ms mean/p95/max (%d)",
+                                            session.displayMeanMilliseconds,
+                                            session.displayP95Milliseconds,
+                                            session.displayMaxMilliseconds,
+                                            session.displaySampleCount)),
+                ("display fast/slow", "\(session.displayFastCallbacks)/"
+                    + "\(session.displaySlowCallbacks) below 12 / at least 24 ms"),
                 ("memory warnings", "\(session.memoryWarnings)"),
             ])
             let scale = Binding(get: { session.settings.internalResolutionScale },
@@ -191,7 +278,7 @@ private struct DiagnosticsOverlay: View {
                 ("architecture", status.architecture),
                 ("EE main memory", String(format: "%p, #x%x", UInt(status.mainMemoryAddress),
                                           status.mainMemorySize)),
-                ("PROT_EXEC granted", status.isMainMemoryExecutable ? "yes" : "NO"),
+                ("EE arena executable", status.isMainMemoryExecutable ? "yes" : "NO"),
                 ("s7", String(format: "#x%08x", status.s7Offset)),
                 ("hashed symbols", "\(status.symbolCount)"),
                 ("global heap used", "\(status.globalHeapUsedBytes) bytes"),

@@ -1,5 +1,6 @@
 #include "GOALPadGameBoot.hpp"
 
+#include "GOALPadDisplayClock.hpp"
 #include "GOALPadEngineSeams.h"
 #include "GOALPadMetalHost.hpp"
 
@@ -9,9 +10,11 @@
 #include <exception>
 #include <os/log.h>
 #include <sys/stat.h>
+#include <TargetConditionals.h>
 
 #if GOALPAD_HAVE_GAME_BOOT
 #include "common/listener_common.h"
+#include "common/goal_constants.h"
 #include "common/symbols.h"
 
 #include "game/kernel/common/kernel_types.h"
@@ -21,6 +24,7 @@
 #include "game/kernel/core/aot_loader.h"
 #include "game/kernel/core/dgo_loader.h"
 #include "game/kernel/core/dma_capture.h"
+#include "game/kernel/core/kernel_game.h"
 #include "game/kernel/jak1/klisten.h"
 #include "game/kernel/jak1/kscheme.h"
 #include "game/runtime.h"
@@ -43,6 +47,12 @@ os_log_t boot_log() {
 bool g_booted = false;
 std::uint64_t g_frames = 0;
 Ptr<jak1::Symbol> g_dispatcher;
+int32_t* g_math_camera = nullptr;
+#if TARGET_OS_IOS
+int32_t* g_timer_reset_value = nullptr;
+int32_t* g_host_display_time_ratio = nullptr;
+goalpad::DisplayClock g_display_clock;
+#endif
 
 /*! Everything GOAL printed since the last drain, into the app's log. */
 void drain_goal_print_buffer() {
@@ -318,11 +328,41 @@ BootStatus boot_game() noexcept {
     status.data_objects = stats.data_objects;
     record_packages_in_game_cgo();
 
+#if TARGET_OS_IOS
+    // The AOT new-bones path flattened Jak on physical iPad, while the existing MIPS2C producer
+    // preserved the correct volumetric pose. Keep this iOS compatibility fallback at the producer
+    // boundary until new-bones reaches physical-device parity; rendering and game data stay shared.
+    goal_game_set_symbol_value("*use-new-bones*", goal_game_false_offset());
+    os_log(boot_log(), "Using the MIPS2C bones matrix producer for iOS compatibility.");
+#endif
+
     // The last thing InitMachineScheme does. `play` allocates the level heaps and drives the whole
     // title-level load itself, through GOAL's own loader.
     jak1::call_goal_function_by_name("play");
     drain_goal_print_buffer();
     status.played = true;
+
+    uint32_t math_camera = 0;
+    if (goal_game_find_symbol("*math-camera*", &math_camera)) {
+      g_math_camera = goal_game_symbol_slot("*math-camera*");
+    } else {
+      os_log_error(boot_log(), "GAME.CGO did not define *math-camera*; camera trace unavailable.");
+    }
+
+#if TARGET_OS_IOS
+    uint32_t timer_reset_value = 0;
+    if (!goal_game_find_symbol("*timer-reset-value*", &timer_reset_value)) {
+      return failure("GAME.CGO did not define *timer-reset-value*.");
+    }
+    g_timer_reset_value = goal_game_symbol_slot("*timer-reset-value*");
+
+    uint32_t host_display_time_ratio = 0;
+    if (!goal_game_find_symbol("*host-display-time-ratio*", &host_display_time_ratio)) {
+      return failure("GAME.CGO did not define *host-display-time-ratio*.");
+    }
+    g_host_display_time_ratio = goal_game_symbol_slot("*host-display-time-ratio*");
+    g_display_clock.reset();
+#endif
 
     g_dispatcher = jak1::find_symbol_from_c("kernel-dispatcher");
     if (!g_dispatcher.offset || !g_dispatcher->value) {
@@ -353,10 +393,28 @@ BootStatus boot_game() noexcept {
   }
 }
 
-bool run_frame() noexcept {
+bool run_frame(double target_presentation_time) noexcept {
   if (!g_booted) {
     return false;
   }
+#if TARGET_OS_IOS
+  // `display-frame-start` consumes this value at the same boundary as its upstream timer result,
+  // before the next frame's process and camera updates. CADisplayLink's target timestamp measures
+  // display cadence; callback workload does not move the ratio onto the wrong game frame.
+  const float display_time_ratio =
+      static_cast<float>(g_display_clock.advance(target_presentation_time));
+  int32_t display_time_ratio_bits = 0;
+  static_assert(sizeof(display_time_ratio_bits) == sizeof(display_time_ratio));
+  std::memcpy(&display_time_ratio_bits, &display_time_ratio, sizeof(display_time_ratio_bits));
+  *g_host_display_time_ratio = display_time_ratio_bits;
+
+  // CADisplayLink already owns the wait between game frames. Exclude that outside wait from
+  // GOAL's timer. It remains a valid fallback if the host ratio is disabled in GOAL.
+  const auto ee_ticks = jak1::call_goal_function_by_name("__read-ee-timer");
+  *g_timer_reset_value = static_cast<int32_t>(static_cast<uint32_t>(ee_ticks >> 9));
+#else
+  (void)target_presentation_time;
+#endif
   call_goal_on_stack(Ptr<Function>(g_dispatcher->value), goal_kernel_stack_top(), s7.offset,
                      g_ee_main_mem);
   drain_goal_print_buffer();
@@ -365,6 +423,38 @@ bool run_frame() noexcept {
   goal_sound_frame();
   g_frames++;
   return true;
+}
+
+void reset_frame_timing() noexcept {
+#if TARGET_OS_IOS
+  g_display_clock.reset();
+#endif
+}
+
+CameraFrameIdentity current_camera_frame_identity() noexcept {
+  CameraFrameIdentity out;
+  out.engine_frame_id = g_frames + 1;
+  if (!g_math_camera || !g_ee_main_mem) {
+    return out;
+  }
+
+  // `add-pc-tfrag3-data` copies camera-temp (four qwords at 572) and trans (one qword at 844)
+  // from *math-camera* into every background packet. Snapshot at __send-gfx-dma-chain, after the
+  // producer ran and before the next dispatcher frame can rewrite the object.
+  constexpr uint32_t kCameraTempOffset = 572;
+  constexpr uint32_t kTransOffset = 844;
+  constexpr uint32_t kCameraTempBytes = 64;
+  constexpr uint32_t kTransBytes = 16;
+  const uint32_t camera = static_cast<uint32_t>(*g_math_camera);
+  if (camera < static_cast<uint32_t>(EE_MAIN_MEM_LOW_PROTECT) ||
+      camera > static_cast<uint32_t>(EE_MAIN_MEM_SIZE - kTransOffset - kTransBytes)) {
+    return out;
+  }
+  std::memcpy(out.camera.data(), g_ee_main_mem + camera + kCameraTempOffset, kCameraTempBytes);
+  std::memcpy(out.camera.data() + kCameraTempBytes, g_ee_main_mem + camera + kTransOffset,
+              kTransBytes);
+  out.camera_valid = true;
+  return out;
 }
 
 FrameChainStats frame_chain_stats() noexcept {
@@ -382,6 +472,12 @@ void reset_game() noexcept {
   g_booted = false;
   g_frames = 0;
   g_dispatcher = Ptr<jak1::Symbol>();
+  g_math_camera = nullptr;
+  reset_frame_timing();
+#if TARGET_OS_IOS
+  g_timer_reset_value = nullptr;
+  g_host_display_time_ratio = nullptr;
+#endif
 }
 
 std::uint64_t frames_run() noexcept {
@@ -403,8 +499,15 @@ BootStatus boot_game() noexcept {
   return status;
 }
 
-bool run_frame() noexcept {
+bool run_frame(double target_presentation_time) noexcept {
+  (void)target_presentation_time;
   return false;
+}
+
+void reset_frame_timing() noexcept {}
+
+CameraFrameIdentity current_camera_frame_identity() noexcept {
+  return {};
 }
 
 FrameChainStats frame_chain_stats() noexcept {

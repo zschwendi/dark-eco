@@ -17,7 +17,7 @@
  * way but to that instead. `MetalRenderer` itself, and every bucket renderer under it, is the same
  * source the Mac plays the game with.
  *
- * Threading: one thread does everything. See `metal_host_render`.
+ * Threading: one thread does everything. See `metal_host_begin_frame`.
  */
 
 #include <cstdint>
@@ -63,13 +63,61 @@ struct MetalHostFrame {
   int game_res_h = 480;
   int draw_region_w = 0;
   int draw_region_h = 0;
+  double presentation_time = 0.0;
 };
 
 /*! What the renderer has been asked to do, for the on-screen readout and the log. */
 struct MetalHostStats {
   std::uint64_t chains_sent = 0;      // __send-gfx-dma-chain calls
-  std::uint64_t chains_rendered = 0;  // chains that reached the GPU
+  std::uint64_t chains_rendered = 0;  // chains whose game passes were encoded and committed
   std::uint64_t chains_dropped = 0;   // chains replaced before a frame consumed them
+  std::uint64_t frames_armed = 0;
+  std::uint64_t frames_without_chain = 0;
+  std::uint64_t frames_with_multiple_chains = 0;
+  std::uint64_t max_chains_per_frame = 0;
+  std::uint64_t drawables_acquired = 0;
+  std::uint64_t drawable_misses = 0;
+  std::uint64_t late_present_submissions = 0;
+  std::uint64_t last_host_tick_id = 0;
+  std::uint64_t last_chain_ordinal = 0;
+  std::uint64_t last_engine_frame_id = 0;
+  std::uint64_t last_camera_fingerprint = 0;
+  int last_camera_packets = 0;
+  std::uint64_t producer_camera_alternations = 0;
+  std::uint64_t last_camera_alternation_older_frame_id = 0;
+  std::uint64_t last_camera_alternation_previous_frame_id = 0;
+  std::uint64_t last_camera_alternation_current_frame_id = 0;
+  std::uint64_t last_camera_alternation_older_fingerprint = 0;
+  std::uint64_t last_camera_alternation_previous_fingerprint = 0;
+  std::uint64_t last_camera_alternation_current_fingerprint = 0;
+  std::uint64_t last_camera_alternation_host_tick_id = 0;
+  std::uint64_t last_camera_alternation_chain_ordinal = 0;
+  std::uint64_t last_camera_alternation_packet_fingerprint = 0;
+  std::uint8_t last_camera_alternation_live_mismatch_qwords = 0;
+  std::uint8_t last_camera_alternation_packet_mismatch_qwords = 0;
+  double last_camera_older_to_previous_distance = 0.0;
+  double last_camera_previous_to_current_distance = 0.0;
+  double last_camera_older_to_current_distance = 0.0;
+  int last_live_camera_mismatches = 0;
+  int last_packet_camera_mismatches = 0;
+  std::uint8_t last_live_camera_mismatch_qwords = 0;
+  std::uint8_t last_packet_camera_mismatch_qwords = 0;
+  std::uint64_t live_camera_mismatches = 0;
+  std::uint64_t packet_camera_mismatches = 0;
+  std::uint64_t submissions = 0;
+  std::uint64_t presentations_completed = 0;
+  std::uint64_t presentation_drops = 0;
+  std::uint64_t presentation_order_mismatches = 0;
+  std::uint64_t last_submission_id = 0;
+  std::uint64_t last_presented_submission_id = 0;
+  std::uint64_t last_dropped_submission_id = 0;
+  std::uint64_t last_drawable_id = 0;
+  std::uint64_t last_presented_drawable_id = 0;
+  std::uint64_t last_presented_engine_frame_id = 0;
+  std::uint64_t last_presented_host_tick_id = 0;
+  std::uint64_t last_presented_chain_ordinal = 0;
+  double last_requested_presentation_time = 0.0;
+  double last_actual_presentation_time = 0.0;
   std::uint64_t texture_uploads = 0;
   int levels_loaded = 0;
   int level_failures = 0;
@@ -78,16 +126,55 @@ struct MetalHostStats {
   std::string levels_loaded_names;
   int last_draw_calls = 0;
   int last_triangles = 0;
+  int merc_models = 0;
+  int merc_draws = 0;
+  int merc_bone_vectors = 0;
+  int merc_missing_bone_slots = 0;
+  int merc_models_with_missing_bone_slots = 0;
+  std::uint64_t merc_missing_bone_slots_total = 0;
+  std::uint64_t merc_models_with_missing_bone_slots_total = 0;
+  std::uint64_t last_merc_missing_bone_engine_frame_id = 0;
+  std::uint64_t last_merc_missing_bone_host_tick_id = 0;
+  std::uint64_t last_merc_missing_bone_chain_ordinal = 0;
+  int last_merc_missing_bone_slots = 0;
+  int last_merc_models_with_missing_bone_slots = 0;
+  int merc_nonfinite_bone_matrices = 0;
+  int merc_degenerate_bone_matrices = 0;
+  int merc_incoherent_bone_sources = 0;
+  int merc_models_with_palette_health_issues = 0;
+  std::uint64_t merc_nonfinite_bone_matrices_total = 0;
+  std::uint64_t merc_degenerate_bone_matrices_total = 0;
+  std::uint64_t merc_incoherent_bone_sources_total = 0;
+  std::uint64_t merc_models_with_palette_health_issues_total = 0;
+  std::uint64_t last_merc_palette_health_engine_frame_id = 0;
+  std::uint64_t last_merc_palette_health_host_tick_id = 0;
+  std::uint64_t last_merc_palette_health_chain_ordinal = 0;
+  std::uint8_t last_merc_palette_health_issue_mask = 0;
+  int last_merc_palette_health_bone_slot = -1;
+  std::uint64_t last_merc_palette_health_model_name_hash = 0;
+  std::uint64_t last_merc_palette_health_matrix_hash = 0;
+  double last_merc_palette_health_axis_norm_x = 0.0;
+  double last_merc_palette_health_axis_norm_y = 0.0;
+  double last_merc_palette_health_axis_norm_z = 0.0;
+  double last_merc_palette_health_normalized_abs_determinant = 0.0;
+  std::uint32_t last_merc_palette_health_source_address = 0;
+  std::uint64_t last_merc_palette_health_source_base = 0;
+  std::uint64_t last_merc_palette_health_expected_source_base = 0;
+  std::uint64_t merc_bad_bone_pointers = 0;
+  std::uint64_t merc_bad_draw_ranges = 0;
 };
 MetalHostStats metal_host_stats();
 
 #ifdef __OBJC__
 
 /*!
- * Draw the chain the engine built into `layer`, and present it.
+ * Arm one display-link tick with its presentation surface and geometry.
  *
- * Called from the main thread once per `CADisplayLink` tick, straight after the engine's own frame
- * ran on that same thread. That single-threaded arrangement is the whole locking story: on the
+ * Called from the main thread immediately before the engine's own frame runs. That lets
+ * `send_chain` draw synchronously, before the engine can rewrite the live bone matrices that Merc
+ * packets point at but do not copy into their DMA chain.
+ *
+ * The single-threaded arrangement is the whole locking story: on the
  * desktop the engine runs on its own thread and `__pc-texture-relocate` from the game races the
  * render thread's level loading inside `TexturePool`, which does not lock internally (its callers
  * are expected to hold `pool.mutex()`, see `Loader.cpp`). Here the GOAL frame, the texture calls,
@@ -95,10 +182,17 @@ MetalHostStats metal_host_stats();
  * race with and nothing to lock. Boot is the one thing that runs elsewhere, on its own queue, and
  * no frame is rendered until it has finished.
  *
- * Returns false when there is no chain to draw - before the first game frame, or on a tick the
- * engine did not produce one.
+ * Returns false when the renderer or presentation surface is unavailable.
  */
-bool metal_host_render(CAMetalLayer* layer, const MetalHostFrame& frame);
+bool metal_host_begin_frame(CAMetalLayer* layer, const MetalHostFrame& frame);
+
+/*!
+ * Close the armed display-link tick and report whether its chain scheduled a drawable.
+ *
+ * Rendering has already happened inside `send_chain`; this call only clears the retained layer
+ * and lets the app update its scheduled-drawable count.
+ */
+bool metal_host_end_frame();
 
 /*! Point the layer at the renderer's device. Safe before `metal_host_start`. */
 void metal_host_attach_layer(CAMetalLayer* layer);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <string>
 
@@ -47,7 +48,18 @@ BootStatus boot_game() noexcept;
  *
  * False if the game is not booted. Never throws.
  */
-bool run_frame() noexcept;
+bool run_frame(double target_presentation_time) noexcept;
+
+/*! Drop display-link history so the first frame after a lifecycle pause starts at ratio 1. */
+void reset_frame_timing() noexcept;
+
+/*! The camera state that the current dispatcher frame will copy into its background packets. */
+struct CameraFrameIdentity {
+  std::uint64_t engine_frame_id = 0;
+  bool camera_valid = false;
+  std::array<std::uint8_t, 80> camera = {};
+};
+CameraFrameIdentity current_camera_frame_identity() noexcept;
 
 std::uint64_t frames_run() noexcept;
 bool game_is_booted() noexcept;

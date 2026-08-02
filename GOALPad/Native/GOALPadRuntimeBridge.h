@@ -107,9 +107,14 @@ typedef struct GOALPadFrameChainStats {
 /// main thread; nothing else may touch the kernel while it runs.
 + (GOALPadGameBootStatus *)bootGame;
 
-/// Run one frame of the game: `kernel-dispatcher`, then the overlord's vblank work. NO when the
-/// game is not booted. Call from one thread only.
-+ (BOOL)runFrame;
+/// Run one frame of the game: `kernel-dispatcher`, then the overlord's vblank work. The target
+/// presentation time supplies the same 60 Hz cadence that schedules the frame. NO when the game
+/// is not booted. Call from one thread only.
++ (BOOL)runFrameAtPresentationTime:(CFTimeInterval)targetPresentationTime
+    NS_SWIFT_NAME(runFrame(at:));
+
+/// Forget display-link cadence across an app lifecycle pause.
++ (void)resetFrameTiming;
 
 @property(class, nonatomic, readonly) uint64_t framesRun;
 @property(class, nonatomic, readonly, getter=isGameBooted) BOOL gameBooted;
@@ -226,13 +231,96 @@ typedef struct GOALPadSurfaceGeometry {
 /// What the Metal renderer has been asked to do since the game booted.
 typedef struct GOALPadRendererStats {
   uint64_t chainsSent;      ///< frames that handed over a DMA chain
-  uint64_t chainsRendered;  ///< chains that reached the GPU
+  uint64_t chainsRendered;  ///< chains whose game passes were encoded and committed
   uint64_t chainsDropped;   ///< chains replaced before a tick consumed them
+  uint64_t framesArmed;     ///< display-link ticks with an attached Metal surface
+  uint64_t framesWithoutChain;
+  uint64_t framesWithMultipleChains;
+  uint64_t maxChainsPerFrame;
+  uint64_t drawablesAcquired;
+  uint64_t drawableMisses;
+  uint64_t latePresentSubmissions;
+  uint64_t lastHostTickID;
+  uint64_t lastChainOrdinal;
+  uint64_t lastEngineFrameID;
+  uint64_t lastCameraFingerprint;
+  int32_t lastCameraPackets;
+  uint64_t producerCameraAlternations;
+  uint64_t lastCameraAlternationOlderFrameID;
+  uint64_t lastCameraAlternationPreviousFrameID;
+  uint64_t lastCameraAlternationCurrentFrameID;
+  uint64_t lastCameraAlternationOlderFingerprint;
+  uint64_t lastCameraAlternationPreviousFingerprint;
+  uint64_t lastCameraAlternationCurrentFingerprint;
+  uint64_t lastCameraAlternationHostTickID;
+  uint64_t lastCameraAlternationChainOrdinal;
+  uint64_t lastCameraAlternationPacketFingerprint;
+  uint8_t lastCameraAlternationLiveMismatchQwords;
+  uint8_t lastCameraAlternationPacketMismatchQwords;
+  double lastCameraOlderToPreviousDistance;
+  double lastCameraPreviousToCurrentDistance;
+  double lastCameraOlderToCurrentDistance;
+  int32_t lastLiveCameraMismatches;
+  int32_t lastPacketCameraMismatches;
+  uint8_t lastLiveCameraMismatchQwords;
+  uint8_t lastPacketCameraMismatchQwords;
+  uint64_t liveCameraMismatches;
+  uint64_t packetCameraMismatches;
+  uint64_t submissions;
+  uint64_t presentationsCompleted;
+  uint64_t presentationDrops;
+  uint64_t presentationOrderMismatches;
+  uint64_t lastSubmissionID;
+  uint64_t lastPresentedSubmissionID;
+  uint64_t lastDroppedSubmissionID;
+  uint64_t lastDrawableID;
+  uint64_t lastPresentedDrawableID;
+  uint64_t lastPresentedEngineFrameID;
+  uint64_t lastPresentedHostTickID;
+  uint64_t lastPresentedChainOrdinal;
+  double lastRequestedPresentationTime;
+  double lastActualPresentationTime;
   uint64_t textureUploads;  ///< `__pc-texture-upload-now` calls
   int32_t levelsLoaded;     ///< levels whose `.fr3` art is on the GPU
   int32_t levelFailures;    ///< levels the game asked for that would not load
   int32_t lastDrawCalls;
   int32_t lastTriangles;
+  int32_t mercModels;
+  int32_t mercDraws;
+  int32_t mercBoneVectors;
+  int32_t mercMissingBoneSlots;
+  int32_t mercModelsWithMissingBoneSlots;
+  uint64_t mercMissingBoneSlotsTotal;
+  uint64_t mercModelsWithMissingBoneSlotsTotal;
+  uint64_t lastMercMissingBoneEngineFrameID;
+  uint64_t lastMercMissingBoneHostTickID;
+  uint64_t lastMercMissingBoneChainOrdinal;
+  int32_t lastMercMissingBoneSlots;
+  int32_t lastMercModelsWithMissingBoneSlots;
+  int32_t mercNonfiniteBoneMatrices;
+  int32_t mercDegenerateBoneMatrices;
+  int32_t mercIncoherentBoneSources;
+  int32_t mercModelsWithPaletteHealthIssues;
+  uint64_t mercNonfiniteBoneMatricesTotal;
+  uint64_t mercDegenerateBoneMatricesTotal;
+  uint64_t mercIncoherentBoneSourcesTotal;
+  uint64_t mercModelsWithPaletteHealthIssuesTotal;
+  uint64_t lastMercPaletteHealthEngineFrameID;
+  uint64_t lastMercPaletteHealthHostTickID;
+  uint64_t lastMercPaletteHealthChainOrdinal;
+  uint8_t lastMercPaletteHealthIssueMask;
+  int32_t lastMercPaletteHealthBoneSlot;
+  uint64_t lastMercPaletteHealthModelNameHash;
+  uint64_t lastMercPaletteHealthMatrixHash;
+  double lastMercPaletteHealthAxisNormX;
+  double lastMercPaletteHealthAxisNormY;
+  double lastMercPaletteHealthAxisNormZ;
+  double lastMercPaletteHealthNormalizedAbsDeterminant;
+  uint32_t lastMercPaletteHealthSourceAddress;
+  uint64_t lastMercPaletteHealthSourceBase;
+  uint64_t lastMercPaletteHealthExpectedSourceBase;
+  uint64_t mercBadBonePointers;
+  uint64_t mercBadDrawRanges;
 } GOALPadRendererStats;
 
 /// The one presentation surface. The app's Metal view owns the layer and hands it here; the native
@@ -253,11 +341,12 @@ typedef struct GOALPadRendererStats {
 
 - (GOALPadSurfaceGeometry)geometry;
 
-/// Render and present one frame. NO when there is no layer, no device, or no drawable.
-- (BOOL)renderFrame;
+/// Arm the surface immediately before the GOAL frame so its DMA send can render synchronously.
+- (BOOL)beginFrameAtTime:(CFTimeInterval)presentationTime NS_SWIFT_NAME(beginFrame(at:));
 
-@property(nonatomic, readonly) uint64_t framesPresented;
-/// NO until the Metal renderer has been started, in which case `renderFrame` draws nothing.
+/// Close the armed frame and report whether its DMA chain scheduled a drawable.
+- (BOOL)endFrame;
+/// NO until the Metal renderer has been started, in which case frame arming draws nothing.
 @property(nonatomic, readonly, getter=isRendererLinked) BOOL rendererLinked;
 
 @property(nonatomic, readonly) GOALPadRendererStats stats;

@@ -53,27 +53,23 @@ as completing the overall goal.
 | Project milestone | Current state |
 | --- | --- |
 | Reproducible OpenGOAL ARM64 baseline | Implemented and verified |
-| Native Swift/Objective-C++/C++ iPad process | Experimental; simulator and signed physical launch verified |
-| Signed native ARM64 instruction probe | Experimental; this is handwritten C++, not GOAL |
-| Storage and Metal initialization | Experimental |
-| Controller, audio, and lifecycle integration | Planned |
-| User-owned Jak 1 import pipeline | Planned |
-| Compiler-produced ARM64 GOAL execution | Stage 2 implemented and verified on ARM64 macOS, simulator, and physical iPad |
-| OpenGOAL game frame or title screen | Planned |
-| Playable gameplay slice | Planned |
+| Native Swift/Objective-C++/C++ iPad process | Experimental; signed physical gameplay verified |
+| Signed native ARM64 execution | Implemented through linked AOT game code; physical runtime reports `PROT_EXEC=no` |
+| Storage and Metal initialization | Implemented; user-local data and physical Metal rendering verified |
+| Controller, audio, and lifecycle integration | Experimental; core paths run, physical controller and side-by-side media remain open |
+| User-owned Jak 1 import pipeline | Planned; current testing uses manually placed user-local data |
+| Compiler-produced ARM64 GOAL execution | Implemented for the current Jak 1 AOT set; seven native routines remain |
+| OpenGOAL game frame or title screen | Implemented and physically verified |
+| Playable gameplay slice | Experimental; sustained physical play reached Misty and Training |
 | Jak 1 completion track | Planned |
 
-The current application proves that Swift, Objective-C++, C++, real pinned
-OpenGOAL data-arena/invoker code, statically linked ARM64 code, logging,
-storage, and a Metal surface can coexist in an iPadOS process. The Stage 2
-compiler path also proves that the real top-level GOAL expression `42` can
-produce deterministic ARM64 assembly that is linked and signed with the app
-and executed through the X20/X21/X22 static-call boundary. Checkpoint 21 also
-executes the signed generated Jak 1 `load-state::reset!` method through the
-pinned production data-arena binding and typed ARM64 invoker on ARM64 macOS and
-the approved M5 simulator. The current arena state is still staged synthetic
-data. The app does not yet initialize a persistent general OpenGOAL runtime,
-load Jak data, or render the game.
+The current application initializes the real OpenGOAL Jak 1 kernel, loads
+user-local game data, runs linked AOT/native game code without executable arena
+pages, renders through the Metal backend, accepts controller/touch input, and
+plays audio. Signed physical-iPad runs reach sustained gameplay. Current
+blockers are visual correctness and remaining platform gaps, not the earlier
+synthetic arena or literal-instruction probes. `HANDOFF.md` Checkpoint 37 is the
+authoritative current evidence and next-task record.
 
 ## Required code and data pipelines
 
@@ -557,10 +553,14 @@ Required work:
 2. Initialize audio and handle interruptions and route changes.
 3. Preserve state across foregrounding, backgrounding, suspension, and memory
    pressure.
-4. Define app-controlled game-data, save, settings, cache, and log locations.
-5. Implement save and load operations with recoverable error handling.
-6. Establish frame timing and display lifecycle behavior.
-7. Narrow the application to documented iPadOS destinations or split
+4. Keep gameplay and game audio active when GOALPad remains visible beside
+   another iPad app, and allow outside music or video audio to play at the same
+   time. Validate the actual iPad multitasking lifecycle signals and audio-mix
+   policy rather than treating every loss of focus as true backgrounding.
+5. Define app-controlled game-data, save, settings, cache, and log locations.
+6. Implement save and load operations with recoverable error handling.
+7. Establish frame timing and display lifecycle behavior.
+8. Narrow the application to documented iPadOS destinations or split
    diagnostic targets deliberately, eliminating unsupported platform claims
    without hard-coding the runtime against later Mac or iPhone frontends.
 
@@ -778,47 +778,29 @@ Operating rules:
 
 ## Current checkpoint
 
-Stage 1 publication and fetchability are implemented. Stage 2 is complete.
-Stages 3, 4, and 5 remain active. The dedicated public fork
-`https://github.com/zschwendi/jak-pad.git`, published branch
-`goalpad/arm64-aot-0044`, parent gitlink, and clean detached submodule all
-resolve to `9eecb9c3193ed8cb5175c9199cecbe9cfd2baa42`.
-
-Checkpoint 21 directly compiles the pinned OpenGOAL data-arena and typed ARM64
-invoker sources in Xcode. Parent commit `0b413b9` executes the real signed
-generated `load-state::reset!` Export1 through the production lookup, exact
-trusted binding tuple, and typed ARM64 invoker in two guarded synthetic arenas.
-The corrected OpenGOAL test passed 10/10 focused ARM64 ABI cases; the parent
-host harness, ARM64 macOS build, approved M5 simulator runtime, and normally
-signed monolithic generic iOS Release build passed. The Release artifact is
-thin ARM64, has no writable/executable segment, app-root dynamic library,
-dynamic-loading/JIT import, or JIT entitlement, and passes strict signature
-verification. No physical iPad was accessed.
+Checkpoint 37 is the latest verified checkpoint. The signed physical build
+booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
+chains during the final run, reached Misty and Training, and exited cleanly.
+The maintainer nevertheless rejected it as a camera or visual-fidelity
+improvement: camera and world-depth fighting felt worse than Checkpoint 36,
+Merc deformation remained, and metallic materials developed a new flicker.
+The full build, diagnostic, signing, and physical evidence is recorded in
+`HANDOFF.md`; older checkpoint sections remain historical.
 
 The next actions are:
 
-1. Give GOALPad one C++-owned Jak 1 arena with explicit initialization, stable
-   lifetime, failure reporting, and teardown through
-   `jak1::initialize_data_arena_header`. Reuse the single arena serially to
-   avoid duplicating the 65,766,112-byte canonical allocation. Allocate staged
-   objects from the initialized heap current `0x17fd20`, reserve their complete
-   layouts, and advance the live heap record; the compact fixture offsets below
-   `HEAP_START` are not valid persistent allocations.
-2. Move the already verified trusted type/function/load-state metadata staging
-   into that owned session and repeat the existing typed reset invocation. Do
-   not bind desktop globals, call `InitHeapAndSymbol`, add the general linker,
-   or load game data in this checkpoint.
-3. Keep the host harness, affected OpenGOAL tests, ARM64 macOS build, approved
-   M5 simulator, and generic normally signed iOS Release lane healthy. Do not
-   return to compiler micro-proofs unless this integration exposes a concrete
-   compiler failure.
-4. After the persistent arena lifecycle is proven, audit the smallest real
-   bootstrap boundary needed before `load-state-want-levels`; keep general
-   symbol/type bootstrap, object linking, game data, renderer, and boot as
-   explicit later seams.
+1. Run a narrow camera A/B that restores Checkpoint 36's per-callback interval
+   rounding while retaining Checkpoint 37 diagnostics and holding its fixed-60
+   display-link range constant. Compare the same route and save where practical;
+   provenance-return incidence is not a visual score.
+2. Add a 28-bit non-finite lane mask and Jak-only consecutive-frame scale/aspect
+   tracking for `eichar-lod0` at the existing behavior-neutral Merc seam.
+3. Add deterministic Merc/TIE two-pass envmap blend, ordering, color, and depth
+   parity coverage before changing material behavior. Keep metallic flicker and
+   broader world-depth fighting separate until that evidence links them.
+4. Preserve the deterministic checks, ARM64 macOS build, approved M5 simulator,
+   generic signed iOS lane, and the current real-kernel/runtime path.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
-Physical Z iPad Pro validation is pending and must not be attempted unless the
-maintainer explicitly requests it in the current task.
-
-No proprietary game data is needed before Stage 8.
+Future physical **Z iPad Pro** access still requires explicit authorization in
+the current request. No proprietary game data belongs in source control or CI.

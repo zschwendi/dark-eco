@@ -186,8 +186,12 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
   return status;
 }
 
-+ (BOOL)runFrame {
-  return goalpad::run_frame() ? YES : NO;
++ (BOOL)runFrameAtPresentationTime:(CFTimeInterval)targetPresentationTime {
+  return goalpad::run_frame(targetPresentationTime) ? YES : NO;
+}
+
++ (void)resetFrameTiming {
+  goalpad::reset_frame_timing();
 }
 
 + (uint64_t)framesRun {

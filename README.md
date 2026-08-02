@@ -20,8 +20,8 @@ normally signed application. There is no JIT, no writable-executable memory, and
 no private entitlement anywhere in the build.
 
 - **Implemented — compiler.** An AOT backend emits C from the GOAL IR so clang
-  is the ARM64 code generator. **10,595 of Jak 1's 10,601 functions** compile
-  this way; the remaining handful are hand-written ARM64 (GOAL's cooperative
+  is the ARM64 code generator. **10,596 of Jak 1's 10,603 functions** compile
+  this way; the remaining seven are native routines (GOAL's cooperative
   thread, catch-frame and state-entry routines, which manipulate the machine
   stack directly). All 518 object files compile for `arm64-apple-ios`.
 - **Implemented — runtime.** The real OpenGOAL kernel initializes real heaps, a
@@ -35,12 +35,26 @@ no private entitlement anywhere in the build.
 - **Implemented — audio.** Upstream's 989snd sequencer and sound banks, driven
   through the real sound RPC, with a host-supplied output seam (CoreAudio on
   macOS, AVAudioEngine on iPadOS).
-- **Implemented — input.** A narrow pad seam with no windowing dependency. A
-  DualSense over SDL on macOS, GameController plus on-screen touch controls on
-  iPadOS.
-- **Experimental — iPad.** The game boots, renders and plays on the iPad
-  simulator at 60 fps. **The physical device gate is still open**: nothing here
-  is evidence of behaviour on real iPadOS hardware.
+- **Implemented — controller input; Experimental — touch input.** A narrow pad
+  seam with no windowing dependency. A DualSense uses SDL on macOS;
+  GameController and the on-screen controls merge into one pad on iPadOS. The
+  touch layout uses a stationary movement stick, retained face-button
+  taps/swipes without free camera dragging, an explicit octant-snapped C-stick,
+  and a held Roll/L1 control whose upward drag adds Cross. The deterministic
+  host check and macOS/iOS builds pass, and the named M5 simulator launches.
+  Physical multitouch ergonomics remain unvalidated. Diagnostics and
+  resolution controls remain hidden behind the three-line menu button.
+- **Experimental — iPad.** Jak 1 boots, renders, and plays on physical iPad. A
+  forced fixed-step camera experiment was rejected on hardware and removed;
+  current source instead requests fixed 60 Hz callbacks and accumulates
+  fractional frame debt from display-target timestamps. Deterministic checks,
+  the named M5 simulator, signed
+  physical launch, and real kernel/audio boot path pass. The Checkpoint 37 run
+  reached the farthest gameplay yet, but was physically rejected: camera and
+  depth fighting felt worse than Checkpoint 36, Merc deformation remained, and
+  metallic materials gained a new flicker. The physical build retains the iOS
+  MIPS2C bones compatibility path and Jak 1's homogeneous-W parity correction,
+  but neither is presented as a complete deformation fix.
 - **Planned.** Level streaming without frame stalls, streamed cutscene audio,
   the remaining fidelity renderers (TIE wind, depth cue, sprite distort/glow),
   and visionOS presentation.

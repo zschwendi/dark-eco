@@ -15,7 +15,7 @@ import AppKit
 /// once per refresh.
 struct GameSurfaceView: View {
     /// Called once per display refresh, on the main thread.
-    let onFrame: () -> Void
+    let onFrame: (CFTimeInterval) -> Void
 
     var body: some View {
         SurfaceRepresentable(onFrame: onFrame)
@@ -27,7 +27,7 @@ struct GameSurfaceView: View {
 #if canImport(UIKit)
 
 private final class MetalHostView: UIView {
-    var onFrame: (() -> Void)?
+    var onFrame: ((CFTimeInterval) -> Void)?
     private var frameLink: CADisplayLink?
 
     override class var layerClass: AnyClass { CAMetalLayer.self }
@@ -60,9 +60,9 @@ private final class MetalHostView: UIView {
 
     private func startDisplayLink() {
         guard frameLink == nil else { return }
-        let link = CADisplayLink(target: self, selector: #selector(step))
+        let link = CADisplayLink(target: self, selector: #selector(step(_:)))
         // The game runs at 60 Hz; letting a ProMotion display ask for 120 would only spend power.
-        link.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 60, preferred: 60)
+        link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 60, preferred: 60)
         link.add(to: .main, forMode: .common)
         frameLink = link
     }
@@ -72,13 +72,13 @@ private final class MetalHostView: UIView {
         frameLink = nil
     }
 
-    @objc private func step() {
-        onFrame?()
+    @objc private func step(_ link: CADisplayLink) {
+        onFrame?(link.targetTimestamp)
     }
 }
 
 private struct SurfaceRepresentable: UIViewRepresentable {
-    let onFrame: () -> Void
+    let onFrame: (CFTimeInterval) -> Void
 
     func makeUIView(context: Context) -> UIView {
         let view = MetalHostView()
@@ -97,7 +97,7 @@ private struct SurfaceRepresentable: UIViewRepresentable {
 /// macOS is a compile-and-link target for this app, not a supported platform. The surface works so
 /// the shared code can be built and stepped through on the host.
 private final class MetalHostView: NSView {
-    var onFrame: (() -> Void)?
+    var onFrame: ((CFTimeInterval) -> Void)?
     private var frameLink: CADisplayLink?
 
     override func makeBackingLayer() -> CALayer { CAMetalLayer() }
@@ -119,7 +119,7 @@ private final class MetalHostView: NSView {
         }
         updateDrawableSize()
         if frameLink == nil {
-            let link = displayLink(target: self, selector: #selector(step))
+            let link = displayLink(target: self, selector: #selector(step(_:)))
             link.add(to: .main, forMode: .common)
             frameLink = link
         }
@@ -136,13 +136,13 @@ private final class MetalHostView: NSView {
             CGSize(width: bounds.width * scale, height: bounds.height * scale))
     }
 
-    @objc private func step() {
-        onFrame?()
+    @objc private func step(_ link: CADisplayLink) {
+        onFrame?(link.targetTimestamp)
     }
 }
 
 private struct SurfaceRepresentable: NSViewRepresentable {
-    let onFrame: () -> Void
+    let onFrame: (CFTimeInterval) -> Void
 
     func makeNSView(context: Context) -> NSView {
         let view = MetalHostView()
