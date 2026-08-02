@@ -35,6 +35,14 @@ as completing the overall goal.
   jailbreak.
 - Retail game files remain user-supplied data and never enter the repository,
   CI artifacts, or hosted services.
+- The preferred public distribution path is TestFlight followed by the App
+  Store, while source and supported sideloading remain first-class. Storefront
+  and first-run presentation use original neutral GOALPad branding and calm
+  **compatible user-supplied data** language rather than franchise marketing;
+  technical documentation and App Review notes remain precise and transparent.
+- GitHub, TestFlight, and App Store archives fail closed unless the complete
+  expected AOT manifest is linked. The development shell without generated
+  game code is never a publishable artifact.
 - Jak 1 is the only active game implementation scope until its platform
   foundation is stable.
 - Keep game simulation separate from rendering and presentation. iPadOS is the
@@ -778,12 +786,16 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 37 is the latest verified checkpoint. The signed physical build
+Checkpoint 39 is the latest verified checkpoint. Checkpoint 37 remains the
+latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
 The maintainer nevertheless rejected it as a camera or visual-fidelity
 improvement: camera and world-depth fighting felt worse than Checkpoint 36,
 Merc deformation remained, and metallic materials developed a new flicker.
+Checkpoint 38 records the original app icon. Checkpoint 39 records the neutral
+App Store distribution direction, fail-closed release-AOT requirement, and a
+physical iPhone launch of the same complete-AOT binary without user game data.
 The full build, diagnostic, signing, and physical evidence is recorded in
 `HANDOFF.md`; older checkpoint sections remain historical.
 

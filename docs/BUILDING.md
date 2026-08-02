@@ -59,7 +59,24 @@ to exist; everything in it except `README.md` is ignored by Git.
 A build without it still succeeds and still brings the kernel up. It reports
 `Jak 1 GOAL code: not in this build` on screen and refuses to start a session,
 rather than pretending to boot - see `GOALPAD_HAVE_GAME_BOOT` in
-`GOALPad/Native/GOALPadEngineSeams.h`.
+`GOALPad/Native/GOALPadEngineSeams.h`. That shell is a development convenience,
+not a distributable product. GitHub, TestFlight, and App Store archives must
+fail before Xcode builds when this generated output is absent or incomplete.
+
+For the current pinned Jak 1 source, the release preflight is:
+
+```sh
+test -f Generated/jak1-aot/aot_boot_manifest.c
+test "$(find Generated/jak1-aot -maxdepth 1 -type f -name '*.c' | wc -l | tr -d ' ')" = 519
+rg -q 'const int goal_aot_boot_file_count = 518;' \
+  Generated/jak1-aot/aot_boot_manifest.c
+```
+
+The 519 C files are 518 generated object translations plus the manifest. A pin
+that deliberately changes the supported build graph may change these numbers,
+but updating the expected count must be an explicit reviewed release change.
+Release automation must run `Scripts/generate-jak1-aot.sh`, run this preflight,
+and then archive; it must not silently publish the buildable shell.
 
 Two target build settings are not optional:
 

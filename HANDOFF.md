@@ -7116,3 +7116,78 @@ warnings and the AppIntents metadata-skipped warning remain.
 No simulator or physical device was accessed for this icon checkpoint. Actual
 Home Screen/Dock appearance and dedicated dark/tinted variants remain
 unvalidated.
+
+# Checkpoint 39: distribution direction and iPhone shell launch
+
+## Distribution direction
+
+The maintainer selected App Store distribution as the preferred end-user path
+so family and other users can install GOALPad without Xcode. Public presentation
+should use original GOALPad branding and calm, neutral language such as **Add
+compatible game data** rather than franchise-led marketing. Store metadata,
+icons, screenshots, preview media, and first-run setup should not use supported
+game names, characters, official artwork, logos, or recognizable franchise
+symbols. Technical contributor documentation and App Review notes remain
+precise and transparent; neutral product language is not concealment.
+
+The executable/data boundary does not change. A public binary contains the
+complete OpenGOAL/GOAL workload compiled ahead of time into the normally signed
+application, but no retail game data. Each user supplies compatible prepared
+data locally. App Store availability remains planned rather than approved and
+requires separate licensing, intellectual-property, and App Review assessment.
+
+`docs/PROJECT_OVERVIEW.md`, `ROADMAP.md`, and `docs/BUILDING.md` now require
+GitHub, TestFlight, and App Store archives to fail closed when the expected AOT
+manifest is absent or incomplete. At the current pin the preflight requires 519
+generated C files: 518 AOT object translations plus `aot_boot_manifest.c`, whose
+`goal_aot_boot_file_count` is 518. The buildable shell without those files is an
+explicit development convenience, not a publishable artifact. Documentation is
+now clear, but build-phase/CI enforcement remains follow-up implementation.
+
+The documented preflight passed in the primary worktree:
+
+```sh
+test -f Generated/jak1-aot/aot_boot_manifest.c
+test "$(find Generated/jak1-aot -maxdepth 1 -type f -name '*.c' | wc -l | tr -d ' ')" = 519
+rg -q 'const int goal_aot_boot_file_count = 518;' \
+  Generated/jak1-aot/aot_boot_manifest.c
+```
+
+## Physical iPhone launch
+
+The exact complete-AOT Release artifact built from parent
+`ef0bed9774a725d6ea9261d5eed9f35dcbcc3841` and OpenGOAL
+`9f774b31232d7f642378ef13ef0ec7f75a46a357` was reused. Its thin arm64
+executable SHA-256 is:
+
+```text
+7dc3c1587de9445756246908c8e8fb3ac2dc6be3d5842512f7a96b6ac30e9e12
+```
+
+The binary contains `_goal_aot_boot_files` and `_goal_aot_boot_file_count`. It
+had already passed the full signed Release build and physically booted the real
+kernel, `KERNEL.CGO`, `GAME.CGO`, title, Village 1, Metal, and 48 kHz audio on Z
+iPad Pro.
+
+CoreDevice resolved **Z iPhone Air** as connected, model `iPhone18,4`, identifier
+`C0CAC382-DF64-5728-998E-A51F86A94E61`. The same app was installed without an
+uninstall and launched successfully by bundle identifier:
+
+```sh
+xcrun devicectl device install app \
+  --device C0CAC382-DF64-5728-998E-A51F86A94E61 \
+  /private/tmp/GOALPad-cp38-aot-device.aOxKzE/Build/Products/Release-iphoneos/GOALPad.app
+
+xcrun devicectl device process launch \
+  --device C0CAC382-DF64-5728-998E-A51F86A94E61 \
+  --terminate-existing --console com.zephyrstudiosllc.GOALPad
+```
+
+Installation and process launch passed. No retail data was copied or inspected.
+iOS app containers are device-local, so the iPad's `Documents/Jak1` directory
+does not accompany an app installation on iPhone. The phone correctly requires
+its own user-directed compatible-data import. iPhone gameplay, Metal output,
+audio, touch ergonomics, safe areas, lifecycle, memory behavior, and sustained
+runtime remain unvalidated until that import is complete and the maintainer
+performs a physical play pass. Landscape is the first recommended layout; the
+current fixed touch geometry is expected to overlap in iPhone portrait.

@@ -127,7 +127,7 @@ This project is not:
 - A full rewrite of OpenGOAL in Swift.
 - A repository for ROMs, ISOs, extracted game files, textures, models, audio, dialogue, cinematics, keys, or proprietary SDK material.
 - An attempt to bypass ownership verification or copyright protection.
-- Initially an App Store product.
+- An App Store-only project; source builds and user-controlled data workflows remain first-class.
 - A promise to support every revision, region, mod, iPad, or controller immediately.
 - A reason to destabilize working OpenGOAL behavior merely to make the code look more “Apple-native.”
 
@@ -341,25 +341,67 @@ Modding must not block initial game boot.
 
 ## Distribution strategy
 
-### Initial distribution
+### Preferred public distribution
 
-The first public releases should prioritize:
+The maintainer's preferred end-user path is an App Store release so family and
+other users can install the native application without Xcode. TestFlight is the
+natural pre-release lane. Source code, reproducible Xcode builds, personal
+signing, and supported sideloading remain important project outputs rather than
+fallbacks to delete after a store release.
+
+App Store availability is a direction, not a current approval claim. Public
+binary distribution still requires a separate license, intellectual-property,
+and App Review assessment. This project policy documents the technical content
+boundary and does not make a legal guarantee.
+
+### Public product identity
+
+Public-facing product surfaces should use the original GOALPad identity and a
+calm, platform-oriented voice. The App Store name, subtitle, icon, screenshots,
+preview media, and first-run setup should not market the application with a
+supported game's name, characters, official artwork, logos, or recognizable
+franchise symbols. Prefer concise language such as **Add compatible game
+data**, **Choose a prepared game folder**, and **No compatible data found**.
+Do not turn setup into a loud franchise prompt.
+
+Neutral branding is not concealment. Technical documentation may name the
+currently supported game where precision, attribution, compatibility, or
+contributor work requires it, and App Review notes must accurately explain the
+application's core behavior. The app must not imply affiliation or endorsement.
+
+### Store-safe technical boundary
+
+The intended distribution package contains the open-source native runtime and
+the complete supported GOAL workload compiled ahead of time into the normally
+signed application. It contains no retail game data. Users provide compatible
+prepared data locally; the app neither downloads it nor treats it as executable
+code. Data-only mods may follow the same boundary. Executable-code mods require
+a separate architecture and distribution review.
+
+Every GitHub, TestFlight, and App Store archive must fail closed if its expected
+AOT manifest is absent or incomplete. At the current Jak 1 pin, a distributable
+build contains all 518 AOT object entries. A shell that reports that game code
+is missing is useful only as an explicitly labeled development build and must
+never be published as an end-user release.
+
+### Required release outputs
+
+Public release work should preserve:
 
 - Source code.
 - Reproducible Xcode build instructions.
 - A macOS import/preparation tool.
 - User-owned game data.
 - Personal signing or supported sideloading workflows.
+- A complete, normally signed AOT application with no retail data in its bundle.
 
-### Deferred distribution decisions
+### Deferred distribution services
 
 Do not promise any of the following until technical and legal review is complete:
 
-- App Store distribution.
-- TestFlight distribution.
-- A prebuilt IPA containing prepared game code.
 - Automatic cloud import or conversion.
 - A hosted game-data conversion service.
+- Executable-code mod delivery.
 
 The open-source repository can be public before the end-user installation process is polished.
 
