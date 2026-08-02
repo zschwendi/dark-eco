@@ -46,6 +46,78 @@ subsequently verify its recorded identity unless its writer or embedded graph
 changes. At a physical visual A/B gate, stop speculative renderer work unless a
 deterministic hypothesis and test can distinguish the next change.
 
+### Raw-ISO importer Xcode products
+
+**Implemented — build plumbing, not target wiring.** The permanent Xcode target
+can build the flattened Apple importer archive from an existing verified
+518-object source pack without generating another pack:
+
+```sh
+Scripts/build-jak1-import-composer-apple.sh \
+  --opengoal-root "$PWD/OpenGOAL" \
+  --source-pack "$GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT" \
+  --derived-root "$GOALPAD_JAK1_IMPORT_BUILD_ROOT" \
+  --platform "$PLATFORM_NAME"
+```
+
+The deterministic outputs are:
+
+```text
+<derived-root>/<platform>/jak1-import-composer-apple/libjak1-import-composer-apple.a
+<derived-root>/macosx/jak1-source-object-pack-verify             # macosx
+<derived-root>/macosx-host/jak1-source-object-pack-verify        # iOS/simulator
+```
+
+The build fails before the cross-platform archive build if the existing source
+pack does not match the recorded 518-object identity. The supported archive
+platforms are `macosx`, `iphoneos`, `iphonesimulator`, `xros`, and
+`xrsimulator`, all ARM64. VisionOS uses CMake's `visionOS` system name and a
+static try-compile with the matching SDK. Its compile/link proof passes, but raw
+ISO import has not run on Vision Pro hardware or the visionOS simulator; target
+wiring may enable the compiled importer macro without treating that as runtime
+evidence. Ccache is used when available, defaults to a bounded cache below the
+derived root, and is not required.
+
+Archive production and resource staging are separate because the archive must
+exist before Xcode links while the final resource directory must already exist
+before publication. A later resource phase invokes:
+
+```sh
+Scripts/stage-jak1-import-composer-resources.sh \
+  --opengoal-root "$PWD/OpenGOAL" \
+  --source-pack "$GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT" \
+  --derived-root "$GOALPAD_JAK1_IMPORT_BUILD_ROOT" \
+  --platform "$PLATFORM_NAME" \
+  --resources-destination "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH"
+```
+
+Both phases keep retail data and generated source-object packs outside the
+repository. The resource phase reuses the atomic checked stager and revalidates
+both its source and published copy.
+
+The future target wiring should consume these build settings without adding a
+machine path to the project file:
+
+```text
+GOALPAD_OPENGOAL_ROOT = $(SRCROOT)/OpenGOAL
+GOALPAD_JAK1_IMPORT_BUILD_ROOT = $(DERIVED_FILE_DIR)/Jak1ImportComposer
+GOALPAD_JAK1_IMPORT_ARCHIVE = $(GOALPAD_JAK1_IMPORT_BUILD_ROOT)/$(PLATFORM_NAME)/jak1-import-composer-apple/libjak1-import-composer-apple.a
+GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT = <absolute developer or CI setting>
+OTHER_LDFLAGS = $(inherited) "$(GOALPAD_JAK1_IMPORT_ARCHIVE)"
+```
+
+Set `GOALPAD_JAK1_IMPORT_DEPLOYMENT_TARGET` from
+`MACOSX_DEPLOYMENT_TARGET` for macOS and `IPHONEOS_DEPLOYMENT_TARGET` for
+iPhoneOS and its simulator, or `XROS_DEPLOYMENT_TARGET` for visionOS and its
+simulator. Put the archive script before compilation/linking and the resource
+script after Copy Bundle Resources. For Xcode user-script sandboxing, declare
+the script, `OpenGOAL` source directory, and external source pack directory as
+inputs; declare the derived importer build root and flattened archive as
+outputs. The later phase additionally reads both stager scripts and writes
+`OpenGOALProjectResources` and `Jak1SourceObjectPack` below the target's
+unlocalized resource directory. Let both phases run each build; their CMake and
+atomic staging operations are incremental and revalidate mutable external input.
+
 ## Initialize OpenGOAL
 
 ```sh
