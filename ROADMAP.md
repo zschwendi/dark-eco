@@ -790,7 +790,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 41 is the latest verified checkpoint. Checkpoint 37 remains the
+Checkpoint 42 is the latest verified checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -804,6 +804,9 @@ Checkpoint 40 adds the standard-window visionOS port, simulator launch, and
 physical-headset installation; physical launch is pending one-time developer
 trust on the headset. Checkpoint 41 explains the currently dimmed raw ISO and
 records the staged on-device OpenGOAL preparation direction.
+Checkpoint 42 adds the tested local-first iCloud save engine and Settings UI;
+capability wiring remains isolated because the current Personal Team cannot
+provision iCloud and the paid team needs a distinct bundle identifier.
 The full build, diagnostic, signing, and physical evidence is recorded in
 `HANDOFF.md`; older checkpoint sections remain historical.
 
@@ -820,6 +823,9 @@ The next actions are:
    broader world-depth fighting separate until that evidence links them.
 4. Preserve the deterministic checks, ARM64 macOS build, approved M5 simulator,
    generic signed iOS lane, and the current real-kernel/runtime path.
+5. Select the paid-team bundle identifier, refresh the Zephyr Studios LLC Xcode
+   account, provision its iCloud Documents container, integrate isolated commit
+   `63808058`, then run signed and real two-device save migration/conflict tests.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
 Future physical **Z iPad Pro** access still requires explicit authorization in

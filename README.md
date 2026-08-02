@@ -115,9 +115,11 @@ iCloud Documents container; the runtime never plays from iCloud paths. When the
 two copies diverge, GOALPad leaves both originals in place, archives both
 versions, and reports the conflict in Settings.
 
-The app target uses Apple's standard iCloud Documents capability for this
-mirror. A signing team must provision the app identifier and its default iCloud
-container; no CloudKit database or private entitlement is used.
+The mirror is implemented with Apple's standard iCloud Documents entitlements;
+no CloudKit database or private entitlement is used. Capability wiring remains
+disabled in the canonical project until an iCloud-capable paid team provisions
+a unique app identifier and container, so current Personal Team builds report
+iCloud as unavailable and continue using local saves.
 
 ## Content policy
 

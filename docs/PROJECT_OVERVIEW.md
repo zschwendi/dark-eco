@@ -340,6 +340,23 @@ and cancellation, an internal staging directory, and an atomic final install.
 It must preserve the existing prepared-folder path and desktop-compatible
 output rather than introducing a GOALPad-only data format.
 
+### Save storage and synchronization
+
+**Implemented:** Gameplay saves remain in OpenGOAL's existing local
+`Application Support/OpenGOAL/jak1/saves` directory. The Apple host has a
+local-first actor that can mirror stable snapshots to a private iCloud
+Documents container, synchronize at launch and after completed saves, preserve
+divergent copies, and surface state and conflicts in Settings. State files and
+conflict archives remain outside the gameplay save directory, preserving raw
+desktop OpenGOAL memcard compatibility.
+
+**Experimental:** The canonical project does not yet enable the iCloud target
+capability. Its current Personal Team profile cannot provision iCloud, and the
+same bundle identifier is unavailable on the installed Zephyr Studios LLC
+team. Enabling the prepared capability wiring requires a maintainer-selected
+unique bundle identifier, the paid team, its iCloud container, renewed Xcode
+credentials, signed builds, and a real two-device conflict/migration pass.
+
 ## Modding policy
 
 Mod support is a core long-term goal, but it must build on OpenGOAL compatibility rather than inventing an unrelated ecosystem.

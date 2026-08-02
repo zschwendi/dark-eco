@@ -7290,3 +7290,120 @@ xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
 
 Both commands returned exit 0. Existing generated/OpenGOAL conversion warnings
 remain. No game data was copied, read, or modified for this audit or validation.
+
+# Checkpoint 42: local-first iCloud save engine and provisioning gate
+
+Commit `3bd3abd3` adds the save-sync implementation, Settings UI, deterministic
+tests, documentation, and the canonical iCloud Documents entitlements file.
+The isolated worker source commit was `8f9f37dc`; it was reviewed and
+cherry-picked onto the primary branch. The seven-line target capability wiring
+remains isolated as `63808058` and is intentionally not present on the primary
+branch because enabling it currently breaks signed-device builds.
+
+Gameplay continues to use OpenGOAL's existing desktop-compatible local root:
+
+```text
+Library/Application Support/OpenGOAL/jak1/saves
+```
+
+The runtime never receives an iCloud path. When the capability is provisioned,
+an actor mirrors stable file snapshots under the app's private ubiquity
+container at `Documents/OpenGOAL/jak1/saves`. The merge state and local conflict
+archive live separately under `Application Support/GOALPad`; the cloud conflict
+archive also lives outside the canonical save mirror. This keeps raw paths such
+as `BASCUS-97124AYBABTU!/bank0.bin` compatible with desktop OpenGOAL.
+
+The engine synchronizes unconditionally at launch, on foreground/manual sync,
+and after a coalesced completed-frame check detects a local save change. Native
+memcard writes are synchronous and close before `runFrame` returns. File size
+and modification dates are the cheap change trigger; SHA-256 is the merge and
+conflict identity. A stored baseline distinguishes one-sided edits from true
+divergence. Initial or two-sided divergence leaves both canonical copies
+untouched, archives both versions with full hashes, and surfaces the file list
+in Settings. Switching iCloud identities invalidates the old baseline. Missing
+files are restored from the surviving side rather than propagating deletion.
+
+All iCloud setup and file work runs off the main actor. Local files must produce
+the same bytes and metadata across a settling interval before upload. Evicted
+ubiquitous files are requested and awaited until their download status is
+current before hashing. The engine records the exact local snapshots that were
+merged, so a later save completed during cloud work remains detectable on the
+next frame. Turning the Settings toggle off cancels a pending delayed scan and
+prevents its result from replacing the disabled state. If iCloud identity or
+the ubiquity URL is unavailable, gameplay remains local and Settings reports
+that iCloud is unavailable.
+
+The private mirror uses only these standard entitlements:
+
+```text
+com.apple.developer.icloud-container-identifiers =
+  iCloud.com.zephyrstudiosllc.GOALPad
+com.apple.developer.ubiquity-container-identifiers =
+  iCloud.com.zephyrstudiosllc.GOALPad
+com.apple.developer.icloud-services = CloudDocuments
+```
+
+`NSUbiquitousContainers` is intentionally absent. It controls iCloud Drive
+presentation/sharing and public document scope defaults to false; this mirror
+is private app state, not a user-managed Drive folder.
+
+Deterministic synthetic validation passed:
+
+```sh
+Scripts/run-save-sync-check.sh
+```
+
+The suite covers iCloud unavailability, local-only upload, cloud-only download,
+known one-sided changes, initial and two-sided conflicts, preserving both
+archives, missing-side restoration, iCloud identity changes, a file changing
+during its stable snapshot, and a second save completed after the first snapshot
+but before cloud work finished.
+
+Exact-primary unsigned builds also passed:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-iso-ux-ios -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO build
+
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'generic/platform=visionOS' \
+  -derivedDataPath /private/tmp/GOALPad-iso-ux-vision -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO build
+
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-icon-macos -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO build
+```
+
+All three returned exit 0. Existing OpenGOAL conversion warnings remain.
+
+Signed capability validation is blocked by product identity, not source
+compilation. With the project's current `D2YYJ54Q6V` Personal Team, Xcode
+reports that personal teams do not support iCloud and that the wildcard profile
+lacks the iCloud capability, container, and three entitlements. A valid Zephyr
+Studios LLC Apple Development identity for paid team `V729QMY3V6` is installed,
+but a generic build override for that team failed with:
+
+```text
+The app identifier "com.zephyrstudiosllc.GOALPad" cannot be registered to your
+development team because it is not available.
+```
+
+It also reported the missing iCloud container/profile entitlements and a stale
+Xcode account credential with `missing Xcode-Token`. The existing bundle ID is
+therefore tied to the Personal Team and cannot simply be reused on the company
+team. The maintainer must choose a new paid-team bundle identifier before the
+capability commit can be integrated. Changing team/application identity may
+prevent an in-place update of current development installs, so preserve or
+export the iPad's existing local saves before any device migration.
+
+Real iCloud transfer, evicted-file behavior, actual conflict presentation,
+iPad-to-iPhone migration, physical devices, and a signed iCloud-capable build
+remain unvalidated. The next executable task is to select the paid-team bundle
+identifier and refresh the Zephyr Studios LLC Xcode account, then provision the
+container, integrate `63808058`, build signed artifacts, and test two devices
+with user-owned saves. OpenGOAL remains clean at
+`9f774b31232d7f642378ef13ef0ec7f75a46a357`.
