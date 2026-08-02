@@ -1,0 +1,170 @@
+import Foundation
+import ImageIO
+import Observation
+
+nonisolated enum GameLibraryTitle: String, CaseIterable, Identifiable, Sendable {
+    case jak1
+    case jak2
+    case jak3
+    case jakX
+
+    var id: String { rawValue }
+
+    var name: String {
+        switch self {
+        case .jak1: "Jak and Daxter: The Precursor Legacy"
+        case .jak2: "Jak II"
+        case .jak3: "Jak 3"
+        case .jakX: "Jak X: Combat Racing"
+        }
+    }
+
+    var fallbackMark: String {
+        switch self {
+        case .jak1: "I"
+        case .jak2: "II"
+        case .jak3: "III"
+        case .jakX: "X"
+        }
+    }
+}
+
+nonisolated enum GameLibraryState: Equatable {
+    case notImported
+    case preparing(Double?)
+    case ready
+    case needsAttention
+    case planned
+}
+
+nonisolated enum GameArtworkStorage {
+    static let maximumFileBytes: Int = 25 * 1_024 * 1_024
+    static let maximumPixelCount: Int = 50_000_000
+
+    static var directory: URL {
+        let support = (try? FileManager.default.url(for: .applicationSupportDirectory,
+                                                    in: .userDomainMask,
+                                                    appropriateFor: nil,
+                                                    create: true))
+            ?? URL(fileURLWithPath: NSHomeDirectory())
+                .appending(path: "Library/Application Support", directoryHint: .isDirectory)
+        return support.appending(path: "GOALPad/Artwork", directoryHint: .isDirectory)
+    }
+
+    static func artworkURL(for title: GameLibraryTitle) -> URL {
+        directory.appending(path: "\(title.rawValue).artwork", directoryHint: .notDirectory)
+    }
+
+    nonisolated static func importArtwork(from source: URL, for title: GameLibraryTitle) throws {
+        let accessed = source.startAccessingSecurityScopedResource()
+        defer { if accessed { source.stopAccessingSecurityScopedResource() } }
+
+        let keys: Set<URLResourceKey> = [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey]
+        let values = try source.resourceValues(forKeys: keys)
+        guard values.isRegularFile == true, values.isSymbolicLink != true else {
+            throw ArtworkError.invalidFile
+        }
+        guard let fileSize = values.fileSize, fileSize > 0, fileSize <= maximumFileBytes else {
+            throw ArtworkError.fileTooLarge
+        }
+
+        let manager = FileManager.default
+        try manager.createDirectory(at: directory, withIntermediateDirectories: true)
+        let staging = directory.appending(
+            path: ".\(title.rawValue)-\(UUID().uuidString).staging",
+            directoryHint: .notDirectory
+        )
+        defer { try? manager.removeItem(at: staging) }
+
+        try manager.copyItem(at: source, to: staging)
+        try validateImage(at: staging)
+
+        let destination = artworkURL(for: title)
+        if manager.fileExists(atPath: destination.path) {
+            _ = try manager.replaceItemAt(destination, withItemAt: staging)
+        } else {
+            try manager.moveItem(at: staging, to: destination)
+        }
+    }
+
+    nonisolated static func removeArtwork(for title: GameLibraryTitle) throws {
+        let destination = artworkURL(for: title)
+        guard FileManager.default.fileExists(atPath: destination.path) else { return }
+        try FileManager.default.removeItem(at: destination)
+    }
+
+    nonisolated static func thumbnail(at url: URL) -> CGImage? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        let options = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: 1_600,
+        ] as CFDictionary
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options)
+    }
+
+    nonisolated private static func validateImage(at url: URL) throws {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              CGImageSourceGetCount(source) > 0,
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil)
+                as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? Int,
+              let height = properties[kCGImagePropertyPixelHeight] as? Int,
+              width > 0, height > 0,
+              width <= maximumPixelCount / height,
+              width * height <= maximumPixelCount,
+              thumbnail(at: url) != nil
+        else {
+            throw ArtworkError.invalidImage
+        }
+    }
+}
+
+nonisolated enum ArtworkError: LocalizedError {
+    case invalidFile
+    case fileTooLarge
+    case invalidImage
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidFile:
+            "Choose a regular image file."
+        case .fileTooLarge:
+            "Artwork must be no larger than 25 MB."
+        case .invalidImage:
+            "Eco Pro could not read that image, or its dimensions are too large."
+        }
+    }
+}
+
+@MainActor
+@Observable
+final class GameArtworkStore {
+    private(set) var revision = 0
+    var errorMessage: String?
+
+    func artworkURL(for title: GameLibraryTitle) -> URL? {
+        let url = GameArtworkStorage.artworkURL(for: title)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    func importArtwork(from source: URL, for title: GameLibraryTitle) async {
+        do {
+            try await Task.detached(priority: .userInitiated) {
+                try GameArtworkStorage.importArtwork(from: source, for: title)
+            }.value
+            revision &+= 1
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func removeArtwork(for title: GameLibraryTitle) {
+        do {
+            try GameArtworkStorage.removeArtwork(for: title)
+            revision &+= 1
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}

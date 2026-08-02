@@ -78,10 +78,6 @@ final class GameSession {
         try? GameDataLayout.prepare()
         await saveSync.prepare()
         await refreshDataReport()
-        // Data that can boot means there is nothing to set up, so go straight to the game.
-        if dataReport.canBoot {
-            start()
-        }
     }
 
     func refreshDataReport() async {

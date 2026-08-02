@@ -1,8 +1,15 @@
 import SwiftUI
 
 struct ContentView: View {
+    private enum LauncherDestination {
+        case library
+        case gameSetup
+    }
+
     @Environment(\.scenePhase) private var scenePhase
     @State private var session = GameSession()
+    @State private var artworkStore = GameArtworkStore()
+    @State private var launcherDestination = LauncherDestination.library
     @State private var showDiagnostics = false
     @State private var showSettings = false
 
@@ -23,26 +30,55 @@ struct ContentView: View {
             } else if session.isBooting {
                 BootingView()
             } else {
-                GameDataSetupView(session: session)
+                switch launcherDestination {
+                case .library:
+                    GameLibraryView(
+                        session: session,
+                        artworkStore: artworkStore,
+                        importGame: { launcherDestination = .gameSetup },
+                        openSettings: { showSettings = true }
+                    )
+                case .gameSetup:
+                    NavigationStack {
+                        GameDataSetupView(session: session)
+                            .navigationTitle("Game Setup")
+                            .toolbar {
+                                ToolbarItem(placement: .cancellationAction) {
+                                    Button {
+                                        launcherDestination = .library
+                                    } label: {
+                                        Label("Library", systemImage: "chevron.left")
+                                    }
+                                }
+                                ToolbarItem(placement: .primaryAction) {
+                                    Button { showSettings = true } label: {
+                                        Image(systemName: "gearshape")
+                                    }
+                                    .accessibilityLabel("Settings")
+                                }
+                            }
+                    }
+                    .preferredColorScheme(.dark)
+                }
             }
 
-            HStack {
-                if session.isRunning {
+            if session.isRunning {
+                HStack {
                     Button { showDiagnostics.toggle() } label: {
                         Image(systemName: "line.3.horizontal")
                             .frame(minWidth: 24, minHeight: 24)
                     }
                     .accessibilityLabel(showDiagnostics ? "Hide diagnostics" : "Show diagnostics")
+                    Button { showSettings = true } label: {
+                        Image(systemName: "gearshape")
+                            .frame(minWidth: 24, minHeight: 24)
+                    }
+                    .accessibilityLabel("Settings")
                 }
-                Button { showSettings = true } label: {
-                    Image(systemName: "gearshape")
-                        .frame(minWidth: 24, minHeight: 24)
-                }
-                .accessibilityLabel("Settings")
+                .buttonStyle(.bordered)
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
-            .buttonStyle(.bordered)
-            .padding()
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
 
             if !session.saveSync.conflictFiles.isEmpty {
                 Button { showSettings = true } label: {
