@@ -185,6 +185,35 @@ private struct DiagnosticsOverlay: View {
         }
     }
 
+    private func mercTransformIdentity(_ event: GOALPadMercTransformEvent) -> String {
+        guard event.issueMask != 0 else { return "-" }
+        return "issue/slot \(event.issueMask)/\(event.boneSlot), frames "
+            + "\(event.previousFrameID)->\(event.currentFrameID), tick/chain "
+            + "\(event.hostTickID)/\(event.chainOrdinal), model "
+            + String(event.modelNameHash, radix: 16) + ", matrices "
+            + String(event.previousMatrixHash, radix: 16) + "->"
+            + String(event.currentMatrixHash, radix: 16)
+    }
+
+    private func mercTransformShape(_ event: GOALPadMercTransformEvent) -> String {
+        guard event.issueMask != 0 else { return "-" }
+        return String(
+            format: "scale %.6g->%.6g, aspect %.6g->%.6g, axes "
+                + "[%.6g,%.6g,%.6g]->[%.6g,%.6g,%.6g], source %llx->%llx",
+            event.previousScale,
+            event.currentScale,
+            event.previousAspect,
+            event.currentAspect,
+            event.previousAxisNormX,
+            event.previousAxisNormY,
+            event.previousAxisNormZ,
+            event.currentAxisNormX,
+            event.currentAxisNormY,
+            event.currentAxisNormZ,
+            event.previousSourceBase,
+            event.currentSourceBase)
+    }
+
     /// The Metal renderer: what the game handed it, and what it read off the player's own disc.
     @ViewBuilder
     private var renderer: some View {
@@ -268,6 +297,16 @@ private struct DiagnosticsOverlay: View {
                     + "\(stats.lastMercPaletteHealthChainOrdinal), model/matrix "
                     + String(stats.lastMercPaletteHealthModelNameHash, radix: 16)
                     + "/" + String(stats.lastMercPaletteHealthMatrixHash, radix: 16)),
+                ("merc transform events", "current \(stats.mercEicharTransformDiscontinuities), "
+                    + "total \(stats.mercEicharTransformDiscontinuitiesTotal)"),
+                ("merc transform first", mercTransformIdentity(
+                    stats.firstMercEicharTransformDiscontinuity)),
+                ("merc first shape", mercTransformShape(
+                    stats.firstMercEicharTransformDiscontinuity)),
+                ("merc transform last", mercTransformIdentity(
+                    stats.lastMercEicharTransformDiscontinuity)),
+                ("merc last shape", mercTransformShape(
+                    stats.lastMercEicharTransformDiscontinuity)),
                 ("merc rejects total", "\(stats.mercBadBonePointers) bone pointers, "
                     + "\(stats.mercBadDrawRanges) draw ranges total"),
                 ("texture uploads", "\(stats.textureUploads)"),

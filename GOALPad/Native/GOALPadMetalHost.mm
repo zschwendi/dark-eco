@@ -176,6 +176,35 @@ void service_level_requests() {
   }
 }
 
+goalpad::MetalHostMercTransformEvent retain_merc_transform_event(
+    const metal_merc_transform_trace::Event& event,
+    std::uint64_t host_tick_id,
+    std::uint64_t chain_ordinal) {
+  goalpad::MetalHostMercTransformEvent retained;
+  retained.host_tick_id = host_tick_id;
+  retained.chain_ordinal = chain_ordinal;
+  retained.issue_mask = event.issue_mask;
+  retained.bone_slot = event.bone_slot;
+  retained.model_name_hash = event.model_name_hash;
+  retained.previous_frame_id = event.previous_frame_id;
+  retained.current_frame_id = event.current_frame_id;
+  retained.previous_matrix_hash = event.previous_matrix_hash;
+  retained.current_matrix_hash = event.current_matrix_hash;
+  retained.previous_axis_norm_x = event.previous_axis_norm_x;
+  retained.previous_axis_norm_y = event.previous_axis_norm_y;
+  retained.previous_axis_norm_z = event.previous_axis_norm_z;
+  retained.current_axis_norm_x = event.current_axis_norm_x;
+  retained.current_axis_norm_y = event.current_axis_norm_y;
+  retained.current_axis_norm_z = event.current_axis_norm_z;
+  retained.previous_scale = event.previous_scale;
+  retained.current_scale = event.current_scale;
+  retained.previous_aspect = event.previous_aspect;
+  retained.current_aspect = event.current_aspect;
+  retained.previous_source_base = event.previous_source_base;
+  retained.current_source_base = event.current_source_base;
+  return retained;
+}
+
 void render_chain() {
   MetalRenderOptions opts;
   opts.game_res_w = g_host.frame.game_res_w;
@@ -247,6 +276,20 @@ void render_chain() {
     g_host.stats.last_merc_palette_health_source_address = event.source_address;
     g_host.stats.last_merc_palette_health_source_base = event.source_base;
     g_host.stats.last_merc_palette_health_expected_source_base = event.expected_source_base;
+  }
+  g_host.stats.merc_eichar_transform_discontinuities =
+      stats.merc_eichar_transform_discontinuities;
+  if (stats.merc_eichar_transform_discontinuities > 0) {
+    g_host.stats.merc_eichar_transform_discontinuities_total +=
+        stats.merc_eichar_transform_discontinuities;
+    if (!g_host.stats.first_merc_eichar_transform_discontinuity.valid()) {
+      g_host.stats.first_merc_eichar_transform_discontinuity = retain_merc_transform_event(
+          stats.first_merc_eichar_transform_discontinuity, stats.last_host_tick_id,
+          stats.last_chain_ordinal);
+    }
+    g_host.stats.last_merc_eichar_transform_discontinuity = retain_merc_transform_event(
+        stats.last_merc_eichar_transform_discontinuity, stats.last_host_tick_id,
+        stats.last_chain_ordinal);
   }
   g_host.stats.merc_bad_bone_pointers += stats.merc_bad_bone_pointers;
   g_host.stats.merc_bad_draw_ranges += stats.merc_bad_draw_ranges;

@@ -66,6 +66,33 @@ struct MetalHostFrame {
   double presentation_time = 0.0;
 };
 
+/*! Retained numeric evidence for one consecutive-frame eichar-lod0 transform discontinuity. */
+struct MetalHostMercTransformEvent {
+  std::uint64_t host_tick_id = 0;
+  std::uint64_t chain_ordinal = 0;
+  std::uint8_t issue_mask = 0;
+  int bone_slot = -1;
+  std::uint64_t model_name_hash = 0;
+  std::uint64_t previous_frame_id = 0;
+  std::uint64_t current_frame_id = 0;
+  std::uint64_t previous_matrix_hash = 0;
+  std::uint64_t current_matrix_hash = 0;
+  double previous_axis_norm_x = 0.0;
+  double previous_axis_norm_y = 0.0;
+  double previous_axis_norm_z = 0.0;
+  double current_axis_norm_x = 0.0;
+  double current_axis_norm_y = 0.0;
+  double current_axis_norm_z = 0.0;
+  double previous_scale = 0.0;
+  double current_scale = 0.0;
+  double previous_aspect = 0.0;
+  double current_aspect = 0.0;
+  std::uint64_t previous_source_base = 0;
+  std::uint64_t current_source_base = 0;
+
+  bool valid() const { return issue_mask != 0; }
+};
+
 /*! What the renderer has been asked to do, for the on-screen readout and the log. */
 struct MetalHostStats {
   std::uint64_t chains_sent = 0;      // __send-gfx-dma-chain calls
@@ -162,6 +189,10 @@ struct MetalHostStats {
   std::uint32_t last_merc_palette_health_source_address = 0;
   std::uint64_t last_merc_palette_health_source_base = 0;
   std::uint64_t last_merc_palette_health_expected_source_base = 0;
+  int merc_eichar_transform_discontinuities = 0;
+  std::uint64_t merc_eichar_transform_discontinuities_total = 0;
+  MetalHostMercTransformEvent first_merc_eichar_transform_discontinuity;
+  MetalHostMercTransformEvent last_merc_eichar_transform_discontinuity;
   std::uint64_t merc_bad_bone_pointers = 0;
   std::uint64_t merc_bad_draw_ranges = 0;
 };

@@ -26,6 +26,31 @@ static const int32_t kGameBaseWidth = 640;
 static const int32_t kGameBaseHeight = 480;
 static const int32_t kMaxInternalScale = 4;
 
+static GOALPadMercTransformEvent makeMercTransformEvent(
+    const goalpad::MetalHostMercTransformEvent &core) {
+  return {core.host_tick_id,
+          core.chain_ordinal,
+          core.issue_mask,
+          (int32_t)core.bone_slot,
+          core.model_name_hash,
+          core.previous_frame_id,
+          core.current_frame_id,
+          core.previous_matrix_hash,
+          core.current_matrix_hash,
+          core.previous_axis_norm_x,
+          core.previous_axis_norm_y,
+          core.previous_axis_norm_z,
+          core.current_axis_norm_x,
+          core.current_axis_norm_y,
+          core.current_axis_norm_z,
+          core.previous_scale,
+          core.current_scale,
+          core.previous_aspect,
+          core.current_aspect,
+          core.previous_source_base,
+          core.current_source_base};
+}
+
 @interface GOALPadRenderSurface ()
 @property(nonatomic, readwrite) NSString *lastError;
 @end
@@ -184,6 +209,12 @@ static const int32_t kMaxInternalScale = 4;
                                 core.last_merc_palette_health_source_address,
                                 core.last_merc_palette_health_source_base,
                                 core.last_merc_palette_health_expected_source_base,
+                                (int32_t)core.merc_eichar_transform_discontinuities,
+                                core.merc_eichar_transform_discontinuities_total,
+                                makeMercTransformEvent(
+                                    core.first_merc_eichar_transform_discontinuity),
+                                makeMercTransformEvent(
+                                    core.last_merc_eichar_transform_discontinuity),
                                 core.merc_bad_bone_pointers, core.merc_bad_draw_ranges};
   return stats;
 }

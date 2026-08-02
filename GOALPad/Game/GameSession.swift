@@ -65,6 +65,8 @@ final class GameSession {
     private var lastAttemptedMercModelsWithMissingBoneSlotsTotal: UInt64 = 0
     private var lastPersistedMercPaletteHealthTotal: UInt64 = 0
     private var lastAttemptedMercPaletteHealthTotal: UInt64 = 0
+    private var lastPersistedMercTransformDiscontinuitiesTotal: UInt64 = 0
+    private var lastAttemptedMercTransformDiscontinuitiesTotal: UInt64 = 0
     private var reportedCameraDiagnosticsWriteFailure = false
     #endif
 
@@ -202,6 +204,7 @@ final class GameSession {
     /// from the log alone.
     private func logRunningState(renderer: GOALPadRendererStats) {
         let chain = frameChain
+        let mercTransform = renderer.lastMercEicharTransformDiscontinuity
         let oneChainTicks = renderer.framesArmed
             - renderer.framesWithoutChain
             - renderer.framesWithMultipleChains
@@ -262,7 +265,17 @@ final class GameSession {
             \(renderer.lastMercPaletteHealthBoneSlot) at \
             \(renderer.lastMercPaletteHealthEngineFrameID)/\
             \(renderer.lastMercPaletteHealthHostTickID)/\
-            \(renderer.lastMercPaletteHealthChainOrdinal), rejects \
+            \(renderer.lastMercPaletteHealthChainOrdinal), \
+            eichar transform current/total \
+            \(renderer.mercEicharTransformDiscontinuities)/\
+            \(renderer.mercEicharTransformDiscontinuitiesTotal), last issue/slot \
+            \(mercTransform.issueMask)/\(mercTransform.boneSlot), frames \
+            \(mercTransform.previousFrameID)->\(mercTransform.currentFrameID) at \
+            \(mercTransform.hostTickID)/\(mercTransform.chainOrdinal), scale \
+            \(mercTransform.previousScale, format: .fixed(precision: 6))->\
+            \(mercTransform.currentScale, format: .fixed(precision: 6)), aspect \
+            \(mercTransform.previousAspect, format: .fixed(precision: 6))->\
+            \(mercTransform.currentAspect, format: .fixed(precision: 6)), rejects \
             \(renderer.mercBadBonePointers) pointers / \(renderer.mercBadDrawRanges) ranges, \
             audio \(self.audio.framesProduced)/\(self.audio.framesRequested) frames at \
             \(self.audio.sampleRate) Hz peak \(self.audio.peakAmplitude), \
@@ -284,6 +297,8 @@ final class GameSession {
         lastAttemptedMercModelsWithMissingBoneSlotsTotal = 0
         lastPersistedMercPaletteHealthTotal = 0
         lastAttemptedMercPaletteHealthTotal = 0
+        lastPersistedMercTransformDiscontinuitiesTotal = 0
+        lastAttemptedMercTransformDiscontinuitiesTotal = 0
         reportedCameraDiagnosticsWriteFailure = false
 
         guard let caches = FileManager.default.urls(for: .cachesDirectory,
@@ -303,12 +318,16 @@ final class GameSession {
             lastAttemptedMercModelsWithMissingBoneSlotsTotal =
                 renderer.mercModelsWithMissingBoneSlotsTotal
             lastAttemptedMercPaletteHealthTotal = mercPaletteHealthTotal(renderer)
+            lastAttemptedMercTransformDiscontinuitiesTotal =
+                renderer.mercEicharTransformDiscontinuitiesTotal
             try writeCameraDiagnostics(renderer)
             lastPersistedCameraAlternations = renderer.producerCameraAlternations
             lastPersistedMercMissingBoneSlotsTotal = renderer.mercMissingBoneSlotsTotal
             lastPersistedMercModelsWithMissingBoneSlotsTotal =
                 renderer.mercModelsWithMissingBoneSlotsTotal
             lastPersistedMercPaletteHealthTotal = mercPaletteHealthTotal(renderer)
+            lastPersistedMercTransformDiscontinuitiesTotal =
+                renderer.mercEicharTransformDiscontinuitiesTotal
         } catch {
             reportCameraDiagnosticsWriteFailure()
         }
@@ -333,12 +352,17 @@ final class GameSession {
         let paletteHealthTotal = mercPaletteHealthTotal(renderer)
         let paletteHealthNotPersisted = paletteHealthTotal > lastPersistedMercPaletteHealthTotal
         let paletteHealthNotAttempted = paletteHealthTotal > lastAttemptedMercPaletteHealthTotal
+        let mercTransformNotPersisted = renderer.mercEicharTransformDiscontinuitiesTotal
+            > lastPersistedMercTransformDiscontinuitiesTotal
+        let mercTransformNotAttempted = renderer.mercEicharTransformDiscontinuitiesTotal
+            > lastAttemptedMercTransformDiscontinuitiesTotal
         let mercCompletenessIncreased = (missingSlotsNotPersisted && missingSlotsNotAttempted)
             || (missingModelsNotPersisted && missingModelsNotAttempted)
         guard forced || periodic
                 || (alternationNotPersisted && alternationNotAttempted)
                 || mercCompletenessIncreased
-                || (paletteHealthNotPersisted && paletteHealthNotAttempted) else {
+                || (paletteHealthNotPersisted && paletteHealthNotAttempted)
+                || (mercTransformNotPersisted && mercTransformNotAttempted) else {
             return
         }
 
@@ -347,6 +371,8 @@ final class GameSession {
         lastAttemptedMercModelsWithMissingBoneSlotsTotal =
             renderer.mercModelsWithMissingBoneSlotsTotal
         lastAttemptedMercPaletteHealthTotal = paletteHealthTotal
+        lastAttemptedMercTransformDiscontinuitiesTotal =
+            renderer.mercEicharTransformDiscontinuitiesTotal
         do {
             try writeCameraDiagnostics(renderer)
             lastPersistedCameraAlternations = renderer.producerCameraAlternations
@@ -354,6 +380,8 @@ final class GameSession {
             lastPersistedMercModelsWithMissingBoneSlotsTotal =
                 renderer.mercModelsWithMissingBoneSlotsTotal
             lastPersistedMercPaletteHealthTotal = paletteHealthTotal
+            lastPersistedMercTransformDiscontinuitiesTotal =
+                renderer.mercEicharTransformDiscontinuitiesTotal
         } catch {
             reportCameraDiagnosticsWriteFailure()
         }
@@ -376,6 +404,32 @@ final class GameSession {
         let locale = Locale(identifier: "en_US_POSIX")
         func decimal(_ value: Double) -> String {
             String(format: "%.9f", locale: locale, value)
+        }
+        func mercTransformFields(_ prefix: String,
+                                 _ event: GOALPadMercTransformEvent) -> [String] {
+            [
+                "\(prefix)_host_tick=\(event.hostTickID)",
+                "\(prefix)_chain=\(event.chainOrdinal)",
+                "\(prefix)_issue_mask=\(event.issueMask)",
+                "\(prefix)_bone_slot=\(event.boneSlot)",
+                "\(prefix)_model_hash=\(event.modelNameHash)",
+                "\(prefix)_previous_frame=\(event.previousFrameID)",
+                "\(prefix)_current_frame=\(event.currentFrameID)",
+                "\(prefix)_previous_matrix_hash=\(event.previousMatrixHash)",
+                "\(prefix)_current_matrix_hash=\(event.currentMatrixHash)",
+                "\(prefix)_previous_axis_norm_x=\(decimal(event.previousAxisNormX))",
+                "\(prefix)_previous_axis_norm_y=\(decimal(event.previousAxisNormY))",
+                "\(prefix)_previous_axis_norm_z=\(decimal(event.previousAxisNormZ))",
+                "\(prefix)_current_axis_norm_x=\(decimal(event.currentAxisNormX))",
+                "\(prefix)_current_axis_norm_y=\(decimal(event.currentAxisNormY))",
+                "\(prefix)_current_axis_norm_z=\(decimal(event.currentAxisNormZ))",
+                "\(prefix)_previous_scale=\(decimal(event.previousScale))",
+                "\(prefix)_current_scale=\(decimal(event.currentScale))",
+                "\(prefix)_previous_aspect=\(decimal(event.previousAspect))",
+                "\(prefix)_current_aspect=\(decimal(event.currentAspect))",
+                "\(prefix)_previous_source_base=\(event.previousSourceBase)",
+                "\(prefix)_current_source_base=\(event.currentSourceBase)",
+            ]
         }
 
         let fields = [
@@ -493,7 +547,17 @@ final class GameSession {
                 + "\(renderer.lastMercPaletteHealthSourceBase)",
             "last_merc_palette_health_expected_source_base="
                 + "\(renderer.lastMercPaletteHealthExpectedSourceBase)",
+            "merc_eichar_transform_discontinuities="
+                + "\(renderer.mercEicharTransformDiscontinuities)",
+            "merc_eichar_transform_discontinuities_total="
+                + "\(renderer.mercEicharTransformDiscontinuitiesTotal)",
         ]
+            + mercTransformFields(
+                "first_merc_eichar_transform",
+                renderer.firstMercEicharTransformDiscontinuity)
+            + mercTransformFields(
+                "last_merc_eichar_transform",
+                renderer.lastMercEicharTransformDiscontinuity)
         try Data((fields.joined(separator: " ") + "\n").utf8)
             .write(to: cameraDiagnosticsURL, options: .atomic)
     }

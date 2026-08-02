@@ -228,6 +228,32 @@ typedef struct GOALPadSurfaceGeometry {
   int32_t drawRegionHeight;
 } GOALPadSurfaceGeometry;
 
+/// Numeric evidence retained for one consecutive-frame eichar-lod0 transform discontinuity.
+/// Issue bit 0 is a uniform-scale jump; bit 1 is an aspect/per-axis-shape jump.
+typedef struct GOALPadMercTransformEvent {
+  uint64_t hostTickID;
+  uint64_t chainOrdinal;
+  uint8_t issueMask;
+  int32_t boneSlot;
+  uint64_t modelNameHash;
+  uint64_t previousFrameID;
+  uint64_t currentFrameID;
+  uint64_t previousMatrixHash;
+  uint64_t currentMatrixHash;
+  double previousAxisNormX;
+  double previousAxisNormY;
+  double previousAxisNormZ;
+  double currentAxisNormX;
+  double currentAxisNormY;
+  double currentAxisNormZ;
+  double previousScale;
+  double currentScale;
+  double previousAspect;
+  double currentAspect;
+  uint64_t previousSourceBase;
+  uint64_t currentSourceBase;
+} GOALPadMercTransformEvent;
+
 /// What the Metal renderer has been asked to do since the game booted.
 typedef struct GOALPadRendererStats {
   uint64_t chainsSent;      ///< frames that handed over a DMA chain
@@ -321,6 +347,10 @@ typedef struct GOALPadRendererStats {
   uint32_t lastMercPaletteHealthSourceAddress;
   uint64_t lastMercPaletteHealthSourceBase;
   uint64_t lastMercPaletteHealthExpectedSourceBase;
+  int32_t mercEicharTransformDiscontinuities;
+  uint64_t mercEicharTransformDiscontinuitiesTotal;
+  GOALPadMercTransformEvent firstMercEicharTransformDiscontinuity;
+  GOALPadMercTransformEvent lastMercEicharTransformDiscontinuity;
   uint64_t mercBadBonePointers;
   uint64_t mercBadDrawRanges;
 } GOALPadRendererStats;
