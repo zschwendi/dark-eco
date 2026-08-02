@@ -138,7 +138,7 @@ Current status:
 - Implemented: the public dedicated fork is
   `https://github.com/zschwendi/jak-pad.git`; published branch
   `goalpad/ipad-demo-pacing` and the parent submodule both resolve to
-  `7cf217fea8885d82fe033d7467fb86d02feb808e`.
+  `25ae476171340f349cc06a9fb581f316e924092d`.
 - Verified: the remote branch resolves to that exact pin, and the affected host
   tests and application integration passed. Earlier fresh-clone evidence was
   recorded against the historical `9eecb9c3` checkpoint.
@@ -849,8 +849,11 @@ the existing 518-object source-pack verifier result (`e3ed59b376d6a079`,
 `a8f3d040`. Raw ISO selection remains disabled until C++ graph/builder/
 materializer composition, the Objective-C++ producer bridge, and an end-to-end
 approved-simulator proof succeed; the prepared-folder flow remains supported.
-The final nested OpenGOAL SHA and generic macOS result are **[PENDING
-INTEGRATION LANE]**; `HANDOFF.md` records the exact provisional status.
+The nested OpenGOAL pin is `25ae476171340f349cc06a9fb581f316e924092d`.
+The project-scoped ARM64 macOS build passed; an intentionally broader universal
+destination remains unsupported because the downstream runtime no longer
+contains the x86-64 call path. `HANDOFF.md` records the exact command and first
+useful failure.
 The full build, diagnostic, signing, and physical evidence is recorded in
 `HANDOFF.md`; older checkpoint sections remain historical.
 

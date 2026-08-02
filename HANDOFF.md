@@ -7876,13 +7876,14 @@ as the active scope.
 
 # Checkpoint 48: base-retail importer profile, existing-pack verification, and serial activation
 
-The parent checkpoint is `a8f3d040d5ffa5aae0b5824ec5e20b9fd5538394`
+The parent implementation commit is `a8f3d040d5ffa5aae0b5824ec5e20b9fd5538394`
 (`feat(import): stage and atomically activate game data`). It adds the serial
 staging/activation worker but does not make raw ISO files selectable. The final
-Checkpoint 48 nested OpenGOAL gitlink is **[INTEGRATION LANE: replace with the
-final nested commit SHA before publishing this checkpoint]**. The reviewed child
-work included `fd20ddfcb` (`jak1-base-retail`) and `211cbc4dd` (verification of
-an existing public source-object pack).
+Checkpoint 48 nested OpenGOAL gitlink is
+`25ae476171340f349cc06a9fb581f316e924092d`. The reviewed child work includes
+`fd20ddfcb` (`jak1-base-retail`), `211cbc4dd` (verification of an existing
+public source-object pack), and `25ae47617` (the ARM64-only current-process
+guard boundary).
 
 ## Current importer boundary
 
@@ -7912,9 +7913,18 @@ install.
 - The focused importer suite passed all named cases. The base-retail
   graph/recipe/materializer tests passed, as did the existing-pack identity
   verifier and its wrong-override rejection.
-- Generic macOS currently fails in `kscheme` at `ScopedCurrentProcess` because
-  of an older platform guard. A separate Sol lane is correcting it. **[PENDING
-  INTEGRATION LANE: replace this item with the final macOS result and command.]**
+- The first generic macOS command requested both ARM64 and the intentionally
+  unsupported x86-64 slice. It first exposed the older unguarded
+  `ScopedCurrentProcess` use and, after that four-line guard was integrated,
+  reached the next removed x86-64 API. The project-scoped ARM64 command passed:
+
+  ```sh
+  xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+    -configuration Debug -destination 'platform=macOS,arch=arm64' \
+    -derivedDataPath /private/tmp/GOALPad-sim -jobs 2 \
+    CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO \
+    ARCHS=arm64 ONLY_ACTIVE_ARCH=YES build
+  ```
 
 No physical device was accessed for this checkpoint. Do not turn the successful
 simulator or generic-platform builds into a physical-iPad claim.
@@ -7945,6 +7955,6 @@ next change.
 2. Add the narrow Objective-C++ producer bridge to the serial worker and prove
    the raw-ISO path end to end on the approved simulator before changing the
    picker.
-3. Integrate the outstanding macOS `ScopedCurrentProcess` platform-guard fix,
-   rerun its appropriate build, and replace the two marked placeholders with
-   the final child SHA and exact macOS result.
+3. Preserve the focused and checkpoint validation tiers. Do not use a generic
+   universal macOS destination as an x86-64 support claim; this downstream
+   runtime and its documented macOS baseline are ARM64-only.

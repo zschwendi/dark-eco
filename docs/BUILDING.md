@@ -53,16 +53,15 @@ git submodule sync -- OpenGOAL
 git submodule update --init --recursive
 ```
 
-The prior authoritative child was the dedicated public fork
+The authoritative child is the dedicated public fork
 `https://github.com/zschwendi/jak-pad.git`, branch
 `goalpad/ipad-demo-pacing`, pinned by the parent gitlink at
-`7cf217fea8885d82fe033d7467fb86d02feb808e`. Checkpoint 48 incorporates
-`fd20ddfcb` (`jak1-base-retail`) and `211cbc4dd` (existing source-pack
-verification); its final nested gitlink is **[INTEGRATION LANE: replace with
-the final nested commit SHA]**. Do not substitute a different OpenGOAL checkout
-when recording validation results, and pin the final exact commit rather than a
-branch tip. The `sync` step updates existing clones that still remember the
-former upstream URL.
+`25ae476171340f349cc06a9fb581f316e924092d`. Checkpoint 48 incorporates
+`fd20ddfcb` (`jak1-base-retail`), `211cbc4dd` (existing source-pack
+verification), and `25ae47617` (the ARM64-only current-process guard boundary).
+Do not substitute a different OpenGOAL checkout when recording validation
+results, and pin that exact commit rather than a branch tip. The `sync` step
+updates existing clones that still remember the former upstream URL.
 
 The pin includes the portable `jak1-kernel-core`, Metal renderer,
 display-time seam, and Jak 1 MIPS2C joint correction without replacing those
@@ -3134,7 +3133,16 @@ Recorded Checkpoint 48 results are: host compiler pass; Metal target pass; 34
 camera assertions pass; Metal proof outside the sandbox pass; Jak 1 AOT
 preflight `518/10596/7`; approved M5 simulator compile-only pass; generic
 iPhoneOS pass; and generic visionOS pass. The focused importer suite passed all
-named cases. Generic macOS currently fails in `kscheme` at `ScopedCurrentProcess`
-because of an older platform guard. **[PENDING INTEGRATION LANE: replace with
-the final macOS command and result after the Sol fix lands.]** No physical device
-was accessed for these results.
+named cases. The ARM64 macOS build passed with:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-sim -jobs 2 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO \
+  ARCHS=arm64 ONLY_ACTIVE_ARCH=YES build
+```
+
+The unqualified generic macOS destination also requests an unsupported x86-64
+slice; do not use it as the ARM64 platform gate. No physical device was accessed
+for these Checkpoint 48 build results.
