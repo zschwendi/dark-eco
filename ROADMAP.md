@@ -100,7 +100,7 @@ User-owned data:
 ```text
 User-selected Jak 1 source
         ↓
-Local macOS verification and extraction
+Local OpenGOAL verification and preparation
         ↓
 Deterministic data-only package
         ↓
@@ -611,8 +611,8 @@ into GOALPad without adding retail content to the repository.
 
 Required work:
 
-1. Build a macOS command-line or application importer around compatible
-   OpenGOAL extraction tooling.
+1. Preserve the existing macOS OpenGOAL preparation path while carving out a
+   portable, offline data-preparation seam suitable for Apple-device use.
 2. Accept a user-selected source image or extracted directory.
 3. Verify supported revision and integrity metadata.
 4. Reject unknown, incomplete, or corrupted inputs clearly.
@@ -620,6 +620,10 @@ Required work:
 6. Import through supported Apple file workflows.
 7. Validate compatibility before starting the runtime.
 8. Keep imported data separate from saves and settings.
+9. For on-device preparation, first prove a streaming, bounds-checked raw ISO
+   reader with synthetic fixtures; then add bounded level-data generation and
+   the offline `out/jak1/iso` builder as separately validated phases.
+10. Keep the current prepared-folder importer available throughout this work.
 
 Exit gate:
 
@@ -786,7 +790,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 39 is the latest verified checkpoint. Checkpoint 37 remains the
+Checkpoint 41 is the latest verified checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -796,6 +800,10 @@ Merc deformation remained, and metallic materials developed a new flicker.
 Checkpoint 38 records the original app icon. Checkpoint 39 records the neutral
 App Store distribution direction, fail-closed release-AOT requirement, and a
 physical iPhone launch of the same complete-AOT binary without user game data.
+Checkpoint 40 adds the standard-window visionOS port, simulator launch, and
+physical-headset installation; physical launch is pending one-time developer
+trust on the headset. Checkpoint 41 explains the currently dimmed raw ISO and
+records the staged on-device OpenGOAL preparation direction.
 The full build, diagnostic, signing, and physical evidence is recorded in
 `HANDOFF.md`; older checkpoint sections remain historical.
 

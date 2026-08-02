@@ -7191,3 +7191,102 @@ audio, touch ergonomics, safe areas, lifecycle, memory behavior, and sustained
 runtime remain unvalidated until that import is complete and the maintainer
 performs a physical play pass. Landscape is the first recommended layout; the
 current fixed touch geometry is expected to overlap in iPhone portrait.
+
+# Checkpoint 40: standard-window visionOS port
+
+The existing GOALPad target now builds for visionOS without adding a second
+runtime or an immersive presentation path. Commit `b9b9f2e3` preserves the
+ordinary SwiftUI `WindowGroup` and limits the port to four platform seams:
+
+- visionOS uses `UIView.contentScaleFactor` because `UIWindow.screen` is
+  unavailable there;
+- the existing Apple display-time reset and MIPS2C bones fallback also apply to
+  visionOS;
+- the existing `AVAudioSession` lifecycle also applies to visionOS; and
+- first-run copy directs visionOS users through the Import button and Files
+  providers.
+
+The isolated branch `feat/visionos-windowed-port` committed the source as
+`302538f528d4a365def9ee46bcfef56a3c614858`; that commit was reviewed and
+cherry-picked to the primary branch as `b9b9f2e3`. The OpenGOAL child remained
+clean at `9f774b31232d7f642378ef13ef0ec7f75a46a357`, and the project file was not
+changed by this checkpoint.
+
+Generic visionOS, generic iOS, and ARM64 macOS Debug builds passed. The local
+Vision Pro simulator build also passed, installed, and launched as PID `41986`.
+A screenshot showed the expected standard window, and the fresh sandbox created
+`Documents/Jak1/iso` and `Documents/Jak1/fr3`. The simulator was returned to its
+original Shutdown state. Camera timing and touch-control deterministic checks
+also passed.
+
+For physical provisioning, the first generic Release build produced a signed
+arm64 XROS executable but its local profile did not contain the Vision Pro. The
+first install therefore failed with `0xe8008012`. Rebuilding against the exact
+Xcode destination registered the headset UDID in a new profile:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release \
+  -destination 'id=00008112-001408160C78A01E' \
+  -derivedDataPath /private/tmp/GOALPad-visionos-physical \
+  -jobs 4 -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
+  ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO build
+
+xcrun devicectl device install app \
+  --device 7C8DED98-3B86-55CE-B49D-C514E47F745A \
+  /private/tmp/GOALPad-visionos-physical/Build/Products/Release-xros/GOALPad.app
+```
+
+The targeted build completed and update-install passed. Its executable SHA-256
+is `6af9aff3423b9709496cf8d6d63088636f0a9a8cea48f17a63cdc14b2580dde6`, and
+`nm` contains `_goal_aot_boot_files` and `_goal_aot_boot_file_count`. Physical
+launch is still pending: visionOS denied the first launch because the local
+developer profile has not yet been explicitly trusted on the headset. The
+maintainer must complete Settings > General > VPN & Device Management >
+Zachary Schwendiman > Trust or Allow & Restart, after which `devicectl` should
+retry the launch. No app uninstall or data deletion was performed.
+
+Physical visionOS gameplay, Metal output, controller input, audio, data import,
+and sustained runtime remain unvalidated. With no prepared user data on the
+headset, the next expected runtime evidence is only a live first-run setup
+window.
+
+# Checkpoint 41: raw-disc-image import clarity
+
+The setup picker accepts `.folder` only, so Files intentionally dims a naked
+`.iso`. The ISO is not still compressed: OpenGOAL must parse and verify its disc
+filesystem, generate the prepared FR3 data, and rebuild the flat
+`out/jak1/iso` layout. Merely allowing `.iso` in the picker would not produce
+bootable GOALPad data.
+
+`GameDataSetupView` now states beside the importer that it expects the prepared
+`out/jak1` folder and that raw ISO files are dimmed because this build cannot
+prepare them. `docs/PROJECT_OVERVIEW.md` labels on-device preparation as
+**Investigating**, and `ROADMAP.md` records the staged path while preserving the
+working prepared-folder importer and desktop-compatible output.
+
+The read-only feasibility audit found a reusable in-process ISO reader, but the
+current desktop extractor is not a safe mobile library boundary. Complete
+preparation also needs the decompiler/FR3 path and offline `(mi)` output builder;
+the current compiler target brings desktop listener/debugger code and JIT test
+support, and the level extractor starts one worker per level. The next narrow
+proof is therefore a streaming, bounds-checked ISO reader with recoverable
+errors, cancellation/progress callbacks, and synthetic fixtures. It must not be
+reported as playable import until the later FR3 and output-builder phases pass.
+
+Validation from the exact primary branch:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-iso-ux-ios -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO build
+
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'generic/platform=visionOS' \
+  -derivedDataPath /private/tmp/GOALPad-iso-ux-vision -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO build
+```
+
+Both commands returned exit 0. Existing generated/OpenGOAL conversion warnings
+remain. No game data was copied, read, or modified for this audit or validation.

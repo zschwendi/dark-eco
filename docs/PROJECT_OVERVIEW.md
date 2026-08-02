@@ -325,6 +325,21 @@ The iPad app should:
 - Keep saves and user settings separate from imported source data.
 - Verify compatibility before launching the runtime.
 
+### On-device preparation status
+
+**Investigating:** A future Apple-device importer may accept a user-selected
+disc image and run the compatible OpenGOAL preparation pipeline locally. This
+is more than extracting an archive: the pipeline must parse and verify the disc
+image, generate the prepared level data, and rebuild the flat `out/jak1/iso`
+layout that the runtime consumes. The current app accepts only an already
+prepared `out/jak1` folder, and Files therefore shows raw `.iso` images dimmed.
+
+Any on-device implementation must remain an offline data-preparation tool. It
+must use normal signed code, bounded concurrency, recoverable errors, progress
+and cancellation, an internal staging directory, and an atomic final install.
+It must preserve the existing prepared-folder path and desktop-compatible
+output rather than introducing a GOALPad-only data format.
+
 ## Modding policy
 
 Mod support is a core long-term goal, but it must build on OpenGOAL compatibility rather than inventing an unrelated ecosystem.
