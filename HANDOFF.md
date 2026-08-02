@@ -7620,7 +7620,8 @@ offline Jak 1 output builder and only then the app bridge and raw-ISO UI.
 
 # Checkpoint 47: checked Jak 1 preparation graph and full camera provenance
 
-The parent is now at `7e3d0e89` with nested OpenGOAL at `4dd438f39`.
+The parent baseline entering this checkpoint was `7e3d0e89`; the reviewed
+nested OpenGOAL checkpoint is now `3b2fa5549`.
 `f03806f7` corrects the prepared-data contract to the exact 25-file FR3 corpus:
 `GAME.fr3` plus 24 retail level files. `test-zone.fr3` is not a required player
 output. `GameDataInspector` also accepts an explicit staging directory so a
@@ -7681,10 +7682,13 @@ buffer patch: prior GPU work is awaited, Merc stream ranges are per frame and
 flush, and the iOS host renders synchronously. Remaining Merc deformation is
 still most plausibly upstream palette input. The existing pre-upload
 `eichar-lod0` scale/aspect tracker is only a native log and should be bridged
-into retained app diagnostics. Metallic flicker remains unattributed; the next
-deterministic evidence is a nontrivial camera A/B/A TIE base/shine color/depth
-identity proof, followed by a separately authorized physical TIE-versus-Merc
-envmap isolation pass.
+into retained app diagnostics. Metallic flicker remains unattributed.
+`3b2fa5549` adds the next deterministic gate: a nontrivial camera A/B/A TIE
+base/shine color identity proof. Both moved camera states retain identical
+coplanar base/shine coverage, and the repeated A frame is byte-identical after
+the intervening B frame. The next visual step is a separately authorized
+physical TIE-versus-Merc envmap isolation pass, not another speculative
+renderer change.
 
 ## Validation
 
@@ -7761,8 +7765,11 @@ xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
 ```
 
 All 34 camera-trace assertions passed. The sandboxed Metal proof could not see
-a display and failed renderer initialization; the unchanged proof passed
-outside the sandbox and ended `METAL PROOF PASSED`. Swift parsing, plist
+a display and failed renderer initialization; the proof passed outside the
+sandbox and ended `METAL PROOF PASSED`. Its TIE camera sweep found 108,622
+correct magenta pixels for camera A and 41,659 for camera B, with zero blue,
+white, or otherwise unexpected colored pixels; the second camera A RGBA frame
+was byte-identical to the first. Swift parsing, plist
 validation, and camera timing passed. The compile-only approved M5 simulator
 destination build passed with existing conversion warnings and did not boot
 the simulator. Its app executable is thin ARM64 with SHA-256
