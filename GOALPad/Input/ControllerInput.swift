@@ -3,7 +3,7 @@ import GameController
 import OSLog
 import QuartzCore
 
-nonisolated private let inputLog = Logger(subsystem: "com.zephyrstudiosllc.GOALPad",
+nonisolated private let inputLog = Logger(subsystem: "com.zephyrstudiosllc.eco",
                                           category: "Input")
 
 /// Reads a physical controller through GameController, merges it with the on-screen controls, and

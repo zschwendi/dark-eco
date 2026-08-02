@@ -7,7 +7,7 @@ import SwiftUI
 import UIKit
 #endif
 
-nonisolated private let sessionLog = Logger(subsystem: "com.zephyrstudiosllc.GOALPad",
+nonisolated private let sessionLog = Logger(subsystem: "com.zephyrstudiosllc.eco",
                                             category: "Session")
 
 /// Owns everything with a lifetime: the GOAL kernel session, controller and touch input, the audio
@@ -46,7 +46,7 @@ final class GameSession {
 
     /// Booting runs the game's own startup - two DGO archives and `play` - which takes seconds and
     /// must not block the frame loop or the UI.
-    private let bootQueue = DispatchQueue(label: "com.zephyrstudiosllc.GOALPad.boot",
+    private let bootQueue = DispatchQueue(label: "com.zephyrstudiosllc.eco.boot",
                                           qos: .userInitiated)
     private var observers: [NSObjectProtocol] = []
     /// The frame loop only runs while the scene is on screen: asking a backgrounded app's layer

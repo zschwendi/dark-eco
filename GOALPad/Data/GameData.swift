@@ -115,7 +115,7 @@ nonisolated struct GameDataReport: Sendable {
 
 /// Reads the layout and reports on it. Off the main actor: it stats a few hundred files.
 nonisolated enum GameDataInspector {
-    private static let log = Logger(subsystem: "com.zephyrstudiosllc.GOALPad", category: "GameData")
+    private static let log = Logger(subsystem: "com.zephyrstudiosllc.eco", category: "GameData")
 
     nonisolated static func inspect() -> GameDataReport {
         var report = GameDataReport()

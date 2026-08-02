@@ -7407,3 +7407,84 @@ identifier and refresh the Zephyr Studios LLC Xcode account, then provision the
 container, integrate `63808058`, build signed artifacts, and test two devices
 with user-owned saves. OpenGOAL remains clean at
 `9f774b31232d7f642378ef13ef0ec7f75a46a357`.
+
+# Checkpoint 43: Eco product identity and shared visionOS capability wiring
+
+The public product name is now **Eco**, with App Store subtitle **Native
+OpenGOAL Runtime**. The maintainer selected paid team `V729QMY3V6` and bundle
+identifier `com.zephyrstudiosllc.eco` in Xcode. The matching private iCloud
+Documents container is `iCloud.com.zephyrstudiosllc.eco`.
+
+The repository, target, scheme, executable, source symbols, diagnostics paths,
+and save-sync state directories remain named GOALPad. This keeps the change
+narrow and preserves internal compatibility. `CFBundleDisplayName` and the few
+visible product strings use Eco; logging subsystems use the shipping bundle
+identifier. The new bundle identifier is a separate installed-app sandbox, so
+existing GOALPad game data, settings, and local saves do not migrate
+automatically. Preserve the old installation and export its saves before any
+device migration.
+
+The existing shared Apple target remains the visionOS implementation. It still
+uses the ordinary SwiftUI `WindowGroup`; no new target, immersive space,
+volumetric window, RealityKit path, renderer refactor, or asset-loader change
+was added. Its existing Foundation Application Support, Documents,
+security-scoped import, and ubiquity-container URLs remain sandbox-resolved on
+visionOS.
+
+The target now points both configurations at `GOALPad/GOALPad.entitlements`,
+marks the standard iCloud capability, and uses only CloudDocuments plus the two
+matching container arrays. No CloudKit, App Group, push, public iCloud Drive
+scope, or private entitlement was added.
+
+Deterministic identity and save validation passed:
+
+```sh
+plutil -lint GOALPad.xcodeproj/project.pbxproj \
+  GOALPad/GOALPad.entitlements GOALPad-Info.plist
+
+test -f Generated/jak1-aot/aot_boot_manifest.c
+test "$(find Generated/jak1-aot -maxdepth 1 -type f -name '*.c' | wc -l | tr -d ' ')" = 519
+rg -q 'const int goal_aot_boot_file_count = 518;' \
+  Generated/jak1-aot/aot_boot_manifest.c
+
+Scripts/run-save-sync-check.sh
+```
+
+All returned exit 0. The save suite still covers offline use, upload/download,
+one- and two-sided divergence, conflict preservation, account switching,
+stable snapshots, and saves completed during cloud work.
+
+An unsigned ARM64 macOS Debug build completed with the full AOT set:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/Eco-mac -jobs 2 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO build
+```
+
+The final incremental verification returned exit 0. Its generated Info.plist
+reports `com.zephyrstudiosllc.eco` and display name `Eco`. Existing OpenGOAL
+conversion warnings remain.
+
+Full recompilation for iOS and visionOS was intentionally not repeated after
+the maintainer confirmed that the platform/runtime port was already built and
+validated at Checkpoints 40 and 42. Read-only resolved-setting checks for both
+generic destinations returned exit 0 and report:
+
+```text
+CODE_SIGN_ENTITLEMENTS = GOALPad/GOALPad.entitlements
+DEVELOPMENT_TEAM = V729QMY3V6
+INFOPLIST_KEY_CFBundleDisplayName = Eco
+PRODUCT_BUNDLE_IDENTIFIER = com.zephyrstudiosllc.eco
+SUPPORTED_PLATFORMS = iphoneos iphonesimulator macosx xros xrsimulator
+TARGETED_DEVICE_FAMILY = 1,2,7
+```
+
+Signed capability validation remains blocked. The current keychain query
+`security find-identity -v -p codesigning` reports `0 valid identities found`.
+Restore or recreate the paid-team signing identity and refresh the Xcode
+account, then provision the App ID and iCloud container before signed iOS or
+visionOS builds. Real iCloud transfer/conflict behavior, cross-device save
+migration, and physical Eco installs remain unvalidated. No device was accessed
+and no user game data was read or changed in this checkpoint.

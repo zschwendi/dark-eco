@@ -8,11 +8,11 @@
 	</array>
 	<key>com.apple.developer.icloud-container-identifiers</key>
 	<array>
-		<string>iCloud.com.zephyrstudiosllc.GOALPad</string>
+		<string>iCloud.com.zephyrstudiosllc.eco</string>
 	</array>
 	<key>com.apple.developer.ubiquity-container-identifiers</key>
 	<array>
-		<string>iCloud.com.zephyrstudiosllc.GOALPad</string>
+		<string>iCloud.com.zephyrstudiosllc.eco</string>
 	</array>
 </dict>
 </plist>

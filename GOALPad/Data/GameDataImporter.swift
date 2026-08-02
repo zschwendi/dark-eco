@@ -1,7 +1,7 @@
 import Foundation
 import OSLog
 
-nonisolated private let importLog = Logger(subsystem: "com.zephyrstudiosllc.GOALPad",
+nonisolated private let importLog = Logger(subsystem: "com.zephyrstudiosllc.eco",
                                            category: "Import")
 
 /// Copies a player-selected `iso/` and `fr3/` into the app's own game directory.

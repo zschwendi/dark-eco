@@ -2,7 +2,9 @@
 
 > **Status:** Early feasibility and platform-port project
 > **Working name:** GOALPad
-> **Target platform:** iPadOS on Apple silicon
+> **Public product name:** Eco
+> **App Store subtitle:** Native OpenGOAL Runtime
+> **Primary target:** iPadOS on Apple silicon; the shared windowed app also supports macOS and visionOS
 > **Initial game target:** *Jak and Daxter: The Precursor Legacy*
 > **Later target:** *Jak II* after the first game is stable
 > **Upstream foundation:** OpenGOAL
@@ -286,11 +288,12 @@ configuration. Preserve the distinction between the gameplay camera and the
 final viewer/render camera where the existing architecture already allows it.
 
 Do not undertake a renderer rewrite, camera refactor, abstraction campaign,
-visionOS implementation, or speculative multi-platform work to satisfy this
-direction. When two implementations are equally small, prefer the one that
-does not prevent Mac or iPhone targets, multiple render views, stereo
-rendering, externally supplied view/projection matrices, or a future visionOS
-volumetric or immersive presentation layer.
+volumetric or immersive visionOS work, or speculative multi-platform work to
+satisfy this direction. The implemented conventional visionOS window reuses
+the shared Apple target and existing runtime seams. When two implementations
+are equally small, prefer the one that does not prevent Mac or iPhone targets,
+multiple render views, stereo rendering, externally supplied view/projection
+matrices, or a future visionOS volumetric or immersive presentation layer.
 
 Larger future-facing notes live in
 [`APPLE_PLATFORM_DIRECTION.md`](APPLE_PLATFORM_DIRECTION.md). They constrain
@@ -350,12 +353,13 @@ divergent copies, and surface state and conflicts in Settings. State files and
 conflict archives remain outside the gameplay save directory, preserving raw
 desktop OpenGOAL memcard compatibility.
 
-**Experimental:** The canonical project does not yet enable the iCloud target
-capability. Its current Personal Team profile cannot provision iCloud, and the
-same bundle identifier is unavailable on the installed Zephyr Studios LLC
-team. Enabling the prepared capability wiring requires a maintainer-selected
-unique bundle identifier, the paid team, its iCloud container, renewed Xcode
-credentials, signed builds, and a real two-device conflict/migration pass.
+**Experimental:** The canonical project enables the standard iCloud Documents
+capability for the selected paid-team identity
+`com.zephyrstudiosllc.eco` and private container
+`iCloud.com.zephyrstudiosllc.eco`. Source and unsigned platform builds can be
+validated without iCloud, but provisioning, signed builds, and a real
+two-device conflict/migration pass still require healthy Zephyr Studios LLC
+Xcode credentials and registered identifiers.
 
 ## Modding policy
 
@@ -388,13 +392,15 @@ boundary and does not make a legal guarantee.
 
 ### Public product identity
 
-Public-facing product surfaces should use the original GOALPad identity and a
-calm, platform-oriented voice. The App Store name, subtitle, icon, screenshots,
-preview media, and first-run setup should not market the application with a
-supported game's name, characters, official artwork, logos, or recognizable
-franchise symbols. Prefer concise language such as **Add compatible game
-data**, **Choose a prepared game folder**, and **No compatible data found**.
-Do not turn setup into a loud franchise prompt.
+Public-facing product surfaces use **Eco**, with the App Store subtitle
+**Native OpenGOAL Runtime**, and a calm, platform-oriented voice. GOALPad
+remains the repository, target, scheme, and internal runtime name. The App
+Store name, subtitle, icon, screenshots, preview media, and first-run setup
+should not market the application with a supported game's name, characters,
+official artwork, logos, or recognizable franchise symbols. Prefer concise
+language such as **Add compatible game data**, **Choose a prepared game
+folder**, and **No compatible data found**. Do not turn setup into a loud
+franchise prompt.
 
 Neutral branding is not concealment. Technical documentation may name the
 currently supported game where precision, attribution, compatibility, or

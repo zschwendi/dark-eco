@@ -14,7 +14,7 @@ Boot and run the existing OpenGOAL implementation of Jak 1 natively on iPadOS us
 
 Future-platform preparation must not delay this milestone.
 
-Do not build visionOS features, stereo rendering, volumetric presentation, room integration, or extensive cross-platform abstractions until the core game is running reliably on iPadOS.
+The conventional visionOS `WindowGroup` reuses the shared Apple target and is implemented. Do not build stereo rendering, volumetric presentation, room integration, immersive spaces, or extensive cross-platform abstractions until the core game is running reliably on iPadOS.
 
 ## Intended Apple platform progression
 
@@ -23,7 +23,7 @@ The anticipated progression is:
 1. iPadOS native gameplay
 2. iPhone support using the shared Apple runtime
 3. Apple Silicon macOS support
-4. visionOS conventional window support
+4. visionOS conventional window support — implemented with the shared target
 5. visionOS volumetric diorama presentation
 6. visionOS immersive third-person or overhead presentation
 7. Optional spatial environment effects driven by current game state

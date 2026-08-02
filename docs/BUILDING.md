@@ -2390,12 +2390,12 @@ xcrun devicectl device install app \
 
 xcrun devicectl device process launch \
   --device <coredevice-id> \
-  --terminate-existing com.zephyrstudiosllc.GOALPad
+  --terminate-existing com.zephyrstudiosllc.eco
 
 xcrun devicectl device process launch \
   --device <coredevice-id> \
   --terminate-existing --console --timeout 10 \
-  com.zephyrstudiosllc.GOALPad
+  com.zephyrstudiosllc.eco
 ```
 
 Unlock the iPad before the install/launch steps. Record build, signing, install,

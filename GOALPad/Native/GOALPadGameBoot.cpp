@@ -38,7 +38,7 @@ extern "C" {
 namespace {
 
 os_log_t boot_log() {
-  static os_log_t log = os_log_create("com.zephyrstudiosllc.GOALPad", "Engine");
+  static os_log_t log = os_log_create("com.zephyrstudiosllc.eco", "Engine");
   return log;
 }
 

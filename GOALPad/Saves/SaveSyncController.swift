@@ -214,7 +214,7 @@ struct SaveSettingsView: View {
 
             if !sync.conflictFiles.isEmpty {
                 Section("Conflicts") {
-                    Text("GOALPad kept gameplay on the local save and preserved both versions. "
+                    Text("Eco kept gameplay on the local save and preserved both versions. "
                          + "Conflict copies are stored outside the gameplay save directory.")
                         .font(.callout)
                         .foregroundStyle(.secondary)

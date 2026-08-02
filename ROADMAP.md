@@ -37,7 +37,7 @@ as completing the overall goal.
   CI artifacts, or hosted services.
 - The preferred public distribution path is TestFlight followed by the App
   Store, while source and supported sideloading remain first-class. Storefront
-  and first-run presentation use original neutral GOALPad branding and calm
+  and first-run presentation use the neutral **Eco** identity and calm
   **compatible user-supplied data** language rather than franchise marketing;
   technical documentation and App Review notes remain precise and transparent.
 - GitHub, TestFlight, and App Store archives fail closed unless the complete
@@ -790,7 +790,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 42 is the latest verified checkpoint. Checkpoint 37 remains the
+Checkpoint 43 is the latest verified checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -804,9 +804,11 @@ Checkpoint 40 adds the standard-window visionOS port, simulator launch, and
 physical-headset installation; physical launch is pending one-time developer
 trust on the headset. Checkpoint 41 explains the currently dimmed raw ISO and
 records the staged on-device OpenGOAL preparation direction.
-Checkpoint 42 adds the tested local-first iCloud save engine and Settings UI;
-capability wiring remains isolated because the current Personal Team cannot
-provision iCloud and the paid team needs a distinct bundle identifier.
+Checkpoint 42 adds the tested local-first iCloud save engine and Settings UI.
+Checkpoint 43 selects the public **Eco** identity,
+`com.zephyrstudiosllc.eco`, its matching private iCloud container, and the paid
+team. The shared standard-window visionOS architecture remains unchanged;
+signed provisioning and real transfer remain separate validation gates.
 The full build, diagnostic, signing, and physical evidence is recorded in
 `HANDOFF.md`; older checkpoint sections remain historical.
 
@@ -823,9 +825,10 @@ The next actions are:
    broader world-depth fighting separate until that evidence links them.
 4. Preserve the deterministic checks, ARM64 macOS build, approved M5 simulator,
    generic signed iOS lane, and the current real-kernel/runtime path.
-5. Select the paid-team bundle identifier, refresh the Zephyr Studios LLC Xcode
-   account, provision its iCloud Documents container, integrate isolated commit
-   `63808058`, then run signed and real two-device save migration/conflict tests.
+5. Restore the Zephyr Studios LLC signing identity and Xcode account, then
+   provision and verify `com.zephyrstudiosllc.eco` with
+   `iCloud.com.zephyrstudiosllc.eco`, then run signed and real two-device save
+   migration/conflict tests.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
 Future physical **Z iPad Pro** access still requires explicit authorization in

@@ -8,6 +8,9 @@ GOALPad is a native ARM64 port of OpenGOAL for Apple platforms. The first
 supported game is *Jak and Daxter: The Precursor Legacy*, using game data
 supplied and prepared by the user.
 
+**Eco** is the public App Store-facing product name; GOALPad remains the
+repository, Xcode target, and internal runtime name.
+
 It is not a PS2 emulator, not a Swift rewrite of OpenGOAL, and not a source of
 retail game data. See [Project Overview](docs/PROJECT_OVERVIEW.md) for the
 binding architecture, scope, and content-separation rules.
@@ -55,9 +58,12 @@ no private entitlement anywhere in the build.
   metallic materials gained a new flicker. The physical build retains the iOS
   MIPS2C bones compatibility path and Jak 1's homogeneous-W parity correction,
   but neither is presented as a complete deformation fix.
+- **Experimental — visionOS.** The shared Apple target builds and launches in a
+  conventional SwiftUI window. No immersive or volumetric presentation is
+  included, and physical-headset gameplay remains unvalidated.
 - **Planned.** Level streaming without frame stalls, streamed cutscene audio,
-  the remaining fidelity renderers (TIE wind, depth cue, sprite distort/glow),
-  and visionOS presentation.
+  and the remaining fidelity renderers (TIE wind, depth cue, sprite
+  distort/glow).
 
 Known issues and honest limits are tracked in `HANDOFF.md`.
 
@@ -73,6 +79,7 @@ game/kernel/core/          portable runtime: no SDL, no windowing, no input,
           +-- goalpad-play     SDL window, SDL gamepad, CoreAudio    -> macOS
           +-- GOALPad.app      SwiftUI, CAMetalLayer, GameController,
                                AVAudioEngine, touch controls          -> iPadOS
+                                                                   -> visionOS window
 ```
 
 Hosts meet the engine only at small C seams — `goal_pad_set_state`,
@@ -112,14 +119,14 @@ app.
 Gameplay uses OpenGOAL's desktop-compatible memcard files under Application
 Support. The optional iCloud Saves setting mirrors those files into the app's
 iCloud Documents container; the runtime never plays from iCloud paths. When the
-two copies diverge, GOALPad leaves both originals in place, archives both
+two copies diverge, Eco leaves both originals in place, archives both
 versions, and reports the conflict in Settings.
 
 The mirror is implemented with Apple's standard iCloud Documents entitlements;
-no CloudKit database or private entitlement is used. Capability wiring remains
-disabled in the canonical project until an iCloud-capable paid team provisions
-a unique app identifier and container, so current Personal Team builds report
-iCloud as unavailable and continue using local saves.
+no CloudKit database or private entitlement is used. The canonical project now
+wires the selected paid-team app identifier and private container. Signed
+provisioning and real cross-device transfer remain validation gates; when
+iCloud is unavailable, gameplay continues on local saves.
 
 ## Content policy
 

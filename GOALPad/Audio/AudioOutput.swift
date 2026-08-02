@@ -2,7 +2,7 @@ import AVFoundation
 import OSLog
 import Synchronization
 
-nonisolated private let audioLog = Logger(subsystem: "com.zephyrstudiosllc.GOALPad",
+nonisolated private let audioLog = Logger(subsystem: "com.zephyrstudiosllc.eco",
                                           category: "Audio")
 
 /// The audio device for the engine's mixer.

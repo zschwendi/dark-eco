@@ -1,7 +1,7 @@
 import Foundation
 import OSLog
 
-nonisolated private let touchLog = Logger(subsystem: "com.zephyrstudiosllc.GOALPad",
+nonisolated private let touchLog = Logger(subsystem: "com.zephyrstudiosllc.eco",
                                           category: "Touch")
 
 /// The PS2 buttons the on-screen controls drive.

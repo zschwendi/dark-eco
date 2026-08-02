@@ -33,7 +33,7 @@
 namespace {
 
 os_log_t gfx_log() {
-  static os_log_t log = os_log_create("com.zephyrstudiosllc.GOALPad", "Renderer");
+  static os_log_t log = os_log_create("com.zephyrstudiosllc.eco", "Renderer");
   return log;
 }
 
