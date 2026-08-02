@@ -48,7 +48,7 @@ bool g_booted = false;
 std::uint64_t g_frames = 0;
 Ptr<jak1::Symbol> g_dispatcher;
 int32_t* g_math_camera = nullptr;
-#if TARGET_OS_IOS
+#if TARGET_OS_IOS || TARGET_OS_VISION
 int32_t* g_timer_reset_value = nullptr;
 int32_t* g_host_display_time_ratio = nullptr;
 goalpad::DisplayClock g_display_clock;
@@ -328,12 +328,13 @@ BootStatus boot_game() noexcept {
     status.data_objects = stats.data_objects;
     record_packages_in_game_cgo();
 
-#if TARGET_OS_IOS
+#if TARGET_OS_IOS || TARGET_OS_VISION
     // The AOT new-bones path flattened Jak on physical iPad, while the existing MIPS2C producer
-    // preserved the correct volumetric pose. Keep this iOS compatibility fallback at the producer
-    // boundary until new-bones reaches physical-device parity; rendering and game data stay shared.
+    // preserved the correct volumetric pose. Keep this iOS and visionOS compatibility fallback at
+    // the producer boundary until new-bones reaches physical-device parity; rendering and game
+    // data stay shared.
     goal_game_set_symbol_value("*use-new-bones*", goal_game_false_offset());
-    os_log(boot_log(), "Using the MIPS2C bones matrix producer for iOS compatibility.");
+    os_log(boot_log(), "Using the MIPS2C bones matrix producer for iOS/visionOS compatibility.");
 #endif
 
     // The last thing InitMachineScheme does. `play` allocates the level heaps and drives the whole
@@ -349,7 +350,7 @@ BootStatus boot_game() noexcept {
       os_log_error(boot_log(), "GAME.CGO did not define *math-camera*; camera trace unavailable.");
     }
 
-#if TARGET_OS_IOS
+#if TARGET_OS_IOS || TARGET_OS_VISION
     uint32_t timer_reset_value = 0;
     if (!goal_game_find_symbol("*timer-reset-value*", &timer_reset_value)) {
       return failure("GAME.CGO did not define *timer-reset-value*.");
@@ -397,7 +398,7 @@ bool run_frame(double target_presentation_time) noexcept {
   if (!g_booted) {
     return false;
   }
-#if TARGET_OS_IOS
+#if TARGET_OS_IOS || TARGET_OS_VISION
   // `display-frame-start` consumes this value at the same boundary as its upstream timer result,
   // before the next frame's process and camera updates. CADisplayLink's target timestamp measures
   // display cadence; callback workload does not move the ratio onto the wrong game frame.
@@ -426,7 +427,7 @@ bool run_frame(double target_presentation_time) noexcept {
 }
 
 void reset_frame_timing() noexcept {
-#if TARGET_OS_IOS
+#if TARGET_OS_IOS || TARGET_OS_VISION
   g_display_clock.reset();
 #endif
 }
@@ -474,7 +475,7 @@ void reset_game() noexcept {
   g_dispatcher = Ptr<jak1::Symbol>();
   g_math_camera = nullptr;
   reset_frame_timing();
-#if TARGET_OS_IOS
+#if TARGET_OS_IOS || TARGET_OS_VISION
   g_timer_reset_value = nullptr;
   g_host_display_time_ratio = nullptr;
 #endif

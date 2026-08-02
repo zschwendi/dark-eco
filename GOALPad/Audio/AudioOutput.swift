@@ -103,7 +103,7 @@ final class AudioOutput {
     // MARK: - Session
 
     private func activateSession() throws {
-        #if os(iOS)
+        #if os(iOS) || os(visionOS)
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.playback, mode: .default)
         try session.setPreferredSampleRate(Double(sampleRate))
@@ -113,7 +113,7 @@ final class AudioOutput {
     }
 
     private func deactivateSession() {
-        #if os(iOS)
+        #if os(iOS) || os(visionOS)
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         #endif
     }
@@ -122,7 +122,7 @@ final class AudioOutput {
         guard observers.isEmpty else { return }
         let center = NotificationCenter.default
 
-        #if os(iOS)
+        #if os(iOS) || os(visionOS)
         observers.append(center.addObserver(forName: AVAudioSession.interruptionNotification,
                                             object: nil, queue: .main) { [weak self] note in
             MainActor.assumeIsolated { self?.handleInterruption(note) }
@@ -143,7 +143,7 @@ final class AudioOutput {
         })
     }
 
-    #if os(iOS)
+    #if os(iOS) || os(visionOS)
     private func handleInterruption(_ note: Notification) {
         guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: raw)

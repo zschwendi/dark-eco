@@ -72,18 +72,7 @@ struct GameDataSetupView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Getting your data onto this device")
                 .font(.headline)
-            Text("""
-            Extract Jak 1 with the OpenGOAL tools on a computer. That produces an `out/jak1` \
-            directory holding `iso/` and `fr3/` — about 1.5 GB.
-
-            1. Connect the iPad and open it in Finder, or open the Files app on the iPad.
-            2. Find GOALPad under On My iPad / the device's Files section.
-            3. Copy the whole `iso` and `fr3` directories into GOALPad's `Jak1` folder.
-
-            Or use Import below to copy them in from an external drive or iCloud Drive. That reads \
-            the folder you pick and writes a second copy into the app, so it needs the free space \
-            twice over — the Files route does not.
-            """)
+            Text(setupInstructions)
             .font(.callout)
             .foregroundStyle(.secondary)
             Text(GameDataLayout.gameDirectory.path)
@@ -91,6 +80,35 @@ struct GameDataSetupView: View {
                 .textSelection(.enabled)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private var setupInstructions: String {
+        #if os(visionOS)
+        """
+        Extract Jak 1 with the OpenGOAL tools on a computer. That produces an `out/jak1` \
+        directory holding `iso/` and `fr3/` — about 1.5 GB.
+
+        1. Put `out/jak1` in iCloud Drive, an external drive, or another Files provider.
+        2. Choose Import from a folder below.
+        3. Select the `jak1` folder in the system file picker.
+
+        Import copies `iso/` and `fr3/` into GOALPad's sandbox, so the device needs enough free \
+        space for a second copy.
+        """
+        #else
+        """
+        Extract Jak 1 with the OpenGOAL tools on a computer. That produces an `out/jak1` \
+        directory holding `iso/` and `fr3/` — about 1.5 GB.
+
+        1. Connect the iPad and open it in Finder, or open the Files app on the iPad.
+        2. Find GOALPad under On My iPad / the device's Files section.
+        3. Copy the whole `iso` and `fr3` directories into GOALPad's `Jak1` folder.
+
+        Or use Import below to copy them in from an external drive or iCloud Drive. That reads \
+        the folder you pick and writes a second copy into the app, so it needs the free space \
+        twice over — the Files route does not.
+        """
+        #endif
     }
 
     @ViewBuilder

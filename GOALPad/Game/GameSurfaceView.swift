@@ -41,7 +41,11 @@ private final class MetalHostView: UIView {
             GOALPadRenderSurface.shared.attach(nil)
             return
         }
+        #if os(visionOS)
+        layer.contentsScale = contentScaleFactor
+        #else
         layer.contentsScale = window?.screen.nativeScale ?? layer.contentsScale
+        #endif
         GOALPadRenderSurface.shared.attach(metalLayer)
         updateDrawableSize()
         startDisplayLink()
