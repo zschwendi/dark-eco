@@ -121,7 +121,7 @@ struct GameDataSetupView: View {
         if canImportRawISO {
             return "Choose a supported `.iso`, a standard `.zip` containing exactly one `.iso`, "
                 + "or an already prepared `out/jak1` folder. ZIP64, encrypted, multi-disk, and "
-                + "non-ZIP archives are not supported."
+                + "non-ZIP archives are not supported. ZIP member names must use ASCII or UTF-8."
         }
         return "This build accepts an already prepared `out/jak1` folder. Raw `.iso`, `.zip`, "
             + "and other archive files are not supported in this build."

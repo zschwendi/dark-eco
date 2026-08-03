@@ -338,6 +338,55 @@ private struct RecordingProducer: GameDataCandidateProducing {
     }
 }
 
+@MainActor private func staleOwnedCleanupIsBounded() throws {
+    print("stale ZIP staging cleanup is bounded and preserves ambiguous siblings")
+    let fixture = try Fixture()
+    let directory = fixture.candidate.deletingLastPathComponent()
+    let ownedNames = [
+        "11111111-1111-4111-8111-111111111111.extracted.iso",
+        "22222222-2222-4222-8222-222222222222.extracted.iso",
+        "33333333-3333-4333-8333-333333333333.extracted.iso",
+    ]
+    let ownedURLs = ownedNames.map { directory.appending(path: $0) }
+    for url in ownedURLs {
+        try Data("stale".utf8).write(to: url)
+    }
+
+    let unrelated = [
+        directory.appending(path: "not-a-uuid.extracted.iso"),
+        directory.appending(path: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.extracted.iso"),
+        directory.appending(path: "keep.txt"),
+    ]
+    for url in unrelated {
+        try Data("keep".utf8).write(to: url)
+    }
+    try FileManager.default.createDirectory(
+        at: fixture.candidate,
+        withIntermediateDirectories: true
+    )
+    let ownedLookingDirectory = directory.appending(
+        path: "44444444-4444-4444-8444-444444444444.extracted.iso",
+        directoryHint: .isDirectory
+    )
+    try FileManager.default.createDirectory(
+        at: ownedLookingDirectory,
+        withIntermediateDirectories: false
+    )
+
+    ZIPISOStagingCleaner(maximumRemovals: 2).removeStaleOwnedFiles(in: directory)
+
+    let removedOwnedCount = ownedURLs.filter {
+        !FileManager.default.fileExists(atPath: $0.path)
+    }.count
+    check(removedOwnedCount == 2, "cleanup removes at most its bounded app-owned limit")
+    check(unrelated.allSatisfy { FileManager.default.fileExists(atPath: $0.path) },
+          "ambiguous and unrelated files are preserved")
+    check(FileManager.default.fileExists(atPath: fixture.candidate.path),
+          "candidate directories are preserved")
+    check(FileManager.default.fileExists(atPath: ownedLookingDirectory.path),
+          "an owned-looking directory is preserved")
+}
+
 @MainActor private func cancellationRemovesPartialOutput() async throws {
     print("cancellation removes partially extracted ISO staging")
     let fixture = try Fixture()
@@ -367,6 +416,40 @@ private struct RecordingProducer: GameDataCandidateProducing {
     }
     check(!FileManager.default.fileExists(atPath: fixture.output.path),
           "cancelled extraction leaves no partial ISO")
+}
+
+@MainActor private func deflateFinalChunkCancellationRemovesOutput() async throws {
+    print("raw DEFLATE cancellation at final progress cannot return success")
+    let fixture = try Fixture()
+    let contents = Data(repeating: 0, count: 256 * 1_024)
+    try fixture.writeArchive(try makeArchive([
+        ArchiveEntry(name: "game.iso", contents: contents, method: 8),
+    ]))
+    var limits = ZIPISOExtractor.Limits()
+    limits.chunkBytes = 1 * 1_024
+    limits.minimumFreeSpaceAfterExtraction = 0
+
+    let operation = Task {
+        try await ZIPISOExtractor(limits: limits).extractISO(
+            from: fixture.archive,
+            to: fixture.output
+        ) { progress in
+            if progress.phase == .preparingCandidate,
+               progress.bytesTotal > 0,
+               progress.bytesCopied == progress.bytesTotal
+            {
+                withUnsafeCurrentTask { $0?.cancel() }
+            }
+        }
+    }
+    do {
+        try await operation.value
+        check(false, "final-chunk DEFLATE cancellation does not complete")
+    } catch is CancellationError {
+        check(true, "final-chunk DEFLATE cancellation stays distinct")
+    }
+    check(!FileManager.default.fileExists(atPath: fixture.output.path),
+          "final-chunk DEFLATE cancellation removes the completed temporary ISO")
 }
 
 @MainActor private func expectFailure(
@@ -526,7 +609,9 @@ private struct ZIPISOImportCheck {
             try await storedAndDeflatedMembersExtract()
             try await exactOutputBufferBoundaryExtracts()
             try await producerUsesSiblingAndCleansUp()
+            try staleOwnedCleanupIsBounded()
             try await cancellationRemovesPartialOutput()
+            try await deflateFinalChunkCancellationRemovesOutput()
             try await unsafeAndUnsupportedArchivesFailClosed()
             try await corruptAndUnreasonableMembersFailClosed()
         } catch {

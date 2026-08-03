@@ -337,6 +337,8 @@ to private Application Support staging, verifies its size and CRC-32, passes it
 to the same raw-disc preparation pipeline, and removes the temporary image.
 Stored and raw-DEFLATE ZIP members are supported. ZIP64, encrypted, multi-disk,
 ambiguous, and unsafe archives are rejected with no change to active game data.
+Member names must use ASCII or UTF-8; legacy CP437 names are deliberately
+rejected rather than guessed.
 
 On-device preparation is more than extracting an archive: the pipeline parses
 and verifies the disc image, generates the prepared level data, and rebuilds
