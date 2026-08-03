@@ -109,6 +109,23 @@ GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT = $(SRCROOT)/build/jak1-source-object-pack
 OTHER_LDFLAGS = $(inherited) "$(GOALPAD_JAK1_IMPORT_ARCHIVE)"
 ```
 
+On a clean checkout, create the ignored public source pack at that Release
+default before the first Release build:
+
+```sh
+Scripts/prepare-jak1-source-object-pack.sh
+```
+
+The command uses the pinned OpenGOAL source graph and canonical host build
+directory, publishes `build/jak1-source-object-pack` only when it is absent,
+and always runs the verifier that requires the recorded 518-object identity.
+Running it again reuses and revalidates the existing pack; it never replaces a
+corrupt or divergent directory. To use a separately managed pack, set
+`GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT` to an absolute path whose parent already
+exists for both this command and the Xcode build. Historical checkpoint commands
+that name a `/private/tmp` pack are recorded local evidence, not a Release
+requirement.
+
 Debug remains the prepared-folder-only fallback: the composer macro is `0`, no
 importer archive is added to the link, and both importer phases exit without
 touching their derived outputs. Release is deliberately ARM64-only and enables
