@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness and remaining platform gaps, not real-media
 import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 52 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 57 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 
@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 56 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 57 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -925,19 +925,55 @@ format-derived aggregate grain budget and makes partial block construction
 exception-safe. The SBlk, sound-RPC, and Jak 1 lifecycle tests pass 3/3. This
 is a checked host seam, not playback, app wiring, simulator, or device proof.
 
+Checkpoint 57 records the first strongly positive physical result from the
+packed-square-root correction. In the maintainer's current Z iPad Pro run,
+gameplay was very playable and the camera, Jak's volumetric shape/facing, and
+attacks looked fixed. This is **Experimental** evidence from that run, not a
+universal completion claim: the app has not yet been backgrounded, so the
+final corrected trace has not been copied and classified. The only consistent
+visible defect reported in that run is metallic-material flicker.
+
+The dedicated nested visual line at `988153483` adds schema-v6 post-flag,
+root-scale, visibility, raw-draw, attack, and TIE diagnostics plus a narrowly
+scoped Jak 1 Metal TIE second-envmap-pass gate. The deterministic Metal A/B/A
+proof passed, and the regenerated diagnostic pack verified as 518 objects,
+aggregate `0a6387a3959fd8cb`, 10,729,950 bytes, 10,596 emitted functions, and 7
+native routines. These are **Implemented** diagnostic/proof seams. The physical
+TIE-disabled B install and metallic comparison remain **Experimental** and
+pending.
+
+The current Jak II full iPhoneOS AOT link proof remains isolated and unsigned.
+Its thin ARM64 executable has SHA-256
+`4cac833e5ee0197adcf2cecc55272112dbd1b5bd20f56db8c24538277cb3f497`,
+minimum iOS 18.0, no unresolved project `goal_`/`ZSTD_` symbols, and no app,
+signing, simulator, device, title-screen, or gameplay claim.
+
+The Settings-only iCloud conflict-resolution design at parent `87596d01` is
+**Experimental** and currently **NO-GO** after independent review. Its combined
+generic-iOS Release build passed only as intermediate compilation evidence.
+Source-side compare-and-swap immediately before mutation and a durable recovery
+journal across interruption/crash are still required, with focused recovery
+coverage and a new independent review, before integration or physical rollout.
+
 The next actions are:
 
-1. When the current Z iPad Pro run is complete, background Eco Pro and copy the
-   corrected cache before relaunch. Require unit render/control quaternion
-   norms and unit camera-combiner basis axes before accepting the shared fix.
-2. Record physical visual acceptance separately: Jak must retain volume and
-   correct facing through portal-relative headings, and the wall/out-of-frame
-   camera must stop alternating coherent large orientations.
-3. Keep the camera, Merc, importer, source-pack, and AOT gates green. Reuse the
-   fresh 518-object pack unless its writer or embedded graph changes.
-4. Continue Jak II from the first unsupported RPC after checked bank loading.
-   Playback, streams, output, app wiring, and physical runtime remain unproved.
-5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
+1. When the current Z iPad Pro run is backgrounded, copy the corrected cache
+   before relaunch and classify target/render quaternion norms, deformation
+   axes, and camera-combiner basis axes separately from the positive visual
+   report.
+2. Repair the iCloud resolution lane with source-side compare-and-swap and a
+   durable recovery journal, rerun focused failure/recovery coverage, and
+   obtain a new independent review before physical rollout.
+3. Build and physically compare only the bounded Jak 1 TIE-second-pass-disabled
+   B variant against the current enabled result. Do not speculate past that
+   deterministic metallic-flicker hypothesis.
+4. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
+   518-object pack only while its recorded writer and embedded graph remain
+   unchanged, and keep the visual nested line separate from clean Jak II work.
+5. Continue Jak II through the next bounded host/AOT seam. Playback, streams,
+   app wiring, signing, simulator/device runtime, and physical gameplay remain
+   unproved.
+6. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.

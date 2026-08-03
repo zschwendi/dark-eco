@@ -9113,3 +9113,123 @@ Nested `ac8f3460dbc12b785348eaa96f38353613de7719` is pushed to
    that cleanup into this checkpoint.
 4. Continue Jak II from the first post-bank-load unsupported RPC. Do not claim
    playback or app support from the checked host bank seam.
+
+# Checkpoint 57: preserve the corrected Jak 1 result and isolate the remaining metallic pass
+
+## Exact Git and artifact state
+
+- The parent implementation point before this documentation commit is
+  `87596d0147f04febf666cd3bb47c0893da0332d4`. Its visual-diagnostic commits are
+  `c728b4fa4100c16d02373519e9874391517f3edc`,
+  `01c0b9d9e962565c0ecc91b8e3f0859c6c267fbc`, and
+  `84acd03bc3c051acdfab5a8c16adca8db5918d95`.
+- That parent pins the dedicated nested Jak 1 visual-diagnostic line at
+  `9881534832fea8cd1055efb30dc69bf04c1d3057`. This is not the clean Jak II
+  integration line and must not be conflated with it.
+- The schema-v6 diagnostic source pack at
+  `/private/tmp/GOALPad-jak1-source-pack-88d8f85fe-cp57` verified as 518 source
+  objects, aggregate `0a6387a3959fd8cb`, and 10,729,950 object bytes. Its AOT
+  corpus contains 10,596 emitted functions and 7 native routines.
+- The current isolated Jak II iPhoneOS full-AOT link proof is a thin ARM64
+  Mach-O with SHA-256
+  `4cac833e5ee0197adcf2cecc55272112dbd1b5bd20f56db8c24538277cb3f497`,
+  minimum iOS 18.0, and SDK 26.5. `nm` found no unresolved project `goal_` or
+  `ZSTD_` symbols. This is unsigned compile/link evidence only: it is not app
+  wiring, signing, launch, simulator/device runtime, title-screen, or gameplay
+  evidence.
+
+## Implemented and deterministically verified diagnostics
+
+Nested `1682ce1d7` adds the schema-v6 root-anchor, final-deformation,
+visibility, raw-draw, attack, and node-3 parent-scale observations needed to
+separate GOAL target state from final Merc output. Nested `0cbad3182`,
+`88d8f85fe`, and `d0c620b41` keep the trace test and attack-ID ABI honest and
+record the regenerated pack identity. Parent `c728b4fa`, `01c0b9d9`, and
+`84acd03b` carry that evidence through the Objective-C++/Swift cache, frame
+post-flag and TIE samples to the engine frame that produced them, persist
+hidden transitions, and cover those framing rules with focused checks. This is
+diagnostic instrumentation; it does not itself change Jak's gameplay
+transforms.
+
+Nested `988153483` adds one deliberately narrow physical A/B gate for the
+remaining metallic flicker. For Jak 1 Metal TIE rendering only, the diagnostic
+switch can suppress `NORMAL_ENVMAP_SECOND_DRAW` while preserving the base draw
+and first envmap draw. It does not alter Merc, camera, non-TIE buckets, or the
+ordinary enabled path. The focused Metal proof passed:
+
+```sh
+OpenGOAL/build/Release/bin/game/metal-proof --tie-envmap-isolation-only
+```
+
+The enabled frame produced four TIE draws including two second envmap draws;
+the disabled frame produced two base/first-pass draws and zero second draws;
+reenabling restored a byte-identical enabled frame. The proof ended
+`METAL TIE ENVMAP ISOLATION PROOF PASSED`. This is deterministic renderer
+isolation evidence, not physical proof that the second pass causes the visible
+flicker.
+
+The diagnostic pack and generated AOT verification passed:
+
+```sh
+OpenGOAL/build/Release/bin/goalc/jak1-source-object-pack-verify \
+  /private/tmp/GOALPad-jak1-source-pack-88d8f85fe-cp57
+Scripts/verify-generated-aot.sh Generated/jak1-aot 518
+```
+
+The first command reported the 518-object `0a6387a3959fd8cb` / 10,729,950-byte
+pack. The second reported 10,596 emitted functions and 7 native routines.
+
+## Experimental physical result and remaining visual gate
+
+The maintainer's current Z iPad Pro run is the best physical Jak 1 result so
+far: gameplay was described as very playable, and the camera, Jak's volume and
+facing, and the previously wrong-direction attack behavior all looked fixed in
+that run. This is physical visual evidence for that run, not a universal
+completion claim. The one consistent visible defect was the metallic-material
+flicker.
+
+The app has not yet been backgrounded after that run, so the final corrected
+schema-v5 cache has not been copied. Do not relaunch or reinstall before that
+read-only copy. Diagnostic confirmation of unit target/render quaternion norms
+and unit camera-combiner axes therefore remains pending even though the visual
+result is strongly positive.
+
+The next visual experiment is the already bounded TIE second-pass B build. A
+physical install and the same metallic-material observation are still pending.
+Accept or reject that hypothesis only from the explicit enabled-versus-disabled
+physical comparison; do not make another broad renderer or camera change from
+the static proof alone.
+
+## Experimental iCloud conflict resolution, currently NO-GO
+
+Parent `87596d01` implements a Settings-only conflict-resolution design: save
+conflicts are surfaced and resolved in Settings rather than interrupting
+gameplay with an overlay. Local Application Support remains the gameplay source
+and iCloud remains a mirror. A combined generic-iOS Release build passed before
+the independent review completed, so that build is intermediate compilation
+evidence only.
+
+Independent review returned **NO-GO** for integration. The mutation path still
+needs source-side compare-and-swap protection immediately before commit and a
+durable recovery journal across interruption or crash. Until both repairs and
+their deterministic failure/recovery coverage pass, label this work
+**Experimental**, do not treat the intermediate Release build as approval, and
+do not perform a physical rollout for it.
+
+## Next executable tasks
+
+1. After the maintainer backgrounds the current Eco Pro run, copy the existing
+   diagnostics cache read-only before any relaunch or reinstall and classify
+   quaternion norms, deformation axes, and camera-combiner axes.
+2. Repair the iCloud resolution lane with source-side compare-and-swap and a
+   durable recovery journal, then repeat focused save tests and independent
+   review before another combined Release build is considered releasable.
+3. Build and physically compare the narrow Jak 1 TIE-second-pass-disabled B
+   variant against the current enabled result. Change no unrelated renderer,
+   camera, asset, or gameplay code in that experiment.
+4. Preserve the verified 518-object diagnostic pack identity unless its writer
+   or embedded graph changes. Keep the clean Jak II integration line separate
+   from nested `988153483`.
+5. Continue Jak II only through bounded host/AOT seams. The current full link
+   remains unsigned isolated evidence and does not displace Jak 1 as active
+   scope.
