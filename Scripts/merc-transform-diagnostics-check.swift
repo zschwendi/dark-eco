@@ -35,13 +35,16 @@ first.currentInputRootHash = 0x100
 first.olderCameraHash = 0x300
 first.previousCameraHash = 0x300
 first.currentCameraHash = 0x300
+first.previousBindPoseHash = 0x400
+first.currentBindPoseHash = 0x400
 first.inputOlderToPreviousDistance = 1
 first.inputPreviousToCurrentDistance = 1
 first.inputOlderToCurrentDistance = 0
 first.outputOlderToPreviousDistance = 1
 first.outputPreviousToCurrentDistance = 1
 first.outputOlderToCurrentDistance = 0
-first.outputExpectedDistance = 0.25
+first.previousOutputExpectedDistance = 0.125
+first.currentOutputExpectedDistance = 0.25
 first.cameraOlderToPreviousDistance = 0
 first.cameraPreviousToCurrentDistance = 0
 first.cameraOlderToCurrentDistance = 0
@@ -77,23 +80,58 @@ last.currentSourceBase = 0x1600
 
 var firstProvenance = first
 firstProvenance.issueMask = 4
-firstProvenance.outputExpectedDistance = 0.5
+firstProvenance.previousOutputExpectedDistance = 0.25
+firstProvenance.currentOutputExpectedDistance = 0.5
 
 var lastProvenance = last
 lastProvenance.issueMask = 128
-lastProvenance.outputExpectedDistance = 1.5
+lastProvenance.previousBindPoseHash = 0x400
+lastProvenance.currentBindPoseHash = 0x500
+lastProvenance.previousOutputExpectedDistance = 0.5
+lastProvenance.currentOutputExpectedDistance = 1.5
+
+var firstEicharPalette = GOALPadMercPaletteHealthEvent()
+firstEicharPalette.engineFrameID = 60
+firstEicharPalette.hostTickID = 100
+firstEicharPalette.chainOrdinal = 2
+firstEicharPalette.issueMask = 1
+firstEicharPalette.nonfiniteLaneMask = (1 << 3) | (1 << 20)
+firstEicharPalette.boneSlot = 3
+firstEicharPalette.modelNameHash = 0xe1
+firstEicharPalette.matrixHash = 0x600
+
+var lastEicharPalette = firstEicharPalette
+lastEicharPalette.engineFrameID = 61
+lastEicharPalette.issueMask = 4
+lastEicharPalette.nonfiniteLaneMask = 0
+lastEicharPalette.sourceBase = 0x1600
+lastEicharPalette.expectedSourceBase = 0x2600
 
 var stats = GOALPadRendererStats()
 stats.mercEicharTransformDiscontinuities = 1
 stats.mercEicharTransformDiscontinuitiesTotal = 2
+stats.mercEicharProvenanceEvents = 2
+stats.mercEicharProvenanceEventsTotal = 3
+stats.mercEicharOutputCompositionMismatches = 1
+stats.mercEicharOutputCompositionMismatchesTotal = 2
+stats.mercEicharPaletteHealthIssues = 1
+stats.mercEicharPaletteHealthIssuesTotal = 2
 stats.lastMercPaletteHealthNonfiniteLaneMask = (1 << 3) | (1 << 20)
 stats.firstMercEicharTransformDiscontinuity = first
 stats.lastMercEicharTransformDiscontinuity = last
 stats.firstMercEicharProvenanceEvent = firstProvenance
 stats.lastMercEicharProvenanceEvent = lastProvenance
+stats.firstMercEicharPaletteHealthEvent = firstEicharPalette
+stats.lastMercEicharPaletteHealthEvent = lastEicharPalette
 
 precondition(stats.mercEicharTransformDiscontinuities == 1)
 precondition(stats.mercEicharTransformDiscontinuitiesTotal == 2)
+precondition(stats.mercEicharProvenanceEvents == 2)
+precondition(stats.mercEicharProvenanceEventsTotal == 3)
+precondition(stats.mercEicharOutputCompositionMismatches == 1)
+precondition(stats.mercEicharOutputCompositionMismatchesTotal == 2)
+precondition(stats.mercEicharPaletteHealthIssues == 1)
+precondition(stats.mercEicharPaletteHealthIssuesTotal == 2)
 precondition(stats.lastMercPaletteHealthNonfiniteLaneMask == (1 << 3) | (1 << 20))
 precondition(stats.firstMercEicharTransformDiscontinuity.previousMatrixHash
     == stats.lastMercEicharTransformDiscontinuity.currentMatrixHash)
@@ -121,10 +159,17 @@ precondition(stats.firstMercEicharTransformDiscontinuity.outputOlderToCurrentDis
 precondition(stats.firstMercEicharTransformDiscontinuity.cameraOlderToCurrentDistance == 0)
 precondition(stats.firstMercEicharTransformDiscontinuity.previousInputTranslationY == 2)
 precondition(stats.firstMercEicharTransformDiscontinuity.currentInputTranslationZ == 6)
-precondition(stats.firstMercEicharTransformDiscontinuity.outputExpectedDistance == 0.25)
+precondition(stats.firstMercEicharTransformDiscontinuity.previousBindPoseHash == 0x400)
+precondition(stats.firstMercEicharTransformDiscontinuity.currentOutputExpectedDistance == 0.25)
 precondition(stats.firstMercEicharProvenanceEvent.issueMask == 4)
-precondition(stats.firstMercEicharProvenanceEvent.outputExpectedDistance == 0.5)
+precondition(stats.firstMercEicharProvenanceEvent.previousOutputExpectedDistance == 0.25)
+precondition(stats.firstMercEicharProvenanceEvent.currentOutputExpectedDistance == 0.5)
 precondition(stats.lastMercEicharProvenanceEvent.issueMask == 128)
-precondition(stats.lastMercEicharProvenanceEvent.outputExpectedDistance == 1.5)
+precondition(stats.lastMercEicharProvenanceEvent.currentBindPoseHash == 0x500)
+precondition(stats.lastMercEicharProvenanceEvent.currentOutputExpectedDistance == 1.5)
+precondition(stats.firstMercEicharPaletteHealthEvent.issueMask == 1)
+precondition(stats.firstMercEicharPaletteHealthEvent.nonfiniteLaneMask == (1 << 3) | (1 << 20))
+precondition(stats.lastMercEicharPaletteHealthEvent.issueMask == 4)
+precondition(stats.lastMercEicharPaletteHealthEvent.expectedSourceBase == 0x2600)
 
 print("merc transform diagnostics bridge check passed")

@@ -217,13 +217,16 @@ goalpad::MetalHostMercTransformEvent retain_merc_transform_event(
   retained.older_camera_hash = event.older_camera_hash;
   retained.previous_camera_hash = event.previous_camera_hash;
   retained.current_camera_hash = event.current_camera_hash;
+  retained.previous_bind_pose_hash = event.previous_bind_pose_hash;
+  retained.current_bind_pose_hash = event.current_bind_pose_hash;
   retained.input_older_to_previous_distance = event.input_older_to_previous_distance;
   retained.input_previous_to_current_distance = event.input_previous_to_current_distance;
   retained.input_older_to_current_distance = event.input_older_to_current_distance;
   retained.output_older_to_previous_distance = event.output_older_to_previous_distance;
   retained.output_previous_to_current_distance = event.output_previous_to_current_distance;
   retained.output_older_to_current_distance = event.output_older_to_current_distance;
-  retained.output_expected_distance = event.output_expected_distance;
+  retained.previous_output_expected_distance = event.previous_output_expected_distance;
+  retained.current_output_expected_distance = event.current_output_expected_distance;
   retained.camera_older_to_previous_distance = event.camera_older_to_previous_distance;
   retained.camera_previous_to_current_distance = event.camera_previous_to_current_distance;
   retained.camera_older_to_current_distance = event.camera_older_to_current_distance;
@@ -233,6 +236,30 @@ goalpad::MetalHostMercTransformEvent retain_merc_transform_event(
   retained.current_input_translation_x = event.current_input_translation_x;
   retained.current_input_translation_y = event.current_input_translation_y;
   retained.current_input_translation_z = event.current_input_translation_z;
+  return retained;
+}
+
+goalpad::MetalHostMercPaletteHealthEvent retain_merc_palette_health_event(
+    const metal_renderer::MercPaletteHealthEvent& event,
+    std::uint64_t engine_frame_id,
+    std::uint64_t host_tick_id,
+    std::uint64_t chain_ordinal) {
+  goalpad::MetalHostMercPaletteHealthEvent retained;
+  retained.engine_frame_id = engine_frame_id;
+  retained.host_tick_id = host_tick_id;
+  retained.chain_ordinal = chain_ordinal;
+  retained.issue_mask = event.issue_mask;
+  retained.nonfinite_lane_mask = event.nonfinite_lane_mask;
+  retained.bone_slot = event.bone_slot;
+  retained.model_name_hash = event.model_name_hash;
+  retained.matrix_hash = event.matrix_hash;
+  retained.axis_norm_x = event.axis_norm_x;
+  retained.axis_norm_y = event.axis_norm_y;
+  retained.axis_norm_z = event.axis_norm_z;
+  retained.normalized_abs_determinant = event.normalized_abs_determinant;
+  retained.source_address = event.source_address;
+  retained.source_base = event.source_base;
+  retained.expected_source_base = event.expected_source_base;
   return retained;
 }
 
@@ -332,7 +359,9 @@ void render_chain() {
         stats.last_merc_eichar_transform_discontinuity, stats.last_host_tick_id,
         stats.last_chain_ordinal);
   }
+  g_host.stats.merc_eichar_provenance_events = stats.merc_eichar_provenance_events;
   if (stats.merc_eichar_provenance_events > 0) {
+    g_host.stats.merc_eichar_provenance_events_total += stats.merc_eichar_provenance_events;
     if (!g_host.stats.first_merc_eichar_provenance_event.valid()) {
       g_host.stats.first_merc_eichar_provenance_event = retain_merc_transform_event(
           stats.first_merc_eichar_provenance_event, stats.last_host_tick_id,
@@ -341,6 +370,23 @@ void render_chain() {
     g_host.stats.last_merc_eichar_provenance_event = retain_merc_transform_event(
         stats.last_merc_eichar_provenance_event, stats.last_host_tick_id,
         stats.last_chain_ordinal);
+  }
+  g_host.stats.merc_eichar_output_composition_mismatches =
+      stats.merc_eichar_output_composition_mismatches;
+  g_host.stats.merc_eichar_output_composition_mismatches_total +=
+      stats.merc_eichar_output_composition_mismatches;
+  g_host.stats.merc_eichar_palette_health_issues = stats.merc_eichar_palette_health_issues;
+  if (stats.merc_eichar_palette_health_issues > 0) {
+    g_host.stats.merc_eichar_palette_health_issues_total +=
+        stats.merc_eichar_palette_health_issues;
+    if (!g_host.stats.first_merc_eichar_palette_health_event.valid()) {
+      g_host.stats.first_merc_eichar_palette_health_event = retain_merc_palette_health_event(
+          stats.first_merc_eichar_palette_health_event, stats.last_engine_frame_id,
+          stats.last_host_tick_id, stats.last_chain_ordinal);
+    }
+    g_host.stats.last_merc_eichar_palette_health_event = retain_merc_palette_health_event(
+        stats.last_merc_eichar_palette_health_event, stats.last_engine_frame_id,
+        stats.last_host_tick_id, stats.last_chain_ordinal);
   }
   g_host.stats.merc_bad_bone_pointers += stats.merc_bad_bone_pointers;
   g_host.stats.merc_bad_draw_ranges += stats.merc_bad_draw_ranges;

@@ -267,13 +267,16 @@ typedef struct GOALPadMercTransformEvent {
   uint64_t olderCameraHash;
   uint64_t previousCameraHash;
   uint64_t currentCameraHash;
+  uint64_t previousBindPoseHash;
+  uint64_t currentBindPoseHash;
   double inputOlderToPreviousDistance;
   double inputPreviousToCurrentDistance;
   double inputOlderToCurrentDistance;
   double outputOlderToPreviousDistance;
   double outputPreviousToCurrentDistance;
   double outputOlderToCurrentDistance;
-  double outputExpectedDistance;
+  double previousOutputExpectedDistance;
+  double currentOutputExpectedDistance;
   double cameraOlderToPreviousDistance;
   double cameraPreviousToCurrentDistance;
   double cameraOlderToCurrentDistance;
@@ -284,6 +287,25 @@ typedef struct GOALPadMercTransformEvent {
   double currentInputTranslationY;
   double currentInputTranslationZ;
 } GOALPadMercTransformEvent;
+
+/// Numeric evidence retained for one unhealthy eichar-lod0 palette matrix.
+typedef struct GOALPadMercPaletteHealthEvent {
+  uint64_t engineFrameID;
+  uint64_t hostTickID;
+  uint64_t chainOrdinal;
+  uint8_t issueMask;
+  uint32_t nonfiniteLaneMask;
+  int32_t boneSlot;
+  uint64_t modelNameHash;
+  uint64_t matrixHash;
+  double axisNormX;
+  double axisNormY;
+  double axisNormZ;
+  double normalizedAbsDeterminant;
+  uint32_t sourceAddress;
+  uint64_t sourceBase;
+  uint64_t expectedSourceBase;
+} GOALPadMercPaletteHealthEvent;
 
 /// One copied GOAL vector in a constrained-camera event. These are numeric values, never live
 /// pointers into the GOAL heap.
@@ -434,8 +456,16 @@ typedef struct GOALPadRendererStats {
   uint64_t mercEicharTransformDiscontinuitiesTotal;
   GOALPadMercTransformEvent firstMercEicharTransformDiscontinuity;
   GOALPadMercTransformEvent lastMercEicharTransformDiscontinuity;
+  int32_t mercEicharProvenanceEvents;
+  uint64_t mercEicharProvenanceEventsTotal;
   GOALPadMercTransformEvent firstMercEicharProvenanceEvent;
   GOALPadMercTransformEvent lastMercEicharProvenanceEvent;
+  int32_t mercEicharOutputCompositionMismatches;
+  uint64_t mercEicharOutputCompositionMismatchesTotal;
+  int32_t mercEicharPaletteHealthIssues;
+  uint64_t mercEicharPaletteHealthIssuesTotal;
+  GOALPadMercPaletteHealthEvent firstMercEicharPaletteHealthEvent;
+  GOALPadMercPaletteHealthEvent lastMercEicharPaletteHealthEvent;
   uint64_t mercBadBonePointers;
   uint64_t mercBadDrawRanges;
   uint64_t cameraCorrectionEventsTotal;

@@ -62,13 +62,16 @@ static GOALPadMercTransformEvent makeMercTransformEvent(
           core.older_camera_hash,
           core.previous_camera_hash,
           core.current_camera_hash,
+          core.previous_bind_pose_hash,
+          core.current_bind_pose_hash,
           core.input_older_to_previous_distance,
           core.input_previous_to_current_distance,
           core.input_older_to_current_distance,
           core.output_older_to_previous_distance,
           core.output_previous_to_current_distance,
           core.output_older_to_current_distance,
-          core.output_expected_distance,
+          core.previous_output_expected_distance,
+          core.current_output_expected_distance,
           core.camera_older_to_previous_distance,
           core.camera_previous_to_current_distance,
           core.camera_older_to_current_distance,
@@ -78,6 +81,25 @@ static GOALPadMercTransformEvent makeMercTransformEvent(
           core.current_input_translation_x,
           core.current_input_translation_y,
           core.current_input_translation_z};
+}
+
+static GOALPadMercPaletteHealthEvent makeMercPaletteHealthEvent(
+    const goalpad::MetalHostMercPaletteHealthEvent &core) {
+  return {core.engine_frame_id,
+          core.host_tick_id,
+          core.chain_ordinal,
+          core.issue_mask,
+          core.nonfinite_lane_mask,
+          (int32_t)core.bone_slot,
+          core.model_name_hash,
+          core.matrix_hash,
+          core.axis_norm_x,
+          core.axis_norm_y,
+          core.axis_norm_z,
+          core.normalized_abs_determinant,
+          core.source_address,
+          core.source_base,
+          core.expected_source_base};
 }
 
 static GOALPadCameraCorrectionVector makeCameraCorrectionVector(
@@ -299,10 +321,20 @@ static GOALPadCameraCorrectionEvent makeCameraCorrectionEvent(
                                     core.first_merc_eichar_transform_discontinuity),
                                 makeMercTransformEvent(
                                     core.last_merc_eichar_transform_discontinuity),
+                                (int32_t)core.merc_eichar_provenance_events,
+                                core.merc_eichar_provenance_events_total,
                                 makeMercTransformEvent(
                                     core.first_merc_eichar_provenance_event),
                                 makeMercTransformEvent(
                                     core.last_merc_eichar_provenance_event),
+                                (int32_t)core.merc_eichar_output_composition_mismatches,
+                                core.merc_eichar_output_composition_mismatches_total,
+                                (int32_t)core.merc_eichar_palette_health_issues,
+                                core.merc_eichar_palette_health_issues_total,
+                                makeMercPaletteHealthEvent(
+                                    core.first_merc_eichar_palette_health_event),
+                                makeMercPaletteHealthEvent(
+                                    core.last_merc_eichar_palette_health_event),
                                 core.merc_bad_bone_pointers, core.merc_bad_draw_ranges,
                                 core.camera_correction_events_total,
                                 makeCameraCorrectionEvent(

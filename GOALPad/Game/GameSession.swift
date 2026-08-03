@@ -463,6 +463,8 @@ final class GameSession {
                 "\(prefix)_older_camera_hash=\(event.olderCameraHash)",
                 "\(prefix)_previous_camera_hash=\(event.previousCameraHash)",
                 "\(prefix)_current_camera_hash=\(event.currentCameraHash)",
+                "\(prefix)_previous_bind_pose_hash=\(event.previousBindPoseHash)",
+                "\(prefix)_current_bind_pose_hash=\(event.currentBindPoseHash)",
                 "\(prefix)_input_distance_older_previous="
                     + decimal(event.inputOlderToPreviousDistance),
                 "\(prefix)_input_distance_previous_current="
@@ -475,8 +477,10 @@ final class GameSession {
                     + decimal(event.outputPreviousToCurrentDistance),
                 "\(prefix)_output_distance_older_current="
                     + decimal(event.outputOlderToCurrentDistance),
-                "\(prefix)_output_expected_distance="
-                    + decimal(event.outputExpectedDistance),
+                "\(prefix)_previous_output_expected_distance="
+                    + decimal(event.previousOutputExpectedDistance),
+                "\(prefix)_current_output_expected_distance="
+                    + decimal(event.currentOutputExpectedDistance),
                 "\(prefix)_camera_distance_older_previous="
                     + decimal(event.cameraOlderToPreviousDistance),
                 "\(prefix)_camera_distance_previous_current="
@@ -495,6 +499,30 @@ final class GameSession {
                     + decimal(event.currentInputTranslationY),
                 "\(prefix)_current_input_translation_z="
                     + decimal(event.currentInputTranslationZ),
+            ]
+        }
+        func mercPaletteHealthFields(_ prefix: String,
+                                     _ event: GOALPadMercPaletteHealthEvent) -> [String] {
+            [
+                "\(prefix)_engine_frame=\(event.engineFrameID)",
+                "\(prefix)_host_tick=\(event.hostTickID)",
+                "\(prefix)_chain=\(event.chainOrdinal)",
+                "\(prefix)_issue_mask=\(event.issueMask)",
+                "\(prefix)_issue_nonfinite=\((event.issueMask & 1) != 0 ? 1 : 0)",
+                "\(prefix)_issue_degenerate=\((event.issueMask & 2) != 0 ? 1 : 0)",
+                "\(prefix)_issue_source_base=\((event.issueMask & 4) != 0 ? 1 : 0)",
+                "\(prefix)_nonfinite_lane_mask=\(event.nonfiniteLaneMask)",
+                "\(prefix)_bone_slot=\(event.boneSlot)",
+                "\(prefix)_model_hash=\(event.modelNameHash)",
+                "\(prefix)_matrix_hash=\(event.matrixHash)",
+                "\(prefix)_axis_norm_x=\(decimal(event.axisNormX))",
+                "\(prefix)_axis_norm_y=\(decimal(event.axisNormY))",
+                "\(prefix)_axis_norm_z=\(decimal(event.axisNormZ))",
+                "\(prefix)_normalized_abs_det="
+                    + decimal(event.normalizedAbsDeterminant),
+                "\(prefix)_source_address=\(event.sourceAddress)",
+                "\(prefix)_source_base=\(event.sourceBase)",
+                "\(prefix)_expected_source_base=\(event.expectedSourceBase)",
             ]
         }
         func cameraVectorFields(_ prefix: String,
@@ -677,6 +705,18 @@ final class GameSession {
                 + "\(renderer.mercEicharTransformDiscontinuities)",
             "merc_eichar_transform_discontinuities_total="
                 + "\(renderer.mercEicharTransformDiscontinuitiesTotal)",
+            "merc_eichar_provenance_events="
+                + "\(renderer.mercEicharProvenanceEvents)",
+            "merc_eichar_provenance_events_total="
+                + "\(renderer.mercEicharProvenanceEventsTotal)",
+            "merc_eichar_output_composition_mismatches="
+                + "\(renderer.mercEicharOutputCompositionMismatches)",
+            "merc_eichar_output_composition_mismatches_total="
+                + "\(renderer.mercEicharOutputCompositionMismatchesTotal)",
+            "merc_eichar_palette_health_issues="
+                + "\(renderer.mercEicharPaletteHealthIssues)",
+            "merc_eichar_palette_health_issues_total="
+                + "\(renderer.mercEicharPaletteHealthIssuesTotal)",
         ]
             + mercTransformFields(
                 "first_merc_eichar_transform",
@@ -690,6 +730,12 @@ final class GameSession {
             + mercTransformFields(
                 "last_merc_eichar_provenance",
                 renderer.lastMercEicharProvenanceEvent)
+            + mercPaletteHealthFields(
+                "first_merc_eichar_palette_health",
+                renderer.firstMercEicharPaletteHealthEvent)
+            + mercPaletteHealthFields(
+                "last_merc_eichar_palette_health",
+                renderer.lastMercEicharPaletteHealthEvent)
             + cameraCorrectionFields(renderer.lastCameraCorrectionEvent)
         try Data((fields.joined(separator: " ") + "\n").utf8)
             .write(to: cameraDiagnosticsURL, options: .atomic)

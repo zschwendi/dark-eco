@@ -104,13 +104,16 @@ struct MetalHostMercTransformEvent {
   std::uint64_t older_camera_hash = 0;
   std::uint64_t previous_camera_hash = 0;
   std::uint64_t current_camera_hash = 0;
+  std::uint64_t previous_bind_pose_hash = 0;
+  std::uint64_t current_bind_pose_hash = 0;
   double input_older_to_previous_distance = 0.0;
   double input_previous_to_current_distance = 0.0;
   double input_older_to_current_distance = 0.0;
   double output_older_to_previous_distance = 0.0;
   double output_previous_to_current_distance = 0.0;
   double output_older_to_current_distance = 0.0;
-  double output_expected_distance = 0.0;
+  double previous_output_expected_distance = 0.0;
+  double current_output_expected_distance = 0.0;
   double camera_older_to_previous_distance = 0.0;
   double camera_previous_to_current_distance = 0.0;
   double camera_older_to_current_distance = 0.0;
@@ -120,6 +123,27 @@ struct MetalHostMercTransformEvent {
   double current_input_translation_x = 0.0;
   double current_input_translation_y = 0.0;
   double current_input_translation_z = 0.0;
+
+  bool valid() const { return issue_mask != 0; }
+};
+
+/*! Retained numeric evidence for one unhealthy eichar-lod0 palette matrix. */
+struct MetalHostMercPaletteHealthEvent {
+  std::uint64_t engine_frame_id = 0;
+  std::uint64_t host_tick_id = 0;
+  std::uint64_t chain_ordinal = 0;
+  std::uint8_t issue_mask = 0;
+  std::uint32_t nonfinite_lane_mask = 0;
+  int bone_slot = -1;
+  std::uint64_t model_name_hash = 0;
+  std::uint64_t matrix_hash = 0;
+  double axis_norm_x = 0.0;
+  double axis_norm_y = 0.0;
+  double axis_norm_z = 0.0;
+  double normalized_abs_determinant = 0.0;
+  std::uint32_t source_address = 0;
+  std::uint64_t source_base = 0;
+  std::uint64_t expected_source_base = 0;
 
   bool valid() const { return issue_mask != 0; }
 };
@@ -225,8 +249,16 @@ struct MetalHostStats {
   std::uint64_t merc_eichar_transform_discontinuities_total = 0;
   MetalHostMercTransformEvent first_merc_eichar_transform_discontinuity;
   MetalHostMercTransformEvent last_merc_eichar_transform_discontinuity;
+  int merc_eichar_provenance_events = 0;
+  std::uint64_t merc_eichar_provenance_events_total = 0;
   MetalHostMercTransformEvent first_merc_eichar_provenance_event;
   MetalHostMercTransformEvent last_merc_eichar_provenance_event;
+  int merc_eichar_output_composition_mismatches = 0;
+  std::uint64_t merc_eichar_output_composition_mismatches_total = 0;
+  int merc_eichar_palette_health_issues = 0;
+  std::uint64_t merc_eichar_palette_health_issues_total = 0;
+  MetalHostMercPaletteHealthEvent first_merc_eichar_palette_health_event;
+  MetalHostMercPaletteHealthEvent last_merc_eichar_palette_health_event;
   std::uint64_t merc_bad_bone_pointers = 0;
   std::uint64_t merc_bad_draw_ranges = 0;
   std::uint64_t camera_correction_events_total = 0;
