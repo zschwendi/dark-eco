@@ -9404,3 +9404,164 @@ unlocks the device, relaunch this exact artifact and compare metallic lamps and
 Precursor structures against Checkpoint 57's enabled-pass run. Also confirm
 that normal gameplay never presents an iCloud resolution overlay. Accept or
 reject the second-envmap hypothesis only from that physical comparison.
+
+# Checkpoint 59: bounded camera-reversal and weighted-skin evidence
+
+Date: 2026-08-03. This checkpoint records new physical screenshot evidence,
+integrates schema-v7 diagnostics designed to retain the matching runtime
+evidence, and validates the integrated line. It does not claim that either
+visual defect is fixed. No app was installed, launched, logged, or otherwise
+accessed on a physical device for this checkpoint.
+
+## Physical screenshot evidence and separated hypotheses
+
+The maintainer supplied two screenshot sets from the currently installed
+physical iPad build. Nine standing-Jak frames show a local character failure:
+at some world headings Jak and Daxter collapse horizontally into an almost
+vertical line, while other headings restore an ordinary three-dimensional
+silhouette. The background and camera framing remain coherent across the
+thin-versus-normal comparison. The effect therefore follows the character's
+world-facing state rather than behaving like a whole-frame projection or
+camera deformation. Treat this as a Merc skin/palette/output-transform problem
+until the new trace proves a more specific boundary.
+
+Four additional frames show the separate camera failure near the Geyser Rock
+wall. Jak is entirely outside the frame, yet the whole scene alternates among
+coherent camera poses while the maintainer supplies no input. Similar poses
+recur within the short sequence, matching the maintainer's observation that
+the view flickers roughly 20 times per second. Because all visible level
+geometry moves together and no character is present, this evidence excludes
+the Flat Stanley Merc path as the direct cause of that event. The remaining
+camera hypothesis is an alternating solver/combiner result near an occlusion
+or out-of-frame boundary, not object-local z-fighting.
+
+These screenshots came from the pre-v7 installed artifact. They are visual
+evidence only and cannot identify which recorded camera slave or Merc palette
+input changed. The next physical run must use the v7 artifact below so the
+automatic completed-reversal and weighted-skin records can decide those
+boundaries.
+
+## Integrated diagnostic state
+
+- Nested OpenGOAL implementation commit
+  `bb423a46546b5316308f8d25981ae89a7948299f` is on
+  `agent/jak1-v7-diagnostics-integration`, based on the pushed shared line at
+  `101a4eced039816b869b36f0b719184d2cb17b45`.
+- Parent implementation commit
+  `d5d236f04c5ad18a4f015cdc1f5033db73549416` is on
+  `agent/jak1-v7-diagnostics-parent-integration` and pins nested
+  `bb423a46546b5316308f8d25981ae89a7948299f`.
+- Both implementation commits were clean before this documentation update.
+  The maintainer-owned moving checkout and its modified
+  `GOALPad.xcodeproj/project.pbxproj` were not edited, staged, reset, or used
+  for validation.
+
+The camera trace now snapshots both camera slaves' LOS and movement-blocked
+state, target and adjusted-target positions, desired positions, master and
+combiner object identities, interpolation inputs, and complete render axes. An
+18-frame completed reversal tail is kept separately from the active candidate;
+beginning another candidate cannot erase the last completed event. A new
+completed event replaces it only after all 18 frames exist.
+
+The EICHAR-only Merc trace builds immutable per-draw weighted-skin profiles,
+reads the exact shared vertex and palette data immediately before each enabled
+base draw, and mirrors the shader's weighted 3x3 calculation. Palette identity
+includes all 16 transform lanes plus the xyz lanes of the three normal-matrix
+columns; the three normal-column w lanes and four `ShaderMercMat` tail
+padding are intentionally excluded because `merc2.metal` does not consume
+them. Influence x is unconditional, y and z require positive weight, malformed
+bone slots are bounded, tuple grouping is capped at 64 per draw, and dropped
+vertices are reported. Modified vertex allocations are now 32-byte aligned and
+diagnostic reads use byte copies rather than alignment-sensitive typed access.
+
+Schema v7 carries six independent issue categories through C++, Objective-C++,
+and Swift: weighted collapse, invalid/profile evidence, packet conflict,
+base-draw conflict, bound-palette mismatch, and capacity loss. A newly observed
+category can persist immediately while another category remains active;
+identical persistent categories are deduplicated, and recurrence after a clean
+frame is eligible again. Successful immediate writes are throttled for 120
+engine frames, ordinary/lifecycle persistence remains bounded, and the latest
+anomalous raw severity survives later clean periodic replacements. This is
+diagnostic instrumentation, not a transform or camera correction.
+
+Independent integration review returned clean with no blocking finding. It
+confirmed actual enabled/fixed-or-modified draw-path hashing, issue-mask and
+retention behavior, bridge field ordering, and runtime tracker reset.
+
+## Validation
+
+Focused checks passed:
+
+```sh
+Scripts/run-camera-correction-diagnostics-check.sh
+Scripts/run-target-control-diagnostics-check.sh
+Scripts/run-merc-transform-diagnostics-check.sh
+xcrun clang++ -std=c++20 -Wall -Wextra -Werror -I. \
+  -Ithird-party/fmt/include \
+  game/graphics/pipelines/metal/metal_merc_transform_trace_test.cpp \
+  -o /private/tmp/goalpad-metal-merc-transform-trace-test-integrated
+/private/tmp/goalpad-metal-merc-transform-trace-test-integrated
+```
+
+The consolidated native build and tests passed:
+
+```sh
+cmake --build build/Release/bin --target \
+  metal-camera-trace-test metal-merc-transform-trace-test metal-proof -j2
+build/Release/bin/game/metal-camera-trace-test
+build/Release/bin/game/metal-merc-transform-trace-test
+build/Release/bin/game/metal-proof
+```
+
+The first sandboxed CMake attempt reached the native compile but could not
+write Clang's user module cache. The identical build with ordinary compiler
+cache access completed all 388 remaining actions and linked all three targets.
+Both deterministic trace tests passed. The sandboxed Metal run could not see an
+SDL display; the identical display-authorized run passed renderer init,
+readback, texture, DMA, TIE, Merc, old-bones, provenance, weighted-collapse,
+and generic-bucket coverage and ended `METAL PROOF PASSED`. Its deterministic
+counter-yaw case reproduced a two-pixel-wide collapsed Merc silhouette while
+each input bone and the ordinary palette-health checks remained healthy.
+
+The generic iOS Release build passed with exit 0:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-sim -jobs 2 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/build/jak1-source-object-pack \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache GOALPAD_BUILD_JOBS=2 build
+```
+
+The shared DerivedData initially contained only a reproducible importer CMake
+cache naming the old source checkout. Only the exact generated
+`Release-iphoneos/.../Jak1ImportComposer` directory was removed; the rerun
+configured it against the clean integration worktree. It reverified the 518
+source objects as aggregate `0a6387a3959fd8cb`, 10,729,950 bytes, then built
+the importer and application.
+
+The product at
+`/private/tmp/GOALPad-sim/Build/Products/Release-iphoneos/GOALPad.app` contains
+a thin ARM64 Mach-O executable of 33,158,608 bytes with SHA-256
+`54dafebf728b55b7b99e3838eda920e0c97b1801890e79539ab19e4c37cd7419`.
+Its CodeDirectory hash is `94dc9a6c3ad3c4cf8056208e778adaa11e4d76a4`.
+Sandboxed signature inspection could not access the system trust store and
+reported `CSSMERR_TP_NOT_TRUSTED`; the identical normal-access
+`codesign --verify --deep --strict --verbose=4` check reported `valid on disk`
+and `satisfies its Designated Requirement`. The embedded profile decoded
+successfully for team `V729QMY3V6`, bundle `com.zephyrstudiosllc.eco`, and the
+private `iCloud.com.zephyrstudiosllc.eco` container. Signed entitlements were
+read successfully with `codesign -d --entitlements -`.
+
+## Next physical gate
+
+Do not change camera or Merc behavior from the screenshots alone. After fresh
+explicit device authorization, install this exact v7 artifact and reproduce
+two bounded cases: slowly rotate Jak through the thin and normal headings in
+open space, then leave Jak out of frame beside the same Geyser Rock wall while
+giving no input. Background the app only after the visible event, copy the
+schema-v7 diagnostic cache read-only, and compare the retained camera slave,
+combiner, packet, bound-palette, and weighted-collapse evidence. That single
+capture should distinguish an input-palette collapse from a renderer-boundary
+failure and a wall solver alternation from a render/submission-order problem.
