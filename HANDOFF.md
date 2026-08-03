@@ -8373,3 +8373,152 @@ separate proof remains 840 registered AOT objects, KERNEL 8/8, GAME 465/465,
 100 headless frames, and a complete mutually exclusive iPhoneOS final link.
 After the Jak 1 gate, the next bounded Jak II implementation is the ordinary-
 file STR channel-4 seam, not app-target wiring.
+
+# Checkpoint 52: reproducible Jak 1 source pack and clean Apple build matrix
+
+## Exact Git and artifact state
+
+- Parent `feat/ipados-native-boot` is `b13895ec` before this checkpoint note.
+  The three implementation commits added since Checkpoint 51 are
+  `5f8d7aea` (raw/ZIP route-to-activation test), `9e49472f` (source-pack
+  preparer), and `b13895ec` (atomic publication fix). At that point the parent
+  was three commits ahead of `origin/feat/ipados-native-boot`.
+- Nested OpenGOAL `goalpad/ipad-demo-pacing` remains
+  `79a7ee586f6e68fd9638778917b3e5e2ab47d497`, matching its pushed remote.
+- Before this checkpoint note, the canonical parent's only uncommitted file was
+  the maintainer-owned `GOALPad.xcodeproj/project.pbxproj` normalization. It was
+  not staged, reset, or modified by this checkpoint.
+- The preserved signed Checkpoint 51 iPhoneOS product remains at
+  `/private/tmp/GOALPad-sim/Build/Products/Release-iphoneos/GOALPad.app` for the
+  next physical v4 diagnostic. The clean Checkpoint 52 matrix was unsigned and
+  did not replace, install, launch, or modify that app or its container.
+
+## Import-route and source-pack closure
+
+`Scripts/run-zip-iso-import-check.sh` now exercises both a selected raw ISO and
+a ZIP-contained ISO through the app's producer contract, candidate validation,
+and atomic activation. Its synthetic composer test double verifies that the old
+active install remains present throughout validation and activation, the new
+bytes and preparation summary become active together, and temporary/candidate
+staging is empty afterward. This closes deterministic app-route ownership
+coverage without retail data. It does not claim that a real copyrighted image
+was imported.
+
+`Scripts/prepare-jak1-source-object-pack.sh` provides the default reproducible
+pack path at `build/jak1-source-object-pack`. A missing pack is generated into a
+unique same-parent staging directory, verified, and atomically published under
+a narrow lock. An existing valid pack is reverified and reused. Writer failure
+removes only its staging directory, and an existing corrupt final pack fails
+closed without replacement. Independent review found and blocked the original
+direct-to-final publication behavior; `b13895ec` contains the corrected atomic
+implementation and recovery regression.
+
+Canonical generation and immediate reuse both passed with:
+
+```text
+518 source objects
+10,596 emitted functions
+7 native functions
+aggregate f1770cae6287a359
+10,729,681 object bytes
+```
+
+An exact-tree checkout in `/private/tmp/GOALPad-jak1-source-pack-repro` also
+generated and verified the same pack and regenerated AOT preflight. Its source
+tree hash matched canonical `b13895ec` at
+`5f2860ce2e38eb7d5d550171a7db3cf936c7472b`.
+
+Focused validation passed:
+
+```sh
+./Scripts/run-zip-iso-import-check.sh
+sh -n Scripts/prepare-jak1-source-object-pack.sh \
+  Scripts/run-jak1-source-object-pack-preparation-check.sh
+./Scripts/run-jak1-source-object-pack-preparation-check.sh
+CMAKE_C_COMPILER_LAUNCHER=ccache \
+  CMAKE_CXX_COMPILER_LAUNCHER=ccache \
+  CCACHE_DIR=/private/tmp/GOALPad-ccache \
+  GOALPAD_BUILD_JOBS=2 \
+  Scripts/prepare-jak1-source-object-pack.sh
+Scripts/generate-jak1-aot.sh OpenGOAL/build/Release/bin
+Scripts/verify-generated-aot.sh Generated/jak1-aot 518
+```
+
+The final preflight reported `518 objects, 10596 emitted functions, 7 native
+functions`. Real raw/ZIP media import remains unvalidated, by maintainer choice,
+and is not a release, Jak 1 gameplay, or Jak II continuation gate.
+
+## Clean Apple Release matrix
+
+The first macOS matrix attempt used the otherwise clean checkout under
+`/private/tmp`. Xcode canonicalized that path through `/tmp`, and the importer
+safety check correctly stopped before compilation with:
+
+```text
+Jak 1 Apple importer build failed: OpenGOAL root contains a symbolic link: /tmp
+```
+
+No source change was made. A detached exact-source checkout was created at
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation`, with a
+local detached nested worktree at `79a7ee586`. The verified source pack and AOT
+corpus were copied as ignored build inputs, then reverified. The host tooling
+rebuilt 454/454 steps and reverified the 518-object pack before Xcode validation.
+Parent and nested `git status --short` were both empty; generated inputs and
+build products remained ignored.
+
+The following serialized unsigned Release builds were each run from that clean
+checkout and passed with exit `0`:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-clean-matrix -jobs 2 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  ARCHS=arm64 ONLY_ACTIVE_ARCH=YES \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/build/jak1-source-object-pack \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache GOALPAD_BUILD_JOBS=2 build
+
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release \
+  -destination 'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-clean-matrix -jobs 2 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/build/jak1-source-object-pack \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache GOALPAD_BUILD_JOBS=2 build
+
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=visionOS' \
+  -derivedDataPath /private/tmp/GOALPad-clean-matrix -jobs 2 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/build/jak1-source-object-pack \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache GOALPAD_BUILD_JOBS=2 build
+```
+
+The products are thin ARM64 executables with bundle identifier
+`com.zephyrstudiosllc.eco` at `Release/GOALPad.app`,
+`Release-iphonesimulator/GOALPad.app`, and `Release-xros/GOALPad.app` under the
+shared DerivedData products directory. These are clean compilation/linking
+proofs only. No macOS, simulator, visionOS, or physical app launch, real-media
+import, physical-device install, gameplay capture, or visual acceptance is
+claimed.
+
+## Next physical and Jak II gate
+
+The sole remaining physical gate before the next Jak II implementation is the
+Checkpoint 51 v4 camera/Jak-transform A/B. When Z iPhone Air is available and
+the maintainer resumes testing:
+
+1. Copy the existing diagnostics cache before any install or launch, if it is
+   still present, and preserve its SHA-256.
+2. Update-install the preserved signed Checkpoint 51 app without uninstalling
+   or erasing its container.
+3. Reproduce wrong-facing/curved steering, Square, spin/Flat-Stanley, and
+   edge-of-frame/occluder cases, then background the app.
+4. Copy and classify the v4 cache using `0x80`, `intent_control_dot`,
+   `control_render_dot`, and `render_root_dot`. Make one behavior change only
+   after the first divergent seam is identified.
+
+Real raw/ZIP import may be revisited for presentation or distribution evidence,
+but it is explicitly non-blocking. After the physical v4 trace is classified,
+the next bounded Jak II implementation remains the ordinary-file STR channel-4
+seam, not app-target wiring.

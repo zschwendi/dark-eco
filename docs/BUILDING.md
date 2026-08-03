@@ -162,8 +162,9 @@ git submodule update --init --recursive
 The authoritative child is the dedicated public fork
 `https://github.com/zschwendi/jak-pad.git`, branch
 `goalpad/ipad-demo-pacing`, pinned by the parent gitlink at
-`79a7ee586f6e68fd9638778917b3e5e2ab47d497`. Checkpoint 51 incorporates the
-checked `jak1-base-retail` importer, existing source-pack verification, Apple
+`79a7ee586f6e68fd9638778917b3e5e2ab47d497`. Checkpoint 52 retains this pin and
+incorporates the checked `jak1-base-retail` importer, existing source-pack
+verification, Apple
 composer, active-bones and target-control provenance, and non-commuting Merc
 composition proof.
 Do not substitute a different OpenGOAL checkout when recording validation
@@ -223,7 +224,7 @@ automation cannot silently publish the buildable shell. The sandboxed Xcode
 phase reads the manifest and coverage report explicitly; the following source
 compile and final link prove that every manifest entry is present.
 
-For Checkpoint 50, generate the pack once on canonical code. Subsequent checks
+At the current pin, generate the pack once on canonical code. Subsequent checks
 must use the existing-pack verifier and require 518 objects, aggregate identity
 `f1770cae6287a359`, and `10,729,681` object bytes. A caller-supplied wrong
 expected identity must fail. Regenerate only when the source-pack writer or its
@@ -3246,7 +3247,8 @@ pass. A generic signed iOS Release build passed with the current 518-object AOT
 corpus and verified public source pack. No successful end-to-end simulator
 import or real-device raw ISO/ZIP import is recorded; Files-provider
 materialization, available-space behavior, throughput, and physical activation
-remain validation gates.
+remain unrecorded, non-blocking presentation/distribution evidence rather than
+Jak 1 gameplay or Jak II continuation gates.
 
 The Checkpoint 50 release preflight remains `518/10596/7`. The external public
 source pack verifies as 518 objects, aggregate `f1770cae6287a359`, and
@@ -3312,3 +3314,55 @@ executable has SHA-256
 `4b776ea11fc0ed45eedb7669ec80a63f3a2634bfec203351dac057208c7f1445`;
 `codesign` verifies it as valid and satisfying its designated requirement. No
 device install, launch, gameplay capture, or timing measurement was performed.
+
+## Checkpoint 52 reproducible Jak 1 build inputs
+
+The app's raw-ISO and ZIP-contained-ISO routes now have a deterministic
+synthetic integration check through candidate validation and atomic activation:
+
+```sh
+./Scripts/run-zip-iso-import-check.sh
+```
+
+The check proves that the old active install is preserved until the candidate
+is valid, activation swaps the new data and preparation summary together, and
+temporary staging is removed. It uses no retail data and does not claim a real
+media import. Maintainer direction makes real-disc or real-ISO hardware import
+a non-blocking presentation/distribution follow-up rather than a Jak 1 gameplay
+or Jak II continuation gate.
+
+Prepare the public Jak 1 source-object pack at its default ignored path with:
+
+```sh
+CMAKE_C_COMPILER_LAUNCHER=ccache \
+  CMAKE_CXX_COMPILER_LAUNCHER=ccache \
+  CCACHE_DIR=/private/tmp/GOALPad-ccache \
+  GOALPAD_BUILD_JOBS=2 \
+  Scripts/prepare-jak1-source-object-pack.sh
+```
+
+The script generates a missing pack in a same-parent staging directory,
+verifies it, and publishes it atomically. It reverifies and reuses an existing
+valid pack, removes private staging after failure, and refuses to replace an
+existing corrupt final pack. Its deterministic regression is:
+
+```sh
+sh -n Scripts/prepare-jak1-source-object-pack.sh \
+  Scripts/run-jak1-source-object-pack-preparation-check.sh
+./Scripts/run-jak1-source-object-pack-preparation-check.sh
+```
+
+Canonical and exact-source clean-checkout generation both produced 518 source
+objects, aggregate `f1770cae6287a359`, and 10,729,681 object bytes. Generated
+AOT preflight passed with 518 objects, 10,596 emitted functions, and 7 native
+functions.
+
+From the clean non-symlink checkout at
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation`, unsigned
+Release builds passed for ARM64 macOS, the approved M5 iPad simulator, and
+generic visionOS. Use a real workspace path for importer builds: Xcode
+canonicalizes `/private/tmp` through `/tmp`, and the importer's source-root
+safety check intentionally rejects that symlink path. The exact matrix commands
+and products are recorded in `HANDOFF.md` Checkpoint 52. These builds are
+compile/link evidence only; they are not simulator gameplay, physical-device,
+visual, or real-media import proof.
