@@ -10146,3 +10146,54 @@ proof. A runnable Jak II development app remains blocked from safe integration
 by Jak 1-specific runtime/Metal code and the maintainer-owned dirty
 `GOALPad.xcodeproj/project.pbxproj`; do not edit that file or combine the Jak 1
 and Jak II AOT corpora in one executable.
+
+# Checkpoint 65: reusable signed Jak II AOT archive
+
+Date: 2026-08-03. Nested commit
+`0b3b97a06a803b0ce79f766a94b7e3215bcdb4de` turns the already-validated Jak II
+corpus into a reusable, single-game static-library target while keeping the
+existing signed final-link proof. `jak2-iphoneos-aot-corpus` owns the generated
+manifest and 840 C translation units, publishes the manifest include directory,
+and carries `jak2-kernel-core` as its CMake dependency. The proof now compiles
+only its small `main` and consumes that archive. No force-load option is needed:
+the proof's manifest references retain every generated member. Jak 1 and Jak II
+AOT products still must not be linked into the same executable because their
+generated symbols overlap.
+
+The current-source Xcode build was configured in
+`/private/tmp/GOALPad-jak2-ios-aot-archive` against the preserved
+`Generated/jak2-aot` corpus. The first sandboxed CMake compiler probe failed
+because Xcode could not create its temporary DerivedData under the user Library;
+the identical configure passed with Xcode service access and revalidated all 840
+units. The single two-job generic-iPhoneOS build then completed and signed in
+62.526 seconds. Existing upstream warnings and an unused stale-account warning
+remained non-blocking.
+
+`libopengoal-jak2-aot-corpus.a` is 105,264,792 bytes with SHA-256
+`ee997786deebbaf50006d00621ea794844864ab2169c3e33dab3c7be68e5d274`. It
+contains exactly 841 object members after excluding Darwin's symbol table:
+the manifest plus 840 generated units. The manifest has exactly 4,200 undefined
+per-unit anchors and two exported globals. There are zero duplicate members,
+zero missing expected link anchors in the final executable, and no link-check,
+kernel-core, DMA-observer, or Jak 1 objects inside the corpus archive.
+
+The signed proof executable is a thin arm64 iOS Mach-O of 87,202,880 bytes with
+SHA-256 `5c84b080e02c64dd482b1a29b75b6551708f7a7e219e2cad957c85b0aff57201`.
+Its identifier is `com.zephyrstudiosllc.eco.jak2linkproof`, team identifier
+`V729QMY3V6`, and CodeDirectory hash
+`d5022e3162d160f401623832020e826190f60a2e`. Strict signature verification
+passed with Keychain trust-chain access. Final symbols include both manifest
+globals, first/last corpus anchors, `goal_gfx_dma_install`, `goal_pad_install`,
+and both retained interrupt-handler globals.
+
+No generated corpus was regenerated, no user game data was added, and no
+device, simulator, app launch, or physical-device access was used. Two exact
+clean obsolete parent worktrees whose commits were ancestors of the current
+head were removed after both their parent and nested statuses were verified
+clean; all dirty worktrees, canonical builds, compiler caches, and user data
+were preserved. The next nested-only step is the audited portable Jak II
+graphics-host contract: honest `sync-path`, host-paced `syncv` with Jak II
+vblank ordering, deterministic inactive mouse state, and separate desired and
+active level lists. It must preserve Jak 1 behavior, must not overwrite Jak
+II's existing `flush-cache` implementation, and remains a graphics-boundary
+proof rather than rendered gameplay.
