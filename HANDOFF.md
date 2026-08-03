@@ -10864,9 +10864,10 @@ context boundary, and the executable SHA-256 remains
 `55e67192c206d5c808fb2d4e6adb13bffb96b3facc1c03afafb3b516d3f36cb7`.
 The reproducible Checkpoint 73 Xcode DerivedData and CMake build directories
 were removed after their results were recorded; the signed app was preserved.
-Only about 942 MiB is currently free on the data volume, so recover additional
-space before another full AOT/C++/Xcode build and keep one heavy build active
-at a time.
+The data volume reported about 6.1 GiB free at the final context-boundary
+check, after having reported only 942 MiB earlier in the same checkpoint. Treat
+that APFS free-space figure as volatile: confirm it again before another full
+AOT/C++/Xcode build and keep one heavy build active at a time.
 
 The maintainer last reported the physical iPad app backgrounded or closed.
 That is device state only and is not permission to install, launch, attach
