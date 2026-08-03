@@ -11375,3 +11375,103 @@ before changing camera behavior.
 
 No physical device was installed, launched, logged, captured, or otherwise
 accessed during Checkpoint 76.
+
+# Checkpoint 77: audited Jak II screen filter and current live-title blocker
+
+Date: 2026-08-03. Nested commit
+`f854a535663d4aca11e30a4ea15d039426f54b61` advances the Jak II Metal path
+from Checkpoint 76. The parent checkpoint advances its OpenGOAL gitlink to that
+revision. The active branches remain `agent/cp76-jak2-metal-surface` and
+`agent/cp73-corrected-parent`.
+
+`SCREEN_FILTER` is now the sole explicit Jak II Metal Direct bucket. Its
+production-shaped synthetic packet contains the inline GS test state and
+full-screen sprite vertices it needs, so the existing deferred chain copy does
+not retain an EE pointer. The reviewed table contains 199 `DeferredSkip`, 127
+`StrictEmpty`, and one Direct descriptor with fingerprint
+`0x80f32926c78c3fc2`. `SKY_DRAW`, `DEBUG2`, `DEBUG_NO_ZBUF2`, and `DEBUG3`
+deliberately return to `DeferredSkip`; their earlier nonzero batch metadata was
+not an explicit policy implementation and they require separate packet proofs.
+
+The renderer records per-chain screen-filter draws and triangles. The native
+host accepts zero or one such draw per chain, requires exactly two triangles
+per draw, rejects any other draw or unsupported blend, and retains cumulative
+plus last-chain metrics. The app's bounded success gate requires at least one
+live screen-filter draw, so a zero-draw title run cannot produce a false PASS.
+
+## Deterministic and Apple validation
+
+The exact-current focused suite passed with normal Metal service access:
+
+```text
+ctest --test-dir OpenGOAL/build/Release/bin \
+  -R '^jak2-metal-(bucket-table-test|dispatch-proof|submit-readback-proof|host-bridge-test)$' \
+  --output-on-failure
+```
+
+All four tests passed in 0.21 seconds. They cover the fixed policy, all 327
+slots, deep-copy after source-memory mutation, host cumulative/last metrics,
+one supported sprite draw with two triangles, command-buffer completion, and
+all 4,096 pixels matching exact BGRA `(0,48,128,128)`. The full exact-current
+Jak 1 `metal-proof` also ended `METAL PROOF PASSED` after the shared renderer
+change.
+
+The approved M5 simulator Release build succeeded in 211.173 seconds with the
+checked 840-unit Jak II AOT corpus. The preserved-data launch completed 120
+accepted display callbacks, 120 complete 327-bucket policy chains, 120 drawable
+acquisitions, 120 committed/completed GPU buffers, 120 presentation requests,
+and zero misses, drops, policy failures, or command-buffer errors. It emitted
+zero `SCREEN_FILTER` draws and zero triangles, so the new gate correctly did
+not pass. A console-attached run later stopped at the next honest runtime
+blocker:
+
+```text
+VERSION ERROR: C Kernel built from GOAL 1.0, but object file
+title-disk-intro is from GOAL 0.0
+Assertion failed: 'false'
+Source: game/kernel/common/klink.cpp:77
+```
+
+The generic iPhoneOS Release build succeeded in 344.818 seconds without
+contacting a device. The result is a thin ARM64 iOS 18.0 app named
+`Eco Pro Jak II Dev`, identifier `com.zephyrstudiosllc.eco.jak2dev`, team
+`V729QMY3V6`, executable SHA-256
+`e2a5c6bc13f735bdd4d99467629697934099b89d8876d75b2bc0f3d3c0352249`, and
+CDHash `8e2dd7b539cfd1c14b2e9e0083fa600a8ecc50c1`. Strict deep signature
+verification passed with normal trust-store access.
+
+The final exact-current Eco Pro generic-iPhoneOS Release regression succeeded
+in 38.331 seconds, reverified the unchanged 518-object Jak 1 source pack
+(aggregate `0a6387a3959fd8cb`, 10,729,950 bytes), and produced a thin ARM64 app
+with identifier `com.zephyrstudiosllc.eco`. Its executable SHA-256 is
+`c4144e723c67d87dd78eccf00d78aecd67721f0a3955c11bfe38e2a39c2f601c` and
+CDHash is `7759be2d0e322da651a2316e72487753323f284d`; strict deep signature
+verification passed.
+
+## Camera-photo evidence and next executable gates
+
+The latest wall photos quantify the already separated Jak 1 camera failure.
+The foreground boulder moves by roughly 70 to 150 pixels between recurring
+frames while the horizon moves about 15 to 25 pixels. Frames one/three and
+two/four cluster around two view poses; the entire world moves coherently,
+the HUD stays fixed, and Jak is absent. This is whole-camera rotation plus an
+orbit/translation component, separate from Flat Stanley. The stills prove
+recurrence; the roughly 20 Hz rate is the maintainer's live observation.
+
+No camera behavior changed. The leading code hypothesis is feedback between
+the Jak 1 line-of-sight/hidden-wall correction and movement-collision
+correction, but wall proximity and Jak leaving frame still co-occur in these
+images. The next freshly authorized schema-v7 comparison remains: same wall
+with Jak barely visible, same wall with Jak barely outside the same edge, and
+open space with Jak barely outside that edge. Background immediately after
+each hold so the current schema-v7 snapshot is retained.
+
+For Jak II, resolve the `title-disk-intro` prepared-object/AOT version mismatch
+before selecting the first Direct bucket actually emitted by the live TITLE
+path. Do not loosen the zero-draw gate or claim a live screen-filter draw,
+visible title pixel, rendered title, gameplay, or physical compatibility from
+the synthetic proof. Physical presentation and the Jak 1 diagnostic A/B both
+require fresh device authorization.
+
+No physical device was installed, launched, logged, captured, or otherwise
+accessed during Checkpoint 77.

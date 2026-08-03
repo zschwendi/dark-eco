@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness and remaining platform gaps, not real-media
 import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 76 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 77 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 
@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 76 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 77 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -1130,6 +1130,19 @@ that completion remains a physical gate. Device builds now require matching
 presented/submitted IDs before PASS. A generic thin ARM64 iPhoneOS app builds,
 signs, and passes strict verification. No physical device was contacted.
 
+Checkpoint 77 makes `SCREEN_FILTER` the sole explicit Jak II Metal Direct
+bucket at nested `f854a5356`. Its synthetic production-shaped packet passes
+policy, complete 327-slot dispatch, deferred deep-copy, host-metric,
+GPU-completion, and exact-pixel readback proofs. `SKY_DRAW`, `DEBUG2`,
+`DEBUG_NO_ZBUF2`, and `DEBUG3` deliberately return to `DeferredSkip` pending
+their own proofs. The M5 simulator and generic iPhoneOS builds succeed, but the
+120-frame live TITLE run emits zero `SCREEN_FILTER` draws, so no live game draw,
+visible title pixel, or rendered title is claimed. Runtime later asserts in
+`klink.cpp:77` because `title-disk-intro` reports object version 0.0 while the
+kernel expects 1.0. The exact-current Jak 1 Metal proof and signed generic-iOS
+Release remain green after the shared renderer change. No physical device was
+contacted.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
@@ -1156,16 +1169,16 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Promote one real Jak II draw path only after its packet has a deterministic
-   proof. Preserve the nil-layer zero-submit, offscreen readback, and real-layer
-   simulator proofs. A completed drawable presentation is a separate physical-
-   device gate and requires fresh authorization; do not claim a visible title,
-   gameplay, or physical-device support from the current zero-game-draw result.
+4. Resolve the `title-disk-intro` prepared-object/AOT version mismatch, then
+   identify the first Direct candidate actually emitted by the live TITLE path.
+   Do not loosen the zero-draw failure gate. Preserve the nil-layer, exact-
+   readback, and real-layer simulator proofs. A completed drawable presentation
+   remains a separately authorized physical-device gate.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
-Checkpoint 76 did not access Z iPad Pro. The maintainer supplied screenshots
+Checkpoint 77 did not access Z iPad Pro. The maintainer supplied screenshots
 from their own current physical run, but the agent did not install, launch,
 log, copy, or otherwise access the device. The maintainer reported that the app
 was backgrounded or closed, and any later install, launch, logging, capture, or
