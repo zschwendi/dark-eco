@@ -9404,3 +9404,160 @@ unlocks the device, relaunch this exact artifact and compare metallic lamps and
 Precursor structures against Checkpoint 57's enabled-pass run. Also confirm
 that normal gameplay never presents an iCloud resolution overlay. Accept or
 reject the second-envmap hypothesis only from that physical comparison.
+
+# Checkpoint 59: clean Jak 1 source-build proof and Jak II DGO RPC seam
+
+Date: 2026-08-03. This checkpoint closes the deterministic clean-worktree
+Jak 1 source-build gate identified after Checkpoint 58 and advances Jak II by
+one bounded host-runtime seam. It does not claim a Jak II app target, signed
+Jak II runtime, or new physical-device acceptance.
+
+## Exact Git and device state
+
+- Parent implementation HEAD before these checkpoint documentation edits is
+  `3b2756c114f167478e888e218e55525660b849f9` on
+  `agent/jak1-v6-visual-diagnostics-parent`.
+- Nested OpenGOAL is clean at
+  `bb8006825c81b0f834de29a2ab5a7db408724c62` on
+  `agent/jak1-postfix-visual-diagnostics`.
+- The only unrelated parent modification remains the maintainer-owned
+  `GOALPad.xcodeproj/project.pbxproj`; it was preserved and never staged,
+  reset, reformatted, or copied into the clean proof.
+- A normalized plist comparison found one semantic difference in that Xcode
+  rewrite: `alwaysOutOfDate = 0` is absent from `Compile Metal shaders`.
+  Team, bundle identity, build settings, file lists, and target membership are
+  otherwise unchanged. The clean Release below used the committed project.
+- The maintainer reported that the app was backgrounded or closed. This
+  checkpoint did not install, launch, log, capture, or otherwise access
+  **Z iPad Pro**. Fresh explicit authorization is required for later physical
+  access.
+
+## Jak 1 clean-worktree proof
+
+The reusable validation worktree is
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation`, detached
+at parent `3b2756c1` and nested `63b8a67c`. Both tracked worktrees remained
+clean. This is a cache-assisted clean-worktree proof, not a from-zero clone:
+it deliberately reused the existing CMake, ccache, and DerivedData caches to
+avoid duplicate builds on a nearly full disk.
+
+The stale ignored source pack was preserved as
+`build/jak1-source-object-pack-old-79a7ee`, then the documented default pack
+and AOT set were regenerated:
+
+```sh
+GOALPAD_BUILD_JOBS=2 ./Scripts/prepare-jak1-source-object-pack.sh
+./Scripts/generate-jak1-aot.sh \
+  /Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/OpenGOAL/build/Release/bin
+./Scripts/verify-generated-aot.sh Generated/jak1-aot 518
+```
+
+The pack contains 518 objects, aggregate `0a6387a3959fd8cb`, and 10,729,950
+object bytes. AOT verification passed with 518 objects, 10,596 emitted
+functions, seven native functions, and zero failed files.
+
+The focused host build and tests passed:
+
+```sh
+cmake --build build/Release/bin --target \
+  jak1-kernel-core-smoke-test metal-merc-transform-trace-test \
+  jak1-output-recipe-generator-test -j2
+build/Release/bin/game/jak1-kernel-core-smoke-test
+build/Release/bin/game/metal-merc-transform-trace-test
+build/Release/bin/jak1-output-recipe-generator-test
+build/Release/bin/goalc/jak1-source-object-pack-verify \
+  ../build/jak1-source-object-pack
+```
+
+The committed-project generic-iOS Release initially failed in the sandbox
+because Xcode could not reach CoreSimulator and signing services. Its elevated
+retry then exposed only an absolute-source-path mismatch in the canonical
+importer CMake cache. The existing 89 MiB main-checkout importer cache was
+moved aside, the clean cache was generated, and this exact build passed:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-sim -jobs 2 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/build/jak1-source-object-pack \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache GOALPAD_BUILD_JOBS=2 build
+```
+
+The importer phase independently re-verified the same 518-object pack. The
+resulting executable is thin ARM64, 33,097,040 bytes, with SHA-256
+`9459ad1b2b634ccef1beca0a5ddf42d471a02e71acaafecf717020c29752542c`,
+bundle `com.zephyrstudiosllc.eco`, team `V729QMY3V6`, and CodeDirectory hash
+`3cf0771588bfa2bf65d1d3812ff6a1247f182ce7`. The canonical main-checkout
+importer cache was restored afterward; only the isolated clean cache was
+removed, and it is reproducible by the command above.
+
+The Settings-only save boundary was also rechecked:
+
+```sh
+./Scripts/run-save-sync-check.sh
+swift Scripts/save-pregame-gate-check.swift \
+  /Users/zach/Developer/OS_Projects/GOALPad/GOALPad
+```
+
+Both passed, including all seven pregame-route checks. Ordinary iCloud
+resolution remains Settings-only; gameplay has no conflict/result overlay.
+
+## Jak II channel-3 DGO RPC
+
+Nested commit `bb8006825` adds the first composed GOAL-driven Jak II DGO seam:
+
+- the exact 32-byte channel-3 begin/continue/cancel protocol;
+- synchronous MORE, DONE, ERROR, and ABORTED results;
+- current-buffer and heap-top refresh for Jak II borrow-heap loads;
+- native AOT code-object and ordinary DGO data-object linking;
+- one top-level router that preserves sound channels 0, 1, and 4; and
+- a synthetic test covering protocol framing, buffer guards, delegation, AOT
+  top-level execution, and incremental data linking.
+
+The editing agent used a dedicated worktree based exactly on `63b8a67c`. The
+primary agent reviewed the seven-file diff, independently reran its focused
+executables, and fast-forwarded the commit into the main nested branch. The
+first build preserved two test-only API-shape errors involving const
+`Ptr::c()` and `SoundRpcGroupCommand`; both were repaired narrowly before the
+successful build.
+
+Validation passed:
+
+```sh
+cmake -S . -B /private/tmp/GOALPad-jak2-dgo-rpc-build -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 \
+  -DCMAKE_C_COMPILER_LAUNCHER=/opt/homebrew/bin/ccache \
+  -DCMAKE_CXX_COMPILER_LAUNCHER=/opt/homebrew/bin/ccache
+cmake --build /private/tmp/GOALPad-jak2-dgo-rpc-build --target \
+  jak2-dgo-rpc-test jak2-sound-rpc-test jak2-data-boot-test -j2
+/private/tmp/GOALPad-jak2-dgo-rpc-build/game/jak2-dgo-rpc-test
+/private/tmp/GOALPad-jak2-dgo-rpc-build/game/jak2-sound-rpc-test
+/private/tmp/GOALPad-jak2-dgo-rpc-build/game/jak2-data-boot-test \
+  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  --frames 100 --with-game
+```
+
+The synthetic DGO test and existing sound suite passed with zero failures.
+The real-data host boot registered 840 AOT units, loaded KERNEL.CGO 8/8 and
+GAME.CGO 465/465, and ran 100 dispatcher frames. This remains host evidence;
+the current boot does not yet call the title-level `play` path, so it does not
+prove that real level DGO traffic reached channel 3. The validated temporary
+1.0 GiB Jak II build directory was removed and is reproducible from the commit.
+
+## Remaining gates and next executable task
+
+- Physical Jak 1 B acceptance remains pending: with fresh authorization,
+  compare metallic lamps and Precursor structures, confirm no gameplay iCloud
+  overlay, and broaden only enough to catch camera, shape, facing, attack, or
+  streaming regressions.
+- Current physical save/load, controller mapping, sustained progression,
+  performance, and thermal acceptance remain open. Real two-device iCloud and
+  real Files-provider import remain Experimental feature gates.
+- A complete M5 simulator prepared-folder import/activation run remains
+  unrecorded.
+- The next bounded Jak II task is a separate host `play` frontier probe. It
+  must prove the first title-level DGO request reaches the new channel-3 seam
+  and stop honestly at the next missing subsystem. Do not add app wiring,
+  renderer work, or a pad seam to that diagnostic commit.

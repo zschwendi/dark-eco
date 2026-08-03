@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness and remaining platform gaps, not real-media
 import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 58 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 59 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 
@@ -139,7 +139,7 @@ Current status:
 - Implemented: the public dedicated fork is
   `https://github.com/zschwendi/jak-pad.git`; published branch
   `goalpad/ipad-demo-pacing` and the parent submodule both resolve to
-  `63b8a67c5f8142c227f75d0cfd920a1bc4a09770`.
+  `bb8006825c81b0f834de29a2ab5a7db408724c62`.
 - Verified: the remote branch resolves to that exact pin, and the affected host
   tests and application integration passed. Earlier fresh-clone evidence was
   recorded against the historical `9eecb9c3` checkpoint.
@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 58 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 59 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -957,6 +957,13 @@ Its thin ARM64 executable has SHA-256
 minimum iOS 18.0, no unresolved project `goal_`/`ZSTD_` symbols, and no app,
 signing, simulator, device, title-screen, or gameplay claim.
 
+Checkpoint 59 closes the current-pin Jak 1 source-build reproducibility gate in
+a detached clean worktree: the 518-object pack, full 10,596-function AOT set,
+focused host targets, and committed-project generic-iOS Release all pass. It
+also adds Jak II's composed channel-3 DGO RPC and AOT-code/data-link boundary,
+with synthetic protocol coverage and a real-data 100-frame host boot. This does
+not add Jak II app wiring or physical runtime support.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
@@ -969,21 +976,24 @@ provider interleaving, eviction, account switching, and migration remain
 
 The next actions are:
 
-1. Unlock and launch the already-installed Jak 1 TIE-second-pass-disabled B
-   artifact, then compare metallic lamps and Precursor structures against the
-   enabled result. Do not speculate past that deterministic flicker hypothesis.
+1. When the maintainer next explicitly authorizes physical-device access,
+   launch the installed Jak 1 TIE-second-pass-disabled B artifact and compare
+   metallic lamps and Precursor structures against the enabled result. Do not
+   speculate past that deterministic flicker hypothesis.
 2. Validate signed iCloud behavior with two devices, including a real divergent
    pair, account/provider transitions, and preservation of both originals.
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Continue Jak II through the next bounded host/AOT seam. Playback, streams,
-   app wiring, signing, simulator/device runtime, and physical gameplay remain
-   unproved.
+4. Continue Jak II with a separate host `play` frontier probe that proves the
+   first title-level DGO reaches the new channel-3 seam and stops honestly at
+   the next missing subsystem. Playback, streams, app wiring, signing,
+   simulator/device runtime, and physical gameplay remain unproved.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
-The Checkpoint 58 Z iPad Pro update-install and retry after unlock are explicitly
-authorized in the current request; later physical access still requires fresh
-authorization. No proprietary game data belongs in source control or CI.
+Checkpoint 59 did not access Z iPad Pro. The maintainer reported that the app
+was backgrounded or closed, and any later install, launch, logging, capture, or
+other physical access requires fresh authorization. No proprietary game data
+belongs in source control or CI.

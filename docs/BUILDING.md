@@ -162,9 +162,10 @@ git submodule update --init --recursive
 The authoritative child is the dedicated public fork
 `https://github.com/zschwendi/jak-pad.git`, branch
 `goalpad/ipad-demo-pacing`, pinned by the parent gitlink at
-`63b8a67c5f8142c227f75d0cfd920a1bc4a09770`. Checkpoint 58 retains this pin and
+`bb8006825c81b0f834de29a2ab5a7db408724c62`. Checkpoint 59 retains this pin and
 incorporates the checked `jak1-base-retail` importer, source-pack verification,
-Apple composer, Jak 1 renderer diagnostics, and the reviewed Jak II sound seams.
+Apple composer, Jak 1 renderer diagnostics, and the reviewed Jak II sound and
+DGO RPC seams.
 Do not substitute a different OpenGOAL checkout when recording validation
 results, and pin that exact commit rather than a branch tip. The `sync` step
 updates existing clones that still remember the former upstream URL.
