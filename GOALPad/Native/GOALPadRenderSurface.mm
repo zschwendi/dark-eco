@@ -68,6 +68,7 @@ static GOALPadMercTransformEvent makeMercTransformEvent(
           core.output_older_to_previous_distance,
           core.output_previous_to_current_distance,
           core.output_older_to_current_distance,
+          core.output_expected_distance,
           core.camera_older_to_previous_distance,
           core.camera_previous_to_current_distance,
           core.camera_older_to_current_distance,
@@ -297,6 +298,10 @@ static GOALPadCameraCorrectionEvent makeCameraCorrectionEvent(
                                     core.first_merc_eichar_transform_discontinuity),
                                 makeMercTransformEvent(
                                     core.last_merc_eichar_transform_discontinuity),
+                                makeMercTransformEvent(
+                                    core.first_merc_eichar_provenance_event),
+                                makeMercTransformEvent(
+                                    core.last_merc_eichar_provenance_event),
                                 core.merc_bad_bone_pointers, core.merc_bad_draw_ranges,
                                 core.camera_correction_events_total,
                                 makeCameraCorrectionEvent(

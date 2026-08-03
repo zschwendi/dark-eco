@@ -231,7 +231,7 @@ typedef struct GOALPadSurfaceGeometry {
 /// Numeric evidence retained for one consecutive-frame eichar-lod0 transform discontinuity.
 /// Issue bits identify: 0 uniform-scale jump, 1 per-axis shape jump, 2 input-root A/B/A,
 /// 3 output-only A/B/A, 4 camera-driven A/B/A, 5 changed input with stale output, and
-/// 6 a source-to-producer mapping mismatch.
+/// 6 a source-to-producer mapping mismatch, and 7 an expected-output mismatch.
 typedef struct GOALPadMercTransformEvent {
   uint64_t hostTickID;
   uint64_t chainOrdinal;
@@ -273,6 +273,7 @@ typedef struct GOALPadMercTransformEvent {
   double outputOlderToPreviousDistance;
   double outputPreviousToCurrentDistance;
   double outputOlderToCurrentDistance;
+  double outputExpectedDistance;
   double cameraOlderToPreviousDistance;
   double cameraPreviousToCurrentDistance;
   double cameraOlderToCurrentDistance;
@@ -432,6 +433,8 @@ typedef struct GOALPadRendererStats {
   uint64_t mercEicharTransformDiscontinuitiesTotal;
   GOALPadMercTransformEvent firstMercEicharTransformDiscontinuity;
   GOALPadMercTransformEvent lastMercEicharTransformDiscontinuity;
+  GOALPadMercTransformEvent firstMercEicharProvenanceEvent;
+  GOALPadMercTransformEvent lastMercEicharProvenanceEvent;
   uint64_t mercBadBonePointers;
   uint64_t mercBadDrawRanges;
   uint64_t cameraCorrectionEventsTotal;

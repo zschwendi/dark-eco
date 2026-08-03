@@ -223,6 +223,7 @@ goalpad::MetalHostMercTransformEvent retain_merc_transform_event(
   retained.output_older_to_previous_distance = event.output_older_to_previous_distance;
   retained.output_previous_to_current_distance = event.output_previous_to_current_distance;
   retained.output_older_to_current_distance = event.output_older_to_current_distance;
+  retained.output_expected_distance = event.output_expected_distance;
   retained.camera_older_to_previous_distance = event.camera_older_to_previous_distance;
   retained.camera_previous_to_current_distance = event.camera_previous_to_current_distance;
   retained.camera_older_to_current_distance = event.camera_older_to_current_distance;
@@ -328,6 +329,16 @@ void render_chain() {
     }
     g_host.stats.last_merc_eichar_transform_discontinuity = retain_merc_transform_event(
         stats.last_merc_eichar_transform_discontinuity, stats.last_host_tick_id,
+        stats.last_chain_ordinal);
+  }
+  if (stats.merc_eichar_provenance_events > 0) {
+    if (!g_host.stats.first_merc_eichar_provenance_event.valid()) {
+      g_host.stats.first_merc_eichar_provenance_event = retain_merc_transform_event(
+          stats.first_merc_eichar_provenance_event, stats.last_host_tick_id,
+          stats.last_chain_ordinal);
+    }
+    g_host.stats.last_merc_eichar_provenance_event = retain_merc_transform_event(
+        stats.last_merc_eichar_provenance_event, stats.last_host_tick_id,
         stats.last_chain_ordinal);
   }
   g_host.stats.merc_bad_bone_pointers += stats.merc_bad_bone_pointers;

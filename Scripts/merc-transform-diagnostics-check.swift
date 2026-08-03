@@ -41,6 +41,7 @@ first.inputOlderToCurrentDistance = 0
 first.outputOlderToPreviousDistance = 1
 first.outputPreviousToCurrentDistance = 1
 first.outputOlderToCurrentDistance = 0
+first.outputExpectedDistance = 0.25
 first.cameraOlderToPreviousDistance = 0
 first.cameraPreviousToCurrentDistance = 0
 first.cameraOlderToCurrentDistance = 0
@@ -74,11 +75,21 @@ last.currentAspect = 1
 last.previousSourceBase = 0x2600
 last.currentSourceBase = 0x1600
 
+var firstProvenance = first
+firstProvenance.issueMask = 4
+firstProvenance.outputExpectedDistance = 0.5
+
+var lastProvenance = last
+lastProvenance.issueMask = 128
+lastProvenance.outputExpectedDistance = 1.5
+
 var stats = GOALPadRendererStats()
 stats.mercEicharTransformDiscontinuities = 1
 stats.mercEicharTransformDiscontinuitiesTotal = 2
 stats.firstMercEicharTransformDiscontinuity = first
 stats.lastMercEicharTransformDiscontinuity = last
+stats.firstMercEicharProvenanceEvent = firstProvenance
+stats.lastMercEicharProvenanceEvent = lastProvenance
 
 precondition(stats.mercEicharTransformDiscontinuities == 1)
 precondition(stats.mercEicharTransformDiscontinuitiesTotal == 2)
@@ -108,5 +119,10 @@ precondition(stats.firstMercEicharTransformDiscontinuity.outputOlderToCurrentDis
 precondition(stats.firstMercEicharTransformDiscontinuity.cameraOlderToCurrentDistance == 0)
 precondition(stats.firstMercEicharTransformDiscontinuity.previousInputTranslationY == 2)
 precondition(stats.firstMercEicharTransformDiscontinuity.currentInputTranslationZ == 6)
+precondition(stats.firstMercEicharTransformDiscontinuity.outputExpectedDistance == 0.25)
+precondition(stats.firstMercEicharProvenanceEvent.issueMask == 4)
+precondition(stats.firstMercEicharProvenanceEvent.outputExpectedDistance == 0.5)
+precondition(stats.lastMercEicharProvenanceEvent.issueMask == 128)
+precondition(stats.lastMercEicharProvenanceEvent.outputExpectedDistance == 1.5)
 
 print("merc transform diagnostics bridge check passed")

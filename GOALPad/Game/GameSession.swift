@@ -431,6 +431,7 @@ final class GameSession {
                 "\(prefix)_issue_camera_driven_aba=\((event.issueMask & 16) != 0 ? 1 : 0)",
                 "\(prefix)_issue_output_stale=\((event.issueMask & 32) != 0 ? 1 : 0)",
                 "\(prefix)_issue_source_mapping=\((event.issueMask & 64) != 0 ? 1 : 0)",
+                "\(prefix)_issue_output_expected=\((event.issueMask & 128) != 0 ? 1 : 0)",
                 "\(prefix)_bone_slot=\(event.boneSlot)",
                 "\(prefix)_model_hash=\(event.modelNameHash)",
                 "\(prefix)_older_frame=\(event.olderFrameID)",
@@ -474,6 +475,8 @@ final class GameSession {
                     + decimal(event.outputPreviousToCurrentDistance),
                 "\(prefix)_output_distance_older_current="
                     + decimal(event.outputOlderToCurrentDistance),
+                "\(prefix)_output_expected_distance="
+                    + decimal(event.outputExpectedDistance),
                 "\(prefix)_camera_distance_older_previous="
                     + decimal(event.cameraOlderToPreviousDistance),
                 "\(prefix)_camera_distance_previous_current="
@@ -553,7 +556,7 @@ final class GameSession {
         }
 
         let fields = [
-            "goalpad_camera_provenance", "v=2", "run=\(cameraDiagnosticsRunID)",
+            "goalpad_camera_provenance", "v=3", "run=\(cameraDiagnosticsRunID)",
             "frame=\(framesRun)", "engine=\(renderer.lastEngineFrameID)",
             "tick=\(renderer.lastHostTickID)", "chain=\(renderer.lastChainOrdinal)",
             "fingerprint=\(renderer.lastCameraFingerprint)",
@@ -679,6 +682,12 @@ final class GameSession {
             + mercTransformFields(
                 "last_merc_eichar_transform",
                 renderer.lastMercEicharTransformDiscontinuity)
+            + mercTransformFields(
+                "first_merc_eichar_provenance",
+                renderer.firstMercEicharProvenanceEvent)
+            + mercTransformFields(
+                "last_merc_eichar_provenance",
+                renderer.lastMercEicharProvenanceEvent)
             + cameraCorrectionFields(renderer.lastCameraCorrectionEvent)
         try Data((fields.joined(separator: " ") + "\n").utf8)
             .write(to: cameraDiagnosticsURL, options: .atomic)

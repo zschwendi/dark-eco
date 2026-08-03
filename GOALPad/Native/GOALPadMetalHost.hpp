@@ -110,6 +110,7 @@ struct MetalHostMercTransformEvent {
   double output_older_to_previous_distance = 0.0;
   double output_previous_to_current_distance = 0.0;
   double output_older_to_current_distance = 0.0;
+  double output_expected_distance = 0.0;
   double camera_older_to_previous_distance = 0.0;
   double camera_previous_to_current_distance = 0.0;
   double camera_older_to_current_distance = 0.0;
@@ -223,6 +224,8 @@ struct MetalHostStats {
   std::uint64_t merc_eichar_transform_discontinuities_total = 0;
   MetalHostMercTransformEvent first_merc_eichar_transform_discontinuity;
   MetalHostMercTransformEvent last_merc_eichar_transform_discontinuity;
+  MetalHostMercTransformEvent first_merc_eichar_provenance_event;
+  MetalHostMercTransformEvent last_merc_eichar_provenance_event;
   std::uint64_t merc_bad_bone_pointers = 0;
   std::uint64_t merc_bad_draw_ranges = 0;
   std::uint64_t camera_correction_events_total = 0;
