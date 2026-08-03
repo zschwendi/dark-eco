@@ -119,6 +119,7 @@
 		A7310000000000000002000E /* game/graphics/pipelines/metal/metal_host_seams.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001000E /* game/graphics/pipelines/metal/metal_host_seams.cpp */; };
 		A7310000000000000002000F /* game/graphics/pipelines/metal/metal_kernel_bridge.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001000F /* game/graphics/pipelines/metal/metal_kernel_bridge.cpp */; };
 		A73100000000000000020010 /* game/graphics/pipelines/metal/metal_texture_upload_handler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010010 /* game/graphics/pipelines/metal/metal_texture_upload_handler.cpp */; };
+		A7310000000000000002003E /* game/graphics/pipelines/metal/metal_jak2_bucket_table.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001003E /* game/graphics/pipelines/metal/metal_jak2_bucket_table.cpp */; };
 		A73100000000000000020011 /* game/graphics/opengl_renderer/dma_helpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010011 /* game/graphics/opengl_renderer/dma_helpers.cpp */; };
 		A73100000000000000020012 /* game/graphics/opengl_renderer/ocean/OceanMid_PS2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010012 /* game/graphics/opengl_renderer/ocean/OceanMid_PS2.cpp */; };
 		A73100000000000000020013 /* game/graphics/opengl_renderer/ocean/OceanNear_PS2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010013 /* game/graphics/opengl_renderer/ocean/OceanNear_PS2.cpp */; };
@@ -281,6 +282,7 @@
 		A7310000000000000001000E /* game/graphics/pipelines/metal/metal_host_seams.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_host_seams.cpp; path = game/graphics/pipelines/metal/metal_host_seams.cpp; sourceTree = "<group>"; };
 		A7310000000000000001000F /* game/graphics/pipelines/metal/metal_kernel_bridge.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_kernel_bridge.cpp; path = game/graphics/pipelines/metal/metal_kernel_bridge.cpp; sourceTree = "<group>"; };
 		A73100000000000000010010 /* game/graphics/pipelines/metal/metal_texture_upload_handler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_texture_upload_handler.cpp; path = game/graphics/pipelines/metal/metal_texture_upload_handler.cpp; sourceTree = "<group>"; };
+		A7310000000000000001003E /* game/graphics/pipelines/metal/metal_jak2_bucket_table.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_jak2_bucket_table.cpp; path = game/graphics/pipelines/metal/metal_jak2_bucket_table.cpp; sourceTree = "<group>"; };
 		A73100000000000000010011 /* game/graphics/opengl_renderer/dma_helpers.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dma_helpers.cpp; path = game/graphics/opengl_renderer/dma_helpers.cpp; sourceTree = "<group>"; };
 		A73100000000000000010012 /* game/graphics/opengl_renderer/ocean/OceanMid_PS2.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = OceanMid_PS2.cpp; path = game/graphics/opengl_renderer/ocean/OceanMid_PS2.cpp; sourceTree = "<group>"; };
 		A73100000000000000010013 /* game/graphics/opengl_renderer/ocean/OceanNear_PS2.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = OceanNear_PS2.cpp; path = game/graphics/opengl_renderer/ocean/OceanNear_PS2.cpp; sourceTree = "<group>"; };
@@ -520,6 +522,7 @@
 				A7310000000000000001000E /* game/graphics/pipelines/metal/metal_host_seams.cpp */,
 				A7310000000000000001000F /* game/graphics/pipelines/metal/metal_kernel_bridge.cpp */,
 				A73100000000000000010010 /* game/graphics/pipelines/metal/metal_texture_upload_handler.cpp */,
+				A7310000000000000001003E /* game/graphics/pipelines/metal/metal_jak2_bucket_table.cpp */,
 				A73100000000000000010011 /* game/graphics/opengl_renderer/dma_helpers.cpp */,
 				A73200000000000000010003 /* game/graphics/opengl_renderer/Shadow_PS2.cpp */,
 				A73200000000000000010004 /* game/graphics/opengl_renderer/ShadowVu.cpp */,
@@ -863,6 +866,7 @@
 				A7310000000000000002000E /* game/graphics/pipelines/metal/metal_host_seams.cpp in Sources */,
 				A7310000000000000002000F /* game/graphics/pipelines/metal/metal_kernel_bridge.cpp in Sources */,
 				A73100000000000000020010 /* game/graphics/pipelines/metal/metal_texture_upload_handler.cpp in Sources */,
+				A7310000000000000002003E /* game/graphics/pipelines/metal/metal_jak2_bucket_table.cpp in Sources */,
 				A73100000000000000020011 /* game/graphics/opengl_renderer/dma_helpers.cpp in Sources */,
 				A73200000000000000020003 /* game/graphics/opengl_renderer/Shadow_PS2.cpp in Sources */,
 				A73200000000000000020004 /* game/graphics/opengl_renderer/ShadowVu.cpp in Sources */,

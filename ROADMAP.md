@@ -1089,6 +1089,18 @@ the maintainer's wall screenshots of a coherent whole-camera recurrence while
 Jak is absent. Product-linked Jak II initialization/dispatch and visible pixels
 remain unimplemented.
 
+Checkpoint 73 links the fixed Jak II policy into the Metal product/runtime and
+adds the first real version-selected dispatcher at nested `a41e01a05`. All 327
+slots dispatch twice under the audited table; no real renderer is promoted.
+Three deferred markers consume exactly 48 bytes and return to their next
+contiguous slots. The focused semantics, table, and Objective-C++ Metal tests
+pass 3/3. Two offscreen command buffers complete and the game target reads
+back, while drawables, presentation submissions, presentations, draw calls,
+triangles, and texture uploads stay zero. This is product-linked policy/dispatch
+evidence, not a visible Jak II pixel, title screen, or gameplay. The exact-tree
+full Jak 1 Metal and parent Xcode rebuilds remain pending because the system
+volume ran out of space while rebuilding the broad desktop runtime.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
@@ -1113,9 +1125,10 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Continue Jak II by adding the policy-table source to the product target with
-   a real nil-layer synthetic 327-slot dispatcher proof. Require zero
-   drawables, submissions, and presentations, and preserve Jak 1 behavior.
+4. Continue Jak II by factoring the proven Metal product sources and shader
+   library into the separate iPhoneOS development target and drive the
+   policy-only dispatcher from its display tick. Keep real renderer promotion
+   behind a representative synthetic-packet proof.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 

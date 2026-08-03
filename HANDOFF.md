@@ -10713,3 +10713,72 @@ final deferred-skip markers, and retains zero drawables, presentation
 submissions, presentations, draw calls, and triangles. A nil layer still commits
 an offscreen Metal command buffer, so this gate must not claim zero command-
 buffer commits or visible pixels.
+
+# Checkpoint 73: product-linked Jak II Metal dispatcher
+
+Date: 2026-08-03. Nested commit `a41e01a05` links the audited 327-slot Jak II
+bucket table into both the Metal product library and runtime, initializes a
+Jak II renderer table, and dispatches Jak II's contiguous bucket chain with
+the same `bucket + 1` and terminal `327` callback numbering as the existing
+OpenGL path. All 200 currently bound slots remain explicit `DeferredSkip`
+renderers and all 127 unbound slots remain `StrictEmpty`; no Jak II bucket is
+prematurely promoted to Direct or another real renderer. Jak 1 retains its
+existing default-register chain and callback numbering.
+
+The parent Xcode target now explicitly compiles
+`metal_jak2_bucket_table.cpp`, matching the Metal renderer's new product link
+dependency. The project file passes `plutil -lint` and `git diff --check`.
+
+## Deterministic validation
+
+The matching ARM64 Release CMake build compiled the Metal shader library,
+product renderer, and three focused tests. This command passed 3/3:
+
+```text
+ctest --test-dir /private/tmp/OG-jak2-metal-bucket-semantics-build \
+  -R '^(metal-bucket-chain-semantics-test|jak2-metal-bucket-table-test|jak2-metal-dispatch-proof)$' \
+  --output-on-failure
+```
+
+The Objective-C++ proof initializes the real Metal renderer without a display
+and dispatches two synthetic chains from nonzero base `0x100`. The first
+crosses all 327 slots as zero-QWC `CNT` tags. The second replaces audited early,
+middle, and final deferred buckets (`SKY_DRAW`, `SHADOW`, and `DEBUG3`) with
+private one-QWC payloads that return to the next contiguous slot. Both chains
+dispatch exactly 327 slots; the markers consume exactly 48 skipped bytes.
+Two offscreen Metal command buffers commit and the second game target reads
+back successfully, while drawable acquisition remains zero and presentation
+submissions, presentations, draw calls, triangles, and texture uploads remain
+zero. The fixed policy fingerprint remains `0x6a36218fa2275590`. This proves
+product dispatch and offscreen completion, not a visible Jak II pixel, title,
+or gameplay.
+
+The first sandboxed build attempt stopped only because Apple's Metal compiler
+could not write its module cache. The unrestricted retry compiled the shader
+library successfully. The exact-tree full Jak 1 `metal-proof` rebuild was then
+attempted separately and stopped twice only on system-volume exhaustion while
+recreating the broad desktop runtime, first at Jak II `kscheme.cpp` and again
+at Jak 1 `collide_mesh.cpp` after the compiler cache was reduced from 500 MiB
+to 100 MiB. No source/compiler diagnostic preceded either failure. The
+Checkpoint-72 full Jak 1 Metal proof remains the most recent completed renderer
+regression; it was not repeated at this exact commit. A fresh parent Xcode
+build was not attempted with only hundreds of MiB available.
+
+No physical device was accessed. The maintainer's screenshots were supplied
+from their own run; they do not authorize a new install, launch, log capture,
+or other device access.
+
+## Next executable gates
+
+1. Recover enough build space, then rerun the existing full Jak 1 `metal-proof`
+   and one generic-iPhoneOS parent build at the exact Checkpoint-73 pins.
+2. Factor the proven Metal product sources and shader library into the separate
+   Jak II iPhoneOS development target, then drive the policy-only dispatcher
+   from its real display tick. Do not promote a real bucket until a
+   representative synthetic packet has its own deterministic proof.
+3. Add Jak II AVAudioEngine output only after the existing selected-game pull
+   seam remains green through lifecycle validation.
+4. Keep the Jak 1 visual lane at its physical schema-v7 gate. Do not make
+   another speculative camera, Merc, or metallic-material patch without fresh
+   authorization and an observation that distinguishes the retained
+   hypotheses.
