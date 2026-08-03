@@ -938,12 +938,15 @@ basis axes, uniform input/output deformation, zero missing Jak bones, and zero
 output-composition mismatches. The only consistent visible defect reported in
 that run is metallic-material flicker.
 
-The dedicated nested visual line at `988153483` adds schema-v6 post-flag,
+The dedicated nested visual work through `988153483` adds schema-v6 post-flag,
 root-scale, visibility, raw-draw, attack, and TIE diagnostics plus a narrowly
 scoped Jak 1 Metal TIE second-envmap-pass gate. The deterministic Metal A/B/A
 proof passed, and the regenerated diagnostic pack verified as 518 objects,
 aggregate `0a6387a3959fd8cb`, 10,729,950 bytes, 10,596 emitted functions, and 7
-native routines. These are **Implemented** diagnostic/proof seams. The physical
+native routines. Nested `63b8a67c` cleanly merges that line with the remote Jak
+II sound progress at `4717d6000`; focused Jak 1/Jak II host tests and the signed
+iOS compile pass, while real Jak II data boot remains untested. These are
+**Implemented** diagnostic/proof seams. The physical
 TIE-disabled B update is installed without erasing the app container. Its launch
 was denied because the iPad was locked, so the metallic comparison remains
 **Experimental** and pending.

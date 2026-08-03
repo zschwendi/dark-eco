@@ -9254,15 +9254,47 @@ physical acceptance of the renderer experiment.
 
 ## Exact Git state
 
-- Parent implementation HEAD before this documentation commit is
-  `dca45a364034a09f7f1caa2f106e3cb38b973f16` on
+- Parent implementation HEAD before this documentation correction is
+  `3ffeb1bf609b42dd4746a9f3bb01cb904f51932b` on
   `agent/jak1-v6-visual-diagnostics-parent`.
 - Nested OpenGOAL remains clean at
-  `9881534832fea8cd1055efb30dc69bf04c1d3057` on
+  `63b8a67c5f8142c227f75d0cfd920a1bc4a09770` on
   `agent/jak1-postfix-visual-diagnostics`.
 - The only parent worktree modification is the maintainer-owned
   `GOALPad.xcodeproj/project.pbxproj`; it was preserved and was not staged,
   reset, or reformatted.
+
+The first nested push was correctly rejected as non-fast-forward because the
+shared branch had advanced to `4717d6000` with six reviewed Jak II sound
+commits. The local Jak 1 diagnostic range and remote Jak II range had disjoint
+path sets; a read-only merge-tree audit found no conflict. Nested `63b8a67c`
+is the no-fast-forward merge of both lines. The remote changes do not alter the
+Jak 1 source-pack writer or graph. One shared `srpc.h` MIDI field does enter an
+existing Jak 1 Xcode translation unit, so the merged line received a fresh
+compile rather than relying only on static inspection.
+
+The canonical CMake build and focused host tests passed:
+
+```sh
+cmake --build build/Release/bin --target \
+  jak2-sound-rpc-test jak2-data-boot-test \
+  metal-merc-transform-trace-test jak1-output-recipe-generator-test -j2
+build/Release/bin/game/jak2-sound-rpc-test
+build/Release/bin/game/jak2-data-boot-test
+build/Release/bin/game/metal-merc-transform-trace-test
+build/Release/bin/game/metal-proof --tie-envmap-isolation-only
+build/Release/bin/jak1-output-recipe-generator-test
+build/Release/bin/game/jak1-kernel-core-smoke-test
+build/Release/bin/goalc/jak1-source-object-pack-verify \
+  /private/tmp/GOALPad-jak1-source-pack-88d8f85fe-cp57
+```
+
+Jak II sound RPC, Jak 1 Merc diagnostics, Metal TIE A/B/A, output-recipe, and
+Jak 1 kernel smoke tests passed. The pack still verifies as 518 objects,
+aggregate `0a6387a3959fd8cb`, and 10,729,950 bytes. The sandboxed Metal attempt
+could not initialize an SDL display; its required rerun with display-service
+access passed. The ordinary Jak II data boot command skipped because no Jak II
+data directory was supplied, so no new real-data boot claim is made.
 
 ## Deterministic save result: GO
 
@@ -9346,7 +9378,11 @@ xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
 The binary at
 `/private/tmp/GOALPad-sim/Build/Products/Release-iphoneos/GOALPad.app/GOALPad`
 is thin ARM64, 33,085,312 bytes, and has SHA-256
-`d5aeb19be27999cb9e63c3cd608e1a22371e9b8a34fb30894d4884175358346e`.
+`762d5fe88ef6cf0ea632a2ce2dcd5a6529e834f6af8c9e0dc9979b82f80e2360`.
+Its CodeDirectory hash remains
+`40a2177bce685534d81ad0d63bc5ace041458689`, confirming the shared-header
+recompile left signed code bytes unchanged; the whole-file hash changed with
+the fresh signature.
 Source keeps the bounded Jak 1 TIE switch disabled for this B artifact:
 `kJak1TieEnvmapSecondPassEnabled = false`.
 
@@ -9360,7 +9396,9 @@ installed successfully on the authorized Z iPad Pro without uninstalling or
 erasing its data container. `devicectl` reported the new installation at
 `EBA59E0A-2526-4479-A702-E8285E13FC35/GOALPad.app`.
 
-The immediate launch attempt was denied only because the iPad was locked. No
+After the nested integration build, the final update installed again at
+`CFC9FEA9-67B1-4F29-9988-3D91E45B9834/GOALPad.app` without erasing the app
+container. Both launch attempts were denied only because the iPad was locked. No
 runtime or visual claim comes from the successful install. After the maintainer
 unlocks the device, relaunch this exact artifact and compare metallic lamps and
 Precursor structures against Checkpoint 57's enabled-pass run. Also confirm
