@@ -516,6 +516,7 @@ struct MetalHostStats {
   bool jak1_tie_envmap_second_pass_enabled = false;
   int tie_envmap_second_pass_draws = 0;
   std::uint64_t tie_envmap_second_pass_draws_total = 0;
+  bool jak1_shadow_output_enabled = false;
   MetalHostTargetControlTelemetry target_control_telemetry;
   std::uint64_t merc_eichar_weighted_profiled_base_draws = 0;
   std::uint64_t merc_eichar_weighted_profiled_vertices = 0;

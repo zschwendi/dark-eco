@@ -46,7 +46,12 @@ os_log_t gfx_log() {
 
 namespace {
 
-constexpr bool kJak1TieEnvmapSecondPassEnabled = false;
+// The physical metallic-flicker B build restores normal TIE shine. Checkpoint
+// 58 already found that suppressing shine did not remove the flicker.
+constexpr bool kJak1TieEnvmapSecondPassEnabled = true;
+// This B build suppresses only final shadow output after the normal shadow DMA
+// and VU work, separating the reported self-shadow from material/depth state.
+constexpr bool kJak1ShadowOutputEnabled = false;
 
 /*!
  * Everything the renderer owns, in one place, all of it touched from one thread at a time - the
@@ -863,9 +868,11 @@ namespace goalpad {
 bool metal_host_start(std::string* error) {
   metal_renderer::set_jak1_tie_envmap_second_pass_enabled(
       kJak1TieEnvmapSecondPassEnabled);
+  metal_renderer::set_jak1_shadow_output_enabled(kJak1ShadowOutputEnabled);
   if (g_host.running) {
     g_host.stats.jak1_tie_envmap_second_pass_enabled =
         kJak1TieEnvmapSecondPassEnabled;
+    g_host.stats.jak1_shadow_output_enabled = kJak1ShadowOutputEnabled;
     return true;
   }
   jak1_bones_provenance_trace::registry().reset();
@@ -894,6 +901,7 @@ bool metal_host_start(std::string* error) {
   g_host.copier = std::make_unique<FixedChunkDmaCopier>(EE_MAIN_MEM_SIZE);
   g_host.stats.jak1_tie_envmap_second_pass_enabled =
       kJak1TieEnvmapSecondPassEnabled;
+  g_host.stats.jak1_shadow_output_enabled = kJak1ShadowOutputEnabled;
   g_host.running = true;
   os_log(gfx_log(), "Metal renderer started on %{public}s.", [[device name] UTF8String]);
   return true;
