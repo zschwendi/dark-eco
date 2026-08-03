@@ -11745,6 +11745,20 @@ the recorded remote-tracking parent head; publication remains a separate
 integration step. No unrelated worktree was reset, cleaned, staged, or
 modified by this documentation update.
 
+The next one-variable metal diagnostic remains isolated and is not part of the
+known-best baseline. OpenGOAL branch `agent/cp80-tie-texture-sampling-ab` at
+`62d6c69fa` is based on `816222f47` and bypasses texture sampling only for both
+envmapped TIE draws while retaining their geometry, draw count, order,
+depth/blend state, and pipeline selection. Its dedicated `metal-proof` build
+and `metal-proof --tie-envmap-isolation-only` both passed; the A/B/A proof also
+restored the default frame byte-for-byte. The branch is pushed, but it has not
+been integrated into the parent, built as an iPad app, or installed on a
+device. A physical result where the chunks/flicker disappear or materially
+improve would implicate the texture/UV/mip/texture-identity domain; an unchanged
+result would exclude sampled TIE textures and move the next discriminator to
+draw/depth/geometry or per-vertex state. Fresh physical-device authorization is
+required before building or installing this candidate over the preserved app.
+
 1. Preserve this physical Jak 1 build as the current known-best baseline. The
    remaining observed defect is the Precursor metallic texture
    flicker/chunking; the final shadow composite is now excluded as its sole
