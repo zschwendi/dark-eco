@@ -9856,3 +9856,19 @@ This remains an unsigned isolated link proof, not a runnable Jak II app.
    substantive title-path dependency.
 3. Preserve the shared nested line at `49d48650b`; do not regenerate the 840
    iPhoneOS corpus unless its writer or embedded graph changes.
+
+## Preserved follow-up state
+
+The separate clean worktree `/private/tmp/OG-jak2-play-package-record` remains
+on branch `agent/jak2-play-package-record` at unintegrated commit `0e014decd`.
+That commit changes the host frontier from a direct `(play #t #t)` call to
+`play-boot` followed by bounded GOAL dispatcher frames. It landed after this
+checkpoint's validation and has not been reviewed, integrated, or used for any
+claim above; preserve it for the next Jak II review lane.
+
+The canonical iPhoneOS link directory
+`/private/tmp/GOALPad-jak2-ios-aot-current` remains available. Two clean,
+obsolete implementation worktrees (`/private/tmp/OG-jak2-handler-seam` and
+`/private/tmp/OG-jak2-pc-rand`) were removed after their state was either
+integrated or confirmed unchanged. The reproducible 67 MiB
+`/private/tmp/OG-jak2-handler-seam-build` directory was also removed.
