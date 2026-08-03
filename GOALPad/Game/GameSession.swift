@@ -715,6 +715,34 @@ final class GameSession {
                     + decimal(deformation.normalizedAbsDeterminant),
             ]
         }
+        func targetControlRootAnchorFields(
+            _ prefix: String,
+            _ anchor: GOALPadTargetControlRootAnchor
+        ) -> [String] {
+            [
+                "\(prefix)_valid=\(anchor.valid.boolValue ? 1 : 0)",
+                "\(prefix)_scale_x=\(decimal(anchor.scaleX))",
+                "\(prefix)_scale_y=\(decimal(anchor.scaleY))",
+                "\(prefix)_scale_z=\(decimal(anchor.scaleZ))",
+                "\(prefix)_scale_w_bits=\(anchor.scaleWBits)",
+            ] + targetControlDeformationFields("\(prefix)_deformation", anchor.deformation)
+        }
+        func targetPostFlagFields(
+            _ prefix: String,
+            _ observation: GOALPadTargetPostFlagObservation
+        ) -> [String] {
+            [
+                "\(prefix)_valid=\(observation.valid.boolValue ? 1 : 0)",
+                "\(prefix)_host_tick=\(observation.hostTickID)",
+                "\(prefix)_chain=\(observation.chainOrdinal)",
+                "\(prefix)_engine_frame=\(observation.engineFrameID)",
+                "\(prefix)_producer_serial=\(observation.producerSerial)",
+                "\(prefix)_target=\(observation.targetAddress)",
+                "\(prefix)_raw_draw_status=\(observation.rawDrawStatus)",
+                "\(prefix)_target_attack_id=\(observation.targetAttackID)",
+                "\(prefix)_hidden=\(observation.hidden.boolValue ? 1 : 0)",
+            ]
+        }
         func targetControlObservationFields(
             _ prefix: String,
             _ observation: GOALPadTargetControlObservation
@@ -743,6 +771,8 @@ final class GameSession {
                     + decimal(observation.inputRootTranslationY),
                 "\(prefix)_input_root_translation_z="
                     + decimal(observation.inputRootTranslationZ),
+                "\(prefix)_node3_parent_scale_cancellation_selected="
+                    + (observation.node3ParentScaleCancellationSelected.boolValue ? "1" : "0"),
             ]
                 + targetControlVectorFields("\(prefix)_raw_dir_targ",
                                             observation.rawDirTarg)
@@ -768,10 +798,13 @@ final class GameSession {
                                                  observation.inputRootDeformation)
                 + targetControlDeformationFields("\(prefix)_output_deformation",
                                                  observation.outputDeformation)
+                + targetControlRootAnchorFields("\(prefix)_root1", observation.rootAnchor1)
+                + targetControlRootAnchorFields("\(prefix)_root2", observation.rootAnchor2)
+                + targetControlRootAnchorFields("\(prefix)_root3", observation.rootAnchor3)
         }
 
         let fields = [
-            "goalpad_camera_provenance", "v=5", "run=\(cameraDiagnosticsRunID)",
+            "goalpad_camera_provenance", "v=6", "run=\(cameraDiagnosticsRunID)",
             "frame=\(framesRun)", "engine=\(renderer.lastEngineFrameID)",
             "tick=\(renderer.lastHostTickID)", "chain=\(renderer.lastChainOrdinal)",
             "fingerprint=\(renderer.lastCameraFingerprint)",
@@ -951,6 +984,9 @@ final class GameSession {
                     + "\(targetControl.lastCaptureStage)",
                 "last_merc_eichar_target_control_capture_result="
                     + "\(targetControl.lastCaptureResult)",
+                "target_post_flag_samples_total=\(targetControl.postFlagSamplesTotal)",
+                "target_hidden_samples_total=\(targetControl.hiddenSamplesTotal)",
+                "target_hidden_transitions_total=\(targetControl.hiddenTransitionsTotal)",
             ]
             + targetControlFields(
                 "first_merc_eichar_target_control",
@@ -961,6 +997,10 @@ final class GameSession {
             + targetControlObservationFields(
                 "last_merc_eichar_target_control_observation",
                 targetControl.lastObservation)
+            + targetPostFlagFields("last_target_post_flag",
+                                   targetControl.lastPostFlagSample)
+            + targetPostFlagFields("last_hidden_target_post_flag",
+                                   targetControl.lastHiddenPostFlagSample)
         try Data((fields.joined(separator: " ") + "\n").utf8)
             .write(to: cameraDiagnosticsURL, options: .atomic)
     }

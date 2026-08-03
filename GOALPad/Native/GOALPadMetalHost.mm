@@ -19,6 +19,7 @@
 
 #include "game/graphics/pipelines/metal/metal_level_data.h"
 #include "game/graphics/pipelines/metal/metal_merc_model_pool.h"
+#include "game/graphics/pipelines/metal/metal_pipeline.h"
 #include "game/graphics/pipelines/metal/metal_renderer.h"
 #include "game/graphics/pipelines/metal/metal_texture.h"
 #include "game/graphics/texture/TexturePool.h"
@@ -76,6 +77,9 @@ struct MetalHost {
 
   goalpad::MetalHostStats stats;
   goalpad::camera_correction_trace::EventTrace camera_correction_trace;
+  std::uint64_t last_consumed_post_flag_serial = 0;
+  bool has_previous_post_flag_hidden = false;
+  bool previous_post_flag_hidden = false;
 };
 MetalHost g_host;
 
@@ -334,6 +338,16 @@ goalpad::MetalHostTargetControlDeformation retain_target_control_deformation(
           deformation.normalized_abs_determinant};
 }
 
+goalpad::MetalHostTargetControlRootAnchor retain_target_control_root_anchor(
+    const metal_merc_transform_trace::RootAnchorObservation& anchor) {
+  return {anchor.valid,
+          retain_target_control_deformation(anchor.deformation),
+          anchor.scale_x,
+          anchor.scale_y,
+          anchor.scale_z,
+          anchor.scale_w_bits};
+}
+
 goalpad::MetalHostTargetControlObservation retain_target_control_observation(
     const metal_merc_transform_trace::TargetControlObservation& observation,
     std::uint64_t host_tick_id,
@@ -371,10 +385,50 @@ goalpad::MetalHostTargetControlObservation retain_target_control_observation(
       retain_target_control_deformation(observation.input_root_deformation);
   retained.output_deformation =
       retain_target_control_deformation(observation.output_deformation);
+  retained.root_anchor_1 = retain_target_control_root_anchor(observation.root_anchors[0]);
+  retained.root_anchor_2 = retain_target_control_root_anchor(observation.root_anchors[1]);
+  retained.root_anchor_3 = retain_target_control_root_anchor(observation.root_anchors[2]);
+  retained.node3_parent_scale_cancellation_selected =
+      observation.node3_parent_scale_cancellation_selected;
   retained.input_root_translation_x = observation.input_root_translation_x;
   retained.input_root_translation_y = observation.input_root_translation_y;
   retained.input_root_translation_z = observation.input_root_translation_z;
   return retained;
+}
+
+void retain_latest_target_post_flag(std::uint64_t engine_frame_id,
+                                    std::uint64_t host_tick_id,
+                                    std::uint64_t chain_ordinal) {
+  const auto sample = jak1_bones_provenance_trace::registry().latest_post_flag();
+  if (!sample || sample->serial <= g_host.last_consumed_post_flag_serial) {
+    return;
+  }
+
+  goalpad::MetalHostTargetPostFlagObservation retained = {
+      true,
+      host_tick_id,
+      chain_ordinal,
+      engine_frame_id,
+      sample->serial,
+      sample->target_address,
+      sample->draw_status,
+      sample->target_attack_id,
+      sample->hidden(),
+  };
+  auto& telemetry = g_host.stats.target_control_telemetry;
+  telemetry.post_flag_samples_total++;
+  if (retained.hidden) {
+    telemetry.hidden_samples_total++;
+    telemetry.last_hidden_post_flag_sample = retained;
+  }
+  if (g_host.has_previous_post_flag_hidden &&
+      g_host.previous_post_flag_hidden != retained.hidden) {
+    telemetry.hidden_transitions_total++;
+  }
+  telemetry.last_post_flag_sample = retained;
+  g_host.previous_post_flag_hidden = retained.hidden;
+  g_host.has_previous_post_flag_hidden = true;
+  g_host.last_consumed_post_flag_serial = sample->serial;
 }
 
 void render_chain() {
@@ -398,6 +452,7 @@ void render_chain() {
     std::copy(camera.render_camera.begin(), camera.render_camera.end(),
               opts.expected_render_camera.bytes.begin());
   }
+  retain_latest_target_post_flag(opts.engine_frame_id, opts.host_tick_id, opts.chain_ordinal);
 
   const auto& chain = g_host.copier->get_last_result();
   const bool drawable_acquired = g_host.renderer->render_chain_frame(
@@ -690,6 +745,7 @@ bool metal_host_start(std::string* error) {
     return true;
   }
   jak1_bones_provenance_trace::registry().reset();
+  metal_renderer::set_jak1_tie_envmap_second_pass_enabled(false);
   id<MTLDevice> device = MTLCreateSystemDefaultDevice();
   if (device == nil) {
     *error = "No Metal device is available.";
