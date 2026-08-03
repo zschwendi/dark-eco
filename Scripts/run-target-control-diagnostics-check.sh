@@ -7,7 +7,17 @@ module_cache="$build_dir/module-cache"
 trap 'rm -rf "$build_dir"' EXIT HUP INT TERM
 mkdir -p "$module_cache"
 
-swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
+clangxx=$(xcrun --find clang++)
+macos_sdk=$(xcrun --sdk macosx --show-sdk-path)
+"$clangxx" -std=c++20 -Wall -Wextra -Werror \
+  -isysroot "$macos_sdk" \
+  -I"$root" \
+  "$root/Scripts/post-flag-diagnostics-check.cpp" \
+  -o "$build_dir/post-flag-diagnostics-check"
+
+"$build_dir/post-flag-diagnostics-check"
+
+swiftc -sdk "$macos_sdk" \
   -module-cache-path "$module_cache" \
   -import-objc-header "$root/GOALPad/Native/GOALPadRuntimeBridge.h" \
   -swift-version 5 \
