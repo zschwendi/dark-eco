@@ -10147,6 +10147,10 @@ frame was well formed: 396 tags, 3,008 payload bytes, and 131,072 copied bytes.
 The probe measured and dropped that chain, then stopped intentionally. This is
 direct title-path evidence, not rendering or a gameplay loop.
 
+The merged parent source-pack wrappers also passed their bounded synthetic
+contracts through `Scripts/run-jak2-aot-generation-check.sh` and
+`Scripts/run-jak2-source-object-pack-preparation-check.sh`.
+
 ## Exact-current iPhoneOS artifacts
 
 The canonical isolated Jak II directory was rebuilt once:
