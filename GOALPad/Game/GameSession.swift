@@ -651,6 +651,8 @@ final class GameSession {
                 + "\(renderer.lastMercPaletteHealthChainOrdinal)",
             "last_merc_palette_health_issue_mask="
                 + "\(renderer.lastMercPaletteHealthIssueMask)",
+            "last_merc_palette_health_nonfinite_lane_mask="
+                + "\(renderer.lastMercPaletteHealthNonfiniteLaneMask)",
             "last_merc_palette_health_bone_slot="
                 + "\(renderer.lastMercPaletteHealthBoneSlot)",
             "last_merc_palette_health_model_hash="

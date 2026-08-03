@@ -419,6 +419,7 @@ typedef struct GOALPadRendererStats {
   uint64_t lastMercPaletteHealthHostTickID;
   uint64_t lastMercPaletteHealthChainOrdinal;
   uint8_t lastMercPaletteHealthIssueMask;
+  uint32_t lastMercPaletteHealthNonfiniteLaneMask;
   int32_t lastMercPaletteHealthBoneSlot;
   uint64_t lastMercPaletteHealthModelNameHash;
   uint64_t lastMercPaletteHealthMatrixHash;

@@ -86,6 +86,7 @@ lastProvenance.outputExpectedDistance = 1.5
 var stats = GOALPadRendererStats()
 stats.mercEicharTransformDiscontinuities = 1
 stats.mercEicharTransformDiscontinuitiesTotal = 2
+stats.lastMercPaletteHealthNonfiniteLaneMask = (1 << 3) | (1 << 20)
 stats.firstMercEicharTransformDiscontinuity = first
 stats.lastMercEicharTransformDiscontinuity = last
 stats.firstMercEicharProvenanceEvent = firstProvenance
@@ -93,6 +94,7 @@ stats.lastMercEicharProvenanceEvent = lastProvenance
 
 precondition(stats.mercEicharTransformDiscontinuities == 1)
 precondition(stats.mercEicharTransformDiscontinuitiesTotal == 2)
+precondition(stats.lastMercPaletteHealthNonfiniteLaneMask == (1 << 3) | (1 << 20))
 precondition(stats.firstMercEicharTransformDiscontinuity.previousMatrixHash
     == stats.lastMercEicharTransformDiscontinuity.currentMatrixHash)
 precondition(stats.firstMercEicharTransformDiscontinuity.currentMatrixHash

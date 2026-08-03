@@ -305,6 +305,7 @@ void render_chain() {
     g_host.stats.last_merc_palette_health_chain_ordinal = stats.last_chain_ordinal;
     const auto& event = stats.last_merc_palette_health_event;
     g_host.stats.last_merc_palette_health_issue_mask = event.issue_mask;
+    g_host.stats.last_merc_palette_health_nonfinite_lane_mask = event.nonfinite_lane_mask;
     g_host.stats.last_merc_palette_health_bone_slot = event.bone_slot;
     g_host.stats.last_merc_palette_health_model_name_hash = event.model_name_hash;
     g_host.stats.last_merc_palette_health_matrix_hash = event.matrix_hash;

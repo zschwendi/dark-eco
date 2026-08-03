@@ -282,6 +282,7 @@ static GOALPadCameraCorrectionEvent makeCameraCorrectionEvent(
                                 core.last_merc_palette_health_host_tick_id,
                                 core.last_merc_palette_health_chain_ordinal,
                                 core.last_merc_palette_health_issue_mask,
+                                core.last_merc_palette_health_nonfinite_lane_mask,
                                 (int32_t)core.last_merc_palette_health_bone_slot,
                                 core.last_merc_palette_health_model_name_hash,
                                 core.last_merc_palette_health_matrix_hash,

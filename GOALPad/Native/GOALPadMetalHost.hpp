@@ -210,6 +210,7 @@ struct MetalHostStats {
   std::uint64_t last_merc_palette_health_host_tick_id = 0;
   std::uint64_t last_merc_palette_health_chain_ordinal = 0;
   std::uint8_t last_merc_palette_health_issue_mask = 0;
+  std::uint32_t last_merc_palette_health_nonfinite_lane_mask = 0;
   int last_merc_palette_health_bone_slot = -1;
   std::uint64_t last_merc_palette_health_model_name_hash = 0;
   std::uint64_t last_merc_palette_health_matrix_hash = 0;
