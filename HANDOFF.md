@@ -9429,11 +9429,17 @@ Four additional frames show the separate camera failure near the Geyser Rock
 wall. Jak is entirely outside the frame, yet the whole scene alternates among
 coherent camera poses while the maintainer supplies no input. Similar poses
 recur within the short sequence, matching the maintainer's observation that
-the view flickers roughly 20 times per second. Because all visible level
-geometry moves together and no character is present, this evidence excludes
-the Flat Stanley Merc path as the direct cause of that event. The remaining
-camera hypothesis is an alternating solver/combiner result near an occlusion
-or out-of-frame boundary, not object-local z-fighting.
+the view flickers roughly 20 times per second. Independent image comparison
+found the app chrome and viewport fixed while the foreground boulder shifts
+about 125-140 pixels, the horizon moves about 16-23 pixels vertically, and
+rocks, palms, cliff, chest, and beach move with depth-dependent parallax.
+Frames 2 and 4 return to within a few pixels of the same pose after frame 3
+leaves it. That excludes an OS/viewport shift, a pure projection-only change,
+and the Flat Stanley Merc path as the direct cause. A projection contribution
+cannot be excluded, but the repeating world-pose/distance change must occur in
+the camera path. The remaining hypothesis is an alternating solver, target,
+or combiner result near an occlusion or out-of-frame boundary, not object-local
+z-fighting.
 
 These screenshots came from the pre-v7 installed artifact. They are visual
 evidence only and cannot identify which recorded camera slave or Merc palette
@@ -9558,10 +9564,15 @@ read successfully with `codesign -d --entitlements -`.
 
 Do not change camera or Merc behavior from the screenshots alone. After fresh
 explicit device authorization, install this exact v7 artifact and reproduce
-two bounded cases: slowly rotate Jak through the thin and normal headings in
-open space, then leave Jak out of frame beside the same Geyser Rock wall while
-giving no input. Background the app only after the visible event, copy the
+two bounded cases. First, slowly rotate Jak through the thin and normal
+headings in open space. Second, at the same Geyser Rock wall and with no camera
+input, hold Jak barely inside the frame for 2-3 seconds, then walk him barely
+outside the frame without changing the wall geometry and hold through 2-3
+seconds of flicker. Background the app once after the visible event, copy the
 schema-v7 diagnostic cache read-only, and compare the retained camera slave,
-combiner, packet, bound-palette, and weighted-collapse evidence. That single
-capture should distinguish an input-palette collapse from a renderer-boundary
-failure and a wall solver alternation from a render/submission-order problem.
+target, collision/LOS, combiner, packet, bound-palette, and weighted-collapse
+evidence. If both camera states flicker while collision fields toggle, the wall
+solver is implicated; if only the out-of-frame state flickers and target data
+changes first, framing is implicated; stable slaves and targets with a flipping
+combiner implicate the combiner path. The same capture should distinguish an
+input-palette collapse from a renderer-boundary failure.
