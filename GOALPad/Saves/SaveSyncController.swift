@@ -135,12 +135,29 @@ final class SaveSyncController {
         }
     }
 
-    func syncBeforeGameplay() async {
+    func syncBeforeGameplay() async -> Bool {
         setGameplayActive(false)
         while isWorking {
-            try? await Task.sleep(for: .milliseconds(10))
+            do {
+                try await Task.sleep(for: .milliseconds(10))
+            } catch {
+                return false
+            }
         }
-        await syncNow(mode: .bidirectional)
+        if isEnabled {
+            await syncNow(mode: .bidirectional)
+        }
+        do {
+            let hasUnsafeLocalMutation = try await engine.hasUnsafePendingLocalMutation()
+            guard !hasUnsafeLocalMutation else {
+                status = .failed("Save recovery is incomplete. Retry iCloud Saves before playing.")
+                return false
+            }
+            return true
+        } catch {
+            status = .failed(error.localizedDescription)
+            return false
+        }
     }
 
     /// Called after completed gameplay frames. The native save is synchronous, so any successful

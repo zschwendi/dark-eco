@@ -19,6 +19,9 @@ nonisolated private let sessionLog = Logger(subsystem: "com.zephyrstudiosllc.eco
 @MainActor
 @Observable
 final class GameSession {
+    private static let saveRecoveryMessage =
+        "Save recovery needs attention. Open Settings and retry iCloud Saves before playing."
+
     let input = ControllerInput()
     let touch = TouchControls()
     let audio = AudioOutput()
@@ -110,7 +113,10 @@ final class GameSession {
 
         isPreparingGameplay = true
         defer { isPreparingGameplay = false }
-        await saveSync.syncBeforeGameplay()
+        guard await saveSync.syncBeforeGameplay() else {
+            startupError = Self.saveRecoveryMessage
+            return
+        }
         guard !isRunning, !isBooting, currentScenePhase == .active else { return }
 
         let status = GOALPadRuntimeBridge.startKernel(
@@ -1080,8 +1086,16 @@ final class GameSession {
             Task { [weak self] in
                 guard let self else { return }
                 defer { isPreparingGameplay = false }
-                await saveSync.syncBeforeGameplay()
+                let savesReady = await saveSync.syncBeforeGameplay()
                 guard currentScenePhase == .active else { return }
+                guard savesReady else {
+                    startupError = Self.saveRecoveryMessage
+                    audio.suspend()
+                    return
+                }
+                if startupError == Self.saveRecoveryMessage {
+                    startupError = nil
+                }
                 saveSync.setGameplayActive(kernel != nil)
                 isForeground = true
                 guard isRunning else { return }
