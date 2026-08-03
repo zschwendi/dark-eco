@@ -10301,3 +10301,100 @@ new speculative visual patch is justified before the physical capture.
    careful generalization of Jak 1-specific runtime/Metal code plus real
    renderer pacing, lifecycle, and data selection before a mutually exclusive
    app variant is justified.
+
+# Checkpoint 67: portable Jak II graphics host and current Apple proofs
+
+Date: 2026-08-03. Nested head
+`a5a1bebbc03b98848c16a53d588047846f79f67e` merges the current remote Jak II
+DMA observer work with the strict portable graphics-host contract. Merge
+`7edbe5e05c9d76607dbc0662c1b79db7bc15558b` preserves separate Jak 1 and
+Jak II ABI adapters, strict sync argument validation, Jak II's vblank-before-
+`syncv` ordering while running, desired and active six-pointer level lists,
+normalized alpha, the shared cache flush, and deterministic inactive mouse
+state. Follow-up `a5a1bebbc` roots the new host and observer exports in the
+iPhoneOS link proof so validation cannot pass after dead stripping them.
+
+DMA measurement no longer competes with the graphics host for
+`__send-gfx-dma-chain`. `goal_gfx_dma_observe_chain` is a composable observer;
+the compatibility installer remains available for the isolated DMA boundary,
+and `--play-dma` installs the full host with the observer behind its send-chain
+callback. `--play-gfx-host` exercises the host contract without parsing DMA.
+Plain `--play` remains title-only with the graphics chain intentionally
+uninstalled. The two opt-in modes are mutually exclusive.
+
+## Deterministic and prepared-data validation
+
+The focused canonical build passed for `jak1-gfx-host-test`,
+`jak2-gfx-host-test`, `jak2-lightweight-machine-test`,
+`jak2-dma-boundary-test`, `jak2-data-boot-test`, and the final-head
+`jak1-kernel-core-smoke-test`. Direct tests completed with zero failures: Jak 1
+graphics host ran 13 checks, Jak II graphics host ran 26, Jak II lightweight
+machine ran 11, and the DMA boundary ran 12. `git diff --check` also passed.
+
+The prepared-data `--frames 1000 --play-dma` probe exited 0 after loading all
+840 AOT units, the eight-object kernel frontier, `GAME.CGO` as 465 objects
+(436 code and 29 data), and `TITLE.DGO` as seven objects (one AOT code and six
+data). Frame 1 completed exactly one well-formed and zero malformed chain with
+327 buckets, 396 tags, 3,008 payload bytes, and 131,072 copied bytes. The host
+reported one chain, two `syncv` calls, two `sync-path` calls, and zero rendered
+or presented frames. `--play-gfx-host` exited 0 at the same title frontier with
+the same host counts and no DMA parsing. Plain `--play` exited 0 with the
+unchanged title-only frontier and intentionally missing sync/chain callbacks.
+Supplying both opt-in flags exited 2 with the expected mutual-exclusion error.
+
+## Exact-current Apple build evidence
+
+The canonical unsigned iPhoneOS Jak II build reused and revalidated the checked
+840-unit corpus. Its archive remains 60,321,976 bytes with SHA-256
+`210265b2a5b6fd03e8e3ac2f8dc036b71d1d41295ddbe137e86d8e08c56a6e5d`
+and 841 object members after Darwin's symbol table: one manifest plus 840
+generated units. The final thin ARM64 iOS 18.0 executable is 49,527,720 bytes
+with SHA-256
+`11e52f5d7c78477c3e8549ac5daae90464f9d9e5d463b0d5d3cf72046dd47d15`.
+It retains `goal_gfx_dma_install`, `goal_gfx_dma_reset`,
+`goal_gfx_dma_observe_chain`, `goal_gfx_host_install`, `goal_pad_install`, and
+the interrupt-handler frontier.
+
+The exact-current signed generic-iPhoneOS Jak II proof also passed. Its corpus
+archive remains 60,320,304 bytes with SHA-256
+`16158d475b908864dcb6c719b9e27b283667791c1b5bb7864ee22fbe8eee2edd`.
+The thin ARM64 executable is 47,671,536 bytes with SHA-256
+`77a644e03bf927a04f064becc581c0b8e50afe75075d530924aaa6264b00e411`,
+identifier `com.zephyrstudiosllc.eco.jak2linkproof`, team `V729QMY3V6`, and
+CDHash `b784d0402f0bad458006520214d387444aa639eb`. It retains both vblank and
+VIF1 interrupt handlers plus the observer, host, and pad exports. Strict
+application-bundle signature verification passed with trust-service access.
+
+The signed Jak 1/Eco Pro generic-iOS Release was then rebuilt from the same
+nested head and unchanged checked 518-object source pack. The pack still has
+aggregate `0a6387a3959fd8cb`, exactly 518 objects, and 10,729,950 bytes. The
+final thin ARM64 executable is 33,160,944 bytes with SHA-256
+`b843b8b6b7730c13a70e26c022e6ab775500e520647cae4ac08527eec5ba8ba5`,
+identifier `com.zephyrstudiosllc.eco`, team `V729QMY3V6`, and CDHash
+`44e9578eb4e33a3514919c92cb535db0b2f7eb23`. It retains the expected Cloud
+Documents and iCloud-container entitlements. Strict application-bundle
+signature verification passed with trust-service access. A stale derived
+importer CMake cache initially pointed at the contaminated checkout; only that
+reproducible derived directory was removed, after which the exact build passed.
+
+No generated corpus was regenerated, no user game data was added, and no
+device, simulator, app launch, logging, screen capture, or physical-device
+access occurred in this checkpoint. Existing generated-code precision warnings
+and the unused stale Xcode-account warning remained non-blocking.
+
+## Next executable gates
+
+1. Jak II still has no Apple app target, Metal callback lifecycle, real display
+   link pacing, Apple audio pull, simulator/device runtime, visible title, or
+   gameplay proof. The next code slice is a separate mutually exclusive Jak II
+   development target that links only the Jak II AOT corpus and reuses the
+   existing Apple renderer behind the validated host contract.
+2. The Apple renderer must assign `set_active_levels` and compose optional DMA
+   observation inside its send-chain callback. Do not replace the installed
+   host or link both game corpora into one executable.
+3. Add only the target-selected Jak II sound API needed by that development
+   target; preserve Jak 1 behavior and keep public display identity unchanged.
+4. Only after fresh physical-device authorization, run the existing schema-v7
+   same-wall visible/out/open-space camera discriminator and the heading sweep
+   for Flat Stanley. The current stills justify those tests, not another
+   speculative visual patch.
