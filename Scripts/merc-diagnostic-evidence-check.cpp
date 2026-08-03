@@ -1,4 +1,5 @@
 #include "GOALPad/Native/GOALPadMercDiagnosticEvidence.hpp"
+#include "GOALPad/Native/GOALPadMetalHost.hpp"
 
 #include <cstdio>
 
@@ -38,6 +39,17 @@ int main() {
         "a clean frame cannot erase an already retained evidence snapshot");
   check(should_update_retained_snapshot(true, PACKET_PALETTE_CONFLICT),
         "later evidence refreshes the retained raw snapshot");
+
+  goalpad::MetalHostMercTransformEvent output_identity;
+  output_identity.previous_producer_output_hash = 0x10;
+  output_identity.current_producer_output_hash = 0x20;
+  output_identity.previous_renderer_output_hash = 0x10;
+  output_identity.current_renderer_output_hash = 0x30;
+  check(output_identity.previous_producer_output_hash ==
+                output_identity.previous_renderer_output_hash &&
+            output_identity.current_producer_output_hash !=
+                output_identity.current_renderer_output_hash,
+        "host telemetry retains matching and divergent producer/renderer identities");
 
   EpisodeTracker tracker;
   tracker.begin_frame();

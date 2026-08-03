@@ -98,6 +98,10 @@ struct MetalHostMercTransformEvent {
   std::uint64_t older_producer_serial = 0;
   std::uint64_t previous_producer_serial = 0;
   std::uint64_t current_producer_serial = 0;
+  std::uint64_t previous_producer_output_hash = 0;
+  std::uint64_t current_producer_output_hash = 0;
+  std::uint64_t previous_renderer_output_hash = 0;
+  std::uint64_t current_renderer_output_hash = 0;
   std::uint64_t older_input_root_hash = 0;
   std::uint64_t previous_input_root_hash = 0;
   std::uint64_t current_input_root_hash = 0;
