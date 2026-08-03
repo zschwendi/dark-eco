@@ -90,12 +90,13 @@ struct GameDataSetupView: View {
     private var setupInstructions: String {
         if canImportRawISO {
             return """
-            Eco Pro can prepare a supported `.iso` disc image on this device, or import an existing \
-            OpenGOAL `out/jak1` folder containing `iso/` and `fr3/`.
+            Eco Pro can prepare a supported `.iso` disc image or a standard `.zip` containing one \
+            `.iso` on this device, or import an existing OpenGOAL `out/jak1` folder containing \
+            `iso/` and `fr3/`.
 
-            1. Put the `.iso` or prepared folder in Files, iCloud Drive, or an external drive.
+            1. Put the `.iso`, `.zip`, or prepared folder in Files, iCloud Drive, or an external drive.
             2. Choose Import game data below.
-            3. Select the `.iso` file or prepared folder in the system picker.
+            3. Select the `.iso`, `.zip`, or prepared folder in the system picker.
 
             Import prepares and validates a private candidate before activation. Existing game data \
             stays playable if preparation fails, so the device needs enough free space for the source, \
@@ -118,8 +119,9 @@ struct GameDataSetupView: View {
 
     private var importCompatibilityNote: String {
         if canImportRawISO {
-            return "Choose a supported `.iso` disc image or an already prepared `out/jak1` "
-                + "folder. `.zip` and other archive files are not supported; extract the `.iso` first."
+            return "Choose a supported `.iso`, a standard `.zip` containing exactly one `.iso`, "
+                + "or an already prepared `out/jak1` folder. ZIP64, encrypted, multi-disk, and "
+                + "non-ZIP archives are not supported."
         }
         return "This build accepts an already prepared `out/jak1` folder. Raw `.iso`, `.zip`, "
             + "and other archive files are not supported in this build."
@@ -190,7 +192,7 @@ struct GameDataSetupView: View {
 
     private var importContentTypes: [UTType] {
         if canImportRawISO, let rawISOType = Self.rawISOType {
-            return [.folder, rawISOType]
+            return [.folder, rawISOType, .zip]
         }
         return [.folder]
     }

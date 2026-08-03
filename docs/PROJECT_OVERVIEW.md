@@ -330,12 +330,17 @@ The iPad app should:
 
 ### On-device preparation status
 
-**Investigating:** A future Apple-device importer may accept a user-selected
-disc image and run the compatible OpenGOAL preparation pipeline locally. This
-is more than extracting an archive: the pipeline must parse and verify the disc
-image, generate the prepared level data, and rebuild the flat `out/jak1/iso`
-layout that the runtime consumes. The current app accepts only an already
-prepared `out/jak1` folder, and Files therefore shows raw `.iso` images dimmed.
+**Experimental:** The Apple-device importer accepts a user-selected raw `.iso`,
+a standard ZIP32 archive containing exactly one `.iso`, or an already prepared
+`out/jak1` folder. ZIP extraction is local and streaming: the app writes the ISO
+to private Application Support staging, verifies its size and CRC-32, passes it
+to the same raw-disc preparation pipeline, and removes the temporary image.
+Stored and raw-DEFLATE ZIP members are supported. ZIP64, encrypted, multi-disk,
+ambiguous, and unsafe archives are rejected with no change to active game data.
+
+On-device preparation is more than extracting an archive: the pipeline parses
+and verifies the disc image, generates the prepared level data, and rebuilds
+the flat `out/jak1/iso` layout that the runtime consumes.
 
 Any on-device implementation must remain an offline data-preparation tool. It
 must use normal signed code, bounded concurrency, recoverable errors, progress

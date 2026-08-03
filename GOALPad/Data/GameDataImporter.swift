@@ -26,10 +26,12 @@ final class GameDataImporter {
     private let worker: GameDataInstallWorker
     private let preparedFolderProducer = PreparedFolderCandidateProducer()
     private let rawISOProducer = RawISOCandidateProducer()
+    private let zippedISOProducer: ZIPISOCandidateProducer
     private var task: Task<Void, Never>?
 
     init(worker: GameDataInstallWorker = GameDataInstallWorker()) {
         self.worker = worker
+        zippedISOProducer = ZIPISOCandidateProducer(downstream: rawISOProducer)
     }
 
     var isRunning: Bool {
@@ -39,8 +41,8 @@ final class GameDataImporter {
         }
     }
 
-    /// `source` may be a supported raw disc image, the directory holding `iso/` and `fr3/`, or
-    /// either of those two prepared directories on its own.
+    /// `source` may be a supported raw or ZIP-contained disc image, the directory holding `iso/`
+    /// and `fr3/`, or either of those two prepared directories on its own.
     func start(from source: URL, onFinish: @escaping @MainActor () -> Void) {
         guard task == nil else { return }
         let producer: any GameDataCandidateProducing
@@ -49,6 +51,8 @@ final class GameDataImporter {
             producer = preparedFolderProducer
         case .rawISO where RawISOCandidateProducer.isAvailable():
             producer = rawISOProducer
+        case .zippedISO where RawISOCandidateProducer.isAvailable():
+            producer = zippedISOProducer
         case .rawISO:
             state = .failed(GameDataImportFailure(
                 code: .appResourcesUnavailable,
@@ -58,11 +62,20 @@ final class GameDataImporter {
             ))
             onFinish()
             return
+        case .zippedISO:
+            state = .failed(GameDataImportFailure(
+                code: .appResourcesUnavailable,
+                message: "ZIP-to-ISO preparation is not available in this build. "
+                    + "Choose a prepared game-data folder instead.",
+                candidatePreserved: false
+            ))
+            onFinish()
+            return
         case .unsupportedArchive:
             state = .failed(GameDataImportFailure(
                 code: .unsupportedArchive,
-                message: "Compressed archives such as .zip are not supported. "
-                    + "Extract the .iso file, then choose that file.",
+                message: "This archive format is not supported. Choose a standard .zip "
+                    + "containing one .iso, a raw .iso, or prepared game data.",
                 candidatePreserved: false
             ))
             onFinish()
