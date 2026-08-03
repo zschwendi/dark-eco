@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness and remaining platform gaps, not real-media
 import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 73 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 74 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 
@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 71 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 74 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -1104,6 +1104,16 @@ the exact generic-iPhoneOS parent Release built and signed successfully,
 reverified the 518-object Jak 1 pack, and retained both Jak II bucket-table
 symbols in the thin ARM64 executable.
 
+Checkpoint 74 closes Checkpoint 73's exact-current Jak 1 renderer gap and adds
+the first submitted Jak II Metal pixel proof at nested `0963b1c4c`. The full
+Jak 1 Metal proof passes, and the four focused Jak II semantics, table,
+nil-layer dispatch, and offscreen-submit tests pass 4/4. One audited DEBUG3
+Direct payload encodes a synthetic triangle, completes a real offscreen Metal
+command buffer, and returns the expected pixels. This is GPU submission and
+readback evidence, not `CAMetalLayer` acquisition, presentation, title-screen,
+gameplay, or physical-device evidence. The signed generic-iPhoneOS development
+app remains Metal-free.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
@@ -1128,16 +1138,16 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Continue Jak II with one explicit offscreen-submit/readback Direct GIF proof
-   or real development-app `CAMetalLayer` wiring. Keep the nil-layer 327-slot
-   dispatcher at zero command-buffer commits, drawables, submissions, and
-   presentations, and do not claim pixels until a submitted command buffer
-   completes.
+4. Wire the product-linked Jak II renderer to the development app's real
+   `CAMetalLayer`. On the approved M5 simulator, require a drawable, completed
+   command-buffer submission and presentation, and bounded no-drop counters.
+   Preserve the nil-layer zero-submit and offscreen readback proofs; do not
+   claim title-screen, gameplay, or physical-device support from this gate.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
-Checkpoint 73 did not access Z iPad Pro. The maintainer supplied screenshots
+Checkpoint 74 did not access Z iPad Pro. The maintainer supplied screenshots
 from their own current physical run, but the agent did not install, launch,
 log, copy, or otherwise access the device. The maintainer reported that the app
 was backgrounded or closed, and any later install, launch, logging, capture, or

@@ -10897,3 +10897,169 @@ explicit authorization before the schema-v7 physical Jak 1 gate.
   Keep Jak 1 camera, Merc, and metallic-material behavior unchanged until a
   freshly authorized schema-v7 physical observation can distinguish the
   recorded hypotheses.
+
+# Checkpoint 74: exact-current Jak 1 renderer and Jak II Metal submission
+
+Date: 2026-08-03. Parent integration commit
+`b5ab819e4024c592950b9e91229c49188850889e` advances the OpenGOAL gitlink from
+`1e41324fae461360f8220d6e4dbf7004b754fc65` to published nested commit
+`0963b1c4c7b09a22af46a75803d1d8cfdefe926a`. The nested commit adds a focused
+`jak2-metal-submit-readback-proof` without changing the product renderer. It
+loads the product's embedded Metal library, initializes the real pipeline
+cache, encodes one audited Jak II DEBUG3 Direct GIF triangle into a 64-by-64
+offscreen target, commits and completes a real Metal command buffer, and reads
+back the exact green triangle over the expected black clear color.
+
+The proof uses only synthetic colors, coordinates, and packet bytes. It adds no
+retail game data. The packet shape mirrors the public Jak II DEBUG3 Direct
+path, and its batch-size assertion retains the audited `0x2000` policy. The
+existing nil-layer dispatcher remains a separate zero-commit proof and was not
+weakened.
+
+## Exact-current Jak 1 validation
+
+The existing paired source/build tree at
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/OpenGOAL`
+was first rebuilt at the Checkpoint-73 pin and then rebuilt again after the
+Checkpoint-74 nested integration:
+
+```text
+cmake --build OpenGOAL/build/Release/bin --target metal-proof -j 2
+OpenGOAL/build/Release/bin/game/metal-proof
+```
+
+Both complete executions ended with `METAL PROOF PASSED`. The final run covers
+frame readback, blend/depth/write-mask behavior, textures and samplers, PS2
+texture formats, DMA traversal, sprites, TIE envmap ordering and diagnostics,
+Merc palette health, blerc, old-bones boundaries, joint/old-bones/palette/pixel
+provenance, Merc rotation, weighted-skin collapse, and Generic2. This closes
+the exact-current renderer-regression gap left at Checkpoint 73. It does not
+replace the separately authorization-gated schema-v7 physical visual check.
+
+## Focused Jak II Metal validation
+
+The integrated host build compiled the four focused products:
+
+```text
+cmake --build OpenGOAL/build/Release/bin \
+  --target metal-bucket-chain-semantics-test \
+           jak2-metal-bucket-table-test \
+           jak2-metal-dispatch-proof \
+           jak2-metal-submit-readback-proof -j 2
+
+ctest --test-dir OpenGOAL/build/Release/bin \
+  -R '^(metal-bucket-chain-semantics-test|jak2-metal-bucket-table-test|jak2-metal-dispatch-proof|jak2-metal-submit-readback-proof)$' \
+  --output-on-failure
+```
+
+The final CTest run passed 4/4. An earlier CTest invocation passed the three
+already-built products and reported only `jak2-metal-dispatch-proof` as `Not
+Run` because that reused build directory did not yet contain its executable.
+Building all four named targets and rerunning the same filter passed cleanly;
+there was no source or test failure.
+
+The nil-layer proof still traverses all 327 audited slots while recording zero
+command-buffer commits, drawable attempts, submissions, presentations, draw
+calls, and triangles. The new offscreen proof records one supported draw, one
+triangle, zero unsupported blends, a completed command buffer, an exact green
+center pixel, an exact black outside pixel, and no unexpected colors among all
+4096 pixels. It does not acquire a drawable, use a `CAMetalLayer`, present a
+frame, consume real game DMA, display a title screen, or prove gameplay.
+
+## Generic iPhoneOS Jak II development build
+
+A fresh Xcode-generator configuration validated the complete 840-unit Jak II
+AOT corpus and built the development display-tick app:
+
+```text
+cmake -S OpenGOAL \
+  -B /private/tmp/OG-jak2-cp74-iphoneos-xcode \
+  -G Xcode \
+  -DCMAKE_SYSTEM_NAME=iOS \
+  -DCMAKE_OSX_SYSROOT=iphoneos \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=18.0 \
+  -DBUILD_TESTING=OFF \
+  -DOPENGOAL_BUILD_JAK2_IPHONEOS_AOT_LINK_ONLY=ON \
+  -DOPENGOAL_JAK2_AOT_DIR=/Users/zach/Developer/OS_Projects/GOALPad/GOALPad/Generated/jak2-aot \
+  -DOPENGOAL_JAK2_IPHONEOS_BUNDLE_IDENTIFIER=com.zephyrstudiosllc.eco.jak2linkproof \
+  -DOPENGOAL_JAK2_IPHONEOS_DISPLAY_TICK_BUNDLE_IDENTIFIER=com.zephyrstudiosllc.eco.jak2displaytickproof \
+  -DOPENGOAL_JAK2_IPHONEOS_DEVELOPMENT_TEAM=V729QMY3V6 \
+  -DCMAKE_C_COMPILER_LAUNCHER=/opt/homebrew/bin/ccache \
+  -DCMAKE_CXX_COMPILER_LAUNCHER=/opt/homebrew/bin/ccache
+
+xcodebuild \
+  -project /private/tmp/OG-jak2-cp74-iphoneos-xcode/jak.xcodeproj \
+  -scheme jak2-iphoneos-display-tick-proof \
+  -configuration Release \
+  -sdk iphoneos \
+  -destination generic/platform=iOS \
+  -derivedDataPath /private/tmp/GOALPad-jak2-cp74-derived \
+  COMPILER_INDEX_STORE_ENABLE=NO build
+```
+
+The build passed. Its AOT archive is 60,320,304 bytes with SHA-256
+`16158d475b908864dcb6c719b9e27b283667791c1b5bb7864ee22fbe8eee2edd` and
+842 archive members: one Darwin symbol table, one manifest object, and all 840
+validated generated translation units. The source manifest declares 840 files
+and has SHA-256
+`9bde90fa9818264bf9d2d1703adb728e50f0a68d4f2430a5e5188af9c063ce51`.
+
+The product is a thin ARM64 iPhoneOS app with minimum iOS 18.0, display name
+`Eco Pro Jak II Dev`, identifier
+`com.zephyrstudiosllc.eco.jak2displaytickproof`, team `V729QMY3V6`, and
+48,489,664-byte executable SHA-256
+`b42d3734d796f4e7c183a1c53363e57cc5bc46ef3d188df84bdc4f50e6f14a56`.
+With normal Keychain/trust-service access, strict deep signature verification
+passed and reported Apple Development signing, CDHash
+`01b8f51c842caaf08c8570d87f930553e469bff0`, and the expected development
+entitlements. The sandbox-only trust check returned `CSSMERR_TP_NOT_TRUSTED`;
+the unrestricted read-only retry proved this was an environment limitation,
+not an invalid artifact.
+
+The signed app and a zipped copy are preserved at:
+
+```text
+/private/tmp/GOALPad-cp74-signed/Eco Pro Jak II Dev.app
+/private/tmp/GOALPad-cp74-signed/Eco Pro Jak II Dev.app.zip
+```
+
+The preserved executable retains the same SHA-256 and its signature reverified.
+The ZIP is 9,337,753 bytes with SHA-256
+`a75fdeccbbe26844e381a0039037d2e3f57e9dbb50940875842d210f42dfa970`.
+The development app links UIKit, QuartzCore, Foundation, the reusable Jak II
+runtime, kernel, and AOT corpus, but not Metal. The submitted/readback proof is
+host-only and test-only at this checkpoint.
+
+## Publication and preserved state
+
+Nested branch `goalpad/ipad-demo-pacing` was fast-forwarded from `1e41324fa` to
+`0963b1c4c`; `git ls-remote` returned that exact nested hash. The parent
+integration branch is `agent/cp74-jak2-submit-readback-parent`, based on remote
+parent `7b776a3e3986c00992147f6b165462b61151c77e`; its source/gitlink integration
+commit is `b5ab819e4024c592950b9e91229c49188850889e`. Publish its final documentation
+tip to `feat/ipados-native-boot` only after the documentation checks pass.
+
+The maintainer-owned main worktree remains untouched and dirty on
+`agent/jak1-v6-visual-diagnostics-parent`: `GOALPad.xcodeproj/project.pbxproj`,
+`HANDOFF.md`, `OpenGOAL`, and `ROADMAP.md` are modified there, and its nested
+checkout remains on `agent/jak2-final-reconcile`. Do not reset, clean, stage,
+sync, or overwrite it.
+
+No physical device was installed, launched, logged, captured, or otherwise
+accessed during Checkpoint 74.
+
+## Next executable gates
+
+1. Wire the product-linked Jak II Metal renderer to the development app's real
+   `CAMetalLayer`. On the approved M5 simulator, require drawable acquisition,
+   a completed command-buffer submission and presentation, and bounded
+   no-drop/no-error counters. Preserve both the nil-layer zero-submit proof and
+   the offscreen pixel-readback proof.
+2. Do not claim a visible title, real game DMA, gameplay, or physical-device
+   Jak II support until those separate gates pass.
+3. Add Jak II AVAudioEngine output only after the existing selected-game audio
+   pull remains green through lifecycle validation.
+4. Keep the Jak 1 visual lane at its physical schema-v7 gate. Do not make
+   another speculative camera, Merc, or metallic-material patch without fresh
+   device authorization and a discriminating observation.
