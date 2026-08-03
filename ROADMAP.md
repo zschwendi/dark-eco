@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness and remaining platform gaps, not real-media
 import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 59 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 62 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 
@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 61 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 62 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -984,6 +984,16 @@ iOS 18.0 executable containing the pad and handler symbols. This remains an
 unsigned link proof, not Jak II app, simulator, device, title-screen, or
 gameplay support.
 
+Checkpoint 62 adds a faithful game-neutral `pc-rand` implementation and runs
+Jak II's title path through upstream-compatible `play-boot` and a real GOAL
+process. The bounded host probe now links the first `TITLE.DGO` code object and
+exposes the graphics-DMA frontier after a short reporting/sync seam sequence.
+The exact-current 840-unit iPhoneOS link proof passes. An exact-current signed
+Jak 1 generic-iOS Release also passes after replacing a stale importer CMake
+cache; this closes the clean source/build gap but does not override the
+maintainer's physical rejection of the heading-dependent Jak collapse and
+near-wall/off-screen camera oscillation.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
@@ -1008,16 +1018,19 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Continue Jak II only with the faithful game-neutral `pc-rand` seam and a
-   focused default-sequence test, then rerun the bounded host `--play` probe to
-   expose the next substantive title-path dependency. Playback, streams, app
+4. Continue Jak II with a read-only faithfulness audit of `pc-prof`,
+   `flush-cache`, `sync-path`, `syncv`, and `mouse-get-data`, then cross the
+   substantive `__send-gfx-dma-chain` boundary by reusing or minimally
+   generalizing the existing Jak 1 renderer seam. Playback, streams, app
    wiring, signing, simulator/device runtime, and physical gameplay remain
    unproved.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
-Checkpoint 59 did not access Z iPad Pro. The maintainer reported that the app
+Checkpoint 62 did not access Z iPad Pro. The maintainer supplied screenshots
+from their own current physical run, but the agent did not install, launch,
+log, copy, or otherwise access the device. The maintainer reported that the app
 was backgrounded or closed, and any later install, launch, logging, capture, or
 other physical access requires fresh authorization. No proprietary game data
 belongs in source control or CI.

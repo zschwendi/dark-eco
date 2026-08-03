@@ -9859,12 +9859,11 @@ This remains an unsigned isolated link proof, not a runnable Jak II app.
 
 ## Preserved follow-up state
 
-The separate clean worktree `/private/tmp/OG-jak2-play-package-record` remains
-on branch `agent/jak2-play-package-record` at unintegrated commit `0e014decd`.
-That commit changes the host frontier from a direct `(play #t #t)` call to
-`play-boot` followed by bounded GOAL dispatcher frames. It landed after this
-checkpoint's validation and has not been reviewed, integrated, or used for any
-claim above; preserve it for the next Jak II review lane.
+The branch `agent/jak2-play-package-record` retains the original unintegrated
+commit `0e014decd`; its temporary worktree has been removed. That commit
+changes the host frontier from a direct `(play #t #t)` call to `play-boot`
+followed by bounded GOAL dispatcher frames. It landed after this checkpoint's
+validation and was reserved for the next Jak II review lane.
 
 The canonical iPhoneOS link directory
 `/private/tmp/GOALPad-jak2-ios-aot-current` remains available. Two clean,
@@ -9872,3 +9871,163 @@ obsolete implementation worktrees (`/private/tmp/OG-jak2-handler-seam` and
 `/private/tmp/OG-jak2-pc-rand`) were removed after their state was either
 integrated or confirmed unchanged. The reproducible 67 MiB
 `/private/tmp/OG-jak2-handler-seam-build` directory was also removed.
+
+# Checkpoint 62: exact-current Jak 1 Release and Jak II GOAL play process
+
+Date: 2026-08-03. This checkpoint closes the exact-current signed generic-iOS
+Jak 1 build gap identified after Checkpoint 61 and advances the bounded Jak II
+host/AOT path through the real GOAL `play-boot` process boundary. It does not
+claim that the current Jak 1 visual defects are fixed, that the signed artifact
+passed physical-device validation, or that Jak II is an app target or playable.
+No physical device was accessed.
+
+## Integrated Jak II changes
+
+The clean nested integration branch now ends at
+`fe4b0bd673b006d76aa00f8afef3c568ca23980a` with two reviewed commits after
+Checkpoint 61:
+
+- `836c068a37407034e9f6c82cc04c176878e68d70` implements the game-neutral
+  `pc-rand` seam with a private default-seeded `std::mt19937`. It returns the
+  raw `u32` stream, remains separate from `Mips2C::gRng`, and intentionally
+  retains process-lifetime state across kernel shutdown/reinitialization. The
+  real-symbol regression verifies `3499211612`, `581869302`, `3890346734`, and
+  `3586334585`, then verifies that reinitializing the kernel does not reset the
+  generator.
+- `fe4b0bd673b006d76aa00f8afef3c568ca23980a` replaces the host probe's
+  synthetic direct `(play #t #t)` invocation with upstream-compatible
+  `play-boot`, which spawns `play` as a GOAL process on the kernel DRAM stack,
+  followed by bounded `kernel-dispatcher` execution. Review corrected the
+  probe's completion wording: the retained counters prove the first linked
+  title object, not completion of the entire archive. The external wall-clock
+  timeout remains required because a dispatcher call can block.
+
+## Focused host validation
+
+The canonical host directory was reused; no second heavy build ran in
+parallel:
+
+```sh
+cmake --build build/Release/bin --target jak2-pc-rand-test -j2
+build/Release/bin/game/jak2-pc-rand-test
+cmake --build build/Release/bin --target jak2-data-boot-test -j2
+perl -e '$seconds = shift; alarm $seconds; exec @ARGV' 60 \
+  build/Release/bin/game/jak2-data-boot-test \
+  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  --frames 100 --play
+cmake --build build/Release/bin --target \
+  jak1-kernel-core-smoke-test jak2-pad-seam-test \
+  jak2-handler-seam-test -j2
+build/Release/bin/game/jak1-kernel-core-smoke-test
+build/Release/bin/game/jak2-pad-seam-test
+build/Release/bin/game/jak2-handler-seam-test
+```
+
+All focused tests passed with zero failures. The revision change regenerated
+and compiled the 840-unit host Jak II AOT set once. The 60-second real-data
+probe exited 0, loaded KERNEL 8/8 and GAME 465/465, called `play-boot`, ran one
+GOAL dispatcher frame, and processed `TITLE.DGO` as one archive and seven
+objects: one AOT code object and six data objects. With `pc-rand` present, the
+next observed missing sequence is `pc-prof`, `flush-cache`, `sync-path`,
+`syncv`, `mouse-get-data`, and `__send-gfx-dma-chain`. The first five require
+faithfulness review, but the substantive next runtime boundary is graphics DMA
+and renderer integration rather than another title-package bookkeeping shim.
+
+`git diff --check origin/goalpad/ipad-demo-pacing..HEAD` passed. Existing
+upstream precision, unused-variable, and generated-code warnings remain; no
+new source failure was hidden or disabled.
+
+## Exact-current Jak II iPhoneOS link proof
+
+The canonical isolated link directory was rebuilt after the two nested commits:
+
+```sh
+cmake --build /private/tmp/GOALPad-jak2-ios-aot-current \
+  --target jak2-iphoneos-full-aot-link -j2
+```
+
+The 858-step build validated the complete 840-unit corpus, compiled the current
+`desktop_seams.cpp`, and exited 0. The final product is an unsigned thin ARM64
+iOS Mach-O, minimum iOS 18.0 and SDK 26.5, 49,482,880 bytes, SHA-256
+`a087c6b5caba0b9892608afd0eb8308139208a7b53a99fe6412aa6ea8e7dc2e1`.
+It contains the retained handler and pad symbols plus the private `pc-rand`
+generator. `libjak2-kernel-core.a` is 6,515,152 bytes with SHA-256
+`82029c910b7c403398daf4c22afacc4eebb0d6a124f1b4253d8a7ec0a584c717`.
+This remains an isolated link proof, not app wiring, signing, launch, rendering,
+or gameplay evidence.
+
+## Exact-current signed Jak 1 generic-iOS Release
+
+The first incremental Xcode attempt failed before app compilation because the
+importer's derived CMake cache still named the separate moving checkout as its
+source tree. The exact reproducible cache directory
+`/private/tmp/GOALPad-sim/Build/Intermediates.noindex/GOALPad.build/Release-iphoneos/GOALPad.build/DerivedSources/Jak1ImportComposer`
+was removed, and the same build command was rerun from the clean parent:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-sim -jobs 2 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/build/jak1-source-object-pack \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache \
+  GOALPAD_BUILD_JOBS=2 build
+```
+
+The retry exited 0. It rebuilt the importer against the clean nested source,
+verified the 518-object source pack at aggregate `0a6387a3959fd8cb` and
+10,729,950 bytes, and compiled the exact-current shared seams and Jak 1 AOT
+corpus. The signed Eco Pro executable is a thin ARM64 iOS Mach-O, 33,159,568
+bytes, built with SDK 26.5 and minimum OS 26.5, SHA-256
+`51af0b74b08850e1a96387c56dcdfb35972a1576d82c8059e556236c29c0d59c`.
+Its identifier is `com.zephyrstudiosllc.eco`, team identifier `V729QMY3V6`, and
+CDHash `8007df49bf3503f44753a84d67d50e3ea844e801`; the expected Cloud Documents
+entitlements are present. Strict local verification reports
+`CSSMERR_TP_NOT_TRUSTED`, so this is a successful compile/signing artifact but
+not a locally trusted-chain or physical-install claim. Xcode also reports the
+existing stale account-credential warning; the local provisioning profile was
+sufficient for this build.
+
+## Physical visual evidence and next gates
+
+The maintainer's current screenshots remain a physical rejection of Jak 1
+visual correctness. One sequence shows Jak collapsing as a function of his
+world-relative heading while the camera angle changes independently. A second
+sequence shows the entire scene switching rapidly between distinct camera
+poses near a rock/wall with Jak outside the frame and no user input. Frames 2
+and 4 reproduce the same pose to within a few pixels rather than continuing a
+monotonic drift. The foreground boulder moves roughly 125-140 pixels, the
+horizon moves roughly 16-23 pixels vertically, and the foreground scale changes
+about 20-30 percent while distant geometry changes much less. Fixed HUD and
+depth-dependent parallax therefore identify a repeating camera transform with
+translation/dolly plus rotation, not a viewport shift or visible Jak animation.
+The four stills sample only about 7-9 degrees of yaw-equivalent and 1-2 degrees
+of pitch-equivalent motion under a nominal field of view; they neither prove nor
+disprove the maintainer's reported larger unsampled extrema.
+
+The existing same-wall evidence ranks a combiner/view-transform recurrence
+first: Checkpoint 56 retained stable target/LOS/blocked state while a non-unit
+combiner basis alternated. Deterministic wall LOS/movement feedback in
+`goal_src/jak1/engine/camera/cam-states.gc` ranks second. A dedicated projected
+off-screen correction ranks last because the main third-person
+`cam-string-code` path has no projected-screen-presence branch. The current
+stills cannot transfer the earlier trace diagnosis by themselves.
+
+Next executable gates:
+
+1. Keep Jak 1 behavior unchanged until a freshly authorized physical
+   schema-v7 capture performs the open-space heading sweep and the same wall
+   hold with Jak barely in frame versus barely out of frame. Correlate the
+   retained camera slave/target/combiner data with the photographed whole-scene
+   pose changes. Hold each state for three seconds with no camera input, move
+   only minimally parallel to the wall, then background immediately. The first
+   divergence classifies wall feedback, target/framing correction, or combiner
+   transform corruption; inspect `camera_correction_*` and
+   `render_alternation_*` even when the diagnostic tail is incomplete.
+2. Continue Jak II with a read-only faithfulness audit of the lightweight
+   reporting/sync seams before the first graphics DMA request. The next
+   implementation must reuse or minimally generalize the existing Jak 1
+   renderer boundary; it must not create unrelated Jak II app architecture.
+3. Preserve the 518-object Jak 1 source pack and 840-object Jak II corpus while
+   their writers and embedded graphs remain unchanged. Do not regenerate them
+   merely because a host-only probe changes.
