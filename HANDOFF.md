@@ -8103,3 +8103,152 @@ still unvalidated.
    one behavior change only after the trace identifies the active seam.
 4. Rebuild and physically validate Jak 1 before beginning new Jak II-specific
    implementation.
+
+# Checkpoint 50: Jak composition evidence and local ZIP-to-ISO preparation
+
+## Exact Git and artifact state
+
+- Parent `feat/ipados-native-boot` is `0cd1247c` before this checkpoint note.
+- Nested OpenGOAL `goalpad/ipad-demo-pacing` is
+  `47f768ed0ec1f2cbcc2014c85b38ab1b535566f2`, matching its pushed remote.
+- The existing external Jak 1 source-object pack still verifies as 518 objects,
+  aggregate `f1770cae6287a359`, and 10,729,681 bytes. The current generated AOT
+  corpus still passes preflight with 518 objects, 10,596 emitted functions, and
+  7 native functions. Neither artifact needed regeneration because this
+  checkpoint changed native diagnostics and tests, not the GOAL source graph.
+- The canonical parent still has only the maintainer-owned
+  `GOALPad.xcodeproj/project.pbxproj` normalization outside committed work. It
+  was not staged, reset, or modified by this checkpoint.
+
+The nested diagnostic now snapshots the matching bind pose for Jak root slots
+1 through 3 and compares the consumed Merc `t-mtx` against the producer's exact
+`camera * bone * bind` composition. `0x80` identifies a composition mismatch.
+Generic first/last provenance events retain any `0x04...0x80` issue, while
+dedicated first/last composition and Jak-only palette-health events prevent an
+intermittent Jak failure from being hidden by unrelated models or later event
+classes. A read-only source audit confirmed the matrix order, basic-object
+pointer bias, joint/bone/output strides, root-to-bind mapping, direct Merc
+packet copy, and shader consumption. The non-commuting X/Y/Z regression covers
+all three root mappings and rejects reversed order or crossed bind poses. The
+focused Merc trace executable passes all 40 checks.
+
+The parent v3 cache bridge exposes the new counts, bind hashes, previous/current
+expected-output distances, non-finite lane masks, and dedicated first/last
+events. This remains diagnostic-only: it does not change camera behavior, pose
+generation, Merc rendering, or frame pacing.
+
+## Local ZIP import
+
+Eco Pro now accepts a user-selected standard ZIP32 archive containing exactly
+one `.iso`, streams that member into private Application Support staging, checks
+its declared size and CRC-32, then reuses the existing raw-ISO producer. Stored
+and raw-DEFLATE members are supported, including data descriptors. The app
+rejects ZIP64, encryption, multidisk archives, unsafe or ambiguous paths,
+multiple ISO members, unsupported compression/options, unreasonable expansion,
+local/central header disagreement, corruption, and insufficient storage.
+
+The temporary ISO is a UUID-named sibling of the candidate, never candidate
+content and never an active gameplay source. Success, failure, and cancellation
+remove it. Before a later ZIP attempt, bounded cleanup removes at most four
+exact app-owned uppercase UUID `.extracted.iso` regular-file siblings left by
+an abnormal termination; candidates, directories, symlinks, lowercase names,
+and ambiguous files are preserved. DEFLATE checks cancellation for every
+produced output chunk and again before the potentially expensive final disk
+flush. Member names must be ASCII or explicitly UTF-8; CP437 and ZIP64 are
+deliberately unsupported.
+
+An independent security review initially rejected the patch for abnormal-
+termination orphaning and delayed DEFLATE cancellation. Both were fixed and
+the final re-review returned GO. The parser is isolated in
+`GOALPad/Data/ZIPISOCandidateProducer.swift`; the synchronized Xcode source
+group includes it without a project-file edit, and the Apple SDK `zlib` module
+auto-links `libz`.
+
+Focused validation passed:
+
+```sh
+./Scripts/run-zip-iso-import-check.sh
+./Scripts/run-game-data-import-source-check.sh
+./Scripts/run-game-data-install-check.sh
+./Scripts/run-merc-transform-diagnostics-check.sh
+Scripts/verify-generated-aot.sh Generated/jak1-aot 518
+OpenGOAL/build/Release/bin/goalc/jak1-source-object-pack-verify \
+  /private/tmp/GOALPad-jak1-source-pack-generated-g \
+  --expected-aggregate f1770cae6287a359
+```
+
+The ZIP suite covers stored, DEFLATE, data-descriptor, exact-output-buffer,
+CRC/size, local/central disagreement, ambiguity, traversal, encryption,
+unsupported method/options, ZIP64, multidisk, expansion/storage, downstream
+reuse, success/failure cleanup, bounded stale cleanup, and stored/final-DEFLATE
+cancellation cases. Strict iPhoneOS and visionOS Swift typechecks also passed in
+the isolated implementation lane.
+
+The combined parent/nested state passed one generic signed Release iPhoneOS
+build using the canonical DerivedData and existing verified source pack:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-sim -jobs 2 \
+  ENABLE_PREVIEWS=NO \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/private/tmp/GOALPad-jak1-source-pack-generated-g \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache \
+  GOALPAD_BUILD_JOBS=2 build
+```
+
+Result: exit `0`. The product is
+`/private/tmp/GOALPad-sim/Build/Products/Release-iphoneos/GOALPad.app`, bundle
+identifier `com.zephyrstudiosllc.eco`, display name `Eco Pro`, team
+`V729QMY3V6`, and executable SHA-256
+`35f4484dda2ac63a3c8448fbfb24c4afb3fd9df815ac2f5fdb47c273c1cf5e98`.
+The executable contains both the ZIP64 rejection path and the new Merc
+composition fields. This is build/signing evidence, not a physical gameplay or
+real-archive import result.
+
+## Preserved physical evidence and next gate
+
+The latest iPhone feedback from the previous installed build reported the most
+stable Geyser Rock teleporter exit yet, with the earlier roughly 45-degree
+camera failure reduced to about 10 degrees. Camera stability remained good
+while Jak was centered and still, but edge-of-frame, out-of-frame, and nearby
+occluder cases could still return to roughly 45-degree yaw plus 10-degree roll
+jitter. Jak still showed opposite-facing enlargement/Z fighting, incorrect
+facing versus stick direction, curved steering, and off-axis Square attacks;
+Flat Stanley deformation was improved but not eliminated.
+
+The preserved live cache is:
+
+```text
+/private/tmp/camera-provenance-iphone-air-e9c200b2-live-20260802.log
+SHA-256: 4936459ec1e4ec79322e87038702d6bec3c60203f9188a841fe4c5811505f09f
+Size: 20,512 bytes
+```
+
+It recorded 35,295 sent/rendered chains with zero chain drops or drawable
+misses, 12 presentation drops, 2,769 camera producer alternations/correction
+events, zero live/packet camera mismatches, 7,247 global non-finite matrices,
+and 21,158 global Merc transform discontinuities. The last global non-finite
+event mapped to `speaker-lod0`, so it must not be used as Jak attribution.
+
+The iPhone disconnected before a later read-only final copy could run. No new
+app was installed or launched, so the previous app/container and its cache were
+not replaced. When the phone is available again:
+
+1. Copy `Library/Caches/GOALPadDiagnostics/camera-provenance-v1.log` from the
+   existing app container before any install or launch, if the old cache is
+   still present.
+2. Update-install the combined signed Release app without uninstalling or
+   erasing the container, then launch it.
+3. Reproduce the spin/wrong-facing/edge-of-frame case and background the app.
+4. Copy and classify the v3 cache. A nonzero dedicated `0x80` count identifies
+   producer-to-Merc composition failure; a clean composition result moves the
+   next bounded diagnostic to target-control/facing state rather than another
+   speculative renderer change.
+5. Separately run one user-selected real ZIP32 ISO import to validate Files
+   provider materialization, available-space reporting, throughput, and the
+   full native preparation pipeline. ZIP physical validation must not be
+   conflated with gameplay validation.
+
+Do not begin new Jak II-specific implementation until this Jak 1 physical gate
+is resolved.
