@@ -929,9 +929,13 @@ Checkpoint 57 records the first strongly positive physical result from the
 packed-square-root correction. In the maintainer's current Z iPad Pro run,
 gameplay was very playable and the camera, Jak's volumetric shape/facing, and
 attacks looked fixed. This is **Experimental** evidence from that run, not a
-universal completion claim: the app has not yet been backgrounded, so the
-final corrected trace has not been copied and classified. The only consistent
-visible defect reported in that run is metallic-material flicker.
+universal completion claim. After the app was backgrounded, the final 18,780-
+frame trace was copied read-only with SHA-256
+`7fc6078e01c380818ea42f70914a4afb741e424ce8c67c5cf6be6d5097ede55f`.
+It confirms unit control/render quaternion norms, unit target/camera-combiner
+basis axes, uniform input/output deformation, zero missing Jak bones, and zero
+output-composition mismatches. The only consistent visible defect reported in
+that run is metallic-material flicker.
 
 The dedicated nested visual line at `988153483` adds schema-v6 post-flag,
 root-scale, visibility, raw-draw, attack, and TIE diagnostics plus a narrowly
@@ -957,23 +961,19 @@ coverage and a new independent review, before integration or physical rollout.
 
 The next actions are:
 
-1. When the current Z iPad Pro run is backgrounded, copy the corrected cache
-   before relaunch and classify target/render quaternion norms, deformation
-   axes, and camera-combiner basis axes separately from the positive visual
-   report.
-2. Repair the iCloud resolution lane with source-side compare-and-swap and a
+1. Repair the iCloud resolution lane with source-side compare-and-swap and a
    durable recovery journal, rerun focused failure/recovery coverage, and
    obtain a new independent review before physical rollout.
-3. Build and physically compare only the bounded Jak 1 TIE-second-pass-disabled
+2. Build and physically compare only the bounded Jak 1 TIE-second-pass-disabled
    B variant against the current enabled result. Do not speculate past that
    deterministic metallic-flicker hypothesis.
-4. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
+3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-5. Continue Jak II through the next bounded host/AOT seam. Playback, streams,
+4. Continue Jak II through the next bounded host/AOT seam. Playback, streams,
    app wiring, signing, simulator/device runtime, and physical gameplay remain
    unproved.
-6. Treat real raw/ZIP import as presentation/distribution follow-up. It is
+5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.

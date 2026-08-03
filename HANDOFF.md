@@ -9188,11 +9188,24 @@ that run. This is physical visual evidence for that run, not a universal
 completion claim. The one consistent visible defect was the metallic-material
 flicker.
 
-The app has not yet been backgrounded after that run, so the final corrected
-schema-v5 cache has not been copied. Do not relaunch or reinstall before that
-read-only copy. Diagnostic confirmation of unit target/render quaternion norms
-and unit camera-combiner axes therefore remains pending even though the visual
-result is strongly positive.
+After the maintainer backgrounded the app, the final schema-v5 cache was copied
+read-only before any relaunch or reinstall to
+`/private/tmp/camera-provenance-z-ipad-v5-attacks-final-20260803.log`, SHA-256
+`7fc6078e01c380818ea42f70914a4afb741e424ce8c67c5cf6be6d5097ede55f`.
+It ends at engine frame/tick 18,780 with one chain per frame, zero dropped
+chains, zero missing Jak bone slots, and zero output-composition mismatches.
+The last retained control/render quaternion norms are `1.000000060` and
+`0.999999805`; every retained target-camera and correction-combiner basis axis
+is within `0.000000035` of unit length. Jak's input-root axes are uniformly
+`1.399999039 / 1.399999894 / 1.399999014`, while the final output axes are
+uniformly `0.999999339 / 0.999999992 / 0.999999327`; both normalized absolute
+determinants are `1.0` and their aspects are within `0.000000665` of `1.0`.
+This confirms that the corrected packed square root removed the reciprocal
+non-unit transform that caused Flat Stanley and coherent camera-basis flicker
+in the earlier traces. The cache still records six producer alternations and
+41 large-orientation/correction events across the full run; those counters are
+not by themselves a visual regression, and the maintainer's physical result
+remains the acceptance evidence for this run.
 
 The next visual experiment is the already bounded TIE second-pass B build. A
 physical install and the same metallic-material observation are still pending.
@@ -9218,18 +9231,15 @@ do not perform a physical rollout for it.
 
 ## Next executable tasks
 
-1. After the maintainer backgrounds the current Eco Pro run, copy the existing
-   diagnostics cache read-only before any relaunch or reinstall and classify
-   quaternion norms, deformation axes, and camera-combiner axes.
-2. Repair the iCloud resolution lane with source-side compare-and-swap and a
+1. Repair the iCloud resolution lane with source-side compare-and-swap and a
    durable recovery journal, then repeat focused save tests and independent
    review before another combined Release build is considered releasable.
-3. Build and physically compare the narrow Jak 1 TIE-second-pass-disabled B
+2. Build and physically compare the narrow Jak 1 TIE-second-pass-disabled B
    variant against the current enabled result. Change no unrelated renderer,
    camera, asset, or gameplay code in that experiment.
-4. Preserve the verified 518-object diagnostic pack identity unless its writer
+3. Preserve the verified 518-object diagnostic pack identity unless its writer
    or embedded graph changes. Keep the clean Jak II integration line separate
    from nested `988153483`.
-5. Continue Jak II only through bounded host/AOT seams. The current full link
+4. Continue Jak II only through bounded host/AOT seams. The current full link
    remains unsigned isolated evidence and does not displace Jak 1 as active
    scope.
