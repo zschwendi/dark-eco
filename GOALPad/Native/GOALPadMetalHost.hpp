@@ -75,8 +75,10 @@ struct MetalHostMercTransformEvent {
   std::uint8_t issue_mask = 0;
   int bone_slot = -1;
   std::uint64_t model_name_hash = 0;
+  std::uint64_t older_frame_id = 0;
   std::uint64_t previous_frame_id = 0;
   std::uint64_t current_frame_id = 0;
+  std::uint64_t older_matrix_hash = 0;
   std::uint64_t previous_matrix_hash = 0;
   std::uint64_t current_matrix_hash = 0;
   double previous_axis_norm_x = 0.0;
@@ -89,8 +91,34 @@ struct MetalHostMercTransformEvent {
   double current_scale = 0.0;
   double previous_aspect = 0.0;
   double current_aspect = 0.0;
+  std::uint64_t older_source_base = 0;
   std::uint64_t previous_source_base = 0;
   std::uint64_t current_source_base = 0;
+  int input_root_bone = -1;
+  std::uint64_t older_producer_serial = 0;
+  std::uint64_t previous_producer_serial = 0;
+  std::uint64_t current_producer_serial = 0;
+  std::uint64_t older_input_root_hash = 0;
+  std::uint64_t previous_input_root_hash = 0;
+  std::uint64_t current_input_root_hash = 0;
+  std::uint64_t older_camera_hash = 0;
+  std::uint64_t previous_camera_hash = 0;
+  std::uint64_t current_camera_hash = 0;
+  double input_older_to_previous_distance = 0.0;
+  double input_previous_to_current_distance = 0.0;
+  double input_older_to_current_distance = 0.0;
+  double output_older_to_previous_distance = 0.0;
+  double output_previous_to_current_distance = 0.0;
+  double output_older_to_current_distance = 0.0;
+  double camera_older_to_previous_distance = 0.0;
+  double camera_previous_to_current_distance = 0.0;
+  double camera_older_to_current_distance = 0.0;
+  double previous_input_translation_x = 0.0;
+  double previous_input_translation_y = 0.0;
+  double previous_input_translation_z = 0.0;
+  double current_input_translation_x = 0.0;
+  double current_input_translation_y = 0.0;
+  double current_input_translation_z = 0.0;
 
   bool valid() const { return issue_mask != 0; }
 };

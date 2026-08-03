@@ -23,6 +23,7 @@
 #include "game/graphics/pipelines/metal/metal_texture.h"
 #include "game/graphics/texture/TexturePool.h"
 #include "game/kernel/core/gfx_host.h"
+#include "game/mips2c/jak1_bones_provenance_trace.h"
 #include "game/runtime.h"
 
 #import <Metal/Metal.h>
@@ -187,8 +188,10 @@ goalpad::MetalHostMercTransformEvent retain_merc_transform_event(
   retained.issue_mask = event.issue_mask;
   retained.bone_slot = event.bone_slot;
   retained.model_name_hash = event.model_name_hash;
+  retained.older_frame_id = event.older_frame_id;
   retained.previous_frame_id = event.previous_frame_id;
   retained.current_frame_id = event.current_frame_id;
+  retained.older_matrix_hash = event.older_matrix_hash;
   retained.previous_matrix_hash = event.previous_matrix_hash;
   retained.current_matrix_hash = event.current_matrix_hash;
   retained.previous_axis_norm_x = event.previous_axis_norm_x;
@@ -201,8 +204,34 @@ goalpad::MetalHostMercTransformEvent retain_merc_transform_event(
   retained.current_scale = event.current_scale;
   retained.previous_aspect = event.previous_aspect;
   retained.current_aspect = event.current_aspect;
+  retained.older_source_base = event.older_source_base;
   retained.previous_source_base = event.previous_source_base;
   retained.current_source_base = event.current_source_base;
+  retained.input_root_bone = event.input_root_bone;
+  retained.older_producer_serial = event.older_producer_serial;
+  retained.previous_producer_serial = event.previous_producer_serial;
+  retained.current_producer_serial = event.current_producer_serial;
+  retained.older_input_root_hash = event.older_input_root_hash;
+  retained.previous_input_root_hash = event.previous_input_root_hash;
+  retained.current_input_root_hash = event.current_input_root_hash;
+  retained.older_camera_hash = event.older_camera_hash;
+  retained.previous_camera_hash = event.previous_camera_hash;
+  retained.current_camera_hash = event.current_camera_hash;
+  retained.input_older_to_previous_distance = event.input_older_to_previous_distance;
+  retained.input_previous_to_current_distance = event.input_previous_to_current_distance;
+  retained.input_older_to_current_distance = event.input_older_to_current_distance;
+  retained.output_older_to_previous_distance = event.output_older_to_previous_distance;
+  retained.output_previous_to_current_distance = event.output_previous_to_current_distance;
+  retained.output_older_to_current_distance = event.output_older_to_current_distance;
+  retained.camera_older_to_previous_distance = event.camera_older_to_previous_distance;
+  retained.camera_previous_to_current_distance = event.camera_previous_to_current_distance;
+  retained.camera_older_to_current_distance = event.camera_older_to_current_distance;
+  retained.previous_input_translation_x = event.previous_input_translation_x;
+  retained.previous_input_translation_y = event.previous_input_translation_y;
+  retained.previous_input_translation_z = event.previous_input_translation_z;
+  retained.current_input_translation_x = event.current_input_translation_x;
+  retained.current_input_translation_y = event.current_input_translation_y;
+  retained.current_input_translation_z = event.current_input_translation_z;
   return retained;
 }
 
@@ -441,6 +470,7 @@ bool metal_host_start(std::string* error) {
   if (g_host.running) {
     return true;
   }
+  jak1_bones_provenance_trace::registry().reset();
   id<MTLDevice> device = MTLCreateSystemDefaultDevice();
   if (device == nil) {
     *error = "No Metal device is available.";

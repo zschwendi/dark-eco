@@ -229,15 +229,19 @@ typedef struct GOALPadSurfaceGeometry {
 } GOALPadSurfaceGeometry;
 
 /// Numeric evidence retained for one consecutive-frame eichar-lod0 transform discontinuity.
-/// Issue bit 0 is a uniform-scale jump; bit 1 is an aspect/per-axis-shape jump.
+/// Issue bits identify: 0 uniform-scale jump, 1 per-axis shape jump, 2 input-root A/B/A,
+/// 3 output-only A/B/A, 4 camera-driven A/B/A, 5 changed input with stale output, and
+/// 6 a source-to-producer mapping mismatch.
 typedef struct GOALPadMercTransformEvent {
   uint64_t hostTickID;
   uint64_t chainOrdinal;
   uint8_t issueMask;
   int32_t boneSlot;
   uint64_t modelNameHash;
+  uint64_t olderFrameID;
   uint64_t previousFrameID;
   uint64_t currentFrameID;
+  uint64_t olderMatrixHash;
   uint64_t previousMatrixHash;
   uint64_t currentMatrixHash;
   double previousAxisNormX;
@@ -250,8 +254,34 @@ typedef struct GOALPadMercTransformEvent {
   double currentScale;
   double previousAspect;
   double currentAspect;
+  uint64_t olderSourceBase;
   uint64_t previousSourceBase;
   uint64_t currentSourceBase;
+  int32_t inputRootBone;
+  uint64_t olderProducerSerial;
+  uint64_t previousProducerSerial;
+  uint64_t currentProducerSerial;
+  uint64_t olderInputRootHash;
+  uint64_t previousInputRootHash;
+  uint64_t currentInputRootHash;
+  uint64_t olderCameraHash;
+  uint64_t previousCameraHash;
+  uint64_t currentCameraHash;
+  double inputOlderToPreviousDistance;
+  double inputPreviousToCurrentDistance;
+  double inputOlderToCurrentDistance;
+  double outputOlderToPreviousDistance;
+  double outputPreviousToCurrentDistance;
+  double outputOlderToCurrentDistance;
+  double cameraOlderToPreviousDistance;
+  double cameraPreviousToCurrentDistance;
+  double cameraOlderToCurrentDistance;
+  double previousInputTranslationX;
+  double previousInputTranslationY;
+  double previousInputTranslationZ;
+  double currentInputTranslationX;
+  double currentInputTranslationY;
+  double currentInputTranslationZ;
 } GOALPadMercTransformEvent;
 
 /// One copied GOAL vector in a constrained-camera event. These are numeric values, never live

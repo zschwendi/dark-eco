@@ -424,10 +424,19 @@ final class GameSession {
                 "\(prefix)_host_tick=\(event.hostTickID)",
                 "\(prefix)_chain=\(event.chainOrdinal)",
                 "\(prefix)_issue_mask=\(event.issueMask)",
+                "\(prefix)_issue_scale=\((event.issueMask & 1) != 0 ? 1 : 0)",
+                "\(prefix)_issue_aspect=\((event.issueMask & 2) != 0 ? 1 : 0)",
+                "\(prefix)_issue_input_root_aba=\((event.issueMask & 4) != 0 ? 1 : 0)",
+                "\(prefix)_issue_output_only_aba=\((event.issueMask & 8) != 0 ? 1 : 0)",
+                "\(prefix)_issue_camera_driven_aba=\((event.issueMask & 16) != 0 ? 1 : 0)",
+                "\(prefix)_issue_output_stale=\((event.issueMask & 32) != 0 ? 1 : 0)",
+                "\(prefix)_issue_source_mapping=\((event.issueMask & 64) != 0 ? 1 : 0)",
                 "\(prefix)_bone_slot=\(event.boneSlot)",
                 "\(prefix)_model_hash=\(event.modelNameHash)",
+                "\(prefix)_older_frame=\(event.olderFrameID)",
                 "\(prefix)_previous_frame=\(event.previousFrameID)",
                 "\(prefix)_current_frame=\(event.currentFrameID)",
+                "\(prefix)_older_matrix_hash=\(event.olderMatrixHash)",
                 "\(prefix)_previous_matrix_hash=\(event.previousMatrixHash)",
                 "\(prefix)_current_matrix_hash=\(event.currentMatrixHash)",
                 "\(prefix)_previous_axis_norm_x=\(decimal(event.previousAxisNormX))",
@@ -440,8 +449,49 @@ final class GameSession {
                 "\(prefix)_current_scale=\(decimal(event.currentScale))",
                 "\(prefix)_previous_aspect=\(decimal(event.previousAspect))",
                 "\(prefix)_current_aspect=\(decimal(event.currentAspect))",
+                "\(prefix)_older_source_base=\(event.olderSourceBase)",
                 "\(prefix)_previous_source_base=\(event.previousSourceBase)",
                 "\(prefix)_current_source_base=\(event.currentSourceBase)",
+                "\(prefix)_input_root_bone=\(event.inputRootBone)",
+                "\(prefix)_older_producer_serial=\(event.olderProducerSerial)",
+                "\(prefix)_previous_producer_serial=\(event.previousProducerSerial)",
+                "\(prefix)_current_producer_serial=\(event.currentProducerSerial)",
+                "\(prefix)_older_input_root_hash=\(event.olderInputRootHash)",
+                "\(prefix)_previous_input_root_hash=\(event.previousInputRootHash)",
+                "\(prefix)_current_input_root_hash=\(event.currentInputRootHash)",
+                "\(prefix)_older_camera_hash=\(event.olderCameraHash)",
+                "\(prefix)_previous_camera_hash=\(event.previousCameraHash)",
+                "\(prefix)_current_camera_hash=\(event.currentCameraHash)",
+                "\(prefix)_input_distance_older_previous="
+                    + decimal(event.inputOlderToPreviousDistance),
+                "\(prefix)_input_distance_previous_current="
+                    + decimal(event.inputPreviousToCurrentDistance),
+                "\(prefix)_input_distance_older_current="
+                    + decimal(event.inputOlderToCurrentDistance),
+                "\(prefix)_output_distance_older_previous="
+                    + decimal(event.outputOlderToPreviousDistance),
+                "\(prefix)_output_distance_previous_current="
+                    + decimal(event.outputPreviousToCurrentDistance),
+                "\(prefix)_output_distance_older_current="
+                    + decimal(event.outputOlderToCurrentDistance),
+                "\(prefix)_camera_distance_older_previous="
+                    + decimal(event.cameraOlderToPreviousDistance),
+                "\(prefix)_camera_distance_previous_current="
+                    + decimal(event.cameraPreviousToCurrentDistance),
+                "\(prefix)_camera_distance_older_current="
+                    + decimal(event.cameraOlderToCurrentDistance),
+                "\(prefix)_previous_input_translation_x="
+                    + decimal(event.previousInputTranslationX),
+                "\(prefix)_previous_input_translation_y="
+                    + decimal(event.previousInputTranslationY),
+                "\(prefix)_previous_input_translation_z="
+                    + decimal(event.previousInputTranslationZ),
+                "\(prefix)_current_input_translation_x="
+                    + decimal(event.currentInputTranslationX),
+                "\(prefix)_current_input_translation_y="
+                    + decimal(event.currentInputTranslationY),
+                "\(prefix)_current_input_translation_z="
+                    + decimal(event.currentInputTranslationZ),
             ]
         }
         func cameraVectorFields(_ prefix: String,
@@ -503,7 +553,7 @@ final class GameSession {
         }
 
         let fields = [
-            "goalpad_camera_provenance", "v=1", "run=\(cameraDiagnosticsRunID)",
+            "goalpad_camera_provenance", "v=2", "run=\(cameraDiagnosticsRunID)",
             "frame=\(framesRun)", "engine=\(renderer.lastEngineFrameID)",
             "tick=\(renderer.lastHostTickID)", "chain=\(renderer.lastChainOrdinal)",
             "fingerprint=\(renderer.lastCameraFingerprint)",
