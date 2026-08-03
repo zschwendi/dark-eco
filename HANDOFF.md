@@ -10032,7 +10032,66 @@ Next executable gates:
    their writers and embedded graphs remain unchanged. Do not regenerate them
    merely because a host-only probe changes.
 
-# Checkpoint 63: Jak II title graphics chain and exact-current Apple builds
+# Checkpoint 63: checked Jak II source pack and signed iPhoneOS link proof
+
+Date: 2026-08-03. This checkpoint establishes a reproducible, signed generic
+iPhoneOS build proof for the checked Jak II AOT source corpus. It does not add a
+Jak II app/runtime target, renderer or gameplay support, simulator/device
+execution, or a new physical-device claim. Jak 1 physical visual acceptance
+remains the active product gate.
+
+## Source preparation and host frontier
+
+The nested integration head is merge
+`9edd580035f1939622187fb8ef019c083768f3e5` (parents `4ec3173e7` and
+`fe4b0bd67`). It preserves the reviewed package bookkeeping (`14b182db0`),
+`play-boot` (`a5b6bc922`), exact source-pack generation (`9fae6e472`),
+duplicate-link repair (`8c24e6731`), signed-link product plumbing
+(`0144bec3b`), valid default bundle identifier (`ffed88c6c`), portable pad and
+interrupt-handler seams, and the portable `pc-rand` implementation with its
+deterministic test. Parent commits `c9e08803` and `4eee79f8` bound host jobs and
+add the atomic source-pack wrapper; `b04fbf01` pins the final nested merge.
+
+The checked source pack contains 840 objects, aggregate
+`97a122324eb71fb3`, and 21,201,927 object bytes. The wrapper reuses that pack
+and pins `build/jak2-source-object-pack.expected-aggregate`. The regenerated
+AOT corpus verifies 840 objects, 18,479 emitted functions, seven native
+functions, and zero failed files.
+
+The bounded real-data `--play` probe completed successfully at the final merge.
+It dispatched one `play-boot` frame and loaded `TITLE.DGO` as one archive with
+seven objects (one AOT code object and six data objects). `pc-rand` is no longer
+the reported missing machine function. Focused `jak2-pc-rand`, Jak II pad,
+Jak II interrupt-handler, and Jak 1 kernel-smoke tests all passed; explicit
+CMake reconfiguration also passed. This is host frontier evidence, not
+title-screen, renderer, or gameplay proof.
+
+The first post-frame machine boundary now remains, in order: `pc-prof`,
+`flush-cache`, `sync-path`, `syncv`, `mouse-get-data`, then
+`__send-gfx-dma-chain`. Treat the DMA chain as the first substantive renderer
+boundary; do not turn this checkpoint into unrelated app or renderer wiring.
+
+## Signed generic-iOS proof
+
+After an initial stale XCBuild-plan failure, explicit CMake reconfiguration
+followed by the exact-`9edd580` generic iPhoneOS Release build passed in 8.299
+seconds against all 840 corpus units. The signed product is a 47,610,432-byte
+thin ARM64 Mach-O, minimum iOS 18, bundle identifier
+`com.zephyrstudiosllc.eco.jak2linkproof`, signing team `V729QMY3V6`, SHA-256
+`e9d0abea3ce4d45beb54efa1777d6b3ec374d401681a4505481b3b24bf065840`, and
+CodeDirectory hash `9ea2ad9302af334b3be2d7885111341883d11547`. Strict
+`codesign` verification passed. Final symbols include `goal_pad_install` and
+both handler globals; the archive contains `InstallHandler` and all portable
+pad exports. Existing compiler warnings remained; a stale unused Xcode-account
+warning did not block requested-team signing.
+
+No device, simulator, app launch, or renderer/gameplay run was used or claimed,
+and no user game data was added to source control. The next smallest Jak II
+host task is a bounded audit or implementation of the listed machine stubs
+through the first real DMA boundary; actual Jak II app/runtime integration
+remains separate and unproved.
+
+# Checkpoint 64: Jak II title graphics chain and exact-current Apple builds
 
 Date: 2026-08-03. This checkpoint crosses the first Jak II graphics-DMA
 boundary without pretending that an isolated host probe is a renderer or app.
@@ -10041,8 +10100,9 @@ source. No physical device was accessed.
 
 ## Integrated Jak II changes
 
-The clean nested integration branch now ends at
-`8798d52837180e0434dd10f8bd9db65cff34705b`:
+The clean nested integration branch now ends at merge
+`8dbf919dcbd251ea86c07aae7b78a6c7497874d8`, which combines Checkpoint 63's
+checked source-pack and signed-link work with these reviewed commits:
 
 - `e57f89d4e142d30ee2d77bfbdfc4fcf7345f749a` implements the small faithful
   host seams before graphics submission: Jak II `pc-prof` forwards the string
@@ -10103,6 +10163,16 @@ The final executable retains `goal_gfx_dma_install`, the graphics-DMA stats and
 capture entry points, `pc-prof`, `mouse-get-data`, and `flush-cache`. It remains
 an isolated link proof, not a signed app target or runtime claim.
 
+Checkpoint 63's signed-link directory was reconfigured from its stale moving-
+checkout cache to this clean merge and the canonical host-built 840-unit
+corpus, then rebuilt with the generated Xcode project. The signed product is a
+thin ARM64 iOS Mach-O, minimum iOS 18.0, SDK 26.5, 47,611,408 bytes, bundle
+identifier `com.zephyrstudiosllc.eco.jak2linkproof`, team `V729QMY3V6`,
+SHA-256 `80a8c370304e59425df76cdf44740bec5160b39c5632ac24b85ebd6733830f68`,
+and CDHash `a0ed0928ca0a7b46a359b9671df90e3808c18173`. Strict verification with
+ordinary system trust-service access passed. This is still a signed source-
+link proof rather than the Eco Pro application/runtime.
+
 The exact-current Jak 1 app was then rebuilt with the canonical derived data
 and unchanged 518-object source pack:
 
@@ -10120,12 +10190,13 @@ The sandboxed attempt failed before compilation because Xcode could not reach
 CoreSimulator/keychain services. The identical command with ordinary Xcode
 service access exited 0. The signed Eco Pro executable is thin ARM64, minimum
 iOS 26.5, SDK 26.5, 33,159,744 bytes, SHA-256
-`62643c2168d0adbfb7bc35b21acfc4bc3c2c5257f40300bf4ce012f0ac557366`.
+`1d432464e6cc6bcd5ce6314abf9cbb8dc7ef9c83eb8616e5082ac6fc42af9865`.
 It has identifier `com.zephyrstudiosllc.eco`, team `V729QMY3V6`, CDHash
 `3d57abc052c7d40ec2401ae0f3e78cc7112d365e`, and the expected Cloud Documents
-container entitlements. Strict local verification still reports
-`CSSMERR_TP_NOT_TRUSTED`; compilation and signing succeeded, but no trusted
-chain, install, launch, or physical behavior is claimed.
+container entitlements. Sandboxed verification reported
+`CSSMERR_TP_NOT_TRUSTED`, while the identical strict verification with ordinary
+system trust-service access passed. No install, launch, or physical behavior is
+claimed.
 
 ## New wall-camera evidence
 
@@ -10160,10 +10231,9 @@ mismatch identifies the packet boundary. Inspect `camera_correction_*` and
 2. For Jak II, implement only the versioned graphics host/renderer adapters
    that the measured TITLE chain requires, preserving the existing Jak 1
    renderer. Do not create a hollow app target merely to obtain a signature.
-3. Once Jak II boot and renderer seams are real, add a mutually exclusive
-   signed Xcode app variant that links Jak II kernel core plus its verified
-   840-unit AOT corpus instead of Jak 1 AOT. A signed app build is the remaining
-   clean-build equivalence gap; data selection, frame loop, rendering, and
-   physical gameplay are separate gates.
+3. Preserve Checkpoint 63's signed source-link proof, but add a mutually
+   exclusive Eco Pro Jak II application variant only after the boot and
+   renderer seams are real. App lifecycle, data selection, frame loop,
+   rendering, and physical gameplay remain separate gates.
 4. Preserve the 518-object Jak 1 source pack and 840-object Jak II corpus while
    their writers and embedded graphs remain unchanged.
