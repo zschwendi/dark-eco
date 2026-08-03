@@ -11194,3 +11194,125 @@ publication addendum.
 3. Keep AVAudioEngine output after the selected-game audio-pull lifecycle gate.
 4. Keep Jak 1 camera and Merc changes at their physical diagnostic gates; do
    not make another speculative visual patch from stills alone.
+
+# Checkpoint 76: bounded Jak II CAMetalLayer frame-submission proof
+
+Date: 2026-08-03. Nested commit
+`c44408a3be6166548301f1d0478897d1434e9629` extends Checkpoint 75's single
+product Metal host with a bounded, opt-in `CAMetalLayer` presentation proof.
+The default development-app path is unchanged: it still starts the real Jak II
+runtime and feeds real DMA to the product host with a nil layer, preserving the
+zero-submit contract. Setting exactly
+`GOALPAD_JAK2_CAMETAL_LAYER_PROOF=1` instead runs one app-owned layer through
+one display-link callback and one synthetic, public 327-bucket chain. The two
+paths are mutually exclusive.
+
+The opt-in proof consumes 16 bytes, emits no draws or triangles, acquires one
+drawable, commits and completes one command buffer, and records one bounded
+submission. It does not boot game data, execute the title path, present real
+game DMA, prove gameplay, or establish physical-device support. Simulator
+presentation callbacks are not available and are expected to remain zero;
+the simulator gate is drawable acquisition plus command-buffer completion.
+
+## Validation
+
+The exact integrated ARM64 Release tree built the focused targets and passed
+all seven focused tests:
+
+```text
+cmake --build build/Release/bin --target \
+  metal-bucket-chain-semantics-test \
+  jak2-metal-bucket-table-test \
+  jak2-metal-dispatch-proof \
+  jak2-metal-submit-readback-proof \
+  jak2-metal-host-bridge-test \
+  jak2-gfx-host-test \
+  jak2-display-tick-coordinator-test \
+  metal-proof -j 2
+
+ctest --test-dir build/Release/bin \
+  -R '^(metal-bucket-chain-semantics-test|jak2-metal-bucket-table-test|jak2-metal-dispatch-proof|jak2-metal-submit-readback-proof|jak2-metal-host-bridge-test|jak2-gfx-host-test|jak2-display-tick-coordinator-test)$' \
+  --output-on-failure
+```
+
+The focused suite passed 7/7 in 1.32 seconds. The exact-current Jak 1 renderer
+regression then ran separately and ended `METAL PROOF PASSED`.
+
+A fresh ARM64 simulator build passed after the first attempt stopped only on
+`No space left on device` while compiling generated AOT source. On the already
+booted, approved iPad Pro 11-inch (M5) simulator, the opt-in app emitted:
+
+```text
+GOALPAD_JAK2_CAMETAL_LAYER_PROOF PASS callbacks=1 attempts=1 chains=1 buckets=327 skipped=16 draws=0 triangles=0 acquired=1 misses=0 committed=1 completed=1 errors=0 submissions=1 late=0 presentation_callbacks=0
+```
+
+The app was terminated after the bounded result. The simulator was already
+running and remains booted. No physical device was queried or accessed.
+
+A fresh generic iPhoneOS Release build then validated all 840 generated Jak II
+AOT translation units, built, signed, and passed strict signature verification.
+The app is thin ARM64, targets iOS 18.0, uses identifier
+`com.zephyrstudiosllc.eco.jak2displaytickproof`, displays as
+`Eco Pro Jak II Dev`, and links UIKit, QuartzCore, Foundation, and Metal. Its
+49,296,896-byte executable has SHA-256
+`ab80abdf03cdac5c44e2af76728a160cb2847855e8eb550ad2780bec44ebcb72`.
+The AOT archive retains 842 members and SHA-256
+`16158d475b908864dcb6c719b9e27b283667791c1b5bb7864ee22fbe8eee2edd`;
+the 840-file manifest retains SHA-256
+`9bde90fa9818264bf9d2d1703adb728e50f0a68d4f2430a5e5188af9c063ce51`.
+
+The signed app and ZIP are preserved outside the disposable build tree:
+
+```text
+/private/tmp/GOALPad-cp76-signed/Eco Pro Jak II Dev.app
+/private/tmp/GOALPad-cp76-signed/Eco-Pro-Jak-II-Dev.zip
+```
+
+The ZIP has SHA-256
+`861f39a6c7465e286f87411fea0ea8ae5d0e022cb39ce5462bfe573aa892f17b`.
+After preserving and verifying those artifacts, only the exact reproducible
+CP76 device Xcode build and DerivedData directories were removed. No worktree
+was removed.
+
+## Separate normal-runtime crash finding
+
+The maintainer supplied a crash report from an older normal-runtime simulator
+app with bundle identifier `com.zephyrstudiosllc.eco.jak2dev`, binary UUID
+`C4C72D06-585E-32F3-A95B-F40D12E2A4DA`, and executable SHA-256
+`7c17820c92168c7b70dafdf3c22043a3edf7bf6ba2fff7a8f2edd05fe6160812`.
+That binary predates and does not contain Checkpoint 76's presenter symbols, so
+the crash does not invalidate the bounded CAMetalLayer result.
+
+The crash is nevertheless a precise next normal-runtime gate. The first
+`(suspend)` in Jak II's `display-loop` reaches a valid display process, valid
+top cpu-thread, and nonzero suspend-hook GOAL function object. The generated
+AOT call then loads a zero 64-bit native entry from that object and executes
+`blr x8` with `x8=0`, producing PC zero. This is not a camera or Metal crash and
+is not evidence of a null process or thread. The intended binding is
+`(method thread-suspend cpu-thread)` to `goal_native_thread_suspend`.
+
+Do not bypass the suspend or blindly substitute the expected native function.
+The next deterministic proof must inspect the cpu-thread method, the newly
+constructed thread's suspend-hook object, and that object's stored native
+entry after gkernel initialization and again before the first display tick.
+It must distinguish an entry born zero from later corruption using the actual
+simulator/iPhoneOS-linked AOT corpus; the existing host-only thread-switch test
+may not expose the product-link defect.
+
+## Publication and next gates
+
+Nested branches `goalpad/ipad-demo-pacing` and
+`agent/jak2-cp76-cametal-integration` both resolve remotely to
+`c44408a3be6166548301f1d0478897d1434e9629`.
+
+1. Add and run the focused product-linked suspend-hook/native-entry proof, then
+   fix the initialization or overwrite site it identifies. Preserve a clear
+   diagnostic failure instead of allowing another null indirect branch.
+2. After normal runtime reaches stable display ticks, pass a real layer into
+   the existing product host and require real-DMA drawable acquisition and
+   completed submission. Do not use the synthetic presenter as a second
+   runtime renderer.
+3. Preserve the default nil-layer zero-submit, synthetic offscreen readback,
+   and opt-in CAMetalLayer proofs.
+4. Keep Jak 1 visual work at its physical schema-v7 gate until the maintainer
+   gives fresh device authorization. No physical device was accessed here.

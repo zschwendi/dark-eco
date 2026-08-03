@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness and remaining platform gaps, not real-media
 import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 74 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 76 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 
@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 74 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 76 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -1114,6 +1114,34 @@ readback evidence, not `CAMetalLayer` acquisition, presentation, title-screen,
 gameplay, or physical-device evidence. The signed generic-iPhoneOS development
 app remains Metal-free.
 
+Checkpoint 75 moves that same fixed policy and renderer into the separate Jak
+II development app at nested `5264a3097`. A narrow product host copies each
+runtime DMA chain, dispatches all 327 audited slots with a nil presentation
+layer, and preserves zero drawable attempts, command-buffer commits,
+submissions, presentations, draws, and triangles. The full Jak 1 Metal proof,
+focused host/renderer suite, and signed generic-iPhoneOS app all pass. This is
+the real runtime-to-product-host seam, not a visible frame or title boot.
+
+Checkpoint 76 adds a mutually exclusive, opt-in `CAMetalLayer` proof at nested
+`c44408a3b`. On the approved M5 simulator, one synthetic public 327-bucket
+chain acquires one drawable and completes one command-buffer submission with
+zero errors, drops, draws, or triangles. Simulator presentation callbacks are
+unavailable and correctly remain zero; drawable acquisition plus completion is
+the simulator evidence. The default real-DMA nil-layer path is unchanged. A
+fresh signed generic-iPhoneOS app retains the validated 840-unit Jak II AOT
+corpus and the full focused suite plus exact-current Jak 1 Metal proof pass.
+This is not a real-DMA presented frame, title screen, gameplay, or physical-
+device result.
+
+A separate maintainer-supplied crash from an older normal-runtime `jak2dev`
+simulator binary reaches the first `display-loop` suspend and then indirect-
+branches to zero. The display process, top cpu-thread, and suspend-hook GOAL
+object are valid; the hook object's stored 64-bit native entry is zero. The
+next Jak II runtime gate is therefore a product-linked AOT/thread-initialization
+proof that determines whether the intended `goal_native_thread_suspend` entry
+is born zero or overwritten before the first display tick. Do not bypass the
+suspend or substitute the expected function without identifying that cause.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
@@ -1138,16 +1166,18 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Wire the product-linked Jak II renderer to the development app's real
-   `CAMetalLayer`. On the approved M5 simulator, require a drawable, completed
-   command-buffer submission and presentation, and bounded no-drop counters.
-   Preserve the nil-layer zero-submit and offscreen readback proofs; do not
-   claim title-screen, gameplay, or physical-device support from this gate.
+4. Add the product-linked Jak II suspend-hook/native-entry proof at the safe
+   post-start, pre-display-tick seam. Fix the initialization or overwrite site
+   it identifies while preserving an explicit diagnostic instead of another
+   null indirect branch. Only then pass a real layer into the existing product
+   host for real-DMA drawable acquisition and completed submission. Preserve
+   the nil-layer, offscreen-readback, and opt-in CAMetalLayer proofs; do not
+   claim title-screen, gameplay, or physical-device support from these gates.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
-Checkpoint 74 did not access Z iPad Pro. The maintainer supplied screenshots
+Checkpoint 76 did not access Z iPad Pro. The maintainer supplied screenshots
 from their own current physical run, but the agent did not install, launch,
 log, copy, or otherwise access the device. The maintainer reported that the app
 was backgrounded or closed, and any later install, launch, logging, capture, or
