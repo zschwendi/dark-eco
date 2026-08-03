@@ -139,7 +139,7 @@ Current status:
 - Implemented: the public dedicated fork is
   `https://github.com/zschwendi/jak-pad.git`; published branch
   `goalpad/ipad-demo-pacing` and the parent submodule both resolve to
-  `bb8006825c81b0f834de29a2ab5a7db408724c62`.
+  `db376b727c52ffeb19788df4ac453693a07c40c8`.
 - Verified: the remote branch resolves to that exact pin, and the affected host
   tests and application integration passed. Earlier fresh-clone evidence was
   recorded against the historical `9eecb9c3` checkpoint.

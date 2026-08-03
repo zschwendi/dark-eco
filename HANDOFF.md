@@ -9414,11 +9414,11 @@ Jak II runtime, or new physical-device acceptance.
 
 ## Exact Git and device state
 
-- Parent implementation HEAD before these checkpoint documentation edits is
-  `3b2756c114f167478e888e218e55525660b849f9` on
+- Parent checkpoint documentation is based on
+  `c4d3b8a5` on
   `agent/jak1-v6-visual-diagnostics-parent`.
 - Nested OpenGOAL is clean at
-  `bb8006825c81b0f834de29a2ab5a7db408724c62` on
+  `db376b727c52ffeb19788df4ac453693a07c40c8` on
   `agent/jak1-postfix-visual-diagnostics`.
 - The only unrelated parent modification remains the maintainer-owned
   `GOALPad.xcodeproj/project.pbxproj`; it was preserved and never staged,
@@ -9541,10 +9541,62 @@ cmake --build /private/tmp/GOALPad-jak2-dgo-rpc-build --target \
 
 The synthetic DGO test and existing sound suite passed with zero failures.
 The real-data host boot registered 840 AOT units, loaded KERNEL.CGO 8/8 and
-GAME.CGO 465/465, and ran 100 dispatcher frames. This remains host evidence;
-the current boot does not yet call the title-level `play` path, so it does not
-prove that real level DGO traffic reached channel 3. The validated temporary
+GAME.CGO 465/465, and ran 100 dispatcher frames. This initial `--with-game`
+run remained host evidence and did not call the title-level `play` path, so by
+itself it did not prove that real level DGO traffic reached channel 3. The
+validated temporary
 1.0 GiB Jak II build directory was removed and is reproducible from the commit.
+
+The first nested push was correctly rejected as non-fast-forward because the
+public branch had independently advanced to `101a4eced` with checked named-SFX
+falloff validation. Both commits share base `63b8a67c`; only
+`sound_rpc_jak2.cpp` changed on both lines, and the falloff change is inside the
+sound responder that the DGO router delegates to. Merge `13b739db3` combines
+them without conflict. The primary agent rebuilt the three targets once from
+the canonical main CMake directory and reran the synthetic DGO suite, expanded
+sound suite, and real-data 100-frame boot; all passed after the merge.
+
+Nested follow-up `7b94c6e85` adds the missing intersection proof: an unsafe
+PLAY falloff batch is rejected atomically after the DGO router owns the top RPC
+entry, with the complete batch, stats, and canaries preserved. It also updates
+the kernel-core README for the composed channel-3 router.
+
+Nested `9147192eb` adds an opt-in host `--play` frontier probe. It calls the
+real `(play #t #t)` on the GOAL stack, records the first validated channel-3
+archive name, and stops without adding renderer, pad, or application wiring.
+The primary lane used the canonical CMake directory for the only completed
+build after interrupting an unnecessary scratch rebuild. Validation passed:
+
+```sh
+cmake --build build/Release/bin --target \
+  jak2-data-boot-test jak2-dgo-rpc-test -j2
+build/Release/bin/game/jak2-dgo-rpc-test
+perl -e '$seconds = shift; alarm $seconds; exec @ARGV' 60 \
+  build/Release/bin/game/jak2-data-boot-test \
+  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  --frames 100 --play
+cmake --build build/Release/bin --target jak1-data-boot-test -j2
+build/Release/bin/game/jak1-data-boot-test --synthetic
+```
+
+The real-data probe returned inside the 60-second bound. GOAL requested
+`TITLE.DGO` through channel 3 and processed seven objects: one AOT code object
+and six incrementally linked data objects. The synthetic Jak II DGO suite and
+Jak 1 DGO/AOT regression both passed. Before the title request, the trace also
+showed a failed `ART.CGO` lookup because this host path does not yet perform the
+three `*kernel-packages*` updates that the real Jak II `InitMachineScheme`
+performs after loading `GAME.CGO`; the title load nevertheless completed. The
+next trace frontier after title birth is the reporting `pc-rand` stub. This is
+host diagnostic evidence, not a Jak II app or gameplay claim.
+
+The second nested push was also correctly rejected after the public branch
+advanced to `bb423a465` with retained Jak 1 camera and weighted-skin diagnostic
+evidence. Its eleven Metal files were disjoint from the Jak II loader changes;
+`git merge-tree` and both-side whitespace checks were clean. Merge
+`db376b727` combines the histories. The canonical build and both deterministic
+trace tests passed, and the complete local macOS Metal proof ended with
+`METAL PROOF PASSED`. The first sandboxed Metal-proof attempt could not access
+a display service; the identical local retry with normal service access passed.
 
 ## Remaining gates and next executable task
 
@@ -9557,7 +9609,9 @@ prove that real level DGO traffic reached channel 3. The validated temporary
   real Files-provider import remain Experimental feature gates.
 - A complete M5 simulator prepared-folder import/activation run remains
   unrecorded.
-- The next bounded Jak II task is a separate host `play` frontier probe. It
-  must prove the first title-level DGO request reaches the new channel-3 seam
-  and stop honestly at the next missing subsystem. Do not add app wiring,
-  renderer work, or a pad seam to that diagnostic commit.
+- The next bounded Jak II task is to mirror only the real Jak II
+  `InitMachineScheme` bookkeeping that records `engine`, `art`, and `common` in
+  `*kernel-packages*` after the host loads `GAME.CGO`, then rerun the same
+  bounded `--play` probe. Stop at the first substantive machine seam after the
+  now-spurious `ART.CGO` lookup disappears; do not add app, renderer, or pad
+  wiring to that patch.
