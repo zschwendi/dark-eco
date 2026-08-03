@@ -369,8 +369,17 @@ wins. Hashes are used only for byte identity. Equal or missing dates retain the
 local gameplay authority.
 Divergent originals are archived locally and in iCloud before the winning pair,
 including member presence, becomes canonical. Pair replacement removes a stale
-odd generation before atomically replacing the even bank, so an interrupted
-operation remains recoverable on the next sync. Settings retains the latest
+odd generation before atomically replacing the even bank. A durable phased intent
+embeds the immutable source banks before canonical mutation; recovery requires an
+exact target-side and phase match. Committed local-target work can finish from the
+embedded banks without the provider and before an account reset. Cloud-target work
+may be abandoned when the provider disappears or the account changes because the
+local canonical source remains intact. All top-level save operations share one
+FIFO-exclusive lease. Gameplay remains paused if a committed local-target intent
+cannot be validated and recovered. A source generation that changed after commit
+is reconciled in that same pregame sync. A one-bank slot without a matching intent
+is ranked as normal divergence rather than inferred to be an interrupted write.
+Settings retains the latest
 automatic-resolution result until it is replaced or dismissed, without presenting
 a gameplay-blocking decision.
 State and archive files remain outside the gameplay save directory. Import accepts

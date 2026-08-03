@@ -7,6 +7,7 @@ import Foundation
 
 private let memcardDirectory = "BASCUS-97124AYBABTU!"
 private let bankPath = memcardDirectory + "/bank0.bin"
+private let ordinaryPath = "metadata/save.bin"
 private var failures = 0
 private var modificationTick: TimeInterval = 1_800_000_000
 
@@ -32,7 +33,15 @@ private final class Fixture {
          fileSettleDelay: Duration = .milliseconds(1),
          mutationHook: @escaping @Sendable (SaveMutationPoint) throws -> Void = { _ in },
          beforeLocalReplacement: @escaping @Sendable () throws -> Void = {},
-         beforeCloudReplacement: @escaping @Sendable () throws -> Void = {}) throws {
+         beforeCloudReplacement: @escaping @Sendable () throws -> Void = {},
+         beforeLocalSourceValidation: @escaping @Sendable () throws -> Void = {},
+         beforeCloudSourceValidation: @escaping @Sendable () throws -> Void = {},
+         afterPairIntentPrepared: @escaping @Sendable () throws -> Void = {},
+         afterPairIntentCommitted: @escaping @Sendable () throws -> Void = {},
+         afterPairFileMutationBeforePhaseSave:
+            @escaping @Sendable (SaveMutationPoint) throws -> Void = { _ in },
+         beforeStateWrite: @escaping @Sendable (String?) throws -> Void = { _ in },
+         operationAwaitHook: @escaping @Sendable () async -> Void = {}) throws {
         root = FileManager.default.temporaryDirectory
             .appending(path: "goalpad-save-sync-\(UUID().uuidString)", directoryHint: .isDirectory)
         local = root.appending(path: "local/OpenGOAL/jak1/saves", directoryHint: .isDirectory)
@@ -58,7 +67,14 @@ private final class Fixture {
             fileSettleDelay: fileSettleDelay,
             mutationHook: mutationHook,
             beforeLocalReplacement: beforeLocalReplacement,
-            beforeCloudReplacement: beforeCloudReplacement))
+            beforeCloudReplacement: beforeCloudReplacement,
+            beforeLocalSourceValidation: beforeLocalSourceValidation,
+            beforeCloudSourceValidation: beforeCloudSourceValidation,
+            afterPairIntentPrepared: afterPairIntentPrepared,
+            afterPairIntentCommitted: afterPairIntentCommitted,
+            afterPairFileMutationBeforePhaseSave: afterPairFileMutationBeforePhaseSave,
+            beforeStateWrite: beforeStateWrite,
+            operationAwaitHook: operationAwaitHook))
     }
 
     deinit {
@@ -67,30 +83,49 @@ private final class Fixture {
 }
 
 private func engine(for fixture: Fixture,
+                    cloudAvailable: Bool = true,
+                    accountIdentifier: String = "account-a",
                     mutationHook: @escaping @Sendable (SaveMutationPoint) throws -> Void = {
                         _ in
                     },
                     beforeLocalReplacement: @escaping @Sendable () throws -> Void = {},
-                    beforeCloudReplacement: @escaping @Sendable () throws -> Void = {})
+                    beforeCloudReplacement: @escaping @Sendable () throws -> Void = {},
+                    beforeLocalSourceValidation: @escaping @Sendable () throws -> Void = {},
+                    beforeCloudSourceValidation: @escaping @Sendable () throws -> Void = {},
+                    afterPairIntentPrepared: @escaping @Sendable () throws -> Void = {},
+                    afterPairIntentCommitted: @escaping @Sendable () throws -> Void = {},
+                    afterPairFileMutationBeforePhaseSave:
+                        @escaping @Sendable (SaveMutationPoint) throws -> Void = { _ in },
+                    beforeStateWrite: @escaping @Sendable (String?) throws -> Void = { _ in },
+                    operationAwaitHook: @escaping @Sendable () async -> Void = {})
     -> SaveSyncEngine {
     let locations = CloudSaveLocations(
         savesRoot: fixture.cloud,
         conflictsRoot: fixture.cloudConflicts,
-        accountIdentifier: Data("account-a".utf8))
+        accountIdentifier: Data(accountIdentifier.utf8))
     return SaveSyncEngine(configuration: .init(
         localRoot: fixture.local,
         localConflictsRoot: fixture.localConflicts,
         stateFile: fixture.state,
-        cloudLocations: { locations },
+        cloudLocations: { cloudAvailable ? locations : nil },
         coordinateCloudAccess: false,
         fileSettleDelay: .milliseconds(1),
         mutationHook: mutationHook,
         beforeLocalReplacement: beforeLocalReplacement,
-        beforeCloudReplacement: beforeCloudReplacement))
+        beforeCloudReplacement: beforeCloudReplacement,
+        beforeLocalSourceValidation: beforeLocalSourceValidation,
+        beforeCloudSourceValidation: beforeCloudSourceValidation,
+        afterPairIntentPrepared: afterPairIntentPrepared,
+        afterPairIntentCommitted: afterPairIntentCommitted,
+        afterPairFileMutationBeforePhaseSave: afterPairFileMutationBeforePhaseSave,
+        beforeStateWrite: beforeStateWrite,
+        operationAwaitHook: operationAwaitHook))
 }
 
 private enum InjectedFailure: Error {
     case mutation(SaveMutationPoint)
+    case prepared
+    case stateWrite(String?)
 }
 
 private final class MutationFault: @unchecked Sendable {
@@ -105,6 +140,61 @@ private final class MutationFault: @unchecked Sendable {
         guard point == target, !hasFired else { return }
         hasFired = true
         throw InjectedFailure.mutation(point)
+    }
+}
+
+private final class OneShotPreparedFault: @unchecked Sendable {
+    private var hasFired = false
+
+    func fire() throws {
+        guard !hasFired else { return }
+        hasFired = true
+        throw InjectedFailure.prepared
+    }
+}
+
+private final class StateWriteFault: @unchecked Sendable {
+    private let target: String?
+    private var hasFired = false
+
+    init(target: String?) {
+        self.target = target
+    }
+
+    func callAsFunction(_ phase: String?) throws {
+        guard phase == target, !hasFired else { return }
+        hasFired = true
+        throw InjectedFailure.stateWrite(phase)
+    }
+}
+
+private actor OperationGate {
+    private var entryCount = 0
+    private var enteredWaiters: [CheckedContinuation<Void, Never>] = []
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+    private var isReleased = false
+
+    func pauseFirstEntry() async {
+        entryCount += 1
+        if entryCount == 1 {
+            enteredWaiters.forEach { $0.resume() }
+            enteredWaiters.removeAll()
+            guard !isReleased else { return }
+            await withCheckedContinuation { releaseContinuation = $0 }
+        }
+    }
+
+    func waitUntilEntered() async {
+        if entryCount > 0 { return }
+        await withCheckedContinuation { enteredWaiters.append($0) }
+    }
+
+    func entries() -> Int { entryCount }
+
+    func release() {
+        isReleased = true
+        releaseContinuation?.resume()
+        releaseContinuation = nil
     }
 }
 
@@ -141,6 +231,25 @@ private final class CloudReplacementRace: @unchecked Sendable {
                       to: bankFilePath(0), under: cloudRoot, modificationDate: date)
         try writeBank(progress: 92, saveCount: 9, marker: 92,
                       to: bankFilePath(1), under: cloudRoot, modificationDate: date)
+    }
+}
+
+private final class OrdinaryFileRace: @unchecked Sendable {
+    let root: URL
+    let relativePath: String
+    let replacement: String
+    private var hasFired = false
+
+    init(root: URL, relativePath: String, replacement: String) {
+        self.root = root
+        self.relativePath = relativePath
+        self.replacement = replacement
+    }
+
+    func mutate() throws {
+        guard !hasFired else { return }
+        hasFired = true
+        try write(replacement, to: relativePath, under: root)
     }
 }
 
@@ -265,11 +374,12 @@ private func regularFiles(under root: URL) -> [URL] {
 private func unavailableKeepsLocalSaves() async throws {
     print("iCloud being unavailable is a local-only success")
     let fixture = try Fixture(cloudAvailable: false)
-    try write("local-save", under: fixture.local)
+    try write("local-save", to: ordinaryPath, under: fixture.local)
 
     let outcome = try await fixture.engine.sync()
     check(outcome.availability == .unavailable, "unavailable is reported without throwing")
-    check(read(under: fixture.local) == "local-save", "the gameplay save is untouched")
+    check(read(ordinaryPath, under: fixture.local) == "local-save",
+          "the gameplay save is untouched")
     check(!FileManager.default.fileExists(atPath: fixture.cloud.path),
           "no cloud directory is required")
 }
@@ -277,11 +387,15 @@ private func unavailableKeepsLocalSaves() async throws {
 private func localOnlyUploadsDesktopLayout() async throws {
     print("a local OpenGOAL memcard is mirrored without changing its layout")
     let fixture = try Fixture()
-    try write("ipad-save", under: fixture.local)
+    let bank = jak1Bank(progress: 10, saveCount: 1, marker: 1)
+    let bankURL = file(bankPath, under: fixture.local)
+    try FileManager.default.createDirectory(at: bankURL.deletingLastPathComponent(),
+                                            withIntermediateDirectories: true)
+    try bank.write(to: bankURL, options: .atomic)
 
     let outcome = try await fixture.engine.sync()
     check(outcome.uploaded == 1 && outcome.downloaded == 0, "one local bank uploads")
-    check(read(under: fixture.cloud) == "ipad-save",
+    check(data(under: fixture.cloud) == bank,
           "BASCUS-97124AYBABTU!/bank0.bin is byte-compatible in iCloud")
     check(outcome.resolutions.isEmpty, "a one-sided save needs no resolution")
 }
@@ -289,42 +403,50 @@ private func localOnlyUploadsDesktopLayout() async throws {
 private func cloudOnlyDownloadsBeforeGameplay() async throws {
     print("an iCloud-only memcard becomes a local gameplay save")
     let fixture = try Fixture()
-    try write("ipad-cloud-save", under: fixture.cloud)
+    let bank = jak1Bank(progress: 12, saveCount: 1, marker: 2)
+    let bankURL = file(bankPath, under: fixture.cloud)
+    try FileManager.default.createDirectory(at: bankURL.deletingLastPathComponent(),
+                                            withIntermediateDirectories: true)
+    try bank.write(to: bankURL, options: .atomic)
 
     let outcome = try await fixture.engine.sync()
     check(outcome.downloaded == 1 && outcome.uploaded == 0, "one cloud bank downloads")
-    check(read(under: fixture.local) == "ipad-cloud-save", "the local OpenGOAL path receives it")
+    check(data(under: fixture.local) == bank, "the local OpenGOAL path receives it")
 }
 
 private func changedSideWinsAgainstBaseline() async throws {
     print("a known unchanged side can safely receive the changed side")
     let fixture = try Fixture()
-    try write("baseline", under: fixture.local)
+    try write("baseline", to: ordinaryPath, under: fixture.local)
     _ = try await fixture.engine.sync()
 
-    try write("new-local-save", under: fixture.local)
+    try write("new-local-save", to: ordinaryPath, under: fixture.local)
     let localOutcome = try await fixture.engine.syncIfLocalFilesChanged()
     check(localOutcome?.uploaded == 1, "a completed local write triggers an upload")
-    check(read(under: fixture.cloud) == "new-local-save", "the cloud mirror advances")
+    check(read(ordinaryPath, under: fixture.cloud) == "new-local-save",
+          "the cloud mirror advances")
 
-    try write("new-cloud-save", under: fixture.cloud)
+    try write("new-cloud-save", to: ordinaryPath, under: fixture.cloud)
     let cloudOutcome = try await fixture.engine.sync()
     check(cloudOutcome.downloaded == 1, "a changed cloud bank downloads on the next sync")
-    check(read(under: fixture.local) == "new-cloud-save", "the local gameplay copy advances")
+    check(read(ordinaryPath, under: fixture.local) == "new-cloud-save",
+          "the local gameplay copy advances")
 }
 
 private func initialDivergenceUsesNewestDateAndPreservesBoth() async throws {
     print("unrecognized divergent files use modification date and preserve both")
     let fixture = try Fixture()
-    try write("local-version", under: fixture.local)
-    try write("cloud-version", under: fixture.cloud)
+    try write("local-version", to: ordinaryPath, under: fixture.local)
+    try write("cloud-version", to: ordinaryPath, under: fixture.cloud)
 
     let outcome = try await fixture.engine.sync()
-    check(outcome.resolutions == [SaveResolution(relativePath: bankPath, winner: .iCloud,
+    check(outcome.resolutions == [SaveResolution(relativePath: ordinaryPath, winner: .iCloud,
                                                   basis: .modificationDate)],
           "the newer iCloud file wins without a decision")
-    check(read(under: fixture.local) == "cloud-version", "the gameplay copy advances")
-    check(read(under: fixture.cloud) == "cloud-version", "the cloud mirror stays canonical")
+    check(read(ordinaryPath, under: fixture.local) == "cloud-version",
+          "the gameplay copy advances")
+    check(read(ordinaryPath, under: fixture.cloud) == "cloud-version",
+          "the cloud mirror stays canonical")
 
     let localCopies = regularFiles(under: fixture.localConflicts)
     let cloudCopies = regularFiles(under: fixture.cloudConflicts)
@@ -340,15 +462,17 @@ private func initialDivergenceUsesNewestDateAndPreservesBoth() async throws {
 private func twoSidedChangeAutomaticallyResolves() async throws {
     print("two changes after a shared baseline also resolve without blocking")
     let fixture = try Fixture()
-    try write("baseline", under: fixture.local)
+    try write("baseline", to: ordinaryPath, under: fixture.local)
     _ = try await fixture.engine.sync()
-    try write("new-local", under: fixture.local)
-    try write("new-cloud", under: fixture.cloud)
+    try write("new-local", to: ordinaryPath, under: fixture.local)
+    try write("new-cloud", to: ordinaryPath, under: fixture.cloud)
 
     let outcome = try await fixture.engine.sync()
     check(outcome.resolutions.first?.winner == .iCloud, "the newer two-sided copy wins")
-    check(read(under: fixture.local) == "new-cloud", "the local authority receives the winner")
-    check(read(under: fixture.cloud) == "new-cloud", "the cloud mirror receives the winner")
+    check(read(ordinaryPath, under: fixture.local) == "new-cloud",
+          "the local authority receives the winner")
+    check(read(ordinaryPath, under: fixture.cloud) == "new-cloud",
+          "the cloud mirror receives the winner")
 }
 
 private func completionPercentageBeatsModificationDate() async throws {
@@ -493,39 +617,42 @@ private func equalDatesKeepLocalAuthorityWithoutHashOrdering() async throws {
     print("equal dates keep local gameplay authority without ranking hashes")
     let fixture = try Fixture()
     let sameDate = Date(timeIntervalSince1970: 1_700_000_000)
-    try write("local-tie", under: fixture.local, modificationDate: sameDate)
-    try write("cloud-tie", under: fixture.cloud, modificationDate: sameDate)
+    try write("local-tie", to: ordinaryPath, under: fixture.local,
+              modificationDate: sameDate)
+    try write("cloud-tie", to: ordinaryPath, under: fixture.cloud,
+              modificationDate: sameDate)
 
     let outcome = try await fixture.engine.sync()
     check(outcome.resolutions.first?.winner == .local, "the existing local authority wins a tie")
     check(outcome.resolutions.first?.basis == .localGameplayAuthority,
           "hashes are identities only, not an ordering heuristic")
-    check(read(under: fixture.cloud) == "local-tie", "the tied local copy becomes the mirror")
+    check(read(ordinaryPath, under: fixture.cloud) == "local-tie",
+          "the tied local copy becomes the mirror")
 }
 
 private func missingSideIsRestored() async throws {
     print("a missing file is restored instead of propagating a deletion")
     let fixture = try Fixture()
-    try write("save", under: fixture.local)
+    try write("save", to: ordinaryPath, under: fixture.local)
     _ = try await fixture.engine.sync()
-    try FileManager.default.removeItem(at: file(bankPath, under: fixture.local))
+    try FileManager.default.removeItem(at: file(ordinaryPath, under: fixture.local))
 
     let outcome = try await fixture.engine.syncIfLocalFilesChanged()
     check(outcome?.downloaded == 1, "the surviving cloud bank is downloaded")
-    check(read(under: fixture.local) == "save", "the local save is restored")
+    check(read(ordinaryPath, under: fixture.local) == "save", "the local save is restored")
 }
 
 private func accountSwitchCannotReuseAnOldBaseline() async throws {
     print("switching iCloud accounts invalidates the old merge baseline")
     let fixture = try Fixture(accountIdentifier: "account-a")
-    try write("account-a-save", under: fixture.local)
+    try write("account-a-save", to: ordinaryPath, under: fixture.local)
     _ = try await fixture.engine.sync()
 
     let accountBCloud = fixture.root.appending(path: "account-b/Documents/OpenGOAL/jak1/saves",
                                                 directoryHint: .isDirectory)
     let accountBConflicts = fixture.root.appending(path: "account-b/Documents/GOALPad/SaveConflicts",
                                                     directoryHint: .isDirectory)
-    try write("account-b-save", under: accountBCloud)
+    try write("account-b-save", to: ordinaryPath, under: accountBCloud)
     let accountBLocations = CloudSaveLocations(
         savesRoot: accountBCloud,
         conflictsRoot: accountBConflicts,
@@ -541,46 +668,55 @@ private func accountSwitchCannotReuseAnOldBaseline() async throws {
     let outcome = try await accountBEngine.sync()
     check(outcome.resolutions.first?.winner == .iCloud,
           "the new account is compared without account A's baseline")
-    check(read(under: fixture.local) == "account-b-save", "the newer account B save becomes active")
-    check(read(under: accountBCloud) == "account-b-save", "the account B cloud save stays intact")
+    check(read(ordinaryPath, under: fixture.local) == "account-b-save",
+          "the newer account B save becomes active")
+    check(read(ordinaryPath, under: accountBCloud) == "account-b-save",
+          "the account B cloud save stays intact")
 }
 
 private func changingFileIsReadAgainBeforeUpload() async throws {
     print("a save that changes during a snapshot is read again before upload")
     let fixture = try Fixture(fileSettleDelay: .milliseconds(50))
-    try write("first-write", under: fixture.local)
+    try write("first-write", to: ordinaryPath, under: fixture.local)
     let writer = Task {
         try await Task.sleep(for: .milliseconds(10))
-        try write("completed-write", under: fixture.local)
+        try write("completed-write", to: ordinaryPath, under: fixture.local)
     }
 
     let outcome = try await fixture.engine.sync()
     try await writer.value
     check(outcome.uploaded == 1, "the stable completed save uploads once")
-    check(read(under: fixture.cloud) == "completed-write",
+    check(read(ordinaryPath, under: fixture.cloud) == "completed-write",
           "the first changing snapshot never reaches iCloud")
 }
 
 private func newerSaveDuringCloudWorkGetsANextSync() async throws {
-    print("a save completed after its snapshot remains pending for the next sync")
+    print("a save completed after its snapshot aborts the stale upload and remains pending")
     let fixture = try Fixture(fileSettleDelay: .milliseconds(50))
-    try write("first-save", under: fixture.local)
+    try write("first-save", to: ordinaryPath, under: fixture.local)
     for index in 1...6 {
         try write("cloud-\(index)", to: "sync-delay/cloud-\(index).bin",
                   under: fixture.cloud)
     }
     let writer = Task {
         try await Task.sleep(for: .milliseconds(120))
-        try write("second-save", under: fixture.local)
+        try write("second-save", to: ordinaryPath, under: fixture.local)
     }
 
-    _ = try await fixture.engine.sync()
+    var staleUploadRejected = false
+    do {
+        _ = try await fixture.engine.sync()
+    } catch {
+        staleUploadRejected = true
+    }
     try await writer.value
-    check(read(under: fixture.cloud) == "first-save",
-          "the already snapshotted version is the first mirror")
+    check(staleUploadRejected, "source CAS rejects the already-stale local snapshot")
+    check(read(ordinaryPath, under: fixture.cloud) == nil,
+          "the stale local bytes never become the cloud mirror")
     let followUp = try await fixture.engine.syncIfLocalFilesChanged()
     check(followUp?.uploaded == 1, "the later completed save remains detectable")
-    check(read(under: fixture.cloud) == "second-save", "the next sync mirrors the later save")
+    check(read(ordinaryPath, under: fixture.cloud) == "second-save",
+          "the next sync mirrors the later save")
 }
 
 private func uploadOnlyKeepsActiveLocalAuthority() async throws {
@@ -706,6 +842,120 @@ private func localToCloudCASPreservesConcurrentCloudWrite() async throws {
           "the other device's newer cloud pair is not silently overwritten")
 }
 
+private func pairSourceCASRejectsRacesInBothDirections() async throws {
+    print("pair source CAS rejects local and cloud changes after snapshot")
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+
+    let localFixture = try Fixture()
+    try writeBank(progress: 80, saveCount: 6, marker: 1,
+                  to: bankFilePath(0), under: localFixture.local, modificationDate: date)
+    try writeBank(progress: 70, saveCount: 5, marker: 2,
+                  to: bankFilePath(1), under: localFixture.local, modificationDate: date)
+    try writeBank(progress: 20, saveCount: 4, marker: 3,
+                  to: bankFilePath(0), under: localFixture.cloud, modificationDate: date)
+    try writeBank(progress: 10, saveCount: 3, marker: 4,
+                  to: bankFilePath(1), under: localFixture.cloud, modificationDate: date)
+    let oldCloudEven = data(bankFilePath(0), under: localFixture.cloud)
+    let oldCloudOdd = data(bankFilePath(1), under: localFixture.cloud)
+    let localRace = LocalReplacementRace(localRoot: localFixture.local)
+    let localSourceEngine = engine(
+        for: localFixture, beforeLocalSourceValidation: { try localRace.mutate() })
+    var localRejected = false
+    do {
+        _ = try await localSourceEngine.sync(mode: .uploadOnly)
+    } catch {
+        localRejected = true
+    }
+    check(localRejected, "a changed local pair aborts its stale cloud upload")
+    check(data(bankFilePath(0), under: localFixture.cloud) == oldCloudEven
+            && data(bankFilePath(1), under: localFixture.cloud) == oldCloudOdd,
+          "local source contention leaves the cloud target untouched")
+    check(loaderSelectedCompletion(evenIndex: 0, under: localFixture.local) == 91,
+          "the newer local source generation remains authoritative")
+    let localRaceState = try JSONSerialization.jsonObject(
+        with: Data(contentsOf: localFixture.state)) as? [String: Any]
+    check(localRaceState?["pairMutationIntent"] == nil,
+          "prepared local-source drift clears its journal durably")
+
+    let cloudFixture = try Fixture()
+    try writeBank(progress: 20, saveCount: 4, marker: 5,
+                  to: bankFilePath(0), under: cloudFixture.local, modificationDate: date)
+    try writeBank(progress: 10, saveCount: 3, marker: 6,
+                  to: bankFilePath(1), under: cloudFixture.local, modificationDate: date)
+    _ = try await cloudFixture.engine.sync()
+    try writeBank(progress: 70, saveCount: 6, marker: 7,
+                  to: bankFilePath(0), under: cloudFixture.cloud,
+                  modificationDate: date.addingTimeInterval(60))
+    try writeBank(progress: 60, saveCount: 5, marker: 8,
+                  to: bankFilePath(1), under: cloudFixture.cloud,
+                  modificationDate: date.addingTimeInterval(60))
+    let oldLocalEven = data(bankFilePath(0), under: cloudFixture.local)
+    let oldLocalOdd = data(bankFilePath(1), under: cloudFixture.local)
+    let cloudRace = CloudReplacementRace(cloudRoot: cloudFixture.cloud)
+    let cloudSourceEngine = engine(
+        for: cloudFixture, beforeCloudSourceValidation: { try cloudRace.mutate() })
+    var cloudRejected = false
+    do {
+        _ = try await cloudSourceEngine.sync(mode: .bidirectional)
+    } catch {
+        cloudRejected = true
+    }
+    check(cloudRejected, "a changed cloud pair aborts its stale local download")
+    check(data(bankFilePath(0), under: cloudFixture.local) == oldLocalEven
+            && data(bankFilePath(1), under: cloudFixture.local) == oldLocalOdd,
+          "cloud source contention leaves the local target untouched")
+    check(loaderSelectedCompletion(evenIndex: 0, under: cloudFixture.cloud) == 96,
+          "the other device's newer cloud source generation survives")
+    let cloudRaceState = try JSONSerialization.jsonObject(
+        with: Data(contentsOf: cloudFixture.state)) as? [String: Any]
+    check(cloudRaceState?["pairMutationIntent"] == nil,
+          "prepared cloud-source drift clears its journal durably")
+}
+
+private func ordinarySourceCASRejectsRacesInBothDirections() async throws {
+    print("ordinary-file source CAS rejects local and cloud changes after snapshot")
+    let path = "metadata/session.dat"
+
+    let localFixture = try Fixture()
+    try write("local-snapshot", to: path, under: localFixture.local)
+    try write("cloud-target", to: path, under: localFixture.cloud)
+    let localRace = OrdinaryFileRace(root: localFixture.local, relativePath: path,
+                                     replacement: "local-next-generation")
+    let localSourceEngine = engine(
+        for: localFixture, beforeLocalSourceValidation: { try localRace.mutate() })
+    var localRejected = false
+    do {
+        _ = try await localSourceEngine.sync(mode: .uploadOnly)
+    } catch {
+        localRejected = true
+    }
+    check(localRejected, "a changed ordinary local source aborts upload")
+    check(read(path, under: localFixture.local) == "local-next-generation",
+          "the ordinary local next generation survives")
+    check(read(path, under: localFixture.cloud) == "cloud-target",
+          "the ordinary cloud target is not overwritten by a stale source")
+
+    let cloudFixture = try Fixture()
+    try write("baseline", to: path, under: cloudFixture.local)
+    _ = try await cloudFixture.engine.sync()
+    try write("cloud-snapshot", to: path, under: cloudFixture.cloud)
+    let cloudRace = OrdinaryFileRace(root: cloudFixture.cloud, relativePath: path,
+                                     replacement: "cloud-next-generation")
+    let cloudSourceEngine = engine(
+        for: cloudFixture, beforeCloudSourceValidation: { try cloudRace.mutate() })
+    var cloudRejected = false
+    do {
+        _ = try await cloudSourceEngine.sync(mode: .bidirectional)
+    } catch {
+        cloudRejected = true
+    }
+    check(cloudRejected, "a changed ordinary cloud source aborts download")
+    check(read(path, under: cloudFixture.local) == "baseline",
+          "the ordinary local target remains untouched")
+    check(read(path, under: cloudFixture.cloud) == "cloud-next-generation",
+          "the ordinary cloud next generation survives")
+}
+
 private func interruptedPairMutationRecoversWithoutHybrid() async throws {
     print("odd-first pair replacement recovers after every mutation boundary")
     for point in [SaveMutationPoint.removedOdd, .replacedEven, .wroteOdd] {
@@ -735,6 +985,18 @@ private func interruptedPairMutationRecoversWithoutHybrid() async throws {
             injected = actualPoint == point
         } catch {}
         check(injected, "fault is injected after \(point)")
+        let stateObject = try JSONSerialization.jsonObject(
+            with: Data(contentsOf: fixture.state)) as? [String: Any]
+        let intent = stateObject?["pairMutationIntent"] as? [String: Any]
+        let expectedPhase: String
+        switch point {
+        case .removedOdd: expectedPhase = "oddRemoved"
+        case .replacedEven: expectedPhase = "evenReplaced"
+        case .wroteOdd: expectedPhase = "oddWritten"
+        case .archived: expectedPhase = "prepared"
+        }
+        check(intent?["phase"] as? String == expectedPhase,
+              "journal phase \(expectedPhase) is durable before restart")
         check(loaderSelectedCompletion(evenIndex: 0, under: fixture.cloud)
                 == (point == .removedOdd ? 40 : 80),
               "interrupted \(point) state remains a loadable single generation")
@@ -789,6 +1051,545 @@ private func interruptedPairMutationRecoversWithoutHybrid() async throws {
         check(loaderSelectedCompletion(evenIndex: 0, under: fixture.local) == 80,
               "the recovered local-target \(point) pair selects the intended generation")
     }
+}
+
+private func mutationCrashWindowsRecoverFromExactNextPhase() async throws {
+    print("pair recovery accepts only the exact file state one phase ahead of the journal")
+    let expectedStoredPhase: [SaveMutationPoint: String] = [
+        .removedOdd: "committed",
+        .replacedEven: "oddRemoved",
+        .wroteOdd: "evenReplaced"
+    ]
+    for point in [SaveMutationPoint.removedOdd, .replacedEven, .wroteOdd] {
+        let fault = MutationFault(target: point)
+        let fixture = try Fixture()
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+        try writeBank(progress: 40, saveCount: 4, marker: 31,
+                      to: bankFilePath(0), under: fixture.local, modificationDate: date)
+        try writeBank(progress: 30, saveCount: 3, marker: 32,
+                      to: bankFilePath(1), under: fixture.local, modificationDate: date)
+        _ = try await fixture.engine.sync()
+        try writeBank(progress: 80, saveCount: 6, marker: 33,
+                      to: bankFilePath(0), under: fixture.local,
+                      modificationDate: date.addingTimeInterval(60))
+        try writeBank(progress: 70, saveCount: 5, marker: 34,
+                      to: bankFilePath(1), under: fixture.local,
+                      modificationDate: date.addingTimeInterval(60))
+        let winningEven = data(bankFilePath(0), under: fixture.local)
+        let winningOdd = data(bankFilePath(1), under: fixture.local)
+
+        var interrupted = false
+        do {
+            _ = try await engine(
+                for: fixture,
+                afterPairFileMutationBeforePhaseSave: { try fault($0) }).sync()
+        } catch InjectedFailure.mutation(let actual) {
+            interrupted = actual == point
+        } catch {}
+        check(interrupted, "crash is injected before the \(point) phase save")
+        let stateObject = try JSONSerialization.jsonObject(
+            with: Data(contentsOf: fixture.state)) as? [String: Any]
+        let intent = stateObject?["pairMutationIntent"] as? [String: Any]
+        check(intent?["phase"] as? String == expectedStoredPhase[point],
+              "the durable journal remains at the phase before \(point)")
+
+        _ = try await engine(for: fixture).sync()
+        check(data(bankFilePath(0), under: fixture.cloud) == winningEven
+                && data(bankFilePath(1), under: fixture.cloud) == winningOdd,
+              "restart normalizes the exact one-step-ahead \(point) state")
+    }
+}
+
+private func stateWriteFailuresAreRecoverableAtEveryJournalPhase() async throws {
+    print("state-write failures preserve a recoverable pair transaction at every phase")
+    let targets: [String?] = ["prepared", "committed", "oddRemoved", "evenReplaced",
+                              "oddWritten", nil]
+    for target in targets {
+        let fixture = try Fixture()
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+        try writeBank(progress: 40, saveCount: 4, marker: 41,
+                      to: bankFilePath(0), under: fixture.local, modificationDate: date)
+        try writeBank(progress: 30, saveCount: 3, marker: 42,
+                      to: bankFilePath(1), under: fixture.local, modificationDate: date)
+        _ = try await fixture.engine.sync()
+        try writeBank(progress: 80, saveCount: 6, marker: 43,
+                      to: bankFilePath(0), under: fixture.local,
+                      modificationDate: date.addingTimeInterval(60))
+        try writeBank(progress: 70, saveCount: 5, marker: 44,
+                      to: bankFilePath(1), under: fixture.local,
+                      modificationDate: date.addingTimeInterval(60))
+        let winningEven = data(bankFilePath(0), under: fixture.local)
+        let winningOdd = data(bankFilePath(1), under: fixture.local)
+        let fault = StateWriteFault(target: target)
+        var interrupted = false
+        do {
+            _ = try await engine(for: fixture, beforeStateWrite: { try fault($0) }).sync()
+        } catch InjectedFailure.stateWrite {
+            interrupted = true
+        } catch {}
+        check(interrupted, "state write fault is injected for \(target ?? "final clear")")
+
+        _ = try await engine(for: fixture).sync()
+        check(data(bankFilePath(0), under: fixture.cloud) == winningEven
+                && data(bankFilePath(1), under: fixture.cloud) == winningOdd,
+              "restart recovers after the \(target ?? "final clear") state write fault")
+        let finalState = try JSONSerialization.jsonObject(
+            with: Data(contentsOf: fixture.state)) as? [String: Any]
+        check(finalState?["pairMutationIntent"] == nil,
+              "recovery clears the journal after \(target ?? "final clear")")
+    }
+}
+
+private func preparedDriftCancelsAndPreparedImportDoesNotBlock() async throws {
+    print("prepared intents cancel on drift and an uncommitted import never blocks relaunch")
+    let fixture = try Fixture()
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    try writeBank(progress: 40, saveCount: 4, marker: 51,
+                  to: bankFilePath(0), under: fixture.local, modificationDate: date)
+    try writeBank(progress: 30, saveCount: 3, marker: 52,
+                  to: bankFilePath(1), under: fixture.local, modificationDate: date)
+    _ = try await fixture.engine.sync()
+    try writeBank(progress: 80, saveCount: 6, marker: 53,
+                  to: bankFilePath(0), under: fixture.local,
+                  modificationDate: date.addingTimeInterval(60))
+    try writeBank(progress: 70, saveCount: 5, marker: 54,
+                  to: bankFilePath(1), under: fixture.local,
+                  modificationDate: date.addingTimeInterval(60))
+    let targetRace = CloudReplacementRace(cloudRoot: fixture.cloud)
+    var rejected = false
+    do {
+        _ = try await engine(for: fixture,
+                             afterPairIntentPrepared: { try targetRace.mutate() }).sync()
+    } catch {
+        rejected = true
+    }
+    check(rejected, "target drift after prepared persistence cancels the stale intent")
+    let canceledState = try JSONSerialization.jsonObject(
+        with: Data(contentsOf: fixture.state)) as? [String: Any]
+    check(canceledState?["pairMutationIntent"] == nil,
+          "prepared target drift is cleared durably before the error returns")
+    _ = try await engine(for: fixture).sync()
+    check(loaderSelectedCompletion(evenIndex: 0, under: fixture.local) == 96,
+          "the next merge freshly ranks the target generation that caused prepared drift")
+
+    let importFixture = try Fixture()
+    let slot = importFixture.root.appending(
+        path: "prepared-import/OpenGOAL/jak1/saves/\(memcardDirectory)",
+        directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: slot, withIntermediateDirectories: true)
+    let imported = jak1Bank(progress: 65, saveCount: 5, marker: 55)
+    try imported.write(to: slot.appending(path: "bank0.bin"), options: .atomic)
+    let preparedFault = OneShotPreparedFault()
+    do {
+        _ = try await engine(for: importFixture,
+                             afterPairIntentPrepared: { try preparedFault.fire() })
+            .importSaves(from: slot)
+    } catch {}
+    let preparedState = try JSONSerialization.jsonObject(
+        with: Data(contentsOf: importFixture.state)) as? [String: Any]
+    let preparedIntent = preparedState?["pairMutationIntent"] as? [String: Any]
+    check(preparedIntent?["phase"] as? String == "prepared",
+          "import persists prepared intent before any canonical mutation")
+    let importedResult = try await engine(for: importFixture).importSaves(from: slot)
+    check(importedResult.fileCount == 1
+            && data(bankFilePath(0), under: importFixture.local) == imported,
+          "relaunch clears the uncommitted import and performs a fresh import")
+}
+
+private func targetContentionBetweenPhasesIsRejected() async throws {
+    print("every pair mutation phase compare-and-swaps the exact target identity")
+    let fixture = try Fixture()
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    try writeBank(progress: 40, saveCount: 4, marker: 61,
+                  to: bankFilePath(0), under: fixture.local, modificationDate: date)
+    try writeBank(progress: 30, saveCount: 3, marker: 62,
+                  to: bankFilePath(1), under: fixture.local, modificationDate: date)
+    _ = try await fixture.engine.sync()
+    try writeBank(progress: 80, saveCount: 6, marker: 63,
+                  to: bankFilePath(0), under: fixture.local,
+                  modificationDate: date.addingTimeInterval(60))
+    try writeBank(progress: 70, saveCount: 5, marker: 64,
+                  to: bankFilePath(1), under: fixture.local,
+                  modificationDate: date.addingTimeInterval(60))
+    let external = jak1Bank(progress: 99, saveCount: 10, marker: 65)
+    let race = MutationFault(target: .removedOdd)
+    var rejected = false
+    do {
+        _ = try await engine(for: fixture, mutationHook: { point in
+            do { try race(point) } catch InjectedFailure.mutation(.removedOdd) {
+                try writeBank(progress: 99, saveCount: 10, marker: 65,
+                              to: bankFilePath(0), under: fixture.cloud,
+                              modificationDate: date.addingTimeInterval(120))
+            }
+        }).sync()
+    } catch {
+        rejected = true
+    }
+    check(rejected, "the next phase rejects a target changed after odd removal")
+    check(data(bankFilePath(0), under: fixture.cloud) == external,
+          "phase contention preserves the external target generation")
+}
+
+private func committedSourceChangeRemainsNextGeneration() async throws {
+    print("a source change after journal commit remains a later generation")
+    let fixture = try Fixture()
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    try writeBank(progress: 40, saveCount: 4, marker: 1,
+                  to: bankFilePath(0), under: fixture.local, modificationDate: date)
+    try writeBank(progress: 30, saveCount: 3, marker: 2,
+                  to: bankFilePath(1), under: fixture.local, modificationDate: date)
+    _ = try await fixture.engine.sync()
+
+    try writeBank(progress: 80, saveCount: 6, marker: 3,
+                  to: bankFilePath(0), under: fixture.local,
+                  modificationDate: date.addingTimeInterval(60))
+    try writeBank(progress: 70, saveCount: 5, marker: 4,
+                  to: bankFilePath(1), under: fixture.local,
+                  modificationDate: date.addingTimeInterval(60))
+    let nextGeneration = CloudReplacementRace(cloudRoot: fixture.local)
+    let interruptedEngine = engine(
+        for: fixture, afterPairIntentCommitted: { try nextGeneration.mutate() })
+
+    var rejected = false
+    do {
+        _ = try await interruptedEngine.sync()
+    } catch {
+        rejected = true
+    }
+    check(rejected, "post-commit source CAS stops before canonical mutation")
+    check(loaderSelectedCompletion(evenIndex: 0, under: fixture.local) == 96,
+          "the post-commit local generation remains intact")
+    check(loaderSelectedCompletion(evenIndex: 0, under: fixture.cloud) == 40,
+          "the target remains at its original baseline after the rejected write")
+    let committedState = try JSONSerialization.jsonObject(
+        with: Data(contentsOf: fixture.state)) as? [String: Any]
+    let committedIntent = committedState?["pairMutationIntent"] as? [String: Any]
+    check(committedIntent?["phase"] as? String == "committed",
+          "the committed journal remains durable for exact recovery")
+
+    let recovery = try await engine(for: fixture).sync()
+    check(recovery.resolutions.isEmpty,
+          "baseline-directed recovery does not invent an automatic resolution")
+    check(recovery.uploaded == 4,
+          "one sync accounts for journal recovery and the preserved next generation")
+    check(loaderSelectedCompletion(evenIndex: 0, under: fixture.cloud) == 96,
+          "the same pregame sync reconciles the post-commit next generation")
+    check(loaderSelectedCompletion(evenIndex: 0, under: fixture.local) == 96,
+          "recovery never rolls back the newer source generation")
+
+    let next = try await engine(for: fixture).sync()
+    check(next.uploaded == 0 && next.resolutions.isEmpty,
+          "the recovered resolution is not surfaced again on the next merge")
+    let finalState = try JSONSerialization.jsonObject(
+        with: Data(contentsOf: fixture.state)) as? [String: Any]
+    check(finalState?["pairMutationIntent"] == nil,
+          "exact target verification clears the journal with its baseline")
+
+    let cloudFixture = try Fixture()
+    try writeBank(progress: 40, saveCount: 4, marker: 11,
+                  to: bankFilePath(0), under: cloudFixture.local, modificationDate: date)
+    try writeBank(progress: 30, saveCount: 3, marker: 12,
+                  to: bankFilePath(1), under: cloudFixture.local, modificationDate: date)
+    _ = try await cloudFixture.engine.sync()
+    try writeBank(progress: 80, saveCount: 6, marker: 13,
+                  to: bankFilePath(0), under: cloudFixture.cloud,
+                  modificationDate: date.addingTimeInterval(60))
+    try writeBank(progress: 70, saveCount: 5, marker: 14,
+                  to: bankFilePath(1), under: cloudFixture.cloud,
+                  modificationDate: date.addingTimeInterval(60))
+    let cloudNextGeneration = CloudReplacementRace(cloudRoot: cloudFixture.cloud)
+    do {
+        _ = try await engine(
+            for: cloudFixture,
+            afterPairIntentCommitted: { try cloudNextGeneration.mutate() }).sync()
+    } catch {}
+    let unsafeBeforeRecovery = try await engine(for: cloudFixture)
+        .hasUnsafePendingLocalMutation()
+    check(unsafeBeforeRecovery,
+          "a committed cloud-to-local journal is exposed as unsafe for gameplay")
+    let cloudRecovery = try await engine(for: cloudFixture).sync()
+    check(cloudRecovery.downloaded == 4
+            && loaderSelectedCompletion(evenIndex: 0, under: cloudFixture.local) == 96,
+          "one pregame sync recovers then downloads the cloud source's next generation")
+    let unsafeAfterRecovery = try await engine(for: cloudFixture)
+        .hasUnsafePendingLocalMutation()
+    check(!unsafeAfterRecovery,
+          "successful local recovery clears the gameplay barrier")
+}
+
+private func legitimateOneBankDivergenceIsSurfaced() async throws {
+    print("a naturally added odd bank is ranked instead of inferred as recovery")
+    let fixture = try Fixture()
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    try writeBank(progress: 40, saveCount: 4, marker: 1,
+                  to: bankFilePath(0), under: fixture.local, modificationDate: date)
+    _ = try await fixture.engine.sync()
+    try writeBank(progress: 70, saveCount: 5, marker: 2,
+                  to: bankFilePath(1), under: fixture.cloud,
+                  modificationDate: date.addingTimeInterval(60))
+
+    let outcome = try await fixture.engine.sync()
+    check(outcome.resolutions == [SaveResolution(relativePath: bankFilePath(0),
+                                                  winner: .iCloud,
+                                                  basis: .completionPercentage(70))],
+          "missing-odd divergence is explicitly ranked and surfaced")
+    check(loaderSelectedCompletion(evenIndex: 0, under: fixture.local) == 70,
+          "the ranked full pair becomes the local loader generation")
+}
+
+private func unavailableRecoveryHonorsTargetDirectionAndMode() async throws {
+    print("embedded recovery works offline only for a paused local target")
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    let localTargetFixture = try Fixture()
+    try writeBank(progress: 40, saveCount: 4, marker: 1,
+                  to: bankFilePath(0), under: localTargetFixture.local,
+                  modificationDate: date)
+    try writeBank(progress: 30, saveCount: 3, marker: 2,
+                  to: bankFilePath(1), under: localTargetFixture.local,
+                  modificationDate: date)
+    _ = try await localTargetFixture.engine.sync()
+    try writeBank(progress: 80, saveCount: 6, marker: 3,
+                  to: bankFilePath(0), under: localTargetFixture.cloud,
+                  modificationDate: date.addingTimeInterval(60))
+    try writeBank(progress: 70, saveCount: 5, marker: 4,
+                  to: bankFilePath(1), under: localTargetFixture.cloud,
+                  modificationDate: date.addingTimeInterval(60))
+    let winningEven = data(bankFilePath(0), under: localTargetFixture.cloud)
+    let winningOdd = data(bankFilePath(1), under: localTargetFixture.cloud)
+    let localFault = MutationFault(target: .replacedEven)
+    do {
+        _ = try await engine(for: localTargetFixture,
+                             mutationHook: { try localFault($0) }).sync()
+    } catch {}
+
+    let unavailable = engine(for: localTargetFixture, cloudAvailable: false)
+    let uploadOnly = try await unavailable.sync(mode: .uploadOnly)
+    check(uploadOnly.downloaded == 0
+            && data(bankFilePath(1), under: localTargetFixture.local) == nil,
+          "upload-only offline sync never recovers into local gameplay storage")
+    let recovered = try await unavailable.sync(mode: .bidirectional)
+    check(recovered.availability == .unavailable,
+          "offline recovery still reports the provider as unavailable")
+    check(data(bankFilePath(0), under: localTargetFixture.local) == winningEven
+            && data(bankFilePath(1), under: localTargetFixture.local) == winningOdd,
+          "paused offline sync completes the embedded local-target generation")
+
+    let cloudTargetFixture = try Fixture()
+    try writeBank(progress: 40, saveCount: 4, marker: 5,
+                  to: bankFilePath(0), under: cloudTargetFixture.local,
+                  modificationDate: date)
+    try writeBank(progress: 30, saveCount: 3, marker: 6,
+                  to: bankFilePath(1), under: cloudTargetFixture.local,
+                  modificationDate: date)
+    _ = try await cloudTargetFixture.engine.sync()
+    try writeBank(progress: 80, saveCount: 6, marker: 7,
+                  to: bankFilePath(0), under: cloudTargetFixture.local,
+                  modificationDate: date.addingTimeInterval(60))
+    try writeBank(progress: 70, saveCount: 5, marker: 8,
+                  to: bankFilePath(1), under: cloudTargetFixture.local,
+                  modificationDate: date.addingTimeInterval(60))
+    let activeLocalEven = data(bankFilePath(0), under: cloudTargetFixture.local)
+    let activeLocalOdd = data(bankFilePath(1), under: cloudTargetFixture.local)
+    let cloudFault = MutationFault(target: .replacedEven)
+    do {
+        _ = try await engine(for: cloudTargetFixture,
+                             mutationHook: { try cloudFault($0) }).sync()
+    } catch {}
+    _ = try await engine(for: cloudTargetFixture, cloudAvailable: false).sync()
+    check(data(bankFilePath(0), under: cloudTargetFixture.local) == activeLocalEven
+            && data(bankFilePath(1), under: cloudTargetFixture.local) == activeLocalOdd,
+          "offline sync abandons only the cloud-target intent without touching local saves")
+    let stillPendingState = try JSONSerialization.jsonObject(
+        with: Data(contentsOf: cloudTargetFixture.state)) as? [String: Any]
+    check(stillPendingState?["pairMutationIntent"] == nil,
+          "the unavailable provider durably clears the safe cloud-target journal")
+    _ = try await engine(for: cloudTargetFixture,
+                         accountIdentifier: "account-b").sync()
+    check(data(bankFilePath(0), under: cloudTargetFixture.local) == activeLocalEven
+            && data(bankFilePath(1), under: cloudTargetFixture.local) == activeLocalOdd,
+          "a new account ranks from the intact local canonical source")
+    let accountMismatchState = try Data(contentsOf: cloudTargetFixture.state)
+    let accountMismatchObject = try JSONSerialization.jsonObject(
+        with: accountMismatchState) as? [String: Any]
+    check(accountMismatchObject?["pairMutationIntent"] == nil,
+          "the new account cannot inherit the abandoned account's mutation journal")
+}
+
+private func pendingLocalIntentBlocksEveryOtherSlot() async throws {
+    print("a pending local-target journal is a barrier for every other save slot")
+    let fixture = try Fixture()
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    for evenIndex in [0, 2] {
+        try writeBank(progress: 30, saveCount: 3, marker: UInt8(70 + evenIndex),
+                      to: bankFilePath(evenIndex), under: fixture.local,
+                      modificationDate: date)
+        try writeBank(progress: 20, saveCount: 2, marker: UInt8(71 + evenIndex),
+                      to: bankFilePath(evenIndex + 1), under: fixture.local,
+                      modificationDate: date)
+    }
+    _ = try await fixture.engine.sync()
+    try writeBank(progress: 90, saveCount: 8, marker: 75,
+                  to: bankFilePath(0), under: fixture.cloud,
+                  modificationDate: date.addingTimeInterval(120))
+    try writeBank(progress: 80, saveCount: 7, marker: 76,
+                  to: bankFilePath(1), under: fixture.cloud,
+                  modificationDate: date.addingTimeInterval(120))
+    let slotTwoCloudBefore = data(bankFilePath(2), under: fixture.cloud)
+    try writeBank(progress: 70, saveCount: 6, marker: 77,
+                  to: bankFilePath(2), under: fixture.local,
+                  modificationDate: date.addingTimeInterval(60))
+    try writeBank(progress: 60, saveCount: 5, marker: 78,
+                  to: bankFilePath(3), under: fixture.local,
+                  modificationDate: date.addingTimeInterval(60))
+    let fault = MutationFault(target: .replacedEven)
+    do {
+        _ = try await engine(for: fixture, mutationHook: { try fault($0) }).sync()
+    } catch {}
+
+    let blocked = try await engine(for: fixture).sync(mode: .uploadOnly)
+    check(blocked.uploaded == 0 && blocked.downloaded == 0,
+          "upload-only returns immediately rather than mutating a pending local target")
+    check(data(bankFilePath(2), under: fixture.cloud) == slotTwoCloudBefore,
+          "the later slot is not processed while one global journal is pending")
+    let stateObject = try JSONSerialization.jsonObject(
+        with: Data(contentsOf: fixture.state)) as? [String: Any]
+    let intent = stateObject?["pairMutationIntent"] as? [String: Any]
+    check(intent?["evenPath"] as? String == bankFilePath(0),
+          "no later slot can overwrite the first durable journal")
+}
+
+private func interruptedResolutionSurfacesExactlyOnce() async throws {
+    print("an interrupted automatic resolution is journaled and surfaced exactly once")
+    let fixture = try Fixture()
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    try writeBank(progress: 80, saveCount: 6, marker: 81,
+                  to: bankFilePath(0), under: fixture.local, modificationDate: date)
+    try writeBank(progress: 70, saveCount: 5, marker: 82,
+                  to: bankFilePath(1), under: fixture.local, modificationDate: date)
+    try writeBank(progress: 40, saveCount: 4, marker: 83,
+                  to: bankFilePath(0), under: fixture.cloud, modificationDate: date)
+    try writeBank(progress: 30, saveCount: 3, marker: 84,
+                  to: bankFilePath(1), under: fixture.cloud, modificationDate: date)
+    let fault = MutationFault(target: .replacedEven)
+    do {
+        _ = try await engine(for: fixture, mutationHook: { try fault($0) }).sync()
+    } catch {}
+    let stateObject = try JSONSerialization.jsonObject(
+        with: Data(contentsOf: fixture.state)) as? [String: Any]
+    let intent = stateObject?["pairMutationIntent"] as? [String: Any]
+    check(intent?["resolution"] != nil,
+          "the exact automatic resolution survives interruption in the journal")
+
+    let expected = SaveResolution(relativePath: bankFilePath(0), winner: .local,
+                                  basis: .completionPercentage(80))
+    let recovery = try await engine(for: fixture).sync()
+    check(recovery.resolutions == [expected],
+          "successful recovery surfaces the journaled resolution")
+    let next = try await engine(for: fixture).sync()
+    check(next.resolutions.isEmpty,
+          "the resolution is cleared atomically and cannot surface twice")
+}
+
+private func localJournalFinishesBeforeAccountReset() async throws {
+    print("an old-account local-target journal finishes before new-account baselines reset")
+    let fixture = try Fixture()
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    try writeBank(progress: 40, saveCount: 4, marker: 91,
+                  to: bankFilePath(0), under: fixture.local, modificationDate: date)
+    try writeBank(progress: 30, saveCount: 3, marker: 92,
+                  to: bankFilePath(1), under: fixture.local, modificationDate: date)
+    _ = try await fixture.engine.sync()
+    try writeBank(progress: 80, saveCount: 6, marker: 93,
+                  to: bankFilePath(0), under: fixture.cloud,
+                  modificationDate: date.addingTimeInterval(60))
+    try writeBank(progress: 70, saveCount: 5, marker: 94,
+                  to: bankFilePath(1), under: fixture.cloud,
+                  modificationDate: date.addingTimeInterval(60))
+    let fault = MutationFault(target: .replacedEven)
+    do {
+        _ = try await engine(for: fixture, mutationHook: { try fault($0) }).sync()
+    } catch {}
+
+    _ = try await engine(for: fixture, accountIdentifier: "account-b").sync()
+    check(loaderSelectedCompletion(evenIndex: 0, under: fixture.local) == 80,
+          "account switch completes the embedded old-account generation locally")
+    let stateObject = try JSONSerialization.jsonObject(
+        with: Data(contentsOf: fixture.state)) as? [String: Any]
+    check(stateObject?["pairMutationIntent"] == nil,
+          "the old-account local journal clears before syncing the new account")
+    let accountData = stateObject?["cloudAccountIdentifier"] as? String
+    check(accountData == Data("account-b".utf8).base64EncodedString(),
+          "the resulting baselines belong only to the new account")
+}
+
+private func malformedEmbeddedPairIsRejectedBeforeMutation() async throws {
+    print("decoded pair journals validate embedded bank sizes and hashes before mutation")
+    let fixture = try Fixture()
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    try writeBank(progress: 40, saveCount: 4, marker: 101,
+                  to: bankFilePath(0), under: fixture.local, modificationDate: date)
+    try writeBank(progress: 30, saveCount: 3, marker: 102,
+                  to: bankFilePath(1), under: fixture.local, modificationDate: date)
+    _ = try await fixture.engine.sync()
+    try writeBank(progress: 80, saveCount: 6, marker: 103,
+                  to: bankFilePath(0), under: fixture.cloud,
+                  modificationDate: date.addingTimeInterval(60))
+    try writeBank(progress: 70, saveCount: 5, marker: 104,
+                  to: bankFilePath(1), under: fixture.cloud,
+                  modificationDate: date.addingTimeInterval(60))
+    let preparedFault = OneShotPreparedFault()
+    do {
+        _ = try await engine(for: fixture,
+                             afterPairIntentCommitted: { try preparedFault.fire() }).sync()
+    } catch {}
+    let localEvenBefore = data(bankFilePath(0), under: fixture.local)
+    let localOddBefore = data(bankFilePath(1), under: fixture.local)
+    var stateObject = try JSONSerialization.jsonObject(
+        with: Data(contentsOf: fixture.state)) as! [String: Any]
+    var intent = stateObject["pairMutationIntent"] as! [String: Any]
+    var sourceEven = intent["sourceEven"] as! [String: Any]
+    sourceEven["data"] = Data([1, 2, 3]).base64EncodedString()
+    intent["sourceEven"] = sourceEven
+    stateObject["pairMutationIntent"] = intent
+    try JSONSerialization.data(withJSONObject: stateObject, options: [.sortedKeys])
+        .write(to: fixture.state, options: .atomic)
+
+    var rejected = false
+    do {
+        _ = try await engine(for: fixture, cloudAvailable: false).sync()
+    } catch {
+        rejected = true
+    }
+    check(rejected, "a malformed embedded member is rejected during journal decode validation")
+    check(data(bankFilePath(0), under: fixture.local) == localEvenBefore
+            && data(bankFilePath(1), under: fixture.local) == localOddBefore,
+          "malformed journal data cannot mutate either canonical local bank")
+}
+
+private func operationsAreFIFOExclusiveAcrossAwaitPoints() async throws {
+    print("top-level save operations remain FIFO-exclusive across actor await points")
+    let gate = OperationGate()
+    let fixture = try Fixture(operationAwaitHook: { await gate.pauseFirstEntry() })
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    try writeBank(progress: 40, saveCount: 4, marker: 111,
+                  to: bankFilePath(0), under: fixture.local, modificationDate: date)
+    let first = Task { try await fixture.engine.sync() }
+    await gate.waitUntilEntered()
+    let exportRoot = fixture.root.appending(path: "exclusive-export",
+                                            directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: exportRoot,
+                                            withIntermediateDirectories: true)
+    let second = Task { try await fixture.engine.exportSaves(to: exportRoot) }
+    try await Task.sleep(for: .milliseconds(20))
+    let entriesWhileBlocked = await gate.entries()
+    check(entriesWhileBlocked == 1,
+          "a second operation cannot cross its await hook while the first owns the lease")
+    await gate.release()
+    _ = try await first.value
+    _ = try await second.value
+    let finalEntries = await gate.entries()
+    check(finalEntries == 2,
+          "the queued operation enters only after the first releases the FIFO lease")
 }
 
 private func archiveFailureLeavesCanonicalPairsUntouched() async throws {
@@ -976,6 +1777,43 @@ private func exactSlotDirectoryImports() async throws {
           "the direct slot maps to the exact desktop-compatible relative path")
 }
 
+private func interruptedManualImportRecoversFromJournal() async throws {
+    print("manual import uses the same durable pair mutation journal")
+    let fault = MutationFault(target: .replacedEven)
+    let fixture = try Fixture(mutationHook: { try fault($0) })
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    try writeBank(progress: 30, saveCount: 4, marker: 1,
+                  to: bankFilePath(0), under: fixture.local, modificationDate: date)
+    try writeBank(progress: 20, saveCount: 3, marker: 2,
+                  to: bankFilePath(1), under: fixture.local, modificationDate: date)
+    let slot = fixture.root.appending(path: "interrupted-import/\(memcardDirectory)",
+                                      directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: slot, withIntermediateDirectories: true)
+    let importedEven = jak1Bank(progress: 80, saveCount: 6, marker: 3)
+    let importedOdd = jak1Bank(progress: 70, saveCount: 5, marker: 4)
+    try importedEven.write(to: slot.appending(path: "bank0.bin"), options: .atomic)
+    try importedOdd.write(to: slot.appending(path: "bank1.bin"), options: .atomic)
+
+    var interrupted = false
+    do {
+        _ = try await fixture.engine.importSaves(from: slot)
+    } catch InjectedFailure.mutation(.replacedEven) {
+        interrupted = true
+    } catch {}
+    check(interrupted, "the import interruption is observed after its journaled even write")
+    check(data(bankFilePath(1), under: fixture.local) == nil,
+          "the interrupted import remains at the safe missing-odd phase")
+
+    _ = try await engine(for: fixture, cloudAvailable: false).sync(mode: .bidirectional)
+    check(data(bankFilePath(0), under: fixture.local) == importedEven
+            && data(bankFilePath(1), under: fixture.local) == importedOdd,
+          "offline recovery finishes the embedded imported pair")
+    let finalState = try JSONSerialization.jsonObject(
+        with: Data(contentsOf: fixture.state)) as? [String: Any]
+    check(finalState?["pairMutationIntent"] == nil,
+          "successful import recovery clears its durable intent")
+}
+
 private func broadAndNestedImportsAreRejected() async throws {
     print("manual import rejects broad roots and recursively nested save layouts")
     let broadFixture = try Fixture()
@@ -1136,13 +1974,28 @@ private struct SaveSyncCheck {
             try await uploadOnlyKeepsActiveLocalAuthority()
             try await cloudToLocalCASPreservesConcurrentLocalWrite()
             try await localToCloudCASPreservesConcurrentCloudWrite()
+            try await pairSourceCASRejectsRacesInBothDirections()
+            try await ordinarySourceCASRejectsRacesInBothDirections()
             try await interruptedPairMutationRecoversWithoutHybrid()
+            try await mutationCrashWindowsRecoverFromExactNextPhase()
+            try await stateWriteFailuresAreRecoverableAtEveryJournalPhase()
+            try await preparedDriftCancelsAndPreparedImportDoesNotBlock()
+            try await targetContentionBetweenPhasesIsRejected()
+            try await committedSourceChangeRemainsNextGeneration()
+            try await legitimateOneBankDivergenceIsSurfaced()
+            try await unavailableRecoveryHonorsTargetDirectionAndMode()
+            try await pendingLocalIntentBlocksEveryOtherSlot()
+            try await interruptedResolutionSurfacesExactlyOnce()
+            try await localJournalFinishesBeforeAccountReset()
+            try await malformedEmbeddedPairIsRejectedBeforeMutation()
+            try await operationsAreFIFOExclusiveAcrossAwaitPoints()
             try await archiveFailureLeavesCanonicalPairsUntouched()
             try await legacyPerBankBaselineMigratesToPairIdentity()
             try await desktopLayoutImportsAndExportsWithoutReformatting()
             try await manualImportRejectsCorruptBankFolders()
             try await manualImportRejectsLoneOddBank()
             try await exactSlotDirectoryImports()
+            try await interruptedManualImportRecoversFromJournal()
             try await broadAndNestedImportsAreRejected()
             try await importCountAndByteBoundsAreEnforced()
         } catch {

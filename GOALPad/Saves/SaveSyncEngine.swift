@@ -14,6 +14,7 @@ nonisolated private enum SaveSyncError: LocalizedError {
     case fileChangedDuringRead(String)
     case localChangedDuringMerge(String)
     case cloudChangedDuringMerge(String)
+    case invalidPairMutationState(String)
     case noSavesFound(String)
     case unsafeImportSelection(String)
 
@@ -27,6 +28,8 @@ nonisolated private enum SaveSyncError: LocalizedError {
             return "A local save changed before iCloud could replace it: \(path). Try syncing again."
         case .cloudChangedDuringMerge(let path):
             return "An iCloud save changed before this device could replace it: \(path). Try syncing again."
+        case .invalidPairMutationState(let path):
+            return "An interrupted save merge has an unexpected state at \(path). Try syncing again."
         case .noSavesFound(let path):
             return "No OpenGOAL Jak 1 saves were found in \(path)."
         case .unsafeImportSelection(let path):
@@ -106,6 +109,13 @@ actor SaveSyncEngine {
         let mutationHook: @Sendable (SaveMutationPoint) throws -> Void
         let beforeLocalReplacement: @Sendable () throws -> Void
         let beforeCloudReplacement: @Sendable () throws -> Void
+        let beforeLocalSourceValidation: @Sendable () throws -> Void
+        let beforeCloudSourceValidation: @Sendable () throws -> Void
+        let afterPairIntentPrepared: @Sendable () throws -> Void
+        let afterPairIntentCommitted: @Sendable () throws -> Void
+        let afterPairFileMutationBeforePhaseSave: @Sendable (SaveMutationPoint) throws -> Void
+        let beforeStateWrite: @Sendable (String?) throws -> Void
+        let operationAwaitHook: @Sendable () async -> Void
 
         init(localRoot: URL, localConflictsRoot: URL, stateFile: URL,
              cloudLocations: @escaping CloudLocationsProvider, coordinateCloudAccess: Bool,
@@ -114,7 +124,15 @@ actor SaveSyncEngine {
              downloadPollAttempts: Int = 600,
              mutationHook: @escaping @Sendable (SaveMutationPoint) throws -> Void = { _ in },
              beforeLocalReplacement: @escaping @Sendable () throws -> Void = {},
-             beforeCloudReplacement: @escaping @Sendable () throws -> Void = {}) {
+             beforeCloudReplacement: @escaping @Sendable () throws -> Void = {},
+             beforeLocalSourceValidation: @escaping @Sendable () throws -> Void = {},
+             beforeCloudSourceValidation: @escaping @Sendable () throws -> Void = {},
+             afterPairIntentPrepared: @escaping @Sendable () throws -> Void = {},
+             afterPairIntentCommitted: @escaping @Sendable () throws -> Void = {},
+             afterPairFileMutationBeforePhaseSave:
+                @escaping @Sendable (SaveMutationPoint) throws -> Void = { _ in },
+             beforeStateWrite: @escaping @Sendable (String?) throws -> Void = { _ in },
+             operationAwaitHook: @escaping @Sendable () async -> Void = {}) {
             self.localRoot = localRoot
             self.localConflictsRoot = localConflictsRoot
             self.stateFile = stateFile
@@ -126,6 +144,13 @@ actor SaveSyncEngine {
             self.mutationHook = mutationHook
             self.beforeLocalReplacement = beforeLocalReplacement
             self.beforeCloudReplacement = beforeCloudReplacement
+            self.beforeLocalSourceValidation = beforeLocalSourceValidation
+            self.beforeCloudSourceValidation = beforeCloudSourceValidation
+            self.afterPairIntentPrepared = afterPairIntentPrepared
+            self.afterPairIntentCommitted = afterPairIntentCommitted
+            self.afterPairFileMutationBeforePhaseSave = afterPairFileMutationBeforePhaseSave
+            self.beforeStateWrite = beforeStateWrite
+            self.operationAwaitHook = operationAwaitHook
         }
     }
 
@@ -175,17 +200,54 @@ actor SaveSyncEngine {
         let cloudHash: String
     }
 
+    private struct JournaledSaveFile: Codable, Equatable {
+        let data: Data
+        let modificationDate: Date?
+        let hash: String
+    }
+
+    private enum PairMutationSource: String, Codable {
+        case local
+        case iCloud
+        case imported
+    }
+
+    private enum PairMutationPhase: String, Codable {
+        case prepared
+        case committed
+        case oddRemoved
+        case evenReplaced
+        case oddWritten
+    }
+
+    private struct PairMutationIntent: Codable, Equatable {
+        let evenPath: String
+        let oddPath: String
+        let targetCopy: SaveResolution.Copy
+        let sourceKind: PairMutationSource
+        let cloudAccountIdentifier: Data?
+        let sourceEven: JournaledSaveFile?
+        let sourceOdd: JournaledSaveFile?
+        let targetEvenHash: String?
+        let targetOddHash: String?
+        let persistPairBaseline: Bool
+        let resolution: SaveResolution?
+        var phase: PairMutationPhase
+    }
+
     private struct State: Codable {
         var baselineHashes: [String: String] = [:]
         var slotBaselineHashes: [String: String] = [:]
         var conflicts: [String: ConflictRecord] = [:]
         var cloudAccountIdentifier: Data?
+        var pairMutationIntent: PairMutationIntent? = nil
 
         private enum CodingKeys: String, CodingKey {
             case baselineHashes
             case slotBaselineHashes
             case conflicts
             case cloudAccountIdentifier
+            case pairMutationIntent
         }
 
         init() {}
@@ -200,12 +262,16 @@ actor SaveSyncEngine {
                                                        forKey: .conflicts) ?? [:]
             cloudAccountIdentifier = try container.decodeIfPresent(
                 Data.self, forKey: .cloudAccountIdentifier)
+            pairMutationIntent = try container.decodeIfPresent(
+                PairMutationIntent.self, forKey: .pairMutationIntent)
         }
     }
 
     private let configuration: Configuration
     private let manager = FileManager()
     private var lastLocalStamps: [String: FileStamp]?
+    private var operationInProgress = false
+    private var operationWaiters: [CheckedContinuation<Void, Never>] = []
     private static let jak1BankFileSize = 0x10800
     private static let maximumImportFiles = 8
 
@@ -215,12 +281,19 @@ actor SaveSyncEngine {
 
     /// Performs an unconditional launch, foreground, or user-requested synchronization.
     func sync(mode: SaveSyncMode = .bidirectional) async throws -> SaveSyncOutcome {
+        await acquireOperation()
+        await configuration.operationAwaitHook()
+        defer { releaseOperation() }
+        return try await syncUnlocked(mode: mode)
+    }
+
+    private func syncUnlocked(mode: SaveSyncMode) async throws -> SaveSyncOutcome {
         try manager.createDirectory(at: configuration.localRoot,
                                     withIntermediateDirectories: true)
+        var state = try loadState()
 
         guard let cloud = configuration.cloudLocations() else {
-            lastLocalStamps = try stamps(in: configuration.localRoot)
-            return .unavailable()
+            return try await syncWithoutCloud(mode: mode, state: &state)
         }
 
         try createDirectory(at: cloud.savesRoot,
@@ -228,7 +301,48 @@ actor SaveSyncEngine {
         try createDirectory(at: cloud.conflictsRoot,
                             coordinated: configuration.coordinateCloudAccess)
 
-        var state = try loadState()
+        var resolutions: [SaveResolution] = []
+        var uploaded = 0
+        var downloaded = 0
+        if let intent = state.pairMutationIntent {
+            try validatePairMutationIntent(intent)
+            if intent.phase == .prepared, intent.sourceKind == .imported {
+                state.pairMutationIntent = nil
+                try saveState(state)
+            } else if intent.sourceKind != .imported,
+                      intent.cloudAccountIdentifier != cloud.accountIdentifier {
+                if intent.targetCopy == .iCloud || intent.phase == .prepared {
+                    // The local canonical source is intact. A different account must rank its
+                    // own remote copy from scratch rather than replaying writes for the old one.
+                    state.pairMutationIntent = nil
+                    try saveState(state)
+                } else if mode == .uploadOnly {
+                    let localFiles = try await files(in: configuration.localRoot,
+                                                     coordinated: false)
+                    lastLocalStamps = localFiles.mapValues {
+                        FileStamp(size: $0.data.count,
+                                  modificationDate: $0.modificationDate)
+                    }
+                    return SaveSyncOutcome(availability: .available, uploaded: 0,
+                                           downloaded: 0, resolutions: [],
+                                           completedAt: Date())
+                } else {
+                    let localFiles = try await files(in: configuration.localRoot,
+                                                     coordinated: false)
+                    let target = jak1SlotSnapshot(evenPath: intent.evenPath,
+                                                  files: localFiles)
+                    let normalized = try normalizePairMutationPhase(
+                        intent, targetIdentity: target.identity, state: &state)
+                    let source = journalSourceSnapshot(normalized)
+                    downloaded += try resumePairMutation(
+                        normalized, liveSource: source, liveTarget: target,
+                        cloud: nil, state: &state)
+                    if let resolution = normalized.resolution {
+                        resolutions.append(resolution)
+                    }
+                }
+            }
+        }
         if state.cloudAccountIdentifier != cloud.accountIdentifier {
             state.baselineHashes.removeAll()
             state.slotBaselineHashes.removeAll()
@@ -241,12 +355,15 @@ actor SaveSyncEngine {
         var processedLocalStamps = localFiles.mapValues {
             FileStamp(size: $0.data.count, modificationDate: $0.modificationDate)
         }
-        var resolutions: [SaveResolution] = []
-        var uploaded = 0
-        var downloaded = 0
         let allPaths = Set(localFiles.keys).union(cloudFiles.keys)
 
-        let slotEvenPaths = Set(allPaths.compactMap(jak1SlotEvenPath)).sorted()
+        var slotEvenPaths = Set(allPaths.compactMap(jak1SlotEvenPath)).sorted()
+        if let pendingPath = state.pairMutationIntent?.evenPath {
+            if let pendingIndex = slotEvenPaths.firstIndex(of: pendingPath) {
+                slotEvenPaths.remove(at: pendingIndex)
+            }
+            slotEvenPaths.insert(pendingPath, at: 0)
+        }
         for evenPath in slotEvenPaths {
             let result = try mergeJak1Slot(evenPath: evenPath,
                                            localFiles: localFiles,
@@ -258,6 +375,12 @@ actor SaveSyncEngine {
                                            resolutions: &resolutions)
             uploaded += result.uploaded
             downloaded += result.downloaded
+            if state.pairMutationIntent != nil {
+                lastLocalStamps = processedLocalStamps
+                return SaveSyncOutcome(availability: .available, uploaded: uploaded,
+                                       downloaded: downloaded, resolutions: resolutions,
+                                       completedAt: Date())
+            }
         }
 
         for relativePath in allPaths.sorted() where jak1BankIndex(relativePath) == nil {
@@ -269,6 +392,7 @@ actor SaveSyncEngine {
                 case let (local?, remote?) where local.hash != remote.hash:
                     try archiveOriginal(remote, relativePath: relativePath,
                                         source: .iCloud, cloud: cloud)
+                    try assertLocalSourceFile(relativePath: relativePath, matches: local)
                     try assertCloudFile(relativePath: relativePath, matches: remote, cloud: cloud)
                     try write(local, relativePath: relativePath, to: cloud.savesRoot,
                               coordinated: configuration.coordinateCloudAccess)
@@ -278,6 +402,7 @@ actor SaveSyncEngine {
                                                       basis: .activeGameplayAuthority))
                     uploaded += 1
                 case let (local?, nil):
+                    try assertLocalSourceFile(relativePath: relativePath, matches: local)
                     try assertCloudFile(relativePath: relativePath, matches: nil, cloud: cloud)
                     try write(local, relativePath: relativePath, to: cloud.savesRoot,
                               coordinated: configuration.coordinateCloudAccess)
@@ -295,6 +420,7 @@ actor SaveSyncEngine {
 
             switch (local, remote) {
             case let (local?, nil):
+                try assertLocalSourceFile(relativePath: relativePath, matches: local)
                 try assertCloudFile(relativePath: relativePath, matches: nil, cloud: cloud)
                 try write(local, relativePath: relativePath, to: cloud.savesRoot,
                           coordinated: configuration.coordinateCloudAccess)
@@ -302,6 +428,8 @@ actor SaveSyncEngine {
                 uploaded += 1
 
             case let (nil, remote?):
+                try assertCloudSourceFile(relativePath: relativePath, matches: remote,
+                                          cloud: cloud)
                 try assertLocalFile(relativePath: relativePath, matches: nil)
                 try write(remote, relativePath: relativePath, to: configuration.localRoot,
                           coordinated: false)
@@ -316,6 +444,8 @@ actor SaveSyncEngine {
             case let (local?, remote?):
                 let baseline = state.baselineHashes[relativePath]
                 if baseline == local.hash, baseline != remote.hash {
+                    try assertCloudSourceFile(relativePath: relativePath, matches: remote,
+                                              cloud: cloud)
                     try assertLocalFile(relativePath: relativePath, matches: local)
                     try write(remote, relativePath: relativePath, to: configuration.localRoot,
                               coordinated: false)
@@ -324,6 +454,7 @@ actor SaveSyncEngine {
                         size: remote.data.count, modificationDate: remote.modificationDate)
                     downloaded += 1
                 } else if baseline == remote.hash, baseline != local.hash {
+                    try assertLocalSourceFile(relativePath: relativePath, matches: local)
                     try assertCloudFile(relativePath: relativePath, matches: remote, cloud: cloud)
                     try write(local, relativePath: relativePath, to: cloud.savesRoot,
                               coordinated: configuration.coordinateCloudAccess)
@@ -337,6 +468,7 @@ actor SaveSyncEngine {
                     resolutions.append(resolution)
                     switch resolution.winner {
                     case .local:
+                        try assertLocalSourceFile(relativePath: relativePath, matches: local)
                         try assertCloudFile(relativePath: relativePath, matches: remote,
                                             cloud: cloud)
                         try write(local, relativePath: relativePath, to: cloud.savesRoot,
@@ -344,6 +476,8 @@ actor SaveSyncEngine {
                         state.baselineHashes[relativePath] = local.hash
                         uploaded += 1
                     case .iCloud:
+                        try assertCloudSourceFile(relativePath: relativePath, matches: remote,
+                                                  cloud: cloud)
                         try assertLocalFile(relativePath: relativePath, matches: local)
                         try write(remote, relativePath: relativePath,
                                   to: configuration.localRoot, coordinated: false)
@@ -371,18 +505,78 @@ actor SaveSyncEngine {
                                resolutions: resolutions, completedAt: Date())
     }
 
+    private func syncWithoutCloud(mode: SaveSyncMode, state: inout State) async throws
+        -> SaveSyncOutcome {
+        let localFiles = try await files(in: configuration.localRoot, coordinated: false)
+        var processedLocalStamps = localFiles.mapValues {
+            FileStamp(size: $0.data.count, modificationDate: $0.modificationDate)
+        }
+        var downloaded = 0
+        var resolutions: [SaveResolution] = []
+        if let intent = state.pairMutationIntent {
+            try validatePairMutationIntent(intent)
+            if intent.targetCopy == .iCloud
+                || (intent.phase == .prepared && intent.sourceKind == .imported) {
+                // No local canonical bytes were touched by a cloud-target intent. Dropping it
+                // lets offline import proceed; a later cloud sync will rank and repair the copy.
+                state.pairMutationIntent = nil
+                try saveState(state)
+            } else if mode == .bidirectional, intent.phase != .prepared {
+                let target = jak1SlotSnapshot(evenPath: intent.evenPath, files: localFiles)
+                let normalized = try normalizePairMutationPhase(
+                    intent, targetIdentity: target.identity, state: &state)
+                let source = journalSourceSnapshot(normalized)
+                downloaded = try resumePairMutation(
+                    normalized, liveSource: source, liveTarget: target,
+                    cloud: nil, state: &state)
+                updateLocalStamps(for: source, in: &processedLocalStamps)
+                if let resolution = normalized.resolution {
+                    resolutions.append(resolution)
+                }
+            }
+        }
+        lastLocalStamps = processedLocalStamps
+        return SaveSyncOutcome(availability: .unavailable, uploaded: 0,
+                               downloaded: downloaded, resolutions: resolutions,
+                               completedAt: Date())
+    }
+
     /// Cheaply checks the local save directory after a completed game frame. A full hash-based
     /// merge only runs when a save file's size or modification date changed.
     func syncIfLocalFilesChanged(mode: SaveSyncMode = .bidirectional) async throws
         -> SaveSyncOutcome? {
+        await acquireOperation()
+        await configuration.operationAwaitHook()
+        defer { releaseOperation() }
         let current = try stamps(in: configuration.localRoot)
         guard current != lastLocalStamps else { return nil }
-        return try await sync(mode: mode)
+        return try await syncUnlocked(mode: mode)
     }
 
     /// Imports the unchanged OpenGOAL save directory layout into the local gameplay authority.
     /// Existing divergent local files are archived before the selected copies replace them.
     func importSaves(from selectedDirectory: URL) async throws -> SaveTransferResult {
+        await acquireOperation()
+        await configuration.operationAwaitHook()
+        defer { releaseOperation() }
+        return try await importSavesUnlocked(from: selectedDirectory)
+    }
+
+    private func importSavesUnlocked(from selectedDirectory: URL) async throws
+        -> SaveTransferResult {
+        var state = try loadState()
+        if let pending = state.pairMutationIntent {
+            try validatePairMutationIntent(pending)
+            if pending.targetCopy == .iCloud
+                || (pending.phase == .prepared && pending.sourceKind == .imported) {
+                state.pairMutationIntent = nil
+                try saveState(state)
+            } else if pending.targetCopy == .local, pending.phase != .prepared {
+                _ = try await syncWithoutCloud(mode: .bidirectional, state: &state)
+            } else {
+                throw SaveSyncError.invalidPairMutationState(pending.evenPath)
+            }
+        }
         let selectedFiles = try strictImportFiles(in: selectedDirectory)
         var importFiles: [String: SaveFile] = [:]
         for selectedFile in selectedFiles {
@@ -419,9 +613,12 @@ actor SaveSyncEngine {
                 }
                 if incomingFile != nil { imported += 1 }
             }
-            _ = try replaceJak1Slot(incoming, replacing: existing,
-                                    to: configuration.localRoot, coordinated: false,
-                                    targetCopy: .local)
+            let intent = pairMutationIntent(
+                source: incoming, target: existing, targetCopy: .local,
+                sourceKind: .imported,
+                cloudAccountIdentifier: state.cloudAccountIdentifier)
+            _ = try beginPairMutation(intent, liveSource: incoming, liveTarget: existing,
+                                      cloud: nil, state: &state)
         }
         for relativePath in importFiles.keys.sorted() where jak1BankIndex(relativePath) == nil {
             guard let incoming = importFiles[relativePath] else { continue }
@@ -439,8 +636,27 @@ actor SaveSyncEngine {
         return SaveTransferResult(fileCount: imported, destination: nil)
     }
 
+    /// A committed local-target journal means gameplay storage may be between two bank phases.
+    /// Callers must keep the runtime paused until recovery either clears it or reports an error.
+    func hasUnsafePendingLocalMutation() async throws -> Bool {
+        await acquireOperation()
+        defer { releaseOperation() }
+        let state = try loadState()
+        guard let intent = state.pairMutationIntent else { return false }
+        try validatePairMutationIntent(intent)
+        return intent.targetCopy == .local && intent.phase != .prepared
+    }
+
     /// Writes a stable desktop-compatible `OpenGOAL/jak1/saves` tree without changing local saves.
     func exportSaves(to selectedDirectory: URL) async throws -> SaveTransferResult {
+        await acquireOperation()
+        await configuration.operationAwaitHook()
+        defer { releaseOperation() }
+        return try await exportSavesUnlocked(to: selectedDirectory)
+    }
+
+    private func exportSavesUnlocked(to selectedDirectory: URL) async throws
+        -> SaveTransferResult {
         let localFiles = try await files(in: configuration.localRoot, coordinated: false)
         guard localFiles.keys.contains(where: isJak1BankPath) else {
             throw SaveSyncError.noSavesFound(configuration.localRoot.lastPathComponent)
@@ -467,22 +683,42 @@ actor SaveSyncEngine {
         processedLocalStamps: inout [String: FileStamp],
         resolutions: inout [SaveResolution]
     ) throws -> (uploaded: Int, downloaded: Int) {
-        let local = jak1SlotSnapshot(evenPath: evenPath, files: localFiles)
-        let remote = jak1SlotSnapshot(evenPath: evenPath, files: cloudFiles)
+        var local = jak1SlotSnapshot(evenPath: evenPath, files: localFiles)
+        var remote = jak1SlotSnapshot(evenPath: evenPath, files: cloudFiles)
+        var recoveredUploaded = 0
+        var recoveredDownloaded = 0
         let paths = [local.evenPath, local.oddPath]
         defer {
             for path in paths { state.baselineHashes.removeValue(forKey: path) }
         }
 
+        if let recovered = try recoverPairMutationIfPossible(
+            evenPath: evenPath, local: local, remote: remote, cloud: cloud, mode: mode,
+            state: &state, processedLocalStamps: &processedLocalStamps,
+            resolutions: &resolutions) {
+            if mode == .bidirectional, recovered.sourceChanged {
+                recoveredUploaded = recovered.uploaded
+                recoveredDownloaded = recovered.downloaded
+                let committedSource = journalSourceSnapshot(recovered.intent)
+                if recovered.intent.targetCopy == .local {
+                    local = committedSource
+                } else {
+                    remote = committedSource
+                }
+            } else {
+                return (recovered.uploaded, recovered.downloaded)
+            }
+        }
+
         if local.identity == remote.identity {
             state.slotBaselineHashes[evenPath] = local.identity
-            return (0, 0)
+            return (recoveredUploaded, recoveredDownloaded)
         }
 
         if mode == .uploadOnly {
             guard local.hasFiles else {
                 if remote.hasFiles { state.slotBaselineHashes[evenPath] = remote.identity }
-                return (0, 0)
+                return (recoveredUploaded, recoveredDownloaded)
             }
             if remote.hasFiles {
                 try preserveCloudSlotDivergence(remote: remote, against: local, cloud: cloud)
@@ -490,73 +726,53 @@ actor SaveSyncEngine {
                                                   winner: .local,
                                                   basis: .activeGameplayAuthority))
             }
-            let changed = try replaceJak1Slot(local, replacing: remote,
-                                              to: cloud.savesRoot,
-                                              coordinated: configuration.coordinateCloudAccess,
-                                              targetCopy: .iCloud)
+            let resolution = remote.hasFiles ? SaveResolution(
+                relativePath: evenPath, winner: .local,
+                basis: .activeGameplayAuthority) : nil
+            let changed = try replaceJak1SlotDuringSync(local, replacing: remote,
+                                                        targetCopy: .iCloud, cloud: cloud,
+                                                        state: &state,
+                                                        resolution: resolution)
             state.slotBaselineHashes[evenPath] = local.identity
-            return (changed, 0)
+            return (recoveredUploaded + changed, recoveredDownloaded)
         }
 
         if local.hasFiles, !remote.hasFiles {
-            let changed = try replaceJak1Slot(local, replacing: remote,
-                                              to: cloud.savesRoot,
-                                              coordinated: configuration.coordinateCloudAccess,
-                                              targetCopy: .iCloud)
+            let changed = try replaceJak1SlotDuringSync(local, replacing: remote,
+                                                        targetCopy: .iCloud, cloud: cloud,
+                                                        state: &state)
             state.slotBaselineHashes[evenPath] = local.identity
-            return (changed, 0)
+            return (recoveredUploaded + changed, recoveredDownloaded)
         }
         if !local.hasFiles, remote.hasFiles {
-            let changed = try replaceJak1Slot(remote, replacing: local,
-                                              to: configuration.localRoot,
-                                              coordinated: false,
-                                              targetCopy: .local)
+            let changed = try replaceJak1SlotDuringSync(remote, replacing: local,
+                                                        targetCopy: .local, cloud: cloud,
+                                                        state: &state)
             updateLocalStamps(for: remote, in: &processedLocalStamps)
             state.slotBaselineHashes[evenPath] = remote.identity
-            return (0, changed)
+            return (recoveredUploaded, recoveredDownloaded + changed)
         }
 
         let baseline = state.slotBaselineHashes[evenPath]
             ?? legacyPairBaseline(local: local, remote: remote, state: state)
-        if let baseline, orderedMutationIsIncomplete(target: local, baseline: baseline,
-                                                     source: remote) {
+        let presenceDiffers = (local.even != nil) != (remote.even != nil)
+            || (local.odd != nil) != (remote.odd != nil)
+        if !presenceDiffers, baseline == local.identity, baseline != remote.identity {
             try preserveSlotDivergence(local: local, remote: remote, cloud: cloud)
-            let changed = try replaceJak1Slot(remote, replacing: local,
-                                              to: configuration.localRoot,
-                                              coordinated: false,
-                                              targetCopy: .local)
+            let changed = try replaceJak1SlotDuringSync(remote, replacing: local,
+                                                        targetCopy: .local, cloud: cloud,
+                                                        state: &state)
             updateLocalStamps(for: remote, in: &processedLocalStamps)
             state.slotBaselineHashes[evenPath] = remote.identity
-            return (0, changed)
+            return (recoveredUploaded, recoveredDownloaded + changed)
         }
-        if let baseline, orderedMutationIsIncomplete(target: remote, baseline: baseline,
-                                                     source: local) {
+        if !presenceDiffers, baseline == remote.identity, baseline != local.identity {
             try preserveSlotDivergence(local: local, remote: remote, cloud: cloud)
-            let changed = try replaceJak1Slot(local, replacing: remote,
-                                              to: cloud.savesRoot,
-                                              coordinated: configuration.coordinateCloudAccess,
-                                              targetCopy: .iCloud)
+            let changed = try replaceJak1SlotDuringSync(local, replacing: remote,
+                                                        targetCopy: .iCloud, cloud: cloud,
+                                                        state: &state)
             state.slotBaselineHashes[evenPath] = local.identity
-            return (changed, 0)
-        }
-        if baseline == local.identity, baseline != remote.identity {
-            try preserveSlotDivergence(local: local, remote: remote, cloud: cloud)
-            let changed = try replaceJak1Slot(remote, replacing: local,
-                                              to: configuration.localRoot,
-                                              coordinated: false,
-                                              targetCopy: .local)
-            updateLocalStamps(for: remote, in: &processedLocalStamps)
-            state.slotBaselineHashes[evenPath] = remote.identity
-            return (0, changed)
-        }
-        if baseline == remote.identity, baseline != local.identity {
-            try preserveSlotDivergence(local: local, remote: remote, cloud: cloud)
-            let changed = try replaceJak1Slot(local, replacing: remote,
-                                              to: cloud.savesRoot,
-                                              coordinated: configuration.coordinateCloudAccess,
-                                              targetCopy: .iCloud)
-            state.slotBaselineHashes[evenPath] = local.identity
-            return (changed, 0)
+            return (recoveredUploaded + changed, recoveredDownloaded)
         }
 
         try preserveSlotDivergence(local: local, remote: remote, cloud: cloud)
@@ -564,57 +780,432 @@ actor SaveSyncEngine {
         resolutions.append(resolution)
         switch resolution.winner {
         case .local:
-            let changed = try replaceJak1Slot(local, replacing: remote,
-                                              to: cloud.savesRoot,
-                                              coordinated: configuration.coordinateCloudAccess,
-                                              targetCopy: .iCloud)
+            let changed = try replaceJak1SlotDuringSync(local, replacing: remote,
+                                                        targetCopy: .iCloud, cloud: cloud,
+                                                        state: &state,
+                                                        resolution: resolution)
             state.slotBaselineHashes[evenPath] = local.identity
-            return (changed, 0)
+            return (recoveredUploaded + changed, recoveredDownloaded)
         case .iCloud:
-            let changed = try replaceJak1Slot(remote, replacing: local,
-                                              to: configuration.localRoot,
-                                              coordinated: false,
-                                              targetCopy: .local)
+            let changed = try replaceJak1SlotDuringSync(remote, replacing: local,
+                                                        targetCopy: .local, cloud: cloud,
+                                                        state: &state,
+                                                        resolution: resolution)
             updateLocalStamps(for: remote, in: &processedLocalStamps)
             state.slotBaselineHashes[evenPath] = remote.identity
-            return (0, changed)
+            return (recoveredUploaded, recoveredDownloaded + changed)
         }
     }
 
-    private func replaceJak1Slot(_ source: Jak1SlotSnapshot,
-                                 replacing target: Jak1SlotSnapshot,
-                                 to root: URL, coordinated: Bool,
-                                 targetCopy: SaveResolution.Copy) throws -> Int {
-        if targetCopy == .local {
-            try assertLocalSlotMatches(target)
+    private func replaceJak1SlotDuringSync(
+        _ source: Jak1SlotSnapshot,
+        replacing target: Jak1SlotSnapshot,
+        targetCopy: SaveResolution.Copy,
+        cloud: CloudSaveLocations,
+        state: inout State,
+        resolution: SaveResolution? = nil
+    ) throws -> Int {
+        let intent = pairMutationIntent(
+            source: source, target: target, targetCopy: targetCopy,
+            sourceKind: targetCopy == .local ? .iCloud : .local,
+            cloudAccountIdentifier: cloud.accountIdentifier,
+            resolution: resolution)
+        return try beginPairMutation(intent, liveSource: source, liveTarget: target,
+                                     cloud: cloud, state: &state)
+    }
+
+    private func recoverPairMutationIfPossible(
+        evenPath: String,
+        local: Jak1SlotSnapshot,
+        remote: Jak1SlotSnapshot,
+        cloud: CloudSaveLocations,
+        mode: SaveSyncMode,
+        state: inout State,
+        processedLocalStamps: inout [String: FileStamp],
+        resolutions: inout [SaveResolution]
+    ) throws -> (uploaded: Int, downloaded: Int, intent: PairMutationIntent,
+                 sourceChanged: Bool)? {
+        guard let intent = state.pairMutationIntent, intent.evenPath == evenPath else {
+            return nil
+        }
+        try validatePairMutationIntent(intent)
+        guard intent.sourceKind == .imported
+                || intent.cloudAccountIdentifier == cloud.accountIdentifier else {
+            throw SaveSyncError.invalidPairMutationState(evenPath)
+        }
+        if mode == .uploadOnly, intent.targetCopy == .local {
+            return (0, 0, intent, false)
+        }
+
+        let liveSource = intent.targetCopy == .local ? remote : local
+        let liveTarget = intent.targetCopy == .local ? local : remote
+        let sourceChanged = liveSource.identity != journalSourceSnapshot(intent).identity
+        if intent.phase == .prepared,
+           intent.sourceKind == .imported
+            || liveSource.identity != journalSourceSnapshot(intent).identity
+            || liveTarget.identity != expectedTargetIdentity(for: intent) {
+            state.pairMutationIntent = nil
+            try saveState(state)
+            return nil
+        }
+        let normalizedIntent = try normalizePairMutationPhase(
+            intent, targetIdentity: liveTarget.identity, state: &state)
+
+        let changed = try resumePairMutation(normalizedIntent, liveSource: liveSource,
+                                             liveTarget: liveTarget, cloud: cloud,
+                                             state: &state)
+        let journalSource = journalSourceSnapshot(normalizedIntent)
+        if normalizedIntent.targetCopy == .local {
+            updateLocalStamps(for: journalSource, in: &processedLocalStamps)
+        }
+        if let resolution = normalizedIntent.resolution {
+            resolutions.append(resolution)
+        }
+        return normalizedIntent.targetCopy == .local
+            ? (0, changed, normalizedIntent, sourceChanged)
+            : (changed, 0, normalizedIntent, sourceChanged)
+    }
+
+    private func beginPairMutation(_ intent: PairMutationIntent,
+                                   liveSource: Jak1SlotSnapshot,
+                                   liveTarget: Jak1SlotSnapshot,
+                                   cloud: CloudSaveLocations?,
+                                   state: inout State) throws -> Int {
+        try validatePairMutationIntent(intent)
+        guard state.pairMutationIntent == nil else {
+            throw SaveSyncError.invalidPairMutationState(intent.evenPath)
+        }
+        state.pairMutationIntent = intent
+        try saveState(state)
+        try configuration.afterPairIntentPrepared()
+        do {
+            try assertLivePairSourceMatches(liveSource, intent: intent, cloud: cloud)
+            try assertLivePairTargetMatches(liveTarget, intent: intent, cloud: cloud)
+        } catch {
+            state.pairMutationIntent = nil
+            try saveState(state)
+            throw error
+        }
+        return try resumePairMutation(intent, liveSource: liveSource,
+                                      liveTarget: liveTarget, cloud: cloud,
+                                      state: &state)
+    }
+
+    private func pairMutationIntent(source: Jak1SlotSnapshot,
+                                    target: Jak1SlotSnapshot,
+                                    targetCopy: SaveResolution.Copy,
+                                    sourceKind: PairMutationSource,
+                                    cloudAccountIdentifier: Data?,
+                                    resolution: SaveResolution? = nil) -> PairMutationIntent {
+        PairMutationIntent(evenPath: source.evenPath, oddPath: source.oddPath,
+                           targetCopy: targetCopy,
+                           sourceKind: sourceKind,
+                           cloudAccountIdentifier: cloudAccountIdentifier,
+                           sourceEven: source.even.map(journaledSaveFile),
+                           sourceOdd: source.odd.map(journaledSaveFile),
+                           targetEvenHash: target.even?.hash,
+                           targetOddHash: target.odd?.hash,
+                           persistPairBaseline: sourceKind != .imported,
+                           resolution: resolution,
+                           phase: .prepared)
+    }
+
+    private func resumePairMutation(_ storedIntent: PairMutationIntent,
+                                    liveSource: Jak1SlotSnapshot,
+                                    liveTarget: Jak1SlotSnapshot,
+                                    cloud: CloudSaveLocations?,
+                                    state: inout State) throws -> Int {
+        guard var intent = state.pairMutationIntent, intent == storedIntent else {
+            throw SaveSyncError.invalidPairMutationState(storedIntent.evenPath)
+        }
+        if intent.phase == .prepared {
+            try assertLivePairSourceMatches(liveSource, intent: intent, cloud: cloud)
+            try assertLivePairTargetMatches(liveTarget, intent: intent, cloud: cloud)
+            intent.phase = .committed
+            state.pairMutationIntent = intent
+            try saveState(state)
+            try configuration.afterPairIntentCommitted()
+            try assertTargetMatchesJournalPhase(intent, cloud: cloud)
+            try assertLivePairSourceMatches(liveSource, intent: intent, cloud: cloud)
+        }
+
+        let source = journalSourceSnapshot(intent)
+        let root: URL
+        let coordinated: Bool
+        if intent.targetCopy == .local {
+            root = configuration.localRoot
+            coordinated = false
         } else {
-            try assertCloudSlotMatches(target, root: root, coordinated: coordinated)
-        }
-        let evenChanged = source.even?.hash != target.even?.hash
-        let oddChanged = source.odd?.hash != target.odd?.hash
-        let changed = (evenChanged ? 1 : 0) + (oddChanged ? 1 : 0)
-
-        if oddChanged, target.odd != nil {
-            try remove(relativePath: target.oddPath, from: root, coordinated: coordinated)
-            try configuration.mutationHook(.removedOdd)
+            guard let cloud else { throw SaveSyncError.invalidPairMutationState(intent.evenPath) }
+            root = cloud.savesRoot
+            coordinated = configuration.coordinateCloudAccess
         }
 
-        if evenChanged {
-            if let sourceEven = source.even {
-                try write(sourceEven, relativePath: source.evenPath,
-                          to: root, coordinated: coordinated)
-            } else if target.even != nil {
-                try remove(relativePath: target.evenPath, from: root, coordinated: coordinated)
+        let oddChanged = source.odd?.hash != intent.targetOddHash
+        let evenChanged = source.even?.hash != intent.targetEvenHash
+        let changed = (oddChanged ? 1 : 0) + (evenChanged ? 1 : 0)
+
+        if intent.phase == .committed {
+            try assertTargetMatchesJournalPhase(intent, cloud: cloud)
+            if oddChanged, intent.targetOddHash != nil {
+                try remove(relativePath: intent.oddPath, from: root, coordinated: coordinated)
+                try configuration.afterPairFileMutationBeforePhaseSave(.removedOdd)
             }
-            try configuration.mutationHook(.replacedEven)
+            intent.phase = .oddRemoved
+            state.pairMutationIntent = intent
+            try saveState(state)
+            if oddChanged, intent.targetOddHash != nil {
+                try configuration.mutationHook(.removedOdd)
+            }
         }
 
-        if oddChanged, let sourceOdd = source.odd {
-            try write(sourceOdd, relativePath: source.oddPath,
-                      to: root, coordinated: coordinated)
-            try configuration.mutationHook(.wroteOdd)
+        if intent.phase == .oddRemoved {
+            try assertTargetMatchesJournalPhase(intent, cloud: cloud)
+            if evenChanged {
+                if let sourceEven = source.even {
+                    try write(sourceEven, relativePath: intent.evenPath,
+                              to: root, coordinated: coordinated)
+                } else if intent.targetEvenHash != nil {
+                    try remove(relativePath: intent.evenPath, from: root,
+                               coordinated: coordinated)
+                }
+                try configuration.afterPairFileMutationBeforePhaseSave(.replacedEven)
+            }
+            intent.phase = .evenReplaced
+            state.pairMutationIntent = intent
+            try saveState(state)
+            if evenChanged { try configuration.mutationHook(.replacedEven) }
         }
+
+        if intent.phase == .evenReplaced {
+            try assertTargetMatchesJournalPhase(intent, cloud: cloud)
+            if oddChanged, let sourceOdd = source.odd {
+                try write(sourceOdd, relativePath: intent.oddPath,
+                          to: root, coordinated: coordinated)
+                try configuration.afterPairFileMutationBeforePhaseSave(.wroteOdd)
+            }
+            intent.phase = .oddWritten
+            state.pairMutationIntent = intent
+            try saveState(state)
+            if oddChanged, source.odd != nil { try configuration.mutationHook(.wroteOdd) }
+        }
+
+        try assertJournalTargetMatches(source, intent: intent, cloud: cloud)
+        if intent.persistPairBaseline {
+            state.slotBaselineHashes[intent.evenPath] = source.identity
+        }
+        state.pairMutationIntent = nil
+        try saveState(state)
         return changed
+    }
+
+    private func slotIdentity(evenHash: String?, oddHash: String?) -> String {
+        "even=" + (evenHash ?? "missing") + ";odd=" + (oddHash ?? "missing")
+    }
+
+    private func journaledSaveFile(_ file: SaveFile) -> JournaledSaveFile {
+        JournaledSaveFile(data: file.data, modificationDate: file.modificationDate,
+                          hash: file.hash)
+    }
+
+    private func journalSourceSnapshot(_ intent: PairMutationIntent) -> Jak1SlotSnapshot {
+        var files: [String: SaveFile] = [:]
+        if let even = intent.sourceEven {
+            files[intent.evenPath] = SaveFile(data: even.data,
+                                              modificationDate: even.modificationDate,
+                                              hash: even.hash)
+        }
+        if let odd = intent.sourceOdd {
+            files[intent.oddPath] = SaveFile(data: odd.data,
+                                             modificationDate: odd.modificationDate,
+                                             hash: odd.hash)
+        }
+        return jak1SlotSnapshot(evenPath: intent.evenPath, files: files)
+    }
+
+    private func validatePairMutationIntent(_ intent: PairMutationIntent) throws {
+        let evenComponents = URL(fileURLWithPath: intent.evenPath).pathComponents
+        guard !intent.evenPath.hasPrefix("/"), !evenComponents.contains(".."),
+              jak1SlotEvenPath(intent.evenPath) == intent.evenPath,
+              jak1BankPath(beside: intent.evenPath,
+                           index: (jak1BankIndex(intent.evenPath) ?? -1) + 1) == intent.oddPath,
+              intent.sourceEven != nil || intent.sourceOdd != nil,
+              (intent.targetEvenHash == nil || isSHA256(intent.targetEvenHash)),
+              (intent.targetOddHash == nil || isSHA256(intent.targetOddHash)) else {
+            throw SaveSyncError.invalidPairMutationState(intent.evenPath)
+        }
+        if intent.sourceKind == .local, intent.targetCopy != .iCloud {
+            throw SaveSyncError.invalidPairMutationState(intent.evenPath)
+        }
+        if intent.sourceKind == .iCloud, intent.targetCopy != .local {
+            throw SaveSyncError.invalidPairMutationState(intent.evenPath)
+        }
+        if intent.sourceKind != .imported, intent.cloudAccountIdentifier == nil {
+            throw SaveSyncError.invalidPairMutationState(intent.evenPath)
+        }
+        if let resolution = intent.resolution {
+            let expectedWinner: SaveResolution.Copy = intent.targetCopy == .local
+                ? .iCloud : .local
+            guard intent.sourceKind != .imported,
+                  resolution.relativePath == intent.evenPath,
+                  resolution.winner == expectedWinner else {
+                throw SaveSyncError.invalidPairMutationState(intent.evenPath)
+            }
+        }
+        for file in [intent.sourceEven, intent.sourceOdd].compactMap({ $0 }) {
+            if file.data.count != Self.jak1BankFileSize {
+                throw SaveSyncError.invalidPairMutationState(intent.evenPath)
+            }
+            let digest = SHA256.hash(data: file.data)
+                .map { String(format: "%02x", $0) }.joined()
+            guard digest == file.hash else {
+                throw SaveSyncError.invalidPairMutationState(intent.evenPath)
+            }
+        }
+    }
+
+    private func isSHA256(_ hash: String?) -> Bool {
+        guard let hash, hash.count == 64 else { return false }
+        return hash.allSatisfy { $0.isHexDigit }
+    }
+
+    private func expectedTargetIdentity(for intent: PairMutationIntent) -> String {
+        let hashes = expectedTargetHashes(for: intent)
+        return slotIdentity(evenHash: hashes.even, oddHash: hashes.odd)
+    }
+
+    private func expectedTargetHashes(for intent: PairMutationIntent)
+        -> (even: String?, odd: String?) {
+        var evenHash = intent.targetEvenHash
+        var oddHash = intent.targetOddHash
+        let sourceEvenHash = intent.sourceEven?.hash
+        let sourceOddHash = intent.sourceOdd?.hash
+
+        switch intent.phase {
+        case .prepared, .committed:
+            break
+        case .oddRemoved:
+            if sourceOddHash != oddHash, oddHash != nil { oddHash = nil }
+        case .evenReplaced:
+            if sourceOddHash != oddHash, oddHash != nil { oddHash = nil }
+            if sourceEvenHash != evenHash { evenHash = sourceEvenHash }
+        case .oddWritten:
+            evenHash = sourceEvenHash
+            oddHash = sourceOddHash
+        }
+        return (evenHash, oddHash)
+    }
+
+    private func nextPhase(after phase: PairMutationPhase) -> PairMutationPhase? {
+        switch phase {
+        case .prepared: return .committed
+        case .committed: return .oddRemoved
+        case .oddRemoved: return .evenReplaced
+        case .evenReplaced: return .oddWritten
+        case .oddWritten: return nil
+        }
+    }
+
+    private func normalizePairMutationPhase(_ storedIntent: PairMutationIntent,
+                                            targetIdentity: String,
+                                            state: inout State) throws
+        -> PairMutationIntent {
+        if targetIdentity == expectedTargetIdentity(for: storedIntent) {
+            return storedIntent
+        }
+        guard storedIntent.phase != .prepared,
+              let nextPhase = nextPhase(after: storedIntent.phase) else {
+            throw SaveSyncError.invalidPairMutationState(storedIntent.evenPath)
+        }
+        var advanced = storedIntent
+        advanced.phase = nextPhase
+        guard targetIdentity == expectedTargetIdentity(for: advanced) else {
+            throw SaveSyncError.invalidPairMutationState(storedIntent.evenPath)
+        }
+        state.pairMutationIntent = advanced
+        try saveState(state)
+        return advanced
+    }
+
+    private func expectedTargetSnapshot(for intent: PairMutationIntent) -> Jak1SlotSnapshot {
+        let hashes = expectedTargetHashes(for: intent)
+        var files: [String: SaveFile] = [:]
+        if let evenHash = hashes.even {
+            files[intent.evenPath] = SaveFile(data: Data(), modificationDate: nil,
+                                              hash: evenHash)
+        }
+        if let oddHash = hashes.odd {
+            files[intent.oddPath] = SaveFile(data: Data(), modificationDate: nil,
+                                             hash: oddHash)
+        }
+        return jak1SlotSnapshot(evenPath: intent.evenPath, files: files)
+    }
+
+    private func assertTargetMatchesJournalPhase(_ intent: PairMutationIntent,
+                                                 cloud: CloudSaveLocations?) throws {
+        let expected = expectedTargetSnapshot(for: intent)
+        if intent.targetCopy == .local {
+            try assertLocalSlotMatches(expected)
+        } else {
+            guard let cloud else {
+                throw SaveSyncError.invalidPairMutationState(intent.evenPath)
+            }
+            try assertCloudSlotMatches(expected, root: cloud.savesRoot,
+                                       coordinated: configuration.coordinateCloudAccess)
+        }
+    }
+
+    private func assertLivePairSourceMatches(_ liveSource: Jak1SlotSnapshot,
+                                             intent: PairMutationIntent,
+                                             cloud: CloudSaveLocations?) throws {
+        guard liveSource.identity == journalSourceSnapshot(intent).identity else {
+            throw intent.sourceKind == .iCloud
+                ? SaveSyncError.cloudChangedDuringMerge(intent.evenPath)
+                : SaveSyncError.localChangedDuringMerge(intent.evenPath)
+        }
+        switch intent.sourceKind {
+        case .local:
+            try assertLocalSourceSlotMatches(liveSource)
+        case .iCloud:
+            guard let cloud else {
+                throw SaveSyncError.invalidPairMutationState(intent.evenPath)
+            }
+            try assertCloudSourceSlotMatches(liveSource, root: cloud.savesRoot,
+                                             coordinated: configuration.coordinateCloudAccess)
+        case .imported:
+            break
+        }
+    }
+
+    private func assertLivePairTargetMatches(_ liveTarget: Jak1SlotSnapshot,
+                                             intent: PairMutationIntent,
+                                             cloud: CloudSaveLocations?) throws {
+        guard liveTarget.identity == expectedTargetIdentity(for: intent) else {
+            throw SaveSyncError.invalidPairMutationState(intent.evenPath)
+        }
+        if intent.targetCopy == .local {
+            try assertLocalSlotMatches(liveTarget)
+        } else {
+            guard let cloud else {
+                throw SaveSyncError.invalidPairMutationState(intent.evenPath)
+            }
+            try assertCloudSlotMatches(liveTarget, root: cloud.savesRoot,
+                                       coordinated: configuration.coordinateCloudAccess)
+        }
+    }
+
+    private func assertJournalTargetMatches(_ source: Jak1SlotSnapshot,
+                                            intent: PairMutationIntent,
+                                            cloud: CloudSaveLocations?) throws {
+        if intent.targetCopy == .local {
+            try assertLocalSlotMatches(source)
+        } else {
+            guard let cloud else {
+                throw SaveSyncError.invalidPairMutationState(intent.evenPath)
+            }
+            try assertCloudSlotMatches(source, root: cloud.savesRoot,
+                                       coordinated: configuration.coordinateCloudAccess)
+        }
     }
 
     private func updateLocalStamps(for snapshot: Jak1SlotSnapshot,
@@ -644,24 +1235,6 @@ actor SaveSyncEngine {
             if state.baselineHashes[path] != snapshot.file(at: path)?.hash { return false }
         }
         return true
-    }
-
-    private func orderedMutationIsIncomplete(target: Jak1SlotSnapshot, baseline: String,
-                                             source: Jak1SlotSnapshot) -> Bool {
-        guard target.odd == nil, source.identity != baseline, let sourceEven = source.even else {
-            return false
-        }
-        let baselineEven = pairMemberHash(in: baseline, label: "even")
-        return target.even?.hash == baselineEven || target.even?.hash == sourceEven.hash
-    }
-
-    private func pairMemberHash(in identity: String, label: String) -> String? {
-        let prefix = label + "="
-        guard let component = identity.split(separator: ";").first(where: {
-            $0.hasPrefix(prefix)
-        }) else { return nil }
-        let value = component.dropFirst(prefix.count)
-        return value == "missing" ? nil : String(value)
     }
 
     private func preserveSlotDivergence(local: Jak1SlotSnapshot,
@@ -1105,6 +1678,16 @@ actor SaveSyncEngine {
 
     private func assertLocalFile(relativePath: String, matches expected: SaveFile?) throws {
         try configuration.beforeLocalReplacement()
+        try assertLocalSnapshotFile(relativePath: relativePath, matches: expected)
+    }
+
+    private func assertLocalSourceFile(relativePath: String, matches expected: SaveFile?) throws {
+        try configuration.beforeLocalSourceValidation()
+        try assertLocalSnapshotFile(relativePath: relativePath, matches: expected)
+    }
+
+    private func assertLocalSnapshotFile(relativePath: String,
+                                         matches expected: SaveFile?) throws {
         let destination = configuration.localRoot.appending(
             path: relativePath, directoryHint: .notDirectory)
         guard manager.fileExists(atPath: destination.path) else {
@@ -1122,21 +1705,17 @@ actor SaveSyncEngine {
 
     private func assertLocalSlotMatches(_ expected: Jak1SlotSnapshot) throws {
         try configuration.beforeLocalReplacement()
+        try assertLocalSlotSnapshotMatches(expected)
+    }
+
+    private func assertLocalSourceSlotMatches(_ expected: Jak1SlotSnapshot) throws {
+        try configuration.beforeLocalSourceValidation()
+        try assertLocalSlotSnapshotMatches(expected)
+    }
+
+    private func assertLocalSlotSnapshotMatches(_ expected: Jak1SlotSnapshot) throws {
         for path in [expected.evenPath, expected.oddPath] {
-            let destination = configuration.localRoot.appending(
-                path: path, directoryHint: .notDirectory)
-            let expectedFile = expected.file(at: path)
-            guard manager.fileExists(atPath: destination.path) else {
-                if expectedFile != nil { throw SaveSyncError.localChangedDuringMerge(path) }
-                continue
-            }
-            guard let expectedFile else { throw SaveSyncError.localChangedDuringMerge(path) }
-            let currentData = try Data(contentsOf: destination)
-            let digest = SHA256.hash(data: currentData)
-                .map { String(format: "%02x", $0) }.joined()
-            guard digest == expectedFile.hash else {
-                throw SaveSyncError.localChangedDuringMerge(path)
-            }
+            try assertLocalSnapshotFile(relativePath: path, matches: expected.file(at: path))
         }
     }
 
@@ -1151,6 +1730,23 @@ actor SaveSyncEngine {
     private func assertCloudSlotMatches(_ expected: Jak1SlotSnapshot, root: URL,
                                         coordinated: Bool) throws {
         try configuration.beforeCloudReplacement()
+        for path in [expected.evenPath, expected.oddPath] {
+            try assertCloudFile(relativePath: path, matches: expected.file(at: path),
+                                root: root, coordinated: coordinated)
+        }
+    }
+
+    private func assertCloudSourceFile(relativePath: String, matches expected: SaveFile,
+                                       cloud: CloudSaveLocations) throws {
+        try configuration.beforeCloudSourceValidation()
+        try assertCloudFile(relativePath: relativePath, matches: expected,
+                            root: cloud.savesRoot,
+                            coordinated: configuration.coordinateCloudAccess)
+    }
+
+    private func assertCloudSourceSlotMatches(_ expected: Jak1SlotSnapshot, root: URL,
+                                              coordinated: Bool) throws {
+        try configuration.beforeCloudSourceValidation()
         for path in [expected.evenPath, expected.oddPath] {
             try assertCloudFile(relativePath: path, matches: expected.file(at: path),
                                 root: root, coordinated: coordinated)
@@ -1275,12 +1871,31 @@ actor SaveSyncEngine {
         return String(filePath.dropFirst(rootPath.count + 1))
     }
 
+    private func acquireOperation() async {
+        if !operationInProgress {
+            operationInProgress = true
+            return
+        }
+        await withCheckedContinuation { continuation in
+            operationWaiters.append(continuation)
+        }
+    }
+
+    private func releaseOperation() {
+        if operationWaiters.isEmpty {
+            operationInProgress = false
+        } else {
+            operationWaiters.removeFirst().resume()
+        }
+    }
+
     private func loadState() throws -> State {
         guard manager.fileExists(atPath: configuration.stateFile.path) else { return State() }
         return try JSONDecoder().decode(State.self, from: Data(contentsOf: configuration.stateFile))
     }
 
     private func saveState(_ state: State) throws {
+        try configuration.beforeStateWrite(state.pairMutationIntent?.phase.rawValue)
         try manager.createDirectory(at: configuration.stateFile.deletingLastPathComponent(),
                                     withIntermediateDirectories: true)
         let encoder = JSONEncoder()

@@ -126,7 +126,15 @@ devices cannot form a hybrid save. A loadable valid slot always beats a corrupt
 or unsupported peer. Slots where neither copy validates, and valid slots with
 equal progress, use the newest modification date. Hashes identify equal bytes
 but never rank saves. Divergent originals are archived locally and in iCloud
-before the winning pair becomes canonical. Launch and foreground syncs run while
+before the winning pair becomes canonical. Pair changes then use a durable,
+phased intent containing the immutable source banks; restart recovery proceeds
+only when the target and recorded phase match exactly. A committed local-target
+intent can finish from its embedded banks while iCloud is unavailable or an
+account changes; a cloud-target intent can instead be abandoned because the local
+canonical source remains intact. A naturally missing odd bank without that intent
+remains ordinary divergence and is ranked and reported. Save operations are FIFO
+exclusive, and gameplay stays paused when unsafe local recovery cannot finish.
+Launch and foreground syncs run while
 gameplay is paused and may merge in either direction. Syncs triggered by completed
 gameplay frames are upload-only: they archive a divergent iCloud pair before
 mirroring the active local pair and never replace a local bank. Settings retains
