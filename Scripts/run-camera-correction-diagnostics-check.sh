@@ -21,3 +21,12 @@ swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
   -o "$build_dir/camera-correction-diagnostics-bridge-check"
 
 "$build_dir/camera-correction-diagnostics-bridge-check"
+
+swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
+  -module-cache-path "$module_cache" \
+  -swift-version 5 \
+  "$root/GOALPad/Game/CameraDiagnosticsPersistencePolicy.swift" \
+  "$root/Scripts/camera-diagnostics-persistence-policy-check.swift" \
+  -o "$build_dir/camera-diagnostics-persistence-policy-check"
+
+"$build_dir/camera-diagnostics-persistence-policy-check"

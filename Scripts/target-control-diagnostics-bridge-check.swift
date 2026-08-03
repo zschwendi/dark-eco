@@ -197,8 +197,8 @@ precondition(telemetry.lastHiddenPostFlagSample.hidden.boolValue)
 
 precondition(CommandLine.arguments.count == 2)
 let gameSessionSource = try String(contentsOfFile: CommandLine.arguments[1], encoding: .utf8)
-let schemaV6Tokens = [
-    "\"goalpad_camera_provenance\", \"v=6\"",
+let schemaV7Tokens = [
+    "\"goalpad_camera_provenance\", \"v=7\"",
     "_sample_serial=",
     "target_post_flag_samples_total=",
     "target_hidden_samples_total=",
@@ -212,12 +212,38 @@ let schemaV6Tokens = [
     "jak1_tie_envmap_second_pass_enabled=",
     "tie_envmap_second_pass_draws=",
     "tie_envmap_second_pass_draws_total=",
+    "render_alternations=",
+    "camera_tail_complete=",
+    "camera_tail_trigger_degrees=",
+    "_identity=",
+    "_math_camera_object=",
+    "_math_camera_type=",
+    "_slave0_ppointer=",
+    "_slave0_object=",
+    "_slave0_type=",
+    "merc_eichar_weighted_profiled_base_draws=",
+    "merc_eichar_weighted_affected_vertices=",
+    "merc_eichar_weighted_profile_capacity_drops=",
+    "merc_eichar_weighted_maximum_axis_ratio=",
+    "merc_eichar_weighted_coverage=",
+    "merc_eichar_repeated_packets_conflicting_palette=",
+    "merc_eichar_repeated_base_draws_conflicting_palette=",
+    "merc_eichar_trace_capacity_drops=",
+    "merc_eichar_bound_palette_hash_mismatches=",
+    "merc_eichar_weighted_skin_evidence_total=",
+    "merc_eichar_weighted_issue_mask=",
+    "last_merc_eichar_weighted_skin_engine_frame=",
 ]
-for token in schemaV6Tokens {
-    precondition(gameSessionSource.contains(token), "missing schema-v6 token: \(token)")
+for token in schemaV7Tokens {
+    precondition(gameSessionSource.contains(token), "missing schema-v7 token: \(token)")
 }
-precondition(!gameSessionSource.contains("\"v=5\""))
+precondition(!gameSessionSource.contains("\"v=6\""))
+precondition(gameSessionSource.contains("CameraDiagnosticsPersistencePolicy.shouldPersist"))
+precondition(!gameSessionSource.contains("alternationNotPersisted"))
+precondition(!gameSessionSource.contains("correctionNotPersisted"))
 precondition(gameSessionSource.contains(
     "hiddenTransitionNotPersisted && hiddenTransitionNotAttempted"))
+precondition(gameSessionSource.contains("weightedSkinNotAttempted"))
+precondition(gameSessionSource.contains("lastAttemptedMercWeightedSkinEvidenceTotal"))
 
 print("target control diagnostics bridge check passed")

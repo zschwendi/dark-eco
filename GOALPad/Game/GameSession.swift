@@ -62,10 +62,9 @@ final class GameSession {
     #if os(iOS) || os(visionOS)
     private var cameraDiagnosticsURL: URL?
     private var cameraDiagnosticsRunID: UInt64 = 0
-    private var lastPersistedCameraAlternations: UInt64 = 0
-    private var lastAttemptedCameraAlternations: UInt64 = 0
-    private var lastPersistedCameraCorrectionEvents: UInt64 = 0
-    private var lastAttemptedCameraCorrectionEvents: UInt64 = 0
+    private var lastPersistedCameraTailTriggerFrame: UInt64 = 0
+    private var lastAttemptedCameraTailTriggerFrame: UInt64 = 0
+    private var lastCameraTailWriteEngineFrame: UInt64 = 0
     private var lastPersistedMercMissingBoneSlotsTotal: UInt64 = 0
     private var lastAttemptedMercMissingBoneSlotsTotal: UInt64 = 0
     private var lastPersistedMercModelsWithMissingBoneSlotsTotal: UInt64 = 0
@@ -76,6 +75,8 @@ final class GameSession {
     private var lastAttemptedMercTransformDiscontinuitiesTotal: UInt64 = 0
     private var lastPersistedMercTargetControlEventsTotal: UInt64 = 0
     private var lastAttemptedMercTargetControlEventsTotal: UInt64 = 0
+    private var lastPersistedMercWeightedSkinEvidenceTotal: UInt64 = 0
+    private var lastAttemptedMercWeightedSkinEvidenceTotal: UInt64 = 0
     private var lastPersistedTargetHiddenTransitionsTotal: UInt64 = 0
     private var lastAttemptedTargetHiddenTransitionsTotal: UInt64 = 0
     private var reportedCameraDiagnosticsWriteFailure = false
@@ -246,7 +247,8 @@ final class GameSession {
             \(renderer.latePresentSubmissions) late, \
             camera frame/tick/chain \(renderer.lastEngineFrameID)/\(renderer.lastHostTickID)/\
             \(renderer.lastChainOrdinal), \(renderer.lastCameraPackets) packets, producer \
-            alternations \(renderer.producerCameraAlternations), event frames \
+            alternations \(renderer.producerCameraAlternations), render alternations \
+            \(renderer.renderCameraAlternations), event frames \
             \(renderer.lastCameraAlternationOlderFrameID)/\
             \(renderer.lastCameraAlternationPreviousFrameID)/\
             \(renderer.lastCameraAlternationCurrentFrameID) at \
@@ -315,10 +317,9 @@ final class GameSession {
     private func startCameraDiagnostics() {
         cameraDiagnosticsURL = nil
         cameraDiagnosticsRunID = UInt64.random(in: 1...UInt64.max)
-        lastPersistedCameraAlternations = 0
-        lastAttemptedCameraAlternations = 0
-        lastPersistedCameraCorrectionEvents = 0
-        lastAttemptedCameraCorrectionEvents = 0
+        lastPersistedCameraTailTriggerFrame = 0
+        lastAttemptedCameraTailTriggerFrame = 0
+        lastCameraTailWriteEngineFrame = 0
         lastPersistedMercMissingBoneSlotsTotal = 0
         lastAttemptedMercMissingBoneSlotsTotal = 0
         lastPersistedMercModelsWithMissingBoneSlotsTotal = 0
@@ -329,6 +330,8 @@ final class GameSession {
         lastAttemptedMercTransformDiscontinuitiesTotal = 0
         lastPersistedMercTargetControlEventsTotal = 0
         lastAttemptedMercTargetControlEventsTotal = 0
+        lastPersistedMercWeightedSkinEvidenceTotal = 0
+        lastAttemptedMercWeightedSkinEvidenceTotal = 0
         lastPersistedTargetHiddenTransitionsTotal = 0
         lastAttemptedTargetHiddenTransitionsTotal = 0
         reportedCameraDiagnosticsWriteFailure = false
@@ -346,8 +349,6 @@ final class GameSession {
                 .appendingPathComponent("camera-provenance-v1.log", isDirectory: false)
             let renderer = GOALPadRenderSurface.shared.stats
             let targetControl = GOALPadRenderSurface.shared.targetControlTelemetry
-            lastAttemptedCameraAlternations = renderer.producerCameraAlternations
-            lastAttemptedCameraCorrectionEvents = renderer.cameraCorrectionEventsTotal
             lastAttemptedMercMissingBoneSlotsTotal = renderer.mercMissingBoneSlotsTotal
             lastAttemptedMercModelsWithMissingBoneSlotsTotal =
                 renderer.mercModelsWithMissingBoneSlotsTotal
@@ -356,10 +357,15 @@ final class GameSession {
                 renderer.mercEicharTransformDiscontinuitiesTotal
             lastAttemptedMercTargetControlEventsTotal =
                 renderer.mercEicharTargetControlEventsTotal
+            lastAttemptedMercWeightedSkinEvidenceTotal =
+                renderer.mercEicharWeightedSkinEvidenceTotal
             lastAttemptedTargetHiddenTransitionsTotal = targetControl.hiddenTransitionsTotal
-            try writeCameraDiagnostics(renderer, targetControl: targetControl)
-            lastPersistedCameraAlternations = renderer.producerCameraAlternations
-            lastPersistedCameraCorrectionEvents = renderer.cameraCorrectionEventsTotal
+            let writtenTail = try writeCameraDiagnostics(renderer, targetControl: targetControl)
+            if writtenTail.complete.boolValue {
+                lastAttemptedCameraTailTriggerFrame = writtenTail.triggerEngineFrameID
+                lastPersistedCameraTailTriggerFrame = writtenTail.triggerEngineFrameID
+                lastCameraTailWriteEngineFrame = renderer.lastEngineFrameID
+            }
             lastPersistedMercMissingBoneSlotsTotal = renderer.mercMissingBoneSlotsTotal
             lastPersistedMercModelsWithMissingBoneSlotsTotal =
                 renderer.mercModelsWithMissingBoneSlotsTotal
@@ -368,6 +374,8 @@ final class GameSession {
                 renderer.mercEicharTransformDiscontinuitiesTotal
             lastPersistedMercTargetControlEventsTotal =
                 renderer.mercEicharTargetControlEventsTotal
+            lastPersistedMercWeightedSkinEvidenceTotal =
+                renderer.mercEicharWeightedSkinEvidenceTotal
             lastPersistedTargetHiddenTransitionsTotal = targetControl.hiddenTransitionsTotal
         } catch {
             reportCameraDiagnosticsWriteFailure()
@@ -381,14 +389,9 @@ final class GameSession {
         forced: Bool = false
     ) {
         guard cameraDiagnosticsURL != nil else { return }
-        let alternationNotPersisted = renderer.producerCameraAlternations
-            > lastPersistedCameraAlternations
-        let alternationNotAttempted = renderer.producerCameraAlternations
-            > lastAttemptedCameraAlternations
-        let correctionNotPersisted = renderer.cameraCorrectionEventsTotal
-            > lastPersistedCameraCorrectionEvents
-        let correctionNotAttempted = renderer.cameraCorrectionEventsTotal
-            > lastAttemptedCameraCorrectionEvents
+        let tailInfo = GOALPadRenderSurface.shared.cameraCorrectionTailInfo
+        let completedTailTriggerFrame = tailInfo.complete.boolValue
+            ? tailInfo.triggerEngineFrameID : 0
         let missingSlotsNotPersisted = renderer.mercMissingBoneSlotsTotal
             > lastPersistedMercMissingBoneSlotsTotal
         let missingSlotsNotAttempted = renderer.mercMissingBoneSlotsTotal
@@ -408,25 +411,37 @@ final class GameSession {
             > lastPersistedMercTargetControlEventsTotal
         let targetControlNotAttempted = renderer.mercEicharTargetControlEventsTotal
             > lastAttemptedMercTargetControlEventsTotal
+        let weightedSkinNotAttempted = CameraDiagnosticsPersistencePolicy.hasUnattemptedEvidence(
+            total: renderer.mercEicharWeightedSkinEvidenceTotal,
+            persisted: lastPersistedMercWeightedSkinEvidenceTotal,
+            attempted: lastAttemptedMercWeightedSkinEvidenceTotal)
         let hiddenTransitionNotPersisted = targetControl.hiddenTransitionsTotal
             > lastPersistedTargetHiddenTransitionsTotal
         let hiddenTransitionNotAttempted = targetControl.hiddenTransitionsTotal
             > lastAttemptedTargetHiddenTransitionsTotal
         let mercCompletenessIncreased = (missingSlotsNotPersisted && missingSlotsNotAttempted)
             || (missingModelsNotPersisted && missingModelsNotAttempted)
-        guard forced || periodic
-                || (alternationNotPersisted && alternationNotAttempted)
-                || (correctionNotPersisted && correctionNotAttempted)
-                || mercCompletenessIncreased
-                || (paletteHealthNotPersisted && paletteHealthNotAttempted)
-                || (mercTransformNotPersisted && mercTransformNotAttempted)
-                || (targetControlNotPersisted && targetControlNotAttempted)
-                || (hiddenTransitionNotPersisted && hiddenTransitionNotAttempted) else {
+        let hasImmediateNonCameraEvidence = mercCompletenessIncreased
+            || (paletteHealthNotPersisted && paletteHealthNotAttempted)
+            || (mercTransformNotPersisted && mercTransformNotAttempted)
+            || (targetControlNotPersisted && targetControlNotAttempted)
+            || weightedSkinNotAttempted
+            || (hiddenTransitionNotPersisted && hiddenTransitionNotAttempted)
+        guard CameraDiagnosticsPersistencePolicy.shouldPersist(
+            forced: forced,
+            periodic: periodic,
+            hasImmediateNonCameraEvidence: hasImmediateNonCameraEvidence,
+            completedTailTriggerFrame: completedTailTriggerFrame,
+            lastPersistedTailTriggerFrame: lastPersistedCameraTailTriggerFrame,
+            lastAttemptedTailTriggerFrame: lastAttemptedCameraTailTriggerFrame,
+            currentEngineFrame: renderer.lastEngineFrameID,
+            lastTailWriteEngineFrame: lastCameraTailWriteEngineFrame) else {
             return
         }
 
-        lastAttemptedCameraAlternations = renderer.producerCameraAlternations
-        lastAttemptedCameraCorrectionEvents = renderer.cameraCorrectionEventsTotal
+        if completedTailTriggerFrame != 0 {
+            lastAttemptedCameraTailTriggerFrame = completedTailTriggerFrame
+        }
         lastAttemptedMercMissingBoneSlotsTotal = renderer.mercMissingBoneSlotsTotal
         lastAttemptedMercModelsWithMissingBoneSlotsTotal =
             renderer.mercModelsWithMissingBoneSlotsTotal
@@ -435,11 +450,15 @@ final class GameSession {
             renderer.mercEicharTransformDiscontinuitiesTotal
         lastAttemptedMercTargetControlEventsTotal =
             renderer.mercEicharTargetControlEventsTotal
+        lastAttemptedMercWeightedSkinEvidenceTotal =
+            renderer.mercEicharWeightedSkinEvidenceTotal
         lastAttemptedTargetHiddenTransitionsTotal = targetControl.hiddenTransitionsTotal
         do {
-            try writeCameraDiagnostics(renderer, targetControl: targetControl)
-            lastPersistedCameraAlternations = renderer.producerCameraAlternations
-            lastPersistedCameraCorrectionEvents = renderer.cameraCorrectionEventsTotal
+            let writtenTail = try writeCameraDiagnostics(renderer, targetControl: targetControl)
+            if writtenTail.complete.boolValue {
+                lastPersistedCameraTailTriggerFrame = writtenTail.triggerEngineFrameID
+                lastCameraTailWriteEngineFrame = renderer.lastEngineFrameID
+            }
             lastPersistedMercMissingBoneSlotsTotal = renderer.mercMissingBoneSlotsTotal
             lastPersistedMercModelsWithMissingBoneSlotsTotal =
                 renderer.mercModelsWithMissingBoneSlotsTotal
@@ -448,6 +467,8 @@ final class GameSession {
                 renderer.mercEicharTransformDiscontinuitiesTotal
             lastPersistedMercTargetControlEventsTotal =
                 renderer.mercEicharTargetControlEventsTotal
+            lastPersistedMercWeightedSkinEvidenceTotal =
+                renderer.mercEicharWeightedSkinEvidenceTotal
             lastPersistedTargetHiddenTransitionsTotal = targetControl.hiddenTransitionsTotal
         } catch {
             reportCameraDiagnosticsWriteFailure()
@@ -472,8 +493,11 @@ final class GameSession {
     private func writeCameraDiagnostics(
         _ renderer: GOALPadRendererStats,
         targetControl: GOALPadTargetControlTelemetry
-    ) throws {
-        guard let cameraDiagnosticsURL else { return }
+    ) throws -> GOALPadCameraCorrectionTailInfo {
+        guard let cameraDiagnosticsURL else { return GOALPadCameraCorrectionTailInfo() }
+        let renderSurface = GOALPadRenderSurface.shared
+        let cameraTail = renderSurface.cameraCorrectionTailSnapshot
+        let cameraTailInfo = cameraTail.info
         let locale = Locale(identifier: "en_US_POSIX")
         func decimal(_ value: Double) -> String {
             String(format: "%.9f", locale: locale, value)
@@ -628,6 +652,18 @@ final class GameSession {
             [
                 "\(prefix)_valid=\(frame.valid.boolValue ? 1 : 0)",
                 "\(prefix)_engine_frame=\(frame.engineFrameID)",
+                "\(prefix)_math_camera_object=\(frame.mathCameraObjectOffset)",
+                "\(prefix)_math_camera_type=\(frame.mathCameraTypeOffset)",
+                "\(prefix)_master_object=\(frame.masterObjectOffset)",
+                "\(prefix)_master_type=\(frame.masterTypeOffset)",
+                "\(prefix)_combiner_object=\(frame.combinerObjectOffset)",
+                "\(prefix)_combiner_type=\(frame.combinerTypeOffset)",
+                "\(prefix)_slave0_ppointer=\(frame.slave0PpointerOffset)",
+                "\(prefix)_slave0_object=\(frame.slave0ObjectOffset)",
+                "\(prefix)_slave0_type=\(frame.slave0TypeOffset)",
+                "\(prefix)_slave1_ppointer=\(frame.slave1PpointerOffset)",
+                "\(prefix)_slave1_object=\(frame.slave1ObjectOffset)",
+                "\(prefix)_slave1_type=\(frame.slave1TypeOffset)",
                 "\(prefix)_display_ratio=\(decimal(frame.displayTimeRatio))",
                 "\(prefix)_num_slaves=\(frame.numSlaves)",
                 "\(prefix)_being_attacked=\(frame.beingAttacked.boolValue ? 1 : 0)",
@@ -655,12 +691,67 @@ final class GameSession {
                     + "\((event.reasonMask & 2) != 0 ? 1 : 0)",
                 "camera_correction_reason_large_orientation_delta="
                     + "\((event.reasonMask & 4) != 0 ? 1 : 0)",
+                "camera_correction_reason_render_alternation="
+                    + "\((event.reasonMask & 8) != 0 ? 1 : 0)",
                 "camera_correction_host_tick=\(event.hostTickID)",
                 "camera_correction_chain=\(event.chainOrdinal)",
             ]
                 + cameraFrameFields("camera_correction_older", event.older)
                 + cameraFrameFields("camera_correction_previous", event.previous)
                 + cameraFrameFields("camera_correction_current", event.current)
+        }
+        func compactCameraVector(_ vector: GOALPadCameraCorrectionVector) -> String {
+            "\(decimal(vector.x)),\(decimal(vector.y)),\(decimal(vector.z))"
+        }
+        func compactCameraAxes(_ axes: GOALPadCameraCorrectionRotationAxes) -> String {
+            compactCameraVector(axes.axis0) + "," + compactCameraVector(axes.axis1)
+                + "," + compactCameraVector(axes.axis2)
+        }
+        func compactCameraSlave(_ slave: GOALPadCameraCorrectionSlaveFrame) -> String {
+            [
+                slave.valid.boolValue ? "1" : "0",
+                String(slave.options), String(slave.losState),
+                String(slave.stringVelocityDirection),
+                slave.lineOfSightEnabled.boolValue ? "1" : "0",
+                slave.movementBlocked.boolValue ? "1" : "0",
+                decimal(slave.minimumDistanceOverride), decimal(slave.maxAngleOffset),
+                decimal(slave.maxAngleCurrent), compactCameraVector(slave.transform),
+                compactCameraAxes(slave.trackingInverseMatrix),
+                compactCameraVector(slave.viewFlat), compactCameraVector(slave.stringTransform),
+                compactCameraVector(slave.desiredPosition),
+            ].joined(separator: ",")
+        }
+        func cameraTailFrameFields(
+            _ index: UInt32,
+            _ tailFrame: GOALPadCameraCorrectionTailFrame
+        ) -> [String] {
+            let prefix = "camera_tail_\(index)"
+            let frame = tailFrame.camera
+            return [
+                "\(prefix)_valid=\(tailFrame.valid.boolValue ? 1 : 0)",
+                "\(prefix)_frame=\(frame.engineFrameID)",
+                "\(prefix)_tick=\(tailFrame.hostTickID)",
+                "\(prefix)_chain=\(tailFrame.chainOrdinal)",
+                "\(prefix)_render_fingerprint=\(tailFrame.renderCameraFingerprint)",
+                "\(prefix)_identity=\(frame.mathCameraObjectOffset),"
+                    + "\(frame.mathCameraTypeOffset),\(frame.masterObjectOffset),"
+                    + "\(frame.masterTypeOffset),\(frame.combinerObjectOffset),"
+                    + "\(frame.combinerTypeOffset),\(frame.slave0PpointerOffset),"
+                    + "\(frame.slave0ObjectOffset),\(frame.slave0TypeOffset),"
+                    + "\(frame.slave1PpointerOffset),\(frame.slave1ObjectOffset),"
+                    + "\(frame.slave1TypeOffset)",
+                "\(prefix)_master=\(decimal(frame.displayTimeRatio)),\(frame.numSlaves),"
+                    + "\(frame.beingAttacked.boolValue ? 1 : 0),"
+                    + compactCameraVector(frame.targetPosition) + ","
+                    + compactCameraVector(frame.adjustedTargetPosition),
+                "\(prefix)_slave0=" + compactCameraSlave(frame.slave0),
+                "\(prefix)_slave1=" + compactCameraSlave(frame.slave1),
+                "\(prefix)_combiner=\(frame.combinerValid.boolValue ? 1 : 0),"
+                    + "\(decimal(frame.combinerInterpolation)),"
+                    + "\(frame.combinerTrackingStatus),"
+                    + compactCameraVector(frame.combinerTransform) + ","
+                    + compactCameraAxes(frame.combinerInverseCameraRotation),
+            ]
         }
         func targetControlFields(_ prefix: String,
                                  _ event: GOALPadTargetControlEvent) -> [String] {
@@ -834,8 +925,20 @@ final class GameSession {
                 + targetControlRootAnchorFields("\(prefix)_root3", observation.rootAnchor3)
         }
 
+        var cameraTailFields = [
+            "camera_tail_valid=\(cameraTailInfo.valid.boolValue ? 1 : 0)",
+            "camera_tail_complete=\(cameraTailInfo.complete.boolValue ? 1 : 0)",
+            "camera_tail_count=\(cameraTailInfo.frameCount)",
+            "camera_tail_trigger_frame=\(cameraTailInfo.triggerEngineFrameID)",
+            "camera_tail_trigger_degrees=\(decimal(cameraTailInfo.triggerOrientationDegrees))",
+        ]
+        for index in 0..<cameraTailInfo.frameCount {
+            cameraTailFields += cameraTailFrameFields(
+                index, cameraTail.frame(at: index))
+        }
+
         let fields = [
-            "goalpad_camera_provenance", "v=6", "run=\(cameraDiagnosticsRunID)",
+            "goalpad_camera_provenance", "v=7", "run=\(cameraDiagnosticsRunID)",
             "frame=\(framesRun)", "engine=\(renderer.lastEngineFrameID)",
             "tick=\(renderer.lastHostTickID)", "chain=\(renderer.lastChainOrdinal)",
             "fingerprint=\(renderer.lastCameraFingerprint)",
@@ -856,6 +959,35 @@ final class GameSession {
             "tie_envmap_second_pass_draws_total="
                 + "\(renderer.tieEnvmapSecondPassDrawsTotal)",
             "producer_alternations=\(renderer.producerCameraAlternations)",
+            "render_alternations=\(renderer.renderCameraAlternations)",
+            "render_alternation_older_frame="
+                + "\(renderer.lastRenderCameraAlternationOlderFrameID)",
+            "render_alternation_previous_frame="
+                + "\(renderer.lastRenderCameraAlternationPreviousFrameID)",
+            "render_alternation_current_frame="
+                + "\(renderer.lastRenderCameraAlternationCurrentFrameID)",
+            "render_alternation_older_fingerprint="
+                + "\(renderer.lastRenderCameraAlternationOlderFingerprint)",
+            "render_alternation_previous_fingerprint="
+                + "\(renderer.lastRenderCameraAlternationPreviousFingerprint)",
+            "render_alternation_current_fingerprint="
+                + "\(renderer.lastRenderCameraAlternationCurrentFingerprint)",
+            "render_alternation_host_tick="
+                + "\(renderer.lastRenderCameraAlternationHostTickID)",
+            "render_alternation_chain="
+                + "\(renderer.lastRenderCameraAlternationChainOrdinal)",
+            "render_alternation_packet_fingerprint="
+                + "\(renderer.lastRenderCameraAlternationPacketFingerprint)",
+            "render_alternation_live_mismatch_qwords="
+                + "\(renderer.lastRenderCameraAlternationLiveMismatchQwords)",
+            "render_alternation_packet_mismatch_qwords="
+                + "\(renderer.lastRenderCameraAlternationPacketMismatchQwords)",
+            "render_distance_older_previous="
+                + decimal(renderer.lastRenderCameraOlderToPreviousDistance),
+            "render_distance_previous_current="
+                + decimal(renderer.lastRenderCameraPreviousToCurrentDistance),
+            "render_distance_older_current="
+                + decimal(renderer.lastRenderCameraOlderToCurrentDistance),
             "camera_correction_events_total=\(renderer.cameraCorrectionEventsTotal)",
             "alternation_older_frame=\(renderer.lastCameraAlternationOlderFrameID)",
             "alternation_previous_frame=\(renderer.lastCameraAlternationPreviousFrameID)",
@@ -973,6 +1105,69 @@ final class GameSession {
                 + "\(renderer.mercEicharPaletteHealthIssues)",
             "merc_eichar_palette_health_issues_total="
                 + "\(renderer.mercEicharPaletteHealthIssuesTotal)",
+            "merc_eichar_weighted_profiled_base_draws="
+                + "\(renderer.mercEicharWeightedProfiledBaseDraws)",
+            "merc_eichar_weighted_profiled_vertices="
+                + "\(renderer.mercEicharWeightedProfiledVertices)",
+            "merc_eichar_weighted_multi_bone_vertices="
+                + "\(renderer.mercEicharWeightedMultiBoneVertices)",
+            "merc_eichar_weighted_affected_vertices="
+                + "\(renderer.mercEicharWeightedAffectedVertices)",
+            "merc_eichar_weighted_static_multi_bone_vertices="
+                + "\(renderer.mercEicharWeightedStaticMultiBoneVertices)",
+            "merc_eichar_weighted_static_affected_vertices="
+                + "\(renderer.mercEicharWeightedStaticAffectedVertices)",
+            "merc_eichar_weighted_modified_multi_bone_vertices="
+                + "\(renderer.mercEicharWeightedModifiedMultiBoneVertices)",
+            "merc_eichar_weighted_modified_affected_vertices="
+                + "\(renderer.mercEicharWeightedModifiedAffectedVertices)",
+            "merc_eichar_weighted_tuple_groups="
+                + "\(renderer.mercEicharWeightedTupleGroups)",
+            "merc_eichar_weighted_affected_tuple_groups="
+                + "\(renderer.mercEicharWeightedAffectedTupleGroups)",
+            "merc_eichar_weighted_valid_basis_groups="
+                + "\(renderer.mercEicharWeightedValidBasisGroups)",
+            "merc_eichar_weighted_invalid_basis_groups="
+                + "\(renderer.mercEicharWeightedInvalidBasisGroups)",
+            "merc_eichar_weighted_affected_draws="
+                + "\(renderer.mercEicharWeightedAffectedDraws)",
+            "merc_eichar_weighted_affected_effects="
+                + "\(renderer.mercEicharWeightedAffectedEffects)",
+            "merc_eichar_weighted_profile_tuple_mismatches="
+                + "\(renderer.mercEicharWeightedProfileTupleMismatches)",
+            "merc_eichar_weighted_profile_capacity_drops="
+                + "\(renderer.mercEicharWeightedProfileCapacityDrops)",
+            "merc_eichar_weighted_maximum_axis_ratio="
+                + "\(decimal(renderer.mercEicharWeightedMaximumAxisRatio))",
+            "merc_eichar_weighted_minimum_normalized_abs_determinant="
+                + "\(decimal(renderer.mercEicharWeightedMinimumNormalizedAbsDeterminant))",
+            "merc_eichar_weighted_coverage=\(renderer.mercEicharWeightedCoverage)",
+            "merc_eichar_packets=\(renderer.mercEicharPackets)",
+            "merc_eichar_unique_source_bases=\(renderer.mercEicharUniqueSourceBases)",
+            "merc_eichar_repeated_packets=\(renderer.mercEicharRepeatedPackets)",
+            "merc_eichar_repeated_packets_same_palette="
+                + "\(renderer.mercEicharRepeatedPacketsSamePalette)",
+            "merc_eichar_repeated_packets_conflicting_palette="
+                + "\(renderer.mercEicharRepeatedPacketsConflictingPalette)",
+            "merc_eichar_actual_base_draws=\(renderer.mercEicharActualBaseDraws)",
+            "merc_eichar_unique_base_draws=\(renderer.mercEicharUniqueBaseDraws)",
+            "merc_eichar_repeated_base_draws=\(renderer.mercEicharRepeatedBaseDraws)",
+            "merc_eichar_repeated_base_draws_same_palette="
+                + "\(renderer.mercEicharRepeatedBaseDrawsSamePalette)",
+            "merc_eichar_repeated_base_draws_conflicting_palette="
+                + "\(renderer.mercEicharRepeatedBaseDrawsConflictingPalette)",
+            "merc_eichar_trace_capacity_drops=\(renderer.mercEicharTraceCapacityDrops)",
+            "merc_eichar_bound_palette_hash_mismatches="
+                + "\(renderer.mercEicharBoundPaletteHashMismatches)",
+            "merc_eichar_weighted_skin_evidence_total="
+                + "\(renderer.mercEicharWeightedSkinEvidenceTotal)",
+            "merc_eichar_weighted_issue_mask=\(renderer.mercEicharWeightedIssueMask)",
+            "last_merc_eichar_weighted_skin_engine_frame="
+                + "\(renderer.lastMercEicharWeightedSkinEngineFrameID)",
+            "last_merc_eichar_weighted_skin_host_tick="
+                + "\(renderer.lastMercEicharWeightedSkinHostTickID)",
+            "last_merc_eichar_weighted_skin_chain="
+                + "\(renderer.lastMercEicharWeightedSkinChainOrdinal)",
         ]
             + mercTransformFields(
                 "first_merc_eichar_transform",
@@ -999,6 +1194,7 @@ final class GameSession {
                 "last_merc_eichar_palette_health",
                 renderer.lastMercEicharPaletteHealthEvent)
             + cameraCorrectionFields(renderer.lastCameraCorrectionEvent)
+            + cameraTailFields
             + [
                 "merc_eichar_target_control_events="
                     + "\(renderer.mercEicharTargetControlEvents)",
@@ -1043,6 +1239,7 @@ final class GameSession {
                                    targetControl.lastHiddenPostFlagSample)
         try Data((fields.joined(separator: " ") + "\n").utf8)
             .write(to: cameraDiagnosticsURL, options: .atomic)
+        return cameraTailInfo
     }
 
     private func reportCameraDiagnosticsWriteFailure() {

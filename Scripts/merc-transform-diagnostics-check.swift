@@ -125,6 +125,42 @@ stats.firstMercEicharOutputCompositionMismatch = lastProvenance
 stats.lastMercEicharOutputCompositionMismatch = lastProvenance
 stats.firstMercEicharPaletteHealthEvent = firstEicharPalette
 stats.lastMercEicharPaletteHealthEvent = lastEicharPalette
+stats.mercEicharWeightedProfiledBaseDraws = 11
+stats.mercEicharWeightedProfiledVertices = 12
+stats.mercEicharWeightedMultiBoneVertices = 13
+stats.mercEicharWeightedAffectedVertices = 14
+stats.mercEicharWeightedStaticMultiBoneVertices = 15
+stats.mercEicharWeightedStaticAffectedVertices = 16
+stats.mercEicharWeightedModifiedMultiBoneVertices = 17
+stats.mercEicharWeightedModifiedAffectedVertices = 18
+stats.mercEicharWeightedTupleGroups = 19
+stats.mercEicharWeightedAffectedTupleGroups = 20
+stats.mercEicharWeightedValidBasisGroups = 21
+stats.mercEicharWeightedInvalidBasisGroups = 22
+stats.mercEicharWeightedAffectedDraws = 23
+stats.mercEicharWeightedAffectedEffects = 24
+stats.mercEicharWeightedProfileTupleMismatches = 25
+stats.mercEicharWeightedProfileCapacityDrops = 26
+stats.mercEicharWeightedMaximumAxisRatio = 64
+stats.mercEicharWeightedMinimumNormalizedAbsDeterminant = 0.03125
+stats.mercEicharWeightedCoverage = 3
+stats.mercEicharPackets = 27
+stats.mercEicharUniqueSourceBases = 28
+stats.mercEicharRepeatedPackets = 29
+stats.mercEicharRepeatedPacketsSamePalette = 30
+stats.mercEicharRepeatedPacketsConflictingPalette = 31
+stats.mercEicharActualBaseDraws = 32
+stats.mercEicharUniqueBaseDraws = 33
+stats.mercEicharRepeatedBaseDraws = 34
+stats.mercEicharRepeatedBaseDrawsSamePalette = 35
+stats.mercEicharRepeatedBaseDrawsConflictingPalette = 36
+stats.mercEicharTraceCapacityDrops = 37
+stats.mercEicharBoundPaletteHashMismatches = 38
+stats.mercEicharWeightedSkinEvidenceTotal = 39
+stats.mercEicharWeightedIssueMask = 0x21
+stats.lastMercEicharWeightedSkinEngineFrameID = 40
+stats.lastMercEicharWeightedSkinHostTickID = 41
+stats.lastMercEicharWeightedSkinChainOrdinal = 42
 
 precondition(stats.mercEicharTransformDiscontinuities == 1)
 precondition(stats.mercEicharTransformDiscontinuitiesTotal == 2)
@@ -177,5 +213,23 @@ precondition(stats.firstMercEicharPaletteHealthEvent.issueMask == 1)
 precondition(stats.firstMercEicharPaletteHealthEvent.nonfiniteLaneMask == (1 << 3) | (1 << 20))
 precondition(stats.lastMercEicharPaletteHealthEvent.issueMask == 4)
 precondition(stats.lastMercEicharPaletteHealthEvent.expectedSourceBase == 0x2600)
+precondition(stats.mercEicharWeightedProfiledBaseDraws == 11)
+precondition(stats.mercEicharWeightedAffectedVertices == 14)
+precondition(stats.mercEicharWeightedModifiedAffectedVertices == 18)
+precondition(stats.mercEicharWeightedInvalidBasisGroups == 22)
+precondition(stats.mercEicharWeightedProfileTupleMismatches == 25)
+precondition(stats.mercEicharWeightedProfileCapacityDrops == 26)
+precondition(stats.mercEicharWeightedMaximumAxisRatio == 64)
+precondition(stats.mercEicharWeightedMinimumNormalizedAbsDeterminant == 0.03125)
+precondition(stats.mercEicharWeightedCoverage == 3)
+precondition(stats.mercEicharRepeatedPacketsConflictingPalette == 31)
+precondition(stats.mercEicharRepeatedBaseDrawsConflictingPalette == 36)
+precondition(stats.mercEicharTraceCapacityDrops == 37)
+precondition(stats.mercEicharBoundPaletteHashMismatches == 38)
+precondition(stats.mercEicharWeightedSkinEvidenceTotal == 39)
+precondition(stats.mercEicharWeightedIssueMask == 0x21)
+precondition(stats.lastMercEicharWeightedSkinEngineFrameID == 40)
+precondition(stats.lastMercEicharWeightedSkinHostTickID == 41)
+precondition(stats.lastMercEicharWeightedSkinChainOrdinal == 42)
 
 print("merc transform diagnostics bridge check passed")
