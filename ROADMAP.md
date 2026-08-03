@@ -929,9 +929,10 @@ Checkpoint 57 records the first strongly positive physical result from the
 packed-square-root correction. In the maintainer's current Z iPad Pro run,
 gameplay was very playable and the camera, Jak's volumetric shape/facing, and
 attacks looked fixed. This is **Experimental** evidence from that run, not a
-universal completion claim. After the app was backgrounded, the final 18,780-
-frame trace was copied read-only with SHA-256
+universal completion claim. After the app was backgrounded, a completed
+18,780-frame trace was copied read-only with SHA-256
 `7fc6078e01c380818ea42f70914a4afb741e424ce8c67c5cf6be6d5097ede55f`.
+It is an independent run rather than a continuation of the earlier live cache.
 It confirms unit control/render quaternion norms, unit target/camera-combiner
 basis axes, uniform input/output deformation, zero missing Jak bones, and zero
 output-composition mismatches. The only consistent visible defect reported in

@@ -9188,12 +9188,14 @@ that run. This is physical visual evidence for that run, not a universal
 completion claim. The one consistent visible defect was the metallic-material
 flicker.
 
-After the maintainer backgrounded the app, the final schema-v5 cache was copied
-read-only before any relaunch or reinstall to
+After the maintainer backgrounded the app, the completed schema-v5 cache was
+copied read-only before any relaunch or reinstall to
 `/private/tmp/camera-provenance-z-ipad-v5-attacks-final-20260803.log`, SHA-256
 `7fc6078e01c380818ea42f70914a4afb741e424ce8c67c5cf6be6d5097ede55f`.
-It ends at engine frame/tick 18,780 with one chain per frame, zero dropped
-chains, zero missing Jak bone slots, and zero output-composition mismatches.
+This is run `5596467619292462622`, not a continuation of the earlier live cache
+at run `4517350314690916944`; it is independent physical evidence. It ends at
+engine frame/tick 18,780 with one chain per frame, zero dropped chains, zero
+missing Jak bone slots, and zero output-composition mismatches.
 The last retained control/render quaternion norms are `1.000000060` and
 `0.999999805`; every retained target-camera and correction-combiner basis axis
 is within `0.000000035` of unit length. Jak's input-root axes are uniformly
