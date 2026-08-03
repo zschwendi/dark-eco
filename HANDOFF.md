@@ -10530,13 +10530,16 @@ Objective-C++ bridge and Swift audio status now consume
 `goal_game_sound_sample_rate` and `goal_game_sound_pull_audio` rather than
 calling Jak 1's sound API directly.
 
-The exact-current generic-iOS Release parent build passed and signed at
-`/private/tmp/GOALPad-parent-audio`. Its executable is a thin ARM64 Mach-O with
+The exact-current generic-iOS Release parent build passed and signed at the
+then-current `/private/tmp/GOALPad-parent-audio` build directory. Its executable
+is a thin ARM64 Mach-O with
 SHA-256
 `9af25e9b285c18a86942e2fe748001c4cccef4a092f6145c73d55e09f0b47d33`,
 identifier `com.zephyrstudiosllc.eco`, team `V729QMY3V6`, and CDHash
-`4ce2d65a891833042284220b580fe7214f8da9d5`. This is the current canonical
-Apple build directory. The Jak II development app still has no AVAudioEngine
+`4ce2d65a891833042284220b580fe7214f8da9d5`. The recorded reproducible build
+directory was removed after Checkpoint 72 when disk space fell below 150 MiB;
+the artifact identity and validation result remain recorded here. The Jak II
+development app still has no AVAudioEngine
 output wiring, and no Jak II Metal pixel, visible title, or gameplay proof is
 claimed.
 
@@ -10672,3 +10675,41 @@ audio-device output, visible title, or gameplay. The next bounded gate is to
 make the existing Metal Empty/Skip/Direct paths game-version aware and link the
 Checkpoint-70 policy into a nil-layer synthetic Jak II dispatcher proof with
 zero drawables, submissions, and presentations.
+
+# Checkpoint 72: version-aware Metal chain semantics
+
+Date: 2026-08-03. Nested commit
+`739ec968363f872c67e9e6791b3dff4a56adac3e` makes the existing Metal Empty,
+Skip, and Direct bucket paths distinguish Jak 1's default-register envelope
+from Jak II's chain layout. Jak 1 retains its CALL/default-register/RET bounce.
+Jak II strict-empty buckets require exactly one zero-QWC `CNT` tag and must land
+at the next contiguous bucket slot; Skip and Direct no longer follow Jak 1's
+default-register buffer when selected for Jak II. Jak 3 and Jak X fail closed
+because their chain semantics remain unsupported.
+
+The portable `metal-bucket-chain-semantics-test` and the Checkpoint-70
+`jak2-metal-bucket-table-test` passed 2/2. The changed Objective-C++ consumers
+compiled in the focused worker validation. The existing Jak 1 `metal-proof`
+then passed with normal display and Metal service access, including the complete
+DMA renderer proof and Merc provenance/rotation suites. Its new deterministic
+weighted-skin case demonstrates the physical Flat-Stanley shape: individually
+rigid, palette-healthy bones can counter-rotate so their blended vertices
+collapse from a 120-pixel-wide 3D cross to a 2-pixel stripe. This narrows the
+physical character bug to relative EICHAR bone/palette composition rather than
+a shared camera projection, but it does not prove which live producer is wrong.
+
+The maintainer's four additional no-input wall screenshots independently show
+the whole 3D scene alternating among coherent camera poses while the app HUD
+remains fixed and Jak is absent. Depth-dependent parallax rules out a SwiftUI
+viewport shift, and Jak's absence rules out Merc deformation as the cause of
+that scene motion. The stills do not identify whether wall line-of-sight,
+off-screen recovery, the camera combiner, or the render/presentation boundary
+is recurring; the existing schema-v7 fields are the next discriminator.
+
+No Jak II renderer is promoted or product-dispatched by this checkpoint. The
+next bounded gate is a product-linked nil-layer proof that initializes all 327
+audited Jak II slots, traverses one all-empty chain plus explicit early/middle/
+final deferred-skip markers, and retains zero drawables, presentation
+submissions, presentations, draw calls, and triangles. A nil layer still commits
+an offscreen Metal command buffer, so this gate must not claim zero command-
+buffer commits or visible pixels.

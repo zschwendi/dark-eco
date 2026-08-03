@@ -1078,6 +1078,17 @@ source is host-only and does not change either Apple target's inputs. The final
 simulator product was not launched. Jak II still has no Metal pixel,
 audio-device output, visible title, physical-device run, or gameplay proof.
 
+Checkpoint 72 makes the Metal Empty/Skip/Direct chain consumers game-version
+aware at nested `739ec9683`. Jak 1's existing default-register bounce and full
+Metal proof remain green, while Jak II strict-empty buckets consume only one
+zero-QWC `CNT` and deferred paths no longer follow Jak 1's buffer. The focused
+semantics and fixed 327-bucket-policy tests pass. A deterministic Merc proof now
+reproduces the reported Flat-Stanley silhouette from healthy rigid bones whose
+relative counter-rotation collapses weighted vertices, separating that bug from
+the maintainer's wall screenshots of a coherent whole-camera recurrence while
+Jak is absent. Product-linked Jak II initialization/dispatch and visible pixels
+remain unimplemented.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
@@ -1102,9 +1113,8 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Continue Jak II by making the existing Metal Empty/Skip/Direct behavior
-   game-version aware, then add the policy-table source to the product target
-   with a real nil-layer synthetic 327-slot dispatcher proof. Require zero
+4. Continue Jak II by adding the policy-table source to the product target with
+   a real nil-layer synthetic 327-slot dispatcher proof. Require zero
    drawables, submissions, and presentations, and preserve Jak 1 behavior.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
