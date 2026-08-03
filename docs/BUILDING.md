@@ -162,11 +162,9 @@ git submodule update --init --recursive
 The authoritative child is the dedicated public fork
 `https://github.com/zschwendi/jak-pad.git`, branch
 `goalpad/ipad-demo-pacing`, pinned by the parent gitlink at
-`79a7ee586f6e68fd9638778917b3e5e2ab47d497`. Checkpoint 52 retains this pin and
-incorporates the checked `jak1-base-retail` importer, existing source-pack
-verification, Apple
-composer, active-bones and target-control provenance, and non-commuting Merc
-composition proof.
+`63b8a67c5f8142c227f75d0cfd920a1bc4a09770`. Checkpoint 58 retains this pin and
+incorporates the checked `jak1-base-retail` importer, source-pack verification,
+Apple composer, Jak 1 renderer diagnostics, and the reviewed Jak II sound seams.
 Do not substitute a different OpenGOAL checkout when recording validation
 results, and pin that exact commit rather than a branch tip. The `sync` step
 updates existing clones that still remember the former upstream URL.
@@ -226,7 +224,7 @@ compile and final link prove that every manifest entry is present.
 
 At the current pin, generate the pack once on canonical code. Subsequent checks
 must use the existing-pack verifier and require 518 objects, aggregate identity
-`f1770cae6287a359`, and `10,729,681` object bytes. A caller-supplied wrong
+`0a6387a3959fd8cb`, and `10,729,950` object bytes. A caller-supplied wrong
 expected identity must fail. Regenerate only when the source-pack writer or its
 embedded graph changes; otherwise regeneration wastes the checkpoint's heavy
 build budget without adding evidence.

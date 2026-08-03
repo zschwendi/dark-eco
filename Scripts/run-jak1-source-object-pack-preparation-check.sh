@@ -65,7 +65,7 @@ set -eu
 printf 'run\n' >>"$FAKE_VERIFY_LOG"
 [ -f "$1/synthetic.o" ]
 [ "$(cat "$1/object_pack_manifest.tsv")" = 'recorded identity' ]
-printf 'Verified 518 source objects (aggregate f1770cae6287a359, 10729681 bytes).\n'
+printf 'Verified 518 source objects (aggregate 0a6387a3959fd8cb, 10729950 bytes).\n'
 VERIFY
 chmod +x "$build_root/goalc/goalc-cbackend-sweep" \
   "$build_root/goalc/jak1-source-object-pack-verify"
