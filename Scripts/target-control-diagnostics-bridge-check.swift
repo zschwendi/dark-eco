@@ -90,6 +90,14 @@ deformation.axisNormZ = 2
 deformation.aspect = 4
 deformation.normalizedAbsDeterminant = 0.75
 
+var rootAnchor = GOALPadTargetControlRootAnchor()
+rootAnchor.valid = true
+rootAnchor.deformation = deformation
+rootAnchor.scaleX = 1.25
+rootAnchor.scaleY = 2.5
+rootAnchor.scaleZ = 5
+rootAnchor.scaleWBits = 0x80000000
+
 var observation = GOALPadTargetControlObservation()
 observation.valid = true
 observation.hostTickID = 102
@@ -120,6 +128,10 @@ observation.rootForward = facing
 observation.cameraBasis = basis
 observation.inputRootDeformation = deformation
 observation.outputDeformation = deformation
+observation.rootAnchor1 = rootAnchor
+observation.rootAnchor2 = rootAnchor
+observation.rootAnchor3 = rootAnchor
+observation.node3ParentScaleCancellationSelected = true
 observation.inputRootTranslationX = 10
 observation.inputRootTranslationY = 20
 observation.inputRootTranslationZ = 30
@@ -130,6 +142,22 @@ telemetry.validObservationsTotal = 8
 telemetry.lastCaptureStage = 10
 telemetry.lastCaptureResult = 1
 telemetry.lastObservation = observation
+telemetry.postFlagSamplesTotal = 12
+telemetry.hiddenSamplesTotal = 3
+telemetry.hiddenTransitionsTotal = 4
+
+var postFlag = GOALPadTargetPostFlagObservation()
+postFlag.valid = true
+postFlag.hostTickID = 103
+postFlag.chainOrdinal = 5
+postFlag.engineFrameID = 803
+postFlag.producerSerial = 11
+postFlag.targetAddress = 0x7000
+postFlag.rawDrawStatus = 0x82
+postFlag.targetAttackID = 10
+postFlag.hidden = true
+telemetry.lastPostFlagSample = postFlag
+telemetry.lastHiddenPostFlagSample = postFlag
 
 precondition(telemetry.captureAttemptsTotal == 10)
 precondition(telemetry.validObservationsTotal == 8)
@@ -144,6 +172,16 @@ precondition(telemetry.lastObservation.intentForward.z == 0.8)
 precondition(telemetry.lastObservation.cameraBasis.axis2Z == 1)
 precondition(telemetry.lastObservation.inputRootDeformation.aspect == 4)
 precondition(telemetry.lastObservation.outputDeformation.normalizedAbsDeterminant == 0.75)
+precondition(telemetry.lastObservation.rootAnchor1.scaleX == 1.25)
+precondition(telemetry.lastObservation.rootAnchor2.scaleWBits == 0x80000000)
+precondition(telemetry.lastObservation.rootAnchor3.deformation.aspect == 4)
+precondition(telemetry.lastObservation.node3ParentScaleCancellationSelected.boolValue)
 precondition(telemetry.lastObservation.inputRootTranslationZ == 30)
+precondition(telemetry.postFlagSamplesTotal == 12)
+precondition(telemetry.hiddenSamplesTotal == 3)
+precondition(telemetry.hiddenTransitionsTotal == 4)
+precondition(telemetry.lastPostFlagSample.rawDrawStatus == 0x82)
+precondition(telemetry.lastPostFlagSample.targetAttackID == 10)
+precondition(telemetry.lastHiddenPostFlagSample.hidden.boolValue)
 
 print("target control diagnostics bridge check passed")

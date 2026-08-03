@@ -161,6 +161,29 @@ static GOALPadTargetControlDeformation makeTargetControlDeformation(
           core.normalized_abs_determinant};
 }
 
+static GOALPadTargetControlRootAnchor makeTargetControlRootAnchor(
+    const goalpad::MetalHostTargetControlRootAnchor &core) {
+  return {core.valid,
+          makeTargetControlDeformation(core.deformation),
+          core.scale_x,
+          core.scale_y,
+          core.scale_z,
+          core.scale_w_bits};
+}
+
+static GOALPadTargetPostFlagObservation makeTargetPostFlagObservation(
+    const goalpad::MetalHostTargetPostFlagObservation &core) {
+  return {core.valid,
+          core.host_tick_id,
+          core.chain_ordinal,
+          core.engine_frame_id,
+          core.producer_serial,
+          core.target_address,
+          core.raw_draw_status,
+          core.target_attack_id,
+          core.hidden};
+}
+
 static GOALPadTargetControlObservation makeTargetControlObservation(
     const goalpad::MetalHostTargetControlObservation &core) {
   return {core.valid,
@@ -192,6 +215,10 @@ static GOALPadTargetControlObservation makeTargetControlObservation(
           makeTargetControlBasis(core.camera_basis),
           makeTargetControlDeformation(core.input_root_deformation),
           makeTargetControlDeformation(core.output_deformation),
+          makeTargetControlRootAnchor(core.root_anchor_1),
+          makeTargetControlRootAnchor(core.root_anchor_2),
+          makeTargetControlRootAnchor(core.root_anchor_3),
+          core.node3_parent_scale_cancellation_selected,
           core.input_root_translation_x,
           core.input_root_translation_y,
           core.input_root_translation_z};
@@ -203,7 +230,12 @@ static GOALPadTargetControlTelemetry makeTargetControlTelemetry(
           core.valid_observations_total,
           core.last_capture_stage,
           core.last_capture_result,
-          makeTargetControlObservation(core.last_observation)};
+          makeTargetControlObservation(core.last_observation),
+          core.post_flag_samples_total,
+          core.hidden_samples_total,
+          core.hidden_transitions_total,
+          makeTargetPostFlagObservation(core.last_post_flag_sample),
+          makeTargetPostFlagObservation(core.last_hidden_post_flag_sample)};
 }
 
 static GOALPadCameraCorrectionVector makeCameraCorrectionVector(

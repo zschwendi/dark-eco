@@ -438,6 +438,15 @@ typedef struct GOALPadTargetControlDeformation {
   double normalizedAbsDeterminant;
 } GOALPadTargetControlDeformation;
 
+typedef struct GOALPadTargetControlRootAnchor {
+  BOOL valid;
+  GOALPadTargetControlDeformation deformation;
+  double scaleX;
+  double scaleY;
+  double scaleZ;
+  uint32_t scaleWBits;
+} GOALPadTargetControlRootAnchor;
+
 /// The latest ordinary valid target/control sample, even when no issue event was emitted.
 typedef struct GOALPadTargetControlObservation {
   BOOL valid;
@@ -469,10 +478,26 @@ typedef struct GOALPadTargetControlObservation {
   GOALPadTargetControlBasis cameraBasis;
   GOALPadTargetControlDeformation inputRootDeformation;
   GOALPadTargetControlDeformation outputDeformation;
+  GOALPadTargetControlRootAnchor rootAnchor1;
+  GOALPadTargetControlRootAnchor rootAnchor2;
+  GOALPadTargetControlRootAnchor rootAnchor3;
+  BOOL node3ParentScaleCancellationSelected;
   double inputRootTranslationX;
   double inputRootTranslationY;
   double inputRootTranslationZ;
 } GOALPadTargetControlObservation;
+
+typedef struct GOALPadTargetPostFlagObservation {
+  BOOL valid;
+  uint64_t hostTickID;
+  uint64_t chainOrdinal;
+  uint64_t engineFrameID;
+  uint64_t producerSerial;
+  uint32_t targetAddress;
+  uint32_t rawDrawStatus;
+  uint64_t targetAttackID;
+  BOOL hidden;
+} GOALPadTargetPostFlagObservation;
 
 /// Capture health and latest ordinary target/control evidence. Stage/result are stable numeric
 /// values defined by OpenGOAL's `jak1_target_control_capture.h` diagnostic contract.
@@ -482,6 +507,11 @@ typedef struct GOALPadTargetControlTelemetry {
   uint8_t lastCaptureStage;
   uint8_t lastCaptureResult;
   GOALPadTargetControlObservation lastObservation;
+  uint64_t postFlagSamplesTotal;
+  uint64_t hiddenSamplesTotal;
+  uint64_t hiddenTransitionsTotal;
+  GOALPadTargetPostFlagObservation lastPostFlagSample;
+  GOALPadTargetPostFlagObservation lastHiddenPostFlagSample;
 } GOALPadTargetControlTelemetry;
 
 /// What the Metal renderer has been asked to do since the game booted.

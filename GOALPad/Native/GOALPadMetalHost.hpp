@@ -218,6 +218,15 @@ struct MetalHostTargetControlDeformation {
   double normalized_abs_determinant = 0.0;
 };
 
+struct MetalHostTargetControlRootAnchor {
+  bool valid = false;
+  MetalHostTargetControlDeformation deformation;
+  double scale_x = 0.0;
+  double scale_y = 0.0;
+  double scale_z = 0.0;
+  std::uint32_t scale_w_bits = 0;
+};
+
 /*! The latest ordinary valid eichar-lod0 target/control sample, independent of issue events. */
 struct MetalHostTargetControlObservation {
   bool valid = false;
@@ -249,9 +258,103 @@ struct MetalHostTargetControlObservation {
   MetalHostTargetControlBasis camera_basis;
   MetalHostTargetControlDeformation input_root_deformation;
   MetalHostTargetControlDeformation output_deformation;
+  MetalHostTargetControlRootAnchor root_anchor_1;
+  MetalHostTargetControlRootAnchor root_anchor_2;
+  MetalHostTargetControlRootAnchor root_anchor_3;
+  bool node3_parent_scale_cancellation_selected = false;
   double input_root_translation_x = 0.0;
   double input_root_translation_y = 0.0;
   double input_root_translation_z = 0.0;
+};
+
+struct MetalHostTargetPostFlagObservation {
+  bool valid = false;
+  std::uint64_t host_tick_id = 0;
+  std::uint64_t chain_ordinal = 0;
+  std::uint64_t engine_frame_id = 0;
+  std::uint64_t sample_serial = 0;
+  std::uint32_t target_address = 0;
+  std::uint32_t raw_draw_status = 0;
+  std::uint64_t target_attack_id = 0;
+  bool hidden = false;
+};
+
+struct PostFlagFrameDecision {
+  bool accepted = false;
+  bool hidden_transition = false;
+  std::uint64_t serial_gap = 0;
+};
+
+/*! Keeps post-flag samples tied to the armed frame in which GOAL produced them. */
+class PostFlagFrameGate {
+ public:
+  void reset() { *this = {}; }
+
+  void begin_frame(std::uint64_t latest_serial) {
+    account_unframed(latest_serial);
+    m_frame_open = true;
+  }
+
+  void end_frame() { m_frame_open = false; }
+
+  PostFlagFrameDecision observe(std::uint64_t serial, bool hidden) {
+    PostFlagFrameDecision decision;
+    if (!serial) {
+      return decision;
+    }
+    if (!m_frame_open) {
+      account_unframed(serial);
+      return decision;
+    }
+    if (serial <= m_last_seen_serial) {
+      return decision;
+    }
+
+    decision.accepted = true;
+    decision.serial_gap = serial - m_last_seen_serial - 1;
+    m_serial_gaps_total += decision.serial_gap;
+    m_last_seen_serial = serial;
+    m_samples_total++;
+    if (hidden) {
+      m_hidden_samples_total++;
+    }
+    if (m_has_previous_hidden && m_previous_hidden != hidden) {
+      decision.hidden_transition = true;
+      m_hidden_transitions_total++;
+    }
+    m_previous_hidden = hidden;
+    m_has_previous_hidden = true;
+    return decision;
+  }
+
+  std::uint64_t samples_total() const { return m_samples_total; }
+  std::uint64_t hidden_samples_total() const { return m_hidden_samples_total; }
+  std::uint64_t hidden_transitions_total() const { return m_hidden_transitions_total; }
+  std::uint64_t serial_gaps_total() const { return m_serial_gaps_total; }
+  std::uint64_t unframed_samples_total() const { return m_unframed_samples_total; }
+
+ private:
+  void account_unframed(std::uint64_t latest_serial) {
+    if (latest_serial < m_last_seen_serial) {
+      m_last_seen_serial = latest_serial;
+      m_has_previous_hidden = false;
+      return;
+    }
+    if (latest_serial > m_last_seen_serial) {
+      m_unframed_samples_total += latest_serial - m_last_seen_serial;
+      m_last_seen_serial = latest_serial;
+    }
+  }
+
+  bool m_frame_open = false;
+  bool m_has_previous_hidden = false;
+  bool m_previous_hidden = false;
+  std::uint64_t m_last_seen_serial = 0;
+  std::uint64_t m_samples_total = 0;
+  std::uint64_t m_hidden_samples_total = 0;
+  std::uint64_t m_hidden_transitions_total = 0;
+  std::uint64_t m_serial_gaps_total = 0;
+  std::uint64_t m_unframed_samples_total = 0;
 };
 
 /*! Retained capture health and latest ordinary target/control evidence. */
@@ -261,6 +364,13 @@ struct MetalHostTargetControlTelemetry {
   std::uint8_t last_capture_stage = 0;
   std::uint8_t last_capture_result = 0;
   MetalHostTargetControlObservation last_observation;
+  std::uint64_t post_flag_samples_total = 0;
+  std::uint64_t hidden_samples_total = 0;
+  std::uint64_t hidden_transitions_total = 0;
+  std::uint64_t post_flag_serial_gaps_total = 0;
+  std::uint64_t unframed_post_flag_samples_total = 0;
+  MetalHostTargetPostFlagObservation last_post_flag_sample;
+  MetalHostTargetPostFlagObservation last_hidden_post_flag_sample;
 };
 
 /*! What the renderer has been asked to do, for the on-screen readout and the log. */
@@ -388,6 +498,9 @@ struct MetalHostStats {
   std::uint64_t merc_eichar_target_control_attack_boundaries_total = 0;
   MetalHostTargetControlEvent first_merc_eichar_target_control_event;
   MetalHostTargetControlEvent last_merc_eichar_target_control_event;
+  bool jak1_tie_envmap_second_pass_enabled = false;
+  int tie_envmap_second_pass_draws = 0;
+  std::uint64_t tie_envmap_second_pass_draws_total = 0;
   MetalHostTargetControlTelemetry target_control_telemetry;
 };
 MetalHostStats metal_host_stats();
