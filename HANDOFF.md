@@ -10557,3 +10557,49 @@ claimed.
    Stanley remains world-heading-dependent. A freshly authorized physical
    schema-v7 barely-visible/barely-out/open-space hold and heading sweep are
    still required to distinguish the retained hypotheses.
+
+# Checkpoint 70: deterministic Jak II Metal bucket policy
+
+Date: 2026-08-03. Nested commit
+`9687fcc2f76f5985745c8a8b0bd3820383d0fb90` adds a plain-C++ reference
+policy for all 327 Jak II graphics buckets. The exact audited set contains 200
+`DeferredSkip` descriptors matching the current OpenGL renderer's explicit
+Jak II bindings and 127 `StrictEmpty` descriptors for currently unbound slots.
+The table preserves contiguous IDs and a fixed FNV fingerprint of
+`0x6a36218fa2275590` so later wiring cannot silently change the audited policy.
+
+This nested head also contains ancestor `06cc9ddec`, which fixes test-only
+Jak II boot-probe save isolation. Each probe now owns an exclusive randomized
+temporary save directory and removes it through RAII only after runtime
+shutdown, so parallel focused or real-data probes cannot delete one another's
+fixed shared save directory. The canonical `jak2-data-boot-test --play-dma`
+rebuild and prepared-data run passed after this integration: 840 AOT units were
+registered, one 327-bucket chain completed with 396 tags and 3,008 payload
+bytes, the host observed one chain plus two `sync-path` and two `syncv` calls,
+and rendered/presented counts remained zero.
+
+The focused test validates the exact 200/127 counts, contiguous identity,
+fingerprint, representative strict/deferred lookups, and fail-closed
+out-of-range behavior. This is policy-only validation: it does not parse a DMA
+chain or instantiate a renderer. The portable general-host CMake test is wired
+as `jak2-metal-bucket-table-test`. Direct native ARM64 and x86_64 builds passed
+warning-clean; the focused ARM64 and x86_64 CMake/CTest runs each passed 1/1,
+and the canonical ARM64 focused CTest also passed 1/1.
+
+The table source is not linked into the Metal product or Jak II runtime yet.
+There is no Objective-C++ dispatcher, DMA rendering, pixel output, command-
+buffer submission, or presentation claim in this checkpoint.
+
+## Next executable gates
+
+1. Make the existing Metal `Empty`, `Skip`, and `Direct` semantics game-version
+   aware without changing Jak 1 behavior. Jak II strict-empty slots must reject
+   content, while deferred slots may advance only through the new policy.
+2. Add the table source to the product target at the same checkpoint as a real
+   nil-layer synthetic Jak II dispatcher proof covering all 327 slots. Require
+   zero drawables, submissions, and presentations; do not claim rendered
+   pixels from the policy table alone.
+3. Keep the Jak 1 wall recurrence and Flat-Stanley heading collapse at their
+   physical schema-v7 A/B gate. Do not make a speculative visual patch before
+   the freshly authorized barely-visible/barely-out/open-space holds and
+   heading sweep distinguish the retained hypotheses.

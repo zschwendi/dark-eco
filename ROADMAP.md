@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness and remaining platform gaps, not real-media
 import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 69 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 70 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 
@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 69 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 70 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -1055,6 +1055,19 @@ now consumes that neutral seam. The Jak II development app still has no
 AVAudioEngine output or Metal dispatch, and this is not physical-device,
 visible-title, pixel, or gameplay evidence.
 
+Checkpoint 70 defines and deterministically validates Jak II's plain-C++ Metal
+bucket policy at nested `9687fcc2f`: all 327 IDs are contiguous, 200 current
+OpenGL-bound slots are `DeferredSkip`, 127 unbound slots are `StrictEmpty`, and
+the fixed FNV fingerprint is `0x6a36218fa2275590`. Direct native ARM64 and
+x86_64 warning-clean builds and the focused CMake/CTest gates pass. This is a
+policy table only; it is not linked into the Metal product/runtime and provides
+no Objective-C++ dispatch, DMA rendering, pixel, submission, or presentation
+evidence. Ancestor `06cc9ddec` separately makes the test-only Jak II boot probe
+use an exclusive randomized temporary save directory with post-shutdown RAII
+cleanup, preventing parallel probes from deleting a shared save directory. The
+canonical prepared-data `--play-dma` rebuild and run pass after integration with
+one complete 327-bucket chain and zero rendered or presented frames.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
@@ -1079,16 +1092,15 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Continue Jak II with a plain-C++ 327-entry Metal bucket-descriptor table test
-   that proves 200 deferred and 127 strict-empty slots. After it passes, make
-   the relevant Metal paths version-aware and add the smallest nil-layer
-   synthetic dispatch proof. Do not claim presentation until real Jak II
-   buckets replace the renderer's current Jak 1-only dispatch path.
+4. Continue Jak II by making the existing Metal Empty/Skip/Direct behavior
+   game-version aware, then add the policy-table source to the product target
+   with a real nil-layer synthetic 327-slot dispatcher proof. Require zero
+   drawables, submissions, and presentations, and preserve Jak 1 behavior.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
-Checkpoint 69 did not access Z iPad Pro. The maintainer supplied screenshots
+Checkpoint 70 did not access Z iPad Pro. The maintainer supplied screenshots
 from their own current physical run, but the agent did not install, launch,
 log, copy, or otherwise access the device. The maintainer reported that the app
 was backgrounded or closed, and any later install, launch, logging, capture, or
