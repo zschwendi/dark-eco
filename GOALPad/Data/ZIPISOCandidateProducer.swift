@@ -225,6 +225,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
                 "The ISO uses unsupported ZIP compression method \(entry.method)."
             )
         }
+        try Task.checkCancellation()
 
         guard state.bytesWritten == entry.uncompressedSize else {
             throw Self.failure(
