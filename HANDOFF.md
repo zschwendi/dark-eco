@@ -11475,3 +11475,77 @@ require fresh device authorization.
 
 No physical device was installed, launched, logged, captured, or otherwise
 accessed during Checkpoint 77.
+
+# Checkpoint 78: Jak II indexed animation streams cross the title blocker
+
+Date: 2026-08-03. Nested commit
+`4fb23cbd1bd9413dd63d9548a92032facde7777b` fixes the first live runtime
+blocker after Checkpoint 77 without changing rendering, AOT output, prepared
+data, or Jak 1.
+The `title-disk-intro` diagnostic was misleading: it is a ten-part animation
+stream in `TIDINTRO.STR`, not an AOT object. The previous channel-4 responder
+rejected every indexed STR request without writing the normal error reply, so
+GOAL linked an untouched zero-filled destination and reported a false GOAL 0.0
+object version.
+
+The Jak II sound responder now maps bounded animation names through the existing
+ISO-name rule, reads `StrFileHeaderJ2`, validates the section, EE destination,
+sector offset, declared size, signed seek range, and file extent, then copies
+only the selected chunk. Every well-framed request writes either the ordinary
+DONE or ERROR reply. Original basename case is retained for case-sensitive
+special animation mappings. Focused tests cover title-style and special-word
+animation names, exact routed payloads, missing and out-of-range sections,
+path-like names, undersized destinations, and a hostile overflowing size.
+
+## Validation and live runtime result
+
+The focused host validation passed:
+
+```text
+git diff --check
+cmake --build build/Release/bin \
+  --target jak2-sound-rpc-test jak2-dgo-rpc-test -j2
+ctest --test-dir build/Release/bin \
+  -R '^jak2-(sound-rpc|dgo-rpc)-test$' --output-on-failure
+```
+
+Both tests passed in 0.28 seconds. An independent read-only safety review found
+no blocking reply, layout, bounds, mapping, or integration issue.
+
+The incremental approved-M5-simulator Release build succeeded in 3.920 seconds.
+Installing it over the existing app preserved prepared data. A console-attached
+launch loaded `TITLE.DGO`, linked `title`, entered the title state, then loaded
+`CWI.DGO`, `LWIDEA.DGO`, and `CTA.DGO`. The `title-disk-intro` GOAL 0.0 assertion
+did not recur. This is a live prepared-data proof of the indexed-animation STR
+path; no reimport or AOT regeneration was needed.
+
+A later bounded simulator snapshot recorded 420 accepted display callbacks,
+420 complete policy chains, 420 drawable acquisitions, 420 committed and
+completed GPU buffers, 420 presentation requests, zero policy failures, zero
+GPU errors, zero misses, and zero presentation drops. It still recorded zero
+game draws and zero `SCREEN_FILTER` draws, so no visible title pixel, rendered
+title, or gameplay is claimed.
+
+The incremental generic iPhoneOS Release build succeeded in 3.307 seconds and
+strict deep signature verification passed. The result remains a thin ARM64
+iOS 18.0 app with identifier `com.zephyrstudiosllc.eco.jak2dev`, team
+`V729QMY3V6`, executable SHA-256
+`eb1c55033f324f2e2de35aee0957c10f575d418061c96103d0db16491db9d24b`, and
+CDHash `d57bc754d83641993207e024bfc31ef62dd5a2d3`.
+
+## Next executable gates
+
+The next observed Jak II sound frontier is loader bank-slot state: title
+progress reaches an `empty0` unload request, then attempts `DEMO1.SBK` while the
+portable responder still reports no available bank slot. Audit and implement
+only the exact loader command/state transition before broadening sound work.
+This degrades sound-bank availability but does not itself prove a fatal boot
+stop; GOAL continues after the no-reply request.
+Rendering remains independently gated on the first Direct candidate actually
+emitted by the live path; do not loosen the zero-draw success condition.
+
+The supplied Jak 1 wall photos remain evidence of two recurring whole-camera
+poses, not a new renderer or Flat Stanley symptom. No Jak 1 camera code changed.
+The existing schema-v7 wall-visible, wall-out-of-frame, and open-space-out-of-
+frame A/B remains the smallest discriminator. No physical device was installed,
+launched, logged, captured, or otherwise accessed during Checkpoint 78.

@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness and remaining platform gaps, not real-media
 import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 77 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 78 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 
@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 77 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 78 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -1143,6 +1143,18 @@ kernel expects 1.0. The exact-current Jak 1 Metal proof and signed generic-iOS
 Release remain green after the shared renderer change. No physical device was
 contacted.
 
+Checkpoint 78 implements bounded indexed-animation STR reads for Jak II at
+nested `4fb23cbd1`.
+`title-disk-intro` is now correctly resolved through `TIDINTRO.STR` instead of
+linking an untouched zero buffer as a false GOAL 0.0 object. Focused sound and
+composed-router tests pass; the approved M5 simulator build loads the title and
+continues through `CWI.DGO`, `LWIDEA.DGO`, and `CTA.DGO`; and the generic
+iPhoneOS Release build signs and passes strict verification. The live app still
+emits zero game and `SCREEN_FILTER` draws, so visible title/gameplay claims
+remain gated. The next observed sound frontier is the exact bank-slot unload
+transition before loading `DEMO1.SBK`; it degrades bank availability but is not
+itself a fatal boot stop. No physical device was contacted.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
@@ -1169,8 +1181,9 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Resolve the `title-disk-intro` prepared-object/AOT version mismatch, then
-   identify the first Direct candidate actually emitted by the live TITLE path.
+4. Implement and validate the exact Jak II loader bank-slot transition observed
+   before `DEMO1.SBK`, then identify the first Direct candidate actually emitted
+   by the live TITLE path.
    Do not loosen the zero-draw failure gate. Preserve the nil-layer, exact-
    readback, and real-layer simulator proofs. A completed drawable presentation
    remains a separately authorized physical-device gate.
@@ -1178,7 +1191,7 @@ The next actions are:
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
-Checkpoint 77 did not access Z iPad Pro. The maintainer supplied screenshots
+Checkpoint 78 did not access Z iPad Pro. The maintainer supplied screenshots
 from their own current physical run, but the agent did not install, launch,
 log, copy, or otherwise access the device. The maintainer reported that the app
 was backgrounded or closed, and any later install, launch, logging, capture, or
