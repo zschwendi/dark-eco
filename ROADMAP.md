@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 54 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 56 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -851,8 +851,8 @@ shake mostly stopped; severe slower near-wall oscillation and the
 wrong-facing/skinny transform failure remain.
 
 The current parent implementation point before this documentation update is
-`42c93b1b2994297bd69522ffabc32b8d8a3adabd`. The current nested OpenGOAL pin is
-`e4bb61c7f171d67c88ad9fa110ec145a425660f8`. The nested commit matches its
+`1427118a28284cdbd19676b38da4faef85ea17b3`. The current nested OpenGOAL pin is
+`ac8f3460dbc12b785348eaa96f38353613de7719`. The nested commit matches its
 corresponding remote branch before this documentation commit. The recorded Jak 1 source
 pack remains 518 objects, aggregate `f1770cae6287a359`, and 10,729,681 bytes;
 the AOT corpus remains 10,596 emitted functions and 7 native routines. The
@@ -906,25 +906,37 @@ This is still an unsigned isolated link proof, not app wiring, a signed app,
 simulator/device runtime, title screen, or gameplay. Jak II does not displace
 Jak 1 as active scope.
 
+Checkpoint 56 identifies and fixes the common source of Jak's angle-dependent
+collapse and the coherent wall/out-of-frame camera A/B flicker. The AOT C
+backend had lowered packed vector square root as an X-only write. Nested
+`360d618b3` restores four-lane semantics and adds broadcast regressions;
+`3a425003e` initializes the helper result. A single fresh 518-source sweep
+produced a complete Jak 1 AOT corpus and checked source pack with the recorded
+identity `f1770cae6287a359`. A signed generic iOS Release build passed, was
+update-installed without erasing the app container, and launched on the
+authorized Z iPad Pro. Physical visual acceptance and the corrected cache are
+still pending the maintainer's active run.
+
+Jak II command 2 now has a bounded host implementation rather than a no-op.
+Nested `b40e2f975` reads a user-local SBlk once, preflights and parses the same
+bytes, retains the resulting 989snd bank, and owns explicit sound teardown.
+Nested `ac8f3460d` closes decoded-allocation amplification with a
+format-derived aggregate grain budget and makes partial block construction
+exception-safe. The SBlk, sound-RPC, and Jak 1 lifecycle tests pass 3/3. This
+is a checked host seam, not playback, app wiring, simulator, or device proof.
+
 The next actions are:
 
-1. Once Z iPad Pro is unlocked, launch the already installed corrected build.
-   Require target capture stage `10`, result `1`, and a nonzero valid-observation
-   count before interpreting its facing fields.
-2. Preserve separate toward-portal,
-   away-from-portal, and deliberate near-wall runs. Compare only the controlled
-   portal-relative A/B. The original “backward” wording was camera-relative;
-   the portal is the stable reference for this test. Use LOS,
-   movement-blocked, max-angle, tracking, and large-orientation events to
-   select one testable behavior change. Do not claim a global heading rule or
-   speculate past the trace.
+1. When the current Z iPad Pro run is complete, background Eco Pro and copy the
+   corrected cache before relaunch. Require unit render/control quaternion
+   norms and unit camera-combiner basis axes before accepting the shared fix.
+2. Record physical visual acceptance separately: Jak must retain volume and
+   correct facing through portal-relative headings, and the wall/out-of-frame
+   camera must stop alternating coherent large orientations.
 3. Keep the camera, Merc, importer, source-pack, and AOT gates green. Reuse the
-   recorded 518-object pack unless its writer or embedded graph changes.
-4. The next measured Jak II seam is safe loader command 2 (`load-bank`) parsing
-   for `COMMON`/`COMMONJ` and `EMPTY0`-`EMPTY2`. Command-aware reply framing is
-   complete. Add a non-aborting verified SBlk/container boundary and explicit
-   sound teardown before connecting real bank state; do not resume the unsafe
-   quarantined parser directly or jump to app wiring/full sound.
+   fresh 518-object pack unless its writer or embedded graph changes.
+4. Continue Jak II from the first unsupported RPC after checked bank loading.
+   Playback, streams, output, app wiring, and physical runtime remain unproved.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 

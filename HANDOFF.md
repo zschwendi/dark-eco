@@ -8999,3 +8999,117 @@ sound teardown, followed by synthetic tests, before command 2 can load data.
 4. For Jak II, build a non-aborting bank-container validator and explicit
    sound lifecycle in a separate bounded lane. Keep real bank load and app
    wiring unclaimed until each has its own runtime proof.
+
+# Checkpoint 56: fix packed vector square root and load checked Jak II banks
+
+## Jak 1 transform and camera root cause
+
+The corrected physical schema-v5 cache was copied read-only from Z iPad Pro to
+`/private/tmp/camera-provenance-z-ipad-v5-wall-live-20260803.log`, SHA-256
+`a2e90d26f6544d45b7d78ae468bb20f706b43597069f36c6f2fcbc3339c0cf20`.
+It retained target stage `10`, result `1`, 9,430 valid observations, and zero
+Merc output-composition mismatches. The raw render quaternion norm was
+`0.632669459`; the root input axes were approximately
+`0.392681 / 1.399609 / 0.393444`, while final Merc preserved that same aspect
+ratio under a uniform scale. Applying the standard non-unit quaternion matrix
+formula to the recorded quaternion predicts the logged collapsed axes within
+0.274 percent. Flat Stanley therefore entered before final Merc composition.
+
+The same cache retained camera producer A/B/A events with stable target,
+translation, LOS, movement-blocked state, and packet/presentation order. Only
+the smoothed combiner rotation basis alternated between reciprocal non-unit
+scales. The wall and out-of-frame view amplified that bad basis; it was not a
+wall/LOS solver state flip.
+
+The shared cause was `IR_SqrtVF` in the AOT C backend. GOAL's
+`quaternion-normalize!` splats the squared norm, square-roots it, then performs
+a packed divide. The C backend had square-rooted only X, leaving the other
+three lanes as squared norms. For a yaw quaternion this maps norm `m` to
+`1 / m` on each normalization, explaining Jak's angle-dependent collapse and
+the camera's coherent A/B flicker.
+
+Nested `360d618b3` makes `IR_SqrtVF` emit a four-lane `goal_vf_sqrt` and adds
+focused `.sqrt.vf` and `.isqrt.vf` broadcast regressions. Nested `3a425003e`
+zero-initializes the helper's result so the new path adds no conditional-
+uninitialized warning. The focused C-backend test passed and its generated
+iPhoneOS object is ARM64.
+
+The corrected writer was run once across all 518 Jak 1 sources, emitting both
+the ignored app AOT corpus and a fresh checked source-object pack at
+`/private/tmp/GOALPad-jak1-source-pack-isqrt-corrected`. Verification passed:
+
+```text
+518 objects
+10,596 emitted functions
+7 native functions
+0 file/function failures
+source-pack aggregate f1770cae6287a359
+source-pack bytes 10,729,681
+```
+
+`Generated/jak1-aot/quaternion.c` now contains `goal_vf_sqrt` in
+`quaternion-normalize!`; no generated C file retains the old
+`goal_vf_set_x(...sqrt...)` lowering.
+
+## Jak II checked bank-load slice
+
+Nested `a86b44a55` and `6fa69c87a` provide a non-aborting SBlk preflight that
+allows legitimate shared grain ranges. Nested `b40e2f975` connects exact
+command-2/no-reply framing to one bounded file read, validates that exact byte
+vector, and passes the same bytes through 989snd without a path reopen. It also
+adds explicit per-game sound shutdown before the common arena is released.
+Nested `d78ce4f74` documents that command 2's zero return means transport
+completion, not proof of a successful load.
+
+The integration review then found decoded-allocation amplification: many sound
+records could share one valid grain range and make 989snd allocate millions of
+decoded `Grain` objects. Nested `ac8f3460d` caps aggregate decoded grain
+references at the format-derived signed 16-bit ceiling, keeps ordinary shared
+ranges valid, adds exact 32,767/32,768 boundary coverage, and makes
+`SFXBlock::ReadBlock` exception-safe with RAII. Focused validation passed:
+
+```sh
+cmake --build OpenGOAL/build/Release/bin \
+  --target jak2-sblk-preflight-test jak2-sound-rpc-test \
+           jak1-kernel-core-smoke-test --parallel 2
+ctest --test-dir OpenGOAL/build/Release/bin \
+  -R '^(jak2-sound-rpc-test|jak2-sblk-preflight-test|jak1-kernel-core-smoke-test)$' \
+  --output-on-failure
+# 3/3 passed
+```
+
+No full Jak II boot, real bank-load runtime, playback, app wiring, simulator,
+or physical-device claim is made for this slice.
+
+## Signed build and current physical gate
+
+The generic iOS Release build passed with the corrected AOT corpus and source
+pack. The app executable is a thin ARM64 Mach-O with SHA-256
+`384dc2c75db8fd208400dbfc15bbbcb23191f40ab708de1bdc5ba81fce1dbf85`.
+Direct signing-service verification reports valid on disk and satisfying its
+designated requirement. Entitlements retain team `V729QMY3V6`, bundle
+`com.zephyrstudiosllc.eco`, and private iCloud container
+`iCloud.com.zephyrstudiosllc.eco`.
+
+With the current request's explicit authorization, the build was
+update-installed and launched on Z iPad Pro without uninstalling or erasing
+its app container. This is successful build/install/launch evidence, not yet
+visual acceptance. The maintainer is testing portal-relative headings and the
+same wall/out-of-frame camera position now.
+
+Nested `ac8f3460dbc12b785348eaa96f38353613de7719` is pushed to
+`origin/goalpad/ipad-demo-pacing`. The parent still has the maintainer-owned
+`GOALPad.xcodeproj/project.pbxproj` modification; do not stage or discard it.
+
+## Next executable tasks
+
+1. After the maintainer finishes the current run, background Eco Pro and copy
+   the schema-v5 cache without relaunching or reinstalling.
+2. Require unit render/control quaternion norms and unit camera-combiner basis
+   axes before accepting the shared fix. Compare the physical visual result
+   separately from diagnostic confirmation.
+3. If both Flat Stanley and wall A/B flicker are gone, remove or demote only
+   the now-obsolete high-volume probes in a later focused cleanup; do not mix
+   that cleanup into this checkpoint.
+4. Continue Jak II from the first post-bank-load unsupported RPC. Do not claim
+   playback or app support from the checked host bank seam.
