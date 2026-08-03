@@ -11316,3 +11316,9 @@ Nested branches `goalpad/ipad-demo-pacing` and
    and opt-in CAMetalLayer proofs.
 4. Keep Jak 1 visual work at its physical schema-v7 gate until the maintainer
    gives fresh device authorization. No physical device was accessed here.
+
+Parent integration/documentation commit
+`d2110373a01a0082c99e65ff99802a1586d3e228` advances the OpenGOAL gitlink and
+records this checkpoint. Remote branches `feat/ipados-native-boot` and
+`agent/cp76-jak2-cametal-parent` both resolved to that exact parent hash after
+publication.
