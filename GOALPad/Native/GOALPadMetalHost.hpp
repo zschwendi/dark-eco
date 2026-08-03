@@ -183,6 +183,86 @@ struct MetalHostTargetControlEvent {
   bool valid() const { return issue_mask != 0; }
 };
 
+struct MetalHostTargetControlVector4 {
+  double x = 0.0;
+  double y = 0.0;
+  double z = 0.0;
+  double w = 0.0;
+};
+
+struct MetalHostTargetControlFacing {
+  bool valid = false;
+  double x = 0.0;
+  double z = 0.0;
+};
+
+struct MetalHostTargetControlBasis {
+  bool valid = false;
+  double axis0_x = 0.0;
+  double axis0_y = 0.0;
+  double axis0_z = 0.0;
+  double axis1_x = 0.0;
+  double axis1_y = 0.0;
+  double axis1_z = 0.0;
+  double axis2_x = 0.0;
+  double axis2_y = 0.0;
+  double axis2_z = 0.0;
+};
+
+struct MetalHostTargetControlDeformation {
+  bool valid = false;
+  double axis_norm_x = 0.0;
+  double axis_norm_y = 0.0;
+  double axis_norm_z = 0.0;
+  double aspect = 0.0;
+  double normalized_abs_determinant = 0.0;
+};
+
+/*! The latest ordinary valid eichar-lod0 target/control sample, independent of issue events. */
+struct MetalHostTargetControlObservation {
+  bool valid = false;
+  std::uint64_t host_tick_id = 0;
+  std::uint64_t chain_ordinal = 0;
+  std::uint64_t engine_frame_id = 0;
+  int probe_bone_slot = -1;
+  std::uint64_t producer_serial = 0;
+  std::uint32_t source_base = 0;
+  std::uint64_t camera_hash = 0;
+  std::uint32_t target_state_id = 0;
+  std::uint64_t target_attack_id = 0;
+  std::uint32_t button0_abs = 0;
+  std::uint32_t button0_rel = 0;
+  std::uint8_t left_x = 0;
+  std::uint8_t left_y = 0;
+  double stick_direction = 0.0;
+  double stick_speed = 0.0;
+  double pad_magnitude = 0.0;
+  MetalHostTargetControlVector4 raw_dir_targ;
+  MetalHostTargetControlVector4 raw_quat_for_control;
+  MetalHostTargetControlVector4 raw_render_quat;
+  MetalHostTargetControlVector4 raw_turn_to_target;
+  MetalHostTargetControlFacing intent_forward;
+  MetalHostTargetControlFacing desired_forward;
+  MetalHostTargetControlFacing control_forward;
+  MetalHostTargetControlFacing render_forward;
+  MetalHostTargetControlFacing root_forward;
+  MetalHostTargetControlBasis camera_basis;
+  MetalHostTargetControlDeformation input_root_deformation;
+  MetalHostTargetControlDeformation output_deformation;
+  double input_root_translation_x = 0.0;
+  double input_root_translation_y = 0.0;
+  double input_root_translation_z = 0.0;
+};
+
+/*! Retained capture health and latest ordinary target/control evidence. */
+struct MetalHostTargetControlTelemetry {
+  std::uint64_t capture_attempts_total = 0;
+  std::uint64_t valid_observations_total = 0;
+  std::uint8_t last_capture_stage = 0;
+  std::uint8_t last_capture_result = 0;
+  MetalHostTargetControlObservation last_observation;
+};
+
 /*! What the renderer has been asked to do, for the on-screen readout and the log. */
 struct MetalHostStats {
   std::uint64_t chains_sent = 0;      // __send-gfx-dma-chain calls
@@ -308,8 +388,10 @@ struct MetalHostStats {
   std::uint64_t merc_eichar_target_control_attack_boundaries_total = 0;
   MetalHostTargetControlEvent first_merc_eichar_target_control_event;
   MetalHostTargetControlEvent last_merc_eichar_target_control_event;
+  MetalHostTargetControlTelemetry target_control_telemetry;
 };
 MetalHostStats metal_host_stats();
+MetalHostTargetControlTelemetry metal_host_target_control_telemetry();
 
 #ifdef __OBJC__
 

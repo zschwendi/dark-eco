@@ -135,6 +135,77 @@ static GOALPadTargetControlEvent makeTargetControlEvent(
           core.render_root_dot};
 }
 
+static GOALPadTargetControlVector4 makeTargetControlVector4(
+    const goalpad::MetalHostTargetControlVector4 &core) {
+  return {core.x, core.y, core.z, core.w};
+}
+
+static GOALPadTargetControlFacing makeTargetControlFacing(
+    const goalpad::MetalHostTargetControlFacing &core) {
+  return {core.valid, core.x, core.z};
+}
+
+static GOALPadTargetControlBasis makeTargetControlBasis(
+    const goalpad::MetalHostTargetControlBasis &core) {
+  return {core.valid,   core.axis0_x, core.axis0_y, core.axis0_z, core.axis1_x,
+          core.axis1_y, core.axis1_z, core.axis2_x, core.axis2_y, core.axis2_z};
+}
+
+static GOALPadTargetControlDeformation makeTargetControlDeformation(
+    const goalpad::MetalHostTargetControlDeformation &core) {
+  return {core.valid,
+          core.axis_norm_x,
+          core.axis_norm_y,
+          core.axis_norm_z,
+          core.aspect,
+          core.normalized_abs_determinant};
+}
+
+static GOALPadTargetControlObservation makeTargetControlObservation(
+    const goalpad::MetalHostTargetControlObservation &core) {
+  return {core.valid,
+          core.host_tick_id,
+          core.chain_ordinal,
+          core.engine_frame_id,
+          (int32_t)core.probe_bone_slot,
+          core.producer_serial,
+          core.source_base,
+          core.camera_hash,
+          core.target_state_id,
+          core.target_attack_id,
+          core.button0_abs,
+          core.button0_rel,
+          core.left_x,
+          core.left_y,
+          core.stick_direction,
+          core.stick_speed,
+          core.pad_magnitude,
+          makeTargetControlVector4(core.raw_dir_targ),
+          makeTargetControlVector4(core.raw_quat_for_control),
+          makeTargetControlVector4(core.raw_render_quat),
+          makeTargetControlVector4(core.raw_turn_to_target),
+          makeTargetControlFacing(core.intent_forward),
+          makeTargetControlFacing(core.desired_forward),
+          makeTargetControlFacing(core.control_forward),
+          makeTargetControlFacing(core.render_forward),
+          makeTargetControlFacing(core.root_forward),
+          makeTargetControlBasis(core.camera_basis),
+          makeTargetControlDeformation(core.input_root_deformation),
+          makeTargetControlDeformation(core.output_deformation),
+          core.input_root_translation_x,
+          core.input_root_translation_y,
+          core.input_root_translation_z};
+}
+
+static GOALPadTargetControlTelemetry makeTargetControlTelemetry(
+    const goalpad::MetalHostTargetControlTelemetry &core) {
+  return {core.capture_attempts_total,
+          core.valid_observations_total,
+          core.last_capture_stage,
+          core.last_capture_result,
+          makeTargetControlObservation(core.last_observation)};
+}
+
 static GOALPadCameraCorrectionVector makeCameraCorrectionVector(
     const goalpad::camera_correction_trace::Vector4 &core) {
   return {core.values[0], core.values[1], core.values[2], core.values[3]};
@@ -400,6 +471,10 @@ static GOALPadCameraCorrectionEvent makeCameraCorrectionEvent(
                                 makeTargetControlEvent(
                                     core.last_merc_eichar_target_control_event)};
   return stats;
+}
+
+- (GOALPadTargetControlTelemetry)targetControlTelemetry {
+  return makeTargetControlTelemetry(goalpad::metal_host_target_control_telemetry());
 }
 
 - (NSString *)levelsWanted {

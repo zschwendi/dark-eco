@@ -198,7 +198,9 @@ final class GameSession {
         }
         let renderer = surface.stats
         #if os(iOS) || os(visionOS)
-        persistCameraDiagnosticsIfNeeded(renderer, periodic: shouldLog)
+        persistCameraDiagnosticsIfNeeded(renderer,
+                                         targetControl: surface.targetControlTelemetry,
+                                         periodic: shouldLog)
         #endif
         if shouldLog { logRunningState(renderer: renderer) }
         input.applyRumble()
@@ -321,6 +323,7 @@ final class GameSession {
             cameraDiagnosticsURL = directory
                 .appendingPathComponent("camera-provenance-v1.log", isDirectory: false)
             let renderer = GOALPadRenderSurface.shared.stats
+            let targetControl = GOALPadRenderSurface.shared.targetControlTelemetry
             lastAttemptedCameraAlternations = renderer.producerCameraAlternations
             lastAttemptedCameraCorrectionEvents = renderer.cameraCorrectionEventsTotal
             lastAttemptedMercMissingBoneSlotsTotal = renderer.mercMissingBoneSlotsTotal
@@ -331,7 +334,7 @@ final class GameSession {
                 renderer.mercEicharTransformDiscontinuitiesTotal
             lastAttemptedMercTargetControlEventsTotal =
                 renderer.mercEicharTargetControlEventsTotal
-            try writeCameraDiagnostics(renderer)
+            try writeCameraDiagnostics(renderer, targetControl: targetControl)
             lastPersistedCameraAlternations = renderer.producerCameraAlternations
             lastPersistedCameraCorrectionEvents = renderer.cameraCorrectionEventsTotal
             lastPersistedMercMissingBoneSlotsTotal = renderer.mercMissingBoneSlotsTotal
@@ -347,9 +350,12 @@ final class GameSession {
         }
     }
 
-    private func persistCameraDiagnosticsIfNeeded(_ renderer: GOALPadRendererStats,
-                                                   periodic: Bool,
-                                                   forced: Bool = false) {
+    private func persistCameraDiagnosticsIfNeeded(
+        _ renderer: GOALPadRendererStats,
+        targetControl: GOALPadTargetControlTelemetry,
+        periodic: Bool,
+        forced: Bool = false
+    ) {
         guard cameraDiagnosticsURL != nil else { return }
         let alternationNotPersisted = renderer.producerCameraAlternations
             > lastPersistedCameraAlternations
@@ -401,7 +407,7 @@ final class GameSession {
         lastAttemptedMercTargetControlEventsTotal =
             renderer.mercEicharTargetControlEventsTotal
         do {
-            try writeCameraDiagnostics(renderer)
+            try writeCameraDiagnostics(renderer, targetControl: targetControl)
             lastPersistedCameraAlternations = renderer.producerCameraAlternations
             lastPersistedCameraCorrectionEvents = renderer.cameraCorrectionEventsTotal
             lastPersistedMercMissingBoneSlotsTotal = renderer.mercMissingBoneSlotsTotal
@@ -420,7 +426,10 @@ final class GameSession {
     private func persistCameraDiagnosticsForLifecycleEvent() {
         let surface = GOALPadRenderSurface.shared
         guard isRunning, surface.isRendererLinked else { return }
-        persistCameraDiagnosticsIfNeeded(surface.stats, periodic: false, forced: true)
+        persistCameraDiagnosticsIfNeeded(surface.stats,
+                                         targetControl: surface.targetControlTelemetry,
+                                         periodic: false,
+                                         forced: true)
     }
 
     private func mercPaletteHealthTotal(_ renderer: GOALPadRendererStats) -> UInt64 {
@@ -429,7 +438,10 @@ final class GameSession {
             + renderer.mercIncoherentBoneSourcesTotal
     }
 
-    private func writeCameraDiagnostics(_ renderer: GOALPadRendererStats) throws {
+    private func writeCameraDiagnostics(
+        _ renderer: GOALPadRendererStats,
+        targetControl: GOALPadTargetControlTelemetry
+    ) throws {
         guard let cameraDiagnosticsURL else { return }
         let locale = Locale(identifier: "en_US_POSIX")
         func decimal(_ value: Double) -> String {
@@ -657,6 +669,106 @@ final class GameSession {
                 "\(prefix)_render_root_dot=\(decimal(event.renderRootDot))",
             ]
         }
+        func targetControlVectorFields(_ prefix: String,
+                                       _ vector: GOALPadTargetControlVector4) -> [String] {
+            [
+                "\(prefix)_x=\(decimal(vector.x))",
+                "\(prefix)_y=\(decimal(vector.y))",
+                "\(prefix)_z=\(decimal(vector.z))",
+                "\(prefix)_w=\(decimal(vector.w))",
+            ]
+        }
+        func targetControlFacingFields(_ prefix: String,
+                                       _ facing: GOALPadTargetControlFacing) -> [String] {
+            [
+                "\(prefix)_valid=\(facing.valid.boolValue ? 1 : 0)",
+                "\(prefix)_x=\(decimal(facing.x))",
+                "\(prefix)_z=\(decimal(facing.z))",
+            ]
+        }
+        func targetControlBasisFields(_ prefix: String,
+                                      _ basis: GOALPadTargetControlBasis) -> [String] {
+            [
+                "\(prefix)_valid=\(basis.valid.boolValue ? 1 : 0)",
+                "\(prefix)_axis0_x=\(decimal(basis.axis0X))",
+                "\(prefix)_axis0_y=\(decimal(basis.axis0Y))",
+                "\(prefix)_axis0_z=\(decimal(basis.axis0Z))",
+                "\(prefix)_axis1_x=\(decimal(basis.axis1X))",
+                "\(prefix)_axis1_y=\(decimal(basis.axis1Y))",
+                "\(prefix)_axis1_z=\(decimal(basis.axis1Z))",
+                "\(prefix)_axis2_x=\(decimal(basis.axis2X))",
+                "\(prefix)_axis2_y=\(decimal(basis.axis2Y))",
+                "\(prefix)_axis2_z=\(decimal(basis.axis2Z))",
+            ]
+        }
+        func targetControlDeformationFields(
+            _ prefix: String,
+            _ deformation: GOALPadTargetControlDeformation
+        ) -> [String] {
+            [
+                "\(prefix)_valid=\(deformation.valid.boolValue ? 1 : 0)",
+                "\(prefix)_axis_norm_x=\(decimal(deformation.axisNormX))",
+                "\(prefix)_axis_norm_y=\(decimal(deformation.axisNormY))",
+                "\(prefix)_axis_norm_z=\(decimal(deformation.axisNormZ))",
+                "\(prefix)_aspect=\(decimal(deformation.aspect))",
+                "\(prefix)_normalized_abs_det="
+                    + decimal(deformation.normalizedAbsDeterminant),
+            ]
+        }
+        func targetControlObservationFields(
+            _ prefix: String,
+            _ observation: GOALPadTargetControlObservation
+        ) -> [String] {
+            [
+                "\(prefix)_valid=\(observation.valid.boolValue ? 1 : 0)",
+                "\(prefix)_host_tick=\(observation.hostTickID)",
+                "\(prefix)_chain=\(observation.chainOrdinal)",
+                "\(prefix)_engine_frame=\(observation.engineFrameID)",
+                "\(prefix)_probe_bone_slot=\(observation.probeBoneSlot)",
+                "\(prefix)_producer_serial=\(observation.producerSerial)",
+                "\(prefix)_source_base=\(observation.sourceBase)",
+                "\(prefix)_camera_hash=\(observation.cameraHash)",
+                "\(prefix)_target_state_id=\(observation.targetStateID)",
+                "\(prefix)_target_attack_id=\(observation.targetAttackID)",
+                "\(prefix)_button0_abs=\(observation.button0Abs)",
+                "\(prefix)_button0_rel=\(observation.button0Rel)",
+                "\(prefix)_left_x=\(observation.leftX)",
+                "\(prefix)_left_y=\(observation.leftY)",
+                "\(prefix)_stick_direction=\(decimal(observation.stickDirection))",
+                "\(prefix)_stick_speed=\(decimal(observation.stickSpeed))",
+                "\(prefix)_pad_magnitude=\(decimal(observation.padMagnitude))",
+                "\(prefix)_input_root_translation_x="
+                    + decimal(observation.inputRootTranslationX),
+                "\(prefix)_input_root_translation_y="
+                    + decimal(observation.inputRootTranslationY),
+                "\(prefix)_input_root_translation_z="
+                    + decimal(observation.inputRootTranslationZ),
+            ]
+                + targetControlVectorFields("\(prefix)_raw_dir_targ",
+                                            observation.rawDirTarg)
+                + targetControlVectorFields("\(prefix)_raw_quat_for_control",
+                                            observation.rawQuatForControl)
+                + targetControlVectorFields("\(prefix)_raw_render_quat",
+                                            observation.rawRenderQuat)
+                + targetControlVectorFields("\(prefix)_raw_turn_to_target",
+                                            observation.rawTurnToTarget)
+                + targetControlFacingFields("\(prefix)_intent_forward",
+                                            observation.intentForward)
+                + targetControlFacingFields("\(prefix)_desired_forward",
+                                            observation.desiredForward)
+                + targetControlFacingFields("\(prefix)_control_forward",
+                                            observation.controlForward)
+                + targetControlFacingFields("\(prefix)_render_forward",
+                                            observation.renderForward)
+                + targetControlFacingFields("\(prefix)_root_forward",
+                                            observation.rootForward)
+                + targetControlBasisFields("\(prefix)_camera_basis",
+                                           observation.cameraBasis)
+                + targetControlDeformationFields("\(prefix)_input_root_deformation",
+                                                 observation.inputRootDeformation)
+                + targetControlDeformationFields("\(prefix)_output_deformation",
+                                                 observation.outputDeformation)
+        }
 
         let fields = [
             "goalpad_camera_provenance", "v=5", "run=\(cameraDiagnosticsRunID)",
@@ -831,6 +943,14 @@ final class GameSession {
                     + "\(renderer.mercEicharTargetControlAttackBoundaries)",
                 "merc_eichar_target_control_attack_boundaries_total="
                     + "\(renderer.mercEicharTargetControlAttackBoundariesTotal)",
+                "merc_eichar_target_control_capture_attempts_total="
+                    + "\(targetControl.captureAttemptsTotal)",
+                "merc_eichar_target_control_valid_observations_total="
+                    + "\(targetControl.validObservationsTotal)",
+                "last_merc_eichar_target_control_capture_stage="
+                    + "\(targetControl.lastCaptureStage)",
+                "last_merc_eichar_target_control_capture_result="
+                    + "\(targetControl.lastCaptureResult)",
             ]
             + targetControlFields(
                 "first_merc_eichar_target_control",
@@ -838,6 +958,9 @@ final class GameSession {
             + targetControlFields(
                 "last_merc_eichar_target_control",
                 renderer.lastMercEicharTargetControlEvent)
+            + targetControlObservationFields(
+                "last_merc_eichar_target_control_observation",
+                targetControl.lastObservation)
         try Data((fields.joined(separator: " ") + "\n").utf8)
             .write(to: cameraDiagnosticsURL, options: .atomic)
     }

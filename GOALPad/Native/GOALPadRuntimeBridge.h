@@ -403,6 +403,87 @@ typedef struct GOALPadTargetControlEvent {
   double renderRootDot;
 } GOALPadTargetControlEvent;
 
+typedef struct GOALPadTargetControlVector4 {
+  double x;
+  double y;
+  double z;
+  double w;
+} GOALPadTargetControlVector4;
+
+typedef struct GOALPadTargetControlFacing {
+  BOOL valid;
+  double x;
+  double z;
+} GOALPadTargetControlFacing;
+
+typedef struct GOALPadTargetControlBasis {
+  BOOL valid;
+  double axis0X;
+  double axis0Y;
+  double axis0Z;
+  double axis1X;
+  double axis1Y;
+  double axis1Z;
+  double axis2X;
+  double axis2Y;
+  double axis2Z;
+} GOALPadTargetControlBasis;
+
+typedef struct GOALPadTargetControlDeformation {
+  BOOL valid;
+  double axisNormX;
+  double axisNormY;
+  double axisNormZ;
+  double aspect;
+  double normalizedAbsDeterminant;
+} GOALPadTargetControlDeformation;
+
+/// The latest ordinary valid target/control sample, even when no issue event was emitted.
+typedef struct GOALPadTargetControlObservation {
+  BOOL valid;
+  uint64_t hostTickID;
+  uint64_t chainOrdinal;
+  uint64_t engineFrameID;
+  int32_t probeBoneSlot;
+  uint64_t producerSerial;
+  uint32_t sourceBase;
+  uint64_t cameraHash;
+  uint32_t targetStateID;
+  uint64_t targetAttackID;
+  uint32_t button0Abs;
+  uint32_t button0Rel;
+  uint8_t leftX;
+  uint8_t leftY;
+  double stickDirection;
+  double stickSpeed;
+  double padMagnitude;
+  GOALPadTargetControlVector4 rawDirTarg;
+  GOALPadTargetControlVector4 rawQuatForControl;
+  GOALPadTargetControlVector4 rawRenderQuat;
+  GOALPadTargetControlVector4 rawTurnToTarget;
+  GOALPadTargetControlFacing intentForward;
+  GOALPadTargetControlFacing desiredForward;
+  GOALPadTargetControlFacing controlForward;
+  GOALPadTargetControlFacing renderForward;
+  GOALPadTargetControlFacing rootForward;
+  GOALPadTargetControlBasis cameraBasis;
+  GOALPadTargetControlDeformation inputRootDeformation;
+  GOALPadTargetControlDeformation outputDeformation;
+  double inputRootTranslationX;
+  double inputRootTranslationY;
+  double inputRootTranslationZ;
+} GOALPadTargetControlObservation;
+
+/// Capture health and latest ordinary target/control evidence. Stage/result are stable numeric
+/// values defined by OpenGOAL's `jak1_target_control_capture.h` diagnostic contract.
+typedef struct GOALPadTargetControlTelemetry {
+  uint64_t captureAttemptsTotal;
+  uint64_t validObservationsTotal;
+  uint8_t lastCaptureStage;
+  uint8_t lastCaptureResult;
+  GOALPadTargetControlObservation lastObservation;
+} GOALPadTargetControlTelemetry;
+
 /// What the Metal renderer has been asked to do since the game booted.
 typedef struct GOALPadRendererStats {
   uint64_t chainsSent;      ///< frames that handed over a DMA chain
@@ -554,6 +635,7 @@ typedef struct GOALPadRendererStats {
 @property(nonatomic, readonly, getter=isRendererLinked) BOOL rendererLinked;
 
 @property(nonatomic, readonly) GOALPadRendererStats stats;
+@property(nonatomic, readonly) GOALPadTargetControlTelemetry targetControlTelemetry;
 /// The levels the game last asked for, and every level whose art has been read, joined with '+'.
 @property(nonatomic, readonly) NSString *levelsWanted;
 @property(nonatomic, readonly) NSString *levelsLoaded;

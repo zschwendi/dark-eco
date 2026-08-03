@@ -300,6 +300,83 @@ goalpad::MetalHostTargetControlEvent retain_target_control_event(
   return retained;
 }
 
+goalpad::MetalHostTargetControlVector4 retain_target_control_vector(
+    const std::array<float, 4>& vector) {
+  return {vector[0], vector[1], vector[2], vector[3]};
+}
+
+goalpad::MetalHostTargetControlFacing retain_target_control_facing(
+    const metal_merc_transform_trace::FacingSnapshot& facing) {
+  return {facing.valid, facing.x, facing.z};
+}
+
+goalpad::MetalHostTargetControlBasis retain_target_control_basis(
+    const metal_merc_transform_trace::BasisSnapshot& basis) {
+  return {basis.valid,
+          basis.components[0],
+          basis.components[1],
+          basis.components[2],
+          basis.components[3],
+          basis.components[4],
+          basis.components[5],
+          basis.components[6],
+          basis.components[7],
+          basis.components[8]};
+}
+
+goalpad::MetalHostTargetControlDeformation retain_target_control_deformation(
+    const metal_merc_transform_trace::DeformationSnapshot& deformation) {
+  return {deformation.valid,
+          deformation.axis_norm_x,
+          deformation.axis_norm_y,
+          deformation.axis_norm_z,
+          deformation.aspect,
+          deformation.normalized_abs_determinant};
+}
+
+goalpad::MetalHostTargetControlObservation retain_target_control_observation(
+    const metal_merc_transform_trace::TargetControlObservation& observation,
+    std::uint64_t host_tick_id,
+    std::uint64_t chain_ordinal) {
+  goalpad::MetalHostTargetControlObservation retained;
+  retained.valid = observation.valid;
+  retained.host_tick_id = host_tick_id;
+  retained.chain_ordinal = chain_ordinal;
+  retained.engine_frame_id = observation.engine_frame_id;
+  retained.probe_bone_slot = observation.probe_bone_slot;
+  retained.producer_serial = observation.producer_serial;
+  retained.source_base = observation.source_base;
+  retained.camera_hash = observation.camera_hash;
+  retained.target_state_id = observation.target_state_id;
+  retained.target_attack_id = observation.target_attack_id;
+  retained.button0_abs = observation.button0_abs;
+  retained.button0_rel = observation.button0_rel;
+  retained.left_x = observation.left_x;
+  retained.left_y = observation.left_y;
+  retained.stick_direction = observation.stick_direction;
+  retained.stick_speed = observation.stick_speed;
+  retained.pad_magnitude = observation.pad_magnitude;
+  retained.raw_dir_targ = retain_target_control_vector(observation.raw_dir_targ);
+  retained.raw_quat_for_control =
+      retain_target_control_vector(observation.raw_quat_for_control);
+  retained.raw_render_quat = retain_target_control_vector(observation.raw_render_quat);
+  retained.raw_turn_to_target = retain_target_control_vector(observation.raw_turn_to_target);
+  retained.intent_forward = retain_target_control_facing(observation.intent_forward);
+  retained.desired_forward = retain_target_control_facing(observation.desired_forward);
+  retained.control_forward = retain_target_control_facing(observation.control_forward);
+  retained.render_forward = retain_target_control_facing(observation.render_forward);
+  retained.root_forward = retain_target_control_facing(observation.root_forward);
+  retained.camera_basis = retain_target_control_basis(observation.camera_basis);
+  retained.input_root_deformation =
+      retain_target_control_deformation(observation.input_root_deformation);
+  retained.output_deformation =
+      retain_target_control_deformation(observation.output_deformation);
+  retained.input_root_translation_x = observation.input_root_translation_x;
+  retained.input_root_translation_y = observation.input_root_translation_y;
+  retained.input_root_translation_z = observation.input_root_translation_z;
+  return retained;
+}
+
 void render_chain() {
   MetalRenderOptions opts;
   opts.game_res_w = g_host.frame.game_res_w;
@@ -454,6 +531,22 @@ void render_chain() {
     }
     g_host.stats.last_merc_eichar_target_control_event = retain_target_control_event(
         stats.last_merc_eichar_target_control_event, stats.last_host_tick_id,
+        stats.last_chain_ordinal);
+  }
+  auto& target_control_telemetry = g_host.stats.target_control_telemetry;
+  if (stats.merc_eichar_target_control_capture_attempts > 0) {
+    target_control_telemetry.capture_attempts_total +=
+        stats.merc_eichar_target_control_capture_attempts;
+    target_control_telemetry.last_capture_stage = static_cast<std::uint8_t>(
+        stats.last_merc_eichar_target_control_capture_stage);
+    target_control_telemetry.last_capture_result = static_cast<std::uint8_t>(
+        stats.last_merc_eichar_target_control_capture_result);
+  }
+  if (stats.merc_eichar_target_control_valid_observations > 0) {
+    target_control_telemetry.valid_observations_total +=
+        stats.merc_eichar_target_control_valid_observations;
+    target_control_telemetry.last_observation = retain_target_control_observation(
+        stats.last_merc_eichar_target_control_observation, stats.last_host_tick_id,
         stats.last_chain_ordinal);
   }
   g_host.stats.merc_bad_bone_pointers += stats.merc_bad_bone_pointers;
@@ -690,6 +783,10 @@ MetalHostStats metal_host_stats() {
   return g_host.stats;
 }
 
+MetalHostTargetControlTelemetry metal_host_target_control_telemetry() {
+  return g_host.stats.target_control_telemetry;
+}
+
 void metal_host_attach_layer(CAMetalLayer* layer) {
   if (layer == nil) {
     return;
@@ -771,6 +868,10 @@ bool metal_host_install_seam() {
 void metal_host_set_level_art_directory(const std::string&) {}
 
 MetalHostStats metal_host_stats() {
+  return {};
+}
+
+MetalHostTargetControlTelemetry metal_host_target_control_telemetry() {
   return {};
 }
 
