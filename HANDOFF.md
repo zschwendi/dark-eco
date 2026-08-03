@@ -11157,17 +11157,17 @@ logged, or captured in this checkpoint.
 
 ## Jak 1 wall-camera evidence
 
-The maintainer's four no-input wall screenshots show independent world
-landmarks shifting roughly 208-240 pixels horizontally while near and far
-geometry diverge vertically by roughly 64-80 pixels. Frames two and four nearly
-recur, while the HUD stays fixed and Jak is absent. This is coherent whole-
-scene camera-pose recurrence with depth parallax, not a SwiftUI viewport shift
-or Merc deformation. The stills support rapid oscillation but cannot measure
-the reported frequency.
+The maintainer's four no-input wall screenshots show large near-field
+displacement and scale change with smaller far-field motion. Frames two and
+four nearly recur, while the HUD stays fixed and Jak is absent. This is
+coherent whole-scene camera-pose recurrence with depth parallax, not a SwiftUI
+viewport shift or Merc deformation. The stills prove recurrence; the rapid
+roughly 20 Hz rate is the maintainer's live observation.
 
 Wall obstruction and Jak's absence co-occur in all four frames, so they do not
-separate wall line-of-sight feedback from off-screen recovery, camera-combiner
-recurrence, or downstream frame alternation. No camera code changed. The next
+separate wall line-of-sight feedback from target/framing behavior associated
+with leaving frame, camera-combiner recurrence, or downstream frame
+alternation. No camera code changed. The next
 authorized physical schema-v7 capture remains three no-input holds: same wall
 with Jak barely visible, same wall with Jak barely out of frame, and open space
 with Jak barely out of frame. Preserve each atomically overwritten diagnostic
@@ -11194,3 +11194,184 @@ publication addendum.
 3. Keep AVAudioEngine output after the selected-game audio-pull lifecycle gate.
 4. Keep Jak 1 camera and Merc changes at their physical diagnostic gates; do
    not make another speculative visual patch from stills alone.
+
+# Checkpoint 76: Jak II Metal surface reaches TITLE on the M5 simulator
+
+Date: 2026-08-03. Nested commit
+`70aae3f13c74647cbc4567e6026eef14f8d03f7c` advances the Jak II development
+path from Checkpoint 75. Parent source/gitlink commit
+`0f422074128c26b247a28c9f76fa5945edc93c73` records that nested revision.
+The active branches are `agent/cp76-jak2-metal-surface` and
+`agent/cp73-corrected-parent`.
+
+The development app now owns a real main-thread `CAMetalLayer`. The GOAL-facing
+graphics callback deep-copies each DMA chain and queues its sync barrier, but
+does not call Apple frameworks on the converted GOAL process stack. After the
+dispatcher returns, the native display tick flushes those copies in FIFO order,
+supplies the `CADisplayLink` target timestamp, acquires a drawable, commits the
+command buffer, and verifies each buffer's completion individually.
+
+Integration review closed the proof-integrity gaps before commit. Startup work
+is flushed before ticks begin; a failed tick discards partial queued work;
+startup-flush failure shuts down the runtime before destroying its copied
+callback host; an attached layer cannot be replaced in flight; and physical
+PASS waits for the presented callback's submission ID to match the last
+submitted ID. The simulator retains an explicit unsupported-presentation flag
+because its SDK does not expose that callback. The host and callbacks remain a
+single-owner-thread contract.
+
+This deferred queue is deliberately limited to the current policy-only Jak II
+bucket table, whose payloads are skipped or required empty. It must not be
+generalized to a real bucket until every referenced EE input is copied or the
+synchronous `sync-path` contract is restored another way.
+
+## Jak II settings and AOT stack boundary
+
+Jak II now installs the portable `file-stream-*` operations and the basic path,
+display-size, display-mode, refresh-rate, resolution, existence, and directory
+queries needed by PC settings initialization. Its user/settings paths remain in
+Application Support. Broader desktop window, input, and integration functions
+remain diagnostic stubs. The installed subset is Jak-II-only and does not
+change the Jak 1 machine-function set.
+
+The iPhoneOS-only AOT corpus explicitly compiles its 840 generated translation
+units with `-O3 -fno-strict-aliasing`. That target-local optimization is part of
+the converted-stack contract: the accidental `-O0` build gave the first
+time-of-day process a 704-byte native frame and a total 960-byte suspension
+requirement against its valid 896-byte backup. The optimized function uses a
+112-byte native frame and crosses the existing guard without changing the
+game-authored stack request.
+
+## Deterministic validation
+
+The focused host build and tests passed:
+
+```text
+CCACHE_DIR=/private/tmp/GOALPad-ccache \
+  cmake --build OpenGOAL/build/Release/bin \
+  --target jak1-kernel-core-smoke-test jak2-data-boot-test \
+           jak2-metal-host-bridge-test -j2
+
+ctest --test-dir OpenGOAL/build/Release/bin \
+  -R '^(jak1-kernel-core-smoke-test|jak2-data-boot-test)$' \
+  --output-on-failure
+
+ctest --test-dir OpenGOAL/build/Release/bin \
+  -R '^jak2-metal-host-bridge-test$' --output-on-failure
+
+OpenGOAL/build/Release/bin/game/jak2-display-tick-coordinator-test
+```
+
+The two kernel/data tests passed 2/2. The Metal host test passed with normal
+Metal service access after the final discard/completion changes; its sandboxed
+attempt could not create a Metal device and was an environment failure. The
+coordinator test passed with four accepted frames and no catch-up frames.
+
+The exact integrated Jak 1 regression was rebuilt once:
+
+```text
+CCACHE_DIR=/private/tmp/GOALPad-ccache \
+  cmake --build OpenGOAL/build/Release/bin --target metal-proof -j2
+OpenGOAL/build/Release/bin/game/metal-proof
+```
+
+It ended `METAL PROOF PASSED`, including the TIE A/B/A and shine diagnostics,
+Merc provenance and rotation coverage, and deterministic weighted-skin
+collapse. No Jak 1 renderer or gameplay behavior changed in this checkpoint.
+
+## Approved M5 simulator result
+
+The final optimized simulator build passed:
+
+```text
+xcodebuild \
+  -project /private/tmp/GOALPad-jak2-simulator-xcode/jak.xcodeproj \
+  -scheme jak2-iphoneos-display-tick-proof \
+  -configuration Release -sdk iphonesimulator \
+  -destination 'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-jak2-simulator-derived -jobs 2 build
+```
+
+The reviewed full rebuild succeeded in 47.141 seconds and the final
+startup-failure cleanup increment succeeded in 1.533 seconds. The exact app was
+installed and launched on the approved iPad Pro 11-inch (M5) simulator. The
+visible diagnostic reached `PASS` at `TITLE.DGO (ready)` and reported one
+display callback, one accepted dispatcher tick, one real 327-bucket/131,072-
+byte chain, one completed policy chain, one drawable, one committed and
+completed GPU buffer, one presentation request, and zero failures, misses,
+errors, drops, draw calls, or triangles. It reports last presented/submitted
+IDs `0 / 1` and presentation observation unsupported, as required on the
+simulator. The exact screenshot is
+`/private/tmp/GOALPad-jak2-cp76-exact.png`.
+
+This proves the real display-clock-to-layer-to-GPU-completion boundary at the
+TITLE data frontier. It does not prove a completed drawable presentation,
+visible Jak II game pixels, a rendered title screen, gameplay, audio output, or
+physical-device compatibility. The only on-screen pixels are the development
+diagnostic UI; the Jak II renderer still records zero game draws.
+
+## Generic iPhoneOS result
+
+The final exact-tree generic build passed without contacting a device:
+
+```text
+xcodebuild \
+  -project /private/tmp/GOALPad-jak2-iphoneos-xcode/jak.xcodeproj \
+  -scheme jak2-iphoneos-display-tick-proof \
+  -configuration Release -sdk iphoneos \
+  -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-jak2-iphoneos-derived \
+  -allowProvisioningUpdates -jobs 2 build
+```
+
+The final incremental build succeeded in 2.072 seconds after the previously
+recorded full 840-unit Release build. The result is a thin ARM64 iOS 18.0 app
+with bundle identifier `com.zephyrstudiosllc.eco.jak2dev`. Its executable
+SHA-256 is
+`bac85125a47cd5d35490c62a7bbd05a62eaa3d8e340e74353ec05d035d3e8720`.
+Strict deep signature verification passed with normal trust-service access;
+the signed entitlements are the expected application identifier, team
+identifier, and development `get-task-allow`. The stale missing-Xcode-token
+account warning remains non-blocking because the local development identity
+and wildcard profile completed signing.
+
+## Jak 1 camera-photo classification
+
+The latest four no-input wall frames reinforce the earlier classification:
+the foreground rock, terrain, palms, and horizon move coherently with depth
+parallax while the app HUD remains fixed, and the view returns toward a prior
+pose. This is whole-camera rotation/translation recurrence, not viewport
+scaling or Merc deformation. The rapid roughly 20 Hz rate comes from the
+maintainer's live observation; still frames prove recurrence, not frequency.
+
+Wall obstruction and Jak being outside the frame co-occur in every supplied
+frame, so the evidence does not yet choose among wall LOS/collision feedback,
+target/framing behavior associated with leaving frame, camera-combiner
+recurrence, or the packet/render/presentation boundary. No camera code changed.
+The next freshly authorized schema-v7 comparison remains three no-input holds:
+
+1. Same wall with Jak barely visible.
+2. Same wall with Jak barely outside the same edge.
+3. Open space with Jak barely outside the same edge.
+
+Background immediately after each hold and copy the atomically replaced
+diagnostic cache under a distinct name. Compare the first divergence in
+`camera_correction_*`, `render_alternation_*`, and presentation-order fields
+before changing camera behavior.
+
+## Next executable gates
+
+1. Promote one real Jak II draw path only after its packet and referenced state
+   have a deterministic proof. Preserve the nil-layer zero-submit, synthetic
+   readback, and real-layer simulator proofs.
+2. Require an observed drawable presentation on physical hardware before
+   claiming presentation; obtain fresh authorization before contacting a
+   physical device.
+3. Continue to describe the current result as TITLE data/runtime plus a Metal
+   surface boundary, not a rendered title or gameplay.
+4. Keep Jak 1 camera, Merc, and metallic-material work at the physical
+   diagnostic gates above. Do not make another speculative visual patch from
+   stills alone.
+
+No physical device was installed, launched, logged, captured, or otherwise
+accessed during Checkpoint 76.
