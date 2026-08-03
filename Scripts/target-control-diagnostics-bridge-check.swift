@@ -41,6 +41,9 @@ last.currentTargetAttackID = 8
 last.button0Rel = 0x8000
 
 var stats = GOALPadRendererStats()
+stats.jak1TieEnvmapSecondPassEnabled = false
+stats.tieEnvmapSecondPassDraws = 0
+stats.tieEnvmapSecondPassDrawsTotal = 17
 stats.mercEicharTargetControlEvents = 1
 stats.mercEicharTargetControlEventsTotal = 2
 stats.mercEicharTargetControlDivergences = 1
@@ -64,6 +67,9 @@ precondition(stats.lastMercEicharTargetControlEvent.issueMask == 3)
 precondition(stats.lastMercEicharTargetControlEvent.currentTargetAttackID == 8)
 precondition(stats.lastMercEicharTargetControlEvent.button0Rel == 0x8000)
 precondition(stats.lastMercEicharTargetControlEvent.hostTickID == 101)
+precondition(!stats.jak1TieEnvmapSecondPassEnabled.boolValue)
+precondition(stats.tieEnvmapSecondPassDraws == 0)
+precondition(stats.tieEnvmapSecondPassDrawsTotal == 17)
 
 var raw = GOALPadTargetControlVector4()
 raw.x = 1
@@ -145,13 +151,15 @@ telemetry.lastObservation = observation
 telemetry.postFlagSamplesTotal = 12
 telemetry.hiddenSamplesTotal = 3
 telemetry.hiddenTransitionsTotal = 4
+telemetry.postFlagSerialGapsTotal = 2
+telemetry.unframedPostFlagSamplesTotal = 6
 
 var postFlag = GOALPadTargetPostFlagObservation()
 postFlag.valid = true
 postFlag.hostTickID = 103
 postFlag.chainOrdinal = 5
 postFlag.engineFrameID = 803
-postFlag.producerSerial = 11
+postFlag.sampleSerial = 11
 postFlag.targetAddress = 0x7000
 postFlag.rawDrawStatus = 0x82
 postFlag.targetAttackID = 10
@@ -180,8 +188,36 @@ precondition(telemetry.lastObservation.inputRootTranslationZ == 30)
 precondition(telemetry.postFlagSamplesTotal == 12)
 precondition(telemetry.hiddenSamplesTotal == 3)
 precondition(telemetry.hiddenTransitionsTotal == 4)
+precondition(telemetry.postFlagSerialGapsTotal == 2)
+precondition(telemetry.unframedPostFlagSamplesTotal == 6)
+precondition(telemetry.lastPostFlagSample.sampleSerial == 11)
 precondition(telemetry.lastPostFlagSample.rawDrawStatus == 0x82)
 precondition(telemetry.lastPostFlagSample.targetAttackID == 10)
 precondition(telemetry.lastHiddenPostFlagSample.hidden.boolValue)
+
+precondition(CommandLine.arguments.count == 2)
+let gameSessionSource = try String(contentsOfFile: CommandLine.arguments[1], encoding: .utf8)
+let schemaV6Tokens = [
+    "\"goalpad_camera_provenance\", \"v=6\"",
+    "_sample_serial=",
+    "target_post_flag_samples_total=",
+    "target_hidden_samples_total=",
+    "target_hidden_transitions_total=",
+    "target_post_flag_serial_gaps_total=",
+    "target_unframed_post_flag_samples_total=",
+    "_root1",
+    "_root2",
+    "_root3",
+    "_node3_parent_scale_cancellation_selected=",
+    "jak1_tie_envmap_second_pass_enabled=",
+    "tie_envmap_second_pass_draws=",
+    "tie_envmap_second_pass_draws_total=",
+]
+for token in schemaV6Tokens {
+    precondition(gameSessionSource.contains(token), "missing schema-v6 token: \(token)")
+}
+precondition(!gameSessionSource.contains("\"v=5\""))
+precondition(gameSessionSource.contains(
+    "hiddenTransitionNotPersisted && hiddenTransitionNotAttempted"))
 
 print("target control diagnostics bridge check passed")
