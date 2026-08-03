@@ -10787,6 +10787,11 @@ Strict bundle signature verification passed; the bundle identifier is
 `com.zephyrstudiosllc.eco`, display name `Eco Pro`, team `V729QMY3V6`, and
 CDHash `56dd9e165970cb2bfc2518b38d502cb34ac9112a`. The executable contains both
 `jak2_metal_bucket_table` and `jak2_metal_direct_batch_size`.
+The signed app was preserved at
+`/private/tmp/GOALPad-cp73-signed/GOALPad.app` and reverified with the same
+executable SHA-256 and a strict valid bundle signature. The 575 MiB Xcode
+DerivedData directory was then removed to recover build space; it is
+reproducible from the command above.
 
 No physical device was accessed. The maintainer reported that the current iPad
 app is backgrounded or closed, which is not authorization for a new install,
