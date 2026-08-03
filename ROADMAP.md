@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness and remaining platform gaps, not real-media
 import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 64 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 66 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 
@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 64 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 66 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -1010,6 +1010,20 @@ exact-current generic-iPhoneOS Release retains that observer and all 840 AOT
 units in a signed thin ARM64 product. Rendering, display pacing, an app loop,
 and physical output remain unproved.
 
+Checkpoint 65 packages the checked Jak II manifest and 840 generated units as
+a reusable, single-game static archive while retaining the signed final-link
+proof. Jak 1 and Jak II generated corpora remain mutually exclusive because
+their symbols overlap.
+
+Checkpoint 66 reconciles that archive with the final portable machine seams and
+a strict opt-in DMA gate. The canonical host tests, prepared-data title/DMA
+probe, reusable Ninja archive/link, signed Jak II generic-iPhoneOS proof, and
+signed Jak 1/Eco Pro generic-iOS Release all pass at nested `0eba7a18c`.
+Jak II still lacks a renderer/app loop. The maintainer's current photos classify
+Flat Stanley as a heading-dependent weighted-skin singularity and the wall
+burst as a separate whole-camera recurrence; schema v7 is the next physical
+discriminator for both.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
@@ -1034,16 +1048,16 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Continue Jak II by preserving the validated 327-bucket DMA boundary,
-   productizing the checked AOT corpus as a single-game static archive, and
-   designing real `sync-path` and display-paced `syncv` host callbacks. Keep
-   inactive mouse handling separate from desktop `Display` code. Rendering,
-   app wiring, simulator/device runtime, and physical gameplay remain unproved.
+4. Continue Jak II by preserving the validated 327-bucket DMA boundary and
+   reusable single-game AOT archive, then implement honest `sync-path`,
+   display-paced `syncv` with vblank ordering, and separate desired/active level
+   lists. Inactive mouse handling is implemented. Rendering, app wiring,
+   simulator/device runtime, and physical gameplay remain unproved.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
-Checkpoint 64 did not access Z iPad Pro. The maintainer supplied screenshots
+Checkpoint 66 did not access Z iPad Pro. The maintainer supplied screenshots
 from their own current physical run, but the agent did not install, launch,
 log, copy, or otherwise access the device. The maintainer reported that the app
 was backgrounded or closed, and any later install, launch, logging, capture, or

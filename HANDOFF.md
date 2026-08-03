@@ -10197,3 +10197,107 @@ vblank ordering, deterministic inactive mouse state, and separate desired and
 active level lists. It must preserve Jak 1 behavior, must not overwrite Jak
 II's existing `flush-cache` implementation, and remains a graphics-boundary
 proof rather than rendered gameplay.
+
+# Checkpoint 66: reconciled strict DMA gate and exact-current Apple proofs
+
+Date: 2026-08-03. Nested head
+`0eba7a18c0abd8c504923cefbc088ac84f3d13ae` reconciles all current Jak II
+machine/DMA work and the reusable AOT archive. Merge `ac426856d` incorporates
+Checkpoint 65's single-game `jak2-iphoneos-aot-corpus` target. Commit
+`0eba7a18c` keeps plain `--play` title-only but strengthens `--play-dma`: every
+post-baseline frame record must agree with the aggregate counters, any
+malformed chain fails the probe, and at least one complete valid 327-bucket
+window is required. The documentation now states that Jak II measurement is
+installed explicitly by `goal_gfx_dma_install`/`--play-dma`; Jak 1's existing
+measurement and capture behavior is unchanged.
+
+The final merge preserves the shared `u64` `flush-cache` no-op, upstream-style
+`pc-prof`, and deterministic inactive `mouse-get-data` implementation that
+clears stale desktop state. There is no duplicate registration or duplicate
+DMA implementation. The canonical focused build passed for Jak 1 kernel smoke,
+Jak II pad, handler, `pc-rand`, lightweight-machine, DMA-boundary, and real-data
+boot targets. Their direct tests passed with zero failures: the lightweight
+test ran 11 checks and the DMA test ran 9, including rejection and exact
+accounting of a deliberately short chain.
+
+The prepared-data `--frames 120 --play-dma` probe exited 0 after loading
+`TITLE.DGO` as one archive and seven objects (one AOT code object and six data
+objects). It observed exactly one well-formed and zero malformed chains; frame
+1 completed 327 buckets with 396 tags, 3,008 payload bytes, and 131,072 copied
+bytes. Plain `--play` also exited 0 after the same title frontier and continued
+to report `__send-gfx-dma-chain` as intentionally uninstalled. Neither mode has
+a renderer or app loop.
+
+## Exact-current Apple build evidence
+
+The canonical Ninja iPhoneOS build revalidated all 840 generated units and
+built the reusable archive plus final-link proof. The unsigned archive is
+60,321,976 bytes, has 841 object members after Darwin's symbol table (the
+manifest plus 840 generated units), and SHA-256
+`210265b2a5b6fd03e8e3ac2f8dc036b71d1d41295ddbe137e86d8e08c56a6e5d`.
+The unsigned thin ARM64 proof is 49,526,064 bytes with SHA-256
+`df3d8ffc5e10b59d0dcebc40821d508d19c9dd73e8096777c1f9ec23253cfa2d`;
+it retains `goal_gfx_dma_install`, `goal_pad_install`, and both interrupt
+handler globals.
+
+The exact-current Xcode generic-iPhoneOS Release also passed. Its archive is
+60,320,304 bytes with SHA-256
+`16158d475b908864dcb6c719b9e27b283667791c1b5bb7864ee22fbe8eee2edd`.
+The signed proof executable is a thin ARM64 iOS 18.0 Mach-O of 47,651,904 bytes,
+identifier `com.zephyrstudiosllc.eco.jak2linkproof`, team `V729QMY3V6`,
+SHA-256 `e9ce5e69c1f53a2d171f98bf403b7432c4c94cc72090718daf7e6d0e19e870b7`,
+and CDHash `7088154ded8fd8e176ba359621adb8921c337b0b`. Strict `codesign`
+verification passed with ordinary trust-service access.
+
+The signed Jak 1/Eco Pro generic-iOS Release was rebuilt from the same nested
+head and unchanged checked 518-object source pack. Its thin ARM64 executable is
+33,160,096 bytes with SHA-256
+`18a7d0f87b229e1beab4a3e5890177b7b033a59cf0343b8e0d524f5271635130`,
+identifier `com.zephyrstudiosllc.eco`, team `V729QMY3V6`, and CDHash
+`ee8e02766f5b95edb453613a8acef405688f820a`. It retains the expected Cloud
+Documents entitlements and passed strict `codesign` verification. Existing
+generated-code precision warnings and the warning for an unused stale Xcode
+account remained non-blocking. No device, simulator, launch, or gameplay claim
+comes from these builds.
+
+## Current visual classification
+
+The maintainer's four no-input wall photographs show a repeating whole-scene
+camera recurrence, separate from Flat Stanley. Frames 2 and 4 return to the
+same basin; the foreground rock moves about 125-140 pixels and changes scale
+20-30 percent while the horizon shifts only about 16-23 pixels. Fixed HUD plus
+depth parallax proves rotation with camera translation/dolly. Jak is absent,
+so character animation cannot generate that burst. The ranked initiators are
+combiner/view-transform recurrence first, wall line-of-sight collision feedback
+second, and dedicated off-screen recovery last.
+
+The nine Jak photographs instead match a near-singular weighted Merc skin
+transform. The repository already reproduces the silhouette when two rigid
+weighted bones oppose one another in `test_weighted_skin_trace` and confirms it
+through Metal readback in `test_merc_weighted_bone_rotation`. A uniform camera
+matrix or uniform Metal transpose cannot make weighted-basis singular values
+depend on Jak's world heading. The leading source is inconsistent relative
+bone transforms upstream of Metal; stale/duplicate palette mixing is second,
+especially when the opposite-facing image z-fights. Schema v7 already
+distinguishes the branches through the palette/output composition bits, so no
+new speculative visual patch is justified before the physical capture.
+
+## Next executable gates
+
+1. Only after fresh physical-device authorization, capture schema v7 with Jak
+   barely visible then barely out at the same wall, followed by the same
+   out-of-frame hold in open space. Inspect `camera_correction_*` and
+   `render_alternation_*` before changing camera behavior.
+2. In the same authorized run, sweep the thin/normal world headings and retain
+   one Flat-Stanley event. Clean palette/output identity points upstream to
+   target/joint/AOT transforms; duplicate/stale/mapping bits point to packet or
+   palette reuse; composition-only failure points to the old-bones/AOT path.
+3. Preserve both checked source packs and the reusable single-game Jak II
+   archive. The next Jak II code boundary is honest `sync-path`, display-paced
+   `syncv` with vblank ordering, and separate desired/active level lists.
+   Inactive mouse handling is already implemented.
+4. This clean parent worktree has no dirty `project.pbxproj`; that historical
+   Checkpoint 64 blocker does not apply here. A runnable Jak II app still needs
+   careful generalization of Jak 1-specific runtime/Metal code plus real
+   renderer pacing, lifecycle, and data selection before a mutually exclusive
+   app variant is justified.
