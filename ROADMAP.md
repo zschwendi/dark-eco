@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness and remaining platform gaps, not real-media
 import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 70 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 71 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 
@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 70 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 71 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -1068,6 +1068,16 @@ cleanup, preventing parallel probes from deleting a shared save directory. The
 canonical prepared-data `--play-dma` rebuild and run pass after integration with
 one complete 327-bucket chain and zero rendered or presented frames.
 
+Checkpoint 71 records the exact-current Apple evidence for that nested pin.
+Ancestor `06cc9ddec` routes all three real-data modes through the reusable
+runtime, adds the 48 kHz selected-game audio pull, permits ARM64 simulator
+generation, and isolates every host diagnostic run's saves. The full 876-step
+host rebuild, focused Jak 1/Jak II tests, and all three play modes pass. Fresh
+generic ARM64 simulator and signed iPhoneOS builds pass; Checkpoint 70's policy
+source is host-only and does not change either Apple target's inputs. The final
+simulator product was not launched. Jak II still has no Metal pixel,
+audio-device output, visible title, physical-device run, or gameplay proof.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
@@ -1100,7 +1110,7 @@ The next actions are:
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
-Checkpoint 70 did not access Z iPad Pro. The maintainer supplied screenshots
+Checkpoint 71 did not access Z iPad Pro. The maintainer supplied screenshots
 from their own current physical run, but the agent did not install, launch,
 log, copy, or otherwise access the device. The maintainer reported that the app
 was backgrounded or closed, and any later install, launch, logging, capture, or

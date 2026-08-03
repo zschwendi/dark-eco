@@ -10603,3 +10603,72 @@ buffer submission, or presentation claim in this checkpoint.
    physical schema-v7 A/B gate. Do not make a speculative visual patch before
    the freshly authorized barely-visible/barely-out/open-space holds and
    heading sweep distinguish the retained hypotheses.
+
+# Checkpoint 71: final Jak II host safety and exact-current Apple artifacts
+
+Date: 2026-08-03. The parent remains pinned to nested
+`9687fcc2f76f5985745c8a8b0bd3820383d0fb90`, which contains final runtime
+integration ancestor `06cc9ddec0472d4a5b3c8598eb2a3de7aab4c9ba` plus the
+Checkpoint-70 bucket policy. That policy is host-only and is not linked into
+the Jak II Apple targets. Its focused build and direct test passed in 2.29 seconds, so the
+exact-current iPhoneOS and simulator target inputs remain the final-source
+`06cc9ddec` builds recorded below.
+
+## Final-source host validation
+
+The focused host build completed 876 steps, including one full regeneration of
+the checked 840-unit corpus. `jak1-kernel-core-smoke-test` and
+`jak2-sound-rpc-test` passed with the retained display-tick, graphics-host,
+DMA, and data-boot gates. Plain `--play`, `--play-gfx-host`, and `--play-dma`
+all passed through the reusable start/tick/shutdown runtime. Each loaded the
+eight-object kernel, `GAME.CGO` as 465 objects (436 code and 29 data), and
+`TITLE.DGO` as seven objects (one AOT code and six data). Graphics-host and DMA
+modes observed one host chain, two `sync-path` calls, and two `syncv` calls.
+DMA mode measured one well-formed and zero malformed 327-bucket chain with 396
+tags, 3,008 payload bytes, and 131,072 copied bytes.
+
+The final runtime line also permits ARM64 simulator generation, exposes the
+selected game's 48 kHz interleaved-stereo signed-16-bit audio pull, and gives
+every host diagnostic run an exclusively created temporary save directory.
+Each mode shut the runtime down before removing only its own directory. The
+audio seam does not add AVAudioEngine or any other audio-device output.
+
+## Exact-current Jak II iPhoneOS build
+
+The generic-iPhoneOS Release build of
+`jak2-iphoneos-display-tick-proof` passed and signed in 16.242 seconds. The
+48,489,664-byte executable is a thin ARM64 iOS 18.0 Mach-O with SHA-256
+`2b0db0e48abd2362b01ce24b5156aa2208f016a43592a9d29f9de9f1d2029866`,
+display name `Eco Pro Jak II Dev`, identifier
+`com.zephyrstudiosllc.eco.jak2displaytickproof`, team `V729QMY3V6`, and CDHash
+`136db4540774929c977399c33b8b5126f9edb660`. Strict application-bundle
+signature verification passed with normal trust-service access.
+
+The checked AOT archive remains 60,320,304 bytes with 842 `ar` entries
+(Darwin symbol table, manifest, and 840 generated units) and SHA-256
+`16158d475b908864dcb6c719b9e27b283667791c1b5bb7864ee22fbe8eee2edd`.
+The reusable runtime archive remains 158,128 bytes with SHA-256
+`03faa7faa54bffc6c811572ccf16720f519e07f8fe1f36ee6fc81eb570550138`.
+The audio-linked kernel archive is 7,034,264 bytes with SHA-256
+`fa4a0cf2111158f2ef8e2f63ad45139efa8862503bc1d2ed11bd992a100d3fef`.
+The executable links UIKit, QuartzCore, Foundation, Objective-C, libc++,
+CoreFoundation, and libSystem; Metal is absent. The exact product remains under
+`/private/tmp/GOALPad-jak2-ios-aot-xcode`.
+
+## Exact-current simulator compile proof
+
+The generic ARM64 iOS Simulator Release built in 22.501 seconds. Its
+48,754,000-byte executable has SHA-256
+`76e4fed8d65f19adf5798dee83d366e9a6562038e6332aedad1fc2eedb49e972`,
+minimum iOS 18.0, platform `iPhoneSimulator`, display name `Eco Pro Jak II Dev`,
+and development identifier `com.zephyrstudiosllc.eco.jak2dev`. This final-source
+product was not installed or launched. Checkpoint 69 remains the simulator
+lifecycle proof at `05b3d0ced`; this result proves only that the final source
+still compiles for the simulator.
+
+No physical device was accessed. These results prove host behavior, normal
+signing, and current Apple compilation, but not a Jak II Metal pixel,
+audio-device output, visible title, or gameplay. The next bounded gate is to
+make the existing Metal Empty/Skip/Direct paths game-version aware and link the
+Checkpoint-70 policy into a nil-layer synthetic Jak II dispatcher proof with
+zero drawables, submissions, and presentations.
