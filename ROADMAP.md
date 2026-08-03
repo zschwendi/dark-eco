@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 62 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 63 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -994,6 +994,18 @@ cache; this closes the clean source/build gap but does not override the
 maintainer's physical rejection of the heading-dependent Jak collapse and
 near-wall/off-screen camera oscillation.
 
+Checkpoint 63 implements the faithful lightweight Jak II reporting/mouse/cache
+seams and crosses the first graphics-DMA boundary without inventing a renderer.
+The real-data `play-boot` probe now links the first `TITLE.DGO` code object and
+six data objects, validates one complete 396-tag graphics chain, records its
+payload/copy totals, and deliberately drops it. Focused Jak 1/Jak II host tests,
+the exact-current 840-unit isolated iPhoneOS link, and the exact-current signed
+Jak 1 generic-iOS app all pass. This still is not a Jak II app target, frame
+loop, renderer, simulator/device runtime, or gameplay claim. The new no-input
+wall photographs independently show repeating whole-scene translation/dolly
+plus rotation while Jak is absent; schema v7 already contains the fields needed
+for the decisive same-wall versus open-space physical A/B.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
@@ -1018,17 +1030,17 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Continue Jak II with a read-only faithfulness audit of `pc-prof`,
-   `flush-cache`, `sync-path`, `syncv`, and `mouse-get-data`, then cross the
-   substantive `__send-gfx-dma-chain` boundary by reusing or minimally
-   generalizing the existing Jak 1 renderer seam. Playback, streams, app
-   wiring, signing, simulator/device runtime, and physical gameplay remain
-   unproved.
+4. Continue Jak II with versioned graphics-host/renderer adapters for the now
+   measured TITLE chain, reusing and minimally generalizing the existing Jak 1
+   seam. Add a mutually exclusive signed Xcode app variant only after those
+   boot/render seams are real; do not add a hollow signed target. Playback,
+   streams, app wiring, signing, simulator/device runtime, and physical gameplay
+   remain unproved.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
-Checkpoint 62 did not access Z iPad Pro. The maintainer supplied screenshots
+Checkpoint 63 did not access Z iPad Pro. The maintainer supplied screenshots
 from their own current physical run, but the agent did not install, launch,
 log, copy, or otherwise access the device. The maintainer reported that the app
 was backgrounded or closed, and any later install, launch, logging, capture, or
