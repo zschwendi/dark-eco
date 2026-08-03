@@ -958,6 +958,8 @@ final class GameSession {
             "tie_envmap_second_pass_draws=\(renderer.tieEnvmapSecondPassDraws)",
             "tie_envmap_second_pass_draws_total="
                 + "\(renderer.tieEnvmapSecondPassDrawsTotal)",
+            "jak1_shadow_output_enabled="
+                + "\(renderer.jak1ShadowOutputEnabled.boolValue ? 1 : 0)",
             "producer_alternations=\(renderer.producerCameraAlternations)",
             "render_alternations=\(renderer.renderCameraAlternations)",
             "render_alternation_older_frame="

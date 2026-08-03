@@ -44,6 +44,7 @@ var stats = GOALPadRendererStats()
 stats.jak1TieEnvmapSecondPassEnabled = false
 stats.tieEnvmapSecondPassDraws = 0
 stats.tieEnvmapSecondPassDrawsTotal = 17
+stats.jak1ShadowOutputEnabled = false
 stats.mercEicharTargetControlEvents = 1
 stats.mercEicharTargetControlEventsTotal = 2
 stats.mercEicharTargetControlDivergences = 1
@@ -70,6 +71,7 @@ precondition(stats.lastMercEicharTargetControlEvent.hostTickID == 101)
 precondition(!stats.jak1TieEnvmapSecondPassEnabled.boolValue)
 precondition(stats.tieEnvmapSecondPassDraws == 0)
 precondition(stats.tieEnvmapSecondPassDrawsTotal == 17)
+precondition(!stats.jak1ShadowOutputEnabled.boolValue)
 
 var raw = GOALPadTargetControlVector4()
 raw.x = 1
@@ -212,6 +214,7 @@ let schemaV7Tokens = [
     "jak1_tie_envmap_second_pass_enabled=",
     "tie_envmap_second_pass_draws=",
     "tie_envmap_second_pass_draws_total=",
+    "jak1_shadow_output_enabled=",
     "render_alternations=",
     "camera_tail_complete=",
     "camera_tail_trigger_degrees=",
