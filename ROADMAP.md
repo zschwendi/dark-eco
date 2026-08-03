@@ -1039,9 +1039,11 @@ Checkpoint 68 adds a separate development-only Jak II UIKit/CADisplayLink app
 target and a reusable start/tick/shutdown runtime. One accepted foreground
 display tick advances exactly one kernel/host/DMA frame; inactive ticks are
 rejected without catch-up. Focused tests, the real-data title/DMA frontier, and
-a signed thin-ARM64 generic-iPhoneOS build pass at nested `a1838b9ce`. The app
-is still deliberately headless: no Jak II Metal dispatch, audio output,
-simulator/device launch, visible title, presented frame, or gameplay is claimed.
+a signed thin-ARM64 generic-iPhoneOS build pass at nested `b724cee30`. The final
+reconciliation routes plain, complete graphics-host, and DMA validation through
+the same reusable runtime with distinct graphics modes. The app is still deliberately
+headless: no Jak II Metal dispatch, audio output, simulator/device launch,
+visible title, presented frame, or gameplay is claimed.
 
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
@@ -1067,12 +1069,12 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Continue Jak II from the signed development-only UIKit/CADisplayLink proof.
-   First prove simulator launch and lifecycle cadence while it remains
-   explicitly zero-render/zero-present. Then add the game-neutral audio pull
-   boundary and the Apple host's distinct active-level/DMA-observer callbacks.
-   Do not enable Jak II Metal presentation until a real Jak II bucket table and
-   dispatch path replace the renderer's current Jak 1-only assertion.
+4. Continue Jak II from the signed development-only UIKit/CADisplayLink proof
+   with a bounded renderer-input audit and the smallest deterministic Jak II
+   bucket proof. Only after that proof passes should the Apple host gain its
+   distinct active-level/DMA-observer callbacks and the development target gain
+   a Metal surface. Do not claim presentation until real Jak II buckets replace
+   the renderer's current Jak 1-only dispatch path.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 

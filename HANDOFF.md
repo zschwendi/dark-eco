@@ -10403,24 +10403,27 @@ and the unused stale Xcode-account warning remained non-blocking.
 # Checkpoint 68: signed Jak II display-tick development app
 
 Date: 2026-08-03. Nested head
-`a1838b9ced2162256ee2c65ddd46649598ee7a4c` is pushed to
-`origin/goalpad/ipad-demo-pacing`. It reconciles the development-only Jak II
-display-tick proof onto Checkpoint 67's complete graphics host. The bounded
+`b724cee30789f0f66fb60229bcbba65459a04557` is pushed to
+`origin/goalpad/ipad-demo-pacing`. Merge `dbf5c8456` reconciles the parallel
+runtime and graphics-host implementations: plain `--play`, `--play-gfx-host`,
+and `--play-dma` all use the reusable start/tick/shutdown runtime with their
+respective graphics modes. Follow-up `b724cee30` finalizes the development
+target identity without changing that shared path. The bounded
 coordinator accepts one foreground display tick as one host/runtime frame,
-rejects ticks while inactive, and never catches up after a pause. The reusable
-Jak II runtime owns start, single-tick dispatch, copied metrics, and shutdown;
-its DMA-validation mode installs the complete host and composes the observer
-inside `send-chain` rather than replacing the host.
+rejects ticks while inactive, and never catches up after a pause. DMA
+validation installs the complete host and composes the observer inside
+`send-chain` rather than replacing the host.
 
 The new Xcode-only target is `jak2-iphoneos-display-tick-proof`, with display
 name `Eco Pro Jak II Dev` and bundle identifier
-`com.zephyrstudiosllc.eco.jak2dev`. It links only the Jak II kernel and checked
-840-unit corpus. Its minimal UIKit/CADisplayLink host starts on a background
-queue, ticks on the main thread, reads prepared data from the app's
-`Documents/Jak2` directory unless an explicit diagnostic override is supplied,
-and keeps saves under `Application Support/OpenGOAL/jak2/saves`. It reports
-that rendered and presented frames remain zero. It does not touch the public
-Eco Pro target, Jak 1 corpus, importer, iCloud, touch controls, Metal, or audio.
+`com.zephyrstudiosllc.eco.jak2displaytickproof` in the current signed proof.
+It links only the Jak II kernel and checked 840-unit corpus. Its minimal
+UIKit/CADisplayLink host starts on a background queue, ticks on the main
+thread, reads prepared data from the app's `Documents/Jak2` directory unless
+an explicit diagnostic override is supplied, and keeps saves under
+`Application Support/OpenGOAL/jak2/saves`. It reports that rendered and
+presented frames remain zero. It does not touch the public Eco Pro target, Jak
+1 corpus, importer, iCloud, touch controls, Metal, or audio.
 
 ## Deterministic and prepared-data validation
 
@@ -10433,30 +10436,32 @@ coordinator ran 13 checks, Jak 1 graphics host ran 13, Jak II graphics host ran
 ticks, rejected 100 paused ticks, and matched four host frames to four DMA
 frames with zero rendered or presented frames.
 
-All three prepared-data modes passed on the same 840-unit corpus. Plain
-`--play` and isolated `--play-gfx-host` retained their Checkpoint 67 behavior.
-The final-head reusable-runtime `--play-dma` probe loaded the eight-object
-kernel, `GAME.CGO` as 465 objects (436 code and 29 data), and `TITLE.DGO` as
-seven objects (one AOT code and six data). One dispatched frame produced one
-well-formed, zero-malformed 327-bucket chain with 396 tags, 3,008 payload bytes,
-and 131,072 copied bytes. The host observed one chain, two `sync-path` calls,
-and two `syncv` calls. The new runtime's intentional conversion from host-width
-helper returns to 32-bit emulated GOAL addresses is now explicit and rebuilt
-without warnings from that translation unit.
+All three prepared-data modes passed on the same 840-unit corpus through the
+reusable runtime. The DMA probe loaded the eight-object kernel, `GAME.CGO` as 465
+objects (436 code and 29 data), and `TITLE.DGO` as seven objects (one AOT code
+and six data). One dispatched frame produced one well-formed, zero-malformed
+327-bucket chain with 396 tags, 3,008 payload bytes, and 131,072 copied bytes.
+The host observed one chain, two `sync-path` calls, and two `syncv` calls. The
+runtime's intentional conversion from host-width helper returns to 32-bit
+emulated GOAL addresses remains explicit and rebuilt without warnings from
+that translation unit.
 
 ## Exact-current Apple build evidence
 
 The generic-iPhoneOS Release build of
 `jak2-iphoneos-display-tick-proof` passed with ordinary signing access. The
-application is 46 MiB and contains a thin ARM64 iOS 18.0 executable with
-SHA-256 `4bacdf5cabff335456ef133366c1fe87e2f020390cba1614b02f14fba11b3591`,
-identifier `com.zephyrstudiosllc.eco.jak2dev`, team `V729QMY3V6`, and CDHash
-`c9e2b0a167a7443297c2f087d72aaeb12727ce4d`. Strict application-bundle
-signature verification passed. The linked symbol frontier retains
+application is 46 MiB and contains a 48,489,664-byte thin ARM64 iOS 18.0
+executable with SHA-256
+`711db38facd98fb0db257b219610b4adbac4921680a6fc943ce001e368ae4531`,
+identifier `com.zephyrstudiosllc.eco.jak2displaytickproof`, team
+`V729QMY3V6`, and CDHash `44dcfb4853e5eb69705c10e04d5e40684ef57f3d`.
+Strict application-bundle signature verification passed. The linked symbol
+frontier retains
 `goal_jak2_runtime_start`, `goal_jak2_runtime_tick`,
 `goal_jak2_runtime_shutdown`, `goal_gfx_host_install`,
 `goal_gfx_dma_observe_chain`, `goal_pad_install`, and the display-vblank
-handler.
+handler. The exact product is preserved under
+`/private/tmp/GOALPad-jak2-ios-aot-xcode/Release-iphoneos/`.
 
 Existing project-wide generated-code conversion warnings, deprecated upstream
 `sprintf` calls, empty archive members, the unused stale Xcode account warning,
@@ -10464,25 +10469,26 @@ and generated-Xcode duplicate `-lobjc` warning remain non-blocking. The old
 recorded 2.8 GiB `/private/tmp/GOALPad-sim` DerivedData cache was verified as
 derived-only and removed after the disk reached its emergency threshold. No
 source, save, prepared game data, or worktree was removed. The current canonical
-Xcode build is `/private/tmp/GOALPad-jak2-ios-aot-signed`.
+Xcode build is `/private/tmp/GOALPad-jak2-ios-aot-xcode`.
 
-The reconciliation worktree is also clean and preserved remotely at
-`origin/goalpad/jak2-display-tick-reconcile` commit `9d6de03de`. No device,
-simulator, app launch, logging, screen capture, visible title, presented pixel,
-or gameplay claim was made in this checkpoint.
+The reconciled nested history and final application source are preserved
+remotely at `b724cee30`. No device, simulator, app launch, logging, screen
+capture, visible title, presented pixel, or gameplay claim was made in this
+checkpoint.
 
 ## Next executable gates
 
-1. Add a simulator-capable form of the separate development target and prove
-   launch/background/foreground cadence with user-local prepared data. Keep
-   zero-render/zero-present reporting explicit.
-2. Add a target-selected, game-neutral audio pull boundary before reusing the
-   existing AVAudioEngine output. Do not add a fake Jak II sound-frame callback;
-   streaming and music lifecycle remain a real gap.
-3. Add the Apple host's separate active-level callback and composed DMA
-   observation, but fail cleanly for Jak II rendering until a real Jak II Metal
-   bucket table and dispatch path exist. The current renderer asserts for every
-   game other than Jak 1.
+1. Audit the Jak II bucket input and add the smallest deterministic proof that
+   can feed the existing Apple graphics host without claiming that measured
+   DMA was drawn. The current Metal renderer still dispatches the Jak 1 bucket
+   table and rejects every other game.
+2. Only after that proof passes, add the Apple host's separate active-level
+   callback and composed DMA observation, then give the development target a
+   Metal surface. Keep zero-render/zero-present reporting until real Jak II
+   buckets are submitted and presented.
+3. Simulator lifecycle and game-neutral audio remain separate later gates. Do
+   not add a fake Jak II sound-frame callback; streaming and music lifecycle
+   remain real gaps.
 4. Only after fresh physical-device authorization, run the existing schema-v7
    same-wall barely-visible, same-wall barely-out, and open-space barely-out
    camera holds plus the Flat-Stanley heading sweep. The new no-input stills
