@@ -7958,3 +7958,148 @@ next change.
 3. Preserve the focused and checkpoint validation tiers. Do not use a generic
    universal macOS destination as an x86-64 support claim; this downstream
    runtime and its documented macOS baseline are ARM64-only.
+
+# Checkpoint 49: active Jak 1 bones provenance on Z iPhone Air
+
+## Exact Git and generated-artifact state
+
+- Parent `feat/ipados-native-boot` is
+  `e9c200b2a54988e71d30bd1d99b9c9e1e6863ffb`, matching
+  `origin/feat/ipados-native-boot`.
+- Nested OpenGOAL `goalpad/ipad-demo-pacing` is
+  `39f0afaa4bd2d10c5c96d33dc04a447bdbf84593`, matching
+  `origin/goalpad/ipad-demo-pacing`.
+- The regenerated Jak 1 public source-object pack contains 518 objects with
+  aggregate XXH64 `f1770cae6287a359` and 10,729,681 object bytes. The signed
+  build used `/private/tmp/GOALPad-jak1-source-pack-generated-g` as its explicit
+  source-pack root.
+- The nested checkout is clean. The canonical parent retains only the existing
+  user-owned `GOALPad.xcodeproj/project.pbxproj` normalization. It was not
+  staged, committed, reset, or otherwise modified by this checkpoint.
+
+The integrated diagnostic records the active Jak 1 bone calculation before
+the new-bones/legacy selection, so the default `*use-new-bones* #t` path now
+feeds the same fixed producer registry as the legacy path. The retained Merc
+event can distinguish input-root A/B/A (`0x04`), output-only A/B/A (`0x08`),
+camera-driven A/B/A (`0x10`), changed-input/frozen-output (`0x20`), and source-
+mapping mismatch (`0x40`) in addition to the existing scale and aspect flags.
+This is diagnostic-only; it does not change pose generation, camera behavior,
+rendering, or timing.
+
+## Signed iPhone Air build, install, and launch
+
+Z iPhone Air was connected as:
+
+```text
+CoreDevice ID: C0CAC382-DF64-5728-998E-A51F86A94E61
+Xcode destination: 00008150-0019189626FB801C
+Model: iPhone Air (iPhone18,4)
+```
+
+The exact signed Release build command was:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release \
+  -destination id=00008150-0019189626FB801C \
+  -derivedDataPath /private/tmp/GOALPad-sim -jobs 2 \
+  ENABLE_PREVIEWS=NO \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/private/tmp/GOALPad-jak1-source-pack-generated-g \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache \
+  GOALPAD_BUILD_JOBS=2 build
+```
+
+Result: exit `0`, with the existing generated-code warning volume. Release
+verification accepted all 518 objects and aggregate `f1770cae6287a359`. The
+product is:
+
+```text
+/private/tmp/GOALPad-sim/Build/Products/Release-iphoneos/GOALPad.app
+Bundle identifier: com.zephyrstudiosllc.eco
+Team identifier: V729QMY3V6
+Executable SHA-256: 5cf28b7b7e09972c1a754358b06845baa94425b10760f0e3bfe9142d0a5f2ec9
+```
+
+The executable contains `jak1-bones-provenance-observe` and
+`goalpad_camera_provenance`. It was update-installed and launched with:
+
+```sh
+xcrun devicectl device install app \
+  --device C0CAC382-DF64-5728-998E-A51F86A94E61 \
+  /private/tmp/GOALPad-sim/Build/Products/Release-iphoneos/GOALPad.app
+
+xcrun devicectl device process launch \
+  --device C0CAC382-DF64-5728-998E-A51F86A94E61 \
+  com.zephyrstudiosllc.eco
+```
+
+Both commands passed. This was an update install, not an uninstall, so the
+existing app data container was preserved. It proves signed physical
+installation and process launch on Z iPhone Air. It does not prove gameplay,
+Metal correctness, camera quality, or Merc correctness. No retail game data is
+bundled; the phone still needs its own user-imported compatible data if its
+container does not already have a prepared game.
+
+## Latest physical symptoms and next evidence gate
+
+The latest gameplay feedback still comes from the pre-observer iPad build:
+
+- Kick/spin whole-body enlargement appears mostly fixed.
+- Jak still shakes and alternates between flat and volumetric forms while
+  spinning. He can enlarge and turn toward the camera as the state changes.
+- Visible facing can diverge from locomotion: Jak can move right while facing
+  or running left, curve toward the intended direction, and then dash off-axis
+  if Square is pressed while he is visibly misoriented.
+- The camera is comparatively stable when Jak is centered with open space. It
+  shakes most around the Geyser Rock portal exit, combat, edge-of-frame, and
+  out-of-frame recovery; the character shake is present more broadly.
+
+The new observer build has not yet received a physical gameplay pass. The next
+gate is to reproduce the spin/facing symptom on Z iPhone Air, background the
+app to force the atomic lifecycle snapshot, and copy the cache before another
+launch replaces its random run ID. Use exactly:
+
+```sh
+xcrun devicectl device copy from \
+  --device C0CAC382-DF64-5728-998E-A51F86A94E61 \
+  --domain-type appDataContainer \
+  --domain-identifier com.zephyrstudiosllc.eco \
+  --source Library/Caches/GOALPadDiagnostics/camera-provenance-v1.log \
+  --destination /private/tmp/camera-provenance-iphone-air-e9c200b2.log \
+  --timeout 30
+```
+
+This reads one numeric-only cache file through the app-data-container domain;
+it does not uninstall the app or erase its data and may copy a live atomic
+snapshot. Prefer backgrounding first so the lifecycle write is current. Do not
+relaunch before copying. The file exists only after a successful game boot has
+started the diagnostics session.
+
+## visionOS logger status
+
+Parent `e9c200b2` widens only the camera/Merc diagnostics compilation gates
+from iOS to iOS-or-visionOS. The existing cache path and payload are unchanged:
+
+```text
+Library/Caches/GOALPadDiagnostics/camera-provenance-v1.log
+```
+
+Focused iPhoneOS 26.5 and xros 26.5 Swift parses passed. No post-gate visionOS
+Xcode build, installation, launch, game boot, or file copy has been performed.
+The previously installed Vision Pro build predates this gate and should not be
+expected to contain the logger. Once an `e9c200b2`-or-later xros build is
+installed and successfully boots the game, use the same `appDataContainer`
+domain syntax with Vision Pro CoreDevice ID
+`7C8DED98-3B86-55CE-B49D-C514E47F745A`; that post-gate physical file copy is
+still unvalidated.
+
+## Next executable task
+
+1. Have the maintainer reproduce the spin/flat/facing symptom on Z iPhone Air
+   and background the app without relaunching it.
+2. Run the exact one-file copy command above and preserve its SHA-256 before
+   any new install or launch.
+3. Classify the retained issue mask and the input/output/camera distances. Make
+   one behavior change only after the trace identifies the active seam.
+4. Rebuild and physically validate Jak 1 before beginning new Jak II-specific
+   implementation.
