@@ -54,7 +54,7 @@ final class GameSession {
     private var isForeground = true
     private var previousDisplayCallback: CFTimeInterval?
     private var displayIntervals: [Double] = []
-    #if os(iOS)
+    #if os(iOS) || os(visionOS)
     private var cameraDiagnosticsURL: URL?
     private var cameraDiagnosticsRunID: UInt64 = 0
     private var lastPersistedCameraAlternations: UInt64 = 0
@@ -135,7 +135,7 @@ final class GameSession {
         input.startWatching()
         audio.start()
         isRunning = true
-        #if os(iOS)
+        #if os(iOS) || os(visionOS)
         startCameraDiagnostics()
         #endif
         setIdleTimerDisabled(true)
@@ -147,7 +147,7 @@ final class GameSession {
         input.stopRumble()
         input.stopWatching()
         audio.stop()
-        #if os(iOS)
+        #if os(iOS) || os(visionOS)
         persistCameraDiagnosticsForLifecycleEvent()
         #endif
         GOALPadRuntimeBridge.stopKernel()
@@ -195,7 +195,7 @@ final class GameSession {
             framesPresented += 1
         }
         let renderer = surface.stats
-        #if os(iOS)
+        #if os(iOS) || os(visionOS)
         persistCameraDiagnosticsIfNeeded(renderer, periodic: shouldLog)
         #endif
         if shouldLog { logRunningState(renderer: renderer) }
@@ -287,7 +287,7 @@ final class GameSession {
             """)
     }
 
-    #if os(iOS)
+    #if os(iOS) || os(visionOS)
     private func startCameraDiagnostics() {
         cameraDiagnosticsURL = nil
         cameraDiagnosticsRunID = UInt64.random(in: 1...UInt64.max)
@@ -721,7 +721,7 @@ final class GameSession {
             setIdleTimerDisabled(true)
         case .inactive:
             saveSync.gameplayFrameCompleted()
-            #if os(iOS)
+            #if os(iOS) || os(visionOS)
             persistCameraDiagnosticsForLifecycleEvent()
             #endif
             isForeground = false
@@ -733,7 +733,7 @@ final class GameSession {
             input.stopRumble()
         case .background:
             saveSync.gameplayFrameCompleted()
-            #if os(iOS)
+            #if os(iOS) || os(visionOS)
             persistCameraDiagnosticsForLifecycleEvent()
             #endif
             isForeground = false
