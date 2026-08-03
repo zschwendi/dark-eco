@@ -11445,3 +11445,27 @@ that exact commit.
 5. Do not describe this as a rendered title screen or gameplay: the current
    normal-runtime proof deliberately reports zero draws, submissions, and
    presented frames, and many Jak II renderer buckets remain deferred.
+
+## Repository state after CP77 publication
+
+Parent integration commit `c382136741a6bb5a7a10e07b0ae02dbdb7d18ea8`
+is on branch `agent/cp76-jak2-cametal-parent`; immediately after its publication,
+remote branches `agent/cp76-jak2-cametal-parent` and
+`feat/ipados-native-boot` both resolved to that exact commit. Its OpenGOAL
+gitlink is `b0db0d9f1251bbbfae2e1919bff2e276a77796d7`, which is also the
+verified remote head of nested branch
+`agent/jak2-cp76-cametal-integration`. The canonical parent and nested
+worktrees were clean after publication.
+
+The maintainer worktree at
+`/Users/zach/Developer/OS_Projects/GOALPad/GOALPad` was not edited. It remains
+on `agent/jak1-v6-visual-diagnostics-parent` with its pre-existing changes in
+`GOALPad.xcodeproj/project.pbxproj`, `HANDOFF.md`, `OpenGOAL`, and `ROADMAP.md`;
+its `HANDOFF.md` blob remains
+`31f0f6129c8989a371f5d37037a1f6edab232c08`.
+
+After the signed app and ZIP were copied and re-hashed, only the disposable
+`/private/tmp/GOALPad-jak2-cp77-device-xcode` and
+`/private/tmp/GOALPad-jak2-cp77-device-derived` directories were removed. No
+worktree was removed. The simulator Xcode products, simulator screenshot, and
+preserved app/ZIP remain available at the paths recorded above.
