@@ -11322,3 +11322,126 @@ Parent integration/documentation commit
 records this checkpoint. Remote branches `feat/ipados-native-boot` and
 `agent/cp76-jak2-cametal-parent` both resolved to that exact parent hash after
 publication.
+
+# Checkpoint 77: normal Jak II runtime completes its first bounded display tick
+
+Date: 2026-08-03. Nested commit
+`b0db0d9f1251bbbfae2e1919bff2e276a77796d7` closes the three failures exposed
+while moving Checkpoint 76's bounded Metal presenter into the normal Jak II
+runtime path. It does not yet render a title-screen pixel or establish Jak II
+gameplay.
+
+## Crash sequence and fixes
+
+The maintainer's original simulator report is from bundle
+`com.zephyrstudiosllc.eco.jak2dev`, UUID
+`C4C72D06-585E-32F3-A95B-F40D12E2A4DA`. It faulted at PC zero from
+`goal_main_display_loop + 744`; the live register state had `x8=0` and the
+suspend-hook GOAL object in `x9=#x001c7fb4`. Nested commits `56c29df60` and
+`cc8c4e217` add a product-linked live suspend-hook probe and guard every
+generated indirect `GOAL_FN` call. A corrupt or out-of-range native entry now
+logs the generated source location, GOAL object, and current process before
+aborting instead of executing `blr 0`. Focused death tests cover both a zero
+entry and a function object below the protected GOAL-memory boundary.
+
+The rebuilt source pack showed the same `#x001c7fb4` suspend-hook object with a
+valid native entry. That exposed the next failure in PC settings: the former
+`pc-filepath-exists?` stub returned C zero, which is not GOAL false, and the
+former `file-stream-open` stub also returned zero. Generated settings code then
+treated the failed open as valid and read `g_goal_mem + 0xc`. Nested commit
+`a2ee5729d` implements the narrow Jak II portable file-stream, settings-path,
+and display-query seams. Settings stay inside the app sandbox at
+`Library/Application Support/OpenGOAL/jak2/settings`. The focused machine test
+now covers stream round-trip, missing-file behavior, sign-extended failure,
+settings globals, and PC query functions.
+
+The next run reached `time-of-day` and tripped the GOAL thread stack invariant:
+the live function used 976 bytes against an 896-byte converted backup. The
+iPhoneOS-only CMake generator returns before the repository's global Release
+optimization defaults, so Xcode had compiled the generated AOT corpus at
+`-O0`. Nested commit `b0db0d9f1` applies target-local
+`-O3 -fno-strict-aliasing` to that corpus. A clean rebuild reduced
+`goal_time_of_day_anon_function_1` to a `0xa0`-byte native frame and the same
+runtime path passed without enlarging GOAL's stack constants.
+
+## Validation
+
+The focused host validation passed:
+
+```text
+cmake --build build/Release/bin --target jak2-lightweight-machine-test -j2
+ctest --test-dir build/Release/bin \
+  -R '^jak2-lightweight-machine-test$' --output-on-failure
+cmake --build build/Release/bin --target jak2-data-boot-test -j2
+build/Release/bin/game/jak2-data-boot-test \
+  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  --frames 120 --play-gfx-host
+```
+
+The focused test passed 1/1. The prepared-data proof exited zero after loading
+KERNEL, GAME, and TITLE.DGO, observing one complete host chain, two sync-path
+events, and two syncv events, with valid live suspend source/hook entries.
+
+A clean ARM64 Release build of `jak2-iphoneos-aot-corpus`, followed by the full
+`jak2-iphoneos-display-tick-proof` scheme, passed on the approved iPad Pro
+11-inch (M5) simulator. The app loaded settings, KERNEL, GAME, and TITLE.DGO,
+crossed PC-settings initialization with the 640-by-480 fallback, traversed the
+real-DMA policy through its nil-layer host, and remained on screen with:
+
+```text
+Jak II Metal policy display-tick proof - PASS
+callbacks=1 accepted_ticks=1 dispatcher_frames=1
+chains=1 buckets=327 copied_bytes=131072
+draws=0 submissions=0 presented_frames=0 failures=0
+```
+
+The simulator binary has UUID `1CF1C289-A7CD-3717-8D43-5569E178F439` and
+SHA-256 `a8e87a6b63ffccba7aadc359cf808ce885269dcf3914d9d9dfe02a4c2cca5029`.
+The screenshot is preserved at `/private/tmp/goalpad-jak2-cp77-live.png`. The
+app was terminated after capture; the already-running approved simulator was
+left booted. No physical device was accessed.
+
+A fresh generic-iPhoneOS Release build also passed all compile, link, Xcode
+CodeSign, and bundle-validation phases for the complete 840-unit Jak II AOT
+corpus. The product is thin ARM64, targets iOS 18.0, displays as
+`Eco Pro Jak II Dev`, and uses identifier
+`com.zephyrstudiosllc.eco.jak2displaytickproof`. Its executable UUID is
+`B219C08D-1565-3E87-AC0E-D239948B89FF` and SHA-256 is
+`5da40109a518565499ca6c375bcab42694826d92f67472bb2a178b131b0d7577`.
+Xcode used team `V729QMY3V6`, the local Apple Development identity, and the
+wildcard team provisioning profile. The current shell nevertheless reports
+zero valid code-signing identities, and strict standalone verification ends
+`CSSMERR_TP_NOT_TRUSTED`; installation and trust acceptance are therefore not
+claimed. Preserved artifacts are:
+
+```text
+/private/tmp/GOALPad-cp77-signed/Eco Pro Jak II Dev.app
+/private/tmp/GOALPad-cp77-signed/Eco-Pro-Jak-II-Dev.zip
+```
+
+The ZIP SHA-256 is
+`4fe486694ea22a601390710d78ca0de91cff06f99ade03413466707d7962d392`.
+
+## Publication and next gates
+
+Nested branch `agent/jak2-cp76-cametal-integration` resolves remotely to
+`b0db0d9f1251bbbfae2e1919bff2e276a77796d7`. The parent gitlink advances to
+that exact commit.
+
+1. Route real Jak II DMA beyond the audited policy traversal into actual Metal
+   draw calls, command-buffer submission, drawable acquisition, and a visible
+   frame. Preserve the nil-layer, offscreen-readback, and opt-in synthetic
+   CAMetalLayer proofs rather than creating another renderer path.
+2. Add a bounded sustained multi-tick and background/foreground lifecycle run;
+   the current product intentionally pauses after its first accepted tick, so
+   it is not sustained-runtime stability evidence.
+3. Fix the GOAL-side `file-stream-valid?` signedness ambiguity before claiming
+   robust recovery from every failed settings-file open. The native seam and
+   current failure test pass, but generated GOAL currently loads the file field
+   unsigned before a signed comparison.
+4. Resolve the local signing trust state before treating the preserved generic
+   product as install-verified. No install, launch, log capture, or physical-
+   device access occurred in this checkpoint.
+5. Do not describe this as a rendered title screen or gameplay: the current
+   normal-runtime proof deliberately reports zero draws, submissions, and
+   presented frames, and many Jak II renderer buckets remain deferred.

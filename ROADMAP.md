@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness and remaining platform gaps, not real-media
 import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 76 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 77 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 
@@ -1142,6 +1142,21 @@ proof that determines whether the intended `goal_native_thread_suspend` entry
 is born zero or overwritten before the first display tick. Do not bypass the
 suspend or substitute the expected function without identifying that cause.
 
+Checkpoint 77 completes the first bounded normal-runtime Jak II display tick at nested
+`b0db0d9f1`. Product-linked suspend diagnostics and guarded generated indirect
+calls replace the original PC-zero failure; narrow portable PC settings and
+file-stream seams replace the low-page settings crash; and target-local
+Release optimization keeps converted GOAL thread frames inside their recorded
+stack backups. The prepared-data host proof and approved M5 simulator load
+KERNEL, GAME, and TITLE.DGO, traverse one complete 327-bucket runtime chain,
+and report one accepted display tick with no failures. A fresh generic iPhoneOS
+compile/link/CodeSign build also passes, although standalone trust verification
+is pending because the current shell reports no valid signing identity. This
+is still a policy/display-tick proof with zero draw calls, submissions, or
+presented frames. The next Jak II gate is real-DMA Metal drawing and completed
+frame submission through the existing product renderer; title-screen pixels,
+gameplay, and physical-device support remain unproved.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
@@ -1166,18 +1181,19 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Add the product-linked Jak II suspend-hook/native-entry proof at the safe
-   post-start, pre-display-tick seam. Fix the initialization or overwrite site
-   it identifies while preserving an explicit diagnostic instead of another
-   null indirect branch. Only then pass a real layer into the existing product
-   host for real-DMA drawable acquisition and completed submission. Preserve
-   the nil-layer, offscreen-readback, and opt-in CAMetalLayer proofs; do not
-   claim title-screen, gameplay, or physical-device support from these gates.
+4. Advance the first bounded Jak II normal-runtime display tick into a sustained
+   multi-tick/lifecycle proof, then real-DMA Metal
+   draw calls, drawable acquisition, and completed submission through the
+   existing product host. Preserve the guarded indirect-call diagnostic and
+   the nil-layer, offscreen-readback, and opt-in CAMetalLayer proofs. Correct
+   the GOAL-side failed-stream validity comparison and resolve local signing
+   trust before stronger recovery or install claims; do not claim title-screen,
+   gameplay, or physical-device support from these gates.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
-Checkpoint 76 did not access Z iPad Pro. The maintainer supplied screenshots
+Checkpoint 77 did not access Z iPad Pro. The maintainer supplied screenshots
 from their own current physical run, but the agent did not install, launch,
 log, copy, or otherwise access the device. The maintainer reported that the app
 was backgrounded or closed, and any later install, launch, logging, capture, or
