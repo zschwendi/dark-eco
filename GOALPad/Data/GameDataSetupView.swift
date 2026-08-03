@@ -184,7 +184,7 @@ struct GameDataSetupView: View {
                 Task { await session.refreshDataReport() }
             }
             .buttonStyle(.bordered)
-            Button("Start") { session.start() }
+            Button("Start") { Task { await session.start() } }
                 .buttonStyle(.borderedProminent)
                 .disabled(!session.dataReport.canBoot)
         }

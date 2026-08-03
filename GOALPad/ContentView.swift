@@ -79,17 +79,6 @@ struct ContentView: View {
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
-
-            if !session.saveSync.conflictFiles.isEmpty {
-                Button { showSettings = true } label: {
-                    Label("iCloud save conflict — both versions were preserved",
-                          systemImage: "exclamationmark.triangle")
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.orange)
-                .padding()
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-            }
         }
         .task { await session.prepare() }
         .onChange(of: scenePhase) { _, phase in session.scenePhaseChanged(to: phase) }

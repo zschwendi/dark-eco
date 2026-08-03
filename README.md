@@ -118,9 +118,28 @@ app.
 
 Gameplay uses OpenGOAL's desktop-compatible memcard files under Application
 Support. The optional iCloud Saves setting mirrors those files into the app's
-iCloud Documents container; the runtime never plays from iCloud paths. When the
-two copies diverge, Eco Pro leaves both originals in place, archives both
-versions, and reports the conflict in Settings.
+iCloud Documents container; the runtime never plays from iCloud paths. Eco Pro
+treats OpenGOAL's alternating bank pairs as complete save slots, selects the
+generation OpenGOAL's loader would use, and compares its checksummed completion
+percentage. The farther valid slot wins as a unit, so banks from different
+devices cannot form a hybrid save. A loadable valid slot always beats a corrupt
+or unsupported peer. Slots where neither copy validates, and valid slots with
+equal progress, use the newest modification date. Hashes identify equal bytes
+but never rank saves. Divergent originals are archived locally and in iCloud
+before the winning pair becomes canonical. Launch and foreground syncs run while
+gameplay is paused and may merge in either direction. Syncs triggered by completed
+gameplay frames are upload-only: they archive a divergent iCloud pair before
+mirroring the active local pair and never replace a local bank. Settings retains
+the latest automatic-resolution details until they are replaced or dismissed,
+without presenting them over gameplay.
+
+Settings also provides **Import Saves** and **Export Saves**. These actions copy
+the unchanged desktop layout under `OpenGOAL/jak1/saves`, so transfers remain
+compatible with desktop OpenGOAL rather than introducing an Eco Pro save format.
+Import accepts only the exact `OpenGOAL/jak1/saves` directory with its single
+`BASCUS-97124AYBABTU!` slot, or that exact slot directory itself. Banks must be
+direct children, use the raw `bank0.bin` through `bank7.bin` names and sizes, and
+include at least one loadable Jak 1 pair that passes complete validation.
 
 The mirror is implemented with Apple's standard iCloud Documents entitlements;
 no CloudKit database or private entitlement is used. The canonical project now

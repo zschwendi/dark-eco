@@ -121,7 +121,7 @@ struct GameLibraryView: View {
     private func open(_ title: GameLibraryTitle) {
         switch state(for: title) {
         case .ready:
-            session.start()
+            Task { await session.start() }
         case .notImported, .preparing, .needsAttention:
             importGame()
         case .planned:

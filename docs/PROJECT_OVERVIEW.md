@@ -355,10 +355,29 @@ output rather than introducing a GOALPad-only data format.
 **Implemented:** Gameplay saves remain in OpenGOAL's existing local
 `Application Support/OpenGOAL/jak1/saves` directory. The Apple host has a
 local-first actor that can mirror stable snapshots to a private iCloud
-Documents container, synchronize at launch and after completed saves, preserve
-divergent copies, and surface state and conflicts in Settings. State files and
-conflict archives remain outside the gameplay save directory, preserving raw
-desktop OpenGOAL memcard compatibility.
+Documents container. Launch and foreground synchronization runs before gameplay
+resumes and can merge both directions. Synchronization triggered after completed
+saves is upload-only: it archives divergent cloud members before mirroring the
+active local pair and cannot replace local gameplay files. Each
+OpenGOAL alternating bank pair is merged as one save slot with a pair baseline.
+Eco Pro reproduces the loader's validation and `save_count` selection, then ranks
+the effective generations by the checksummed completion percentage OpenGOAL
+writes for its save picker. A loadable valid slot always beats a corrupt or
+unsupported peer. Equal valid progress uses the effective generations'
+modification dates; when neither copy validates, the newest available pair member
+wins. Hashes are used only for byte identity. Equal or missing dates retain the
+local gameplay authority.
+Divergent originals are archived locally and in iCloud before the winning pair,
+including member presence, becomes canonical. Pair replacement removes a stale
+odd generation before atomically replacing the even bank, so an interrupted
+operation remains recoverable on the next sync. Settings retains the latest
+automatic-resolution result until it is replaced or dismissed, without presenting
+a gameplay-blocking decision.
+State and archive files remain outside the gameplay save directory. Import accepts
+only the exact `OpenGOAL/jak1/saves` root with its single Jak 1 slot, or the exact
+slot directory with raw banks directly inside; it bounds and validates the files
+before changing local saves. Export writes the unchanged `OpenGOAL/jak1/saves`
+tree, preserving raw desktop OpenGOAL memcard compatibility.
 
 **Experimental:** The canonical project enables the standard iCloud Documents
 capability for the selected paid-team identity

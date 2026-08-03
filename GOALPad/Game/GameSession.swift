@@ -52,6 +52,8 @@ final class GameSession {
     /// The frame loop only runs while the scene is on screen: asking a backgrounded app's layer
     /// for a drawable blocks until it comes back.
     private var isForeground = true
+    private var currentScenePhase: ScenePhase = .active
+    private var isPreparingGameplay = false
     private var previousDisplayCallback: CFTimeInterval?
     private var displayIntervals: [Double] = []
     #if os(iOS) || os(visionOS)
@@ -94,8 +96,8 @@ final class GameSession {
 
     /// Bring the session up. Refuses rather than half-starting when the data on disk cannot boot
     /// the game, or when this build has no ahead-of-time Jak 1 code to boot.
-    func start() {
-        guard !isRunning, !isBooting else { return }
+    func start() async {
+        guard !isRunning, !isBooting, !isPreparingGameplay else { return }
         guard GOALPadRuntimeBridge.isGameCodeLinked else {
             startupError = "This build has no ahead-of-time Jak 1 code. "
                 + "Run Scripts/generate-jak1-aot.sh and build again."
@@ -106,6 +108,11 @@ final class GameSession {
             return
         }
 
+        isPreparingGameplay = true
+        defer { isPreparingGameplay = false }
+        await saveSync.syncBeforeGameplay()
+        guard !isRunning, !isBooting, currentScenePhase == .active else { return }
+
         let status = GOALPadRuntimeBridge.startKernel(
             withDataDirectory: GameDataLayout.gameDirectory.path)
         kernel = status
@@ -114,6 +121,7 @@ final class GameSession {
             return
         }
 
+        saveSync.setGameplayActive(true)
         startupError = nil
         settings.apply()
         isBooting = true
@@ -133,12 +141,15 @@ final class GameSession {
             startupError = status.message
             GOALPadRuntimeBridge.stopKernel()
             kernel = nil
+            saveSync.setGameplayActive(false)
             return
         }
 
         input.startWatching()
         audio.start()
         isRunning = true
+        isForeground = currentScenePhase == .active
+        saveSync.setGameplayActive(isForeground)
         #if os(iOS) || os(visionOS)
         startCameraDiagnostics()
         #endif
@@ -158,6 +169,7 @@ final class GameSession {
         kernel = nil
         boot = nil
         isRunning = false
+        saveSync.setGameplayActive(false)
         touch.reset()
         framesRun = 0
         framesPresented = 0
@@ -1055,19 +1067,33 @@ final class GameSession {
     // MARK: - App lifecycle
 
     func scenePhaseChanged(to phase: ScenePhase) {
+        currentScenePhase = phase
         switch phase {
         case .active:
-            isForeground = true
-            Task { await saveSync.syncNow() }
-            guard isRunning else { return }
-            audio.resumeIfSuspended()
-            setIdleTimerDisabled(true)
+            isForeground = false
+            if isBooting {
+                saveSync.setGameplayActive(true)
+                return
+            }
+            guard !isPreparingGameplay else { return }
+            isPreparingGameplay = true
+            Task { [weak self] in
+                guard let self else { return }
+                defer { isPreparingGameplay = false }
+                await saveSync.syncBeforeGameplay()
+                guard currentScenePhase == .active else { return }
+                saveSync.setGameplayActive(kernel != nil)
+                isForeground = true
+                guard isRunning else { return }
+                audio.resumeIfSuspended()
+                setIdleTimerDisabled(true)
+            }
         case .inactive:
-            saveSync.gameplayFrameCompleted()
+            isForeground = false
+            if !isBooting { saveSync.setGameplayActive(false) }
             #if os(iOS) || os(visionOS)
             persistCameraDiagnosticsForLifecycleEvent()
             #endif
-            isForeground = false
             touch.reset()
             resetDisplayTiming()
             // A transient state - the app switcher, a notification. Give up the audio device but
@@ -1075,11 +1101,11 @@ final class GameSession {
             audio.suspend()
             input.stopRumble()
         case .background:
-            saveSync.gameplayFrameCompleted()
+            isForeground = false
+            if !isBooting { saveSync.setGameplayActive(false) }
             #if os(iOS) || os(visionOS)
             persistCameraDiagnosticsForLifecycleEvent()
             #endif
-            isForeground = false
             touch.reset()
             resetDisplayTiming()
             audio.suspend()
