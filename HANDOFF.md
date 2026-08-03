@@ -11037,8 +11037,10 @@ Nested branch `goalpad/ipad-demo-pacing` was fast-forwarded from `1e41324fa` to
 `0963b1c4c`; `git ls-remote` returned that exact nested hash. The parent
 integration branch is `agent/cp74-jak2-submit-readback-parent`, based on remote
 parent `7b776a3e3986c00992147f6b165462b61151c77e`; its source/gitlink integration
-commit is `b5ab819e4024c592950b9e91229c49188850889e`. Publish its final documentation
-tip to `feat/ipados-native-boot` only after the documentation checks pass.
+commit is `b5ab819e4024c592950b9e91229c49188850889e`. Documentation commit
+`63f5be88a627292b9640a6e040ca66d1a97c6091` passed `git diff --check` and was
+pushed to `feat/ipados-native-boot`; `git ls-remote` returned that exact hash
+before this publication addendum.
 
 The maintainer-owned main worktree remains untouched and dirty on
 `agent/jak1-v6-visual-diagnostics-parent`: `GOALPad.xcodeproj/project.pbxproj`,
