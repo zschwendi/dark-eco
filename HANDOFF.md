@@ -10031,3 +10031,62 @@ Next executable gates:
 3. Preserve the 518-object Jak 1 source pack and 840-object Jak II corpus while
    their writers and embedded graphs remain unchanged. Do not regenerate them
    merely because a host-only probe changes.
+
+# Checkpoint 63: checked Jak II source pack and signed iPhoneOS link proof
+
+Date: 2026-08-03. This checkpoint establishes a reproducible, signed generic
+iPhoneOS build proof for the checked Jak II AOT source corpus. It does not add a
+Jak II app/runtime target, renderer or gameplay support, simulator/device
+execution, or a new physical-device claim. Jak 1 physical visual acceptance
+remains the active product gate.
+
+## Source preparation and host frontier
+
+The nested integration head is merge
+`9edd580035f1939622187fb8ef019c083768f3e5` (parents `4ec3173e7` and
+`fe4b0bd67`). It preserves the reviewed package bookkeeping (`14b182db0`),
+`play-boot` (`a5b6bc922`), exact source-pack generation (`9fae6e472`),
+duplicate-link repair (`8c24e6731`), signed-link product plumbing
+(`0144bec3b`), valid default bundle identifier (`ffed88c6c`), portable pad and
+interrupt-handler seams, and the portable `pc-rand` implementation with its
+deterministic test. Parent commits `c9e08803` and `4eee79f8` bound host jobs and
+add the atomic source-pack wrapper; `b04fbf01` pins the final nested merge.
+
+The checked source pack contains 840 objects, aggregate
+`97a122324eb71fb3`, and 21,201,927 object bytes. The wrapper reuses that pack
+and pins `build/jak2-source-object-pack.expected-aggregate`. The regenerated
+AOT corpus verifies 840 objects, 18,479 emitted functions, seven native
+functions, and zero failed files.
+
+The bounded real-data `--play` probe completed successfully at the final merge.
+It dispatched one `play-boot` frame and loaded `TITLE.DGO` as one archive with
+seven objects (one AOT code object and six data objects). `pc-rand` is no longer
+the reported missing machine function. Focused `jak2-pc-rand`, Jak II pad,
+Jak II interrupt-handler, and Jak 1 kernel-smoke tests all passed; explicit
+CMake reconfiguration also passed. This is host frontier evidence, not
+title-screen, renderer, or gameplay proof.
+
+The first post-frame machine boundary now remains, in order: `pc-prof`,
+`flush-cache`, `sync-path`, `syncv`, `mouse-get-data`, then
+`__send-gfx-dma-chain`. Treat the DMA chain as the first substantive renderer
+boundary; do not turn this checkpoint into unrelated app or renderer wiring.
+
+## Signed generic-iOS proof
+
+After an initial stale XCBuild-plan failure, explicit CMake reconfiguration
+followed by the exact-`9edd580` generic iPhoneOS Release build passed in 8.299
+seconds against all 840 corpus units. The signed product is a 47,610,432-byte
+thin ARM64 Mach-O, minimum iOS 18, bundle identifier
+`com.zephyrstudiosllc.eco.jak2linkproof`, signing team `V729QMY3V6`, SHA-256
+`e9d0abea3ce4d45beb54efa1777d6b3ec374d401681a4505481b3b24bf065840`, and
+CodeDirectory hash `9ea2ad9302af334b3be2d7885111341883d11547`. Strict
+`codesign` verification passed. Final symbols include `goal_pad_install` and
+both handler globals; the archive contains `InstallHandler` and all portable
+pad exports. Existing compiler warnings remained; a stale unused Xcode-account
+warning did not block requested-team signing.
+
+No device, simulator, app launch, or renderer/gameplay run was used or claimed,
+and no user game data was added to source control. The next smallest Jak II
+host task is a bounded audit or implementation of the listed machine stubs
+through the first real DMA boundary; actual Jak II app/runtime integration
+remains separate and unproved.
