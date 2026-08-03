@@ -1059,11 +1059,12 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Continue Jak II from the validated portable graphics host and composable DMA
-   observer into a separate, mutually exclusive development app target. Reuse
-   the existing Apple renderer callbacks, including `set_active_levels`, and
-   add only the target-selected sound and lifecycle seams required to compile
-   one game corpus per executable. Real display pacing, visible output,
+4. Continue Jak II with a separate development-only headless UIKit/
+   CADisplayLink proof that links only the Jak II corpus, advances exactly one
+   dispatcher frame per display tick, pauses without catch-up in the
+   background, and validates host/DMA accounting. Rebase the existing sibling
+   proof onto `a5a1bebbc` before validation. Do not add Metal or claim
+   presentation in that slice; renderer callbacks, target-selected sound,
    simulator/device runtime, and physical gameplay remain unproved.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.

@@ -10384,12 +10384,13 @@ and the unused stale Xcode-account warning remained non-blocking.
 
 ## Next executable gates
 
-1. Jak II still has no Apple app target, Metal callback lifecycle, real display
-   link pacing, Apple audio pull, simulator/device runtime, visible title, or
-   gameplay proof. The next code slice is a separate mutually exclusive Jak II
-   development target that links only the Jak II AOT corpus and reuses the
-   existing Apple renderer behind the validated host contract.
-2. The Apple renderer must assign `set_active_levels` and compose optional DMA
+1. Jak II still has no integrated Apple app target, Metal callback lifecycle,
+   real display pacing, Apple audio pull, simulator/device runtime, visible
+   title, or gameplay proof. First reconcile the sibling headless
+   UIKit/CADisplayLink proof onto `a5a1bebbc`, keeping it development-only,
+   single-corpus, and explicit about zero rendered or presented frames.
+2. After that lifecycle proof, the Apple renderer must assign
+   `set_active_levels` and compose optional DMA
    observation inside its send-chain callback. Do not replace the installed
    host or link both game corpora into one executable.
 3. Add only the target-selected Jak II sound API needed by that development
