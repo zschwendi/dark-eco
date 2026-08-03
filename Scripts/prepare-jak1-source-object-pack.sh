@@ -8,6 +8,19 @@ fail() {
   exit 1
 }
 
+temporary_staging_root=
+publish_lock=
+cleanup() {
+  if [ -n "$publish_lock" ]; then
+    rmdir -- "$publish_lock" 2>/dev/null || true
+  fi
+  if [ -n "$temporary_staging_root" ]; then
+    rm -rf -- "$temporary_staging_root"
+  fi
+}
+trap cleanup EXIT
+trap 'exit 1' HUP INT TERM
+
 script_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 repository_root=$(CDPATH= cd -- "$script_directory/.." && pwd -P)
 opengoal_root=${GOALPAD_OPENGOAL_ROOT:-$repository_root/OpenGOAL}
@@ -64,15 +77,29 @@ verifier=$build_root/goalc/jak1-source-object-pack-verify
 [ -x "$verifier" ] || fail "host source-pack verifier was not built: $verifier"
 
 if [ ! -e "$source_pack" ]; then
+  temporary_staging_root=$(mktemp -d "$source_pack_parent/.goalpad-jak1-source-pack.XXXXXX") || \
+    fail "could not create source-object pack staging directory"
+  staged_source_pack=$temporary_staging_root/pack
   "$sweep" \
     --game jak1 \
     --project-file goal_src/jak1/game.gp \
     --target GROUP:all-code \
     --project-path "$opengoal_root" \
-    --object-output-dir "$source_pack" \
+    --object-output-dir "$staged_source_pack" \
     --report "$build_root/goalc/jak1-source-object-pack-report.tsv"
+  "$verifier" "$staged_source_pack"
+  candidate_publish_lock=$source_pack_parent/.goalpad-jak1-source-pack.publish-lock
+  if mkdir "$candidate_publish_lock" 2>/dev/null; then
+    publish_lock=$candidate_publish_lock
+  else
+    fail "another source-object pack publication is in progress"
+  fi
+  [ ! -e "$source_pack" ] && [ ! -L "$source_pack" ] || \
+    fail "source-object pack appeared while it was being prepared"
+  mv -- "$staged_source_pack" "$source_pack"
+  rmdir -- "$publish_lock"
+  publish_lock=
 else
   echo "Reusing existing Jak 1 source-object pack: $source_pack"
+  "$verifier" "$source_pack"
 fi
-
-"$verifier" "$source_pack"

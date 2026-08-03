@@ -54,6 +54,9 @@ done
 mkdir "$output"
 printf 'object\n' >"$output/synthetic.o"
 printf 'recorded identity\n' >"$output/object_pack_manifest.tsv"
+if [ "${FAKE_SWEEP_FAIL_AFTER_CREATE:-0}" = 1 ]; then
+  exit 1
+fi
 SWEEP
 cat >"$build_root/goalc/jak1-source-object-pack-verify" <<'VERIFY'
 #!/bin/sh
@@ -71,6 +74,7 @@ chmod +x "$fake_cmake"
 
 run_preparer() {
   FAKE_SWEEP_LOG=$sweep_log FAKE_VERIFY_LOG=$verify_log \
+    FAKE_SWEEP_FAIL_AFTER_CREATE=${FAKE_SWEEP_FAIL_AFTER_CREATE:-0} \
     GOALPAD_CMAKE_EXECUTABLE=$fake_cmake \
     GOALPAD_OPENGOAL_ROOT=$opengoal_root \
     GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=$source_pack \
@@ -78,18 +82,28 @@ run_preparer() {
     GOALPAD_BUILD_JOBS=1 "$preparer"
 }
 
+FAKE_SWEEP_FAIL_AFTER_CREATE=1
+if run_preparer >/dev/null 2>&1; then
+  fail "failed initial generation was accepted"
+fi
+unset FAKE_SWEEP_FAIL_AFTER_CREATE
+[ ! -e "$source_pack" ] || fail "failed initial generation published a partial pack"
+[ -z "$(find "$temporary_root/output" -mindepth 1 -maxdepth 1 \
+  -name '.goalpad-jak1-source-pack.*' -print -quit)" ] || \
+  fail "failed initial generation left a staging directory"
+
 run_preparer
-[ "$(wc -l <"$sweep_log" | tr -d ' ')" = 1 ] || fail "missing pack was not generated once"
+[ "$(wc -l <"$sweep_log" | tr -d ' ')" = 2 ] || fail "missing pack did not recover"
 [ "$(wc -l <"$verify_log" | tr -d ' ')" = 1 ] || fail "generated pack was not verified"
 
 run_preparer
-[ "$(wc -l <"$sweep_log" | tr -d ' ')" = 1 ] || fail "existing pack was regenerated"
+[ "$(wc -l <"$sweep_log" | tr -d ' ')" = 2 ] || fail "existing pack was regenerated"
 [ "$(wc -l <"$verify_log" | tr -d ' ')" = 2 ] || fail "existing pack was not reverified"
 
 printf 'corrupt\n' >"$source_pack/object_pack_manifest.tsv"
 if run_preparer >/dev/null 2>&1; then
   fail "corrupt existing pack was accepted"
 fi
-[ "$(wc -l <"$sweep_log" | tr -d ' ')" = 1 ] || fail "corrupt pack was overwritten"
+[ "$(wc -l <"$sweep_log" | tr -d ' ')" = 2 ] || fail "corrupt pack was overwritten"
 
 echo "Jak 1 source-object pack preparation synthetic check passed."
