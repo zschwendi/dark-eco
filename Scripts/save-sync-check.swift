@@ -1317,6 +1317,46 @@ private func committedSourceChangeRemainsNextGeneration() async throws {
           "successful local recovery clears the gameplay barrier")
 }
 
+private func uploadOnlyRecoveryMirrorsCurrentLocalGeneration() async throws {
+    print("upload-only recovery finishes a cloud target and mirrors the current local generation")
+    let fixture = try Fixture()
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    try writeBank(progress: 40, saveCount: 4, marker: 121,
+                  to: bankFilePath(0), under: fixture.local, modificationDate: date)
+    try writeBank(progress: 30, saveCount: 3, marker: 122,
+                  to: bankFilePath(1), under: fixture.local, modificationDate: date)
+    _ = try await fixture.engine.sync()
+
+    try writeBank(progress: 80, saveCount: 6, marker: 123,
+                  to: bankFilePath(0), under: fixture.local,
+                  modificationDate: date.addingTimeInterval(60))
+    try writeBank(progress: 70, saveCount: 5, marker: 124,
+                  to: bankFilePath(1), under: fixture.local,
+                  modificationDate: date.addingTimeInterval(60))
+    let currentGeneration = CloudReplacementRace(cloudRoot: fixture.local)
+    do {
+        _ = try await engine(
+            for: fixture,
+            afterPairIntentCommitted: { try currentGeneration.mutate() }).sync()
+    } catch {}
+    let committedState = try JSONSerialization.jsonObject(
+        with: Data(contentsOf: fixture.state)) as? [String: Any]
+    let committedIntent = committedState?["pairMutationIntent"] as? [String: Any]
+    check(committedIntent?["phase"] as? String == "committed"
+            && committedIntent?["targetCopy"] as? String == "iCloud",
+          "the interrupted cloud-target journal remains committed")
+
+    let recoveryEngine = engine(for: fixture)
+    let recovery = try await recoveryEngine.sync(mode: .uploadOnly)
+    check(recovery.uploaded == 4,
+          "one upload-only call completes the journal and its newer local generation")
+    check(loaderSelectedCompletion(evenIndex: 0, under: fixture.cloud) == 96,
+          "the cloud mirror ends at the current local generation, not the embedded predecessor")
+    let followUp = try await recoveryEngine.syncIfLocalFilesChanged(mode: .uploadOnly)
+    check(followUp == nil,
+          "the same call records current local stamps so no follow-up upload is needed")
+}
+
 private func legitimateOneBankDivergenceIsSurfaced() async throws {
     print("a naturally added odd bank is ranked instead of inferred as recovery")
     let fixture = try Fixture()
@@ -1982,6 +2022,7 @@ private struct SaveSyncCheck {
             try await preparedDriftCancelsAndPreparedImportDoesNotBlock()
             try await targetContentionBetweenPhasesIsRejected()
             try await committedSourceChangeRemainsNextGeneration()
+            try await uploadOnlyRecoveryMirrorsCurrentLocalGeneration()
             try await legitimateOneBankDivergenceIsSurfaced()
             try await unavailableRecoveryHonorsTargetDirectionAndMode()
             try await pendingLocalIntentBlocksEveryOtherSlot()

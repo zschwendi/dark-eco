@@ -696,7 +696,8 @@ actor SaveSyncEngine {
             evenPath: evenPath, local: local, remote: remote, cloud: cloud, mode: mode,
             state: &state, processedLocalStamps: &processedLocalStamps,
             resolutions: &resolutions) {
-            if mode == .bidirectional, recovered.sourceChanged {
+            if recovered.sourceChanged,
+               mode == .bidirectional || recovered.intent.targetCopy == .iCloud {
                 recoveredUploaded = recovered.uploaded
                 recoveredDownloaded = recovered.downloaded
                 let committedSource = journalSourceSnapshot(recovered.intent)
