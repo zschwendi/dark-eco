@@ -11469,3 +11469,294 @@ After the signed app and ZIP were copied and re-hashed, only the disposable
 `/private/tmp/GOALPad-jak2-cp77-device-derived` directories were removed. No
 worktree was removed. The simulator Xcode products, simulator screenshot, and
 preserved app/ZIP remain available at the paths recorded above.
+
+# Checkpoint 78: current known-best Jak 1 and bounded Jak II lifecycle
+
+Date: 2026-08-03. Parent source head
+`a18eced278f4210c58511655695b22a078c2ace6` integrates the Jak 1 physical
+diagnostic build and advances the OpenGOAL gitlink to nested commit
+`816222f47c715e770a789a29830c66634af880d9`. This checkpoint establishes the
+current known-best physical Jak 1 build and advances Jak II from one bounded
+normal-runtime display tick to a completed real-DMA Metal submission plus a
+six-frame lifecycle proof on the approved M5 simulator. No physical-device
+Jak II result is claimed.
+
+## Jak 1 shadow-output B and Merc identity telemetry
+
+The physical B build restores normal TIE shine: the TIE second envmap pass is
+enabled. It disables only the final color-writing Jak 1 shadow composite after
+the normal shadow DMA and VU work has been consumed. This distinguishes
+shadow output from TIE material/depth behavior without disabling either the
+metallic pass or the shadow workload.
+
+The Merc discontinuity trace now hashes the producer's exact bone-output
+matrix in EE memory and the matrix consumed by the renderer for the same bone
+slot. Matching and divergent producer/renderer identities are retained through
+the C++ host, Objective-C++ bridge, and schema-v7 Swift snapshot. A transport
+or stale-palette mismatch can therefore be separated from a composition
+mismatch whose producer and renderer bytes are identical. This is diagnostic
+coverage, not a speculative deformation patch.
+
+The exact focused Jak 1 build and tests passed:
+
+```text
+CCACHE_DIR=/private/tmp/GOALPad-ccache \
+  cmake --build build/Release/bin \
+    --target metal-merc-transform-trace-test metal-proof \
+             jak1-kernel-core-smoke-test -j2
+
+./build/Release/bin/game/metal-merc-transform-trace-test
+./build/Release/bin/game/jak1-kernel-core-smoke-test
+./build/Release/bin/game/metal-proof --tie-envmap-isolation-only
+./build/Release/bin/game/metal-proof
+```
+
+The Merc trace test passed, the kernel smoke test reported zero failures, and
+both the isolated TIE/shadow proof and the complete Metal proof ended in PASS
+with real Metal access. Parent bridge validation also passed:
+
+```text
+Scripts/run-target-control-diagnostics-check.sh
+./Scripts/run-merc-transform-diagnostics-check.sh
+```
+
+The final generic-device Release command was:
+
+```text
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -sdk iphoneos \
+  -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-current-jak1-device \
+  -jobs 2 -allowProvisioningUpdates build
+```
+
+The initial clean build passed in 376.759 seconds. The exact final incremental
+build passed with `** BUILD SUCCEEDED **` in 24.442 seconds. It reverified all
+518 checked Jak 1 source objects with aggregate `0a6387a3959fd8cb` and
+10,729,950 bytes. The staged importer-resource bundle had SHA-256
+`cacf677fa72be513b9fc1a008ac1e8330c4ae51ef12913edf7f9c816dd937d81`.
+
+The final app is
+`/private/tmp/GOALPad-current-jak1-device/Build/Products/Release-iphoneos/GOALPad.app`.
+It uses bundle identifier `com.zephyrstudiosllc.eco`, team `V729QMY3V6`,
+binary SHA-256
+`bd77b150643f88565d2e73afc684a7918455d7f5f462e3bb67b5a1a0f5b0e5bc`,
+and CDHash `f55c54bddf9d2f11294aea9e179f19c5003e781c`.
+Annotated tag `jak1-known-best-cp79-20260803` points to the exact physically
+tested parent commit `c2e4d12a0f656f898587690935beaeb81debe6a6`. Its annotation records nested
+`816222f47c715e770a789a29830c66634af880d9`, the same binary SHA-256, normal
+TIE/envmap output, disabled final shadow output, and the maintainer's known-best
+verdict. The current integration head contains the equivalent tested source
+plus the Jak II lifecycle pin.
+
+With explicit physical-device authorization, the update install passed and
+preserved the existing app container:
+
+```text
+xcrun devicectl device install app \
+  --device 6A4111AB-1663-508A-98D9-F0C1A9EA7863 \
+  /private/tmp/GOALPad-current-jak1-device/Build/Products/Release-iphoneos/GOALPad.app
+
+xcrun devicectl device process launch \
+  --device 6A4111AB-1663-508A-98D9-F0C1A9EA7863 \
+  --terminate-existing com.zephyrstudiosllc.eco
+```
+
+The launch passed at 14:02. The maintainer found this build extremely playable
+and named it the current known-best Jak 1 build. Jak looked stable everywhere
+else in the tested run: no visible Merc flicker, Flat-Stanley collapse,
+enlargement, or wrong-facing behavior was observed, including repeated attack
+use. The sole reported remaining defect was motion-sensitive Precursor
+metallic texture flicker/chunking; it also persists while stationary as visibly
+mismatched texture chunks. Normal TIE shine was enabled and final shadow output
+was disabled for the entire run, so this observation rules out the final
+shadow composite as the sole cause without implicating the retained TIE shine
+by itself.
+
+After the app was backgrounded, its 91,120-byte schema-v7 snapshot was copied
+read-only to
+`/private/tmp/camera-provenance-z-ipad-cp79-output-identity-20260803.log` with
+SHA-256
+`6cd3cb34276cedee84ebfb66ba42c208e0d4adafa41de900ce1e45bb70ba0443`.
+It records run `3502480815833616513`, engine frame 10,454,
+`jak1_tie_envmap_second_pass_enabled=1`, and
+`jak1_shadow_output_enabled=0`. It contains 117 transform-discontinuity and
+117 provenance events, but every retained event is issue bit 4, input-root
+A/B/A only. Scale/aspect, output-only, camera-driven, stale-output,
+source-mapping, and expected-output issue bits are all zero.
+
+Producer and renderer identities match exactly. The first event's previous
+hash is `10697766367219476727` on both sides and its current hash is
+`4231594877890020899` on both sides; expected-output distances are
+`0.000000002` and `0.000000003`. The last event likewise matches previous
+hash `11391172290929537613` and current hash `15137745373187813768`; its
+distances are `0.000000003` and `0.000000012`. The snapshot reports
+`merc_eichar_output_composition_mismatches_total=0`, and the first/last
+provenance records mirror those same identities. These events are healthy
+telemetry for ordinary input-root facing changes, not a user-visible Jak
+regression. The local diagnostic snapshot is evidence only and is not
+committed.
+
+## Exact-current Jak II host and AOT gates
+
+The exact-current focused host build passed:
+
+```text
+CCACHE_DIR=/private/tmp/GOALPad-ccache \
+  cmake --build build/Release/bin \
+    --target jak2-lightweight-machine-test jak2-data-boot-test \
+             jak2-gfx-host-test jak2-dma-boundary-test \
+             jak2-display-tick-coordinator-test \
+             jak2-metal-dispatch-proof \
+             jak2-metal-submit-readback-proof \
+             jak2-metal-host-bridge-test -j2
+
+ctest --test-dir build/Release/bin \
+  -R '^(jak2-lightweight-machine-test|jak2-dma-boundary-test|jak2-gfx-host-test|jak2-display-tick-coordinator-test)$' \
+  --output-on-failure
+
+ctest --test-dir build/Release/bin \
+  -R '^(jak2-metal-dispatch-proof|jak2-metal-submit-readback-proof|jak2-metal-host-bridge-test)$' \
+  --output-on-failure
+```
+
+The four CPU tests (`jak2-lightweight-machine-test`,
+`jak2-dma-boundary-test`, `jak2-gfx-host-test`, and
+`jak2-display-tick-coordinator-test`) passed through their focused CTest
+filter. The three Metal tests (`jak2-metal-dispatch-proof`,
+`jak2-metal-submit-readback-proof`, and `jak2-metal-host-bridge-test`) passed
+with real Metal access.
+
+The prepared-data host proof also passed:
+
+```text
+./build/Release/bin/game/jak2-data-boot-test \
+  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  --frames 120 --play-gfx-host
+```
+
+It validated 840 AOT translation units, loaded KERNEL 8/8 and GAME 465/465,
+loaded `TITLE.DGO` as one archive containing seven objects, linked real AOT
+code, and crossed one graphics chain with two syncv and two sync-path events.
+
+A fresh checked-source and AOT generation pass used:
+
+```text
+GOALPAD_BUILD_JOBS=2 Scripts/prepare-jak2-source-object-pack.sh
+GOALPAD_BUILD_JOBS=2 Scripts/generate-jak2-aot.sh OpenGOAL/build/Release/bin
+Scripts/verify-generated-aot.sh Generated/jak2-aot 840
+```
+
+The explicit source-pack verifier passed with 840 objects, aggregate
+`dcd803e29d4f8876`, and 21,201,927 bytes. The generated corpus contains all
+840 translation units plus its manifest, with 18,479 emitted functions and
+seven native routines. Generated `file_io.c` has SHA-256
+`bb145ef469894390a9cb1906024e204b61a270109db86457ccd98567ddf0fcf3`,
+including the corrected signed failed-stream validity comparison.
+
+## Real-DMA Metal and lifecycle simulator results
+
+The ARM64 simulator Xcode project was configured against the regenerated
+corpus at
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/Generated/jak2-aot`.
+The exact configure and build shape was:
+
+```text
+cmake \
+  -S /Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/OpenGOAL \
+  -B /private/tmp/GOALPad-jak2-cp78-simulator-xcode -G Xcode \
+  -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphonesimulator \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=18.0 \
+  -DBUILD_TESTING=OFF -DOPENGOAL_BUILD_JAK2_IPHONEOS_AOT_LINK_ONLY=ON \
+  -DOPENGOAL_JAK2_AOT_DIR=/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/Generated/jak2-aot \
+  -DOPENGOAL_JAK2_IPHONEOS_DISPLAY_TICK_BUNDLE_IDENTIFIER=com.zephyrstudiosllc.eco.jak2dev \
+  -DOPENGOAL_JAK2_IPHONEOS_DEVELOPMENT_TEAM=V729QMY3V6
+
+xcodebuild \
+  -project /private/tmp/GOALPad-jak2-cp78-simulator-xcode/jak.xcodeproj \
+  -scheme jak2-iphoneos-display-tick-proof -configuration Release \
+  -sdk iphonesimulator \
+  -destination 'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-jak2-cp78-simulator-derived \
+  COMPILER_INDEX_STORE_ENABLE=NO -jobs 2 build
+```
+
+The full `jak2-iphoneos-display-tick-proof` build passed in 112.031 seconds;
+the final post-fix incremental build passed in 2.415 seconds. The resulting
+simulator executable has UUID `F3FA3C49-CE28-3BD6-8CD9-1BEDF76AFD03` and
+SHA-256
+`fd9420bcbf4242dbd3e9fc23de4fa2480ad0fdf775d89f9acf780f4ceb29d850`.
+
+On the approved iPad Pro 11-inch (M5) simulator,
+`GOALPAD_JAK2_REAL_DMA_CAMETAL_LAYER_PROOF=1` passed with exact counters:
+
+```text
+ticks=1 chains=1 buckets=327 skipped=3008 draws=0 triangles=0
+drawables=1 misses=0 committed=1 completed=1 errors=0
+submissions=1 presentation_callbacks=0 drops=0 order_mismatches=0
+```
+
+This is the first normal-runtime, game-built DMA chain to acquire a drawable
+and complete a Metal submission through the product host. The zero draws are
+honest: the first bounded chain contains no currently supported Direct draw.
+The simulator SDK exposes no presentation callback, so zero callbacks are the
+expected simulator result. This is not a visible title-screen, gameplay, or
+physical-device proof.
+
+The first `GOALPAD_JAK2_LIFECYCLE_PROOF=1` run intentionally preserved its
+useful failure. It reached the second runtime chain and encoded one offscreen
+draw, but the nil-layer host rejected any draw as a violation of its former
+policy-only gate. The run stopped after tick two with two chains, one completed
+chain, one failed chain, and no crash. The gate was overstrict: nil-layer
+dispatch must forbid drawable acquisition, command-buffer commit/completion,
+submission, and presentation, but encoding an offscreen draw is valid.
+
+Nested `816222f47c715e770a789a29830c66634af880d9` removes only the zero-draw and
+zero-triangle requirements from that nil-layer gate. It retains the strict
+zero drawable, miss, commit, completion, GPU-error, submission, presentation,
+drop, and ordering counters. The focused regression passed:
+
+```text
+ctest --test-dir build/Release/bin \
+  -R '^(jak2-metal-host-bridge-test|jak2-display-tick-coordinator-test)$' \
+  --output-on-failure
+```
+
+The result was 2/2. The rebuilt lifecycle proof then emitted the exact pause
+marker `accepted=3 paused=3 dispatcher=3`, resumed the same process without
+catch-up, advanced into `CWI.DGO`, and passed with:
+
+```text
+accepted=6 paused=3 dispatcher=6 chains=6 completed=6 failures=0
+```
+
+This exercises the app's inactive, background, will-enter-foreground, and
+active handlers in a bounded phase driver; it does not ask iOS to suspend the
+process. It is simulator-only lifecycle evidence. No Jak II app was installed,
+launched, logged, or captured on a physical device.
+
+## Repository state and next gates
+
+Before this documentation commit, the isolated parent branch
+`agent/cp76-jak2-cametal-parent` is at
+`a18eced278f4210c58511655695b22a078c2ace6` and pins nested
+`816222f47c715e770a789a29830c66634af880d9`. The source checkpoint is ahead of
+the recorded remote-tracking parent head; publication remains a separate
+integration step. No unrelated worktree was reset, cleaned, staged, or
+modified by this documentation update.
+
+1. Preserve this physical Jak 1 build as the current known-best baseline. The
+   remaining observed defect is the Precursor metallic texture
+   flicker/chunking; the final shadow composite is now excluded as its sole
+   cause. Use the existing evidence to form the next deterministic material or
+   depth hypothesis before changing renderer behavior.
+2. For Jak II, carry the later real-DMA chain that already encodes a draw
+   through the existing `CAMetalLayer` product host, and require drawable
+   acquisition, command-buffer completion, submission, bounded pixels, and
+   zero failures. Preserve the one-chain real-DMA, six-frame nil-layer
+   lifecycle, synthetic CAMetalLayer, offscreen-readback, and default one-tick
+   proofs as separate gates.
+3. Build and sign an exact-current generic-iPhoneOS Jak II artifact after the
+   next renderer checkpoint. Checkpoint 78 establishes host and simulator
+   behavior only; it makes no physical Jak II, visible-title, gameplay, audio-
+   output, sustained-runtime, performance, or thermal claim.

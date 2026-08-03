@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness and remaining platform gaps, not real-media
 import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 77 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 78 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 
@@ -806,8 +806,9 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 76 is the current integration checkpoint. Checkpoint 37 remains the
-latest sustained physical gameplay and visual-fidelity run. Its signed build
+Checkpoint 78 is the current integration checkpoint. Checkpoint 78's physical
+Jak 1 build is the current known-best visual/gameplay baseline; Checkpoint 37
+remains the latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
 The maintainer nevertheless rejected it as a camera or visual-fidelity
@@ -1157,6 +1158,36 @@ presented frames. The next Jak II gate is real-DMA Metal drawing and completed
 frame submission through the existing product renderer; title-screen pixels,
 gameplay, and physical-device support remain unproved.
 
+Checkpoint 78 preserves the current known-best physical Jak 1 build and moves
+Jak II through two bounded simulator gates at nested `816222f47`. On the
+authorized Z iPad Pro, Jak was extremely playable with no observed Merc
+flicker, Flat-Stanley collapse, enlargement, wrong-facing behavior, or attack
+regression. Normal TIE shine remained enabled while final shadow output was
+disabled. The remaining observed Jak 1 defect is Precursor metallic texture
+flicker/chunking, which persists as mismatched chunks even while stationary;
+the final shadow composite is therefore excluded as its sole cause. The
+schema-v7 producer and renderer output hashes match exactly across 117 retained
+input-root A/B/A events, with zero composition mismatches, confirming that
+those events are healthy telemetry rather than the user-visible regression.
+Annotated tag `jak1-known-best-cp79-20260803` preserves exact physically tested
+parent commit `c2e4d12a0f656f898587690935beaeb81debe6a6`, its nested pin,
+signed-binary identity, renderer A/B configuration, and maintainer verdict.
+
+The regenerated Jak II source pack contains 840 objects with aggregate
+`dcd803e29d4f8876` and 21,201,927 bytes; the verified AOT corpus contains 840
+translation units plus its manifest, 18,479 emitted functions, and seven
+native routines. The exact-current prepared-data host proof passes. On the
+approved M5 simulator, one game-built DMA chain dispatches 327 buckets,
+acquires one drawable, and completes one submission with zero errors or drops.
+A separate six-frame lifecycle proof rejects exactly three paused callbacks,
+accepts six foreground ticks without catch-up, completes all six chains, and
+advances into `CWI.DGO`. The first lifecycle run usefully exposed an overstrict
+nil-layer zero-draw gate; `816222f47` now permits encoded offscreen draws while
+retaining zero drawable, commit, completion, submission, presentation, error,
+drop, and ordering requirements. These are host and simulator results only:
+no physical Jak II, visible-title, gameplay, audio-output, sustained-runtime,
+performance, or thermal result is claimed.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
@@ -1169,33 +1200,31 @@ provider interleaving, eviction, account switching, and migration remain
 
 The next actions are:
 
-1. When the maintainer next explicitly authorizes physical-device access,
-   install and run the schema-v7 Jak 1 artifact. Slowly sweep Jak through the
-   thin and normal headings in open space, then hold the same wall condition
-   with him barely in frame and barely out of frame. Retain one completed event
-   from each diagnostic so the palette/output and camera
-   slave/target/combiner hypotheses can be decided. Include the bounded TIE
-   second-pass metallic comparison in that same authorized run.
+1. Preserve Checkpoint 78 as the current known-best physical Jak 1 baseline.
+   Investigate the remaining Precursor metallic texture flicker/chunking with
+   one deterministic material/depth hypothesis at a time. Normal TIE shine is
+   enabled and disabling final shadow output did not remove it, so do not repeat
+   either already-decided A/B without a new discriminator.
 2. Validate signed iCloud behavior with two devices, including a real divergent
    pair, account/provider transitions, and preservation of both originals.
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Advance the first bounded Jak II normal-runtime display tick into a sustained
-   multi-tick/lifecycle proof, then real-DMA Metal
-   draw calls, drawable acquisition, and completed submission through the
-   existing product host. Preserve the guarded indirect-call diagnostic and
-   the nil-layer, offscreen-readback, and opt-in CAMetalLayer proofs. Correct
-   the GOAL-side failed-stream validity comparison and resolve local signing
-   trust before stronger recovery or install claims; do not claim title-screen,
-   gameplay, or physical-device support from these gates.
+4. Carry the later real-DMA chain that already encodes a draw through the
+   existing product `CAMetalLayer` host, then require drawable acquisition,
+   completed submission, bounded pixels, and zero failures. Preserve the
+   guarded indirect-call diagnostic, corrected failed-stream comparison, the
+   six-frame nil-layer lifecycle proof, offscreen readback, synthetic layer,
+   and first-chain real-DMA submission as separate gates. Do not claim a
+   title screen, gameplay, or physical-device support from simulator evidence.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
-Checkpoint 77 did not access Z iPad Pro. The maintainer supplied screenshots
-from their own current physical run, but the agent did not install, launch,
-log, copy, or otherwise access the device. The maintainer reported that the app
-was backgrounded or closed, and any later install, launch, logging, capture, or
-other physical access requires fresh authorization. No proprietary game data
-belongs in source control or CI.
+Checkpoint 78 used explicit authorization to update-install and launch the
+Jak 1 B build on Z iPad Pro while preserving app data, then copied its
+backgrounded schema-v7 diagnostic snapshot read-only. That authorization does
+not extend to another install, launch, log, capture, or other physical action;
+fresh authorization is required. Jak II remained on the approved M5 simulator
+and was not accessed on physical hardware. No proprietary game data belongs in
+source control or CI.
