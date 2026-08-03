@@ -49,6 +49,11 @@ bool g_booted = false;
 std::uint64_t g_frames = 0;
 Ptr<jak1::Symbol> g_dispatcher;
 int32_t* g_math_camera = nullptr;
+int32_t* g_camera_master = nullptr;
+int32_t* g_camera_combiner = nullptr;
+std::uint32_t g_camera_master_type = 0;
+std::uint32_t g_camera_slave_type = 0;
+std::uint32_t g_camera_combiner_type = 0;
 #if TARGET_OS_IOS || TARGET_OS_VISION
 int32_t* g_timer_reset_value = nullptr;
 int32_t* g_host_display_time_ratio = nullptr;
@@ -237,6 +242,66 @@ goalpad::BootStatus failure(std::string message) {
   return status;
 }
 
+goalpad::camera_correction_trace::FrameSnapshot current_camera_correction_snapshot() {
+  using namespace goalpad::camera_correction_trace;
+
+  FrameSnapshot out;
+  out.engine_frame_id = g_frames + 1;
+#if TARGET_OS_IOS || TARGET_OS_VISION
+  if (g_host_display_time_ratio) {
+    static_assert(sizeof(out.display_time_ratio) == sizeof(*g_host_display_time_ratio));
+    std::memcpy(&out.display_time_ratio, g_host_display_time_ratio,
+                sizeof(out.display_time_ratio));
+  }
+#endif
+  if (!g_camera_master || !g_ee_main_mem) {
+    return out;
+  }
+
+  std::size_t master_bytes = 0;
+  const auto master_offset = static_cast<std::uint32_t>(*g_camera_master);
+  const void* master_object = checked_goal_object(
+      g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT, master_offset,
+      g_camera_master_type, jak1_layout::kMasterRequiredObjectBytes, &master_bytes);
+  MasterSnapshot master;
+  if (!master_object ||
+      !try_read_jak1_master(master_object, master_bytes, s7.offset, &master)) {
+    return out;
+  }
+
+  out.valid = true;
+  out.num_slaves = master.num_slaves;
+  out.being_attacked = master.being_attacked;
+  out.target_position = master.target_position;
+  out.adjusted_target_position = master.adjusted_target_position;
+  for (std::size_t slot = 0; slot < out.slaves.size(); ++slot) {
+    if (slot >= static_cast<std::size_t>(master.num_slaves)) {
+      continue;
+    }
+    std::size_t slave_bytes = 0;
+    const void* slave_object = checked_goal_object(
+        g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT,
+        master.slave_offsets[slot], g_camera_slave_type,
+        jak1_layout::kSlaveRequiredObjectBytes, &slave_bytes);
+    if (slave_object) {
+      try_read_jak1_slave(slave_object, slave_bytes, &out.slaves[slot]);
+    }
+  }
+
+  if (g_camera_combiner) {
+    std::size_t combiner_bytes = 0;
+    const auto combiner_offset = static_cast<std::uint32_t>(*g_camera_combiner);
+    const void* combiner_object = checked_goal_object(
+        g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT, combiner_offset,
+        g_camera_combiner_type, jak1_layout::kCombinerRequiredObjectBytes,
+        &combiner_bytes);
+    if (combiner_object) {
+      try_read_jak1_combiner(combiner_object, combiner_bytes, &out.combiner);
+    }
+  }
+  return out;
+}
+
 #endif  // GOALPAD_HAVE_GAME_BOOT
 
 }  // namespace
@@ -351,6 +416,25 @@ BootStatus boot_game() noexcept {
       os_log_error(boot_log(), "GAME.CGO did not define *math-camera*; camera trace unavailable.");
     }
 
+    const bool camera_diagnostic_symbols =
+        goal_game_find_symbol("*camera*", nullptr) &&
+        goal_game_find_symbol("*camera-combiner*", nullptr) &&
+        goal_game_find_symbol("camera-master", &g_camera_master_type) &&
+        goal_game_find_symbol("camera-slave", &g_camera_slave_type) &&
+        goal_game_find_symbol("camera-combiner", &g_camera_combiner_type) &&
+        g_camera_master_type && g_camera_slave_type && g_camera_combiner_type;
+    if (camera_diagnostic_symbols) {
+      g_camera_master = goal_game_symbol_slot("*camera*");
+      g_camera_combiner = goal_game_symbol_slot("*camera-combiner*");
+    } else {
+      g_camera_master_type = 0;
+      g_camera_slave_type = 0;
+      g_camera_combiner_type = 0;
+      os_log_error(boot_log(),
+                   "GAME.CGO camera process types are unavailable; constrained-camera trace "
+                   "disabled.");
+    }
+
 #if TARGET_OS_IOS || TARGET_OS_VISION
     uint32_t timer_reset_value = 0;
     if (!goal_game_find_symbol("*timer-reset-value*", &timer_reset_value)) {
@@ -436,6 +520,7 @@ void reset_frame_timing() noexcept {
 CameraFrameIdentity current_camera_frame_identity() noexcept {
   CameraFrameIdentity out;
   out.engine_frame_id = g_frames + 1;
+  out.camera_correction = current_camera_correction_snapshot();
   if (!g_math_camera || !g_ee_main_mem) {
     return out;
   }
@@ -486,6 +571,11 @@ void reset_game() noexcept {
   g_frames = 0;
   g_dispatcher = Ptr<jak1::Symbol>();
   g_math_camera = nullptr;
+  g_camera_master = nullptr;
+  g_camera_combiner = nullptr;
+  g_camera_master_type = 0;
+  g_camera_slave_type = 0;
+  g_camera_combiner_type = 0;
   reset_frame_timing();
 #if TARGET_OS_IOS || TARGET_OS_VISION
   g_timer_reset_value = nullptr;

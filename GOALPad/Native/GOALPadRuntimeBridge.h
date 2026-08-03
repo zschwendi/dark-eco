@@ -254,6 +254,57 @@ typedef struct GOALPadMercTransformEvent {
   uint64_t currentSourceBase;
 } GOALPadMercTransformEvent;
 
+/// One copied GOAL vector in a constrained-camera event. These are numeric values, never live
+/// pointers into the GOAL heap.
+typedef struct GOALPadCameraCorrectionVector {
+  double x;
+  double y;
+  double z;
+  double w;
+} GOALPadCameraCorrectionVector;
+
+typedef struct GOALPadCameraCorrectionSlaveFrame {
+  BOOL valid;
+  uint32_t options;
+  uint32_t losState;
+  uint32_t stringVelocityDirection;
+  BOOL lineOfSightEnabled;
+  BOOL movementBlocked;
+  double minimumDistanceOverride;
+  GOALPadCameraCorrectionVector transform;
+  GOALPadCameraCorrectionVector viewFlat;
+  GOALPadCameraCorrectionVector stringTransform;
+  GOALPadCameraCorrectionVector desiredPosition;
+} GOALPadCameraCorrectionSlaveFrame;
+
+typedef struct GOALPadCameraCorrectionFrame {
+  BOOL valid;
+  uint64_t engineFrameID;
+  double displayTimeRatio;
+  int32_t numSlaves;
+  BOOL beingAttacked;
+  GOALPadCameraCorrectionVector targetPosition;
+  GOALPadCameraCorrectionVector adjustedTargetPosition;
+  GOALPadCameraCorrectionSlaveFrame slave0;
+  GOALPadCameraCorrectionSlaveFrame slave1;
+  BOOL combinerValid;
+  double combinerInterpolation;
+  uint64_t combinerTrackingStatus;
+  GOALPadCameraCorrectionVector combinerTransform;
+} GOALPadCameraCorrectionFrame;
+
+/// A bounded three-frame constrained-camera sample. Reason bit 0 is a LOS state transition; bit
+/// 1 is the existing producer A/B/A observation.
+typedef struct GOALPadCameraCorrectionEvent {
+  BOOL valid;
+  uint8_t reasonMask;
+  uint64_t hostTickID;
+  uint64_t chainOrdinal;
+  GOALPadCameraCorrectionFrame older;
+  GOALPadCameraCorrectionFrame previous;
+  GOALPadCameraCorrectionFrame current;
+} GOALPadCameraCorrectionEvent;
+
 /// What the Metal renderer has been asked to do since the game booted.
 typedef struct GOALPadRendererStats {
   uint64_t chainsSent;      ///< frames that handed over a DMA chain
@@ -353,6 +404,8 @@ typedef struct GOALPadRendererStats {
   GOALPadMercTransformEvent lastMercEicharTransformDiscontinuity;
   uint64_t mercBadBonePointers;
   uint64_t mercBadDrawRanges;
+  uint64_t cameraCorrectionEventsTotal;
+  GOALPadCameraCorrectionEvent lastCameraCorrectionEvent;
 } GOALPadRendererStats;
 
 /// The one presentation surface. The app's Metal view owns the layer and hands it here; the native

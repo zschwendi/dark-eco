@@ -1,5 +1,7 @@
 #pragma once
 
+#include "GOALPadCameraCorrectionTrace.hpp"
+
 /*!
  * @file GOALPadMetalHost.hpp
  * The iPad's renderer host: what `game/goalpad_play.cpp` is for the desktop window.
@@ -195,6 +197,8 @@ struct MetalHostStats {
   MetalHostMercTransformEvent last_merc_eichar_transform_discontinuity;
   std::uint64_t merc_bad_bone_pointers = 0;
   std::uint64_t merc_bad_draw_ranges = 0;
+  std::uint64_t camera_correction_events_total = 0;
+  camera_correction_trace::Event last_camera_correction_event;
 };
 MetalHostStats metal_host_stats();
 

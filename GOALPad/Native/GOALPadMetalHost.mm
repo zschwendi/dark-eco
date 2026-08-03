@@ -74,6 +74,7 @@ struct MetalHost {
   std::vector<std::string> loaded;  // in load order, including levels that would not load
 
   goalpad::MetalHostStats stats;
+  goalpad::camera_correction_trace::EventTrace camera_correction_trace;
 };
 MetalHost g_host;
 
@@ -233,6 +234,15 @@ void render_chain() {
   g_host.frame_rendered = drawable_acquired || g_host.frame_rendered;
 
   const auto stats = g_host.renderer->chain_stats();
+  const bool producer_alternation =
+      stats.producer_camera_alternations > g_host.stats.producer_camera_alternations;
+  const auto camera_correction_event = g_host.camera_correction_trace.observe(
+      camera.camera_correction, producer_alternation, stats.last_host_tick_id,
+      stats.last_chain_ordinal);
+  g_host.stats.camera_correction_events_total = g_host.camera_correction_trace.event_count();
+  if (camera_correction_event.valid) {
+    g_host.stats.last_camera_correction_event = camera_correction_event;
+  }
   g_host.stats.merc_models = stats.merc_models;
   g_host.stats.merc_draws = stats.merc_draws;
   g_host.stats.merc_bone_vectors = stats.merc_bone_vectors;

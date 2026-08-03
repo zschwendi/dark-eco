@@ -59,6 +59,8 @@ final class GameSession {
     private var cameraDiagnosticsRunID: UInt64 = 0
     private var lastPersistedCameraAlternations: UInt64 = 0
     private var lastAttemptedCameraAlternations: UInt64 = 0
+    private var lastPersistedCameraCorrectionEvents: UInt64 = 0
+    private var lastAttemptedCameraCorrectionEvents: UInt64 = 0
     private var lastPersistedMercMissingBoneSlotsTotal: UInt64 = 0
     private var lastAttemptedMercMissingBoneSlotsTotal: UInt64 = 0
     private var lastPersistedMercModelsWithMissingBoneSlotsTotal: UInt64 = 0
@@ -291,6 +293,8 @@ final class GameSession {
         cameraDiagnosticsRunID = UInt64.random(in: 1...UInt64.max)
         lastPersistedCameraAlternations = 0
         lastAttemptedCameraAlternations = 0
+        lastPersistedCameraCorrectionEvents = 0
+        lastAttemptedCameraCorrectionEvents = 0
         lastPersistedMercMissingBoneSlotsTotal = 0
         lastAttemptedMercMissingBoneSlotsTotal = 0
         lastPersistedMercModelsWithMissingBoneSlotsTotal = 0
@@ -314,6 +318,7 @@ final class GameSession {
                 .appendingPathComponent("camera-provenance-v1.log", isDirectory: false)
             let renderer = GOALPadRenderSurface.shared.stats
             lastAttemptedCameraAlternations = renderer.producerCameraAlternations
+            lastAttemptedCameraCorrectionEvents = renderer.cameraCorrectionEventsTotal
             lastAttemptedMercMissingBoneSlotsTotal = renderer.mercMissingBoneSlotsTotal
             lastAttemptedMercModelsWithMissingBoneSlotsTotal =
                 renderer.mercModelsWithMissingBoneSlotsTotal
@@ -322,6 +327,7 @@ final class GameSession {
                 renderer.mercEicharTransformDiscontinuitiesTotal
             try writeCameraDiagnostics(renderer)
             lastPersistedCameraAlternations = renderer.producerCameraAlternations
+            lastPersistedCameraCorrectionEvents = renderer.cameraCorrectionEventsTotal
             lastPersistedMercMissingBoneSlotsTotal = renderer.mercMissingBoneSlotsTotal
             lastPersistedMercModelsWithMissingBoneSlotsTotal =
                 renderer.mercModelsWithMissingBoneSlotsTotal
@@ -341,6 +347,10 @@ final class GameSession {
             > lastPersistedCameraAlternations
         let alternationNotAttempted = renderer.producerCameraAlternations
             > lastAttemptedCameraAlternations
+        let correctionNotPersisted = renderer.cameraCorrectionEventsTotal
+            > lastPersistedCameraCorrectionEvents
+        let correctionNotAttempted = renderer.cameraCorrectionEventsTotal
+            > lastAttemptedCameraCorrectionEvents
         let missingSlotsNotPersisted = renderer.mercMissingBoneSlotsTotal
             > lastPersistedMercMissingBoneSlotsTotal
         let missingSlotsNotAttempted = renderer.mercMissingBoneSlotsTotal
@@ -360,6 +370,7 @@ final class GameSession {
             || (missingModelsNotPersisted && missingModelsNotAttempted)
         guard forced || periodic
                 || (alternationNotPersisted && alternationNotAttempted)
+                || (correctionNotPersisted && correctionNotAttempted)
                 || mercCompletenessIncreased
                 || (paletteHealthNotPersisted && paletteHealthNotAttempted)
                 || (mercTransformNotPersisted && mercTransformNotAttempted) else {
@@ -367,6 +378,7 @@ final class GameSession {
         }
 
         lastAttemptedCameraAlternations = renderer.producerCameraAlternations
+        lastAttemptedCameraCorrectionEvents = renderer.cameraCorrectionEventsTotal
         lastAttemptedMercMissingBoneSlotsTotal = renderer.mercMissingBoneSlotsTotal
         lastAttemptedMercModelsWithMissingBoneSlotsTotal =
             renderer.mercModelsWithMissingBoneSlotsTotal
@@ -376,6 +388,7 @@ final class GameSession {
         do {
             try writeCameraDiagnostics(renderer)
             lastPersistedCameraAlternations = renderer.producerCameraAlternations
+            lastPersistedCameraCorrectionEvents = renderer.cameraCorrectionEventsTotal
             lastPersistedMercMissingBoneSlotsTotal = renderer.mercMissingBoneSlotsTotal
             lastPersistedMercModelsWithMissingBoneSlotsTotal =
                 renderer.mercModelsWithMissingBoneSlotsTotal
@@ -431,6 +444,63 @@ final class GameSession {
                 "\(prefix)_current_source_base=\(event.currentSourceBase)",
             ]
         }
+        func cameraVectorFields(_ prefix: String,
+                                _ vector: GOALPadCameraCorrectionVector) -> [String] {
+            [
+                "\(prefix)_x=\(decimal(vector.x))",
+                "\(prefix)_y=\(decimal(vector.y))",
+                "\(prefix)_z=\(decimal(vector.z))",
+                "\(prefix)_w=\(decimal(vector.w))",
+            ]
+        }
+        func cameraSlaveFields(_ prefix: String,
+                               _ slave: GOALPadCameraCorrectionSlaveFrame) -> [String] {
+            [
+                "\(prefix)_valid=\(slave.valid.boolValue ? 1 : 0)",
+                "\(prefix)_options=\(slave.options)",
+                "\(prefix)_los_state=\(slave.losState)",
+                "\(prefix)_string_velocity_direction=\(slave.stringVelocityDirection)",
+                "\(prefix)_line_of_sight=\(slave.lineOfSightEnabled.boolValue ? 1 : 0)",
+                "\(prefix)_movement_blocked=\(slave.movementBlocked.boolValue ? 1 : 0)",
+                "\(prefix)_minimum_distance_override="
+                    + decimal(slave.minimumDistanceOverride),
+            ]
+                + cameraVectorFields("\(prefix)_transform", slave.transform)
+                + cameraVectorFields("\(prefix)_view_flat", slave.viewFlat)
+                + cameraVectorFields("\(prefix)_string_transform", slave.stringTransform)
+                + cameraVectorFields("\(prefix)_desired_position", slave.desiredPosition)
+        }
+        func cameraFrameFields(_ prefix: String,
+                               _ frame: GOALPadCameraCorrectionFrame) -> [String] {
+            [
+                "\(prefix)_valid=\(frame.valid.boolValue ? 1 : 0)",
+                "\(prefix)_engine_frame=\(frame.engineFrameID)",
+                "\(prefix)_display_ratio=\(decimal(frame.displayTimeRatio))",
+                "\(prefix)_num_slaves=\(frame.numSlaves)",
+                "\(prefix)_being_attacked=\(frame.beingAttacked.boolValue ? 1 : 0)",
+                "\(prefix)_combiner_valid=\(frame.combinerValid.boolValue ? 1 : 0)",
+                "\(prefix)_combiner_interp=\(decimal(frame.combinerInterpolation))",
+                "\(prefix)_combiner_tracking=\(frame.combinerTrackingStatus)",
+            ]
+                + cameraVectorFields("\(prefix)_target", frame.targetPosition)
+                + cameraVectorFields("\(prefix)_adjusted_target",
+                                     frame.adjustedTargetPosition)
+                + cameraSlaveFields("\(prefix)_slave0", frame.slave0)
+                + cameraSlaveFields("\(prefix)_slave1", frame.slave1)
+                + cameraVectorFields("\(prefix)_combiner_transform",
+                                     frame.combinerTransform)
+        }
+        func cameraCorrectionFields(_ event: GOALPadCameraCorrectionEvent) -> [String] {
+            [
+                "camera_correction_valid=\(event.valid.boolValue ? 1 : 0)",
+                "camera_correction_reason_mask=\(event.reasonMask)",
+                "camera_correction_host_tick=\(event.hostTickID)",
+                "camera_correction_chain=\(event.chainOrdinal)",
+            ]
+                + cameraFrameFields("camera_correction_older", event.older)
+                + cameraFrameFields("camera_correction_previous", event.previous)
+                + cameraFrameFields("camera_correction_current", event.current)
+        }
 
         let fields = [
             "goalpad_camera_provenance", "v=1", "run=\(cameraDiagnosticsRunID)",
@@ -449,6 +519,7 @@ final class GameSession {
             "drawable_misses=\(renderer.drawableMisses)",
             "late_present_submissions=\(renderer.latePresentSubmissions)",
             "producer_alternations=\(renderer.producerCameraAlternations)",
+            "camera_correction_events_total=\(renderer.cameraCorrectionEventsTotal)",
             "alternation_older_frame=\(renderer.lastCameraAlternationOlderFrameID)",
             "alternation_previous_frame=\(renderer.lastCameraAlternationPreviousFrameID)",
             "alternation_current_frame=\(renderer.lastCameraAlternationCurrentFrameID)",
@@ -558,6 +629,7 @@ final class GameSession {
             + mercTransformFields(
                 "last_merc_eichar_transform",
                 renderer.lastMercEicharTransformDiscontinuity)
+            + cameraCorrectionFields(renderer.lastCameraCorrectionEvent)
         try Data((fields.joined(separator: " ") + "\n").utf8)
             .write(to: cameraDiagnosticsURL, options: .atomic)
     }

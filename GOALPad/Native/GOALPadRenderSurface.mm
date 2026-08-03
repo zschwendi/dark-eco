@@ -51,6 +51,60 @@ static GOALPadMercTransformEvent makeMercTransformEvent(
           core.current_source_base};
 }
 
+static GOALPadCameraCorrectionVector makeCameraCorrectionVector(
+    const goalpad::camera_correction_trace::Vector4 &core) {
+  return {core.values[0], core.values[1], core.values[2], core.values[3]};
+}
+
+static GOALPadCameraCorrectionSlaveFrame makeCameraCorrectionSlave(
+    const goalpad::camera_correction_trace::SlaveSnapshot &core) {
+  GOALPadCameraCorrectionSlaveFrame out = {};
+  out.valid = core.valid;
+  out.options = core.options;
+  out.losState = core.los_state;
+  out.stringVelocityDirection = core.string_velocity_direction;
+  out.lineOfSightEnabled = core.line_of_sight_enabled();
+  out.movementBlocked = core.movement_blocked();
+  out.minimumDistanceOverride = core.minimum_distance_override;
+  out.transform = makeCameraCorrectionVector(core.transform);
+  out.viewFlat = makeCameraCorrectionVector(core.view_flat);
+  out.stringTransform = makeCameraCorrectionVector(core.string_transform);
+  out.desiredPosition = makeCameraCorrectionVector(core.desired_position);
+  return out;
+}
+
+static GOALPadCameraCorrectionFrame makeCameraCorrectionFrame(
+    const goalpad::camera_correction_trace::FrameSnapshot &core) {
+  GOALPadCameraCorrectionFrame out = {};
+  out.valid = core.valid;
+  out.engineFrameID = core.engine_frame_id;
+  out.displayTimeRatio = core.display_time_ratio;
+  out.numSlaves = core.num_slaves;
+  out.beingAttacked = core.being_attacked;
+  out.targetPosition = makeCameraCorrectionVector(core.target_position);
+  out.adjustedTargetPosition = makeCameraCorrectionVector(core.adjusted_target_position);
+  out.slave0 = makeCameraCorrectionSlave(core.slaves[0]);
+  out.slave1 = makeCameraCorrectionSlave(core.slaves[1]);
+  out.combinerValid = core.combiner.valid;
+  out.combinerInterpolation = core.combiner.interpolation;
+  out.combinerTrackingStatus = core.combiner.tracking_status;
+  out.combinerTransform = makeCameraCorrectionVector(core.combiner.transform);
+  return out;
+}
+
+static GOALPadCameraCorrectionEvent makeCameraCorrectionEvent(
+    const goalpad::camera_correction_trace::Event &core) {
+  GOALPadCameraCorrectionEvent out = {};
+  out.valid = core.valid;
+  out.reasonMask = core.reason_mask;
+  out.hostTickID = core.host_tick_id;
+  out.chainOrdinal = core.chain_ordinal;
+  out.older = makeCameraCorrectionFrame(core.older);
+  out.previous = makeCameraCorrectionFrame(core.previous);
+  out.current = makeCameraCorrectionFrame(core.current);
+  return out;
+}
+
 @interface GOALPadRenderSurface ()
 @property(nonatomic, readwrite) NSString *lastError;
 @end
@@ -215,7 +269,10 @@ static GOALPadMercTransformEvent makeMercTransformEvent(
                                     core.first_merc_eichar_transform_discontinuity),
                                 makeMercTransformEvent(
                                     core.last_merc_eichar_transform_discontinuity),
-                                core.merc_bad_bone_pointers, core.merc_bad_draw_ranges};
+                                core.merc_bad_bone_pointers, core.merc_bad_draw_ranges,
+                                core.camera_correction_events_total,
+                                makeCameraCorrectionEvent(
+                                    core.last_camera_correction_event)};
   return stats;
 }
 

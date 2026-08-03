@@ -1,5 +1,7 @@
 #pragma once
 
+#include "GOALPadCameraCorrectionTrace.hpp"
+
 #include <array>
 #include <cstdint>
 #include <string>
@@ -60,6 +62,7 @@ struct CameraFrameIdentity {
   std::array<std::uint8_t, 80> camera = {};
   bool render_camera_valid = false;
   std::array<std::uint8_t, 240> render_camera = {};
+  camera_correction_trace::FrameSnapshot camera_correction;
 };
 CameraFrameIdentity current_camera_frame_identity() noexcept;
 
