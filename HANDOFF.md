@@ -10716,14 +10716,21 @@ buffer commits or visible pixels.
 
 # Checkpoint 73: product-linked Jak II Metal dispatcher
 
-Date: 2026-08-03. Nested commit `a41e01a05` links the audited 327-slot Jak II
+Date: 2026-08-03. Nested commit
+`1e41324fae461360f8220d6e4dbf7004b754fc65` links the audited 327-slot Jak II
 bucket table into both the Metal product library and runtime, initializes a
 Jak II renderer table, and dispatches Jak II's contiguous bucket chain with
 the same `bucket + 1` and terminal `327` callback numbering as the existing
-OpenGL path. All 200 currently bound slots remain explicit `DeferredSkip`
-renderers and all 127 unbound slots remain `StrictEmpty`; no Jak II bucket is
-prematurely promoted to Direct or another real renderer. Jak 1 retains its
-existing default-register chain and callback numbering.
+OpenGL path. The product table installs the five already shared Direct paths
+with their audited batch sizes (`SKY_DRAW` 1024, `SCREEN_FILTER` 256,
+`DEBUG2` and `DEBUG_NO_ZBUF2` 0x8000, and `DEBUG3` 0x2000); the remaining
+explicitly bound slots stay deferred skips and unbound slots stay strict
+empty. Jak 1 retains its existing default-register chain and callback
+numbering.
+
+The remote was concurrently advanced through ancestor `a41e01a05`; follow-up
+`1e41324fa` preserves that published history while reconciling the final tree
+to the independently reviewed and tested `c584cc2db` tree exactly.
 
 The parent Xcode target now explicitly compiles
 `metal_jak2_bucket_table.cpp`, matching the Metal renderer's new product link
@@ -10731,51 +10738,68 @@ dependency. The project file passes `plutil -lint` and `git diff --check`.
 
 ## Deterministic validation
 
-The matching ARM64 Release CMake build compiled the Metal shader library,
-product renderer, and three focused tests. This command passed 3/3:
+The matching ARM64 Release CMake build compiled the Metal shader library and
+the three focused products. This command passed 3/3:
 
 ```text
-ctest --test-dir /private/tmp/OG-jak2-metal-bucket-semantics-build \
+ctest --test-dir /private/tmp/OG-jak2-metal-dispatch-integration-build \
   -R '^(metal-bucket-chain-semantics-test|jak2-metal-bucket-table-test|jak2-metal-dispatch-proof)$' \
   --output-on-failure
 ```
 
-The Objective-C++ proof initializes the real Metal renderer without a display
-and dispatches two synthetic chains from nonzero base `0x100`. The first
-crosses all 327 slots as zero-QWC `CNT` tags. The second replaces audited early,
-middle, and final deferred buckets (`SKY_DRAW`, `SHADOW`, and `DEBUG3`) with
-private one-QWC payloads that return to the next contiguous slot. Both chains
-dispatch exactly 327 slots; the markers consume exactly 48 skipped bytes.
-Two offscreen Metal command buffers commit and the second game target reads
-back successfully, while drawable acquisition remains zero and presentation
-submissions, presentations, draw calls, triangles, and texture uploads remain
-zero. The fixed policy fingerprint remains `0x6a36218fa2275590`. This proves
-product dispatch and offscreen completion, not a visible Jak II pixel, title,
-or gameplay.
+The Objective-C++ proof initializes the real Metal renderer without a display,
+dispatches all 327 product slots, consumes one 16-byte `DeferredSkip` payload,
+and traverses a private DEBUG3 Direct payload containing four VIF NOPs. It
+records zero command-buffer commits, drawable acquisition attempts, drawable
+misses, submissions, presentations, draw calls, and triangles. The fixed
+policy fingerprint remains `0x6a36218fa2275590`. This is a dispatcher and
+encoding proof only; it does not claim a committed GPU frame, readable pixel,
+visible title, or gameplay.
 
 The first sandboxed build attempt stopped only because Apple's Metal compiler
-could not write its module cache. The unrestricted retry compiled the shader
-library successfully. The exact-tree full Jak 1 `metal-proof` rebuild was then
-attempted separately and stopped twice only on system-volume exhaustion while
-recreating the broad desktop runtime, first at Jak II `kscheme.cpp` and again
-at Jak 1 `collide_mesh.cpp` after the compiler cache was reduced from 500 MiB
-to 100 MiB. No source/compiler diagnostic preceded either failure. The
-Checkpoint-72 full Jak 1 Metal proof remains the most recent completed renderer
-regression; it was not repeated at this exact commit. A fresh parent Xcode
-build was not attempted with only hundreds of MiB available.
+could not write its module cache. The approved unrestricted retry compiled the
+Metal shader library successfully. The intentionally broad request for
+`goalpad-play`, `runtime`, and the existing Jak 1 `metal-proof` then exhausted
+the nearly full system volume while recreating unrelated runtime/AOT outputs:
+the AOT sweep first failed to open generated files, and the narrowed retry
+later failed at `ar: game/libruntime.a: No space left on device`. The three
+focused binaries were already complete and passed as recorded above. The
+Checkpoint-72 full Jak 1 Metal proof remains the most recent full renderer
+regression; it was not repeated at this exact commit.
 
-No physical device was accessed. The maintainer's screenshots were supplied
-from their own run; they do not authorize a new install, launch, log capture,
-or other device access.
+After the recorded CMake build products were removed, the exact generic-
+iPhoneOS Release parent build passed and signed in 197.447 seconds:
+
+```text
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -sdk iphoneos \
+  -destination generic/platform=iOS \
+  -derivedDataPath /private/tmp/GOALPad-jak2-metal-dispatch-iphoneos \
+  COMPILER_INDEX_STORE_ENABLE=NO build
+```
+
+The build reverified all 518 checked Jak 1 source objects with aggregate
+`0a6387a3959fd8cb` and 10,729,950 bytes, staged the validated importer
+resources, and compiled the newly product-linked Jak II bucket table. The
+33,179,840-byte executable is a thin ARM64 Mach-O with SHA-256
+`55e67192c206d5c808fb2d4e6adb13bffb96b3facc1c03afafb3b516d3f36cb7`.
+Strict bundle signature verification passed; the bundle identifier is
+`com.zephyrstudiosllc.eco`, display name `Eco Pro`, team `V729QMY3V6`, and
+CDHash `56dd9e165970cb2bfc2518b38d502cb34ac9112a`. The executable contains both
+`jak2_metal_bucket_table` and `jak2_metal_direct_batch_size`.
+
+No physical device was accessed. The maintainer reported that the current iPad
+app is backgrounded or closed, which is not authorization for a new install,
+launch, log capture, or other device access.
 
 ## Next executable gates
 
 1. Recover enough build space, then rerun the existing full Jak 1 `metal-proof`
-   and one generic-iPhoneOS parent build at the exact Checkpoint-73 pins.
-2. Factor the proven Metal product sources and shader library into the separate
-   Jak II iPhoneOS development target, then drive the policy-only dispatcher
-   from its real display tick. Do not promote a real bucket until a
-   representative synthetic packet has its own deterministic proof.
+   at the exact Checkpoint-73 pin. The generic-iPhoneOS parent build is green.
+2. Add a separate explicit offscreen-submit/readback proof for one audited Jak
+   II Direct GIF payload, or wire the renderer to the development app's real
+   `CAMetalLayer`. Preserve nil-layer dispatch as zero-commit and make no pixel
+   claim until a command buffer actually completes.
 3. Add Jak II AVAudioEngine output only after the existing selected-game pull
    seam remains green through lifecycle validation.
 4. Keep the Jak 1 visual lane at its physical schema-v7 gate. Do not make

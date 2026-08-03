@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness and remaining platform gaps, not real-media
 import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 71 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 73 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 
@@ -1090,16 +1090,19 @@ Jak is absent. Product-linked Jak II initialization/dispatch and visible pixels
 remain unimplemented.
 
 Checkpoint 73 links the fixed Jak II policy into the Metal product/runtime and
-adds the first real version-selected dispatcher at nested `a41e01a05`. All 327
-slots dispatch twice under the audited table; no real renderer is promoted.
-Three deferred markers consume exactly 48 bytes and return to their next
-contiguous slots. The focused semantics, table, and Objective-C++ Metal tests
-pass 3/3. Two offscreen command buffers complete and the game target reads
-back, while drawables, presentation submissions, presentations, draw calls,
-triangles, and texture uploads stay zero. This is product-linked policy/dispatch
-evidence, not a visible Jak II pixel, title screen, or gameplay. The exact-tree
-full Jak 1 Metal and parent Xcode rebuilds remain pending because the system
-volume ran out of space while rebuilding the broad desktop runtime.
+adds the first real version-selected dispatcher at nested `1e41324fa`. All 327
+slots dispatch under the audited table; five shared Direct slots use their
+reviewed batch sizes, one synthetic deferred payload is consumed, and a DEBUG3
+Direct NOP payload traverses without drawing. The focused semantics, table,
+and Objective-C++ Metal tests pass 3/3 with zero command-buffer commits,
+drawable attempts, submissions, presentations, draw calls, and triangles.
+This is a product-linked policy/dispatch proof, not a committed GPU frame,
+visible pixel, title screen, or gameplay. The exact-current full Jak 1 Metal
+proof remains pending because the system volume ran out of space while
+rebuilding unrelated runtime/AOT outputs. After those outputs were removed,
+the exact generic-iPhoneOS parent Release built and signed successfully,
+reverified the 518-object Jak 1 pack, and retained both Jak II bucket-table
+symbols in the thin ARM64 executable.
 
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
@@ -1125,15 +1128,16 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Continue Jak II by factoring the proven Metal product sources and shader
-   library into the separate iPhoneOS development target and drive the
-   policy-only dispatcher from its display tick. Keep real renderer promotion
-   behind a representative synthetic-packet proof.
+4. Continue Jak II with one explicit offscreen-submit/readback Direct GIF proof
+   or real development-app `CAMetalLayer` wiring. Keep the nil-layer 327-slot
+   dispatcher at zero command-buffer commits, drawables, submissions, and
+   presentations, and do not claim pixels until a submitted command buffer
+   completes.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
-Checkpoint 71 did not access Z iPad Pro. The maintainer supplied screenshots
+Checkpoint 73 did not access Z iPad Pro. The maintainer supplied screenshots
 from their own current physical run, but the agent did not install, launch,
 log, copy, or otherwise access the device. The maintainer reported that the app
 was backgrounded or closed, and any later install, launch, logging, capture, or
