@@ -102,6 +102,39 @@ static GOALPadMercPaletteHealthEvent makeMercPaletteHealthEvent(
           core.expected_source_base};
 }
 
+static GOALPadTargetControlEvent makeTargetControlEvent(
+    const goalpad::MetalHostTargetControlEvent &core) {
+  return {core.host_tick_id,
+          core.chain_ordinal,
+          core.issue_mask,
+          core.engine_frame_id,
+          core.producer_serial,
+          core.source_base,
+          core.target_state_id,
+          core.previous_target_attack_id,
+          core.current_target_attack_id,
+          core.button0_abs,
+          core.button0_rel,
+          core.left_x,
+          core.left_y,
+          core.stick_direction,
+          core.stick_speed,
+          core.pad_magnitude,
+          core.intent_forward_x,
+          core.intent_forward_z,
+          core.desired_forward_x,
+          core.desired_forward_z,
+          core.control_forward_x,
+          core.control_forward_z,
+          core.render_forward_x,
+          core.render_forward_z,
+          core.root_forward_x,
+          core.root_forward_z,
+          core.intent_control_dot,
+          core.control_render_dot,
+          core.render_root_dot};
+}
+
 static GOALPadCameraCorrectionVector makeCameraCorrectionVector(
     const goalpad::camera_correction_trace::Vector4 &core) {
   return {core.values[0], core.values[1], core.values[2], core.values[3]};
@@ -342,7 +375,17 @@ static GOALPadCameraCorrectionEvent makeCameraCorrectionEvent(
                                 core.merc_bad_bone_pointers, core.merc_bad_draw_ranges,
                                 core.camera_correction_events_total,
                                 makeCameraCorrectionEvent(
-                                    core.last_camera_correction_event)};
+                                    core.last_camera_correction_event),
+                                (int32_t)core.merc_eichar_target_control_events,
+                                core.merc_eichar_target_control_events_total,
+                                (int32_t)core.merc_eichar_target_control_divergences,
+                                core.merc_eichar_target_control_divergences_total,
+                                (int32_t)core.merc_eichar_target_control_attack_boundaries,
+                                core.merc_eichar_target_control_attack_boundaries_total,
+                                makeTargetControlEvent(
+                                    core.first_merc_eichar_target_control_event),
+                                makeTargetControlEvent(
+                                    core.last_merc_eichar_target_control_event)};
   return stats;
 }
 

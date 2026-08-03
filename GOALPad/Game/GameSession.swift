@@ -69,6 +69,8 @@ final class GameSession {
     private var lastAttemptedMercPaletteHealthTotal: UInt64 = 0
     private var lastPersistedMercTransformDiscontinuitiesTotal: UInt64 = 0
     private var lastAttemptedMercTransformDiscontinuitiesTotal: UInt64 = 0
+    private var lastPersistedMercTargetControlEventsTotal: UInt64 = 0
+    private var lastAttemptedMercTargetControlEventsTotal: UInt64 = 0
     private var reportedCameraDiagnosticsWriteFailure = false
     #endif
 
@@ -303,6 +305,8 @@ final class GameSession {
         lastAttemptedMercPaletteHealthTotal = 0
         lastPersistedMercTransformDiscontinuitiesTotal = 0
         lastAttemptedMercTransformDiscontinuitiesTotal = 0
+        lastPersistedMercTargetControlEventsTotal = 0
+        lastAttemptedMercTargetControlEventsTotal = 0
         reportedCameraDiagnosticsWriteFailure = false
 
         guard let caches = FileManager.default.urls(for: .cachesDirectory,
@@ -325,6 +329,8 @@ final class GameSession {
             lastAttemptedMercPaletteHealthTotal = mercPaletteHealthTotal(renderer)
             lastAttemptedMercTransformDiscontinuitiesTotal =
                 renderer.mercEicharTransformDiscontinuitiesTotal
+            lastAttemptedMercTargetControlEventsTotal =
+                renderer.mercEicharTargetControlEventsTotal
             try writeCameraDiagnostics(renderer)
             lastPersistedCameraAlternations = renderer.producerCameraAlternations
             lastPersistedCameraCorrectionEvents = renderer.cameraCorrectionEventsTotal
@@ -334,6 +340,8 @@ final class GameSession {
             lastPersistedMercPaletteHealthTotal = mercPaletteHealthTotal(renderer)
             lastPersistedMercTransformDiscontinuitiesTotal =
                 renderer.mercEicharTransformDiscontinuitiesTotal
+            lastPersistedMercTargetControlEventsTotal =
+                renderer.mercEicharTargetControlEventsTotal
         } catch {
             reportCameraDiagnosticsWriteFailure()
         }
@@ -366,6 +374,10 @@ final class GameSession {
             > lastPersistedMercTransformDiscontinuitiesTotal
         let mercTransformNotAttempted = renderer.mercEicharTransformDiscontinuitiesTotal
             > lastAttemptedMercTransformDiscontinuitiesTotal
+        let targetControlNotPersisted = renderer.mercEicharTargetControlEventsTotal
+            > lastPersistedMercTargetControlEventsTotal
+        let targetControlNotAttempted = renderer.mercEicharTargetControlEventsTotal
+            > lastAttemptedMercTargetControlEventsTotal
         let mercCompletenessIncreased = (missingSlotsNotPersisted && missingSlotsNotAttempted)
             || (missingModelsNotPersisted && missingModelsNotAttempted)
         guard forced || periodic
@@ -373,7 +385,8 @@ final class GameSession {
                 || (correctionNotPersisted && correctionNotAttempted)
                 || mercCompletenessIncreased
                 || (paletteHealthNotPersisted && paletteHealthNotAttempted)
-                || (mercTransformNotPersisted && mercTransformNotAttempted) else {
+                || (mercTransformNotPersisted && mercTransformNotAttempted)
+                || (targetControlNotPersisted && targetControlNotAttempted) else {
             return
         }
 
@@ -385,6 +398,8 @@ final class GameSession {
         lastAttemptedMercPaletteHealthTotal = paletteHealthTotal
         lastAttemptedMercTransformDiscontinuitiesTotal =
             renderer.mercEicharTransformDiscontinuitiesTotal
+        lastAttemptedMercTargetControlEventsTotal =
+            renderer.mercEicharTargetControlEventsTotal
         do {
             try writeCameraDiagnostics(renderer)
             lastPersistedCameraAlternations = renderer.producerCameraAlternations
@@ -395,6 +410,8 @@ final class GameSession {
             lastPersistedMercPaletteHealthTotal = paletteHealthTotal
             lastPersistedMercTransformDiscontinuitiesTotal =
                 renderer.mercEicharTransformDiscontinuitiesTotal
+            lastPersistedMercTargetControlEventsTotal =
+                renderer.mercEicharTargetControlEventsTotal
         } catch {
             reportCameraDiagnosticsWriteFailure()
         }
@@ -582,9 +599,47 @@ final class GameSession {
                 + cameraFrameFields("camera_correction_previous", event.previous)
                 + cameraFrameFields("camera_correction_current", event.current)
         }
+        func targetControlFields(_ prefix: String,
+                                 _ event: GOALPadTargetControlEvent) -> [String] {
+            [
+                "\(prefix)_host_tick=\(event.hostTickID)",
+                "\(prefix)_chain=\(event.chainOrdinal)",
+                "\(prefix)_issue_mask=\(event.issueMask)",
+                "\(prefix)_issue_facing_divergence="
+                    + "\((event.issueMask & 1) != 0 ? 1 : 0)",
+                "\(prefix)_issue_attack_boundary="
+                    + "\((event.issueMask & 2) != 0 ? 1 : 0)",
+                "\(prefix)_engine_frame=\(event.engineFrameID)",
+                "\(prefix)_producer_serial=\(event.producerSerial)",
+                "\(prefix)_source_base=\(event.sourceBase)",
+                "\(prefix)_target_state_id=\(event.targetStateID)",
+                "\(prefix)_previous_target_attack_id=\(event.previousTargetAttackID)",
+                "\(prefix)_current_target_attack_id=\(event.currentTargetAttackID)",
+                "\(prefix)_button0_abs=\(event.button0Abs)",
+                "\(prefix)_button0_rel=\(event.button0Rel)",
+                "\(prefix)_left_x=\(event.leftX)",
+                "\(prefix)_left_y=\(event.leftY)",
+                "\(prefix)_stick_direction=\(decimal(event.stickDirection))",
+                "\(prefix)_stick_speed=\(decimal(event.stickSpeed))",
+                "\(prefix)_pad_magnitude=\(decimal(event.padMagnitude))",
+                "\(prefix)_intent_forward_x=\(decimal(event.intentForwardX))",
+                "\(prefix)_intent_forward_z=\(decimal(event.intentForwardZ))",
+                "\(prefix)_desired_forward_x=\(decimal(event.desiredForwardX))",
+                "\(prefix)_desired_forward_z=\(decimal(event.desiredForwardZ))",
+                "\(prefix)_control_forward_x=\(decimal(event.controlForwardX))",
+                "\(prefix)_control_forward_z=\(decimal(event.controlForwardZ))",
+                "\(prefix)_render_forward_x=\(decimal(event.renderForwardX))",
+                "\(prefix)_render_forward_z=\(decimal(event.renderForwardZ))",
+                "\(prefix)_root_forward_x=\(decimal(event.rootForwardX))",
+                "\(prefix)_root_forward_z=\(decimal(event.rootForwardZ))",
+                "\(prefix)_intent_control_dot=\(decimal(event.intentControlDot))",
+                "\(prefix)_control_render_dot=\(decimal(event.controlRenderDot))",
+                "\(prefix)_render_root_dot=\(decimal(event.renderRootDot))",
+            ]
+        }
 
         let fields = [
-            "goalpad_camera_provenance", "v=3", "run=\(cameraDiagnosticsRunID)",
+            "goalpad_camera_provenance", "v=4", "run=\(cameraDiagnosticsRunID)",
             "frame=\(framesRun)", "engine=\(renderer.lastEngineFrameID)",
             "tick=\(renderer.lastHostTickID)", "chain=\(renderer.lastChainOrdinal)",
             "fingerprint=\(renderer.lastCameraFingerprint)",
@@ -743,6 +798,26 @@ final class GameSession {
                 "last_merc_eichar_palette_health",
                 renderer.lastMercEicharPaletteHealthEvent)
             + cameraCorrectionFields(renderer.lastCameraCorrectionEvent)
+            + [
+                "merc_eichar_target_control_events="
+                    + "\(renderer.mercEicharTargetControlEvents)",
+                "merc_eichar_target_control_events_total="
+                    + "\(renderer.mercEicharTargetControlEventsTotal)",
+                "merc_eichar_target_control_divergences="
+                    + "\(renderer.mercEicharTargetControlDivergences)",
+                "merc_eichar_target_control_divergences_total="
+                    + "\(renderer.mercEicharTargetControlDivergencesTotal)",
+                "merc_eichar_target_control_attack_boundaries="
+                    + "\(renderer.mercEicharTargetControlAttackBoundaries)",
+                "merc_eichar_target_control_attack_boundaries_total="
+                    + "\(renderer.mercEicharTargetControlAttackBoundariesTotal)",
+            ]
+            + targetControlFields(
+                "first_merc_eichar_target_control",
+                renderer.firstMercEicharTargetControlEvent)
+            + targetControlFields(
+                "last_merc_eichar_target_control",
+                renderer.lastMercEicharTargetControlEvent)
         try Data((fields.joined(separator: " ") + "\n").utf8)
             .write(to: cameraDiagnosticsURL, options: .atomic)
     }

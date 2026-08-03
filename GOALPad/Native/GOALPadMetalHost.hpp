@@ -148,6 +148,41 @@ struct MetalHostMercPaletteHealthEvent {
   bool valid() const { return issue_mask != 0; }
 };
 
+/*! Retained numeric evidence for one eichar-lod0 target/control disagreement or attack edge. */
+struct MetalHostTargetControlEvent {
+  std::uint64_t host_tick_id = 0;
+  std::uint64_t chain_ordinal = 0;
+  std::uint8_t issue_mask = 0;
+  std::uint64_t engine_frame_id = 0;
+  std::uint64_t producer_serial = 0;
+  std::uint32_t source_base = 0;
+  std::uint32_t target_state_id = 0;
+  std::uint64_t previous_target_attack_id = 0;
+  std::uint64_t current_target_attack_id = 0;
+  std::uint32_t button0_abs = 0;
+  std::uint32_t button0_rel = 0;
+  std::uint8_t left_x = 0;
+  std::uint8_t left_y = 0;
+  double stick_direction = 0.0;
+  double stick_speed = 0.0;
+  double pad_magnitude = 0.0;
+  double intent_forward_x = 0.0;
+  double intent_forward_z = 0.0;
+  double desired_forward_x = 0.0;
+  double desired_forward_z = 0.0;
+  double control_forward_x = 0.0;
+  double control_forward_z = 0.0;
+  double render_forward_x = 0.0;
+  double render_forward_z = 0.0;
+  double root_forward_x = 0.0;
+  double root_forward_z = 0.0;
+  double intent_control_dot = 0.0;
+  double control_render_dot = 0.0;
+  double render_root_dot = 0.0;
+
+  bool valid() const { return issue_mask != 0; }
+};
+
 /*! What the renderer has been asked to do, for the on-screen readout and the log. */
 struct MetalHostStats {
   std::uint64_t chains_sent = 0;      // __send-gfx-dma-chain calls
@@ -265,6 +300,14 @@ struct MetalHostStats {
   std::uint64_t merc_bad_draw_ranges = 0;
   std::uint64_t camera_correction_events_total = 0;
   camera_correction_trace::Event last_camera_correction_event;
+  int merc_eichar_target_control_events = 0;
+  std::uint64_t merc_eichar_target_control_events_total = 0;
+  int merc_eichar_target_control_divergences = 0;
+  std::uint64_t merc_eichar_target_control_divergences_total = 0;
+  int merc_eichar_target_control_attack_boundaries = 0;
+  std::uint64_t merc_eichar_target_control_attack_boundaries_total = 0;
+  MetalHostTargetControlEvent first_merc_eichar_target_control_event;
+  MetalHostTargetControlEvent last_merc_eichar_target_control_event;
 };
 MetalHostStats metal_host_stats();
 

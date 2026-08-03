@@ -263,6 +263,43 @@ goalpad::MetalHostMercPaletteHealthEvent retain_merc_palette_health_event(
   return retained;
 }
 
+goalpad::MetalHostTargetControlEvent retain_target_control_event(
+    const metal_merc_transform_trace::TargetControlEvent& event,
+    std::uint64_t host_tick_id,
+    std::uint64_t chain_ordinal) {
+  goalpad::MetalHostTargetControlEvent retained;
+  retained.host_tick_id = host_tick_id;
+  retained.chain_ordinal = chain_ordinal;
+  retained.issue_mask = event.issue_mask;
+  retained.engine_frame_id = event.engine_frame_id;
+  retained.producer_serial = event.producer_serial;
+  retained.source_base = event.source_base;
+  retained.target_state_id = event.target_state_id;
+  retained.previous_target_attack_id = event.previous_target_attack_id;
+  retained.current_target_attack_id = event.current_target_attack_id;
+  retained.button0_abs = event.button0_abs;
+  retained.button0_rel = event.button0_rel;
+  retained.left_x = event.left_x;
+  retained.left_y = event.left_y;
+  retained.stick_direction = event.stick_direction;
+  retained.stick_speed = event.stick_speed;
+  retained.pad_magnitude = event.pad_magnitude;
+  retained.intent_forward_x = event.intent_forward.x;
+  retained.intent_forward_z = event.intent_forward.z;
+  retained.desired_forward_x = event.desired_forward.x;
+  retained.desired_forward_z = event.desired_forward.z;
+  retained.control_forward_x = event.control_forward.x;
+  retained.control_forward_z = event.control_forward.z;
+  retained.render_forward_x = event.render_forward.x;
+  retained.render_forward_z = event.render_forward.z;
+  retained.root_forward_x = event.root_forward.x;
+  retained.root_forward_z = event.root_forward.z;
+  retained.intent_control_dot = event.intent_control_dot;
+  retained.control_render_dot = event.control_render_dot;
+  retained.render_root_dot = event.render_root_dot;
+  return retained;
+}
+
 void render_chain() {
   MetalRenderOptions opts;
   opts.game_res_w = g_host.frame.game_res_w;
@@ -397,6 +434,27 @@ void render_chain() {
     g_host.stats.last_merc_eichar_palette_health_event = retain_merc_palette_health_event(
         stats.last_merc_eichar_palette_health_event, stats.last_engine_frame_id,
         stats.last_host_tick_id, stats.last_chain_ordinal);
+  }
+  g_host.stats.merc_eichar_target_control_events = stats.merc_eichar_target_control_events;
+  g_host.stats.merc_eichar_target_control_divergences =
+      stats.merc_eichar_target_control_divergences;
+  g_host.stats.merc_eichar_target_control_attack_boundaries =
+      stats.merc_eichar_target_control_attack_boundaries;
+  if (stats.merc_eichar_target_control_events > 0) {
+    g_host.stats.merc_eichar_target_control_events_total +=
+        stats.merc_eichar_target_control_events;
+    g_host.stats.merc_eichar_target_control_divergences_total +=
+        stats.merc_eichar_target_control_divergences;
+    g_host.stats.merc_eichar_target_control_attack_boundaries_total +=
+        stats.merc_eichar_target_control_attack_boundaries;
+    if (!g_host.stats.first_merc_eichar_target_control_event.valid()) {
+      g_host.stats.first_merc_eichar_target_control_event = retain_target_control_event(
+          stats.first_merc_eichar_target_control_event, stats.last_host_tick_id,
+          stats.last_chain_ordinal);
+    }
+    g_host.stats.last_merc_eichar_target_control_event = retain_target_control_event(
+        stats.last_merc_eichar_target_control_event, stats.last_host_tick_id,
+        stats.last_chain_ordinal);
   }
   g_host.stats.merc_bad_bone_pointers += stats.merc_bad_bone_pointers;
   g_host.stats.merc_bad_draw_ranges += stats.merc_bad_draw_ranges;

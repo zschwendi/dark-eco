@@ -358,6 +358,40 @@ typedef struct GOALPadCameraCorrectionEvent {
   GOALPadCameraCorrectionFrame current;
 } GOALPadCameraCorrectionEvent;
 
+/// Numeric evidence for one eichar-lod0 target/control disagreement or attack edge.
+/// Issue bit 0 is a facing divergence and bit 1 is an attack boundary.
+typedef struct GOALPadTargetControlEvent {
+  uint64_t hostTickID;
+  uint64_t chainOrdinal;
+  uint8_t issueMask;
+  uint64_t engineFrameID;
+  uint64_t producerSerial;
+  uint32_t sourceBase;
+  uint32_t targetStateID;
+  uint64_t previousTargetAttackID;
+  uint64_t currentTargetAttackID;
+  uint32_t button0Abs;
+  uint32_t button0Rel;
+  uint8_t leftX;
+  uint8_t leftY;
+  double stickDirection;
+  double stickSpeed;
+  double padMagnitude;
+  double intentForwardX;
+  double intentForwardZ;
+  double desiredForwardX;
+  double desiredForwardZ;
+  double controlForwardX;
+  double controlForwardZ;
+  double renderForwardX;
+  double renderForwardZ;
+  double rootForwardX;
+  double rootForwardZ;
+  double intentControlDot;
+  double controlRenderDot;
+  double renderRootDot;
+} GOALPadTargetControlEvent;
+
 /// What the Metal renderer has been asked to do since the game booted.
 typedef struct GOALPadRendererStats {
   uint64_t chainsSent;      ///< frames that handed over a DMA chain
@@ -472,6 +506,14 @@ typedef struct GOALPadRendererStats {
   uint64_t mercBadDrawRanges;
   uint64_t cameraCorrectionEventsTotal;
   GOALPadCameraCorrectionEvent lastCameraCorrectionEvent;
+  int32_t mercEicharTargetControlEvents;
+  uint64_t mercEicharTargetControlEventsTotal;
+  int32_t mercEicharTargetControlDivergences;
+  uint64_t mercEicharTargetControlDivergencesTotal;
+  int32_t mercEicharTargetControlAttackBoundaries;
+  uint64_t mercEicharTargetControlAttackBoundariesTotal;
+  GOALPadTargetControlEvent firstMercEicharTargetControlEvent;
+  GOALPadTargetControlEvent lastMercEicharTargetControlEvent;
 } GOALPadRendererStats;
 
 /// The one presentation surface. The app's Metal view owns the layer and hands it here; the native
