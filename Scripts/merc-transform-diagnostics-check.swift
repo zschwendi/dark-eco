@@ -29,6 +29,10 @@ first.inputRootBone = 3
 first.olderProducerSerial = 10
 first.previousProducerSerial = 11
 first.currentProducerSerial = 12
+first.previousProducerOutputHash = 0x710
+first.currentProducerOutputHash = 0x720
+first.previousRendererOutputHash = 0x710
+first.currentRendererOutputHash = 0x730
 first.olderInputRootHash = 0x100
 first.previousInputRootHash = 0x200
 first.currentInputRootHash = 0x100
@@ -188,6 +192,10 @@ precondition(stats.firstMercEicharTransformDiscontinuity.olderMatrixHash == 0x90
 precondition(stats.firstMercEicharTransformDiscontinuity.olderSourceBase == 0x600)
 precondition(stats.firstMercEicharTransformDiscontinuity.inputRootBone == 3)
 precondition(stats.firstMercEicharTransformDiscontinuity.currentProducerSerial == 12)
+precondition(stats.firstMercEicharTransformDiscontinuity.previousProducerOutputHash == 0x710)
+precondition(stats.firstMercEicharTransformDiscontinuity.currentProducerOutputHash == 0x720)
+precondition(stats.firstMercEicharTransformDiscontinuity.previousRendererOutputHash == 0x710)
+precondition(stats.firstMercEicharTransformDiscontinuity.currentRendererOutputHash == 0x730)
 precondition(stats.firstMercEicharTransformDiscontinuity.olderInputRootHash
     == stats.firstMercEicharTransformDiscontinuity.currentInputRootHash)
 precondition(stats.firstMercEicharTransformDiscontinuity.olderCameraHash
@@ -231,5 +239,29 @@ precondition(stats.mercEicharWeightedIssueMask == 0x21)
 precondition(stats.lastMercEicharWeightedSkinEngineFrameID == 40)
 precondition(stats.lastMercEicharWeightedSkinHostTickID == 41)
 precondition(stats.lastMercEicharWeightedSkinChainOrdinal == 42)
+
+precondition(CommandLine.arguments.count == 4)
+let gameSessionSource = try String(contentsOfFile: CommandLine.arguments[1], encoding: .utf8)
+for token in [
+    "_previous_producer_output_hash=",
+    "_current_producer_output_hash=",
+    "_previous_renderer_output_hash=",
+    "_current_renderer_output_hash=",
+] {
+    precondition(gameSessionSource.contains(token), "missing Merc identity token: \(token)")
+}
+let metalHostSource = try String(contentsOfFile: CommandLine.arguments[2], encoding: .utf8)
+let renderSurfaceSource = try String(contentsOfFile: CommandLine.arguments[3], encoding: .utf8)
+for field in [
+    "previous_producer_output_hash",
+    "current_producer_output_hash",
+    "previous_renderer_output_hash",
+    "current_renderer_output_hash",
+] {
+    precondition(metalHostSource.contains("retained.\(field) = event.\(field)"),
+                 "missing Metal host identity bridge: \(field)")
+    precondition(renderSurfaceSource.contains("core.\(field)"),
+                 "missing render-surface identity bridge: \(field)")
+}
 
 print("merc transform diagnostics bridge check passed")

@@ -223,6 +223,10 @@ goalpad::MetalHostMercTransformEvent retain_merc_transform_event(
   retained.older_producer_serial = event.older_producer_serial;
   retained.previous_producer_serial = event.previous_producer_serial;
   retained.current_producer_serial = event.current_producer_serial;
+  retained.previous_producer_output_hash = event.previous_producer_output_hash;
+  retained.current_producer_output_hash = event.current_producer_output_hash;
+  retained.previous_renderer_output_hash = event.previous_renderer_output_hash;
+  retained.current_renderer_output_hash = event.current_renderer_output_hash;
   retained.older_input_root_hash = event.older_input_root_hash;
   retained.previous_input_root_hash = event.previous_input_root_hash;
   retained.current_input_root_hash = event.current_input_root_hash;

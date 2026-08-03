@@ -24,4 +24,7 @@ swiftc -sdk "$macos_sdk" \
   "$root/Scripts/merc-transform-diagnostics-check.swift" \
   -o "$build_dir/merc-transform-diagnostics-check"
 
-"$build_dir/merc-transform-diagnostics-check"
+"$build_dir/merc-transform-diagnostics-check" \
+  "$root/GOALPad/Game/GameSession.swift" \
+  "$root/GOALPad/Native/GOALPadMetalHost.mm" \
+  "$root/GOALPad/Native/GOALPadRenderSurface.mm"
