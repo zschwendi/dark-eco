@@ -1,6 +1,7 @@
 #include "GOALPad/Native/GOALPadCameraCorrectionTrace.hpp"
 
 #include <array>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 
@@ -44,6 +45,19 @@ FrameSnapshot frame(std::uint64_t frame_id, std::uint32_t los_state, float first
   FrameSnapshot out;
   out.valid = true;
   out.engine_frame_id = frame_id;
+  out.math_camera_object_offset = static_cast<std::uint32_t>(0x0800 + frame_id);
+  out.math_camera_type_offset = 0x804;
+  out.master_object_offset = static_cast<std::uint32_t>(0x1000 + frame_id);
+  out.master_type_offset = 0x1004;
+  out.combiner_object_offset = static_cast<std::uint32_t>(0x2000 + frame_id);
+  out.combiner_type_offset = 0x2004;
+  out.slave_ppointer_offsets = {
+      static_cast<std::uint32_t>(0x3000 + frame_id),
+      static_cast<std::uint32_t>(0x4000 + frame_id)};
+  out.slave_object_offsets = {
+      static_cast<std::uint32_t>(0x5000 + frame_id),
+      static_cast<std::uint32_t>(0x6000 + frame_id)};
+  out.slave_type_offsets = {0x5004, 0x6004};
   out.num_slaves = 1;
   out.slaves[0] = slave(los_state, first);
   return out;
@@ -58,6 +72,12 @@ FrameSnapshot orientation_frame(std::uint64_t frame_id, float forward_x, float f
   out.combiner.inverse_camera_rotation.axes[2].values =
       {forward_x, 0.f, forward_z, 0.f};
   return out;
+}
+
+FrameSnapshot orientation_degrees_frame(std::uint64_t frame_id, double degrees) {
+  const double radians = degrees * (3.14159265358979323846 / 180.0);
+  return orientation_frame(frame_id, static_cast<float>(std::sin(radians)),
+                           static_cast<float>(std::cos(radians)));
 }
 
 }  // namespace
@@ -98,19 +118,29 @@ int main() {
 
   write(goal_memory, object_offset - jak1_layout::kBasicObjectTypeTagBytes, expected_type);
   std::size_t available_bytes = 0;
+  std::uint32_t actual_type = 0;
   check(checked_goal_object(goal_memory.data(), goal_memory.size(), low_protect_bytes,
                             object_offset | 0x80000000u, expected_type | 0x80000000u, 32,
-                            &available_bytes) ==
+                            &available_bytes, &actual_type) ==
                 goal_memory.data() + object_offset &&
-            available_bytes == allocated_size - jak1_layout::kBasicObjectTypeTagBytes,
-        "GOAL object views accept an exact type and normalize high-bit pointers");
+            available_bytes == allocated_size - jak1_layout::kBasicObjectTypeTagBytes &&
+            actual_type == expected_type,
+        "GOAL object views retain an exact normalized runtime type");
 
   write(goal_memory, object_offset - jak1_layout::kBasicObjectTypeTagBytes,
         derived_type | 0x80000000u);
+  actual_type = 0;
   check(checked_goal_object(goal_memory.data(), goal_memory.size(), low_protect_bytes,
-                            object_offset, expected_type, 32, nullptr) ==
-            goal_memory.data() + object_offset,
-        "GOAL object views accept a bounded descendant of the expected type");
+                            object_offset, expected_type, 32, nullptr, &actual_type) ==
+                goal_memory.data() + object_offset &&
+            actual_type == derived_type,
+        "GOAL object views retain a bounded descendant runtime type");
+
+  actual_type = 0;
+  check(read_goal_object_type(goal_memory.data(), goal_memory.size(), low_protect_bytes,
+                              object_offset | 0x80000000u, &actual_type) &&
+            actual_type == derived_type,
+        "GOAL object identity reads normalize object and runtime type pointers");
 
   write(goal_memory, object_offset - jak1_layout::kBasicObjectTypeTagBytes, unrelated_type);
   check(!checked_goal_object(goal_memory.data(), goal_memory.size(), low_protect_bytes,
@@ -296,6 +326,13 @@ int main() {
             los_event.older.engine_frame_id == 100 &&
             los_event.previous.engine_frame_id == 101 &&
             los_event.current.engine_frame_id == 102 &&
+            los_event.previous.master_object_offset == 0x1000 + 101 &&
+            los_event.previous.master_type_offset == 0x1004 &&
+            los_event.current.combiner_object_offset == 0x2000 + 102 &&
+            los_event.current.combiner_type_offset == 0x2004 &&
+            los_event.previous.slave_ppointer_offsets[0] == 0x3000 + 101 &&
+            los_event.current.slave_object_offsets[0] == 0x5000 + 102 &&
+            los_event.current.slave_type_offsets[0] == 0x5004 &&
             los_event.previous.slaves[0].los_state == 0 &&
             los_event.current.slaves[0].los_state == 1 && trace.event_count() == 1,
         "a LOS transition emits one retained three-frame event");
@@ -361,6 +398,78 @@ int main() {
   check(!orientation_trace.observe(degenerate_orientation, false, 43, 1).valid &&
             orientation_trace.event_count() == 1,
         "a degenerate camera axis cannot fabricate an orientation event");
+
+  EventTrace render_alternation_trace;
+  render_alternation_trace.observe(orientation_degrees_frame(500, 0.0), false, false, 50, 1,
+                                   5000);
+  const auto render_event = render_alternation_trace.observe(
+      orientation_degrees_frame(501, 0.0), false, true, 51, 2, 5001);
+  check(render_event.valid && render_event.reason_mask == kRenderAlternationReason &&
+            render_event.current.engine_frame_id == 501,
+        "a full render-camera A/B/A emits independently of the producer subset");
+
+  EventTrace repeated_reversal_trace;
+  for (std::uint64_t offset = 0; offset < kTailFrameCapacity; ++offset) {
+    const double degrees = (offset % 2 == 0) ? -8.0 : 8.0;
+    repeated_reversal_trace.observe(orientation_degrees_frame(600 + offset, degrees), false,
+                                    false, 700 + offset, 800 + offset, 900 + offset);
+  }
+  const auto& reversal_tail = repeated_reversal_trace.last_tail();
+  check(reversal_tail.valid && reversal_tail.complete &&
+            reversal_tail.count == kTailFrameCapacity &&
+            reversal_tail.trigger_engine_frame_id == 601 &&
+            reversal_tail.trigger_orientation_degrees >= 14.0 &&
+            reversal_tail.trigger_orientation_degrees <= 20.0 &&
+            reversal_tail.frames.front().camera.engine_frame_id == 600 &&
+            reversal_tail.frames.back().camera.engine_frame_id == 617 &&
+            reversal_tail.frames.front().host_tick_id == 700 &&
+            reversal_tail.frames.back().chain_ordinal == 817 &&
+            reversal_tail.frames.back().render_camera_fingerprint == 917,
+        "repeated 14-20 degree reversals retain the trigger and sixteen post-trigger frames");
+
+  repeated_reversal_trace.observe(orientation_degrees_frame(618, -8.0), false, false, 718, 818,
+                                  918);
+  const auto& preserved_complete_tail = repeated_reversal_trace.last_tail();
+  check(preserved_complete_tail.valid && preserved_complete_tail.complete &&
+            preserved_complete_tail.trigger_engine_frame_id == 601 &&
+            preserved_complete_tail.frames.front().camera.engine_frame_id == 600 &&
+            preserved_complete_tail.frames.back().camera.engine_frame_id == 617,
+        "the next continuous reversal cannot replace the last completed camera tail");
+
+  for (std::uint64_t offset = 0; offset < kTailFrameCapacity; ++offset) {
+    const double degrees = (offset % 2 == 0) ? -9.0 : 9.0;
+    repeated_reversal_trace.observe(orientation_degrees_frame(900 + offset, degrees), false,
+                                    false, 1700 + offset, 1800 + offset, 1900 + offset);
+  }
+  const auto& replacement_tail = repeated_reversal_trace.last_tail();
+  check(replacement_tail.valid && replacement_tail.complete &&
+            replacement_tail.count == kTailFrameCapacity &&
+            replacement_tail.trigger_engine_frame_id == 901 &&
+            replacement_tail.frames.front().camera.engine_frame_id == 900 &&
+            replacement_tail.frames.back().camera.engine_frame_id == 917 &&
+            replacement_tail.frames.front().camera.master_object_offset == 0x1000 + 900 &&
+            replacement_tail.frames.front().camera.math_camera_object_offset == 0x0800 + 900 &&
+            replacement_tail.frames.back().camera.slave_ppointer_offsets[1] == 0x4000 + 917 &&
+            replacement_tail.frames.back().camera.slave_object_offsets[1] == 0x6000 + 917 &&
+            replacement_tail.frames.back().camera.slave_type_offsets[1] == 0x6004 &&
+            replacement_tail.frames.front().host_tick_id == 1700 &&
+            replacement_tail.frames.back().render_camera_fingerprint == 1917,
+        "a later qualifying reversal window replaces an earlier completed camera tail");
+
+  EventTrace smooth_pan_trace;
+  for (std::uint64_t offset = 0; offset < 32; ++offset) {
+    smooth_pan_trace.observe(orientation_degrees_frame(700 + offset, double(offset)), false,
+                             false, 1000 + offset, 1, 2000 + offset);
+  }
+  check(!smooth_pan_trace.last_tail().valid,
+        "a smooth pan of at most one degree per frame does not retain a camera tail");
+
+  EventTrace malformed_tail_trace;
+  malformed_tail_trace.observe(orientation_degrees_frame(800, 0.0), false, false, 1200, 1,
+                               2200);
+  malformed_tail_trace.observe(orientation_frame(801, 0.f, 0.f), false, false, 1201, 1, 2201);
+  check(!malformed_tail_trace.last_tail().valid,
+        "a malformed combiner basis cannot trigger the temporal camera tail");
 
   return failures ? 1 : 0;
 }

@@ -2,6 +2,7 @@
 
 #include "GOALPadEngineSeams.h"
 #include "GOALPadGameBoot.hpp"
+#include "GOALPadMercDiagnosticEvidence.hpp"
 
 #include <os/log.h>
 
@@ -66,6 +67,8 @@ struct MetalHost {
   std::thread::id frame_thread;
   bool frame_open = false;
   bool frame_rendered = false;
+  goalpad::merc_diagnostic_evidence::EpisodeTracker weighted_skin_evidence;
+  bool has_retained_weighted_skin_snapshot = false;
   std::uint64_t chains_in_frame = 0;
   bool reported_wrong_frame_thread = false;
 
@@ -472,9 +475,11 @@ void render_chain() {
   g_host.stats.tie_envmap_second_pass_draws_total += background.tie_envmap_second_draws;
   const bool producer_alternation =
       stats.producer_camera_alternations > g_host.stats.producer_camera_alternations;
+  const bool render_alternation =
+      stats.render_camera_alternations > g_host.stats.render_camera_alternations;
   const auto camera_correction_event = g_host.camera_correction_trace.observe(
-      camera.camera_correction, producer_alternation, stats.last_host_tick_id,
-      stats.last_chain_ordinal);
+      camera.camera_correction, producer_alternation, render_alternation,
+      stats.last_host_tick_id, stats.last_chain_ordinal, stats.last_render_camera_fingerprint);
   g_host.stats.camera_correction_events_total = g_host.camera_correction_trace.event_count();
   if (camera_correction_event.valid) {
     g_host.stats.last_camera_correction_event = camera_correction_event;
@@ -577,6 +582,81 @@ void render_chain() {
         stats.last_merc_eichar_palette_health_event, stats.last_engine_frame_id,
         stats.last_host_tick_id, stats.last_chain_ordinal);
   }
+  const auto& weighted_skin = stats.merc_eichar_weighted_skin;
+  const auto& duplication = stats.merc_eichar_duplication;
+  const goalpad::merc_diagnostic_evidence::Observation evidence = {
+      .affected_vertices = weighted_skin.affected_vertices,
+      .invalid_basis_groups = weighted_skin.invalid_basis_groups,
+      .profile_tuple_mismatches = weighted_skin.profile_tuple_mismatches,
+      .profile_capacity_drops = weighted_skin.profile_capacity_drops,
+      .repeated_packets_conflicting_palette =
+          duplication.repeated_packets_conflicting_palette,
+      .repeated_base_draws_conflicting_palette =
+          duplication.repeated_base_draws_conflicting_palette,
+      .trace_capacity_drops = duplication.capacity_drops,
+      .bound_palette_hash_mismatches = duplication.bound_palette_hash_mismatches,
+  };
+  const std::uint8_t evidence_mask = goalpad::merc_diagnostic_evidence::issue_mask(evidence);
+  // The diagnostics file is an atomic snapshot. After the first issue, keep the latest anomalous
+  // raw counts so a later clean periodic write cannot erase the evidence that triggered it.
+  if (goalpad::merc_diagnostic_evidence::should_update_retained_snapshot(
+          g_host.has_retained_weighted_skin_snapshot, evidence_mask)) {
+    g_host.stats.merc_eichar_weighted_profiled_base_draws = weighted_skin.profiled_base_draws;
+    g_host.stats.merc_eichar_weighted_profiled_vertices = weighted_skin.profiled_vertices;
+    g_host.stats.merc_eichar_weighted_multi_bone_vertices = weighted_skin.multi_bone_vertices;
+    g_host.stats.merc_eichar_weighted_affected_vertices = weighted_skin.affected_vertices;
+    g_host.stats.merc_eichar_weighted_static_multi_bone_vertices =
+        weighted_skin.static_multi_bone_vertices;
+    g_host.stats.merc_eichar_weighted_static_affected_vertices =
+        weighted_skin.static_affected_vertices;
+    g_host.stats.merc_eichar_weighted_modified_multi_bone_vertices =
+        weighted_skin.modified_multi_bone_vertices;
+    g_host.stats.merc_eichar_weighted_modified_affected_vertices =
+        weighted_skin.modified_affected_vertices;
+    g_host.stats.merc_eichar_weighted_tuple_groups = weighted_skin.tuple_groups;
+    g_host.stats.merc_eichar_weighted_affected_tuple_groups =
+        weighted_skin.affected_tuple_groups;
+    g_host.stats.merc_eichar_weighted_valid_basis_groups = weighted_skin.valid_basis_groups;
+    g_host.stats.merc_eichar_weighted_invalid_basis_groups = weighted_skin.invalid_basis_groups;
+    g_host.stats.merc_eichar_weighted_affected_draws = weighted_skin.affected_draws;
+    g_host.stats.merc_eichar_weighted_affected_effects = weighted_skin.affected_effects;
+    g_host.stats.merc_eichar_weighted_profile_tuple_mismatches =
+        weighted_skin.profile_tuple_mismatches;
+    g_host.stats.merc_eichar_weighted_profile_capacity_drops =
+        weighted_skin.profile_capacity_drops;
+    g_host.stats.merc_eichar_weighted_maximum_axis_ratio = weighted_skin.maximum_axis_ratio;
+    g_host.stats.merc_eichar_weighted_minimum_normalized_abs_determinant =
+        weighted_skin.minimum_normalized_abs_determinant;
+    g_host.stats.merc_eichar_weighted_coverage =
+        static_cast<std::uint8_t>(weighted_skin.coverage);
+    g_host.stats.merc_eichar_packets = duplication.packets;
+    g_host.stats.merc_eichar_unique_source_bases = duplication.unique_source_bases;
+    g_host.stats.merc_eichar_repeated_packets = duplication.repeated_packets;
+    g_host.stats.merc_eichar_repeated_packets_same_palette =
+        duplication.repeated_packets_same_palette;
+    g_host.stats.merc_eichar_repeated_packets_conflicting_palette =
+        duplication.repeated_packets_conflicting_palette;
+    g_host.stats.merc_eichar_actual_base_draws = duplication.actual_base_draws;
+    g_host.stats.merc_eichar_unique_base_draws = duplication.unique_base_draws;
+    g_host.stats.merc_eichar_repeated_base_draws = duplication.repeated_base_draws;
+    g_host.stats.merc_eichar_repeated_base_draws_same_palette =
+        duplication.repeated_base_draws_same_palette;
+    g_host.stats.merc_eichar_repeated_base_draws_conflicting_palette =
+        duplication.repeated_base_draws_conflicting_palette;
+    g_host.stats.merc_eichar_trace_capacity_drops = duplication.capacity_drops;
+    g_host.stats.merc_eichar_bound_palette_hash_mismatches =
+        duplication.bound_palette_hash_mismatches;
+    g_host.stats.merc_eichar_weighted_issue_mask = evidence_mask;
+    if (evidence_mask) {
+      g_host.has_retained_weighted_skin_snapshot = true;
+      g_host.stats.last_merc_eichar_weighted_skin_engine_frame_id = stats.last_engine_frame_id;
+      g_host.stats.last_merc_eichar_weighted_skin_host_tick_id = stats.last_host_tick_id;
+      g_host.stats.last_merc_eichar_weighted_skin_chain_ordinal = stats.last_chain_ordinal;
+    }
+  }
+  if (g_host.weighted_skin_evidence.observe(evidence_mask) != 0) {
+    g_host.stats.merc_eichar_weighted_skin_evidence_total++;
+  }
   g_host.stats.merc_eichar_target_control_events = stats.merc_eichar_target_control_events;
   g_host.stats.merc_eichar_target_control_divergences =
       stats.merc_eichar_target_control_divergences;
@@ -621,6 +701,36 @@ void render_chain() {
   g_host.stats.last_engine_frame_id = stats.last_engine_frame_id;
   g_host.stats.last_camera_fingerprint = stats.last_camera_fingerprint;
   g_host.stats.last_camera_packets = stats.last_camera_packets;
+  g_host.stats.render_camera_alternations = stats.render_camera_alternations;
+  const auto& render_alternation_event = stats.last_render_camera_alternation;
+  g_host.stats.last_render_camera_alternation_older_frame_id =
+      render_alternation_event.older_frame_id;
+  g_host.stats.last_render_camera_alternation_previous_frame_id =
+      render_alternation_event.previous_frame_id;
+  g_host.stats.last_render_camera_alternation_current_frame_id =
+      render_alternation_event.current_frame_id;
+  g_host.stats.last_render_camera_alternation_older_fingerprint =
+      render_alternation_event.older_fingerprint;
+  g_host.stats.last_render_camera_alternation_previous_fingerprint =
+      render_alternation_event.previous_fingerprint;
+  g_host.stats.last_render_camera_alternation_current_fingerprint =
+      render_alternation_event.current_fingerprint;
+  g_host.stats.last_render_camera_alternation_host_tick_id =
+      render_alternation_event.host_tick_id;
+  g_host.stats.last_render_camera_alternation_chain_ordinal =
+      render_alternation_event.chain_ordinal;
+  g_host.stats.last_render_camera_alternation_packet_fingerprint =
+      render_alternation_event.packet_fingerprint;
+  g_host.stats.last_render_camera_alternation_live_mismatch_qwords =
+      render_alternation_event.live_mismatch_qwords;
+  g_host.stats.last_render_camera_alternation_packet_mismatch_qwords =
+      render_alternation_event.packet_mismatch_qwords;
+  g_host.stats.last_render_camera_older_to_previous_distance =
+      render_alternation_event.older_to_previous_distance;
+  g_host.stats.last_render_camera_previous_to_current_distance =
+      render_alternation_event.previous_to_current_distance;
+  g_host.stats.last_render_camera_older_to_current_distance =
+      render_alternation_event.older_to_current_distance;
   g_host.stats.producer_camera_alternations = stats.producer_camera_alternations;
   g_host.stats.last_camera_alternation_older_frame_id =
       stats.last_camera_alternation_older_frame_id;
@@ -854,6 +964,10 @@ MetalHostStats metal_host_stats() {
   return g_host.stats;
 }
 
+const camera_correction_trace::Tail& metal_host_camera_correction_tail() {
+  return g_host.camera_correction_trace.last_tail();
+}
+
 MetalHostTargetControlTelemetry metal_host_target_control_telemetry() {
   return g_host.stats.target_control_telemetry;
 }
@@ -886,6 +1000,7 @@ bool metal_host_begin_frame(CAMetalLayer* layer, const MetalHostFrame& frame) {
     g_host.frame_thread = std::thread::id();
     g_host.frame_open = false;
     g_host.frame_rendered = false;
+    g_host.weighted_skin_evidence.end_frame();
     g_host.post_flag_gate.end_frame();
   }
 
@@ -894,6 +1009,7 @@ bool metal_host_begin_frame(CAMetalLayer* layer, const MetalHostFrame& frame) {
   g_host.frame_thread = std::this_thread::get_id();
   g_host.frame_open = true;
   g_host.frame_rendered = false;
+  g_host.weighted_skin_evidence.begin_frame();
   g_host.chains_in_frame = 0;
   g_host.stats.frames_armed++;
   const auto post_flag = jak1_bones_provenance_trace::registry().latest_post_flag();
@@ -918,6 +1034,7 @@ bool metal_host_end_frame() {
   g_host.frame_thread = std::thread::id();
   g_host.frame_open = false;
   g_host.frame_rendered = false;
+  g_host.weighted_skin_evidence.end_frame();
   g_host.chains_in_frame = 0;
   g_host.post_flag_gate.end_frame();
   return rendered;
@@ -945,6 +1062,11 @@ void metal_host_set_level_art_directory(const std::string&) {}
 
 MetalHostStats metal_host_stats() {
   return {};
+}
+
+const camera_correction_trace::Tail& metal_host_camera_correction_tail() {
+  static const camera_correction_trace::Tail empty;
+  return empty;
 }
 
 MetalHostTargetControlTelemetry metal_host_target_control_telemetry() {

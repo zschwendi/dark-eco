@@ -260,9 +260,11 @@ goalpad::camera_correction_trace::FrameSnapshot current_camera_correction_snapsh
 
   std::size_t master_bytes = 0;
   const auto master_offset = static_cast<std::uint32_t>(*g_camera_master);
+  std::uint32_t master_type_offset = 0;
   const void* master_object = checked_goal_object(
       g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT, master_offset,
-      g_camera_master_type, jak1_layout::kMasterRequiredObjectBytes, &master_bytes);
+      g_camera_master_type, jak1_layout::kMasterRequiredObjectBytes, &master_bytes,
+      &master_type_offset);
   MasterSnapshot master;
   if (!master_object ||
       !try_read_jak1_master(master_object, master_bytes, s7.offset, &master)) {
@@ -270,6 +272,12 @@ goalpad::camera_correction_trace::FrameSnapshot current_camera_correction_snapsh
   }
 
   out.valid = true;
+  out.master_object_offset = master_offset & jak1_layout::kGoalPointerAddressMask;
+  out.master_type_offset = master_type_offset;
+  for (std::size_t slot = 0; slot < out.slave_ppointer_offsets.size(); ++slot) {
+    out.slave_ppointer_offsets[slot] =
+        master.slave_offsets[slot] & jak1_layout::kGoalPointerAddressMask;
+  }
   out.num_slaves = master.num_slaves;
   out.being_attacked = master.being_attacked;
   out.target_position = master.target_position;
@@ -283,24 +291,31 @@ goalpad::camera_correction_trace::FrameSnapshot current_camera_correction_snapsh
                                s7.offset, master.slave_offsets[slot], &slave_offset)) {
       continue;
     }
+    out.slave_object_offsets[slot] = slave_offset;
     std::size_t slave_bytes = 0;
+    std::uint32_t slave_type_offset = 0;
     const void* slave_object = checked_goal_object(
         g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT, slave_offset,
         g_camera_slave_type,
-        jak1_layout::kSlaveRequiredObjectBytes, &slave_bytes);
+        jak1_layout::kSlaveRequiredObjectBytes, &slave_bytes, &slave_type_offset);
     if (slave_object) {
+      out.slave_type_offsets[slot] = slave_type_offset;
       try_read_jak1_slave(slave_object, slave_bytes, &out.slaves[slot]);
     }
   }
 
   if (g_camera_combiner) {
     std::size_t combiner_bytes = 0;
+    std::uint32_t combiner_type_offset = 0;
     const auto combiner_offset = static_cast<std::uint32_t>(*g_camera_combiner);
+    out.combiner_object_offset =
+        combiner_offset & jak1_layout::kGoalPointerAddressMask;
     const void* combiner_object = checked_goal_object(
         g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT, combiner_offset,
         g_camera_combiner_type, jak1_layout::kCombinerRequiredObjectBytes,
-        &combiner_bytes);
+        &combiner_bytes, &combiner_type_offset);
     if (combiner_object) {
+      out.combiner_type_offset = combiner_type_offset;
       try_read_jak1_combiner(combiner_object, combiner_bytes, &out.combiner);
     }
   }
@@ -533,7 +548,12 @@ CameraFrameIdentity current_camera_frame_identity() noexcept {
   // Snapshot at __send-gfx-dma-chain, after the producer ran and before the next dispatcher frame
   // can rewrite *math-camera*. The helper uses the asserted Jak 1 object layout and serializes the
   // same 15 qwords as add-pc-tfrag3-data.
-  const uint32_t camera = static_cast<uint32_t>(*g_math_camera);
+  const uint32_t camera = static_cast<uint32_t>(*g_math_camera) &
+                          camera_correction_trace::jak1_layout::kGoalPointerAddressMask;
+  out.camera_correction.math_camera_object_offset = camera;
+  camera_correction_trace::read_goal_object_type(
+      g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT, camera,
+      &out.camera_correction.math_camera_type_offset);
   if (camera < static_cast<uint32_t>(EE_MAIN_MEM_LOW_PROTECT) ||
       camera >= static_cast<uint32_t>(EE_MAIN_MEM_SIZE)) {
     return out;

@@ -9615,3 +9615,76 @@ a display service; the identical local retry with normal service access passed.
   bounded `--play` probe. Stop at the first substantive machine seam after the
   now-spurious `ART.CGO` lookup disappears; do not add app, renderer, or pad
   wiring to that patch.
+
+# Checkpoint 60: integrated retained camera and weighted-skin evidence
+
+Date: 2026-08-03. This checkpoint integrates the independently published Jak 1
+schema-v7 diagnostic line with Checkpoint 59 and the newer nested Jak II play
+frontier. It preserves the two physical screenshot hypotheses without claiming
+that either visual defect is fixed. No physical device was installed, launched,
+logged, captured, or otherwise accessed during this integration.
+
+## Physical evidence and retained hypotheses
+
+The maintainer's pre-v7 screenshots separate two failures. Standing-Jak frames
+show the character collapsing horizontally at some world headings while the
+background and camera remain coherent, so the current bounded hypothesis is a
+Merc skin, palette, or output-transform failure. Separate Geyser Rock wall
+frames show the whole scene returning through coherent A/B/A-like camera poses
+while Jak is out of frame, which points to an alternating camera solver, target,
+or combiner result rather than an object-local Merc or z-fighting failure.
+
+Nested implementation `bb423a46546b5316308f8d25981ae89a7948299f`
+retains full camera-reversal and weighted-skin evidence. Parent implementation
+`d5d236f04c5ad18a4f015cdc1f5033db73549416` carries that evidence through the
+Objective-C++ bridge and Swift persistence policy. Parent documentation
+commits `6de74816` and `558a95f2` record and refine the physical A/B evidence.
+The final nested merge is
+`db376b727c52ffeb19788df4ac453693a07c40c8`, which contains the diagnostic
+commit plus the Jak II DGO, routed-falloff, and title-play frontier commits.
+
+The camera trace retains an 18-frame completed reversal independently of any
+new active candidate. The EICHAR-only Merc trace profiles the actual enabled
+base draws, hashes shader-visible palette lanes, mirrors weighted 3x3 skinning,
+and reports bounded collapse, invalid/profile, packet conflict, base-draw
+conflict, palette mismatch, and capacity evidence. This is diagnostic
+instrumentation, not a camera or transform correction.
+
+## Validation inherited and rerun
+
+The independent line reported these focused checks and a generic iOS Release
+build passing before integration:
+
+```sh
+Scripts/run-camera-correction-diagnostics-check.sh
+Scripts/run-target-control-diagnostics-check.sh
+Scripts/run-merc-transform-diagnostics-check.sh
+cmake --build OpenGOAL/build/Release/bin --target \
+  metal-camera-trace-test metal-merc-transform-trace-test metal-proof -j2
+OpenGOAL/build/Release/bin/game/metal-camera-trace-test
+OpenGOAL/build/Release/bin/game/metal-merc-transform-trace-test
+OpenGOAL/build/Release/bin/game/metal-proof
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-sim -jobs 2 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/build/jak1-source-object-pack \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache GOALPAD_BUILD_JOBS=2 build
+```
+
+The primary integration lane independently rebuilt the same three nested
+targets, reran both deterministic trace tests, and reran the complete local
+macOS Metal proof. The sandboxed proof could not see a display; the identical
+retry with normal local display-service access ended `METAL PROOF PASSED`.
+The integrated parent scripts all passed. The generic iOS Release command above
+also passed after moving aside a stale generated importer cache whose recorded
+source path pointed at the clean validation worktree. The successful retry
+rebuilt against the current integrated checkout; its output contained the known
+generated-AOT warnings and no build error.
+
+## Remaining gate
+
+A v7 physical capture is still required to decide the two explicit hypotheses.
+It must retain the completed camera reversal and weighted-skin event from the
+same bad run. Fresh explicit authorization is required before accessing
+**Z iPad Pro**; a backgrounded or closed app is not authorization.

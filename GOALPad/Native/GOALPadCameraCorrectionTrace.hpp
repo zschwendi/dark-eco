@@ -13,7 +13,11 @@ constexpr std::uint32_t kMovementBlockedOption = 1u << 10;
 constexpr std::uint8_t kLosTransitionReason = 1u << 0;
 constexpr std::uint8_t kProducerAlternationReason = 1u << 1;
 constexpr std::uint8_t kLargeOrientationDeltaReason = 1u << 2;
+constexpr std::uint8_t kRenderAlternationReason = 1u << 3;
 constexpr double kLargeOrientationCosineThreshold = 0.8660254037844386;
+constexpr double kTailOrientationDeltaDegrees = 5.0;
+constexpr std::size_t kTailPostTriggerFrameCount = 16;
+constexpr std::size_t kTailFrameCapacity = kTailPostTriggerFrameCount + 2;
 
 struct Vector4 {
   std::array<float, 4> values = {};
@@ -61,6 +65,15 @@ struct CombinerSnapshot {
 struct FrameSnapshot {
   bool valid = false;
   std::uint64_t engine_frame_id = 0;
+  std::uint32_t math_camera_object_offset = 0;
+  std::uint32_t math_camera_type_offset = 0;
+  std::uint32_t master_object_offset = 0;
+  std::uint32_t master_type_offset = 0;
+  std::uint32_t combiner_object_offset = 0;
+  std::uint32_t combiner_type_offset = 0;
+  std::array<std::uint32_t, 2> slave_ppointer_offsets = {};
+  std::array<std::uint32_t, 2> slave_object_offsets = {};
+  std::array<std::uint32_t, 2> slave_type_offsets = {};
   float display_time_ratio = 1.f;
   std::int32_t num_slaves = 0;
   bool being_attacked = false;
@@ -78,6 +91,22 @@ struct Event {
   FrameSnapshot older;
   FrameSnapshot previous;
   FrameSnapshot current;
+};
+
+struct TailFrame {
+  std::uint64_t host_tick_id = 0;
+  std::uint64_t chain_ordinal = 0;
+  std::uint64_t render_camera_fingerprint = 0;
+  FrameSnapshot camera;
+};
+
+struct Tail {
+  bool valid = false;
+  bool complete = false;
+  std::uint64_t trigger_engine_frame_id = 0;
+  double trigger_orientation_degrees = 0.0;
+  std::size_t count = 0;
+  std::array<TailFrame, kTailFrameCapacity> frames;
 };
 
 namespace jak1_layout {
@@ -269,7 +298,8 @@ inline const void* checked_goal_object(const void* memory,
                                        std::uint32_t object_offset,
                                        std::uint32_t expected_type,
                                        std::size_t required_bytes,
-                                       std::size_t* available_bytes) {
+                                       std::size_t* available_bytes,
+                                       std::uint32_t* actual_type_offset = nullptr) {
   object_offset = detail::normalize_goal_pointer(object_offset);
   expected_type = detail::normalize_goal_pointer(expected_type);
   if (!memory || !detail::is_basic_pointer(expected_type) ||
@@ -307,7 +337,35 @@ inline const void* checked_goal_object(const void* memory,
   if (available_bytes) {
     *available_bytes = object_bytes;
   }
+  if (actual_type_offset) {
+    *actual_type_offset = actual_type;
+  }
   return bytes + object_offset;
+}
+
+inline bool read_goal_object_type(const void* memory,
+                                  std::size_t memory_bytes,
+                                  std::size_t low_protect_bytes,
+                                  std::uint32_t object_offset,
+                                  std::uint32_t* actual_type_offset) {
+  object_offset = detail::normalize_goal_pointer(object_offset);
+  if (!memory || !actual_type_offset ||
+      !detail::is_readable_basic_pointer(memory_bytes, low_protect_bytes, object_offset, 1)) {
+    return false;
+  }
+
+  const auto* bytes = static_cast<const std::uint8_t*>(memory);
+  std::uint32_t actual_type = 0;
+  std::memcpy(&actual_type,
+              bytes + object_offset - jak1_layout::kBasicObjectTypeTagBytes,
+              sizeof(actual_type));
+  actual_type = detail::normalize_goal_pointer(actual_type);
+  if (!detail::is_readable_basic_pointer(memory_bytes, low_protect_bytes, actual_type,
+                                         jak1_layout::kTypeRequiredBytes)) {
+    return false;
+  }
+  *actual_type_offset = actual_type;
+  return true;
 }
 
 inline bool try_read_jak1_master(const void* object,
@@ -450,68 +508,174 @@ inline bool has_large_orientation_delta(const FrameSnapshot& previous,
   return relative_rotation_cosine < kLargeOrientationCosineThreshold;
 }
 
+inline bool has_orthonormal_rotation(const RotationAxes& rotation) {
+  constexpr double kNormTolerance = 0.01;
+  constexpr double kDotTolerance = 0.01;
+  std::array<std::array<double, 3>, 3> axes = {};
+  for (std::size_t axis = 0; axis < axes.size(); ++axis) {
+    double squared_norm = 0.0;
+    for (std::size_t lane = 0; lane < axes[axis].size(); ++lane) {
+      const double value = rotation.axes[axis].values[lane];
+      if (!std::isfinite(value)) {
+        return false;
+      }
+      axes[axis][lane] = value;
+      squared_norm += value * value;
+    }
+    const double norm = std::sqrt(squared_norm);
+    if (std::abs(norm - 1.0) > kNormTolerance) {
+      return false;
+    }
+  }
+
+  for (std::size_t first = 0; first < axes.size(); ++first) {
+    for (std::size_t second = first + 1; second < axes.size(); ++second) {
+      double dot = 0.0;
+      for (std::size_t lane = 0; lane < axes[first].size(); ++lane) {
+        dot += axes[first][lane] * axes[second][lane];
+      }
+      if (std::abs(dot) > kDotTolerance) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+inline bool orientation_delta_degrees(const FrameSnapshot& previous,
+                                      const FrameSnapshot& current,
+                                      double* degrees) {
+  if (!degrees || !previous.valid || !current.valid || !previous.combiner.valid ||
+      !current.combiner.valid ||
+      !has_orthonormal_rotation(previous.combiner.inverse_camera_rotation) ||
+      !has_orthonormal_rotation(current.combiner.inverse_camera_rotation)) {
+    return false;
+  }
+
+  double corresponding_axis_dot_sum = 0.0;
+  for (std::size_t axis = 0;
+       axis < previous.combiner.inverse_camera_rotation.axes.size(); ++axis) {
+    const auto& before = previous.combiner.inverse_camera_rotation.axes[axis].values;
+    const auto& after = current.combiner.inverse_camera_rotation.axes[axis].values;
+    for (std::size_t lane = 0; lane < 3; ++lane) {
+      corresponding_axis_dot_sum +=
+          static_cast<double>(before[lane]) * static_cast<double>(after[lane]);
+    }
+  }
+  const double cosine =
+      std::fmax(-1.0, std::fmin(1.0, (corresponding_axis_dot_sum - 1.0) * 0.5));
+  *degrees = std::acos(cosine) * (180.0 / 3.14159265358979323846);
+  return std::isfinite(*degrees);
+}
+
 class EventTrace {
  public:
   Event observe(const FrameSnapshot& snapshot,
                 bool producer_alternation,
                 std::uint64_t host_tick_id,
                 std::uint64_t chain_ordinal) {
+    return observe(snapshot, producer_alternation, false, host_tick_id, chain_ordinal, 0);
+  }
+
+  Event observe(const FrameSnapshot& snapshot,
+                bool producer_alternation,
+                bool render_alternation,
+                std::uint64_t host_tick_id,
+                std::uint64_t chain_ordinal,
+                std::uint64_t render_camera_fingerprint) {
     Event event;
     if (!snapshot.valid) {
       return event;
     }
     if (m_history_size &&
-        snapshot.engine_frame_id == m_history[m_history_size - 1].engine_frame_id) {
+        snapshot.engine_frame_id == m_history[m_history_size - 1].camera.engine_frame_id) {
       return event;
     }
 
+    const TailFrame current = {host_tick_id, chain_ordinal, render_camera_fingerprint, snapshot};
+
     const bool consecutive =
         m_history_size &&
-        snapshot.engine_frame_id == m_history[m_history_size - 1].engine_frame_id + 1;
+        snapshot.engine_frame_id == m_history[m_history_size - 1].camera.engine_frame_id + 1;
     if (!consecutive) {
-      m_history[0] = snapshot;
+      m_active_tail = {};
+      m_history[0] = current;
       m_history_size = 1;
       return event;
     }
 
     const auto previous = m_history[m_history_size - 1];
-    const bool los_transition = has_los_transition(previous, snapshot);
-    const bool large_orientation_delta = has_large_orientation_delta(previous, snapshot);
-    if (los_transition || producer_alternation || large_orientation_delta) {
+    const bool los_transition = has_los_transition(previous.camera, snapshot);
+    const bool large_orientation_delta = has_large_orientation_delta(previous.camera, snapshot);
+    if (los_transition || producer_alternation || render_alternation ||
+        large_orientation_delta) {
       event.valid = true;
       event.reason_mask =
           (los_transition ? kLosTransitionReason : 0) |
           (producer_alternation ? kProducerAlternationReason : 0) |
+          (render_alternation ? kRenderAlternationReason : 0) |
           (large_orientation_delta ? kLargeOrientationDeltaReason : 0);
       event.host_tick_id = host_tick_id;
       event.chain_ordinal = chain_ordinal;
       if (m_history_size == 2) {
-        event.older = m_history[0];
+        event.older = m_history[0].camera;
       }
-      event.previous = previous;
+      event.previous = previous.camera;
       event.current = snapshot;
       m_last_event = event;
       ++m_event_count;
     }
 
+    double orientation_degrees = 0.0;
+    const bool tail_trigger =
+        orientation_delta_degrees(previous.camera, snapshot, &orientation_degrees) &&
+        orientation_degrees >= kTailOrientationDeltaDegrees;
+    if (tail_trigger && !m_active_tail.valid) {
+      m_active_tail = {};
+      m_active_tail.valid = true;
+      m_active_tail.trigger_engine_frame_id = snapshot.engine_frame_id;
+      m_active_tail.trigger_orientation_degrees = orientation_degrees;
+      append_tail_frame(previous);
+      append_tail_frame(current);
+    } else if (m_active_tail.valid) {
+      append_tail_frame(current);
+    }
+
     if (m_history_size == 1) {
-      m_history[1] = snapshot;
+      m_history[1] = current;
       m_history_size = 2;
     } else {
       m_history[0] = m_history[1];
-      m_history[1] = snapshot;
+      m_history[1] = current;
     }
     return event;
   }
 
   std::uint64_t event_count() const { return m_event_count; }
   const Event& last_event() const { return m_last_event; }
+  const Tail& last_tail() const {
+    return m_last_complete_tail.valid ? m_last_complete_tail : m_active_tail;
+  }
 
  private:
-  std::array<FrameSnapshot, 2> m_history;
+  void append_tail_frame(const TailFrame& frame) {
+    if (m_active_tail.count >= m_active_tail.frames.size()) {
+      return;
+    }
+    m_active_tail.frames[m_active_tail.count++] = frame;
+    if (m_active_tail.count == m_active_tail.frames.size()) {
+      m_active_tail.complete = true;
+      m_last_complete_tail = m_active_tail;
+      m_active_tail = {};
+    }
+  }
+
+  std::array<TailFrame, 2> m_history;
   std::size_t m_history_size = 0;
   std::uint64_t m_event_count = 0;
   Event m_last_event;
+  Tail m_active_tail;
+  Tail m_last_complete_tail;
 };
 
 }  // namespace goalpad::camera_correction_trace

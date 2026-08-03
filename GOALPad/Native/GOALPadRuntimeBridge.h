@@ -342,6 +342,18 @@ typedef struct GOALPadCameraCorrectionSlaveFrame {
 typedef struct GOALPadCameraCorrectionFrame {
   BOOL valid;
   uint64_t engineFrameID;
+  uint32_t mathCameraObjectOffset;
+  uint32_t mathCameraTypeOffset;
+  uint32_t masterObjectOffset;
+  uint32_t masterTypeOffset;
+  uint32_t combinerObjectOffset;
+  uint32_t combinerTypeOffset;
+  uint32_t slave0PpointerOffset;
+  uint32_t slave0ObjectOffset;
+  uint32_t slave0TypeOffset;
+  uint32_t slave1PpointerOffset;
+  uint32_t slave1ObjectOffset;
+  uint32_t slave1TypeOffset;
   double displayTimeRatio;
   int32_t numSlaves;
   BOOL beingAttacked;
@@ -358,7 +370,7 @@ typedef struct GOALPadCameraCorrectionFrame {
 
 /// A bounded three-frame constrained-camera sample. Reason bit 0 is a LOS state transition; bit
 /// 1 is the existing producer A/B/A observation; bit 2 is a combined-camera orientation delta
-/// over thirty degrees between consecutive engine frames.
+/// over thirty degrees between consecutive engine frames; bit 3 is a full render-camera A/B/A.
 typedef struct GOALPadCameraCorrectionEvent {
   BOOL valid;
   uint8_t reasonMask;
@@ -368,6 +380,34 @@ typedef struct GOALPadCameraCorrectionEvent {
   GOALPadCameraCorrectionFrame previous;
   GOALPadCameraCorrectionFrame current;
 } GOALPadCameraCorrectionEvent;
+
+/// Summary for a compact temporal sample beginning one frame before a validated camera-rotation
+/// delta of at least five degrees. A complete sample includes sixteen post-trigger frames.
+typedef struct GOALPadCameraCorrectionTailInfo {
+  BOOL valid;
+  BOOL complete;
+  uint32_t frameCount;
+  uint64_t triggerEngineFrameID;
+  double triggerOrientationDegrees;
+} GOALPadCameraCorrectionTailInfo;
+
+typedef struct GOALPadCameraCorrectionTailFrame {
+  BOOL valid;
+  uint64_t hostTickID;
+  uint64_t chainOrdinal;
+  uint64_t renderCameraFingerprint;
+  GOALPadCameraCorrectionFrame camera;
+} GOALPadCameraCorrectionTailFrame;
+
+/// One coherent native camera-tail copy. Reading its frames never re-copies or races a newer tail.
+@interface GOALPadCameraCorrectionTailSnapshot : NSObject {
+ @private
+  void *_nativeTail;
+}
+@property(nonatomic, readonly) GOALPadCameraCorrectionTailInfo info;
+- (GOALPadCameraCorrectionTailFrame)frameAtIndex:(uint32_t)index
+    NS_SWIFT_NAME(frame(at:));
+@end
 
 /// Numeric evidence for one eichar-lod0 target/control disagreement or attack edge.
 /// Issue bit 0 is a facing divergence and bit 1 is an attack boundary.
@@ -533,6 +573,21 @@ typedef struct GOALPadRendererStats {
   uint64_t lastEngineFrameID;
   uint64_t lastCameraFingerprint;
   int32_t lastCameraPackets;
+  uint64_t renderCameraAlternations;
+  uint64_t lastRenderCameraAlternationOlderFrameID;
+  uint64_t lastRenderCameraAlternationPreviousFrameID;
+  uint64_t lastRenderCameraAlternationCurrentFrameID;
+  uint64_t lastRenderCameraAlternationOlderFingerprint;
+  uint64_t lastRenderCameraAlternationPreviousFingerprint;
+  uint64_t lastRenderCameraAlternationCurrentFingerprint;
+  uint64_t lastRenderCameraAlternationHostTickID;
+  uint64_t lastRenderCameraAlternationChainOrdinal;
+  uint64_t lastRenderCameraAlternationPacketFingerprint;
+  uint16_t lastRenderCameraAlternationLiveMismatchQwords;
+  uint16_t lastRenderCameraAlternationPacketMismatchQwords;
+  double lastRenderCameraOlderToPreviousDistance;
+  double lastRenderCameraPreviousToCurrentDistance;
+  double lastRenderCameraOlderToCurrentDistance;
   uint64_t producerCameraAlternations;
   uint64_t lastCameraAlternationOlderFrameID;
   uint64_t lastCameraAlternationPreviousFrameID;
@@ -641,6 +696,42 @@ typedef struct GOALPadRendererStats {
   BOOL jak1TieEnvmapSecondPassEnabled;
   int32_t tieEnvmapSecondPassDraws;
   uint64_t tieEnvmapSecondPassDrawsTotal;
+  uint64_t mercEicharWeightedProfiledBaseDraws;
+  uint64_t mercEicharWeightedProfiledVertices;
+  uint64_t mercEicharWeightedMultiBoneVertices;
+  uint64_t mercEicharWeightedAffectedVertices;
+  uint64_t mercEicharWeightedStaticMultiBoneVertices;
+  uint64_t mercEicharWeightedStaticAffectedVertices;
+  uint64_t mercEicharWeightedModifiedMultiBoneVertices;
+  uint64_t mercEicharWeightedModifiedAffectedVertices;
+  uint64_t mercEicharWeightedTupleGroups;
+  uint64_t mercEicharWeightedAffectedTupleGroups;
+  uint64_t mercEicharWeightedValidBasisGroups;
+  uint64_t mercEicharWeightedInvalidBasisGroups;
+  uint64_t mercEicharWeightedAffectedDraws;
+  uint64_t mercEicharWeightedAffectedEffects;
+  uint64_t mercEicharWeightedProfileTupleMismatches;
+  uint64_t mercEicharWeightedProfileCapacityDrops;
+  double mercEicharWeightedMaximumAxisRatio;
+  double mercEicharWeightedMinimumNormalizedAbsDeterminant;
+  uint8_t mercEicharWeightedCoverage;
+  uint64_t mercEicharPackets;
+  uint64_t mercEicharUniqueSourceBases;
+  uint64_t mercEicharRepeatedPackets;
+  uint64_t mercEicharRepeatedPacketsSamePalette;
+  uint64_t mercEicharRepeatedPacketsConflictingPalette;
+  uint64_t mercEicharActualBaseDraws;
+  uint64_t mercEicharUniqueBaseDraws;
+  uint64_t mercEicharRepeatedBaseDraws;
+  uint64_t mercEicharRepeatedBaseDrawsSamePalette;
+  uint64_t mercEicharRepeatedBaseDrawsConflictingPalette;
+  uint64_t mercEicharTraceCapacityDrops;
+  uint64_t mercEicharBoundPaletteHashMismatches;
+  uint64_t mercEicharWeightedSkinEvidenceTotal;
+  uint8_t mercEicharWeightedIssueMask;
+  uint64_t lastMercEicharWeightedSkinEngineFrameID;
+  uint64_t lastMercEicharWeightedSkinHostTickID;
+  uint64_t lastMercEicharWeightedSkinChainOrdinal;
 } GOALPadRendererStats;
 
 /// The one presentation surface. The app's Metal view owns the layer and hands it here; the native
@@ -670,6 +761,8 @@ typedef struct GOALPadRendererStats {
 @property(nonatomic, readonly, getter=isRendererLinked) BOOL rendererLinked;
 
 @property(nonatomic, readonly) GOALPadRendererStats stats;
+@property(nonatomic, readonly) GOALPadCameraCorrectionTailInfo cameraCorrectionTailInfo;
+@property(nonatomic, readonly) GOALPadCameraCorrectionTailSnapshot *cameraCorrectionTailSnapshot;
 @property(nonatomic, readonly) GOALPadTargetControlTelemetry targetControlTelemetry;
 /// The levels the game last asked for, and every level whose art has been read, joined with '+'.
 @property(nonatomic, readonly) NSString *levelsWanted;

@@ -278,6 +278,18 @@ static GOALPadCameraCorrectionFrame makeCameraCorrectionFrame(
   GOALPadCameraCorrectionFrame out = {};
   out.valid = core.valid;
   out.engineFrameID = core.engine_frame_id;
+  out.mathCameraObjectOffset = core.math_camera_object_offset;
+  out.mathCameraTypeOffset = core.math_camera_type_offset;
+  out.masterObjectOffset = core.master_object_offset;
+  out.masterTypeOffset = core.master_type_offset;
+  out.combinerObjectOffset = core.combiner_object_offset;
+  out.combinerTypeOffset = core.combiner_type_offset;
+  out.slave0PpointerOffset = core.slave_ppointer_offsets[0];
+  out.slave0ObjectOffset = core.slave_object_offsets[0];
+  out.slave0TypeOffset = core.slave_type_offsets[0];
+  out.slave1PpointerOffset = core.slave_ppointer_offsets[1];
+  out.slave1ObjectOffset = core.slave_object_offsets[1];
+  out.slave1TypeOffset = core.slave_type_offsets[1];
   out.displayTimeRatio = core.display_time_ratio;
   out.numSlaves = core.num_slaves;
   out.beingAttacked = core.being_attacked;
@@ -306,6 +318,56 @@ static GOALPadCameraCorrectionEvent makeCameraCorrectionEvent(
   out.current = makeCameraCorrectionFrame(core.current);
   return out;
 }
+
+static GOALPadCameraCorrectionTailInfo makeCameraCorrectionTailInfo(
+    const goalpad::camera_correction_trace::Tail &core) {
+  return {core.valid, core.complete, (uint32_t)core.count,
+          core.trigger_engine_frame_id, core.trigger_orientation_degrees};
+}
+
+static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
+    const goalpad::camera_correction_trace::TailFrame &core) {
+  GOALPadCameraCorrectionTailFrame out = {};
+  out.valid = core.camera.valid;
+  out.hostTickID = core.host_tick_id;
+  out.chainOrdinal = core.chain_ordinal;
+  out.renderCameraFingerprint = core.render_camera_fingerprint;
+  out.camera = makeCameraCorrectionFrame(core.camera);
+  return out;
+}
+
+@interface GOALPadCameraCorrectionTailSnapshot (NativeTail)
+- (instancetype)initWithNativeTail:(const goalpad::camera_correction_trace::Tail *)tail;
+@end
+
+@implementation GOALPadCameraCorrectionTailSnapshot
+
+- (instancetype)initWithNativeTail:(const goalpad::camera_correction_trace::Tail *)tail {
+  self = [super init];
+  if (self) {
+    _nativeTail = new goalpad::camera_correction_trace::Tail(*tail);
+  }
+  return self;
+}
+
+- (void)dealloc {
+  delete static_cast<goalpad::camera_correction_trace::Tail *>(_nativeTail);
+}
+
+- (GOALPadCameraCorrectionTailInfo)info {
+  const auto *tail = static_cast<const goalpad::camera_correction_trace::Tail *>(_nativeTail);
+  return tail ? makeCameraCorrectionTailInfo(*tail) : GOALPadCameraCorrectionTailInfo{};
+}
+
+- (GOALPadCameraCorrectionTailFrame)frameAtIndex:(uint32_t)index {
+  const auto *tail = static_cast<const goalpad::camera_correction_trace::Tail *>(_nativeTail);
+  if (!tail || index >= tail->count) {
+    return {};
+  }
+  return makeCameraCorrectionTailFrame(tail->frames[index]);
+}
+
+@end
 
 @interface GOALPadRenderSurface ()
 @property(nonatomic, readwrite) NSString *lastError;
@@ -397,6 +459,21 @@ static GOALPadCameraCorrectionEvent makeCameraCorrectionEvent(
                                 core.late_present_submissions, core.last_host_tick_id,
                                 core.last_chain_ordinal, core.last_engine_frame_id,
                                 core.last_camera_fingerprint, (int32_t)core.last_camera_packets,
+                                core.render_camera_alternations,
+                                core.last_render_camera_alternation_older_frame_id,
+                                core.last_render_camera_alternation_previous_frame_id,
+                                core.last_render_camera_alternation_current_frame_id,
+                                core.last_render_camera_alternation_older_fingerprint,
+                                core.last_render_camera_alternation_previous_fingerprint,
+                                core.last_render_camera_alternation_current_fingerprint,
+                                core.last_render_camera_alternation_host_tick_id,
+                                core.last_render_camera_alternation_chain_ordinal,
+                                core.last_render_camera_alternation_packet_fingerprint,
+                                core.last_render_camera_alternation_live_mismatch_qwords,
+                                core.last_render_camera_alternation_packet_mismatch_qwords,
+                                core.last_render_camera_older_to_previous_distance,
+                                core.last_render_camera_previous_to_current_distance,
+                                core.last_render_camera_older_to_current_distance,
                                 core.producer_camera_alternations,
                                 core.last_camera_alternation_older_frame_id,
                                 core.last_camera_alternation_previous_frame_id,
@@ -506,8 +583,53 @@ static GOALPadCameraCorrectionEvent makeCameraCorrectionEvent(
                                     core.last_merc_eichar_target_control_event),
                                 core.jak1_tie_envmap_second_pass_enabled,
                                 (int32_t)core.tie_envmap_second_pass_draws,
-                                core.tie_envmap_second_pass_draws_total};
+                                core.tie_envmap_second_pass_draws_total,
+                                core.merc_eichar_weighted_profiled_base_draws,
+                                core.merc_eichar_weighted_profiled_vertices,
+                                core.merc_eichar_weighted_multi_bone_vertices,
+                                core.merc_eichar_weighted_affected_vertices,
+                                core.merc_eichar_weighted_static_multi_bone_vertices,
+                                core.merc_eichar_weighted_static_affected_vertices,
+                                core.merc_eichar_weighted_modified_multi_bone_vertices,
+                                core.merc_eichar_weighted_modified_affected_vertices,
+                                core.merc_eichar_weighted_tuple_groups,
+                                core.merc_eichar_weighted_affected_tuple_groups,
+                                core.merc_eichar_weighted_valid_basis_groups,
+                                core.merc_eichar_weighted_invalid_basis_groups,
+                                core.merc_eichar_weighted_affected_draws,
+                                core.merc_eichar_weighted_affected_effects,
+                                core.merc_eichar_weighted_profile_tuple_mismatches,
+                                core.merc_eichar_weighted_profile_capacity_drops,
+                                core.merc_eichar_weighted_maximum_axis_ratio,
+                                core.merc_eichar_weighted_minimum_normalized_abs_determinant,
+                                core.merc_eichar_weighted_coverage,
+                                core.merc_eichar_packets,
+                                core.merc_eichar_unique_source_bases,
+                                core.merc_eichar_repeated_packets,
+                                core.merc_eichar_repeated_packets_same_palette,
+                                core.merc_eichar_repeated_packets_conflicting_palette,
+                                core.merc_eichar_actual_base_draws,
+                                core.merc_eichar_unique_base_draws,
+                                core.merc_eichar_repeated_base_draws,
+                                core.merc_eichar_repeated_base_draws_same_palette,
+                                core.merc_eichar_repeated_base_draws_conflicting_palette,
+                                core.merc_eichar_trace_capacity_drops,
+                                core.merc_eichar_bound_palette_hash_mismatches,
+                                core.merc_eichar_weighted_skin_evidence_total,
+                                core.merc_eichar_weighted_issue_mask,
+                                core.last_merc_eichar_weighted_skin_engine_frame_id,
+                                core.last_merc_eichar_weighted_skin_host_tick_id,
+                                core.last_merc_eichar_weighted_skin_chain_ordinal};
   return stats;
+}
+
+- (GOALPadCameraCorrectionTailInfo)cameraCorrectionTailInfo {
+  return makeCameraCorrectionTailInfo(goalpad::metal_host_camera_correction_tail());
+}
+
+- (GOALPadCameraCorrectionTailSnapshot *)cameraCorrectionTailSnapshot {
+  const auto &tail = goalpad::metal_host_camera_correction_tail();
+  return [[GOALPadCameraCorrectionTailSnapshot alloc] initWithNativeTail:&tail];
 }
 
 - (GOALPadTargetControlTelemetry)targetControlTelemetry {
