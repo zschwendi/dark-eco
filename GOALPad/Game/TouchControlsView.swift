@@ -4,7 +4,7 @@ import SwiftUI
 import UIKit
 #endif
 
-/// A stationary movement stick, compact C-stick, and explicit roll control over the game surface.
+/// A dynamic movement stick, bottom-right R stick, and swipe gestures over the game surface.
 struct TouchControlsView: View {
     let controls: TouchControls
     /// Physical-controller activity hides the artwork until the screen is touched again.
@@ -12,7 +12,6 @@ struct TouchControlsView: View {
 
     fileprivate static let space = "GOALPadTouchControls"
     private static let pillWidth: CGFloat = 82
-    fileprivate static let rollWidth: CGFloat = 112
 
     private var isVisible: Bool {
         controls.isEngaged && (!isSuppressed || !controls.touches.isEmpty)
@@ -36,32 +35,28 @@ struct TouchControlsView: View {
     }
 
     private func artwork(in size: CGSize) -> some View {
-        let edge = max(28, min(size.width, size.height) * 0.1)
-        let movementWidth = TouchControls.movementRadius * 2
-        let actionWidth = Self.pillWidth * 2 + TouchControls.rightStickRadius * 2
-            + Self.rollWidth
-        let roomForSpacing = size.width - edge * 3 - movementWidth - actionWidth
-        let spacing = min(size.width * 0.1, max(44, roomForSpacing / 3))
+        let edge = max(28, min(size.width, size.height) * 0.06)
 
         return ZStack {
-            ForEach(controls.gestures) { gesture in
-                GestureRose(gesture: gesture, tapButton: controls.repeatButton)
+            if let stick = controls.stick {
+                MovementStickArtwork(touch: stick)
             }
 
-            MovementStickControl(controls: controls)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                .padding(.leading, edge)
-                .padding(.bottom, edge)
+            ForEach(controls.gestures) { gesture in
+                GestureRose(gesture: gesture)
+            }
 
-            HStack(spacing: spacing) {
+            HStack(spacing: 20) {
                 pill(.select)
                 pill(.start)
-                RightStickControl(controls: controls)
-                RollControl(controls: controls)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-            .padding(.trailing, edge)
-            .padding(.bottom, edge)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .padding(.bottom, 30)
+
+            RightStickControl(controls: controls)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                .padding(.trailing, edge)
+                .padding(.bottom, edge)
         }
     }
 
@@ -85,36 +80,35 @@ struct TouchControlsView: View {
 /// Face-button gestures remain available in open space without producing camera axes.
 private struct GestureRose: View {
     let gesture: TouchControls.Tracked
-    let tapButton: TouchButton
 
     private static let reach = TouchControls.swipeDistance + 24
 
     var body: some View {
         ZStack {
-            chip(tapButton, size: 40, isLit: gesture.swiped == nil)
-                .position(gesture.origin)
-            chip(.cross, size: 46, isLit: gesture.swiped == .cross)
+            chip(.cross, isLit: gesture.swiped == .cross || gesture.jumpTriggered)
                 .position(x: gesture.origin.x, y: gesture.origin.y - Self.reach)
-            chip(.square, size: 46, isLit: gesture.swiped == .square)
+            chip(.square, isLit: gesture.swiped == .square)
                 .position(x: gesture.origin.x - Self.reach, y: gesture.origin.y)
-            chip(.circle, size: 46, isLit: gesture.swiped == .circle)
+            chip(.circle, isLit: gesture.swiped == .circle)
                 .position(x: gesture.origin.x + Self.reach, y: gesture.origin.y)
+            chip(.crouch, isLit: gesture.swiped == .crouch)
+                .position(x: gesture.origin.x, y: gesture.origin.y + Self.reach)
         }
     }
 
-    private func chip(_ button: TouchButton, size: CGFloat, isLit: Bool) -> some View {
+    private func chip(_ button: TouchButton, isLit: Bool) -> some View {
         Text(button.glyph)
-            .font(.system(size: size * 0.44, weight: .medium, design: .rounded))
+            .font(.system(size: 20, weight: .medium, design: .rounded))
             .foregroundStyle(.white.opacity(isLit ? 1 : 0.7))
-            .frame(width: size, height: size)
+            .frame(width: 46, height: 46)
             .background(Circle().fill(.black.opacity(isLit ? 0.7 : 0.3)))
             .overlay(Circle().strokeBorder(.white.opacity(isLit ? 0.9 : 0.3), lineWidth: 1.5))
     }
 }
 
-private struct MovementStickControl: View {
-    let controls: TouchControls
-
+/// The movement ring appears under the first finger that lands on the left half.
+private struct MovementStickArtwork: View {
+    let touch: TouchControls.Tracked
     private let knobSize: CGFloat = 66
 
     var body: some View {
@@ -130,15 +124,10 @@ private struct MovementStickControl: View {
         }
         .frame(width: TouchControls.movementRadius * 2,
                height: TouchControls.movementRadius * 2)
-        .onGeometryChange(for: CGRect.self) { proxy in
-            proxy.frame(in: .named(TouchControlsView.space)).insetBy(dx: -18, dy: -18)
-        } action: {
-            controls.setMovementFrame($0)
-        }
+        .position(touch.origin)
     }
 
     private var knobOffset: CGSize {
-        guard let touch = controls.stick else { return .zero }
         let push = TouchControls.movementDeflection(from: touch.origin, to: touch.point)
         let travel = TouchControls.movementRadius - knobSize / 2
         return CGSize(width: push.x * travel, height: push.y * travel)
@@ -160,7 +149,7 @@ private struct RightStickControl: View {
                 .overlay(Circle().strokeBorder(.white.opacity(0.8), lineWidth: 1))
                 .frame(width: knobSize, height: knobSize)
                 .overlay {
-                    Text("C")
+                    Text("R")
                         .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundStyle(.black.opacity(0.72))
                 }
@@ -180,36 +169,6 @@ private struct RightStickControl: View {
         let push = TouchControls.rightStickDeflection(from: touch.origin, to: touch.point)
         let travel = TouchControls.rightStickRadius - knobSize / 2
         return CGSize(width: push.x * travel, height: push.y * travel)
-    }
-}
-
-private struct RollControl: View {
-    let controls: TouchControls
-
-    var body: some View {
-        VStack(spacing: 2) {
-            Text("ROLL")
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .tracking(1.2)
-            Text("↑ JUMP")
-                .font(.system(size: 9, weight: .semibold, design: .rounded))
-                .tracking(0.8)
-        }
-        .foregroundStyle(.white.opacity(controls.isRollDown ? 1 : 0.82))
-        .frame(width: TouchControlsView.rollWidth, height: 64)
-        .background {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.black.opacity(controls.isRollDown ? 0.74 : 0.44))
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(.white.opacity(controls.isRollDown ? 0.92 : 0.38), lineWidth: 1.5)
-        }
-        .onGeometryChange(for: CGRect.self) { proxy in
-            proxy.frame(in: .named(TouchControlsView.space)).insetBy(dx: -10, dy: -12)
-        } action: {
-            controls.setRollFrame($0)
-        }
     }
 }
 

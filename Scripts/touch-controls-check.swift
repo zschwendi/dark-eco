@@ -23,22 +23,18 @@ private func check(_ condition: Bool, _ what: String) {
 @MainActor
 private struct Runner {
     static let screen = CGSize(width: 1210, height: 834)
-    static let movement = CGRect(x: 82, y: 578, width: 216, height: 216)
-    static let select = CGRect(x: 410, y: 690, width: 102, height: 66)
+    static let select = CGRect(x: 500, y: 690, width: 102, height: 66)
     static let start = CGRect(x: 610, y: 690, width: 102, height: 66)
-    static let rightStick = CGRect(x: 790, y: 668, width: 108, height: 108)
-    static let roll = CGRect(x: 1010, y: 666, width: 132, height: 88)
+    static let rightStick = CGRect(x: 1040, y: 668, width: 108, height: 108)
 
     let controls: TouchControls
     var clock: TimeInterval = 0
 
     init() {
         controls = TouchControls()
-        controls.setMovementFrame(Self.movement)
         controls.setPillFrame(.select, Self.select)
         controls.setPillFrame(.start, Self.start)
         controls.setRightStickFrame(Self.rightStick)
-        controls.setRollFrame(Self.roll)
     }
 
     mutating func frame() -> TouchPadState {
@@ -66,15 +62,15 @@ private struct Runner {
 private let neutral = UInt8(GOALPadAnalogNeutral)
 
 @MainActor
-private func movementOriginIsStationary() {
-    print("the movement stick has one stationary centre")
+private func movementOriginFollowsFirstTouch() {
+    print("the movement stick appears where the first left-side finger lands")
     var run = Runner()
-    let centre = CGPoint(x: Runner.movement.midX, y: Runner.movement.midY)
+    let centre = CGPoint(x: 180, y: 650)
     let thumb = Finger()
     run.down(thumb, centre)
 
-    check(run.controls.stick?.origin == centre, "the touch uses the laid-out centre, not its own")
-    check(run.frame().leftX == neutral, "the centre is neutral")
+    check(run.controls.stick?.origin == centre, "the landing point becomes the stick centre")
+    check(run.frame().leftX == neutral, "a new dynamic stick starts neutral")
 
     run.move(thumb, CGPoint(x: centre.x + TouchControls.movementRadius, y: centre.y))
     var state = run.frame()
@@ -94,23 +90,26 @@ private func movementOriginIsStationary() {
     run.up(thumb)
     check(run.frame().leftX == neutral, "lifting immediately centres movement")
 
-    let offCentre = Finger()
-    run.down(offCentre, CGPoint(x: centre.x + 30, y: centre.y))
-    check(run.controls.stick?.origin == centre, "a new landing point does not relocate the base")
-    check(run.frame().leftX > neutral, "an off-centre landing deflects from the fixed base")
+    let newCentre = CGPoint(x: 360, y: 430)
+    let relocated = Finger()
+    run.down(relocated, newCentre)
+    check(run.controls.stick?.origin == newCentre, "the next landing point relocates the base")
+    check(run.frame().leftX == neutral, "the relocated stick also starts neutral")
 }
 
 @MainActor
 private func freeCameraSwipeIsGone() {
-    print("dragging outside the explicit controls cannot move the camera")
+    print("the restored left-side movement zone never emits camera input")
     var run = Runner()
     let oldCameraArea = Finger()
     run.down(oldCameraArea, CGPoint(x: 220, y: 420))
     run.move(oldCameraArea, CGPoint(x: 500, y: 250))
     var state = run.frame()
-    check(run.controls.touches.isEmpty, "the old above-stick camera area tracks no touch")
+    check(run.controls.stick?.origin == CGPoint(x: 220, y: 420),
+          "a first touch anywhere on the left places movement there")
+    check(state.isLeftDeflected, "that drag drives movement")
     check(state.rightX == neutral && state.rightY == neutral,
-          "the old camera drag leaves the right stick centred")
+          "a left-side drag leaves the right stick centred")
 
     let faceGesture = Finger()
     run.down(faceGesture, CGPoint(x: 900, y: 360))
@@ -121,8 +120,8 @@ private func freeCameraSwipeIsGone() {
 }
 
 @MainActor
-private func faceButtonGesturesRemain() {
-    print("open-screen gestures retain the three face buttons and tap repeat")
+private func faceButtonGesturesAndNoTap() {
+    print("open-screen gestures retain three face buttons while taps do nothing")
     for (dx, dy, expected, name) in [(CGFloat(0), CGFloat(-70), GOALPadButton.cross, "up"),
                                      (-70, 0, .square, "left"),
                                      (70, 0, .circle, "right")] {
@@ -135,67 +134,72 @@ private func faceButtonGesturesRemain() {
               "swipe \(name) maps to its original face button")
     }
 
-    var repeatRun = Runner()
+    var tapRun = Runner()
     let swipe = Finger()
-    repeatRun.down(swipe, CGPoint(x: 900, y: 360))
-    repeatRun.move(swipe, CGPoint(x: 830, y: 360))
-    repeatRun.up(swipe)
-    _ = repeatRun.frames(TouchControls.holdFrames + TouchControls.releaseFrames)
+    tapRun.down(swipe, CGPoint(x: 900, y: 360))
+    tapRun.move(swipe, CGPoint(x: 830, y: 360))
+    tapRun.up(swipe)
+    _ = tapRun.frames(TouchControls.holdFrames + TouchControls.releaseFrames)
 
     let tap = Finger()
-    repeatRun.down(tap, CGPoint(x: 900, y: 360))
-    repeatRun.up(tap)
-    check(repeatRun.frames(3).allSatisfy { $0.buttons.contains(.square) },
-          "a tap repeats the last face-button swipe")
+    tapRun.down(tap, CGPoint(x: 900, y: 360))
+    tapRun.up(tap)
+    check(tapRun.frames(TouchControls.holdFrames).allSatisfy { $0.buttons.isEmpty },
+          "a tap does not repeat Cross or any previous swipe")
 }
 
 @MainActor
-private func rightStickIsAnOctantControl() {
-    print("the small right stick has a deadzone and snaps to octants")
+private func rightStickIsFullyAnalog() {
+    print("the bottom-right R stick is continuous rather than snapped")
     var run = Runner()
     let centre = CGPoint(x: Runner.rightStick.midX, y: Runner.rightStick.midY)
     let thumb = Finger()
     run.down(thumb, centre)
-    check(run.frame().rightX == neutral, "the C-stick centre is neutral")
+    check(run.frame().rightX == neutral, "the R-stick centre is neutral")
 
     run.move(thumb, CGPoint(x: centre.x + TouchControls.rightStickDeadzone, y: centre.y))
     var state = run.frame()
     check(!state.isRightDeflected, "travel through the deadzone stays neutral")
 
     run.move(thumb, CGPoint(x: centre.x + 20, y: centre.y))
+    let partial = run.frame()
+    check(partial.rightX > neutral && partial.rightX < 254 && partial.rightY == neutral,
+          "a partial horizontal drag stays partially deflected")
+
+    run.move(thumb, CGPoint(x: centre.x + 30, y: centre.y - 10))
+    state = run.frame()
+    check(state.rightX > partial.rightX && state.rightX < 254,
+          "more travel produces more horizontal output")
+    check(state.rightY < neutral && state.rightY > 0,
+          "an off-octant diagonal preserves its continuous vertical component")
+
+    run.move(thumb, CGPoint(x: centre.x + TouchControls.rightStickRadius, y: centre.y))
     state = run.frame()
     check(state.rightX == 254 && state.rightY == neutral,
-          "crossing the deadzone snaps to hard right")
-
-    run.move(thumb, CGPoint(x: centre.x + 30, y: centre.y - 30))
-    state = run.frame()
-    check(state.rightX == 217 && state.rightY == 37,
-          "a diagonal snaps to the fixed up-right octant")
-
-    run.move(thumb, CGPoint(x: centre.x + 30, y: centre.y + 10))
-    state = run.frame()
-    check(state.rightX == 254 && state.rightY == neutral,
-          "small angle changes do not become one-to-one displacement")
+          "one full radius reaches hard right")
 
     run.up(thumb)
     state = run.frame()
     check(state.rightX == neutral && state.rightY == neutral,
-          "releasing immediately centres the C-stick")
+          "releasing immediately centres the R stick")
 }
 
 @MainActor
-private func heldRollCanAddAJump() {
-    print("roll is held while an upward drag adds one jump press")
+private func downwardSwipeCanRollJump() {
+    print("a downward swipe holds crouch and reversing upward adds one jump")
     var run = Runner()
-    let centre = CGPoint(x: Runner.roll.midX, y: Runner.roll.midY)
+    let centre = CGPoint(x: 900, y: 360)
     let finger = Finger()
     run.down(finger, centre)
+    run.move(finger, CGPoint(x: centre.x, y: centre.y + TouchControls.swipeDistance + 8))
 
     let crouching = run.frames(20)
-    check(crouching.allSatisfy { $0.buttons.contains(.L1) }, "press and hold keeps L1 down")
-    check(crouching.allSatisfy { !$0.buttons.contains(.cross) }, "holding alone does not jump")
+    check(crouching.allSatisfy { $0.buttons.contains(.L1) }, "swipe down and hold keeps L1 down")
+    check(crouching.allSatisfy { !$0.buttons.contains(.cross) }, "holding down alone does not jump")
 
-    run.move(finger, CGPoint(x: centre.x, y: centre.y - TouchControls.rollJumpDistance - 8))
+    let crouchPeak = centre.y + TouchControls.swipeDistance + 24
+    run.move(finger, CGPoint(x: centre.x, y: crouchPeak))
+    run.move(finger, CGPoint(x: centre.x, y: crouchPeak - TouchControls.rollJumpDistance - 8))
     let jumping = run.frames(TouchControls.holdFrames)
     check(jumping.allSatisfy { $0.buttons.contains(.L1) },
           "crouch remains held throughout the jump edge")
@@ -217,25 +221,27 @@ private func heldRollCanAddAJump() {
 
 @MainActor
 private func controlsWorkTogether() {
-    print("movement, look, and roll jump can share one frame")
+    print("movement, look, and swipe roll-jump can share one frame")
     var run = Runner()
     let movement = Finger()
     let look = Finger()
-    let roll = Finger()
-    let movementCentre = CGPoint(x: Runner.movement.midX, y: Runner.movement.midY)
+    let action = Finger()
+    let movementCentre = CGPoint(x: 180, y: 650)
     let lookCentre = CGPoint(x: Runner.rightStick.midX, y: Runner.rightStick.midY)
-    let rollCentre = CGPoint(x: Runner.roll.midX, y: Runner.roll.midY)
+    let actionCentre = CGPoint(x: 900, y: 360)
 
     run.down(movement, movementCentre)
     run.move(movement, CGPoint(x: movementCentre.x + 90, y: movementCentre.y))
     run.down(look, lookCentre)
-    run.move(look, CGPoint(x: lookCentre.x, y: lookCentre.y - 30))
-    run.down(roll, rollCentre)
-    run.move(roll, CGPoint(x: rollCentre.x, y: rollCentre.y - 60))
+    run.move(look, CGPoint(x: lookCentre.x,
+                           y: lookCentre.y - TouchControls.rightStickRadius))
+    run.down(action, actionCentre)
+    run.move(action, CGPoint(x: actionCentre.x, y: actionCentre.y + 70))
+    run.move(action, CGPoint(x: actionCentre.x, y: actionCentre.y + 20))
 
     let state = run.frame()
     check(state.leftX == 254 && state.rightY == 0,
-          "movement and the C-stick both reach the controller seam")
+          "movement and the R stick both reach the controller seam")
     check(state.buttons.contains(.L1) && state.buttons.contains(.cross),
           "roll and its jump edge are present in that same frame")
 }
@@ -245,7 +251,7 @@ private func movementAlsoStepsTheDpad() {
     print("strong movement still steps the D-pad for menus")
     var run = Runner()
     let thumb = Finger()
-    let centre = CGPoint(x: Runner.movement.midX, y: Runner.movement.midY)
+    let centre = CGPoint(x: 180, y: 650)
     run.down(thumb, centre)
     run.move(thumb, CGPoint(x: centre.x + 0.6 * TouchControls.movementRadius, y: centre.y))
 
@@ -294,7 +300,7 @@ private func visibilityFollowsRecognisedTouch() {
     let run = Runner()
     check(!run.controls.isEngaged, "artwork starts hidden")
     let finger = Finger()
-    run.down(finger, CGPoint(x: Runner.movement.midX, y: Runner.movement.midY))
+    run.down(finger, CGPoint(x: 180, y: 650))
     check(run.controls.isEngaged, "touching a control shows the artwork")
 }
 
@@ -304,38 +310,38 @@ private func resetClearsInterruptedInput() {
     var run = Runner()
     let movement = Finger()
     let look = Finger()
-    let roll = Finger()
-    let movementCentre = CGPoint(x: Runner.movement.midX, y: Runner.movement.midY)
+    let action = Finger()
+    let movementCentre = CGPoint(x: 180, y: 650)
     let lookCentre = CGPoint(x: Runner.rightStick.midX, y: Runner.rightStick.midY)
-    let rollCentre = CGPoint(x: Runner.roll.midX, y: Runner.roll.midY)
+    let actionCentre = CGPoint(x: 900, y: 360)
 
     run.down(movement, movementCentre)
     run.move(movement, CGPoint(x: movementCentre.x + 90, y: movementCentre.y))
     run.down(look, lookCentre)
     run.move(look, CGPoint(x: lookCentre.x + 30, y: lookCentre.y))
-    run.down(roll, rollCentre)
-    run.move(roll, CGPoint(x: rollCentre.x, y: rollCentre.y - 60))
+    run.down(action, actionCentre)
+    run.move(action, CGPoint(x: actionCentre.x, y: actionCentre.y + 60))
+    run.move(action, CGPoint(x: actionCentre.x, y: actionCentre.y + 10))
     _ = run.frame()
 
     run.controls.reset()
     let state = run.frame()
     check(state.buttons.isEmpty, "no held or queued button survives reset")
     check(!state.isLeftDeflected, "movement is centred")
-    check(!state.isRightDeflected, "the C-stick is centred")
+    check(!state.isRightDeflected, "the R stick is centred")
     check(run.controls.touches.isEmpty, "all tracked fingers are discarded")
     check(!run.controls.isEngaged, "the artwork is hidden")
-    check(run.controls.repeatButton == .cross, "face-button tap repeat resets to Cross")
 }
 
 @main
 @MainActor
 struct TouchControlsCheck {
     static func main() {
-        movementOriginIsStationary()
+        movementOriginFollowsFirstTouch()
         freeCameraSwipeIsGone()
-        faceButtonGesturesRemain()
-        rightStickIsAnOctantControl()
-        heldRollCanAddAJump()
+        faceButtonGesturesAndNoTap()
+        rightStickIsFullyAnalog()
+        downwardSwipeCanRollJump()
         controlsWorkTogether()
         movementAlsoStepsTheDpad()
         pillsRemainExplicitControls()
