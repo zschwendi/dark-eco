@@ -492,7 +492,7 @@ typedef struct GOALPadTargetPostFlagObservation {
   uint64_t hostTickID;
   uint64_t chainOrdinal;
   uint64_t engineFrameID;
-  uint64_t producerSerial;
+  uint64_t sampleSerial;
   uint32_t targetAddress;
   uint32_t rawDrawStatus;
   uint64_t targetAttackID;
@@ -510,6 +510,8 @@ typedef struct GOALPadTargetControlTelemetry {
   uint64_t postFlagSamplesTotal;
   uint64_t hiddenSamplesTotal;
   uint64_t hiddenTransitionsTotal;
+  uint64_t postFlagSerialGapsTotal;
+  uint64_t unframedPostFlagSamplesTotal;
   GOALPadTargetPostFlagObservation lastPostFlagSample;
   GOALPadTargetPostFlagObservation lastHiddenPostFlagSample;
 } GOALPadTargetControlTelemetry;
@@ -636,6 +638,9 @@ typedef struct GOALPadRendererStats {
   uint64_t mercEicharTargetControlAttackBoundariesTotal;
   GOALPadTargetControlEvent firstMercEicharTargetControlEvent;
   GOALPadTargetControlEvent lastMercEicharTargetControlEvent;
+  BOOL jak1TieEnvmapSecondPassEnabled;
+  int32_t tieEnvmapSecondPassDraws;
+  uint64_t tieEnvmapSecondPassDrawsTotal;
 } GOALPadRendererStats;
 
 /// The one presentation surface. The app's Metal view owns the layer and hands it here; the native

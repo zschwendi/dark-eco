@@ -177,7 +177,7 @@ static GOALPadTargetPostFlagObservation makeTargetPostFlagObservation(
           core.host_tick_id,
           core.chain_ordinal,
           core.engine_frame_id,
-          core.producer_serial,
+          core.sample_serial,
           core.target_address,
           core.raw_draw_status,
           core.target_attack_id,
@@ -234,6 +234,8 @@ static GOALPadTargetControlTelemetry makeTargetControlTelemetry(
           core.post_flag_samples_total,
           core.hidden_samples_total,
           core.hidden_transitions_total,
+          core.post_flag_serial_gaps_total,
+          core.unframed_post_flag_samples_total,
           makeTargetPostFlagObservation(core.last_post_flag_sample),
           makeTargetPostFlagObservation(core.last_hidden_post_flag_sample)};
 }
@@ -501,7 +503,10 @@ static GOALPadCameraCorrectionEvent makeCameraCorrectionEvent(
                                 makeTargetControlEvent(
                                     core.first_merc_eichar_target_control_event),
                                 makeTargetControlEvent(
-                                    core.last_merc_eichar_target_control_event)};
+                                    core.last_merc_eichar_target_control_event),
+                                core.jak1_tie_envmap_second_pass_enabled,
+                                (int32_t)core.tie_envmap_second_pass_draws,
+                                core.tie_envmap_second_pass_draws_total};
   return stats;
 }
 

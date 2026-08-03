@@ -71,6 +71,8 @@ final class GameSession {
     private var lastAttemptedMercTransformDiscontinuitiesTotal: UInt64 = 0
     private var lastPersistedMercTargetControlEventsTotal: UInt64 = 0
     private var lastAttemptedMercTargetControlEventsTotal: UInt64 = 0
+    private var lastPersistedTargetHiddenTransitionsTotal: UInt64 = 0
+    private var lastAttemptedTargetHiddenTransitionsTotal: UInt64 = 0
     private var reportedCameraDiagnosticsWriteFailure = false
     #endif
 
@@ -309,6 +311,8 @@ final class GameSession {
         lastAttemptedMercTransformDiscontinuitiesTotal = 0
         lastPersistedMercTargetControlEventsTotal = 0
         lastAttemptedMercTargetControlEventsTotal = 0
+        lastPersistedTargetHiddenTransitionsTotal = 0
+        lastAttemptedTargetHiddenTransitionsTotal = 0
         reportedCameraDiagnosticsWriteFailure = false
 
         guard let caches = FileManager.default.urls(for: .cachesDirectory,
@@ -334,6 +338,7 @@ final class GameSession {
                 renderer.mercEicharTransformDiscontinuitiesTotal
             lastAttemptedMercTargetControlEventsTotal =
                 renderer.mercEicharTargetControlEventsTotal
+            lastAttemptedTargetHiddenTransitionsTotal = targetControl.hiddenTransitionsTotal
             try writeCameraDiagnostics(renderer, targetControl: targetControl)
             lastPersistedCameraAlternations = renderer.producerCameraAlternations
             lastPersistedCameraCorrectionEvents = renderer.cameraCorrectionEventsTotal
@@ -345,6 +350,7 @@ final class GameSession {
                 renderer.mercEicharTransformDiscontinuitiesTotal
             lastPersistedMercTargetControlEventsTotal =
                 renderer.mercEicharTargetControlEventsTotal
+            lastPersistedTargetHiddenTransitionsTotal = targetControl.hiddenTransitionsTotal
         } catch {
             reportCameraDiagnosticsWriteFailure()
         }
@@ -384,6 +390,10 @@ final class GameSession {
             > lastPersistedMercTargetControlEventsTotal
         let targetControlNotAttempted = renderer.mercEicharTargetControlEventsTotal
             > lastAttemptedMercTargetControlEventsTotal
+        let hiddenTransitionNotPersisted = targetControl.hiddenTransitionsTotal
+            > lastPersistedTargetHiddenTransitionsTotal
+        let hiddenTransitionNotAttempted = targetControl.hiddenTransitionsTotal
+            > lastAttemptedTargetHiddenTransitionsTotal
         let mercCompletenessIncreased = (missingSlotsNotPersisted && missingSlotsNotAttempted)
             || (missingModelsNotPersisted && missingModelsNotAttempted)
         guard forced || periodic
@@ -392,7 +402,8 @@ final class GameSession {
                 || mercCompletenessIncreased
                 || (paletteHealthNotPersisted && paletteHealthNotAttempted)
                 || (mercTransformNotPersisted && mercTransformNotAttempted)
-                || (targetControlNotPersisted && targetControlNotAttempted) else {
+                || (targetControlNotPersisted && targetControlNotAttempted)
+                || (hiddenTransitionNotPersisted && hiddenTransitionNotAttempted) else {
             return
         }
 
@@ -406,6 +417,7 @@ final class GameSession {
             renderer.mercEicharTransformDiscontinuitiesTotal
         lastAttemptedMercTargetControlEventsTotal =
             renderer.mercEicharTargetControlEventsTotal
+        lastAttemptedTargetHiddenTransitionsTotal = targetControl.hiddenTransitionsTotal
         do {
             try writeCameraDiagnostics(renderer, targetControl: targetControl)
             lastPersistedCameraAlternations = renderer.producerCameraAlternations
@@ -418,6 +430,7 @@ final class GameSession {
                 renderer.mercEicharTransformDiscontinuitiesTotal
             lastPersistedMercTargetControlEventsTotal =
                 renderer.mercEicharTargetControlEventsTotal
+            lastPersistedTargetHiddenTransitionsTotal = targetControl.hiddenTransitionsTotal
         } catch {
             reportCameraDiagnosticsWriteFailure()
         }
@@ -736,7 +749,7 @@ final class GameSession {
                 "\(prefix)_host_tick=\(observation.hostTickID)",
                 "\(prefix)_chain=\(observation.chainOrdinal)",
                 "\(prefix)_engine_frame=\(observation.engineFrameID)",
-                "\(prefix)_producer_serial=\(observation.producerSerial)",
+                "\(prefix)_sample_serial=\(observation.sampleSerial)",
                 "\(prefix)_target=\(observation.targetAddress)",
                 "\(prefix)_raw_draw_status=\(observation.rawDrawStatus)",
                 "\(prefix)_target_attack_id=\(observation.targetAttackID)",
@@ -819,6 +832,11 @@ final class GameSession {
             "drawables_acquired=\(renderer.drawablesAcquired)",
             "drawable_misses=\(renderer.drawableMisses)",
             "late_present_submissions=\(renderer.latePresentSubmissions)",
+            "jak1_tie_envmap_second_pass_enabled="
+                + "\(renderer.jak1TieEnvmapSecondPassEnabled.boolValue ? 1 : 0)",
+            "tie_envmap_second_pass_draws=\(renderer.tieEnvmapSecondPassDraws)",
+            "tie_envmap_second_pass_draws_total="
+                + "\(renderer.tieEnvmapSecondPassDrawsTotal)",
             "producer_alternations=\(renderer.producerCameraAlternations)",
             "camera_correction_events_total=\(renderer.cameraCorrectionEventsTotal)",
             "alternation_older_frame=\(renderer.lastCameraAlternationOlderFrameID)",
@@ -987,6 +1005,10 @@ final class GameSession {
                 "target_post_flag_samples_total=\(targetControl.postFlagSamplesTotal)",
                 "target_hidden_samples_total=\(targetControl.hiddenSamplesTotal)",
                 "target_hidden_transitions_total=\(targetControl.hiddenTransitionsTotal)",
+                "target_post_flag_serial_gaps_total="
+                    + "\(targetControl.postFlagSerialGapsTotal)",
+                "target_unframed_post_flag_samples_total="
+                    + "\(targetControl.unframedPostFlagSamplesTotal)",
             ]
             + targetControlFields(
                 "first_merc_eichar_target_control",

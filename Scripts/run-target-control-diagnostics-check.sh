@@ -14,4 +14,5 @@ swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
   "$root/Scripts/target-control-diagnostics-bridge-check.swift" \
   -o "$build_dir/target-control-diagnostics-bridge-check"
 
-"$build_dir/target-control-diagnostics-bridge-check"
+"$build_dir/target-control-diagnostics-bridge-check" \
+  "$root/GOALPad/Game/GameSession.swift"

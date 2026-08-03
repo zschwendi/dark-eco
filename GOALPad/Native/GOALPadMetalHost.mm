@@ -45,6 +45,8 @@ os_log_t gfx_log() {
 
 namespace {
 
+constexpr bool kJak1TieEnvmapSecondPassEnabled = false;
+
 /*!
  * Everything the renderer owns, in one place, all of it touched from one thread at a time - the
  * boot queue while the game boots, and the main thread from the first presented frame on.
@@ -77,9 +79,7 @@ struct MetalHost {
 
   goalpad::MetalHostStats stats;
   goalpad::camera_correction_trace::EventTrace camera_correction_trace;
-  std::uint64_t last_consumed_post_flag_serial = 0;
-  bool has_previous_post_flag_hidden = false;
-  bool previous_post_flag_hidden = false;
+  goalpad::PostFlagFrameGate post_flag_gate;
 };
 MetalHost g_host;
 
@@ -396,11 +396,26 @@ goalpad::MetalHostTargetControlObservation retain_target_control_observation(
   return retained;
 }
 
-void retain_latest_target_post_flag(std::uint64_t engine_frame_id,
-                                    std::uint64_t host_tick_id,
-                                    std::uint64_t chain_ordinal) {
+void update_post_flag_counters() {
+  auto& telemetry = g_host.stats.target_control_telemetry;
+  telemetry.post_flag_samples_total = g_host.post_flag_gate.samples_total();
+  telemetry.hidden_samples_total = g_host.post_flag_gate.hidden_samples_total();
+  telemetry.hidden_transitions_total = g_host.post_flag_gate.hidden_transitions_total();
+  telemetry.post_flag_serial_gaps_total = g_host.post_flag_gate.serial_gaps_total();
+  telemetry.unframed_post_flag_samples_total =
+      g_host.post_flag_gate.unframed_samples_total();
+}
+
+void retain_current_frame_target_post_flag(std::uint64_t engine_frame_id,
+                                           std::uint64_t host_tick_id,
+                                           std::uint64_t chain_ordinal) {
   const auto sample = jak1_bones_provenance_trace::registry().latest_post_flag();
-  if (!sample || sample->serial <= g_host.last_consumed_post_flag_serial) {
+  if (!sample) {
+    return;
+  }
+  const auto decision = g_host.post_flag_gate.observe(sample->serial, sample->hidden());
+  update_post_flag_counters();
+  if (!decision.accepted) {
     return;
   }
 
@@ -416,19 +431,10 @@ void retain_latest_target_post_flag(std::uint64_t engine_frame_id,
       sample->hidden(),
   };
   auto& telemetry = g_host.stats.target_control_telemetry;
-  telemetry.post_flag_samples_total++;
   if (retained.hidden) {
-    telemetry.hidden_samples_total++;
     telemetry.last_hidden_post_flag_sample = retained;
   }
-  if (g_host.has_previous_post_flag_hidden &&
-      g_host.previous_post_flag_hidden != retained.hidden) {
-    telemetry.hidden_transitions_total++;
-  }
   telemetry.last_post_flag_sample = retained;
-  g_host.previous_post_flag_hidden = retained.hidden;
-  g_host.has_previous_post_flag_hidden = true;
-  g_host.last_consumed_post_flag_serial = sample->serial;
 }
 
 void render_chain() {
@@ -452,7 +458,8 @@ void render_chain() {
     std::copy(camera.render_camera.begin(), camera.render_camera.end(),
               opts.expected_render_camera.bytes.begin());
   }
-  retain_latest_target_post_flag(opts.engine_frame_id, opts.host_tick_id, opts.chain_ordinal);
+  retain_current_frame_target_post_flag(opts.engine_frame_id, opts.host_tick_id,
+                                        opts.chain_ordinal);
 
   const auto& chain = g_host.copier->get_last_result();
   const bool drawable_acquired = g_host.renderer->render_chain_frame(
@@ -460,6 +467,9 @@ void render_chain() {
   g_host.frame_rendered = drawable_acquired || g_host.frame_rendered;
 
   const auto stats = g_host.renderer->chain_stats();
+  const auto& background = g_host.renderer->background_state();
+  g_host.stats.tie_envmap_second_pass_draws = background.tie_envmap_second_draws;
+  g_host.stats.tie_envmap_second_pass_draws_total += background.tie_envmap_second_draws;
   const bool producer_alternation =
       stats.producer_camera_alternations > g_host.stats.producer_camera_alternations;
   const auto camera_correction_event = g_host.camera_correction_trace.observe(
@@ -741,11 +751,14 @@ namespace goalpad {
 #if GOALPAD_HAVE_GFX_SEAM
 
 bool metal_host_start(std::string* error) {
+  metal_renderer::set_jak1_tie_envmap_second_pass_enabled(
+      kJak1TieEnvmapSecondPassEnabled);
   if (g_host.running) {
+    g_host.stats.jak1_tie_envmap_second_pass_enabled =
+        kJak1TieEnvmapSecondPassEnabled;
     return true;
   }
   jak1_bones_provenance_trace::registry().reset();
-  metal_renderer::set_jak1_tie_envmap_second_pass_enabled(false);
   id<MTLDevice> device = MTLCreateSystemDefaultDevice();
   if (device == nil) {
     *error = "No Metal device is available.";
@@ -769,6 +782,8 @@ bool metal_host_start(std::string* error) {
   }
   renderer->init_bucket_renderers(g_host.texture_pool.get(), GameVersion::Jak1);
   g_host.copier = std::make_unique<FixedChunkDmaCopier>(EE_MAIN_MEM_SIZE);
+  g_host.stats.jak1_tie_envmap_second_pass_enabled =
+      kJak1TieEnvmapSecondPassEnabled;
   g_host.running = true;
   os_log(gfx_log(), "Metal renderer started on %{public}s.", [[device name] UTF8String]);
   return true;
@@ -871,6 +886,7 @@ bool metal_host_begin_frame(CAMetalLayer* layer, const MetalHostFrame& frame) {
     g_host.frame_thread = std::thread::id();
     g_host.frame_open = false;
     g_host.frame_rendered = false;
+    g_host.post_flag_gate.end_frame();
   }
 
   g_host.frame_layer = layer;
@@ -880,6 +896,9 @@ bool metal_host_begin_frame(CAMetalLayer* layer, const MetalHostFrame& frame) {
   g_host.frame_rendered = false;
   g_host.chains_in_frame = 0;
   g_host.stats.frames_armed++;
+  const auto post_flag = jak1_bones_provenance_trace::registry().latest_post_flag();
+  g_host.post_flag_gate.begin_frame(post_flag ? post_flag->serial : 0);
+  update_post_flag_counters();
   return true;
 }
 
@@ -900,6 +919,7 @@ bool metal_host_end_frame() {
   g_host.frame_open = false;
   g_host.frame_rendered = false;
   g_host.chains_in_frame = 0;
+  g_host.post_flag_gate.end_frame();
   return rendered;
 }
 
