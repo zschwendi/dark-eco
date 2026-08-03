@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -11,9 +12,15 @@ constexpr std::uint32_t kLineOfSightOption = 1u << 9;
 constexpr std::uint32_t kMovementBlockedOption = 1u << 10;
 constexpr std::uint8_t kLosTransitionReason = 1u << 0;
 constexpr std::uint8_t kProducerAlternationReason = 1u << 1;
+constexpr std::uint8_t kLargeOrientationDeltaReason = 1u << 2;
+constexpr double kLargeOrientationCosineThreshold = 0.8660254037844386;
 
 struct Vector4 {
   std::array<float, 4> values = {};
+};
+
+struct RotationAxes {
+  std::array<Vector4, 3> axes;
 };
 
 struct MasterSnapshot {
@@ -31,7 +38,10 @@ struct SlaveSnapshot {
   std::uint32_t los_state = 0;
   std::uint32_t string_velocity_direction = 0;
   float minimum_distance_override = 0.f;
+  float max_angle_offset = 0.f;
+  float max_angle_current = 0.f;
   Vector4 transform;
+  RotationAxes tracking_inverse_matrix;
   Vector4 view_flat;
   Vector4 string_transform;
   Vector4 desired_position;
@@ -45,6 +55,7 @@ struct CombinerSnapshot {
   float interpolation = 0.f;
   std::uint64_t tracking_status = 0;
   Vector4 transform;
+  RotationAxes inverse_camera_rotation;
 };
 
 struct FrameSnapshot {
@@ -91,10 +102,13 @@ constexpr std::size_t kMasterRequiredObjectBytes = kMasterAdjustedTargetPosition
 constexpr std::size_t kMasterDeclaredObjectBytes = 0x964 - kBasicObjectTypeTagBytes;
 
 constexpr std::size_t kSlaveTransformOffset = 112 - kBasicObjectTypeTagBytes;
+constexpr std::size_t kSlaveTrackingInverseMatrixOffset = 192 - kBasicObjectTypeTagBytes;
 constexpr std::size_t kSlaveMinimumDistanceOverrideOffset = 432 - kBasicObjectTypeTagBytes;
 constexpr std::size_t kSlaveViewFlatOffset = 448 - kBasicObjectTypeTagBytes;
 constexpr std::size_t kSlaveStringVelocityDirectionOffset = 464 - kBasicObjectTypeTagBytes;
 constexpr std::size_t kSlaveStringTransformOffset = 480 - kBasicObjectTypeTagBytes;
+constexpr std::size_t kSlaveMaxAngleOffsetOffset = 2192 - kBasicObjectTypeTagBytes;
+constexpr std::size_t kSlaveMaxAngleCurrentOffset = 2196 - kBasicObjectTypeTagBytes;
 constexpr std::size_t kSlaveOptionsOffset = 2200 - kBasicObjectTypeTagBytes;
 constexpr std::size_t kSlaveDesiredPositionOffset = 2224 - kBasicObjectTypeTagBytes;
 constexpr std::size_t kSlaveLosStateOffset = 2244 - kBasicObjectTypeTagBytes;
@@ -102,6 +116,8 @@ constexpr std::size_t kSlaveRequiredObjectBytes = kSlaveLosStateOffset + sizeof(
 constexpr std::size_t kSlaveDeclaredObjectBytes = 0xa04 - kBasicObjectTypeTagBytes;
 
 constexpr std::size_t kCombinerTransformOffset = 112 - kBasicObjectTypeTagBytes;
+constexpr std::size_t kCombinerInverseCameraRotationOffset =
+    128 - kBasicObjectTypeTagBytes;
 constexpr std::size_t kCombinerInterpolationOffset = 196 - kBasicObjectTypeTagBytes;
 constexpr std::size_t kCombinerTrackingStatusOffset = 256 - kBasicObjectTypeTagBytes;
 constexpr std::size_t kCombinerRequiredObjectBytes =
@@ -158,6 +174,21 @@ inline bool read_vector(const void* object,
                         std::size_t offset,
                         Vector4* out) {
   return read_value(object, object_bytes, offset, &out->values);
+}
+
+inline bool read_rotation_axes(const void* object,
+                               std::size_t object_bytes,
+                               std::size_t offset,
+                               RotationAxes* out) {
+  if (!out) {
+    return false;
+  }
+  for (std::size_t axis = 0; axis < out->axes.size(); ++axis) {
+    if (!read_vector(object, object_bytes, offset + axis * 16, &out->axes[axis])) {
+      return false;
+    }
+  }
+  return true;
 }
 
 inline bool is_expected_type_or_descendant(const std::uint8_t* memory,
@@ -319,6 +350,9 @@ inline bool try_read_jak1_slave(const void* object,
   SlaveSnapshot snapshot;
   if (!detail::read_vector(object, object_bytes, jak1_layout::kSlaveTransformOffset,
                            &snapshot.transform) ||
+      !detail::read_rotation_axes(object, object_bytes,
+                                  jak1_layout::kSlaveTrackingInverseMatrixOffset,
+                                  &snapshot.tracking_inverse_matrix) ||
       !detail::read_value(object, object_bytes,
                           jak1_layout::kSlaveMinimumDistanceOverrideOffset,
                           &snapshot.minimum_distance_override) ||
@@ -329,6 +363,10 @@ inline bool try_read_jak1_slave(const void* object,
                           &snapshot.string_velocity_direction) ||
       !detail::read_vector(object, object_bytes, jak1_layout::kSlaveStringTransformOffset,
                            &snapshot.string_transform) ||
+      !detail::read_value(object, object_bytes, jak1_layout::kSlaveMaxAngleOffsetOffset,
+                          &snapshot.max_angle_offset) ||
+      !detail::read_value(object, object_bytes, jak1_layout::kSlaveMaxAngleCurrentOffset,
+                          &snapshot.max_angle_current) ||
       !detail::read_value(object, object_bytes, jak1_layout::kSlaveOptionsOffset,
                           &snapshot.options) ||
       !detail::read_vector(object, object_bytes, jak1_layout::kSlaveDesiredPositionOffset,
@@ -353,6 +391,9 @@ inline bool try_read_jak1_combiner(const void* object,
   CombinerSnapshot snapshot;
   if (!detail::read_vector(object, object_bytes, jak1_layout::kCombinerTransformOffset,
                            &snapshot.transform) ||
+      !detail::read_rotation_axes(object, object_bytes,
+                                  jak1_layout::kCombinerInverseCameraRotationOffset,
+                                  &snapshot.inverse_camera_rotation) ||
       !detail::read_value(object, object_bytes, jak1_layout::kCombinerInterpolationOffset,
                           &snapshot.interpolation) ||
       !detail::read_value(object, object_bytes, jak1_layout::kCombinerTrackingStatusOffset,
@@ -377,6 +418,36 @@ inline bool has_los_transition(const FrameSnapshot& previous, const FrameSnapsho
     }
   }
   return false;
+}
+
+inline bool has_large_orientation_delta(const FrameSnapshot& previous,
+                                        const FrameSnapshot& current) {
+  if (!previous.valid || !current.valid || !previous.combiner.valid ||
+      !current.combiner.valid) {
+    return false;
+  }
+
+  double corresponding_axis_dot_sum = 0.0;
+  for (std::size_t axis = 0;
+       axis < previous.combiner.inverse_camera_rotation.axes.size(); ++axis) {
+    const auto& before = previous.combiner.inverse_camera_rotation.axes[axis].values;
+    const auto& after = current.combiner.inverse_camera_rotation.axes[axis].values;
+    double dot = 0.0;
+    double before_squared = 0.0;
+    double after_squared = 0.0;
+    for (std::size_t lane = 0; lane < 3; ++lane) {
+      dot += static_cast<double>(before[lane]) * after[lane];
+      before_squared += static_cast<double>(before[lane]) * before[lane];
+      after_squared += static_cast<double>(after[lane]) * after[lane];
+    }
+    const double denominator = std::sqrt(before_squared * after_squared);
+    if (!std::isfinite(dot) || !std::isfinite(denominator) || denominator <= 1e-12) {
+      return false;
+    }
+    corresponding_axis_dot_sum += std::fmax(-1.0, std::fmin(1.0, dot / denominator));
+  }
+  const double relative_rotation_cosine = (corresponding_axis_dot_sum - 1.0) * 0.5;
+  return relative_rotation_cosine < kLargeOrientationCosineThreshold;
 }
 
 class EventTrace {
@@ -405,11 +476,13 @@ class EventTrace {
 
     const auto previous = m_history[m_history_size - 1];
     const bool los_transition = has_los_transition(previous, snapshot);
-    if (los_transition || producer_alternation) {
+    const bool large_orientation_delta = has_large_orientation_delta(previous, snapshot);
+    if (los_transition || producer_alternation || large_orientation_delta) {
       event.valid = true;
       event.reason_mask =
           (los_transition ? kLosTransitionReason : 0) |
-          (producer_alternation ? kProducerAlternationReason : 0);
+          (producer_alternation ? kProducerAlternationReason : 0) |
+          (large_orientation_delta ? kLargeOrientationDeltaReason : 0);
       event.host_tick_id = host_tick_id;
       event.chain_ordinal = chain_ordinal;
       if (m_history_size == 2) {

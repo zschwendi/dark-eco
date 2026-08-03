@@ -316,6 +316,12 @@ typedef struct GOALPadCameraCorrectionVector {
   double w;
 } GOALPadCameraCorrectionVector;
 
+typedef struct GOALPadCameraCorrectionRotationAxes {
+  GOALPadCameraCorrectionVector axis0;
+  GOALPadCameraCorrectionVector axis1;
+  GOALPadCameraCorrectionVector axis2;
+} GOALPadCameraCorrectionRotationAxes;
+
 typedef struct GOALPadCameraCorrectionSlaveFrame {
   BOOL valid;
   uint32_t options;
@@ -324,7 +330,10 @@ typedef struct GOALPadCameraCorrectionSlaveFrame {
   BOOL lineOfSightEnabled;
   BOOL movementBlocked;
   double minimumDistanceOverride;
+  double maxAngleOffset;
+  double maxAngleCurrent;
   GOALPadCameraCorrectionVector transform;
+  GOALPadCameraCorrectionRotationAxes trackingInverseMatrix;
   GOALPadCameraCorrectionVector viewFlat;
   GOALPadCameraCorrectionVector stringTransform;
   GOALPadCameraCorrectionVector desiredPosition;
@@ -344,10 +353,12 @@ typedef struct GOALPadCameraCorrectionFrame {
   double combinerInterpolation;
   uint64_t combinerTrackingStatus;
   GOALPadCameraCorrectionVector combinerTransform;
+  GOALPadCameraCorrectionRotationAxes combinerInverseCameraRotation;
 } GOALPadCameraCorrectionFrame;
 
 /// A bounded three-frame constrained-camera sample. Reason bit 0 is a LOS state transition; bit
-/// 1 is the existing producer A/B/A observation.
+/// 1 is the existing producer A/B/A observation; bit 2 is a combined-camera orientation delta
+/// over thirty degrees between consecutive engine frames.
 typedef struct GOALPadCameraCorrectionEvent {
   BOOL valid;
   uint8_t reasonMask;

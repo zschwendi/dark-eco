@@ -49,6 +49,17 @@ FrameSnapshot frame(std::uint64_t frame_id, std::uint32_t los_state, float first
   return out;
 }
 
+FrameSnapshot orientation_frame(std::uint64_t frame_id, float forward_x, float forward_z) {
+  auto out = frame(frame_id, 0, 0.f);
+  out.combiner.valid = true;
+  out.combiner.inverse_camera_rotation.axes[0].values =
+      {forward_z, 0.f, -forward_x, 0.f};
+  out.combiner.inverse_camera_rotation.axes[1].values = {0.f, 1.f, 0.f, 0.f};
+  out.combiner.inverse_camera_rotation.axes[2].values =
+      {forward_x, 0.f, forward_z, 0.f};
+  return out;
+}
+
 }  // namespace
 
 int main() {
@@ -189,15 +200,25 @@ int main() {
   const auto view_flat = vector(40.f);
   const auto string_transform = vector(50.f);
   const auto desired_position = vector(60.f);
+  const std::array<Vector4, 3> tracking_axes = {
+      vector(100.f), vector(110.f), vector(120.f)};
   const float minimum_distance = 70.f;
+  const float max_angle_offset = 80.f;
+  const float max_angle_current = 75.f;
   const std::uint32_t string_direction = 6;
   const std::uint32_t options = kLineOfSightOption | kMovementBlockedOption;
   const std::uint32_t los_state = 2;
   write(slave_bytes, jak1_layout::kSlaveTransformOffset, transform.values);
+  for (std::size_t axis = 0; axis < tracking_axes.size(); ++axis) {
+    write(slave_bytes, jak1_layout::kSlaveTrackingInverseMatrixOffset + axis * 16,
+          tracking_axes[axis].values);
+  }
   write(slave_bytes, jak1_layout::kSlaveMinimumDistanceOverrideOffset, minimum_distance);
   write(slave_bytes, jak1_layout::kSlaveViewFlatOffset, view_flat.values);
   write(slave_bytes, jak1_layout::kSlaveStringVelocityDirectionOffset, string_direction);
   write(slave_bytes, jak1_layout::kSlaveStringTransformOffset, string_transform.values);
+  write(slave_bytes, jak1_layout::kSlaveMaxAngleOffsetOffset, max_angle_offset);
+  write(slave_bytes, jak1_layout::kSlaveMaxAngleCurrentOffset, max_angle_current);
   write(slave_bytes, jak1_layout::kSlaveOptionsOffset, options);
   write(slave_bytes, jak1_layout::kSlaveDesiredPositionOffset, desired_position.values);
   write(slave_bytes, jak1_layout::kSlaveLosStateOffset, los_state);
@@ -207,18 +228,29 @@ int main() {
             slave_snapshot.valid && slave_snapshot.los_state == 2 &&
             slave_snapshot.string_velocity_direction == 6 &&
             slave_snapshot.minimum_distance_override == minimum_distance &&
+            slave_snapshot.max_angle_offset == max_angle_offset &&
+            slave_snapshot.max_angle_current == max_angle_current &&
             slave_snapshot.line_of_sight_enabled() && slave_snapshot.movement_blocked() &&
             slave_snapshot.transform.values == transform.values &&
+            slave_snapshot.tracking_inverse_matrix.axes[0].values == tracking_axes[0].values &&
+            slave_snapshot.tracking_inverse_matrix.axes[1].values == tracking_axes[1].values &&
+            slave_snapshot.tracking_inverse_matrix.axes[2].values == tracking_axes[2].values &&
             slave_snapshot.view_flat.values == view_flat.values &&
             slave_snapshot.string_transform.values == string_transform.values &&
             slave_snapshot.desired_position.values == desired_position.values,
-        "the Jak 1 camera-slave snapshot preserves LOS, options, and transforms");
+        "the Jak 1 camera-slave snapshot preserves collision, angle, and rotation state");
 
   std::array<std::uint8_t, jak1_layout::kCombinerDeclaredObjectBytes> combiner_bytes = {};
   const auto combiner_transform = vector(80.f);
+  const std::array<Vector4, 3> combiner_axes = {
+      vector(130.f), vector(140.f), vector(150.f)};
   const float interpolation = 0.375f;
   const std::uint64_t tracking_status = 3;
   write(combiner_bytes, jak1_layout::kCombinerTransformOffset, combiner_transform.values);
+  for (std::size_t axis = 0; axis < combiner_axes.size(); ++axis) {
+    write(combiner_bytes, jak1_layout::kCombinerInverseCameraRotationOffset + axis * 16,
+          combiner_axes[axis].values);
+  }
   write(combiner_bytes, jak1_layout::kCombinerInterpolationOffset, interpolation);
   write(combiner_bytes, jak1_layout::kCombinerTrackingStatusOffset, tracking_status);
 
@@ -226,8 +258,11 @@ int main() {
   check(try_read_jak1_combiner(combiner_bytes.data(), combiner_bytes.size(), &combiner) &&
             combiner.valid && combiner.interpolation == interpolation &&
             combiner.tracking_status == tracking_status &&
-            combiner.transform.values == combiner_transform.values,
-        "the Jak 1 camera combiner snapshot preserves interpolation, tracking, and transform");
+            combiner.transform.values == combiner_transform.values &&
+            combiner.inverse_camera_rotation.axes[0].values == combiner_axes[0].values &&
+            combiner.inverse_camera_rotation.axes[1].values == combiner_axes[1].values &&
+            combiner.inverse_camera_rotation.axes[2].values == combiner_axes[2].values,
+        "the Jak 1 camera combiner snapshot preserves interpolation, tracking, transform, and rotation axes");
 
   MasterSnapshot unchanged_master;
   unchanged_master.num_slaves = 17;
@@ -305,6 +340,27 @@ int main() {
   disabled_los_trace.observe(disabled_los_first, false, 30, 1);
   check(!disabled_los_trace.observe(disabled_los_second, false, 31, 1).valid,
         "a stale LOS enum change does not emit when line-of-sight correction is disabled");
+
+  EventTrace orientation_trace;
+  check(!orientation_trace.observe(orientation_frame(400, 0.f, 1.f), false, 40, 1).valid &&
+            !orientation_trace
+                 .observe(orientation_frame(401, 0.34202015f, 0.93969262f), false, 41, 1)
+                 .valid,
+        "a bounded camera rotation below thirty degrees does not emit");
+  const auto orientation_event =
+      orientation_trace.observe(orientation_frame(402, -1.f, 0.f), false, 42, 1);
+  check(orientation_event.valid &&
+            orientation_event.reason_mask == kLargeOrientationDeltaReason &&
+            orientation_event.older.engine_frame_id == 400 &&
+            orientation_event.previous.engine_frame_id == 401 &&
+            orientation_event.current.engine_frame_id == 402 &&
+            orientation_trace.event_count() == 1,
+        "a large combined-camera orientation delta retains one three-frame event");
+
+  auto degenerate_orientation = orientation_frame(403, 0.f, 0.f);
+  check(!orientation_trace.observe(degenerate_orientation, false, 43, 1).valid &&
+            orientation_trace.event_count() == 1,
+        "a degenerate camera axis cannot fabricate an orientation event");
 
   return failures ? 1 : 0;
 }

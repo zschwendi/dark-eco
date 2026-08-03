@@ -140,6 +140,13 @@ static GOALPadCameraCorrectionVector makeCameraCorrectionVector(
   return {core.values[0], core.values[1], core.values[2], core.values[3]};
 }
 
+static GOALPadCameraCorrectionRotationAxes makeCameraCorrectionRotationAxes(
+    const goalpad::camera_correction_trace::RotationAxes &core) {
+  return {makeCameraCorrectionVector(core.axes[0]),
+          makeCameraCorrectionVector(core.axes[1]),
+          makeCameraCorrectionVector(core.axes[2])};
+}
+
 static GOALPadCameraCorrectionSlaveFrame makeCameraCorrectionSlave(
     const goalpad::camera_correction_trace::SlaveSnapshot &core) {
   GOALPadCameraCorrectionSlaveFrame out = {};
@@ -150,7 +157,11 @@ static GOALPadCameraCorrectionSlaveFrame makeCameraCorrectionSlave(
   out.lineOfSightEnabled = core.line_of_sight_enabled();
   out.movementBlocked = core.movement_blocked();
   out.minimumDistanceOverride = core.minimum_distance_override;
+  out.maxAngleOffset = core.max_angle_offset;
+  out.maxAngleCurrent = core.max_angle_current;
   out.transform = makeCameraCorrectionVector(core.transform);
+  out.trackingInverseMatrix =
+      makeCameraCorrectionRotationAxes(core.tracking_inverse_matrix);
   out.viewFlat = makeCameraCorrectionVector(core.view_flat);
   out.stringTransform = makeCameraCorrectionVector(core.string_transform);
   out.desiredPosition = makeCameraCorrectionVector(core.desired_position);
@@ -173,6 +184,8 @@ static GOALPadCameraCorrectionFrame makeCameraCorrectionFrame(
   out.combinerInterpolation = core.combiner.interpolation;
   out.combinerTrackingStatus = core.combiner.tracking_status;
   out.combinerTransform = makeCameraCorrectionVector(core.combiner.transform);
+  out.combinerInverseCameraRotation =
+      makeCameraCorrectionRotationAxes(core.combiner.inverse_camera_rotation);
   return out;
 }
 

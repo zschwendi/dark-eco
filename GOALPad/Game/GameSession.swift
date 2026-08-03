@@ -551,6 +551,14 @@ final class GameSession {
                 "\(prefix)_w=\(decimal(vector.w))",
             ]
         }
+        func cameraRotationAxesFields(
+            _ prefix: String,
+            _ axes: GOALPadCameraCorrectionRotationAxes
+        ) -> [String] {
+            cameraVectorFields("\(prefix)_axis0", axes.axis0)
+                + cameraVectorFields("\(prefix)_axis1", axes.axis1)
+                + cameraVectorFields("\(prefix)_axis2", axes.axis2)
+        }
         func cameraSlaveFields(_ prefix: String,
                                _ slave: GOALPadCameraCorrectionSlaveFrame) -> [String] {
             [
@@ -562,8 +570,12 @@ final class GameSession {
                 "\(prefix)_movement_blocked=\(slave.movementBlocked.boolValue ? 1 : 0)",
                 "\(prefix)_minimum_distance_override="
                     + decimal(slave.minimumDistanceOverride),
+                "\(prefix)_max_angle_offset=\(decimal(slave.maxAngleOffset))",
+                "\(prefix)_max_angle_current=\(decimal(slave.maxAngleCurrent))",
             ]
                 + cameraVectorFields("\(prefix)_transform", slave.transform)
+                + cameraRotationAxesFields("\(prefix)_tracking_inverse_matrix",
+                                           slave.trackingInverseMatrix)
                 + cameraVectorFields("\(prefix)_view_flat", slave.viewFlat)
                 + cameraVectorFields("\(prefix)_string_transform", slave.stringTransform)
                 + cameraVectorFields("\(prefix)_desired_position", slave.desiredPosition)
@@ -587,11 +599,19 @@ final class GameSession {
                 + cameraSlaveFields("\(prefix)_slave1", frame.slave1)
                 + cameraVectorFields("\(prefix)_combiner_transform",
                                      frame.combinerTransform)
+                + cameraRotationAxesFields("\(prefix)_combiner_inverse_camera_rotation",
+                                           frame.combinerInverseCameraRotation)
         }
         func cameraCorrectionFields(_ event: GOALPadCameraCorrectionEvent) -> [String] {
             [
                 "camera_correction_valid=\(event.valid.boolValue ? 1 : 0)",
                 "camera_correction_reason_mask=\(event.reasonMask)",
+                "camera_correction_reason_los_transition="
+                    + "\((event.reasonMask & 1) != 0 ? 1 : 0)",
+                "camera_correction_reason_producer_alternation="
+                    + "\((event.reasonMask & 2) != 0 ? 1 : 0)",
+                "camera_correction_reason_large_orientation_delta="
+                    + "\((event.reasonMask & 4) != 0 ? 1 : 0)",
                 "camera_correction_host_tick=\(event.hostTickID)",
                 "camera_correction_chain=\(event.chainOrdinal)",
             ]
@@ -639,7 +659,7 @@ final class GameSession {
         }
 
         let fields = [
-            "goalpad_camera_provenance", "v=4", "run=\(cameraDiagnosticsRunID)",
+            "goalpad_camera_provenance", "v=5", "run=\(cameraDiagnosticsRunID)",
             "frame=\(framesRun)", "engine=\(renderer.lastEngineFrameID)",
             "tick=\(renderer.lastHostTickID)", "chain=\(renderer.lastChainOrdinal)",
             "fingerprint=\(renderer.lastCameraFingerprint)",
