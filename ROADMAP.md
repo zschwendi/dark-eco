@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness and remaining platform gaps, not real-media
 import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 57 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 58 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 
@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 57 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 58 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -944,8 +944,9 @@ scoped Jak 1 Metal TIE second-envmap-pass gate. The deterministic Metal A/B/A
 proof passed, and the regenerated diagnostic pack verified as 518 objects,
 aggregate `0a6387a3959fd8cb`, 10,729,950 bytes, 10,596 emitted functions, and 7
 native routines. These are **Implemented** diagnostic/proof seams. The physical
-TIE-disabled B install and metallic comparison remain **Experimental** and
-pending.
+TIE-disabled B update is installed without erasing the app container. Its launch
+was denied because the iPad was locked, so the metallic comparison remains
+**Experimental** and pending.
 
 The current Jak II full iPhoneOS AOT link proof remains isolated and unsigned.
 Its thin ARM64 executable has SHA-256
@@ -953,21 +954,23 @@ Its thin ARM64 executable has SHA-256
 minimum iOS 18.0, no unresolved project `goal_`/`ZSTD_` symbols, and no app,
 signing, simulator, device, title-screen, or gameplay claim.
 
-The Settings-only iCloud conflict-resolution design at parent `87596d01` is
-**Experimental** and currently **NO-GO** after independent review. Its combined
-generic-iOS Release build passed only as intermediate compilation evidence.
-Source-side compare-and-swap immediately before mutation and a durable recovery
-journal across interruption/crash are still required, with focused recovery
-coverage and a new independent review, before integration or physical rollout.
+The Settings-only iCloud resolution design is **Implemented and deterministically
+validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
+a durable exact-phase pair journal with embedded source banks, offline and
+account-switch recovery, FIFO operation exclusivity, a pregame local-recovery
+gate, and same-call upload-only reconciliation after an interrupted cloud
+write. The full failure/recovery suite and independent re-review returned GO;
+the signed Release artifact built and installed. Real two-device iCloud,
+provider interleaving, eviction, account switching, and migration remain
+**Experimental** and are not claimed complete.
 
 The next actions are:
 
-1. Repair the iCloud resolution lane with source-side compare-and-swap and a
-   durable recovery journal, rerun focused failure/recovery coverage, and
-   obtain a new independent review before physical rollout.
-2. Build and physically compare only the bounded Jak 1 TIE-second-pass-disabled
-   B variant against the current enabled result. Do not speculate past that
-   deterministic metallic-flicker hypothesis.
+1. Unlock and launch the already-installed Jak 1 TIE-second-pass-disabled B
+   artifact, then compare metallic lamps and Precursor structures against the
+   enabled result. Do not speculate past that deterministic flicker hypothesis.
+2. Validate signed iCloud behavior with two devices, including a real divergent
+   pair, account/provider transitions, and preservation of both originals.
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
@@ -978,6 +981,6 @@ The next actions are:
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
-The Checkpoint 54 Z iPad Pro update-install and pending launch are explicitly
+The Checkpoint 58 Z iPad Pro update-install and retry after unlock are explicitly
 authorized in the current request; later physical access still requires fresh
 authorization. No proprietary game data belongs in source control or CI.

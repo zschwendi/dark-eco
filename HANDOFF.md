@@ -9245,3 +9245,124 @@ do not perform a physical rollout for it.
 4. Continue Jak II only through bounded host/AOT seams. The current full link
    remains unsigned isolated evidence and does not displace Jak 1 as active
    scope.
+
+# Checkpoint 58: durable Settings-only save resolution and installed metallic B build
+
+Date: 2026-08-03. This checkpoint supersedes Checkpoint 57's iCloud **NO-GO**
+and pending-install status. It does not claim real two-device iCloud behavior or
+physical acceptance of the renderer experiment.
+
+## Exact Git state
+
+- Parent implementation HEAD before this documentation commit is
+  `dca45a364034a09f7f1caa2f106e3cb38b973f16` on
+  `agent/jak1-v6-visual-diagnostics-parent`.
+- Nested OpenGOAL remains clean at
+  `9881534832fea8cd1055efb30dc69bf04c1d3057` on
+  `agent/jak1-postfix-visual-diagnostics`.
+- The only parent worktree modification is the maintainer-owned
+  `GOALPad.xcodeproj/project.pbxproj`; it was preserved and was not staged,
+  reset, or reformatted.
+
+## Deterministic save result: GO
+
+Parent `c0caf73e` makes Jak 1 pair replacement recoverable through a durable
+phased intent containing immutable source banks, expected target hashes, copy
+direction, account identity, and the optional Settings resolution notice.
+Source and target identities are revalidated before commitment and each
+loader-safe odd/even mutation phase. Restart recovery accepts only the recorded
+phase or the exact atomic result one phase ahead, validates embedded members as
+exact `0x10800`-byte banks, and finishes committed local-target work from the
+journal while offline or across an account change. All top-level save
+operations share a FIFO-exclusive lease, and an unsafe committed local-target
+intent is a global barrier.
+
+Parent `048ebb0a` gates initial kernel start and foreground resume on that local
+recovery check. Ordinary unavailable or disabled iCloud remains a local-only
+success. An unsafe transaction keeps gameplay and audio paused and gives a
+concise Settings recovery action. Automatic resolution details remain in
+Settings; no conflict decision or result overlay is presented during gameplay.
+
+Independent review found one final after-save hole: an upload-only recovery
+could finish an older journaled local generation to iCloud, record the current
+local stamps, and defer the actual current generation until a manual or
+foreground sync. Parent `dca45a36` continues same-call reconciliation only
+when the recovered target is iCloud; upload-only recovery still cannot write to
+local gameplay storage. Its regression proves the cloud mirror ends on the
+current generation in that call and that no follow-up stamp-triggered sync is
+needed. Independent re-review returned **GO for deterministic integration**
+with no remaining deterministic data-loss or gameplay-UI blocker.
+
+Validation passed:
+
+```sh
+./Scripts/run-save-sync-check.sh
+swift Scripts/save-pregame-gate-check.swift \
+  /Users/zach/Developer/OS_Projects/GOALPad/GOALPad
+xcrun swiftc -frontend -parse \
+  GOALPad/Saves/SaveSyncEngine.swift \
+  GOALPad/Saves/SaveSyncController.swift \
+  GOALPad/Game/GameSession.swift \
+  GOALPad/ContentView.swift \
+  GOALPad/Library/GameLibraryView.swift \
+  GOALPad/Data/GameDataSetupView.swift
+xcrun swiftc -parse Scripts/save-sync-check.swift
+xcrun swiftc -parse Scripts/save-pregame-gate-check.swift
+./Scripts/run-target-control-diagnostics-check.sh
+./Scripts/run-merc-transform-diagnostics-check.sh
+git diff --check
+```
+
+The save suite passed all ordinary merge, progress ranking, archive, import,
+account, source/target contention, every mutation/state-write interruption,
+FIFO overlap, pregame-barrier, and same-call upload recovery cases. The
+pregame route check passed 7/7. Both diagnostic bridge checks and all corrected
+parse commands passed. Two earlier attempts incorrectly parsed both executable
+Swift scripts in one library-style frontend invocation and rejected their
+intentional top-level statements; the separate executable-script parses above
+are the valid successful checks.
+
+Real signed iCloud provider behavior remains **Experimental**. No two-device
+conflict, account-switch, eviction, interruption, or migration trial was run.
+The remaining physical risks are provider interleaving between target
+validation and coordinated replacement, and loss of only the original
+modification date if the process is killed between an atomic byte replacement
+and its separate timestamp restoration. Divergent bytes are archived before
+canonical mutation.
+
+## Release B build and physical installation
+
+The final cached generic-iOS Release build passed with exit 0:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-sim -jobs 2 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/private/tmp/GOALPad-jak1-source-pack-88d8f85fe-cp57 \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache GOALPAD_BUILD_JOBS=2 build
+```
+
+The binary at
+`/private/tmp/GOALPad-sim/Build/Products/Release-iphoneos/GOALPad.app/GOALPad`
+is thin ARM64, 33,085,312 bytes, and has SHA-256
+`d5aeb19be27999cb9e63c3cd608e1a22371e9b8a34fb30894d4884175358346e`.
+Source keeps the bounded Jak 1 TIE switch disabled for this B artifact:
+`kJak1TieEnvmapSecondPassEnabled = false`.
+
+Local `codesign --verify` still reports the already-known
+`CSSMERR_TP_NOT_TRUSTED` chain result. The embedded profile itself verified as
+CMS, names team `V729QMY3V6`, bundle `com.zephyrstudiosllc.eco`, and the private
+`iCloud.com.zephyrstudiosllc.eco` Documents container. Direct extraction proved
+both signed XML and DER entitlement payloads structurally valid, and their
+SHA-256 values exactly match CodeDirectory slots -5 and -7. The app update then
+installed successfully on the authorized Z iPad Pro without uninstalling or
+erasing its data container. `devicectl` reported the new installation at
+`EBA59E0A-2526-4479-A702-E8285E13FC35/GOALPad.app`.
+
+The immediate launch attempt was denied only because the iPad was locked. No
+runtime or visual claim comes from the successful install. After the maintainer
+unlocks the device, relaunch this exact artifact and compare metallic lamps and
+Precursor structures against Checkpoint 57's enabled-pass run. Also confirm
+that normal gameplay never presents an iCloud resolution overlay. Accept or
+reject the second-envmap hypothesis only from that physical comparison.
