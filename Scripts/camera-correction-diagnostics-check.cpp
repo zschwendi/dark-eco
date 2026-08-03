@@ -54,27 +54,117 @@ FrameSnapshot frame(std::uint64_t frame_id, std::uint32_t los_state, float first
 int main() {
   using namespace goalpad::camera_correction_trace;
 
-  std::array<std::uint8_t, 128> goal_memory = {};
-  constexpr std::uint32_t object_offset = 32;
-  constexpr std::uint32_t object_type = 0x44556677;
-  write(goal_memory, object_offset - jak1_layout::kBasicObjectTypeTagBytes, object_type);
+  std::array<std::uint8_t, 512> goal_memory = {};
+  constexpr std::size_t low_protect_bytes = 16;
+  constexpr std::uint32_t goal_false = 0x14;
+  constexpr std::uint32_t expected_type = 0x44;
+  constexpr std::uint32_t derived_type = 0x64;
+  constexpr std::uint32_t unrelated_type = 0x84;
+  constexpr std::uint32_t cycle_type_a = 0xa4;
+  constexpr std::uint32_t cycle_type_b = 0xc4;
+  constexpr std::uint32_t out_of_range_parent_type = 0xe4;
+  constexpr std::uint32_t undersized_type = 0x104;
+  constexpr std::uint32_t ppointer_offset = 0x120;
+  constexpr std::uint32_t object_offset = 0x144;
+  constexpr std::uint16_t allocated_size = 64;
+  constexpr std::uint16_t undersized_allocation = 20;
+
+  write(goal_memory, expected_type + jak1_layout::kTypeAllocatedSizeOffset, allocated_size);
+  write(goal_memory, derived_type + jak1_layout::kTypeParentOffset,
+        expected_type | 0x80000000u);
+  write(goal_memory, derived_type + jak1_layout::kTypeAllocatedSizeOffset, allocated_size);
+  write(goal_memory, unrelated_type + jak1_layout::kTypeAllocatedSizeOffset, allocated_size);
+  write(goal_memory, cycle_type_a + jak1_layout::kTypeParentOffset, cycle_type_b);
+  write(goal_memory, cycle_type_a + jak1_layout::kTypeAllocatedSizeOffset, allocated_size);
+  write(goal_memory, cycle_type_b + jak1_layout::kTypeParentOffset, cycle_type_a);
+  write(goal_memory, cycle_type_b + jak1_layout::kTypeAllocatedSizeOffset, allocated_size);
+  write(goal_memory, out_of_range_parent_type + jak1_layout::kTypeParentOffset, 0x80000404u);
+  write(goal_memory, out_of_range_parent_type + jak1_layout::kTypeAllocatedSizeOffset,
+        allocated_size);
+  write(goal_memory, undersized_type + jak1_layout::kTypeParentOffset, expected_type);
+  write(goal_memory, undersized_type + jak1_layout::kTypeAllocatedSizeOffset,
+        undersized_allocation);
+
+  write(goal_memory, object_offset - jak1_layout::kBasicObjectTypeTagBytes, expected_type);
   std::size_t available_bytes = 0;
-  check(checked_goal_object(goal_memory.data(), goal_memory.size(), 16, object_offset,
-                            object_type, 32, &available_bytes) ==
+  check(checked_goal_object(goal_memory.data(), goal_memory.size(), low_protect_bytes,
+                            object_offset | 0x80000000u, expected_type | 0x80000000u, 32,
+                            &available_bytes) ==
                 goal_memory.data() + object_offset &&
-            available_bytes == goal_memory.size() - object_offset &&
-            !checked_goal_object(goal_memory.data(), goal_memory.size(), 32, object_offset,
-                                 object_type, 1, nullptr) &&
-            !checked_goal_object(goal_memory.data(), goal_memory.size(), 16, object_offset,
-                                 object_type + 1, 1, nullptr) &&
-            !checked_goal_object(goal_memory.data(), goal_memory.size(), 16, 120,
-                                 object_type, 9, nullptr),
-        "GOAL object views require a bounded object and the expected type tag");
+            available_bytes == allocated_size - jak1_layout::kBasicObjectTypeTagBytes,
+        "GOAL object views accept an exact type and normalize high-bit pointers");
+
+  write(goal_memory, object_offset - jak1_layout::kBasicObjectTypeTagBytes,
+        derived_type | 0x80000000u);
+  check(checked_goal_object(goal_memory.data(), goal_memory.size(), low_protect_bytes,
+                            object_offset, expected_type, 32, nullptr) ==
+            goal_memory.data() + object_offset,
+        "GOAL object views accept a bounded descendant of the expected type");
+
+  write(goal_memory, object_offset - jak1_layout::kBasicObjectTypeTagBytes, unrelated_type);
+  check(!checked_goal_object(goal_memory.data(), goal_memory.size(), low_protect_bytes,
+                             object_offset, expected_type, 32, nullptr),
+        "GOAL object views reject an unrelated runtime type");
+
+  write(goal_memory, object_offset - jak1_layout::kBasicObjectTypeTagBytes, cycle_type_a);
+  check(!checked_goal_object(goal_memory.data(), goal_memory.size(), low_protect_bytes,
+                             object_offset, expected_type, 32, nullptr),
+        "GOAL object views reject a cyclic parent chain");
+
+  write(goal_memory, object_offset - jak1_layout::kBasicObjectTypeTagBytes,
+        out_of_range_parent_type);
+  check(!checked_goal_object(goal_memory.data(), goal_memory.size(), low_protect_bytes,
+                             object_offset, expected_type, 32, nullptr),
+        "GOAL object views reject an out-of-range parent type");
+
+  write(goal_memory, object_offset - jak1_layout::kBasicObjectTypeTagBytes, undersized_type);
+  check(!checked_goal_object(goal_memory.data(), goal_memory.size(), low_protect_bytes,
+                             object_offset, expected_type, 32, nullptr),
+        "GOAL object views reject a runtime type too small for requested fields");
+
+  write(goal_memory, object_offset - jak1_layout::kBasicObjectTypeTagBytes, expected_type);
+  check(!checked_goal_object(goal_memory.data(), goal_memory.size(), object_offset,
+                             object_offset, expected_type, 1, nullptr) &&
+            !checked_goal_object(goal_memory.data(), goal_memory.size(), low_protect_bytes,
+                                 0x1fc, expected_type, 9, nullptr),
+        "GOAL object views reject protected and truncated object spans");
+  constexpr std::uint32_t truncated_allocation_offset = 0x1e4;
+  write(goal_memory,
+        truncated_allocation_offset - jak1_layout::kBasicObjectTypeTagBytes,
+        expected_type);
+  check(!checked_goal_object(goal_memory.data(), goal_memory.size(), low_protect_bytes,
+                             truncated_allocation_offset, expected_type, 1, nullptr),
+        "GOAL object views reject an allocated object span beyond EE memory");
+
+  write(goal_memory, ppointer_offset, object_offset | 0x80000000u);
+  std::uint32_t resolved_object = 0;
+  check(resolve_goal_ppointer(goal_memory.data(), goal_memory.size(), low_protect_bytes,
+                              goal_false, ppointer_offset | 0x80000000u,
+                              &resolved_object) &&
+            resolved_object == object_offset,
+        "camera slave ppointers resolve one bounded process-object pointer");
+
+  write(goal_memory, ppointer_offset, std::uint32_t{0});
+  check(!resolve_goal_ppointer(goal_memory.data(), goal_memory.size(), low_protect_bytes,
+                               goal_false, ppointer_offset, &resolved_object),
+        "camera slave ppointers reject a null process object");
+  write(goal_memory, ppointer_offset, goal_false);
+  check(!resolve_goal_ppointer(goal_memory.data(), goal_memory.size(), low_protect_bytes,
+                               goal_false, ppointer_offset, &resolved_object),
+        "camera slave ppointers reject GOAL false");
+  write(goal_memory, ppointer_offset, 0x80000404u);
+  check(!resolve_goal_ppointer(goal_memory.data(), goal_memory.size(), low_protect_bytes,
+                               goal_false, ppointer_offset, &resolved_object) &&
+            !resolve_goal_ppointer(goal_memory.data(), goal_memory.size(), low_protect_bytes,
+                                   goal_false, 0x80000400u, &resolved_object) &&
+            !resolve_goal_ppointer(goal_memory.data(), goal_memory.size(), low_protect_bytes,
+                                   goal_false, ppointer_offset + 1, &resolved_object),
+        "camera slave ppointers reject out-of-range and unaligned pointer spans");
 
   std::array<std::uint8_t, jak1_layout::kMasterDeclaredObjectBytes> master_bytes = {};
   const std::int32_t num_slaves = 2;
   const std::array<std::uint32_t, 2> slave_offsets = {0x1234, 0x5678};
-  const std::uint32_t goal_false = 0x1000;
+  const std::uint32_t snapshot_goal_false = 0x1000;
   const std::uint32_t goal_true = 0x1004;
   const auto target = vector(10.f);
   const auto adjusted_target = vector(20.f);
@@ -86,7 +176,8 @@ int main() {
         adjusted_target.values);
 
   MasterSnapshot master;
-  check(try_read_jak1_master(master_bytes.data(), master_bytes.size(), goal_false, &master) &&
+  check(try_read_jak1_master(master_bytes.data(), master_bytes.size(), snapshot_goal_false,
+                             &master) &&
             master.valid && master.num_slaves == 2 && master.being_attacked &&
             master.slave_offsets == slave_offsets &&
             master.target_position.values == target.values &&
@@ -145,7 +236,8 @@ int main() {
   CombinerSnapshot unchanged_combiner;
   unchanged_combiner.interpolation = 17.f;
   check(!try_read_jak1_master(master_bytes.data(),
-                              jak1_layout::kMasterRequiredObjectBytes - 1, goal_false,
+                              jak1_layout::kMasterRequiredObjectBytes - 1,
+                              snapshot_goal_false,
                               &unchanged_master) &&
             unchanged_master.num_slaves == 17 &&
             !try_read_jak1_slave(slave_bytes.data(),
@@ -156,7 +248,7 @@ int main() {
                                     jak1_layout::kCombinerRequiredObjectBytes - 1,
                                     &unchanged_combiner) &&
             unchanged_combiner.interpolation == 17.f &&
-            !try_read_jak1_master(nullptr, master_bytes.size(), goal_false, &master) &&
+            !try_read_jak1_master(nullptr, master_bytes.size(), snapshot_goal_false, &master) &&
             !try_read_jak1_slave(slave_bytes.data(), slave_bytes.size(), nullptr),
         "null and truncated camera objects fail without changing caller-owned output");
 

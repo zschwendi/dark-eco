@@ -278,10 +278,15 @@ goalpad::camera_correction_trace::FrameSnapshot current_camera_correction_snapsh
     if (slot >= static_cast<std::size_t>(master.num_slaves)) {
       continue;
     }
+    std::uint32_t slave_offset = 0;
+    if (!resolve_goal_ppointer(g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT,
+                               s7.offset, master.slave_offsets[slot], &slave_offset)) {
+      continue;
+    }
     std::size_t slave_bytes = 0;
     const void* slave_object = checked_goal_object(
-        g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT,
-        master.slave_offsets[slot], g_camera_slave_type,
+        g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT, slave_offset,
+        g_camera_slave_type,
         jak1_layout::kSlaveRequiredObjectBytes, &slave_bytes);
     if (slave_object) {
       try_read_jak1_slave(slave_object, slave_bytes, &out.slaves[slot]);

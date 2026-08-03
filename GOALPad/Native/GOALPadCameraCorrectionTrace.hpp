@@ -74,6 +74,13 @@ namespace jak1_layout {
 // The decompiler's :offset-assert values include the four-byte basic-object type tag. Live GOAL
 // basic pointers address the first byte after that tag, so native reads subtract four.
 constexpr std::size_t kBasicObjectTypeTagBytes = 4;
+constexpr std::uint32_t kGoalPointerAddressMask = 0x7fffffff;
+constexpr std::uint32_t kGoalObjectTagMask = 0x7;
+constexpr std::size_t kTypeParentOffset = 0x4;
+constexpr std::size_t kTypeAllocatedSizeOffset = 0x8;
+constexpr std::size_t kTypeRequiredBytes = kTypeAllocatedSizeOffset + sizeof(std::uint16_t);
+constexpr std::uint16_t kMaximumAllocatedObjectBytes = 0xfff0;
+constexpr std::size_t kMaximumTypeParentDepth = 64;
 
 constexpr std::size_t kMasterNumSlavesOffset = 116 - kBasicObjectTypeTagBytes;
 constexpr std::size_t kMasterSlaveOffsetsOffset = 120 - kBasicObjectTypeTagBytes;
@@ -109,6 +116,34 @@ static_assert(kCombinerRequiredObjectBytes <= kCombinerDeclaredObjectBytes);
 
 namespace detail {
 
+inline std::uint32_t normalize_goal_pointer(std::uint32_t pointer) {
+  // Jak 1 diagnostics use the same low-31-bit EE address normalization as the runtime traces.
+  return pointer & jak1_layout::kGoalPointerAddressMask;
+}
+
+inline bool has_memory_span(std::size_t memory_bytes,
+                            std::uint32_t offset,
+                            std::size_t span_bytes) {
+  const auto memory_offset = static_cast<std::size_t>(offset);
+  return memory_offset <= memory_bytes && span_bytes <= memory_bytes - memory_offset;
+}
+
+inline bool is_basic_pointer(std::uint32_t pointer) {
+  return pointer &&
+         (pointer & jak1_layout::kGoalObjectTagMask) ==
+             jak1_layout::kBasicObjectTypeTagBytes;
+}
+
+inline bool is_readable_basic_pointer(std::size_t memory_bytes,
+                                      std::size_t low_protect_bytes,
+                                      std::uint32_t pointer,
+                                      std::size_t required_bytes) {
+  return is_basic_pointer(pointer) &&
+         pointer >= jak1_layout::kBasicObjectTypeTagBytes &&
+         pointer - jak1_layout::kBasicObjectTypeTagBytes >= low_protect_bytes &&
+         has_memory_span(memory_bytes, pointer, required_bytes);
+}
+
 template <typename T>
 bool read_value(const void* object, std::size_t object_bytes, std::size_t offset, T* out) {
   if (!object || !out || offset > object_bytes || sizeof(T) > object_bytes - offset) {
@@ -125,7 +160,77 @@ inline bool read_vector(const void* object,
   return read_value(object, object_bytes, offset, &out->values);
 }
 
+inline bool is_expected_type_or_descendant(const std::uint8_t* memory,
+                                           std::size_t memory_bytes,
+                                           std::size_t low_protect_bytes,
+                                           std::uint32_t actual_type,
+                                           std::uint32_t expected_type) {
+  actual_type = normalize_goal_pointer(actual_type);
+  expected_type = normalize_goal_pointer(expected_type);
+  if (!memory || !is_basic_pointer(actual_type) || !is_basic_pointer(expected_type)) {
+    return false;
+  }
+
+  std::array<std::uint32_t, jak1_layout::kMaximumTypeParentDepth> visited_types = {};
+  std::size_t visited_count = 0;
+  std::uint32_t type = actual_type;
+  while (type) {
+    if (!is_readable_basic_pointer(memory_bytes, low_protect_bytes, type,
+                                   jak1_layout::kTypeRequiredBytes) ||
+        visited_count == visited_types.size()) {
+      return false;
+    }
+    for (std::size_t index = 0; index < visited_count; ++index) {
+      if (visited_types[index] == type) {
+        return false;
+      }
+    }
+    visited_types[visited_count++] = type;
+    if (type == expected_type) {
+      return true;
+    }
+
+    std::uint32_t parent = 0;
+    std::memcpy(&parent, memory + type + jak1_layout::kTypeParentOffset, sizeof(parent));
+    type = normalize_goal_pointer(parent);
+  }
+  return false;
+}
+
 }  // namespace detail
+
+inline bool resolve_goal_ppointer(const void* memory,
+                                  std::size_t memory_bytes,
+                                  std::size_t low_protect_bytes,
+                                  std::uint32_t goal_false,
+                                  std::uint32_t ppointer_offset,
+                                  std::uint32_t* object_offset) {
+  if (!memory || !object_offset) {
+    return false;
+  }
+
+  goal_false = detail::normalize_goal_pointer(goal_false);
+  ppointer_offset = detail::normalize_goal_pointer(ppointer_offset);
+  if (!ppointer_offset || ppointer_offset == goal_false ||
+      (ppointer_offset % alignof(std::uint32_t)) != 0 ||
+      ppointer_offset < low_protect_bytes ||
+      !detail::has_memory_span(memory_bytes, ppointer_offset, sizeof(std::uint32_t))) {
+    return false;
+  }
+
+  std::uint32_t resolved_offset = 0;
+  std::memcpy(&resolved_offset,
+              static_cast<const std::uint8_t*>(memory) + ppointer_offset,
+              sizeof(resolved_offset));
+  resolved_offset = detail::normalize_goal_pointer(resolved_offset);
+  if (!resolved_offset || resolved_offset == goal_false ||
+      !detail::is_readable_basic_pointer(memory_bytes, low_protect_bytes, resolved_offset, 1)) {
+    return false;
+  }
+
+  *object_offset = resolved_offset;
+  return true;
+}
 
 inline const void* checked_goal_object(const void* memory,
                                        std::size_t memory_bytes,
@@ -134,9 +239,11 @@ inline const void* checked_goal_object(const void* memory,
                                        std::uint32_t expected_type,
                                        std::size_t required_bytes,
                                        std::size_t* available_bytes) {
-  if (!memory || !expected_type ||
-      object_offset < low_protect_bytes + jak1_layout::kBasicObjectTypeTagBytes ||
-      object_offset >= memory_bytes || required_bytes > memory_bytes - object_offset) {
+  object_offset = detail::normalize_goal_pointer(object_offset);
+  expected_type = detail::normalize_goal_pointer(expected_type);
+  if (!memory || !detail::is_basic_pointer(expected_type) ||
+      !detail::is_readable_basic_pointer(memory_bytes, low_protect_bytes, object_offset,
+                                         required_bytes)) {
     return nullptr;
   }
 
@@ -145,11 +252,29 @@ inline const void* checked_goal_object(const void* memory,
   std::memcpy(&actual_type,
               bytes + object_offset - jak1_layout::kBasicObjectTypeTagBytes,
               sizeof(actual_type));
-  if (actual_type != expected_type) {
+  actual_type = detail::normalize_goal_pointer(actual_type);
+  if (!detail::is_expected_type_or_descendant(bytes, memory_bytes, low_protect_bytes,
+                                              actual_type, expected_type)) {
+    return nullptr;
+  }
+
+  std::uint16_t allocated_size = 0;
+  std::memcpy(&allocated_size, bytes + actual_type + jak1_layout::kTypeAllocatedSizeOffset,
+              sizeof(allocated_size));
+  if (allocated_size < jak1_layout::kBasicObjectTypeTagBytes ||
+      allocated_size > jak1_layout::kMaximumAllocatedObjectBytes) {
+    return nullptr;
+  }
+  const auto object_bytes =
+      static_cast<std::size_t>(allocated_size) - jak1_layout::kBasicObjectTypeTagBytes;
+  if (required_bytes > object_bytes ||
+      !detail::has_memory_span(memory_bytes,
+                               object_offset - jak1_layout::kBasicObjectTypeTagBytes,
+                               allocated_size)) {
     return nullptr;
   }
   if (available_bytes) {
-    *available_bytes = memory_bytes - object_offset;
+    *available_bytes = object_bytes;
   }
   return bytes + object_offset;
 }
