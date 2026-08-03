@@ -48,8 +48,8 @@ deterministic hypothesis and test can distinguish the next change.
 
 ### Raw-ISO importer Xcode products
 
-**Implemented — build plumbing, not target wiring.** The permanent Xcode target
-can build the flattened Apple importer archive from an existing verified
+**Implemented — build plumbing and target wiring.** The permanent Xcode target
+builds the flattened Apple importer archive from an existing verified
 518-object source pack without generating another pack:
 
 ```sh
@@ -95,16 +95,24 @@ Both phases keep retail data and generated source-object packs outside the
 repository. The resource phase reuses the atomic checked stager and revalidates
 both its source and published copy.
 
-The future target wiring should consume these build settings without adding a
-machine path to the project file:
+The target wiring consumes these build settings without adding a machine path
+to the project file:
 
 ```text
 GOALPAD_OPENGOAL_ROOT = $(SRCROOT)/OpenGOAL
 GOALPAD_JAK1_IMPORT_BUILD_ROOT = $(DERIVED_FILE_DIR)/Jak1ImportComposer
 GOALPAD_JAK1_IMPORT_ARCHIVE = $(GOALPAD_JAK1_IMPORT_BUILD_ROOT)/$(PLATFORM_NAME)/jak1-import-composer-apple/libjak1-import-composer-apple.a
-GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT = <absolute developer or CI setting>
+GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT = $(SRCROOT)/build/jak1-source-object-pack
 OTHER_LDFLAGS = $(inherited) "$(GOALPAD_JAK1_IMPORT_ARCHIVE)"
 ```
+
+Debug remains the prepared-folder-only fallback: the composer macro is `0`, no
+importer archive is added to the link, and both importer phases exit without
+touching their derived outputs. Release is deliberately ARM64-only and enables
+the composer for `macosx`, `iphoneos`, `iphonesimulator`, `xros`, and
+`xrsimulator`; this matches the native ARM64 port and the thin archive contract.
+The checked xcconfigs inherit the target's existing inline settings, and user
+script sandboxing remains enabled.
 
 Set `GOALPAD_JAK1_IMPORT_DEPLOYMENT_TARGET` from
 `MACOSX_DEPLOYMENT_TARGET` for macOS and `IPHONEOS_DEPLOYMENT_TARGET` for
