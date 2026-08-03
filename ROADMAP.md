@@ -850,10 +850,10 @@ camera-independence conclusion is proved. Ordinary roughly 10-degree roll/Z
 shake mostly stopped; severe slower near-wall oscillation and the
 wrong-facing/skinny transform failure remain.
 
-The current parent implementation point is
-`5fdf3bca1618b7f9c598c4e7d8bf4cb3066c0d03`. The current nested OpenGOAL pin is
-`17a097baaaf0563bb350dbcd8f230fc025927bca`. Both matched their corresponding
-remote branches before this documentation commit. The recorded Jak 1 source
+The current parent implementation point before this documentation update is
+`42c93b1b2994297bd69522ffabc32b8d8a3adabd`. The current nested OpenGOAL pin is
+`e4bb61c7f171d67c88ad9fa110ec145a425660f8`. The nested commit matches its
+corresponding remote branch before this documentation commit. The recorded Jak 1 source
 pack remains 518 objects, aggregate `f1770cae6287a359`, and 10,729,681 bytes;
 the AOT corpus remains 10,596 emitted functions and 7 native routines. The
 signed v5 generic iOS Release build passed, produced a valid thin ARM64
@@ -883,8 +883,8 @@ It was update-installed on the authorized Z iPad Pro while preserving app data;
 launch is pending only because the iPad locked. No corrected physical trace or
 visual acceptance is claimed yet.
 
-Jak II now has one additional bounded host seam at nested `17a097baa`:
-ordinary-file STR channel 4 validates the measured request/reply shape, reads a
+Jak II now has two additional bounded host seams. Nested `17a097baa` adds an
+ordinary-file STR channel 4 seam that validates the measured request/reply shape, reads a
 safe uppercase basename from user-local `out/jak2/iso`, bounds the EE write,
 and returns actual bytes or a handled error. Its focused unit test passed. The
 real headless proof loaded KERNEL 8/8 and GAME 465/465, performed one
@@ -894,7 +894,14 @@ iPhoneOS final-link proof also passed: all 840 objects plus the manifest linked
 with alias-safe C rules into a thin ARM64 iOS 18.0 executable, SHA-256
 `0490f08ed0d2dde92a58bc9f4192d9bd20d70ae21e43bf2b1ca07fe562fc1e77`,
 with representative AOT/kernel/Zstd symbols defined and no unresolved project
-symbols. Chunked STR and the rest of the sound system remain unimplemented.
+symbols. Nested `e4bb61c7f` then makes loader RPC framing command-aware: every
+loader command still requires the exact aligned send block, only command 16
+requires a reply block, and command 2 now reports a measured bank-load request
+as explicitly unimplemented instead of a malformed version handshake. Its
+focused unit test and the 100-frame real-data host proof passed. A reviewed
+full bank-load attempt remains quarantined because its inner SBlk parsing could
+still abort on malformed offsets/counts and its sound shutdown lifecycle was
+incomplete. Chunked STR and real bank parsing/loading remain unimplemented.
 This is still an unsigned isolated link proof, not app wiring, a signed app,
 simulator/device runtime, title screen, or gameplay. Jak II does not displace
 Jak 1 as active scope.
@@ -913,10 +920,11 @@ The next actions are:
    speculate past the trace.
 3. Keep the camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    recorded 518-object pack unless its writer or embedded graph changes.
-4. The next measured Jak II seam is loader command 2 (`load-bank`) for
-   `COMMON`/`COMMONJ` and `EMPTY0`-`EMPTY2`, plus command-aware reply framing.
-   Implement a real bounded bank load with synthetic tests in a separate lane;
-   do not acknowledge it as a no-op or jump to app wiring/full sound.
+4. The next measured Jak II seam is safe loader command 2 (`load-bank`) parsing
+   for `COMMON`/`COMMONJ` and `EMPTY0`-`EMPTY2`. Command-aware reply framing is
+   complete. Add a non-aborting verified SBlk/container boundary and explicit
+   sound teardown before connecting real bank state; do not resume the unsafe
+   quarantined parser directly or jump to app wiring/full sound.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 

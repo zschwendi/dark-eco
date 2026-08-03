@@ -8903,3 +8903,99 @@ was recorded. The current 119 MiB proof at
    the input-root transform before final Merc composition.
 5. Keep Jak II command-2 bank loading in a separate implementation lane while
    physical Jak 1 input remains the active integration gate.
+
+# Checkpoint 55: preserve the world-relative Jak 1 label and make Jak II loader framing honest
+
+## Jak 1 observation frame
+
+The maintainer clarified the earlier word “backward.” Wrong steering/facing is
+described relative to the camera, but the repeatable deformation observation is
+relative to the Geyser Rock portal: Jak appears normally volumetric when facing
+toward the portal, progressively thinner through the side headings, and
+thinnest when facing directly away from the portal. Camera rotation did not
+visibly change thickness in that run. This remains a local observation, not a
+proved global heading rule or proof that camera state cannot affect the source
+transform elsewhere.
+
+Keep three variables distinct in the corrected physical capture:
+
+1. portal-relative world facing versus root deformation;
+2. camera-relative input, displayed facing, and movement direction; and
+3. wall/out-of-frame camera oscillation.
+
+The already installed corrected build still requires a fresh physical capture
+with target stage `10`, result `1`, and nonzero valid observations before these
+fields can select a behavior change. No corrected visual result is claimed.
+
+## Jak II command-aware loader framing
+
+Nested commit `e4bb61c7f171d67c88ad9fa110ec145a425660f8` preserves exact aligned
+`0x50` loader sends but requires an aligned `0x50` reply only for command 16,
+the IRX-version query. Command 2 accepts its measured no-reply shape, counts the
+bank-load request, reports it explicitly as unimplemented through the existing
+machine-function seam, and does not mutate buffers or claim a loaded bank.
+
+Focused validation passed:
+
+```sh
+cmake --build OpenGOAL/build/Release/bin --target jak2-sound-rpc-test -j2
+ctest --test-dir OpenGOAL/build/Release/bin \
+  -R '^jak2-sound-rpc-test$' --output-on-failure
+```
+
+The current-tree real-data host proof then loaded KERNEL 8/8 and GAME 465/465,
+ran 100 dispatcher frames, completed one ordinary 309,856-byte STR read, and
+reported `rpc-call (Jak 2 sound, load-bank unimplemented)` rather than a
+malformed version handshake:
+
+```sh
+cmake --build OpenGOAL/build/Release/bin --target jak2-data-boot-test -j2
+OpenGOAL/build/Release/bin/game/jak2-data-boot-test \
+  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  --frames 100 --with-game
+```
+
+That host target unexpectedly rebuilt its private 840-unit AOT dependency. It
+did not modify the recorded repository corpus; the canonical preflight still
+passes at 840 objects, 18,479 emitted functions, and 7 native functions. Do not
+rerun that heavy target merely to re-prove unchanged framing.
+
+The existing configured iPhoneOS proof was rebuilt incrementally:
+
+```sh
+cmake --build /private/tmp/GOALPad-jak2-ios-aot-current \
+  --target jak2-iphoneos-full-aot-link -j2
+```
+
+It passed with all 841 generated/manifest C rules carrying
+`-fno-strict-aliasing`, representative AOT/kernel/Zstd symbols defined, and no
+unresolved `goal_` or `ZSTD_` symbol. The thin arm64 executable remains iOS
+18.0, SDK 26.5, SHA-256
+`0490f08ed0d2dde92a58bc9f4192d9bd20d70ae21e43bf2b1ca07fe562fc1e77`.
+The unchanged identity is expected because this isolated dead-stripped harness
+does not pull in the modified sound-RPC object. This is compile/final-link
+evidence only, not sound runtime, app wiring, signing, simulator, or device
+evidence.
+
+The reviewed full-bank implementation remains isolated on branch
+`agent/jak2-bank-load-seam-quarantine` at
+`720f5da2f6d9819e1ceefd168abcfa3b3135501a`. Do not integrate it: outer SBK
+validation did not make its inner SBlk offsets/counts non-aborting, and it
+started 989snd without completing an explicit shutdown lifecycle. The next
+safe slice is a standalone non-aborting verified bank-container boundary plus
+sound teardown, followed by synthetic tests, before command 2 can load data.
+
+## Next executable tasks
+
+1. Once Z iPad Pro is unlocked, launch the already installed corrected Jak 1
+   build without reinstalling. Capture toward-portal, away-from-portal, and
+   toward-portal again as separate stationary runs, then the wall oscillation
+   separately. Copy each cache before relaunch.
+2. Require target stage `10`, result `1`, and nonzero observations. Compare
+   portal-relative root deformation separately from camera-relative control
+   and from camera-slave wall events.
+3. Make at most one Jak 1 behavior change only after those corrected traces
+   distinguish an explicit upstream transform or camera hypothesis.
+4. For Jak II, build a non-aborting bank-container validator and explicit
+   sound lifecycle in a separate bounded lane. Keep real bank load and app
+   wiring unclaimed until each has its own runtime proof.
