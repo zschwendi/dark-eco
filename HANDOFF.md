@@ -10090,3 +10090,59 @@ and no user game data was added to source control. The next smallest Jak II
 host task is a bounded audit or implementation of the listed machine stubs
 through the first real DMA boundary; actual Jak II app/runtime integration
 remains separate and unproved.
+
+# Checkpoint 64: Jak II reaches a validated graphics-DMA boundary
+
+Date: 2026-08-03. Nested head
+`faf1372a477a9344a9ebeb157a3845a4926ca2db` advances the signed Jak II path
+without changing the 840-object writer or embedded source graph. Commit
+`3ead15e62` implements upstream-faithful `pc-prof` forwarding through the
+portable global profiler and the signed-AOT `flush-cache` no-op. Commit
+`369359bbd` adds an opt-in, game-neutral graphics-DMA observer with an exact
+Jak II 327-bucket structural walk. Commit `faf1372a4` keeps that observer in
+the dead-stripped iPhoneOS link proof. `--play` retains its previous behavior;
+`--play-dma` alone installs the observer, measures a completed chain, and
+drops it without drawing or writing a capture file. GPDMACAP v2 remains
+explicitly Jak 1-only.
+
+The deterministic lightweight-machine test passed six checks. Jak II pad,
+interrupt-handler, and `pc-rand` regressions passed. The new DMA boundary test
+passed seven checks, including a synthetic direct 327-entry array, one
+PC-port texture upload, exact copier totals, and refusal to create a Jak II
+capture. Rebuilding and running the Jak 1 synthetic data-boot test also passed
+its existing 518-unit load and DMA capture round trip unchanged.
+
+The bounded real-data command used the maintainer's local prepared Jak II data,
+`--frames 120 --play-dma`, and exited successfully after one dispatched frame.
+It loaded `TITLE.DGO` as seven objects (one AOT code object and six data
+objects), then observed one well-formed and zero malformed graphics chains.
+The first chain completed all 327 buckets with 396 tags, 3,008 payload bytes,
+and 131,072 copied bytes. This proves that real Jak II title code produces a
+structurally valid chain at the renderer boundary. It does not prove rendered
+pixels, a title screen, an app loop, or gameplay. The next reported live
+machine contracts are `sync-path`, `syncv`, and `mouse-get-data`; the first two
+must remain real renderer synchronization and display-pacing callbacks rather
+than permanent zero-return stubs.
+
+After explicit CMake reconfiguration, the exact-`faf1372a4` generic iPhoneOS
+Release proof compiled the new DMA sources and all 840 checked AOT units, then
+linked and signed successfully in 3.969 seconds. The product is a thin ARM64
+Mach-O of 47,651,904 bytes, minimum iOS 18, bundle identifier
+`com.zephyrstudiosllc.eco.jak2linkproof`, signing team `V729QMY3V6`, SHA-256
+`56f72e5e6fad4a99f819c82f17c2f8200148d670382a5fd62aa95c7a1331f6ea`, and
+CodeDirectory hash `13c174bcd63982628c954c5aef8315c503b4a719`. Strict
+`codesign` verification passed with normal Keychain access. The final
+executable retains `goal_gfx_dma_install`, `goal_pad_install`, and both
+interrupt-handler globals. The initial sandboxed Xcode attempt could not see
+the existing signing account or profiles; the same source build passed once
+Xcode and Keychain services were available. Existing DMA precision and stale
+unused-account warnings remain non-blocking.
+
+No device, simulator, app launch, screen capture, or physical-device access was
+used. The maintainer's Eco Pro app remained backgrounded or closed. The
+smallest next nested-only product step is to expose the checked Jak II corpus
+as a reusable, single-game static archive while preserving the current signed
+proof. A runnable Jak II development app remains blocked from safe integration
+by Jak 1-specific runtime/Metal code and the maintainer-owned dirty
+`GOALPad.xcodeproj/project.pbxproj`; do not edit that file or combine the Jak 1
+and Jak II AOT corpora in one executable.
