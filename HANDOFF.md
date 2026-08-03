@@ -11065,3 +11065,129 @@ accessed during Checkpoint 74.
 4. Keep the Jak 1 visual lane at its physical schema-v7 gate. Do not make
    another speculative camera, Merc, or metallic-material patch without fresh
    device authorization and a discriminating observation.
+
+# Checkpoint 75: product Metal host reaches the Jak II display tick
+
+Date: 2026-08-03. Parent integration commit
+`7e935988387af1e5f9df1a2342ee067ffe368c60` advances the OpenGOAL gitlink from
+`0963b1c4c7b09a22af46a75803d1d8cfdefe926a` to nested commit
+`5264a3097b9c5aae6369af1896d170f7aa222734`. The nested head contains host
+implementation commit `0fba3883f` plus isolated-product build fix
+`5264a3097`. It is a linear successor to Checkpoint 74, so the nil-layer
+zero-submit dispatcher and separate synthetic submit/readback pixel proof are
+both retained.
+
+The separate Jak II iPhoneOS development target now links a kernel-neutral
+Metal product archive and a narrow Objective-C++ graphics host. The host copies
+each runtime DMA chain synchronously through `FixedChunkDmaCopier`, invokes the
+real 327-slot Jak II policy dispatcher with no presentation layer, and contains
+all C++ failures at its C callback boundary. The runtime snapshots the external
+graphics callback table at startup, while the existing display tick owns host
+creation, runtime lifecycle, bounded status, and teardown.
+
+The nil-layer application path deliberately commits no Metal command buffer.
+It requires one completed policy dispatch per copied chain and zero command-
+buffer commits, drawable attempts, draw calls, triangles, submissions, and
+presentations. Checkpoint 74's separate synthetic readback test remains the
+only current Jak II pixel claim. The reusable Metal product omits the desktop
+window shell; ImGui-only `TexturePool` diagnostics were split into their own
+translation unit so the iPhoneOS product does not acquire an ImGui dependency.
+
+## Combined host and renderer validation
+
+The canonical ARM64 Release build completed these six targets:
+
+```text
+CCACHE_DIR=/private/tmp/GOALPad-ccache \
+  cmake --build OpenGOAL/build/Release/bin \
+  --target jak1-gfx-host-test jak2-gfx-host-test \
+           jak2-display-tick-coordinator-test jak2-metal-dispatch-proof \
+           jak2-metal-submit-readback-proof jak2-metal-host-bridge-test -j2
+
+ctest --test-dir OpenGOAL/build/Release/bin \
+  -R '^(jak1-gfx-host-test|jak2-gfx-host-test|jak2-display-tick-coordinator-test|jak2-metal-dispatch-proof|jak2-metal-submit-readback-proof|jak2-metal-host-bridge-test)$' \
+  --output-on-failure
+```
+
+The focused run passed 6/6 in 1.55 seconds. It jointly proves the two portable
+graphics hosts, display coordinator, retained zero-submit dispatcher, retained
+offscreen green-triangle readback, and new external-host lifecycle.
+
+The exact integrated Jak 1 renderer regression was then rebuilt and executed:
+
+```text
+CCACHE_DIR=/private/tmp/GOALPad-ccache \
+  cmake --build OpenGOAL/build/Release/bin --target metal-proof -j2
+OpenGOAL/build/Release/bin/game/metal-proof
+```
+
+It ended `METAL PROOF PASSED`, including frame readback, DMA traversal, TIE,
+Merc provenance and rotation, the deterministic weighted-skin collapse, and
+Generic2. This supersedes Checkpoint 73's disk-limited result and independently
+confirms that the product split preserved Jak 1 renderer behavior.
+
+## Signed generic iPhoneOS result
+
+The Xcode-generator configure validated all 840 checked Jak II AOT units. The
+generic ARM64 iPhoneOS Release build of
+`jak2-iphoneos-display-tick-proof` then passed and signed in 8.182 seconds. Its
+dependency graph contains the runtime, AOT corpus, one Jak II kernel, Metal
+product, Metal host, and zstd targets. The final thin ARM64 iOS 18.0 executable
+links UIKit, QuartzCore, Foundation, Metal, Objective-C, libc++, CoreFoundation,
+and libSystem; it does not link SDL or OpenGL.
+
+The 86 MiB application is preserved at
+`/private/tmp/GOALPad-jak2-ios-aot-xcode/Release-iphoneos/jak2-iphoneos-display-tick-proof.app`.
+Its identifier is `com.zephyrstudiosllc.eco.jak2displaytickproof`, display name
+is `Eco Pro Jak II Dev`, executable SHA-256 is
+`f40ea1f5d601c9fddcfc859f5327f43d579e3ebfa899c0a4d21f03a4aceef9ae`,
+team is `V729QMY3V6`, and CDHash is
+`9db591255205ea309867b4b41c7bc78c87fa603b`. Strict deep signature
+verification passed with normal trust-service access. Its only signed
+entitlements are the expected application identifier, team identifier, and
+development `get-task-allow`. The AOT archive still contains one Darwin symbol
+table, one manifest, and 840 generated translation units. The executable
+contains the runtime-start and Metal-host entry points, embedded metallib, and
+exactly one `g_ee_main_mem` plus one `g_game_version`.
+
+The stale Xcode-account warning for a missing `Xcode-Token` remains non-
+blocking because the local Apple Development identity and provisioning profile
+completed signing. No simulator or physical device was installed, launched,
+logged, or captured in this checkpoint.
+
+## Jak 1 wall-camera evidence
+
+The maintainer's four no-input wall screenshots show independent world
+landmarks shifting roughly 208-240 pixels horizontally while near and far
+geometry diverge vertically by roughly 64-80 pixels. Frames two and four nearly
+recur, while the HUD stays fixed and Jak is absent. This is coherent whole-
+scene camera-pose recurrence with depth parallax, not a SwiftUI viewport shift
+or Merc deformation. The stills support rapid oscillation but cannot measure
+the reported frequency.
+
+Wall obstruction and Jak's absence co-occur in all four frames, so they do not
+separate wall line-of-sight feedback from off-screen recovery, camera-combiner
+recurrence, or downstream frame alternation. No camera code changed. The next
+authorized physical schema-v7 capture remains three no-input holds: same wall
+with Jak barely visible, same wall with Jak barely out of frame, and open space
+with Jak barely out of frame. Preserve each atomically overwritten diagnostic
+log under a distinct name immediately after its hold.
+
+## Publication and next gates
+
+Nested branches `agent/cp75-jak2-metal-host` and
+`goalpad/ipad-demo-pacing` both resolve remotely to
+`5264a3097b9c5aae6369af1896d170f7aa222734`. The parent integration branch is
+`agent/cp75-jak2-metal-host-parent` at source/gitlink commit
+`7e935988387af1e5f9df1a2342ee067ffe368c60`; publish its documentation tip only
+after `git diff --check` and exact remote-hash verification.
+
+1. Give the Jak II development target a real `CAMetalLayer` on the approved M5
+   simulator. Require drawable acquisition, completed submission and
+   presentation, and bounded no-drop/no-error counters while retaining both
+   existing deterministic proofs.
+2. Do not claim a visible title, real-game-DMA runtime, gameplay, or physical-
+   device Jak II support until each separate gate passes.
+3. Keep AVAudioEngine output after the selected-game audio-pull lifecycle gate.
+4. Keep Jak 1 camera and Merc changes at their physical diagnostic gates; do
+   not make another speculative visual patch from stills alone.
