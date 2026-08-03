@@ -102,13 +102,12 @@ heap data whose layout the compiler also emits.
 The AOT C backend (`goalc/aot/CBackend.cpp`, `goalc/aot/goal_c_runtime.h`) emits
 C from the GOAL IR and compiles it with clang for arm64, which supplies a
 complete optimizing backend, normal Mach-O objects, and ordinary code signing.
-Whole-game coverage is a measured **10590/10601 functions (99.90%)** across all
-518 Jak 1 sources, all of which compile for `arm64-apple-ios15.0`. The 11
-remaining functions are precisely the register and stack manipulators — GOAL's
-thread/exception routines, `enter-state`, `set-to-run-bootstrap`,
-`(method deactivate process)`, and `(method compute-alignment! align-control)`.
-They need native implementations and must not be lowered to C arithmetic, which
-would compile and be silently wrong.
+Current whole-game coverage is **10,596 emitted C functions plus 7 declared
+native routines** across all 518 Jak 1 sources, with zero source or function
+coverage failures. All generated translations compile for ARM64 Apple targets.
+The native set covers the register, stack, thread, and exception operations
+that must not be lowered to ordinary C arithmetic; four earlier exceptions were
+rewritten as plain GOAL with equivalent behavior.
 
 The stack model is settled and documented in the fork's `docs/aot-stack-model.md`:
 **GOAL runs on stacks inside GOAL memory, as upstream does.** gkernel requires
@@ -181,7 +180,7 @@ The linked binary has only ordinary Mach-O segments, and the GOAL functions are
   `enter-state-run-code`, built on three assembly primitives (context
   save-and-call, context restore, call-on-stack). The other four of the
   original 11 were rewritten as plain GOAL with identical effect. Zero
-  functions remain untranslated: 10595 lowered to C plus 7 native.
+  functions remain untranslated: 10,596 lowered to C plus 7 native.
 - **511 of 518 object files load in real `game.gp` build order and all 511
   top-levels execute**, reaching 7877 symbols. `time-of-day.gc` spawns a real
   process and `go`es to a state, so catch-frame, throw-dispatch, and
@@ -191,9 +190,11 @@ The linked binary has only ordinary Mach-O segments, and the GOAL functions are
   across context round-trips, real stack switching, catch/throw with live
   locals, and a suspend/resume round trip in which the C side overwrites all
   368 live stack bytes between resumes and the values still restore.
-- **What stops the boot path now is game data, not runtime**: file 512,
-  `pc/hud-classes-pc.gc`, dereferences the `*fuelcell-naked-sg*` art group,
-  which only exists once level art is loaded. The library has no file I/O yet.
+- **The isolated library proof historically stopped at game data**: file 512,
+  `pc/hud-classes-pc.gc`, dereferenced the `*fuelcell-naked-sg*` art group before
+  that harness had file I/O or level art. The integrated app now supplies the
+  separate data and renderer seams; this older harness limit is not the current
+  Jak 1 application boot boundary.
 - Machine-layer functions (`cpad-open`, `rpc-call`, `scf-get-*`, …) still
   return 0 through loud stubs; files are proven to LOAD, not proven to work.
 - Known tuning debt: `PROCESS_STACK_SAVE_SIZE` (256 bytes) and per-process
@@ -201,5 +202,11 @@ The linked binary has only ordinary Mach-O segments, and the GOAL functions are
   trivial suspending state measured 368 live. `thread-suspend` fails loudly
   with both numbers rather than overrunning; values need retuning as processes
   begin suspending for real.
-- jak2/jak3/jakx kernels still write x86-64 trampolines and remain non-functional
-  on ARM64.
+- **Jak II has separate bounded ARM64 evidence.** Its complete 840-source AOT
+  corpus has 18,479 emitted functions plus 7 shared native routines with zero
+  coverage failures. The explicit user-data headless probe registers all 840
+  units, loads KERNEL 8/8 and GAME 465/465, and runs 100 dispatcher frames. A
+  separate thin iPhoneOS ARM64 product final-links all 840 translations plus
+  the manifest with `jak2-kernel-core`. Jak II is not wired into Eco Pro and has
+  no app signing, Apple simulator/device launch, renderer/audio, title-screen,
+  or gameplay validation. Jak 3 and Jak X remain outside this validated model.

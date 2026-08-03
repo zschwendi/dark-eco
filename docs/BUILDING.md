@@ -145,9 +145,9 @@ git submodule update --init --recursive
 The authoritative child is the dedicated public fork
 `https://github.com/zschwendi/jak-pad.git`, branch
 `goalpad/ipad-demo-pacing`, pinned by the parent gitlink at
-`25ae476171340f349cc06a9fb581f316e924092d`. Checkpoint 48 incorporates
-`fd20ddfcb` (`jak1-base-retail`), `211cbc4dd` (existing source-pack
-verification), and `25ae47617` (the ARM64-only current-process guard boundary).
+`47f768ed0ec1f2cbcc2014c85b38ab1b535566f2`. Checkpoint 50 incorporates the
+checked `jak1-base-retail` importer, existing source-pack verification, Apple
+composer, active-bones provenance, and non-commuting Merc composition proof.
 Do not substitute a different OpenGOAL checkout when recording validation
 results, and pin that exact commit rather than a branch tip. The `sync` step
 updates existing clones that still remember the former upstream URL.
@@ -205,9 +205,9 @@ automation cannot silently publish the buildable shell. The sandboxed Xcode
 phase reads the manifest and coverage report explicitly; the following source
 compile and final link prove that every manifest entry is present.
 
-For Checkpoint 48, generate the pack once on canonical code. Subsequent checks
+For Checkpoint 50, generate the pack once on canonical code. Subsequent checks
 must use the existing-pack verifier and require 518 objects, aggregate identity
-`e3ed59b376d6a079`, and `10,729,469` object bytes. A caller-supplied wrong
+`f1770cae6287a359`, and `10,729,681` object bytes. A caller-supplied wrong
 expected identity must fail. Regenerate only when the source-pack writer or its
 embedded graph changes; otherwise regeneration wastes the checkpoint's heavy
 build budget without adding evidence.
@@ -245,6 +245,14 @@ This compiles the manifest and all 840 Jak II translations with
 and final-links only `jak2-kernel-core`. It proves iPhoneOS compilation and
 symbol resolution; it is not a signed app, launch, title-screen, or gameplay
 claim.
+
+The current separate ARM64 headless probe registers all 840 Jak II AOT units,
+loads KERNEL 8/8 and GAME 465/465 from explicit user data, and runs 100 kernel
+dispatcher frames. The corpus contains 18,479 emitted functions plus 7 shared
+native routines with no coverage failures. This host result and the thin
+iPhoneOS final-link product do not wire Jak II into Eco Pro, initialize its
+renderer or audio on an Apple device, or establish signing, simulator, physical
+device, title-screen, or gameplay support.
 
 Two target build settings are not optional:
 
@@ -3199,39 +3207,44 @@ cmake --build /private/tmp/GOALPad-jak1-iso-validation-ios \
   --target jak1-iso-validation -j 4
 ```
 
-These targets prove safe parsing, exact supported-revision validation, staging
-ownership, and iPhoneOS compilation. They do not produce `fr3/`, the flat
-runtime `iso/` directory, or a playable app import. Keep the existing
-prepared-folder importer in use until those later phases and the app bridge are
-validated end to end.
+These isolated targets prove safe parsing, exact supported-revision validation,
+staging ownership, and iPhoneOS compilation. They do not by themselves produce
+`fr3/`, the flat runtime `iso/` directory, or a playable app import. The
+integrated Checkpoint 50 Release path described below composes those later
+phases while keeping the prepared-folder importer available.
 
-## Checkpoint 48 importer and platform status
+## Checkpoint 50 importer and platform status
 
-The isolated `jak1-base-retail` graph/recipe/materializer tests pass. The
-profile preserves seven user retail COMMON text banks, excludes `TSZ.DGO` and
-its generated test-zone/custom-actor outputs, and writes seven zero-scene
-subtitle banks. It is not yet composed into the app's producer path.
+The checked `jak1-base-retail` graph/recipe/materializer is composed behind the
+native producer and narrow Objective-C++ bridge. Release builds can select a
+supported raw ISO or a standard ZIP32 archive containing exactly one ISO,
+prepare a private candidate, validate it, and atomically activate it. Prepared
+folders remain supported. The ZIP path streams stored or raw-DEFLATE content,
+validates size and CRC-32, and rejects ZIP64, encryption, multidisk, ambiguous,
+unsafe, unsupported, or corrupt archives without changing active data.
 
-Raw ISO selection remains disabled until the C++ graph/builder/materializer
-composition, Objective-C++ producer bridge, and end-to-end approved-simulator
-proof pass. The prepared-folder flow remains the supported import path. The
-serial staging/activation worker in parent `a8f3d040` is not a substitute for
-those gates.
+Focused raw-source, install-worker, ZIP, resource-staging, and composer checks
+pass. A generic signed iOS Release build passed with the current 518-object AOT
+corpus and verified public source pack. No successful end-to-end simulator
+import or real-device raw ISO/ZIP import is recorded; Files-provider
+materialization, available-space behavior, throughput, and physical activation
+remain validation gates.
 
-Recorded Checkpoint 48 results are: host compiler pass; Metal target pass; 34
-camera assertions pass; Metal proof outside the sandbox pass; Jak 1 AOT
-preflight `518/10596/7`; approved M5 simulator compile-only pass; generic
-iPhoneOS pass; and generic visionOS pass. The focused importer suite passed all
-named cases. The ARM64 macOS build passed with:
+The Checkpoint 50 release preflight remains `518/10596/7`. The external public
+source pack verifies as 518 objects, aggregate `f1770cae6287a359`, and
+10,729,681 object bytes. The combined generic iOS Release build passed with:
 
 ```sh
 xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
-  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -configuration Release -destination 'generic/platform=iOS' \
   -derivedDataPath /private/tmp/GOALPad-sim -jobs 2 \
-  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO \
-  ARCHS=arm64 ONLY_ACTIVE_ARCH=YES build
+  ENABLE_PREVIEWS=NO \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/private/tmp/GOALPad-jak1-source-pack-generated-g \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache \
+  GOALPAD_BUILD_JOBS=2 build
 ```
 
-The unqualified generic macOS destination also requests an unsupported x86-64
-slice; do not use it as the ARM64 platform gate. No physical device was accessed
-for these Checkpoint 48 build results.
+It produced a normally signed thin ARM64 app containing the ZIP64 rejection and
+Merc-composition diagnostic paths. This is compilation, linking, and signing
+evidence only; Checkpoint 50 did not install, launch, import, or validate
+gameplay on a physical device.
