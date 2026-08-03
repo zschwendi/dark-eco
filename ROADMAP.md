@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 53 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 54 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -870,6 +870,19 @@ cannot classify portal-relative facing or Square through those new fields.
 This is a physical observer failure to repair, not evidence that target control
 was correct. The away/toward A/B is paused until that probe is no longer blind.
 
+Checkpoint 54 fixes that observer failure without changing gameplay. GOAL's
+declared basic-object offsets include the four-byte type tag, but live basic
+pointers begin after it; the v5 observer consequently read `node-list` at live
+`target + 112` instead of `control` at live `target + 108`. Nested
+`c2f933ba0` applies the shared `BASIC_OFFSET` to all diagnostic target/control/
+cpad fields, keeps exact runtime types and declared allocated-size checks, and
+adds a decoy-old-slot regression. All 58 focused C++ checks and both parent
+bridge checks passed. A new signed thin ARM64 Eco Pro build passed with SHA-256
+`4b9eb6e0848a2e1c222f0ef8bd16aae9b00739043b4379ecb2f271ca64e9d315`.
+It was update-installed on the authorized Z iPad Pro while preserving app data;
+launch is pending only because the iPad locked. No corrected physical trace or
+visual acceptance is claimed yet.
+
 Jak II now has one additional bounded host seam at nested `17a097baa`:
 ordinary-file STR channel 4 validates the measured request/reply shape, reads a
 safe uppercase basename from user-local `out/jak2/iso`, bounds the EE write,
@@ -888,10 +901,10 @@ Jak 1 as active scope.
 
 The next actions are:
 
-1. Repair the target/control diagnostic's physical stage-4 type mismatch with
-   bounded runtime-type evidence and focused tests. Do not weaken validation or
-   change gameplay behavior merely to obtain a sample.
-2. With the repaired observer, preserve separate toward-portal,
+1. Once Z iPad Pro is unlocked, launch the already installed corrected build.
+   Require target capture stage `10`, result `1`, and a nonzero valid-observation
+   count before interpreting its facing fields.
+2. Preserve separate toward-portal,
    away-from-portal, and deliberate near-wall runs. Compare only the controlled
    portal-relative A/B. The original “backward” wording was camera-relative;
    the portal is the stable reference for this test. Use LOS,
@@ -900,14 +913,14 @@ The next actions are:
    speculate past the trace.
 3. Keep the camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    recorded 518-object pack unless its writer or embedded graph changes.
-4. After the Jak 1 trace identifies its active seam or physical validation is
-   again the sole remaining gate, rerun the Jak II proof to capture the first
-   post-STR unsupported RPC and implement one bounded synthetic-tested host
-   seam. Do not jump to app wiring or a full sound stack.
+4. The next measured Jak II seam is loader command 2 (`load-bank`) for
+   `COMMON`/`COMMONJ` and `EMPTY0`-`EMPTY2`, plus command-aware reply framing.
+   Implement a real bounded bank load with synthetic tests in a separate lane;
+   do not acknowledge it as a no-op or jump to app wiring/full sound.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
-The Checkpoint 53 Z iPad Pro update-install and launch were explicitly
-authorized in that request; future physical access still requires fresh
+The Checkpoint 54 Z iPad Pro update-install and pending launch are explicitly
+authorized in the current request; later physical access still requires fresh
 authorization. No proprietary game data belongs in source control or CI.

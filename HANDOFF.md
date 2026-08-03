@@ -8797,3 +8797,109 @@ Jak II continuation.
    remaining post-STR unimplemented RPC. Select one bounded, synthetic-tested
    host seam from that evidence; do not jump directly to app wiring or a full
    sound stack.
+
+# Checkpoint 54: repair live GOAL target offsets before the portal-relative A/B
+
+## Exact cause and narrow fix
+
+The physical v5 rejection was not a derived `control-info` type and not
+evidence of gameplay memory corruption. Declared GOAL basic-object offsets in
+`decompiler/config/jak1/all-types.gc` include the four-byte type tag, while a
+live GOAL basic pointer begins immediately after that tag. The observer used
+the declared offsets directly. It therefore read `target + 112`, the live
+`node-list` slot, instead of `target + 108`, the live `root`/`control` slot.
+The control exact-type check correctly rejected that decoy on all 5,754
+physical attempts.
+
+Nested commit `c2f933ba0af72147e51ca6a95a6702a1d7e33f4e` subtracts the shared
+`BASIC_OFFSET` from all asserted target, control, and cpad field offsets used by
+the diagnostic. It separately preserves declared allocated sizes for type
+descriptor validation and subtracts the tag only for the readable live-object
+span. Exact target, `control-info`, and `cpad-info` type checks remain intact;
+gameplay behavior is unchanged. The regression fixture places a typed decoy at
+the obsolete `target + 112` slot, the real control pointer at live
+`target + 108`, verifies every downstream field, and proves that an exact-size
+live cpad span succeeds without counting the preceding tag.
+
+Focused canonical validation passed:
+
+```sh
+cmake --build OpenGOAL/build/Release/bin \
+  --target metal-merc-transform-trace-test -j2
+OpenGOAL/build/Release/bin/game/metal-merc-transform-trace-test
+# 58 checks passed.
+
+./Scripts/run-target-control-diagnostics-check.sh
+./Scripts/run-merc-transform-diagnostics-check.sh
+# Both bridge checks passed.
+```
+
+The 518-object Jak 1 source pack and generated AOT corpus were not regenerated:
+this change touches only native C++ diagnostic code and its synthetic test, not
+GOAL sources, the embedded graph, or the C emitter.
+
+## Signed build and current physical gate
+
+The serialized generic iOS Release build used the existing verified source
+pack and AOT corpus. Its first sandboxed attempt exited `65` because Xcode could
+not reach CoreSimulator/account services or load provisioning. The identical
+command with direct Xcode service access exited `0`; the first failure was an
+environment/service-access result, not a source or signing regression. The
+known missing `Xcode-Token` warning and pre-existing upstream narrowing warnings
+remain non-fatal.
+
+The resulting Eco Pro executable is thin ARM64 with SHA-256
+`4b9eb6e0848a2e1c222f0ef8bd16aae9b00739043b4379ecb2f271ca64e9d315`.
+Unrestricted signature verification reports valid on disk and satisfying its
+designated requirement. Entitlements retain team `V729QMY3V6`, bundle
+`com.zephyrstudiosllc.eco`, and private iCloud container
+`iCloud.com.zephyrstudiosllc.eco`.
+
+With the current request's explicit Z iPad Pro authorization, the first
+update-install attempt reached the device but its remote install connection was
+interrupted. The second update-install passed and preserved the existing app
+container. Launch was then denied because the iPad had locked; no launch,
+corrected-cache, or visual result is claimed yet. The maintainer only needs to
+wake/unlock the iPad. Do not reinstall or erase data before retrying launch.
+
+## Jak II frontier retained in parallel
+
+An audit ran the existing current STR proof for 100, 1,000, and 10,000 frames.
+No later RPC appears after the one 309,856-byte `0SUBTI2.TXT` read. The earliest
+remaining unsupported sound call occurs earlier during `GAME.CGO`: loader
+channel 1, function 0, command 2 (`load-bank`) for `COMMON`, `COMMONJ`, then
+`EMPTY0`-`EMPTY2`. It is currently mislabeled as a malformed version handshake
+because the portable loader requires a reply buffer for every command even
+though only command 16 requests the IRX version.
+
+The next honest Jak II slice is command-aware loader framing plus a real,
+bounded bank load through the existing Jak II/989snd interfaces. It is not an
+acknowledged no-op, and it needs its own synthetic fixtures and serialized
+host/iPhoneOS proof. It must not take the heavy build lane ahead of the pending
+Jak 1 physical A/B.
+
+The obsolete 131 MiB Jak II build directory
+`/private/tmp/GP-jak2-ios-aot-build.w4gL4G` was removed after the current proof
+was recorded. The current 119 MiB proof at
+`/private/tmp/GOALPad-jak2-ios-aot-current` and all Git worktrees remain intact.
+
+## Next executable tasks
+
+1. Once Z iPad Pro is unlocked, launch the already installed build. At the same
+   Geyser Rock spot with a fixed camera, record stationary `toward portal`,
+   `away from portal`, then `toward portal` again as separate runs. Press Square
+   once and background immediately after each labeled pose so each cache can be
+   copied before relaunch.
+2. Require target capture stage `10`, result `1`, and at least one valid
+   observation before interpreting control/render/root facing. Treat the portal
+   as the fixed world reference; the earlier “backward” wording was relative to
+   the camera and is not the A/B label.
+3. Capture the severe wall oscillation separately while it is visibly active.
+   The previous retained event was movement-blocked but contained only a small
+   normalized orientation change and did not preserve the reported 120-degree
+   swing.
+4. Make one behavior change only after the corrected A/B or wall trace selects
+   a concrete upstream seam. The existing evidence places Jak's deformation in
+   the input-root transform before final Merc composition.
+5. Keep Jak II command-2 bank loading in a separate implementation lane while
+   physical Jak 1 input remains the active integration gate.
