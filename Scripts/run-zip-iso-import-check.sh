@@ -13,6 +13,7 @@ swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
   -strict-concurrency=complete \
   -warnings-as-errors \
   "$root/GOALPad/Data/GameData.swift" \
+  "$root/GOALPad/Data/GameDataImportSource.swift" \
   "$root/GOALPad/Data/GameDataInstallWorker.swift" \
   "$root/GOALPad/Data/ZIPISOCandidateProducer.swift" \
   "$root/Scripts/zip-iso-import-check.swift" \

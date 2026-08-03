@@ -253,6 +253,165 @@ private struct RecordingProducer: GameDataCandidateProducing {
     }
 }
 
+private final class PipelineFixture: @unchecked Sendable {
+    let root: URL
+    let active: URL
+    let staging: URL
+    let worker: GameDataInstallWorker
+
+    init() throws {
+        root = FileManager.default.temporaryDirectory.appending(
+            path: "goalpad-iso-pipeline-\(UUID().uuidString)",
+            directoryHint: .isDirectory
+        )
+        active = root.appending(path: "Documents/Jak1", directoryHint: .isDirectory)
+        staging = root.appending(
+            path: "Library/Application Support/GOALPad/GameDataImport/Jak1",
+            directoryHint: .isDirectory
+        )
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        worker = GameDataInstallWorker(configuration: .init(
+            activeDirectory: active,
+            stagingRoot: staging
+        ))
+    }
+
+    deinit {
+        try? FileManager.default.removeItem(at: root)
+    }
+
+    var attemptEntries: [URL] {
+        let attempts = staging.appending(path: "Attempts", directoryHint: .isDirectory)
+        return (try? FileManager.default.contentsOfDirectory(
+            at: attempts,
+            includingPropertiesForKeys: nil
+        )) ?? []
+    }
+}
+
+private actor ActivePayloadRecorder {
+    private let active: URL
+    private var values: [String: Data] = [:]
+
+    init(active: URL) {
+        self.active = active
+    }
+
+    func observe(_ progress: GameDataImportProgress) {
+        guard progress.phase == .validatingCandidate || progress.phase == .activatingCandidate,
+              let payload = try? Data(contentsOf: active.appending(path: "iso/GAME.CGO"))
+        else { return }
+        values[progress.phase.rawValue] = payload
+    }
+
+    func snapshot() -> [String: Data] {
+        values
+    }
+}
+
+/// Models the native composer's ownership contract without accepting a fake retail fingerprint:
+/// it consumes one ISO file and writes a complete, fresh candidate directly.
+private struct SyntheticComposerProducer: GameDataCandidateProducing {
+    func prepareCandidate(
+        from source: URL,
+        activeDirectory _: URL,
+        candidateDirectory: URL,
+        report _: @escaping @Sendable (GameDataImportProgress) async -> Void
+    ) async throws -> GameDataImportResult {
+        let payload = try Data(contentsOf: source)
+        try writeCompleteCandidate(at: candidateDirectory, payload: payload)
+        return GameDataImportResult(filesCopied: preparedFileCount, filesSkipped: 0)
+    }
+}
+
+private var preparedFileCount: Int {
+    Set(GameDataManifest.bootArchives + GameDataManifest.levelArchives).count
+        + GameDataManifest.levelGeometry.count
+}
+
+private func writeCompleteCandidate(at root: URL, payload: Data) throws {
+    let iso = root.appending(path: GameDataLayout.isoDirectoryName, directoryHint: .isDirectory)
+    let fr3 = root.appending(path: GameDataLayout.fr3DirectoryName, directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: iso, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: fr3, withIntermediateDirectories: true)
+    for name in Set(GameDataManifest.bootArchives + GameDataManifest.levelArchives) {
+        try payload.write(to: iso.appending(path: name), options: .atomic)
+    }
+    for name in GameDataManifest.levelGeometry {
+        try payload.write(to: fr3.appending(path: name), options: .atomic)
+    }
+}
+
+@MainActor private func verifyInstallPipeline(
+    label: String,
+    source: URL,
+    expectedSource: GameDataImportSource,
+    expectedPayload: Data,
+    fixture: PipelineFixture,
+    producer: any GameDataCandidateProducing
+) async throws {
+    print("\(label) reaches validation and atomic activation")
+    let oldPayload = Data("previous active install".utf8)
+    try writeCompleteCandidate(at: fixture.active, payload: oldPayload)
+    let recorder = ActivePayloadRecorder(active: fixture.active)
+
+    check(GameDataImportSource(url: source) == expectedSource,
+          "\(label) selection chooses the expected import route")
+    let result = try await fixture.worker.install(from: source, using: producer) { progress in
+        await recorder.observe(progress)
+    }
+
+    let observed = await recorder.snapshot()
+    check(observed[GameDataImportProgress.Phase.validatingCandidate.rawValue] == oldPayload,
+          "\(label) leaves the prior install active during candidate validation")
+    check(observed[GameDataImportProgress.Phase.activatingCandidate.rawValue] == oldPayload,
+          "\(label) leaves the prior install active at the activation boundary")
+    check(GameDataInspector.inspect(gameDirectory: fixture.active).status == .ready,
+          "\(label) activates a manifest-complete candidate")
+    let activePayload = try Data(contentsOf: fixture.active.appending(path: "iso/GAME.CGO"))
+    check(activePayload == expectedPayload,
+          "\(label) atomically switches to the newly composed bytes")
+    check(result.filesCopied == preparedFileCount,
+          "\(label) preserves the downstream composer summary")
+    check(fixture.attemptEntries.isEmpty,
+          "\(label) leaves neither a candidate nor a temporary ISO in staging")
+}
+
+@MainActor private func rawAndZippedSourcesReachAtomicActivation() async throws {
+    let rawFixture = try PipelineFixture()
+    let rawPayload = Data("synthetic raw ISO bytes".utf8)
+    let rawSource = rawFixture.root.appending(path: "selected.ISO")
+    try rawPayload.write(to: rawSource)
+    try await verifyInstallPipeline(
+        label: "raw ISO",
+        source: rawSource,
+        expectedSource: .rawISO,
+        expectedPayload: rawPayload,
+        fixture: rawFixture,
+        producer: SyntheticComposerProducer()
+    )
+
+    let zipFixture = try PipelineFixture()
+    let zippedPayload = Data("synthetic ZIP-contained ISO bytes".utf8)
+    let zipSource = zipFixture.root.appending(path: "selected.ZIP")
+    try makeArchive([
+        ArchiveEntry(name: "disc/game.iso", contents: zippedPayload, method: 8),
+    ]).write(to: zipSource)
+    var limits = ZIPISOExtractor.Limits()
+    limits.minimumFreeSpaceAfterExtraction = 0
+    try await verifyInstallPipeline(
+        label: "zipped ISO",
+        source: zipSource,
+        expectedSource: .zippedISO,
+        expectedPayload: zippedPayload,
+        fixture: zipFixture,
+        producer: ZIPISOCandidateProducer(
+            downstream: SyntheticComposerProducer(),
+            extractor: ZIPISOExtractor(limits: limits)
+        )
+    )
+}
+
 @MainActor private func storedAndDeflatedMembersExtract() async throws {
     print("stored and raw-DEFLATE ISO members stream and verify")
     for (method, flags): (UInt16, UInt16) in [(0, 0), (8, 0), (8, 0x0008)] {
@@ -614,6 +773,7 @@ private struct ZIPISOImportCheck {
             try await deflateFinalChunkCancellationRemovesOutput()
             try await unsafeAndUnsupportedArchivesFailClosed()
             try await corruptAndUnreasonableMembersFailClosed()
+            try await rawAndZippedSourcesReachAtomicActivation()
         } catch {
             print("  FAIL unexpected error: \(error)")
             failures += 1
