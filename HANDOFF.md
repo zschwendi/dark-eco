@@ -10811,3 +10811,88 @@ launch, log capture, or other device access.
    another speculative camera, Merc, or metallic-material patch without fresh
    authorization and an observation that distinguishes the retained
    hypotheses.
+
+# Context-reset resume note after Checkpoint 73
+
+Date: 2026-08-03. The active maintainer objective remains: **get Jak 1 cleanly
+built, then do the same with Jak II**. Checkpoint 73 is progress toward that
+objective, not completion. Resume by reading `AGENTS.md`,
+`docs/PROJECT_OVERVIEW.md`, this note, the complete Checkpoint 73 entry above,
+and `ROADMAP.md`, then recheck every Git status before editing.
+
+## Exact preserved Git state
+
+- Canonical parent branch/worktree:
+  `agent/cp73-zero-submit-parent-v3` at
+  `7a681baa846c557446da9279e72a9977ad7eb949` in
+  `/private/tmp/GP-cp73-zero-submit-parent-v3`. It is clean. The local
+  `origin/feat/ipados-native-boot` tracking ref points to the same commit; the
+  remote hash was verified when Checkpoint 73 was published. A later sandboxed
+  `ls-remote` could not resolve `github.com`, so do not turn that network
+  failure into evidence of remote drift.
+- Canonical nested branch/worktree:
+  `agent/jak2-metal-reconcile-v3` at
+  `1e41324fae461360f8220d6e4dbf7004b754fc65` in
+  `/private/tmp/OG-jak2-metal-reconcile-v3`. It is clean. The local
+  `origin/goalpad/ipad-demo-pacing` tracking ref points to the same commit; the
+  remote hash was verified when Checkpoint 73 was published.
+- Clean validation checkout:
+  `/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation` is
+  detached at parent `35029742336762d536874ebbfaff69b1c70485b7`, with nested
+  OpenGOAL detached at `1e41324fae461360f8220d6e4dbf7004b754fc65`. Parent
+  `7a681baa` adds only the final Checkpoint 73 documentation after that core
+  source commit.
+- Maintainer-owned main worktree:
+  `/Users/zach/Developer/OS_Projects/GOALPad/GOALPad` remains on
+  `agent/jak1-v6-visual-diagnostics-parent` at `5248041c`, with uncommitted
+  changes in `GOALPad.xcodeproj/project.pbxproj`, `HANDOFF.md`, `OpenGOAL`, and
+  `ROADMAP.md`. Its nested checkout remains on `agent/jak2-final-reconcile` at
+  `9687fcc2f` and is three commits behind the canonical nested remote-tracking
+  ref. These changes are maintainer-owned: do not reset, clean, stage, sync,
+  or overwrite this worktree. Continue integration in the isolated canonical
+  worktrees.
+
+All three Checkpoint 73 audit/implementation subagents completed. No subagent
+or heavy build is intentionally left running across the reset.
+
+## Preserved build and current machine state
+
+The signed Checkpoint 73 Eco Pro app remains at
+`/private/tmp/GOALPad-cp73-signed/GOALPad.app` (approximately 50 MiB). A fresh
+normal-trust-service `codesign --verify --deep --strict` check passed at this
+context boundary, and the executable SHA-256 remains
+`55e67192c206d5c808fb2d4e6adb13bffb96b3facc1c03afafb3b516d3f36cb7`.
+The reproducible Checkpoint 73 Xcode DerivedData and CMake build directories
+were removed after their results were recorded; the signed app was preserved.
+Only about 942 MiB is currently free on the data volume, so recover additional
+space before another full AOT/C++/Xcode build and keep one heavy build active
+at a time.
+
+The maintainer last reported the physical iPad app backgrounded or closed.
+That is device state only and is not permission to install, launch, attach
+logs, capture the screen, or otherwise access **Z iPad Pro**. Obtain fresh
+explicit authorization before the schema-v7 physical Jak 1 gate.
+
+## Validation boundary and next executable work
+
+- Exact-current generic-iPhoneOS Release for Eco Pro is green and normally
+  signed at the parent/nested pins above. The three focused Jak II Metal tests
+  pass 3/3, including nil-layer traversal of all 327 buckets with zero command
+  buffer commits, drawable attempts, submissions, or presentations.
+- Exact-current full Jak 1 `metal-proof` is still missing because the broad
+  Checkpoint 73 build exhausted disk. Checkpoint 72 is the latest full Jak 1
+  renderer proof. Do not describe Jak 1 as cleanly rebuilt at Checkpoint 73
+  until this exact-pin regression passes.
+- First action after recovering build space: recreate one canonical CMake
+  directory at nested `1e41324fa`, enable `ccache`, build only the dependencies
+  needed by `metal-proof`, and run the exact-current full Jak 1 proof. Preserve
+  the first useful failure if it does not pass.
+- If the Jak 1 proof is green, advance Jak II through either a separate
+  explicit offscreen-submit/readback proof for one audited Direct GIF payload
+  or the development app's real `CAMetalLayer`. Preserve the nil-layer path as
+  zero-commit and make no rendered-pixel claim until a submitted command
+  buffer completes.
+- Keep AVAudioEngine output after the selected-game audio-pull lifecycle gate.
+  Keep Jak 1 camera, Merc, and metallic-material behavior unchanged until a
+  freshly authorized schema-v7 physical observation can distinguish the
+  recorded hypotheses.
