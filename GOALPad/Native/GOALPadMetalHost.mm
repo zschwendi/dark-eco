@@ -373,8 +373,18 @@ void render_chain() {
   }
   g_host.stats.merc_eichar_output_composition_mismatches =
       stats.merc_eichar_output_composition_mismatches;
-  g_host.stats.merc_eichar_output_composition_mismatches_total +=
-      stats.merc_eichar_output_composition_mismatches;
+  if (stats.merc_eichar_output_composition_mismatches > 0) {
+    g_host.stats.merc_eichar_output_composition_mismatches_total +=
+        stats.merc_eichar_output_composition_mismatches;
+    if (!g_host.stats.first_merc_eichar_output_composition_mismatch.valid()) {
+      g_host.stats.first_merc_eichar_output_composition_mismatch =
+          retain_merc_transform_event(stats.first_merc_eichar_output_composition_mismatch,
+                                      stats.last_host_tick_id, stats.last_chain_ordinal);
+    }
+    g_host.stats.last_merc_eichar_output_composition_mismatch = retain_merc_transform_event(
+        stats.last_merc_eichar_output_composition_mismatch, stats.last_host_tick_id,
+        stats.last_chain_ordinal);
+  }
   g_host.stats.merc_eichar_palette_health_issues = stats.merc_eichar_palette_health_issues;
   if (stats.merc_eichar_palette_health_issues > 0) {
     g_host.stats.merc_eichar_palette_health_issues_total +=

@@ -730,6 +730,12 @@ final class GameSession {
             + mercTransformFields(
                 "last_merc_eichar_provenance",
                 renderer.lastMercEicharProvenanceEvent)
+            + mercTransformFields(
+                "first_merc_eichar_output_composition",
+                renderer.firstMercEicharOutputCompositionMismatch)
+            + mercTransformFields(
+                "last_merc_eichar_output_composition",
+                renderer.lastMercEicharOutputCompositionMismatch)
             + mercPaletteHealthFields(
                 "first_merc_eichar_palette_health",
                 renderer.firstMercEicharPaletteHealthEvent)

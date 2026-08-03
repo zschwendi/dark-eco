@@ -462,6 +462,8 @@ typedef struct GOALPadRendererStats {
   GOALPadMercTransformEvent lastMercEicharProvenanceEvent;
   int32_t mercEicharOutputCompositionMismatches;
   uint64_t mercEicharOutputCompositionMismatchesTotal;
+  GOALPadMercTransformEvent firstMercEicharOutputCompositionMismatch;
+  GOALPadMercTransformEvent lastMercEicharOutputCompositionMismatch;
   int32_t mercEicharPaletteHealthIssues;
   uint64_t mercEicharPaletteHealthIssuesTotal;
   GOALPadMercPaletteHealthEvent firstMercEicharPaletteHealthEvent;

@@ -121,6 +121,8 @@ stats.firstMercEicharTransformDiscontinuity = first
 stats.lastMercEicharTransformDiscontinuity = last
 stats.firstMercEicharProvenanceEvent = firstProvenance
 stats.lastMercEicharProvenanceEvent = lastProvenance
+stats.firstMercEicharOutputCompositionMismatch = lastProvenance
+stats.lastMercEicharOutputCompositionMismatch = lastProvenance
 stats.firstMercEicharPaletteHealthEvent = firstEicharPalette
 stats.lastMercEicharPaletteHealthEvent = lastEicharPalette
 
@@ -167,6 +169,10 @@ precondition(stats.firstMercEicharProvenanceEvent.currentOutputExpectedDistance 
 precondition(stats.lastMercEicharProvenanceEvent.issueMask == 128)
 precondition(stats.lastMercEicharProvenanceEvent.currentBindPoseHash == 0x500)
 precondition(stats.lastMercEicharProvenanceEvent.currentOutputExpectedDistance == 1.5)
+precondition(stats.firstMercEicharOutputCompositionMismatch.issueMask == 128)
+precondition(stats.firstMercEicharOutputCompositionMismatch.previousBindPoseHash == 0x400)
+precondition(stats.lastMercEicharOutputCompositionMismatch.currentBindPoseHash == 0x500)
+precondition(stats.lastMercEicharOutputCompositionMismatch.currentOutputExpectedDistance == 1.5)
 precondition(stats.firstMercEicharPaletteHealthEvent.issueMask == 1)
 precondition(stats.firstMercEicharPaletteHealthEvent.nonfiniteLaneMask == (1 << 3) | (1 << 20))
 precondition(stats.lastMercEicharPaletteHealthEvent.issueMask == 4)

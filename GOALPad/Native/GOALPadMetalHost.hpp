@@ -255,6 +255,8 @@ struct MetalHostStats {
   MetalHostMercTransformEvent last_merc_eichar_provenance_event;
   int merc_eichar_output_composition_mismatches = 0;
   std::uint64_t merc_eichar_output_composition_mismatches_total = 0;
+  MetalHostMercTransformEvent first_merc_eichar_output_composition_mismatch;
+  MetalHostMercTransformEvent last_merc_eichar_output_composition_mismatch;
   int merc_eichar_palette_health_issues = 0;
   std::uint64_t merc_eichar_palette_health_issues_total = 0;
   MetalHostMercPaletteHealthEvent first_merc_eichar_palette_health_event;

@@ -329,6 +329,10 @@ static GOALPadCameraCorrectionEvent makeCameraCorrectionEvent(
                                     core.last_merc_eichar_provenance_event),
                                 (int32_t)core.merc_eichar_output_composition_mismatches,
                                 core.merc_eichar_output_composition_mismatches_total,
+                                makeMercTransformEvent(
+                                    core.first_merc_eichar_output_composition_mismatch),
+                                makeMercTransformEvent(
+                                    core.last_merc_eichar_output_composition_mismatch),
                                 (int32_t)core.merc_eichar_palette_health_issues,
                                 core.merc_eichar_palette_health_issues_total,
                                 makeMercPaletteHealthEvent(
