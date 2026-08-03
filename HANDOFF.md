@@ -10460,16 +10460,18 @@ frontier retains
 `goal_jak2_runtime_start`, `goal_jak2_runtime_tick`,
 `goal_jak2_runtime_shutdown`, `goal_gfx_host_install`,
 `goal_gfx_dma_observe_chain`, `goal_pad_install`, and the display-vblank
-handler. The exact product is preserved under
-`/private/tmp/GOALPad-jak2-ios-aot-xcode/Release-iphoneos/`.
+handler. The exact product identity is recorded above. Its reproducible signed
+build directory was later removed after recording results; Checkpoint 69
+identifies the current canonical Apple build directory.
 
 Existing project-wide generated-code conversion warnings, deprecated upstream
 `sprintf` calls, empty archive members, the unused stale Xcode account warning,
 and generated-Xcode duplicate `-lobjc` warning remain non-blocking. The old
 recorded 2.8 GiB `/private/tmp/GOALPad-sim` DerivedData cache was verified as
 derived-only and removed after the disk reached its emergency threshold. No
-source, save, prepared game data, or worktree was removed. The current canonical
-Xcode build is `/private/tmp/GOALPad-jak2-ios-aot-xcode`.
+source, save, or prepared game data was removed. The earlier recorded Jak II
+signed build directories are no longer retained; their artifact identities and
+source commits remain recorded.
 
 The reconciled nested history and final application source are preserved
 remotely at `b724cee30`. No device, simulator, app launch, logging, screen
@@ -10494,3 +10496,64 @@ checkpoint.
    camera holds plus the Flat-Stanley heading sweep. The new no-input stills
    confirm whole-camera A/B/A recurrence but do not distinguish wall LOS
    feedback from off-screen recovery or transform recurrence.
+
+# Checkpoint 69: Jak II simulator lifecycle and neutral audio seam
+
+Date: 2026-08-03. Nested head
+`05b3d0ced5f43b1f1afa6afa511af3abe309a979` advances the development-only
+Jak II app without changing its zero-render/zero-present boundary. Commit
+`c9441dd48` permits the existing iOS CMake gate to generate for ARM64
+`iphonesimulator` as well as `iphoneos`. Commit `05b3d0ced` adds the selected-
+game audio API used by both Jak 1 and Jak II without replacing either game's
+sound implementation.
+
+## Simulator lifecycle proof
+
+The ARM64 iPad Pro 11-inch (M5) simulator build, install, and launch of
+`jak2-iphoneos-display-tick-proof` passed using the maintainer's local prepared
+Jak II data through the diagnostic data-directory override. The development
+status view reported `PASS`, one accepted display tick, one runtime/graphics-
+host/DMA frame, one well-formed chain, zero malformed chains, and zero rendered
+or presented frames. After the app was backgrounded and foregrounded, the same
+process identifier remained live and all one-frame counters were unchanged.
+This validates the existing pause/no-catch-up contract in the simulator; it is
+not physical-device, visible-title, rendered-pixel, or gameplay evidence.
+
+## Neutral audio integration and Apple build
+
+The focused `jak2-sound-rpc-test` and `jak1-kernel-core-smoke-test` builds and
+executions passed. Before Jak II's sound RPC is installed and after shutdown,
+the selected-game pull returns no samples without modifying the destination;
+during the existing synthetic playback test it returns nonzero audio. Jak 1
+continues to delegate to its existing sound implementation. The parent
+Objective-C++ bridge and Swift audio status now consume
+`goal_game_sound_sample_rate` and `goal_game_sound_pull_audio` rather than
+calling Jak 1's sound API directly.
+
+The exact-current generic-iOS Release parent build passed and signed at
+`/private/tmp/GOALPad-parent-audio`. Its executable is a thin ARM64 Mach-O with
+SHA-256
+`9af25e9b285c18a86942e2fe748001c4cccef4a092f6145c73d55e09f0b47d33`,
+identifier `com.zephyrstudiosllc.eco`, team `V729QMY3V6`, and CDHash
+`4ce2d65a891833042284220b580fe7214f8da9d5`. This is the current canonical
+Apple build directory. The Jak II development app still has no AVAudioEngine
+output wiring, and no Jak II Metal pixel, visible title, or gameplay proof is
+claimed.
+
+## Next executable gates
+
+1. Add a plain-C++ Jak II Metal bucket-descriptor table and deterministic test
+   for all 327 buckets: 200 deferred renderer slots and 127 strict-empty slots.
+   This table proof must not claim that a DMA chain was drawn.
+2. After that table test passes, make the empty/skip/direct Metal paths game-
+   version aware and add the smallest nil-layer synthetic Jak II dispatch
+   proof. Keep rendered, submitted, and presented counts at zero until real
+   Jak II buckets are safely handled.
+3. Add AVAudioEngine output to the Jak II development app only after its
+   existing selected-game pull seam is retained through lifecycle testing.
+   Music and streaming lifecycle remain separate real gaps.
+4. Do not make another speculative Jak 1 camera or Merc patch. The wall sequence
+   is a repeating whole-camera pose recurrence while Jak is absent, and Flat
+   Stanley remains world-heading-dependent. A freshly authorized physical
+   schema-v7 barely-visible/barely-out/open-space hold and heading sweep are
+   still required to distinguish the retained hypotheses.

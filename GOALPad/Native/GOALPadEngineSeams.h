@@ -31,8 +31,10 @@
 #define GOALPAD_HAVE_PAD_SEAM 0
 #endif
 
-#if __has_include("game/kernel/core/sound_rpc.h")
+#if __has_include("game/kernel/core/sound_rpc.h") && \
+    __has_include("game/kernel/core/kernel_game.h")
 #define GOALPAD_HAVE_SOUND_SEAM 1
+#include "game/kernel/core/kernel_game.h"
 #include "game/kernel/core/sound_rpc.h"
 #else
 #define GOALPAD_HAVE_SOUND_SEAM 0

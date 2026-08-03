@@ -392,7 +392,7 @@ BootStatus boot_game() noexcept {
     // 989snd has to be answering the sound RPC before that load starts.
     if (goal_sound_install() == GOAL_KERNEL_CORE_OK) {
       status.sound_installed = true;
-      status.sound_sample_rate = goal_sound_sample_rate();
+      status.sound_sample_rate = goal_game_sound_sample_rate();
     } else {
       os_log_error(boot_log(), "989snd did not start: %{public}s", goal_sound_last_error());
     }

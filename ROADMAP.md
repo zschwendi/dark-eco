@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness and remaining platform gaps, not real-media
 import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 68 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 69 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 
@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 68 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 69 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -1045,6 +1045,16 @@ the same reusable runtime with distinct graphics modes. The app is still deliber
 headless: no Jak II Metal dispatch, audio output, simulator/device launch,
 visible title, presented frame, or gameplay is claimed.
 
+Checkpoint 69 validates that development app on the ARM64 M5 iPad simulator
+with prepared data: one accepted foreground tick produces one runtime/host/DMA
+frame and zero rendered or presented frames, while background/foreground keeps
+the same process and does not advance counters. Nested `05b3d0ced` also exposes
+a selected-game audio pull used by Jak 1 and Jak II; both focused audio/lifecycle
+tests and the parent signed generic-iOS Release build pass. The parent bridge
+now consumes that neutral seam. The Jak II development app still has no
+AVAudioEngine output or Metal dispatch, and this is not physical-device,
+visible-title, pixel, or gameplay evidence.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
@@ -1069,17 +1079,16 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Continue Jak II from the signed development-only UIKit/CADisplayLink proof
-   with a bounded renderer-input audit and the smallest deterministic Jak II
-   bucket proof. Only after that proof passes should the Apple host gain its
-   distinct active-level/DMA-observer callbacks and the development target gain
-   a Metal surface. Do not claim presentation until real Jak II buckets replace
-   the renderer's current Jak 1-only dispatch path.
+4. Continue Jak II with a plain-C++ 327-entry Metal bucket-descriptor table test
+   that proves 200 deferred and 127 strict-empty slots. After it passes, make
+   the relevant Metal paths version-aware and add the smallest nil-layer
+   synthetic dispatch proof. Do not claim presentation until real Jak II
+   buckets replace the renderer's current Jak 1-only dispatch path.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
-Checkpoint 68 did not access Z iPad Pro. The maintainer supplied screenshots
+Checkpoint 69 did not access Z iPad Pro. The maintainer supplied screenshots
 from their own current physical run, but the agent did not install, launch,
 log, copy, or otherwise access the device. The maintainer reported that the app
 was backgrounded or closed, and any later install, launch, logging, capture, or

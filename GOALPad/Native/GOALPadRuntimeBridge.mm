@@ -212,9 +212,6 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
 + (void)stopKernel {
   goalpad::reset_game();
   goalpad::metal_host_stop();
-#if GOALPAD_HAVE_SOUND_SEAM
-  goal_sound_shutdown();
-#endif
   goalpad::stop_kernel();
   NSLog(@"GOALPad kernel: shut down.");
 }
@@ -312,7 +309,7 @@ int32_t GOALPadInputReadCount(int32_t port) {
 
 int32_t GOALPadAudioSampleRate(void) {
 #if GOALPAD_HAVE_SOUND_SEAM
-  return goal_sound_sample_rate();
+  return goal_game_sound_sample_rate();
 #else
   // The rate the engine's mixer runs at, so the device is opened at the right rate before the seam
   // lands and does not have to be reopened afterwards.
@@ -322,7 +319,7 @@ int32_t GOALPadAudioSampleRate(void) {
 
 int32_t GOALPadAudioPull(int16_t *out, int32_t frames) {
 #if GOALPAD_HAVE_SOUND_SEAM
-  return goal_sound_pull_audio(out, frames);
+  return goal_game_sound_pull_audio(out, frames);
 #else
   (void)out;
   (void)frames;

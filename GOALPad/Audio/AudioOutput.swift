@@ -7,10 +7,10 @@ nonisolated private let audioLog = Logger(subsystem: "com.zephyrstudiosllc.eco",
 
 /// The audio device for the engine's mixer.
 ///
-/// The engine has no output device of its own: `goal_sound_pull_audio` renders interleaved stereo
-/// 16-bit frames whenever the host asks for them, at a fixed rate its sequencer timing is derived
-/// from. This opens an `AVAudioEngine` source node at exactly that rate and lets the engine's
-/// output chain resample to whatever the hardware is running at.
+/// The engine has no output device of its own. The selected game's audio seam renders interleaved
+/// stereo 16-bit frames whenever the host asks for them, at a fixed rate its sequencer timing is
+/// derived from. This opens an `AVAudioEngine` source node at exactly that rate and lets the
+/// engine's output chain resample to whatever the hardware is running at.
 @MainActor
 @Observable
 final class AudioOutput {
