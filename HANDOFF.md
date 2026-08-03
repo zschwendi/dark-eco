@@ -11563,10 +11563,10 @@ xcrun devicectl device process launch \
 ```
 
 The launch passed at 14:02. The maintainer found this build extremely playable
-and named it the current known-best Jak 1 build. Jak looked stable everywhere
-else in the tested run: no visible Merc flicker, Flat-Stanley collapse,
-enlargement, or wrong-facing behavior was observed, including repeated attack
-use. The sole reported remaining defect was motion-sensitive Precursor
+and named it the current known-best Jak 1 build. Extended physical play
+confirmed that the previously reported camera, attack-direction, Merc,
+movement, and steering bugs were fixed, including repeated attack use. The
+sole reported remaining defect was motion-sensitive Precursor
 metallic texture flicker/chunking; it also persists while stationary as visibly
 mismatched texture chunks. Normal TIE shine was enabled and final shadow output
 was disabled for the entire run, so this observation rules out the final

@@ -1159,10 +1159,10 @@ frame submission through the existing product renderer; title-screen pixels,
 gameplay, and physical-device support remain unproved.
 
 Checkpoint 78 preserves the current known-best physical Jak 1 build and moves
-Jak II through two bounded simulator gates at nested `816222f47`. On the
-authorized Z iPad Pro, Jak was extremely playable with no observed Merc
-flicker, Flat-Stanley collapse, enlargement, wrong-facing behavior, or attack
-regression. Normal TIE shine remained enabled while final shadow output was
+Jak II through two bounded simulator gates at nested `816222f47`. Extended play
+on the authorized Z iPad Pro confirmed the previously reported camera,
+attack-direction, Merc, movement, and steering bugs were fixed. Normal TIE
+shine remained enabled while final shadow output was
 disabled. The remaining observed Jak 1 defect is Precursor metallic texture
 flicker/chunking, which persists as mismatched chunks even while stationary;
 the final shadow composite is therefore excluded as its sole cause. The
