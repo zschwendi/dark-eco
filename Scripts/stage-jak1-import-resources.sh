@@ -68,6 +68,38 @@ ensure_safe_directory() {
   done
 }
 
+resolve_safe_existing_directory() {
+  requested_directory=$1
+  resolved_label=$2
+
+  case "$requested_directory" in
+    /*) ;;
+    *) fail "$resolved_label must be an absolute path" ;;
+  esac
+  [ "$requested_directory" != / ] || fail "$resolved_label may not be the filesystem root"
+  case "$requested_directory" in
+    *'//'*) fail "$resolved_label contains an empty path component" ;;
+  esac
+  directory_basename=${requested_directory##*/}
+  case "$directory_basename" in
+    ''|.|..) fail "$resolved_label has an unsafe final component" ;;
+  esac
+
+  directory_parent=${requested_directory%/*}
+  directory_parent=${directory_parent:-/}
+  [ -d "$directory_parent" ] || \
+    fail "$resolved_label parent is not an existing directory: $directory_parent"
+  physical_parent=$(CDPATH= cd -- "$directory_parent" && pwd -P) || \
+    fail "could not resolve $resolved_label parent: $directory_parent"
+  ensure_safe_directory "$physical_parent" "$resolved_label parent"
+
+  resolved_directory=$physical_parent/$directory_basename
+  [ ! -L "$resolved_directory" ] || fail "$resolved_label may not be a symbolic link"
+  [ -d "$resolved_directory" ] || \
+    fail "$resolved_label is missing a directory: $resolved_directory"
+  printf '%s\n' "$resolved_directory"
+}
+
 ensure_safe_existing_resource() {
   resource=$1
   label=$2
@@ -241,7 +273,8 @@ require_value "--resources-destination / GOALPAD_APP_RESOURCE_DESTINATION" \
 
 ensure_safe_directory "$opengoal_root" "OpenGOAL root"
 ensure_safe_directory "$source_pack" "source object pack"
-ensure_safe_directory "$resources_destination" "app resource destination"
+resources_destination=$(resolve_safe_existing_directory "$resources_destination" \
+  "app resource destination")
 ensure_safe_executable "$source_pack_verifier" "source object-pack verifier"
 
 if [ -z "$fr3_builder" ]; then

@@ -140,7 +140,8 @@ resolve_executable() {
 
 append_common_cmake_options() {
   cmake_option_deployment_target=$1
-  shift
+  cmake_option_ccache=$2
+  shift 2
   set -- "$@" \
     "-DCMAKE_BUILD_TYPE=Release" \
     "-DBUILD_TESTING=OFF" \
@@ -148,22 +149,33 @@ append_common_cmake_options() {
   if [ -n "$cmake_option_deployment_target" ]; then
     set -- "$@" "-DCMAKE_OSX_DEPLOYMENT_TARGET=$cmake_option_deployment_target"
   fi
-  if [ -n "$ccache" ]; then
+  if [ -n "$cmake_option_ccache" ]; then
     set -- "$@" \
-      "-DCMAKE_C_COMPILER_LAUNCHER=$ccache" \
-      "-DCMAKE_CXX_COMPILER_LAUNCHER=$ccache"
+      "-DCMAKE_C_COMPILER_LAUNCHER=$cmake_option_ccache" \
+      "-DCMAKE_CXX_COMPILER_LAUNCHER=$cmake_option_ccache"
   fi
   "$@"
 }
 
-configure_host_verifier() {
+run_host_command() (
+  unset ARCHS CURRENT_ARCH EFFECTIVE_PLATFORM_NAME PLATFORM_NAME SDKROOT
+  unset DRIVERKIT_DEPLOYMENT_TARGET IPHONEOS_DEPLOYMENT_TARGET
+  unset TVOS_DEPLOYMENT_TARGET WATCHOS_DEPLOYMENT_TARGET XROS_DEPLOYMENT_TARGET
+  unset LLVM_TARGET_TRIPLE_OS_VERSION LLVM_TARGET_TRIPLE_SUFFIX LLVM_TARGET_TRIPLE_VENDOR
+  "$@"
+)
+
+configure_host_verifier() (
   build_directory=$1
-  append_common_cmake_options \
-    "" \
+  # Apple clang selects a platform partly from deployment-target environment variables,
+  # which are not represented in ccache's command hash. Keep this small host tool uncached
+  # so a target-platform object can never be replayed into the executable that runs on macOS.
+  run_host_command append_common_cmake_options \
+    "" "" \
     "$cmake" -S "$opengoal_root" -B "$build_directory" -G "$generator" \
     "-DOPENGOAL_BUILD_JAK1_SOURCE_OBJECT_PACK_ONLY=ON" \
     "-DCMAKE_OSX_SYSROOT=macosx"
-}
+)
 
 configure_composer() {
   build_directory=$1
@@ -182,7 +194,7 @@ configure_composer() {
         "-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY"
       ;;
   esac
-  append_common_cmake_options "$deployment_target" "$@"
+  append_common_cmake_options "$deployment_target" "$ccache" "$@"
 }
 
 opengoal_root=${GOALPAD_OPENGOAL_ROOT:-}
@@ -305,8 +317,13 @@ else
   configure_host_verifier "$verifier_build_root"
 fi
 
-"$cmake" --build "$verifier_build_root" \
-  --target jak1-source-object-pack-verify --parallel "$jobs"
+if [ "$platform" = macosx ]; then
+  "$cmake" --build "$verifier_build_root" \
+    --target jak1-source-object-pack-verify --parallel "$jobs"
+else
+  run_host_command "$cmake" --build "$verifier_build_root" \
+    --target jak1-source-object-pack-verify --parallel "$jobs"
+fi
 verifier=$verifier_build_root/jak1-source-object-pack-verify
 ensure_direct_regular_file "$verifier" "source object-pack verifier"
 [ -x "$verifier" ] || fail "source object-pack verifier is not executable: $verifier"

@@ -47,6 +47,10 @@ cat >"$fake_cmake" <<'SH'
 set -eu
 : "${FAKE_CMAKE_LOG:?}"
 printf 'cmake' >>"$FAKE_CMAKE_LOG"
+printf ' env-iphone=<%s> env-xros=<%s> env-sdk=<%s> env-platform=<%s> env-triple=<%s>' \
+  "${IPHONEOS_DEPLOYMENT_TARGET-unset}" "${XROS_DEPLOYMENT_TARGET-unset}" \
+  "${SDKROOT-unset}" "${PLATFORM_NAME-unset}" "${LLVM_TARGET_TRIPLE_OS_VERSION-unset}" \
+  >>"$FAKE_CMAKE_LOG"
 for argument in "$@"; do
   printf ' <%s>' "$argument" >>"$FAKE_CMAKE_LOG"
 done
@@ -196,6 +200,34 @@ FAKE_CMAKE_LOG=$cmake_log GOALPAD_CMAKE_EXECUTABLE=$fake_cmake \
 [ -s "$environment_build_root/iphoneos/jak1-import-composer-apple/libjak1-import-composer-apple.a" ] || \
   fail "build-setting arguments did not produce the archive"
 
+: >"$cmake_log"
+host_environment_build_root=$fixture_root/build-host-environment
+FAKE_CMAKE_LOG=$cmake_log GOALPAD_CMAKE_EXECUTABLE=$fake_cmake \
+  GOALPAD_CMAKE_GENERATOR=Ninja GOALPAD_CCACHE=/usr/bin/true GOALPAD_BUILD_JOBS=1 \
+  IPHONEOS_DEPLOYMENT_TARGET=99.1 XROS_DEPLOYMENT_TARGET=99.2 \
+  SDKROOT=/synthetic/target-sdk PLATFORM_NAME=synthetic-target \
+  LLVM_TARGET_TRIPLE_OS_VERSION=99.3 \
+  "$builder" --opengoal-root "$opengoal_root" --source-pack "$source_pack" \
+  --derived-root "$host_environment_build_root" --platform iphonesimulator \
+  --deployment-target 17.0
+awk '
+  index($0, "/macosx-host>") &&
+  index($0, "env-iphone=<unset>") &&
+  index($0, "env-xros=<unset>") &&
+  index($0, "env-sdk=<unset>") &&
+  index($0, "env-platform=<unset>") &&
+  index($0, "env-triple=<unset>") { found = 1 }
+  END { exit found ? 0 : 1 }
+' "$cmake_log" || fail "host verifier inherited target-platform build variables"
+if awk '
+  index($0, "/macosx-host>") && index($0, "CMAKE_CXX_COMPILER_LAUNCHER") { found = 1 }
+  END { exit found ? 0 : 1 }
+' "$cmake_log"; then
+  fail "host verifier unexpectedly enabled ccache"
+fi
+grep -F "CMAKE_CXX_COMPILER_LAUNCHER=/usr/bin/true" "$cmake_log" >/dev/null || \
+  fail "target composer did not retain ccache"
+
 # Xcode may report /tmp-style paths whose existing parent is a platform symlink. The production
 # script resolves that parent physically for containment while preserving the reported link path.
 mkdir "$fixture_root/physical-derived-parent"
@@ -236,6 +268,23 @@ GOALPAD_FR3_BUNDLE_BUILDER=$fake_builder "$resource_phase" \
   --resources-destination "$reported_resources"
 [ -d "$reported_resources/OpenGOALProjectResources" ]
 [ -d "$reported_resources/Jak1SourceObjectPack" ]
+
+physical_resources_parent=$fixture_root/physical-resources-parent
+reported_resources_parent=$fixture_root/reported-resources-parent
+mkdir -p "$physical_resources_parent/ResourceRoot"
+ln -s "$physical_resources_parent" "$reported_resources_parent"
+GOALPAD_FR3_BUNDLE_BUILDER=$fake_builder "$resource_phase" \
+  --opengoal-root "$opengoal_root" --source-pack "$source_pack" \
+  --derived-root "$fixture_root/build-iphoneos" --platform iphoneos \
+  --resources-destination "$reported_resources_parent/ResourceRoot"
+[ -d "$physical_resources_parent/ResourceRoot/OpenGOALProjectResources" ]
+[ -d "$physical_resources_parent/ResourceRoot/Jak1SourceObjectPack" ]
+ln -s "$physical_resources_parent/ResourceRoot" "$fixture_root/resources-leaf-link"
+expect_failure "app resource destination may not be a symbolic link" env \
+  GOALPAD_FR3_BUNDLE_BUILDER="$fake_builder" "$resource_phase" \
+  --opengoal-root "$opengoal_root" --source-pack "$source_pack" \
+  --derived-root "$fixture_root/build-iphoneos" --platform iphoneos \
+  --resources-destination "$fixture_root/resources-leaf-link"
 
 expect_failure "pre-link derived build root is missing" "$resource_phase" \
   --opengoal-root "$opengoal_root" --source-pack "$source_pack" \

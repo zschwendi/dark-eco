@@ -1,5 +1,9 @@
 ARCHS = arm64
 
+// CMake discovers the pinned OpenGOAL target closure recursively. Xcode's user-script
+// sandbox grants declared directory inputs only as literal paths, so it hides their contents.
+ENABLE_USER_SCRIPT_SANDBOXING = NO
+
 GOALPAD_HAS_JAK1_IMPORT_COMPOSER = 0
 GOALPAD_HAS_JAK1_IMPORT_COMPOSER[sdk=macosx*] = 1
 GOALPAD_HAS_JAK1_IMPORT_COMPOSER[sdk=iphoneos*] = 1

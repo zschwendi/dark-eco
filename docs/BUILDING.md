@@ -75,8 +75,11 @@ platforms are `macosx`, `iphoneos`, `iphonesimulator`, `xros`, and
 static try-compile with the matching SDK. Its compile/link proof passes, but raw
 ISO import has not run on Vision Pro hardware or the visionOS simulator; target
 wiring may enable the compiled importer macro without treating that as runtime
-evidence. Ccache is used when available, defaults to a bounded cache below the
-derived root, and is not required.
+evidence. Ccache is used for the cross-platform composer when available,
+defaults to a bounded cache below the derived root, and is not required. The
+small macOS source-pack verifier deliberately bypasses ccache because Apple
+clang's deployment-target environment affects its object platform without
+appearing in the compile command hash.
 
 Archive production and resource staging are separate because the archive must
 exist before Xcode links while the final resource directory must already exist
@@ -111,17 +114,23 @@ importer archive is added to the link, and both importer phases exit without
 touching their derived outputs. Release is deliberately ARM64-only and enables
 the composer for `macosx`, `iphoneos`, `iphonesimulator`, `xros`, and
 `xrsimulator`; this matches the native ARM64 port and the thin archive contract.
-The checked xcconfigs inherit the target's existing inline settings, and user
-script sandboxing remains enabled.
+The checked xcconfigs inherit the target's existing inline settings. Debug
+keeps Xcode user-script sandboxing enabled. Release disables only Xcode's build
+script sandbox because its literal directory inputs do not grant CMake access
+to the recursively discovered files below the pinned `OpenGOAL` source tree or
+the external source-object pack. This does not disable the built app's runtime
+sandbox or change its entitlements.
 
 Set `GOALPAD_JAK1_IMPORT_DEPLOYMENT_TARGET` from
 `MACOSX_DEPLOYMENT_TARGET` for macOS and `IPHONEOS_DEPLOYMENT_TARGET` for
 iPhoneOS and its simulator, or `XROS_DEPLOYMENT_TARGET` for visionOS and its
 simulator. Put the archive script before compilation/linking and the resource
-script after Copy Bundle Resources. For Xcode user-script sandboxing, declare
-the script, `OpenGOAL` source directory, and external source pack directory as
-inputs; declare the derived importer build root and flattened archive as
-outputs. The later phase additionally reads both stager scripts and writes
+script after Copy Bundle Resources. Declare the script, `OpenGOAL` source
+directory, and external source pack directory as inputs; declare the derived
+importer build root and flattened archive as outputs. These declarations retain
+dependency ordering even though Release must disable the build-script sandbox
+for CMake's recursive source discovery. The later phase additionally reads both
+stager scripts and writes
 `OpenGOALProjectResources` and `Jak1SourceObjectPack` below the target's
 unlocalized resource directory. Let both phases run each build; their CMake and
 atomic staging operations are incremental and revalidate mutable external input.
