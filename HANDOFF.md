@@ -11179,8 +11179,11 @@ Nested branches `agent/cp75-jak2-metal-host` and
 `goalpad/ipad-demo-pacing` both resolve remotely to
 `5264a3097b9c5aae6369af1896d170f7aa222734`. The parent integration branch is
 `agent/cp75-jak2-metal-host-parent` at source/gitlink commit
-`7e935988387af1e5f9df1a2342ee067ffe368c60`; publish its documentation tip only
-after `git diff --check` and exact remote-hash verification.
+`7e935988387af1e5f9df1a2342ee067ffe368c60`. Documentation commit
+`a88c69d1b62ec6865638ee4107e42170867567a9` passed `git diff --check` and was
+pushed to both `agent/cp75-jak2-metal-host-parent` and
+`feat/ipados-native-boot`; `git ls-remote` returned that exact hash before this
+publication addendum.
 
 1. Give the Jak II development target a real `CAMetalLayer` on the approved M5
    simulator. Require drawable acquisition, completed submission and
