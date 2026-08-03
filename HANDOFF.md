@@ -10301,3 +10301,86 @@ new speculative visual patch is justified before the physical capture.
    careful generalization of Jak 1-specific runtime/Metal code plus real
    renderer pacing, lifecycle, and data selection before a mutually exclusive
    app variant is justified.
+
+# Checkpoint 67: portable Jak II graphics host and exact-current signed builds
+
+Date: 2026-08-03. Nested head
+`935915b1fe2cc8e9f86cde391a8d341524a606de` completes the bounded
+Checkpoint-66 graphics-host task without adding a renderer or app target.
+Commit `5ce2593f5` generalizes the existing portable graphics host across Jak 1
+and Jak II while preserving the original public field order and appending the
+new active-level callback. Jak 1 keeps its two direct level strings and
+display-environment alpha behavior. Jak II exposes six desired plus six active
+levels, direct alpha, deterministic inactive mouse state, and retained GOAL
+vblank-handler dispatch before the host `syncv` callback. Merge `d56646d07`
+combines that work with Checkpoint 66's strict DMA gate. Commit `935915b1f`
+resolves the merge's duplicate machine definitions and drives `--play-dma`
+through the host-owned send/sync callbacks. The portable shared `flush-cache`
+implementation remains intact, and plain `--play` remains on its prior
+diagnostic stubs.
+
+The canonical host configure/build passed for `jak1-gfx-host-test`,
+`jak2-gfx-host-test`, `jak2-dma-boundary-test`, Jak 1 kernel smoke, and the Jak
+II pad, handler, and lightweight-machine regressions. The focused CTest filter
+passed 7/7 in 1.69 seconds. The prepared-data `--frames 120 --play-dma` probe
+also exited 0 after loading `TITLE.DGO` as one archive and seven objects. DMA
+and host accounting agreed on one well-formed chain and zero malformed chains;
+the host received two `sync-path` and two `syncv` calls. The valid frame
+contained 327 buckets, 396 tags, 3,008 payload bytes, and 131,072 copied bytes.
+The output explicitly reports zero rendered and zero presented frames. Plain
+`--play` also exited 0 and retained its missing send/sync diagnostics.
+
+This is a headless graphics-host contract and synchronous DMA-validation proof,
+not a renderer or presentation proof. `sync-path` returns immediately because
+the validation observer consumes the chain synchronously. The CLI `syncv`
+callback returns dispatcher-iteration parity and performs no display-link,
+presentation, wall-clock, or future-tick wait; the retained GOAL vblank handler
+still runs before it. This checkpoint does not prove Metal pixels, display
+pacing, a title screen, an app loop, gameplay, or physical-device behavior.
+
+## Exact-current Apple build evidence
+
+The preserved `/private/tmp/GOALPad-jak2-ios-aot-archive` Xcode product was
+reconfigured against the final nested source and revalidated all 840 generated
+units. Its two-job generic-iPhoneOS Release build passed incrementally in 7.372
+seconds. The reusable AOT archive remains 105,264,792 bytes with 841 object
+members and SHA-256
+`ee997786deebbaf50006d00621ea794844864ab2169c3e33dab3c7be68e5d274`.
+The arm64 `libjak2-kernel-core.a` is 7,754,184 bytes with SHA-256
+`551b1912fcad8e63a839d047459fbf8f5baa6a8fcc471cbedf52e16caa770b7e`;
+it exports `goal_gfx_host_install`, `goal_gfx_dma_observe_chain`, and
+`goal_gfx_dma_reset`. The final proof dead-strips those unreferenced host
+exports but retains the manifest globals, DMA install, pad install, and both
+interrupt handlers.
+
+The signed Jak II proof executable is a thin arm64 Mach-O of 87,203,024 bytes,
+SHA-256
+`066bd3f6b8e4c9c81a24cd67ddfa28dfde2443b22ac640a97eea309be9fe4ad9`,
+identifier `com.zephyrstudiosllc.eco.jak2linkproof`, team `V729QMY3V6`, and
+CDHash `776e202b90231a2fa1e74f5654cf3e4a44002a9b`. Strict `codesign`
+verification passed.
+
+The signed Jak 1/Eco Pro generic-iOS Release was then rebuilt from the same
+nested head and unchanged checked 518-object source pack. The first attempt
+failed only because the generated importer CMake cache recorded the clean
+validation worktree as its source. The exact 89 MiB cache was moved intact to
+`/private/tmp/GOALPad-stale-Jak1ImportComposer-20260803-0721`; the identical
+retry regenerated it from the current checkout, reverified the source-pack
+aggregate `0a6387a3959fd8cb`, and passed. Its thin arm64 executable is
+33,149,088 bytes with SHA-256
+`60f2b783194c0e6b9a15070f2fb1e216131d549c1fac641b925284bbb26d5494`,
+identifier `com.zephyrstudiosllc.eco`, display name `Eco Pro`, team
+`V729QMY3V6`, and CDHash `e3fe87edc155137a32de85645dbfc5d4c5ea420f`.
+Strict `codesign` verification passed. Existing generated-code warnings and
+the unused stale Xcode-account warning remained non-blocking.
+
+No device, simulator, app launch, screen capture, or physical-device access was
+used. The maintainer reported Eco Pro backgrounded or closed; this is state
+information, not authorization to access **Z iPad Pro**. The maintainer-owned
+dirty `GOALPad.xcodeproj/project.pbxproj` was preserved and is not part of this
+checkpoint. The next smallest Jak II product step is a separate development-only
+headless UIKit/CADisplayLink proof that links only the Jak II corpus, advances
+one dispatcher frame per display tick, pauses without catch-up in the
+background, and proves tick/sync/DMA accounting while still reporting zero
+rendered and presented frames. Existing Jak 1 Metal/app behavior must remain
+unchanged until a later renderer integration is separately justified.

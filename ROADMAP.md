@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 66 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 67 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -1024,6 +1024,16 @@ Flat Stanley as a heading-dependent weighted-skin singularity and the wall
 burst as a separate whole-camera recurrence; schema v7 is the next physical
 discriminator for both.
 
+Checkpoint 67 generalizes the portable graphics-host contract across Jak 1 and
+Jak II at nested `935915b1f`. The Jak II title/DMA proof now exercises
+host-owned send, synchronous `sync-path`, vblank-before-host-`syncv` ordering,
+inactive mouse, and separate desired/active level lists. Focused host tests,
+the real prepared-data DMA probe, the reusable signed Jak II AOT/kernel
+artifacts, and the signed Jak 1/Eco Pro generic-iOS Release all pass at the
+final source. This remains a headless contract: it rendered and presented zero
+frames and has no CADisplayLink, app loop, title-screen, gameplay, simulator,
+or device claim.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
@@ -1048,16 +1058,17 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Continue Jak II by preserving the validated 327-bucket DMA boundary and
-   reusable single-game AOT archive, then implement honest `sync-path`,
-   display-paced `syncv` with vblank ordering, and separate desired/active level
-   lists. Inactive mouse handling is implemented. Rendering, app wiring,
-   simulator/device runtime, and physical gameplay remain unproved.
+4. Continue Jak II with a separate development-only headless UIKit/
+   CADisplayLink proof that links only the Jak II corpus, advances exactly one
+   dispatcher frame per display tick, pauses without catch-up in the
+   background, and validates host/DMA accounting. Do not add Metal or claim
+   presentation in that slice; rendering, product app wiring, simulator/device
+   runtime, and physical gameplay remain unproved.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
-Checkpoint 66 did not access Z iPad Pro. The maintainer supplied screenshots
+Checkpoint 67 did not access Z iPad Pro. The maintainer supplied screenshots
 from their own current physical run, but the agent did not install, launch,
 log, copy, or otherwise access the device. The maintainer reported that the app
 was backgrounded or closed, and any later install, launch, logging, capture, or
