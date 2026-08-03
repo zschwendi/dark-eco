@@ -518,6 +518,7 @@ struct MetalHostStats {
   MetalHostTargetControlEvent first_merc_eichar_target_control_event;
   MetalHostTargetControlEvent last_merc_eichar_target_control_event;
   bool jak1_tie_envmap_second_pass_enabled = false;
+  bool jak1_tie_envmap_texture_sampling_enabled = false;
   int tie_envmap_second_pass_draws = 0;
   std::uint64_t tie_envmap_second_pass_draws_total = 0;
   bool jak1_shadow_output_enabled = false;

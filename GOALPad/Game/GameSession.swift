@@ -959,6 +959,8 @@ final class GameSession {
             "late_present_submissions=\(renderer.latePresentSubmissions)",
             "jak1_tie_envmap_second_pass_enabled="
                 + "\(renderer.jak1TieEnvmapSecondPassEnabled.boolValue ? 1 : 0)",
+            "jak1_tie_envmap_texture_sampling_enabled="
+                + "\(renderer.jak1TieEnvmapTextureSamplingEnabled.boolValue ? 1 : 0)",
             "tie_envmap_second_pass_draws=\(renderer.tieEnvmapSecondPassDraws)",
             "tie_envmap_second_pass_draws_total="
                 + "\(renderer.tieEnvmapSecondPassDrawsTotal)",

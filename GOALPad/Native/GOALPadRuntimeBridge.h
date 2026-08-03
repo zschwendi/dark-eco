@@ -738,6 +738,7 @@ typedef struct GOALPadRendererStats {
   uint64_t lastMercEicharWeightedSkinHostTickID;
   uint64_t lastMercEicharWeightedSkinChainOrdinal;
   BOOL jak1ShadowOutputEnabled;
+  BOOL jak1TieEnvmapTextureSamplingEnabled;
 } GOALPadRendererStats;
 
 /// The one presentation surface. The app's Metal view owns the layer and hands it here; the native

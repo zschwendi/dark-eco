@@ -42,6 +42,7 @@ last.button0Rel = 0x8000
 
 var stats = GOALPadRendererStats()
 stats.jak1TieEnvmapSecondPassEnabled = false
+stats.jak1TieEnvmapTextureSamplingEnabled = false
 stats.tieEnvmapSecondPassDraws = 0
 stats.tieEnvmapSecondPassDrawsTotal = 17
 stats.jak1ShadowOutputEnabled = false
@@ -69,6 +70,7 @@ precondition(stats.lastMercEicharTargetControlEvent.currentTargetAttackID == 8)
 precondition(stats.lastMercEicharTargetControlEvent.button0Rel == 0x8000)
 precondition(stats.lastMercEicharTargetControlEvent.hostTickID == 101)
 precondition(!stats.jak1TieEnvmapSecondPassEnabled.boolValue)
+precondition(!stats.jak1TieEnvmapTextureSamplingEnabled.boolValue)
 precondition(stats.tieEnvmapSecondPassDraws == 0)
 precondition(stats.tieEnvmapSecondPassDrawsTotal == 17)
 precondition(!stats.jak1ShadowOutputEnabled.boolValue)
@@ -197,7 +199,7 @@ precondition(telemetry.lastPostFlagSample.rawDrawStatus == 0x82)
 precondition(telemetry.lastPostFlagSample.targetAttackID == 10)
 precondition(telemetry.lastHiddenPostFlagSample.hidden.boolValue)
 
-precondition(CommandLine.arguments.count == 2)
+precondition(CommandLine.arguments.count == 4)
 let gameSessionSource = try String(contentsOfFile: CommandLine.arguments[1], encoding: .utf8)
 let schemaV7Tokens = [
     "\"goalpad_camera_provenance\", \"v=7\"",
@@ -212,6 +214,7 @@ let schemaV7Tokens = [
     "_root3",
     "_node3_parent_scale_cancellation_selected=",
     "jak1_tie_envmap_second_pass_enabled=",
+    "jak1_tie_envmap_texture_sampling_enabled=",
     "tie_envmap_second_pass_draws=",
     "tie_envmap_second_pass_draws_total=",
     "jak1_shadow_output_enabled=",
@@ -248,5 +251,20 @@ precondition(gameSessionSource.contains(
     "hiddenTransitionNotPersisted && hiddenTransitionNotAttempted"))
 precondition(gameSessionSource.contains("weightedSkinNotAttempted"))
 precondition(gameSessionSource.contains("lastAttemptedMercWeightedSkinEvidenceTotal"))
+
+let metalHostSource = try String(contentsOfFile: CommandLine.arguments[2], encoding: .utf8)
+for token in [
+    "constexpr bool kJak1TieEnvmapSecondPassEnabled = true;",
+    "constexpr bool kJak1TieEnvmapTextureSamplingEnabled = false;",
+    "constexpr bool kJak1ShadowOutputEnabled = false;",
+    "set_jak1_tie_envmap_texture_sampling_enabled(",
+    "jak1_tie_envmap_texture_sampling_enabled =",
+] {
+    precondition(metalHostSource.contains(token), "missing CP80 host token: \(token)")
+}
+
+let renderSurfaceSource = try String(contentsOfFile: CommandLine.arguments[3], encoding: .utf8)
+precondition(renderSurfaceSource.contains("core.jak1_tie_envmap_texture_sampling_enabled"),
+             "missing CP80 render-surface telemetry bridge")
 
 print("target control diagnostics bridge check passed")

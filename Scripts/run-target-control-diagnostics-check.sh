@@ -25,4 +25,6 @@ swiftc -sdk "$macos_sdk" \
   -o "$build_dir/target-control-diagnostics-bridge-check"
 
 "$build_dir/target-control-diagnostics-bridge-check" \
-  "$root/GOALPad/Game/GameSession.swift"
+  "$root/GOALPad/Game/GameSession.swift" \
+  "$root/GOALPad/Native/GOALPadMetalHost.mm" \
+  "$root/GOALPad/Native/GOALPadRenderSurface.mm"

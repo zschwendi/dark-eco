@@ -625,6 +625,8 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
                                 core.last_merc_eichar_weighted_skin_host_tick_id,
                                 core.last_merc_eichar_weighted_skin_chain_ordinal};
   stats.jak1ShadowOutputEnabled = core.jak1_shadow_output_enabled;
+  stats.jak1TieEnvmapTextureSamplingEnabled =
+      core.jak1_tie_envmap_texture_sampling_enabled;
   return stats;
 }
 
