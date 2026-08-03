@@ -10091,153 +10091,58 @@ host task is a bounded audit or implementation of the listed machine stubs
 through the first real DMA boundary; actual Jak II app/runtime integration
 remains separate and unproved.
 
-# Checkpoint 64: Jak II title graphics chain and exact-current Apple builds
+# Checkpoint 64: Jak II reaches a validated graphics-DMA boundary
 
-Date: 2026-08-03. This checkpoint crosses the first Jak II graphics-DMA
-boundary without pretending that an isolated host probe is a renderer or app.
-It also rebuilds the signed Jak 1 generic-iOS app from the same exact nested
-source. No physical device was accessed.
+Date: 2026-08-03. Nested head
+`faf1372a477a9344a9ebeb157a3845a4926ca2db` advances the signed Jak II path
+without changing the 840-object writer or embedded source graph. Commit
+`3ead15e62` implements upstream-faithful `pc-prof` forwarding through the
+portable global profiler and the signed-AOT `flush-cache` no-op. Commit
+`369359bbd` adds an opt-in, game-neutral graphics-DMA observer with an exact
+Jak II 327-bucket structural walk. Commit `faf1372a4` keeps that observer in
+the dead-stripped iPhoneOS link proof. `--play` retains its previous behavior;
+`--play-dma` alone installs the observer, measures a completed chain, and
+drops it without drawing or writing a capture file. GPDMACAP v2 remains
+explicitly Jak 1-only.
 
-## Integrated Jak II changes
+The deterministic lightweight-machine test passed six checks. Jak II pad,
+interrupt-handler, and `pc-rand` regressions passed. The new DMA boundary test
+passed seven checks, including a synthetic direct 327-entry array, one
+PC-port texture upload, exact copier totals, and refusal to create a Jak II
+capture. Rebuilding and running the Jak 1 synthetic data-boot test also passed
+its existing 518-unit load and DMA capture round trip unchanged.
 
-The clean nested integration branch now ends at merge
-`8dbf919dcbd251ea86c07aae7b78a6c7497874d8`, which combines Checkpoint 63's
-checked source-pack and signed-link work with these reviewed commits:
+The bounded real-data command used the maintainer's local prepared Jak II data,
+`--frames 120 --play-dma`, and exited successfully after one dispatched frame.
+It loaded `TITLE.DGO` as seven objects (one AOT code object and six data
+objects), then observed one well-formed and zero malformed graphics chains.
+The first chain completed all 327 buckets with 396 tags, 3,008 payload bytes,
+and 131,072 copied bytes. This proves that real Jak II title code produces a
+structurally valid chain at the renderer boundary. It does not prove rendered
+pixels, a title screen, an app loop, or gameplay. The next reported live
+machine contracts are `sync-path`, `syncv`, and `mouse-get-data`; the first two
+must remain real renderer synchronization and display-pacing callbacks rather
+than permanent zero-return stubs.
 
-- `e57f89d4e142d30ee2d77bfbdfc4fcf7345f749a` implements the small faithful
-  host seams before graphics submission: Jak II `pc-prof` forwards the string
-  and event kind to the existing profiler, `flush-cache` mirrors the upstream
-  host no-op, and `mouse-get-data` explicitly reports no mouse while clearing
-  stale state. The latter avoids any dependency on an uninitialized Display.
-- `329bcf9a4a585525dae2b5292cf52c652adc4674` installs the game-neutral
-  graphics-DMA capture seam for Jak II. It re-walks each chain after the
-  existing fixed-chunk copier, requires valid `END`/`REFE` termination and
-  matching tag/payload totals, records well-formed/malformed stats, and then
-  deliberately drops the chain because this probe has no renderer. Jak 1's
-  bucket-aware summary is unchanged. Jak II file capture is refused because
-  GPDMACAP v2 still encodes Jak 1 replay assumptions.
-- `8798d52837180e0434dd10f8bd9db65cff34705b` removes a nested-comment warning
-  from the shared seam documentation; it changes no behavior.
+After explicit CMake reconfiguration, the exact-`faf1372a4` generic iPhoneOS
+Release proof compiled the new DMA sources and all 840 checked AOT units, then
+linked and signed successfully in 3.969 seconds. The product is a thin ARM64
+Mach-O of 47,651,904 bytes, minimum iOS 18, bundle identifier
+`com.zephyrstudiosllc.eco.jak2linkproof`, signing team `V729QMY3V6`, SHA-256
+`56f72e5e6fad4a99f819c82f17c2f8200148d670382a5fd62aa95c7a1331f6ea`, and
+CodeDirectory hash `13c174bcd63982628c954c5aef8315c503b4a719`. Strict
+`codesign` verification passed with normal Keychain access. The final
+executable retains `goal_gfx_dma_install`, `goal_pad_install`, and both
+interrupt-handler globals. The initial sandboxed Xcode attempt could not see
+the existing signing account or profiles; the same source build passed once
+Xcode and Keychain services were available. Existing DMA precision and stale
+unused-account warnings remain non-blocking.
 
-## Host and real-data validation
-
-The canonical host directory was reused. These commands all exited 0:
-
-```sh
-cmake --build build/Release/bin --target \
-  jak1-kernel-core-smoke-test jak2-pad-seam-test \
-  jak2-handler-seam-test jak2-pc-rand-test \
-  jak2-light-machine-seams-test jak2-gfx-dma-seam-test -j2
-build/Release/bin/game/jak1-kernel-core-smoke-test
-build/Release/bin/game/jak2-pad-seam-test
-build/Release/bin/game/jak2-handler-seam-test
-build/Release/bin/game/jak2-pc-rand-test
-build/Release/bin/game/jak2-light-machine-seams-test
-build/Release/bin/game/jak2-gfx-dma-seam-test
-perl -e '$seconds = shift; alarm $seconds; exec @ARGV' 60 \
-  build/Release/bin/game/jak2-data-boot-test \
-  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
-  --frames 100 --play
-```
-
-The focused tests passed with zero failures. The real-data probe loaded KERNEL
-8/8 and GAME 465/465, entered `play-boot`, requested `TITLE.DGO`, and linked one
-AOT code object plus six data objects. Its first post-`play-boot` graphics
-frame was well formed: 396 tags, 3,008 payload bytes, and 131,072 copied bytes.
-The probe measured and dropped that chain, then stopped intentionally. This is
-direct title-path evidence, not rendering or a gameplay loop.
-
-The merged parent source-pack wrappers also passed their bounded synthetic
-contracts through `Scripts/run-jak2-aot-generation-check.sh` and
-`Scripts/run-jak2-source-object-pack-preparation-check.sh`.
-
-## Exact-current iPhoneOS artifacts
-
-The canonical isolated Jak II directory was rebuilt once:
-
-```sh
-cmake --build /private/tmp/GOALPad-jak2-ios-aot-current \
-  --target jak2-iphoneos-full-aot-link -j2
-```
-
-It revalidated all 840 AOT units and exited 0. The unsigned product is a thin
-ARM64 iOS Mach-O, minimum iOS 18.0, SDK 26.5, 49,526,064 bytes, SHA-256
-`1e784825c2adc379012b763dd2b87530c14201d9bf8a208060c8fe9cf00adc66`.
-The final executable retains `goal_gfx_dma_install`, the graphics-DMA stats and
-capture entry points, `pc-prof`, `mouse-get-data`, and `flush-cache`. It remains
-an isolated link proof, not a signed app target or runtime claim.
-
-Checkpoint 63's signed-link directory was reconfigured from its stale moving-
-checkout cache to this clean merge and the canonical host-built 840-unit
-corpus, then rebuilt with the generated Xcode project. The signed product is a
-thin ARM64 iOS Mach-O, minimum iOS 18.0, SDK 26.5, 47,611,408 bytes, bundle
-identifier `com.zephyrstudiosllc.eco.jak2linkproof`, team `V729QMY3V6`,
-SHA-256 `80a8c370304e59425df76cdf44740bec5160b39c5632ac24b85ebd6733830f68`,
-and CDHash `a0ed0928ca0a7b46a359b9671df90e3808c18173`. Strict verification with
-ordinary system trust-service access passed. This is still a signed source-
-link proof rather than the Eco Pro application/runtime.
-
-The exact-current Jak 1 app was then rebuilt with the canonical derived data
-and unchanged 518-object source pack:
-
-```sh
-xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
-  -configuration Release -destination 'generic/platform=iOS' \
-  -derivedDataPath /private/tmp/GOALPad-sim -jobs 2 \
-  -allowProvisioningUpdates ENABLE_PREVIEWS=NO \
-  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/build/jak1-source-object-pack \
-  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache \
-  GOALPAD_BUILD_JOBS=2 build
-```
-
-The sandboxed attempt failed before compilation because Xcode could not reach
-CoreSimulator/keychain services. The identical command with ordinary Xcode
-service access exited 0. The signed Eco Pro executable is thin ARM64, minimum
-iOS 26.5, SDK 26.5, 33,159,744 bytes, SHA-256
-`1d432464e6cc6bcd5ce6314abf9cbb8dc7ef9c83eb8616e5082ac6fc42af9865`.
-It has identifier `com.zephyrstudiosllc.eco`, team `V729QMY3V6`, CDHash
-`3d57abc052c7d40ec2401ae0f3e78cc7112d365e`, and the expected Cloud Documents
-container entitlements. Sandboxed verification reported
-`CSSMERR_TP_NOT_TRUSTED`, while the identical strict verification with ordinary
-system trust-service access passed. No install, launch, or physical behavior is
-claimed.
-
-## New wall-camera evidence
-
-The four no-input photographs are a repeating whole-scene camera recurrence,
-not the Flat-Stanley mesh failure. Frame 1 is the close/left A pose, frames 2
-and 4 return to the same B basin, and frame 3 is transitional. The foreground
-rock moves about 125-140 pixels and changes apparent size 20-30 percent while
-the horizon moves only about 16-23 pixels; the sampled motion is approximately
-7-9 degrees yaw-equivalent, 1-2 degrees pitch-equivalent, and under one degree
-of roll. The fixed HUD plus depth-dependent parallax identifies rotation plus
-camera translation/dolly. Jak is absent in all four frames, so character
-animation cannot be the screen-shake source.
-
-The photos alone do not distinguish the initiating branch. The earlier
-same-wall trace keeps a combiner/view-transform recurrence first and wall
-collision feedback second; a dedicated off-screen-recovery branch ranks last.
-Schema v7 already records the decisive fields, so do not add code before the
-next authorized physical A/B: hold barely visible at the same wall for three
-seconds, move minimally parallel until barely outside and hold three seconds,
-then repeat an out-of-frame hold in open space and background immediately.
-LOS/blocked changing first identifies wall clamp; stable LOS with target or
-desired-position changes identifies framing; stable targets/slaves with a
-flipping combiner identifies the combiner; stable camera objects with render
-mismatch identifies the packet boundary. Inspect `camera_correction_*` and
-`render_alternation_*` even if the orthonormal-gated tail is incomplete.
-
-## Next executable gates
-
-1. Keep Jak 1 behavior unchanged until fresh physical-device authorization for
-   the schema-v7 wall/open-space A/B. The current photos are sufficient to
-   choose the diagnostic; they do not authorize device access.
-2. For Jak II, implement only the versioned graphics host/renderer adapters
-   that the measured TITLE chain requires, preserving the existing Jak 1
-   renderer. Do not create a hollow app target merely to obtain a signature.
-3. Preserve Checkpoint 63's signed source-link proof, but add a mutually
-   exclusive Eco Pro Jak II application variant only after the boot and
-   renderer seams are real. App lifecycle, data selection, frame loop,
-   rendering, and physical gameplay remain separate gates.
-4. Preserve the 518-object Jak 1 source pack and 840-object Jak II corpus while
-   their writers and embedded graphs remain unchanged.
+No device, simulator, app launch, screen capture, or physical-device access was
+used. The maintainer's Eco Pro app remained backgrounded or closed. The
+smallest next nested-only product step is to expose the checked Jak II corpus
+as a reusable, single-game static archive while preserving the current signed
+proof. A runnable Jak II development app remains blocked from safe integration
+by Jak 1-specific runtime/Metal code and the maintainer-owned dirty
+`GOALPad.xcodeproj/project.pbxproj`; do not edit that file or combine the Jak 1
+and Jak II AOT corpora in one executable.

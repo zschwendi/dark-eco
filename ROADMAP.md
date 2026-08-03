@@ -1002,18 +1002,13 @@ II regressions and the one-frame real-data `play-boot` frontier pass. This is a
 signed build artifact only, not Eco Pro app/runtime, renderer, simulator,
 device, title-screen, or gameplay evidence.
 
-Checkpoint 64 implements the faithful lightweight Jak II reporting/mouse/cache
-seams and crosses the first graphics-DMA boundary without inventing a renderer.
-The real-data `play-boot` probe now links the first `TITLE.DGO` code object and
-six data objects, validates one complete 396-tag graphics chain, records its
-payload/copy totals, and deliberately drops it. Focused Jak 1/Jak II host tests,
-the exact-current 840-unit isolated and signed iPhoneOS link proofs, and the
-exact-current signed Jak 1 generic-iOS app all pass. This still is not a Jak II
-Eco Pro app target, frame loop, renderer, simulator/device runtime, or gameplay
-claim. The new no-input wall photographs independently show repeating whole-
-scene translation/dolly plus rotation while Jak is absent; schema v7 already
-contains the fields needed for the decisive same-wall versus open-space
-physical A/B.
+Checkpoint 64 implements Jak II's portable profiler/cache seams and crosses
+the first substantive graphics boundary without faking a renderer. The
+real-data `--play-dma` probe loads `TITLE.DGO` and validates one complete
+327-bucket chain with 396 tags and 3,008 payload bytes before dropping it. The
+exact-current generic-iPhoneOS Release retains that observer and all 840 AOT
+units in a signed thin ARM64 product. Rendering, display pacing, an app loop,
+and physical output remain unproved.
 
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
@@ -1039,12 +1034,11 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Continue Jak II with versioned graphics-host/renderer adapters for the now
-   measured TITLE chain, reusing and minimally generalizing the existing Jak 1
-   seam. Add a mutually exclusive signed Xcode app variant only after those
-   boot/render seams are real; do not add a hollow signed target. Playback,
-   streams, app wiring, signing, simulator/device runtime, and physical gameplay
-   remain unproved.
+4. Continue Jak II by preserving the validated 327-bucket DMA boundary,
+   productizing the checked AOT corpus as a single-game static archive, and
+   designing real `sync-path` and display-paced `syncv` host callbacks. Keep
+   inactive mouse handling separate from desktop `Display` code. Rendering,
+   app wiring, simulator/device runtime, and physical gameplay remain unproved.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
