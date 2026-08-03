@@ -145,9 +145,10 @@ git submodule update --init --recursive
 The authoritative child is the dedicated public fork
 `https://github.com/zschwendi/jak-pad.git`, branch
 `goalpad/ipad-demo-pacing`, pinned by the parent gitlink at
-`47f768ed0ec1f2cbcc2014c85b38ab1b535566f2`. Checkpoint 50 incorporates the
+`79a7ee586f6e68fd9638778917b3e5e2ab47d497`. Checkpoint 51 incorporates the
 checked `jak1-base-retail` importer, existing source-pack verification, Apple
-composer, active-bones provenance, and non-commuting Merc composition proof.
+composer, active-bones and target-control provenance, and non-commuting Merc
+composition proof.
 Do not substitute a different OpenGOAL checkout when recording validation
 results, and pin that exact commit rather than a branch tip. The `sync` step
 updates existing clones that still remember the former upstream URL.
@@ -3248,3 +3249,49 @@ It produced a normally signed thin ARM64 app containing the ZIP64 rejection and
 Merc-composition diagnostic paths. This is compilation, linking, and signing
 evidence only; Checkpoint 50 did not install, launch, import, or validate
 gameplay on a physical device.
+
+## Checkpoint 51 Jak target/control provenance
+
+The existing native Jak 1 bones observer now captures a bounded, read-only
+snapshot of `*target*`, its `control`, and the selected `cpad` after validating
+their runtime types, allocated sizes, and EE-memory spans. The snapshot retains
+target state and attack identity, left-stick and button input, `turn-to-target`,
+`dir-targ`, and `quat-for-control`. Metal attaches it only to the matching
+`eichar-lod0` producer/output record and compares normalized +Z facings through
+pad intent, GOAL control, render quaternion, and the Merc input root basis.
+
+The tracker reports an active facing divergence only when stick speed and pad
+magnitude are both at least `0.7` and intent versus control has a negative dot
+product. It also retains a Square press edge or a consecutive target attack-ID
+change as an attack-boundary observation. A Square edge can represent an
+attempted input even when GOAL rejects the attack, so the retained button and
+attack fields must be interpreted together. Repeated observations for the same
+bone slot and engine frame are ignored without changing history.
+
+The parent bridge preserves all v3 fields and the existing cache filename while
+bumping the record to `v=4`. It adds current and session-total event,
+divergence, and attack-boundary counts plus numeric first/last events with host
+tick, chain, producer, input, facing, and dot-product evidence. New events
+trigger the same bounded atomic persistence path as the earlier camera and Merc
+diagnostics. No camera, control, animation, renderer, or frame-pacing behavior
+is changed.
+
+Focused validation passed:
+
+```sh
+cmake --build OpenGOAL/build/Release/bin \
+  --target metal-merc-transform-trace-test -j2
+OpenGOAL/build/Release/bin/game/metal-merc-transform-trace-test
+./Scripts/run-merc-transform-diagnostics-check.sh
+./Scripts/run-target-control-diagnostics-check.sh
+xcrun swiftc -parse GOALPad/Game/GameSession.swift
+```
+
+The Metal trace executable passed all 50 checks, including duplicate-frame
+suppression and unpoisoned next-frame history. The generic signed iOS Release
+build passed against the unchanged verified 518-object source pack after Xcode
+was allowed to use its existing provisioning profile. The resulting thin ARM64
+executable has SHA-256
+`4b776ea11fc0ed45eedb7669ec80a63f3a2634bfec203351dac057208c7f1445`;
+`codesign` verifies it as valid and satisfying its designated requirement. No
+device install, launch, gameplay capture, or timing measurement was performed.

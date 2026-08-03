@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness, real-device import validation, and remaining
 platform gaps, not the earlier synthetic arena or literal-instruction probes.
-`HANDOFF.md` Checkpoint 50 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 51 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 
@@ -139,7 +139,7 @@ Current status:
 - Implemented: the public dedicated fork is
   `https://github.com/zschwendi/jak-pad.git`; published branch
   `goalpad/ipad-demo-pacing` and the parent submodule both resolve to
-  `47f768ed0ec1f2cbcc2014c85b38ab1b535566f2`.
+  `79a7ee586f6e68fd9638778917b3e5e2ab47d497`.
 - Verified: the remote branch resolves to that exact pin, and the affected host
   tests and application integration passed. Earlier fresh-clone evidence was
   recorded against the historical `9eecb9c3` checkpoint.
@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 50 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 51 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -851,12 +851,18 @@ and activate the checked candidate while keeping prepared-folder import
 available. Focused synthetic validation and a generic signed iOS Release build
 passed; no successful end-to-end simulator import, real archive import, or
 physical-device import is claimed.
+Checkpoint 51 adds a read-only Jak target/control diagnostic from active pad
+intent through GOAL control and render facings to the Merc root basis. It
+retains bounded first/last evidence for opposed active facing and Square or
+attack-state boundaries, deduplicates repeated observations in one engine
+frame, and persists the append-only cache as schema v4. This is diagnostic and
+signed-build evidence only; no behavior fix or new physical result is claimed.
 
 The current nested OpenGOAL pin is
-`47f768ed0ec1f2cbcc2014c85b38ab1b535566f2`. Its recorded 518-object public
+`79a7ee586f6e68fd9638778917b3e5e2ab47d497`. Its recorded 518-object public
 source pack has aggregate `f1770cae6287a359` and 10,729,681 object bytes. The
 current Jak 1 AOT corpus remains 518 objects, 10,596 emitted functions, and 7
-native routines. Checkpoint 50's generic signed iOS Release build passed with
+native routines. Checkpoint 51's generic signed iOS Release build passed with
 those inputs; this is build and signing evidence, not physical runtime or
 import evidence.
 
@@ -875,22 +881,24 @@ The next actions are:
    simulator without removing the prepared-folder path or bundling retail data.
 2. Before any new phone install or launch, copy the preserved diagnostic cache
    if it remains. After explicit authorization and reconnection, update-install
-   the Checkpoint 50 build, reproduce the spin/facing/edge-of-frame case, and
-   classify the v3 cache. A dedicated `0x80` event identifies a producer-to-Merc
-   composition mismatch; its absence moves the next bounded diagnostic to
-   target-control/facing state.
+   the Checkpoint 51 build, reproduce the spin/facing/Square/edge-of-frame case,
+   and classify the v4 cache. A dedicated `0x80` event identifies a producer-to-
+   Merc composition mismatch. The new target-control counts and retained dot
+   products distinguish pad intent, GOAL control, render facing, and Merc root
+   disagreement without another speculative behavior change.
 3. Separately validate one user-selected real ZIP32 ISO import on-device,
    including Files-provider materialization, available-space reporting,
    throughput, native preparation, and atomic activation. Do not conflate this
    with gameplay or visual validation.
 4. Keep the deterministic camera, Merc composition, ZIP, importer, and AOT
-   checks green. Do not make another speculative visual change before the v3
+   checks green. Do not make another speculative visual change before the v4
    physical evidence distinguishes the active seam.
 5. Preserve the deterministic checks, ARM64 macOS build, approved M5 simulator,
    generic signed iOS lane, and the current real-kernel/runtime path.
-6. Restore the Zephyr Studios LLC signing identity and Xcode account, then
-   provision and verify `com.zephyrstudiosllc.eco` with
-   `iCloud.com.zephyrstudiosllc.eco`, then run signed and real two-device save
+6. Keep the existing Zephyr Studios LLC signed-build profile healthy. Repair
+   the missing Xcode account token only when a profile refresh is required,
+   then verify `com.zephyrstudiosllc.eco` with
+   `iCloud.com.zephyrstudiosllc.eco` and run signed real two-device save
    migration/conflict tests.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.

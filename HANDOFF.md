@@ -8252,3 +8252,124 @@ not replaced. When the phone is available again:
 
 Do not begin new Jak II-specific implementation until this Jak 1 physical gate
 is resolved.
+
+# Checkpoint 51: Jak target/control provenance ready for physical A/B
+
+## Exact Git and artifact state
+
+- Parent `feat/ipados-native-boot` is `b2053670` before this checkpoint note.
+- Nested OpenGOAL `goalpad/ipad-demo-pacing` is
+  `79a7ee586f6e68fd9638778917b3e5e2ab47d497` before this checkpoint note.
+- The external Jak 1 source-object pack remains 518 objects, aggregate
+  `f1770cae6287a359`, and 10,729,681 bytes. The AOT preflight remains 518
+  objects, 10,596 emitted functions, and 7 native functions. Regeneration was
+  unnecessary because the GOAL observer call and source graph did not change;
+  this checkpoint changes native capture, Metal diagnostics, and the parent
+  bridge.
+- The parent still has the maintainer-owned
+  `GOALPad.xcodeproj/project.pbxproj` normalization outside committed work. It
+  was not staged, reset, or modified by this checkpoint.
+
+The nested observer validates the exact Jak 1 `target`, `process`, `control`,
+and `cpad` runtime type tags, allocated sizes, and EE-memory spans before any
+fixed-offset read. It retains target state and attack identity, button and
+left-stick state, `turn-to-target`, `dir-targ`, and `quat-for-control`, then
+attaches the snapshot to the matching bones calculation and output base. The
+Metal `eichar-lod0` probe compares normalized +Z facings through intent, GOAL
+control, render quaternion, and the consumed Merc root basis.
+
+Two bounded issue classes are retained: opposed intent/control facing while
+both stick measures are active, and a Square press edge or consecutive target
+attack-ID transition. Square alone is an attempted input boundary rather than
+proof GOAL accepted an attack; the v4 fields retain both button and attack
+identity so the physical trace can distinguish them. First/last events and
+current/session counts are propagated through the Metal renderer and parent
+bridge. The cache filename and every v3 key remain; the header is now `v=4` and
+adds numeric target-control evidence. This changes no gameplay behavior.
+
+Independent review found one integration blocker before merge: the shared Merc
+renderer can observe a probe more than once in one engine frame, so the first
+version could overcount and poison attack history. Commit `79a7ee586` ignores a
+repeated valid `(bone slot, engine frame)` before event evaluation or history
+mutation. The regression proves a duplicate Square/divergence is silent and a
+changed duplicate attack ID cannot affect the next frame. Both reviewers gave
+the corrected patch a GO. Pointer bounds, all offsets, quaternion math, +Z root
+extraction, output matching, first/last aggregation, and normal session reset
+were independently checked.
+
+## Validation
+
+The integrated canonical tree passed:
+
+```sh
+cmake --build OpenGOAL/build/Release/bin \
+  --target metal-merc-transform-trace-test -j2
+OpenGOAL/build/Release/bin/game/metal-merc-transform-trace-test
+./Scripts/run-merc-transform-diagnostics-check.sh
+./Scripts/run-target-control-diagnostics-check.sh
+xcrun swiftc -parse GOALPad/Game/GameSession.swift
+sh -n Scripts/run-target-control-diagnostics-check.sh
+git diff --check
+```
+
+The direct Metal trace passed all 50 checks. Both bridge checks, Swift parse,
+shell syntax, and whitespace validation passed.
+
+The first generic Release command without provisioning updates stopped before
+compilation because automatic signing was disabled and no matching profile was
+available to that invocation. Repeating the same command with normal Xcode
+service access and `-allowProvisioningUpdates` passed:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-sim -jobs 2 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/private/tmp/GOALPad-jak1-source-pack-generated-g \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache \
+  GOALPAD_BUILD_JOBS=2 build
+```
+
+Result: exit `0`. The product is
+`/private/tmp/GOALPad-sim/Build/Products/Release-iphoneos/GOALPad.app`, bundle
+identifier `com.zephyrstudiosllc.eco`, display name `Eco Pro`, team
+`V729QMY3V6`, and a thin ARM64 executable with SHA-256
+`4b776ea11fc0ed45eedb7669ec80a63f3a2634bfec203351dac057208c7f1445`.
+An unsandboxed trust check reports `valid on disk` and `satisfies its Designated
+Requirement`. The signed entitlements include the matching private iCloud
+container. Xcode also warned that the saved account lacks its Xcode token; the
+cached development profile was sufficient for this build, but future profile
+refresh remains an external account-state gate.
+
+No device was installed, launched, logged, or captured. The maintainer is away,
+the iPhone was already disconnected, and the previous app/container/cache were
+left intact. No end-to-end raw ISO or ZIP import was run because the approved
+M5 simulator has no user-supplied source image or prepared game data.
+
+## Next physical and Jak II gates
+
+When Z iPhone Air is available and the maintainer explicitly resumes physical
+testing:
+
+1. Copy the existing
+   `Library/Caches/GOALPadDiagnostics/camera-provenance-v1.log` before any
+   install or launch, if it still exists, and record its SHA-256.
+2. Update-install the Checkpoint 51 app without uninstalling or erasing the
+   container, then launch it.
+3. While moving, reproduce wrong-facing/curved steering, press Square, exercise
+   the spin/Flat-Stanley case, move Jak near or outside the frame and an
+   occluder, then background the app so the v4 cache is forced to disk.
+4. Copy and classify the v4 cache. Use `0x80` composition evidence separately
+   from target-control counts and compare `intent_control_dot`,
+   `control_render_dot`, and `render_root_dot` in retained first/last events.
+   Make one behavior change only after this identifies the first divergent
+   seam.
+5. Separately validate one user-selected real ZIP32 ISO import. Preserve the
+   prepared-folder path and do not conflate importer acceptance with gameplay
+   or visual acceptance.
+
+Jak II remains gated behind this physical Jak 1 diagnostic. Its existing
+separate proof remains 840 registered AOT objects, KERNEL 8/8, GAME 465/465,
+100 headless frames, and a complete mutually exclusive iPhoneOS final link.
+After the Jak 1 gate, the next bounded Jak II implementation is the ordinary-
+file STR channel-4 seam, not app-target wiring.
