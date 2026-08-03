@@ -8522,3 +8522,278 @@ Real raw/ZIP import may be revisited for presentation or distribution evidence,
 but it is explicitly non-blocking. After the physical v4 trace is classified,
 the next bounded Jak II implementation remains the ordinary-file STR channel-4
 seam, not app-target wiring.
+
+# Checkpoint 53: extended Jak 1 wall/target diagnostics and Jak II ordinary STR proof
+
+## Exact Git, ownership, and artifact state
+
+- The parent implementation point is
+  `5fdf3bca1618b7f9c598c4e7d8bf4cb3066c0d03` on
+  `feat/ipados-native-boot`, matching
+  `origin/feat/ipados-native-boot`. Its four implementation commits after
+  Checkpoint 52 are `8764a942` (resolve camera-slave ppointers), `f883f25c`
+  (retain constrained-camera orientation state), `1ca09c5e` (bridge Jak
+  target/control telemetry), and `5fdf3bca` (advance the OpenGOAL gitlink).
+- Nested OpenGOAL is
+  `17a097baaaf0563bb350dbcd8f230fc025927bca` on
+  `goalpad/ipad-demo-pacing`, matching
+  `origin/goalpad/ipad-demo-pacing`. Its four commits after Checkpoint 52 are
+  `6fd878344` (capture target/control evidence), `92fb2131d` (retain neutral
+  samples), `1d61217cb` (ordinary-file STR channel 4), and `17a097baa`
+  (accept multiple successful STR reads in the boot proof).
+- At the start of this documentation checkpoint, the canonical parent's only
+  uncommitted tracked file was the maintainer-owned
+  `GOALPad.xcodeproj/project.pbxproj`. It was not staged, reset, or changed.
+  Canonical nested OpenGOAL was clean. The implementation commits above were
+  already present on their respective remotes.
+- The signed v5 product remains at
+  `/private/tmp/GOALPad-sim/Build/Products/Release-iphoneos/GOALPad.app`. Its
+  thin ARM64 executable has SHA-256
+  `82a81daa9c69c7f11cb6eb0fb4570ed672cd922c0ccfe56b6b49443bf5ce83b1`,
+  bundle identifier `com.zephyrstudiosllc.eco`, and display name **Eco Pro**.
+  Unrestricted `codesign` verification reported a valid signature satisfying
+  its designated requirement. The signed entitlements retain team
+  `V729QMY3V6` and private container `iCloud.com.zephyrstudiosllc.eco`.
+
+## What the physical v4 trace actually established
+
+The preserved Z iPad Pro v4 cache is
+`/private/tmp/camera-provenance-z-ipad-v4-cp51-20260802.log`, SHA-256
+`745e14234cb1206adba6869b19479f6053d2e2ef6ffded57536b74661678cc8c`.
+It is schema v4, run `12595351116134633429`, and ends at engine frame/tick
+`19913`. It recorded:
+
+- 19,913 sent and rendered chains, zero chain drops, zero drawable misses,
+  zero live/packet camera mismatches, 19,910 completed presentations, three
+  presentation drops, zero presentation-order mismatches, and 134 late
+  presentation submissions;
+- 612 camera producer alternations and 612 correction events. The retained
+  event reason is producer alternation only. Its final frames are
+  `16855/16856/16857`, with producer distances `0.045498555`, `0.045843422`,
+  and `0.008913918` for older-to-previous, previous-to-current, and
+  older-to-current respectively. Live, submitted, and packet camera mismatch
+  masks stayed zero;
+- zero Merc eichar palette-health issues and zero output-composition
+  mismatches, but 20,149 transform discontinuities and 8,911 provenance
+  events. The retained discontinuity is input-root `A/B/A`; it is evidence to
+  classify, not proof that normal double-buffer source alternation causes the
+  visible deformation. The 6,992 global non-finite matrices were last retained
+  for `speaker-lod0` and must not be attributed to Jak;
+- zero target/control observations or events despite movement and Square input,
+  and invalid `slave0` fields in every retained camera frame. Those zeros are
+  diagnostic blind spots, not proof that control or wall-camera state was
+  correct.
+
+The maintainer's physical observation is also narrower than an absolute
+world-heading rule. In this Geyser Rock test, Jak looked normally volumetric
+when facing **toward the portal** and thinnest when facing **away from the
+portal**. The earlier word “backward” was camera-relative; the later portal
+description corrected that ambiguity. Rotating the camera did not visibly
+change thickness during this test, but neither global camera independence nor
+a universal world-heading cause has been proved. The ordinary roughly
+10-degree roll/Z shake mostly stopped, while near walls the camera could still
+oscillate much more slowly and severely, reported at roughly 120 degrees.
+Square and Circle no longer produced the earlier enlargement in that run, but
+skinny/wrong-facing state still correlated with curved steering and attacks in
+the wrong direction. These remain visual failures.
+
+## v5 behavior-neutral diagnostic repairs
+
+The camera attachment bug was concrete. Jak 1 declares
+`camera-master.slave` as `(pointer camera-slave)`, a GOAL `ppointer`/`Process**`,
+but the v4 native observer treated the slot itself as a camera-slave object.
+It also accepted only an exact runtime type, excluding a bounded derived camera
+type. `8764a942` now normalizes and dereferences one bounded ppointer, validates
+the resolved basic object, and walks the bounded, cycle-checked `Type.parent`
+chain while enforcing the runtime type's allocated size. Null, false,
+unaligned, protected, cyclic, out-of-range, unrelated, truncated, and
+undersized cases fail closed.
+
+`f883f25c` retains the fields needed to classify the severe wall case once a
+physical event is captured:
+
+- slave LOS state and enable bit, movement-blocked bit, options, desired
+  position, transform, view-flat and string transforms;
+- slave tracking-inverse rotation axes, minimum-distance override,
+  `max-angle-offset`, and `max-angle-current`;
+- combiner transform, inverse-camera-rotation axes, interpolation, and tracking
+  status; and
+- a new reason bit for a greater-than-30-degree combined-camera orientation
+  delta between consecutive engine frames, alongside the existing LOS
+  transition and producer-alternation reasons.
+
+The target/control path now reports every capture attempt and its precise
+stage/result, retains the last valid ordinary observation even when no issue
+threshold fires, and stamps that observation with an engine-frame timestamp
+and Merc probe bone slot. A neutral stick no longer invalidates otherwise
+finite control data,
+so a stationary Square edge and attack transition can be retained without an
+intent vector. The cache also retains the raw target/control quaternion and
+direction fields, normalized desired/control/render/root facings, camera
+basis, and input-root/output axis norms, aspect, and normalized absolute
+determinant. This closes the v4 observer's event-only and neutral-input blind
+spots; it does not yet prove that the physical target object will validate or
+that any visual behavior is fixed.
+
+Focused validation passed:
+
+```sh
+./Scripts/run-camera-correction-diagnostics-check.sh
+# 28 C++ checks plus the Swift bridge passed.
+
+cmake --build OpenGOAL/build/Release/bin \
+  --target metal-merc-transform-trace-test -j2
+OpenGOAL/build/Release/bin/game/metal-merc-transform-trace-test
+# 57 checks passed.
+
+./Scripts/run-target-control-diagnostics-check.sh
+./Scripts/run-merc-transform-diagnostics-check.sh
+xcrun swiftc -frontend -parse GOALPad/Game/GameSession.swift
+
+OpenGOAL/build/Release/bin/goalc/jak1-source-object-pack-verify \
+  /private/tmp/GOALPad-jak1-source-pack-generated-g
+# 518 objects; aggregate f1770cae6287a359; 10,729,681 bytes.
+
+Scripts/verify-generated-aot.sh Generated/jak1-aot 518
+# 10,596 emitted functions; 7 native functions.
+```
+
+The serialized signed Release build used the already verified source pack and
+AOT corpus:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-sim -jobs 2 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/private/tmp/GOALPad-jak1-source-pack-generated-g \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache GOALPAD_BUILD_JOBS=2 build
+```
+
+It exited `0`; the known missing `Xcode-Token` account warning did not prevent
+the existing profile from signing. With explicit authorization in the current
+request, the app was update-installed and launched on Z iPad Pro without an
+uninstall or container erase:
+
+```sh
+xcrun devicectl device install app \
+  --device 6A4111AB-1663-508A-98D9-F0C1A9EA7863 \
+  /private/tmp/GOALPad-sim/Build/Products/Release-iphoneos/GOALPad.app
+
+xcrun devicectl device process launch \
+  --device 6A4111AB-1663-508A-98D9-F0C1A9EA7863 \
+  --terminate-existing com.zephyrstudiosllc.eco
+```
+
+Both commands passed and existing user data was preserved. The app's launch is
+physical runtime evidence for the signed host, not visual acceptance. The first
+controlled v5 portal-relative run was backgrounded and copied before relaunch:
+
+```text
+/private/tmp/camera-provenance-z-ipad-v5-toward-portal-20260802.log
+SHA-256 0ac9e9836ea5b5d51acd67a8ed52f8460f46d6b2eeac41716f6e71c1f5820075
+```
+
+It is schema v5, run `14143637793165221331`, ending at engine frame/tick
+`8767`. The repaired camera attachment worked: all three retained frames have
+one valid slave and a valid tracking combiner. The slave had options `1584`,
+line-of-sight enabled, `movement-blocked` set, zero LOS state, and zero
+max-angle offset/current. The last retained event was producer alternation
+only; neither an LOS transition nor the greater-than-30-degree orientation bit
+was set. This confirms that the observer now reaches the real constrained
+camera state, but the single retained event is not yet the deliberate severe
+wall-oscillation capture.
+
+The target/control observer attempted capture 5,754 times but retained zero
+valid observations. Its last rejection was stage `4` (`CONTROL`), result `6`
+(`TYPE_TAG_MISMATCH`). Therefore this file cannot classify toward-versus-away
+facing, Square, steering, or deformation through the new control fields. The
+maintainer's portal-relative visual report remains valid physical evidence, but
+the controlled A/B is paused until the exact runtime object/type mismatch is
+understood and the behavior-neutral probe is repaired. Do not ask for another
+away/toward pass with the current blind observer.
+
+## Jak II ordinary-file STR channel-4 seam
+
+Nested `1d61217cb` implements only the measured ordinary-file channel-4 seam.
+It accepts the exact 64-byte request and 32-byte reply wire shape, requires
+function zero and a negative section, reads only the transmitted 32-byte
+basename, rejects empty or path-like names, uppercases ASCII, bounds-checks the
+EE destination and requested maximum length, and synchronously reads
+`iso/<BASENAME>` through the existing user-data file APIs. Success returns the
+actual bounded byte count; handled file failures return error plus zero bytes;
+unsupported chunked sections and the rest of the sound protocol remain loud
+and unimplemented. `17a097baa` lets the headless proof accept one or more
+successful reads while still requiring every ordinary STR request to succeed.
+
+Focused unit and real-data host proof passed:
+
+```sh
+./build/Release/bin/game/jak2-sound-rpc-test
+
+./build/Release/bin/game/jak2-data-boot-test \
+  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  --frames 100 --with-game
+```
+
+The real run loaded KERNEL 8/8 and GAME 465/465, completed 100 dispatcher
+frames, and performed one successful 309,856-byte ordinary STR read. The false
+per-frame `Game subtitle2 heap overrun!` loop caused by leaving the request's
+offered `614400` maximum in the reply is gone.
+
+A fresh final-link proof was then built from canonical nested
+`17a097baaaf0563bb350dbcd8f230fc025927bca` and the already recorded 840-object
+Jak II corpus, without regenerating it or rebuilding Eco Pro:
+
+```sh
+cmake -S OpenGOAL -B /private/tmp/GOALPad-jak2-ios-aot-current -G Ninja \
+  -DOPENGOAL_BUILD_JAK2_IPHONEOS_AOT_LINK_ONLY=ON \
+  -DOPENGOAL_JAK2_AOT_DIR="$PWD/Generated/jak2-aot" \
+  -DBUILD_TESTING=OFF -DCMAKE_SYSTEM_NAME=iOS \
+  -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64 \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=18.0 -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_C_COMPILER_LAUNCHER=/opt/homebrew/bin/ccache \
+  -DCMAKE_CXX_COMPILER_LAUNCHER=/opt/homebrew/bin/ccache
+cmake --build /private/tmp/GOALPad-jak2-ios-aot-current \
+  --target jak2-iphoneos-full-aot-link -j2
+```
+
+The build exited `0`. Its executable is a thin ARM64 iOS Mach-O with minimum
+iOS `18.0` and SHA-256
+`0490f08ed0d2dde92a58bc9f4192d9bd20d70ae21e43bf2b1ca07fe562fc1e77`.
+All 841 generated/manifest C compile rules carry `-fno-strict-aliasing`.
+Representative first/last AOT, kernel-core, and Zstd symbols are defined, with
+no unresolved `goal_` or `ZSTD_` symbol. This remains an unsigned isolated
+compile/final-link proof, not an app-target, signed-app, simulator,
+title-screen, physical-device, audio-output, or gameplay proof. Chunked STR,
+bank state/loading, player RPC, streamed playback, and audio output remain
+outside this slice. No retail data was added to either repository.
+
+Real raw/ZIP Jak 1 import remains intentionally unvalidated and non-blocking by
+maintainer choice. It must not gate the physical Jak 1 diagnostic or the next
+Jak II continuation.
+
+## Next executable tasks
+
+1. Explain and repair the behavior-neutral target/control probe's physical
+   stage-4 type mismatch. Prefer retaining actual/expected runtime type
+   evidence or a source-proved bounded subtype rule over weakening validation.
+   Keep the focused synthetic Merc trace green and make no gameplay behavior
+   change in this diagnostic patch.
+2. After installing the repaired observer, preserve separate toward-portal and
+   away-from-portal stationary Square runs before each relaunch. Compare them
+   only as a controlled Geyser Rock portal-relative A/B; the earlier word
+   “backward” was camera-relative and must not be treated as the stable frame of
+   reference. Do not generalize to global heading or camera independence.
+3. Capture one deliberate near-wall oscillation as a separate run. Use LOS,
+   movement-blocked, max-angle, tracking, and greater-than-30-degree event
+   evidence to identify the first divergent camera seam. Make at most one
+   behavior change after the trace distinguishes an explicit hypothesis.
+4. Keep the current source pack/AOT identity and focused camera/Merc checks
+   green. Do not regenerate the 518-object pack unless its writer or embedded
+   source graph changes, and do not claim v5 fixes camera or Jak deformation.
+5. After the Jak 1 trace identifies the active seam or physical validation is
+   again the sole gate, rerun Jak II's 100-frame proof to capture the first
+   remaining post-STR unimplemented RPC. Select one bounded, synthetic-tested
+   host seam from that evidence; do not jump directly to app wiring or a full
+   sound stack.

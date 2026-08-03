@@ -806,107 +806,108 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 52 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 53 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
 The maintainer nevertheless rejected it as a camera or visual-fidelity
 improvement: camera and world-depth fighting felt worse than Checkpoint 36,
 Merc deformation remained, and metallic materials developed a new flicker.
-Checkpoint 38 records the original app icon. Checkpoint 39 records the neutral
-App Store distribution direction, fail-closed release-AOT requirement, and a
-physical iPhone launch of the same complete-AOT binary without user game data.
-Checkpoint 40 adds the standard-window visionOS port, simulator launch, and
-physical-headset installation; physical launch is pending one-time developer
-trust on the headset. Checkpoint 41 records why raw ISO selection was dimmed
-before the on-device composer and app bridge were implemented.
-Checkpoint 42 adds the tested local-first iCloud save engine and Settings UI.
-Checkpoint 43 selects the public **Eco** identity,
-`com.zephyrstudiosllc.eco`, its matching private iCloud container, and the paid
-team. The shared standard-window visionOS architecture remains unchanged;
-signed provisioning and real transfer remain separate validation gates.
-Checkpoint 44 changes only the public display and App Store name to **Eco Pro**
-after **Eco** proved unavailable; the registered bundle and iCloud identifiers
-remain unchanged.
-Checkpoint 45 adds an enforced Jak 1 Release-AOT preflight and a separately
-generated, mutually exclusive Jak II iPhoneOS full-AOT final-link proof. It does
-not make Jak II an app target or displace Jak 1 as the active product scope.
-Checkpoint 46 adds bounded raw-ISO parsing and fail-closed Jak 1 revision
-validation as isolated host/iPhoneOS libraries.
-Checkpoint 47 adds checked DGO/FR3 preparation, the revision-bound output graph
-and materializer, real-catalog proof, 16 byte-exact public generated artifacts,
-and a deterministic checked 518-object public source pack. It also forwards the
-complete 15-qword live Jak 1 camera state as retained diagnostics, fixes Merc
-envmap destination-alpha semantics and TIE envmap tree ordering, and corrects
-the app's prepared corpus to 25 FR3 files. At Checkpoint 47, raw ISO selection
-was still disabled:
-the `jak1-base-retail` profile and empty-subtitle mode, app worker bridge,
-recoverable staging/activation, and end-to-end app validation were not complete.
-ZIP ingestion was also out of scope for that checkpoint.
-Checkpoint 48 adds the tested `jak1-base-retail` profile and serial
-staging/activation worker. Checkpoint 50 supersedes its current-state importer
-boundary: Release builds can now select a supported raw ISO or a standard ZIP32
-archive containing exactly one ISO, compose the native preparation pipeline,
-and activate the checked candidate while keeping prepared-folder import
-available. Focused synthetic validation and a generic signed iOS Release build
-passed; no successful end-to-end simulator import, real archive import, or
-physical-device import is claimed.
-Checkpoint 51 adds a read-only Jak target/control diagnostic from active pad
-intent through GOAL control and render facings to the Merc root basis. It
-retains bounded first/last evidence for opposed active facing and Square or
-attack-state boundaries, deduplicates repeated observations in one engine
-frame, and persists the append-only cache as schema v4. This is diagnostic and
-signed-build evidence only; no behavior fix or new physical result is claimed.
-Checkpoint 52 adds deterministic raw-ISO and ZIP-contained-ISO route coverage
-through candidate validation and atomic activation, plus a reproducible
-518-object source-pack preparer that verifies before atomic publication and
-fails closed on corruption. An exact-source clean checkout regenerated and
-reverified the `518/10596/7` corpus, then passed unsigned ARM64 macOS, M5 iPad
-simulator, and generic visionOS Release builds. Real-media import remains
-unvalidated and explicitly non-blocking; no physical or visual result is
-claimed.
+Checkpoints 38-44 record the original app icon, neutral App Store distribution
+direction, fail-closed release-AOT policy, windowed visionOS target,
+local-first iCloud saves, and current **Eco Pro** identity at
+`com.zephyrstudiosllc.eco`. Checkpoint 45 adds an enforced Jak 1 Release-AOT
+preflight and a mutually exclusive Jak II iPhoneOS full-AOT link proof; it does
+not make Jak II an app target. Checkpoints 46-50 add the checked Jak 1 raw-disc
+preparation graph, ZIP32 ingestion, serial staging/activation, and deterministic
+synthetic coverage. No successful real raw/ZIP import is claimed.
 
-The current nested OpenGOAL pin is
-`79a7ee586f6e68fd9638778917b3e5e2ab47d497`. Its recorded 518-object public
-source pack has aggregate `f1770cae6287a359` and 10,729,681 object bytes. The
-current Jak 1 AOT corpus remains 518 objects, 10,596 emitted functions, and 7
-native routines. Checkpoint 51's generic signed iOS Release build passed with
-those inputs. Checkpoint 52's clean unsigned macOS, iPad-simulator, and visionOS
-Release matrix also passed. These are build and signing or compile/link
-evidence, not physical runtime, visual, or real-media import evidence.
+Checkpoint 51 adds schema-v4 camera, Merc, and target/control diagnostics.
+Checkpoint 52 adds raw/ZIP route-to-activation coverage, an atomically published
+reproducible 518-object source pack, and a clean unsigned ARM64 macOS, M5 iPad
+simulator, and generic visionOS Release matrix. Real-media import remains
+unvalidated and explicitly non-blocking by maintainer choice.
 
-The separately isolated Jak II evidence remains ARM64 headless and final-link
-only: all 840 AOT units register, KERNEL loads 8/8 objects, GAME loads 465/465
-objects, and the dispatcher runs 100 frames; the thin iPhoneOS final-link proof
-resolves the complete 840-object corpus with `jak2-kernel-core`. Jak II is not
-app-wired, signed, simulator-run, device-run, title-screen validated, or
-gameplay validated, and it does not displace Jak 1 as active scope.
-The full build, diagnostic, signing, and physical evidence is recorded in
-`HANDOFF.md`; older checkpoint sections remain historical.
+Checkpoint 53 classifies the existing physical v4 trace and repairs two
+diagnostic blind spots without changing gameplay behavior. The v4 cache showed
+zero chain drops, drawable misses, live/packet camera mismatches, or Merc output
+composition mismatches, but its camera-slave record was always invalid and its
+target/control observer retained no samples. The camera observer had treated a
+GOAL `ppointer` as the camera-slave object and rejected derived runtime types.
+The bounded v5 observer now dereferences the ppointer, walks the checked runtime
+type-parent chain, and retains wall-relevant LOS, movement-blocked, max-angle,
+tracking, and rotation fields. Target/control telemetry now retains capture
+stage/result, ordinary and neutral/Square samples, engine-frame and probe-slot
+identity, raw direction/quaternion fields, camera basis, and input/output
+deformation. Focused checks passed. This is diagnostic coverage, not a camera,
+steering, or Flat-Stanley fix.
+
+The physical observation is intentionally local: at Geyser Rock, Jak appeared
+normally volumetric facing toward the portal and thinnest facing away. The
+earlier “backward” description was camera-relative. Camera rotation did not
+visibly change thickness in that test, but no global world-heading or
+camera-independence conclusion is proved. Ordinary roughly 10-degree roll/Z
+shake mostly stopped; severe slower near-wall oscillation and the
+wrong-facing/skinny transform failure remain.
+
+The current parent implementation point is
+`5fdf3bca1618b7f9c598c4e7d8bf4cb3066c0d03`. The current nested OpenGOAL pin is
+`17a097baaaf0563bb350dbcd8f230fc025927bca`. Both matched their corresponding
+remote branches before this documentation commit. The recorded Jak 1 source
+pack remains 518 objects, aggregate `f1770cae6287a359`, and 10,729,681 bytes;
+the AOT corpus remains 10,596 emitted functions and 7 native routines. The
+signed v5 generic iOS Release build passed, produced a valid thin ARM64
+executable with SHA-256
+`82a81daa9c69c7f11cb6eb0fb4570ed672cd922c0ccfe56b6b49443bf5ce83b1`,
+and was update-installed and launched on the authorized Z iPad Pro while
+preserving its app container. The first controlled v5 portal-relative cache was
+backgrounded and copied with SHA-256
+`0ac9e9836ea5b5d51acd67a8ed52f8460f46d6b2eeac41716f6e71c1f5820075`.
+The repaired camera attachment retained a valid movement-blocked slave and
+tracking combiner. However, all 5,754 target/control capture attempts failed at
+the control object's exact type check (stage `4`, result `6`), so the cache
+cannot classify portal-relative facing or Square through those new fields.
+This is a physical observer failure to repair, not evidence that target control
+was correct. The away/toward A/B is paused until that probe is no longer blind.
+
+Jak II now has one additional bounded host seam at nested `17a097baa`:
+ordinary-file STR channel 4 validates the measured request/reply shape, reads a
+safe uppercase basename from user-local `out/jak2/iso`, bounds the EE write,
+and returns actual bytes or a handled error. Its focused unit test passed. The
+real headless proof loaded KERNEL 8/8 and GAME 465/465, performed one
+309,856-byte STR read, completed 100 dispatcher frames, and no longer repeats
+the false `Game subtitle2 heap overrun!` diagnostic. A fresh current-tree
+iPhoneOS final-link proof also passed: all 840 objects plus the manifest linked
+with alias-safe C rules into a thin ARM64 iOS 18.0 executable, SHA-256
+`0490f08ed0d2dde92a58bc9f4192d9bd20d70ae21e43bf2b1ca07fe562fc1e77`,
+with representative AOT/kernel/Zstd symbols defined and no unresolved project
+symbols. Chunked STR and the rest of the sound system remain unimplemented.
+This is still an unsigned isolated link proof, not app wiring, a signed app,
+simulator/device runtime, title screen, or gameplay. Jak II does not displace
+Jak 1 as active scope.
 
 The next actions are:
 
-1. Before any new phone install or launch, copy the preserved diagnostic cache
-   if it remains. After explicit authorization and reconnection, update-install
-   the Checkpoint 51 build, reproduce the spin/facing/Square/edge-of-frame case,
-   and classify the v4 cache. A dedicated `0x80` event identifies a producer-to-
-   Merc composition mismatch. The new target-control counts and retained dot
-   products distinguish pad intent, GOAL control, render facing, and Merc root
-   disagreement without another speculative behavior change.
-2. After the v4 trace is classified, resume the bounded Jak II ordinary-file
-   STR channel-4 seam. Real raw/ZIP media import is presentation/distribution
-   follow-up and must not block this continuation or be conflated with gameplay.
-3. Keep the deterministic camera, Merc composition, ZIP, importer, and AOT
-   checks green. Do not make another speculative visual change before the v4
-   physical evidence distinguishes the active seam.
-4. Preserve the deterministic checks, ARM64 macOS build, approved M5 simulator,
-   generic signed iOS lane, and the current real-kernel/runtime path.
-5. Keep the existing Zephyr Studios LLC signed-build profile healthy. Repair
-   the missing Xcode account token only when a profile refresh is required,
-   then verify `com.zephyrstudiosllc.eco` with
-   `iCloud.com.zephyrstudiosllc.eco` and run signed real two-device save
-   migration/conflict tests.
+1. Repair the target/control diagnostic's physical stage-4 type mismatch with
+   bounded runtime-type evidence and focused tests. Do not weaken validation or
+   change gameplay behavior merely to obtain a sample.
+2. With the repaired observer, preserve separate toward-portal,
+   away-from-portal, and deliberate near-wall runs. Compare only the controlled
+   portal-relative A/B. The original “backward” wording was camera-relative;
+   the portal is the stable reference for this test. Use LOS,
+   movement-blocked, max-angle, tracking, and large-orientation events to
+   select one testable behavior change. Do not claim a global heading rule or
+   speculate past the trace.
+3. Keep the camera, Merc, importer, source-pack, and AOT gates green. Reuse the
+   recorded 518-object pack unless its writer or embedded graph changes.
+4. After the Jak 1 trace identifies its active seam or physical validation is
+   again the sole remaining gate, rerun the Jak II proof to capture the first
+   post-STR unsupported RPC and implement one bounded synthetic-tested host
+   seam. Do not jump to app wiring or a full sound stack.
+5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
+   explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
-Future physical **Z iPad Pro** access still requires explicit authorization in
-the current request. No proprietary game data belongs in source control or CI.
+The Checkpoint 53 Z iPad Pro update-install and launch were explicitly
+authorized in that request; future physical access still requires fresh
+authorization. No proprietary game data belongs in source control or CI.
