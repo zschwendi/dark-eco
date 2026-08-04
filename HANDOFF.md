@@ -11469,3 +11469,98 @@ After the signed app and ZIP were copied and re-hashed, only the disposable
 `/private/tmp/GOALPad-jak2-cp77-device-derived` directories were removed. No
 worktree was removed. The simulator Xcode products, simulator screenshot, and
 preserved app/ZIP remain available at the paths recorded above.
+
+# Build 84: emulate OpenGL D24 quantization for Metal backgrounds
+
+Date: 2026-08-04. This candidate restarts from the exact physical known-best
+Build 79 parent `c2e4d12a0f656f898587690935beaeb81debe6a6` and its OpenGOAL
+gitlink `816222f47c715e770a789a29830c66634af880d9`. It does not contain
+Build 81's anisotropy experiment, Build 82's texture-sampling bypass, or Build
+83's camera-relative ETIE projection change.
+
+Build 83 was physically rejected after an explicitly authorized install and
+launch on Z iPad Pro. Camera stability regressed to an unacceptable state, and
+the Precursor-metal flicker did not change from Build 79. That falsifies the
+camera-relative ETIE evaluation-order hypothesis for this symptom. Build 84
+therefore preserves Build 79's camera and projection math.
+
+## D24/D32 proof and production scope
+
+The desktop OpenGL renderer requests 24 depth bits and creates
+`GL_DEPTH24_STENCIL8`. The iPad Metal renderer uses
+`MTLPixelFormatDepth32Float_Stencil8`; Metal's native
+`MTLPixelFormatDepth24Unorm_Stencil8` is unavailable on iOS. Reviewed proof
+commit `74e5944d5c3493b73cf9442a9a81fe99548f6d19` adds a synthetic,
+asset-free GPU readback that runs the real TFRAG3 and ETIE-base vertex paths at
+native D32 precision and with fragment-stage D24 quantization. Across nearby
+camera positions it demonstrates distinct D32 values collapsing into one D24
+bin: native reversed-depth `GEQUAL` rejects the slightly farther ETIE base,
+while equalized D24 depth lets that pass win. The proof retains a byte-identical
+D32 camera A/B/A control.
+
+Production commit `5a1422e4d4a75729570084fed1f93a8ebd56d6c5` shares the proof's
+fixed-depth conversion in `tfrag3_fs`:
+
+```text
+round(clamp(depth, 0, 1) * 16777215) / 16777215
+```
+
+That fragment entry point is used by ordinary TFRAG3, the envmapped TIE base,
+and the reflective ETIE draw. The backing depth/stencil target remains D32/S8;
+only the depth value written by those background fragments is quantized. A
+production-path readback matches the proof quantizer, equalized depth preserves
+the intended `GEQUAL` result, and an adjacent-bin negative control remains
+distinct. Camera math, vertex projection, texture/sampler behavior, draw order,
+visibility, fog/color math, blend state, depth compare/write policy, Merc,
+shrubs, sprites, Generic2, ocean, shadows, Swift/Objective-C++, and AOT output
+are unchanged.
+
+This is a narrow parity candidate, not a physical visual fix claim. Explicit
+fragment depth can reduce early-depth optimization, and its performance and
+visual effect remain pending on physical hardware.
+
+## Exact integration state
+
+- Parent integration worktree: `/private/tmp/GP-build84-d24-parent`, branch
+  `agent/build84-d24-parent`, created from exact Build 79 parent
+  `c2e4d12a0f656f898587690935beaeb81debe6a6`.
+- Proof nested worktree: `/private/tmp/OG-build84-depth-parity-proof`, branch
+  `agent/build84-depth-parity-proof`, clean at
+  `74e5944d5c3493b73cf9442a9a81fe99548f6d19`.
+- Production nested worktree: `/private/tmp/OG-build84-d24-production`, branch
+  `agent/build84-d24-production`, clean at reviewed commit
+  `5a1422e4d4a75729570084fed1f93a8ebd56d6c5`.
+- Build 83 parent worktree: `/private/tmp/GP-build83-etie-camera-relative-parent`,
+  branch `agent/build83-etie-camera-relative-parent`, clean at rejection note
+  `a9ba216e8b4584f85bdf1dab47381d7ac06813f6` and pinned to nested rejected
+  commit `8286f66575eb9a25f401f5b5d385045a3707b7f0`.
+- The maintainer-owned main worktree at
+  `/Users/zach/Developer/OS_Projects/GOALPad/GOALPad` was not edited, staged,
+  reset, cleaned, or synchronized.
+
+The ignored 518-object AOT corpus was copied without regeneration from
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/Generated/jak1-aot`
+into this parent worktree. The known-good source-object pack was reused in
+place at
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/build/jak1-source-object-pack`.
+
+## Focused parent validation
+
+```sh
+./Scripts/verify-generated-aot.sh Generated/jak1-aot 518
+/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/OpenGOAL/build/Release/bin/goalc/jak1-source-object-pack-verify \
+  /Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/build/jak1-source-object-pack
+git diff --check
+```
+
+The AOT preflight passed with 518 objects, 10,596 emitted functions, and seven
+native functions. The existing source-pack verifier accepted 518 objects,
+aggregate `0a6387a3959fd8cb`, and 10,729,950 bytes. No corpus or source pack was
+regenerated. The final whitespace check passed.
+
+No Xcode build, simulator/device install, app launch, log attachment, capture,
+or device access was performed for this parent-only integration. The next gate
+is a generic signed iPhoneOS Release build from this exact parent/nested pair,
+followed only with fresh maintainer authorization by a physical Build 79 versus
+Build 84 comparison. Until that comparison passes, Build 79 remains the
+physical known best.
