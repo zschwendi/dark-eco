@@ -11745,3 +11745,17 @@ maintainer-owned main worktree remained untouched with its pre-existing dirty
 files. The Build 84 parent worktree contains only the reviewed macOS pacing and
 documentation changes described above; the nested production worktree remains
 clean at `5a1422e4d4a75729570084fed1f93a8ebd56d6c5`.
+
+## Build 84 authorized physical install
+
+Later on 2026-08-04, the maintainer explicitly authorized installing Build 84
+on Z iPad Pro. The preserved signed product at
+`/private/tmp/GOALPad-build84-signed/GOALPad.app` was installed in place with
+CoreDevice on device `6A4111AB-1663-508A-98D9-F0C1A9EA7863`; existing app data
+was not uninstalled or erased. CoreDevice reported bundle identifier
+`com.zephyrstudiosllc.eco`, then successfully launched that identifier.
+
+The physical visual verdict is pending. The requested comparison remains
+Precursor/lamp behavior while moving and stationary, camera/Jak/Merc stability,
+and frame smoothness. Build 79 remains the physical known best unless the
+maintainer explicitly accepts Build 84.

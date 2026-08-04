@@ -18,20 +18,25 @@ Read this before changing architecture, adding dependencies, rewriting upstream 
 
 ## Mission
 
-Build an open-source, native ARM64 iPadOS platform port of OpenGOAL that allows users to run supported Jak games from game data they legally provide themselves.
+Build an open-source, native ARM64 Apple-platform port of OpenGOAL that allows
+users to run supported Jak games from game data they legally provide themselves.
+iPadOS remains the primary correctness and performance target; Eco Pro also
+builds and runs as a conventional windowed Apple Silicon macOS app.
 
-The intended result is a high-resolution, controller-friendly iPad version with no PlayStation 2 CPU emulation, no bundled copyrighted game assets, and a path toward custom levels and other OpenGOAL-compatible mods.
+The intended result is a high-resolution, controller-friendly iPad and Mac
+version with no PlayStation 2 CPU emulation, no bundled copyrighted game assets,
+and a path toward custom levels and other OpenGOAL-compatible mods.
 
 ## The intended user experience
 
 A user should eventually be able to:
 
-1. Obtain the project through a supported open-source or sideloading workflow.
+1. Obtain Eco Pro through a supported open-source, Mac, or sideloading workflow.
 2. Provide a supported, legally obtained PlayStation 2 copy of the game.
-3. Run a desktop importer that verifies and extracts the required game data.
-4. Transfer or install the prepared data for use by the iPad app.
-5. Launch the game natively on iPadOS.
-6. Play with a supported controller at resolutions and presentation settings appropriate for modern iPads.
+3. Use Eco Pro or the desktop tooling to verify and prepare the required game data.
+4. Keep that prepared data on the Mac or transfer it to another Apple device.
+5. Launch the game natively on iPadOS or Apple Silicon macOS.
+6. Play with a supported controller at platform-appropriate resolutions and presentation settings.
 7. Install supported data-driven mods, including compatible custom levels, without receiving original game assets from this project.
 
 The exact installation workflow may change during development. The ownership and asset-separation rules may not.
@@ -40,26 +45,27 @@ The exact installation workflow may change during development. The ownership and
 
 For this project, **native** means:
 
-- The application runs as an ARM64 iPadOS process.
+- The application runs as a native ARM64 process on the selected Apple platform.
 - Gameplay does not run through a PlayStation 2 CPU emulator.
 - The project uses OpenGOAL's reconstructed GOAL code and native runtime approach.
-- Platform integration uses iPadOS APIs where practical.
-- Rendering ultimately targets an iPad-compatible graphics path, preferably Metal.
+- Platform integration uses Apple platform APIs where practical.
+- Rendering uses the shared Metal path on iPadOS and macOS.
 - Input uses Apple's Game Controller framework directly or through a deliberately retained portability layer.
-- Audio uses an iPad-compatible native or portable backend.
+- Audio uses a platform-compatible native or portable backend.
 
 Native does **not** mean every source file must be rewritten in Swift.
 
 ## Language and runtime policy
 
-The app should feel like a first-class iPad application, but rewriting OpenGOAL into Swift is not the project goal.
+The app should feel like a first-class Apple application on iPad and Mac, but
+rewriting OpenGOAL into Swift is not the project goal.
 
 Expected language boundaries:
 
 ```text
 Swift / SwiftUI
     App lifecycle, launcher UI, settings, import status, saves,
-    file management, touch UI, iPad-specific presentation
+    file management, touch UI, Apple-platform presentation
 
 Objective-C++ bridge
     Stable boundary between Swift and the existing native runtime
@@ -72,14 +78,16 @@ GOAL
     Reconstructed game and engine logic supplied by OpenGOAL
 
 Metal / Apple frameworks
-    iPad rendering, input, audio, storage, and system integration
+    Apple rendering, input, audio, storage, and system integration
 ```
 
 ### Hard rule
 
 Do not begin a wholesale C++-to-Swift or GOAL-to-Swift translation. Such a rewrite would discard the main value of OpenGOAL, greatly increase correctness risk, and move the project away from upstream compatibility.
 
-Swift should own the iPad application shell and platform-facing features. Existing OpenGOAL code should remain in its native languages unless a specific component must be replaced for iPadOS compatibility.
+Swift should own the Apple application shell and platform-facing features.
+Existing OpenGOAL code should remain in its native languages unless a specific
+component must be replaced for Apple-platform compatibility.
 
 ## Project scope
 
@@ -231,9 +239,9 @@ Simulator success is useful but insufficient. Architecture, executable memory, M
 
 ```text
 ┌────────────────────────────────────────────────────────────┐
-│ SwiftUI iPad application                                   │
+│ SwiftUI Eco Pro application — iPadOS / macOS / visionOS    │
 │                                                            │
-│ Launcher · Settings · Import status · Saves · Touch UI     │
+│ Launcher · Settings · Import status · Saves · iPad touch UI│
 └──────────────────────────────┬─────────────────────────────┘
                                │ Objective-C++ API
 ┌──────────────────────────────▼─────────────────────────────┐
@@ -263,7 +271,10 @@ Simulator success is useful but insufficient. Architecture, executable memory, M
 
 ## Renderer strategy
 
-The desired shipping renderer is Metal-compatible and performant on modern iPads. However, the project must not begin with an unnecessary full renderer rewrite before the rest of the runtime can be validated.
+The desired shipping renderer is Metal-compatible and performant on modern
+iPads and Apple Silicon Macs. However, the project must not begin with an
+unnecessary full renderer rewrite before the rest of the runtime can be
+validated.
 
 Required sequence:
 
@@ -304,9 +315,9 @@ real OpenGOAL Jak 1 runtime playable on iPadOS first.
 
 The project follows a bring-your-own-game model.
 
-### Desktop importer responsibilities
+### macOS app and desktop-tool responsibilities
 
-A macOS importer or command-line tool should eventually:
+The macOS Eco Pro app or command-line tooling should:
 
 - Accept a user-selected game image or extracted disc directory.
 - Verify that the input matches a supported retail revision.
@@ -314,12 +325,13 @@ A macOS importer or command-line tool should eventually:
 - Invoke or reuse OpenGOAL extraction and preparation tooling.
 - Generate only the files needed by the iPad port.
 - Produce a deterministic data package or installable development output.
+- Run compatible prepared data locally through the same native runtime.
 - Avoid uploading the user's game data to any service.
 - Avoid bundling game data into the public repository or CI artifacts.
 
-### iPad app responsibilities
+### Eco Pro app responsibilities
 
-The iPad app should:
+The Apple app should:
 
 - Detect whether valid prepared game data is installed.
 - Explain what is missing without directing users to piracy sources.
