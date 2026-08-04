@@ -98,8 +98,7 @@ private struct SurfaceRepresentable: UIViewRepresentable {
 
 #elseif canImport(AppKit)
 
-/// macOS is a compile-and-link target for this app, not a supported platform. The surface works so
-/// the shared code can be built and stepped through on the host.
+/// The macOS launcher uses the same Metal surface and frame callback as the mobile app.
 private final class MetalHostView: NSView {
     var onFrame: ((CFTimeInterval) -> Void)?
     private var frameLink: CADisplayLink?
@@ -124,6 +123,8 @@ private final class MetalHostView: NSView {
         updateDrawableSize()
         if frameLink == nil {
             let link = displayLink(target: self, selector: #selector(step(_:)))
+            // Match the game's 60 Hz clock even when the Mac display supports 120 Hz.
+            link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 60, preferred: 60)
             link.add(to: .main, forMode: .common)
             frameLink = link
         }

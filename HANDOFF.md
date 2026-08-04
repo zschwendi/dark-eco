@@ -11629,3 +11629,119 @@ After the signed app was preserved and its executable hash reverified, the
 reproducible 581 MB `/private/tmp/GOALPad-build84-device` DerivedData directory
 was removed. The preserved app and all Build 84 branches, commits, and
 worktrees remain available.
+
+## Build 84 macOS launcher and deterministic real-scene Metal A/B
+
+Date: 2026-08-04. The shared Eco Pro Xcode target already included a native
+Apple Silicon macOS launcher; no new target or renderer fork was necessary.
+The AppKit surface uses the same `CAMetalLayer`, `GOALPadMetalHost`, AOT runtime,
+Metal renderer, library, importer, saves, and audio host as the other Apple
+destinations. The old source comment and build documentation that called it a
+compile-only target were stale.
+
+One macOS-only pacing gap was fixed in
+`GOALPad/Game/GameSurfaceView.swift`: the AppKit `CADisplayLink` now requests a
+60 Hz frame-rate range, matching the iOS host instead of allowing a 120 Hz Mac
+display to drive the game's 60 Hz clock twice as quickly. No iOS, renderer,
+camera, Merc, AOT, importer, asset-loading, or game code changed.
+
+The first sandboxed Xcode attempt stopped before source compilation because
+Apple's Metal toolchain was unavailable to the restricted process. The same
+command with normal Xcode service access passed:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release \
+  -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-build84-mac \
+  -jobs 2 CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO \
+  COMPILER_INDEX_STORE_ENABLE=NO \
+  GOALPAD_OPENGOAL_ROOT=/private/tmp/OG-build84-d24-production \
+  GOALPAD_OPENGOAL_GIT_METADATA=/Users/zach/Developer/OS_Projects/GOALPad/GOALPad/.git/modules/OpenGOAL/worktrees/OG-build84-d24-production \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/build/jak1-source-object-pack \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache \
+  GOALPAD_BUILD_JOBS=2 build
+```
+
+The incremental build after the 60 Hz source change also passed. The resulting
+thin ARM64 executable is at
+`/private/tmp/GOALPad-build84-mac/Build/Products/Release/GOALPad.app/Contents/MacOS/GOALPad`
+with SHA-256
+`cd5d31962e39f21d670f0dbb94dc72e2afffa259fafa3a2946bdd50132a12b0d`.
+
+The launcher was exercised through its real UI. It displayed the four-title
+Library, imported the existing user-prepared Jak 1 directory from
+`/Users/zach/Developer/OS_Projects/GOALPad/Jak1/projdata/out/jak1`, copied 347
+files (321 `iso`, 26 `fr3`, 1.63 GB) to the launcher's normal
+`/Users/zach/Documents/Jak1` location, booted KERNEL 8/8 and GAME 346/346, and
+reached the Jak 1 title screen. A 600-sample runtime window reported
+16.67/16.68/22.10 ms mean/p95/max display cadence after the pacing change.
+Gameplay control was not validated because no controller was connected and the
+SwiftUI launcher has no keyboard mapping. The standalone `goalpad-play` host
+does have keyboard and deterministic input support.
+
+### Frozen Build 79 versus Build 84 renderer comparison
+
+Build 79's tagged OpenGOAL tree and Build 84's production tree were each built,
+one at a time, in the same canonical
+`/private/tmp/GOALPad-metal-ab-cmake` directory:
+
+```sh
+cmake -S <exact-opengoal-tree> -B /private/tmp/GOALPad-metal-ab-cmake \
+  -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+cmake --build /private/tmp/GOALPad-metal-ab-cmake \
+  --target goalpad-play metal-proof -j2
+```
+
+The Build 79 binaries were preserved before the canonical directory was
+reconfigured. All binaries, commands' logs, DMA captures, replay PNGs, visual
+diffs, and proof logs are under `/private/tmp/GOALPad-metal-ab-results`.
+Preserved binary hashes are:
+
+```text
+Build 79 goalpad-play  aeeef8531a81b4fb041dc94ac73593beb1ea331601509f29569a140c8743447f
+Build 79 metal-proof  927a3dcacde99fc00d0e343c6289330d2405c032670ee3ee864043f418be9b14
+Build 84 goalpad-play  268fc8dc86c3ece631550c7fafdfb50806b718281f50ad372c3ba2fd07d32ef8
+Build 84 metal-proof  e1eaf713be902816408ca0e6d766aa2947d33e742ee1defc1e5b0782529a3297
+```
+
+Both builds passed `metal-proof --tie-envmap-isolation-only`. Build 84 also
+passed `metal-proof --background-depth-parity-only`: the production shader used
+the proof's shared D24 quantizer, equalized depths passed `GEQUAL`, an
+adjacent-bin negative control remained distinct, and the production D32 A/B/A
+control was byte-identical.
+
+The Build 79 runner then entered a fresh no-save game, warped through the game's
+own continue-point logic, and captured version-2 DMA chains plus EE snapshots.
+The Build 84 renderer replayed those exact Build 79 inputs; it did not rerun the
+game, camera, input, or timing. Beach frames 1838-1840 and Geyser Rock frames
+1782-1784 and 1838-1840 all passed under both renderers with equal draw/triangle
+statistics, zero skipped bucket bytes, zero unsupported blends, zero unloaded
+levels, zero missing textures, and zero unexpected DMA. The live capture runs
+ended with equal game-frame, chain, and presentation counts and zero level
+failures.
+
+ImageMagick absolute-error comparisons show the production change is narrow:
+
+```text
+beach frames 1838/1839/1840:                    1 / 3 / 3 changed pixels
+Geyser later frames 1838/1839/1840:           278 / 0 / 2 changed pixels
+Geyser movement-start frames 1782/1783/1784:  735 / 1175 / 779 changed pixels
+```
+
+Visual inspection of the movement-start diff localizes the changed pixels to
+the two bright Geyser lamp panels. Jak, the portal, camera/world geometry,
+vegetation, and the rest of the frame remain unchanged in this capture. This is
+strong real-scene evidence that the Build 84 fragment-depth change reaches the
+reported material while preserving unrelated output. Static macOS replay still
+cannot prove that temporal flicker is fixed on the iPad GPU, so Build 84 remains
+a candidate and Build 79 remains the physical known best until the maintainer's
+physical A/B judgment.
+
+No simulator or physical device was accessed during this macOS validation. The
+maintainer-owned main worktree remained untouched with its pre-existing dirty
+files. The Build 84 parent worktree contains only the reviewed macOS pacing and
+documentation changes described above; the nested production worktree remains
+clean at `5a1422e4d4a75729570084fed1f93a8ebd56d6c5`.

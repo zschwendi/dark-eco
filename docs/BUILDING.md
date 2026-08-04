@@ -310,10 +310,14 @@ xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
-The macOS and generic iOS commands validate compilation and linking only. The
-generic iOS build is not physical-device validation. The generic simulator
-invocation is documented below as an expected architecture mismatch, not a
-required passing build.
+The macOS command builds the native Apple Silicon Eco Pro launcher. A Release
+validation has exercised its library, prepared-data import, shared Metal host,
+real Jak 1 AOT boot, and title screen. A controller is still required for
+gameplay because the launcher does not yet map keyboard input, and a complete
+macOS gameplay pass remains unvalidated. The generic iOS commands validate
+compilation and linking only; a generic iOS build is not physical-device
+validation. The generic simulator invocation is documented below as an
+expected architecture mismatch, not a required passing build.
 
 For ARM64 runtime validation, do not substitute the generic simulator
 destination for the named M5 simulator. The generic simulator build selected

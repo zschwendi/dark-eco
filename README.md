@@ -61,6 +61,11 @@ no private entitlement anywhere in the build.
 - **Experimental — visionOS.** The shared Apple target builds and launches in a
   conventional SwiftUI window. No immersive or volumetric presentation is
   included, and physical-headset gameplay remains unvalidated.
+- **Experimental — macOS launcher.** The shared SwiftUI library, import flow,
+  Metal surface, AOT runtime, and audio host build for Apple Silicon. A Release
+  build imported prepared Jak 1 data and reached the title screen through the
+  real runtime. A controller is still required for gameplay; keyboard mapping
+  and a complete macOS gameplay pass remain unvalidated.
 - **Planned.** Level streaming without frame stalls, streamed cutscene audio,
   and the remaining fidelity renderers (TIE wind, depth cue, sprite
   distort/glow).
@@ -78,7 +83,8 @@ game/kernel/core/          portable runtime: no SDL, no windowing, no input,
           |
           +-- goalpad-play     SDL window, SDL gamepad, CoreAudio    -> macOS
           +-- GOALPad.app      SwiftUI, CAMetalLayer, GameController,
-                               AVAudioEngine, touch controls          -> iPadOS
+                               AVAudioEngine                          -> macOS
+                               + touch controls                       -> iPadOS
                                                                    -> visionOS window
 ```
 
