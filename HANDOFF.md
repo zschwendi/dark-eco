@@ -12078,3 +12078,130 @@ occurred. Its next task is bounded game-frame readback metrics and advancing the
 real-DMA CAMetalLayer proof to the later chain containing a SCREEN_FILTER draw.
 It must not edit either Build 86 worktree or consume the heavy build lane
 concurrently.
+
+# Build 86 scoped-invariance release candidate
+
+Date: 2026-08-04. Build 86 now applies rasterizer invariance only where the
+paired ETIE passes require bit-identical position output. The child production
+change is commit `adb49242b1167f61d533a89e9099cfb032bde992` on
+`agent/build86-metal-perf`. In
+`game/graphics/pipelines/metal/shaders/background.metal`, ordinary
+`BackgroundVSOut.pos` is once again `[[position]]`; a field-identical
+`InvariantEtieVSOut` has `[[position, invariant]]`; and only `etie_base_vs` and
+`etie_vs` use the invariant output. TFRAG3 world geometry and shrub geometry no
+longer pay the conservative-invariance cost.
+
+The parent branch `agent/build86-metal-perf-parent` points at that exact child.
+An initial parent commit accidentally recorded a guessed, nonexistent full
+gitlink for the correct short hash; this was caught before release and fixed
+forward in parent commit `4d844aad6bf15b4368b8b54b0e9c73be2772eefc`.
+Do not use the preceding parent commit `23236fcd` as a standalone checkout.
+
+## Validation
+
+Focused Metal compilation passed:
+
+```sh
+xcrun -sdk macosx metal -Wall -Werror -fpreserve-invariance -c \
+  -fmodules-cache-path=/private/tmp/goalpad-build86-changed-file/module-cache \
+  game/graphics/pipelines/metal/shaders/background.metal \
+  -o /private/tmp/goalpad-build86-changed-file/background.air
+```
+
+The canonical Release CMake build was freshly configured against the Build 86
+child and both affected targets passed:
+
+```sh
+cmake --fresh -S /private/tmp/OG-build86-metal-perf \
+  -B /private/tmp/GOALPad-metal-ab-cmake -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+cmake --build /private/tmp/GOALPad-metal-ab-cmake --target metal-proof -j2
+cmake --build /private/tmp/GOALPad-metal-ab-cmake --target goalpad-play -j2
+```
+
+With `MTL_DEBUG_LAYER=1`, the focused 65-camera
+`--background-depth-parity-only` proof passed with identical 440-pixel
+coverage, zero empty cameras, zero mask mismatches, zero D32 mismatches, zero
+base-only holes, zero unexpected colors, zero changed-depth pixels, byte-
+identical A/B/A output, and correct rejection by the adjacent closer occluder.
+`--tie-envmap-isolation-only` also passed with exact camera identity and
+diagnostic restoration. The complete `metal-proof` suite passed. The preserved
+Build 86 proof binary is
+`/private/tmp/GOALPad-metal-ab-results/bin-build86/metal-proof`, SHA-256
+`851c56d0ffca9382045a6a4479403ee799b7b7f33952114acd4f88d3c7161f92`.
+
+Frozen replay output is in `/private/tmp/GOALPad-build86-metal-results`:
+
+- Geyser movement-start frames 1782, 1783, and 1784 all passed with no skipped
+  or unexpected data, no missing assets, and 630 reflective triangles. Build
+  86 is pixel-identical to Build 85 on all three frames. The Build 84-to-86
+  differences are 1,409, 1,775, and 1,354 pixels; Build 79-to-86 differences
+  are 2,047, 2,923, and 2,109 pixels, preserving Build 85's localized visual
+  correction.
+- Beach frame 1838 passed with 235 draws, 240,555 triangles, 46 TIE draws,
+  48,458 TIE triangles, one 714-triangle ETIE shine draw, and zero skipped
+  content, missing textures, unsupported blends, or unexpected DMA. Build 86
+  is pixel-identical to both preserved Build 85 runs and to Build 79; it differs
+  from the preserved Build 84 run by one pixel.
+
+Balanced 602-frame capped host timings all passed with byte-identical output
+and integrity. In 85/86/79 order the real/user/system times were
+`11.30/3.20/1.25`, `11.74/3.33/1.25`, and `11.30/3.01/1.22` seconds. In reverse
+79/86/85 order they were `11.30/3.20/1.22`, `11.28/3.30/1.24`, and
+`11.26/3.19/1.23` seconds. The first Build 86 real-time result did not repeat,
+so there is no obvious host regression. The 60 fps limiter makes this a
+regression screen, not proof of spare physical-device GPU headroom.
+
+The canonical 518-object AOT pack was copied into the ignored Build 86
+`Generated/jak1-aot` directory. Its preflight passed with 10,596 emitted
+functions and seven native functions; the 1,040-file directory has manifest
+SHA-256 `4240ae30b0917c1c0a2f17ea483f0fedba70b9d461b7675fed5cc6ecc01ba8f1`.
+The exact stale 89 MB generated importer cache under the reused DerivedData was
+removed after it identified Build 85 as its source; Xcode regenerated it from
+the Build 86 child.
+
+The generic signed iOS Release build passed without accessing a physical
+device:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -sdk iphoneos \
+  -destination generic/platform=iOS \
+  -derivedDataPath /private/tmp/GOALPad-build84-rebuild-device \
+  -jobs 2 -allowProvisioningUpdates \
+  ENABLE_PREVIEWS=NO COMPILER_INDEX_STORE_ENABLE=NO \
+  GOALPAD_OPENGOAL_ROOT=/private/tmp/OG-build86-metal-perf \
+  GOALPAD_OPENGOAL_GIT_METADATA=/Users/zach/Developer/OS_Projects/GOALPad/GOALPad/.git/modules/OpenGOAL/worktrees/OG-build86-metal-perf \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/build/jak1-source-object-pack \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache \
+  GOALPAD_BUILD_JOBS=2 CURRENT_PROJECT_VERSION=86 build
+```
+
+The preserved result is
+`/private/tmp/GOALPad-build86-scoped-invariant-signed/GOALPad.app`: Eco Pro
+`1.0 (86)`, bundle identifier `com.zephyrstudiosllc.eco`, thin ARM64, Team ID
+`V729QMY3V6`, executable SHA-256
+`9712d7666feb4d722689addc9f0857d7747b101ddfad65ab632573f9cd3f8450`, UUID
+`40603C7D-4130-3AAC-9ED9-E396A42CAD34`, and CDHash
+`ff3930b6e383050ca48cca8d76e37e92cdb11025`. The preserved bundle is 51 MB
+with 551 files. `codesign -dv --verbose=4` recognized the embedded signature;
+offline strict verification reports `CSSMERR_TP_NOT_TRUSTED`, matching the
+local certificate-trust limitation rather than a compile or signing omission.
+
+## Physical acceptance gate
+
+No physical device was installed, launched, logged, or captured. Build 86 is a
+validated release candidate, not an accepted replacement for either baseline.
+The next smallest task is an explicitly authorized physical A/B:
+
+1. Confirm Build 86 keeps Build 85's zero reflective flicker/chunking and has
+   no camera, Jak, Merc, movement, attack, or gameplay regression.
+2. Compare sustained smoothness, frame pacing, and heat against Build 79. Build
+   86 passes only if it restores or exceeds Build 79's performance while
+   retaining Build 85's visual/gameplay result.
+
+Build 79 and Build 85 remain preserved and untouched. The Jak II renderer
+worktree remains clean at `4fb5dfb1a3ebc25737bba7e1c747ba32409fbfa6`.
+The maintainer main worktree's existing four dirty entries remain untouched.
