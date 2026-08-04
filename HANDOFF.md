@@ -12192,9 +12192,16 @@ local certificate-trust limitation rather than a compile or signing omission.
 
 ## Physical acceptance gate
 
-No physical device was installed, launched, logged, or captured. Build 86 is a
-validated release candidate, not an accepted replacement for either baseline.
-The next smallest task is an explicitly authorized physical A/B:
+On 2026-08-04, the maintainer explicitly authorized Build 86 installation on
+`Z iPad Pro` (`6A4111AB-1663-508A-98D9-F0C1A9EA7863`). The preserved app was
+installed in place with `devicectl`, preserving the existing app data
+container. Device-side app inspection confirmed Eco Pro `1.0 (86)`, bundle
+identifier `com.zephyrstudiosllc.eco`, and `devicectl` launched that exact
+installation successfully. No device logs or screen capture were requested.
+
+Build 86 is now running for the maintainer's physical visual/performance test,
+but it is not yet an accepted replacement for either baseline. The pending
+physical verdict is:
 
 1. Confirm Build 86 keeps Build 85's zero reflective flicker/chunking and has
    no camera, Jak, Merc, movement, attack, or gameplay regression.
