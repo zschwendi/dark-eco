@@ -14,10 +14,12 @@ shader_dir="$SRCROOT/OpenGOAL/game/graphics/pipelines/metal/shaders"
 out_dir="$DERIVED_SOURCES_DIR/goalpad-metal"
 metallib="$out_dir/goalpad.metallib"
 header="$out_dir/goalpad_metallib_embed.h"
+module_cache="$out_dir/module-cache"
 
-mkdir -p "$out_dir"
+mkdir -p "$out_dir" "$module_cache"
 
-xcrun -sdk "$PLATFORM_NAME" metal -Wall -Werror -o "$metallib" \
+xcrun -sdk "$PLATFORM_NAME" metal -Wall -Werror -fpreserve-invariance \
+    -fmodules-cache-path="$module_cache" -o "$metallib" \
     "$shader_dir/scaffold.metal" \
     "$shader_dir/direct.metal" \
     "$shader_dir/eye.metal" \
