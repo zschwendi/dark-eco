@@ -18,7 +18,7 @@ module_cache="$out_dir/module-cache"
 
 mkdir -p "$out_dir" "$module_cache"
 
-xcrun -sdk "$PLATFORM_NAME" metal -Wall -Werror -fpreserve-invariance \
+xcrun -sdk "$PLATFORM_NAME" metal -Wall -Werror \
     -fmodules-cache-path="$module_cache" -o "$metallib" \
     "$shader_dir/scaffold.metal" \
     "$shader_dir/direct.metal" \

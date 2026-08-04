@@ -641,22 +641,22 @@ Three build settings changed with it:
 
 The "Compile Metal shaders" build phase runs `Scripts/compile-metal-shaders.sh`
 before Compile Sources. It compiles the checked-in `.metal` files with
-`xcrun -sdk "$PLATFORM_NAME" metal -Wall -Werror -fpreserve-invariance
+`xcrun -sdk "$PLATFORM_NAME" metal -Wall -Werror
 -fmodules-cache-path=...` into
 `$(DERIVED_SOURCES_DIR)/goalpad-metal/goalpad.metallib`, then writes that
 metallib out as a C byte array in `goalpad_metallib_embed.h`.
 `GOALPad/Native/GOALPadMetallib.c` includes that header, so the compiled GPU
 library ends up in the app's own signed data and `MetalRenderer::init` loads it
 with `newLibraryWithData:`. This is the Xcode equivalent of the metallib +
-`embed_metallib.cmake` step in `game/CMakeLists.txt`. Preserve-invariance is
-required by the background vertex shader's `[[invariant]]` position so the
-base and reflective TIE passes produce identical rasterizer depth. The module
-cache lives beside the generated metallib rather than in a user-global cache.
+`embed_metallib.cmake` step in `game/CMakeLists.txt`. The base and reflective
+TIE passes use the same vertex entry point, so their position calculation is
+identical without conservative invariant compilation. The module cache lives
+beside the generated metallib rather than in a user-global cache.
 
 No shader is compiled on the iPad, for the same reason no GOAL code is: a shader
 built at runtime is code the signature does not cover. The signed Release
 binary has no `newLibraryWithSource:` reference and the bundle has no
-`default.metallib`; the iPhoneOS-SDK metallib is 166,980 bytes and is inside the
+`default.metallib`; the iPhoneOS-SDK metallib is 219,624 bytes and is inside the
 executable.
 
 ### What was observed on the simulator
