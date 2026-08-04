@@ -11954,3 +11954,25 @@ The physical visual and performance verdict is pending. Do not infer that the
 flicker is fixed from build, replay, installation, or launch evidence. The
 maintainer remains the final judge for reflective lamps and Precursor surfaces,
 camera/Jak/Merc stability, sustained frame rate, and device heat.
+
+### Physical verdict
+
+The maintainer physically tested Build 85 on Z iPad Pro. It completely fixed
+the reflective-metal flicker and chunking on lamps and Precursor surfaces. No
+regression was observed in camera stability or any of the previously fixed
+Jak, Merc, movement, attack, or gameplay behavior. Build 85 is therefore the
+current visual-correctness and gameplay-stability baseline.
+
+Build 85 is not the final accepted build because physical performance still
+regresses by roughly the same noticeable amount as Build 84. The app feels as
+though it is pushing the hardware, with inconsistent smoothness and frame-rate
+dips, instead of Build 79's cool and consistently effortless performance. The
+maintainer considers the difference material: Build 79 felt smoother than the
+original console behavior and left 120 Hz looking attainable, while Build 85
+does not consistently match the original console's smoothness.
+
+Preserve both baselines. Build 79 remains the performance baseline; Build 85
+remains the solved visual/gameplay baseline. Build 86 passes only if it keeps
+Build 85's zero flicker/chunking and lack of camera/Jak/Merc regressions while
+restoring or exceeding Build 79's sustained smoothness and thermal behavior.
+Do not accept a compromise between those two results.
