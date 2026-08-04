@@ -11976,3 +11976,105 @@ remains the solved visual/gameplay baseline. Build 86 passes only if it keeps
 Build 85's zero flicker/chunking and lack of camera/Jak/Merc regressions while
 restoring or exceeding Build 79's sustained smoothness and thermal behavior.
 Do not accept a compromise between those two results.
+
+# Build 86 kickoff: scope invariance to ETIE only
+
+Date: 2026-08-04. The maintainer requested a context checkpoint immediately
+after Build 86 investigation began. Preserve these isolated worktrees:
+
+- Parent: `/private/tmp/GP-build86-metal-perf-parent`, branch
+  `agent/build86-metal-perf-parent`, created from the Build 85 physical-verdict
+  commit `8507e25c983080b3cc103d1353ddde4a10127790`.
+- Child: `/private/tmp/OG-build86-metal-perf`, branch
+  `agent/build86-metal-perf`, clean at Build 85 child
+  `ce30ad3118bf0ee24e64e67e98f72809907c6126`.
+- Build 79 and Build 85 remain preserved at their recorded branches, commits,
+  signed apps, binaries, replays, and physical verdicts. Neither was modified.
+- The maintainer-owned main worktree was not edited, staged, reset, cleaned, or
+  synchronized.
+
+No Build 86 production source has been edited yet. The leading performance
+hypothesis is the shared `BackgroundVSOut.pos [[position, invariant]]`. It marks
+all four `tfrag3_vs`, `etie_base_vs`, `etie_vs`, and `shrub_vs` position
+outputs invariant. Apple's documented preserve-invariance behavior applies the
+conservative compilation to marked position outputs, not automatically to
+every unmarked shader in the same command. Beach frame 1838 contains about
+220,485 background triangles but only 714 reflective ETIE triangles; Geyser's
+movement-start frame similarly has about 80,000 background triangles but only
+630 reflective triangles. Build 85 therefore pays the invariance cost across
+nearly all high-volume world and vegetation vertex work to repair a sub-one-
+percent paired-pass seam. This is the narrowest source-level difference capable
+of explaining its physical heat/frame regression after the fragment-depth
+write was removed.
+
+## Selective AIR toolchain proof
+
+The Apple Metal driver can compile individual source files with different
+flags and link the AIR outputs into one metallib. The primary lane verified the
+mechanism against current repository shaders:
+
+```sh
+xcrun -sdk macosx metal -Wall -Werror -c \
+  -fmodules-cache-path=/private/tmp/goalpad-build86-air-proof/module-cache \
+  game/graphics/pipelines/metal/shaders/scaffold.metal \
+  -o /private/tmp/goalpad-build86-air-proof/scaffold.air
+xcrun -sdk macosx metal -Wall -Werror -fpreserve-invariance -c \
+  -fmodules-cache-path=/private/tmp/goalpad-build86-air-proof/module-cache \
+  game/graphics/pipelines/metal/shaders/background.metal \
+  -o /private/tmp/goalpad-build86-air-proof/background.air
+xcrun -sdk macosx metal \
+  /private/tmp/goalpad-build86-air-proof/scaffold.air \
+  /private/tmp/goalpad-build86-air-proof/background.air \
+  -o /private/tmp/goalpad-build86-air-proof/scoped.metallib
+```
+
+Both AIR compilations and the final link passed. A separate synthetic audit
+also compiled a normal base AIR and an invariant ETIE AIR, linked them with a
+shared fragment function, and confirmed `base_vs`, `etie_vs`, and `shared_fs`
+in one library. The driver cannot use one `-o` for multiple `-c` inputs, so the
+fallback selective build would need to emit one AIR per `.metal` file and link
+them afterward. The
+standalone `metallib` utility is not exposed by this Xcode installation;
+`xcrun -sdk <sdk> metal <air...> -o <library>` is the validated link command.
+
+## Next executable Build 86 task
+
+Keep both ETIE vertex stages together in one preserved translation unit; making
+only the reflective stage invariant is insufficient. The smallest candidate
+does not yet require a source-file or build-system split:
+
+1. Restore `BackgroundVSOut.pos` to ordinary `[[position]]`.
+2. Add a field-for-field identical `InvariantEtieVSOut` whose position alone is
+   `[[position, invariant]]`.
+3. Change only `etie_base_vs` and `etie_vs` to return and populate
+   `InvariantEtieVSOut`; leave TFRAG3 and shrub on `BackgroundVSOut`.
+4. Keep the existing `-fpreserve-invariance` compile commands. If Metal rejects
+   the structurally identical cross-struct stage interface, fail closed rather
+   than weakening invariance; the already-proven separate-AIR/source split is
+   the fallback.
+5. First run changed-file Metal compilation and the 65-camera invariant proof.
+   If either ETIE coverage or D32 equality changes by one bit, reject the
+   candidate without a full build.
+6. Only after the focused gates pass, run the existing TIE isolation proof,
+   complete Metal proof, frozen Geyser/Beach replays, one canonical CMake build,
+   and one signed Xcode build. Physical Build 86 acceptance remains explicitly
+   pending and must compare zero flicker/camera-gameplay stability against Build
+   85 and smoothness/heat against Build 79.
+
+## Parallel Jak II renderer-chain checkpoint
+
+The Jak II renderer-chain subagent worked only in
+`/private/tmp/OG-jak2-real-dma-screen-filter-readback`, branch
+`agent/jak2-real-dma-screen-filter-readback`, and committed clean checkpoint
+`4fb5dfb1a3ebc25737bba7e1c747ba32409fbfa6`. Starting from exact verified
+Checkpoint 78 child `816222f47`, it promotes only `SCREEN_FILTER` to the audited
+Direct Metal bucket, leaves 199 buckets deferred and 127 strict-empty, removes
+accidental Direct batch bindings for SKY/DEBUG, and records screen-filter
+draw/triangle statistics. The standalone bucket-policy compile/test passed;
+Objective-C++ syntax checks for `metal_renderer.mm` and
+`metal_jak2_host_bridge.mm` passed with six pre-existing header warnings and no
+errors; `git diff --check` passed. No heavy build, simulator, or device access
+occurred. Its next task is bounded game-frame readback metrics and advancing the
+real-DMA CAMetalLayer proof to the later chain containing a SCREEN_FILTER draw.
+It must not edit either Build 86 worktree or consume the heavy build lane
+concurrently.
