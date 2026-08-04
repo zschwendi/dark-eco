@@ -11782,6 +11782,12 @@ must preserve the D24 visual improvement while avoiding the unrestricted
 fragment-depth path, eliminate the remaining chunking/flicker, and leave all
 camera, Jak, Merc, input, timing, and gameplay code unchanged.
 
+During a later Build 84 run, the maintainer also observed a camera regression
+that had not been apparent in the first comparison. Build 84 is therefore
+rejected for camera stability as well as performance and residual flicker. Do
+not reinterpret the earlier initial no-regression observation as final
+acceptance.
+
 ## macOS product artifact and signing gate
 
 The validated macOS Release app was copied out of DerivedData to:
@@ -11804,3 +11810,132 @@ its Xcode token. This is an account/team provisioning gate, not a compiler or
 launcher failure. Do not change the bundle identifier, team, entitlements, or
 working account to hide it; a team administrator must register the Mac and
 provide the matching profile before sandbox/iCloud signing can be validated.
+
+# Build 85: invariant ETIE rasterizer depth without fragment-depth writes
+
+Date: 2026-08-04. Build 85 keeps Build 79's camera, projection, gameplay, Merc,
+input, and renderer state while replacing Build 84's global fragment-stage D24
+write. Production `tfrag3_fs` is color-only again, so ordinary TFRAG3,
+ETIE_BASE, and ETIE return to normal rasterizer depth and retain early depth
+testing on Apple's tile renderer. `BackgroundVSOut.pos` is now
+`[[position, invariant]]`, and every first-party Metal compiler invocation uses
+`-fpreserve-invariance`. The ETIE base and reflective passes therefore receive
+bit-identical rasterizer positions and depth without an unrestricted
+per-fragment depth export. Build-local module caches avoid dependence on the
+user-global clang cache in both CMake and Xcode.
+
+Exact integration state:
+
+- Production child worktree: `/private/tmp/OG-build85-invariant-production`,
+  branch `agent/build85-invariant-production`, clean at
+  `ce30ad3118bf0ee24e64e67e98f72809907c6126`.
+- Child commits, in order: `42b8013eee90ffff9263fb93c3e69541b4c966d8`
+  (production invariant position and restored rasterizer depth),
+  `d042c34b7d1c0e58a4efcd6efc8a82a49a1285c2` (ETIE invariant proof),
+  `596d75645a80912dde1f696283398fa8a262b234` (explicit proof shine tint), and
+  `ce30ad3118bf0ee24e64e67e98f72809907c6126` (build-local Metal module cache).
+- Parent worktree: `/private/tmp/GP-build85-invariant-parent`, branch
+  `agent/build85-invariant-parent`, integration commit
+  `d6503441969dbdb784bdf6e7540e1a2f5a7633f6`.
+- Build 84 remains preserved at parent `e43bc4af05fcd5ae8d431584ca9b7caf006e14fc`
+  and child `5a1422e4d4a75729570084fed1f93a8ebd56d6c5`.
+- The maintainer-owned main worktree was not edited, staged, reset, cleaned, or
+  synchronized.
+
+## Build 85 deterministic validation
+
+The canonical Release CMake build passed for both affected targets:
+
+```sh
+cmake -S /private/tmp/OG-build85-invariant-production \
+  -B /private/tmp/GOALPad-metal-ab-cmake -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+cmake --build /private/tmp/GOALPad-metal-ab-cmake \
+  --target metal-proof goalpad-play -j2
+```
+
+The first build attempt exposed only an unwritable default Metal module cache.
+The committed CMake rule now creates
+`$CMAKE_BINARY_DIR/metal-module-cache` and passes
+`-fmodules-cache-path`; the incremental retry succeeded. The parent Xcode
+shader script independently compiled all iPhoneOS shaders to a 225,320-byte
+metallib with the same invariance and cache flags.
+
+With normal Metal service access and `MTL_DEBUG_LAYER=1`, these commands passed:
+
+```sh
+/private/tmp/GOALPad-metal-ab-cmake/game/metal-proof \
+  --background-depth-parity-only
+/private/tmp/GOALPad-metal-ab-cmake/game/metal-proof \
+  --tie-envmap-isolation-only
+/private/tmp/GOALPad-metal-ab-cmake/game/metal-proof
+```
+
+The invariant proof swept 65 camera offsets. ETIE_BASE and ETIE shine had
+bit-identical 440-pixel coverage and bit-identical D32 depth at every offset,
+zero base-only holes, zero changed depth pixels after the read-only shine pass,
+and byte-identical A/B/A readbacks. Its closer half-screen occluder control was
+correctly rejected. The focused TIE isolation proof and complete Metal suite
+also passed, including the existing camera and Merc transform gates.
+
+Geyser movement-start captures 1782-1784 replayed successfully with equal
+draw/triangle integrity, no skipped bucket data, unsupported blends, missing
+textures, unloaded levels, or unexpected DMA. Compared with Build 79 and Build
+84, Build 85 changed about 1,350-2,900 of 307,200 pixels per frame. Visual
+inspection localized every meaningful delta to the two reflective lamp panels;
+Jak, camera/world geometry, portal, vegetation, and shadows were unchanged.
+
+The heavier Beach frame 1838 was then rendered 602 times in balanced
+84/85/79 and 79/85/84 order. All six runs passed with exactly 235 draws,
+240,555 triangles, 46 TIE draws, 48,458 TIE triangles, and no integrity errors.
+Wall times were 11.27-11.29 seconds for every build under the 60 fps limiter.
+This rules out an obvious capped-60 host regression but does not measure spare
+GPU headroom or replace physical iPad thermal judgment. The preserved Build 79
+and 84 executables resolve shared dylibs from the current canonical CMake tree;
+their Metal renderer and embedded metallib remain static and build-specific.
+All artifacts, logs, replays, and diffs are under
+`/private/tmp/GOALPad-metal-ab-results`.
+
+## Build 85 signed iPhoneOS Release
+
+The first Xcode attempt stopped in the importer pre-link phase because its
+generated CMake cache still named the Build 84 child source directory. Only the
+exact 89 MB generated `Jak1ImportComposer` directory inside the reused
+DerivedData was removed. No source, save, preserved app, or shared compiler
+cache was deleted. The incremental retry then exited successfully:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -sdk iphoneos \
+  -destination generic/platform=iOS \
+  -derivedDataPath /private/tmp/GOALPad-build84-rebuild-device \
+  -jobs 2 -allowProvisioningUpdates \
+  ENABLE_PREVIEWS=NO COMPILER_INDEX_STORE_ENABLE=NO \
+  GOALPAD_OPENGOAL_ROOT=/private/tmp/OG-build85-invariant-production \
+  GOALPAD_OPENGOAL_GIT_METADATA=/Users/zach/Developer/OS_Projects/GOALPad/GOALPad/.git/modules/OpenGOAL/worktrees/OG-build85-invariant-production \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/build/jak1-source-object-pack \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache \
+  GOALPAD_BUILD_JOBS=2 CURRENT_PROJECT_VERSION=85 build
+```
+
+The preserved signed product is:
+
+```text
+/private/tmp/GOALPad-build85-invariant-signed/GOALPad.app
+```
+
+It displays as `Eco Pro`, has identifier `com.zephyrstudiosllc.eco`, version
+`1.0 (85)`, and is a thin ARM64 Mach-O signed for team `V729QMY3V6`. Its
+executable SHA-256 is
+`80fbaf863cf6d6910fdc5e072ef2ededa2f30ba7e4a3c9bab225a78548208c8c`
+and UUID is `D5954EFE-67F4-360A-912A-2DD4BD1256AA`. The standalone strict trust
+check reports the known local `CSSMERR_TP_NOT_TRUSTED`; the successful Xcode
+build/sign phase and embedded team identity are the local signing evidence.
+
+Build 85 has not yet been installed, launched, logged, or captured on a
+physical device. The app currently on Z iPad Pro is Build 84 and its latest
+camera/performance result must not be attributed to Build 85. The next gate is
+an explicitly authorized Build 85 install followed by the maintainer's test of
+lamp/Precursor flicker, camera/Jak/Merc stability, sustained 60 fps, and heat.
