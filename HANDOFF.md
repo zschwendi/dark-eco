@@ -11558,9 +11558,69 @@ native functions. The existing source-pack verifier accepted 518 objects,
 aggregate `0a6387a3959fd8cb`, and 10,729,950 bytes. No corpus or source pack was
 regenerated. The final whitespace check passed.
 
-No Xcode build, simulator/device install, app launch, log attachment, capture,
-or device access was performed for this parent-only integration. The next gate
-is a generic signed iPhoneOS Release build from this exact parent/nested pair,
-followed only with fresh maintainer authorization by a physical Build 79 versus
-Build 84 comparison. Until that comparison passes, Build 79 remains the
+## Signed iPhoneOS Release
+
+The first signed-build attempt stopped in `Compile Metal shaders` because the
+parent worktree's `OpenGOAL` submodule payload had been deinitialized; the
+referenced `.metal` sources were absent. The exact nested commit was populated
+locally, without a network fetch, from the maintainer checkout:
+
+```sh
+git -c protocol.file.allow=always \
+  -c submodule.OpenGOAL.url=/Users/zach/Developer/OS_Projects/GOALPad/GOALPad/OpenGOAL \
+  submodule update --init OpenGOAL
+```
+
+A second attempt exhausted the data volume during AOT compilation. Its first
+useful failure was the `CompileC` command for `ambient.o`, followed by
+`Error saving log ... No space left on device`; this was an environmental
+failure, not a source diagnostic. The clean, already rejected Build 80 and 81
+parent submodule payloads were deinitialized, and only these obsolete build
+directories were removed after their results and commits were verified:
+
+```text
+/private/tmp/GOALPad-cp80-tie-texture-device
+/private/tmp/GOALPad-jak2-cp78-simulator-xcode
+/private/tmp/GOALPad-jak2-cp77-simulator-xcode
+/private/tmp/GOALPad-jak2-cp77-iphoneos-xcode
+/private/tmp/GOALPad-jak2-cp78-simulator-derived
+```
+
+The incremental retry then passed in 125.793 seconds:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -sdk iphoneos \
+  -destination generic/platform=iOS \
+  -derivedDataPath /private/tmp/GOALPad-build84-device \
+  -jobs 2 -allowProvisioningUpdates \
+  ENABLE_PREVIEWS=NO COMPILER_INDEX_STORE_ENABLE=NO \
+  GOALPAD_OPENGOAL_ROOT=/private/tmp/OG-build84-d24-production \
+  GOALPAD_OPENGOAL_GIT_METADATA=/Users/zach/Developer/OS_Projects/GOALPad/GOALPad/.git/modules/OpenGOAL/worktrees/OG-build84-d24-production \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/build/jak1-source-object-pack \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache \
+  GOALPAD_BUILD_JOBS=2 build
+```
+
+Xcode completed `CodeSign`, `Validate`, and reported `** BUILD SUCCEEDED **`.
+The preserved signed product is:
+
+```text
+/private/tmp/GOALPad-build84-signed/GOALPad.app
+```
+
+Its executable is a 34,084,544-byte thin ARM64 Mach-O with SHA-256
+`13860355068b6ee456230f6716c3a8c07fc184bfb2864a802c1507aa7aa0a8a5`
+and UUID `79165D14-029E-397E-8E29-7FBF2FBCFA8D`. The bundle displays as
+`Eco Pro`, identifier `com.zephyrstudiosllc.eco`, version `1.0 (1)`, and was
+signed with team `V729QMY3V6`. The executable hash matched after the app was
+copied out of DerivedData. A standalone strict trust check returned the known
+local `CSSMERR_TP_NOT_TRUSTED`; Xcode's own CodeSign and Validate phases are the
+successful signing gate.
+
+No simulator or physical-device install, launch, log attachment, capture, or
+other device access was performed for Build 84. The next gate, only after fresh
+maintainer authorization, is a physical comparison against Build 79 for
+Precursor/lamp flicker while moving and stationary, camera/Jak/Merc regressions,
+and frame smoothness. Until that comparison passes, Build 79 remains the
 physical known best.
