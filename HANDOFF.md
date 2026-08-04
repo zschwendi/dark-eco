@@ -11934,8 +11934,23 @@ and UUID is `D5954EFE-67F4-360A-912A-2DD4BD1256AA`. The standalone strict trust
 check reports the known local `CSSMERR_TP_NOT_TRUSTED`; the successful Xcode
 build/sign phase and embedded team identity are the local signing evidence.
 
-Build 85 has not yet been installed, launched, logged, or captured on a
-physical device. The app currently on Z iPad Pro is Build 84 and its latest
-camera/performance result must not be attributed to Build 85. The next gate is
-an explicitly authorized Build 85 install followed by the maintainer's test of
-lamp/Precursor flicker, camera/Jak/Merc stability, sustained 60 fps, and heat.
+At the signed-build checkpoint, Build 85 had not been installed, launched,
+logged, or captured on a physical device. The Build 84 camera/performance
+result from immediately before the installation below must not be attributed
+to Build 85.
+
+## Build 85 authorized physical install
+
+The maintainer explicitly authorized installing Build 85 on Z iPad Pro. The
+preserved app at
+`/private/tmp/GOALPad-build85-invariant-signed/GOALPad.app` was installed in
+place with CoreDevice on device
+`6A4111AB-1663-508A-98D9-F0C1A9EA7863`; the existing app container was not
+uninstalled or erased. A device-side application query confirmed display name
+`Eco Pro`, bundle identifier `com.zephyrstudiosllc.eco`, version `1.0`, and
+bundle version `85`. CoreDevice then successfully launched that identifier.
+
+The physical visual and performance verdict is pending. Do not infer that the
+flicker is fixed from build, replay, installation, or launch evidence. The
+maintainer remains the final judge for reflective lamps and Precursor surfaces,
+camera/Jak/Merc stability, sustained frame rate, and device heat.
