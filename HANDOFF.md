@@ -11624,3 +11624,8 @@ maintainer authorization, is a physical comparison against Build 79 for
 Precursor/lamp flicker while moving and stationary, camera/Jak/Merc regressions,
 and frame smoothness. Until that comparison passes, Build 79 remains the
 physical known best.
+
+After the signed app was preserved and its executable hash reverified, the
+reproducible 581 MB `/private/tmp/GOALPad-build84-device` DerivedData directory
+was removed. The preserved app and all Build 84 branches, commits, and
+worktrees remain available.
