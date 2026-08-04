@@ -11760,6 +11760,28 @@ Precursor/lamp behavior while moving and stationary, camera/Jak/Merc stability,
 and frame smoothness. Build 79 remains the physical known best unless the
 maintainer explicitly accepts Build 84.
 
+### Physical verdict
+
+The maintainer completed the Build 84 comparison on Z iPad Pro. Build 84 had
+the least metallic-material flicker of any candidate so far: lamps and other
+metal surfaces flickered roughly three to five times while walking past them,
+instead of roughly one hundred times in the earlier behavior. Precursor
+surfaces remained visibly chunked and still changed about three times per
+second, but this was also a large reduction from the earlier rapid flicker.
+No regression was observed in the previously fixed camera, Jak transform,
+Merc deformation, movement, or attack behavior.
+
+Build 84 is not acceptable as the final build because physical performance
+regressed from Build 79's steady, cool approximately 60 fps behavior to
+noticeable drops near 30 and 15 fps, and the iPad became warm. This matches the
+known risk of an explicit fragment-stage `[[depth(any)]]` write reducing early
+depth rejection on Apple's tile renderer. Treat Build 84 as the best visual
+candidate and proof that D24-equivalent background depth addresses the correct
+defect; keep Build 79 as the overall performance baseline. The next candidate
+must preserve the D24 visual improvement while avoiding the unrestricted
+fragment-depth path, eliminate the remaining chunking/flicker, and leave all
+camera, Jak, Merc, input, timing, and gameplay code unchanged.
+
 ## macOS product artifact and signing gate
 
 The validated macOS Release app was copied out of DerivedData to:
