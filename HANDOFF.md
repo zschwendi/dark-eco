@@ -12239,3 +12239,134 @@ then remove both the invariant marker and preserve-invariance compiler flag.
 That should retain the solved paired-pass coverage without any conservative
 vertex compilation. It must pass the existing 65-camera ETIE coverage/depth
 proof and frozen Build 85 pixel comparisons before another signed build.
+
+# Build 87 shared-ETIE release candidate
+
+Date: 2026-08-04. Build 87 is the direct follow-up to Build 86's physical
+performance rejection. It removes invariant compilation entirely rather than
+trying another compiler-scope variation.
+
+The isolated worktrees are:
+
+- Parent: `/private/tmp/GP-build87-shared-etie-parent`, branch
+  `agent/build87-shared-etie-parent`.
+- Child: `/private/tmp/OG-build87-shared-etie`, branch
+  `agent/build87-shared-etie`, commit
+  `a9e764545a86dd624dae9248254f4f7a470e2ce3`.
+- The parent integration commit before this handoff update is
+  `63292b830334cd1013427ce3487ad5f9a4a538e1` and points at that exact child.
+
+Both ETIE pipeline-state IDs now use one `etie_shared_vs` vertex entry point.
+It completes the shared position calculation before a uniform `etie_shine`
+branch changes only fog, color, and UV output. The existing 16-byte draw
+parameter ABI now carries `decal`, `etie_shine`, and two padding words. The
+base and shine PSOs remain separate because their blend/depth state differs.
+The old `[[position, invariant]]` output and `-fpreserve-invariance` compiler
+flag were removed from both the CMake Metal product and Xcode shader script.
+
+This design follows Apple's documented role for
+[`preserveInvariance`](https://developer.apple.com/documentation/metal/mtlcompileoptions/preserveinvariance):
+the conservative compilation applies to marked vertex-position output. Apple
+also recommends invariance for paired passes that require identical positions
+in its
+[`Porting your Metal code to Apple silicon`](https://developer.apple.com/documentation/apple-silicon/porting-your-metal-code-to-apple-silicon)
+guidance. Reusing one entry point is not documented as a formal invariance
+guarantee, so the deterministic GPU proof and physical result remain the
+authority for this narrower implementation.
+
+## Build 87 validation
+
+The Xcode shader script passed for iPhoneOS without the preserve flag and
+produced a 219,624-byte metallib:
+
+```sh
+env SRCROOT=/private/tmp/GP-build87-shared-etie-parent \
+  PLATFORM_NAME=iphoneos \
+  DERIVED_SOURCES_DIR=/private/tmp/goalpad-build87-script-proof \
+  Scripts/compile-metal-shaders.sh
+```
+
+Changed-file Metal compilation, Objective-C++ syntax checks, and
+`git diff --check` passed. A fresh canonical Release configuration and both
+affected product targets passed:
+
+```sh
+cmake --fresh -S /private/tmp/OG-build87-shared-etie \
+  -B /private/tmp/GOALPad-metal-ab-cmake -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+cmake --build /private/tmp/GOALPad-metal-ab-cmake --target metal-proof -j2
+cmake --build /private/tmp/GOALPad-metal-ab-cmake --target goalpad-play -j2
+```
+
+With `MTL_DEBUG_LAYER=1`, the focused
+`metal-proof --background-depth-parity-only` run passed all 65 cameras with
+440-pixel coverage, zero empty cameras, mask mismatches, D32 mismatches,
+base-only holes, unexpected colors, or changed-depth pixels; A/B/A output was
+byte-identical and the adjacent-depth negative control passed. The
+`--tie-envmap-isolation-only` proof passed with exact camera identity and
+diagnostic restoration. The complete Metal proof suite also passed. Preserved
+binaries are:
+
+```text
+/private/tmp/GOALPad-metal-ab-results/bin-build87/metal-proof
+SHA-256 fa7df7dee6376753df0b14182ac8c029a910ab087cdf4976b4ec2deca35435d9
+/private/tmp/GOALPad-metal-ab-results/bin-build87/goalpad-play
+SHA-256 b1bba396176d41403875e9f084511e0dabcbbcc6fa7a013272df7585ea69dfa8
+```
+
+Frozen Geyser frames 1782-1784 passed with 630 reflective triangles and no
+integrity errors. Relative to Build 86/85, only 16, 38, and 28 pixels changed;
+every changed pixel is confined to the two reflective lamp panels, with a
+maximum channel delta of 2/255 on frame 1782 and 1/255 on frames 1783-1784.
+There are no geometry, camera, Jak, Merc, vegetation, shadow, or coverage
+changes. Beach frame 1838 is exactly pixel-identical and passed with 235 draws,
+240,555 triangles, 46 TIE draws, 48,458 TIE triangles, and one 714-triangle
+ETIE shine draw. Replay output is in
+`/private/tmp/GOALPad-build87-shared-etie-results`.
+
+The reused 518-object AOT pack passed manifest preflight with 10,596 emitted
+functions and seven native functions. The generic signed iOS Release build
+passed without accessing a physical device:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -sdk iphoneos \
+  -destination generic/platform=iOS \
+  -derivedDataPath /private/tmp/GOALPad-build84-rebuild-device \
+  -jobs 2 -allowProvisioningUpdates \
+  ENABLE_PREVIEWS=NO COMPILER_INDEX_STORE_ENABLE=NO \
+  GOALPAD_OPENGOAL_ROOT=/private/tmp/OG-build87-shared-etie \
+  GOALPAD_OPENGOAL_GIT_METADATA=/Users/zach/Developer/OS_Projects/GOALPad/GOALPad/.git/modules/OpenGOAL/worktrees/OG-build87-shared-etie \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/build/jak1-source-object-pack \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache \
+  GOALPAD_BUILD_JOBS=2 CURRENT_PROJECT_VERSION=87 build
+```
+
+The preserved result is
+`/private/tmp/GOALPad-build87-shared-etie-signed/GOALPad.app`: Eco Pro
+`1.0 (87)`, bundle identifier `com.zephyrstudiosllc.eco`, thin ARM64, Team ID
+`V729QMY3V6`, executable SHA-256
+`1d3b756ec8f844d72034aef6c34794de9a682636fab76327b39b3d3cc3aadf63`, UUID
+`F2168379-BA9A-3744-A32D-F7E63A3A6A57`, and CDHash
+`4f9f6e3a133d3081919e95429d2715746f39e91b`. The bundle is 51 MB with 551
+files. `codesign -dv --verbose=4` recognized the embedded signature; offline
+strict verification reports the known `CSSMERR_TP_NOT_TRUSTED` local trust
+limitation.
+
+## Build 87 physical acceptance gate
+
+No physical device was accessed for Build 87. Do not install, launch, attach
+logs, or capture `Z iPad Pro` without new explicit maintainer authorization.
+Build 87 is implemented and build-validated, but it is not accepted until the
+maintainer confirms both gates on the physical device:
+
+1. Build 85 visual/gameplay behavior remains intact: no reflective flicker or
+   chunking and no camera, Jak, Merc, movement, attack, or gameplay regression.
+2. Sustained smoothness, frame pacing, and heat restore or exceed Build 79.
+
+Build 79 remains the performance baseline, Build 85 remains the solved
+visual/gameplay baseline, and Build 86 remains a rejected performance
+candidate. Do not claim Build 87 improves performance from static proofs or a
+generic signed build alone.
