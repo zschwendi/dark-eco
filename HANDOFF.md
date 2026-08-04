@@ -12212,3 +12212,30 @@ physical verdict is:
 Build 79 and Build 85 remain preserved and untouched. The Jak II renderer
 worktree remains clean at `4fb5dfb1a3ebc25737bba7e1c747ba32409fbfa6`.
 The maintainer main worktree's existing four dirty entries remain untouched.
+
+### Physical performance verdict
+
+The maintainer physically tested the installed Build 86 and reported that it
+felt just as frame-dippy as Build 85. Build 86 is therefore rejected as a
+performance improvement. This verdict is specific to performance; do not infer
+a new visual or gameplay verdict that the maintainer did not report.
+
+The result falsifies the hypothesis that removing invariant output from only
+TFRAG3 and shrub would materially restore Build 79's performance. The exact
+Build 79-to-Build 86 production render delta is now especially narrow:
+
+- Build 84's explicit fragment-depth write is not present in Build 85 or 86.
+- Build 86 leaves `[[position, invariant]]` only on `etie_base_vs` and
+  `etie_vs`.
+- The entire Metal shader library is still compiled with
+  `-fpreserve-invariance`; Build 79 was not.
+
+Apple documents that preserve-invariance compiles a vertex shader
+conservatively when its position output is marked invariant. A mere selective
+AIR split would therefore be unlikely to change Build 86's remaining ETIE
+cost. The narrow next production direction is to make ETIE base and shine use
+one vertex entry point whose position calculation is necessarily identical,
+then remove both the invariant marker and preserve-invariance compiler flag.
+That should retain the solved paired-pass coverage without any conservative
+vertex compilation. It must pass the existing 65-camera ETIE coverage/depth
+proof and frozen Build 85 pixel comparisons before another signed build.
