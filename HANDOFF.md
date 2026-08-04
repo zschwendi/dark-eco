@@ -11759,3 +11759,26 @@ The physical visual verdict is pending. The requested comparison remains
 Precursor/lamp behavior while moving and stationary, camera/Jak/Merc stability,
 and frame smoothness. Build 79 remains the physical known best unless the
 maintainer explicitly accepts Build 84.
+
+## macOS product artifact and signing gate
+
+The validated macOS Release app was copied out of DerivedData to:
+
+```text
+/private/tmp/GOALPad-build84-mac-product/Eco Pro.app
+```
+
+Its thin ARM64 executable retained SHA-256
+`cd5d31962e39f21d670f0dbb94dc72e2afffa259fafa3a2946bdd50132a12b0d`.
+It is a local development artifact with an ad-hoc linker signature, not a
+distribution-signed Mac product.
+
+An incremental automatic-signing build was attempted with the configured
+Zephyr Studios LLC team and `-allowProvisioningUpdates`. It stopped before
+source compilation because `My Mac` is not registered to that team and Xcode
+could not find a Mac App Development profile for
+`com.zephyrstudiosllc.eco`. Xcode also reported a stale account entry missing
+its Xcode token. This is an account/team provisioning gate, not a compiler or
+launcher failure. Do not change the bundle identifier, team, entitlements, or
+working account to hide it; a team administrator must register the Mac and
+provide the matching profile before sandbox/iCloud signing can be validated.
