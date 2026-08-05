@@ -87,7 +87,11 @@ final class GameSession {
     // MARK: - Lifetime
 
     func prepare() async {
-        sessionLog.notice("prepare")
+        let processID = ProcessInfo.processInfo.processIdentifier
+        sessionLog.notice("""
+            ========== \(GOALPadBuildIdentity.displayText, privacy: .public) | \
+            PID \(processID) ==========
+            """)
         observeSystem()
         try? GameDataLayout.prepare()
         await saveSync.prepare()

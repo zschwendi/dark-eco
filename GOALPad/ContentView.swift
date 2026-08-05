@@ -130,7 +130,7 @@ private struct DiagnosticsOverlay: View {
 
     private var header: some View {
         HStack {
-            Text("Eco Pro")
+            Text(GOALPadBuildIdentity.displayText)
                 .font(.headline)
             Spacer()
             Button("Shut down") { session.shutdown() }
