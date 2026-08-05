@@ -12357,10 +12357,15 @@ limitation.
 
 ## Build 87 physical acceptance gate
 
-No physical device was accessed for Build 87. Do not install, launch, attach
-logs, or capture `Z iPad Pro` without new explicit maintainer authorization.
-Build 87 is implemented and build-validated, but it is not accepted until the
-maintainer confirms both gates on the physical device:
+On 2026-08-04, the maintainer explicitly authorized putting Build 87 on
+`Z iPad Pro` (`6A4111AB-1663-508A-98D9-F0C1A9EA7863`). The preserved app was
+installed in place with `devicectl`, preserving the existing app data
+container. Device-side app inspection confirmed Eco Pro `1.0 (87)`, bundle
+identifier `com.zephyrstudiosllc.eco`. Build 87 was not launched, logged, or
+captured; those actions require new explicit authorization.
+
+Build 87 is implemented, build-validated, and installed, but it is not accepted
+until the maintainer confirms both gates on the physical device:
 
 1. Build 85 visual/gameplay behavior remains intact: no reflective flicker or
    chunking and no camera, Jak, Merc, movement, attack, or gameplay regression.
