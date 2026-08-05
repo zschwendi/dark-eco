@@ -12431,3 +12431,26 @@ lifecycle events. The same path exists in Build 79, so it does not explain the
 sustained Build 79-to-85 regression. If the shared-ETIE candidate still dips,
 the narrow follow-up is a separate diagnostics-off A/B, starting with the
 scheduled atomic snapshot rather than removing renderer correctness counters.
+
+## Build 88 physical performance verdict
+
+The maintainer and a second independent tester physically tested the cold-
+launched Build 88. The device was noticeably cooler than Builds 85/86 and did
+not become warm. Jak still felt smooth and responsive to control. This is
+evidence that removing conservative invariant compilation materially reduced
+the sustained GPU/thermal cost.
+
+Build 88 is nevertheless rejected as the final performance fix. Both testers
+noticed a regular single-frame-looking hitch: approximately one event every
+30-60 frames or around once per second, described as a stutter that can feel
+loosely synchronized with footsteps. The action remains responsive while the
+presented motion is not consistently smooth. The maintainer did not provide a
+new explicit reflective-flicker, camera, Merc, or other visual-correctness
+verdict in this report; do not infer one.
+
+Treat thermal load and frame pacing as separate results. Build 88 is the
+current cool shared-ETIE candidate, but Build 79 remains the accepted smoothness
+baseline and Build 85 remains the solved visual/gameplay baseline. The next
+task is to distinguish an actual CADisplayLink/presentation miss from a
+simulation/camera cadence jump or scheduled diagnostic I/O before changing
+renderer behavior again.
