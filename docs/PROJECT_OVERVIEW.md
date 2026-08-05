@@ -1,6 +1,6 @@
 # GOALPad — Project Overview
 
-> **Status:** Early feasibility and platform-port project
+> **Status:** Experimental playable Jak 1 port; the canonical Classic Mode baseline is accepted within its physically tested early-game scope
 > **Working name:** GOALPad
 > **Public product name:** Eco Pro
 > **App Store subtitle:** Native OpenGOAL Runtime
@@ -109,12 +109,33 @@ The project must prove the following before Jak II becomes active scope:
 
 Jak II begins only after Jak 1 has a stable platform foundation. Work that is naturally shared between games may account for Jak II, but Jak II-specific implementation must not delay the first playable Jak 1 milestone.
 
+### Current enhancement direction
+
+Build 89 is the canonical **Classic Mode** baseline. It preserves the current
+Jak 1 gameplay, renderer, controller, audio, storage, and platform behavior as
+the regression reference for subsequent Apple-device work. The maintainer
+accepted it after a broad physical-iPad early-game session because it ran well.
+That acceptance is intentionally scoped: it is not yet a complete-playthrough,
+every-level, every-save, or every-controller certification.
+
+Enhancement work proceeds in this order:
+
+1. Improve the touch-device experience while preserving Classic Mode and the
+   physical-controller path.
+2. Bring the same native runtime and presentation boundaries to Apple Vision
+   Pro after the touch interaction seams are stable, beginning with the shared
+   windowed visionOS application rather than assuming an immersive rewrite.
+
+Neither phase may fork gameplay semantics, weaken user-owned asset separation,
+or replace the accepted Classic Mode baseline before its replacement has been
+physically compared and accepted.
+
 ### Potential future scope
 
 These are allowed later but are not prerequisites for the first complete port:
 
 - Jak II support
-- Touch-control polish, accessibility, and physical-device validation
+- Additional accessibility work
 - Keyboard support
 - Higher frame-rate modes
 - External display support

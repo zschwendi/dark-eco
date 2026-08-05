@@ -68,18 +68,34 @@ as completing the overall goal.
 | User-owned Jak 1 import pipeline | Experimental; prepared folders remain supported, and Release builds can select a supported raw ISO or a standard ZIP32 archive containing exactly one ISO. The native composer, Objective-C++ bridge, recoverable staging/activation, ZIP extraction, and deterministic validation are implemented; a successful end-to-end simulator import and a real-device Files-provider import remain unrecorded |
 | Compiler-produced ARM64 GOAL execution | Implemented for the current Jak 1 AOT set; seven native routines remain |
 | OpenGOAL game frame or title screen | Implemented and physically verified |
-| Playable gameplay slice | Experimental; sustained physical play reached Misty and Training |
+| Playable gameplay slice | Experimental; Build 89 is the canonical Classic Mode baseline after a physically accepted broad early-game session |
 | Jak 1 completion track | Planned |
 
 The current application initializes the real OpenGOAL Jak 1 kernel, loads
 user-local game data, runs linked AOT/native game code without executable arena
 pages, renders through the Metal backend, accepts controller/touch input, and
-plays audio. Signed physical-iPad runs reach sustained gameplay. Current
-blockers are visual correctness and remaining platform gaps, not real-media
-import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 77 is the authoritative current build and next-task
-record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
-evidence.
+plays audio. Signed physical-iPad runs reach sustained gameplay. Build 89 is
+the canonical Classic Mode regression baseline: the maintainer accepted it
+because it ran well during broad early-game physical testing. This is not a
+complete-playthrough claim. The Build 89 sections in `HANDOFF.md` are the
+authoritative build, artifact, physical-test, and limitation record.
+
+The active product sequence is now:
+
+1. Preserve Build 89 unchanged as Classic Mode.
+2. Improve touch-device ergonomics on top of the existing input seam without
+   changing controller or gameplay semantics.
+3. After that seam is stable, advance the shared windowed visionOS application
+   toward Apple Vision Pro physical validation without assuming immersive or
+   stereo rendering.
+
+The first touch implementation must be opt-in and default to Classic behavior.
+The current code intentionally leaves short right-half taps inert; choosing
+their Enhanced-mode action is the next product decision. The narrow candidate
+is Triangle because it is the missing face action and reuses the existing pulse
+seam. Do not change Classic taps while testing that candidate. The first
+visionOS slice is then a current-source build and conventional single-window
+physical smoke, not a renderer or immersive-space rewrite.
 
 ## Required code and data pipelines
 
@@ -806,8 +822,17 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 76 is the current integration checkpoint. Checkpoint 37 remains the
-latest sustained physical gameplay and visual-fidelity run. Its signed build
+Build 89 is the current canonical Classic Mode integration checkpoint. Its
+exact parent, nested OpenGOAL, signed-product, install, launch, and acceptance
+identities are recorded in `HANDOFF.md`. The maintainer physically accepted it
+after broad early-game play because it ran well. The session was informally
+estimated at roughly eight percent of a playthrough and did not cross every
+early progression gate, so it is not evidence for completion or unvisited
+levels. Future touch and visionOS work must preserve this baseline and receive
+separate validation.
+
+The historical checkpoint record follows. Checkpoint 37 was an earlier
+sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
 The maintainer nevertheless rejected it as a camera or visual-fidelity

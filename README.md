@@ -41,12 +41,13 @@ no private entitlement anywhere in the build.
 - **Implemented — controller input; Experimental — touch input.** A narrow pad
   seam with no windowing dependency. A DualSense uses SDL on macOS;
   GameController and the on-screen controls merge into one pad on iPadOS. The
-  touch layout uses a stationary movement stick, retained face-button
-  taps/swipes without free camera dragging, an explicit octant-snapped C-stick,
-  and a held Roll/L1 control whose upward drag adds Cross. The deterministic
+  current Classic Mode touch layout creates the movement stick under the first
+  left-half contact, keeps a continuous analog R stick at bottom right, and
+  maps right-half swipes to Cross, Square, Circle, or held L1. Reversing an L1
+  swipe upward adds Cross; short taps are deliberately inert. The deterministic
   host check and macOS/iOS builds pass, and the named M5 simulator launches.
-  Physical multitouch ergonomics remain unvalidated. Diagnostics and
-  resolution controls remain hidden behind the three-line menu button.
+  Physical multitouch ergonomics remain unvalidated. Diagnostics and resolution
+  controls remain hidden behind the three-line menu button.
 - **Experimental — iPad.** Jak 1 boots, renders, and plays on physical iPad. A
   forced fixed-step camera experiment was rejected on hardware and removed;
   current source instead requests fixed 60 Hz callbacks and independently

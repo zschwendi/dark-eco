@@ -978,14 +978,14 @@ GameController once per successfully armed display-link frame.
 
 #### Experimental on-screen controls
 
-The iOS touch layer provides a stationary left movement stick, right-half
-face-button taps and up/left/right swipes, Start and Select pills, a small
-octant-snapped C-stick to the right of Start, and a rectangular Roll control
-farther right. There is no free camera drag. Roll holds L1 directly for as long
-as its finger remains down; an upward-dominant drag adds one bounded Cross pulse
-without releasing L1. Strong movement-stick pushes still synthesize D-pad edges
-and bounded repeats for menus. Layout spacing targets roughly ten percent of
-the available dimension and compresses only where necessary.
+The iOS Classic Mode touch layer creates a movement stick under the first
+left-half contact and keeps a continuous analog R stick at bottom right.
+Right-half swipes map up/left/right to Cross/Square/Circle; a downward swipe
+holds L1 directly for as long as its finger remains down, and reversing that
+drag upward adds one bounded Cross pulse without releasing L1. Short right-half
+taps are deliberately inert. Start and Select remain fixed pills. There is no
+free camera drag outside the R stick. Strong movement-stick pushes still
+synthesize D-pad edges and bounded repeats for menus.
 
 Physical-controller buttons are unioned with touch buttons, and a physical
 stick outside the engine's minimum deadzone takes priority over the matching
@@ -1001,10 +1001,10 @@ backgrounded. The deterministic state-machine check is:
 Scripts/run-touch-controls-check.sh
 ```
 
-It covers the stationary movement origin and analog clamp, absence of free
-camera-axis gestures, retained face-button swipes and tap-repeat, C-stick
-deadzone/octant/release behavior, continuous L1 through the Roll-to-Cross
-gesture, immediate Roll release, D-pad repeat, simultaneous controls, pill hit
+It covers the movable movement origin and analog clamp, absence of free camera
+gestures, face-button swipes with inert short taps, continuous analog R-stick
+deadzone/travel/release behavior, continuous L1 through the reverse-to-Cross
+gesture, immediate L1 release, D-pad repeat, simultaneous controls, pill hit
 testing, visibility, and reset. The macOS and generic iOS builds pass, and the
 named M5 simulator launches. The harness does not directly cover
 `ControllerInput` merging, UIKit delivery, physical multitouch ergonomics, or

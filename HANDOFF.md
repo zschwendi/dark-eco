@@ -12518,3 +12518,72 @@ launch. If the regular hitch disappears, synchronous diagnostic persistence is
 isolated. If it remains, do not remove more counters; next correlate the miss
 with the unchanged prior-command-buffer wait, then test the footstep
 sound-start/audio mutex path if the hitch is actually gait-synchronized.
+
+# Canonical Classic Mode baseline: Build 89
+
+Date: 2026-08-04. The maintainer completed the physical Build 89 session and
+accepted it as the canonical Classic Mode baseline, summarizing the result as
+“it ran well.” This acceptance supersedes the pending A/B wording above for the
+tested route. Build 89 is now the regression reference for gameplay feel,
+visual behavior, frame pacing, thermal behavior, controller behavior, audio,
+storage, and the native Jak 1 runtime while touch-device and later visionOS
+enhancements are developed.
+
+The acceptance scope is deliberately bounded. The maintainer informally
+estimated the session at roughly eight percent of a playthrough. The run
+covered much of the accessible early game and portal travel, but did not cross
+every early progression gate or establish a complete-game run. It therefore
+does not certify unvisited levels, every save/load transition, every
+controller, every import path, or completion. Any issue found during the
+planned full playthrough remains a valid Classic Mode follow-up.
+
+The locked identities are:
+
+- Parent branch: `agent/build89-no-hotpath-diagnostics`
+- Parent source before this acceptance record:
+  `4d38f75fc2fdfdd0099060eb83a2868ec37fd85b`
+- Nested OpenGOAL source: `a9e764545a86dd624dae9248254f4f7a470e2ce3`
+- Signed app: `/private/tmp/GOALPad-build89-no-hotpath-diagnostics-signed/GOALPad.app`
+- Product identity: Eco Pro `1.0 (89)`, `com.zephyrstudiosllc.eco`
+- Executable SHA-256:
+  `21d9b661c1e92671d6c464793ec0ddd2f3ab17ad10d42b0351744127fe6ec28e`
+- Mach-O UUID: `24B3F339-474B-3D04-8CDC-97AB33A0F245`
+- CDHash: `6c2070e5b0fa8f69716e5c39e071038fbff69209`
+- Parent tag: `classic-mode-build-89`
+- Nested OpenGOAL tag: `classic-mode-build-89-opengoal`
+
+Classic Mode is the preserved compatibility baseline, not a promise that the
+entire game has already been completed. Enhancement work must branch from this
+state, keep Classic Mode available for direct A/B comparison, and change one
+user-facing interaction boundary at a time. The active sequence is touch-device
+enhancement first, then the shared windowed visionOS application and Apple
+Vision Pro physical validation after the touch/input boundary is stable.
+
+## Next enhancement gates
+
+The Build 89 touch implementation is already newer than the preexisting
+README/BUILDING description. Its first left-half contact creates a dynamic
+movement-stick origin; a fixed bottom-right control emits a continuous analog R
+stick; right-half swipes emit Cross, Square, Circle, or held L1; reversing an L1
+swipe upward adds Cross; and short taps are inert. The documentation in this
+acceptance commit is corrected to match that code. Deterministic touch checks
+pass, but no current physical multitouch, latency, or ergonomic verdict is
+recorded.
+
+The smallest safe Enhanced-touch candidate is an opt-in setting, default off,
+that maps a short right-half tap to Triangle while leaving every Classic input
+unchanged. This is a recommendation, not an accepted mapping: the maintainer
+must choose the tap contract before implementation because prior experiments
+used conflicting tap behaviors. The relevant implementation seam is bounded to
+`TouchControls.swift`, `TouchControlsView.swift`, settings persistence, and the
+touch harness; it does not require renderer or OpenGOAL changes.
+
+The existing shared app already includes `xros` and `xrsimulator`, uses a normal
+SwiftUI `WindowGroup` backed by one `CAMetalLayer`, and leaves gameplay
+controller-only on visionOS. Current Build 89-derived visionOS compile and
+physical runtime evidence are not recorded. After the touch seam is stable, the
+smallest Apple Vision Pro slice is therefore to rebuild and physically validate
+the unchanged conventional Classic Mode window with prepared data, controller,
+Metal, audio, and lifecycle smoke. Do not add immersive presentation, stereo
+rendering, RealityKit, spatial input, or multiwindow architecture to that first
+slice.
