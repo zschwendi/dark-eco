@@ -12376,3 +12376,52 @@ Build 79 remains the performance baseline, Build 85 remains the solved
 visual/gameplay baseline, and Build 86 remains a rejected performance
 candidate. Do not claim Build 87 improves performance from static proofs or a
 generic signed build alone.
+
+# Build 88 visible build identity
+
+Date: 2026-08-04. A plain `devicectl process launch` foregrounded the
+backgrounded Build 87 process, and the maintainer could not tell which build
+was running from the diagnostics. Build 88 preserves the exact Build 87
+renderer child `a9e764545a86dd624dae9248254f4f7a470e2ce3` and changes only the
+parent app shell.
+
+Parent worktree `/private/tmp/GP-build88-log-identity-parent`, branch
+`agent/build88-log-identity-parent`, commit
+`8667102a5bebbb81352f2b05d14542daef36d53a` adds a bundle-derived build
+identity. The first project-owned session log is now a visually distinct line:
+
+```text
+========== Eco Pro 1.0 (88) | PID <process-id> ==========
+```
+
+The diagnostics-overlay header also shows `Eco Pro 1.0 (88)`, so the installed
+build remains visible after the initial log has scrolled away. Future physical
+test launches must use `devicectl device process launch --terminate-existing
+--activate` after installation; a plain launch can resume the old suspended
+process and is not cold-start evidence.
+
+Focused Swift parsing, `git diff --check`, and the 518-object AOT manifest
+preflight passed. A generic signed iPhoneOS Release build passed with
+`CURRENT_PROJECT_VERSION=88`. The preserved result is
+`/private/tmp/GOALPad-build88-identity-signed/GOALPad.app`: Eco Pro `1.0 (88)`,
+bundle identifier `com.zephyrstudiosllc.eco`, thin ARM64, Team ID
+`V729QMY3V6`, executable SHA-256
+`82fe5221adaee2ff5a1ba6f558cd2d52322e4c6f07fca24c1f9ff54d2bc1a2a6`, UUID
+`1DDD8B61-F465-3A8A-8D94-124303ED0E30`, and CDHash
+`df8a9547f7af04e7d0310947551d36638fe45704`. Binary string inspection confirms
+the build/PID banner format. Offline strict verification reports the known
+`CSSMERR_TP_NOT_TRUSTED` local trust limitation.
+
+Build 88 has not been installed or launched on the physical iPad. That requires
+new explicit authorization. Its performance and visual verdict is the same
+pending Build 87 shared-ETIE gate; the build-number UI/log change is not a
+performance fix.
+
+Hiding the diagnostics overlay removes its SwiftUI presentation but does not
+disable underlying telemetry. Display timing and renderer statistics are read
+each frame; the large session log and an atomic camera-diagnostics snapshot are
+scheduled every 600 frames, with additional snapshots on evidence and
+lifecycle events. The same path exists in Build 79, so it does not explain the
+sustained Build 79-to-85 regression. If the shared-ETIE candidate still dips,
+the narrow follow-up is a separate diagnostics-off A/B, starting with the
+scheduled atomic snapshot rather than removing renderer correctness counters.
