@@ -12412,10 +12412,16 @@ bundle identifier `com.zephyrstudiosllc.eco`, thin ARM64, Team ID
 the build/PID banner format. Offline strict verification reports the known
 `CSSMERR_TP_NOT_TRUSTED` local trust limitation.
 
-Build 88 has not been installed or launched on the physical iPad. That requires
-new explicit authorization. Its performance and visual verdict is the same
-pending Build 87 shared-ETIE gate; the build-number UI/log change is not a
-performance fix.
+The maintainer explicitly authorized Build 88 physical installation and cold
+launch. The preserved app was installed in place on `Z iPad Pro`, preserving
+the existing data container. Device-side inspection confirmed Eco Pro
+`1.0 (88)` and bundle identifier `com.zephyrstudiosllc.eco`. CoreDevice then
+launched it with `--terminate-existing --activate`, so the result is a fresh
+Build 88 process rather than the previously suspended Build 87 instance. No
+device logs or screen capture were requested or collected.
+
+Its performance and visual verdict is the same pending Build 87 shared-ETIE
+gate; the build-number UI/log change is not a performance fix.
 
 Hiding the diagnostics overlay removes its SwiftUI presentation but does not
 disable underlying telemetry. Display timing and renderer statistics are read
