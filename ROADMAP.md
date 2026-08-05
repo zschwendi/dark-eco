@@ -68,28 +68,28 @@ as completing the overall goal.
 | User-owned Jak 1 import pipeline | Experimental; prepared folders remain supported, and Release builds can select a supported raw ISO or a standard ZIP32 archive containing exactly one ISO. The native composer, Objective-C++ bridge, recoverable staging/activation, ZIP extraction, and deterministic validation are implemented; a successful end-to-end simulator import and a real-device Files-provider import remain unrecorded |
 | Compiler-produced ARM64 GOAL execution | Implemented for the current Jak 1 AOT set; seven native routines remain |
 | OpenGOAL game frame or title screen | Implemented and physically verified |
-| Playable gameplay slice | Experimental; Build 89 is the canonical Classic Mode baseline after a physically accepted broad early-game session |
+| Playable gameplay slice | Experimental; Build 90 is the unified baseline after accepted physical Classic and 11-inch iPad Pro Hor+ sessions |
 | Jak 1 completion track | Planned |
 
 The current application initializes the real OpenGOAL Jak 1 kernel, loads
 user-local game data, runs linked AOT/native game code without executable arena
 pages, renders through the Metal backend, accepts controller/touch input, and
-plays audio. Signed physical-iPad runs reach sustained gameplay. Build 89 is
-the canonical Classic Mode regression baseline: the maintainer accepted it
-because it ran well during broad early-game physical testing. This is not a
-complete-playthrough claim. The Build 89 sections in `HANDOFF.md` are the
-authoritative build, artifact, physical-test, and limitation record.
+plays audio. Signed physical-iPad runs reach sustained gameplay. Build 90 is
+the unified regression baseline: it preserves the Build 89 Classic behavior
+accepted during broad early-game physical testing and adds the Hor+
+presentation accepted on an 11-inch iPad Pro. This is not a complete-playthrough
+claim. The Build 89 and Build 90 sections in `HANDOFF.md` are the authoritative
+artifact, physical-test, and limitation record.
 
 The active product sequence is now:
 
-1. Preserve Build 89 unchanged as Classic Mode.
-2. Establish independent Controls, Graphics, Audio, and UI Classic/Modern
+1. Preserve Build 90 unchanged as the unified Classic/Modern baseline.
+2. Continue independent Controls, Graphics, Audio, and UI Classic/Modern
    profiles, section defaults, section restores, Reset All, and a Mixed-aware
    global preset. Persist the complete document locally and through optional
    iCloud settings sync without coupling it to save sync.
-3. Physically A/B Graphics Modern's Fill Width (Hor+) against Classic. Classic
-   remains the default and keeps Build 89's 4:3 behavior; Modern preserves the
-   vertical view and adds horizontal field of view on wide displays.
+3. Preserve the accepted Graphics Modern Fill Width (Hor+) behavior, which
+   keeps the vertical view and adds horizontal field of view on wide displays.
 4. Leave touch behavior unchanged until the maintainer resumes that product
    decision. Afterward, advance the conventional windowed visionOS application
    toward Apple Vision Pro physical validation without assuming immersive or
@@ -820,20 +820,16 @@ Operating rules:
 
 ## Current checkpoint
 
-Build 89 is the current canonical Classic Mode integration checkpoint. Its
-exact parent, nested OpenGOAL, signed-product, install, launch, and acceptance
-identities are recorded in `HANDOFF.md`. The maintainer physically accepted it
-after broad early-game play because it ran well. The session was informally
-estimated at roughly eight percent of a playthrough and did not cross every
-early progression gate, so it is not evidence for completion or unvisited
-levels. Future touch and visionOS work must preserve this baseline and receive
-separate validation.
-
-Build 90 is the first post-baseline candidate. It adds the settings/profile
-shell and an opt-in Graphics Modern Hor+ path. Deterministic settings, cloud
-merge, save-sync isolation, and geometry checks pass, and unsigned macOS and
-visionOS plus signed generic iOS Release builds compile. It is not a new
-canonical baseline until Classic and Hor+ receive physical A/B validation.
+Build 90 is the current unified integration checkpoint. Its exact parent,
+nested OpenGOAL, signed product, install, launch, and acceptance identities are
+recorded in `HANDOFF.md`. It retains Build 89's physically accepted Classic
+behavior and adds the settings/profile shell plus Graphics Modern Hor+. The
+maintainer physically accepted Hor+ on an 11-inch iPad Pro and explicitly made
+Build 90 the baseline for everything. The earlier broad Classic session was
+informally estimated at roughly eight percent of a playthrough and did not
+cross every early progression gate, so neither verdict is evidence for
+completion or unvisited levels. Future settings, touch, and visionOS work must
+preserve this baseline and receive separate validation.
 
 The historical checkpoint record follows. Checkpoint 37 was an earlier
 sustained physical gameplay and visual-fidelity run. Its signed build

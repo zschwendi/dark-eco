@@ -53,14 +53,13 @@ no private entitlement anywhere in the build.
   Restore Defaults action. A global preset switches every section and reports
   Mixed when profiles differ; Reset All returns to the all-Classic baseline.
   The complete settings document syncs through iCloud by default, with a
-  per-device opt-out separate from iCloud saves. Graphics Modern currently adds
-  Fill Width (Hor+), which is compiled but not yet physically accepted.
+  per-device opt-out separate from iCloud saves. Graphics Modern adds Fill
+  Width (Hor+), physically accepted on an 11-inch iPad Pro.
 - **Experimental — iPad.** Jak 1 boots, renders, and plays on physical iPad. A
-  Build 89 is the canonical Classic Mode baseline after the maintainer reported
-  that it ran well during a broad early-game physical session. That session was
-  roughly eight percent of a playthrough and does not certify unvisited levels
-  or completion. Build 90 compiles the first Modern settings and Hor+ candidate,
-  but neither its Classic path nor Hor+ has received a physical verdict.
+  broad Build 89 early-game session established the accepted Classic behavior.
+  Build 90 preserves it, adds the settings shell, and is now the unified
+  baseline after the maintainer accepted its Hor+ presentation on an 11-inch
+  iPad Pro. This does not certify unvisited levels or completion.
 - **Experimental — visionOS.** The shared Apple target builds and launches in a
   conventional SwiftUI window. No immersive or volumetric presentation is
   included, and physical-headset gameplay remains unvalidated.

@@ -12663,3 +12663,42 @@ performed. Build 90 is therefore a compiled candidate, not a replacement for
 the canonical Build 89 baseline. The next gate is an explicitly authorized
 physical A/B: verify Classic first, then toggle Graphics Modern and evaluate
 horizontal FOV, HUD/sprites, orientation changes, pacing, and thermal behavior.
+
+# Unified baseline: Build 90
+
+Date: 2026-08-05. The maintainer authorized physical testing of the preserved
+Build 90 app on `Z iPad Pro`. CoreDevice reported no old GOALPad process before
+the install. The existing data container was preserved while installing
+`/private/tmp/GOALPad-build90-modern-horplus-signed/GOALPad.app`; device-side
+inspection confirmed Eco Pro `1.0 (90)` with bundle identifier
+`com.zephyrstudiosllc.eco`. A cold launch with `--terminate-existing --activate`
+succeeded, and the exact installed executable remained alive as PID `16192`.
+No device logs or screen capture were collected.
+
+The maintainer's physical verdict was: “build 90 is awesome. hor+ is great on
+ipad pro 11\".” The maintainer then explicitly made Build 90 “the baseline for
+everything.” This supersedes Build 89 as the current canonical regression
+checkpoint. Build 89 and its tags remain preserved as the historical Classic
+acceptance point; Build 90 retains that compatibility path and adds the accepted
+settings/Hor+ layer.
+
+The accepted identities are:
+
+- Parent source before this acceptance record:
+  `09d3ee156fa975a7f26eb5594880721968d928e6`
+- Nested OpenGOAL source: `bcc4ee8e5`
+- Signed app: `/private/tmp/GOALPad-build90-modern-horplus-signed/GOALPad.app`
+- Product identity: Eco Pro `1.0 (90)`, `com.zephyrstudiosllc.eco`
+- Executable SHA-256:
+  `c0b35744cbd8adfc70b96c6f62ef9ccf575dd9727ca2898af008cd743cc322a5`
+- Mach-O UUID: `46A54D07-D066-3F0F-9588-0397A8A1C9A0`
+- CDHash: `f78aec74187a7af55640814c5d3e1bfb99fe0e81`
+- Parent tag: `baseline-build-90`
+- Nested OpenGOAL tag: `baseline-build-90-opengoal`
+
+Acceptance remains bounded. The direct Build 90 verdict covers the tested
+11-inch iPad Pro Hor+ presentation and the maintainer's overall session
+impression. It does not establish a complete playthrough, every orientation,
+every device shape, two-device iCloud convergence, touch ergonomics, visionOS,
+or 120 Hz behavior. Build 90 is immutable; changing the startup default to
+Graphics Modern is follow-on Build 91 work.

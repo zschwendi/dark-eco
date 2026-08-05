@@ -1,6 +1,6 @@
 # GOALPad — Project Overview
 
-> **Status:** Experimental playable Jak 1 port; the canonical Classic Mode baseline is accepted within its physically tested early-game scope
+> **Status:** Experimental playable Jak 1 port; Build 90 is the accepted baseline within its physically tested scope
 > **Working name:** GOALPad
 > **Public product name:** Eco Pro
 > **App Store subtitle:** Native OpenGOAL Runtime
@@ -111,32 +111,31 @@ Jak II begins only after Jak 1 has a stable platform foundation. Work that is na
 
 ### Current enhancement direction
 
-Build 89 is the canonical **Classic Mode** baseline. It preserves the current
-Jak 1 gameplay, renderer, controller, audio, storage, and platform behavior as
-the regression reference for subsequent Apple-device work. The maintainer
-accepted it after a broad physical-iPad early-game session because it ran well.
-That acceptance is intentionally scoped: it is not yet a complete-playthrough,
-every-level, every-save, or every-controller certification.
+Build 90 is the unified regression baseline for subsequent Apple-device work.
+It retains Build 89's accepted **Classic Mode** behavior and adds the first
+accepted **Graphics Modern** option, Fill Width (Hor+). The maintainer accepted
+Build 89 after a broad physical-iPad early-game session because it ran well,
+then accepted Build 90 and its Hor+ presentation on an 11-inch iPad Pro. That
+acceptance is intentionally scoped: it is not yet a complete-playthrough,
+every-level, every-save, every-orientation, or every-controller certification.
 
 The first enhancement layer is a versioned Modern/Classic settings model.
 Controls, Graphics, Audio, and UI each retain an independent profile and their
 own option values; a global preset can switch all four while accurately showing
-Mixed when they differ. Classic is the app default. Settings sync through a
-separate iCloud document by default, with a device-local opt-out that does not
-disable iCloud saves.
+Mixed when they differ. Settings sync through a separate iCloud document by
+default, with a device-local opt-out that does not disable iCloud saves.
 
 Enhancement work proceeds in this order:
 
-1. Preserve and physically compare Classic Mode while validating the new
-   settings shell.
-2. Validate Graphics Modern's first option, Fill Width (Hor+), which preserves
-   vertical view and widens horizontally on displays wider than 4:3.
+1. Preserve Build 90 as the unified Classic/Modern regression baseline.
+2. Continue enhancing the independent settings sections without changing
+   Classic compatibility behavior.
 3. Resume touch-device changes only when the maintainer chooses the next input
    contract, then bring the shared windowed app to Apple Vision Pro without
    assuming an immersive rewrite.
 
 No enhancement may fork gameplay semantics, weaken user-owned asset separation,
-or replace the accepted Classic Mode baseline before its replacement has been
+or replace the accepted Build 90 baseline before its replacement has been
 physically compared and accepted.
 
 ### Potential future scope
