@@ -12503,9 +12503,18 @@ ID `V729QMY3V6`, executable SHA-256
 build/PID banner remains present. Offline strict verification reports the known
 `CSSMERR_TP_NOT_TRUSTED` local trust limitation.
 
-Build 89 has not been installed or launched on the physical iPad. Its decisive
-test is the same route for more than 600 frames after a cold launch. If the
-regular hitch disappears, synchronous diagnostic persistence is isolated. If
-it remains, do not remove more counters; next correlate the miss with the
-unchanged prior-command-buffer wait, then test the footstep sound-start/audio
-mutex path if the hitch is actually gait-synchronized.
+The maintainer explicitly authorized clearing the previous process, installing
+Build 89, and cold-launching it on `Z iPad Pro`. No GOALPad process was running
+when CoreDevice enumerated device processes. The first install connection
+closed immediately and the second reached installation services before its XPC
+connection closed; neither reported installation success. CoreDevice continued
+to report the paired iPad available. The final retry succeeded, and device-side
+inspection confirmed Eco Pro `1.0 (89)` with bundle identifier
+`com.zephyrstudiosllc.eco`. It was then launched with
+`--terminate-existing --activate`. No logs or screen capture were collected.
+
+Its decisive test is the same route for more than 600 frames after this cold
+launch. If the regular hitch disappears, synchronous diagnostic persistence is
+isolated. If it remains, do not remove more counters; next correlate the miss
+with the unchanged prior-command-buffer wait, then test the footstep
+sound-start/audio mutex path if the hitch is actually gait-synchronized.
