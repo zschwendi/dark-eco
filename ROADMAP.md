@@ -68,7 +68,7 @@ as completing the overall goal.
 | User-owned Jak 1 import pipeline | Experimental; prepared folders remain supported, and Release builds can select a supported raw ISO or a standard ZIP32 archive containing exactly one ISO. The native composer, Objective-C++ bridge, recoverable staging/activation, ZIP extraction, and deterministic validation are implemented; a successful end-to-end simulator import and a real-device Files-provider import remain unrecorded |
 | Compiler-produced ARM64 GOAL execution | Implemented for the current Jak 1 AOT set; seven native routines remain |
 | OpenGOAL game frame or title screen | Implemented and physically verified |
-| Playable gameplay slice | Experimental; Build 90 is the unified baseline after accepted physical Classic and 11-inch iPad Pro Hor+ sessions |
+| Playable gameplay slice | Experimental; Build 90 is the unified baseline after Build 89's accepted Classic session and Build 90's accepted 11-inch iPad Pro Hor+ session |
 | Jak 1 completion track | Planned |
 
 The current application initializes the real OpenGOAL Jak 1 kernel, loads

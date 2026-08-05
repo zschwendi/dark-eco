@@ -67,7 +67,37 @@ private func defaultsUseModernGraphics() async throws {
     check(value.profile(for: .audio) == .classic, "Audio begins in Classic")
     check(value.profile(for: .interface) == .classic, "UI begins in Classic")
     check(value.graphicsFillWidth, "Modern Graphics begins with Fill Width enabled")
+    check(value.document.graphicsModernFillWidthOverride == nil,
+          "the default uses the Modern option value instead of a stored override")
     check(value.cloudSyncEnabled, "settings cloud sync defaults on independently of saves")
+}
+
+@MainActor
+private func savedChoicesSurviveNewDefaults() async throws {
+    print("existing saved profile and option choices survive the new defaults")
+    let classicFixture = try Fixture(name: "saved-classic")
+    var classic = PresentationSettingsDocument(writerID: "device-old")
+    classic.setProfile(.modern, for: .controls)
+    classic.setProfile(.classic, for: .graphics)
+    try FileManager.default.createDirectory(at: classicFixture.local.deletingLastPathComponent(),
+                                            withIntermediateDirectories: true)
+    try JSONEncoder().encode(classic).write(to: classicFixture.local, options: .atomic)
+    let restoredClassic = settings(classicFixture, writerID: "device-new")
+    check(restoredClassic.profile(for: .controls) == .modern
+          && restoredClassic.profile(for: .graphics) == .classic
+          && !restoredClassic.graphicsFillWidth,
+          "a saved Classic Graphics selection loads unchanged")
+
+    let modernFixture = try Fixture(name: "saved-modern-override")
+    var modern = PresentationSettingsDocument(writerID: "device-old")
+    modern.graphicsModernFillWidthOverride = false
+    try FileManager.default.createDirectory(at: modernFixture.local.deletingLastPathComponent(),
+                                            withIntermediateDirectories: true)
+    try JSONEncoder().encode(modern).write(to: modernFixture.local, options: .atomic)
+    let restoredModern = settings(modernFixture, writerID: "device-new")
+    check(restoredModern.profile(for: .graphics) == .modern
+          && !restoredModern.graphicsFillWidth,
+          "a saved Modern Fill Width override loads unchanged")
 }
 
 @MainActor
@@ -96,7 +126,8 @@ private func profilesCanBeMixedWithoutLosingOptions() async throws {
           && value.profile(for: .graphics) == .modern
           && value.profile(for: .audio) == .classic
           && value.profile(for: .interface) == .classic
-          && value.graphicsFillWidth,
+          && value.graphicsFillWidth
+          && value.document.graphicsModernFillWidthOverride == nil,
           "Reset All restores the default Modern Graphics mix")
 }
 
@@ -214,6 +245,7 @@ private struct PresentationSettingsCheck {
     static func main() async {
         do {
             try await defaultsUseModernGraphics()
+            try await savedChoicesSurviveNewDefaults()
             try await profilesCanBeMixedWithoutLosingOptions()
             try await localOptOutDoesNotTouchCloud()
             try await cloudSettingsConvergeAsOneDocument()

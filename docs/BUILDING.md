@@ -983,7 +983,10 @@ Graphics, Audio, and UI sections. Each section has an independent
 Classic/Modern profile. The top preset sets all four profiles without deleting
 their customized option values and displays Mixed when they differ. Section
 Restore Defaults resets only that section's options for its selected profile;
-Reset All returns all sections and options to the Classic baseline.
+fresh settings and Reset All select Classic Controls, Modern Graphics with Fill
+Width enabled, Classic Audio, and Classic UI. This intentional default appears
+as Mixed. Existing local or iCloud documents retain their saved profiles and
+option overrides.
 
 The local document is
 `Library/Application Support/GOALPad/Settings/presentation-v1.json`. When
@@ -1008,8 +1011,9 @@ Scripts/run-presentation-geometry-check.sh
 
 These checks cover settings defaults, Mixed profiles, option preservation,
 restores, Reset All, first cloud write, conflict ranking, save-sync isolation,
-and exact geometry. They do not replace a physical Classic/Hor+ visual and
-performance A/B or a real two-device iCloud test.
+and exact geometry. They do not replace the bounded physical Hor+ acceptance
+and do not establish a full Classic/Hor+ A/B, orientation/performance coverage,
+or real two-device iCloud convergence.
 
 #### Experimental on-screen controls
 
