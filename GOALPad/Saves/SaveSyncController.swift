@@ -314,11 +314,44 @@ final class SaveSyncController {
 
 struct SaveSettingsView: View {
     @Bindable var sync: SaveSyncController
+    @Bindable var settings: PresentationSettings
     @State private var isChoosingImport = false
     @State private var isChoosingExportDestination = false
 
     var body: some View {
         Form {
+            Section("Preset") {
+                Menu {
+                    Button("Use Classic Everywhere") { settings.applyPreset(.classic) }
+                    Button("Use Modern Everywhere") { settings.applyPreset(.modern) }
+                } label: {
+                    LabeledContent("Global profile", value: globalProfileTitle)
+                }
+                Text("Changes section profiles without discarding their customized options.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
+            profileSection(.controls)
+            profileSection(.graphics)
+            profileSection(.audio)
+            profileSection(.interface)
+
+            Section("iCloud Settings") {
+                Toggle("Sync settings with iCloud", isOn: $settings.cloudSyncEnabled)
+                Label(settings.syncSummary, systemImage: settingsStatusSymbol)
+                    .foregroundStyle(settingsStatusColor)
+                if let date = settings.lastSyncDate {
+                    LabeledContent("Last sync", value: date.formatted(date: .abbreviated,
+                                                                        time: .shortened))
+                }
+                Button("Sync Now") { Task { await settings.syncNow() } }
+                    .disabled(!settings.cloudSyncEnabled || settings.syncStatus == .syncing)
+                Text("This switch applies only to this device and does not change iCloud Saves.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("iCloud Saves") {
                 Toggle("Sync saves with iCloud", isOn: $sync.isEnabled)
                 Label(sync.summary, systemImage: statusSymbol)
@@ -374,6 +407,10 @@ struct SaveSettingsView: View {
                     Button("Dismiss Details") { sync.acknowledgeRecentResolutions() }
                 }
             }
+
+            Section {
+                Button("Reset All", role: .destructive) { settings.resetAll() }
+            }
         }
         .navigationTitle("Settings")
         .fileImporter(isPresented: $isChoosingImport,
@@ -406,6 +443,56 @@ struct SaveSettingsView: View {
         case .unavailable: return .secondary
         case .failed: return .orange
         default: return .primary
+        }
+    }
+
+    private var globalProfileTitle: String {
+        settings.globalProfile?.title ?? "Mixed"
+    }
+
+    @ViewBuilder
+    private func profileSection(_ section: SettingsSection) -> some View {
+        Section(section.title) {
+            Picker("Profile", selection: Binding(
+                get: { settings.profile(for: section) },
+                set: { settings.setProfile($0, for: section) }
+            )) {
+                ForEach(SettingsProfile.allCases, id: \.self) { profile in
+                    Text(profile.title).tag(profile)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            if section == .graphics, settings.profile(for: .graphics) == .modern {
+                Toggle("Fill Width (Hor+)", isOn: Binding(
+                    get: { settings.graphicsFillWidth },
+                    set: { settings.setGraphicsFillWidth($0) }
+                ))
+                Text("Presentation behavior remains unchanged until a separate renderer experiment.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
+            Button("Restore \(section.title) Defaults") {
+                settings.restoreDefaults(for: section)
+            }
+        }
+    }
+
+    private var settingsStatusSymbol: String {
+        switch settings.syncStatus {
+        case .disabled: "icloud.slash"
+        case .waiting, .syncing: "arrow.triangle.2.circlepath.icloud"
+        case .unavailable, .failed: "exclamationmark.icloud"
+        case .synced: "checkmark.icloud"
+        }
+    }
+
+    private var settingsStatusColor: Color {
+        switch settings.syncStatus {
+        case .unavailable: .secondary
+        case .failed: .orange
+        default: .primary
         }
     }
 }

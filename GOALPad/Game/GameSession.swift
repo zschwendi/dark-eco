@@ -26,6 +26,7 @@ final class GameSession {
     let touch = TouchControls()
     let audio = AudioOutput()
     let settings = RenderSettings()
+    let presentationSettings = PresentationSettings()
     let importer = GameDataImporter()
     let saveSync = SaveSyncController()
 
@@ -94,6 +95,7 @@ final class GameSession {
             """)
         observeSystem()
         try? GameDataLayout.prepare()
+        await presentationSettings.prepare()
         await saveSync.prepare()
         await refreshDataReport()
     }

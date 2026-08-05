@@ -83,7 +83,9 @@ struct ContentView: View {
         .task { await session.prepare() }
         .onChange(of: scenePhase) { _, phase in session.scenePhaseChanged(to: phase) }
         .sheet(isPresented: $showSettings) {
-            NavigationStack { SaveSettingsView(sync: session.saveSync) }
+            NavigationStack {
+                SaveSettingsView(sync: session.saveSync, settings: session.presentationSettings)
+            }
                 .frame(minWidth: 360, minHeight: 360)
         }
     }
