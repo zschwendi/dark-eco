@@ -134,6 +134,21 @@ private func cloudSettingsConvergeAsOneDocument() async throws {
 }
 
 @MainActor
+private func coordinatedFirstCloudWriteCreatesItsNestedDocument() async throws {
+    print("the first coordinated cloud write targets an existing ancestor")
+    let fixture = try Fixture(name: "first-cloud-write")
+    let configuration = PresentationSettingsConfiguration(
+        localDocumentURL: fixture.local,
+        cloudDocumentURL: { fixture.cloud },
+        coordinateCloudAccess: true)
+    let value = PresentationSettings(defaults: fixture.defaults, configuration: configuration,
+                                     writerID: "device-a")
+    await value.syncNow()
+    check(readDocument(at: fixture.cloud)?.globalProfile == .classic,
+          "a fresh coordinated cloud stores the Classic document")
+}
+
+@MainActor
 private func newerCloudDocumentWinsDeterministically() async throws {
     print("cloud conflicts use a stable timestamp and writer tie-breaker")
     let fixture = try Fixture(name: "conflict")
@@ -156,6 +171,34 @@ private func newerCloudDocumentWinsDeterministically() async throws {
           "the equal-time writer tie-breaker replaces the local document as one unit")
 }
 
+@MainActor
+private func unresolvedCloudVersionParticipatesInConflictResolution() async throws {
+    print("unresolved iCloud versions participate in the same deterministic merge")
+    let fixture = try Fixture(name: "file-version-conflict")
+    let date = Date(timeIntervalSince1970: 2_100_000_000)
+    var current = PresentationSettingsDocument(modifiedAt: date, writerID: "device-a")
+    current.setProfile(.modern, for: .controls)
+    try FileManager.default.createDirectory(at: fixture.cloud.deletingLastPathComponent(),
+                                            withIntermediateDirectories: true)
+    try JSONEncoder().encode(current).write(to: fixture.cloud, options: .atomic)
+
+    var conflict = PresentationSettingsDocument(modifiedAt: date, writerID: "device-z")
+    conflict.setProfile(.modern, for: .interface)
+    let conflictData = try JSONEncoder().encode(conflict)
+    let configuration = PresentationSettingsConfiguration(
+        localDocumentURL: fixture.local,
+        cloudDocumentURL: { fixture.cloud },
+        coordinateCloudAccess: false,
+        cloudConflictDocumentData: { _ in [conflictData] })
+    let value = PresentationSettings(defaults: fixture.defaults, configuration: configuration,
+                                     writerID: "device-local")
+    await value.syncNow()
+    check(value.profile(for: .interface) == .modern && value.profile(for: .controls) == .classic,
+          "the highest-ranked unresolved version wins as one complete document")
+    check(readDocument(at: fixture.cloud)?.writerID == "device-z",
+          "the conflict winner replaces the current cloud document")
+}
+
 @main
 private struct PresentationSettingsCheck {
     static func main() async {
@@ -164,7 +207,9 @@ private struct PresentationSettingsCheck {
             try await profilesCanBeMixedWithoutLosingOptions()
             try await localOptOutDoesNotTouchCloud()
             try await cloudSettingsConvergeAsOneDocument()
+            try await coordinatedFirstCloudWriteCreatesItsNestedDocument()
             try await newerCloudDocumentWinsDeterministically()
+            try await unresolvedCloudVersionParticipatesInConflictResolution()
         } catch {
             print("  FAIL unexpected error: \(error)")
             failures += 1

@@ -72,8 +72,9 @@ check(content.contains("session.presentationSettings.graphicsFillWidth")
       "the effective Graphics setting reaches only the opt-in Hor+ renderer seam")
 check(occursInOrder([
     "let presentationSettings = PresentationSettings()",
-    "await presentationSettings.prepare()",
+    "async let settingsPreparation: Void = presentationSettings.prepare()",
     "await saveSync.prepare()",
+    "await settingsPreparation",
 ], in: session), "settings preparation is independent of the existing save preparation")
 
 if failures == 0 {

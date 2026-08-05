@@ -94,13 +94,17 @@ nonisolated struct PresentationSettingsConfiguration: Sendable {
     let localDocumentURL: URL
     let cloudDocumentURL: @Sendable () -> URL?
     let coordinateCloudAccess: Bool
+    let cloudConflictDocumentData: @Sendable (URL) throws -> [Data]
     let now: @Sendable () -> Date
 
     init(localDocumentURL: URL, cloudDocumentURL: @escaping @Sendable () -> URL?,
-         coordinateCloudAccess: Bool, now: @escaping @Sendable () -> Date = { Date() }) {
+         coordinateCloudAccess: Bool,
+         cloudConflictDocumentData: @escaping @Sendable (URL) throws -> [Data] = { _ in [] },
+         now: @escaping @Sendable () -> Date = { Date() }) {
         self.localDocumentURL = localDocumentURL
         self.cloudDocumentURL = cloudDocumentURL
         self.coordinateCloudAccess = coordinateCloudAccess
+        self.cloudConflictDocumentData = cloudConflictDocumentData
         self.now = now
     }
 }
@@ -127,6 +131,21 @@ nonisolated enum PresentationSettingsLayout {
         return container
             .appending(path: "Documents/GOALPad/Settings", directoryHint: .isDirectory)
             .appending(path: "presentation-v1.json", directoryHint: .notDirectory)
+    }
+
+    static func unresolvedConflictData(at url: URL) throws -> [Data] {
+        try (NSFileVersion.unresolvedConflictVersionsOfItem(at: url) ?? []).map {
+            try Data(contentsOf: $0.url)
+        }
+    }
+
+    static func resolveConflicts(at url: URL) throws {
+        let conflicts = NSFileVersion.unresolvedConflictVersionsOfItem(at: url) ?? []
+        guard !conflicts.isEmpty else { return }
+        for conflict in conflicts {
+            conflict.isResolved = true
+        }
+        try NSFileVersion.removeOtherVersionsOfItem(at: url)
     }
 }
 
@@ -179,7 +198,8 @@ final class PresentationSettings {
         self.configuration = configuration ?? PresentationSettingsConfiguration(
             localDocumentURL: PresentationSettingsLayout.localDocumentURL,
             cloudDocumentURL: { PresentationSettingsLayout.cloudDocumentURL() },
-            coordinateCloudAccess: true)
+            coordinateCloudAccess: true,
+            cloudConflictDocumentData: { try PresentationSettingsLayout.unresolvedConflictData(at: $0) })
         if let data = try? Data(contentsOf: self.configuration.localDocumentURL),
            let stored = try? JSONDecoder().decode(PresentationSettingsDocument.self, from: data),
            stored.schemaVersion == PresentationSettingsDocument.schemaVersion {
@@ -261,7 +281,8 @@ final class PresentationSettings {
         }
 
         do {
-            let remote = try await readCloudDocument(at: cloudURL)
+            let remoteState = try await readCloudDocument(at: cloudURL)
+            let remote = remoteState.document
             guard cloudSyncEnabled else {
                 syncStatus = .disabled
                 return
@@ -279,7 +300,7 @@ final class PresentationSettings {
                 try writeLocalDocument(winner)
                 hasLocalDocument = true
             }
-            if remote != winner {
+            if remote != winner || remoteState.hasConflicts {
                 try writeCloudDocument(winner, to: cloudURL)
             }
             syncStatus = .synced(configuration.now())
@@ -311,12 +332,36 @@ final class PresentationSettings {
         return lhs.writerID > rhs.writerID
     }
 
-    private func readCloudDocument(at url: URL) async throws -> PresentationSettingsDocument? {
-        guard manager.fileExists(atPath: url.path) else { return nil }
+    private func readCloudDocument(at url: URL) async throws
+        -> (document: PresentationSettingsDocument?, hasConflicts: Bool) {
+        guard manager.fileExists(atPath: url.path) else { return (nil, false) }
         try await ensureCloudDocumentIsCurrent(at: url)
-        let data = try Data(contentsOf: url)
-        let document = try JSONDecoder().decode(PresentationSettingsDocument.self, from: data)
-        return document.schemaVersion == PresentationSettingsDocument.schemaVersion ? document : nil
+        let primaryData = try readCloudData(at: url)
+        let conflictData = try configuration.cloudConflictDocumentData(url)
+        let allData = [primaryData] + conflictData
+        let documents = allData.compactMap { data -> PresentationSettingsDocument? in
+            guard let value = try? JSONDecoder().decode(PresentationSettingsDocument.self, from: data),
+                  value.schemaVersion == PresentationSettingsDocument.schemaVersion else {
+                return nil
+            }
+            return value
+        }
+        let newest = documents.max { isNewer($1, than: $0) }
+        return (newest, !conflictData.isEmpty)
+    }
+
+    private func readCloudData(at url: URL) throws -> Data {
+        guard configuration.coordinateCloudAccess else { return try Data(contentsOf: url) }
+        let coordinator = NSFileCoordinator(filePresenter: nil)
+        var coordinationError: NSError?
+        var readResult: Result<Data, Error>?
+        coordinator.coordinate(readingItemAt: url, options: [], error: &coordinationError) {
+            coordinatedURL in
+            readResult = Result { try Data(contentsOf: coordinatedURL) }
+        }
+        if let coordinationError { throw coordinationError }
+        guard let readResult else { throw CocoaError(.fileReadUnknown) }
+        return try readResult.get()
     }
 
     private func ensureCloudDocumentIsCurrent(at url: URL) async throws {
@@ -341,24 +386,46 @@ final class PresentationSettings {
     }
 
     private func writeCloudDocument(_ document: PresentationSettingsDocument, to url: URL) throws {
-        try manager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let data = try JSONEncoder().encode(document)
         guard configuration.coordinateCloudAccess else {
+            try manager.createDirectory(at: url.deletingLastPathComponent(),
+                                        withIntermediateDirectories: true)
             try data.write(to: url, options: .atomic)
             return
         }
+        try coordinatedWrite(at: url, replacing: true) { coordinatedURL in
+            try self.manager.createDirectory(at: coordinatedURL.deletingLastPathComponent(),
+                                             withIntermediateDirectories: true)
+            try data.write(to: coordinatedURL, options: .atomic)
+        }
+        try PresentationSettingsLayout.resolveConflicts(at: url)
+    }
+
+    /// File coordination cannot target a nested item that does not exist yet. Coordinate the
+    /// nearest existing ancestor, then rebuild the intended destination below its coordinated URL.
+    private func coordinatedWrite(at destination: URL, replacing: Bool,
+                                  _ operation: (URL) throws -> Void) throws {
+        let destinationExists = manager.fileExists(atPath: destination.path)
+        var coordinatedItem = destination
+        while !manager.fileExists(atPath: coordinatedItem.path),
+              coordinatedItem.pathComponents.count > 1 {
+            coordinatedItem.deleteLastPathComponent()
+        }
+        let relativeComponents = destination.pathComponents
+            .dropFirst(coordinatedItem.pathComponents.count)
+        let options: NSFileCoordinator.WritingOptions = destinationExists && replacing
+            ? .forReplacing : []
         let coordinator = NSFileCoordinator(filePresenter: nil)
         var coordinationError: NSError?
-        var writeError: Error?
-        coordinator.coordinate(writingItemAt: url, options: .forReplacing,
+        var operationError: Error?
+        coordinator.coordinate(writingItemAt: coordinatedItem, options: options,
                                error: &coordinationError) { coordinatedURL in
-            do {
-                try data.write(to: coordinatedURL, options: .atomic)
-            } catch {
-                writeError = error
+            let resolvedDestination = relativeComponents.reduce(coordinatedURL) {
+                $0.appending(path: $1)
             }
+            do { try operation(resolvedDestination) } catch { operationError = error }
         }
         if let coordinationError { throw coordinationError }
-        if let writeError { throw writeError }
+        if let operationError { throw operationError }
     }
 }

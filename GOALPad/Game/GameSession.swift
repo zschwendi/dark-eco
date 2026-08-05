@@ -95,8 +95,9 @@ final class GameSession {
             """)
         observeSystem()
         try? GameDataLayout.prepare()
-        await presentationSettings.prepare()
+        async let settingsPreparation: Void = presentationSettings.prepare()
         await saveSync.prepare()
+        await settingsPreparation
         await refreshDataReport()
     }
 

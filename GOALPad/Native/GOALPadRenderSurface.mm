@@ -441,6 +441,7 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
   const auto geometry = goalpad::presentation_geometry(
       (int32_t)_drawableSize.width, (int32_t)_drawableSize.height, _internalScale,
       _horizontalPlusEnabled);
+  goal_kernel_core_set_portable_display_enabled(_horizontalPlusEnabled);
   goal_kernel_core_set_portable_display_size(geometry.game_display_width,
                                              geometry.game_display_height);
 #endif
