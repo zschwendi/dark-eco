@@ -83,19 +83,17 @@ authoritative build, artifact, physical-test, and limitation record.
 The active product sequence is now:
 
 1. Preserve Build 89 unchanged as Classic Mode.
-2. Improve touch-device ergonomics on top of the existing input seam without
-   changing controller or gameplay semantics.
-3. After that seam is stable, advance the shared windowed visionOS application
+2. Establish independent Controls, Graphics, Audio, and UI Classic/Modern
+   profiles, section defaults, section restores, Reset All, and a Mixed-aware
+   global preset. Persist the complete document locally and through optional
+   iCloud settings sync without coupling it to save sync.
+3. Physically A/B Graphics Modern's Fill Width (Hor+) against Classic. Classic
+   remains the default and keeps Build 89's 4:3 behavior; Modern preserves the
+   vertical view and adds horizontal field of view on wide displays.
+4. Leave touch behavior unchanged until the maintainer resumes that product
+   decision. Afterward, advance the conventional windowed visionOS application
    toward Apple Vision Pro physical validation without assuming immersive or
    stereo rendering.
-
-The first touch implementation must be opt-in and default to Classic behavior.
-The current code intentionally leaves short right-half taps inert; choosing
-their Enhanced-mode action is the next product decision. The narrow candidate
-is Triangle because it is the missing face action and reuses the existing pulse
-seam. Do not change Classic taps while testing that candidate. The first
-visionOS slice is then a current-source build and conventional single-window
-physical smoke, not a renderer or immersive-space rewrite.
 
 ## Required code and data pipelines
 
@@ -830,6 +828,12 @@ estimated at roughly eight percent of a playthrough and did not cross every
 early progression gate, so it is not evidence for completion or unvisited
 levels. Future touch and visionOS work must preserve this baseline and receive
 separate validation.
+
+Build 90 is the first post-baseline candidate. It adds the settings/profile
+shell and an opt-in Graphics Modern Hor+ path. Deterministic settings, cloud
+merge, save-sync isolation, and geometry checks pass, and unsigned macOS and
+visionOS plus signed generic iOS Release builds compile. It is not a new
+canonical baseline until Classic and Hor+ receive physical A/B validation.
 
 The historical checkpoint record follows. Checkpoint 37 was an earlier
 sustained physical gameplay and visual-fidelity run. Its signed build

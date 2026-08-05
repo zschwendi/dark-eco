@@ -118,15 +118,24 @@ accepted it after a broad physical-iPad early-game session because it ran well.
 That acceptance is intentionally scoped: it is not yet a complete-playthrough,
 every-level, every-save, or every-controller certification.
 
+The first enhancement layer is a versioned Modern/Classic settings model.
+Controls, Graphics, Audio, and UI each retain an independent profile and their
+own option values; a global preset can switch all four while accurately showing
+Mixed when they differ. Classic is the app default. Settings sync through a
+separate iCloud document by default, with a device-local opt-out that does not
+disable iCloud saves.
+
 Enhancement work proceeds in this order:
 
-1. Improve the touch-device experience while preserving Classic Mode and the
-   physical-controller path.
-2. Bring the same native runtime and presentation boundaries to Apple Vision
-   Pro after the touch interaction seams are stable, beginning with the shared
-   windowed visionOS application rather than assuming an immersive rewrite.
+1. Preserve and physically compare Classic Mode while validating the new
+   settings shell.
+2. Validate Graphics Modern's first option, Fill Width (Hor+), which preserves
+   vertical view and widens horizontally on displays wider than 4:3.
+3. Resume touch-device changes only when the maintainer chooses the next input
+   contract, then bring the shared windowed app to Apple Vision Pro without
+   assuming an immersive rewrite.
 
-Neither phase may fork gameplay semantics, weaken user-owned asset separation,
+No enhancement may fork gameplay semantics, weaken user-owned asset separation,
 or replace the accepted Classic Mode baseline before its replacement has been
 physically compared and accepted.
 

@@ -976,6 +976,41 @@ controller attached on a non-iOS host, the port is pushed as disconnected. On
 iOS the on-screen controls provide a neutral connected pad, merged with
 GameController once per successfully armed display-link frame.
 
+### Modern and Classic settings
+
+`PresentationSettings` stores one versioned document for the Controls,
+Graphics, Audio, and UI sections. Each section has an independent
+Classic/Modern profile. The top preset sets all four profiles without deleting
+their customized option values and displays Mixed when they differ. Section
+Restore Defaults resets only that section's options for its selected profile;
+Reset All returns all sections and options to the Classic baseline.
+
+The local document is
+`Library/Application Support/GOALPad/Settings/presentation-v1.json`. When
+available, the same complete document is merged through
+`Documents/GOALPad/Settings/presentation-v1.json` in the app's iCloud container
+using modification time and a stable writer ID. Unresolved iCloud file versions
+participate in that merge. The `Sync settings with iCloud` switch is stored only
+on the current device and is separate from `iCloud Saves`.
+
+Graphics Modern currently exposes Fill Width (Hor+). On a drawable wider than
+4:3 it preserves internal target height, widens the target, fills the drawable,
+and reports the wide aspect to GOAL. Classic keeps the prior 4:3 target,
+letterbox, and machine-query behavior. On portrait or narrower drawables Hor+
+does not reduce the Classic horizontal field of view.
+
+The deterministic checks are:
+
+```sh
+Scripts/run-presentation-settings-check.sh
+Scripts/run-presentation-geometry-check.sh
+```
+
+These checks cover settings defaults, Mixed profiles, option preservation,
+restores, Reset All, first cloud write, conflict ranking, save-sync isolation,
+and exact geometry. They do not replace a physical Classic/Hor+ visual and
+performance A/B or a real two-device iCloud test.
+
 #### Experimental on-screen controls
 
 The iOS Classic Mode touch layer creates a movement stick under the first

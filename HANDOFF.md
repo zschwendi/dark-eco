@@ -12555,9 +12555,10 @@ The locked identities are:
 Classic Mode is the preserved compatibility baseline, not a promise that the
 entire game has already been completed. Enhancement work must branch from this
 state, keep Classic Mode available for direct A/B comparison, and change one
-user-facing interaction boundary at a time. The active sequence is touch-device
-enhancement first, then the shared windowed visionOS application and Apple
-Vision Pro physical validation after the touch/input boundary is stable.
+user-facing interaction boundary at a time. The active sequence is the
+Modern/Classic settings shell and Graphics Hor+ first. Touch behavior remains
+unchanged until the maintainer explicitly resumes it; windowed visionOS and
+Apple Vision Pro physical validation follow later.
 
 ## Next enhancement gates
 
@@ -12570,20 +12571,95 @@ acceptance commit is corrected to match that code. Deterministic touch checks
 pass, but no current physical multitouch, latency, or ergonomic verdict is
 recorded.
 
-The smallest safe Enhanced-touch candidate is an opt-in setting, default off,
-that maps a short right-half tap to Triangle while leaving every Classic input
-unchanged. This is a recommendation, not an accepted mapping: the maintainer
-must choose the tap contract before implementation because prior experiments
-used conflicting tap behaviors. The relevant implementation seam is bounded to
-`TouchControls.swift`, `TouchControlsView.swift`, settings persistence, and the
-touch harness; it does not require renderer or OpenGOAL changes.
+The previously proposed Enhanced-touch candidate is deferred. Per maintainer
+direction, no touch source changes belong in the current settings/Hor+ work.
+The next physical gate is Classic versus Graphics Modern Fill Width; the touch
+contract remains a later product decision.
 
 The existing shared app already includes `xros` and `xrsimulator`, uses a normal
 SwiftUI `WindowGroup` backed by one `CAMetalLayer`, and leaves gameplay
-controller-only on visionOS. Current Build 89-derived visionOS compile and
-physical runtime evidence are not recorded. After the touch seam is stable, the
-smallest Apple Vision Pro slice is therefore to rebuild and physically validate
-the unchanged conventional Classic Mode window with prepared data, controller,
-Metal, audio, and lifecycle smoke. Do not add immersive presentation, stereo
-rendering, RealityKit, spatial input, or multiwindow architecture to that first
-slice.
+controller-only on visionOS. Build 90 adds a generic visionOS Release compile,
+but physical runtime evidence is not recorded. The smallest Apple Vision Pro
+slice remains physical validation of the conventional Classic Mode window with
+prepared data, controller, Metal, audio, and lifecycle smoke. Do not add
+immersive presentation, stereo rendering, RealityKit, spatial input, or
+multiwindow architecture to that first slice.
+
+# Build 90 Modern/Classic settings and Hor+ candidate
+
+Date: 2026-08-04. Work continues in
+`/private/tmp/GP-modern-mode-horplus` on branch
+`agent/modern-mode-horplus`. Build 89 remains locked and tagged as the canonical
+Classic Mode baseline; its worktree, signed app, and tags were not modified.
+No touch-control source changed.
+
+The settings shell now has independent Controls, Graphics, Audio, and UI
+Classic/Modern profiles, per-section Restore Defaults, a Mixed-aware global
+preset, and Reset All. Classic is the all-section default. Option values survive
+profile and global-preset changes. Graphics Modern defaults Fill Width (Hor+)
+on, while Graphics Classic always keeps it off. Settings persist as one
+versioned local JSON document and sync as a separate iCloud document by default.
+The iCloud settings opt-out is device-local and does not alter iCloud save sync.
+
+The cloud path coordinates the nearest existing ancestor for its first write,
+includes unresolved `NSFileVersion` documents in its timestamp/writer-ID merge,
+and resolves them after publishing the winner. Settings preparation is started
+alongside save preparation so an iCloud settings download cannot delay the save
+gate. A mid-sync device opt-out stops the pending cloud write.
+
+Hor+ is isolated behind the effective Graphics Modern setting. Classic retains
+the exact 4:3 target and letterbox arithmetic. Its portable GOAL display query
+is disabled by default and reports through the preexisting machine-stub behavior;
+only Hor+ enables the live display aspect. On wide drawables Hor+ preserves
+internal height, widens the target, fills the drawable, and supplies the wide
+aspect to GOAL. Portrait and narrower drawables never narrow the Classic view.
+
+Verified commits are:
+
+- Parent `3a002e5f` — opt-in Hor+ presentation geometry.
+- Parent `e8cedb3f` — sectioned synced settings architecture.
+- Parent `f93f921d` — effective Graphics setting wired to Hor+.
+- Parent `b034a982` — first-write/conflict/save independence and Classic
+  isolation hardening.
+- Nested OpenGOAL `6999969ba` — portable display-size seam.
+- Nested OpenGOAL `bcc4ee8e5` — portable aspect remains opt-in for Classic.
+
+Validation passed:
+
+- `Scripts/run-presentation-settings-check.sh`, including coordinated first
+  cloud write, synthetic unresolved-version ranking, and UI/source isolation.
+- `Scripts/run-presentation-geometry-check.sh`.
+- `Scripts/run-save-sync-check.sh`.
+- Focused Swift parsing and C++ syntax checks for the changed seams.
+- `git diff --check` in both repositories.
+- The 518-object AOT pack reverified with aggregate `0a6387a3959fd8cb`
+  (10,729,950 bytes); its boot-manifest SHA-256 remains
+  `4240ae30b0917c1c0a2f17ea483f0fedba70b9d461b7675fed5cc6ecc01ba8f1`.
+- Signed generic iPhoneOS Release Build 90 and unsigned ARM64 macOS and generic
+  visionOS Release builds.
+
+The first signed iPhoneOS attempt correctly failed closed because the fresh
+worktree had no ignored `Generated/jak1-aot` corpus. The exact 1,040-file,
+85 MB Build 89-generated corpus was copied into the ignored Build 90 worktree;
+its embedded GOAL graph/writer identity was unchanged by this C++/Swift work.
+The clean retry and the final incremental retry both passed.
+
+Preserved signed candidate:
+
+- App: `/private/tmp/GOALPad-build90-modern-horplus-signed/GOALPad.app`
+- Identity: Eco Pro `1.0 (90)`, `com.zephyrstudiosllc.eco`, thin ARM64
+- Team ID: `V729QMY3V6`
+- Executable SHA-256:
+  `c0b35744cbd8adfc70b96c6f62ef9ccf575dd9727ca2898af008cd743cc322a5`
+- Mach-O UUID: `46A54D07-D066-3F0F-9588-0397A8A1C9A0`
+- CDHash: `f78aec74187a7af55640814c5d3e1bfb99fe0e81`
+- Bundle size/files: 51 MB, 551 files
+- `codesign -dv --verbose=4` recognized the embedded signature; offline strict
+  verification reports the known `CSSMERR_TP_NOT_TRUSTED` local trust limit.
+
+No simulator or physical app launch, install, gameplay, real two-device iCloud
+sync, orientation change, visual capture, or thermal/performance validation was
+performed. Build 90 is therefore a compiled candidate, not a replacement for
+the canonical Build 89 baseline. The next gate is an explicitly authorized
+physical A/B: verify Classic first, then toggle Graphics Modern and evaluate
+horizontal FOV, HUD/sprites, orientation changes, pacing, and thermal behavior.

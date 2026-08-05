@@ -48,17 +48,19 @@ no private entitlement anywhere in the build.
   host check and macOS/iOS builds pass, and the named M5 simulator launches.
   Physical multitouch ergonomics remain unvalidated. Diagnostics and resolution
   controls remain hidden behind the three-line menu button.
+- **Experimental — Modern/Classic settings.** Controls, Graphics, Audio, and UI
+  each retain an independent Classic/Modern profile, section defaults, and a
+  Restore Defaults action. A global preset switches every section and reports
+  Mixed when profiles differ; Reset All returns to the all-Classic baseline.
+  The complete settings document syncs through iCloud by default, with a
+  per-device opt-out separate from iCloud saves. Graphics Modern currently adds
+  Fill Width (Hor+), which is compiled but not yet physically accepted.
 - **Experimental — iPad.** Jak 1 boots, renders, and plays on physical iPad. A
-  forced fixed-step camera experiment was rejected on hardware and removed;
-  current source instead requests fixed 60 Hz callbacks and independently
-  rounds each display-target interval to Jak's integral 1-through-4 frame
-  ratio. Deterministic checks, the named M5 simulator, signed
-  physical launch, and real kernel/audio boot path pass. The Checkpoint 37 run
-  reached the farthest gameplay yet, but was physically rejected: camera and
-  depth fighting felt worse than Checkpoint 36, Merc deformation remained, and
-  metallic materials gained a new flicker. The physical build retains the iOS
-  MIPS2C bones compatibility path and Jak 1's homogeneous-W parity correction,
-  but neither is presented as a complete deformation fix.
+  Build 89 is the canonical Classic Mode baseline after the maintainer reported
+  that it ran well during a broad early-game physical session. That session was
+  roughly eight percent of a playthrough and does not certify unvisited levels
+  or completion. Build 90 compiles the first Modern settings and Hor+ candidate,
+  but neither its Classic path nor Hor+ has received a physical verdict.
 - **Experimental — visionOS.** The shared Apple target builds and launches in a
   conventional SwiftUI window. No immersive or volumetric presentation is
   included, and physical-headset gameplay remains unvalidated.
