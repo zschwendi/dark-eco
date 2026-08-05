@@ -12702,3 +12702,118 @@ impression. It does not establish a complete playthrough, every orientation,
 every device shape, two-device iCloud convergence, touch ergonomics, visionOS,
 or 120 Hz behavior. Build 90 is immutable; changing the startup default to
 Graphics Modern is follow-on Build 91 work.
+
+# Build 91 defaults to Modern Graphics
+
+Date: 2026-08-05. Build 90 remains the immutable unified baseline at parent tag
+`baseline-build-90` and nested tag `baseline-build-90-opengoal`. The follow-on
+parent commits are:
+
+- `bf3415c4` — default Graphics to Modern with Fill Width enabled.
+- `3d65fdf7` — prove saved Classic and Modern override choices survive.
+
+New settings documents now use Classic Controls, Modern Graphics with Fill
+Width (Hor+) enabled, Classic Audio, and Classic UI. Reset All restores that
+same intentional Mixed combination. Existing schema-v1 local and iCloud
+documents explicitly store all four profiles and continue to win unchanged;
+the schema was not bumped. The low-level native renderer default remains off,
+and `ContentView` applies the effective saved setting at startup, preserving
+the selectable Classic path and existing custom settings.
+
+Validation passed:
+
+- `Scripts/run-presentation-settings-check.sh`, including fresh defaults,
+  Reset All, saved Classic, saved Modern override, coordinated first cloud
+  write, and conflict convergence.
+- `Scripts/run-presentation-geometry-check.sh`.
+- Individual Swift parse checks for the changed store and check scripts.
+- `git diff --check` in the parent and nested repositories.
+- Signed generic iPhoneOS Release Build 91.
+
+The first focused settings run was blocked before testing by the sandboxed
+Swift macro plugin service. The identical command passed with normal Xcode
+service access. The first Xcode attempt correctly failed the importer safety
+check because Xcode canonicalized the `/private/tmp` worktree through the
+`/tmp` symlink. The retry supplied the explicit safe OpenGOAL path and verified
+the unchanged 518-object source pack, then stopped at `ar` with `No space left
+on device`. No source or safety check changed. The standalone Build 90 Mac app
+was moved to `/private/tmp/GOALPad-build90-modern-mac/GOALPad.app`, and only the
+two reproducible Build 90 DerivedData directories were removed, recovering
+about 1.8 GB. The signed Build 90 iPad app and all source worktrees remain
+preserved. The incremental Build 91 retry then exited `0`.
+
+The passing build command was:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -sdk iphoneos -destination generic/platform=iOS \
+  -derivedDataPath /private/tmp/GOALPad-build91-modern-default \
+  -jobs 2 -allowProvisioningUpdates \
+  ENABLE_PREVIEWS=NO COMPILER_INDEX_STORE_ENABLE=NO \
+  GOALPAD_OPENGOAL_ROOT=/private/tmp/GP-modern-mode-horplus/OpenGOAL \
+  GOALPAD_OPENGOAL_GIT_METADATA=/Users/zach/Developer/OS_Projects/GOALPad/GOALPad/.git/worktrees/GP-build89-no-hotpath-diagnostics/modules/OpenGOAL/worktrees/OpenGOAL \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/build/jak1-source-object-pack \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache GOALPAD_BUILD_JOBS=2 \
+  CURRENT_PROJECT_VERSION=91 build
+```
+
+Preserved signed candidate:
+
+- App: `/private/tmp/GOALPad-build91-modern-default-signed/GOALPad.app`
+- Xcode activity logs:
+  `/private/tmp/GOALPad-build91-modern-default-signed/BuildLogs`
+- Identity: Eco Pro `1.0 (91)`, `com.zephyrstudiosllc.eco`, thin ARM64
+- Team ID: `V729QMY3V6`
+- Executable SHA-256:
+  `12357c929956556d86556f7af5974b7b2299dd3c328c07dc063f013578a1b7f5`
+- Mach-O UUID: `E6A06958-1A0A-3942-9DEC-653EDD0EBE92`
+- CDHash: `dd4befe52fbfea22bb7d3b8a1353b4bea4de0838`
+- Bundle size/files: 51 MB, 551 files
+
+`codesign -dv --verbose=4` recognized the embedded signature. Offline strict
+verification reports the known `CSSMERR_TP_NOT_TRUSTED` local trust limitation.
+Build 91 has not been installed, launched, or physically validated. No physical
+device was accessed for this checkpoint.
+
+# ProMotion / 120 Hz effort research
+
+Date: 2026-08-05. Read-only research confirmed the current iPad frame loop is
+hard-capped to 60 Hz in `GameSurfaceView.swift`. Every display-link callback
+runs one full dispatcher frame, one sound frame, input, renderer submission,
+and presentation. `GOALPadDisplayClock` also converts elapsed timestamps with a
+fixed `* 60.0` calculation. Raising only the display-link range to 120 would
+therefore attempt roughly 120 ordinary 60 Hz simulation steps each second; it
+would not be a correct high-refresh presentation mode.
+
+OpenGOAL contains useful custom-FPS groundwork, including 120-FPS pad history,
+but 120 exposes a concrete timing gap: the custom display time factor is
+`300 / target-fps`, or 2.5 at 120, while `drawable.gc` converts the value to an
+integer for several counters. The iPad boot path also does not currently own a
+GOAL target-FPS configuration seam. Audio maintenance and fades run once per
+dispatcher frame, and the Metal renderer waits synchronously for the previous
+command buffer before reusing stream pages. These require explicit timing and
+throughput validation rather than a plist or display-link-only change.
+
+Apple documents ProMotion as a best-effort range rather than a forced rate.
+iPad Pro may dynamically select 120, 60, 40, 30, or 24 Hz, and callbacks must
+use `targetTimestamp` and recover from missed intervals. iPad Pro does not need
+the iPhone-only `CADisableMinimumFrameDurationOnPhone` key.
+
+Estimated effort for a credible experimental mode is two to four weeks:
+
+1. One to two days for a boot-only 60/120 setting, timing instrumentation, and
+   deterministic 120/60/40/30/24 callback traces. This is a spike, not a
+   shippable mode.
+2. One to two weeks for an app-owned AOT frame-rate seam, correct fractional
+   time accumulation, fallback cadence behavior, and audio/input timing tests.
+3. Three to five days for signed-device A/B validation and tuning at 1x, then
+   2x internal resolution.
+4. A conditional additional one to two or more weeks if physical measurements
+   require replacing the renderer's single in-flight stream ownership model.
+
+The smallest useful physical proof is a 30-second 60-versus-120 A/B of one
+scene at 1x resolution, recording actual target-timestamp intervals, dispatcher
+frames, cumulative game time, submitted/presented/late frames, and prior-command
+buffer waits. A valid result must sustain approximately 8.33 ms callbacks while
+game time, camera, input, timers, audio fades, and dialogue duration remain
+correct. No 120 Hz code was implemented and no physical ProMotion test was run.
