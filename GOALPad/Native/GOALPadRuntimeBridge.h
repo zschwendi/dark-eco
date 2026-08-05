@@ -756,6 +756,10 @@ typedef struct GOALPadRendererStats {
 /// The game's internal render target, as a multiple of the PS2's 640x480. Clamped to 1...4.
 - (void)setInternalResolutionScale:(int32_t)scale;
 
+/// Widen the game target and its GOAL camera aspect to the drawable while preserving vertical FOV.
+/// Disabled is the exact 4:3 Classic presentation path.
+- (void)setHorizontalPlusEnabled:(BOOL)enabled;
+
 - (GOALPadSurfaceGeometry)geometry;
 
 /// Arm the surface immediately before the GOAL frame so its DMA send can render synchronously.

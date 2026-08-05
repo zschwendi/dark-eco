@@ -1,6 +1,8 @@
 #import "GOALPadRuntimeBridge.h"
 
+#include "GOALPadEngineSeams.h"
 #include "GOALPadMetalHost.hpp"
+#include "GOALPadPresentationGeometry.hpp"
 
 #import <Metal/Metal.h>
 
@@ -13,17 +15,14 @@
  *
  * The game renders into an offscreen target at its own internal resolution and a PCRTC-style
  * present pass draws that target into a centred, letterboxed region of the drawable. That is what
- * `MetalRenderer::encode_present_pass` in the OpenGOAL fork does, and it is the contract this
- * surface satisfies: a layer with a known drawable size and pixel format, an internal resolution,
- * and a draw region that keeps the game's 4:3 aspect.
+ * `MetalRenderer::encode_present_pass` in the OpenGOAL fork does. Classic preserves that exact
+ * 4:3 contract. The opt-in Hor+ path widens both the internal target and GOAL's existing automatic
+ * camera aspect to the drawable while retaining the target height.
  *
  * The renderer itself is driven by the begin/end frame pair in GOALPadMetalHost.mm. This file
  * decides only where the game frame goes on the screen.
  */
 
-/*! The PS2's internal resolution, which the game's own render target is a multiple of. */
-static const int32_t kGameBaseWidth = 640;
-static const int32_t kGameBaseHeight = 480;
 static const int32_t kMaxInternalScale = 4;
 
 static GOALPadMercTransformEvent makeMercTransformEvent(
@@ -381,6 +380,7 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
   CAMetalLayer *_layer;
   CGSize _drawableSize;
   int32_t _internalScale;
+  BOOL _horizontalPlusEnabled;
 }
 
 + (GOALPadRenderSurface *)shared {
@@ -397,6 +397,7 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
   if (self) {
     _drawableSize = CGSizeZero;
     _internalScale = 2;
+    _horizontalPlusEnabled = NO;
     self.lastError = @"";
   }
   return self;
@@ -423,34 +424,39 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
   }
   _drawableSize = size;
   _layer.drawableSize = size;
+  [self updatePortableDisplaySize];
 }
 
 - (void)setInternalResolutionScale:(int32_t)scale {
   _internalScale = std::clamp(scale, (int32_t)1, kMaxInternalScale);
 }
 
-- (GOALPadSurfaceGeometry)geometry {
-  GOALPadSurfaceGeometry geometry = {};
-  geometry.drawableWidth = (int32_t)_drawableSize.width;
-  geometry.drawableHeight = (int32_t)_drawableSize.height;
-  geometry.internalWidth = kGameBaseWidth * _internalScale;
-  geometry.internalHeight = kGameBaseHeight * _internalScale;
+- (void)setHorizontalPlusEnabled:(BOOL)enabled {
+  _horizontalPlusEnabled = enabled;
+  [self updatePortableDisplaySize];
+}
 
-  // The largest rectangle of the game's own aspect that fits in the drawable. The present pass
-  // centres this and clears the rest to black.
-  if (geometry.drawableWidth > 0 && geometry.drawableHeight > 0) {
-    const int64_t byWidth = (int64_t)geometry.drawableWidth * geometry.internalHeight;
-    const int64_t byHeight = (int64_t)geometry.drawableHeight * geometry.internalWidth;
-    if (byWidth <= byHeight) {
-      geometry.drawRegionWidth = geometry.drawableWidth;
-      geometry.drawRegionHeight =
-          (int32_t)(byWidth / std::max(geometry.internalWidth, (int32_t)1));
-    } else {
-      geometry.drawRegionHeight = geometry.drawableHeight;
-      geometry.drawRegionWidth =
-          (int32_t)(byHeight / std::max(geometry.internalHeight, (int32_t)1));
-    }
-  }
+- (void)updatePortableDisplaySize {
+#if GOALPAD_HAVE_SOUND_SEAM
+  const auto geometry = goalpad::presentation_geometry(
+      (int32_t)_drawableSize.width, (int32_t)_drawableSize.height, _internalScale,
+      _horizontalPlusEnabled);
+  goal_kernel_core_set_portable_display_size(geometry.game_display_width,
+                                             geometry.game_display_height);
+#endif
+}
+
+- (GOALPadSurfaceGeometry)geometry {
+  const auto calculated = goalpad::presentation_geometry(
+      (int32_t)_drawableSize.width, (int32_t)_drawableSize.height, _internalScale,
+      _horizontalPlusEnabled);
+  GOALPadSurfaceGeometry geometry = {};
+  geometry.drawableWidth = calculated.drawable_width;
+  geometry.drawableHeight = calculated.drawable_height;
+  geometry.internalWidth = calculated.internal_width;
+  geometry.internalHeight = calculated.internal_height;
+  geometry.drawRegionWidth = calculated.draw_region_width;
+  geometry.drawRegionHeight = calculated.draw_region_height;
   return geometry;
 }
 
