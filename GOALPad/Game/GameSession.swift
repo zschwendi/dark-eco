@@ -222,11 +222,8 @@ final class GameSession {
             framesPresented += 1
         }
         let renderer = surface.stats
-        #if os(iOS) || os(visionOS)
-        persistCameraDiagnosticsIfNeeded(renderer,
-                                         targetControl: surface.targetControlTelemetry,
-                                         periodic: shouldLog)
-        #endif
+        // File snapshots remain available at startup and lifecycle boundaries, never in this
+        // display callback.
         if shouldLog { logRunningState(renderer: renderer) }
         input.applyRumble()
     }
