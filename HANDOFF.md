@@ -12729,6 +12729,8 @@ Validation passed:
 - Individual Swift parse checks for the changed store and check scripts.
 - `git diff --check` in the parent and nested repositories.
 - Signed generic iPhoneOS Release Build 91.
+- Unsigned ARM64 macOS Release Build 91.
+- Unsigned generic visionOS Release Build 91.
 
 The first focused settings run was blocked before testing by the sandboxed
 Swift macro plugin service. The identical command passed with normal Xcode
@@ -12742,6 +12744,12 @@ two reproducible Build 90 DerivedData directories were removed, recovering
 about 1.8 GB. The signed Build 90 iPad app and all source worktrees remain
 preserved. The incremental Build 91 retry then exited `0`.
 
+The first generic visionOS attempt was likewise blocked by restricted Xcode
+service access with `cannot execute tool 'metal' due to missing Metal
+Toolchain`. The identical build exited `0` with normal Xcode service access.
+No Metal component download or source change was required. The ARM64 macOS
+build also exited `0`; both targets emitted only the existing warning set.
+
 The passing build command was:
 
 ```sh
@@ -12750,6 +12758,33 @@ xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
   -derivedDataPath /private/tmp/GOALPad-build91-modern-default \
   -jobs 2 -allowProvisioningUpdates \
   ENABLE_PREVIEWS=NO COMPILER_INDEX_STORE_ENABLE=NO \
+  GOALPAD_OPENGOAL_ROOT=/private/tmp/GP-modern-mode-horplus/OpenGOAL \
+  GOALPAD_OPENGOAL_GIT_METADATA=/Users/zach/Developer/OS_Projects/GOALPad/GOALPad/.git/worktrees/GP-build89-no-hotpath-diagnostics/modules/OpenGOAL/worktrees/OpenGOAL \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/build/jak1-source-object-pack \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache GOALPAD_BUILD_JOBS=2 \
+  CURRENT_PROJECT_VERSION=91 build
+```
+
+The passing cross-platform commands used the same pinned roots and serialized
+build ownership:
+
+```sh
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-build91-modern-matrix \
+  -jobs 2 ENABLE_PREVIEWS=NO COMPILER_INDEX_STORE_ENABLE=NO \
+  CODE_SIGNING_ALLOWED=NO \
+  GOALPAD_OPENGOAL_ROOT=/private/tmp/GP-modern-mode-horplus/OpenGOAL \
+  GOALPAD_OPENGOAL_GIT_METADATA=/Users/zach/Developer/OS_Projects/GOALPad/GOALPad/.git/worktrees/GP-build89-no-hotpath-diagnostics/modules/OpenGOAL/worktrees/OpenGOAL \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/build/jak1-source-object-pack \
+  GOALPAD_CCACHE_DIR=/private/tmp/GOALPad-ccache GOALPAD_BUILD_JOBS=2 \
+  CURRENT_PROJECT_VERSION=91 build
+
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=visionOS' \
+  -derivedDataPath /private/tmp/GOALPad-build91-modern-matrix \
+  -jobs 2 ENABLE_PREVIEWS=NO COMPILER_INDEX_STORE_ENABLE=NO \
+  CODE_SIGNING_ALLOWED=NO \
   GOALPAD_OPENGOAL_ROOT=/private/tmp/GP-modern-mode-horplus/OpenGOAL \
   GOALPAD_OPENGOAL_GIT_METADATA=/Users/zach/Developer/OS_Projects/GOALPad/GOALPad/.git/worktrees/GP-build89-no-hotpath-diagnostics/modules/OpenGOAL/worktrees/OpenGOAL \
   GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-clean-jak1-validation/build/jak1-source-object-pack \
@@ -12769,11 +12804,20 @@ Preserved signed candidate:
 - Mach-O UUID: `E6A06958-1A0A-3942-9DEC-653EDD0EBE92`
 - CDHash: `dd4befe52fbfea22bb7d3b8a1353b4bea4de0838`
 - Bundle size/files: 51 MB, 551 files
+- Unsigned macOS app:
+  `/private/tmp/GOALPad-build91-modern-mac/GOALPad.app`
+- Unsigned visionOS app:
+  `/private/tmp/GOALPad-build91-modern-vision/GOALPad.app`
+- macOS/visionOS Xcode activity logs:
+  `/private/tmp/GOALPad-build91-modern-matrix-logs/BuildLogs`
 
 `codesign -dv --verbose=4` recognized the embedded signature. Offline strict
 verification reports the known `CSSMERR_TP_NOT_TRUSTED` local trust limitation.
 Build 91 has not been installed, launched, or physically validated. No physical
-device was accessed for this checkpoint.
+device was accessed for this checkpoint. After preserving both products and
+the activity logs, only the exact reproducible
+`/private/tmp/GOALPad-build91-modern-matrix` DerivedData directory was removed,
+recovering about 1.1 GB; it can be recreated by the commands above.
 
 # ProMotion / 120 Hz effort research
 

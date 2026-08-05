@@ -838,6 +838,7 @@ Reset All select Modern Graphics with the accepted Fill Width option enabled;
 Controls, Audio, and UI remain Classic, and existing local or synced choices
 remain unchanged. Its signed generic iOS build passes, but it has not been
 installed or physically run and does not replace the Build 90 baseline.
+Unsigned ARM64 macOS and generic visionOS Release builds also pass.
 
 The historical checkpoint record follows. Checkpoint 37 was an earlier
 sustained physical gameplay and visual-fidelity run. Its signed build
