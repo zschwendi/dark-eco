@@ -12361,8 +12361,9 @@ On 2026-08-04, the maintainer explicitly authorized putting Build 87 on
 `Z iPad Pro` (`6A4111AB-1663-508A-98D9-F0C1A9EA7863`). The preserved app was
 installed in place with `devicectl`, preserving the existing app data
 container. Device-side app inspection confirmed Eco Pro `1.0 (87)`, bundle
-identifier `com.zephyrstudiosllc.eco`. Build 87 was not launched, logged, or
-captured; those actions require new explicit authorization.
+identifier `com.zephyrstudiosllc.eco`. The maintainer then explicitly
+authorized launch, and `devicectl` successfully launched that bundle
+identifier. No device logs or screen capture were requested or collected.
 
 Build 87 is implemented, build-validated, and installed, but it is not accepted
 until the maintainer confirms both gates on the physical device:
