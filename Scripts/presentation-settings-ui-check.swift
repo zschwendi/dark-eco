@@ -40,6 +40,8 @@ let root = CommandLine.arguments[1]
 let view = source(at: root + "/GOALPad/Saves/SaveSyncController.swift")
 let store = source(at: root + "/GOALPad/Game/PresentationSettings.swift")
 let session = source(at: root + "/GOALPad/Game/GameSession.swift")
+let content = source(at: root + "/GOALPad/ContentView.swift")
+let renderer = source(at: root + "/GOALPad/Game/RenderSettings.swift")
 
 check(occursInOrder([
     "Section(\"Preset\")",
@@ -64,6 +66,10 @@ check(store.contains("var graphicsModernFillWidthOverride: Bool?")
       "Modern Fill Width defaults on while preserving a user override")
 check(!store.contains("SaveSyncEngine") && !store.contains("TouchControls"),
       "presentation settings remain separate from save and touch behavior")
+check(content.contains("session.presentationSettings.graphicsFillWidth")
+        && content.contains("session.settings.horizontalPlusEnabled = enabled")
+        && renderer.contains("surface.setHorizontalPlusEnabled(horizontalPlusEnabled)"),
+      "the effective Graphics setting reaches only the opt-in Hor+ renderer seam")
 check(occursInOrder([
     "let presentationSettings = PresentationSettings()",
     "await presentationSettings.prepare()",

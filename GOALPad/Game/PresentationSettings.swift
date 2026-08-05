@@ -262,6 +262,10 @@ final class PresentationSettings {
 
         do {
             let remote = try await readCloudDocument(at: cloudURL)
+            guard cloudSyncEnabled else {
+                syncStatus = .disabled
+                return
+            }
             let winner: PresentationSettingsDocument
             if !hasLocalDocument, let remote {
                 winner = remote

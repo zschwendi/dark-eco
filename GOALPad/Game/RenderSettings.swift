@@ -19,6 +19,10 @@ final class RenderSettings {
 
     private static let defaultsKey = "internalResolutionScale"
 
+    var horizontalPlusEnabled = false {
+        didSet { apply() }
+    }
+
     var internalResolutionScale: Int {
         didSet {
             let clamped = min(max(internalResolutionScale, 1), Self.availableScales.count)
@@ -41,7 +45,9 @@ final class RenderSettings {
     }
 
     func apply() {
-        GOALPadRenderSurface.shared.setInternalResolutionScale(Int32(internalResolutionScale))
+        let surface = GOALPadRenderSurface.shared
+        surface.setInternalResolutionScale(Int32(internalResolutionScale))
+        surface.setHorizontalPlusEnabled(horizontalPlusEnabled)
     }
 
     func label(for scale: Int) -> String {

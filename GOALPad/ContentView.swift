@@ -82,6 +82,10 @@ struct ContentView: View {
         }
         .task { await session.prepare() }
         .onChange(of: scenePhase) { _, phase in session.scenePhaseChanged(to: phase) }
+        .onChange(of: session.presentationSettings.graphicsFillWidth, initial: true) {
+            _, enabled in
+            session.settings.horizontalPlusEnabled = enabled
+        }
         .sheet(isPresented: $showSettings) {
             NavigationStack {
                 SaveSettingsView(sync: session.saveSync, settings: session.presentationSettings)

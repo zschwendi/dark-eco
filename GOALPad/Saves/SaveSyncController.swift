@@ -468,7 +468,7 @@ struct SaveSettingsView: View {
                     get: { settings.graphicsFillWidth },
                     set: { settings.setGraphicsFillWidth($0) }
                 ))
-                Text("Presentation behavior remains unchanged until a separate renderer experiment.")
+                Text("Keeps the vertical view and widens the game horizontally to fill the display.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
