@@ -12454,3 +12454,58 @@ baseline and Build 85 remains the solved visual/gameplay baseline. The next
 task is to distinguish an actual CADisplayLink/presentation miss from a
 simulation/camera cadence jump or scheduled diagnostic I/O before changing
 renderer behavior again.
+
+# Build 89 no-hot-path-diagnostics A/B
+
+Date: 2026-08-04. Build 89 is a one-variable follow-up to Build 88's cool but
+regularly hitching physical result. It preserves exact shared-ETIE child
+`a9e764545a86dd624dae9248254f4f7a470e2ce3`, all renderer counters, display
+timing, audio, GPU submission/waits, the 600-frame cadence calculation and
+session log, and the visible build/PID identity.
+
+Parent worktree `/private/tmp/GP-build89-no-hotpath-diagnostics`, branch
+`agent/build89-no-hotpath-diagnostics`, commit
+`e77ae8433b712097b0134670b06848bb798f78bd`, removes only the in-frame call to
+`persistCameraDiagnosticsIfNeeded`. Camera/Merc snapshot formatting, target
+telemetry copying, and atomic cache-file replacement can no longer run inside
+the CADisplayLink callback. The startup snapshot and forced inactive/background
+snapshots remain, so the diagnostic surface is preserved outside active frame
+pacing.
+
+This is a falsification build, not a claimed fix. Build 79 and Build 88 have the
+same diagnostic path, so it cannot explain the Build 79-to-85 renderer
+regression. It can still be the remaining periodic hitch exposed after Build 88
+removed the sustained thermal load, because immediate camera/Merc evidence can
+trigger synchronous atomic writes more often than the normal 600-frame cadence.
+
+Validation passed:
+
+- `git diff --check` and focused Swift parsing.
+- `Scripts/run-camera-correction-diagnostics-check.sh`, including camera trace,
+  bridge, and persistence-policy checks.
+- 518-object AOT manifest preflight: 10,596 emitted functions and seven native
+  functions.
+- Generic signed iPhoneOS Release build with `CURRENT_PROJECT_VERSION=89`.
+
+The first signed-build attempt stopped before the app change compiled because
+the reused 89 MB generated `Jak1ImportComposer` cache named
+`/private/tmp/OG-build88-split-etie-helper`. Only that reproducible DerivedData
+directory was removed; the retry regenerated it against the exact shared-ETIE
+child and passed.
+
+The preserved result is
+`/private/tmp/GOALPad-build89-no-hotpath-diagnostics-signed/GOALPad.app`: Eco
+Pro `1.0 (89)`, bundle identifier `com.zephyrstudiosllc.eco`, thin ARM64, Team
+ID `V729QMY3V6`, executable SHA-256
+`21d9b661c1e92671d6c464793ec0ddd2f3ab17ad10d42b0351744127fe6ec28e`, UUID
+`24B3F339-474B-3D04-8CDC-97AB33A0F245`, and CDHash
+`6c2070e5b0fa8f69716e5c39e071038fbff69209`. Binary inspection confirms the
+build/PID banner remains present. Offline strict verification reports the known
+`CSSMERR_TP_NOT_TRUSTED` local trust limitation.
+
+Build 89 has not been installed or launched on the physical iPad. Its decisive
+test is the same route for more than 600 frames after a cold launch. If the
+regular hitch disappears, synchronous diagnostic persistence is isolated. If
+it remains, do not remove more counters; next correlate the miss with the
+unchanged prior-command-buffer wait, then test the footstep sound-start/audio
+mutex path if the hitch is actually gait-synchronized.
