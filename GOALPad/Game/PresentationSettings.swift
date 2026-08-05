@@ -28,12 +28,12 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
 
     var schemaVersion = Self.schemaVersion
     var controlsProfile: SettingsProfile = .classic
-    var graphicsProfile: SettingsProfile = .classic
+    var graphicsProfile: SettingsProfile = .modern
     var audioProfile: SettingsProfile = .classic
     var interfaceProfile: SettingsProfile = .classic
 
     /// `nil` means the selected profile's default. The only current graphics option belongs to
-    /// Modern, whose default is enabled; Classic always behaves as Build 89 regardless.
+    /// Modern, whose default is enabled; Classic always uses the preserved compatibility view.
     var graphicsModernFillWidthOverride: Bool?
     var modifiedAt: Date
     var writerID: String
@@ -83,7 +83,7 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
 
     mutating func resetAll() {
         controlsProfile = .classic
-        graphicsProfile = .classic
+        graphicsProfile = .modern
         audioProfile = .classic
         interfaceProfile = .classic
         graphicsModernFillWidthOverride = nil

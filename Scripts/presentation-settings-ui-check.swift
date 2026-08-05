@@ -62,8 +62,9 @@ check(view.contains("settings.profile(for: .graphics) == .modern")
         && view.contains("Fill Width (Hor+)"),
       "Fill Width is visible only for Modern graphics")
 check(store.contains("var graphicsModernFillWidthOverride: Bool?")
+        && store.contains("var graphicsProfile: SettingsProfile = .modern")
         && store.contains("return graphicsModernFillWidthOverride ?? true"),
-      "Modern Fill Width defaults on while preserving a user override")
+      "Graphics and Fill Width default to Modern while preserving a user override")
 check(!store.contains("SaveSyncEngine") && !store.contains("TouchControls"),
       "presentation settings remain separate from save and touch behavior")
 check(content.contains("session.presentationSettings.graphicsFillWidth")

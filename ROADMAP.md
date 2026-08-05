@@ -87,7 +87,9 @@ The active product sequence is now:
 2. Continue independent Controls, Graphics, Audio, and UI Classic/Modern
    profiles, section defaults, section restores, Reset All, and a Mixed-aware
    global preset. Persist the complete document locally and through optional
-   iCloud settings sync without coupling it to save sync.
+   iCloud settings sync without coupling it to save sync. Fresh settings and
+   Reset All default Graphics to Modern with Fill Width enabled while leaving
+   Controls, Audio, and UI in Classic.
 3. Preserve the accepted Graphics Modern Fill Width (Hor+) behavior, which
    keeps the vertical view and adds horizontal field of view on wide displays.
 4. Leave touch behavior unchanged until the maintainer resumes that product

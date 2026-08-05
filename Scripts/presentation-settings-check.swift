@@ -57,12 +57,16 @@ private func readDocument(at url: URL) -> PresentationSettingsDocument? {
 }
 
 @MainActor
-private func defaultsAreClassic() async throws {
-    print("defaults preserve the accepted Classic baseline")
+private func defaultsUseModernGraphics() async throws {
+    print("defaults use Modern Graphics without changing other sections")
     let fixture = try Fixture(name: "defaults")
     let value = settings(fixture, writerID: "device-a")
-    check(value.globalProfile == .classic, "all four sections begin in Classic")
-    check(value.graphicsFillWidth == false, "Classic never enables Fill Width")
+    check(value.globalProfile == nil, "the default section mix reports Mixed")
+    check(value.profile(for: .controls) == .classic, "Controls begins in Classic")
+    check(value.profile(for: .graphics) == .modern, "Graphics begins in Modern")
+    check(value.profile(for: .audio) == .classic, "Audio begins in Classic")
+    check(value.profile(for: .interface) == .classic, "UI begins in Classic")
+    check(value.graphicsFillWidth, "Modern Graphics begins with Fill Width enabled")
     check(value.cloudSyncEnabled, "settings cloud sync defaults on independently of saves")
 }
 
@@ -87,8 +91,13 @@ private func profilesCanBeMixedWithoutLosingOptions() async throws {
     check(value.document.graphicsModernFillWidthOverride == nil,
           "global profile changes do not discard section options")
     value.resetAll()
-    check(value.globalProfile == .classic && !value.graphicsFillWidth,
-          "Reset All restores the Classic baseline")
+    check(value.globalProfile == nil
+          && value.profile(for: .controls) == .classic
+          && value.profile(for: .graphics) == .modern
+          && value.profile(for: .audio) == .classic
+          && value.profile(for: .interface) == .classic
+          && value.graphicsFillWidth,
+          "Reset All restores the default Modern Graphics mix")
 }
 
 @MainActor
@@ -144,8 +153,9 @@ private func coordinatedFirstCloudWriteCreatesItsNestedDocument() async throws {
     let value = PresentationSettings(defaults: fixture.defaults, configuration: configuration,
                                      writerID: "device-a")
     await value.syncNow()
-    check(readDocument(at: fixture.cloud)?.globalProfile == .classic,
-          "a fresh coordinated cloud stores the Classic document")
+    let stored = readDocument(at: fixture.cloud)
+    check(stored?.globalProfile == nil && stored?.graphicsProfile == .modern,
+          "a fresh coordinated cloud stores the default Modern Graphics mix")
 }
 
 @MainActor
@@ -203,7 +213,7 @@ private func unresolvedCloudVersionParticipatesInConflictResolution() async thro
 private struct PresentationSettingsCheck {
     static func main() async {
         do {
-            try await defaultsAreClassic()
+            try await defaultsUseModernGraphics()
             try await profilesCanBeMixedWithoutLosingOptions()
             try await localOptOutDoesNotTouchCloud()
             try await cloudSettingsConvergeAsOneDocument()

@@ -51,10 +51,11 @@ no private entitlement anywhere in the build.
 - **Experimental — Modern/Classic settings.** Controls, Graphics, Audio, and UI
   each retain an independent Classic/Modern profile, section defaults, and a
   Restore Defaults action. A global preset switches every section and reports
-  Mixed when profiles differ; Reset All returns to the all-Classic baseline.
+  Mixed when profiles differ. Fresh settings and Reset All use Modern Graphics
+  with Fill Width (Hor+) enabled while Controls, Audio, and UI remain Classic.
   The complete settings document syncs through iCloud by default, with a
-  per-device opt-out separate from iCloud saves. Graphics Modern adds Fill
-  Width (Hor+), physically accepted on an 11-inch iPad Pro.
+  per-device opt-out separate from iCloud saves. Hor+ is physically accepted on
+  an 11-inch iPad Pro.
 - **Experimental — iPad.** Jak 1 boots, renders, and plays on physical iPad. A
   broad Build 89 early-game session established the accepted Classic behavior.
   Build 90 preserves it, adds the settings shell, and is now the unified

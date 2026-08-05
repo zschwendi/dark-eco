@@ -122,8 +122,11 @@ every-level, every-save, every-orientation, or every-controller certification.
 The first enhancement layer is a versioned Modern/Classic settings model.
 Controls, Graphics, Audio, and UI each retain an independent profile and their
 own option values; a global preset can switch all four while accurately showing
-Mixed when they differ. Settings sync through a separate iCloud document by
-default, with a device-local opt-out that does not disable iCloud saves.
+Mixed when they differ. Fresh settings and Reset All select Modern Graphics
+with Fill Width enabled while Controls, Audio, and UI remain Classic. Existing
+saved profile choices are preserved. Settings sync through a separate iCloud
+document by default, with a device-local opt-out that does not disable iCloud
+saves.
 
 Enhancement work proceeds in this order:
 
