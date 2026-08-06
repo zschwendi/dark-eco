@@ -52,6 +52,14 @@ enum TouchControlStyle: String, CaseIterable, Sendable {
     case classic
 }
 
+/// A discrete, app-owned touch action that may receive device feedback.
+/// These are intentionally separate from native game/controller rumble.
+enum TouchHapticEvent: Equatable {
+    case button(TouchButton)
+    case gesture(TouchButton)
+    case stickEngaged
+}
+
 struct TouchSafeAreaInsets: Equatable, Sendable {
     var top: CGFloat = 0
     var leading: CGFloat = 0
@@ -321,6 +329,7 @@ final class TouchControls {
         var crouchPeakY: CGFloat? = nil
         var jumpTriggered = false
         var punchTriggered = false
+        var stickHapticTriggered = false
         let radius: CGFloat
         let deadzone: CGFloat
     }
@@ -328,6 +337,7 @@ final class TouchControls {
     private(set) var touches: [ObjectIdentifier: Tracked] = [:]
     private(set) var isEngaged = false
     private(set) var surfaceSafeAreaInsets = TouchSafeAreaInsets.zero
+    @ObservationIgnored private var hapticEvents: [TouchHapticEvent] = []
 
     var stick: Tracked? { touches.values.first { $0.role == .movement } }
     var rightStick: Tracked? { touches.values.first { $0.role == .rightStick } }
@@ -408,7 +418,10 @@ final class TouchControls {
         }
         touches[id] = Tracked(id: id, role: role, origin: origin, point: point,
                               radius: radius, deadzone: deadzone)
-        if case .pill(let button) = role { press(button) }
+        if case .pill(let button) = role {
+            press(button)
+            enqueueHaptic(.button(button))
+        }
         engage()
     }
 
@@ -416,9 +429,17 @@ final class TouchControls {
         guard var touch = touches[id] else { return }
         touch.point = point
         touch.travelled = max(touch.travelled, Self.distance(touch.origin, point))
-        if touch.role == .gesture, touch.swiped == nil, touch.travelled >= Self.swipeDistance,
+        if (touch.role == .movement || touch.role == .rightStick), !touch.stickHapticTriggered,
+           Self.distance(.zero, Self.radialDeflection(from: touch.origin, to: point,
+                                                      radius: touch.radius,
+                                                      deadzone: touch.deadzone)) >= 0.5 {
+            touch.stickHapticTriggered = true
+            enqueueHaptic(.stickEngaged)
+        } else if touch.role == .gesture, touch.swiped == nil,
+                  touch.travelled >= Self.swipeDistance,
            let button = Self.swipe(from: touch.origin, to: point) {
             touch.swiped = button
+            enqueueHaptic(.gesture(button))
             if button == .crouch {
                 touch.crouchPeakY = point.y
                 touchLog.debug("crouch")
@@ -432,11 +453,13 @@ final class TouchControls {
             if !touch.punchTriggered, horizontal <= -Self.swipeDistance {
                 touch.punchTriggered = true
                 press(.square)
+                enqueueHaptic(.gesture(.square))
                 touchLog.debug("crouch punch")
             }
             if !touch.jumpTriggered, peak - point.y >= Self.rollJumpDistance {
                 touch.jumpTriggered = true
                 press(.cross)
+                enqueueHaptic(.gesture(.cross))
                 touchLog.debug("roll jump")
             }
         }
@@ -458,8 +481,15 @@ final class TouchControls {
         touches.removeAll()
         pulses.removeAll()
         dpad = DirectionRepeat()
+        hapticEvents.removeAll()
         fadeToken += 1
         isEngaged = false
+    }
+
+    /// Returns and clears touch-owned feedback actions without affecting game input state.
+    func consumeHapticEvents() -> [TouchHapticEvent] {
+        defer { hapticEvents.removeAll() }
+        return hapticEvents
     }
 
     private func role(for point: CGPoint, in size: CGSize,
@@ -590,6 +620,10 @@ final class TouchControls {
 
     private func press(_ button: TouchButton) {
         pulses[button, default: Pulse()].press()
+    }
+
+    private func enqueueHaptic(_ event: TouchHapticEvent) {
+        hapticEvents.append(event)
     }
 
     /// Converts strong movement into one repeated dominant-axis D-pad direction for menus.

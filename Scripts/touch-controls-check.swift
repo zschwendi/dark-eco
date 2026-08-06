@@ -64,6 +64,10 @@ private struct Runner {
     func up(_ finger: Finger) {
         controls.ended(ObjectIdentifier(finger), at: clock)
     }
+
+    func cancel(_ finger: Finger) {
+        controls.cancelled(ObjectIdentifier(finger))
+    }
 }
 
 private let neutral = UInt8(GOALPadAnalogNeutral)
@@ -508,6 +512,79 @@ private func resetClearsInterruptedInput() {
 }
 
 @MainActor
+private func touchHapticsAreDiscreteAndRearmSafely() {
+    print("touch haptics are discrete, style-aware, and reset-safe")
+    var modern = Runner()
+    let start = Finger()
+    let startCentre = CGPoint(x: Runner.start.midX, y: Runner.start.midY)
+    modern.down(start, startCentre)
+    check(modern.controls.consumeHapticEvents() == [.button(.start)],
+          "Modern Start emits one button event at touch-down")
+    _ = modern.frames(20)
+    check(modern.controls.consumeHapticEvents().isEmpty,
+          "held buttons and frame polling do not emit feedback events")
+    modern.up(start)
+    check(modern.controls.consumeHapticEvents().isEmpty,
+          "lifting a button does not add passive feedback")
+
+    let gesture = Finger()
+    let gestureCentre = CGPoint(x: 900, y: 360)
+    modern.down(gesture, gestureCentre)
+    check(modern.controls.consumeHapticEvents().isEmpty,
+          "a pending Modern gesture is silent")
+    modern.move(gesture, CGPoint(x: gestureCentre.x, y: gestureCentre.y - 60))
+    check(modern.controls.consumeHapticEvents() == [.gesture(.cross)],
+          "a recognised Modern gesture emits one event")
+    modern.move(gesture, CGPoint(x: gestureCentre.x, y: gestureCentre.y - 120))
+    _ = modern.frames(20)
+    check(modern.controls.consumeHapticEvents().isEmpty,
+          "a held gesture never repeats feedback in the frame loop")
+    modern.cancel(gesture)
+    check(modern.controls.consumeHapticEvents().isEmpty,
+          "cancelling a gesture is silent")
+
+    let stick = Finger()
+    let stickCentre = CGPoint(x: 180, y: 650)
+    modern.down(stick, stickCentre)
+    modern.move(stick, CGPoint(x: stickCentre.x + 30, y: stickCentre.y))
+    check(modern.controls.consumeHapticEvents().isEmpty,
+          "small Modern stick travel does not count as engagement")
+    modern.move(stick, CGPoint(x: stickCentre.x + 55, y: stickCentre.y))
+    check(modern.controls.consumeHapticEvents() == [.stickEngaged],
+          "meaningful Modern stick engagement emits once")
+    modern.move(stick, CGPoint(x: stickCentre.x + 90, y: stickCentre.y))
+    _ = modern.frames(20)
+    check(modern.controls.consumeHapticEvents().isEmpty,
+          "held stick movement does not spam feedback")
+    modern.cancel(stick)
+    let rearmedStick = Finger()
+    modern.down(rearmedStick, stickCentre)
+    modern.move(rearmedStick, CGPoint(x: stickCentre.x + 55, y: stickCentre.y))
+    check(modern.controls.consumeHapticEvents() == [.stickEngaged],
+          "cancelling re-arms a new Modern stick contact")
+
+    modern.controls.reset()
+    check(modern.controls.consumeHapticEvents().isEmpty,
+          "reset clears pending feedback alongside interrupted input")
+    let resetStick = Finger()
+    modern.down(resetStick, stickCentre)
+    modern.move(resetStick, CGPoint(x: stickCentre.x + 55, y: stickCentre.y))
+    check(modern.controls.consumeHapticEvents() == [.stickEngaged],
+          "reset re-arms a fresh Modern stick contact")
+
+    var classic = Runner(style: .classic)
+    let layout = ClassicTouchLayout(size: Runner.screen, safeAreaInsets: Runner.safeAreaInsets)
+    let cross = Finger()
+    let crossFrame = layout.frame(for: .cross)!
+    classic.down(cross, CGPoint(x: crossFrame.midX, y: crossFrame.midY))
+    check(classic.controls.consumeHapticEvents() == [.button(.cross)],
+          "Classic face buttons emit one direct button event")
+    _ = classic.frames(20)
+    check(classic.controls.consumeHapticEvents().isEmpty,
+          "Classic held buttons also remain silent between touch events")
+}
+
+@MainActor
 private func styleSwitchClearsInterruptedInput() {
     print("switching profiles cannot strand input from the prior layout")
     var run = Runner()
@@ -748,6 +825,7 @@ struct TouchControlsCheck {
         pillsRemainExplicitControls()
         visibilityFollowsRecognisedTouch()
         resetClearsInterruptedInput()
+        touchHapticsAreDiscreteAndRearmSafely()
         styleSwitchClearsInterruptedInput()
         classicButtonsMapDirectly()
         classicSticksAreSymmetricalAndAnalog()

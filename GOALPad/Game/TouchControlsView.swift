@@ -339,6 +339,7 @@ private struct TouchSurface: UIViewRepresentable {
 
 private final class TouchSurfaceView: UIView {
     var controls: TouchControls?
+    private let haptics = TouchHapticDriver()
 
     override func layoutSubviews() {
         super.layoutSubviews()
@@ -364,23 +365,54 @@ private final class TouchSurfaceView: UIView {
             controls?.began(ObjectIdentifier(touch), at: touch.location(in: self),
                             in: bounds.size, safeAreaInsets: insets, at: touch.timestamp)
         }
+        flushHaptics()
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             controls?.moved(ObjectIdentifier(touch), to: touch.location(in: self))
         }
+        flushHaptics()
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             controls?.ended(ObjectIdentifier(touch), at: touch.timestamp)
         }
+        flushHaptics()
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             controls?.cancelled(ObjectIdentifier(touch))
+        }
+        flushHaptics()
+    }
+
+    private func flushHaptics() {
+        haptics.play(controls?.consumeHapticEvents() ?? [])
+    }
+}
+
+/// Maps touch-owned actions to device feedback; iPhone/iPad feedback has no controller-side locality.
+private final class TouchHapticDriver {
+    private let button = UIImpactFeedbackGenerator(style: .light)
+    private let gesture = UIImpactFeedbackGenerator(style: .medium)
+    private let stick = UISelectionFeedbackGenerator()
+
+    func play(_ events: [TouchHapticEvent]) {
+        for event in events {
+            switch event {
+            case .button:
+                button.impactOccurred(intensity: 0.75)
+                button.prepare()
+            case .gesture:
+                gesture.impactOccurred(intensity: 0.9)
+                gesture.prepare()
+            case .stickEngaged:
+                stick.selectionChanged()
+                stick.prepare()
+            }
         }
     }
 }
