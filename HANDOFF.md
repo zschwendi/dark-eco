@@ -13093,3 +13093,24 @@ Root reran `Scripts/run-touch-controls-check.sh`, iOS Swift parser checks, and
 `git diff --check`; all passed. Worker/ledger HEAD `074d9cdb` is pushed as
 `origin/agent/build100-pause-label`. Physical label fit, menu transitions, and
 touch ergonomics remain candidate gates.
+
+Build 101 integrates the keyboard/mouse worker code from `ddb0e8ed` as
+`7861e892`. GameController now adopts keyboards and mice alongside controllers.
+WASD emits full-range left-stick movement; Left/Right/Up arrows emit
+Square/Circle/Triangle; Down emits exactly the L1+R1 shoulder chord requested
+by the maintainer; Escape emits Start. Relative mouse movement drives the right
+stick, clamps to the PS2 byte range, and is consumed once so stopped motion
+cannot stick. Stick precedence is controller, keyboard/mouse, then touch;
+buttons union across sources and native controller rumble is unchanged. Mere
+connectivity does not hide touch artwork: controller, keyboard, or mouse must
+have activity within the same two-second window.
+
+`Scripts/run-keyboard-mouse-input-check.sh` and `git diff --check` passed after
+integration. The worker also passed warnings-as-errors macOS 26.5, iOS 26.5,
+and visionOS 26.5 SDK type-checks plus the established touch harness.
+Worker/ledger HEAD `cbe47d19` is pushed as
+`origin/agent/build97-keyboard-mouse`. Physical mouse vertical direction and
+sensitivity remain explicit ergonomic gates because Apple's raw-delta API does
+not specify the vertical sign; the isolated tentative convention matches the
+existing controller-Y conversion. Primary-source selection and remapping UI
+remain unimplemented rather than simulated.

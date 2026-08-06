@@ -449,6 +449,14 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 Active lanes:
 
+- `Integrated; focused validation passed; physical keyboard/mouse tuning
+  pending` — default keyboard/mouse input came from
+  `agent/build97-keyboard-mouse` in `/private/tmp/GP-build97-keyboard-mouse`.
+  Code commit `ddb0e8ed` is integrated as `7861e892`; worker/ledger HEAD
+  `cbe47d19` is pushed to `origin/agent/build97-keyboard-mouse`. Root reran
+  `Scripts/run-keyboard-mouse-input-check.sh` and `git diff --check`; both
+  passed. The worker also passed warnings-as-errors macOS, iOS, and visionOS
+  SDK type-checks.
 - `Integrated; focused validation passed; physical presentation pending` —
   Pause/Resume touch artwork came from `agent/build100-pause-label` in
   `/private/tmp/GP-build100-pause-label`. Code commit `c5da85d4` is integrated
@@ -541,11 +549,13 @@ Active lanes:
 - [ ] Add remapping for all supported mouse-and-keyboard inputs.
 - [ ] Define collision/duplicate-binding behavior, reset defaults, persistence,
   cloud sync, and unavailable-device presentation before calling remapping done.
-- [ ] Implement mouse/trackpad camera control and WASD movement.
-- [ ] Default keyboard face directions to Left = Square, Right = Circle,
-  Up = Triangle, and Down = the Jak 1 shoulder/stats action.
-- [ ] Default Escape to Start/Pause; map additional explicitly chosen keys to
-  Stats rather than treating arbitrary typing as gameplay input.
+- [x] Implement mouse/trackpad camera control and WASD movement.
+- [x] Default keyboard face directions to Left = Square, Right = Circle,
+  Up = Triangle, and Down = the exact L1+R1 shoulder chord. Ordinary Jak 1
+  progress/stats remains Start and is distinct from this speedrunner chord.
+- [x] Default Escape to Start/Pause.
+- [ ] Map additional explicitly chosen keys to Stats rather than treating
+  arbitrary typing as gameplay input.
 
 #### Touch profiles and customization
 
