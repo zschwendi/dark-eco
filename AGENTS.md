@@ -430,9 +430,12 @@ and its preserved signed app is
 `/private/tmp/GOALPad-build93-cloud-save-ux-signed/GOALPad.app`. Do not rewrite,
 amend, or repurpose that branch. New work starts from Build 93 in a later build
 and must not replace it until the maintainer accepts the physical comparison.
-Build 105 is the current signed transition candidate, not the accepted baseline;
-its exact long-session Sandover-to-Misty and Fire Canyon physical gate remains
-pending.
+Build 105 is a rejected transition candidate, not the accepted baseline. Its
+physical Sandover-to-Misty boat sequence still rendered an unloaded void and
+allowed Jak to fall through; death/respawn then recovered to an intact Misty
+Island with the boat correctly placed. Build 105 also showed a new iPad
+letterboxing/aspect regression. Preserve Build 93/90 presentation behavior
+until both failures have a separately validated replacement.
 
 ### Live Jak 1 orchestration ledger
 
@@ -505,14 +508,17 @@ Active lanes:
   approval boundary; every worker commit is preserved in this integration
   branch and will be pushed with the checkpoint. Modern pinch zoom is the only
   active touch-file owner.
-- `Signed, installed in place on Z iPad Pro; physical route pending` — Build 105 packages
+- `Signed and physically rejected as incomplete on Z iPad Pro` — Build 105 packages
   the Misty transition, Metal allocation rollback, DGO terminal failure, and
   Fire Canyon preview-title fixes. Parent packaging commit `5153fcfa` and nested
   OpenGOAL `c63c73ecf` are pushed. The preserved signed app is
   `/private/tmp/GOALPad-build105-misty-signed/GOALPad.app`. It was installed
-  without uninstalling or clearing app data on 2026-08-06; the authored route,
-  arrival collision, and Fire Canyon preview-title gate remain for the
-  maintainer to exercise.
+  without uninstalling or clearing app data on 2026-08-06. The authored boat
+  cutscene still entered an unloaded void and Jak could fall through; death
+  respawned on intact Misty with the boat correctly placed. The same physical
+  build also letterboxed the iPad Pro 11-inch with black bars at the top and
+  bottom, and changing Jak's native Aspect Ratio options could leave the image
+  squashed. Fire Canyon preview-title behavior was not re-reported in this run.
 
 - `Integrated; focused validation and signed-build validation passed; physical
   presentation pending` — the public product rename from Eco Pro to Eco came
@@ -617,12 +623,14 @@ Active lanes:
 
 #### Critical Sandover-to-Misty transition blocker
 
-- [ ] `In progress; Build 105 installed for the exact physical route` —
+- [ ] `Physically reproduced; Build 105 is only a partial recovery` —
   taking the Sandover Village boat toward Misty Island first presents a
   low-detail/untextured Sandover-like scene, then streamed world geometry
-  collapses into broken polygons/vertices during travel. Misty Island remains
-  corrupt on arrival and expected beach/ocean collision is absent, allowing
-  Jak to fall through and die.
+  remains absent during travel. Jak can jump out and fall through. After death,
+  the ordinary respawn does recover to intact Misty Island and the boat is in
+  its expected destination position. This proves the destination can become
+  resident after recovery, but it does not validate the boat transition,
+  cutscene world, or initial-arrival collision.
 - [x] Establish that Build 90 and Build 93 pin the same OpenGOAL revision and
   contain no renderer, shader, Metal-host, AOT, or generated-source delta.
   Classify this as an unvisited transition gap unless later evidence proves a
@@ -682,6 +690,13 @@ Active lanes:
   option `Fit to Screen`, and do not expose the implementation term `Hor+`.
 - [ ] Preserve Build 93's accepted Modern Graphics default and exact Classic
   presentation while moving that option.
+- [ ] Remove the PC-only `Display` and `Display Mode` rows from Jak 1's native
+  Graphics options on Apple devices. They cannot meaningfully control Eco's
+  app-owned surface and must not persist incompatible presentation state.
+- [ ] Repair the Build 105 physical presentation regression: Modern/Fit to
+  Screen must again fill the iPad Pro 11-inch as accepted in Build 90/93, with
+  no top/bottom black bars or squashing. Include a safe migration/reset for a
+  native Aspect Ratio choice changed while compensating for Build 105.
 - [x] Combine the duplicate `iCloud Settings` and `iCloud Saves` sections into
   one `iCloud` block with independent `Sync Settings` and `Sync Saves` toggles.
 - [x] Give that block one combined progress/status, last-sync date, and

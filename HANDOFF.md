@@ -13770,3 +13770,62 @@ proximity or gameplay logic in native code. This changes GOAL source, so it
 requires focused GOAL tests, regeneration/verification of the 518-object source
 pack, host/AOT validation, and a later signed numbered build before physical
 testing.
+
+# Physical Build 105 result and Build 111 interruption checkpoint
+
+Date: 2026-08-06. The maintainer completed the requested physical Build 105
+Sandover-to-Misty route on Z iPad Pro. Build 105 is not a complete fix and must
+not replace Build 93/90 as the accepted baseline.
+
+Physical Build 105 result:
+
+- The boat cutscene still travelled through an unloaded void. Jumping out let
+  Jak fall through missing world/collision.
+- After death, the game respawned on intact Misty Island and the boat was in its
+  expected destination location. This is only a recovery after failure, not a
+  correct authored transition.
+- The same build displayed black bars at the top and bottom of the iPad Pro
+  11-inch instead of the accepted Build 90/93 Fit to Screen presentation.
+  Changing the native Aspect Ratio options improved some framing but could
+  leave the picture squashed. The current persisted native aspect choice is
+  therefore not a reliable baseline and needs a safe reset/migration.
+- The maintainer requested removal of the PC-only `Display` and `Display Mode`
+  rows from Jak 1's native Graphics options. This is recorded in `AGENTS.md`;
+  no source removal is claimed at this checkpoint.
+
+Build 111 warp-gate work was stopped before its heavy/AOT/Xcode phase so the
+presentation regression can be handled first and context can be compacted:
+
+- Parent bridge commits integrated locally as `0e86ba94` and Swift touch UI as
+  `939a1eb6`; root native readback wiring is `68629374`.
+- Nested OpenGOAL publication is locally committed as `e82893326` on
+  `agent/build105-misty-runtime` and is the only nested change beyond pushed
+  `c63c73ecf`.
+- `Scripts/run-touch-controls-check.sh` passed with Xcode macro services.
+- `GOALPAD_OPENGOAL_SOURCE=/private/tmp/GP-build94-jak1-settings/OpenGOAL
+  Scripts/run-game-warp-gate-touch-state-check.sh` passed.
+- `python3 test/goalc/test_jak1_warp_gate_touch_contract.py` passed 6/6 and
+  Python bytecode compilation plus nested `git diff --check` passed.
+- The 518-object source pack and Jak 1 AOT were not regenerated. No Build 111
+  number bump, full Xcode build, signed artifact, push, simulator run, or
+  physical install was performed.
+- A nested push was attempted after focused validation. Sandboxed networking
+  could not resolve GitHub; the escalated push was rejected because the
+  `zschwendi/jak-pad` destination was treated as unverified. No remote state
+  changed. Do not work around that rejection.
+
+Exact local state at this checkpoint:
+
+- Parent worktree `/private/tmp/GP-build94-jak1-settings`, branch
+  `agent/build94-jak1-settings`, is three commits ahead of its remote before
+  this documentation commit and has the intentional modified OpenGOAL gitlink.
+- Nested worktree is clean at `e82893326`, one commit ahead of
+  `origin/agent/build105-misty-runtime`.
+- The independent Build 111 review and read-only Build 112 aspect diagnosis may
+  still be running. Recheck their mailbox/state after resuming.
+
+Next executable task: diagnose the Build 105 letterboxing/squashing against the
+accepted Build 90/93 presentation and settings persistence, implement the
+narrowest deterministic repair plus native-aspect recovery, then produce a
+numbered signed candidate. Return to Build 111 AOT packaging only after the
+physical presentation blocker has a safe checkpoint.
