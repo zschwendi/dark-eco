@@ -13526,6 +13526,8 @@ Not validated: physical controller/keyboard/mouse behavior, remapping Settings
 layout, and actual iCloud propagation between devices. These remain hardware/UI
 acceptance gates.
 
-Next FIFO integration checkpoint: the already-completed raw Game Center activity
-evidence seam at `5a259d69`, as Build 108. It exposes evidence only and does not
+Next FIFO integration checkpoint: the already-completed touch-menu MVP at
+`ead94a24`, as Build 108, because touch-friendly game interaction appears before
+Game Center in the maintainer's queue. The completed raw Game Center activity
+evidence seam at `5a259d69` remains isolated for Build 109 or later; it does not
 define normal-run start, completion, fastest/PB, leaderboard IDs, or submission.
