@@ -88,6 +88,17 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
     case confirm, back, cancel, resume
     case fuelCells, precursorOrbs, scoutFlies, settings
 
+    /// Boxed-array lengths installed by Jak 1's shipping PC `init-game-options` override.
+    private enum ShippingPCOptionCount {
+        static let settingsWithoutSecrets = 8
+        static let settingsWithSecrets = 9
+        static let gameSettings = 10
+        static let graphicSettings = 9
+        static let soundSettings = 4
+        static let title = 6
+        static let settingsTitle = 4
+    }
+
     var button: TouchButton {
         switch self {
         case .up: .up
@@ -167,9 +178,25 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
             guard !snapshot.selectedOption else { return [] }
             return [.fuelCells, .precursorOrbs, .scoutFlies, .settings]
         case 3:
-            return commonOptions(for: snapshot, maximumOptionCount: 7)
-        case 4, 5, 6, 27, 28:
-            return commonOptions(for: snapshot, maximumOptionCount: 4)
+            // The snapshot does not expose whether secrets are unlocked, so accept the larger of
+            // the two authoritative shipping arrays while still rejecting every later index.
+            return commonOptions(for: snapshot,
+                                 optionCount: ShippingPCOptionCount.settingsWithSecrets)
+        case 4:
+            return commonOptions(for: snapshot,
+                                 optionCount: ShippingPCOptionCount.gameSettings)
+        case 5:
+            return commonOptions(for: snapshot,
+                                 optionCount: ShippingPCOptionCount.graphicSettings)
+        case 6:
+            return commonOptions(for: snapshot,
+                                 optionCount: ShippingPCOptionCount.soundSettings)
+        case 27:
+            return commonOptions(for: snapshot,
+                                 optionCount: ShippingPCOptionCount.title)
+        case 28:
+            return commonOptions(for: snapshot,
+                                 optionCount: ShippingPCOptionCount.settingsTitle)
         case 16, 17:
             return fileOptions(for: snapshot, optionCount: 5)
         case 18:
@@ -181,13 +208,13 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
 
     nonisolated private static func commonOptions(
         for snapshot: NativeProgressMenuSnapshot,
-        maximumOptionCount: Int
+        optionCount: Int
     ) -> [Self] {
-        guard (0..<maximumOptionCount).contains(snapshot.optionIndex) else { return [] }
+        guard (0..<optionCount).contains(snapshot.optionIndex) else { return [] }
         if snapshot.selectedOption {
             return [.left, .right, .cancel, .confirm]
         }
-        return [.up, .down, .left, .right, .confirm]
+        return [.up, .down, .confirm]
     }
 
     nonisolated private static func fileOptions(

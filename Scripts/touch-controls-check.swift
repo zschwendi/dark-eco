@@ -952,8 +952,8 @@ private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
           "stats expose the exact Square, X, Triangle, and Circle destinations")
     let settings = progressSnapshot(screen: 3, option: 2)
     check(NativeMenuTouchAction.available(in: .progress, progress: settings)
-          == [.up, .down, .left, .right, .confirm],
-          "ordinary settings expose navigation and confirm without an unproven Back")
+          == [.up, .down, .confirm],
+          "unselected settings expose only the PC responder's Up, Down, and Confirm meanings")
     check(NativeMenuTouchAction.available(
         in: .progress, progress: progressSnapshot(screen: 3, option: 2, selected: true))
           == [.left, .right, .cancel, .confirm],
@@ -963,8 +963,28 @@ private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
           == [.up, .down, .back, .confirm],
           "load files expose the source-proven file-list Back meaning")
     check(NativeMenuTouchAction.available(
-        in: .progress, progress: progressSnapshot(screen: 3, option: 7)).isEmpty,
-          "out-of-range screen option state fails closed")
+        in: .progress, progress: progressSnapshot(screen: 3, option: 7))
+          == [.up, .down, .confirm],
+          "the eighth shipping main-settings row remains reachable")
+    let shippingPCLists = [
+        (label: "settings with secrets", screen: 3, optionCount: 9),
+        (label: "game settings", screen: 4, optionCount: 10),
+        (label: "graphic settings", screen: 5, optionCount: 9),
+        (label: "sound settings", screen: 6, optionCount: 4),
+        (label: "title", screen: 27, optionCount: 6),
+        (label: "title settings", screen: 28, optionCount: 4),
+    ]
+    for list in shippingPCLists {
+        check(NativeMenuTouchAction.available(
+            in: .progress,
+            progress: progressSnapshot(screen: list.screen, option: list.optionCount - 1))
+              == [.up, .down, .confirm],
+              "the highest valid \(list.label) shipping row remains reachable")
+        check(NativeMenuTouchAction.available(
+            in: .progress,
+            progress: progressSnapshot(screen: list.screen, option: list.optionCount)).isEmpty,
+              "the first invalid \(list.label) row fails closed")
+    }
     check(NativeMenuTouchAction.available(
         in: .progress, progress: progressSnapshot(screen: 29)).isEmpty
           && NativeMenuTouchAction.available(
@@ -1047,6 +1067,13 @@ private func nativeMenuActionsEmitOnlyExpectedInputBytes() {
     check(statsFrame.buttons.contains(.square) && statsFrame.buttons.contains(.cross)
           && statsFrame.buttons.contains(.triangle) && statsFrame.buttons.contains(.circle),
           "progress stats actions emit exact ordinary pad bits")
+
+    run.controls.setNativeMenuState(.progress,
+                                    progress: progressSnapshot(screen: 4, option: 9))
+    run.controls.performNativeMenuAction(.left)
+    run.controls.performNativeMenuAction(.confirm)
+    check(run.controls.consumeHapticEvents() == [.button(.cross)],
+          "unselected PC rows reject stale Left and emit only Confirm")
 
     run.controls.setNativeMenuState(
         .progress, progress: progressSnapshot(screen: 3, option: 1, selected: true))
