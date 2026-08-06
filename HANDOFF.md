@@ -15063,3 +15063,13 @@ is Jak Dark Eco, not merely a themed progress bar.
   silhouette/energy mark. The current icon is acceptable but visually vague and
   overbuilt, with an unwanted `MAR`/earthquake impression. Keep it until new
   variants are generated, checked at required sizes, and physically accepted.
+
+## Build 128 physical iPad install
+
+Date: 2026-08-06. With explicit current-request authorization, the frozen signed
+artifact `/private/tmp/GOALPad-build128-touch-chrome-signed/GOALPad.app` was
+reverified as Build 128 with a valid strict signature, then update-installed in
+place on `Z iPad Pro` at 17:21:45 without uninstalling or clearing its app
+container. Eco was launched with `--terminate-existing` at 17:21:55, so the
+foreground process is the Build 128 candidate rather than an older backgrounded
+instance. Physical acceptance remains with the maintainer.
