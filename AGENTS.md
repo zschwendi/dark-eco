@@ -491,6 +491,18 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 Active lanes:
 
+- `Build 117 touch editor installed; launch and physical acceptance pending` —
+  parent `f3058a64`, `270c2175`, and `a39e56af` add the per-game Modern/Classic
+  editor for safe position pinning, compatible remapping, opacity, size, and
+  reset. Parent `35864477` and `e6ca3325` isolate the layout in the frozen
+  `jak1-touch-layout-v1.json` local/iCloud sidecar so honest staggered Build
+  93/116 settings writers cannot erase it, preserve explicit reset tombstones,
+  and close cross-domain in-flight sync races. Independent review returned
+  ACCEPT and the final focused matrix plus signed generic-iOS Release build
+  pass. Build 117 installed in place on `Z iPad Pro` without uninstalling or
+  clearing data; the first launch request was denied only because the device
+  locked. Physical touch ergonomics, gameplay, VoiceOver, iCloud propagation,
+  and Build 93/Misty/Fit to Screen regression acceptance remain pending.
 - `Build 114 signed generic-iOS candidate ready; physical Misty/title gate
   pending` — nested OpenGOAL `352064ace`, `f260ae7df`, and `cb5032a83` make
   fisherman-boat arrival atomic: destination collision must genuinely ground
@@ -907,10 +919,16 @@ Active lanes:
   a separate L2+R2 action and generic state jumps remain unsupported.
 - [x] Make Start display `Pause` during gameplay and `Resume` while the native
   pause menu is open; keep Resume visible throughout that menu.
-- [ ] Add a touch-layout editor for position pinning/movement, remapping,
-  opacity, and size only after Classic and Modern have stable layout models.
-- [ ] Store touch customization per game and sync it with that game's settings
-  document.
+- [x] Add a touch-layout editor for position pinning/movement, compatible
+  remapping, opacity, and size after Classic and Modern have stable layout
+  models. Build 117 implements and signs the bounded editor; physical
+  ergonomics and VoiceOver operation remain acceptance gates.
+- [x] Store touch customization per game and sync it with that game's settings
+  domain. Build 117 uses the distinct frozen `jak1-touch-layout-v1.json`
+  sidecar so older same-schema presentation writers cannot erase layouts;
+  deterministic staggered-client, conflict, reset-tombstone, opt-out, and
+  in-flight edit checks pass. Real two-device iCloud propagation remains
+  physically unvalidated.
 
 #### Touch-friendly game and launcher interaction
 
@@ -1008,7 +1026,8 @@ architecture, gameplay-semantic, backend, or physical-tuning gate:
 
 1. Game Center friend presence and competitive run leaderboards.
 2. Universal `skip anything` behavior.
-3. Full draggable/resizable/opacity/remapping touch-layout editor.
+3. Touch-layout presets/sharing and further physical ergonomics beyond the
+   bounded Build 117 editor.
 4. Direct touch hit-testing for every native GOAL-rendered menu.
 5. Complete controller and mouse/keyboard remapping UI.
 6. Full mod manager/browser beyond a truthful local import entry.

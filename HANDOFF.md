@@ -14272,7 +14272,7 @@ This is documentation, not iPad compatibility or a legal conclusion. The
 curated Modern pack remains unapproved and the data-only manager remains parked
 behind its separate filesystem-authority decision.
 
-# Build 117 touch-editor in-flight checkpoint
+# Build 117 touch-editor checkpoint
 
 Date: 2026-08-06. Parent commits `f3058a64`, `270c2175`, and `a39e56af`
 integrate the reviewed Jak 1 touch-layout editor; `37614dd1` bumps both iOS
@@ -14286,26 +14286,47 @@ runner to compile the new production layout model and editor source.
 - Preview, gameplay rendering, and reverse hit ownership use the same explicit
   visual order. Modern camera owns topmost overlaps; Classic retains its
   established stack. Layout changes cancel active touches and transient input.
-- Root focused validation passed the touch-layout settings, touch runtime,
+- The first signed compile exposed an independently reviewed P1 before device
+  install: embedding layouts in schema-1 `presentation-v1.json` allowed an
+  honest older Build 116-style client to discard that unknown field and later
+  overwrite it. A schema bump at the same path was also unsafe because the old
+  client would treat it as absent and overwrite the file with schema 1.
+- Isolated corrective commits `6503984168` and `ad30a16ba8`, integrated as
+  parent `35864477` and `e6ca3325`, keep `presentation-v1.json` frozen and move
+  layout persistence to the distinct frozen `jak1-touch-layout-v1.json`
+  local/iCloud sidecar. Explicit reset writes a nil tombstone; embedded
+  pre-release layouts migrate only when no sidecar exists; both domain winners
+  are persisted locally before cloud writes can suspend; revision changes force
+  another pass rather than allowing either domain to overwrite a newer edit.
+- Deterministic tests simulate a Build 116-shaped local/cloud rewrite,
+  reset-before-sync, a presentation edit during a suspended sidecar upload,
+  touch-sidecar conflict arbitration, local opt-out, migration ordering, and
+  nil tombstone propagation. Two Sol xhigh review passes rejected the unsafe
+  drafts and the final exact series returned ACCEPT with no P0-P2 findings.
+- Root final validation passed the touch-layout settings, touch runtime,
   production presentation/typecheck, and complete save-sync suites. Logs are
-  `/private/tmp/GP-build117-root-touch-layout.log`,
-  `/private/tmp/GP-build117-root-touch-controls-serial.log`,
-  `/private/tmp/GP-build117-root-presentation-serial.log`, and
-  `/private/tmp/GP-build117-root-save-sync-serial.log`.
-- A signed generic-iOS Release compile exited 0 at Build 117 using the verified
+  `/private/tmp/GP-build117-final-touch-layout.log`,
+  `/private/tmp/GP-build117-final-touch-controls.log`,
+  `/private/tmp/GP-build117-final-presentation.log`, and
+  `/private/tmp/GP-build117-final-save-sync.log`.
+- The corrected signed generic-iOS Release build exited 0 using the verified
   518-object source pack (`2b812636de96f221`) and canonical 10,618-function AOT
-  corpus. Full log: `/private/tmp/GOALPad-build117-generic-ios.log`.
-- The compiled app was intentionally not installed. Independent review found
-  that embedding the new layout in schema-1 `presentation-v1.json` lets an
-  older Build 116-style client discard the unknown field and later overwrite
-  the customized layout. A schema bump at the same path would also be unsafe
-  because old clients treat it as absent and overwrite it with schema 1.
-- Corrective lane `/private/tmp/GP-build117-touch-layout-cloud-compat`, branch
-  `agent/build117-touch-layout-cloud-compat`, is moving layout persistence to a
-  distinct frozen `jak1-touch-layout-v1.json` local/iCloud document. It must
-  preserve a reset tombstone, reconcile both settings documents under the one
-  settings-sync status, and prove that a legacy presentation writer cannot
-  erase the layout before Build 117 is installed.
+  corpus. Full final log:
+  `/private/tmp/GOALPad-build117-generic-ios-final.log`.
+- Frozen product:
+  `/private/tmp/GOALPad-build117-touch-editor-signed/GOALPad.app`. It identifies
+  as Eco `1.0 (117)`, bundle `com.zephyrstudiosllc.eco`, thin ARM64, 53 MB, and
+  executable SHA-256
+  `42036ae4affa6b34382e0a786a42a95b40176244c15231150d0ee5e13fb23aca`.
+  It contains the exact privacy manifest, expected Zephyr Studios Game Center
+  and iCloud entitlements, and none of the audited retail payload extensions
+  (`iso`, `bin`, `dgo`, `cgo`, `str`, `vag`, or `fr3`). Strict local signature
+  verification has the known development-chain `CSSMERR_TP_NOT_TRUSTED`
+  result; Xcode signing and entitlement extraction passed.
+- `devicectl` installed Build 117 in place on paired `Z iPad Pro` at
+  `10:29:54` without uninstalling or clearing its app container. The immediate
+  launch request was denied by SpringBoard solely because the device had
+  locked; launch remains the only pending deployment step.
 
 Exact safe storage cleanup performed before the build removed only verified
 reproducible non-worktree caches
@@ -14319,8 +14340,7 @@ app at `/private/tmp/GOALPad-build93-cloud-save-ux-signed/GOALPad.app`, current
 worktrees and candidates, user data, simulators, and every Jak II path were
 preserved. The removed directories are reproducible only by rebuilding.
 
-Physical touch ergonomics, VoiceOver operation, gameplay, Build 93 regression,
-Misty/title correctness, and Fit to Screen acceptance remain pending. `Z iPad
-Pro` is authorized for an in-place update-install and launch only after the
-cloud-compatibility correction passes review, focused tests, and a final signed
-build; do not uninstall or clear its app data.
+Physical touch ergonomics, VoiceOver operation, gameplay, real multi-device
+iCloud propagation, Build 93 regression, Misty/title correctness, and Fit to
+Screen acceptance remain pending. Do not uninstall or clear `Z iPad Pro` app
+data when retrying the Build 117 launch.
