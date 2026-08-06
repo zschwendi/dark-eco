@@ -110,6 +110,8 @@ let lifecycle = section(session,
 check(!lifecycle.contains("GOALPadRuntimeBridge.stopKernel")
         && !lifecycle.contains("GOALPadRuntimeBridge.startKernel"),
       "background recovery preserves the active native run instead of faking a restart")
+check(lifecycle.contains("touch.restoreGameplayChromeAfterInterruption()"),
+      "foreground recovery restores discoverable active-gameplay touch chrome")
 
 if failures == 0 {
     print("game lifecycle route checks passed")

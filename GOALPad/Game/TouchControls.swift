@@ -121,10 +121,11 @@ struct NativeProgressMenuSnapshot: Equatable {
     }
 }
 
-/// App-session knowledge that is stricter than `target-title-wait`: boot/title transitions remain
-/// pre-run until the native title menu has been seen and gameplay subsequently resumes.
+/// App-session knowledge that is stricter than one instantaneous `target-title-wait` read.
+/// The title prompt and the following progress-owned title menu form a proven route into gameplay.
 nonisolated enum GameplayRunReadiness: Equatable, Sendable {
     case preRun
+    case titlePrompt
     case titleMenu
     case active
 
@@ -134,7 +135,8 @@ nonisolated enum GameplayRunReadiness: Equatable, Sendable {
         titleStartState: GOALPadTitleStartState,
         progress: NativeProgressMenuSnapshot
     ) -> Self {
-        if mode == .gameplay, titleStartState == .awaiting { return .preRun }
+        if mode == .gameplay, titleStartState == .awaiting { return .titlePrompt }
+        if current == .titlePrompt, mode == .progress { return .titleMenu }
         if mode == .progress, progress.available,
            progress.startingScreenRawValue == 27 { return .titleMenu }
         if current == .titleMenu, mode == .gameplay,
@@ -1304,6 +1306,7 @@ final class TouchControls {
         warpGateTouchSnapshot = snapshot
         retainsWarpGateTouchCapture = nextCaptureRetention
         reset()
+        restoreGameplayChromeAfterInterruption()
     }
 
     /// Owner/availability generation changes and stale native reads cancel a pending SKIP tap.
@@ -1572,6 +1575,15 @@ final class TouchControls {
         facePromptHapticEvents.removeAll()
         fadeToken += 1
         isEngaged = false
+    }
+
+    /// Input cancellation must not make ordinary active-gameplay chrome undiscoverable.
+    func restoreGameplayChromeAfterInterruption() {
+        guard nativeMenuMode == .gameplay,
+              runReadiness == .active,
+              titleStartState != .awaiting,
+              !capturesNativeTouchInput else { return }
+        noteScreenInteraction()
     }
 
     /// Returns and clears touch-owned feedback actions without affecting game input state.

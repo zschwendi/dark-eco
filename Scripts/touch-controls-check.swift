@@ -1417,8 +1417,20 @@ private func sessionControlStateMatrixIsExactAndFailClosed() {
         titleWait, mode: .progress, titleStartState: .unknown, progress: titleProgress)
     let activeRun = GameplayRunReadiness.advance(
         titleMenu, mode: .gameplay, titleStartState: .notAwaiting, progress: .unavailable)
-    check(titleWait == .preRun && titleMenu == .titleMenu && activeRun == .active,
+    check(titleWait == .titlePrompt && titleMenu == .titleMenu && activeRun == .active,
           "title wait, title menu, and resumed gameplay form the exact run-readiness sequence")
+
+    let snapshotlessTitleMenu = GameplayRunReadiness.advance(
+        titleWait, mode: .progress, titleStartState: .unknown, progress: .unavailable)
+    let snapshotlessActiveRun = GameplayRunReadiness.advance(
+        snapshotlessTitleMenu, mode: .gameplay, titleStartState: .notAwaiting,
+        progress: .unavailable)
+    check(snapshotlessTitleMenu == .titleMenu && snapshotlessActiveRun == .active,
+          "the observed title prompt and progress owner cannot strand loaded gameplay pre-run")
+    check(GameplayRunReadiness.advance(
+        .preRun, mode: .progress, titleStartState: .unknown,
+        progress: .unavailable) == .preRun,
+          "an unproven progress owner cannot invent an active run before the title prompt")
 
     let pcOnly = progressSnapshot(screen: 35, startingScreen: 0,
                                   canExitWithStart: true, canGoBack: true)
@@ -1576,6 +1588,21 @@ private func build128ChromeStateMatrixAndRightStickRecovery() {
     check(hiddenStick.controls.performZoomToggle(lookAroundState: .normal)
           && hiddenStick.controls.isEngaged,
           "a semantic Zoom tap also restores touch presentation immediately")
+
+    hiddenStick.controls.setWarpGateTouchSnapshot(.validUnavailable(sequence: 200))
+    check(hiddenStick.controls.isEngaged,
+          "a non-capturing warp publication cannot erase the active-gameplay R reveal")
+    hiddenStick.controls.setWarpGateTouchSnapshot(warpList(sequence: 202))
+    check(!hiddenStick.controls.isEngaged,
+          "destination-list capture still cancels gameplay chrome and input")
+    hiddenStick.controls.setWarpGateTouchSnapshot(.validUnavailable(sequence: 204))
+    check(hiddenStick.controls.isEngaged,
+          "leaving warp capture restores the discoverable R control")
+
+    hiddenStick.controls.reset()
+    hiddenStick.controls.restoreGameplayChromeAfterInterruption()
+    check(hiddenStick.controls.isEngaged,
+          "foreground recovery explicitly restores active-gameplay R presentation")
 }
 
 @MainActor

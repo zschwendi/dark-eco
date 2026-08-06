@@ -1409,6 +1409,7 @@ final class GameSession {
                 audio.resumeIfSuspended()
                 return
             }
+            touch.restoreGameplayChromeAfterInterruption()
             if isStartingGameplay {
                 audio.resumeIfSuspended()
             }
