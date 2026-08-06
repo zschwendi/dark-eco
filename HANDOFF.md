@@ -14825,3 +14825,28 @@ physically accepted and must not change. Freeze its labels, action list, capture
 and swipe behavior. The next inventory/implementation must cover only other authored
 Jak 1 prompts and interactions, using their actual owner/button state rather than
 generalizing or replacing the warp implementation.
+
+## Build 127 non-warp authored prompts active workers
+
+Date: 2026-08-06. The source-complete inventory is committed and pushed at parent
+`6df50e15` in `docs/JAK1_TOUCH_PROMPT_INVENTORY.md`. Root is the only integration
+and heavy-build owner. Active clean worker bases are:
+
+- Nested GOAL publication: `/private/tmp/OG-build127-face-prompts`, branch
+  `agent/build127-face-prompts`, based on nested `2e0438416`.
+- Parent native reader and Objective-C bridge:
+  `/private/tmp/GP-build127-face-native`, branch `agent/build127-face-native`,
+  based on parent `7aae5392`.
+- Parent Swift session/reducer/UI:
+  `/private/tmp/GP-build127-face-swift`, branch `agent/build127-face-swift`, based
+  on parent `7aae5392`.
+
+All three lanes use Sol xhigh and own disjoint files. They must commit and push
+focused work before root integration. The accepted warp implementation, separate
+cutscene SKIP path, Jak II, docs, and Xcode build number are outside worker scope.
+No heavy CMake/AOT/Xcode build or physical-device access is delegated. After review,
+root must integrate the parent commits, advance the nested gitlink, regenerate and
+verify the changed 518-object Jak 1 source pack and AOT corpus once, bump both iOS
+configurations to 127, run the focused matrix and one signed generic-iOS build, then
+record the physical acceptance route without accessing a device unless currently
+authorized.

@@ -583,6 +583,17 @@ Active lanes:
   card, warp, and background-resume acceptance remain pending. After that,
   stop nonessential iOS settings work and prioritize true stereoscopic visionOS
   rendering.
+- `Build 127 non-warp authored prompt implementation in progress` — the
+  source-backed inventory is committed at `6df50e15` and recorded in
+  `docs/JAK1_TOUCH_PROMPT_INVENTORY.md`. Three non-overlapping Sol xhigh lanes
+  are active: nested GOAL publication in `/private/tmp/OG-build127-face-prompts`
+  on `agent/build127-face-prompts`; native validation/Objective-C bridge in
+  `/private/tmp/GP-build127-face-native` on `agent/build127-face-native`; and
+  Swift session/reducer/UI work in `/private/tmp/GP-build127-face-swift` on
+  `agent/build127-face-swift`. Root remains the sole integration and heavy-build
+  owner. No worker may edit the accepted warp implementation, Jak II, docs, or
+  the Xcode build number. Integration, source-pack/AOT regeneration, signed
+  Build 127, and physical gameplay acceptance are pending.
 - `Build 114 signed generic-iOS candidate ready; physical Misty/title gate
   pending` — nested OpenGOAL `352064ace`, `f260ae7df`, and `cb5032a83` make
   fisherman-boat arrival atomic: destination collision must genuinely ground
