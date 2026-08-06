@@ -498,7 +498,7 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 Active lanes:
 
-- `Build 122 rejected; Build 123 single-owner touch restoration in progress` —
+- `Build 123 installed; physical single-owner touch acceptance pending` —
   Build 118's physical run exposed
   missing Start/Resume chrome and missing native-menu Back actions. Parent
   `3588baf3`, `64050a11`, `c6757a51`, and `c85ce554` add exact read-only title
@@ -544,10 +544,13 @@ Active lanes:
   regression: ordinary one-finger gameplay touch is almost entirely starved.
   Walking, jumping, Pause, and camera normally do nothing; only five-finger
   spamming can occasionally produce a movement, kick, or camera sample roughly
-  once every several seconds. Restore Build 96's single raw UIKit gameplay-touch
-  owner. Move touch-recovery into that owner before mapping its touches, remove
-  the post-Build-96 root zero-distance SwiftUI gesture, and retain the semantic
-  title/menu buttons plus the accepted camera layout unchanged.
+  once every several seconds. Build 123 restores Build 96's single raw UIKit
+  gameplay-touch owner: touch recovery now occurs inside that owner before the
+  same batch is mapped, and the post-Build-96 root zero-distance SwiftUI gesture
+  is gone. The semantic title/menu buttons and accepted camera layout are
+  unchanged. Focused input/menu/settings checks and the signed Release build
+  pass; Build 123 is update-installed and launched with the existing app data
+  preserved. Normal one- and two-finger physical gameplay is the immediate gate.
   Physical card, simultaneous touch/physical-input, warp, and background-resume
   acceptance remain pending after title entry works. After that,
   stop nonessential iOS settings work and prioritize true stereoscopic visionOS

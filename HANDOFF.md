@@ -14621,3 +14621,45 @@ competing root gesture and call the existing recovery closure from
 `TouchSurfaceView.touchesBegan` before mapping those same UIKit touches. Keep the
 semantic title/native-menu buttons, intentional menu/warp swipe gestures, and
 the physically accepted right-camera geometry unchanged.
+
+## Build 123 single-owner touch candidate installed
+
+Commit `918e268c` implements the narrow restoration and bumps both app
+configurations to Build 123. The root zero-distance SwiftUI gesture is removed.
+The UIKit `TouchSurfaceView` now performs optional ownership recovery and then
+forwards the same touch batch into the unchanged Build 96 gameplay mapper.
+Semantic title, native-menu, and warp action owners recover input from their own
+actions. The accepted camera geometry, `TouchControls` mappings, engine cadence,
+pinch recognizer, and intentional menu/warp swipe gestures are unchanged.
+
+Validation passed:
+
+- `git diff --check` and `swiftc -parse GOALPad/Game/TouchControlsView.swift`.
+- `Scripts/run-touch-controls-check.sh`, including ordered batch forwarding and
+  a guard against reintroducing the competing root gesture.
+- `Scripts/run-keyboard-mouse-input-check.sh`.
+- `Scripts/run-game-menu-state-check.sh`.
+- `Scripts/run-presentation-settings-check.sh`.
+- `Scripts/run-portrait-library-check.sh`.
+- Signed generic-iOS Release build:
+
+`xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad -configuration Release -destination generic/platform=iOS -derivedDataPath /private/tmp/GOALPad-build123-single-touch-owner -jobs 4 -allowProvisioningUpdates GOALPAD_OPENGOAL_ROOT=/private/tmp/GP-build94-jak1-settings/OpenGOAL GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/private/tmp/GP-build94-jak1-settings/build/jak1-source-object-pack build`
+
+The complete Xcode activity log is
+`/private/tmp/GOALPad-build123-single-touch-owner/Logs/Build/CEBDE3AE-243D-4BCE-ADD5-EF75AD13B293.xcactivitylog`.
+The build reverified all 518 source objects at aggregate
+`2b812636de96f221`. The frozen artifact is
+`/private/tmp/GOALPad-build123-single-touch-owner-signed/GOALPad.app`: Eco
+`1.0 (123)`, `com.zephyrstudiosllc.eco`, thin ARM64, 52 MB, executable SHA-256
+`8a0b97a26752119a0f9b66f991a1ff661db7f66a0fae646cd399eb66e458a1c6`.
+It contains one byte-identical valid privacy manifest, the Zephyr Studios Game
+Center and iCloud entitlements, and no audited ISO/BIN/DGO/CGO/STR/VAG/FR3
+payload. Strict local signature verification passes.
+
+At `13:46:18` Build 123 was update-installed in place on `Z iPad Pro` without
+uninstalling or clearing its app container. At `13:46:27` it was launched with
+`--terminate-existing`. Physical validation is intentionally still pending:
+normal one-finger walking, camera, gesture, and Pause input plus ordinary
+two-finger walk-and-camera must be immediate and continuous without multi-finger
+spamming. Static tests cannot prove SwiftUI/UIKit recognizer arbitration on the
+physical device.
