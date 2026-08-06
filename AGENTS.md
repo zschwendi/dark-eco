@@ -835,6 +835,18 @@ not the requested volumetric world.
   and iCloud policy, safe rollback, and whether content is original/user-owned.
   Do not bundle, download, recommend importing, or silently accept retail-derived
   game assets, and do not present the existing game-data importer as a mod manager.
+- [ ] After that inventory, define a maintainer-approved Modern curated pack
+  covering the major compatible QoL, graphics, texture, and original-content
+  additions available through August 2026. Classic must remain the accepted
+  unmodified presentation; Modern may enable the approved built-in features and
+  bundled content as a coherent preset while retaining per-setting overrides.
+  Before any third-party item enters the app or repository, verify exact source,
+  version, license/redistribution permission, attribution, dependency/load order,
+  user-game-data separation, storage cost, iOS/visionOS behavior, and whether it
+  contains or derives from retail assets. Do not bundle copyrighted game assets,
+  merely publicly downloadable content without redistribution permission, or
+  runtime code that bypasses the signed AOT architecture. Classify excluded items
+  as user-installed or unsupported rather than weakening these boundaries.
 
 ## Code clarity
 
