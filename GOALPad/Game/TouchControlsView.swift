@@ -7,6 +7,7 @@ import UIKit
 /// The selected Modern gesture layer or Classic DualShock-like overlay over the game surface.
 struct TouchControlsView: View {
     let controls: TouchControls
+    let lookAroundState: GOALPadLookAroundState
     /// Active physical input hides the artwork until the screen is touched again.
     let isSuppressed: Bool
     let isNativeMenuOpen: Bool
@@ -25,7 +26,7 @@ struct TouchControlsView: View {
         GeometryReader { proxy in
             ZStack {
                 #if canImport(UIKit)
-                TouchSurface(controls: controls)
+                TouchSurface(controls: controls, lookAroundState: lookAroundState)
                 #endif
 
                 artwork(in: proxy)
@@ -322,24 +323,41 @@ private struct RightStickControl: View {
 /// The one view that sees raw multitouch and hands each finger to the state machine by identity.
 private struct TouchSurface: UIViewRepresentable {
     let controls: TouchControls
+    let lookAroundState: GOALPadLookAroundState
 
     func makeUIView(context: Context) -> TouchSurfaceView {
         let view = TouchSurfaceView()
         view.isMultipleTouchEnabled = true
         view.backgroundColor = .clear
         view.controls = controls
+        view.lookAroundState = lookAroundState
+        view.setPinchEnabled(controls.style == .modern)
         return view
     }
 
     func updateUIView(_ view: TouchSurfaceView, context: Context) {
         view.controls = controls
+        view.lookAroundState = lookAroundState
+        view.setPinchEnabled(controls.style == .modern)
         view.updateSafeAreaInsets()
     }
 }
 
 private final class TouchSurfaceView: UIView {
     var controls: TouchControls?
+    var lookAroundState = GOALPadLookAroundState.unknown
     private let haptics = TouchHapticDriver()
+    private let pinchRecognizer = UIPinchGestureRecognizer()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        pinchRecognizer.addTarget(self, action: #selector(handlePinch(_:)))
+        addGestureRecognizer(pinchRecognizer)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
     override func layoutSubviews() {
         super.layoutSubviews()
@@ -357,6 +375,11 @@ private final class TouchSurfaceView: UIView {
                                 leading: safeAreaInsets.left,
                                 bottom: safeAreaInsets.bottom,
                                 trailing: safeAreaInsets.right))
+    }
+
+    func setPinchEnabled(_ isEnabled: Bool) {
+        guard pinchRecognizer.isEnabled != isEnabled else { return }
+        pinchRecognizer.isEnabled = isEnabled
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -385,6 +408,25 @@ private final class TouchSurfaceView: UIView {
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             controls?.cancelled(ObjectIdentifier(touch))
+        }
+        flushHaptics()
+    }
+
+    @objc private func handlePinch(_ pinch: UIPinchGestureRecognizer) {
+        switch pinch.state {
+        case .began:
+            controls?.pinchBegan()
+            controls?.pinchChanged(scale: pinch.scale, lookAroundState: lookAroundState)
+        case .changed:
+            controls?.pinchChanged(scale: pinch.scale, lookAroundState: lookAroundState)
+        case .ended:
+            controls?.pinchEnded()
+        case .cancelled, .failed:
+            controls?.pinchCancelled()
+        case .possible:
+            break
+        @unknown default:
+            controls?.pinchCancelled()
         }
         flushHaptics()
     }

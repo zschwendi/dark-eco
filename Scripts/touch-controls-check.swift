@@ -68,6 +68,22 @@ private struct Runner {
     func cancel(_ finger: Finger) {
         controls.cancelled(ObjectIdentifier(finger))
     }
+
+    func beginPinch() {
+        controls.pinchBegan()
+    }
+
+    func pinch(scale: CGFloat, lookAroundState: GOALPadLookAroundState) {
+        controls.pinchChanged(scale: scale, lookAroundState: lookAroundState)
+    }
+
+    func endPinch() {
+        controls.pinchEnded()
+    }
+
+    func cancelPinch() {
+        controls.pinchCancelled()
+    }
 }
 
 private let neutral = UInt8(GOALPadAnalogNeutral)
@@ -585,6 +601,111 @@ private func touchHapticsAreDiscreteAndRearmSafely() {
 }
 
 @MainActor
+private func modernPinchZoomUsesAuthoritativeDirection() {
+    print("Modern pinch zoom maps outward/inward scale to one authoritative Triangle pulse")
+    var zoomIn = Runner()
+    zoomIn.beginPinch()
+    zoomIn.pinch(scale: 1 + TouchControls.pinchScaleDelta / 2, lookAroundState: .normal)
+    check(!zoomIn.frame().buttons.contains(.triangle),
+          "sub-threshold outward movement emits nothing")
+    zoomIn.pinch(scale: 1 + TouchControls.pinchScaleDelta, lookAroundState: .normal)
+    zoomIn.pinch(scale: 1.8, lookAroundState: .normal)
+    check(zoomIn.controls.consumeHapticEvents() == [.gesture(.triangle)],
+          "zooming in from normal recognises one Triangle gesture")
+    let zoomInFrames = zoomIn.frames(TouchControls.holdFrames
+                                     + TouchControls.releaseFrames + 2)
+    check(zoomInFrames.prefix(TouchControls.holdFrames).allSatisfy {
+        $0.buttons.contains(.triangle)
+    }, "zooming in from normal emits one complete Triangle pulse")
+    check(zoomInFrames.dropFirst(TouchControls.holdFrames).allSatisfy {
+        !$0.buttons.contains(.triangle)
+    }, "continued outward movement does not queue another Triangle pulse")
+
+    zoomIn.endPinch()
+    zoomIn.beginPinch()
+    zoomIn.pinch(scale: 1 - TouchControls.pinchScaleDelta,
+                 lookAroundState: .firstPerson)
+    let zoomOutFrames = zoomIn.frames(TouchControls.holdFrames
+                                      + TouchControls.releaseFrames + 2)
+    check(zoomOutFrames.prefix(TouchControls.holdFrames).allSatisfy {
+        $0.buttons.contains(.triangle)
+    }, "zooming out from first person emits one complete Triangle pulse")
+    check(zoomOutFrames.dropFirst(TouchControls.holdFrames).allSatisfy {
+        !$0.buttons.contains(.triangle)
+    }, "the zoom-out pulse has the required release and stays one-shot")
+}
+
+@MainActor
+private func modernPinchZoomFailsClosedWithoutARequestedTransition() {
+    print("Modern pinch zoom fails closed for current, unknown, and reversed directions")
+    var normal = Runner()
+    normal.beginPinch()
+    normal.pinch(scale: 1 - TouchControls.pinchScaleDelta, lookAroundState: .normal)
+    normal.pinch(scale: 1 + TouchControls.pinchScaleDelta, lookAroundState: .normal)
+    check(normal.frames(TouchControls.holdFrames + 2).allSatisfy {
+        !$0.buttons.contains(.triangle)
+    }, "zoom-out from normal stays inert and cannot reverse into zoom-in")
+
+    var firstPerson = Runner()
+    firstPerson.beginPinch()
+    firstPerson.pinch(scale: 1 + TouchControls.pinchScaleDelta,
+                      lookAroundState: .firstPerson)
+    firstPerson.pinch(scale: 1 - TouchControls.pinchScaleDelta,
+                      lookAroundState: .firstPerson)
+    check(firstPerson.frames(TouchControls.holdFrames + 2).allSatisfy {
+        !$0.buttons.contains(.triangle)
+    }, "zoom-in from first person stays inert and cannot reverse into zoom-out")
+
+    var unknown = Runner()
+    unknown.beginPinch()
+    unknown.pinch(scale: 1 + TouchControls.pinchScaleDelta, lookAroundState: .unknown)
+    unknown.pinch(scale: 1 - TouchControls.pinchScaleDelta, lookAroundState: .unknown)
+    check(unknown.frames(TouchControls.holdFrames + 2).allSatisfy {
+        !$0.buttons.contains(.triangle)
+    }, "unknown, including Billy and other first-person modes, emits nothing")
+    check(normal.controls.consumeHapticEvents().isEmpty
+          && firstPerson.controls.consumeHapticEvents().isEmpty
+          && unknown.controls.consumeHapticEvents().isEmpty,
+          "failed-closed pinches emit no gesture haptics")
+}
+
+@MainActor
+private func pinchZoomIsModernOnlyAndLifecycleSafe() {
+    print("pinch zoom is Modern-only and re-arms only after an explicit lifecycle boundary")
+    var classic = Runner(style: .classic)
+    classic.beginPinch()
+    classic.pinch(scale: 1 + TouchControls.pinchScaleDelta, lookAroundState: .normal)
+    classic.endPinch()
+    classic.beginPinch()
+    classic.pinch(scale: 1 - TouchControls.pinchScaleDelta,
+                  lookAroundState: .firstPerson)
+    check(classic.frames(TouchControls.holdFrames + 2).allSatisfy {
+        !$0.buttons.contains(.triangle)
+    }, "Classic ignores both pinch directions")
+
+    var cancelled = Runner()
+    cancelled.beginPinch()
+    cancelled.pinch(scale: 1 + TouchControls.pinchScaleDelta / 2,
+                     lookAroundState: .normal)
+    cancelled.cancelPinch()
+    cancelled.pinch(scale: 1 + TouchControls.pinchScaleDelta, lookAroundState: .normal)
+    check(!cancelled.frame().buttons.contains(.triangle),
+          "a cancelled recognizer cannot emit until a new pinch begins")
+    cancelled.beginPinch()
+    cancelled.pinch(scale: 1 + TouchControls.pinchScaleDelta, lookAroundState: .normal)
+    check(cancelled.frame().buttons.contains(.triangle),
+          "a new pinch can emit after cancellation")
+
+    cancelled.controls.reset()
+    check(cancelled.frame() == .neutral,
+          "reset clears an emitted pinch pulse and its recognizer state")
+    cancelled.beginPinch()
+    cancelled.pinch(scale: 1 + TouchControls.pinchScaleDelta, lookAroundState: .normal)
+    check(cancelled.frame().buttons.contains(.triangle),
+          "reset re-arms a fresh Modern pinch")
+}
+
+@MainActor
 private func styleSwitchClearsInterruptedInput() {
     print("switching profiles cannot strand input from the prior layout")
     var run = Runner()
@@ -826,6 +947,9 @@ struct TouchControlsCheck {
         visibilityFollowsRecognisedTouch()
         resetClearsInterruptedInput()
         touchHapticsAreDiscreteAndRearmSafely()
+        modernPinchZoomUsesAuthoritativeDirection()
+        modernPinchZoomFailsClosedWithoutARequestedTransition()
+        pinchZoomIsModernOnlyAndLifecycleSafe()
         styleSwitchClearsInterruptedInput()
         classicButtonsMapDirectly()
         classicSticksAreSymmetricalAndAnalog()

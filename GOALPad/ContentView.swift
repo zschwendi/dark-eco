@@ -60,6 +60,7 @@ struct ContentView: View {
             if session.isRunning {
                 #if os(iOS)
                 TouchControlsView(controls: session.touch,
+                                  lookAroundState: session.lookAroundState,
                                   isSuppressed: session.input.isDriving,
                                   isNativeMenuOpen: session.isNativeMenuOpen)
                 #endif

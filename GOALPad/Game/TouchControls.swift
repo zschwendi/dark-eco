@@ -297,6 +297,7 @@ final class TouchControls {
     nonisolated static let rightStickDeadzone: CGFloat = 12
     nonisolated static let rollJumpDistance: CGFloat = 44
     nonisolated static let swipeDistance: CGFloat = 44
+    nonisolated static let pinchScaleDelta: CGFloat = 0.12
 
     /// Frames a recognised one-shot press remains down, followed by a guaranteed release gap.
     nonisolated static let holdFrames = 6
@@ -355,6 +356,7 @@ final class TouchControls {
     @ObservationIgnored private var pulses: [TouchButton: Pulse] = [:]
     @ObservationIgnored private var fadeToken = 0
     @ObservationIgnored private var dpad = DirectionRepeat()
+    @ObservationIgnored private var pinchZoom = PinchZoom()
 
     init(style: TouchControlStyle = .modern) {
         self.style = style
@@ -476,11 +478,40 @@ final class TouchControls {
         fadeWhenIdle()
     }
 
+    func pinchBegan() {
+        guard style == .modern else {
+            pinchZoom.reset()
+            return
+        }
+        pinchZoom.begin()
+    }
+
+    func pinchChanged(scale: CGFloat, lookAroundState: GOALPadLookAroundState) {
+        guard style == .modern,
+              let direction = pinchZoom.recognize(scale: scale) else { return }
+        switch (direction, lookAroundState) {
+        case (.zoomIn, .normal), (.zoomOut, .firstPerson):
+            press(.triangle)
+            enqueueHaptic(.gesture(.triangle))
+        default:
+            break
+        }
+    }
+
+    func pinchEnded() {
+        pinchZoom.reset()
+    }
+
+    func pinchCancelled() {
+        pinchZoom.reset()
+    }
+
     /// UIKit may not deliver individual cancellations during a lifecycle transition.
     func reset() {
         touches.removeAll()
         pulses.removeAll()
         dpad = DirectionRepeat()
+        pinchZoom.reset()
         hapticEvents.removeAll()
         fadeToken += 1
         isEngaged = false
@@ -624,6 +655,40 @@ final class TouchControls {
 
     private func enqueueHaptic(_ event: TouchHapticEvent) {
         hapticEvents.append(event)
+    }
+
+    private struct PinchZoom {
+        enum Direction {
+            case zoomIn
+            case zoomOut
+        }
+
+        private var isActive = false
+        private var direction: Direction?
+
+        mutating func begin() {
+            isActive = true
+            direction = nil
+        }
+
+        mutating func recognize(scale: CGFloat) -> Direction? {
+            guard isActive, direction == nil else { return nil }
+            let recognized: Direction
+            if scale >= 1 + TouchControls.pinchScaleDelta {
+                recognized = .zoomIn
+            } else if scale <= 1 - TouchControls.pinchScaleDelta {
+                recognized = .zoomOut
+            } else {
+                return nil
+            }
+            direction = recognized
+            return recognized
+        }
+
+        mutating func reset() {
+            isActive = false
+            direction = nil
+        }
     }
 
     /// Converts strong movement into one repeated dominant-axis D-pad direction for menus.
