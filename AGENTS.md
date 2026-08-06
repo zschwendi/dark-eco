@@ -498,7 +498,7 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 Active lanes:
 
-- `Build 124 controller-plus-touch and session-chrome checkpoint in progress` —
+- `Build 125 adaptive touch-chrome checkpoint ready; contextual prompts next` —
   Build 118's physical run exposed
   missing Start/Resume chrome and missing native-menu Back actions. Parent
   `3588baf3`, `64050a11`, `c6757a51`, and `c85ce554` add exact read-only title
@@ -560,8 +560,17 @@ Active lanes:
   becomes active, removes duplicate right-stack Start/Resume actions, and presents
   pause stats as X Orbs, Square Cells, Triangle Flies, and Circle Options. The
   signed Release build and artifact audit pass, and Build 124 is update-installed
-  and launched on `Z iPad Pro` without uninstalling or clearing data. Physical
-  controller-plus-touch acceptance is pending. Physical
+  and launched on `Z iPad Pro` without uninstalling or clearing data. The
+  maintainer's physical review found the new zoom control blank because its SF
+  Symbol names were invalid, unequal Zoom/Stats versus Stats/Start spacing, and
+  inconsistent command-row alignment. Build 125 uses verified expand/contract
+  symbols, equal 20-point gaps, and one fixed left-aligned icon/text grid. It
+  also hides every touch-control drawing during recent controller activity while
+  keeping the raw UIKit gameplay surface and all semantic Start, Zoom, menu,
+  session, and warp targets mounted. The first hidden touch still performs its
+  intended action and reclaims visible touch chrome. Focused suites and the
+  signed generic-iOS Release build pass at pushed parent `ea6cb0f1`; Build 125
+  has not been installed on a physical device. Physical
   card, warp, and background-resume acceptance remain pending. After that,
   stop nonessential iOS settings work and prioritize true stereoscopic visionOS
   rendering.
@@ -991,7 +1000,9 @@ Active lanes:
   pause-gated chrome and Pause/Resume labels do not rely on screenshots,
   timing, or a duplicate Swift pause flag.
 - [x] When a physical controller is active, preserve ordinary controller input
-  and avoid intrusive touch chrome.
+  and avoid intrusive touch chrome. Build 125 visually suppresses every gameplay,
+  title, menu, session, and warp touch control during recent controller activity,
+  but keeps each target live so the same first touch executes and restores chrome.
 - [x] Never use Primary Controller or recent controller/keyboard/mouse activity
   to disable screen input. Build 121 always merges iOS touch, lets a screen touch
   reclaim faded gameplay chrome, and keeps native-menu and warp touch actions
@@ -1018,9 +1029,13 @@ Active lanes:
   interaction model: exact stats shortcuts, conservative PC settings/file-list
   actions, and vertical one-shot swipes. Direct row hit-testing is intentionally
   out of scope; do not reopen it unless the maintainer changes direction.
-- [ ] Replace raw X/Square/Triangle/Circle instructional chrome with clear touch
-  actions where the app truly owns the target; the frozen Build 96 gameplay
-  controls remain the fallback elsewhere.
+- [ ] Expose one authoritative contextual face-button touch prompt wherever Jak
+  currently requests Cross, Square, Triangle, or Circle. Draw only the requested
+  button symbol, without inferring an action label, and emit that exact ordinary
+  pad input. Reuse or generalize the validated native query ownership/sequence/
+  heartbeat seams used by warp and cutscene SKIP; never infer availability from
+  pixels, proximity, or remembered level-specific behavior. The frozen Build 96
+  gameplay controls remain the fallback elsewhere.
 - [x] For warp gates, prefer a truthful `Touch gate to use warp gate` interaction
   only if gate focus/availability can be read safely. Otherwise show large
   explicit button controls and make the destination list swipe-selectable. The

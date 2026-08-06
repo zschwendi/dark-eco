@@ -14729,3 +14729,55 @@ a held controller stick with the other on-screen stick and confirm ordinary touc
 continues after disconnect. Also verify plus/minus zoom, Start-before-run, the
 persistent bottom Resume/Stats controls, and exact pause right-stack order. Static
 and signed-build evidence do not yet prove physical GameController delivery.
+
+## Build 125 adaptive touch chrome signed; contextual face prompt is next
+
+Date: 2026-08-06. Parent `ea6cb0f1` is pushed on
+`agent/build94-jak1-settings`. It corrects the physical Build 124 presentation
+feedback without changing accepted gameplay mappings, controller merging, camera-
+stick geometry, or the single UIKit gameplay touch owner. Zoom now uses locally
+verified outward/inward diagonal-arrow SF Symbols and the Zoom-to-Stats gap exactly
+matches the accepted Stats-to-Start 20-point gap. Native title/progress command rows
+share a 148-by-60 leading layout with one 16-point inset, fixed 20-point icon column,
+and 10-point icon-to-label gap; directional D-pad geometry and emitted pad bytes are
+unchanged.
+
+Recent controller activity now hides all app-owned touch artwork, including title
+Start, Zoom, native-menu actions, bottom Stats/Start/Resume, and warp controls. This
+is visual suppression only. The raw gameplay `TouchSurface`, transparent title
+Start target, Zoom button, menu/session actions, and warp buttons remain mounted and
+hittable. Every semantic handler reclaims touch presentation before emitting the
+same first action, so controller plus touch remains additive and the player does not
+owe a discarded wake-up tap.
+
+Validation passed:
+
+- `git diff --check` and Swift parsing for `TouchControls.swift` and
+  `TouchControlsView.swift`.
+- `Scripts/run-touch-controls-check.sh`, including equal zoom/pill gaps, the fixed
+  command grid, full controller-chrome suppression, first-touch recovery, and the
+  existing single UIKit gameplay owner.
+- `Scripts/run-keyboard-mouse-input-check.sh`.
+- `Scripts/run-game-menu-state-check.sh`.
+- `Scripts/run-presentation-settings-check.sh`.
+- `Scripts/run-portrait-library-check.sh`.
+- Signed generic-iOS Release build, bundle build 125:
+
+`xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad -configuration Release -destination generic/platform=iOS -derivedDataPath /private/tmp/GOALPad-build124-controller-chrome -jobs 4 -allowProvisioningUpdates GOALPAD_OPENGOAL_ROOT=/private/tmp/GP-build94-jak1-settings/OpenGOAL GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/private/tmp/GP-build94-jak1-settings/build/jak1-source-object-pack build`
+
+Full output is `/private/tmp/GOALPad-build125-touch-chrome.log`. The frozen artifact
+is `/private/tmp/GOALPad-build125-touch-chrome-signed/GOALPad.app`: Eco `1.0 (125)`,
+`com.zephyrstudiosllc.eco`, thin ARM64, 53 MB, executable SHA-256
+`8355ddf62bdb7e96f58513c5e852234618dee3d939a3182101d17e835dccc25c`.
+Strict signature verification passes; the expected Zephyr Studios Game Center and
+iCloud entitlements and one privacy manifest are present; the audited retail-
+payload extension scan is empty. Xcode emitted only the repository's known Swift
+actor-isolation warnings. No physical device was accessed or installed in this
+checkpoint.
+
+The next feature is not an Oracle-specific label. The maintainer requires one
+generic contextual face-button prompt that draws only the authored Cross, Square,
+Triangle, or Circle symbol and sends that exact button. It must use authoritative
+native query state and cover interactions such as the Oracle, warp gates, vehicles,
+and other authored prompts without guessing their meaning. Treat it as the next
+numbered runtime/AOT checkpoint rather than silently adding it to Build 125.
