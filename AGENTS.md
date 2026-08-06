@@ -16,6 +16,16 @@ the follow-on games to bypass an earlier unresolved Jak 1 platform problem.
 
 This project is not a PS2 emulator, a Swift rewrite of OpenGOAL, a remake, or a repository for copyrighted game assets.
 
+## Workspace boundary
+
+Agents must not access, enumerate, execute project work in, or modify files
+outside `/Users/zach/Developer/OS_Projects/GOALPad` without explicit maintainer
+permission. The only standing exceptions are the already-established system
+toolchain and SDK paths, Codex-provided instruction or memory resources, and
+the canonical `/private/tmp` build, test, save, and log artifacts used by this
+project. Do not infer any new external-directory permission from those narrow
+exceptions.
+
 ## Required agent behavior
 
 Before editing:

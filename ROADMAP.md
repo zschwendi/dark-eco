@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness and remaining platform gaps, not real-media
 import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 89 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 90 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 

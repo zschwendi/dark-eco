@@ -12614,3 +12614,85 @@ Do not start GMerc: no normal GMerc packet appeared in the 1,120-tick title
 trace. Audio-device output and controls/lifecycle still follow renderer-family
 completion. No simulator or physical device was accessed for Checkpoints 88 or
 89.
+
+# Checkpoint 90: ordered normal Jak II TFRAG texture uploads
+
+Date: 2026-08-06. The isolated nested branch
+`agent/jak2-real-dma-draw-proof` adds `d4821b892`. The bounded common-TFRAG
+capture now audits the six normal texture/setup buckets 7, 18, 29, 40, 51, and
+62 without retaining packet pointers. Only the exact live writer grammar is
+executable: an ordinary page descriptor, an inert FLUSHA/DIRECT-10 setup, and
+three exact NEXT links. The owned plan validates the page header and mode -1,
+then revalidates the live header immediately before mutation. Animator, eye,
+unclassified, reordered, malformed, and out-of-range work remains rejected.
+
+The six setup buckets move from deferred to host-owned policy. Their plans are
+created transactionally before any mutation, but execution occurs through a
+narrow synchronous callback at each matching renderer bucket boundary. This
+preserves the source order between setup 7 and TFRAG draw 8, setup 18 and draw
+19, and so on; later level texture mappings cannot leak into earlier draws.
+The callback and context are cleared by RAII on return or exception. An
+independent review first caught the pre-render ordering mistake and an
+unobserved Direct-first grammar allowance. After both were corrected, the
+review returned GO with no remaining ordering, lifetime, exception-safety, or
+parser finding.
+
+## Canonical validation
+
+The integration owner reused the one canonical Release/Ninja/ccache build:
+
+```text
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host --target \
+  jak2-common-tfrag-texture-upload-capture-test \
+  jak2-metal-bucket-table-test jak2-metal-host-bridge-test \
+  jak2-metal-runtime-proof -j2
+
+ctest --test-dir /private/tmp/GOALPad-jak2-real-dma-host \
+  -R '^(jak2-common-tfrag-texture-upload-capture-test|jak2-metal-bucket-table-test)$' \
+  --output-on-failure
+
+ctest --test-dir /private/tmp/GOALPad-jak2-real-dma-host \
+  -R '^(jak2-common-tfrag-texture-upload-capture-test|jak2-metal-host-bridge-test)$' \
+  --output-on-failure
+```
+
+The build passed. The non-GPU pair passed 2/2, and the final parser plus Mac
+Metal host pair passed 2/2 after callback-lifetime hardening. `git diff
+--check` passed. `clang-format` is not installed on this Mac, so no formatting
+command was run. No broad AOT, Metal, or Xcode matrix was repeated for this
+focused checkpoint.
+
+## Real prepared-data Mac evidence
+
+The bounded replay was:
+
+```text
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-metal-runtime-proof \
+  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  --saves-dir /private/tmp/goalpad-jak2-tfrag-ordered-40 \
+  --ticks 40
+```
+
+The complete log is `/private/tmp/goalpad-jak2-tfrag-ordered-40.log`
+(SHA-256 `39de8a8f54331f2637f317c110dfb6a99bef2610b513ff040e337ad168268b50`).
+The proof returned its expected diagnostic `INCOMPLETE` only because real title
+glow remains clipped. All 40 chains completed with 327 buckets, zero failed
+chains, GPU errors, drawable misses, late submissions, ordering errors, or
+unsupported blends. Bucket 7 was present and executed 19 times; bucket 40 was
+present and executed 10 times; the other four were exact-empty for all 40
+frames. Deferred bytes fell by exactly 5,104, or 29 packets times 176 bytes, to
+141,744. The final frame remained fully nonblack with hash
+`557e841173042025`.
+
+This replay also used a new save directory. The runtime reported no existing
+`pc-settings.gc`, initialized clean defaults, and wrote the new settings file,
+so this checkpoint is not relying on the maintainer's prior desktop settings.
+No Eco target, simulator, or physical device was accessed.
+
+## Next executable task
+
+Apply the same capture-first path to normal SHRUB texture/setup buckets 73, 82,
+91, 100, 109, and 118. The bounded title run observed 192-byte work only at 73
+and 100; classify its exact source grammar before changing policy or executing
+it. Keep common bucket 187, GMerc, translucent/water/scissor families, audio
+device output, and controls deferred until their own bounded evidence gates.
