@@ -445,12 +445,7 @@ private struct ClassicButtonControl: View {
     let frame: CGRect
 
     private var isWide: Bool {
-        switch button {
-        case .select, .start, .leftShoulder, .rightShoulder:
-            true
-        default:
-            false
-        }
+        ClassicTouchLayout.usesPillArtwork(for: button)
     }
 
     var body: some View {

@@ -938,6 +938,9 @@ private func classicHasOnlyTheStatsTriggerChord() {
         !$0.bit.contains(.L2) && !$0.bit.contains(.R2)
     } && TouchButton.stats.bit == [.L2, .R2],
           "only Stats maps to the exact L2+R2 chord")
+    check(ClassicTouchLayout.usesPillArtwork(for: .stats)
+          && !ClassicTouchLayout.usesPillArtwork(for: .triangle),
+          "Classic Stats uses pill artwork rather than circular face-button geometry")
 }
 
 @MainActor

@@ -574,6 +574,15 @@ struct ClassicTouchLayout {
         .triangle, .square, .circle, .cross,
     ]
 
+    nonisolated static func usesPillArtwork(for button: TouchButton) -> Bool {
+        switch button {
+        case .select, .stats, .start, .leftShoulder, .rightShoulder:
+            true
+        default:
+            false
+        }
+    }
+
     let safeBounds: CGRect
     let stickRadius: CGFloat
     let leftStickFrame: CGRect
