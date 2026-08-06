@@ -146,41 +146,44 @@ private struct GameLibraryTile: View {
     let removeArtwork: () -> Void
 
     var body: some View {
-        Button(action: activate) {
-            VStack(alignment: .leading, spacing: 12) {
-                artwork
-                    .aspectRatio(4 / 3, contentMode: .fit)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        ZStack(alignment: .topTrailing) {
+            Button(action: activate) {
+                VStack(alignment: .leading, spacing: 12) {
+                    artwork
+                        .aspectRatio(4 / 3, contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(title.name)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
-                    Label(stateLabel, systemImage: stateSymbol)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(stateColor)
-                    if case .preparing(let fraction) = state, let fraction {
-                        ProgressView(value: fraction)
-                            .tint(.orange)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(title.name)
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
+                        Label(stateLabel, systemImage: stateSymbol)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(stateColor)
+                        if case .preparing(let fraction) = state, let fraction {
+                            ProgressView(value: fraction)
+                                .tint(.orange)
+                        }
+                        if let progress {
+                            Text("\(progress.filesCopied) of \(progress.filesTotal) files")
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
                     }
-                    if let progress {
-                        Text("\(progress.filesCopied) of \(progress.filesTotal) files")
-                            .font(.caption.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    }
+                    .padding(.horizontal, 2)
                 }
-                .padding(.horizontal, 2)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             }
+            .buttonStyle(.plain)
+            .accessibilityHint(accessibilityHint)
+            .disabled(state == .planned)
+
+            artworkMenu
         }
-        .buttonStyle(.plain)
-        .accessibilityHint(accessibilityHint)
-        .disabled(state == .planned)
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(alignment: .topTrailing) { artworkMenu }
-        .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .contextMenu {
             artworkActions
         }
