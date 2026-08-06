@@ -8,6 +8,8 @@ nonisolated enum GameLibraryTitle: String, CaseIterable, Identifiable, Sendable 
     case jak3
     case jakX
 
+    static let allCases: [GameLibraryTitle] = [.jak1, .jak2, .jak3]
+
     var id: String { rawValue }
 
     var name: String {
