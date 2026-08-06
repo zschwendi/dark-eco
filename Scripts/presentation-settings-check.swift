@@ -57,6 +57,31 @@ private func readDocument(at url: URL) -> PresentationSettingsDocument? {
 }
 
 @MainActor
+private func legacyDocumentAndPickerOrderingRemainCompatible() async throws {
+    print("legacy documents keep their raw values while pickers lead with Modern")
+    check(SettingsProfile.allCases == [.modern, .classic],
+          "Modern is the first generated picker choice")
+    check(SettingsProfile.modern.rawValue == "modern"
+          && SettingsProfile.classic.rawValue == "classic",
+          "reordering picker choices does not change persisted raw values")
+
+    let fixture = try Fixture(name: "legacy-document")
+    let legacyJSON = Data(
+        #"{"schemaVersion":1,"controlsProfile":"modern","graphicsProfile":"classic","audioProfile":"modern","interfaceProfile":"classic","graphicsModernFillWidthOverride":true,"modifiedAt":0,"writerID":"legacy-device"}"#.utf8)
+    try FileManager.default.createDirectory(at: fixture.local.deletingLastPathComponent(),
+                                            withIntermediateDirectories: true)
+    try legacyJSON.write(to: fixture.local, options: .atomic)
+    let value = settings(fixture, writerID: "current-device", cloudAvailable: false)
+    check(value.profile(for: .controls) == .modern
+          && value.profile(for: .graphics) == .classic
+          && value.profile(for: .audio) == .modern
+          && value.profile(for: .interface) == .classic,
+          "the pre-existing four-section document loads without migration loss")
+    check(value.document.graphicsModernFillWidthOverride == true,
+          "the legacy graphics option remains persisted even while Classic is selected")
+}
+
+@MainActor
 private func defaultsUseModernGraphics() async throws {
     print("defaults use Modern Graphics without changing other sections")
     let fixture = try Fixture(name: "defaults")
@@ -248,6 +273,7 @@ private func unresolvedCloudVersionParticipatesInConflictResolution() async thro
 private struct PresentationSettingsCheck {
     static func main() async {
         do {
+            try await legacyDocumentAndPickerOrderingRemainCompatible()
             try await defaultsUseModernGraphics()
             try await savedChoicesSurviveNewDefaults()
             try await profilesCanBeMixedWithoutLosingOptions()

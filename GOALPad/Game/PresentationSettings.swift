@@ -1,8 +1,8 @@
 import Foundation
 
 nonisolated enum SettingsProfile: String, CaseIterable, Codable, Sendable {
-    case classic
     case modern
+    case classic
 
     var title: String { rawValue.capitalized }
 }

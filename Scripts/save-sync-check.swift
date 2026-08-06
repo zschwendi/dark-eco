@@ -198,6 +198,18 @@ private actor OperationGate {
     }
 }
 
+private actor OperationLog {
+    private var values: [String] = []
+
+    func append(_ value: String) {
+        values.append(value)
+    }
+
+    func entries() -> [String] {
+        values
+    }
+}
+
 private final class LocalReplacementRace: @unchecked Sendable {
     let localRoot: URL
     private var hasFired = false
@@ -2052,6 +2064,133 @@ private func controllerCoalescesSyncIntentAndPreservesLastSuccess() async throws
 }
 
 @MainActor
+private func combinedCloudPresentationCoordinatesEnabledDomains() async throws {
+    print("combined cloud presentation derives one truthful action and date")
+    let settingsDate = Date(timeIntervalSince1970: 100)
+    let savesDate = Date(timeIntervalSince1970: 200)
+    let healthy = CloudSyncPresentation.state(
+        settingsEnabled: true,
+        settingsStatus: .synced(settingsDate),
+        settingsSummary: "Up to date",
+        settingsLastSyncDate: settingsDate,
+        savesEnabled: true,
+        savesStatus: .synced(savesDate, uploaded: 0, downloaded: 0, resolutions: []),
+        savesSummary: "Up to date",
+        savesLastSyncDate: savesDate,
+        savesIsBusy: false,
+        savesIsSyncing: false,
+        savesProgressMessage: nil)
+    check(healthy.phase == .synced && healthy.summary == "Up to date"
+          && healthy.actionTitle == "Sync" && healthy.isActionEnabled,
+          "two healthy enabled domains expose one Sync action")
+    check(healthy.lastSyncDate == savesDate,
+          "the combined date is the newest independent successful sync")
+
+    let failedWhileSavesRun = CloudSyncPresentation.state(
+        settingsEnabled: true,
+        settingsStatus: .failed("settings fixture failed"),
+        settingsSummary: "Sync issue: settings fixture failed",
+        settingsLastSyncDate: settingsDate,
+        savesEnabled: true,
+        savesStatus: .syncing,
+        savesSummary: "Syncing…",
+        savesLastSyncDate: savesDate,
+        savesIsBusy: true,
+        savesIsSyncing: true,
+        savesProgressMessage: "Syncing saves…")
+    check(failedWhileSavesRun.phase == .failed
+          && failedWhileSavesRun.summary.contains("Settings — settings fixture failed")
+          && failedWhileSavesRun.actionTitle == "Retry",
+          "an enabled-domain failure dominates the combined status and offers Retry")
+    check(!failedWhileSavesRun.isActionEnabled
+          && failedWhileSavesRun.progressMessage == "Syncing saves…",
+          "Retry remains disabled until the other domain releases its owned operation")
+
+    let settingsOptedOut = CloudSyncPresentation.state(
+        settingsEnabled: false,
+        settingsStatus: .failed("ignored disabled-domain failure"),
+        settingsSummary: "Sync issue: ignored disabled-domain failure",
+        settingsLastSyncDate: Date(timeIntervalSince1970: 300),
+        savesEnabled: true,
+        savesStatus: .synced(savesDate, uploaded: 0, downloaded: 0, resolutions: []),
+        savesSummary: "Up to date",
+        savesLastSyncDate: savesDate,
+        savesIsBusy: false,
+        savesIsSyncing: false,
+        savesProgressMessage: nil)
+    check(settingsOptedOut.phase == .synced && settingsOptedOut.actionTitle == "Sync",
+          "a disabled settings domain cannot turn the enabled saves domain into a failure")
+    check(settingsOptedOut.lastSyncDate == Date(timeIntervalSince1970: 300),
+          "the displayed date preserves the newest controller success after an opt-out")
+
+    let unavailable = CloudSyncPresentation.state(
+        settingsEnabled: true,
+        settingsStatus: .unavailable,
+        settingsSummary: "iCloud unavailable — using local settings",
+        settingsLastSyncDate: settingsDate,
+        savesEnabled: false,
+        savesStatus: .disabled,
+        savesSummary: "Off — saves stay on this device",
+        savesLastSyncDate: nil,
+        savesIsBusy: false,
+        savesIsSyncing: false,
+        savesProgressMessage: nil)
+    check(unavailable.phase == .unavailable && unavailable.actionTitle == "Retry"
+          && unavailable.isActionEnabled,
+          "an unavailable enabled domain offers the one Retry action")
+
+    let allDisabled = CloudSyncPresentation.state(
+        settingsEnabled: false,
+        settingsStatus: .disabled,
+        settingsSummary: "Off — settings stay on this device",
+        settingsLastSyncDate: settingsDate,
+        savesEnabled: false,
+        savesStatus: .disabled,
+        savesSummary: "Off — saves stay on this device",
+        savesLastSyncDate: savesDate,
+        savesIsBusy: false,
+        savesIsSyncing: false,
+        savesProgressMessage: nil)
+    check(allDisabled.phase == .disabled && !allDisabled.isActionEnabled
+          && allDisabled.lastSyncDate == savesDate,
+          "separate opt-outs disable work without erasing the newest last-success date")
+
+    var actions: [String] = []
+    await CloudSyncPresentation.synchronize(
+        settingsEnabled: true,
+        savesEnabled: true,
+        syncSettings: { actions.append("settings") },
+        syncSaves: { actions.append("saves") })
+    check(actions == ["settings", "saves"],
+          "the combined action coordinates both enabled domains exactly once")
+
+    actions = []
+    await CloudSyncPresentation.synchronize(
+        settingsEnabled: false,
+        savesEnabled: true,
+        syncSettings: { actions.append("settings") },
+        syncSaves: { actions.append("saves") })
+    check(actions == ["saves"],
+          "the combined action respects the settings opt-out independently")
+
+    let cancellationLog = OperationLog()
+    let canceledAction = Task { @MainActor in
+        await CloudSyncPresentation.synchronize(
+            settingsEnabled: true,
+            savesEnabled: true,
+            syncSettings: {
+                await cancellationLog.append("settings")
+                withUnsafeCurrentTask { $0?.cancel() }
+            },
+            syncSaves: { await cancellationLog.append("saves") })
+    }
+    await canceledAction.value
+    let canceledEntries = await cancellationLog.entries()
+    check(canceledEntries == ["settings"],
+          "cancellation between domains leaves the unstarted domain for a safe Retry")
+}
+
+@MainActor
 private func replacementFrameCheckKeepsTaskOwnershipAndCancelsQuietly() async throws {
     print("replacement frame checks retain ownership after an older debounce is cancelled")
     let gate = OperationGate()
@@ -2134,6 +2273,7 @@ private struct SaveSyncCheck {
             try await broadAndNestedImportsAreRejected()
             try await importCountAndByteBoundsAreEnforced()
             try await controllerCoalescesSyncIntentAndPreservesLastSuccess()
+            try await combinedCloudPresentationCoordinatesEnabledDomains()
             try await replacementFrameCheckKeepsTaskOwnershipAndCancelsQuietly()
         } catch {
             print("  FAIL unexpected error: \(error)")
