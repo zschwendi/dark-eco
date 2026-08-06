@@ -13016,3 +13016,18 @@ The maintainer authorized in-place installation and launch on unlocked
 Never uninstall or clear app data, and never hand over a blind build: provide
 the exact build number, a short test route, expected results, and Build 93
 regression checks after agent-owned automation is exhausted.
+
+Build 96 integrates the portrait/library worker slice. In portrait, the live
+Metal host is now a safe-area-aware 4:3 surface aligned to the top of the
+display; landscape retains the exact full-surface path. Jak X is removed from
+the launcher title model and fallback palette rather than merely hidden from
+`allCases`. `Scripts/run-portrait-library-check.sh` passed its iPhone/iPad
+portrait geometry, unchanged-landscape, and three-title catalog checks, and
+`git diff --check` passed. Physical portrait rendering remains an explicit
+candidate gate after the other active touch/settings lanes integrate.
+
+The maintainer added a Modern-touch gesture requirement during this checkpoint:
+after a held downward gesture engages crouch, sliding left without releasing
+must trigger crouch + punch, while held down-then-up remains crouch jump and an
+ordinary left swipe remains unchanged. The Classic-touch worker owns its
+implementation and deterministic sequencing tests.

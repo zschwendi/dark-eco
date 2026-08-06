@@ -6,9 +6,6 @@ nonisolated enum GameLibraryTitle: String, CaseIterable, Identifiable, Sendable 
     case jak1
     case jak2
     case jak3
-    case jakX
-
-    static let allCases: [GameLibraryTitle] = [.jak1, .jak2, .jak3]
 
     var id: String { rawValue }
 
@@ -17,7 +14,6 @@ nonisolated enum GameLibraryTitle: String, CaseIterable, Identifiable, Sendable 
         case .jak1: "Jak and Daxter: The Precursor Legacy"
         case .jak2: "Jak II"
         case .jak3: "Jak 3"
-        case .jakX: "Jak X: Combat Racing"
         }
     }
 
@@ -26,7 +22,6 @@ nonisolated enum GameLibraryTitle: String, CaseIterable, Identifiable, Sendable 
         case .jak1: "I"
         case .jak2: "II"
         case .jak3: "III"
-        case .jakX: "X"
         }
     }
 }

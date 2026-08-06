@@ -320,10 +320,6 @@ private struct FallbackGameArtwork: View {
             [Color(red: 0.04, green: 0.015, blue: 0.06),
              Color(red: 0.30, green: 0.04, blue: 0.30),
              Color(red: 0.72, green: 0.18, blue: 0.06)]
-        case .jakX:
-            [Color(red: 0.015, green: 0.015, blue: 0.02),
-             Color(red: 0.25, green: 0.03, blue: 0.20),
-             Color(red: 0.90, green: 0.20, blue: 0.02)]
         }
     }
 }

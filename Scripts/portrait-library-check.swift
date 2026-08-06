@@ -46,6 +46,10 @@ do {
     let titles = try declaration(in: library,
                                  startingWith: "nonisolated enum GameLibraryTitle",
                                  endingWith: "\n\nnonisolated enum GameLibraryState")
+    guard !titles.contains("jakX"), !titles.contains("Jak X") else {
+        throw NSError(domain: "portrait-library-check", code: 1,
+                      userInfo: [NSLocalizedDescriptionKey: "Jak X remains in GameLibraryTitle"])
+    }
     let directory = FileManager.default.temporaryDirectory
         .appending(path: "goalpad-portrait-library-\(UUID().uuidString)", directoryHint: .isDirectory)
     defer { try? FileManager.default.removeItem(at: directory) }
@@ -102,7 +106,6 @@ do {
 
     check(GameLibraryTitle.allCases == [.jak1, .jak2, .jak3],
           "the deterministic launcher catalog contains only Jak 1, Jak II, and Jak 3")
-    check(!GameLibraryTitle.allCases.contains(.jakX), "Jak X is absent from the launcher catalog")
     print("portrait and library checks passed")
     """
 

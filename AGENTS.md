@@ -456,10 +456,12 @@ Active lanes:
   `PresentationSettings.swift`, `SaveSyncController.swift`, and focused tests on
   `agent/build94-jak1-settings-icloud` in
   `/private/tmp/GP-build94-jak1-settings-icloud`.
-- `In progress` — portrait renderer alignment and game-library cleanup owns
-  `ContentView.swift`, `GameLibrary.swift`, and focused tests on
+- `Integrated; focused validation passed; physical portrait check pending` —
+  portrait renderer alignment and complete Jak X library removal came from
   `agent/build94-portrait-library` in
-  `/private/tmp/GP-build94-portrait-library`.
+  `/private/tmp/GP-build94-portrait-library`. Worker commit `f7669744` was
+  integrated as `3db17c67`; root removed the remaining dead Jak X enum/palette
+  code and reran `Scripts/run-portrait-library-check.sh`.
 - `Implemented; focused validation passed; full build pending` — root integration
   added a read-only native `*master-mode*` bridge for exact game/pause/progress/
   menu state, exposed it through `GameSession`, and added
@@ -485,7 +487,7 @@ Active lanes:
   active settings document; later-title rows may be clearly unavailable until
   their title support is real.
 - [ ] Rename `Reset All` to `Reset Jak 1 Settings` in the Jak 1 document.
-- [ ] Remove Jak X from the game library because it is outside OpenGOAL scope.
+- [x] Remove Jak X from the game library because it is outside OpenGOAL scope.
 - [ ] Remove empty Audio and UI sections for now unless a setting exists that is
   not already meaningfully covered by Jak's native options.
 - [ ] Move Fill Width into the in-game Graphics settings, call the user-facing
@@ -538,6 +540,10 @@ Active lanes:
 - [ ] Keep Modern first and Classic second in the touch profile picker.
 - [ ] Preserve current Modern behavior until its separate polish patch is
   physically accepted.
+- [ ] In Modern touch, once a held downward gesture has engaged crouch, sliding
+  left without releasing must trigger crouch + punch. Preserve the existing
+  held down-then-up crouch jump and ordinary left-swipe behavior, with focused
+  sequencing and one-shot/retrigger tests.
 - [ ] Reduce the Modern movement stick's outer ring while retaining its accepted
   thumb/knob size.
 - [ ] Move the Modern right stick inward from the bottom-trailing corner with an
@@ -576,7 +582,7 @@ Active lanes:
 - [ ] For warp gates, prefer a truthful `Touch gate to use warp gate` interaction
   only if gate focus/availability can be read safely. Otherwise show large
   explicit button controls and make the destination list swipe-selectable.
-- [ ] In portrait gameplay, top-align the renderer instead of vertically
+- [x] In portrait gameplay, top-align the renderer instead of vertically
   centering it so the remaining lower area is available to touch controls.
 
 #### Haptics, stats, and skipping
