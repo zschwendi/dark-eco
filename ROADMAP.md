@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness and remaining platform gaps, not real-media
 import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 81 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 82 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 
@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 81 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 82 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -1210,6 +1210,17 @@ alpha-only because the enabled SKY draw is untextured; the next renderer work is
 VisData/level ownership followed by Tfrag, Tie, and Merc/Generic2. A separate
 unmerged GL reference proof found a bounded alpha-only cloud mismatch of at most
 2 and must be diagnosed without weakening exact CPU tests.
+
+Checkpoint 82 advances the standalone Jak II title path to nested
+`9af1a79f68`. It promotes the exact bucket-312 sprite texture packet and
+bucket-313 ordinary Sprite3 renderer, preserves the source matrix `-1` glow
+partition, and passes the focused 13-test Metal/parser matrix. Three real title
+chains complete with exact sprite pages, 60 ordinary submissions, two draws,
+120 triangles, and no missing textures or GPU failures. The title remains
+alpha-only because those ordinary records are intentionally inactive and the
+four meaningful glow-marked records still feed an explicitly unsupported
+separate glow stage. Deterministic glow math plus a bounded final-flare proof is
+the next renderer gate; audio and controls remain later milestones.
 
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,

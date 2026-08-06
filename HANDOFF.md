@@ -11944,3 +11944,95 @@ standalone three-tick Mac proof after each renderer-family promotion. Audio
 follows sustained correctly textured title output; controls, saves, lifecycle,
 and shared Jak 1 settings adapters follow audio. No simulator or physical
 device was accessed for Checkpoint 81.
+
+# Checkpoint 82: title sprite texture uploads and normal Sprite3
+
+Date: 2026-08-06. This checkpoint remains isolated in parent worktree
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-jak2-real-dma-draw` and nested
+OpenGOAL worktree `GP-jak2-real-dma-draw/OpenGOAL`. The active Jak 1 checkout
+was not edited, staged, reset, cleaned, built, or otherwise used.
+
+Nested branch `agent/jak2-real-dma-draw-proof` now ends at `9af1a79f68`. The
+four commits after Checkpoint 81 are:
+
+- `b411e6185`, which gives the Metal renderer owned Jak II visibility-frame
+  state;
+- `9a8a40e2a`, which parses the exact live bucket-312 `TEX_ALL_SPRITE` upload
+  packet into an owning, pointer-free plan;
+- `33b4e73ac`, which ports the ordinary Jak II Sprite3 path; and
+- `9af1a79f68`, which integrates the texture-upload and Sprite3 paths into the
+  real host, exact bucket policy, runtime proof, and regression matrix.
+
+Bucket 312 is now an explicit host texture upload. Its two exact live ordinary
+pages are parsed before any mutation and executed synchronously in packet
+order. Bucket 313 is now an explicit Sprite renderer. The Sprite3 path matches
+the source OpenGL partition: matrix `-1` records are counted as glow-marked and
+excluded from the ordinary draw, while all remaining normal records are
+submitted through Metal. Malformed bucket-312 packets fail before either the
+bucket-4 or bucket-312 texture plan mutates the pool.
+
+## Canonical validation
+
+The integration owner used the single canonical Release/Ninja/ccache build:
+
+```text
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host --target \
+  metal-bucket-chain-semantics-test metal-vis-data-test \
+  jak2-metal-bucket-table-test jak2-metal-dispatch-proof \
+  jak2-metal-submit-readback-proof \
+  jak2-bucket4-texture-upload-capture-test \
+  jak2-metal-fog-texture-convert-test \
+  jak2-metal-opcode41-cloud-cpu-test metal-pool-texture-test \
+  jak2-bucket4-mixed-executor-test \
+  jak2-sprite-texture-upload-plan-test \
+  jak2-metal-sprite-renderer-test jak2-metal-host-bridge-test \
+  jak2-metal-runtime-proof -j2
+
+ctest --test-dir /private/tmp/GOALPad-jak2-real-dma-host \
+  -R '^(metal-bucket-chain-semantics-test|metal-vis-data-test|jak2-metal-bucket-table-test|jak2-metal-dispatch-proof|jak2-metal-submit-readback-proof|jak2-bucket4-texture-upload-capture-test|jak2-metal-fog-texture-convert-test|jak2-metal-opcode41-cloud-cpu-test|metal-pool-texture-test|jak2-bucket4-mixed-executor-test|jak2-sprite-texture-upload-plan-test|jak2-metal-sprite-renderer-test|jak2-metal-host-bridge-test)$' \
+  --output-on-failure
+```
+
+The focused build succeeded. After correcting the synthetic dispatch marker to
+remain on a deferred bucket following the VisData promotion, the final matrix
+passed 13/13 with normal macOS Metal service access.
+
+## Real prepared-data Mac evidence
+
+```text
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-metal-runtime-proof \
+  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  --saves-dir /private/tmp/goalpad-jak2-macos-normal-sprite-checkpoint82-final \
+  --ticks 3
+```
+
+The command returned the expected `INCOMPLETE`/exit 1 because visible RGB is
+still the next renderer gate. It was not a host, parser, texture, Sprite3, or
+GPU failure. All three chains completed with 327 buckets and 3/3 Metal
+submissions, with zero failed chains, GPU errors, drawable misses, late
+submissions, missing textures, or unsupported blends.
+
+By tick 3 the exact bucket-312 packet had published pages `0x20fe934` and
+`0x1d431e4`, both mode `-1`, and had executed four cumulative page uploads.
+Sprite3 classified 64 2D inputs as 60 ordinary submissions and four
+glow-marked records. The ordinary path emitted two draws and 120 triangles with
+zero missing textures. All ordinary vertices are intentionally inactive in
+this dense title span: live diagnostics found zero XYZ, only one nonzero scale,
+and alpha below the Sprite3 discard floor. Both resolved textures were valid
+and non-black. The four matrix `-1` records contain meaningful glow colors and
+are copied by the GOAL path to the separate glow packet that Metal still
+reports explicitly unsupported.
+
+Final readback therefore remained the known alpha-only title quad: hash
+`742a0703fa4da325`, 307,200 nonzero-alpha pixels, and zero non-black RGB.
+
+## Next executable task
+
+Port the smallest source-faithful Jak II glow slice before promoting another
+renderer family. First extract/reuse deterministic glow math and prove the four
+live records produce finite accepted flare geometry, nonzero colors, and valid
+texture lookup. Then use an explicitly diagnostic final-flare Metal draw to
+decide whether glow changes the strict RGB readback. If it does, implement the
+real visibility/occlusion, downsample, and final glow stages with synthetic
+tests before claiming the family complete. Continue using the standalone Mac
+host; no simulator or physical device was accessed for Checkpoint 82.
