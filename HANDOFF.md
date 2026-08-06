@@ -15073,3 +15073,59 @@ place on `Z iPad Pro` at 17:21:45 without uninstalling or clearing its app
 container. Eco was launched with `--terminate-existing` at 17:21:55, so the
 foreground process is the Build 128 candidate rather than an older backgrounded
 instance. Physical acceptance remains with the maintainer.
+
+## Builds 129 and 130 title-flow classification and physical iPad test
+
+Date: 2026-08-06. Build 129 attempted to keep title/pre-run chrome separate from
+active gameplay through an app-session readiness sequence. Parent `9b38ad6c`
+implements that first pass and `647a237a` bumps both iOS configurations to 129;
+both are pushed on `agent/build94-jak1-settings`. The signed Build 129 artifact
+was update-installed and launched on `Z iPad Pro` without clearing its container.
+Physical testing rejected it: a loaded save remained in the centered Start-only
+presentation, so Zoom, Stats, Pause, and R stayed hidden and ordinary screen
+touches could not restore R. Treat Build 129 as failed physical evidence, not a
+known-good candidate.
+
+Build 130 replaces the missed-history assumption with exact native target-state
+classification. Parent `9cd93092` appends the ABI-stable `TitleSequence` state,
+classifies `target-title` and `target-title-play` separately from
+`target-title-wait`, and treats every other checked target state as active
+gameplay. The Swift readiness reducer can therefore activate an already-loaded
+save without having sampled the title menu, while title animation/wait states
+continue to suppress gameplay chrome. Interruption recovery now requires the
+exact checked active state. Existing full-screen UIKit touch ownership remains
+unchanged; deterministic coverage proves that the first ordinary movement touch
+reveals R immediately. Parent `b628cdab` bumps both configurations to Build 130.
+Both commits are pushed.
+
+An independent Sol xhigh architecture review accepted the native enum extension
+and required the direct already-loaded transition and exact interruption guard;
+both recommendations are present in `9cd93092`. The focused eleven-script input,
+menu, lifecycle, presentation, and portrait matrix passed; full output is
+`/private/tmp/GOALPad-build130-input-ui-matrix.log`. The narrower title-state and
+contextual-prompt suite also passed at
+`/private/tmp/GOALPad-build130-title-state-focused.log`.
+
+The signed generic-iOS Release command passed with the unchanged canonical
+OpenGOAL child and 518-object public source pack:
+
+`xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad -configuration Release -destination generic/platform=iOS -derivedDataPath /private/tmp/GOALPad-build124-controller-chrome -jobs 4 -allowProvisioningUpdates GOALPAD_OPENGOAL_ROOT=/private/tmp/GP-build94-jak1-settings/OpenGOAL GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/private/tmp/GP-build94-jak1-settings/build/jak1-source-object-pack build`
+
+Full output is `/private/tmp/GOALPad-build130-exact-title-state.log`. The frozen
+artifact is
+`/private/tmp/GOALPad-build130-exact-title-state-signed/GOALPad.app`: Eco
+`1.0 (130)`, bundle `com.zephyrstudiosllc.eco`, 53 MB, thin ARM64, executable
+SHA-256 `34514e74a71c43e15d3c492042b5ce73b5c89f88f5b16ba4bbe9522b3acc0073`.
+Strict signature verification passes under Zephyr team `V729QMY3V6`; Game Center
+and iCloud entitlements are present, the privacy manifest lints, all 518 public
+source objects are staged, and the audited retail-payload extension scan is empty.
+Xcode emitted the repository's known actor-isolation/generated-AOT warnings and
+stale `zschwendi@gmail.com` token warning; automatic Zephyr signing succeeded.
+
+Build 130 was update-installed in place on `Z iPad Pro` at 17:46:58 and launched
+with `--terminate-existing` at 17:47:03. The app container was not uninstalled or
+cleared. Physical acceptance remains pending for: title sequence shows centered
+Start only; loading an existing save immediately shows Zoom, Stats, Pause, and R;
+R fades alone after idle and the first ordinary movement/dead-zone/camera touch
+restores it while delivering that touch; background/foreground recovery remains
+active; accepted warp behavior remains unchanged.

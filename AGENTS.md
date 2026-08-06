@@ -1086,7 +1086,7 @@ Active lanes:
   Confirm/Cross, Back/Square, and Resume/Start. Build 108 cancels carried
   gameplay gestures at these transitions, suppresses touch chrome while a
   physical controller is driving, and delivers menu haptics immediately.
-- [x] Finish Build 127 touch-chrome acceptance as a narrow Build 128 refinement;
+- [ ] Finish Build 127 touch-chrome acceptance as a narrow touch-chrome refinement;
   Build 127 remains the foundation and its contextual-prompt work must not be
   reverted or discarded. Preserve truthful Start/Pause/Resume and explicit Back
   coverage for native pause/progress menus, plus this exact physical state matrix:
@@ -1110,6 +1110,13 @@ Active lanes:
   graphics, and the frozen warp-gate implementation. Build 109 already provides
   conservative PC settings/file-list actions and vertical one-shot swipes. Direct
   row hit-testing remains out of scope unless the maintainer changes direction.
+  Builds 128 and 129 were physically rejected because a loaded save could remain
+  classified as pre-run: Zoom, Stats, Pause, and R stayed hidden, and ordinary
+  screen touches could not reveal R. Build 130 is the current installed candidate.
+  It distinguishes `target-title`, `target-title-play`, and `target-title-wait`
+  from every other validated target state, directly activates already-loaded
+  gameplay, and keeps first-touch R recovery in the existing UIKit touch owner.
+  Keep this item open until the maintainer physically accepts that exact route.
 - [x] Expose one authoritative contextual face-button touch prompt wherever Jak
   currently requests Cross, Square, Triangle, or Circle. Draw only the requested
   button symbol, without inferring an action label, and emit that exact ordinary
