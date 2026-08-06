@@ -78,11 +78,32 @@ private func suspensionAndFailureAreRetryable() {
     check(state.completePreparation(generation: retryGeneration, succeeded: false) == .failed,
           "unsafe save recovery remains a hard gate")
     check(!state.frameLoopEnabled, "failed save recovery keeps gameplay suspended")
-    check(generation(from: state.transition(to: .active, prepareOnActivation: true))
-            == retryGeneration,
-          "an explicit repeated activation can retry the same active generation")
+    check(generation(from: state.requestPreparationIfNeeded()) == retryGeneration,
+          "a save-readiness callback can retry without a fake scene activation")
     check(state.completePreparation(generation: retryGeneration, succeeded: true) == .resumed,
           "the retry can safely resume")
+}
+
+private func presentationOwnershipTransfersDeterministically() {
+    print("one shared presentation surface has one deterministic active owner")
+    var state = PresentationOwnershipState<String>()
+    state.register("first")
+    state.register("second")
+    state.activate("first")
+    state.activate("second")
+    check(state.owner == "first", "another active window cannot steal the live surface")
+    state.deactivate("second")
+    check(state.owner == "first", "a non-owner cannot detach the live surface")
+    state.activate("second")
+    state.deactivate("first")
+    check(state.owner == "second",
+          "owner deactivation transfers to an already-active window without another activation")
+    state.activate("first")
+    check(state.owner == "second", "reactivation leaves the current active owner stable")
+    state.unregister("second")
+    check(state.owner == "first", "removing the owner transfers to the remaining active window")
+    state.unregister("first")
+    check(state.owner == nil, "removing the final owner detaches the shared surface")
 }
 
 private func bootActivationNeedsNoCompetingPreparation() {
@@ -118,6 +139,11 @@ private func audioLifecycleOwnership() {
     policy.requestStop()
     policy.setLifecycleActive(true)
     check(!policy.shouldRun, "session shutdown clears the playback request")
+    policy.interruptionBegan()
+    policy.setRouteAvailable(false)
+    policy.interruptionEnded(shouldResume: false)
+    policy.requestStart()
+    check(policy.shouldRun, "notifications after explicit stop cannot poison a fresh start")
 }
 
 @main
@@ -126,6 +152,7 @@ private enum GameLifecycleCheck {
         normalLifecycleRoundTrip()
         staleCompletionCannotResume()
         suspensionAndFailureAreRetryable()
+        presentationOwnershipTransfersDeterministically()
         bootActivationNeedsNoCompetingPreparation()
         audioLifecycleOwnership()
 

@@ -71,6 +71,13 @@ check(gate.components(separatedBy: "return false").count - 1 >= 2,
 check(!gate.contains("case .unavailable") && !gate.contains("status == .unavailable"),
       "ordinary iCloud unavailability is not a gameplay rejection")
 
+let syncNow = section(controller, from: "func syncNow", to: "func syncBeforeGameplay")
+check(occursInOrder([
+    "guard isEnabled else { return }",
+    "defer { gameplayReadinessDidChange?() }",
+    "await drainPendingSync()",
+], in: syncNow), "a completed Settings sync attempt publishes save-readiness changes")
+
 let start = section(session, from: "func start() async", to: "private func bootFinished")
 check(occursInOrder([
     "guard await saveSync.syncBeforeGameplay() else",
@@ -126,6 +133,23 @@ check(!lifecycle.contains("guard !isPreparingGameplay else { return }"),
       "activation cannot be dropped merely because another preparation is in flight")
 check(lifecycle.components(separatedBy: "audio.suspend()").count - 1 >= 3,
       "failed, inactive, and background lifecycle routes suspend audio")
+
+let readinessRetry = section(session,
+                             from: "private func saveGameplayReadinessDidChange()",
+                             to: "private func finishForegroundPreparation")
+check(occursInOrder([
+    "currentScenePhase == .active",
+    "!lifecycle.frameLoopEnabled",
+    "!isBooting",
+    "!isStartingGameplay",
+    "foregroundPreparationTask == nil",
+    "!lifecycle.isPreparingForeground",
+    "lifecycle.requestPreparationIfNeeded()",
+    "beginForegroundPreparation(generation: generation)",
+], in: readinessRetry),
+      "Settings retry can restart only one active suspended foreground save gate")
+check(!readinessRetry.contains("scenePhaseChanged"),
+      "save readiness retry does not synthesize a scene transition")
 
 if failures == 0 {
     print("save pregame gate checks passed")

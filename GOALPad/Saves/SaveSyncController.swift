@@ -79,6 +79,7 @@ final class SaveSyncController {
                 cancelPendingFrameCheck()
                 pendingSyncMode = nil
                 status = .disabled
+                gameplayReadinessDidChange?()
             }
         }
     }
@@ -95,6 +96,7 @@ final class SaveSyncController {
     private var frameCheckTask: Task<Void, Never>?
     private var frameCheckGeneration = 0
     private var pendingSyncMode: SaveSyncMode?
+    private var gameplayReadinessDidChange: (() -> Void)?
 
     init(defaults: UserDefaults = .standard, engine: SaveSyncEngine? = nil) {
         self.defaults = defaults
@@ -129,6 +131,10 @@ final class SaveSyncController {
     }
 
     var hasPendingFrameCheck: Bool { frameCheckTask != nil }
+
+    func setGameplayReadinessHandler(_ handler: @escaping () -> Void) {
+        gameplayReadinessDidChange = handler
+    }
 
     var progressMessage: String? {
         switch activeOperation {
@@ -183,6 +189,7 @@ final class SaveSyncController {
 
     func syncNow(mode requestedMode: SaveSyncMode? = nil) async {
         guard isEnabled else { return }
+        defer { gameplayReadinessDidChange?() }
         let mode = requestedMode ?? (isGameplayActive ? .uploadOnly : .bidirectional)
         enqueueSync(mode)
         await drainPendingSync()

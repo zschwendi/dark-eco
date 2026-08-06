@@ -24,16 +24,19 @@ nonisolated struct AudioPlaybackPolicy: Equatable, Sendable {
     }
 
     mutating func interruptionBegan() {
+        guard playbackRequested else { return }
         interruptionAllowsPlayback = false
     }
 
     mutating func interruptionEnded(shouldResume: Bool) {
+        guard playbackRequested else { return }
         if shouldResume {
             interruptionAllowsPlayback = true
         }
     }
 
     mutating func setRouteAvailable(_ available: Bool) {
+        guard playbackRequested else { return }
         routeAllowsPlayback = available
     }
 }

@@ -31,6 +31,11 @@ nonisolated struct GameplayLifecycleState: Equatable, Sendable {
             return .none
         }
         guard !frameLoopEnabled, prepareOnActivation else { return .none }
+        return requestPreparationIfNeeded()
+    }
+
+    mutating func requestPreparationIfNeeded() -> Action {
+        guard phase == .active, !frameLoopEnabled else { return .none }
         return beginPreparationIfNeeded()
     }
 

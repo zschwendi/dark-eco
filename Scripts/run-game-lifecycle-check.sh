@@ -9,6 +9,7 @@ export SWIFT_MODULECACHE_PATH="$temporary/swift-module-cache"
 
 swiftc -warnings-as-errors \
   "$root/GOALPad/Game/GameplayLifecycleState.swift" \
+  "$root/GOALPad/Game/PresentationOwnershipState.swift" \
   "$root/GOALPad/Audio/AudioPlaybackPolicy.swift" \
   "$root/Scripts/game-lifecycle-check.swift" \
   -o "$temporary/game-lifecycle-check"

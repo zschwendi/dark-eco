@@ -40,6 +40,7 @@ final class AudioOutput {
 
     func stop() {
         playbackPolicy.requestStop()
+        stopObservingSession()
         stopHardware()
     }
 
@@ -147,6 +148,14 @@ final class AudioOutput {
                                             object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.rebuild() }
         })
+    }
+
+    private func stopObservingSession() {
+        let center = NotificationCenter.default
+        for observer in observers {
+            center.removeObserver(observer)
+        }
+        observers.removeAll()
     }
 
     #if os(iOS) || os(visionOS)

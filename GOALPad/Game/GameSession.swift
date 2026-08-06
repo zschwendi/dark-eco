@@ -104,6 +104,12 @@ final class GameSession {
 
     // MARK: - Lifetime
 
+    init() {
+        saveSync.setGameplayReadinessHandler { [weak self] in
+            self?.saveGameplayReadinessDidChange()
+        }
+    }
+
     func prepare() async {
         let processID = ProcessInfo.processInfo.processIdentifier
         sessionLog.notice("""
@@ -1423,6 +1429,19 @@ final class GameSession {
             let savesReady = await saveSync.syncBeforeGameplay()
             finishForegroundPreparation(generation: generation, savesReady: savesReady)
         }
+    }
+
+    private func saveGameplayReadinessDidChange() {
+        guard currentScenePhase == .active,
+              !lifecycle.frameLoopEnabled,
+              !isBooting,
+              !isStartingGameplay,
+              foregroundPreparationTask == nil,
+              !lifecycle.isPreparingForeground else { return }
+        guard case .prepareForeground(let generation) = lifecycle.requestPreparationIfNeeded()
+        else { return }
+        sessionLog.notice("Save readiness changed; retrying foreground generation \(generation)")
+        beginForegroundPreparation(generation: generation)
     }
 
     private func finishForegroundPreparation(generation: UInt64, savesReady: Bool) {

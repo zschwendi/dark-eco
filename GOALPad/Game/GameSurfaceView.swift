@@ -24,6 +24,77 @@ struct GameSurfaceView: View {
     }
 }
 
+/// Xcode's generated iPad scene manifest supports multiple windows, while the native renderer has
+/// one process-wide surface. Keep that surface assigned to exactly one active host view. Other
+/// active windows retain their display links so ownership transfers without needing a second scene
+/// activation callback, but only the selected owner is allowed to drive or resize the renderer.
+@MainActor
+private final class PresentationSurfaceCoordinator {
+    static let shared = PresentationSurfaceCoordinator()
+
+    private final class Candidate {
+        let layer: CAMetalLayer
+        var drawableSize = CGSize.zero
+
+        init(layer: CAMetalLayer) {
+            self.layer = layer
+        }
+    }
+
+    private var state = PresentationOwnershipState<ObjectIdentifier>()
+    private var candidates: [ObjectIdentifier: Candidate] = [:]
+    private var attachedOwner: ObjectIdentifier?
+
+    func register(_ host: AnyObject, layer: CAMetalLayer) {
+        let candidate = ObjectIdentifier(host)
+        if candidates[candidate] == nil {
+            candidates[candidate] = Candidate(layer: layer)
+            state.register(candidate)
+        }
+    }
+
+    func activate(_ host: AnyObject, layer: CAMetalLayer) {
+        let candidate = ObjectIdentifier(host)
+        register(host, layer: layer)
+        state.activate(candidate)
+        reconcileAttachment()
+    }
+
+    func deactivate(_ host: AnyObject) {
+        state.deactivate(ObjectIdentifier(host))
+        reconcileAttachment()
+    }
+
+    func unregister(_ host: AnyObject) {
+        let candidate = ObjectIdentifier(host)
+        state.unregister(candidate)
+        candidates.removeValue(forKey: candidate)
+        reconcileAttachment()
+    }
+
+    func updateDrawableSize(_ size: CGSize, for host: AnyObject) {
+        let candidate = ObjectIdentifier(host)
+        candidates[candidate]?.drawableSize = size
+        guard state.isOwner(candidate) else { return }
+        GOALPadRenderSurface.shared.setDrawableSize(size)
+    }
+
+    func isOwner(_ host: AnyObject) -> Bool {
+        state.isOwner(ObjectIdentifier(host))
+    }
+
+    private func reconcileAttachment() {
+        guard attachedOwner != state.owner else { return }
+        attachedOwner = state.owner
+        guard let owner = state.owner, let candidate = candidates[owner] else {
+            GOALPadRenderSurface.shared.attach(nil)
+            return
+        }
+        GOALPadRenderSurface.shared.attach(candidate.layer)
+        GOALPadRenderSurface.shared.setDrawableSize(candidate.drawableSize)
+    }
+}
+
 #if canImport(UIKit)
 
 private final class MetalHostView: UIView {
@@ -39,7 +110,8 @@ private final class MetalHostView: UIView {
         super.didMoveToWindow()
         if window == nil {
             stopObservingSceneLifecycle()
-            suspendPresentation()
+            stopDisplayLink()
+            PresentationSurfaceCoordinator.shared.unregister(self)
             return
         }
         startObservingSceneLifecycle()
@@ -56,14 +128,14 @@ private final class MetalHostView: UIView {
         #else
         layer.contentsScale = window?.screen.nativeScale ?? layer.contentsScale
         #endif
-        GOALPadRenderSurface.shared.attach(metalLayer)
+        PresentationSurfaceCoordinator.shared.activate(self, layer: metalLayer)
         updateDrawableSize()
         startDisplayLink()
     }
 
     private func suspendPresentation() {
         stopDisplayLink()
-        GOALPadRenderSurface.shared.attach(nil)
+        PresentationSurfaceCoordinator.shared.deactivate(self)
     }
 
     override func layoutSubviews() {
@@ -73,8 +145,8 @@ private final class MetalHostView: UIView {
 
     private func updateDrawableSize() {
         let scale = layer.contentsScale
-        GOALPadRenderSurface.shared.setDrawableSize(
-            CGSize(width: bounds.width * scale, height: bounds.height * scale))
+        PresentationSurfaceCoordinator.shared.updateDrawableSize(
+            CGSize(width: bounds.width * scale, height: bounds.height * scale), for: self)
     }
 
     private func startDisplayLink() {
@@ -126,6 +198,7 @@ private final class MetalHostView: UIView {
     }
 
     @objc private func step(_ link: CADisplayLink) {
+        guard PresentationSurfaceCoordinator.shared.isOwner(self) else { return }
         onFrame?(link.targetTimestamp)
     }
 }
@@ -161,7 +234,9 @@ private final class MetalHostView: NSView {
         super.viewDidMoveToWindow()
         guard window != nil else {
             stopObservingApplicationLifecycle()
-            suspendPresentation()
+            frameLink?.invalidate()
+            frameLink = nil
+            PresentationSurfaceCoordinator.shared.unregister(self)
             return
         }
         startObservingApplicationLifecycle()
@@ -177,7 +252,7 @@ private final class MetalHostView: NSView {
         wantsLayer = true
         layer?.contentsScale = window.backingScaleFactor
         if let metalLayer {
-            GOALPadRenderSurface.shared.attach(metalLayer)
+            PresentationSurfaceCoordinator.shared.activate(self, layer: metalLayer)
         }
         updateDrawableSize()
         if frameLink == nil {
@@ -192,7 +267,7 @@ private final class MetalHostView: NSView {
     private func suspendPresentation() {
         frameLink?.invalidate()
         frameLink = nil
-        GOALPadRenderSurface.shared.attach(nil)
+        PresentationSurfaceCoordinator.shared.deactivate(self)
     }
 
     private func startObservingApplicationLifecycle() {
@@ -229,11 +304,12 @@ private final class MetalHostView: NSView {
 
     private func updateDrawableSize() {
         let scale = layer?.contentsScale ?? 1
-        GOALPadRenderSurface.shared.setDrawableSize(
-            CGSize(width: bounds.width * scale, height: bounds.height * scale))
+        PresentationSurfaceCoordinator.shared.updateDrawableSize(
+            CGSize(width: bounds.width * scale, height: bounds.height * scale), for: self)
     }
 
     @objc private func step(_ link: CADisplayLink) {
+        guard PresentationSurfaceCoordinator.shared.isOwner(self) else { return }
         onFrame?(link.targetTimestamp)
     }
 }
