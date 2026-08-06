@@ -43,6 +43,117 @@ private final class Fixture: @unchecked Sendable {
     }
 }
 
+private final class TestClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var tick: TimeInterval = 2_200_000_000
+
+    func now() -> Date {
+        lock.lock()
+        defer { lock.unlock() }
+        tick += 1
+        return Date(timeIntervalSince1970: tick)
+    }
+}
+
+private struct TestCloudError: LocalizedError {
+    var errorDescription: String? { "intentional cloud test failure" }
+}
+
+private actor DelayedCloudStore: PresentationSettingsCloudStoring {
+    let url: URL
+    private let delayWrites: Bool
+    private var delayNextRead: Bool
+    private var storedDocument: PresentationSettingsDocument?
+    private var pendingDocument: PresentationSettingsDocument?
+    private var readCount = 0
+    private var writeCount = 0
+    private var releaseReadContinuation: CheckedContinuation<Void, Never>?
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+    private var readWaiters: [Int: [CheckedContinuation<Void, Never>]] = [:]
+    private var writeWaiters: [Int: [CheckedContinuation<Void, Never>]] = [:]
+
+    init(url: URL, delayFirstRead: Bool = false, delayWrites: Bool = true) {
+        self.url = url
+        self.delayNextRead = delayFirstRead
+        self.delayWrites = delayWrites
+    }
+
+    func read() async throws -> PresentationSettingsCloudState? {
+        readCount += 1
+        if delayNextRead {
+            delayNextRead = false
+            await withCheckedContinuation { continuation in
+                releaseReadContinuation = continuation
+                for waiter in readWaiters.removeValue(forKey: readCount) ?? [] {
+                    waiter.resume()
+                }
+            }
+        }
+        return PresentationSettingsCloudState(url: url, document: storedDocument,
+                                              hasConflicts: false)
+    }
+
+    func write(_ document: PresentationSettingsDocument, to _: URL) async throws {
+        writeCount += 1
+        guard delayWrites else {
+            storedDocument = document
+            return
+        }
+        await withCheckedContinuation { continuation in
+            pendingDocument = document
+            releaseContinuation = continuation
+            for waiter in writeWaiters.removeValue(forKey: writeCount) ?? [] {
+                waiter.resume()
+            }
+        }
+        storedDocument = document
+        pendingDocument = nil
+    }
+
+    func waitUntilReadStarts(_ expectedCount: Int) async {
+        if readCount >= expectedCount, releaseReadContinuation != nil { return }
+        await withCheckedContinuation { continuation in
+            readWaiters[expectedCount, default: []].append(continuation)
+        }
+    }
+
+    func waitUntilWriteStarts(_ expectedCount: Int) async {
+        if writeCount >= expectedCount, releaseContinuation != nil { return }
+        await withCheckedContinuation { continuation in
+            writeWaiters[expectedCount, default: []].append(continuation)
+        }
+    }
+
+    func pendingWrite() -> PresentationSettingsDocument? {
+        pendingDocument
+    }
+
+    func storedValue() -> PresentationSettingsDocument? {
+        storedDocument
+    }
+
+    func completedReadCount() -> Int {
+        readCount
+    }
+
+    func releaseRead(_ expectedCount: Int) -> Bool {
+        guard readCount == expectedCount,
+              let continuation = releaseReadContinuation else { return false }
+        releaseReadContinuation = nil
+        continuation.resume()
+        return true
+    }
+
+    func releaseWrite(_ expectedCount: Int) -> Bool {
+        guard writeCount == expectedCount, let continuation = releaseContinuation else {
+            return false
+        }
+        releaseContinuation = nil
+        continuation.resume()
+        return true
+    }
+}
+
 @MainActor
 private func settings(_ fixture: Fixture, writerID: String,
                       cloudAvailable: Bool = true) -> PresentationSettings {
@@ -208,6 +319,7 @@ private func touchLayoutPersistsSyncsAndResets() async throws {
                                   for: .modernMovement)
     value.setTouchControlAction(.cameraStick, for: .modernMovement)
     value.setTouchGestureAction(.square, for: .up)
+    value.setTouchGestureAction(.circle, for: .down)
     value.setTouchControlOpacityPercent(55, for: .modernActions)
     value.setTouchControlSizePercent(135, for: .classicCross)
     check(value.jak1TouchLayout.position(for: .modernMovement)
@@ -216,6 +328,7 @@ private func touchLayoutPersistsSyncsAndResets() async throws {
           && value.jak1TouchLayout.action(for: .modernCamera) == .movementStick
           && value.jak1TouchLayout.gestureAction(for: .up) == .square
           && value.jak1TouchLayout.gestureAction(for: .left) == .cross
+          && value.jak1TouchLayout.gestureAction(for: .down) == .crouch
           && value.jak1TouchLayout.opacity(for: .modernActions) == 0.55
           && value.jak1TouchLayout.scale(for: .classicCross) == 1.35,
           "position, swap remaps, gesture mapping, opacity, and size update one live value")
@@ -419,6 +532,137 @@ private func cloudSettingsConvergeAsOneDocument() async throws {
 }
 
 @MainActor
+private func changeDuringCloudWriteQueuesNewestDocument() async throws {
+    print("a local change during an in-flight cloud write queues a complete second pass")
+    let fixture = try Fixture(name: "delayed-cloud-write")
+    let clock = TestClock()
+    let configuration = PresentationSettingsConfiguration(
+        localDocumentURL: fixture.local,
+        cloudDocumentURL: { fixture.cloud },
+        coordinateCloudAccess: false,
+        now: { clock.now() })
+    let cloudStore = DelayedCloudStore(url: fixture.cloud)
+    let value = PresentationSettings(defaults: fixture.defaults,
+                                     configuration: configuration,
+                                     writerID: "device-a",
+                                     cloudStore: cloudStore)
+
+    let firstSync = Task { await value.syncNow() }
+    await cloudStore.waitUntilWriteStarts(1)
+    check(value.syncStatus == .syncing && value.lastSyncDate == nil,
+          "the first delayed cloud write remains Syncing rather than Up to date")
+
+    value.setTouchControlPosition(NormalizedTouchPosition(x: 0.73, y: 0.27),
+                                  for: .modernCamera)
+    value.setTouchControlOpacityPercent(55, for: .classicCross)
+    let firstPending = await cloudStore.pendingWrite()
+    check(firstPending?.jak1TouchLayoutOverride == nil,
+          "the in-flight write is the older document snapshot")
+    let releasedFirst = await cloudStore.releaseWrite(1)
+    check(releasedFirst, "the deterministic store releases the first write")
+
+    await cloudStore.waitUntilWriteStarts(2)
+    let newestPending = await cloudStore.pendingWrite()
+    check(newestPending?.jak1TouchLayout.position(for: .modernCamera)
+            == NormalizedTouchPosition(x: 0.73, y: 0.27)
+          && newestPending?.jak1TouchLayout.opacity(for: .classicCross) == 0.55,
+          "the queued pass writes the newest complete settings document")
+    check(value.syncStatus == .syncing && value.lastSyncDate == nil,
+          "status stays Syncing until the newest document finishes writing")
+    let releasedSecond = await cloudStore.releaseWrite(2)
+    check(releasedSecond, "the deterministic store releases the newest write")
+    await firstSync.value
+
+    let stored = await cloudStore.storedValue()
+    let isSynced: Bool
+    if case .synced = value.syncStatus { isSynced = true } else { isSynced = false }
+    check(stored == value.document && isSynced && value.lastSyncDate != nil,
+          "only the newest stored document advances status to Up to date")
+}
+
+@MainActor
+private func changeDuringCloudReadQueuesAnotherPass() async throws {
+    print("a local change during an in-flight cloud read queues another complete pass")
+    let fixture = try Fixture(name: "delayed-cloud-read")
+    let clock = TestClock()
+    let configuration = PresentationSettingsConfiguration(
+        localDocumentURL: fixture.local,
+        cloudDocumentURL: { fixture.cloud },
+        coordinateCloudAccess: false,
+        now: { clock.now() })
+    let cloudStore = DelayedCloudStore(url: fixture.cloud,
+                                       delayFirstRead: true, delayWrites: false)
+    let value = PresentationSettings(defaults: fixture.defaults,
+                                     configuration: configuration,
+                                     writerID: "device-a",
+                                     cloudStore: cloudStore)
+
+    let firstSync = Task { await value.syncNow() }
+    await cloudStore.waitUntilReadStarts(1)
+    value.setTouchControlSizePercent(140, for: .classicCamera)
+    check(value.syncStatus == .syncing && value.lastSyncDate == nil,
+          "a change during the delayed read cannot publish Up to date")
+    let released = await cloudStore.releaseRead(1)
+    check(released, "the deterministic store releases the first read")
+    await firstSync.value
+
+    let reads = await cloudStore.completedReadCount()
+    let stored = await cloudStore.storedValue()
+    let isSynced: Bool
+    if case .synced = value.syncStatus { isSynced = true } else { isSynced = false }
+    check(reads == 2,
+          "the local revision change forces a second cloud read pass")
+    check(stored?.jak1TouchLayout.scale(for: .classicCamera) == 1.4
+          && stored == value.document && isSynced,
+          "the read-race pass stores the newest document before publishing Up to date")
+}
+
+@MainActor
+private func inFlightOptOutAndCloudErrorsRemainExplicit() async throws {
+    print("in-flight opt-out and cloud failures retain their explicit status behavior")
+    let optOutFixture = try Fixture(name: "in-flight-opt-out")
+    let delayedRead = DelayedCloudStore(url: optOutFixture.cloud,
+                                        delayFirstRead: true, delayWrites: false)
+    let optOut = PresentationSettings(
+        defaults: optOutFixture.defaults,
+        configuration: optOutFixture.configuration(),
+        writerID: "device-a",
+        cloudStore: delayedRead)
+    let optOutSync = Task { await optOut.syncNow() }
+    await delayedRead.waitUntilReadStarts(1)
+    optOut.cloudSyncEnabled = false
+    let released = await delayedRead.releaseRead(1)
+    check(released, "the deterministic store releases the opted-out read")
+    await optOutSync.value
+    let optOutStored = await delayedRead.storedValue()
+    check(optOut.syncStatus == .disabled && optOutStored == nil,
+          "opting out during a read stops writes and leaves status Off")
+
+    let failureFixture = try Fixture(name: "cloud-error")
+    let remote = PresentationSettingsDocument(writerID: "remote")
+    try FileManager.default.createDirectory(
+        at: failureFixture.cloud.deletingLastPathComponent(),
+        withIntermediateDirectories: true)
+    try JSONEncoder().encode(remote).write(to: failureFixture.cloud, options: .atomic)
+    let failureConfiguration = PresentationSettingsConfiguration(
+        localDocumentURL: failureFixture.local,
+        cloudDocumentURL: { failureFixture.cloud },
+        coordinateCloudAccess: false,
+        cloudConflictDocumentData: { _ in throw TestCloudError() })
+    let failed = PresentationSettings(defaults: failureFixture.defaults,
+                                      configuration: failureConfiguration,
+                                      writerID: "device-a")
+    await failed.syncNow()
+    let isFailed: Bool
+    if case .failed(let message) = failed.syncStatus {
+        isFailed = message.contains("intentional cloud test failure")
+    } else {
+        isFailed = false
+    }
+    check(isFailed, "a cloud-store error remains an actionable failed status")
+}
+
+@MainActor
 private func coordinatedFirstCloudWriteCreatesItsNestedDocument() async throws {
     print("the first coordinated cloud write targets an existing ancestor")
     let fixture = try Fixture(name: "first-cloud-write")
@@ -503,6 +747,9 @@ private struct PresentationSettingsCheck {
             try await profilesCanBeMixedWithoutLosingOptions()
             try await localOptOutDoesNotTouchCloud()
             try await cloudSettingsConvergeAsOneDocument()
+            try await changeDuringCloudReadQueuesAnotherPass()
+            try await changeDuringCloudWriteQueuesNewestDocument()
+            try await inFlightOptOutAndCloudErrorsRemainExplicit()
             try await coordinatedFirstCloudWriteCreatesItsNestedDocument()
             try await newerCloudDocumentWinsDeterministically()
             try await unresolvedCloudVersionParticipatesInConflictResolution()

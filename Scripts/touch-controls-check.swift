@@ -1030,6 +1030,29 @@ private func customizedModernLayoutPinsRemapsAndPreservesSkipSafety() {
           "the pinned up swipe works across halves and emits its swapped safe face action")
     run.up(gesture)
 
+    let combo = Finger()
+    run.down(combo, gestureCentre)
+    let crouchPeak = CGPoint(x: gestureCentre.x,
+                             y: gestureCentre.y + TouchControls.swipeDistance + 8)
+    run.move(combo, crouchPeak)
+    run.move(combo, CGPoint(x: gestureCentre.x - TouchControls.swipeDistance - 8,
+                            y: crouchPeak.y))
+    state = run.frame()
+    check(state.buttons.contains(.L1) && state.buttons.contains(.square),
+          "Crouch stays on Down and its left combo stays Square after face-swipe remapping")
+    run.move(combo, CGPoint(x: gestureCentre.x - TouchControls.swipeDistance - 8,
+                            y: crouchPeak.y - TouchControls.rollJumpDistance - 8))
+    check(run.frame().buttons.contains(.cross),
+          "the crouch reversal combo stays Cross after face-swipe remapping")
+    run.up(combo)
+    check(TouchControls.gestureArtworkIsLit(button: .square, swiped: nil,
+                                            jumpTriggered: false, punchTriggered: true)
+          && !TouchControls.gestureArtworkIsLit(button: .cross, swiped: nil,
+                                                jumpTriggered: false, punchTriggered: true)
+          && TouchControls.gestureArtworkIsLit(button: .cross, swiped: nil,
+                                               jumpTriggered: true, punchTriggered: false),
+          "combo artwork lights the remapped Square or Cross chip by output action")
+
     let selectSource = Finger()
     run.down(selectSource, CGPoint(x: Runner.select.midX, y: Runner.select.midY))
     check(run.frame().buttons.contains(.start),
@@ -1091,6 +1114,183 @@ private func customizedClassicLayoutClampsRemapsAndKeepsMinimumTargets() {
     let state = run.frame()
     check(!state.isLeftDeflected && state.isRightDeflected,
           "a Classic whole-stick remap reaches the camera axes without splitting them")
+}
+
+@MainActor
+private func resizedClassicSticksUseTheirMinimumHitFrames() {
+    print("resized Classic sticks retain exact axes across their 44-point hit targets")
+    let size = CGSize(width: 240, height: 320)
+    var customization = TouchLayoutCustomization.standard
+    customization.setPosition(NormalizedTouchPosition(x: 0.25, y: 0),
+                              for: .classicMovement)
+    customization.setPosition(NormalizedTouchPosition(x: 0.75, y: 0),
+                              for: .classicCamera)
+    customization.setSizePercent(65, for: .classicMovement)
+    customization.setSizePercent(65, for: .classicCamera)
+    for control in TouchLayoutControlID.controls(for: .classic)
+    where control != .classicMovement && control != .classicCamera {
+        customization.setPosition(NormalizedTouchPosition(x: 0.5, y: 1), for: control)
+    }
+    let layout = ClassicTouchLayout(size: size, customization: customization)
+    let leftVisual = layout.leftStickFrame
+    let rightVisual = layout.rightStickFrame
+    let leftHit = layout.hitFrame(for: .classicMovement)!
+    let rightHit = layout.hitFrame(for: .classicCamera)!
+    check(leftVisual.width < 44 && rightVisual.width < 44
+          && leftHit.width == 44 && rightHit.width == 44,
+          "both reduced stick visuals retain computed 44-point hit frames")
+
+    let leftPoint = CGPoint(x: (leftVisual.maxX + leftHit.maxX) / 2,
+                            y: leftVisual.midY)
+    check(!leftVisual.contains(leftPoint) && leftHit.contains(leftPoint),
+          "the movement test point is outside its visual but inside its hit frame")
+    var movementRun = Runner(style: .classic, size: size, rightStickFrame: .zero)
+    movementRun.controls.setLayoutCustomization(customization)
+    let movement = Finger()
+    movementRun.down(movement, leftPoint)
+    let movementState = movementRun.frame()
+    check(movementState.leftX == 254 && movementState.leftY == neutral
+          && movementState.rightX == neutral && movementState.rightY == neutral,
+          "the movement minimum target emits the exact full-right left-stick axes")
+
+    let rightPoint = CGPoint(x: (rightVisual.maxX + rightHit.maxX) / 2,
+                             y: rightVisual.midY)
+    check(!rightVisual.contains(rightPoint) && rightHit.contains(rightPoint),
+          "the camera test point is outside its visual but inside its hit frame")
+    var cameraRun = Runner(style: .classic, size: size, rightStickFrame: .zero)
+    cameraRun.controls.setLayoutCustomization(customization)
+    let camera = Finger()
+    cameraRun.down(camera, rightPoint)
+    let cameraState = cameraRun.frame()
+    check(cameraState.rightX == 254 && cameraState.rightY == neutral
+          && cameraState.leftX == neutral && cameraState.leftY == neutral,
+          "the camera minimum target emits the exact full-right right-stick axes")
+}
+
+@MainActor
+private func overlappingControlsFollowVisualStackOrder() {
+    print("overlapping controls use one explicit hit order matching their visual stack")
+    let centre = NormalizedTouchPosition(x: 0.5, y: 0.5)
+
+    var allModern = TouchLayoutCustomization.standard
+    for control in TouchLayoutControlID.controls(for: .modern) {
+        allModern.setPosition(centre, for: control)
+    }
+    var cameraFirst = Runner(style: .modern)
+    cameraFirst.controls.setLayoutCustomization(allModern)
+    let cameraTouch = Finger()
+    let screenCentre = CGPoint(x: Runner.screen.width / 2, y: Runner.screen.height / 2)
+    cameraFirst.down(cameraTouch, screenCentre)
+    cameraFirst.move(cameraTouch, CGPoint(x: screenCentre.x + TouchControls.rightStickRadius,
+                                          y: screenCentre.y))
+    let cameraState = cameraFirst.frame()
+    check(cameraState.rightX == 254 && cameraState.leftX == neutral
+          && cameraState.buttons.isEmpty,
+          "Modern camera wins over overlapping pills, actions, and movement")
+
+    var pillsOverActions = TouchLayoutCustomization.standard
+    let stackedModernControls: [TouchLayoutControlID] = [
+        .modernMovement, .modernActions, .modernSelect, .modernStats, .modernStart,
+    ]
+    for control in stackedModernControls {
+        pillsOverActions.setPosition(centre, for: control)
+    }
+    var topPill = Runner(style: .modern)
+    topPill.controls.setLayoutCustomization(pillsOverActions)
+    let pillTouch = Finger()
+    topPill.down(pillTouch, screenCentre)
+    check(topPill.frame().buttons == .start,
+          "Modern Start wins the explicit reverse render order of overlapping pills")
+
+    var actionsOverMovement = TouchLayoutCustomization.standard
+    actionsOverMovement.setPosition(centre, for: .modernMovement)
+    actionsOverMovement.setPosition(centre, for: .modernActions)
+    var topAction = Runner(style: .modern)
+    topAction.controls.setLayoutCustomization(actionsOverMovement)
+    let actionTouch = Finger()
+    topAction.down(actionTouch, screenCentre)
+    topAction.move(actionTouch, CGPoint(x: screenCentre.x,
+                                        y: screenCentre.y - TouchControls.swipeDistance - 4))
+    check(topAction.frame().buttons == .cross,
+          "Modern actions win over overlapping movement")
+
+    var allClassic = TouchLayoutCustomization.standard
+    for control in TouchLayoutControlID.controls(for: .classic) {
+        allClassic.setPosition(centre, for: control)
+    }
+    var topClassicButton = Runner(style: .classic)
+    topClassicButton.controls.setLayoutCustomization(allClassic)
+    let classicButtonTouch = Finger()
+    topClassicButton.down(classicButtonTouch, screenCentre)
+    check(topClassicButton.frame().buttons == .cross,
+          "Classic Cross wins the reverse render order over buttons and both sticks")
+
+    var overlappingSticks = TouchLayoutCustomization.standard
+    overlappingSticks.setPosition(centre, for: .classicMovement)
+    overlappingSticks.setPosition(centre, for: .classicCamera)
+    var topClassicStick = Runner(style: .classic)
+    topClassicStick.controls.setLayoutCustomization(overlappingSticks)
+    let overlappingStickLayout = ClassicTouchLayout(size: Runner.screen,
+                                                     safeAreaInsets: Runner.safeAreaInsets,
+                                                     customization: overlappingSticks)
+    let classicStickTouch = Finger()
+    topClassicStick.down(classicStickTouch, screenCentre)
+    topClassicStick.move(classicStickTouch,
+                         CGPoint(x: screenCentre.x + overlappingStickLayout.rightStickRadius,
+                                 y: screenCentre.y))
+    let classicStickState = topClassicStick.frame()
+    check(classicStickState.rightX == 254 && classicStickState.leftX == neutral,
+          "Classic camera stick wins over overlapping movement like the Z render order")
+}
+
+@MainActor
+private func liveLayoutChangesCancelOwnedInput() {
+    print("a live layout change cancels all input owned by the previous geometry")
+    var run = Runner(style: .modern)
+    let movement = Finger()
+    let crouch = Finger()
+    let start = Finger()
+    let movementCentre = CGPoint(x: 180, y: 650)
+    let gestureCentre = CGPoint(x: 900, y: 360)
+    run.down(movement, movementCentre)
+    run.move(movement, CGPoint(x: movementCentre.x + TouchControls.movementRadius,
+                               y: movementCentre.y))
+    run.down(crouch, gestureCentre)
+    run.move(crouch, CGPoint(x: gestureCentre.x,
+                             y: gestureCentre.y + TouchControls.swipeDistance + 4))
+    run.down(start, CGPoint(x: Runner.start.midX, y: Runner.start.midY))
+    let ownedState = run.frame()
+    check(ownedState.leftX == 254 && ownedState.buttons.contains(.L1)
+          && ownedState.buttons.contains(.start),
+          "the old layout owns simultaneous stick, crouch, and pill state before replacement")
+
+    var replacement = TouchLayoutCustomization.standard
+    replacement.setPosition(NormalizedTouchPosition(x: 0.3, y: 0.3),
+                            for: .modernMovement)
+    run.controls.setLayoutCustomization(replacement)
+    check(run.controls.touches.isEmpty && !run.controls.isEngaged
+          && run.controls.consumeHapticEvents().isEmpty
+          && run.frames(TouchControls.holdFrames + TouchControls.releaseFrames).allSatisfy {
+              $0 == .neutral
+          }, "applying live geometry cancels touches, pulses, haptics, and carried axes")
+
+    run.move(movement, CGPoint(x: 400, y: 400))
+    run.up(crouch)
+    run.up(start)
+    check(run.frame() == .neutral,
+          "late events from the old geometry cannot revive cancelled input")
+
+    let layout = ModernTouchLayout(size: Runner.screen,
+                                   safeAreaInsets: Runner.safeAreaInsets,
+                                   customization: replacement)
+    let newMovement = Finger()
+    let newCentre = CGPoint(x: layout.movementArtworkFrame.midX,
+                            y: layout.movementArtworkFrame.midY)
+    run.down(newMovement, newCentre)
+    run.move(newMovement, CGPoint(x: newCentre.x + TouchControls.movementRadius,
+                                  y: newCentre.y))
+    check(run.frame().leftX == 254,
+          "a new touch immediately uses the replacement layout")
 }
 
 @MainActor
@@ -1877,6 +2077,9 @@ struct TouchControlsCheck {
         classicMultitouchReachesOneFrame()
         customizedModernLayoutPinsRemapsAndPreservesSkipSafety()
         customizedClassicLayoutClampsRemapsAndKeepsMinimumTargets()
+        resizedClassicSticksUseTheirMinimumHitFrames()
+        overlappingControlsFollowVisualStackOrder()
+        liveLayoutChangesCancelOwnedInput()
         cutsceneSkipIsContextualExactAndLifecycleSafe()
         pausePresentationFollowsNativeMenuState()
         controllerSuppressionKeepsTouchRecovery()

@@ -161,7 +161,7 @@ struct TouchControlsView: View {
                     .opacity(controls.layoutCustomization.opacity(for: .modernActions))
             }
 
-            ForEach([TouchButton.select, .stats, .start], id: \.self) { sourceButton in
+            ForEach(ModernTouchLayout.pillButtons, id: \.self) { sourceButton in
                 if let control = modernControlID(for: sourceButton),
                    let output = controls.layoutCustomization.action(for: control)?.touchButton {
                     pill(sourceButton: sourceButton, outputButton: output,
@@ -564,21 +564,24 @@ private struct GestureRose: View {
 
     var body: some View {
         ZStack {
-            chip(actions.gestureAction(for: .up).touchButton ?? .cross,
-                 isLit: gesture.swiped == actions.gestureAction(for: .up).touchButton
-                    || gesture.jumpTriggered)
+            chip(for: .up)
                 .position(x: gesture.origin.x, y: gesture.origin.y - Self.reach)
-            chip(actions.gestureAction(for: .left).touchButton ?? .square,
-                 isLit: gesture.swiped == actions.gestureAction(for: .left).touchButton
-                    || gesture.punchTriggered)
+            chip(for: .left)
                 .position(x: gesture.origin.x - Self.reach, y: gesture.origin.y)
-            chip(actions.gestureAction(for: .right).touchButton ?? .circle,
-                 isLit: gesture.swiped == actions.gestureAction(for: .right).touchButton)
+            chip(for: .right)
                 .position(x: gesture.origin.x + Self.reach, y: gesture.origin.y)
-            chip(actions.gestureAction(for: .down).touchButton ?? .crouch,
-                 isLit: gesture.swiped == actions.gestureAction(for: .down).touchButton)
+            chip(for: .down)
                 .position(x: gesture.origin.x, y: gesture.origin.y + Self.reach)
         }
+    }
+
+    private func chip(for direction: TouchGestureDirection) -> some View {
+        let fallback = TouchGestureActionMapping.standard.action(for: direction).touchButton
+            ?? .crouch
+        let button = actions.gestureAction(for: direction).touchButton ?? fallback
+        return chip(button, isLit: TouchControls.gestureArtworkIsLit(
+            button: button, swiped: gesture.swiped,
+            jumpTriggered: gesture.jumpTriggered, punchTriggered: gesture.punchTriggered))
     }
 
     private func chip(_ button: TouchButton, isLit: Bool) -> some View {

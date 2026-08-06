@@ -185,13 +185,18 @@ nonisolated enum PresentationSettingsLayout {
     }
 }
 
-nonisolated private struct PresentationSettingsCloudState: Sendable {
+nonisolated struct PresentationSettingsCloudState: Sendable {
     let url: URL
     let document: PresentationSettingsDocument?
     let hasConflicts: Bool
 }
 
-private actor PresentationSettingsCloudStore {
+nonisolated protocol PresentationSettingsCloudStoring: Sendable {
+    func read() async throws -> PresentationSettingsCloudState?
+    func write(_ document: PresentationSettingsDocument, to url: URL) async throws
+}
+
+private actor PresentationSettingsCloudStore: PresentationSettingsCloudStoring {
     private let configuration: PresentationSettingsConfiguration
     private let manager = FileManager.default
 
@@ -224,7 +229,7 @@ private actor PresentationSettingsCloudStore {
                                               hasConflicts: !conflictData.isEmpty)
     }
 
-    func write(_ document: PresentationSettingsDocument, to url: URL) throws {
+    func write(_ document: PresentationSettingsDocument, to url: URL) async throws {
         let data = try JSONEncoder().encode(document)
         guard configuration.coordinateCloudAccess else {
             try manager.createDirectory(at: url.deletingLastPathComponent(),
@@ -330,15 +335,18 @@ final class PresentationSettings {
 
     private let defaults: UserDefaults
     private let configuration: PresentationSettingsConfiguration
-    private let cloudStore: PresentationSettingsCloudStore
+    private let cloudStore: any PresentationSettingsCloudStoring
     private let localWriterID: String
     private let manager = FileManager.default
     private var hasLocalDocument: Bool
     private var isSyncing = false
+    private var syncRequested = false
+    private var documentRevision: UInt64 = 0
 
     init(defaults: UserDefaults = .standard,
          configuration: PresentationSettingsConfiguration? = nil,
-         writerID: String? = nil) {
+         writerID: String? = nil,
+         cloudStore: (any PresentationSettingsCloudStoring)? = nil) {
         self.defaults = defaults
         let storedWriterID = writerID ?? defaults.string(forKey: Self.writerIDKey) ?? UUID().uuidString
         if writerID == nil, defaults.string(forKey: Self.writerIDKey) == nil {
@@ -351,7 +359,8 @@ final class PresentationSettings {
             coordinateCloudAccess: true,
             cloudConflictDocumentData: { try PresentationSettingsLayout.unresolvedConflictData(at: $0) })
         self.configuration = resolvedConfiguration
-        cloudStore = PresentationSettingsCloudStore(configuration: resolvedConfiguration)
+        self.cloudStore = cloudStore
+            ?? PresentationSettingsCloudStore(configuration: resolvedConfiguration)
         if let data = try? Data(contentsOf: self.configuration.localDocumentURL),
            let stored = try? JSONDecoder().decode(PresentationSettingsDocument.self, from: data),
            stored.schemaVersion == PresentationSettingsDocument.schemaVersion {
@@ -542,49 +551,64 @@ final class PresentationSettings {
     }
 
     func syncNow() async {
-        guard cloudSyncEnabled, !isSyncing else { return }
+        guard cloudSyncEnabled else { return }
+        guard !isSyncing else {
+            syncRequested = true
+            return
+        }
         isSyncing = true
         syncStatus = .syncing
         defer { isSyncing = false }
 
-        do {
-            guard let remoteState = try await cloudStore.read() else {
-                syncStatus = .unavailable
+        while cloudSyncEnabled {
+            syncRequested = false
+            let startingRevision = documentRevision
+            do {
+                guard let remoteState = try await cloudStore.read() else {
+                    syncStatus = .unavailable
+                    return
+                }
+                let remote = remoteState.document
+                guard cloudSyncEnabled else {
+                    syncStatus = .disabled
+                    return
+                }
+                let winner: PresentationSettingsDocument
+                if !hasLocalDocument, let remote {
+                    winner = remote
+                } else if let remote {
+                    winner = isNewer(document, than: remote) ? document : remote
+                } else {
+                    winner = document
+                }
+                if winner != document || !hasLocalDocument {
+                    document = winner
+                    try writeLocalDocument(winner)
+                    hasLocalDocument = true
+                }
+                if remote != winner || remoteState.hasConflicts {
+                    try await cloudStore.write(winner, to: remoteState.url)
+                }
+                guard cloudSyncEnabled else {
+                    syncStatus = .disabled
+                    return
+                }
+                if documentRevision != startingRevision || syncRequested {
+                    continue
+                }
+                let completedAt = configuration.now()
+                lastSuccessfulSyncDate = completedAt
+                syncStatus = .synced(completedAt)
+                return
+            } catch is CancellationError {
+                syncStatus = cloudSyncEnabled ? .waiting : .disabled
+                return
+            } catch {
+                syncStatus = cloudSyncEnabled ? .failed(error.localizedDescription) : .disabled
                 return
             }
-            let remote = remoteState.document
-            guard cloudSyncEnabled else {
-                syncStatus = .disabled
-                return
-            }
-            let winner: PresentationSettingsDocument
-            if !hasLocalDocument, let remote {
-                winner = remote
-            } else if let remote {
-                winner = isNewer(document, than: remote) ? document : remote
-            } else {
-                winner = document
-            }
-            if winner != document || !hasLocalDocument {
-                document = winner
-                try writeLocalDocument(winner)
-                hasLocalDocument = true
-            }
-            if remote != winner || remoteState.hasConflicts {
-                try await cloudStore.write(winner, to: remoteState.url)
-            }
-            guard cloudSyncEnabled else {
-                syncStatus = .disabled
-                return
-            }
-            let completedAt = configuration.now()
-            lastSuccessfulSyncDate = completedAt
-            syncStatus = .synced(completedAt)
-        } catch is CancellationError {
-            syncStatus = cloudSyncEnabled ? .waiting : .disabled
-        } catch {
-            syncStatus = cloudSyncEnabled ? .failed(error.localizedDescription) : .disabled
         }
+        syncStatus = .disabled
     }
 
     private func change(_ update: (inout PresentationSettingsDocument) -> Void) {
@@ -594,6 +618,7 @@ final class PresentationSettings {
         do {
             try writeLocalDocument(document)
             hasLocalDocument = true
+            documentRevision &+= 1
         } catch {
             syncStatus = .failed(error.localizedDescription)
             return

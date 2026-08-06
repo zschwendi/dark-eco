@@ -66,6 +66,17 @@ private func remappingSwapsOnlyWithinCompatibleSets() {
     let gestureActions = Set(TouchGestureDirection.allCases.map(layout.gestureAction(for:)))
     check(gestureActions == Set([.cross, .square, .circle, .crouch]),
           "the action rose retains all four established outputs exactly once")
+    let remapped = layout
+    layout.setGestureAction(.circle, for: .down)
+    layout.setGestureAction(.crouch, for: .up)
+    check(layout == remapped && layout.gestureAction(for: .down) == .crouch,
+          "Down stays fixed to Crouch and Crouch cannot enter another direction")
+    check(TouchGestureDirection.remappableCases == [.up, .left, .right]
+          && TouchGestureActionMapping.remappableActions == [.cross, .square, .circle],
+          "only the three established face swipes are representable as remappable")
+    check(TouchGestureActionMapping(up: .square, left: .cross,
+                                    right: .circle, down: .cross) == .standard,
+          "the mapping model itself fails closed when constructed with movable Crouch")
 }
 
 private func defaultsAreOmittedAndDecodingIsBounded() throws {
@@ -96,6 +107,15 @@ private func defaultsAreOmittedAndDecodingIsBounded() throws {
     check(safe.action(for: .modernMovement) == .movementStick
           && safe.action(for: .modernCamera) == .cameraStick,
           "a partial duplicate-output document fails back to the safe stick defaults")
+
+    let malformedGesture = Data(
+        #"{"controls":[{"id":"modernActions","gestureActions":{"up":"square","left":"cross","right":"circle","down":"cross"}}]}"#.utf8)
+    let safeGesture = try JSONDecoder().decode(TouchLayoutCustomization.self,
+                                                from: malformedGesture)
+    check(safeGesture.isDefault
+          && TouchGestureDirection.allCases.map(safeGesture.gestureAction(for:))
+            == [.cross, .square, .circle, .crouch],
+          "a decoded mapping that moves Crouch away from Down fails closed to the standard rose")
 }
 
 private func dragAndRotationStayInsideSafeBounds() {

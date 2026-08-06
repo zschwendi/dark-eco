@@ -495,6 +495,7 @@ enum TouchHapticEvent: Equatable {
 
 /// Deterministic Modern artwork geometry. Input radii remain owned by TouchControls.
 struct ModernTouchLayout: Sendable {
+    static let pillButtons: [TouchButton] = [.select, .stats, .start]
     static let movementKnobSize: CGFloat = 66
     static let movementVisualRadius: CGFloat = 54
     static let rightStickHitSlop: CGFloat = 16
@@ -1312,7 +1313,7 @@ final class TouchControls {
                       classicLayout: ClassicTouchLayout?,
                       modernLayout: ModernTouchLayout?) -> Role? {
         if let layout = classicLayout {
-            for sourceButton in ClassicTouchLayout.buttons
+            for sourceButton in ClassicTouchLayout.buttons.reversed()
             where layout.hitFrame(for: sourceButton)?.contains(point) == true {
                 let control = ClassicTouchLayout.controlID(for: sourceButton)
                 guard let button = layoutCustomization.action(for: control)?.touchButton else {
@@ -1320,26 +1321,35 @@ final class TouchControls {
                 }
                 return pillRole(for: button)
             }
-            if stick == nil, layout.leftStickFrame.contains(point) { return .movement }
-            if rightStick == nil, layout.rightStickFrame.contains(point) { return .rightStick }
+            if rightStick == nil,
+               layout.hitFrame(for: .classicCamera)?.contains(point) == true {
+                return .rightStick
+            }
+            if stick == nil,
+               layout.hitFrame(for: .classicMovement)?.contains(point) == true {
+                return .movement
+            }
             return nil
-        }
-        for (sourceButton, registeredFrame) in pillFrames {
-            guard let control = Self.modernControlID(for: sourceButton),
-                  let output = layoutCustomization.action(for: control)?.touchButton else { continue }
-            let frame = layoutCustomization.hasCustomGeometry(for: control)
-                ? modernLayout?.hitFrame(for: control) ?? registeredFrame
-                : registeredFrame
-            if frame.contains(point) { return pillRole(for: output) }
         }
         let cameraFrame = layoutCustomization.hasCustomGeometry(for: .modernCamera)
             ? modernLayout?.rightStickHitFrame ?? rightStickFrame
             : rightStickFrame
         if rightStick == nil, cameraFrame.contains(point) { return .rightStick }
+        for sourceButton in ModernTouchLayout.pillButtons.reversed() {
+            guard let registeredFrame = pillFrames[sourceButton],
+                  let control = Self.modernControlID(for: sourceButton),
+                  let output = layoutCustomization.action(for: control)?.touchButton else {
+                continue
+            }
+            let frame = layoutCustomization.hasCustomGeometry(for: control)
+                ? modernLayout?.hitFrame(for: control) ?? registeredFrame
+                : registeredFrame
+            if frame.contains(point) { return pillRole(for: output) }
+        }
         let pinnedMovement = modernLayout?.movementHitFrame
         let pinnedActions = modernLayout?.actionGestureHitFrame
-        if stick == nil, pinnedMovement?.contains(point) == true { return .movement }
         if pinnedActions?.contains(point) == true { return .gesture }
+        if stick == nil, pinnedMovement?.contains(point) == true { return .movement }
         if stick == nil, pinnedMovement == nil, point.x < size.width / 2 { return .movement }
         if pinnedActions == nil, point.x >= size.width / 2 { return .gesture }
         return nil
@@ -1460,6 +1470,14 @@ final class TouchControls {
     nonisolated static func stickDeflection(from origin: CGPoint, to point: CGPoint,
                                             radius: CGFloat, deadzone: CGFloat) -> CGPoint {
         radialDeflection(from: origin, to: point, radius: radius, deadzone: deadzone)
+    }
+
+    nonisolated static func gestureArtworkIsLit(button: TouchButton,
+                                                swiped: TouchButton?,
+                                                jumpTriggered: Bool,
+                                                punchTriggered: Bool) -> Bool {
+        swiped == button || (jumpTriggered && button == .cross)
+            || (punchTriggered && button == .square)
     }
 
     nonisolated static func artworkIsVisible(isEngaged: Bool, isSuppressed: Bool,

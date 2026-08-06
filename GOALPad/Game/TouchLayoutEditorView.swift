@@ -58,17 +58,18 @@ struct TouchLayoutEditorView: View {
                 }
 
                 if selectedControl == .modernActions {
-                    ForEach(TouchGestureDirection.allCases, id: \.self) { direction in
+                    ForEach(TouchGestureDirection.remappableCases, id: \.self) { direction in
                         Picker("Swipe \(direction.title)", selection: Binding(
                             get: { settings.jak1TouchLayout.gestureAction(for: direction) },
                             set: { settings.setTouchGestureAction($0, for: direction) }
                         )) {
-                            ForEach([TouchLayoutAction.cross, .square, .circle, .crouch],
-                                    id: \.self) { action in
+                            ForEach(TouchGestureActionMapping.remappableActions, id: \.self) {
+                                action in
                                 Text(action.title).tag(action)
                             }
                         }
                     }
+                    LabeledContent("Swipe Down", value: "Crouch (Fixed)")
                 } else if !selectedControl.compatibleActions.isEmpty {
                     Picker("Action", selection: Binding(
                         get: {

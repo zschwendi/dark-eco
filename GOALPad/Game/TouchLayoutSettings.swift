@@ -85,19 +85,66 @@ nonisolated enum TouchGestureDirection: String, CaseIterable, Codable, Sendable 
     case down
 
     var title: String { rawValue.capitalized }
+
+    static let remappableCases: [Self] = [.up, .left, .right]
 }
 
 nonisolated struct TouchGestureActionMapping: Codable, Equatable, Sendable {
     static let standard = Self(up: .cross, left: .square, right: .circle, down: .crouch)
 
-    private static let compatibleActions: Set<TouchLayoutAction> = [
-        .cross, .square, .circle, .crouch,
-    ]
+    static let remappableActions: [TouchLayoutAction] = [.cross, .square, .circle]
+    private static let remappableActionSet = Set(remappableActions)
 
     var up: TouchLayoutAction
     var left: TouchLayoutAction
     var right: TouchLayoutAction
-    var down: TouchLayoutAction
+    private(set) var down: TouchLayoutAction
+
+    init(up: TouchLayoutAction, left: TouchLayoutAction,
+         right: TouchLayoutAction, down: TouchLayoutAction) {
+        let faceActions = [up, left, right]
+        if down == .crouch,
+           faceActions.allSatisfy(Self.remappableActionSet.contains),
+           Set(faceActions).count == TouchGestureDirection.remappableCases.count {
+            self.up = up
+            self.left = left
+            self.right = right
+            self.down = down
+        } else {
+            self.up = .cross
+            self.left = .square
+            self.right = .circle
+            self.down = .crouch
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case up
+        case left
+        case right
+        case down
+    }
+
+    init(from decoder: Decoder) throws {
+        do {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            self.init(
+                up: try container.decode(TouchLayoutAction.self, forKey: .up),
+                left: try container.decode(TouchLayoutAction.self, forKey: .left),
+                right: try container.decode(TouchLayoutAction.self, forKey: .right),
+                down: try container.decode(TouchLayoutAction.self, forKey: .down))
+        } catch {
+            self = .standard
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(up, forKey: .up)
+        try container.encode(left, forKey: .left)
+        try container.encode(right, forKey: .right)
+        try container.encode(down, forKey: .down)
+    }
 
     func action(for direction: TouchGestureDirection) -> TouchLayoutAction {
         switch direction {
@@ -110,10 +157,11 @@ nonisolated struct TouchGestureActionMapping: Codable, Equatable, Sendable {
 
     mutating func setAction(_ action: TouchLayoutAction,
                             for direction: TouchGestureDirection) {
-        guard Self.compatibleActions.contains(action) else { return }
+        guard TouchGestureDirection.remappableCases.contains(direction),
+              Self.remappableActionSet.contains(action) else { return }
         let oldAction = self.action(for: direction)
         guard oldAction != action else { return }
-        if let occupied = TouchGestureDirection.allCases.first(where: {
+        if let occupied = TouchGestureDirection.remappableCases.first(where: {
             $0 != direction && self.action(for: $0) == action
         }) {
             setDirect(oldAction, for: occupied)
@@ -122,9 +170,10 @@ nonisolated struct TouchGestureActionMapping: Codable, Equatable, Sendable {
     }
 
     var isValid: Bool {
-        let actions = TouchGestureDirection.allCases.map(action(for:))
-        return actions.allSatisfy(Self.compatibleActions.contains)
-            && Set(actions).count == TouchGestureDirection.allCases.count
+        let actions = TouchGestureDirection.remappableCases.map(action(for:))
+        return down == .crouch
+            && actions.allSatisfy(Self.remappableActionSet.contains)
+            && Set(actions).count == TouchGestureDirection.remappableCases.count
     }
 
     private mutating func setDirect(_ action: TouchLayoutAction,
@@ -133,7 +182,7 @@ nonisolated struct TouchGestureActionMapping: Codable, Equatable, Sendable {
         case .up: up = action
         case .left: left = action
         case .right: right = action
-        case .down: down = action
+        case .down: break
         }
     }
 }
@@ -410,6 +459,8 @@ nonisolated struct TouchLayoutCustomization: Codable, Equatable, Sendable {
 
     mutating func setGestureAction(_ action: TouchLayoutAction,
                                    for direction: TouchGestureDirection) {
+        guard TouchGestureDirection.remappableCases.contains(direction),
+              TouchGestureActionMapping.remappableActions.contains(action) else { return }
         var mapping = customization(for: .modernActions)?.gestureActions ?? .standard
         mapping.setAction(action, for: direction)
         update(.modernActions) { $0.gestureActions = mapping }
