@@ -140,8 +140,10 @@ bool load_level_art(const std::string& name, bool is_common) {
                  error.c_str());
     return false;
   }
+  const std::string loaded_name = level->level->level_name;
   MetalMercModelPool::LoadResult merc;
   if (!metal_merc_models().load_fr3(path, is_common, &merc, &error)) {
+    metal_level_data::unload(*g_host.texture_pool, loaded_name);
     os_log_error(gfx_log(), "Merc models in %{public}s would not load: %{public}s", path.c_str(),
                  error.c_str());
     return false;
@@ -169,7 +171,7 @@ bool load_level_art(const std::string& name, bool is_common) {
  * Eviction is deliberately separate and runs once at the next frame boundary. Loading must remain
  * synchronous here so texture relocation cannot observe a wanted level before its art exists.
  */
-void service_level_requests() {
+void service_level_requests(bool retry_failed) {
   if (g_host.art_directory.empty()) {
     if (!g_host.wanted.empty() && !g_host.reported_no_directory) {
       g_host.reported_no_directory = true;
@@ -180,7 +182,7 @@ void service_level_requests() {
     }
     return;
   }
-  if (!g_host.wanted_changed && g_host.common_loaded) {
+  if (!g_host.wanted_changed && g_host.common_loaded && !retry_failed) {
     return;
   }
   g_host.wanted_changed = false;
@@ -195,14 +197,19 @@ void service_level_requests() {
   }
 
   for (const auto& name : g_host.wanted) {
-    if (std::find_if(g_host.loaded.begin(), g_host.loaded.end(), [&](const auto& level) {
+    auto existing =
+        std::find_if(g_host.loaded.begin(), g_host.loaded.end(), [&](const auto& level) {
           return level.name == name;
-        }) != g_host.loaded.end()) {
-      continue;
+        });
+    if (existing != g_host.loaded.end()) {
+      if (existing->ok || !retry_failed) {
+        continue;
+      }
+      g_host.loaded.erase(existing);
     }
     const bool ok = load_level_art(name, false);
-    // Remembered either way, so a level whose art will not load is reported once rather than
-    // retried every frame.
+    // Remember failures so they are not retried every frame. A later stale-art eviction permits
+    // one bounded retry after resources have actually been released.
     g_host.loaded.push_back({name, ok, 0});
     if (ok) {
       g_host.stats.levels_loaded++;
@@ -219,7 +226,7 @@ void service_level_requests() {
  * the removed registries. Previously committed Metal command buffers use retained references and
  * keep their buffers and textures alive until the GPU retires them.
  */
-void evict_unwanted_level_art() {
+bool evict_unwanted_level_art() {
   int resident = 0;
   for (auto& entry : g_host.loaded) {
     const bool is_wanted =
@@ -230,7 +237,7 @@ void evict_unwanted_level_art() {
     }
   }
   if (resident < kMaxResidentLevels) {
-    return;
+    return false;
   }
 
   auto oldest = g_host.loaded.end();
@@ -242,7 +249,7 @@ void evict_unwanted_level_art() {
     }
   }
   if (oldest == g_host.loaded.end()) {
-    return;
+    return false;
   }
 
   const std::string victim = oldest->name;
@@ -250,10 +257,11 @@ void evict_unwanted_level_art() {
   g_host.loaded.erase(oldest);
   g_host.stats.levels_loaded_names = join_plus(g_host.loaded);
 
-  metal_level_data::unload(*g_host.texture_pool, victim);
-  metal_merc_models().remove_level(victim);
+  const bool background_released = metal_level_data::unload(*g_host.texture_pool, victim);
+  const bool merc_released = metal_merc_models().remove_level(victim);
   os_log(gfx_log(), "Evicted level art %{public}s after %d frames unwanted.", victim.c_str(),
          victim_age);
+  return background_released || merc_released;
 }
 
 goalpad::MetalHostMercTransformEvent retain_merc_transform_event(
@@ -918,9 +926,16 @@ void host_set_levels(const char* const* names, int count) {
     return;
   }
   g_host.wanted = std::move(levels);
+  g_host.loaded.erase(
+      std::remove_if(g_host.loaded.begin(), g_host.loaded.end(), [&](const auto& level) {
+        return !level.ok &&
+               std::find(g_host.wanted.begin(), g_host.wanted.end(), level.name) ==
+                   g_host.wanted.end();
+      }),
+      g_host.loaded.end());
   g_host.wanted_changed = true;
   g_host.stats.levels_wanted = join_plus(g_host.wanted);
-  service_level_requests();
+  service_level_requests(false);
 }
 
 void host_set_pmode_alp(float alp) {
@@ -982,7 +997,9 @@ void metal_host_stop() {
     return;
   }
   goal_gfx_host_install(nullptr);
-  metal_level_data::clear();
+  metal_level_data::clear(*g_host.texture_pool);
+  metal_merc_models().shutdown();
+  metal_texture_release(g_host.texture_pool->get_placeholder_texture());
   g_host.texture_pool.reset();
   g_host.copier.reset();
   delete g_host.renderer;
@@ -1012,7 +1029,7 @@ void metal_host_set_level_art_directory(const std::string& path) {
   g_host.art_directory = path;
   // GAME.fr3, the shared level every other level's textures sit beside, before the game starts
   // uploading texture pages that point into it.
-  service_level_requests();
+  service_level_requests(false);
 }
 
 MetalHostStats metal_host_stats() {
@@ -1068,11 +1085,6 @@ bool metal_host_begin_frame(CAMetalLayer* layer, const MetalHostFrame& frame) {
     layer.device = g_host.renderer->device();
   }
 
-  // Normally nothing to do: the loading happens where the game asks, in `host_set_levels`. This
-  // only catches a request that arrived before the art directory was known.
-  service_level_requests();
-  evict_unwanted_level_art();
-
   if (g_host.frame_open) {
     os_log_error(gfx_log(), "Beginning a Metal frame before the previous frame was closed.");
     g_host.frame_layer = nil;
@@ -1082,6 +1094,12 @@ bool metal_host_begin_frame(CAMetalLayer* layer, const MetalHostFrame& frame) {
     g_host.weighted_skin_evidence.end_frame();
     g_host.post_flag_gate.end_frame();
   }
+
+  // Normally loading happens where the game asks, in `host_set_levels`. At this safe frame
+  // boundary, release at most one stale level first; a real release permits one retry of wanted
+  // art that previously failed to allocate.
+  const bool released_stale_art = evict_unwanted_level_art();
+  service_level_requests(released_stale_art);
 
   g_host.frame_layer = layer;
   g_host.frame = frame;
