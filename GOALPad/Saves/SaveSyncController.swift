@@ -607,19 +607,7 @@ struct SaveSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Preset") {
-                Menu {
-                    Button("Use Modern Everywhere") { settings.applyPreset(.modern) }
-                    Button("Use Classic Everywhere") { settings.applyPreset(.classic) }
-                } label: {
-                    LabeledContent("Global profile", value: globalProfileTitle)
-                }
-                Text("Changes section profiles without discarding their customized options.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-
-            profileSection(.controls)
+            controlsSection
             profileSection(.graphics)
 
             Section("iCloud") {
@@ -811,8 +799,42 @@ struct SaveSettingsView: View {
         }
     }
 
-    private var globalProfileTitle: String {
-        settings.globalProfile?.title ?? "Mixed"
+    private var controlsSection: some View {
+        Section("Controls") {
+            Picker("Primary Controller", selection: Binding(
+                get: { settings.primaryInputSource },
+                set: {
+                    settings.setPrimaryInputSource($0)
+                    input.setPrimarySource($0)
+                }
+            )) {
+                ForEach(primaryInputSourceChoices, id: \.self) { source in
+                    Text(primaryInputSourceTitle(source)).tag(source)
+                }
+            }
+            if settings.primaryInputSource != .automatic,
+               !input.isSourceAvailable(settings.primaryInputSource) {
+                Text("The selected source is not connected. Eco uses Automatic until it returns.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            NavigationLink {
+                ControllerBindingsSettingsView(settings: settings, input: input)
+            } label: {
+                LabeledContent("Controller Bindings", value: controllerBindingStatus)
+            }
+            NavigationLink {
+                KeyboardMouseBindingsSettingsView(settings: settings, input: input)
+            } label: {
+                LabeledContent("Mouse & Keyboard Bindings",
+                               value: keyboardMouseBindingStatus)
+            }
+            Button("Restore Controls Defaults") {
+                settings.restoreDefaults(for: .controls)
+                input.setPrimarySource(settings.primaryInputSource)
+                input.setBindings(settings.jak1InputBindings)
+            }
+        }
     }
 
     @ViewBuilder
@@ -828,42 +850,6 @@ struct SaveSettingsView: View {
             }
             .pickerStyle(.segmented)
 
-            if section == .controls {
-                Picker("Primary Controller", selection: Binding(
-                    get: { settings.primaryInputSource },
-                    set: {
-                        settings.setPrimaryInputSource($0)
-                        input.setPrimarySource($0)
-                    }
-                )) {
-                    ForEach(primaryInputSourceChoices, id: \.self) { source in
-                        Text(primaryInputSourceTitle(source)).tag(source)
-                    }
-                }
-                if settings.primaryInputSource != .automatic,
-                   !input.isSourceAvailable(settings.primaryInputSource) {
-                    Text("The selected source is not connected. Eco uses Automatic until it returns.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-                NavigationLink {
-                    ControllerBindingsSettingsView(settings: settings, input: input)
-                } label: {
-                    LabeledContent("Controller Bindings", value: controllerBindingStatus)
-                }
-                NavigationLink {
-                    KeyboardMouseBindingsSettingsView(settings: settings, input: input)
-                } label: {
-                    LabeledContent("Mouse & Keyboard Bindings",
-                                   value: keyboardMouseBindingStatus)
-                }
-                NavigationLink {
-                    TouchLayoutEditorView(settings: settings)
-                } label: {
-                    LabeledContent("Touch Layout", value: touchLayoutStatus)
-                }
-            }
-
             if section == .graphics, settings.profile(for: .graphics) == .modern {
                 Toggle("Fit to Screen", isOn: Binding(
                     get: { settings.graphicsFillWidth },
@@ -876,10 +862,6 @@ struct SaveSettingsView: View {
 
             Button("Restore \(section.title) Defaults") {
                 settings.restoreDefaults(for: section)
-                if section == .controls {
-                    input.setPrimarySource(settings.primaryInputSource)
-                    input.setBindings(settings.jak1InputBindings)
-                }
             }
         }
     }
@@ -908,9 +890,6 @@ struct SaveSettingsView: View {
         }
     }
 
-    private var touchLayoutStatus: String {
-        settings.jak1TouchLayout.isDefault ? "Default" : "Customized"
-    }
 }
 
 private struct ControllerBindingsSettingsView: View {

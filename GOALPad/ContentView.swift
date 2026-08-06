@@ -60,13 +60,10 @@ struct ContentView: View {
             if session.isRunning {
                 #if os(iOS)
                 TouchControlsView(controls: session.touch,
-                                  lookAroundState: session.lookAroundState,
                                   isSuppressed: session.input.isDriving,
                                   gameMode: session.gameMode,
                                   titleStartState: session.titleStartState,
                                   progressMenuSnapshot: session.progressMenuSnapshot,
-                                  warpGateTouchSnapshot: session.warpGateTouchSnapshot,
-                                  cutsceneSkipTouchSnapshot: session.cutsceneSkipTouchSnapshot,
                                   reclaimTouchInput: session.input.reclaimTouchInput)
                 #endif
 
@@ -139,14 +136,6 @@ struct ContentView: View {
         .onChange(of: session.presentationSettings.graphicsFillWidth, initial: true) {
             _, enabled in
             session.settings.horizontalPlusEnabled = enabled
-        }
-        .onChange(of: session.presentationSettings.profile(for: .controls), initial: true) {
-            _, profile in
-            session.touch.setStyle(profile == .modern ? .modern : .classic)
-        }
-        .onChange(of: session.presentationSettings.jak1TouchLayout, initial: true) {
-            _, layout in
-            session.touch.setLayoutCustomization(layout)
         }
         .onChange(of: session.presentationSettings.primaryInputSource, initial: true) {
             _, source in

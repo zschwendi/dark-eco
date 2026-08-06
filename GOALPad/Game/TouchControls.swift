@@ -981,8 +981,7 @@ struct TouchPadState: Equatable {
     }
 }
 
-/// On-screen controls translated into the same state as a physical PS2-style pad.
-/// Modern retains the dynamic Build 93 gestures; Classic uses fixed DualShock-like hit targets.
+/// The frozen Build 96 on-screen gameplay controls plus the later native-menu input reducer.
 @MainActor
 @Observable
 final class TouchControls {
@@ -993,7 +992,6 @@ final class TouchControls {
     nonisolated static let swipeDistance: CGFloat = 44
     nonisolated static let nativeMenuSwipeDistance: CGFloat = 44
     nonisolated static let nativeWarpSwipeDistance: CGFloat = 44
-    nonisolated static let pinchScaleDelta: CGFloat = 0.12
 
     /// Frames a recognised one-shot press remains down, followed by a guaranteed release gap.
     nonisolated static let holdFrames = 6
@@ -1013,7 +1011,6 @@ final class TouchControls {
     private(set) var titleStartState: GOALPadTitleStartState = .unknown
     private(set) var warpGateTouchSnapshot: NativeWarpGateTouchSnapshot = .invalid
     private(set) var cutsceneSkipTouchSnapshot: NativeCutsceneSkipTouchSnapshot = .invalid
-    @ObservationIgnored private var retainsWarpGateTouchCapture = false
 
     enum Role: Equatable {
         case movement
@@ -1066,7 +1063,6 @@ final class TouchControls {
     @ObservationIgnored private var pulses: [TouchButton: Pulse] = [:]
     @ObservationIgnored private var fadeToken = 0
     @ObservationIgnored private var dpad = DirectionRepeat()
-    @ObservationIgnored private var pinchZoom = PinchZoom()
 
     init(style: TouchControlStyle = .modern) {
         self.style = style
@@ -1078,14 +1074,10 @@ final class TouchControls {
 
     var capturesNativeTouchInput: Bool {
         capturesNativeMenuInput
-            || capturesWarpGateTouchInput
     }
 
     var capturesWarpGateTouchInput: Bool {
-        Self.capturesWarpGateTouchInput(
-            mode: nativeMenuMode,
-            snapshot: warpGateTouchSnapshot,
-            retainingAfterInvalidRead: retainsWarpGateTouchCapture)
+        false
     }
 
     func setStyle(_ style: TouchControlStyle) {
@@ -1113,46 +1105,21 @@ final class TouchControls {
         guard mode != nativeMenuMode || progress != progressMenuSnapshot
                 || titleStartState != self.titleStartState else { return }
         let capturedInput = capturesNativeTouchInput
-        let warpSemanticWasActive = nativeMenuMode == .gameplay
-            && warpGateTouchSnapshot.state != .unavailable
-        let skipWasActive = Self.cutsceneSkipIsAvailable(
-            in: nativeMenuMode, snapshot: cutsceneSkipTouchSnapshot)
         nativeMenuMode = mode
         progressMenuSnapshot = progress
         self.titleStartState = titleStartState
-        let warpSemanticIsActive = nativeMenuMode == .gameplay
-            && warpGateTouchSnapshot.state != .unavailable
-        let skipIsActive = Self.cutsceneSkipIsAvailable(
-            in: nativeMenuMode, snapshot: cutsceneSkipTouchSnapshot)
-        if capturedInput || capturesNativeTouchInput
-            || warpSemanticWasActive || warpSemanticIsActive
-            || skipWasActive || skipIsActive { reset() }
+        if capturedInput || capturesNativeTouchInput { reset() }
     }
 
     /// Any published semantic or sequence change invalidates touch-owned work from the prior
     /// snapshot, including live gameplay touches under the non-capturing use prompt.
     func setWarpGateTouchSnapshot(_ snapshot: NativeWarpGateTouchSnapshot) {
-        let nextCaptureRetention: Bool
-        if snapshot.isStructurallyValid {
-            nextCaptureRetention = switch snapshot.state {
-            case .destinationListActive, .transitioning: true
-            case .unavailable, .circleUseAvailable: false
-            }
-        } else {
-            nextCaptureRetention = retainsWarpGateTouchCapture
-        }
-        guard snapshot != warpGateTouchSnapshot
-                || nextCaptureRetention != retainsWarpGateTouchCapture else { return }
         warpGateTouchSnapshot = snapshot
-        retainsWarpGateTouchCapture = nextCaptureRetention
-        reset()
     }
 
     /// Owner/availability generation changes and stale native reads cancel a pending SKIP tap.
     func setCutsceneSkipTouchSnapshot(_ snapshot: NativeCutsceneSkipTouchSnapshot) {
-        guard snapshot != cutsceneSkipTouchSnapshot else { return }
         cutsceneSkipTouchSnapshot = snapshot
-        reset()
     }
 
     /// Emits one ordinary pad pulse. Availability is mode-gated so a stale SwiftUI action cannot
@@ -1234,53 +1201,36 @@ final class TouchControls {
         surfaceSafeAreaInsets = insets
     }
 
+    /// Build 96 owns ordinary gameplay hit testing independently from compatibility settings.
+    private func build96Role(for point: CGPoint, in size: CGSize) -> Role? {
+        for (button, frame) in pillFrames where frame.contains(point) { return .pill(button) }
+        if rightStick == nil, rightStickFrame.contains(point) { return .rightStick }
+        if stick == nil, point.x < size.width / 2 { return .movement }
+        if point.x >= size.width / 2 { return .gesture }
+        return nil
+    }
+
     // MARK: - Touches
 
     func began(_ id: ObjectIdentifier, at point: CGPoint, in size: CGSize,
                safeAreaInsets: TouchSafeAreaInsets = .zero, at _: TimeInterval) {
         guard !capturesNativeTouchInput else { return }
-        let classicLayout = style == .classic
-            ? ClassicTouchLayout(size: size, safeAreaInsets: safeAreaInsets,
-                                 customization: layoutCustomization)
-            : nil
-        let modernLayout = style == .modern
-            ? ModernTouchLayout(size: size, safeAreaInsets: safeAreaInsets,
-                                customization: layoutCustomization)
-            : nil
-        guard let role = role(for: point, in: size, classicLayout: classicLayout,
-                              modernLayout: modernLayout) else { return }
+        _ = safeAreaInsets
+        guard let role = build96Role(for: point, in: size) else { return }
         let origin: CGPoint
         let radius: CGFloat
         let deadzone: CGFloat
         switch role {
         case .movement:
-            if let classicLayout {
-                origin = classicLayout.leftStickFrame.centre
-                radius = classicLayout.leftStickRadius
-                deadzone = classicLayout.leftStickRadius * 0.16
-            } else {
-                origin = modernLayout?.movementHitFrame == nil
-                    ? point
-                    : modernLayout?.movementArtworkFrame.centre ?? point
-                radius = Self.movementRadius * layoutCustomization.scale(for: .modernMovement)
-                deadzone = 0
-            }
+            origin = point
+            radius = Self.movementRadius
+            deadzone = 0
         case .rightStick:
-            if let classicLayout {
-                origin = classicLayout.rightStickFrame.centre
-                radius = classicLayout.rightStickRadius
-                deadzone = classicLayout.rightStickRadius * 0.16
-            } else {
-                origin = layoutCustomization.hasCustomGeometry(for: .modernCamera)
-                    ? modernLayout?.rightStickArtworkFrame.centre ?? rightStickFrame.centre
-                    : rightStickFrame.centre
-                radius = Self.rightStickRadius * layoutCustomization.scale(for: .modernCamera)
-                deadzone = Self.rightStickDeadzone * layoutCustomization.scale(for: .modernCamera)
-            }
+            origin = rightStickFrame.centre
+            radius = Self.rightStickRadius
+            deadzone = Self.rightStickDeadzone
         case .gesture:
-            origin = modernLayout?.actionGestureHitFrame == nil
-                ? point
-                : modernLayout?.actionGestureFrame.centre ?? point
+            origin = point
             radius = 0
             deadzone = 0
         case .pill, .skip:
@@ -1290,10 +1240,7 @@ final class TouchControls {
         }
         touches[id] = Tracked(id: id, role: role, origin: origin, point: point,
                               radius: radius, deadzone: deadzone)
-        if case .pill(let button) = role {
-            press(button)
-            enqueueHaptic(.button(button))
-        }
+        if case .pill(let button) = role { press(button) }
         engage()
     }
 
@@ -1301,18 +1248,16 @@ final class TouchControls {
         guard var touch = touches[id] else { return }
         touch.point = point
         touch.travelled = max(touch.travelled, Self.distance(touch.origin, point))
-        if (touch.role == .movement || touch.role == .rightStick), !touch.stickHapticTriggered,
-           Self.distance(.zero, Self.radialDeflection(from: touch.origin, to: point,
-                                                      radius: touch.radius,
-                                                      deadzone: touch.deadzone)) >= 0.5 {
-            touch.stickHapticTriggered = true
-            enqueueHaptic(.stickEngaged)
-        } else if touch.role == .gesture, touch.swiped == nil,
-                  touch.travelled >= Self.swipeDistance,
-           let direction = Self.swipeDirection(from: touch.origin, to: point),
-           let button = layoutCustomization.gestureAction(for: direction).touchButton {
+        if touch.role == .gesture, touch.swiped == nil,
+           touch.travelled >= Self.swipeDistance,
+           let direction = Self.swipeDirection(from: touch.origin, to: point) {
+            let button: TouchButton = switch direction {
+            case .up: .cross
+            case .left: .square
+            case .right: .circle
+            case .down: .crouch
+            }
             touch.swiped = button
-            enqueueHaptic(.gesture(button))
             if button == .crouch {
                 touch.crouchPeakY = point.y
                 touchLog.debug("crouch")
@@ -1322,17 +1267,9 @@ final class TouchControls {
         } else if touch.role == .gesture, touch.swiped == .crouch {
             let peak = max(touch.crouchPeakY ?? point.y, point.y)
             touch.crouchPeakY = peak
-            let horizontal = point.x - touch.origin.x
-            if !touch.punchTriggered, horizontal <= -Self.swipeDistance {
-                touch.punchTriggered = true
-                press(.square)
-                enqueueHaptic(.gesture(.square))
-                touchLog.debug("crouch punch")
-            }
             if !touch.jumpTriggered, peak - point.y >= Self.rollJumpDistance {
                 touch.jumpTriggered = true
                 press(.cross)
-                enqueueHaptic(.gesture(.cross))
                 touchLog.debug("roll jump")
             }
         }
@@ -1340,10 +1277,7 @@ final class TouchControls {
     }
 
     func ended(_ id: ObjectIdentifier, at _: TimeInterval) {
-        guard let touch = touches.removeValue(forKey: id) else { return }
-        if case .skip(let expectedSnapshot) = touch.role {
-            performCutsceneSkip(for: expectedSnapshot)
-        }
+        guard touches.removeValue(forKey: id) != nil else { return }
         fadeWhenIdle()
     }
 
@@ -1353,31 +1287,17 @@ final class TouchControls {
     }
 
     func pinchBegan() {
-        guard style == .modern, !capturesNativeTouchInput else {
-            pinchZoom.reset()
-            return
-        }
-        pinchZoom.begin()
     }
 
     func pinchChanged(scale: CGFloat, lookAroundState: GOALPadLookAroundState) {
-        guard style == .modern, !capturesNativeTouchInput,
-              let direction = pinchZoom.recognize(scale: scale) else { return }
-        switch (direction, lookAroundState) {
-        case (.zoomIn, .normal), (.zoomOut, .firstPerson):
-            press(.triangle)
-            enqueueHaptic(.gesture(.triangle))
-        default:
-            break
-        }
+        _ = scale
+        _ = lookAroundState
     }
 
     func pinchEnded() {
-        pinchZoom.reset()
     }
 
     func pinchCancelled() {
-        pinchZoom.reset()
     }
 
     /// UIKit may not deliver individual cancellations during a lifecycle transition.
@@ -1385,7 +1305,6 @@ final class TouchControls {
         touches.removeAll()
         pulses.removeAll()
         dpad = DirectionRepeat()
-        pinchZoom.reset()
         hapticEvents.removeAll()
         fadeToken += 1
         isEngaged = false
@@ -1497,30 +1416,14 @@ final class TouchControls {
             }
         }
 
-        let movementSource = stick.map {
+        let movement = stick.map {
             Self.radialDeflection(from: $0.origin, to: $0.point,
                                   radius: $0.radius, deadzone: $0.deadzone)
         } ?? .zero
-        let cameraSource = rightStick.map {
+        let camera = rightStick.map {
             Self.radialDeflection(from: $0.origin, to: $0.point,
                                   radius: $0.radius, deadzone: $0.deadzone)
         } ?? .zero
-        let movementControl: TouchLayoutControlID = style == .modern
-            ? .modernMovement : .classicMovement
-        let cameraControl: TouchLayoutControlID = style == .modern
-            ? .modernCamera : .classicCamera
-        var movement = CGPoint.zero
-        var camera = CGPoint.zero
-        if layoutCustomization.action(for: movementControl) == .cameraStick {
-            camera = movementSource
-        } else {
-            movement = movementSource
-        }
-        if layoutCustomization.action(for: cameraControl) == .movementStick {
-            movement = cameraSource
-        } else {
-            camera = cameraSource
-        }
         if let direction = dpad.advance(push: movement) { press(direction) }
 
         var state = TouchPadState()
@@ -1678,40 +1581,6 @@ final class TouchControls {
 
     private func enqueueHaptic(_ event: TouchHapticEvent) {
         hapticEvents.append(event)
-    }
-
-    private struct PinchZoom {
-        enum Direction {
-            case zoomIn
-            case zoomOut
-        }
-
-        private var isActive = false
-        private var direction: Direction?
-
-        mutating func begin() {
-            isActive = true
-            direction = nil
-        }
-
-        mutating func recognize(scale: CGFloat) -> Direction? {
-            guard isActive, direction == nil else { return nil }
-            let recognized: Direction
-            if scale >= 1 + TouchControls.pinchScaleDelta {
-                recognized = .zoomIn
-            } else if scale <= 1 - TouchControls.pinchScaleDelta {
-                recognized = .zoomOut
-            } else {
-                return nil
-            }
-            direction = recognized
-            return recognized
-        }
-
-        mutating func reset() {
-            isActive = false
-            direction = nil
-        }
     }
 
     /// Converts strong movement into one repeated dominant-axis D-pad direction for menus.

@@ -678,14 +678,10 @@ final class PresentationSettings {
 
     func restoreDefaults(for section: SettingsSection) {
         change { $0.restoreDefaults(for: section) }
-        if section == .controls {
-            changeTouchLayout { $0.jak1TouchLayoutOverride = nil }
-        }
     }
 
     func resetAll() {
         change { $0.resetAll() }
-        changeTouchLayout { $0.jak1TouchLayoutOverride = nil }
     }
 
     func prepare() async {
