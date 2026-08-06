@@ -671,7 +671,8 @@ final class PresentationSettings {
     }
 
     func resetTouchLayout() {
-        guard touchLayoutDocument.jak1TouchLayoutOverride != nil else { return }
+        guard touchLayoutDocument.jak1TouchLayoutOverride != nil
+                || !hasLocalTouchLayoutDocument else { return }
         changeTouchLayout { $0.jak1TouchLayoutOverride = nil }
     }
 
@@ -744,16 +745,20 @@ final class PresentationSettings {
                         try writeLocalTouchLayoutDocument(touchLayoutWinner)
                         hasLocalTouchLayoutDocument = true
                     }
-                    if remoteState.touchLayoutDocument != touchLayoutWinner
-                        || remoteState.touchLayoutHasConflicts {
-                        try await cloudStore.write(touchLayoutWinner,
-                                                   to: remoteState.touchLayoutURL)
-                    }
                 }
                 if winner != document || !hasLocalDocument {
                     document = winner
                     try writeLocalDocument(winner)
                     hasLocalDocument = true
+                }
+                if let touchLayoutWinner,
+                   remoteState.touchLayoutDocument != touchLayoutWinner
+                    || remoteState.touchLayoutHasConflicts {
+                    try await cloudStore.write(touchLayoutWinner,
+                                               to: remoteState.touchLayoutURL)
+                }
+                if documentRevision != startingRevision || syncRequested {
+                    continue
                 }
                 let hasMigratableEmbeddedLayout =
                     remoteState.embeddedTouchLayoutDocument != nil

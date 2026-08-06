@@ -86,20 +86,30 @@ private struct Build116PresentationDocument: Codable {
 private actor DelayedCloudStore: PresentationSettingsCloudStoring {
     let url: URL
     private let delayWrites: Bool
+    private let delayTouchWrites: Bool
     private var delayNextRead: Bool
     private var storedDocument: PresentationSettingsDocument?
+    private var storedTouchLayoutDocument: Jak1TouchLayoutSettingsDocument?
     private var pendingDocument: PresentationSettingsDocument?
+    private var pendingTouchLayoutDocument: Jak1TouchLayoutSettingsDocument?
     private var readCount = 0
     private var writeCount = 0
+    private var touchWriteCount = 0
     private var releaseReadContinuation: CheckedContinuation<Void, Never>?
     private var releaseContinuation: CheckedContinuation<Void, Never>?
+    private var releaseTouchContinuation: CheckedContinuation<Void, Never>?
     private var readWaiters: [Int: [CheckedContinuation<Void, Never>]] = [:]
     private var writeWaiters: [Int: [CheckedContinuation<Void, Never>]] = [:]
+    private var touchWriteWaiters: [Int: [CheckedContinuation<Void, Never>]] = [:]
 
-    init(url: URL, delayFirstRead: Bool = false, delayWrites: Bool = true) {
+    init(url: URL, initialDocument: PresentationSettingsDocument? = nil,
+         delayFirstRead: Bool = false, delayWrites: Bool = true,
+         delayTouchWrites: Bool = false) {
         self.url = url
+        self.storedDocument = initialDocument
         self.delayNextRead = delayFirstRead
         self.delayWrites = delayWrites
+        self.delayTouchWrites = delayTouchWrites
     }
 
     func read() async throws -> PresentationSettingsCloudState? {
@@ -113,8 +123,12 @@ private actor DelayedCloudStore: PresentationSettingsCloudStoring {
                 }
             }
         }
-        return PresentationSettingsCloudState(url: url, document: storedDocument,
-                                              hasConflicts: false)
+        return PresentationSettingsCloudState(
+            url: url,
+            document: storedDocument,
+            hasConflicts: false,
+            touchLayoutDocument: storedTouchLayoutDocument,
+            touchLayoutFileExists: storedTouchLayoutDocument != nil)
     }
 
     func write(_ document: PresentationSettingsDocument, to _: URL) async throws {
@@ -134,7 +148,22 @@ private actor DelayedCloudStore: PresentationSettingsCloudStoring {
         pendingDocument = nil
     }
 
-    func write(_ document: Jak1TouchLayoutSettingsDocument, to _: URL) async throws {}
+    func write(_ document: Jak1TouchLayoutSettingsDocument, to _: URL) async throws {
+        touchWriteCount += 1
+        guard delayTouchWrites else {
+            storedTouchLayoutDocument = document
+            return
+        }
+        await withCheckedContinuation { continuation in
+            pendingTouchLayoutDocument = document
+            releaseTouchContinuation = continuation
+            for waiter in touchWriteWaiters.removeValue(forKey: touchWriteCount) ?? [] {
+                waiter.resume()
+            }
+        }
+        storedTouchLayoutDocument = document
+        pendingTouchLayoutDocument = nil
+    }
 
     func waitUntilReadStarts(_ expectedCount: Int) async {
         if readCount >= expectedCount, releaseReadContinuation != nil { return }
@@ -150,12 +179,23 @@ private actor DelayedCloudStore: PresentationSettingsCloudStoring {
         }
     }
 
+    func waitUntilTouchWriteStarts(_ expectedCount: Int) async {
+        if touchWriteCount >= expectedCount, releaseTouchContinuation != nil { return }
+        await withCheckedContinuation { continuation in
+            touchWriteWaiters[expectedCount, default: []].append(continuation)
+        }
+    }
+
     func pendingWrite() -> PresentationSettingsDocument? {
         pendingDocument
     }
 
     func storedValue() -> PresentationSettingsDocument? {
         storedDocument
+    }
+
+    func storedTouchValue() -> Jak1TouchLayoutSettingsDocument? {
+        storedTouchLayoutDocument
     }
 
     func completedReadCount() -> Int {
@@ -175,6 +215,14 @@ private actor DelayedCloudStore: PresentationSettingsCloudStoring {
             return false
         }
         releaseContinuation = nil
+        continuation.resume()
+        return true
+    }
+
+    func releaseTouchWrite(_ expectedCount: Int) -> Bool {
+        guard touchWriteCount == expectedCount,
+              let continuation = releaseTouchContinuation else { return false }
+        releaseTouchContinuation = nil
         continuation.resume()
         return true
     }
@@ -476,6 +524,52 @@ private func touchLayoutPersistsSyncsAndResets() async throws {
 }
 
 @MainActor
+private func explicitFreshResetBeatsOlderRemoteTouchLayout() async throws {
+    print("an explicit fresh-device reset defeats an older remote customization")
+    let fixture = try Fixture(name: "fresh-reset-tombstone")
+    let clock = TestClock()
+    var remoteLayout = TouchLayoutCustomization.standard
+    remoteLayout.setPosition(NormalizedTouchPosition(x: 0.84, y: 0.28),
+                             for: .modernCamera)
+    let remote = Jak1TouchLayoutSettingsDocument(
+        jak1TouchLayoutOverride: remoteLayout,
+        modifiedAt: Date(timeIntervalSince1970: 2_100_000_000),
+        writerID: "older-remote")
+    try FileManager.default.createDirectory(
+        at: fixture.cloudTouchLayout.deletingLastPathComponent(),
+        withIntermediateDirectories: true)
+    try JSONEncoder().encode(remote).write(to: fixture.cloudTouchLayout, options: .atomic)
+    let configuration = PresentationSettingsConfiguration(
+        localDocumentURL: fixture.local,
+        cloudDocumentURL: { fixture.cloud },
+        coordinateCloudAccess: false,
+        now: { clock.now() })
+    let value = PresentationSettings(defaults: fixture.defaults,
+                                     configuration: configuration,
+                                     writerID: "local-device")
+
+    value.resetTouchLayout()
+    let firstTombstoneData = try Data(contentsOf: fixture.localTouchLayout)
+    let localTombstone = readTouchLayoutDocument(at: fixture.localTouchLayout)
+    check(localTombstone?.jak1TouchLayoutOverride == nil
+          && localTombstone?.writerID == "local-device"
+          && localTombstone?.modifiedAt ?? .distantPast > remote.modifiedAt,
+          "Reset Layout creates newer local authority even when the live value is already default")
+    value.resetTouchLayout()
+    let secondTombstoneData = try Data(contentsOf: fixture.localTouchLayout)
+    check(secondTombstoneData == firstTombstoneData,
+          "Reset Layout remains a no-op once a valid local nil tombstone exists")
+
+    await value.prepare()
+    check(value.jak1TouchLayout == .standard
+          && readTouchLayoutDocument(at: fixture.localTouchLayout)?
+            .jak1TouchLayoutOverride == nil
+          && readTouchLayoutDocument(at: fixture.cloudTouchLayout)?
+            .jak1TouchLayoutOverride == nil,
+          "the explicit local tombstone wins locally and in cloud instead of resurrecting remote")
+}
+
+@MainActor
 private func developerLogsPersistAndReset() async throws {
     print("developer logs are a synced-document option with a safe default")
     let fixture = try Fixture(name: "developer-logs")
@@ -572,11 +666,16 @@ private func localOptOutDoesNotTouchCloud() async throws {
     fixture.defaults.set(false, forKey: "iCloudPresentationSettingsSyncEnabled")
     let value = settings(fixture, writerID: "device-a")
     value.setProfile(.modern, for: .graphics)
+    value.setTouchControlSizePercent(135, for: .classicCross)
     check(!value.cloudSyncEnabled, "local opt-out is restored")
-    check(!FileManager.default.fileExists(atPath: fixture.cloud.path),
-          "local opt-out does not create a cloud settings document")
+    check(!FileManager.default.fileExists(atPath: fixture.cloud.path)
+          && !FileManager.default.fileExists(atPath: fixture.cloudTouchLayout.path),
+          "local opt-out creates neither cloud settings document")
     check(readDocument(at: fixture.local)?.graphicsProfile == .modern,
           "local opt-out still persists the selected section")
+    check(readTouchLayoutDocument(at: fixture.localTouchLayout)?
+            .jak1TouchLayout.scale(for: .classicCross) == 1.35,
+          "local opt-out still persists touch customization in its local sidecar")
 }
 
 @MainActor
@@ -697,6 +796,59 @@ private func legacyCloudRewriteCannotEraseTouchLayout() async throws {
             == NormalizedTouchPosition(x: 0.77, y: 0.31)
           && newer.jak1TouchLayout.opacity(for: .classicStats) == 0.65,
           "the newer client independently reapplies the untouched touch sidecar")
+}
+
+@MainActor
+private func presentationEditSurvivesSuspendedTouchWrite() async throws {
+    print("a presentation edit survives a suspended touch-sidecar cloud write")
+    let fixture = try Fixture(name: "suspended-touch-write")
+    let clock = TestClock()
+    var remotePresentation = PresentationSettingsDocument(
+        modifiedAt: Date(timeIntervalSince1970: 2_000_000_000),
+        writerID: "remote-device")
+    remotePresentation.audioProfile = .modern
+    var localLayout = TouchLayoutCustomization.standard
+    localLayout.setSizePercent(140, for: .classicCamera)
+    let localTouchDocument = Jak1TouchLayoutSettingsDocument(
+        jak1TouchLayoutOverride: localLayout,
+        modifiedAt: Date(timeIntervalSince1970: 2_100_000_000),
+        writerID: "local-device")
+    try FileManager.default.createDirectory(
+        at: fixture.localTouchLayout.deletingLastPathComponent(),
+        withIntermediateDirectories: true)
+    try JSONEncoder().encode(localTouchDocument)
+        .write(to: fixture.localTouchLayout, options: .atomic)
+    let configuration = PresentationSettingsConfiguration(
+        localDocumentURL: fixture.local,
+        cloudDocumentURL: { fixture.cloud },
+        coordinateCloudAccess: false,
+        now: { clock.now() })
+    let cloudStore = DelayedCloudStore(url: fixture.cloud,
+                                       initialDocument: remotePresentation,
+                                       delayWrites: false,
+                                       delayTouchWrites: true)
+    let value = PresentationSettings(defaults: fixture.defaults,
+                                     configuration: configuration,
+                                     writerID: "local-device",
+                                     cloudStore: cloudStore)
+
+    let sync = Task { await value.syncNow() }
+    await cloudStore.waitUntilTouchWriteStarts(1)
+    value.setGraphicsFillWidth(false)
+    check(value.profile(for: .audio) == .modern && !value.graphicsFillWidth,
+          "the concurrent edit builds on the already-applied remote presentation winner")
+    let released = await cloudStore.releaseTouchWrite(1)
+    check(released, "the deterministic store releases the suspended sidecar write")
+    await sync.value
+
+    let storedPresentation = await cloudStore.storedValue()
+    let storedTouchLayout = await cloudStore.storedTouchValue()
+    check(value.profile(for: .audio) == .modern
+          && !value.graphicsFillWidth
+          && storedPresentation == value.document,
+          "no stale presentation winner overwrites the edit after the touch await resumes")
+    check(storedTouchLayout?.jak1TouchLayout == localLayout,
+          "the suspended sidecar write still converges with the presentation revision loop")
 }
 
 @MainActor
@@ -900,6 +1052,46 @@ private func unresolvedCloudVersionParticipatesInConflictResolution() async thro
           "the conflict winner replaces the current cloud document")
 }
 
+@MainActor
+private func unresolvedTouchSidecarVersionParticipatesInConflictResolution() async throws {
+    print("unresolved touch sidecar versions use the same deterministic merge")
+    let fixture = try Fixture(name: "touch-file-version-conflict")
+    let date = Date(timeIntervalSince1970: 2_150_000_000)
+    var currentLayout = TouchLayoutCustomization.standard
+    currentLayout.setSizePercent(125, for: .classicCross)
+    let current = Jak1TouchLayoutSettingsDocument(
+        jak1TouchLayoutOverride: currentLayout,
+        modifiedAt: date,
+        writerID: "device-a")
+    var conflictLayout = TouchLayoutCustomization.standard
+    conflictLayout.setOpacityPercent(55, for: .classicStats)
+    let conflict = Jak1TouchLayoutSettingsDocument(
+        jak1TouchLayoutOverride: conflictLayout,
+        modifiedAt: date,
+        writerID: "device-z")
+    try FileManager.default.createDirectory(at: fixture.cloud.deletingLastPathComponent(),
+                                            withIntermediateDirectories: true)
+    try JSONEncoder().encode(PresentationSettingsDocument(writerID: "remote"))
+        .write(to: fixture.cloud, options: .atomic)
+    try JSONEncoder().encode(current).write(to: fixture.cloudTouchLayout, options: .atomic)
+    let conflictData = try JSONEncoder().encode(conflict)
+    let configuration = PresentationSettingsConfiguration(
+        localDocumentURL: fixture.local,
+        cloudDocumentURL: { fixture.cloud },
+        coordinateCloudAccess: false,
+        cloudConflictDocumentData: { url in
+            url.lastPathComponent == "jak1-touch-layout-v1.json" ? [conflictData] : []
+        })
+    let value = PresentationSettings(defaults: fixture.defaults,
+                                     configuration: configuration,
+                                     writerID: "device-local")
+    await value.syncNow()
+    check(value.jak1TouchLayout == conflictLayout,
+          "the highest-ranked unresolved touch sidecar becomes the live layout")
+    check(readTouchLayoutDocument(at: fixture.cloudTouchLayout)?.writerID == "device-z",
+          "the touch conflict winner replaces the current cloud sidecar")
+}
+
 @main
 private struct PresentationSettingsCheck {
     static func main() async {
@@ -911,18 +1103,21 @@ private struct PresentationSettingsCheck {
             try await primaryInputSourcePersistsAndResets()
             try await inputBindingsPersistSyncAndReset()
             try await touchLayoutPersistsSyncsAndResets()
+            try await explicitFreshResetBeatsOlderRemoteTouchLayout()
             try await defaultsUseModernGraphics()
             try await savedChoicesSurviveNewDefaults()
             try await profilesCanBeMixedWithoutLosingOptions()
             try await localOptOutDoesNotTouchCloud()
             try await cloudSettingsAndTouchLayoutConverge()
             try await legacyCloudRewriteCannotEraseTouchLayout()
+            try await presentationEditSurvivesSuspendedTouchWrite()
             try await changeDuringCloudReadQueuesAnotherPass()
             try await changeDuringCloudWriteQueuesNewestDocument()
             try await inFlightOptOutAndCloudErrorsRemainExplicit()
             try await coordinatedFirstCloudWriteCreatesItsNestedDocument()
             try await newerCloudDocumentWinsDeterministically()
             try await unresolvedCloudVersionParticipatesInConflictResolution()
+            try await unresolvedTouchSidecarVersionParticipatesInConflictResolution()
         } catch {
             print("  FAIL unexpected error: \(error)")
             failures += 1
