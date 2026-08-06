@@ -14053,3 +14053,48 @@ Data-only mods:
 - The security tool rejected that filesystem patch until the maintainer gives
   direct authorization limited to Eco's app-sandbox `DataOnlyMods` and
   generated effective-root transaction directories. No workaround was used.
+
+# Build 114 corrected Misty source checkpoint
+
+Date: 2026-08-06. Build 114 is the next source/AOT/signing candidate. It
+supersedes the rejected Build 113 boat ordering, but physical acceptance remains
+pending.
+
+Integrated nested OpenGOAL commits:
+
+- `352064ace` moves clone exit before final destination state, synchronizes the
+  destination continue and dock-ready state before the first reevaluation, and
+  expands the source-backed structural model.
+- Independent review blocked that draft because it ignored failed
+  `move-to-ground` and fabricated grounded/history state.
+- `f260ae7df` makes grounding fail closed and removes unsupported safe-ground,
+  normal-history, status, and grounded-bit fabrication. Independent re-review
+  then found that a failed retry frame lets clone animation overwrite the
+  passenger-relative target position with the boat origin.
+- `cb5032a83` reapplies the intended translated target position before every
+  collision probe. Only failure suspends. On success it preserves the genuine
+  grounded translation through ordinary target restore, then ends clone mode,
+  synchronizes quaternion and immediate transform history, publishes the
+  destination continue, marks the boat dock-ready, and crosses one post-commit
+  frame boundary.
+- Final independent Sol xhigh re-review returned ACCEPT with no remaining
+  source or scheduler blocker. The Python suite explicitly labels itself as a
+  structural/model proof rather than runtime gameplay evidence.
+
+Root integration validation:
+
+- `python3 test/goalc/test_jak1_fishermans_boat_relocation_contract.py` — 6/6
+  passed.
+- `goalc --proj-path .../OpenGOAL --game jak1 --cmd '(makeo
+  "obj/fishermans-boat")' --disable-ansi` — 328/328 dependencies built.
+- The parent gitlink now points at the integration branch's corrected nested
+  source. Both iOS configurations are bumped from Build 113 to Build 114.
+- Source-pack regeneration, AOT, signed Xcode build, artifact inspection, push,
+  simulator, and physical device are not claimed at this source checkpoint.
+
+Physical acceptance remains the exact ordinary first-trip route: board once in
+Sandover, arrive at intact/collidable Misty with Jak and the boat at the dock,
+see `MISTY ISLAND` on arrival only, jump out and survive, observe no stale source
+boat/second invocation, then return once without a Misty title on departure.
+Build 93 performance, thermal, input, saves/iCloud, and Build 90/93 Fit to
+Screen presentation remain regression gates.

@@ -700,6 +700,19 @@ Active lanes:
   must make destination ownership authoritative before the first reevaluation,
   consume the arrival title once at arrival, never on departure, and prove the
   docked/source-interaction state in both directions.
+- [x] `Corrected Build 114 source path independently accepted; physical gate
+  pending` — nested OpenGOAL `352064ace`, `f260ae7df`, and `cb5032a83` end the
+  clone animation's stale-position fallback, make destination collision a
+  fail-closed prerequisite, and preserve the passenger-relative target offset
+  across every failed-ground retry. Each retry reapplies the intended target
+  position before probing; no end-mode, continue/title ownership, or dock-ready
+  state commits until `move-to-ground` succeeds. The grounded transform then
+  flows through ordinary restore before destination continue and the single
+  post-commit suspension. Three Sol xhigh review passes caught and corrected
+  ordering, fabricated-ground, and clone-overwrite bugs; final review returned
+  ACCEPT. Root integration passes 6/6 structural contracts and a 328-dependency
+  GOAL compile. These are source proofs, not physical boat/title/collision
+  acceptance.
 - [x] Establish that Build 90 and Build 93 pin the same OpenGOAL revision and
   contain no renderer, shader, Metal-host, AOT, or generated-source delta.
   Classify this as an unvisited transition gap unless later evidence proves a
