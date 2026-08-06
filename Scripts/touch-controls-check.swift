@@ -33,10 +33,14 @@ private struct Runner {
     var clock: TimeInterval = 0
 
     init(style: TouchControlStyle = .modern) {
+        self.init(style: style, rightStickFrame: Self.rightStick)
+    }
+
+    init(style: TouchControlStyle = .modern, rightStickFrame: CGRect) {
         controls = TouchControls(style: style)
         controls.setPillFrame(.select, Self.select)
         controls.setPillFrame(.start, Self.start)
-        controls.setRightStickFrame(Self.rightStick)
+        controls.setRightStickFrame(rightStickFrame)
     }
 
     mutating func frame() -> TouchPadState {
@@ -66,6 +70,67 @@ private let neutral = UInt8(GOALPadAnalogNeutral)
 
 private func close(_ lhs: CGFloat, _ rhs: CGFloat, tolerance: CGFloat = 0.001) -> Bool {
     abs(lhs - rhs) <= tolerance
+}
+
+@MainActor
+private func modernLayoutIsCompactAndSafe() {
+    print("Modern artwork geometry keeps input semantics and clears the centre controls")
+    check(ModernTouchLayout.movementKnobSize == 66,
+          "the Modern movement knob remains 66 points")
+    check(ModernTouchLayout.movementVisualRadius < TouchControls.movementRadius * 0.7,
+          "the Modern movement ring is substantially smaller than its input radius")
+    check(TouchControls.movementRadius == 90,
+          "the Modern movement input radius remains byte-compatible")
+
+    let roomyIPad = ModernTouchLayout(size: Runner.screen, safeAreaInsets: Runner.safeAreaInsets)
+    check(roomyIPad.rightStickSpacer <= ModernTouchLayout.rightStickSpacerCap,
+          "the right-stick spacer never exceeds 200 points")
+    check(roomyIPad.rightStickSpacer > ModernTouchLayout.legacyRightStickEdge(for: Runner.screen),
+          "a roomy iPad moves the right stick inward from its former edge")
+
+    let layouts = [
+        roomyIPad,
+        ModernTouchLayout(size: CGSize(width: 834, height: 1210),
+                          safeAreaInsets: TouchSafeAreaInsets(top: 28, leading: 12,
+                                                              bottom: 24, trailing: 12)),
+        ModernTouchLayout(size: CGSize(width: 852, height: 393),
+                          safeAreaInsets: TouchSafeAreaInsets(top: 0, leading: 59,
+                                                              bottom: 21, trailing: 59)),
+        ModernTouchLayout(size: CGSize(width: 393, height: 852),
+                          safeAreaInsets: TouchSafeAreaInsets(top: 59, leading: 0,
+                                                              bottom: 34, trailing: 0)),
+    ]
+    for (index, layout) in layouts.enumerated() {
+        check(layout.safeBounds.contains(layout.rightStickArtworkFrame),
+              "Modern layout \(index + 1) keeps the R artwork inside the safe area")
+        check(layout.rightStickArtworkFrame.width == TouchControls.rightStickRadius * 2
+              && layout.rightStickArtworkFrame.height == TouchControls.rightStickRadius * 2,
+              "Modern layout \(index + 1) retains the R-stick visual radius")
+        check(layout.rightStickHitFrame == layout.rightStickArtworkFrame.insetBy(
+            dx: -ModernTouchLayout.rightStickHitSlop, dy: -ModernTouchLayout.rightStickHitSlop),
+              "Modern layout \(index + 1) derives the raw R hit frame from its artwork")
+        let pillHits = [layout.selectPillFrame, layout.startPillFrame].map {
+            $0.insetBy(dx: -10, dy: -12)
+        }
+        check(pillHits.allSatisfy {
+            let intersection = $0.intersection(layout.rightStickHitFrame)
+            return intersection.isNull || intersection.width <= 0.001 || intersection.height <= 0.001
+        }, "Modern layout \(index + 1) avoids Pause/Select hit-target overlap")
+    }
+
+    var former = Runner()
+    var moved = Runner(rightStickFrame: roomyIPad.rightStickHitFrame)
+    let formerFinger = Finger()
+    let movedFinger = Finger()
+    former.down(formerFinger, CGPoint(x: Runner.rightStick.midX, y: Runner.rightStick.midY))
+    moved.down(movedFinger, CGPoint(x: roomyIPad.rightStickHitFrame.midX,
+                                    y: roomyIPad.rightStickHitFrame.midY))
+    former.move(formerFinger, CGPoint(x: Runner.rightStick.midX + 30,
+                                      y: Runner.rightStick.midY - 10))
+    moved.move(movedFinger, CGPoint(x: roomyIPad.rightStickHitFrame.midX + 30,
+                                    y: roomyIPad.rightStickHitFrame.midY - 10))
+    check(former.frame() == moved.frame(),
+          "moving the R artwork preserves the existing Modern controller bytes")
 }
 
 @MainActor
@@ -670,6 +735,7 @@ private func controllerSuppressionKeepsTouchRecovery() {
 @MainActor
 struct TouchControlsCheck {
     static func main() {
+        modernLayoutIsCompactAndSafe()
         defaultStylePreservesModern()
         movementOriginFollowsFirstTouch()
         freeCameraSwipeIsGone()

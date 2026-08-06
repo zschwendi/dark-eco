@@ -456,6 +456,14 @@ Active lanes:
   `origin/agent/build100-pause-label`. Root reran
   `Scripts/run-touch-controls-check.sh`, iOS Swift parsing, and
   `git diff --check`; all passed.
+- `Implemented; focused validation passed; integration and physical ergonomics
+  pending` — Modern touch geometry in
+  `agent/build101-modern-touch-layout` moves the right stick inward with a
+  deterministic safe-area-aware spacer and reduces only the movement ring
+  artwork. The dynamic movement input radius, knob size, right-stick radius,
+  deadzone, and controller bytes remain unchanged. The worker ran
+  `Scripts/run-touch-controls-check.sh` with Xcode macro services, iOS Swift
+  parsing for `TouchControlsView.swift`, and `git diff --check`; all passed.
 - `Integrated; focused validation passed; profile binding and physical
   ergonomics pending` — Classic touch fallback plus Modern held-crouch-left
   punch came from `agent/build94-classic-touch` in

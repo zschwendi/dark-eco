@@ -42,14 +42,19 @@ struct TouchControlsView: View {
     private func artwork(in proxy: GeometryProxy) -> some View {
         switch controls.style {
         case .modern:
-            modernArtwork(in: proxy.size)
+            modernArtwork(in: proxy)
         case .classic:
             classicArtwork(in: proxy)
         }
     }
 
-    private func modernArtwork(in size: CGSize) -> some View {
-        let edge = max(28, min(size.width, size.height) * 0.06)
+    private func modernArtwork(in proxy: GeometryProxy) -> some View {
+        let layout = ModernTouchLayout(
+            size: proxy.size,
+            safeAreaInsets: TouchSafeAreaInsets(top: proxy.safeAreaInsets.top,
+                                                 leading: proxy.safeAreaInsets.leading,
+                                                 bottom: proxy.safeAreaInsets.bottom,
+                                                 trailing: proxy.safeAreaInsets.trailing))
 
         return ZStack {
             if let stick = controls.stick {
@@ -68,10 +73,10 @@ struct TouchControlsView: View {
             .padding(.bottom, 30)
 
             RightStickControl(controls: controls)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                .padding(.trailing, edge)
-                .padding(.bottom, edge)
+                .position(x: layout.rightStickArtworkFrame.midX,
+                          y: layout.rightStickArtworkFrame.midY)
         }
+        .frame(width: proxy.size.width, height: proxy.size.height)
     }
 
     private func classicArtwork(in proxy: GeometryProxy) -> some View {
@@ -245,7 +250,7 @@ private struct GestureRose: View {
 /// The movement ring appears under the first finger that lands on the left half.
 private struct MovementStickArtwork: View {
     let touch: TouchControls.Tracked
-    private let knobSize: CGFloat = 66
+    private let knobSize = ModernTouchLayout.movementKnobSize
 
     var body: some View {
         ZStack {
@@ -258,8 +263,8 @@ private struct MovementStickArtwork: View {
                 .frame(width: knobSize, height: knobSize)
                 .offset(knobOffset)
         }
-        .frame(width: TouchControls.movementRadius * 2,
-               height: TouchControls.movementRadius * 2)
+        .frame(width: ModernTouchLayout.movementVisualRadius * 2,
+               height: ModernTouchLayout.movementVisualRadius * 2)
         .position(touch.origin)
     }
 
