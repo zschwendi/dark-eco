@@ -14218,7 +14218,22 @@ parent `60ddc9c0`; both iOS configurations are bumped from 115 to 116.
   verification has the known development-chain `CSSMERR_TP_NOT_TRUSTED` result;
   Xcode signing and entitlement extraction passed.
 - No simulator, device access, physical controller ergonomics/VoiceOver, or
-  real two-device iCloud check is claimed.
+  real two-device iCloud check was claimed at the signed-artifact checkpoint.
+- A subsequent unsigned Release build for the already-booted approved iPad Pro
+  11-inch (M5) simulator passed using the same source-pack/AOT identity; full
+  log: `/private/tmp/GOALPad-build116-m5-simulator.log`. The app installed and
+  launched as `com.zephyrstudiosllc.eco`, PID 77936, and `simctl appinfo`
+  reported Eco Build 116.
+- Computer Use then opened Jak 1 Settings and Controller Bindings. Accessibility
+  state exposed Standard whole-stick roles, independent Movement and Camera
+  sensitivity/dead-zone/inversion controls at exact defaults, and the ordinary
+  button remaps. A Camera Invert Horizontal toggle changed live from off to on;
+  Restore Controls Defaults returned it to off after reopening. Screenshot:
+  `/private/tmp/GOALPad-build116-m5-simulator.png`. The Library also rendered
+  cleanly. No game data was imported, so this is native UI/persistence smoke,
+  not controller feel, game input, renderer, gameplay, VoiceOver traversal, or
+  physical-device evidence. The simulator was already booted and was left in
+  its existing booted state.
 
 The data-only FR3 validator corrective branch is also ready but intentionally
 parked. Nested `97e564ae04` and parent `f3818815` close every independently

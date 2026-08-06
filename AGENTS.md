@@ -532,7 +532,10 @@ Active lanes:
   save-sync regression suites pass. Both iOS configurations are now 116.
   The signed generic-iOS product is preserved at
   `/private/tmp/GOALPad-build116-analog-signed/GOALPad.app`; no device validation
-  is claimed.
+  is claimed. The approved M5 iPad simulator Release also builds, installs, and
+  launches as 116; native UI interaction verified both stick sections, live
+  camera inversion, and Controls-default restoration. This is not physical
+  controller/gameplay evidence.
 - `Integrated locally; synthetic visionOS proof only` — parent `9edcf64e` plus
   actor-isolation correction `2f29c327` render one immutable synthetic,
   depth-tested tetrahedron through distinct compositor views using predicted
