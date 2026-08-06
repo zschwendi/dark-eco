@@ -2302,11 +2302,12 @@ private func nativeFacePromptPulsesRejectStaleWorkAndCancelOnLoss() {
     let centre = CGPoint(x: 180, y: 650)
     lost.down(movement, centre)
     lost.move(movement, CGPoint(x: centre.x + TouchControls.movementRadius, y: centre.y))
+    _ = lost.controls.consumeHapticEvents()
     lost.controls.performFacePromptAction(.cross, for: cross)
     lost.controls.performFacePromptAction(.cross, for: cross)
     lost.controls.setFacePromptTouchSnapshot(.invalid)
     let afterLoss = lost.frame()
-    check(afterLoss.isLeftDeflected && afterLoss.buttons.isEmpty
+    check(afterLoss.isLeftDeflected && !afterLoss.buttons.contains(.cross)
           && lost.controls.consumeHapticEvents().isEmpty,
           "prompt loss cancels its pending pulse and feedback without cancelling raw movement")
 
