@@ -174,6 +174,8 @@ private struct GameLibraryTile: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityHint(accessibilityHint)
+        .disabled(state == .planned)
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
@@ -182,8 +184,6 @@ private struct GameLibraryTile: View {
         .contextMenu {
             artworkActions
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityHint(accessibilityHint)
     }
 
     @ViewBuilder
@@ -208,9 +208,10 @@ private struct GameLibraryTile: View {
                 .foregroundStyle(.white)
                 .padding(10)
                 .background(.black.opacity(0.55), in: Circle())
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .frame(minWidth: 44, minHeight: 44)
         .padding(22)
         .accessibilityLabel("Artwork options for \(title.name)")
     }
