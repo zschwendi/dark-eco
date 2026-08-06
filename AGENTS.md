@@ -491,6 +491,17 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 Active lanes:
 
+- `Integrated; independent source review, canonical AOT, and signed Build 113
+  validation passed; physical route pending` — nested OpenGOAL
+  `ef48da80a` repairs the fisherman boat's first-trip completion. A false
+  animation clone can no longer skip authored streaming, destination docking
+  waits for the destination level to become active, and one shared finalizer
+  authoritatively relocates the boat and Jak for both directions before title
+  and continue state advance. Sol xhigh review returned ACCEPT. Nested
+  `93dd44e16` records the resulting 518-object source-pack identity
+  `c2fa7910dd863ae7`; canonical generation emitted 10,614 functions with seven
+  native functions and zero failed files. Build 113 also packages the reviewed
+  managed Aspect Ratio recovery and Build 111 warp-touch corrections.
 - `Integrated; focused validation passed; Build 107 full Xcode build pending` —
   Jak 1 physical-button/key remapping came from
   `/private/tmp/GP-build94-input-remapping`, worker commit `13197fd7`, and is
@@ -645,6 +656,13 @@ Active lanes:
   fired on the next boat interaction. Acceptance requires the title on the
   completed first arrival, never on departure, without changing ordinary
   level-title boundaries elsewhere.
+- [x] Implement and independently review an authoritative two-direction boat
+  completion path. The reviewed source retries the authored clone/spool path,
+  waits fail-closed for the destination to become active, snaps boat and target
+  to the authored dock while preserving their relative offset and outgoing
+  path orientation, yields for current-level/title reevaluation, and only then
+  continues into the docked state. Focused GOAL compilation and five relocation
+  contract tests pass; physical first-trip acceptance remains mandatory.
 - [x] Establish that Build 90 and Build 93 pin the same OpenGOAL revision and
   contain no renderer, shader, Metal-host, AOT, or generated-source delta.
   Classify this as an unvisited transition gap unless later evidence proves a
@@ -704,10 +722,10 @@ Active lanes:
   option `Fit to Screen`, and do not expose the implementation term `Hor+`.
 - [ ] Preserve Build 93's accepted Modern Graphics default and exact Classic
   presentation while moving that option.
-- [ ] Remove the PC-only `Display` and `Display Mode` rows from Jak 1's native
+- [x] Remove the PC-only `Display` and `Display Mode` rows from Jak 1's native
   Graphics options on Apple devices. They cannot meaningfully control Eco's
   app-owned surface and must not persist incompatible presentation state.
-- [ ] Remove `MSAA` from the Apple-managed native Graphics list. Also remove
+- [x] Remove `MSAA` from the Apple-managed native Graphics list. Also remove
   `V-Sync`: both setters are only loud machine stubs in the current portable
   Jak 1 kernel and neither changes Eco's Metal configuration. Do not confuse
   the renderer's required internal `syncv` callback with a wired player V-Sync

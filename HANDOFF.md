@@ -13887,3 +13887,78 @@ A dedicated Sol xhigh OpenGOAL lane owns this first-trip relocation diagnosis
 and fix. It must not mask the bug by disabling the stale interaction or forcing
 a respawn. Aspect/menu recovery and Build 111 touch corrections are separate,
 already-focused commits awaiting root review/integration.
+
+# Build 113 integrated relocation/AOT checkpoint
+
+Date: 2026-08-06. Build 113 source, AOT preparation, and signed generic iOS
+validation are complete; physical validation remains pending at this checkpoint.
+
+Integrated behavior:
+
+- Nested `ef48da80a` fixes the fisherman boat ride in both directions. It
+  retries a false animation clone while servicing authored spool work, waits
+  for the destination level to be exactly active, then uses one shared
+  completion helper to place the boat and Jak at the authored dock, rebuild
+  path/orientation and rigid-body state, allow current-level/title reevaluation,
+  and only then continue into the destination docked state.
+- The first-arrival title symptom is treated as part of the same state failure:
+  `MISTY ISLAND` must be consumed on the completed first arrival, never by a
+  later departure after death/respawn recovery.
+- Independent Sol xhigh review returned ACCEPT with no source, ABI, lifetime,
+  or two-direction blocker. Its explicit limitation is that the Python model is
+  structural coverage, not executed GOAL gameplay.
+- Nested `ef4a9b597` makes Apple-managed native Graphics contain Game
+  Resolution, Aspect Ratio, Frame Rate, PS2 Options, and Back only. Its managed
+  Aspect menu contains Fit to Screen and Back, and initialization migrates an
+  incompatible persisted native aspect choice back to automatic Fit to Screen
+  without changing unrelated settings. Normal desktop OpenGOAL remains
+  unchanged.
+- Parent `31d6c62b` contains the reviewed Build 111 warp-touch ownership,
+  invalid-read retention, Automatic touch-recovery, compact action layout, and
+  five-row Graphics correction.
+
+Validated evidence:
+
+- `fishermans-boat.o` focused GOAL compile passed with 328 dependencies.
+- `test/goalc/test_jak1_fishermans_boat_relocation_contract.py` passed 5/5;
+  the existing warp contract passed 6/6 and the managed-display contract passed
+  6/6.
+- All seven parent touch/menu/settings focused scripts recorded in the prior
+  checkpoint passed independently after integration.
+- The canonical 518-object source pack regenerated with zero failed files at
+  aggregate `c2fa7910dd863ae7` and 10,738,054 bytes. Nested `93dd44e16` records
+  that identity. The prior Build 105 pack is preserved at
+  `/private/tmp/GP-build94-jak1-settings/build/jak1-source-object-pack-build105-pre-ef48da80a`.
+- `Scripts/verify-generated-aot.sh Generated/jak1-aot 518` passed: 518 objects,
+  10,614 emitted functions, seven native functions. Logs are
+  `/private/tmp/GOALPad-build113-source-pack.log` and
+  `/private/tmp/GOALPad-build113-aot.log`.
+- Signed generic iPhoneOS Release Build 113 passed using the single cached
+  DerivedData lane. Full log: `/private/tmp/GOALPad-build113-generic-ios.log`.
+  The preserved app is
+  `/private/tmp/GOALPad-build113-misty-aspect-warp-signed/GOALPad.app`: Eco
+  `1.0 (113)`, bundle `com.zephyrstudiosllc.eco`, thin arm64, one privacy
+  manifest, no ISO/BIN/DGO/CGO/STR/VAG payloads, executable SHA-256
+  `4c19f8ece342ac598078afbf0ba173c489c1d3e4132967506ad3376c7fcd06b6`.
+  Its embedded development profile contains team `V729QMY3V6`, Game Center,
+  and the existing iCloud container. Strict local verification reports the
+  established development-chain `CSSMERR_TP_NOT_TRUSTED` result; Xcode signing
+  itself completed successfully.
+
+Exact local state before signed packaging:
+
+- Parent branch `agent/build94-jak1-settings` is at `245c5649` plus the
+  intentional OpenGOAL gitlink, Build 113 version bump, and this documentation.
+- Nested branch `agent/build105-misty-runtime` is clean at `93dd44e16`, ahead of
+  its last pushed remote `c63c73ecf`. The prior nested push was policy-blocked;
+  do not work around that boundary.
+- The parent remote is confirmed at `245c5649` before this packaging commit.
+
+Physical Build 113 acceptance must use an ordinary first-trip Sandover save:
+take the boat once, see an intact/collidable Misty destination with Jak and the
+boat at the dock, see `MISTY ISLAND` on arrival, jump off and survive, and verify
+there is no stale source interaction or second invocation. Then return once and
+verify there is no Misty title on departure and Sandover docks cleanly. Also
+verify Modern/Fit to Screen fills the iPad without bars or squash, the managed
+Graphics rows above are exact, warp touch remains correct, and Build 93's
+performance, thermal, input, saves, and iCloud behavior have not regressed.
