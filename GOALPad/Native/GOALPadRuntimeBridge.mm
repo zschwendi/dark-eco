@@ -219,6 +219,17 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
   }
 }
 
++ (GOALPadLookAroundState)lookAroundState {
+  switch (goalpad::look_around_state()) {
+    case goalpad::LookAroundState::Normal:
+      return GOALPadLookAroundStateNormal;
+    case goalpad::LookAroundState::FirstPerson:
+      return GOALPadLookAroundStateFirstPerson;
+    case goalpad::LookAroundState::Unknown:
+      return GOALPadLookAroundStateUnknown;
+  }
+}
+
 + (GOALPadFrameChainStats)frameChainStats {
   const auto core = goalpad::frame_chain_stats();
   GOALPadFrameChainStats stats = {core.chains, core.last_payload_bytes,

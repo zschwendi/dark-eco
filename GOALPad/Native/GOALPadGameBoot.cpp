@@ -53,6 +53,9 @@ std::uint32_t g_gameplay_mode = 0;
 std::uint32_t g_pause_mode = 0;
 std::uint32_t g_progress_mode = 0;
 std::uint32_t g_menu_mode = 0;
+int32_t* g_target = nullptr;
+std::uint32_t g_target_type = 0;
+std::uint32_t g_look_around_mode = 0;
 int32_t* g_math_camera = nullptr;
 int32_t* g_camera_master = nullptr;
 int32_t* g_camera_combiner = nullptr;
@@ -327,6 +330,18 @@ goalpad::camera_correction_trace::FrameSnapshot current_camera_correction_snapsh
   return out;
 }
 
+// Jak 1's asserted target layout includes the four-byte basic-object type tag that native object
+// pointers skip: process-drawable.state-flags is 164 and target.cam-user-mode is 204.
+constexpr std::size_t kTargetStateFlagsOffset =
+    164 - goalpad::camera_correction_trace::jak1_layout::kBasicObjectTypeTagBytes;
+constexpr std::size_t kTargetCameraUserModeOffset =
+    204 - goalpad::camera_correction_trace::jak1_layout::kBasicObjectTypeTagBytes;
+constexpr std::size_t kTargetRequiredObjectBytes =
+    kTargetCameraUserModeOffset + sizeof(std::uint32_t);
+constexpr std::size_t kTargetDeclaredObjectBytes =
+    0x250 - goalpad::camera_correction_trace::jak1_layout::kBasicObjectTypeTagBytes;
+static_assert(kTargetRequiredObjectBytes <= kTargetDeclaredObjectBytes);
+
 #endif  // GOALPAD_HAVE_GAME_BOOT
 
 }  // namespace
@@ -498,6 +513,21 @@ BootStatus boot_game() noexcept {
                    "unavailable.");
     }
 
+    uint32_t target_type = 0;
+    const uint32_t look_around_mode = goal_game_find_symbol("look-around", nullptr);
+    const bool target_state_symbols = goal_game_find_symbol("*target*", nullptr) &&
+                                      goal_game_find_symbol("target", &target_type) &&
+                                      target_type && look_around_mode;
+    if (target_state_symbols) {
+      g_target = goal_game_symbol_slot("*target*");
+      g_target_type = target_type;
+      g_look_around_mode = look_around_mode;
+    } else {
+      os_log_error(boot_log(),
+                   "GAME.CGO did not expose the target look-around symbols; first-person state "
+                   "is unavailable.");
+    }
+
     goal_kernel_core_state state = {};
     goal_kernel_core_get_state(&state);
     status.global_heap_used_bytes = state.global_heap_used_bytes;
@@ -623,6 +653,9 @@ void reset_game() noexcept {
   g_pause_mode = 0;
   g_progress_mode = 0;
   g_menu_mode = 0;
+  g_target = nullptr;
+  g_target_type = 0;
+  g_look_around_mode = 0;
   g_math_camera = nullptr;
   g_camera_master = nullptr;
   g_camera_combiner = nullptr;
@@ -650,6 +683,29 @@ GameMode game_mode() noexcept {
   }
   return classify_game_mode(static_cast<std::uint32_t>(*g_master_mode), g_gameplay_mode,
                             g_pause_mode, g_progress_mode, g_menu_mode);
+}
+
+LookAroundState look_around_state() noexcept {
+  if (!g_booted || !g_target || !g_target_type || !g_look_around_mode || !g_ee_main_mem) {
+    return LookAroundState::Unknown;
+  }
+
+  const auto target_offset = static_cast<std::uint32_t>(*g_target);
+  const void* target = camera_correction_trace::checked_goal_object(
+      g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT, target_offset, g_target_type,
+      kTargetRequiredObjectBytes, nullptr);
+  if (!target) {
+    return LookAroundState::Unknown;
+  }
+
+  std::uint32_t state_flags = 0;
+  std::uint32_t camera_user_mode = 0;
+  std::memcpy(&state_flags, static_cast<const std::uint8_t*>(target) + kTargetStateFlagsOffset,
+              sizeof(state_flags));
+  std::memcpy(&camera_user_mode,
+              static_cast<const std::uint8_t*>(target) + kTargetCameraUserModeOffset,
+              sizeof(camera_user_mode));
+  return classify_look_around_state(true, state_flags, camera_user_mode, g_look_around_mode);
 }
 
 #else  // GOALPAD_HAVE_GAME_BOOT
@@ -690,6 +746,10 @@ bool game_is_booted() noexcept {
 
 GameMode game_mode() noexcept {
   return GameMode::Unknown;
+}
+
+LookAroundState look_around_state() noexcept {
+  return LookAroundState::Unknown;
 }
 
 #endif  // GOALPAD_HAVE_GAME_BOOT

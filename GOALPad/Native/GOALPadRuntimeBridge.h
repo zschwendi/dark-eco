@@ -96,6 +96,12 @@ typedef NS_ENUM(NSInteger, GOALPadGameMode) {
   GOALPadGameModeMenu,
 };
 
+typedef NS_ENUM(NSInteger, GOALPadLookAroundState) {
+  GOALPadLookAroundStateUnknown,
+  GOALPadLookAroundStateNormal,
+  GOALPadLookAroundStateFirstPerson,
+};
+
 /// The whole Swift-facing surface of the native runtime. The GOAL kernel is a process-wide
 /// singleton, so this is a class API rather than an instantiable object.
 @interface GOALPadRuntimeBridge : NSObject
@@ -130,6 +136,8 @@ typedef NS_ENUM(NSInteger, GOALPadGameMode) {
 @property(class, nonatomic, readonly, getter=isGameBooted) BOOL gameBooted;
 /// Jak's own `*master-mode*`; reading it never advances or mutates gameplay.
 @property(class, nonatomic, readonly) GOALPadGameMode gameMode;
+/// Jak's live directional look-around state. Unavailable and other first-person modes are unknown.
+@property(class, nonatomic, readonly) GOALPadLookAroundState lookAroundState;
 @property(class, nonatomic, readonly) GOALPadFrameChainStats frameChainStats;
 
 /// Whether this build carries each engine host seam. A seam that is not linked reports its absence

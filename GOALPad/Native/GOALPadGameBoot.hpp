@@ -16,6 +16,29 @@ enum class GameMode : std::uint8_t {
   Menu,
 };
 
+enum class LookAroundState : std::uint8_t {
+  Unknown,
+  Normal,
+  FirstPerson,
+};
+
+// `state-flags` declares `first-person-mode` as bit 9 in Jak 1's game-h.gc.
+constexpr std::uint32_t kJak1FirstPersonModeFlag = 1u << 9;
+
+constexpr LookAroundState classify_look_around_state(bool state_available,
+                                                     std::uint32_t state_flags,
+                                                     std::uint32_t camera_user_mode,
+                                                     std::uint32_t look_around_mode) noexcept {
+  if (!state_available || !look_around_mode) {
+    return LookAroundState::Unknown;
+  }
+  if ((state_flags & kJak1FirstPersonModeFlag) == 0) {
+    return LookAroundState::Normal;
+  }
+  return camera_user_mode == look_around_mode ? LookAroundState::FirstPerson
+                                               : LookAroundState::Unknown;
+}
+
 constexpr GameMode classify_game_mode(std::uint32_t current,
                                       std::uint32_t gameplay,
                                       std::uint32_t pause,
@@ -101,6 +124,8 @@ std::uint64_t frames_run() noexcept;
 bool game_is_booted() noexcept;
 /*! Jak's own `*master-mode*`, read without advancing or mutating the game. */
 GameMode game_mode() noexcept;
+/*! Jak's live target state; Billy and unavailable or inconsistent state remain unknown. */
+LookAroundState look_around_state() noexcept;
 
 /*! Forget the boot. The heap goes away with the kernel; this only drops what this file caches. */
 void reset_game() noexcept;

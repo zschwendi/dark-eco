@@ -36,6 +36,7 @@ final class GameSession {
     private(set) var isBooting = false
     private(set) var isRunning = false
     private(set) var gameMode: GOALPadGameMode = .unknown
+    private(set) var lookAroundState: GOALPadLookAroundState = .unknown
     private(set) var framesRun: UInt64 = 0
     private(set) var framesPresented: UInt64 = 0
     private(set) var memoryWarnings = 0
@@ -174,6 +175,7 @@ final class GameSession {
         audio.start()
         isRunning = true
         gameMode = GOALPadRuntimeBridge.gameMode
+        lookAroundState = GOALPadRuntimeBridge.lookAroundState
         isForeground = currentScenePhase == .active
         saveSync.setGameplayActive(isForeground)
         #if os(iOS) || os(visionOS)
@@ -195,6 +197,7 @@ final class GameSession {
         boot = nil
         isRunning = false
         gameMode = .unknown
+        lookAroundState = .unknown
         saveSync.setGameplayActive(false)
         touch.reset()
         framesRun = 0
@@ -231,6 +234,10 @@ final class GameSession {
             framesRun = GOALPadRuntimeBridge.framesRun
             let currentMode = GOALPadRuntimeBridge.gameMode
             if currentMode != gameMode { gameMode = currentMode }
+            let currentLookAroundState = GOALPadRuntimeBridge.lookAroundState
+            if currentLookAroundState != lookAroundState {
+                lookAroundState = currentLookAroundState
+            }
             shouldLog = framesRun % 600 == 0
             saveSync.gameplayFrameCompleted()
         }
