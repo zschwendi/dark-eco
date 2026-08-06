@@ -1465,6 +1465,35 @@ private func sessionControlStateMatrixIsExactAndFailClosed() {
     check(NativeMenuTouchAction.available(in: .progress, progress: validBack)
           == [.up, .down, .back, .confirm, .resume],
           "exact can-go-back adds Back without relabelling another action")
+    let validBackActions = NativeMenuTouchAction.available(in: .progress,
+                                                           progress: validBack)
+    let validBackSession = NativeSessionControlPresentation.reduce(
+        mode: .progress, titleStartState: .unknown, progress: validBack)
+    check(TouchControlsView.filteredNativeMenuActions(
+        validBackActions, sessionControl: validBackSession, isSuppressed: false)
+          == validBackActions,
+          "unsuppressed touch ownership retains the full proven progress action set")
+    check(TouchControlsView.filteredNativeMenuActions(
+        validBackActions, sessionControl: validBackSession, isSuppressed: true)
+          == [.resume],
+          "controller suppression retains only the authoritative session exit")
+
+    let disabledSession = NativeSessionControlPresentation.reduce(
+        mode: .progress, titleStartState: .unknown, progress: gameplayProgress)
+    check(TouchControlsView.filteredNativeMenuActions(
+        NativeMenuTouchAction.available(in: .progress, progress: gameplayProgress),
+        sessionControl: disabledSession, isSuppressed: true) == [.resume],
+          "controller suppression retains a transiently disabled Resume")
+    let titleActions = NativeMenuTouchAction.available(in: .progress,
+                                                       progress: titleProgress)
+    let titleSession = NativeSessionControlPresentation.reduce(
+        mode: .progress, titleStartState: .unknown, progress: titleProgress)
+    check(TouchControlsView.filteredNativeMenuActions(
+        titleActions, sessionControl: titleSession, isSuppressed: true) == [.start],
+          "controller suppression retains the title-progress physical Start exit")
+    check(TouchControlsView.filteredNativeMenuActions(
+        [.up, .confirm], sessionControl: nil, isSuppressed: true).isEmpty,
+          "controller suppression fails closed without an authoritative session exit")
 
     let fileBack = progressSnapshot(screen: 16, option: 4, startingScreen: 16,
                                     canExitWithStart: false, canGoBack: true)

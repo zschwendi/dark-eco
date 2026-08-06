@@ -28,6 +28,16 @@ struct TouchControlsView: View {
         return reclaim()
     }
 
+    nonisolated static func filteredNativeMenuActions(
+        _ actions: [NativeMenuTouchAction],
+        sessionControl: NativeSessionControlPresentation?,
+        isSuppressed: Bool
+    ) -> [NativeMenuTouchAction] {
+        guard isSuppressed else { return actions }
+        guard let action = sessionControl?.action, actions.contains(action) else { return [] }
+        return [action]
+    }
+
     private var isNativeMenuOpen: Bool {
         switch gameMode {
         case .pause, .progress, .menu: true
@@ -37,8 +47,10 @@ struct TouchControlsView: View {
     }
 
     private var nativeMenuActions: [NativeMenuTouchAction] {
-        NativeMenuTouchAction.available(in: gameMode, progress: progressMenuSnapshot,
-                                        titleStartState: titleStartState)
+        let actions = NativeMenuTouchAction.available(
+            in: gameMode, progress: progressMenuSnapshot, titleStartState: titleStartState)
+        return Self.filteredNativeMenuActions(actions, sessionControl: sessionControl,
+                                              isSuppressed: isSuppressed)
     }
 
     private var sessionControl: NativeSessionControlPresentation? {
