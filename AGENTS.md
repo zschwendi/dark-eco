@@ -386,9 +386,199 @@ When choosing between approaches, use this order:
 
 Until maintainers update this section, the priority is:
 
-> Establish the smallest reproducible path from the existing OpenGOAL ARM64 work to a signed iPadOS application that executes native project code on physical hardware.
+> Preserve Build 93 as the known-good Jak 1 baseline while building the next
+> iPhone/iPad interaction and per-game settings layer in small, physically
+> testable checkpoints.
 
-Do not spend substantial effort on launcher polish, touch controls, Jak II, mod browsing, high-resolution settings, or public packaging before this platform path is proven.
+Build 93 is accepted by the maintainer as the known-good baseline for gameplay,
+performance, graphics, current touch behavior, settings persistence, and iCloud
+saves. Its source checkpoint is `9c87b0be7fd194bb13af8033be6bb5787b2aba77`
+and its preserved signed app is
+`/private/tmp/GOALPad-build93-cloud-save-ux-signed/GOALPad.app`. Do not rewrite,
+amend, or repurpose that branch. New work starts from Build 93 in a later build
+and must not replace it until the maintainer accepts the physical comparison.
+
+### Live Jak 1 orchestration ledger
+
+This checklist is a tracked execution ledger, not a promise that every item
+ships in one build. Update it whenever a worker begins, commits, integrates,
+passes a focused gate, or reaches a physical-validation boundary. Each active
+item must have one file owner; do not let workers edit the same files
+concurrently. Use these states in notes where a checkbox alone is ambiguous:
+`Planned`, `Investigating`, `In progress`, `Implemented`, `Validated`, and
+`Deferred`.
+
+#### Baseline and integration
+
+- [x] Preserve Build 93 at `9c87b0be` as the immutable known-good baseline.
+- [x] Create Build 94 integration branch `agent/build94-jak1-settings` from
+  Build 93 in `/private/tmp/GP-build94-jak1-settings`.
+- [ ] Record every worker branch, worktree, commit, validation command, and
+  physical gate in this ledger and `HANDOFF.md`.
+- [ ] Keep one integration owner and one heavy-build owner; batch full AOT,
+  Metal, and Xcode validation after focused worker checks.
+- [ ] Bump the project build number only when the next signed physical candidate
+  is ready.
+- [ ] Physically compare the next candidate against Build 93 on iPhone and iPad
+  before calling it the replacement baseline.
+
+#### Settings shell and per-game ownership
+
+- [ ] Hide the app Settings and developer-log controls during gameplay; expose
+  them only while the native Jak pause/start menu is open.
+- [ ] In the paused overlay, use white `Eco Pro` plus the Settings icon.
+- [ ] Add a per-game `Show developer logs` setting; logs remain off the normal
+  player surface when disabled.
+- [ ] Fix the stationary Settings sheet/modal layout flicker and roughly
+  100-point vertical text jump before adding more rows.
+- [ ] Present Modern before Classic in every global and section picker while
+  preserving stored enum/document compatibility.
+- [ ] Make app settings title-scoped. The launcher Settings entry lists Jak 1,
+  Jak II, and later supported titles; each title remembers its own profile and
+  options locally and in iCloud.
+- [ ] Do not present unimplemented title settings as functional. Jak 1 is the
+  active settings document; later-title rows may be clearly unavailable until
+  their title support is real.
+- [ ] Rename `Reset All` to `Reset Jak 1 Settings` in the Jak 1 document.
+- [ ] Remove Jak X from the game library because it is outside OpenGOAL scope.
+- [ ] Remove empty Audio and UI sections for now unless a setting exists that is
+  not already meaningfully covered by Jak's native options.
+- [ ] Move Fill Width into the in-game Graphics settings, call the user-facing
+  option `Fit to Screen`, and do not expose the implementation term `Hor+`.
+- [ ] Preserve Build 93's accepted Modern Graphics default and exact Classic
+  presentation while moving that option.
+- [ ] Combine the duplicate `iCloud Settings` and `iCloud Saves` sections into
+  one `iCloud` block with independent `Sync Settings` and `Sync Saves` toggles.
+- [ ] Give that block one combined progress/status, last-sync date, and
+  Sync/Retry action covering whichever toggles are enabled.
+- [ ] Preserve the existing independent opt-outs and safe pregame save gate
+  beneath the combined presentation.
+- [ ] Add the smallest truthful settings entry needed to import/manage supported
+  data-only mods; do not imply a mod browser or code-mod support exists.
+- [ ] Add a save-conflict manager that lists preserved divergent copies in
+  player language and can explicitly promote a validated copy to the canonical
+  native memcard without weakening archive/journal/CAS safety.
+- [ ] Finalize the in-game Jak 1 title with the maintainer before changing player
+  strings. Do not guess.
+- [ ] Finalize the app/product name with the maintainer before changing Eco Pro,
+  bundle-facing metadata, or public branding. Current candidates include JKDX,
+  JKDX HD, JKDX 4K, and JKDX iOS; do not pick one autonomously.
+
+#### Input-source ownership and remapping
+
+- [ ] Add a Jak 1 `Primary Controller` choice that can explicitly prefer Touch,
+  a connected controller, or Mouse & Keyboard, with an honest Automatic/default
+  behavior when the preferred source is unavailable.
+- [ ] Preserve normal controller-first behavior while a physical controller is
+  actively driving input; return to touch after touch activity according to a
+  deterministic tested policy.
+- [ ] Add remapping for all supported physical-controller inputs.
+- [ ] Add remapping for all supported mouse-and-keyboard inputs.
+- [ ] Define collision/duplicate-binding behavior, reset defaults, persistence,
+  cloud sync, and unavailable-device presentation before calling remapping done.
+- [ ] Implement mouse/trackpad camera control and WASD movement.
+- [ ] Default keyboard face directions to Left = Square, Right = Circle,
+  Up = Triangle, and Down = the Jak 1 shoulder/stats action.
+- [ ] Default Escape to Start/Pause; map additional explicitly chosen keys to
+  Stats rather than treating arbitrary typing as gameplay input.
+
+#### Touch profiles and customization
+
+- [ ] Implement Classic touch before deeper native-menu touch conversion so
+  every touch device has an understandable fallback.
+- [ ] Make Controls Modern select the existing Build 93 gesture/touch scheme.
+- [ ] Make Controls Classic select a DualShock-style overlay with symmetrical
+  sticks, PlayStation-like spacing, Jak 1 face/shoulder controls, no L2/R2
+  overlay, and visibly intentional inactive/dead controls where requested.
+- [ ] Keep Modern first and Classic second in the touch profile picker.
+- [ ] Preserve current Modern behavior until its separate polish patch is
+  physically accepted.
+- [ ] Reduce the Modern movement stick's outer ring while retaining its accepted
+  thumb/knob size.
+- [ ] Move the Modern right stick inward from the bottom-trailing corner with an
+  adaptive spacer capped at 200 points.
+- [ ] Add Modern pinch-to-zoom gestures that map unambiguously to the existing Y
+  zoom toggle: pinch in and pinch out must not accidentally perform each other's
+  action.
+- [ ] Replace the second Pause/Select pill with `SKIP` per the maintainer's
+  latest direction. Define exactly which skippable state is active before
+  emitting input; never bypass progression or corrupt game state.
+- [ ] Make Start display `Pause` during gameplay and `Resume` while the native
+  pause menu is open; keep Resume visible throughout that menu.
+- [ ] Add a touch-layout editor for position pinning/movement, remapping,
+  opacity, and size only after Classic and Modern have stable layout models.
+- [ ] Store touch customization per game and sync it with that game's settings
+  document.
+
+#### Touch-friendly game and launcher interaction
+
+- [ ] When a physical controller is active, preserve ordinary controller input
+  and avoid intrusive touch chrome.
+- [ ] When touch is active, make the app-owned settings/library surfaces use
+  normal touch targets and scroll/swipe behavior.
+- [ ] Investigate native Jak menu state/readback before attempting touch hit
+  targets over GOAL-rendered rows; do not infer selection rectangles from a
+  screenshot.
+- [ ] Make the native pause menu usable by touch, beginning with swipe selection
+  and explicit confirm/back controls, then direct row taps only if deterministic
+  menu state is available.
+- [ ] Replace raw X/Square/Triangle/Circle instructional chrome with clear touch
+  actions where the app truly owns the target; Classic overlay remains the MVP
+  fallback elsewhere.
+- [ ] For warp gates, prefer a truthful `Touch gate to use warp gate` interaction
+  only if gate focus/availability can be read safely. Otherwise show large
+  explicit button controls and make the destination list swipe-selectable.
+- [ ] In portrait gameplay, top-align the renderer instead of vertically
+  centering it so the remaining lower area is available to touch controls.
+
+#### Haptics, stats, and skipping
+
+- [ ] Add satisfying, state-appropriate touch-device haptics without duplicating
+  every frame or vibrating for passive UI changes.
+- [ ] Preserve and extend connected-controller rumble through Game Controller;
+  use supported left/right localities when the device exposes them and degrade
+  cleanly when it does not.
+- [ ] Keep native Jak rumble fidelity separate from new app UI haptics so one
+  source cannot mask or continuously restart the other.
+- [ ] Preserve a reachable Stats action even though the latest touch pill is
+  named `SKIP`; document controller and keyboard defaults.
+- [ ] Treat `skip anything` as Investigating until cutscene/dialog/event state,
+  safe completion hooks, and progression invariants are known. Do not implement
+  a generic state jump or arbitrary GOAL call.
+
+#### Game Center
+
+- [ ] Add Game Center capability/entitlements only with a concrete authenticated
+  runtime slice and App Store Connect configuration; a project entitlement alone
+  is not a completed feature.
+- [ ] Define player-visible friend presence/current-run information with an
+  explicit privacy and refresh model.
+- [ ] Define authoritative timing boundaries for current run, fastest completed
+  run, and fastest completion percentage category before creating leaderboards.
+- [ ] Confirm whether the completion category is 100% or 101% from actual game
+  semantics and maintainer direction; do not guess.
+- [ ] Decide offline behavior, retries, duplicate submissions, clock tampering,
+  save imports, mods, and version/category compatibility before publishing times.
+
+#### Candidate later-update scope
+
+Keep this list at ten or fewer. These are currently the strongest candidates
+to defer from the first post-Build-93 update because they require a larger
+architecture, gameplay-semantic, backend, or physical-tuning gate:
+
+1. Game Center friend presence and competitive run leaderboards.
+2. Universal `skip anything` behavior.
+3. Full draggable/resizable/opacity/remapping touch-layout editor.
+4. Direct touch hit-testing for every native GOAL-rendered menu.
+5. Complete controller and mouse/keyboard remapping UI.
+6. Full mod manager/browser beyond a truthful local import entry.
+7. Manual archived-save promotion/conflict-management UI.
+8. Rich localized device/controller haptic design beyond preserved native
+   rumble and a small UI-haptic proof.
+
+Classic touch, portrait top alignment, Modern-first ordering, empty-section
+removal, pause-gated app chrome, and the unified iCloud presentation are not in
+this defer list; they are the preferred first executable slices.
 
 ## Code clarity
 
