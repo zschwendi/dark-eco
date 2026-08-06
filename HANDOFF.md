@@ -14344,3 +14344,60 @@ Physical touch ergonomics, VoiceOver operation, gameplay, real multi-device
 iCloud propagation, Build 93 regression, Misty/title correctness, and Fit to
 Screen acceptance remain pending. Do not uninstall or clear `Z iPad Pro` app
 data when retrying the Build 117 launch.
+
+# Build 118 Start/Pause/Resume and Back checkpoint
+
+Date: 2026-08-06. Build 117 was physically rejected because its title/main-menu
+Start control disappeared, progress submenus hid Resume, and some returnable
+native screens lacked Back. The touch-layout editor itself remains integrated.
+
+- Parent `3588baf3` adds checked read-only native state for exact
+  `target-title-wait`, progress origin, normal/transition/selection state, and
+  native Start/Back eligibility. Swift presents Start at the title prompt,
+  Pause in gameplay, and a persistent Resume across gameplay-origin progress
+  screens; transiently unavailable Resume stays visible but disabled. Title-
+  origin progress uses the physical Start identity, whose native behavior is
+  to return to the prior title state rather than confirm the selected row.
+- Parent `64050a11` prevents stats screens 0-2 from receiving a misleading
+  synthetic Back label because Square is tab/state dependent there. Parent
+  `c6757a51` accepts valid PC progress screen 66 and rejects the actual `max`
+  sentinel 67. Parent `c85ce554` keeps only the session Start/Resume action
+  visible under physical-controller suppression and restores the full proven
+  action set when touch owns input.
+- Settings sheets now have an explicit Done action. Existing file-list Back,
+  selected-option Cancel, ordinary controller bytes, and stale-state input
+  cancellation remain intact. Independent Sol xhigh review of final parent
+  `c85ce554` returned ACCEPT with no P0-P2 findings.
+- Root validation passed `Scripts/run-game-menu-state-check.sh`,
+  `Scripts/run-game-progress-state-check.sh`,
+  `Scripts/run-touch-controls-check.sh`, and
+  `Scripts/run-presentation-settings-check.sh`. Logs are
+  `/private/tmp/GP-build118-menu-state.log`,
+  `/private/tmp/GP-build118-progress-state.log`,
+  `/private/tmp/GP-build118-touch-controls.log`, and
+  `/private/tmp/GP-build118-presentation-settings.log`. The touch and full
+  presentation suites required Xcode macro-service access outside the sandbox.
+- Parent `e3bfa046` bumps both iOS configurations to Build 118. The first two
+  Xcode attempts failed before compilation because Xcode passed the worktree as
+  symlinked `/tmp`; the successful command explicitly set the real
+  `GOALPAD_OPENGOAL_ROOT` and source-pack build settings. The signed generic-iOS
+  Release build then exited 0 with the unchanged verified 518-object source/AOT
+  corpus. Full log: `/private/tmp/GOALPad-build118-generic-ios.log`.
+- Frozen product:
+  `/private/tmp/GOALPad-build118-pause-chrome-signed/GOALPad.app`. It identifies
+  as Eco `1.0 (118)`, bundle `com.zephyrstudiosllc.eco`, thin ARM64, 53 MB, and
+  executable SHA-256
+  `226f6bb6f4c46030c897118dfeaf299a7740a0219e3cf2a908def9ee6cf4e607`.
+  Its privacy manifest validates, the Zephyr Studios Game Center/iCloud
+  entitlements extract correctly, and no audited retail payload extensions are
+  bundled. Strict local signature verification has the known development-chain
+  `CSSMERR_TP_NOT_TRUSTED` result; Xcode signing succeeded.
+- `devicectl` installed Build 118 in place on paired `Z iPad Pro` at `11:40:00`
+  and launched it with the prior Eco process terminated at `11:40:28`. No
+  uninstall or app-data clear occurred.
+
+Physical acceptance is pending. Test `PRESS START` for visible Start, enter a
+save and confirm Pause, traverse pause/progress submenus with persistent Resume
+and truthful Back, and confirm selected sliders keep Cancel while Resume is
+temporarily disabled. Then retain the Build 93 gameplay/performance, cloud-save,
+Misty/title, and Fit to Screen regression gates before naming a new baseline.

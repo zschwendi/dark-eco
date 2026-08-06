@@ -491,18 +491,22 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 Active lanes:
 
-- `Build 117 touch editor installed; launch and physical acceptance pending` —
-  parent `f3058a64`, `270c2175`, and `a39e56af` add the per-game Modern/Classic
-  editor for safe position pinning, compatible remapping, opacity, size, and
-  reset. Parent `35864477` and `e6ca3325` isolate the layout in the frozen
-  `jak1-touch-layout-v1.json` local/iCloud sidecar so honest staggered Build
-  93/116 settings writers cannot erase it, preserve explicit reset tombstones,
-  and close cross-domain in-flight sync races. Independent review returned
-  ACCEPT and the final focused matrix plus signed generic-iOS Release build
-  pass. Build 117 installed in place on `Z iPad Pro` without uninstalling or
-  clearing data; the first launch request was denied only because the device
-  locked. Physical touch ergonomics, gameplay, VoiceOver, iCloud propagation,
-  and Build 93/Misty/Fit to Screen regression acceptance remain pending.
+- `Build 118 pause chrome installed and launched; physical acceptance pending`
+  — Build 117's touch editor remains integrated, but its physical run exposed
+  missing Start/Resume chrome and missing native-menu Back actions. Parent
+  `3588baf3`, `64050a11`, `c6757a51`, and `c85ce554` add exact read-only title
+  and progress navigation state, restore Start at `target-title-wait`, use
+  Pause in gameplay, keep a truthful Resume visible throughout pause/progress,
+  expose Back only where the native responder accepts it, preserve the special
+  stats Square semantics, and add an explicit Settings Done action. Controller
+  suppression retains only the session Start/Resume action. Independent Sol
+  xhigh re-review returned ACCEPT; focused native, touch, and presentation
+  suites and the signed generic-iOS Release build pass. `e3bfa046` bumps both
+  iOS configurations to 118. Build 118 was installed in place and launched on
+  `Z iPad Pro` without uninstalling or clearing its app container. Physical
+  acceptance of the exact Start/Pause/Resume/Back route, touch ergonomics,
+  gameplay, VoiceOver, iCloud propagation, and Build 93/Misty/Fit to Screen
+  regressions remains pending.
 - `Build 114 signed generic-iOS candidate ready; physical Misty/title gate
   pending` — nested OpenGOAL `352064ace`, `f260ae7df`, and `cb5032a83` make
   fisherman-boat arrival atomic: destination collision must genuinely ground
