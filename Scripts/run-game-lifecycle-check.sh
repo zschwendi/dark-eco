@@ -15,7 +15,11 @@ swiftc -warnings-as-errors \
   -o "$temporary/game-lifecycle-check"
 "$temporary/game-lifecycle-check"
 
+swift "$root/Scripts/game-lifecycle-route-check.swift" "$root"
+
 swiftc -frontend -parse \
   "$root/GOALPad/Game/GameSession.swift" \
   "$root/GOALPad/Game/GameSurfaceView.swift" \
   "$root/GOALPad/Audio/AudioOutput.swift"
+
+swiftc -frontend -parse "$root/Scripts/game-lifecycle-route-check.swift"
