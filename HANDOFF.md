@@ -11840,3 +11840,107 @@ explicit texture-upload behavior. The proof gate is deterministic texture/pool
 readback and stable lifetime across repeated frames; the current SKY draw is
 untextured, so these publications are not yet expected to make title RGB
 visible. No simulator or physical device was accessed in this checkpoint.
+
+# Checkpoint 81: live Jak II bucket-4 texture animation execution
+
+Date: 2026-08-06. This checkpoint remains isolated in parent worktree
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-jak2-real-dma-draw` and nested
+OpenGOAL worktree `GP-jak2-real-dma-draw/OpenGOAL`. The active Jak 1 checkout
+was not edited, staged, reset, cleaned, built, or otherwise used.
+
+Nested branch `agent/jak2-real-dma-draw-proof` now ends at `6f9394cf0`. The
+eleven commits after Checkpoint 80 add:
+
+- an owning, pointer-free execution plan over separate immutable-DMA and live-
+  EE domains, with the exact ordinary page header, Sky scalars, fog indices,
+  and CLUT bytes;
+- safe fixed-size Metal texture publication that replaces complete textures
+  behind stable registry handles and explicitly detaches from `TexturePool`
+  before placeholder/pool teardown;
+- deterministic CPU implementations and original-data-free tests for Jak II's
+  opcode-41 128x128 cloud generator and PSMT8/CSM1 fog conversion;
+- exact live destination gates: cloud slot 256, fog slot 128, and erase/CLUT
+  slot 192;
+- a fail-closed mixed executor that applies the ordinary page first, then
+  publishes cloud and fog, while ordinary-only frames avoid animator
+  republication; and
+- an explicit host-texture-upload bucket policy. Only the external host that
+  executes the plan drains bucket 4 as handled. Other Metal entry points retain
+  a visible `MetalSkipRenderer` fallback rather than silently discarding it.
+
+Any failure after the ordinary upload mutates `TexturePool` latches the host
+fatal and fails the current chain. Malformed plans still fail before ordinary
+mutation, DMA copying, or renderer dispatch. Host teardown detaches both fixed
+publications while the pool and placeholder remain alive.
+
+## Canonical validation
+
+The integration owner used the single canonical Release/Ninja/ccache build:
+
+```text
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host --target \
+  jak2-metal-bucket-table-test jak2-bucket4-texture-upload-capture-test \
+  jak2-metal-fog-texture-convert-test jak2-metal-opcode41-cloud-cpu-test \
+  metal-pool-texture-test jak2-bucket4-mixed-executor-test \
+  jak2-metal-host-bridge-test jak2-metal-runtime-proof -j2
+
+ctest --test-dir /private/tmp/GOALPad-jak2-real-dma-host \
+  -R '^(jak2-metal-bucket-table-test|jak2-bucket4-texture-upload-capture-test|jak2-metal-fog-texture-convert-test|jak2-metal-opcode41-cloud-cpu-test|metal-pool-texture-test|jak2-bucket4-mixed-executor-test|jak2-metal-host-bridge-test)$' \
+  --output-on-failure
+```
+
+The complete 840-unit AOT shell rebuilt successfully. The focused matrix passed
+7/7 with normal macOS Metal service access. It covers exact parser forms and
+destinations, deterministic cloud/fog bytes, complete texture publication,
+stable handles across replacement, ordinary-only versus mixed execution,
+malformed pre-mutation rejection, and exact detach/release ownership. A final
+host-only rebuild/test after tightening post-mutation fatal handling also
+passed.
+
+## Real prepared-data Mac evidence
+
+```text
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-metal-runtime-proof \
+  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  --saves-dir /private/tmp/goalpad-jak2-macos-bucket4-animator-saves-checkpoint81 \
+  --ticks 3
+```
+
+The command returned the expected `INCOMPLETE`/exit 1 because visible RGB is
+still the next renderer gate. It was not a host or bucket-4 failure. All three
+real chains completed with 327 buckets, exact drawable/command-buffer
+submission, zero host/parser/GPU failures, zero drawable misses, zero late
+submissions, and zero unsupported blends.
+
+Tick 1 executed the exact mixed packet: ordinary uploads 1, mixed executions 1,
+cloud publications 1, fog publications 1, with nonzero distinct handles
+`0x27a` and `0x27b`. Ticks 2 and 3 executed the exact ordinary-only form. Final
+counters were ordinary uploads 3, mixed/cloud/fog 1/1/1, with both handles
+unchanged. Cumulative skipped DMA fell from Checkpoint 80's 37,584 bytes to
+37,072 bytes, exactly removing bucket 4's 416+48+48 payload bytes.
+
+The frame evidence is otherwise unchanged: ticks 2 and 3 hash
+`742a0703fa4da325`, contain 307,200 nonzero-alpha pixels, and contain zero
+non-black RGB. `SKY_DRAW` is still an untextured six-vertex alpha-only quad;
+the new cloud/fog slots are valid renderer inputs but this draw does not sample
+them.
+
+An independent, unmerged macOS GL reference proof on branch
+`agent/jak2-cloud-gl-parity` found that the CPU cloud output is not byte-identical
+to the current OpenGL shader on Apple M4 Pro: 157-178 of 16,384 pixels differ,
+alpha only, by at most 2. No tolerance or production adjustment was introduced.
+This is a bounded correctness follow-up; the current OpenGL cloud path is itself
+documented as approximate, so do not guess which side should change without an
+intermediate blend/quantization seam.
+
+## Next executable task
+
+Continue the renderer dependency order without switching to Eco: audit the
+exact live title buckets and port the smallest shared Jak 1 VisData/level-
+ownership slice needed by Jak II, then Tfrag, Tie, Merc/Generic2, and residual
+families. In parallel, isolate the cloud alpha mismatch to shader arithmetic
+versus RGBA8 conversion without loosening the byte-exact CPU tests. Re-run the
+standalone three-tick Mac proof after each renderer-family promotion. Audio
+follows sustained correctly textured title output; controls, saves, lifecycle,
+and shared Jak 1 settings adapters follow audio. No simulator or physical
+device was accessed for Checkpoint 81.

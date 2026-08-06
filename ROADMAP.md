@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness and remaining platform gaps, not real-media
 import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 77 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 81 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 
@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 78 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 81 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -1199,6 +1199,17 @@ destinations are cloud 256, indexed fog 128, and fog CLUT/erase 192. Bucket 4
 remains deferred and the title remains alpha-only. The next renderer checkpoint
 is an owning parse-before-mutate plan plus ordinary upload and deterministic
 fog/cloud Metal publication, followed by explicit bucket-4 policy promotion.
+
+Checkpoint 81 executes that exact bucket-4 plan on the standalone Mac AOT/Metal
+host at nested `6f9394cf0`. It applies all three live ordinary uploads, publishes
+the mixed frame's cloud and fog behind stable TexturePool handles, promotes only
+the host-enabled bucket-4 path, and reduces cumulative skipped DMA by the exact
+512 payload bytes across three frames. The focused seven-test matrix and all
+three real runtime chains pass with no host or GPU failure. The title remains
+alpha-only because the enabled SKY draw is untextured; the next renderer work is
+VisData/level ownership followed by Tfrag, Tie, and Merc/Generic2. A separate
+unmerged GL reference proof found a bounded alpha-only cloud mismatch of at most
+2 and must be diagnosed without weakening exact CPU tests.
 
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
