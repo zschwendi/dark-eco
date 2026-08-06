@@ -44,6 +44,9 @@ do {
     let layout = try declaration(in: content,
                                  startingWith: "nonisolated enum GameplaySurfaceLayout",
                                  endingWith: "\n\nstruct ContentView")
+    let gameplaySurface = try declaration(in: content,
+                                          startingWith: "private struct GameplaySurface",
+                                          endingWith: "\n\n/// The game's own startup")
     let titles = try declaration(in: library,
                                  startingWith: "nonisolated enum GameLibraryTitle",
                                  endingWith: "\n\nnonisolated enum GameLibraryState")
@@ -65,6 +68,16 @@ do {
                         "library tile or artwork menu lost its semantic touch target"])
     }
     print("  ok   library tile and artwork menu remain independent semantic touch targets")
+    guard gameplaySurface.contains("if frame.origin == .zero, frame.size == proxy.size"),
+          let fullSurfaceBranch = gameplaySurface.range(of: "if frame.origin == .zero, frame.size == proxy.size"),
+          let portraitBranch = gameplaySurface.range(of: "} else {", range: fullSurfaceBranch.upperBound..<gameplaySurface.endIndex),
+          !gameplaySurface[fullSurfaceBranch.upperBound..<portraitBranch.lowerBound].contains(".frame(width:")
+    else {
+        throw NSError(domain: "portrait-library-check", code: 3,
+                      userInfo: [NSLocalizedDescriptionKey:
+                        "landscape no longer preserves the unconstrained edge-to-edge surface"])
+    }
+    print("  ok   landscape preserves the unconstrained edge-to-edge renderer surface")
     let directory = FileManager.default.temporaryDirectory
         .appending(path: "goalpad-portrait-library-\(UUID().uuidString)", directoryHint: .isDirectory)
     defer { try? FileManager.default.removeItem(at: directory) }
