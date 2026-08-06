@@ -413,6 +413,19 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 - [x] Preserve Build 93 at `9c87b0be` as the immutable known-good baseline.
 - [x] Create Build 94 integration branch `agent/build94-jak1-settings` from
   Build 93 in `/private/tmp/GP-build94-jak1-settings`.
+- [ ] Settings/iCloud worker checkpoint: **Implemented and focused-validated;
+  integration, push, and physical validation pending.** Branch
+  `agent/build94-jak1-settings-icloud` in
+  `/private/tmp/GP-build94-jak1-settings-icloud` committed the player-facing
+  slice at `a289e36e`: Modern-first picker ordering with stable raw values,
+  hidden empty Audio/UI forms with legacy fields retained, Jak 1 reset and Fit
+  to Screen strings, and one iCloud block/action over independent settings/save
+  opt-outs. `Scripts/run-presentation-settings-check.sh` and
+  `Scripts/run-save-sync-check.sh` passed. The requested GitHub push was
+  attempted but the approval reviewer rejected the external write, so the
+  branch is not confirmed remote. The optional title-scoped settings path is
+  Deferred because safely ranking legacy and scoped iCloud documents would
+  change cloud-authority semantics; no later-title rows were added.
 - [ ] Record every worker branch, worktree, commit, validation command, and
   physical gate in this ledger and `HANDOFF.md`.
 - [ ] Require every validated worker slice to end in a focused commit and push
