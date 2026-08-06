@@ -23,6 +23,8 @@ private func check(_ condition: Bool, _ what: String) {
 @MainActor
 private struct Runner {
     static let screen = CGSize(width: 1210, height: 834)
+    static let safeAreaInsets = TouchSafeAreaInsets(top: 24, leading: 18,
+                                                     bottom: 20, trailing: 18)
     static let select = CGRect(x: 500, y: 690, width: 102, height: 66)
     static let start = CGRect(x: 610, y: 690, width: 102, height: 66)
     static let rightStick = CGRect(x: 1040, y: 668, width: 108, height: 108)
@@ -30,8 +32,8 @@ private struct Runner {
     let controls: TouchControls
     var clock: TimeInterval = 0
 
-    init() {
-        controls = TouchControls()
+    init(style: TouchControlStyle = .modern) {
+        controls = TouchControls(style: style)
         controls.setPillFrame(.select, Self.select)
         controls.setPillFrame(.start, Self.start)
         controls.setRightStickFrame(Self.rightStick)
@@ -47,7 +49,8 @@ private struct Runner {
     }
 
     func down(_ finger: Finger, _ point: CGPoint) {
-        controls.began(ObjectIdentifier(finger), at: point, in: Self.screen, at: clock)
+        controls.began(ObjectIdentifier(finger), at: point, in: Self.screen,
+                       safeAreaInsets: Self.safeAreaInsets, at: clock)
     }
 
     func move(_ finger: Finger, _ point: CGPoint) {
@@ -60,6 +63,62 @@ private struct Runner {
 }
 
 private let neutral = UInt8(GOALPadAnalogNeutral)
+
+private func close(_ lhs: CGFloat, _ rhs: CGFloat, tolerance: CGFloat = 0.001) -> Bool {
+    abs(lhs - rhs) <= tolerance
+}
+
+@MainActor
+private func defaultStylePreservesModern() {
+    print("Modern remains the explicit, byte-compatible default")
+    var implicit = Runner()
+    var explicit = Runner(style: .modern)
+    check(implicit.controls.style == .modern, "TouchControls defaults to Modern")
+    check(TouchControlStyle.allCases == [.modern, .classic],
+          "the style seam orders Modern before Classic")
+
+    let implicitMovement = Finger()
+    let explicitMovement = Finger()
+    let implicitLook = Finger()
+    let explicitLook = Finger()
+    let implicitGesture = Finger()
+    let explicitGesture = Finger()
+    let implicitStart = Finger()
+    let explicitStart = Finger()
+    let movementCentre = CGPoint(x: 180, y: 650)
+    let lookCentre = CGPoint(x: Runner.rightStick.midX, y: Runner.rightStick.midY)
+    let gestureCentre = CGPoint(x: 900, y: 360)
+    let startCentre = CGPoint(x: Runner.start.midX, y: Runner.start.midY)
+
+    implicit.down(implicitMovement, movementCentre)
+    explicit.down(explicitMovement, movementCentre)
+    implicit.move(implicitMovement, CGPoint(x: 240, y: 620))
+    explicit.move(explicitMovement, CGPoint(x: 240, y: 620))
+    implicit.down(implicitLook, lookCentre)
+    explicit.down(explicitLook, lookCentre)
+    implicit.move(implicitLook, CGPoint(x: lookCentre.x + 25, y: lookCentre.y - 8))
+    explicit.move(explicitLook, CGPoint(x: lookCentre.x + 25, y: lookCentre.y - 8))
+    implicit.down(implicitGesture, gestureCentre)
+    explicit.down(explicitGesture, gestureCentre)
+    implicit.move(implicitGesture, CGPoint(x: gestureCentre.x, y: gestureCentre.y + 60))
+    explicit.move(explicitGesture, CGPoint(x: gestureCentre.x, y: gestureCentre.y + 60))
+    implicit.down(implicitStart, startCentre)
+    explicit.down(explicitStart, startCentre)
+
+    check(implicit.frames(12) == explicit.frames(12),
+          "default and explicit Modern emit identical frame bytes")
+
+    implicit.up(implicitGesture)
+    explicit.up(explicitGesture)
+    implicit.up(implicitStart)
+    explicit.up(explicitStart)
+    implicit.up(implicitLook)
+    explicit.up(explicitLook)
+    implicit.up(implicitMovement)
+    explicit.up(explicitMovement)
+    check(implicit.frames(10) == explicit.frames(10),
+          "default and explicit Modern release identically")
+}
 
 @MainActor
 private func movementOriginFollowsFirstTouch() {
@@ -220,6 +279,56 @@ private func downwardSwipeCanRollJump() {
 }
 
 @MainActor
+private func downwardSwipeCanPunchLeft() {
+    print("a held downward swipe can add one leftward punch")
+    var run = Runner()
+    let centre = CGPoint(x: 900, y: 360)
+    let finger = Finger()
+    run.down(finger, centre)
+    run.move(finger, CGPoint(x: centre.x, y: centre.y + TouchControls.swipeDistance + 12))
+    check(run.frames(3).allSatisfy {
+        $0.buttons.contains(.L1) && !$0.buttons.contains(.square)
+    }, "down first holds crouch without punching")
+
+    run.move(finger, CGPoint(x: centre.x - TouchControls.swipeDistance - 8,
+                             y: centre.y + TouchControls.swipeDistance + 12))
+    let punching = run.frames(TouchControls.holdFrames)
+    check(punching.allSatisfy { $0.buttons.contains(.L1) && $0.buttons.contains(.square) },
+          "sliding left while held emits crouch and Square together")
+
+    let after = run.frames(TouchControls.releaseFrames + 2)
+    check(after.allSatisfy { $0.buttons.contains(.L1) && !$0.buttons.contains(.square) },
+          "the crouch punch is one bounded press while crouch remains held")
+    run.move(finger, CGPoint(x: centre.x + 30, y: centre.y + 56))
+    run.move(finger, CGPoint(x: centre.x - 80, y: centre.y + 56))
+    check(run.frames(TouchControls.holdFrames + TouchControls.releaseFrames).allSatisfy {
+        $0.buttons.contains(.L1) && !$0.buttons.contains(.square)
+    }, "moving away and left again does not retrigger punch on the same finger")
+
+    run.up(finger)
+    check(!run.frame().buttons.contains(.L1), "lifting ends crouch after the punch sequence")
+
+    var leftFirst = Runner()
+    let ordinary = Finger()
+    leftFirst.down(ordinary, centre)
+    leftFirst.move(ordinary, CGPoint(x: centre.x - 70, y: centre.y))
+    leftFirst.move(ordinary, CGPoint(x: centre.x - 70, y: centre.y + 80))
+    let ordinaryStates = leftFirst.frames(TouchControls.holdFrames)
+    check(ordinaryStates.allSatisfy {
+        $0.buttons.contains(.square) && !$0.buttons.contains(.L1)
+    }, "left-first remains the ordinary Square swipe rather than changing into crouch")
+
+    var fresh = Runner()
+    let freshFinger = Finger()
+    fresh.down(freshFinger, centre)
+    fresh.move(freshFinger, CGPoint(x: centre.x, y: centre.y + 60))
+    fresh.move(freshFinger, CGPoint(x: centre.x - 70, y: centre.y + 60))
+    check(fresh.frames(TouchControls.holdFrames).allSatisfy {
+        $0.buttons.contains(.L1) && $0.buttons.contains(.square)
+    }, "a fresh down-then-left gesture can punch once")
+}
+
+@MainActor
 private func controlsWorkTogether() {
     print("movement, look, and swipe roll-jump can share one frame")
     var run = Runner()
@@ -333,20 +442,225 @@ private func resetClearsInterruptedInput() {
     check(!run.controls.isEngaged, "the artwork is hidden")
 }
 
+@MainActor
+private func styleSwitchClearsInterruptedInput() {
+    print("switching profiles cannot strand input from the prior layout")
+    var run = Runner()
+    let movement = Finger()
+    let action = Finger()
+    let centre = CGPoint(x: 180, y: 650)
+    run.down(movement, centre)
+    run.move(movement, CGPoint(x: centre.x + TouchControls.movementRadius, y: centre.y))
+    run.down(action, CGPoint(x: 900, y: 360))
+    run.move(action, CGPoint(x: 900, y: 420))
+    let modernState = run.frame()
+    check(modernState.isLeftDeflected && modernState.buttons.contains(.L1),
+          "Modern has live stick and held-button state before switching")
+
+    run.controls.setStyle(.classic)
+    var state = run.frame()
+    check(run.controls.style == .classic, "the requested Classic style becomes active")
+    check(state == .neutral, "switching to Classic clears buttons and both sticks")
+    check(run.controls.touches.isEmpty && !run.controls.isEngaged,
+          "switching discards tracked fingers and hides stale artwork")
+
+    let layout = ClassicTouchLayout(size: Runner.screen,
+                                    safeAreaInsets: Runner.safeAreaInsets)
+    let classicButton = Finger()
+    run.down(classicButton, CGPoint(x: layout.buttonFrames[.cross]!.midX,
+                                    y: layout.buttonFrames[.cross]!.midY))
+    check(run.frame().buttons.contains(.cross), "Classic accepts a fresh touch after switching")
+    run.controls.setStyle(.modern)
+    state = run.frame()
+    check(state == .neutral && run.controls.touches.isEmpty,
+          "switching back to Modern also clears the Classic touch")
+}
+
+@MainActor
+private func classicButtonsMapDirectly() {
+    print("Classic exposes direct Jak 1 pad controls")
+    let layout = ClassicTouchLayout(size: Runner.screen,
+                                    safeAreaInsets: Runner.safeAreaInsets)
+    for button in ClassicTouchLayout.buttons {
+        var run = Runner(style: .classic)
+        let finger = Finger()
+        guard let frame = layout.frame(for: button) else {
+            check(false, "Classic has a frame for \(button)")
+            continue
+        }
+        run.down(finger, CGPoint(x: frame.midX, y: frame.midY))
+        check(run.frame().buttons == button.bit, "\(button) maps directly to its PS2 bit")
+    }
+}
+
+@MainActor
+private func classicSticksAreSymmetricalAndAnalog() {
+    print("Classic has two equal fixed analog sticks")
+    var run = Runner(style: .classic)
+    let layout = ClassicTouchLayout(size: Runner.screen,
+                                    safeAreaInsets: Runner.safeAreaInsets)
+    let left = Finger()
+    let right = Finger()
+    let leftCentre = CGPoint(x: layout.leftStickFrame.midX, y: layout.leftStickFrame.midY)
+    let rightCentre = CGPoint(x: layout.rightStickFrame.midX, y: layout.rightStickFrame.midY)
+
+    run.down(left, leftCentre)
+    run.down(right, rightCentre)
+    var state = run.frame()
+    check(!state.isLeftDeflected && !state.isRightDeflected,
+          "both Classic sticks begin neutral at their fixed centres")
+
+    run.move(left, CGPoint(x: leftCentre.x + layout.stickRadius, y: leftCentre.y))
+    run.move(right, CGPoint(x: rightCentre.x, y: rightCentre.y - layout.stickRadius))
+    state = run.frame()
+    check(state.leftX == 254 && state.leftY == neutral, "the left stick reaches hard right")
+    check(state.rightX == neutral && state.rightY == 0, "the right stick reaches hard up")
+
+    run.up(left)
+    run.up(right)
+    state = run.frame()
+    check(!state.isLeftDeflected && !state.isRightDeflected,
+          "lifting either Classic stick centres it immediately")
+}
+
+@MainActor
+private func classicGeometryStaysSafeAndBalanced() {
+    print("Classic geometry is deterministic, safe-area-aware, and balanced")
+    let layouts = [
+        ClassicTouchLayout(size: Runner.screen, safeAreaInsets: Runner.safeAreaInsets),
+        ClassicTouchLayout(size: CGSize(width: 834, height: 1210),
+                           safeAreaInsets: TouchSafeAreaInsets(top: 28, leading: 12,
+                                                               bottom: 24, trailing: 12)),
+        ClassicTouchLayout(size: CGSize(width: 852, height: 393),
+                           safeAreaInsets: TouchSafeAreaInsets(top: 0, leading: 59,
+                                                               bottom: 21, trailing: 59)),
+    ]
+
+    for (index, layout) in layouts.enumerated() {
+        let frames = [layout.leftStickFrame, layout.rightStickFrame]
+            + ClassicTouchLayout.buttons.compactMap { layout.frame(for: $0) }
+        check(frames.allSatisfy { layout.safeBounds.contains($0) },
+              "layout \(index + 1) keeps every control inside its safe bounds")
+        check(layout.leftStickFrame.size == layout.rightStickFrame.size,
+              "layout \(index + 1) gives both sticks the same size")
+        check(close(layout.leftStickFrame.midY, layout.rightStickFrame.midY),
+              "layout \(index + 1) aligns both sticks vertically")
+        check(close(layout.leftStickFrame.midX - layout.safeBounds.minX,
+                    layout.safeBounds.maxX - layout.rightStickFrame.midX),
+              "layout \(index + 1) mirrors the sticks across the safe centre")
+        check(close(layout.frame(for: .leftShoulder)!.midX - layout.safeBounds.minX,
+                    layout.safeBounds.maxX - layout.frame(for: .rightShoulder)!.midX),
+              "layout \(index + 1) mirrors L1 and R1")
+        for (left, right) in [(TouchButton.up, TouchButton.triangle),
+                              (.down, .cross), (.left, .circle), (.right, .square)] {
+            check(close(layout.frame(for: left)!.midX - layout.safeBounds.minX,
+                        layout.safeBounds.maxX - layout.frame(for: right)!.midX)
+                  && close(layout.frame(for: left)!.midY, layout.frame(for: right)!.midY),
+                  "layout \(index + 1) mirrors \(left) with \(right)")
+        }
+        let overlaps = frames.indices.contains { first in
+            frames.indices.contains { second in
+                guard second > first else { return false }
+                let intersection = frames[first].intersection(frames[second])
+                return intersection.width > 0.001 && intersection.height > 0.001
+            }
+        }
+        check(!overlaps, "layout \(index + 1) leaves clear space between controls")
+    }
+
+    let first = layouts[0]
+    let repeated = ClassicTouchLayout(size: Runner.screen,
+                                      safeAreaInsets: Runner.safeAreaInsets)
+    check(first.leftStickFrame == repeated.leftStickFrame
+          && first.rightStickFrame == repeated.rightStickFrame
+          && first.buttonFrames == repeated.buttonFrames,
+          "identical size and insets reproduce identical geometry")
+}
+
+@MainActor
+private func classicHasNoTriggerOverlay() {
+    print("Classic deliberately omits L2 and R2")
+    let layout = ClassicTouchLayout(size: Runner.screen,
+                                    safeAreaInsets: Runner.safeAreaInsets)
+    check(Set(layout.buttonFrames.keys) == Set(ClassicTouchLayout.buttons),
+          "the overlay contains exactly the declared Classic controls")
+    check(ClassicTouchLayout.buttons.allSatisfy {
+        !$0.bit.contains(.L2) && !$0.bit.contains(.R2)
+    }, "no visible Classic control maps to L2 or R2")
+}
+
+@MainActor
+private func classicMultitouchReachesOneFrame() {
+    print("Classic fixed controls support simultaneous gameplay input")
+    var run = Runner(style: .classic)
+    let layout = ClassicTouchLayout(size: Runner.screen,
+                                    safeAreaInsets: Runner.safeAreaInsets)
+    let movement = Finger()
+    let look = Finger()
+    let jump = Finger()
+    let shoulder = Finger()
+    let start = Finger()
+    let leftCentre = CGPoint(x: layout.leftStickFrame.midX, y: layout.leftStickFrame.midY)
+    let rightCentre = CGPoint(x: layout.rightStickFrame.midX, y: layout.rightStickFrame.midY)
+
+    run.down(movement, leftCentre)
+    run.move(movement, CGPoint(x: leftCentre.x + layout.stickRadius, y: leftCentre.y))
+    run.down(look, rightCentre)
+    run.move(look, CGPoint(x: rightCentre.x, y: rightCentre.y - layout.stickRadius))
+    for (finger, button) in [(jump, TouchButton.cross),
+                             (shoulder, .leftShoulder),
+                             (start, .start)] {
+        let frame = layout.frame(for: button)!
+        run.down(finger, CGPoint(x: frame.midX, y: frame.midY))
+    }
+
+    let state = run.frame()
+    check(state.leftX == 254 && state.rightY == 0,
+          "both analog sticks coexist in one Classic frame")
+    check(state.buttons.contains(.cross) && state.buttons.contains(.L1)
+          && state.buttons.contains(.start),
+          "face, shoulder, and Start touches coexist with both sticks")
+}
+
+private func controllerSuppressionKeepsTouchRecovery() {
+    print("controller suppression hides idle artwork but permits touch recovery")
+    check(TouchControls.artworkIsVisible(isEngaged: true, isSuppressed: false,
+                                         hasTouches: false),
+          "engaged artwork is visible without controller suppression")
+    check(!TouchControls.artworkIsVisible(isEngaged: true, isSuppressed: true,
+                                          hasTouches: false),
+          "controller suppression hides idle touch artwork")
+    check(TouchControls.artworkIsVisible(isEngaged: true, isSuppressed: true,
+                                         hasTouches: true),
+          "a live screen touch reveals controls despite prior suppression")
+    check(!TouchControls.artworkIsVisible(isEngaged: false, isSuppressed: false,
+                                          hasTouches: false),
+          "unengaged artwork remains hidden")
+}
+
 @main
 @MainActor
 struct TouchControlsCheck {
     static func main() {
+        defaultStylePreservesModern()
         movementOriginFollowsFirstTouch()
         freeCameraSwipeIsGone()
         faceButtonGesturesAndNoTap()
         rightStickIsFullyAnalog()
         downwardSwipeCanRollJump()
+        downwardSwipeCanPunchLeft()
         controlsWorkTogether()
         movementAlsoStepsTheDpad()
         pillsRemainExplicitControls()
         visibilityFollowsRecognisedTouch()
         resetClearsInterruptedInput()
+        styleSwitchClearsInterruptedInput()
+        classicButtonsMapDirectly()
+        classicSticksAreSymmetricalAndAnalog()
+        classicGeometryStaysSafeAndBalanced()
+        classicHasNoTriggerOverlay()
+        classicMultitouchReachesOneFrame()
+        controllerSuppressionKeepsTouchRecovery()
 
         print(failures == 0 ? "\nall checks passed" : "\n\(failures) checks FAILED")
         exit(failures == 0 ? 0 : 1)

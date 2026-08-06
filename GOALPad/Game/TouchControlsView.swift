@@ -4,7 +4,7 @@ import SwiftUI
 import UIKit
 #endif
 
-/// A dynamic movement stick, bottom-right R stick, and swipe gestures over the game surface.
+/// The selected Modern gesture layer or Classic DualShock-like overlay over the game surface.
 struct TouchControlsView: View {
     let controls: TouchControls
     /// Physical-controller activity hides the artwork until the screen is touched again.
@@ -14,7 +14,9 @@ struct TouchControlsView: View {
     private static let pillWidth: CGFloat = 82
 
     private var isVisible: Bool {
-        controls.isEngaged && (!isSuppressed || !controls.touches.isEmpty)
+        TouchControls.artworkIsVisible(isEngaged: controls.isEngaged,
+                                       isSuppressed: isSuppressed,
+                                       hasTouches: !controls.touches.isEmpty)
     }
 
     var body: some View {
@@ -24,7 +26,7 @@ struct TouchControlsView: View {
                 TouchSurface(controls: controls)
                 #endif
 
-                artwork(in: proxy.size)
+                artwork(in: proxy)
                     .allowsHitTesting(false)
                     .opacity(isVisible ? 1 : 0)
                     .animation(.easeOut(duration: 0.16), value: isVisible)
@@ -34,7 +36,17 @@ struct TouchControlsView: View {
         .ignoresSafeArea()
     }
 
-    private func artwork(in size: CGSize) -> some View {
+    @ViewBuilder
+    private func artwork(in proxy: GeometryProxy) -> some View {
+        switch controls.style {
+        case .modern:
+            modernArtwork(in: proxy.size)
+        case .classic:
+            classicArtwork(in: proxy)
+        }
+    }
+
+    private func modernArtwork(in size: CGSize) -> some View {
         let edge = max(28, min(size.width, size.height) * 0.06)
 
         return ZStack {
@@ -60,6 +72,31 @@ struct TouchControlsView: View {
         }
     }
 
+    private func classicArtwork(in proxy: GeometryProxy) -> some View {
+        let proxyInsets = TouchSafeAreaInsets(top: proxy.safeAreaInsets.top,
+                                              leading: proxy.safeAreaInsets.leading,
+                                              bottom: proxy.safeAreaInsets.bottom,
+                                              trailing: proxy.safeAreaInsets.trailing)
+        let insets = controls.surfaceSafeAreaInsets == .zero
+            ? proxyInsets
+            : controls.surfaceSafeAreaInsets
+        let layout = ClassicTouchLayout(size: proxy.size, safeAreaInsets: insets)
+
+        return ZStack {
+            ClassicStickControl(controls: controls, side: .left,
+                                frame: layout.leftStickFrame, radius: layout.stickRadius)
+            ClassicStickControl(controls: controls, side: .right,
+                                frame: layout.rightStickFrame, radius: layout.stickRadius)
+
+            ForEach(ClassicTouchLayout.buttons, id: \.self) { button in
+                if let frame = layout.frame(for: button) {
+                    ClassicButtonControl(button: button,
+                                         isDown: controls.isPillDown(button), frame: frame)
+                }
+            }
+        }
+    }
+
     private func pill(_ button: TouchButton) -> some View {
         let isDown = controls.isPillDown(button)
         return Text(button.glyph)
@@ -77,6 +114,98 @@ struct TouchControlsView: View {
     }
 }
 
+private struct ClassicButtonControl: View {
+    let button: TouchButton
+    let isDown: Bool
+    let frame: CGRect
+
+    private var isWide: Bool {
+        switch button {
+        case .select, .start, .leftShoulder, .rightShoulder:
+            true
+        default:
+            false
+        }
+    }
+
+    var body: some View {
+        Text(button.glyph)
+            .font(.system(size: min(16, frame.height * 0.42), weight: .semibold,
+                          design: .rounded))
+            .tracking(isWide ? 0.8 : 0)
+            .foregroundStyle(.white.opacity(isDown ? 1 : 0.82))
+            .frame(width: frame.width, height: frame.height)
+            .background {
+                if isWide {
+                    Capsule().fill(.black.opacity(isDown ? 0.74 : 0.42))
+                } else {
+                    Circle().fill(.black.opacity(isDown ? 0.74 : 0.42))
+                }
+            }
+            .overlay {
+                if isWide {
+                    Capsule().strokeBorder(.white.opacity(isDown ? 0.92 : 0.38), lineWidth: 1.5)
+                } else {
+                    Circle().strokeBorder(.white.opacity(isDown ? 0.92 : 0.38), lineWidth: 1.5)
+                }
+            }
+            .position(x: frame.midX, y: frame.midY)
+    }
+}
+
+private struct ClassicStickControl: View {
+    enum Side {
+        case left
+        case right
+    }
+
+    let controls: TouchControls
+    let side: Side
+    let frame: CGRect
+    let radius: CGFloat
+
+    private var touch: TouchControls.Tracked? {
+        side == .left ? controls.stick : controls.rightStick
+    }
+
+    private var label: String {
+        side == .left ? "L" : "R"
+    }
+
+    private var knobSize: CGFloat {
+        frame.width * 0.48
+    }
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(.black.opacity(0.25))
+                .overlay(Circle().strokeBorder(.white.opacity(0.38), lineWidth: 2))
+            Circle()
+                .fill(.white.opacity(touch == nil ? 0.48 : 0.68))
+                .overlay(Circle().strokeBorder(.white.opacity(0.86), lineWidth: 1.5))
+                .frame(width: knobSize, height: knobSize)
+                .overlay {
+                    Text(label)
+                        .font(.system(size: max(10, knobSize * 0.28), weight: .bold,
+                                      design: .rounded))
+                        .foregroundStyle(.black.opacity(0.7))
+                }
+                .offset(knobOffset)
+        }
+        .frame(width: frame.width, height: frame.height)
+        .position(x: frame.midX, y: frame.midY)
+    }
+
+    private var knobOffset: CGSize {
+        guard let touch else { return .zero }
+        let push = TouchControls.classicStickDeflection(from: touch.origin, to: touch.point,
+                                                        radius: radius)
+        let travel = radius - knobSize / 2
+        return CGSize(width: push.x * travel, height: push.y * travel)
+    }
+}
+
 /// Face-button gestures remain available in open space without producing camera axes.
 private struct GestureRose: View {
     let gesture: TouchControls.Tracked
@@ -87,7 +216,7 @@ private struct GestureRose: View {
         ZStack {
             chip(.cross, isLit: gesture.swiped == .cross || gesture.jumpTriggered)
                 .position(x: gesture.origin.x, y: gesture.origin.y - Self.reach)
-            chip(.square, isLit: gesture.swiped == .square)
+            chip(.square, isLit: gesture.swiped == .square || gesture.punchTriggered)
                 .position(x: gesture.origin.x - Self.reach, y: gesture.origin.y)
             chip(.circle, isLit: gesture.swiped == .circle)
                 .position(x: gesture.origin.x + Self.reach, y: gesture.origin.y)
@@ -188,16 +317,36 @@ private struct TouchSurface: UIViewRepresentable {
 
     func updateUIView(_ view: TouchSurfaceView, context: Context) {
         view.controls = controls
+        view.updateSafeAreaInsets()
     }
 }
 
 private final class TouchSurfaceView: UIView {
     var controls: TouchControls?
 
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        updateSafeAreaInsets()
+    }
+
+    override func safeAreaInsetsDidChange() {
+        super.safeAreaInsetsDidChange()
+        updateSafeAreaInsets()
+    }
+
+    func updateSafeAreaInsets() {
+        controls?.setSurfaceSafeAreaInsets(
+            TouchSafeAreaInsets(top: safeAreaInsets.top,
+                                leading: safeAreaInsets.left,
+                                bottom: safeAreaInsets.bottom,
+                                trailing: safeAreaInsets.right))
+    }
+
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        let insets = controls?.surfaceSafeAreaInsets ?? .zero
         for touch in touches {
             controls?.began(ObjectIdentifier(touch), at: touch.location(in: self),
-                            in: bounds.size, at: touch.timestamp)
+                            in: bounds.size, safeAreaInsets: insets, at: touch.timestamp)
         }
     }
 
