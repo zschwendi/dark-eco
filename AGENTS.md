@@ -583,24 +583,21 @@ Active lanes:
   card, warp, and background-resume acceptance remain pending. After that,
   stop nonessential iOS settings work and prioritize true stereoscopic visionOS
   rendering.
-- `Build 127 non-warp authored prompt implementation in progress` — the
-  source-backed inventory is committed at `6df50e15` and recorded in
-  `docs/JAK1_TOUCH_PROMPT_INVENTORY.md`. Three non-overlapping Sol xhigh lanes
-  are active: nested GOAL publication in `/private/tmp/OG-build127-face-prompts`
-  on `agent/build127-face-prompts`; native validation/Objective-C bridge in
-  `/private/tmp/GP-build127-face-native` on `agent/build127-face-native`; and
-  Swift session/reducer/UI work in `/private/tmp/GP-build127-face-swift` on
-  `agent/build127-face-swift`. Root remains the sole integration and heavy-build
-  owner. No worker may edit the accepted warp implementation, Jak II, docs, or
-  the Xcode build number. Integration, source-pack/AOT regeneration, signed
-  Build 127, and physical gameplay acceptance are pending. Native worker
-  `47d19dd8` is pushed and integrated as parent `a7c8f7bc`; its C++ behavior,
-  Swift import, warnings-as-errors native/Objective-C++ syntax, existing
-  cutscene-skip regression, and root rerun all pass. Swift worker `a4b8159b` is
-  pushed and integrated as parent
-  `61ad1b6e`; root corrected one overbroad cancellation-test assertion in
-  `a2ccfbc4`, and the fully compiled touch suite now passes against the native
-  bridge. Only the GOAL publication worker remains active.
+- `Build 127 non-warp authored prompts signed; physical interaction acceptance
+  pending` — the source-backed inventory is committed at `6df50e15` and recorded
+  in `docs/JAK1_TOUCH_PROMPT_INVENTORY.md`. Sol xhigh workers produced nested
+  GOAL publication `41309f153` (integrated as `9d00538ed`), native reader/bridge
+  `47d19dd8`, and Swift session/reducer/UI `a4b8159b`; root reviewed and integrated
+  them. Canonical nested `597270b09` records the regenerated 518-object source
+  pack at aggregate `b66bb00e5f2c5560`, while parent `17b2c661` advances the
+  gitlink and `6861a5a4` bumps both iOS configurations to 127. All authored GOAL
+  objects compile, AOT emits 10,631 functions with seven native functions, the
+  full focused matrix passes, and the signed generic-iOS Release artifact is
+  preserved at `/private/tmp/GOALPad-build127-face-prompts-signed/GOALPad.app`.
+  The accepted warp implementation and its six-test contract are unchanged;
+  cutscene SKIP remains separate. No physical device was accessed. Oracle/NPC,
+  Zoomer, boat, Flut Flut, cannon, periscope, gondola, Billy/Fisher query, and
+  intro-Square gameplay acceptance remains pending.
 - `Build 114 signed generic-iOS candidate ready; physical Misty/title gate
   pending` — nested OpenGOAL `352064ace`, `f260ae7df`, and `cb5032a83` make
   fisherman-boat arrival atomic: destination collision must genuinely ground
@@ -1056,13 +1053,16 @@ Active lanes:
   interaction model: exact stats shortcuts, conservative PC settings/file-list
   actions, and vertical one-shot swipes. Direct row hit-testing is intentionally
   out of scope; do not reopen it unless the maintainer changes direction.
-- [ ] Expose one authoritative contextual face-button touch prompt wherever Jak
+- [x] Expose one authoritative contextual face-button touch prompt wherever Jak
   currently requests Cross, Square, Triangle, or Circle. Draw only the requested
   button symbol, without inferring an action label, and emit that exact ordinary
   pad input. Reuse or generalize the validated native query ownership/sequence/
   heartbeat seams used by warp and cutscene SKIP; never infer availability from
   pixels, proximity, or remembered level-specific behavior. The frozen Build 96
-  gameplay controls remain the fallback elsewhere.
+  gameplay controls remain the fallback elsewhere. Build 127 publishes only the
+  source-inventoried non-warp prompts through a separate checked snapshot and
+  presents stable symbol-only `Cross, Square, Triangle, Circle` actions. Physical
+  coverage across those authored interactions remains an acceptance gate.
 - [x] On the title Start presentation and captured pause/progress menus, remove
   the redundant Stats pill and center the sole Start/Resume pill. Draw a complete
   four-button D-pad whenever any directional navigation is authoritative, but

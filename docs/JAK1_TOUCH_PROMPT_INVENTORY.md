@@ -1,6 +1,6 @@
 # Jak 1 authored touch-prompt inventory
 
-Status: **Build 127 in progress**  
+Status: **Implemented and signed in Build 127; physical interaction coverage pending**
 Scope: authored Jak 1 on-screen face-button prompts outside native title/progress menus
 
 This inventory distinguishes an authored prompt from an ordinary gameplay control.
@@ -18,7 +18,7 @@ or an unprompted controller read.
 - **Title/progress/pause:** app-owned touch actions use their existing checked native
   state and are not part of the gameplay prompt snapshot.
 
-## Missing authored prompts
+## Build 127 authored prompts
 
 | Interaction | Requested input | Authoritative owner |
 | --- | --- | --- |
@@ -66,6 +66,6 @@ and emits only the matching ordinary pad bit. Visible labels are not inferred. T
 new targets do not capture the gameplay surface, remain touchable while controller
 artwork is visually suppressed, and yield completely to the frozen warp path.
 
-Physical acceptance eventually requires Oracle, Zoomer, boat, Flut Flut, cannon,
+Physical acceptance still requires Oracle, Zoomer, boat, Flut Flut, cannon,
 periscope, gondola, Fisher/Billy queries, and the first-intro Square notice. Static,
 host, AOT, and signed-build evidence cannot replace those gameplay checks.

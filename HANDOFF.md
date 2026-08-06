@@ -14871,3 +14871,65 @@ full movement correctly also emitted its ordinary D-pad direction. Parent
 haptic, and proves prompt Cross work is cancelled without disturbing raw movement.
 `Scripts/run-touch-controls-check.sh` then passes in full. GOAL publication remains
 the only active worker slice.
+
+## Build 127 non-warp authored prompts integrated and signed
+
+Date: 2026-08-06. All Build 127 workers are complete, pushed, reviewed, and
+integrated. The accepted warp-gate UI, reducer, capture, labels, and GOAL sources
+were not changed. Its six-test contract passes unchanged, and cutscene SKIP retains
+its separate snapshot and five-test contract.
+
+Nested worker `41309f153f4b6acde5247b732023f9ad77edeebe` was integrated on
+canonical `agent/build105-misty-runtime` as `9d00538ed`. It adds the revision-1
+`goalpad-face-prompt-touch-snapshot` and publishes only from the source-inventoried
+NPC/Oracle, Zoomer, fisherman boat, Flut Flut, Misty cannon, jungle periscope,
+gondola, Billy/Fisher query, and intro-Square branches. The ten-test source contract,
+existing cutscene contract, existing warp contract, `git diff --check`, and all
+affected GOAL object compiles pass. Canonical nested `597270b09` records the new
+518-object pack identity `b66bb00e5f2c5560`; both nested commits are pushed and the
+nested checkout is clean.
+
+Parent `17b2c661` advances the canonical OpenGOAL gitlink to `597270b09`. Parent
+`6861a5a4` bumps both iOS configurations from 126 to 127. Both commits are pushed on
+`agent/build94-jak1-settings`. The regenerated public pack contains 518 objects,
+10,746,792 bytes, and aggregate `b66bb00e5f2c5560`; its complete log is
+`/private/tmp/GOALPad-build127-source-pack.log`. The former Build 126 pack remains
+recoverably preserved at
+`/private/tmp/GP-build94-jak1-settings/build/jak1-source-object-pack-build126`.
+Regenerated AOT contains all 518 objects, 10,631 emitted functions, seven supplied
+natively, and zero GOAL compile failures; log:
+`/private/tmp/GOALPad-build127-aot.log`.
+
+Root validation passed:
+
+- `GOALPAD_OPENGOAL_SOURCE="$PWD/OpenGOAL" Scripts/run-game-face-prompt-touch-state-check.sh`
+- `GOALPAD_OPENGOAL_SOURCE="$PWD/OpenGOAL" Scripts/run-game-cutscene-skip-touch-state-check.sh`
+- `GOALPAD_OPENGOAL_SOURCE="$PWD/OpenGOAL" Scripts/run-game-warp-gate-touch-state-check.sh`
+- `Scripts/run-touch-controls-check.sh`
+- `Scripts/run-game-menu-state-check.sh`
+- `Scripts/run-game-lifecycle-check.sh`
+- `Scripts/run-keyboard-mouse-input-check.sh`
+- `Scripts/run-presentation-settings-check.sh`
+- `Scripts/run-presentation-geometry-check.sh`
+- `Scripts/run-portrait-library-check.sh`
+
+The signed generic-iOS Release command passed:
+
+`xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad -configuration Release -destination generic/platform=iOS -derivedDataPath /private/tmp/GOALPad-build124-controller-chrome -jobs 4 -allowProvisioningUpdates GOALPAD_OPENGOAL_ROOT=/private/tmp/GP-build94-jak1-settings/OpenGOAL GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/private/tmp/GP-build94-jak1-settings/build/jak1-source-object-pack build`
+
+Full output is `/private/tmp/GOALPad-build127-face-prompts.log`. The frozen artifact
+is `/private/tmp/GOALPad-build127-face-prompts-signed/GOALPad.app`: Eco `1.0 (127)`,
+`com.zephyrstudiosllc.eco`, thin ARM64, 53 MB, executable SHA-256
+`98c0672a591c74101589f8ba701a7fe3f32a2ec9f1ea505ddbd48dceea4ea34e`.
+Strict signature verification passes under Zephyr team `V729QMY3V6`; Game Center
+and iCloud entitlements are present, the sole privacy manifest lints, all 518 public
+source objects are staged, and the audited retail-payload extension scan is empty.
+Xcode emitted the repository's known actor-isolation/generated-AOT warnings and a
+stale `zschwendi@gmail.com` account-token warning, but automatic Zephyr development
+signing succeeded.
+
+No physical device was accessed, installed, launched, logged, or captured. Physical
+acceptance must cover Oracle or another ordinary NPC, Zoomer, boat, Flut Flut,
+cannon, periscope, gondola, Billy/Fisher Cross/Triangle queries, and the first-intro
+Square notice. It must also confirm that the already accepted `Circle - Use Warp
+Gate` presentation and destination behavior are unchanged.
