@@ -491,17 +491,27 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 Active lanes:
 
-- `Integrated; independent source review, canonical AOT, and signed Build 113
-  validation passed; physical route pending` — nested OpenGOAL
-  `ef48da80a` repairs the fisherman boat's first-trip completion. A false
-  animation clone can no longer skip authored streaming, destination docking
-  waits for the destination level to become active, and one shared finalizer
-  authoritatively relocates the boat and Jak for both directions before title
-  and continue state advance. Sol xhigh review returned ACCEPT. Nested
-  `93dd44e16` records the resulting 518-object source-pack identity
-  `c2fa7910dd863ae7`; canonical generation emitted 10,614 functions with seven
-  native functions and zero failed files. Build 113 also packages the reviewed
-  managed Aspect Ratio recovery and Build 111 warp-touch corrections.
+- `Signed Build 113 validation passed; Misty ownership trace rejected the
+  candidate before physical install` — nested OpenGOAL `ef48da80a` retries a
+  false animation clone, waits for the destination level to become active, and
+  relocates the boat and Jak. A newer trace found that its intentional yield
+  still precedes `set-continue!`, so source-level ownership remains authoritative
+  during the only title/current-level reevaluation frame. The original five
+  tests do not cover that semantic state. Nested `93dd44e16` and source-pack
+  identity `c2fa7910dd863ae7` remain reproducible build evidence, not an
+  accepted gameplay fix. Build 113 must not be installed as the Misty candidate.
+- `Integrated locally; focused validation passed; numbered build and physical
+  input check pending` — parent `23be12e8` adds a Standard/Swapped Sticks
+  whole-vector controller mapping. It preserves paired X/Y stick vectors,
+  existing Y normalization and trigger semantics, applies before keyboard,
+  mouse, and touch merge, and participates in local/iCloud/reset persistence.
+- `Integrated locally; synthetic visionOS proof only` — parent `9edcf64e` plus
+  actor-isolation correction `2f29c327` render one immutable synthetic,
+  depth-tested tetrahedron through distinct compositor views using predicted
+  tracking and per-view transforms/projections/targets. The xros Swift/Metal
+  gate passes. This is not game stereo, tabletop, room-scale, first-person,
+  real DMA, or physical Vision Pro evidence; Comfort remains the active game
+  mode.
 - `Integrated; focused validation passed; Build 107 full Xcode build pending` —
   Jak 1 physical-button/key remapping came from
   `/private/tmp/GP-build94-input-remapping`, worker commit `13197fd7`, and is
@@ -628,9 +638,10 @@ Active lanes:
 - `Storage cleanup complete; dirty and Jak II work preserved` — removed 62 clean
   obsolete parent worktrees, then 22 clean obsolete OpenGOAL Jak 1/Build 84–88
   worktrees. No branch or commit was deleted. Dirty maintainer/audit worktrees,
-  the held Game Center seam, current Build 109/110 lanes, and both Jak II paths
-  remain. A stale surviving OpenGOAL alternate now targets the fsck-clean held
-  Game Center object store.
+  current implementation lanes, and both Jak II paths remain. After the held
+  Game Center worktree was removed, the integration OpenGOAL store was fully
+  repacked, its temporary alternates pointer was removed, and full fsck plus
+  current/history object lookups passed.
 
 #### Critical Sandover-to-Misty transition blocker
 
@@ -656,13 +667,18 @@ Active lanes:
   fired on the next boat interaction. Acceptance requires the title on the
   completed first arrival, never on departure, without changing ordinary
   level-title boundaries elsewhere.
-- [x] Implement and independently review an authoritative two-direction boat
-  completion path. The reviewed source retries the authored clone/spool path,
-  waits fail-closed for the destination to become active, snaps boat and target
-  to the authored dock while preserving their relative offset and outgoing
-  path orientation, yields for current-level/title reevaluation, and only then
-  continues into the docked state. Focused GOAL compilation and five relocation
-  contract tests pass; physical first-trip acceptance remains mandatory.
+- [ ] `Build 113 source fix rejected by the newer ownership trace` — the
+  two-direction finalizer retries the authored clone/spool path, waits
+  fail-closed for the destination to become active, and snaps boat and target
+  to the authored dock, but it yields for current-level/title reevaluation
+  before publishing the destination continue. `level-get-target-inside` still
+  prefers the active source continue during that frame. The five relocation
+  contract tests model coordinates and ordering but not current-level
+  ownership, stale interaction, death/respawn, or title consumption. Do not
+  install or physically accept Build 113 as the Misty fix. The replacement
+  must make destination ownership authoritative before the first reevaluation,
+  consume the arrival title once at arrival, never on departure, and prove the
+  docked/source-interaction state in both directions.
 - [x] Establish that Build 90 and Build 93 pin the same OpenGOAL revision and
   contain no renderer, shader, Metal-host, AOT, or generated-source delta.
   Classify this as an unvisited transition gap unless later evidence proves a

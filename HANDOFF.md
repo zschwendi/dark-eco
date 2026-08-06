@@ -13962,3 +13962,44 @@ verify there is no Misty title on departure and Sandover docks cleanly. Also
 verify Modern/Fit to Screen fills the iPad without bars or squash, the managed
 Graphics rows above are exact, warp touch remains correct, and Build 93's
 performance, thermal, input, saves, and iCloud behavior have not regressed.
+
+# Build 113 hold and post-package integration checkpoint
+
+Date: 2026-08-06. Do not install Build 113 as the Misty fix. A follow-up Sol
+xhigh trace rejected the earlier source-review conclusion before physical
+installation:
+
+- `level-get-target-inside` prefers `*game-info*.current-continue.level` while
+  that level is active. The `ef48da80a` completion helper restores/snaps the
+  target and boat, suspends one frame for current-level/title reevaluation, and
+  only then calls `set-continue!`. The source continue therefore still owns the
+  exact reevaluation frame.
+- The five Build 113 relocation tests cover clone retry, destination-active
+  gating, relative placement, and source ordering. They do not model boat
+  interactability, target current-level ownership, death/respawn, or arrival
+  title consumption. The test's accepted ordering is now known to be wrong.
+- This matches the maintainer's Build 105 observation: death recovery can place
+  Jak on intact Misty while leaving first-arrival title state armed, then the
+  next boat interaction can consume `MISTY ISLAND` while departing.
+- The replacement must publish destination continue/current-level ownership
+  before the first title reevaluation, prove the source interaction is no
+  longer available, show the arrival title once at the completed destination,
+  never show it on departure, and cover both directions. Build 113 remains
+  valid signed-build/AOT evidence but is not a physical gameplay candidate.
+
+Other reviewed changes integrated locally after Build 113 packaging:
+
+- Parent `23be12e8` adds Standard/Swapped Sticks whole-vector controller
+  remapping before keyboard/mouse/touch merge. Keyboard/mouse input and
+  presentation/settings checks pass; physical controller behavior is pending.
+- Parent `9edcf64e` plus `2f29c327` add and actor-isolation-correct a true
+  synthetic per-eye visionOS compositor proof. The xros execution-plan,
+  warnings-as-errors Swift, and Metal gates pass. It does not render game DMA
+  in stereo and does not implement tabletop, room-scale, or first-person modes.
+- The parent branch is locally ahead of its pushed Build 113 checkpoint by
+  these three focused commits. No new build number, source pack, AOT package,
+  full Xcode build, push, simulator, or physical device action has been taken.
+- Active isolated lanes own the corrected fisherman-boat ordering, safe
+  authored-cutscene SKIP plus distinct STATS touch behavior, and the seven-part
+  security correction for the unintegrated data-only mod manager. Do not run
+  overlapping heavy builds; integrate and independently review each lane first.
