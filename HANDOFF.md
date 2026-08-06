@@ -14663,3 +14663,69 @@ normal one-finger walking, camera, gesture, and Pause input plus ordinary
 two-finger walk-and-camera must be immediate and continuous without multi-finger
 spamming. Static tests cannot prove SwiftUI/UIKit recognizer arbitration on the
 physical device.
+
+## Build 124 automatic controller and session-chrome candidate installed
+
+Date: 2026-08-06. The maintainer physically accepted Build 123's restored normal
+touch delivery and inward white camera stick, then rejected its physical-controller
+path: neither Automatic nor explicit Controller produced usable game input, and a
+player should never need to change that preference merely to use a connected pad.
+
+Parent `304f363b` implements Build 124 and `920d293b` removes the new run-readiness
+type's Swift 6 isolation warning. The source plist now declares controller-user
+interaction and the Extended Gamepad profile. The input watcher adopts a compatible
+current controller at preparation, observes current-controller changes, does not let
+a second idle connection replace the active controller, and excludes a departing
+controller when selecting disconnect fallback. Every connected controller is
+polled under Automatic and every legacy explicit preference; touch stays additive,
+buttons union, and a deflected controller stick retains whole-stick precedence while
+touch can supply the other neutral stick. The preference no longer needs player
+interaction for controller-plus-touch play.
+
+The same checkpoint applies the maintainer's bounded chrome request without changing
+the accepted camera-stick geometry or Build 123 gameplay touch owner. Pinch is gone.
+A separate 42-point circular magnifying control sits immediately left of Stats,
+shows plus in normal camera and minus in first person, and emits the existing
+Triangle zoom toggle. Stats and Start retain their accepted centres. The session
+pill says Start during boot/title/pre-run, Pause only after a run becomes active,
+and Resume in native menus. Duplicate right-stack Start/Resume actions are removed.
+Pause stats are ordered X Orbs, Square Cells, Triangle Flies, Circle Options; Confirm
+uses X art and Cancel/Back uses Circle art without changing their native pad bytes.
+
+Focused validation passed:
+
+- `git diff --check` and `plutil -lint GOALPad-Info.plist`.
+- Swift parsing for the changed controller, touch, session, and content sources.
+- `Scripts/run-keyboard-mouse-input-check.sh`, including every preference allowing
+  connected controller plus touch and exact controller-transition source guards.
+- `Scripts/run-touch-controls-check.sh`, including semantic zoom pulse/failure,
+  unchanged two-pill geometry, title readiness, persistent session chrome, exact
+  pause ordering/icons, and the Build 123 single UIKit gameplay owner.
+- `Scripts/run-game-menu-state-check.sh`.
+- `Scripts/run-presentation-settings-check.sh`.
+- `Scripts/run-portrait-library-check.sh`.
+- Signed generic-iOS Release build:
+
+`xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad -configuration Release -destination generic/platform=iOS -derivedDataPath /private/tmp/GOALPad-build124-controller-chrome -jobs 4 -allowProvisioningUpdates GOALPAD_OPENGOAL_ROOT=/private/tmp/GP-build94-jak1-settings/OpenGOAL GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/private/tmp/GP-build94-jak1-settings/build/jak1-source-object-pack build`
+
+The final incremental build passed after `920d293b`; the complete activity log is
+`/private/tmp/GOALPad-build124-controller-chrome/Logs/Build/AAA02650-DE37-43F6-A410-ABC9A8B74115.xcactivitylog`.
+It reverified all 518 source objects at aggregate `2b812636de96f221`. The frozen
+artifact is `/private/tmp/GOALPad-build124-controller-chrome-signed/GOALPad.app`:
+Eco `1.0 (124)`, `com.zephyrstudiosllc.eco`, thin ARM64, 52 MB, executable SHA-256
+`324bec813bee4680c74254bd29b19a25d12ffd252dc2a5bc7fe238c8b6fabe44`.
+The product plist contains `GCSupportsControllerUserInteraction = true` and one
+`ExtendedGamepad` profile. Its sole privacy manifest lints, strict signature
+verification passes, expected Zephyr Studios Game Center/iCloud entitlements are
+present, and the retail-payload extension scan is empty.
+
+At `14:29:54` Build 124 was update-installed in place on `Z iPad Pro` without an
+uninstall or app-data clear. At `14:30:00` it was launched with
+`--terminate-existing`, so the foreground app is Build 124 rather than a backgrounded
+Build 123 instance. Physical acceptance remains pending and must begin with the
+saved preference left on Automatic: connect or wake the controller after Eco is
+already open, verify Start, both sticks, and face buttons immediately, then combine
+a held controller stick with the other on-screen stick and confirm ordinary touch
+continues after disconnect. Also verify plus/minus zoom, Start-before-run, the
+persistent bottom Resume/Stats controls, and exact pause right-stack order. Static
+and signed-build evidence do not yet prove physical GameController delivery.

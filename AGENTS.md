@@ -558,8 +558,10 @@ Active lanes:
   touch as an additive source. It also replaces pinch with an independent circular
   zoom toggle, keeps the accepted Stats/Start pill centres, uses Start until a run
   becomes active, removes duplicate right-stack Start/Resume actions, and presents
-  pause stats as X Orbs, Square Cells, Triangle Flies, and Circle Options.
-  Signed-build and physical controller-plus-touch acceptance are pending. Physical
+  pause stats as X Orbs, Square Cells, Triangle Flies, and Circle Options. The
+  signed Release build and artifact audit pass, and Build 124 is update-installed
+  and launched on `Z iPad Pro` without uninstalling or clearing data. Physical
+  controller-plus-touch acceptance is pending. Physical
   card, warp, and background-resume acceptance remain pending. After that,
   stop nonessential iOS settings work and prioritize true stereoscopic visionOS
   rendering.
