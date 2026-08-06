@@ -61,8 +61,10 @@ check(!view.contains("profileSection(.audio)")
         && store.contains("var interfaceProfile: SettingsProfile"),
       "empty Audio and UI forms are hidden without removing their persisted fields")
 check(view.components(separatedBy: ".fileImporter(").count - 1 == 1
-        && view.contains("private enum SaveTransferPicker"),
-      "one picker routes both save import and export choices")
+        && view.contains("private enum SaveTransferPicker")
+        && !view.contains("isShowingSavePicker")
+        && view.contains("get: { saveTransferPicker != nil }"),
+      "one stable picker state routes both save import and export choices")
 check(view.components(separatedBy: "Section(\"iCloud\")").count - 1 == 1
         && !view.contains("Section(\"iCloud Settings\")")
         && !view.contains("Section(\"iCloud Saves\")")
@@ -120,6 +122,25 @@ check(content.contains("session.isRunning && session.isNativeMenuOpen")
         && !content.contains("showDiagnostics")
         && !content.contains("line.3.horizontal"),
       "native menu truth gates the white Eco Settings control and optional logs")
+check(content.contains("@State private var settingsPresentation: SettingsSheetPresentation?")
+        && content.contains(".sheet(item: $settingsPresentation)")
+        && content.contains(".id(presentation.id)")
+        && !content.contains("showSettings"),
+      "one item-backed Settings presentation keeps a stable identity while it is open")
+check(content.contains("presentSettings(.titles)")
+        && content.contains("presentSettings(.jak1)")
+        && content.contains("@State private var path: [Destination]")
+        && content.contains("initialEntry == .jak1 ? [.jak1] : []")
+        && content.contains("NavigationStack(path: $path)"),
+      "launcher enters the title list while a paused Jak 1 session opens Jak 1 directly")
+check(content.contains("LabeledContent(\"Jak 1 Settings\", value: \"Available\")")
+        && content.contains("SettingsTitleStatusRow(title: \"Jak II\")")
+        && content.contains("SettingsTitleStatusRow(title: \"Jak 3\")")
+        && content.contains("LabeledContent(title, value: \"Planned\")")
+        && view.contains(".navigationTitle(\"Jak 1 Settings\")"),
+      "only Jak 1 settings are functional and its navigation title is title-scoped")
+check(content.contains("if session.isRunning && !isOpen { settingsPresentation = nil }"),
+      "leaving the native menu still dismisses an in-game Settings sheet")
 check(occursInOrder([
     "let presentationSettings = PresentationSettings()",
     "async let settingsPreparation: Void = presentationSettings.prepare()",

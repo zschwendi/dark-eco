@@ -562,7 +562,6 @@ struct SaveSettingsView: View {
     @Bindable var sync: SaveSyncController
     @Bindable var settings: PresentationSettings
     @State private var saveTransferPicker: SaveTransferPicker?
-    @State private var isShowingSavePicker = false
 
     var body: some View {
         Form {
@@ -614,7 +613,6 @@ struct SaveSettingsView: View {
                 Button {
                     sync.clearTransferMessage()
                     saveTransferPicker = .importSaves
-                    isShowingSavePicker = true
                 } label: {
                     Label("Import Saves", systemImage: "square.and.arrow.down")
                 }
@@ -622,7 +620,6 @@ struct SaveSettingsView: View {
                 Button {
                     sync.clearTransferMessage()
                     saveTransferPicker = .exportSaves
-                    isShowingSavePicker = true
                 } label: {
                     Label("Export Saves", systemImage: "square.and.arrow.up")
                 }
@@ -658,8 +655,11 @@ struct SaveSettingsView: View {
                 Button("Reset Jak 1 Settings", role: .destructive) { settings.resetAll() }
             }
         }
-        .navigationTitle("Settings")
-        .fileImporter(isPresented: $isShowingSavePicker,
+        .navigationTitle("Jak 1 Settings")
+        .fileImporter(isPresented: Binding(
+            get: { saveTransferPicker != nil },
+            set: { if !$0 { saveTransferPicker = nil } }
+        ),
                       allowedContentTypes: [.folder],
                       allowsMultipleSelection: false) { result in
             handleSavePickerResult(result)

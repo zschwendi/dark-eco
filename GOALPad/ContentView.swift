@@ -29,6 +29,16 @@ nonisolated enum GameplaySurfaceLayout {
     }
 }
 
+private enum SettingsSheetEntry: Hashable {
+    case titles
+    case jak1
+}
+
+private struct SettingsSheetPresentation: Identifiable {
+    let id: Int
+    let entry: SettingsSheetEntry
+}
+
 struct ContentView: View {
     private enum LauncherDestination {
         case library
@@ -40,7 +50,8 @@ struct ContentView: View {
     @State private var session = GameSession()
     @State private var artworkStore = GameArtworkStore()
     @State private var launcherDestination = LauncherDestination.library
-    @State private var showSettings = false
+    @State private var settingsPresentation: SettingsSheetPresentation?
+    @State private var nextSettingsPresentationID = 0
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -68,7 +79,7 @@ struct ContentView: View {
                         session: session,
                         artworkStore: artworkStore,
                         importGame: { launcherDestination = .gameSetup },
-                        openSettings: { showSettings = true }
+                        openSettings: { presentSettings(.titles) }
                     )
                 case .gameSetup:
                     NavigationStack {
@@ -83,7 +94,7 @@ struct ContentView: View {
                                     }
                                 }
                                 ToolbarItem(placement: .primaryAction) {
-                                    Button { showSettings = true } label: {
+                                    Button { presentSettings(.titles) } label: {
                                         Image(systemName: "gearshape")
                                     }
                                     .accessibilityLabel("Settings")
@@ -95,7 +106,7 @@ struct ContentView: View {
             }
 
             if session.isRunning && session.isNativeMenuOpen {
-                Button { showSettings = true } label: {
+                Button { presentSettings(.jak1) } label: {
                     HStack(spacing: 7) {
                         Text("Eco")
                         Image(systemName: "gearshape")
@@ -127,14 +138,80 @@ struct ContentView: View {
             session.touch.setStyle(profile == .modern ? .modern : .classic)
         }
         .onChange(of: session.isNativeMenuOpen) { _, isOpen in
-            if session.isRunning && !isOpen { showSettings = false }
+            if session.isRunning && !isOpen { settingsPresentation = nil }
         }
-        .sheet(isPresented: $showSettings) {
-            NavigationStack {
-                SaveSettingsView(sync: session.saveSync, settings: session.presentationSettings)
-            }
+        .sheet(item: $settingsPresentation) { presentation in
+            SettingsSheetView(initialEntry: presentation.entry,
+                              sync: session.saveSync,
+                              settings: session.presentationSettings)
+                .id(presentation.id)
                 .frame(minWidth: 360, minHeight: 360)
         }
+    }
+
+    private func presentSettings(_ entry: SettingsSheetEntry) {
+        nextSettingsPresentationID += 1
+        settingsPresentation = SettingsSheetPresentation(id: nextSettingsPresentationID, entry: entry)
+    }
+}
+
+private struct SettingsSheetView: View {
+    private enum Destination: Hashable {
+        case jak1
+    }
+
+    @Bindable var sync: SaveSyncController
+    @Bindable var settings: PresentationSettings
+    @State private var path: [Destination]
+
+    init(initialEntry: SettingsSheetEntry,
+         sync: SaveSyncController,
+         settings: PresentationSettings) {
+        self.sync = sync
+        self.settings = settings
+        _path = State(initialValue: initialEntry == .jak1 ? [.jak1] : [])
+    }
+
+    var body: some View {
+        NavigationStack(path: $path) {
+            SettingsTitleListView(openJak1: { path.append(.jak1) })
+                .navigationDestination(for: Destination.self) { destination in
+                    switch destination {
+                    case .jak1:
+                        SaveSettingsView(sync: sync, settings: settings)
+                    }
+                }
+        }
+    }
+}
+
+private struct SettingsTitleListView: View {
+    let openJak1: () -> Void
+
+    var body: some View {
+        List {
+            Section("Available") {
+                Button(action: openJak1) {
+                    LabeledContent("Jak 1 Settings", value: "Available")
+                }
+            }
+
+            Section("Planned") {
+                SettingsTitleStatusRow(title: "Jak II")
+                SettingsTitleStatusRow(title: "Jak 3")
+            }
+        }
+        .navigationTitle("Settings")
+    }
+}
+
+private struct SettingsTitleStatusRow: View {
+    let title: String
+
+    var body: some View {
+        LabeledContent(title, value: "Planned")
+            .foregroundStyle(.secondary)
+            .accessibilityLabel("\(title) Settings, Planned")
     }
 }
 
