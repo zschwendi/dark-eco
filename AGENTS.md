@@ -824,6 +824,17 @@ not the requested volumetric world.
   simulator/Memory Graph diagnostic, while keeping physical thermal acceptance
   separate from simulator evidence. Investigate the comfortable-but-warm iPhone
   report and the iPad process-loss report only when this FIFO item is reached.
+- [ ] Inventory the current pinned OpenGOAL and relevant community mod landscape
+  when this FIFO item is reached. Compare Eco against useful QoL and graphics
+  capabilities, texture replacement packs, original custom levels, and other
+  supported extensions. Classify each candidate as: a stable engine option Eco
+  should expose as a native per-game setting; a user-supplied data-only package
+  Eco can validate/install/remove without code execution; a GOAL/code mod that
+  requires ahead-of-time compilation and ordinary Apple signing; or unsupported.
+  Record provenance, compatibility/version rules, conflicts/load order, storage
+  and iCloud policy, safe rollback, and whether content is original/user-owned.
+  Do not bundle, download, recommend importing, or silently accept retail-derived
+  game assets, and do not present the existing game-data importer as a mod manager.
 
 ## Code clarity
 
