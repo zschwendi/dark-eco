@@ -479,6 +479,16 @@ Active lanes:
   saved Controls profile to the matching live touch style. Root still owns input-source,
   remapping, haptics, skip, warp, mod, save-conflict, and Game Center seam
   discovery. It will not edit a worker-owned file while that lane is active.
+- `Implemented; focused Apple SDK validation passed; integration, provisioning,
+  and signed runtime pending` — the Game Center foundation is on
+  `agent/build100-game-center-foundation` in
+  `/private/tmp/GP-build100-game-center`. Code commit `9c825502` adds only the
+  standard entitlement, `GKLocalPlayer` authentication handler, platform system
+  controller presentation, published state, and authenticated launcher access
+  point policy. `Scripts/run-game-center-check.sh` passed against the Xcode 26.5
+  macOS, iOS, and visionOS SDKs. The access point defaults hidden until root
+  wires the existing game-session state into `setGameplayActive(_:)`; no
+  leaderboard, friend, Game Activity, or native run-metric API was added.
 
 #### Settings shell and per-game ownership
 
@@ -613,13 +623,28 @@ Active lanes:
 
 #### Game Center
 
-- [ ] Add Game Center capability/entitlements only with a concrete authenticated
-  runtime slice and App Store Connect configuration; a project entitlement alone
-  is not a completed feature.
+- [x] Add the source-level Game Center authentication foundation and standard
+  `com.apple.developer.game-center` entitlement without adding private
+  entitlements, custom social behavior, leaderboard IDs, or activity definitions.
+- [ ] Wire `GameCenterService.setGameplayActive(_:)` to the existing
+  `GameSession.isRunning` state during integration. Until that explicit hook is
+  present, the access point remains hidden even after authentication rather than
+  overlaying gameplay.
+- [ ] Enable Game Center for the existing `com.zephyrstudiosllc.eco` app record
+  and identifier, refresh the managed provisioning profile, inspect the signed
+  app entitlement, and exercise sign-in with a Game Center test account. The
+  source entitlement and SDK type-check do not prove App Store Connect,
+  provisioning, authentication UI, or access-point behavior.
 - [ ] Define player-visible friend presence/current-run information with an
-  explicit privacy and refresh model.
+  explicit privacy and refresh model, then configure any required Game Activity
+  definitions in App Store Connect. No friend or Game Activity API is currently
+  called.
+- [ ] Add validated native read-only seams for run start, reset, completion,
+  elapsed time, and completion percentage. The Swift host currently has no
+  authoritative current-run or fastest-run metric source.
 - [ ] Define authoritative timing boundaries for current run, fastest completed
-  run, and fastest completion percentage category before creating leaderboards.
+  run, and fastest completion percentage category before choosing identifiers or
+  creating leaderboards in App Store Connect.
 - [ ] Confirm whether the completion category is 100% or 101% from actual game
   semantics and maintainer direction; do not guess.
 - [ ] Decide offline behavior, retries, duplicate submissions, clock tampering,
