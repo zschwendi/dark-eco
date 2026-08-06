@@ -16,6 +16,7 @@ struct TouchControlsView: View {
     let progressMenuSnapshot: NativeProgressMenuSnapshot
     let warpGateTouchSnapshot: NativeWarpGateTouchSnapshot
     let cutsceneSkipTouchSnapshot: NativeCutsceneSkipTouchSnapshot
+    let facePromptTouchSnapshot: NativeFacePromptTouchSnapshot
     let reclaimTouchInput: () -> Bool
 
     fileprivate static let space = "GOALPadTouchControls"
@@ -92,6 +93,15 @@ struct TouchControlsView: View {
                                               snapshot: cutsceneSkipTouchSnapshot)
     }
 
+    private var facePromptActions: [NativeFacePromptTouchAction] {
+        NativeFacePromptTouchAction.available(
+            in: gameMode,
+            snapshot: facePromptTouchSnapshot,
+            warpGateControlsVisible: warpGateTouchControlsAreVisible,
+            warpGateCapturesInput: capturesWarpGateTouchInput,
+            cutsceneSkipAvailable: cutsceneSkipAvailable)
+    }
+
     private var isAwaitingTitleStart: Bool {
         sessionControl?.action == .start && gameMode == .gameplay
     }
@@ -154,6 +164,18 @@ struct TouchControlsView: View {
                                                 reclaimTouchInput: reclaimTouchInput)
                         .padding(.horizontal, 20)
                         .padding(.bottom, max(20, proxy.safeAreaInsets.bottom))
+                }
+
+                if !facePromptActions.isEmpty {
+                    NativeFacePromptTouchControls(controls: controls,
+                                                  snapshot: facePromptTouchSnapshot,
+                                                  actions: facePromptActions,
+                                                  isInteractive: true,
+                                                  showsChrome: !isSuppressed,
+                                                  reclaimTouchInput: reclaimTouchInput)
+                        .position(x: proxy.size.width / 2,
+                                  y: max(30, proxy.size.height
+                                    - max(220, proxy.safeAreaInsets.bottom + 200)))
                 }
             }
         }
@@ -320,6 +342,52 @@ struct TouchControlsView: View {
         #endif
     }
 
+}
+
+private struct NativeFacePromptTouchControls: View {
+    let controls: TouchControls
+    let snapshot: NativeFacePromptTouchSnapshot
+    let actions: [NativeFacePromptTouchAction]
+    let isInteractive: Bool
+    let showsChrome: Bool
+    let reclaimTouchInput: () -> Bool
+
+    #if canImport(UIKit)
+    @State private var haptics = TouchHapticDriver()
+    #endif
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ForEach(actions, id: \.self) { action in
+                Button { perform(action) } label: {
+                    Text(action.glyph)
+                        .font(.system(size: 27, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .frame(width: 60, height: 60)
+                        .background(.black.opacity(0.68), in: Circle())
+                        .overlay(Circle().strokeBorder(.white.opacity(0.55), lineWidth: 1.5))
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(action.accessibilityLabel)
+            }
+        }
+        .opacity(showsChrome ? 1 : 0)
+        .allowsHitTesting(isInteractive)
+        .animation(.easeOut(duration: 0.16), value: showsChrome)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Contextual face buttons")
+    }
+
+    private func perform(_ action: NativeFacePromptTouchAction) {
+        _ = reclaimTouchInput()
+        controls.performFacePromptAction(action, for: snapshot)
+        #if canImport(UIKit)
+        haptics.play(controls.consumeHapticEvents())
+        #else
+        _ = controls.consumeHapticEvents()
+        #endif
+    }
 }
 
 private struct NativeWarpGateTouchControls: View {

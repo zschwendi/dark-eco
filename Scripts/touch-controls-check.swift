@@ -2201,6 +2201,135 @@ private func nativeWarpTransientInvalidReadsRetainNeutralCapture() {
           "a valid unavailable publication explicitly releases retained capture")
 }
 
+private func facePrompt(_ requestedButtons: UInt32,
+                        sequence: UInt32 = 100) -> NativeFacePromptTouchSnapshot {
+    NativeFacePromptTouchSnapshot(valid: true,
+                                  requestedButtons: requestedButtons,
+                                  sequence: sequence)
+}
+
+private func facePromptActions(
+    snapshot: NativeFacePromptTouchSnapshot,
+    mode: GOALPadGameMode = .gameplay,
+    warpVisible: Bool = false,
+    warpCaptures: Bool = false,
+    cutsceneSkipAvailable: Bool = false
+) -> [NativeFacePromptTouchAction] {
+    NativeFacePromptTouchAction.available(
+        in: mode,
+        snapshot: snapshot,
+        warpGateControlsVisible: warpVisible,
+        warpGateCapturesInput: warpCaptures,
+        cutsceneSkipAvailable: cutsceneSkipAvailable)
+}
+
+private func nativeFacePromptMappingOrderAndPriorityAreExact() {
+    print("face prompts map only exact native bits in stable symbol order")
+    let all = facePrompt(NativeFacePromptTouchSnapshot.supportedMask)
+    check(all.isStructurallyValid,
+          "the complete four-face-button publication is structurally valid")
+    check(NativeFacePromptTouchAction.allCases.map(\.glyph) == ["×", "□", "△", "○"]
+          && facePromptActions(snapshot: all) == [.cross, .square, .triangle, .circle],
+          "visible face controls remain ordered Cross, Square, Triangle, Circle")
+    check(NativeFacePromptTouchAction.allCases.map(\.requestedMask) == [
+        1 << 14, 1 << 15, 1 << 12, 1 << 13,
+    ] && NativeFacePromptTouchAction.allCases.map { $0.button.bit.rawValue } == [
+        1 << 14, 1 << 15, 1 << 12, 1 << 13,
+    ], "each symbol maps to its exact ordinary pad byte")
+
+    let malformed = [
+        NativeFacePromptTouchSnapshot.invalid,
+        facePrompt(0),
+        facePrompt(NativeFacePromptTouchSnapshot.crossMask, sequence: 101),
+        facePrompt(NativeFacePromptTouchSnapshot.supportedMask | (1 << 11)),
+        NativeFacePromptTouchSnapshot(valid: false,
+                                      requestedButtons: NativeFacePromptTouchSnapshot.crossMask,
+                                      sequence: 102),
+    ]
+    check(malformed.allSatisfy { !($0.isStructurallyValid) }
+          && malformed.allSatisfy { facePromptActions(snapshot: $0).isEmpty },
+          "invalid, empty, odd, unknown-bit, and rejected publications fail closed")
+    check(facePromptActions(snapshot: all, mode: .pause).isEmpty
+          && facePromptActions(snapshot: all, warpVisible: true).isEmpty
+          && facePromptActions(snapshot: all, warpCaptures: true).isEmpty,
+          "native menus and either visible or capturing warp ownership suppress face prompts")
+
+    let triangleAndCross = facePrompt(NativeFacePromptTouchSnapshot.triangleMask
+                                      | NativeFacePromptTouchSnapshot.crossMask)
+    check(facePromptActions(snapshot: triangleAndCross,
+                            cutsceneSkipAvailable: true) == [.cross],
+          "SKIP remains the sole Triangle control while unrelated requested symbols remain")
+}
+
+@MainActor
+private func nativeFacePromptPulsesRejectStaleWorkAndCancelOnLoss() {
+    print("face prompts emit exact pulses and cancel only prompt-owned stale work")
+    for (index, action) in NativeFacePromptTouchAction.allCases.enumerated() {
+        var run = Runner()
+        run.controls.setNativeMenuMode(.gameplay)
+        let snapshot = facePrompt(action.requestedMask, sequence: UInt32(110 + index * 2))
+        run.controls.setFacePromptTouchSnapshot(snapshot)
+        run.controls.performFacePromptAction(action, for: snapshot)
+        check(run.controls.consumeHapticEvents() == [.button(action.button)]
+              && run.frame().buttons == action.button.bit,
+              "\(action.accessibilityLabel) emits one exact pad bit and haptic")
+        let cadence = run.frames(TouchControls.holdFrames - 1
+                                 + TouchControls.releaseFrames)
+        check(cadence.prefix(TouchControls.holdFrames - 1).allSatisfy {
+            $0.buttons == action.button.bit
+        } && cadence.suffix(TouchControls.releaseFrames).allSatisfy {
+            $0 == .neutral
+        }, "\(action.accessibilityLabel) keeps the ordinary hold and release cadence")
+    }
+
+    var stale = Runner()
+    stale.controls.setNativeMenuMode(.gameplay)
+    let old = facePrompt(NativeFacePromptTouchSnapshot.circleMask, sequence: 130)
+    let current = facePrompt(NativeFacePromptTouchSnapshot.circleMask, sequence: 132)
+    stale.controls.setFacePromptTouchSnapshot(current)
+    stale.controls.performFacePromptAction(.circle, for: old)
+    check(stale.frame() == .neutral && stale.controls.consumeHapticEvents().isEmpty,
+          "a stale full-snapshot closure is a no-op")
+    stale.controls.performFacePromptAction(.cross, for: current)
+    check(stale.frame() == .neutral && stale.controls.consumeHapticEvents().isEmpty,
+          "an unrequested face action is a no-op")
+
+    var lost = Runner()
+    lost.controls.setNativeMenuMode(.gameplay)
+    let cross = facePrompt(NativeFacePromptTouchSnapshot.crossMask, sequence: 140)
+    lost.controls.setFacePromptTouchSnapshot(cross)
+    let movement = Finger()
+    let centre = CGPoint(x: 180, y: 650)
+    lost.down(movement, centre)
+    lost.move(movement, CGPoint(x: centre.x + TouchControls.movementRadius, y: centre.y))
+    lost.controls.performFacePromptAction(.cross, for: cross)
+    lost.controls.performFacePromptAction(.cross, for: cross)
+    lost.controls.setFacePromptTouchSnapshot(.invalid)
+    let afterLoss = lost.frame()
+    check(afterLoss.isLeftDeflected && afterLoss.buttons.isEmpty
+          && lost.controls.consumeHapticEvents().isEmpty,
+          "prompt loss cancels its pending pulse and feedback without cancelling raw movement")
+
+    var suppressed = Runner()
+    suppressed.controls.setNativeMenuMode(.gameplay)
+    let all = facePrompt(NativeFacePromptTouchSnapshot.supportedMask, sequence: 150)
+    suppressed.controls.setFacePromptTouchSnapshot(all)
+    suppressed.controls.setWarpGateTouchSnapshot(
+        .circleUseAvailable(sequence: 152))
+    suppressed.controls.performFacePromptAction(.cross, for: all)
+    check(suppressed.frame() == .neutral && suppressed.controls.consumeHapticEvents().isEmpty,
+          "the accepted visible warp prompt has priority over contextual face actions")
+
+    var skip = Runner()
+    skip.controls.setNativeMenuMode(.gameplay)
+    let triangle = facePrompt(NativeFacePromptTouchSnapshot.triangleMask, sequence: 160)
+    skip.controls.setFacePromptTouchSnapshot(triangle)
+    skip.controls.setCutsceneSkipTouchSnapshot(.triangleQueryAvailable(sequence: 162))
+    skip.controls.performFacePromptAction(.triangle, for: triangle)
+    check(skip.frame() == .neutral && skip.controls.consumeHapticEvents().isEmpty,
+          "cutscene SKIP prevents a duplicate contextual Triangle pulse")
+}
+
 @main
 @MainActor
 struct TouchControlsCheck {
@@ -2236,6 +2365,8 @@ struct TouchControlsCheck {
         nativeWarpListActionsSwipesAndResetAreExact()
         nativeWarpCaptureAndSuppressionAreFailClosed()
         nativeWarpTransientInvalidReadsRetainNeutralCapture()
+        nativeFacePromptMappingOrderAndPriorityAreExact()
+        nativeFacePromptPulsesRejectStaleWorkAndCancelOnLoss()
 
         print(failures == 0 ? "\nall checks passed" : "\n\(failures) checks FAILED")
         exit(failures == 0 ? 0 : 1)

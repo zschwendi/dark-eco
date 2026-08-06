@@ -68,6 +68,7 @@ struct ContentView: View {
                                   progressMenuSnapshot: session.progressMenuSnapshot,
                                   warpGateTouchSnapshot: session.warpGateTouchSnapshot,
                                   cutsceneSkipTouchSnapshot: session.cutsceneSkipTouchSnapshot,
+                                  facePromptTouchSnapshot: session.facePromptTouchSnapshot,
                                   reclaimTouchInput: session.input.reclaimTouchInput)
                 #endif
 

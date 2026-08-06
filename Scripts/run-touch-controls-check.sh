@@ -89,3 +89,44 @@ rg -Fq 'menuButton(.up)' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'menuButton(.left)' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'menuButton(.down)' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'menuButton(.right)' "$root/GOALPad/Game/TouchControlsView.swift"
+
+# Contextual face prompts are semantic buttons layered above the still-mounted UIKit gameplay
+# surface. Controller suppression hides only their chrome, and warp/cutscene owners stay primary.
+rg -Fq 'facePromptTouchSnapshot: session.facePromptTouchSnapshot' \
+  "$root/GOALPad/ContentView.swift"
+rg -Fq 'TouchSurface(controls: controls,' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'Text(action.glyph)' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq '.opacity(showsChrome ? 1 : 0)' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq '.allowsHitTesting(isInteractive)' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq '_ = reclaimTouchInput()' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'warpGateControlsVisible: warpGateTouchControlsAreVisible' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'warpGateCapturesInput: capturesWarpGateTouchInput' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'cutsceneSkipAvailable: cutsceneSkipAvailable' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+face_prompt_view=$(sed -n \
+  '/private struct NativeFacePromptTouchControls: View {/,/private struct NativeWarpGateTouchControls: View {/p' \
+  "$root/GOALPad/Game/TouchControlsView.swift")
+if printf '%s\n' "$face_prompt_view" | rg -Fq 'Color.clear'; then
+  echo "contextual face prompts introduced a clear capture surface" >&2
+  exit 1
+fi
+if printf '%s\n' "$face_prompt_view" | rg -q 'DragGesture|simultaneousGesture|highPriorityGesture'; then
+  echo "contextual face prompts introduced a competing full-screen gesture" >&2
+  exit 1
+fi
+if printf '%s\n' "$face_prompt_view" | rg -Fq '.frame(maxWidth: .infinity'; then
+  echo "contextual face prompt controls expanded into a full-screen hit-test container" >&2
+  exit 1
+fi
+if printf '%s\n' "$face_prompt_view" \
+    | rg -q '^[[:space:]]*Label\(|Text\(action\.(label|accessibilityLabel)'; then
+  echo "contextual face prompts added visible inferred action text" >&2
+  exit 1
+fi
+
+# Session lifecycle reads the native snapshot after boot and each successful frame, then clears it
+# on shutdown. The full runner can typecheck these properties after the native bridge lands.
+rg -Fq 'GOALPadRuntimeBridge.facePromptTouchSnapshot' "$root/GOALPad/Game/GameSession.swift"
+rg -Fq 'updateFacePromptTouchSnapshot(.invalid)' "$root/GOALPad/Game/GameSession.swift"
