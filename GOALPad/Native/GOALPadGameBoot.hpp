@@ -22,6 +22,7 @@ enum class TitleStartState : std::uint8_t {
   Unknown,
   NotAwaiting,
   Awaiting,
+  TitleSequence,
 };
 
 enum class LookAroundState : std::uint8_t {
@@ -664,8 +665,10 @@ inline TitleStartState read_title_start_state(const void* memory,
                                               std::uint32_t target_offset,
                                               std::uint32_t target_type,
                                               std::uint32_t state_type,
-                                              std::uint32_t target_title_wait_symbol) noexcept {
-  if (!target_title_wait_symbol) {
+                                              std::uint32_t target_title_wait_symbol,
+                                              std::uint32_t target_title_symbol,
+                                              std::uint32_t target_title_play_symbol) noexcept {
+  if (!target_title_wait_symbol || !target_title_symbol || !target_title_play_symbol) {
     return TitleStartState::Unknown;
   }
   const void* target = camera_correction_trace::checked_goal_object(
@@ -688,8 +691,13 @@ inline TitleStartState read_title_start_state(const void* memory,
   std::memcpy(&state_name,
               static_cast<const std::uint8_t*>(state) + live_state_layout::kStateNameOffset,
               sizeof(state_name));
-  return state_name == target_title_wait_symbol ? TitleStartState::Awaiting
-                                                : TitleStartState::NotAwaiting;
+  if (state_name == target_title_wait_symbol) {
+    return TitleStartState::Awaiting;
+  }
+  if (state_name == target_title_symbol || state_name == target_title_play_symbol) {
+    return TitleStartState::TitleSequence;
+  }
+  return TitleStartState::NotAwaiting;
 }
 
 /*! Read a Jak 1 `progress` through `*progress-process*` without advancing or mutating GOAL. */

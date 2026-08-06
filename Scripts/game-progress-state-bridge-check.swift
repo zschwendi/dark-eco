@@ -15,3 +15,7 @@ func inspect(_ snapshot: GOALPadProgressMenuSnapshot) {
 let snapshot: GOALPadProgressMenuSnapshot = GOALPadRuntimeBridge.progressMenuSnapshot
 inspect(snapshot)
 let _: GOALPadTitleStartState = GOALPadRuntimeBridge.titleStartState
+let titleStates: [GOALPadTitleStartState] = [
+    .unknown, .notAwaiting, .awaiting, .titleSequence,
+]
+precondition(titleStates.count == 4)

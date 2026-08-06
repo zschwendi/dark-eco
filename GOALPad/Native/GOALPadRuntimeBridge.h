@@ -100,6 +100,7 @@ typedef NS_ENUM(NSInteger, GOALPadTitleStartState) {
   GOALPadTitleStartStateUnknown,
   GOALPadTitleStartStateNotAwaiting,
   GOALPadTitleStartStateAwaiting,
+  GOALPadTitleStartStateTitleSequence,
 };
 
 typedef NS_ENUM(NSInteger, GOALPadLookAroundState) {
@@ -234,7 +235,7 @@ typedef struct GOALPadFacePromptTouchSnapshot {
 @property(class, nonatomic, readonly, getter=isGameBooted) BOOL gameBooted;
 /// Jak's own `*master-mode*`; reading it never advances or mutates gameplay.
 @property(class, nonatomic, readonly) GOALPadGameMode gameMode;
-/// Exact read of whether Jak's live target is in `target-title-wait`.
+/// Exact read of whether Jak's live target is waiting at, traversing, or outside the title flow.
 @property(class, nonatomic, readonly) GOALPadTitleStartState titleStartState;
 /// Jak's live directional look-around state. Unavailable and other first-person modes are unknown.
 @property(class, nonatomic, readonly) GOALPadLookAroundState lookAroundState;

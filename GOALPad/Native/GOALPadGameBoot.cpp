@@ -71,6 +71,8 @@ int32_t* g_target = nullptr;
 std::uint32_t g_target_type = 0;
 std::uint32_t g_look_around_mode = 0;
 std::uint32_t g_target_title_wait_symbol = 0;
+std::uint32_t g_target_title_symbol = 0;
+std::uint32_t g_target_title_play_symbol = 0;
 int32_t* g_math_camera = nullptr;
 int32_t* g_camera_master = nullptr;
 int32_t* g_camera_combiner = nullptr;
@@ -614,6 +616,8 @@ BootStatus boot_game() noexcept {
       g_target = goal_game_symbol_slot("*target*");
       g_target_type = target_type;
       g_target_title_wait_symbol = goal_game_find_symbol("target-title-wait", nullptr);
+      g_target_title_symbol = goal_game_find_symbol("target-title", nullptr);
+      g_target_title_play_symbol = goal_game_find_symbol("target-title-play", nullptr);
       g_look_around_mode = goal_game_find_symbol("look-around", nullptr);
     } else {
       os_log_error(boot_log(),
@@ -764,6 +768,8 @@ void reset_game() noexcept {
   g_target_type = 0;
   g_look_around_mode = 0;
   g_target_title_wait_symbol = 0;
+  g_target_title_symbol = 0;
+  g_target_title_play_symbol = 0;
   g_math_camera = nullptr;
   g_camera_master = nullptr;
   g_camera_combiner = nullptr;
@@ -795,13 +801,14 @@ GameMode game_mode() noexcept {
 
 TitleStartState title_start_state() noexcept {
   if (!g_booted || !g_target || !g_target_type || !g_state_type ||
-      !g_target_title_wait_symbol || !g_ee_main_mem) {
+      !g_target_title_wait_symbol || !g_target_title_symbol ||
+      !g_target_title_play_symbol || !g_ee_main_mem) {
     return TitleStartState::Unknown;
   }
   return read_title_start_state(
       g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT,
       static_cast<std::uint32_t>(*g_target), g_target_type, g_state_type,
-      g_target_title_wait_symbol);
+      g_target_title_wait_symbol, g_target_title_symbol, g_target_title_play_symbol);
 }
 
 LookAroundState look_around_state() noexcept {

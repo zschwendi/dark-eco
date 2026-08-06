@@ -121,8 +121,7 @@ struct NativeProgressMenuSnapshot: Equatable {
     }
 }
 
-/// App-session knowledge that is stricter than one instantaneous `target-title-wait` read.
-/// The title prompt and the following progress-owned title menu form a proven route into gameplay.
+/// App-session presentation derived from Jak's exact title target states.
 nonisolated enum GameplayRunReadiness: Equatable, Sendable {
     case preRun
     case titlePrompt
@@ -136,11 +135,11 @@ nonisolated enum GameplayRunReadiness: Equatable, Sendable {
         progress: NativeProgressMenuSnapshot
     ) -> Self {
         if mode == .gameplay, titleStartState == .awaiting { return .titlePrompt }
+        if mode == .gameplay, titleStartState == .titleSequence { return .titlePrompt }
+        if mode == .gameplay, titleStartState == .notAwaiting { return .active }
         if current == .titlePrompt, mode == .progress { return .titleMenu }
         if mode == .progress, progress.available,
            progress.startingScreenRawValue == 27 { return .titleMenu }
-        if current == .titleMenu, mode == .gameplay,
-           titleStartState == .notAwaiting { return .active }
         return current
     }
 }
@@ -664,7 +663,7 @@ nonisolated struct NativeSessionControlPresentation: Equatable, Sendable {
         case .gameplay:
             switch titleStartState {
             case .awaiting: return Self(action: .start, isEnabled: true)
-            case .notAwaiting, .unknown:
+            case .notAwaiting, .unknown, .titleSequence:
                 return runReadiness == .active
                     ? Self(action: .pause, isEnabled: true)
                     : Self(action: .start, isEnabled: false)
@@ -1581,7 +1580,7 @@ final class TouchControls {
     func restoreGameplayChromeAfterInterruption() {
         guard nativeMenuMode == .gameplay,
               runReadiness == .active,
-              titleStartState != .awaiting,
+              titleStartState == .notAwaiting,
               !capturesNativeTouchInput else { return }
         noteScreenInteraction()
     }

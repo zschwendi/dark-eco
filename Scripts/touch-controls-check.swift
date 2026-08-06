@@ -1381,6 +1381,11 @@ private func sessionControlStateMatrixIsExactAndFailClosed() {
           == NativeSessionControlPresentation(action: .start, isEnabled: false),
           "boot and pre-run gameplay say Start without inventing an active save")
     check(NativeSessionControlPresentation.reduce(
+        mode: .gameplay, titleStartState: .titleSequence, progress: .unavailable,
+        runReadiness: .titlePrompt)
+          == NativeSessionControlPresentation(action: .start, isEnabled: false),
+          "the authored title animation cannot be mislabeled active gameplay")
+    check(NativeSessionControlPresentation.reduce(
         mode: .gameplay, titleStartState: .awaiting, progress: .unavailable,
         runReadiness: .preRun)
           == NativeSessionControlPresentation(action: .start, isEnabled: true),
@@ -1427,6 +1432,26 @@ private func sessionControlStateMatrixIsExactAndFailClosed() {
         progress: .unavailable)
     check(snapshotlessTitleMenu == .titleMenu && snapshotlessActiveRun == .active,
           "the observed title prompt and progress owner cannot strand loaded gameplay pre-run")
+    let exactTitleSequence = GameplayRunReadiness.advance(
+        .preRun, mode: .gameplay, titleStartState: .titleSequence,
+        progress: .unavailable)
+    let directActiveRun = GameplayRunReadiness.advance(
+        exactTitleSequence, mode: .gameplay, titleStartState: .notAwaiting,
+        progress: .unavailable)
+    check(exactTitleSequence == .titlePrompt && directActiveRun == .active,
+          "leaving the exact title target sequence activates gameplay without a progress snapshot")
+    check(GameplayRunReadiness.advance(
+        .preRun, mode: .gameplay, titleStartState: .notAwaiting,
+        progress: .unavailable) == .active,
+          "an already-loaded exact non-title gameplay target cannot remain stranded pre-run")
+    check(GameplayRunReadiness.advance(
+        .active, mode: .gameplay, titleStartState: .titleSequence,
+        progress: .unavailable) == .titlePrompt,
+          "returning to the exact title sequence suppresses active gameplay chrome")
+    check(GameplayRunReadiness.advance(
+        .active, mode: .gameplay, titleStartState: .unknown,
+        progress: .unavailable) == .active,
+          "a transient unknown read preserves the last proven presentation without flicker")
     check(GameplayRunReadiness.advance(
         .preRun, mode: .progress, titleStartState: .unknown,
         progress: .unavailable) == .preRun,
@@ -1603,6 +1628,16 @@ private func build128ChromeStateMatrixAndRightStickRecovery() {
     hiddenStick.controls.restoreGameplayChromeAfterInterruption()
     check(hiddenStick.controls.isEngaged,
           "foreground recovery explicitly restores active-gameplay R presentation")
+
+    hiddenStick.controls.reset()
+    let movement = Finger()
+    hiddenStick.down(movement, CGPoint(x: 170, y: 650))
+    check(hiddenStick.controls.isEngaged
+          && TouchControls.rightStickArtworkIsVisible(
+            mode: .gameplay, runReadiness: .active, isAwaitingTitleStart: false,
+            cutsceneSkipAvailable: false, isEngaged: hiddenStick.controls.isEngaged,
+            isSuppressed: false, hasTouches: true),
+          "the first ordinary screen touch, including movement, immediately reveals R")
 }
 
 @MainActor

@@ -45,7 +45,9 @@ int main() {
   constexpr std::uint32_t kTargetObject = 300;
   constexpr std::uint32_t kStateObject = 604;
   constexpr std::uint32_t kTitleWait = 700;
-  constexpr std::uint32_t kOtherState = 704;
+  constexpr std::uint32_t kTitle = 704;
+  constexpr std::uint32_t kTitlePlay = 708;
+  constexpr std::uint32_t kOtherState = 712;
   std::vector<std::uint8_t> memory(1024);
   write(memory, kTargetType + 8, std::uint16_t{128});
   write(memory, kStateType + 8, std::uint16_t{36});
@@ -55,17 +57,36 @@ int main() {
   write(memory, kStateObject - 4, kStateType);
   write(memory, kStateObject + goalpad::live_state_layout::kStateNameOffset, kTitleWait);
   expect(goalpad::read_title_start_state(memory.data(), memory.size(), 64, kTargetObject,
-                                         kTargetType, kStateType, kTitleWait) ==
+                                         kTargetType, kStateType, kTitleWait, kTitle,
+                                         kTitlePlay) ==
              goalpad::TitleStartState::Awaiting,
          "target-title-wait is the exact native Start-prompt state");
+  write(memory, kStateObject + goalpad::live_state_layout::kStateNameOffset, kTitle);
+  expect(goalpad::read_title_start_state(memory.data(), memory.size(), 64, kTargetObject,
+                                         kTargetType, kStateType, kTitleWait, kTitle,
+                                         kTitlePlay) ==
+             goalpad::TitleStartState::TitleSequence,
+         "target-title remains in the non-interactive title sequence");
+  write(memory, kStateObject + goalpad::live_state_layout::kStateNameOffset, kTitlePlay);
+  expect(goalpad::read_title_start_state(memory.data(), memory.size(), 64, kTargetObject,
+                                         kTargetType, kStateType, kTitleWait, kTitle,
+                                         kTitlePlay) ==
+             goalpad::TitleStartState::TitleSequence,
+         "target-title-play remains in the non-interactive title sequence");
   write(memory, kStateObject + goalpad::live_state_layout::kStateNameOffset, kOtherState);
   expect(goalpad::read_title_start_state(memory.data(), memory.size(), 64, kTargetObject,
-                                         kTargetType, kStateType, kTitleWait) ==
+                                         kTargetType, kStateType, kTitleWait, kTitle,
+                                         kTitlePlay) ==
              goalpad::TitleStartState::NotAwaiting,
-         "a different validated target state is not mislabeled Start");
+         "a non-title target state is classified as active gameplay");
   expect(goalpad::read_title_start_state(memory.data(), memory.size(), 64, 0, kTargetType,
-                                         kStateType, kTitleWait) ==
+                                         kStateType, kTitleWait, kTitle, kTitlePlay) ==
              goalpad::TitleStartState::Unknown,
          "missing target state fails closed");
+  expect(goalpad::read_title_start_state(memory.data(), memory.size(), 64, kTargetObject,
+                                         kTargetType, kStateType, kTitleWait, 0,
+                                         kTitlePlay) ==
+             goalpad::TitleStartState::Unknown,
+         "missing title-flow symbols fail closed");
   std::cout << "game menu state checks passed\n";
 }
