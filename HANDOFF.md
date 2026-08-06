@@ -14450,6 +14450,15 @@ independently accepted lifecycle recovery for Build 120. It preserves the
 existing kernel/run while scene activation recreates the display link,
 reattaches the Metal layer, closes any armed detached frame, and gates frames
 and audio behind the latest foreground save generation. Deterministic lifecycle
-and save-gate tests pass. A signed Xcode build and physical Build 120 touch,
-warp, app-switch, device-lock, and same-run resume test remain pending; a
-responsive SwiftUI shell or restarted theme alone is not acceptance.
+and save-gate tests pass. The signed generic-iOS Release build subsequently
+passed with the verified 518-object source pack (aggregate
+`2b812636de96f221`). The frozen artifact is
+`/private/tmp/GOALPad-build120-mvp-signed/GOALPad.app`: Eco `1.0 (120)`, bundle
+`com.zephyrstudiosllc.eco`, thin ARM64, 52 MB, executable SHA-256
+`db669454a348fc539ae18477611f2bb90f5df2906c885f99e553c91b30c8060a`.
+Its privacy manifest lints, iCloud/Game Center Zephyr Studios entitlements
+extract correctly, and the retail-payload extension scan is empty. Strict local
+signature verification retains the known development-chain
+`CSSMERR_TP_NOT_TRUSTED` result; Xcode signing itself succeeded. Physical Build
+120 touch, warp, app-switch, device-lock, and same-run resume testing remains
+pending; a responsive SwiftUI shell or restarted theme alone is not acceptance.
