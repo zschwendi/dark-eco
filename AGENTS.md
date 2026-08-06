@@ -435,6 +435,9 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 - [ ] Hide the app Settings and developer-log controls during gameplay; expose
   them only while the native Jak pause/start menu is open.
+  - Investigating: `ContentView` currently gates both controls only on
+    `session.isRunning`; `GameSession` and `GOALPadRuntimeBridge` expose no
+    native pause/start-menu readback. Do not infer it from renderer output.
 - [ ] In the paused overlay, use white `Eco Pro` plus the Settings icon.
 - [ ] Add a per-game `Show developer logs` setting; logs remain off the normal
   player surface when disabled.
@@ -449,7 +452,10 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
   active settings document; later-title rows may be clearly unavailable until
   their title support is real.
 - [ ] Rename `Reset All` to `Reset Jak 1 Settings` in the Jak 1 document.
-- [ ] Remove Jak X from the game library because it is outside OpenGOAL scope.
+- [x] Remove Jak X from the game library because it is outside OpenGOAL scope.
+  - Validated worker branch `agent/build94-portrait-library` in
+    `/private/tmp/GP-build94-portrait-library`, commit `f7669744`, with
+    `Scripts/run-portrait-library-check.sh`.
 - [ ] Remove empty Audio and UI sections for now unless a setting exists that is
   not already meaningfully covered by Jak's native options.
 - [ ] Move Fill Width into the in-game Graphics settings, call the user-facing
@@ -537,8 +543,12 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 - [ ] For warp gates, prefer a truthful `Touch gate to use warp gate` interaction
   only if gate focus/availability can be read safely. Otherwise show large
   explicit button controls and make the destination list swipe-selectable.
-- [ ] In portrait gameplay, top-align the renderer instead of vertically
+- [x] In portrait gameplay, top-align the renderer instead of vertically
   centering it so the remaining lower area is available to touch controls.
+  - Validated worker branch `agent/build94-portrait-library` in
+    `/private/tmp/GP-build94-portrait-library`, commit `f7669744`, with
+    `Scripts/run-portrait-library-check.sh`; iOS compilation remains pending
+    an initialized nested OpenGOAL checkout for the Metal build phase.
 
 #### Haptics, stats, and skipping
 
