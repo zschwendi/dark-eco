@@ -11756,3 +11756,87 @@ No simulator or physical device was accessed. The completed, clean residency
 worker worktree was removed after integration; its branch and commits remain
 recoverable. The standalone Mac shell worktree was also previously removed
 cleanly with its branch preserved.
+
+# Checkpoint 80: exact live Jak II bucket-4 capture
+
+Date: 2026-08-06. The isolated nested integration branch now ends at
+`434408d24`; the active Jak 1 checkout remained untouched. Three reviewed
+OpenGOAL commits add the capture seam:
+
+- `b8cd3e77b` adds a bounded, read-only DMA follower and exact scalar capture
+  for `TEX_LCOM_SKY_PRE`, calls it against original EE memory before fixed DMA
+  copying, rejects malformed packets before renderer dispatch, and exposes the
+  copied scalars through host/runtime metrics.
+- `64848f4e2` tightens fixed erase state, CLAMP, FRAME, DMA-target, and mutation
+  checks.
+- `434408d24` adds the second exact live packet form: an ordinary TEXFLUSH/page
+  descriptor with no animator array. It remains disjoint from the full mixed
+  grammar and the empty/absent case.
+
+The full mixed form is exactly 416 payload bytes over 16 transfers: four
+zero-QWC NEXT boundaries, one 32-byte TEXFLUSH, one 16-byte ordinary page
+descriptor at mode `-1`, opcode 41, and the opcode 14/16/15 fog sequence. The
+ordinary-only form is exactly 48 payload bytes over four transfers with two
+NEXT boundaries. The parser retains scalar metrics only; it does not retain EE
+pointers, texture bytes, or packet storage, and bucket 4 remains
+`DeferredSkip`.
+
+## Canonical validation
+
+The integration owner built the parser, host bridge, and complete 840-unit AOT
+Mac shell in the canonical Release/Ninja/ccache directory:
+
+```text
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host --target \
+  jak2-bucket4-texture-upload-capture-test jak2-metal-host-bridge-test \
+  jak2-metal-runtime-proof -j2
+```
+
+The build passed. With normal macOS Metal service access, the focused matrix
+passed 6/6:
+
+```text
+ctest --test-dir /private/tmp/GOALPad-jak2-real-dma-host \
+  -R '^(metal-bucket-chain-semantics-test|jak2-metal-bucket-table-test|jak2-metal-dispatch-proof|jak2-metal-submit-readback-proof|jak2-bucket4-texture-upload-capture-test|jak2-metal-host-bridge-test)$' \
+  --output-on-failure
+```
+
+The final standalone prepared-data command was:
+
+```text
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-metal-runtime-proof \
+  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  --saves-dir /private/tmp/goalpad-jak2-macos-bucket4-capture-saves --ticks 3
+```
+
+It returned the expected `INCOMPLETE`/exit 1 because visible RGB is still the
+next renderer gate, not because of a runtime failure. All three chains passed:
+3/3 completed, 3/3 drawable acquisitions and command-buffer submissions, zero
+host/parser/GPU failures, zero drawable misses, zero late submissions, and zero
+unsupported blends. The full packet appeared on tick 1; ticks 2 and 3 used the
+ordinary-only packet. Exact live full-packet scalars are:
+
+```text
+cloud destination: 256
+erase: 16x16, destination 192, TEST 0x31001, ALPHA 0x44, CLAMP 0,
+       clear (0,0,0,128)
+generic fog upload: 256x1 PSMT8, destination 128, force-to-GPU 1
+CLUT upload: 16x16 PSMCT32, destination 192
+```
+
+The ordinary page remained mode `-1`. Embedded source addresses are validated
+as EE-memory offsets but are runtime-local diagnostics, not stable product
+identities. Final readback remained the known alpha-only title quad: hash
+`742a0703fa4da325`, 307,200 nonzero-alpha pixels, zero non-black RGB.
+
+## Next executable task
+
+Implement the first real bucket-4 execution slice without weakening the
+capture gate. Parse the complete packet into an owning plan before mutation,
+flush/apply the ordinary page first, copy embedded fog/CLUT bytes from live EE
+memory synchronously, publish deterministic 256x1 fog and 128x128 cloud Metal
+textures at TexturePool slots 128 and 256, and then promote only bucket 4 to an
+explicit texture-upload behavior. The proof gate is deterministic texture/pool
+readback and stable lifetime across repeated frames; the current SKY draw is
+untextured, so these publications are not yet expected to make title RGB
+visible. No simulator or physical device was accessed in this checkpoint.

@@ -1189,6 +1189,17 @@ as visible output. The next renderer checkpoint must capture the exact live
 bucket-4 animator descriptors, then implement its bounded ordinary-upload plus
 41 and 14/16/15 subsets before an explicit `TextureUpload` policy promotion.
 
+Checkpoint 80 adds fail-closed scalar capture for the exact live Jak II bucket-4
+forms at nested `434408d24`. The 416-byte mixed cloud/fog packet and 48-byte
+ordinary-only packet are distinct validated grammars; malformed late packets
+stop before DMA copying or rendering. The canonical AOT/host build and six-test
+Metal/parser matrix pass, and a three-tick prepared-data Mac run completes all
+three GPU/readback frames with zero parser, host, or GPU failures. Exact live
+destinations are cloud 256, indexed fog 128, and fog CLUT/erase 192. Bucket 4
+remains deferred and the title remains alpha-only. The next renderer checkpoint
+is an owning parse-before-mutate plan plus ordinary upload and deterministic
+fog/cloud Metal publication, followed by explicit bucket-4 policy promotion.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
