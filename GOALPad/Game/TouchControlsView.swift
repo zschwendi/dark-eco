@@ -20,6 +20,10 @@ struct TouchControlsView: View {
     fileprivate static let space = "GOALPadTouchControls"
     private static let pillWidth: CGFloat = 82
 
+    #if canImport(UIKit)
+    @State private var titleStartHaptics = TouchHapticDriver()
+    #endif
+
     @discardableResult
     nonisolated static func requestTouchRecovery(
         isSuppressed: Bool,
@@ -96,6 +100,10 @@ struct TouchControlsView: View {
                         .allowsHitTesting(false)
                         .opacity(isVisible ? 1 : 0)
                         .animation(.easeOut(duration: 0.16), value: isVisible)
+
+                    if titleStartTouchTargetIsVisible {
+                        titleStartTouchTarget
+                    }
                 }
 
                 if capturesNativeMenuInput {
@@ -177,6 +185,40 @@ struct TouchControlsView: View {
             } action: {
                 controls.setPillFrame(button, $0)
             }
+    }
+
+    /// The title prompt is an app-owned semantic action. Keep its visible Build 96 pill, but do
+    /// not depend on an asynchronously cached artwork frame to decide whether Start was touched.
+    private var titleStartTouchTargetIsVisible: Bool {
+        gameMode == .gameplay && sessionControl == NativeSessionControlPresentation(
+            action: .start, isEnabled: true)
+    }
+
+    private var titleStartTouchTarget: some View {
+        HStack(spacing: 20) {
+            Color.clear
+                .frame(width: Self.pillWidth, height: 42)
+                .allowsHitTesting(false)
+            Button { performTitleStart() } label: {
+                Color.clear
+                    .frame(width: Self.pillWidth + 20, height: 66)
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .contentShape(Capsule())
+            .accessibilityLabel("Start")
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .padding(.bottom, 18)
+    }
+
+    private func performTitleStart() {
+        controls.performNativeMenuAction(.start)
+        #if canImport(UIKit)
+        titleStartHaptics.play(controls.consumeHapticEvents())
+        #else
+        _ = controls.consumeHapticEvents()
+        #endif
     }
 
 }

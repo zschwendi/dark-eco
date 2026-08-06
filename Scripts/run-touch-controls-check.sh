@@ -18,3 +18,8 @@ swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
   -o "$out"
 
 "$out"
+
+# The title-specific regression must exercise a semantic SwiftUI Button, not merely prove that
+# an idealized cached pill frame can emit the same Start bit.
+rg -Fq 'Button { performTitleStart() }' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'controls.performNativeMenuAction(.start)' "$root/GOALPad/Game/TouchControlsView.swift"

@@ -1396,6 +1396,33 @@ private func pausePresentationFollowsNativeMenuState() {
           "Pause/Resume presentation preserves the Start input bit")
 }
 
+@MainActor
+private func semanticTitleStartBypassesArtworkGeometryAndSurvivesCadence() {
+    print("title Start uses its semantic action instead of cached artwork geometry")
+    let controls = TouchControls(style: .modern)
+    controls.setNativeMenuState(.gameplay, progress: .unavailable,
+                                titleStartState: .awaiting)
+
+    // Deliberately do not register a Start pill frame. The title target is a real SwiftUI Button
+    // and must reach the ordinary pad pulse without consulting pillFrames.
+    controls.performNativeMenuAction(.start)
+    check(controls.consumeHapticEvents() == [.button(.start)],
+          "the semantic title action owns one immediate Start feedback event")
+    check(controls.frameState().buttons.contains(.start),
+          "the next engine frame receives the title Start edge")
+
+    controls.setNativeMenuState(.gameplay, progress: .unavailable,
+                                titleStartState: .notAwaiting)
+    let remainingHold = (0..<(TouchControls.holdFrames - 1)).map { _ in
+        controls.frameState()
+    }
+    check(remainingHold.allSatisfy { $0.buttons.contains(.start) },
+          "the Start pulse survives the title-state transition for its full hold cadence")
+    check((0..<TouchControls.releaseFrames).map { _ in controls.frameState() }
+        .allSatisfy { !$0.buttons.contains(.start) },
+          "the title Start cadence ends with a deterministic release")
+}
+
 private func sessionControlStateMatrixIsExactAndFailClosed() {
     print("app-owned Start, Pause, and Resume follow exact native state")
     check(NativeSessionControlPresentation.reduce(
@@ -2150,6 +2177,7 @@ struct TouchControlsCheck {
         pinchZoomIsLifecycleSafe()
         cutsceneSkipIsContextualExactAndLifecycleSafe()
         pausePresentationFollowsNativeMenuState()
+        semanticTitleStartBypassesArtworkGeometryAndSurvivesCadence()
         sessionControlStateMatrixIsExactAndFailClosed()
         controllerSuppressionKeepsTouchRecovery()
         nativeMenuActionsAreTruthfullyGatedAndLabelled()
