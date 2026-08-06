@@ -14156,9 +14156,21 @@ artifact.
   `Scripts/presentation-settings-ui-check.swift`, and the authorized
   `Scripts/run-presentation-settings-check.sh` macro-service run. Parent
   `96c24efd` bumps both iOS configurations from 114 to 115.
-- No full Xcode/AOT build, signed Build 115 artifact, simulator, device access,
-  physical mouse/trackpad feel check, or push is claimed at this source
-  checkpoint.
+- Signed generic-iOS Release Build 115 passed with the unchanged verified
+  Build 114 source-pack/AOT identity. Full output is
+  `/private/tmp/GOALPad-build115-generic-ios.log`; Xcode emitted the existing
+  actor-isolation/generated-AOT warnings and exited 0.
+- The frozen product is
+  `/private/tmp/GOALPad-build115-input-signed/GOALPad.app`: Eco `1.0 (115)`,
+  bundle `com.zephyrstudiosllc.eco`, thin ARM64, executable SHA-256
+  `f7493873a98c6e6c449c6eb45a6ad55c0c591e6c84056ea309d3751c076b13d5`.
+  It contains the privacy manifest, expected Zephyr Studios Game Center/iCloud
+  entitlements, and none of the audited retail payload extensions. Strict local
+  verification has the known development-chain `CSSMERR_TP_NOT_TRUSTED` result;
+  Xcode signing and entitlement extraction passed.
+- No simulator, device access, or physical mouse/trackpad feel check is
+  claimed. Build 114 remains the narrower frozen Misty candidate; Build 115
+  contains the same corrected Jak source plus the reviewed input-only slice.
 
 The independent Fit to Screen lane made no changes and returned ACCEPT on the
 already-integrated nested `ef4a9b597` repair. Build 90 and current landscape
