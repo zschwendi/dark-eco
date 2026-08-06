@@ -14401,3 +14401,33 @@ save and confirm Pause, traverse pause/progress submenus with persistent Resume
 and truthful Back, and confirm selected sliders keep Cancel while Resume is
 temporarily disabled. Then retain the Build 93 gameplay/performance, cloud-save,
 Misty/title, and Fit to Screen regression gates before naming a new baseline.
+
+# Build 118 physical rejection and Build 119/120 MVP direction
+
+Date: 2026-08-06. The maintainer physically accepted Fit to Screen in Build
+118, but rejected Build 118 as an MVP baseline for two independent regressions:
+
+- Ordinary gameplay touch has been materially broken for several builds. The
+  maintainer wants it restored exactly to Build 96 behavior and then frozen.
+- Leaving/backgrounding Eco and resuming can loop a black screen with the theme
+  song while the SwiftUI/touch shell remains responsive. This is a native
+  lifecycle failure, not an app-shell success.
+
+The maintainer also explicitly scrapped the entire Classic touch concept. Build
+119 must provide one Build 96 gameplay-touch scheme, remove the Controls
+Modern/Classic picker and touch-layout editor/runtime effect, retain old synced
+documents only for decode compatibility, and preserve Build 118's native-menu
+Start/Pause/Resume/Back/Done additions. Primary Controller, physical-controller
+bindings, mouse/keyboard bindings, Graphics Modern/Classic, and accepted Fit to
+Screen are separate and remain.
+
+The existing isolated lifecycle work at `/private/tmp/GP-build118-background-recovery`
+(`ae399b3e`, `804cfaf1`) is being rebased and audited against the reported black-
+screen/theme-loop symptom for Build 120 if it should remain separate. Do not
+claim it from deterministic lifecycle tests alone; physical background/lock and
+resume must show native frames and audio continuing from the active run.
+
+After the Build 119/120 MVP recovery, stop expanding nonessential iOS settings
+or touch features. Audit only actual TestFlight/App Store blockers, then
+prioritize true stereoscopic visionOS rendering with Comfort/Normal preserved as
+fallback. Build 118 remains preserved evidence, not the release baseline.

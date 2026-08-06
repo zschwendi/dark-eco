@@ -120,25 +120,26 @@ touch behavior, settings persistence, and iCloud saves. That acceptance is
 intentionally scoped: it is not yet a complete-playthrough, every-level,
 every-save, every-orientation, or every-controller certification.
 
-The first enhancement layer is a versioned Modern/Classic settings model.
-Controls, Graphics, Audio, and UI each retain an independent profile and their
-own option values; a global preset can switch all four while accurately showing
-Mixed when they differ. Fresh settings and Reset All select Modern Graphics
-with Fill Width enabled while Controls, Audio, and UI remain Classic. Existing
-saved profile choices are preserved. Settings sync through separate iCloud
-documents by default, with Jak 1 touch customization isolated from the frozen
-presentation document so older same-schema clients cannot erase it when they
-rewrite settings. A device-local opt-out does not disable iCloud saves.
+The implemented settings documents retain their versioned fields for backward
+and iCloud compatibility, but the shipped touch experience is no longer a
+Modern/Classic choice. The maintainer rejected the post-Build-96 Classic touch
+concept and touch editor in favor of one frozen Build 96 gameplay-touch scheme.
+Graphics retains its independent Modern/Classic presentation choice, including
+Modern Fit to Screen. Old Controls profile and touch-layout documents must stay
+decodable, but they no longer control gameplay or appear as player-facing touch
+configuration. A device-local settings-sync opt-out does not disable iCloud
+saves.
 
 Enhancement work proceeds in this order:
 
 1. Preserve Build 93 as the unified known-good regression baseline.
-2. Establish Classic touch as an understandable fallback while preserving the
-   accepted Build 93 Modern touch behavior.
-3. Continue the Jak 1-scoped settings and input-source work in small physical
-   checkpoints without changing Classic gameplay or renderer compatibility.
-4. Return to visionOS-specific work only after the iPhone/iPad interaction
-   contract is stable; do not assume an immersive rewrite.
+2. Restore and freeze Build 96 ordinary gameplay touch while retaining the
+   later truthful native-menu Start/Pause/Resume/Back layer.
+3. Repair background/foreground recovery and close only actual MVP shipping
+   blockers; do not expand the touch or settings feature surface.
+4. After the iPhone/iPad MVP contract is physically stable, prioritize true
+   stereoscopic visionOS rendering with the conventional Comfort window kept as
+   fallback.
 
 No enhancement may fork gameplay semantics, weaken user-owned asset separation,
 or replace the accepted Build 93 baseline before its replacement has been

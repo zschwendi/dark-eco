@@ -491,8 +491,8 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 Active lanes:
 
-- `Build 118 pause chrome installed and launched; physical acceptance pending`
-  — Build 117's touch editor remains integrated, but its physical run exposed
+- `Build 118 physically rejected; Build 119/120 MVP recovery in progress` —
+  Build 117's touch editor remains integrated, but its physical run exposed
   missing Start/Resume chrome and missing native-menu Back actions. Parent
   `3588baf3`, `64050a11`, `c6757a51`, and `c85ce554` add exact read-only title
   and progress navigation state, restore Start at `target-title-wait`, use
@@ -503,10 +503,15 @@ Active lanes:
   xhigh re-review returned ACCEPT; focused native, touch, and presentation
   suites and the signed generic-iOS Release build pass. `e3bfa046` bumps both
   iOS configurations to 118. Build 118 was installed in place and launched on
-  `Z iPad Pro` without uninstalling or clearing its app container. Physical
-  acceptance of the exact Start/Pause/Resume/Back route, touch ergonomics,
-  gameplay, VoiceOver, iCloud propagation, and Build 93/Misty/Fit to Screen
-  regressions remains pending.
+  `Z iPad Pro` without uninstalling or clearing its app container. The
+  maintainer accepted Fit to Screen but rejected the candidate: ordinary touch
+  input has regressed from Build 96, and leaving/backgrounding then resuming can
+  loop a black screen with the theme song while the SwiftUI/touch shell remains
+  responsive. Build 119 restores one frozen Build 96 gameplay-touch scheme,
+  removes Classic touch/editor UI, and retains the accepted native menu chrome.
+  Build 120 is reserved if needed for the isolated lifecycle recovery. After
+  that, stop nonessential iOS settings work and prioritize true stereoscopic
+  visionOS rendering.
 - `Build 114 signed generic-iOS candidate ready; physical Misty/title gate
   pending` — nested OpenGOAL `352064ace`, `f260ae7df`, and `cb5032a83` make
   fisherman-boat arrival atomic: destination collision must genuinely ground
@@ -893,15 +898,15 @@ Active lanes:
 
 #### Touch profiles and customization
 
-- [x] Implement Classic touch before deeper native-menu touch conversion so
-  every touch device has an understandable fallback.
-- [x] Make Controls Modern select the existing Build 93 gesture/touch scheme.
-- [x] Make Controls Classic select a DualShock-style overlay with symmetrical
-  sticks, PlayStation-like spacing, Jak 1 face/shoulder controls, no L2/R2
-  overlay, and visibly intentional inactive/dead controls where requested.
-- [x] Keep Modern first and Classic second in the touch profile picker.
-- [ ] Preserve current Modern behavior until its separate polish patch is
-  physically accepted.
+- [x] `Superseded by the maintainer after Build 118 physical testing` — Classic
+  touch and the Controls Modern/Classic picker were implemented, but the entire
+  concept is now rejected and must be removed from player-facing runtime/UI.
+  Keep old synced documents decodable only.
+- [ ] Restore one frozen ordinary gameplay-touch scheme exactly matching Build
+  96 (`f5643c41`): dynamic left stick, fixed right stick, original face
+  gestures, Select, and Start. Preserve the later native-menu
+  Start/Pause/Resume/Back controls as a separate layer and stop further touch
+  feature work after physical acceptance.
 - [x] In Modern touch, once a held downward gesture has engaged crouch, sliding
   left without releasing must trigger crouch + punch. Preserve the existing
   held down-then-up crouch jump and ordinary left-swipe behavior, with focused
@@ -923,16 +928,10 @@ Active lanes:
   a separate L2+R2 action and generic state jumps remain unsupported.
 - [x] Make Start display `Pause` during gameplay and `Resume` while the native
   pause menu is open; keep Resume visible throughout that menu.
-- [x] Add a touch-layout editor for position pinning/movement, compatible
-  remapping, opacity, and size after Classic and Modern have stable layout
-  models. Build 117 implements and signs the bounded editor; physical
-  ergonomics and VoiceOver operation remain acceptance gates.
-- [x] Store touch customization per game and sync it with that game's settings
-  domain. Build 117 uses the distinct frozen `jak1-touch-layout-v1.json`
-  sidecar so older same-schema presentation writers cannot erase layouts;
-  deterministic staggered-client, conflict, reset-tombstone, opt-out, and
-  in-flight edit checks pass. Real two-device iCloud propagation remains
-  physically unvalidated.
+- [x] `Superseded by the maintainer after Build 118 physical testing` — the
+  Build 117 touch-layout editor and its isolated iCloud sidecar remain useful
+  compatibility history, but Build 119 removes the editor/runtime effect. Do
+  not delete or reinterpret an old cloud document; ignore it after decoding.
 
 #### Touch-friendly game and launcher interaction
 
@@ -1078,11 +1077,13 @@ not the requested volumetric world.
 #### Background lifecycle and memory (newest FIFO item)
 
 - [ ] Reproduce and repair the report that after Eco/Jak remains open through a
-  phone lock and background interruption, the SwiftUI/touch shell resumes but
-  native gameplay stays frozen. Trace scene activation, display-link recreation,
-  audio-session interruption, render-surface availability, and any in-flight
-  frame ownership; preserve the active run and do not treat a responsive overlay
-  as proof that native frames resumed.
+  phone lock or background interruption, the SwiftUI/touch shell resumes but
+  native gameplay stays frozen. Build 118 additionally produced a black-screen
+  loop with the theme song after leaving and resuming. Trace scene activation,
+  display-link recreation, audio-session interruption, render-surface
+  availability, and any in-flight frame ownership; preserve the active run and
+  do not treat a responsive overlay or restarted theme as proof that native
+  frames resumed.
 - [ ] Make suspended gameplay as background-friendly as iOS permits: stop active
   clocks/audio work, release only safely recreatable transient renderer/importer
   resources under lifecycle or memory pressure, keep user saves and the resumable
