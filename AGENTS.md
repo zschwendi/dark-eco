@@ -598,6 +598,16 @@ Active lanes:
   unknown rows remain inert. Review caught incorrect PC list lengths and
   unhandled unselected Left/Right affordances before the full build. Preserved
   app: `/private/tmp/GOALPad-build109-progress-touch-signed/GOALPad.app`.
+- `Implemented; signed Build 110 validation passed; physical touch/VoiceOver
+  acceptance pending` — library commits `a21de013` and corrective `6e6b35bd`
+  were integrated as `79b3cba9` and `f9651068` only after independent review
+  kept the artwork menu separately focusable and moved its 44-point target into
+  the actual label. Classic hit-target commit `0123163f` was integrated as
+  `9e566a76`; root added the 44-point paused Eco Settings label and focused
+  source checks in `2a5c5928`. Visible Classic artwork, stick geometry,
+  controller bytes, Modern input, and standard SwiftUI Forms/Lists remain
+  unchanged. Preserved app:
+  `/private/tmp/GOALPad-build110-touch-accessibility-signed/GOALPad.app`.
 - `Storage cleanup complete; dirty and Jak II work preserved` — removed 62 clean
   obsolete parent worktrees, then 22 clean obsolete OpenGOAL Jak 1/Build 84–88
   worktrees. No branch or commit was deleted. Dirty maintainer/audit worktrees,
@@ -752,8 +762,12 @@ Active lanes:
   timing, or a duplicate Swift pause flag.
 - [x] When a physical controller is active, preserve ordinary controller input
   and avoid intrusive touch chrome.
-- [ ] When touch is active, make the app-owned settings/library surfaces use
-  normal touch targets and scroll/swipe behavior.
+- [x] When touch is active, make the app-owned settings/library surfaces use
+  normal touch targets and scroll/swipe behavior. Build 110 preserves native
+  SwiftUI Form/List/ScrollView controls, converts the launcher tile to a
+  semantic Button, keeps its artwork Menu independent, guarantees 44-point
+  artwork-menu and paused Eco Settings targets, and floors compact Classic
+  button hit regions at 44 points without changing their artwork.
 - [x] Investigate native Jak menu state/readback before attempting touch hit
   targets over GOAL-rendered rows; do not infer selection rectangles from a
   screenshot. `*progress-process*` is the authoritative object: after a checked

@@ -13696,3 +13696,77 @@ Next FIFO work:
    infer from proximity, pixels, or `*master-mode*`.
 3. Keep raw Game Center activity commit `5a259d69` isolated until these earlier
    touch FIFO items are integrated.
+
+# Build 110 app-owned touch and accessibility targets
+
+Date: 2026-08-06. Build 110 is the app-owned touch-target checkpoint layered on
+pushed Build 109 `160e22cd`. Library worker commit `a21de013` converted the
+primary game tile from a raw tap gesture to a semantic SwiftUI Button.
+Independent review blocked its first form because the composite accessibility
+element swallowed the artwork Menu and the 44-point modifier did not live in
+the actual Menu label. Corrective commit `6e6b35bd` fixed both issues and made
+planned title buttons semantically disabled while leaving the later overlay
+Menu enabled. Root integrated them as `79b3cba9` and `f9651068`.
+
+Classic hit-target worker commit `0123163f`, integrated as `9e566a76`, separates
+raw button hit geometry from visual artwork geometry. Root commit `2a5c5928`
+adds a 44-point in-game Eco Settings label and source-level regression checks.
+Packaging commit is `ffe4ac06` before this handoff commit.
+
+Implemented:
+
+- Launcher tiles use normal Button semantics, retain plain visual styling and
+  existing open/no-op behavior, and preserve the independent artwork context
+  menu.
+- The frontmost artwork Menu remains independently focusable and has a 44 by 44
+  rectangular hit region inside its label.
+- The white paused-game Eco Settings capsule has a minimum 44-point label hit
+  region.
+- Standard app Settings, import, iCloud, and save-management surfaces continue
+  to use SwiftUI Form/List/ScrollView/Toggle/Menu/Picker/Button behavior.
+- Compact Classic face, D-pad, shoulder, Start, and Select artwork may remain
+  visually scaled for fit, but every raw button target is at least 44 by 44 and
+  bounded to the safe region. Stacked compact Start/Select targets are placed
+  deterministically so neither owns the other's visual centre.
+- Classic visual frames, both analog sticks, controller bytes, and Modern touch
+  behavior are unchanged.
+
+Validation passed:
+
+- `Scripts/run-touch-controls-check.sh` with Xcode macro-service access,
+  including compact 280 by 160 visual-frame identity, 44-point hit bounds,
+  unique visual-centre ownership, direct mappings, and controller bytes.
+- `Scripts/run-presentation-settings-check.sh` with Xcode macro-service access.
+- `Scripts/run-portrait-library-check.sh`, including independent semantic tile
+  and artwork Menu assertions.
+- `Scripts/run-keyboard-mouse-input-check.sh`.
+- `Scripts/run-game-progress-state-check.sh`.
+- Worker full no-link iPhoneOS Swift typecheck with warnings as errors, focused
+  Swift parse checks, and all worker/root `git diff --check` runs.
+- Signed generic iOS Release Build 110 passed using cached DerivedData
+  `/private/tmp/GOALPad-build103-jak1-settings`, nested OpenGOAL `c63c73ecf`,
+  and the unchanged canonical 518-object source pack. Full log:
+  `/private/tmp/GOALPad-build110-generic-ios.log`.
+
+Preserved signed app:
+`/private/tmp/GOALPad-build110-touch-accessibility-signed/GOALPad.app`. It
+identifies as Eco `1.0 (110)`, `com.zephyrstudiosllc.eco`, thin arm64, contains
+one valid privacy manifest, and contains no ISO/BIN/DGO/CGO/STR/VAG files. Its
+DER entitlements retain team `V729QMY3V6`, Game Center, and the existing iCloud
+container. Executable SHA-256:
+`5840ea2456b73b0b36c2f3008bca82b5b8a7ec13886b494ee0f28ceed833eee3`.
+Strict local verification reports the unchanged development-chain
+`CSSMERR_TP_NOT_TRUSTED` result.
+
+Not validated: no physical Build 110 install, touch-target ergonomic pass,
+VoiceOver pass, or menu-versus-tile event-routing pass was performed. Build 105
+remains installed for the separately requested Misty route.
+
+Next FIFO work: implement the audited GOAL-owned warp-gate semantic snapshot
+and only then expose Circle/Left/Right/Triangle touch actions. The publication
+must be owner-aware because multiple gate processes can exist, and must occur
+inside the authoritative prompt/list/transition states rather than duplicating
+proximity or gameplay logic in native code. This changes GOAL source, so it
+requires focused GOAL tests, regeneration/verification of the 518-object source
+pack, host/AOT validation, and a later signed numbered build before physical
+testing.
