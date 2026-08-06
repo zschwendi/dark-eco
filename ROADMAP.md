@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness and remaining platform gaps, not real-media
 import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 83 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 89 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 
@@ -1287,6 +1287,26 @@ reduces skipped DMA by exactly 1,225,840 bytes, and reaches 44 draws/245,722
 triangles with fully nonblack output. Normal TIE/ETIE is next; texture/setup,
 translucent/water, Merc/GMerc, audio-device output, controls, lifecycle, Eco,
 and M5 simulator integration remain separate checkpoints.
+
+Checkpoint 88 advances the isolated Jak II line through bounded whole-chain DMA
+validation and normal TIE/ETIE to nested `0b50639ce`. The six parent/child pairs
+use source-shaped hidden-prototype masks, Jak II `/128` envmap tint, strict
+same-frame ownership, and counted animated-texture fallback while preserving
+Jak 1. A live replay corrected a fixture-only VIF `:msk`/IRQ confusion; both
+populated title packets now parse with zero TIE grammar or missing-resource
+errors. The shared validator checks original and relocated chains, exact
+CALL/RET/cycle semantics, and controlled failure even under `NO_ASSERT`.
+
+Checkpoint 89 promotes the six normal Merc buckets on the same nested line.
+The bounded Merc preflight, paired background/Merc FR3 lifecycle, host metrics,
+and asset-free GPU recovery proof pass; GMerc remains deferred. The integrated
+11-test matrix, 44-case DMA proof, and full Jak 1 Metal regression pass. A final
+1,120-tick Mac replay completes every chain with zero renderer/GPU failure,
+reduces deferred bytes by another 2,801,920, and preserves the healthy sound-bank
+unload/reload. No live Merc packet or visible TIE draw occurs in the title
+trace, so the next efficient renderer step is capture/classification of normal
+TFRAG texture/setup buckets 7/18/29/40/51/62, not GMerc. Audio-device output,
+controls/lifecycle, Eco, and M5 simulator integration remain separate gates.
 
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,

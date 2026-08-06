@@ -12515,3 +12515,102 @@ and animated negative texture slots deferred. After renderer families, add a
 narrow CoreAudio owner that pulls the already-tested 48 kHz sound seam, then
 controls and lifecycle. No simulator or physical device was accessed for
 Checkpoint 87.
+
+# Checkpoint 88: bounded Metal DMA and live-shaped normal Jak II TIE/ETIE
+
+Date: 2026-08-06. The isolated nested branch
+`agent/jak2-real-dma-draw-proof` adds these commits after Checkpoint 87:
+
+- `9a248e60e` and `50e3f8caf`, which validate the original and compacted DMA
+  chains, add a truly bounded `DmaFollower`, and convert copy/render rejection
+  into a controlled frame drop with sync/vsync notification;
+- `c568c0a0a` and `376f63fd8`, which promote the six normal TIE parents and six
+  strict-empty ETIE children with source-shaped masks, `/128` envmap tint,
+  same-frame parent/child ownership, adjacent envmap draws, Jak 1 preservation,
+  and counted placeholder fallback for unimplemented animated texture slots;
+- `0b50639ce`, which corrects the live TIE setup VIF encoding, adds a regression
+  distinguishing source `:msk` tags from bit-31 IRQ tags, and exposes compact
+  TIE/Merc acceptance counters in the standalone proof.
+
+The shared DMA validator follows exact EE tag semantics, checks transfer and
+target bounds/alignment, models the CALL/RET stack, detects cycles by complete
+follower state, and has no default policy tag cap. The fixed-copy path validates
+both before and after relocation. The bounded follower independently fails
+closed under `NO_ASSERT`, including terminal access, arithmetic overflow,
+scratchpad tags, malformed CNT/CALL/RET use, and out-of-range payloads.
+
+The first prepared-data replay exposed one synthetic-fixture mistake: four TIE
+setup VIF words had bit 31 set because the fixture treated GOAL's `:msk` field
+as `irq`. Source layout and metadata-only live tag values established that the
+producer does not set IRQ there. No game payload or prototype name was logged.
+The corrected exact values accept both populated level-0 and level-3 TIE
+chains; the focused proof separately rejects the IRQ-marked variant.
+
+# Checkpoint 89: normal Jak II Merc and integrated Mac acceptance
+
+The same nested branch adds `c479c9ad5`, `5a97e7cd2`, `03287d001`, and
+`4ca67205a`, then ends at `0b50639ce`. Exactly normal Merc buckets 14, 25, 36,
+47, 58, and 69 use one shared bounded Metal Merc2 path. GMerc remains deferred.
+The source-copy extent, 48-byte Jak II GS setup, model/patch count, texture
+resolution, and bone inputs are preflighted transactionally. Malformed DMA
+cannot publish partial model state. The host loads background and Merc FR3 data
+as one rollback-safe pair, deduplicates common `GAME`, and tears Merc down before
+background data. An asset-free GPU fixture proves one model, one draw, two
+triangles, nonblack pixels, and malformed-frame recovery.
+
+## Canonical validation
+
+The integration owner used only the canonical Release/Ninja/ccache build at
+`/private/tmp/GOALPad-jak2-real-dma-host`. The combined build covered bounded
+DMA, bucket policy, TIE, Merc, host bridge, dispatcher/runtime, TFRAG, SHRUB,
+sound RPC, and the complete Jak 1 `metal-proof`. Five non-GPU tests and six
+host-Metal tests passed 11/11. The direct bounded-DMA binary passed 44/44, and
+the complete Jak 1 Metal regression ended `METAL PROOF PASSED`. After the live
+VIF correction, the focused TIE GPU test passed again. Full logs remain local;
+the complete Metal proof tail is `/private/tmp/goalpad-metal-proof-cp89.log`.
+
+The final prepared-data command was:
+
+```text
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-metal-runtime-proof \
+  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  --saves-dir /private/tmp/goalpad-jak2-tie-merc-final-1120 \
+  --ticks 1120
+```
+
+Its log is `/private/tmp/goalpad-jak2-tie-merc-final-1120.log` (SHA-256
+`e36d1f38d9b29bce42663969a6aba603206348004d50f99355387d1362267ded`). It
+returned the expected diagnostic `INCOMPLETE`/exit 1 only because the known
+title glow candidates remain clipped. All 1,120 chains completed, each with
+327 buckets, with zero failed chains, GPU errors, drawable misses, late
+submissions, ordering errors, unsupported blends, TIE grammar warnings,
+missing background levels/textures, or Merc DMA/model/bone errors. The title
+scene produced zero TIE draws after valid visibility processing and no live
+Merc packets. This is acceptance of the live packet paths, not evidence that a
+title frame visibly contains those families.
+
+Cumulative deferred bytes fell from Checkpoint 87's 8,754,848 to 5,952,928,
+exactly 2,801,920 fewer bytes. Aggregate rendering remained 44 draws and
+245,722 triangles. The final 640-by-480 readback stayed fully nonblack with hash
+`ef18bb4c7caee780`. Presentation telemetry was 1,114 callbacks and two
+diagnostic drops; no frame-pacing claim is made. Audio lifecycle remained
+healthy: `empty0` unloaded and slot zero loaded `demo1` without command-6 or
+bank-capacity failure.
+
+The obsolete reproducible worker builds
+`/private/tmp/OG-jak2-normal-tie-focused-cmake` and
+`/private/tmp/OG-jak2-bounded-dma-cmake` were removed after canonical
+validation. The canonical build and all source worktrees were preserved.
+
+## Next executable task
+
+Capture and classify the exact normal TFRAG texture/setup family at buckets 7,
+18, 29, 40, 51, and 62 before executing it. Live title evidence shows buckets
+7 and 40 nonempty at 176 payload bytes while the other four are empty, but that
+size alone cannot distinguish an ordinary texture-page descriptor from
+animator or eye work. Generalize the existing bounded common-TFRAG capture,
+emit compact per-class counters, and add one transactional asset-free test.
+Do not start GMerc: no normal GMerc packet appeared in the 1,120-tick title
+trace. Audio-device output and controls/lifecycle still follow renderer-family
+completion. No simulator or physical device was accessed for Checkpoints 88 or
+89.
