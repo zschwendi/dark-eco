@@ -14967,5 +14967,99 @@ touch-chrome refinement on top of 127 with these physical acceptance requirement
   geometry, controller-driven chrome suppression with additive first-touch
   recovery, saves, graphics, and the accepted warp-gate UI and behavior.
 
-This is documented planned work only. No Build 128 product source, build number,
-artifact, or validation result exists at this checkpoint.
+## Build 128 touch-chrome refinement signed
+
+Date: 2026-08-06. Parent `4ff89de2` implements the narrow Build 128 refinement
+on top of Build 127. Ordinary active gameplay keeps Zoom, Stats, and Pause
+visible independently of idle artwork. The fixed R-stick artwork alone fades
+after three seconds, remains mounted with its raw hit target, and the first drag
+both restores it and emits camera axes. Title/pre-run and captured native menus
+omit gameplay chrome around their centered Start/Resume control. A validated
+skippable cutscene owns Triangle through SKIP, keeps Pause, and hides both Zoom
+and R artwork. Non-warp contextual face prompts retain their source-backed exact
+glyph semantics but now use 148-by-60 lower-right boxed command targets. The
+accepted warp UI, action availability, capture, labels, layout, and input
+semantics are unchanged.
+
+An independent Sol xhigh review returned ACCEPT with no actionable regression.
+It confirmed persistent-control mounting, first-hidden-drag delivery, exact
+SKIP/Triangle ownership, captured-menu exclusion, boxed prompt placement, and
+unchanged frozen-warp semantics. Parent `7b51ffb5` bumps both iOS configurations
+from 127 to 128. Both commits are pushed on `agent/build94-jak1-settings`.
+
+The full focused matrix passed and is saved at
+`/private/tmp/GOALPad-build128-focused-matrix.log`:
+
+- `Scripts/run-touch-controls-check.sh`
+- `Scripts/run-game-menu-state-check.sh`
+- `Scripts/run-game-lifecycle-check.sh`
+- `GOALPAD_OPENGOAL_SOURCE="$PWD/OpenGOAL" Scripts/run-game-face-prompt-touch-state-check.sh`
+- `GOALPAD_OPENGOAL_SOURCE="$PWD/OpenGOAL" Scripts/run-game-cutscene-skip-touch-state-check.sh`
+- `GOALPAD_OPENGOAL_SOURCE="$PWD/OpenGOAL" Scripts/run-game-warp-gate-touch-state-check.sh`
+- `Scripts/run-keyboard-mouse-input-check.sh`
+- `Scripts/run-presentation-settings-check.sh`
+- `Scripts/run-presentation-geometry-check.sh`
+- `Scripts/run-portrait-library-check.sh`
+
+The canonical source pack was not regenerated because neither OpenGOAL nor its
+embedded graph changed. Direct verification passed for all 518 objects,
+10,746,792 bytes, and aggregate `b66bb00e5f2c5560`; log:
+`/private/tmp/GOALPad-build128-source-pack-verify.log`.
+
+The signed generic-iOS Release command passed:
+
+`xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad -configuration Release -destination generic/platform=iOS -derivedDataPath /private/tmp/GOALPad-build124-controller-chrome -jobs 4 -allowProvisioningUpdates GOALPAD_OPENGOAL_ROOT=/private/tmp/GP-build94-jak1-settings/OpenGOAL GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/private/tmp/GP-build94-jak1-settings/build/jak1-source-object-pack build`
+
+Full output is `/private/tmp/GOALPad-build128-touch-chrome.log`. The frozen
+artifact is `/private/tmp/GOALPad-build128-touch-chrome-signed/GOALPad.app`: Eco
+`1.0 (128)`, `com.zephyrstudiosllc.eco`, thin ARM64, 53 MB, executable SHA-256
+`9a4cc8d06e8daa80a3cc6705156de4ca2ab00b2b29d381be83a878b40e37ed68`.
+Strict signature verification passes under Zephyr team `V729QMY3V6`; Game Center
+and iCloud entitlements are present, the sole privacy manifest lints, all 518
+public source objects are staged, and the audited retail-payload extension scan
+is empty. Xcode emitted only the repository's known Swift actor-isolation
+warnings and stale `zschwendi@gmail.com` account-token warning; automatic Zephyr
+development signing succeeded.
+
+No physical device was accessed, installed, launched, logged, or captured for
+Build 128. Physical acceptance remains required for the exact title/menu/
+ordinary-gameplay/cutscene matrix, three-second R fade and first hidden drag,
+lower-right Oracle prompt, controller suppression/recovery, and frozen warp UI.
+
+## FIFO launcher, import, Dark Eco theme, and later icon appendix
+
+Date: 2026-08-06. This appendix is queued after Build 128; it must not interrupt
+or broaden the touch checkpoint. The app-wide direction for app-owned surfaces
+is Jak Dark Eco, not merely a themed progress bar.
+
+- Replace the adaptive 330-to-480-point, 4:3, fill-cropped library cards in
+  `GOALPad/Library/GameLibraryView.swift` with a deterministic three-cover shelf.
+  Jak 1, Jak II, and Jak 3 covers must all appear fully at once on supported
+  iPhone and iPad layouts, scaled to fit without aspect distortion or cropping.
+  Missing-art fallbacks use the exact same cover frame. No installed user cover
+  image exists inside this checkout; runtime custom art lives in Application
+  Support and no device/container was accessed for this handoff.
+- Remove `Import Game` from the hamburger and remove the separate Settings gear.
+  The hamburger contains only `Settings`, then `Credits`; Credits must be a real
+  destination. A title card owns play/import activation.
+- Dim unavailable titles without disabling their full-card touch targets. A tap
+  offers a concise title-specific import only after that title has a supported
+  importer. Current Jak II and Jak 3 library states are planned and inert, so do
+  not fake a successful import flow or violate the project's Jak 1 priority.
+- The import offer states that players must supply data from a title they legally
+  own and derives accepted formats from the active title importer. Current Jak 1
+  source accepts a prepared folder, plus `.iso` and a standard `.zip` containing
+  exactly one ISO only when the raw ISO producer is available.
+- Replace the current long setup/status/instruction surface with one concise
+  flow, one progress component, one truthful current phase, and an explicit
+  safe/not-safe-to-background statement. Every failure and cancellation remains
+  visible with recovery guidance; preserve the existing staged-candidate safety
+  and never imply iCloud syncs game data.
+- Centralize the Dark Eco palette/material language across launcher, settings,
+  import, progress, and credits: deep black/purple foundations and restrained
+  luminous energy accents, with contrast, Dynamic Type, Reduce Motion, and
+  Reduce Transparency coverage. Do not theme the rendered game itself.
+- After that slice, explore a simpler app icon based on a Dark Eco power-cell
+  silhouette/energy mark. The current icon is acceptable but visually vague and
+  overbuilt, with an unwanted `MAR`/earthquake impression. Keep it until new
+  variants are generated, checked at required sizes, and physically accepted.

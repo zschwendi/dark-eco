@@ -1020,6 +1020,44 @@ Active lanes:
 
 #### Touch-friendly game and launcher interaction
 
+- [ ] Redesign the launcher as a fixed three-title cover shelf. Jak 1, Jak II,
+  and Jak 3 must all be fully visible at once on supported iPhone and iPad
+  layouts without cropping or scrolling. Preserve each supplied cover's aspect
+  ratio with scale-to-fit behavior; a missing-art fallback occupies the exact
+  same cover frame so mixed libraries never reflow. The repository contains no
+  installed user cover image to use as a sizing fixture, so inspect the
+  maintainer's current device artwork only when that device access is explicitly
+  authorized, or use an original synthetic portrait-cover fixture for
+  deterministic geometry tests.
+- [ ] Make unavailable title covers visibly dim but keep their full-card touch
+  targets active. A tap begins a concise title-specific import offer only when
+  that title has a real supported importer; never present Jak II or Jak 3 import
+  as functional while they remain planned. The offer must state that the player
+  supplies data from a title they legally own and list only formats the active
+  build actually accepts for that title.
+- [ ] Replace the current setup wall with one short import flow: choose a source,
+  show one clear progress indicator and current phase, state truthfully whether
+  the current phase can continue while Eco is backgrounded, and surface every
+  cancellation or failure with a recovery action. Do not silently fail or imply
+  that iCloud transfers game data. Keep the existing staged-candidate and
+  active-install safety guarantees behind the simpler presentation.
+- [ ] Reduce the launcher hamburger to `Settings` followed by `Credits`. Remove
+  `Import Game` from that menu and remove the separate toolbar Settings button;
+  title-card activation owns import entry. Add a real Credits destination before
+  exposing that row.
+- [ ] Apply one accessible Dark Eco visual system across the app-owned launcher,
+  settings, import, progress, and credits surfaces: deep black/purple foundations
+  with restrained luminous energy accents. Centralize the palette/material
+  tokens, preserve readable contrast, Dynamic Type, Reduce Motion, and Reduce
+  Transparency behavior, and do not restyle the rendered game or sacrifice
+  touch-state legibility for theme effects.
+- [ ] After the launcher/import work, explore a simpler app-icon replacement:
+  a Dark Eco power-cell silhouette/energy mark with less visual complexity and
+  less resemblance to the current vague `MAR`/earthquake motif. Keep the current
+  icon until generated alternatives have been reviewed at every required icon
+  size and physically accepted; this task is FIFO behind Build 128 and the
+  launcher/import slice.
+
 - [x] Expose Jak 1's real `*master-mode*` as a read-only Apple-host state so
   pause-gated chrome and Pause/Resume labels do not rely on screenshots,
   timing, or a duplicate Swift pause flag.
@@ -1048,7 +1086,7 @@ Active lanes:
   Confirm/Cross, Back/Square, and Resume/Start. Build 108 cancels carried
   gameplay gestures at these transitions, suppresses touch chrome while a
   physical controller is driving, and delivers menu haptics immediately.
-- [ ] Finish Build 127 touch-chrome acceptance as a narrow Build 128 refinement;
+- [x] Finish Build 127 touch-chrome acceptance as a narrow Build 128 refinement;
   Build 127 remains the foundation and its contextual-prompt work must not be
   reverted or discarded. Preserve truthful Start/Pause/Resume and explicit Back
   coverage for native pause/progress menus, plus this exact physical state matrix:
