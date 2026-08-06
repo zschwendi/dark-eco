@@ -161,8 +161,8 @@ struct TouchControlsView: View {
                     .opacity(controls.layoutCustomization.opacity(for: .modernActions))
             }
 
-            ForEach(ModernTouchLayout.pillButtons, id: \.self) { sourceButton in
-                if let control = modernControlID(for: sourceButton),
+            ForEach(ModernTouchLayout.pillControls) { control in
+                if let sourceButton = control.defaultAction?.touchButton,
                    let output = controls.layoutCustomization.action(for: control)?.touchButton {
                     pill(sourceButton: sourceButton, outputButton: output,
                          frame: layout.frame(for: control)!)
@@ -236,14 +236,6 @@ struct TouchControlsView: View {
             }
     }
 
-    private func modernControlID(for button: TouchButton) -> TouchLayoutControlID? {
-        switch button {
-        case .select: .modernSelect
-        case .stats: .modernStats
-        case .start: .modernStart
-        default: nil
-        }
-    }
 }
 
 private struct NativeWarpGateTouchControls: View {

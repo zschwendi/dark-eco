@@ -176,7 +176,7 @@ private struct TouchLayoutEditorPreview: View {
                     .frame(width: layoutSafeBounds.width, height: layoutSafeBounds.height)
                     .position(x: layoutSafeBounds.midX, y: layoutSafeBounds.midY)
 
-                ForEach(TouchLayoutControlID.controls(for: profile)) { control in
+                ForEach(visualOrder) { control in
                     if let visualFrame = frame(for: control,
                                                modern: modernLayout,
                                                classic: classicLayout) {
@@ -191,6 +191,10 @@ private struct TouchLayoutEditorPreview: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(profile.title) touch layout preview")
+    }
+
+    private var visualOrder: [TouchLayoutControlID] {
+        TouchLayoutControlID.visualOrder(for: profile)
     }
 
     private func frame(for control: TouchLayoutControlID,

@@ -495,7 +495,13 @@ enum TouchHapticEvent: Equatable {
 
 /// Deterministic Modern artwork geometry. Input radii remain owned by TouchControls.
 struct ModernTouchLayout: Sendable {
-    static let pillButtons: [TouchButton] = [.select, .stats, .start]
+    static let visualOrder = TouchLayoutControlID.visualOrder(for: .modern)
+    static let pillControls = visualOrder.filter {
+        switch $0 {
+        case .modernSelect, .modernStats, .modernStart: true
+        default: false
+        }
+    }
     static let movementKnobSize: CGFloat = 66
     static let movementVisualRadius: CGFloat = 54
     static let rightStickHitSlop: CGFloat = 16
@@ -662,12 +668,8 @@ struct ModernTouchLayout: Sendable {
 /// Deterministic Classic artwork and app-owned touch targets.
 struct ClassicTouchLayout {
     static let minimumButtonHitSize = CGSize(width: 44, height: 44)
-    static let buttons: [TouchButton] = [
-        .up, .down, .left, .right,
-        .select, .stats, .start,
-        .leftShoulder, .rightShoulder,
-        .triangle, .square, .circle, .cross,
-    ]
+    static let visualOrder = TouchLayoutControlID.visualOrder(for: .classic)
+    static let buttons: [TouchButton] = visualOrder.compactMap(sourceButton(for:))
 
     nonisolated static func usesPillArtwork(for button: TouchButton) -> Bool {
         switch button {
@@ -855,7 +857,8 @@ struct ClassicTouchLayout {
     }
 
     static func sourceButton(for control: TouchLayoutControlID) -> TouchButton? {
-        buttons.first { controlID(for: $0) == control }
+        guard control.profile == .classic else { return nil }
+        return control.defaultAction?.touchButton
     }
 
     private static func resolvedFrame(_ frame: CGRect,
@@ -1313,55 +1316,64 @@ final class TouchControls {
                       classicLayout: ClassicTouchLayout?,
                       modernLayout: ModernTouchLayout?) -> Role? {
         if let layout = classicLayout {
-            for sourceButton in ClassicTouchLayout.buttons.reversed()
-            where layout.hitFrame(for: sourceButton)?.contains(point) == true {
-                let control = ClassicTouchLayout.controlID(for: sourceButton)
-                guard let button = layoutCustomization.action(for: control)?.touchButton else {
-                    continue
+            for control in TouchLayoutControlID.hitTestOrder(for: .classic) {
+                switch control {
+                case .classicCamera:
+                    if rightStick == nil,
+                       layout.hitFrame(for: control)?.contains(point) == true {
+                        return .rightStick
+                    }
+                case .classicMovement:
+                    if stick == nil,
+                       layout.hitFrame(for: control)?.contains(point) == true {
+                        return .movement
+                    }
+                default:
+                    guard let sourceButton = ClassicTouchLayout.sourceButton(for: control),
+                          layout.hitFrame(for: sourceButton)?.contains(point) == true,
+                          let button = layoutCustomization.action(for: control)?.touchButton else {
+                        continue
+                    }
+                    return pillRole(for: button)
                 }
-                return pillRole(for: button)
-            }
-            if rightStick == nil,
-               layout.hitFrame(for: .classicCamera)?.contains(point) == true {
-                return .rightStick
-            }
-            if stick == nil,
-               layout.hitFrame(for: .classicMovement)?.contains(point) == true {
-                return .movement
             }
             return nil
         }
         let cameraFrame = layoutCustomization.hasCustomGeometry(for: .modernCamera)
             ? modernLayout?.rightStickHitFrame ?? rightStickFrame
             : rightStickFrame
-        if rightStick == nil, cameraFrame.contains(point) { return .rightStick }
-        for sourceButton in ModernTouchLayout.pillButtons.reversed() {
-            guard let registeredFrame = pillFrames[sourceButton],
-                  let control = Self.modernControlID(for: sourceButton),
-                  let output = layoutCustomization.action(for: control)?.touchButton else {
-                continue
-            }
-            let frame = layoutCustomization.hasCustomGeometry(for: control)
-                ? modernLayout?.hitFrame(for: control) ?? registeredFrame
-                : registeredFrame
-            if frame.contains(point) { return pillRole(for: output) }
-        }
         let pinnedMovement = modernLayout?.movementHitFrame
         let pinnedActions = modernLayout?.actionGestureHitFrame
-        if pinnedActions?.contains(point) == true { return .gesture }
-        if stick == nil, pinnedMovement?.contains(point) == true { return .movement }
-        if stick == nil, pinnedMovement == nil, point.x < size.width / 2 { return .movement }
-        if pinnedActions == nil, point.x >= size.width / 2 { return .gesture }
-        return nil
-    }
-
-    private static func modernControlID(for button: TouchButton) -> TouchLayoutControlID? {
-        switch button {
-        case .select: .modernSelect
-        case .stats: .modernStats
-        case .start: .modernStart
-        default: nil
+        for control in TouchLayoutControlID.hitTestOrder(for: .modern) {
+            switch control {
+            case .modernCamera:
+                if rightStick == nil, cameraFrame.contains(point) { return .rightStick }
+            case .modernSelect, .modernStats, .modernStart:
+                guard let sourceButton = control.defaultAction?.touchButton,
+                      let registeredFrame = pillFrames[sourceButton],
+                      let output = layoutCustomization.action(for: control)?.touchButton else {
+                    continue
+                }
+                let frame = layoutCustomization.hasCustomGeometry(for: control)
+                    ? modernLayout?.hitFrame(for: control) ?? registeredFrame
+                    : registeredFrame
+                if frame.contains(point) { return pillRole(for: output) }
+            case .modernActions:
+                if pinnedActions?.contains(point) == true
+                    || (pinnedActions == nil && point.x >= size.width / 2) {
+                    return .gesture
+                }
+            case .modernMovement:
+                if stick == nil,
+                   pinnedMovement?.contains(point) == true
+                    || (pinnedMovement == nil && point.x < size.width / 2) {
+                    return .movement
+                }
+            default:
+                break
+            }
         }
+        return nil
     }
 
     private func pillRole(for button: TouchButton) -> Role {

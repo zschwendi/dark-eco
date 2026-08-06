@@ -33,6 +33,27 @@ private func controlInventoryIsActiveAndTypeSafe() {
             || $0.rawValue.localizedCaseInsensitiveContains("r2")
     }, "inactive Classic trigger actions cannot be assigned")
 
+    let modernVisualOrder = TouchLayoutControlID.visualOrder(for: .modern)
+    let classicVisualOrder = TouchLayoutControlID.visualOrder(for: .classic)
+    check(modernVisualOrder == [
+        .modernMovement, .modernActions,
+        .modernSelect, .modernStats, .modernStart, .modernCamera,
+    ], "Modern visual order places camera last and topmost")
+    check(classicVisualOrder == [
+        .classicMovement, .classicCamera,
+        .classicDpadUp, .classicDpadDown, .classicDpadLeft, .classicDpadRight,
+        .classicSelect, .classicStats, .classicStart,
+        .classicLeftShoulder, .classicRightShoulder,
+        .classicTriangle, .classicSquare, .classicCircle, .classicCross,
+    ], "Classic visual order matches the gameplay Z stack")
+    check(Set(modernVisualOrder) == Set(modern)
+          && Set(classicVisualOrder) == Set(classic)
+          && TouchLayoutControlID.hitTestOrder(for: .modern)
+            == Array(modernVisualOrder.reversed())
+          && TouchLayoutControlID.hitTestOrder(for: .classic)
+            == Array(classicVisualOrder.reversed()),
+          "both profiles hit-test every visible control in reverse visual order")
+
     for control in TouchLayoutControlID.allCases where control != .modernActions {
         check(control.defaultAction.map(control.compatibleActions.contains) == true,
               "\(control.title) has a compatible typed default action")

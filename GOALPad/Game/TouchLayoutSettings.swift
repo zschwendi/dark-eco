@@ -281,6 +281,29 @@ nonisolated enum TouchLayoutControlID: String, CaseIterable, Codable, Hashable, 
     static func controls(for profile: TouchLayoutProfile) -> [Self] {
         allCases.filter { $0.profile == profile }
     }
+
+    static func visualOrder(for profile: TouchLayoutProfile) -> [Self] {
+        switch profile {
+        case .modern:
+            [
+                .modernMovement, .modernActions,
+                .modernSelect, .modernStats, .modernStart,
+                .modernCamera,
+            ]
+        case .classic:
+            [
+                .classicMovement, .classicCamera,
+                .classicDpadUp, .classicDpadDown, .classicDpadLeft, .classicDpadRight,
+                .classicSelect, .classicStats, .classicStart,
+                .classicLeftShoulder, .classicRightShoulder,
+                .classicTriangle, .classicSquare, .classicCircle, .classicCross,
+            ]
+        }
+    }
+
+    static func hitTestOrder(for profile: TouchLayoutProfile) -> [Self] {
+        Array(visualOrder(for: profile).reversed())
+    }
 }
 
 nonisolated struct NormalizedTouchPosition: Codable, Equatable, Sendable {

@@ -1171,6 +1171,9 @@ private func resizedClassicSticksUseTheirMinimumHitFrames() {
 private func overlappingControlsFollowVisualStackOrder() {
     print("overlapping controls use one explicit hit order matching their visual stack")
     let centre = NormalizedTouchPosition(x: 0.5, y: 0.5)
+    check(ModernTouchLayout.visualOrder == TouchLayoutControlID.visualOrder(for: .modern)
+          && ClassicTouchLayout.visualOrder == TouchLayoutControlID.visualOrder(for: .classic),
+          "gameplay layouts share the same visual order used by the editor preview")
 
     var allModern = TouchLayoutCustomization.standard
     for control in TouchLayoutControlID.controls(for: .modern) {
