@@ -415,10 +415,19 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
   Build 93 in `/private/tmp/GP-build94-jak1-settings`.
 - [ ] Record every worker branch, worktree, commit, validation command, and
   physical gate in this ledger and `HANDOFF.md`.
+- [ ] Require every validated worker slice to end in a focused commit and push
+  its dedicated branch before integration. Record the remote branch and exact
+  pushed hash; never leave the only copy of completed worker work unpushed.
 - [ ] Keep one integration owner and one heavy-build owner; batch full AOT,
   Metal, and Xcode validation after focused worker checks.
-- [ ] Bump the project build number only when the next signed physical candidate
-  is ready.
+- [ ] Assign every integrated checkpoint the next global Xcode build number,
+  then commit and push it from the integration branch. Parallel workers must not
+  edit `CURRENT_PROJECT_VERSION`; independent branch-local bumps collide and
+  make artifact identity ambiguous.
+- [ ] When any lane approaches 30 percent context remaining, stop overlapping
+  work, commit and push every verified slice, mark unverified work explicitly,
+  update this ledger and `HANDOFF.md`, recheck parent/child status, then resume
+  from a compact handoff instead of carrying the full transcript.
 - [ ] Physically compare the next candidate against Build 93 on iPhone and iPad
   before calling it the replacement baseline.
 
