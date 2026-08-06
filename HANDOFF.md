@@ -13372,3 +13372,110 @@ room-scale stationary world, and first-person VR with explicit motion-comfort
 handling. They remain Planned/Investigating. The current implementation is one
 monoscopic conventional window backed by one `CAMetalLayer`; stereo first needs
 a visionOS compositor proof and a simulation-once/render-many renderer boundary.
+
+# Build 106 settings, saves, touch, and visionOS foundation
+
+Date: 2026-08-06. Build 106 is committed, signed for generic iOS, and pushed.
+It is a numbered post-Build-105 feature checkpoint, not a replacement for Build
+93's physically accepted behavior or Build 105's pending Misty-route candidate.
+
+Identity and repository state:
+
+- Parent worktree: `/private/tmp/GP-build94-jak1-settings`
+- Branch: `agent/build94-jak1-settings`
+- Local and remote HEAD:
+  `dad7937c35f28608826c1c0690246740171fc231`
+- Nested OpenGOAL is clean at the already-pushed
+  `c63c73ecfc80ab87c1dfaa39d7bdfb6103f28f11`; no nested source or 518-object
+  pack identity changed in Build 106.
+- `CURRENT_PROJECT_VERSION` is 106 in both configurations.
+
+Integrated behavior:
+
+- Stable item-backed, title-scoped Settings presentation; Jak 1 is available and
+  later title rows are honestly Planned.
+- Jak 1 Primary Controller preference with Automatic fallback and live source
+  arbitration, persisted in the existing local/iCloud settings document.
+- Native preserved-save catalog and explicit Make Active flow using human slot,
+  completion, generation, source, and date metadata. Promotion revalidates the
+  full bank/hash, preserves the current active copy, uses the existing journaled
+  pair mutation, rejects path traversal, and remirrors through ordinary sync.
+- Discrete touch-device haptics for direct buttons, recognized gestures, and one
+  meaningful stick-engagement edge; native controller rumble remains separate.
+- Authoritative Jak 1 look-around readback: First Person requires both target
+  state bit 9 and `cam-user-mode == 'look-around`; Billy/inconsistent/unavailable
+  state fails closed.
+- Modern pinch zoom uses that state: outward pinch enters only from Normal,
+  inward pinch exits only from First Person, and one gesture can never reverse
+  into the other action. Classic is unchanged.
+- visionOS five-mode capability/scene foundation. Comfort/Normal remains the
+  only playable game presentation. Modern selects Stereoscopic 3D, but active
+  gameplay truthfully falls back to Comfort. The isolated compositor proof
+  submits distinct compositor-provided per-view color/depth textures and never
+  claims that the single-view game renderer is stereo. Tabletop, room-scale,
+  and first-person VR remain unavailable/investigating.
+
+Validation:
+
+- The consolidated focused matrix passed:
+  `run-game-look-around-state-check.sh`, `run-game-menu-state-check.sh`,
+  `run-touch-controls-check.sh`, `run-presentation-settings-check.sh`,
+  `run-save-sync-check.sh`, `run-keyboard-mouse-input-check.sh`,
+  `run-portrait-library-check.sh`, `run-game-center-check.sh`, and
+  `run-vision-scene-foundation-check.sh`. Full logs are
+  `/private/tmp/GOALPad-build106-run-*.log`.
+- The first Game Center matrix run found a stale xros test source list after the
+  new vision scenes landed. Product code was not changed; commit `dad7937c`
+  made the harness typecheck the actual vision sources and all macOS/iOS/xros
+  warnings-as-errors checks then passed.
+- Signed generic iOS Release command passed using cached DerivedData
+  `/private/tmp/GOALPad-build103-jak1-settings`, the exact nested pin, and
+  `/private/tmp/GP-build94-jak1-settings/build/jak1-source-object-pack`.
+  Full log: `/private/tmp/GOALPad-build106-generic-ios.log`.
+- Preserved signed app:
+  `/private/tmp/GOALPad-build106-settings-touch-signed/GOALPad.app`.
+  It identifies as Eco `1.0 (106)`, `com.zephyrstudiosllc.eco`, thin ARM64,
+  includes Game Center and the existing iCloud container, includes one privacy
+  manifest, and contains no ISO/DGO/WAD/VAG/FR3 files. Executable SHA-256:
+  `f67cb0313adef46452bac8becc6eb1b1902f498521133db3277149cf0a3a3fd6`.
+  Local strict verification reports the same known development-certificate
+  `CSSMERR_TP_NOT_TRUSTED` chain result as prior signed builds.
+
+Not yet validated:
+
+- No physical install, launch, haptic/gesture acceptance, preserved-save UI
+  exercise, stationary Settings flicker check, or two-device save promotion was
+  performed for Build 106.
+- No visionOS simulator/physical launch or game stereo exists. The next real
+  stereo step is a simulation-once/render-many renderer boundary with external
+  compositor view/projection and render targets.
+
+Completed worker commits held for later numbered builds; do not fold them back
+into Build 106:
+
+- Build 107 candidate: physical controller and mouse/keyboard remapping,
+  `/private/tmp/GP-build94-input-remapping`, branch
+  `agent/build94-input-remapping`, commit
+  `13197fd72cf0a9d2ece24c922ab4396f9333c7dd`, clean, focused tests passed.
+- Later Game Center evidence seam:
+  `/private/tmp/GP-game-center-run-seams`, branch
+  `agent/game-center-run-seams`, commit
+  `5a259d6947b88109c83cc8bbaf1392b8b8725a1e`, clean. It exposes only raw
+  validated counts, game clock, and current level; it explicitly does not claim
+  normal-run start, completion, PB, or submission semantics.
+- Later touch-menu MVP: `/private/tmp/GP-build106-touch-menu-mvp`, branch
+  `agent/build106-touch-menu-mvp`, commit
+  `ead94a24c2e6f5bcfeb1c245ca22ca60ac3a2167`, clean. It exposes safe native
+  debug-menu D-pad/Confirm/Back and pause Resume only. Progress remains unchanged
+  because `gameMode == .progress` does not expose its internal display state and
+  Jak reuses the face buttons across tabs and confirmations.
+
+FIFO notes added after the original queue: background lock/resume freeze,
+background memory friendliness, measured lower-memory/thermal matrix, mod/QoL/
+texture/custom-level capability inventory, and a license-audited Modern curated
+pack through August 2026. These are queued, not implemented.
+
+Next executable task: review and integrate the remapping commit as its own Build
+107 checkpoint, rerun its focused suites plus the full affected Xcode build,
+bump only after integration, commit, push, and update this handoff. Do not begin
+the later Game Center or touch-menu integration under the same build number.
