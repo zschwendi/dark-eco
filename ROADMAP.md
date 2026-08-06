@@ -1242,6 +1242,38 @@ longer title run to find a naturally accepted record. Only then should the
 active OpenGL new-mode depth-grid and downsample chain be ported; otherwise
 continue with title-active texture bucket 187 while preserving the glow gate.
 
+Checkpoint 85 advances the isolated Jak II line to nested `d946b5e12`. A
+bounded 1,120-tick title diagnostic found no naturally accepted glow record,
+expanded bucket 312 to the source-backed one-through-seven repeated upload
+groups, and classified bucket 187 without executing payloads. The first long
+run exposed a real non-renderer defect at tick 317: chunked Jak II STR requests
+were rejected without completing their shared reply, causing untouched memory
+to be linked as a false GOAL 0.0 object. The new synchronous responder maps the
+animation name, validates the complete sector table, copies exact chunks
+transactionally, and fails closed without weakening the linker/AOT boundary.
+The focused RPC matrix passes, and visible 330- and 1,120-tick standalone Mac
+runs now complete every exact Metal chain with zero renderer/GPU failure and
+non-black output through the final frame. The proof still returns its expected
+diagnostic `INCOMPLETE` because real title glow remains clipped. A separate
+`DEMO1.SBK` bank-capacity warning is under source audit; the next renderer gate
+is the smallest title-visible level texture/geometry family identified from
+the observed deferred bucket set.
+
+Checkpoint 86 advances that isolated line to nested `b53a13d5f`. The six
+normal Jak II TFRAG level buckets now use the Metal TFragment renderer behind
+an explicit audited policy, with a public synthetic FR3/source-shaped DMA GPU
+proof and malformed fail-closed coverage. The final focused Metal/audio matrix
+passes 5/5. A 1,120-tick standalone Mac run completes every exact chain with
+zero GPU errors and non-black output; buckets 8 and 41 disappear from deferred
+warnings and cumulative skipped DMA falls by exactly 2,171,488 bytes, although
+the title scene's aggregate 11 draws/310 triangles do not visibly distinguish
+terrain. The Jak II sound loader also implements source command-6 bank unload:
+the real title transition releases `empty0`, reuses slot zero for `demo1`, and
+no longer reports an unimplemented command or bank-capacity failure. TIE and
+shrub remain deferred pending source audits and isolated synthetic proofs;
+audio output, controls, lifecycle, Eco, and the M5 simulator remain later
+checkpoints.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and

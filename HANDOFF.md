@@ -12181,3 +12181,214 @@ appears, retain this gate and promote the smallest observed title-active
 texture-upload family, bucket 187 `TEX_LCOM_TFRAG` (672 bytes), before broader
 Tfrag geometry. Audio and controls remain later. No simulator or physical
 device was accessed for Checkpoint 84.
+
+# Checkpoint 85: sustained title execution and fail-closed Jak II chunked STR loading
+
+Date: 2026-08-06. The isolated nested branch
+`agent/jak2-real-dma-draw-proof` now ends at `d946b5e12`. The seven commits
+after Checkpoint 84 are:
+
+- `93907ca81` and `7808991c2`, which extend the standalone diagnostic to a
+  bounded maximum of 1,200 ticks;
+- `b3059c834`, which preserves the first failed-chain diagnostics rather than
+  replacing them with later frames;
+- `528df39cf`, which adds a bounded, metadata-only classifier for live bucket
+  187 `TEX_LCOM_TFRAG` without executing or retaining payload data;
+- `797204696`, which accepts the source-backed one-through-seven repeated
+  upload groups used by bucket 312 while retaining transactional failure;
+- `515454776`, which implements synchronous, fail-closed Jak II chunked STR
+  reads; and
+- `d946b5e12`, which removes formally unsafe typed fixture writes and verifies
+  preservation of the complete 32-byte STR reply on success and failure.
+
+The longer title diagnostic found no naturally accepted glow record. The four
+live records remain source-correctly rejected on the X clip plane, so the
+source depth-probe/downsample glow stages remain behind a real-input gate. The
+bucket-312 upload parser now observes three upload groups at tick 22 and four
+later in the title run without guessing a fixed count.
+
+The first 1,120-tick run at `797204696` completed 317 exact, GPU-clean chains
+before the GOAL linker reported that `title-disk-intro` was GOAL 0.0. A source
+trace established that this was not a missing AOT translation unit or a real
+object version. `external-art-buffer` had requested part zero through
+`str-load`; the old Jak II sound responder rejected every nonnegative STR
+section without mutating the reply; GOAL treated its initial result value 666
+as complete and linked untouched destination memory.
+
+The new responder maps the bounded animation basename through
+`ISONameFromAnimationName`, opens the resulting `.STR`, validates the complete
+512-sector Jak II table and exact sector spans, and copies one selected chunk
+only after an exact read into temporary storage. Every well-framed semantic
+failure now returns `error` with length zero. Malformed RPC framing remains a
+rejected, nonmutating call. The linker and AOT object-version checks were not
+weakened.
+
+## Canonical validation
+
+The integration owner used the single canonical Release/Ninja/ccache build:
+
+```text
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host \
+  --target jak2-sound-rpc-test jak2-dgo-rpc-test \
+  jak2-metal-runtime-proof -j2
+
+ctest --test-dir /private/tmp/GOALPad-jak2-real-dma-host \
+  -R '^(jak2-sound-rpc-test|jak2-dgo-rpc-test)$' \
+  --output-on-failure
+```
+
+The build regenerated and linked all 840 Jak II AOT sources and passed. The
+focused RPC matrix passed 2/2. After the test-only hardening follow-up, this
+narrow rebuild and test also passed:
+
+```text
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host \
+  --target jak2-sound-rpc-test -j2
+
+ctest --test-dir /private/tmp/GOALPad-jak2-real-dma-host \
+  -R '^jak2-sound-rpc-test$' --output-on-failure
+```
+
+The final focused result was 1/1. Synthetic tests cover two valid sectors,
+missing and malformed files/tables, invalid sections and destinations,
+capacity failure, transactional destination preservation, complete reply
+preservation, and rejected malformed framing. No retail payload is a fixture.
+
+## Real prepared-data Mac evidence
+
+The visible standalone Mac Metal runtime was launched with normal display and
+Metal service access at 330 ticks and then 1,120 ticks. Full logs are:
+
+```text
+/private/tmp/goalpad-jak2-chunked-str-330.log
+/private/tmp/goalpad-jak2-chunked-str-1120.log
+```
+
+Both commands returned the proof's expected `INCOMPLETE`/exit 1 because its
+strict success gate still requires the diagnostic force-visible glow draw that
+real title data correctly rejects. They did not fail execution. The 330-tick
+run crossed the old tick-317 boundary with 330/330 complete chains, and the
+1,120-tick soak completed 1,120/1,120 chains. At tick 1,120 the runtime remained
+in the title state with all 327 buckets dispatched, 1,120 command buffers
+committed and completed, zero failed chains, GPU errors, drawable misses, late
+submissions, drops, ordering errors, missing Sprite textures, or unsupported
+blends. The final 640-by-480 readback had all 307,200 RGB pixels non-black.
+There was no GOAL version/link assertion.
+
+One independent sound diagnostic remains: at tick 31 the current responder
+reported no bank slot available for `DEMO1.SBK`. Execution continued through
+the full soak. This is not attributed to the STR fix and is being audited
+against the upstream Jak II bank lifecycle before any audio change.
+
+## Next executable task
+
+Use source tables to classify the observed deferred title buckets and promote
+the smallest title-visible family with an asset-free deterministic proof. The
+live deferred set contains level-0 and level-3 Tfrag/Tie/Shrub texture and
+geometry buckets plus common, prism, water, effects, warp, and map texture
+work; do not promote them by byte count alone. In parallel, finish the
+`DEMO1.SBK` bank-slot lifecycle audit. Keep one heavy build owner and batch the
+next full AOT/Metal validation after reviewed non-overlapping changes. Audio
+implementation follows correctly textured title rendering, then controls and
+lifecycle. No simulator or physical device was accessed for Checkpoint 85.
+
+# Checkpoint 86: normal Jak II TFRAG dispatch and sound-bank slot reuse
+
+Date: 2026-08-06. The isolated nested branch
+`agent/jak2-real-dma-draw-proof` now ends at `b53a13d5f`. The four commits after
+Checkpoint 85 are:
+
+- `e5c22d9c2`, which implements the source command-6 sound-bank unload
+  lifecycle and deterministic slot-reuse tests;
+- `cd777c6ba`, which promotes the six normal Jak II TFRAG buckets to the Metal
+  TFragment renderer and adds an asset-free, source-shaped GPU proof;
+- `87320916c`, which makes that proof explicit about its no-fog fixture and
+  retains bounded readback diagnostics; and
+- `b53a13d5f`, which admits the new TFragment behavior through the host's
+  fail-closed policy audit.
+
+The sound responder still has exactly three level-bank slots. Loader command 6
+now resolves a named in-use bank, calls `snd_UnloadBank`, clears its native
+handle and metadata, and leaves missing or repeated unloads as idempotent
+no-ops. It does not evict another bank or expand capacity. Tests fill all three
+slots, release one, reuse that exact slot, and verify invalid framing and
+canary preservation.
+
+The renderer table promotes only normal `TFRAG_L0_TFRAG` through
+`TFRAG_L5_TFRAG`; TIE, shrub, texture/setup, water, translucent, and effects
+buckets remain explicit deferred work. Each promoted bucket owns a
+`MetalTFragment` for its level index and consumes Jak II visibility from the
+separate VisData path instead of copying Jak 1 visibility out of level-0
+TFRAG. The synthetic test constructs an original public FR3 fixture and a
+source-shaped TFRAG chain, then verifies exact 32-by-32 GPU output, one draw,
+two triangles, and fail-closed malformed input. Its first readback was an exact
+opaque-black footprint because the otherwise default synthetic shared state
+enabled full fog. Setting the fixture's fog intensity to zero made the expected
+color observable without changing production rendering.
+
+The first integrated host-bridge run found a real regression: the new enum was
+missing from `policy_table_is_audited`, so all host creation failed before
+Metal or directory work. `b53a13d5f` fixes that one fail-closed allowlist and
+the existing host process-singleton/configuration suite now covers it.
+
+## Canonical validation
+
+The integration owner used the single canonical Release/Ninja/ccache build:
+
+```text
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host --target \
+  jak2-sound-rpc-test jak2-metal-bucket-table-test \
+  jak2-metal-dispatch-proof jak2-metal-tfrag-renderer-test \
+  jak2-metal-host-bridge-test jak2-metal-runtime-proof -j2
+
+ctest --test-dir /private/tmp/GOALPad-jak2-real-dma-host \
+  -R '^(jak2-metal-host-bridge-test|jak2-sound-rpc-test|jak2-metal-bucket-table-test|jak2-metal-dispatch-proof|jak2-metal-tfrag-renderer-test)$' \
+  --output-on-failure
+```
+
+The combined build completed, including a fresh 840-object Jak II AOT link.
+After the host policy correction, the final focused matrix passed 5/5 with
+normal macOS Metal service access.
+
+## Real prepared-data Mac evidence
+
+```text
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-metal-runtime-proof \
+  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  --saves-dir /private/tmp/goalpad-jak2-tfrag-audio-1120 \
+  --ticks 1120
+```
+
+The full log is `/private/tmp/goalpad-jak2-tfrag-audio-1120.log`. The command
+returned the proof's expected diagnostic `INCOMPLETE`/exit 1 solely because
+the title's four glow records remain source-correctly clipped and do not meet
+the synthetic force-visible gate. All 1,120 chains completed, all 327 buckets
+were dispatched per chain, and the final state had zero failed chains, GPU
+errors, drawable misses, late submissions, ordering errors, unsupported
+blends, or missing Sprite textures. The final readback again had all 307,200
+RGB pixels non-black.
+
+Buckets 8 and 41 no longer appear in the one-time deferred warnings. Relative
+to the Checkpoint-85 run, cumulative skipped DMA at tick 1,120 fell from
+12,152,176 to 9,980,688 bytes, an exact reduction of 2,171,488 bytes. The title
+scene's aggregate draw/triangle count remained 11/310, so this is clean live
+TFRAG consumption and GPU-safe dispatch, not a claim that title terrain became
+visibly distinguishable. The deterministic renderer proof supplies the exact
+draw/readback evidence.
+
+At the title level transition, the runtime now logs `Unload soundbank empty0
+from slot 0` followed by `Load soundbank demo1 in slot 0`. There is no
+unimplemented loader-command warning, no `DEMO1.SBK` capacity error, no GOAL
+version/link assertion, and execution continues through the complete soak.
+
+## Next executable task
+
+Use the bounded TIE-versus-shrub source audits to choose the next visible
+level-geometry family. TIE is the leading candidate because live buckets 9 and
+42 carry 1,280 bytes each, but it must not be promoted until Jak II visibility,
+environment-map, and DMA-shape differences have an asset-free deterministic
+proof. Keep texture/setup buckets 7 and 40 deferred unless their existing
+host-upload semantics are independently proved. Continue renderer families
+before broad audio work; preserve the verified bank lifecycle, then validate
+audio output and controls/lifecycle as separate checkpoints. No simulator or
+physical device was accessed for Checkpoint 86.
