@@ -760,9 +760,9 @@ struct InputSourcePolicy: Equatable {
         }
     }
 
-    var allowsTouch: Bool {
-        touchAvailable && (effectiveSource == .automatic || effectiveSource == .touch)
-    }
+    /// On-screen input is additive on iOS. A primary physical-source preference may choose which
+    /// attached device is read, but it must never make the screen stop responding.
+    var allowsTouch: Bool { touchAvailable }
 
     var allowsController: Bool {
         controllerConnected && (effectiveSource == .automatic || effectiveSource == .controller)
@@ -773,15 +773,11 @@ struct InputSourcePolicy: Equatable {
             && (effectiveSource == .automatic || effectiveSource == .keyboardMouse)
     }
 
-    var allowsTouchRecovery: Bool {
-        effectiveSource == .automatic || effectiveSource == .touch
-    }
+    var allowsTouchRecovery: Bool { touchAvailable }
 
     func suppressesTouchChrome(recentPhysicalActivity: Bool) -> Bool {
         switch effectiveSource {
-        case .automatic: recentPhysicalActivity
-        case .controller: controllerConnected
-        case .keyboardMouse: keyboardMouseConnected
+        case .automatic, .controller, .keyboardMouse: recentPhysicalActivity
         case .touch: false
         }
     }
@@ -966,8 +962,7 @@ struct InputActivityTracker {
         disconnectMouse()
     }
 
-    /// A screen touch can end Automatic's short physical-input ownership interval. Explicit
-    /// connected Controller or Keyboard/Mouse choices remain authoritative.
+    /// A screen touch always ends the short physical-input ownership interval when touch exists.
     @discardableResult
     mutating func reclaimTouch(using policy: InputSourcePolicy) -> Bool {
         guard policy.allowsTouchRecovery else { return false }

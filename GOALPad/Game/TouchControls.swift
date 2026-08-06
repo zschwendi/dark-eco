@@ -1174,9 +1174,8 @@ final class TouchControls {
 
     /// Emits only when the view's full source snapshot, including its sequence, is still current.
     func performNativeWarpGateAction(_ action: NativeWarpGateTouchAction,
-                                     for expectedSnapshot: NativeWarpGateTouchSnapshot,
-                                     isSuppressed: Bool = false) {
-        guard !isSuppressed, expectedSnapshot == warpGateTouchSnapshot,
+                                     for expectedSnapshot: NativeWarpGateTouchSnapshot) {
+        guard expectedSnapshot == warpGateTouchSnapshot,
               NativeWarpGateTouchAction.available(in: nativeMenuMode,
                                                   snapshot: warpGateTouchSnapshot).contains(action)
         else { return }
@@ -1186,9 +1185,8 @@ final class TouchControls {
 
     /// A completed tap emits the ordinary Triangle edge only if its full GOAL generation remains
     /// current and gameplay mode has not changed since touch-down.
-    func performCutsceneSkip(for expectedSnapshot: NativeCutsceneSkipTouchSnapshot,
-                             isSuppressed: Bool = false) {
-        guard !isSuppressed, expectedSnapshot == cutsceneSkipTouchSnapshot,
+    func performCutsceneSkip(for expectedSnapshot: NativeCutsceneSkipTouchSnapshot) {
+        guard expectedSnapshot == cutsceneSkipTouchSnapshot,
               Self.cutsceneSkipIsAvailable(in: nativeMenuMode,
                                            snapshot: cutsceneSkipTouchSnapshot)
         else { return }
@@ -1200,9 +1198,7 @@ final class TouchControls {
     /// exactly one of those source semantics; vertical or diagonal intent remains inert.
     @discardableResult
     func performNativeWarpGateSwipe(translation: CGSize,
-                                    for expectedSnapshot: NativeWarpGateTouchSnapshot,
-                                    isSuppressed: Bool = false) -> Bool {
-        guard !isSuppressed else { return false }
+                                    for expectedSnapshot: NativeWarpGateTouchSnapshot) -> Bool {
         guard abs(translation.width) >= Self.nativeWarpSwipeDistance,
               abs(translation.width) > abs(translation.height) else { return false }
         let action: NativeWarpGateTouchAction = translation.width < 0 ? .previous : .next
@@ -1570,19 +1566,15 @@ final class TouchControls {
     }
 
     nonisolated static func nativeMenuControlsAreVisible(mode: GOALPadGameMode,
-                                                         progress: NativeProgressMenuSnapshot = .unavailable,
-                                                         isSuppressed: Bool) -> Bool {
-        _ = isSuppressed
+                                                         progress: NativeProgressMenuSnapshot = .unavailable) -> Bool {
         return !NativeMenuTouchAction.available(in: mode, progress: progress).isEmpty
     }
 
     nonisolated static func warpGateTouchControlsAreVisible(
         mode: GOALPadGameMode,
-        snapshot: NativeWarpGateTouchSnapshot,
-        isSuppressed: Bool
+        snapshot: NativeWarpGateTouchSnapshot
     ) -> Bool {
-        !isSuppressed
-            && !NativeWarpGateTouchAction.available(in: mode, snapshot: snapshot).isEmpty
+        !NativeWarpGateTouchAction.available(in: mode, snapshot: snapshot).isEmpty
     }
 
     nonisolated static func capturesWarpGateTouchInput(

@@ -29,16 +29,6 @@ struct TouchControlsView: View {
         return reclaim()
     }
 
-    nonisolated static func filteredNativeMenuActions(
-        _ actions: [NativeMenuTouchAction],
-        sessionControl: NativeSessionControlPresentation?,
-        isSuppressed: Bool
-    ) -> [NativeMenuTouchAction] {
-        guard isSuppressed else { return actions }
-        guard let action = sessionControl?.action, actions.contains(action) else { return [] }
-        return [action]
-    }
-
     private var isNativeMenuOpen: Bool {
         switch gameMode {
         case .pause, .progress, .menu: true
@@ -48,10 +38,8 @@ struct TouchControlsView: View {
     }
 
     private var nativeMenuActions: [NativeMenuTouchAction] {
-        let actions = NativeMenuTouchAction.available(
+        NativeMenuTouchAction.available(
             in: gameMode, progress: progressMenuSnapshot, titleStartState: titleStartState)
-        return Self.filteredNativeMenuActions(actions, sessionControl: sessionControl,
-                                              isSuppressed: isSuppressed)
     }
 
     private var sessionControl: NativeSessionControlPresentation? {
@@ -62,8 +50,7 @@ struct TouchControlsView: View {
 
     private var nativeMenuControlsAreVisible: Bool {
         TouchControls.nativeMenuControlsAreVisible(mode: gameMode,
-                                                   progress: progressMenuSnapshot,
-                                                   isSuppressed: isSuppressed)
+                                                   progress: progressMenuSnapshot)
     }
 
     private var capturesNativeMenuInput: Bool {
@@ -80,8 +67,7 @@ struct TouchControlsView: View {
 
     private var warpGateTouchControlsAreVisible: Bool {
         TouchControls.warpGateTouchControlsAreVisible(mode: gameMode,
-                                                      snapshot: warpGateTouchSnapshot,
-                                                      isSuppressed: isSuppressed)
+                                                      snapshot: warpGateTouchSnapshot)
     }
 
     private var cutsceneSkipAvailable: Bool {
@@ -126,7 +112,6 @@ struct TouchControlsView: View {
                                                 snapshot: warpGateTouchSnapshot,
                                                 actions: warpGateActions,
                                                 capturesInput: capturesWarpGateTouchInput,
-                                                isSuppressed: isSuppressed,
                                                 isVisible: warpGateTouchControlsAreVisible)
                         .padding(.horizontal, 20)
                         .padding(.bottom, max(20, proxy.safeAreaInsets.bottom))
@@ -196,7 +181,6 @@ private struct NativeWarpGateTouchControls: View {
     let snapshot: NativeWarpGateTouchSnapshot
     let actions: [NativeWarpGateTouchAction]
     let capturesInput: Bool
-    let isSuppressed: Bool
     let isVisible: Bool
 
     #if canImport(UIKit)
@@ -291,15 +275,13 @@ private struct NativeWarpGateTouchControls: View {
     }
 
     private func perform(_ action: NativeWarpGateTouchAction) {
-        controls.performNativeWarpGateAction(action, for: snapshot,
-                                             isSuppressed: isSuppressed)
+        controls.performNativeWarpGateAction(action, for: snapshot)
         playFeedback()
     }
 
     private func performSwipe(_ translation: CGSize) {
         guard controls.performNativeWarpGateSwipe(translation: translation,
-                                                  for: snapshot,
-                                                  isSuppressed: isSuppressed) else { return }
+                                                  for: snapshot) else { return }
         playFeedback()
     }
 

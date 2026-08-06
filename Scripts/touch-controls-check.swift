@@ -1444,35 +1444,9 @@ private func sessionControlStateMatrixIsExactAndFailClosed() {
     check(NativeMenuTouchAction.available(in: .progress, progress: validBack)
           == [.up, .down, .back, .confirm, .resume],
           "exact can-go-back adds Back without relabelling another action")
-    let validBackActions = NativeMenuTouchAction.available(in: .progress,
-                                                           progress: validBack)
-    let validBackSession = NativeSessionControlPresentation.reduce(
-        mode: .progress, titleStartState: .unknown, progress: validBack)
-    check(TouchControlsView.filteredNativeMenuActions(
-        validBackActions, sessionControl: validBackSession, isSuppressed: false)
-          == validBackActions,
-          "unsuppressed touch ownership retains the full proven progress action set")
-    check(TouchControlsView.filteredNativeMenuActions(
-        validBackActions, sessionControl: validBackSession, isSuppressed: true)
-          == [.resume],
-          "controller suppression retains only the authoritative session exit")
-
-    let disabledSession = NativeSessionControlPresentation.reduce(
-        mode: .progress, titleStartState: .unknown, progress: gameplayProgress)
-    check(TouchControlsView.filteredNativeMenuActions(
-        NativeMenuTouchAction.available(in: .progress, progress: gameplayProgress),
-        sessionControl: disabledSession, isSuppressed: true) == [.resume],
-          "controller suppression retains a transiently disabled Resume")
-    let titleActions = NativeMenuTouchAction.available(in: .progress,
-                                                       progress: titleProgress)
-    let titleSession = NativeSessionControlPresentation.reduce(
-        mode: .progress, titleStartState: .unknown, progress: titleProgress)
-    check(TouchControlsView.filteredNativeMenuActions(
-        titleActions, sessionControl: titleSession, isSuppressed: true) == [.start],
-          "controller suppression retains the title-progress physical Start exit")
-    check(TouchControlsView.filteredNativeMenuActions(
-        [.up, .confirm], sessionControl: nil, isSuppressed: true).isEmpty,
-          "controller suppression fails closed without an authoritative session exit")
+    check(NativeMenuTouchAction.available(in: .progress, progress: validBack)
+          == [.up, .down, .back, .confirm, .resume],
+          "physical-input activity cannot reduce the proven progress touch action set")
 
     let fileBack = progressSnapshot(screen: 16, option: 4, startingScreen: 16,
                                     canExitWithStart: false, canGoBack: true)
@@ -1524,7 +1498,7 @@ private func controllerSuppressionKeepsTouchRecovery() {
     } && recoveries == 1,
           "an already visible touch UI does not repeat recovery work")
     check(!TouchControlsView.requestTouchRecovery(isSuppressed: true) { false },
-          "an explicit physical source can reject recovery without exposing an action")
+          "a failed recovery callback does not claim that ownership changed")
 }
 
 private func progressSnapshot(screen: Int, option: Int = 0,
@@ -1797,19 +1771,14 @@ private func nativeMenuTransitionPreventsGameplayLeakage() {
 
 @MainActor
 private func nativeMenuSuppressionCancellationAndResetAreSafe() {
-    print("paused menu chrome survives controller suppression and respects cancellation boundaries")
-    check(TouchControls.nativeMenuControlsAreVisible(mode: .menu, isSuppressed: false),
-          "menu controls are visible without physical-input suppression")
-    check(TouchControls.nativeMenuControlsAreVisible(mode: .menu, isSuppressed: true),
-          "paused menu exit chrome remains visible after physical controller activity")
-    check(!TouchControls.nativeMenuControlsAreVisible(mode: .progress, isSuppressed: false),
+    print("native menu touch remains available and respects cancellation boundaries")
+    check(TouchControls.nativeMenuControlsAreVisible(mode: .menu),
+          "menu controls remain touchable alongside physical input")
+    check(!TouchControls.nativeMenuControlsAreVisible(mode: .progress),
           "unavailable progress does not present controls with unproven labels")
     check(TouchControls.nativeMenuControlsAreVisible(
-        mode: .progress, progress: progressSnapshot(screen: 0), isSuppressed: false),
+        mode: .progress, progress: progressSnapshot(screen: 0)),
           "validated progress stats present exact touch controls")
-    check(TouchControls.nativeMenuControlsAreVisible(
-        mode: .progress, progress: progressSnapshot(screen: 0), isSuppressed: true),
-          "paused progress chrome remains visible after physical controller activity")
     check(TouchControls.capturesNativeMenuInput(mode: .progress),
           "progress captures raw gameplay touch even when its command set is inert")
 
@@ -2026,7 +1995,7 @@ private func nativeWarpListActionsSwipesAndResetAreExact() {
 
 @MainActor
 private func nativeWarpCaptureAndSuppressionAreFailClosed() {
-    print("warp capture and controller suppression follow the authoritative phase")
+    print("warp capture and always-on touch follow the authoritative phase")
     let prompt = NativeWarpGateTouchSnapshot.circleUseAvailable(sequence: 60)
     let list = warpList(sequence: 62)
     let moving = warpList(moving: true, sequence: 64)
@@ -2051,37 +2020,31 @@ private func nativeWarpCaptureAndSuppressionAreFailClosed() {
           "warp capture cannot replace the active native-menu owner")
 
     check(TouchControls.warpGateTouchControlsAreVisible(
-        mode: .gameplay, snapshot: prompt, isSuppressed: false)
+        mode: .gameplay, snapshot: prompt)
           && TouchControls.warpGateTouchControlsAreVisible(
-            mode: .gameplay, snapshot: list, isSuppressed: false),
-          "prompt and settled list show their exact actions without suppression")
-    check(!TouchControls.warpGateTouchControlsAreVisible(
-        mode: .gameplay, snapshot: prompt, isSuppressed: true)
-          && !TouchControls.warpGateTouchControlsAreVisible(
-            mode: .gameplay, snapshot: list, isSuppressed: true),
-          "physical-controller activity suppresses all warp chrome")
+            mode: .gameplay, snapshot: list),
+          "prompt and settled list keep their exact touch actions available")
     check(TouchControls.warpGateTouchControlsAreVisible(
-        mode: .gameplay, snapshot: moving, isSuppressed: false)
+        mode: .gameplay, snapshot: moving)
           && !TouchControls.warpGateTouchControlsAreVisible(
-            mode: .gameplay, snapshot: transitioning, isSuppressed: false),
+            mode: .gameplay, snapshot: transitioning),
           "selection movement retains Warp and Back while transition presents no actions")
     check(!TouchControls.warpGateTouchControlsAreVisible(
-        mode: .gameplay, snapshot: malformedList, isSuppressed: false),
+        mode: .gameplay, snapshot: malformedList),
           "a malformed list neither captures nor presents actions")
 
-    var suppressed = Runner()
-    suppressed.controls.setNativeMenuMode(.gameplay)
-    suppressed.controls.setWarpGateTouchSnapshot(prompt)
-    suppressed.controls.performNativeWarpGateAction(
-        .useWarpGate, for: prompt, isSuppressed: true)
-    check(suppressed.frame() == .neutral
-          && suppressed.controls.consumeHapticEvents().isEmpty,
-          "physical-controller suppression rejects a hidden prompt action and haptic")
-    suppressed.controls.setWarpGateTouchSnapshot(list)
-    check(!suppressed.controls.performNativeWarpGateSwipe(
+    var touchOwned = Runner()
+    touchOwned.controls.setNativeMenuMode(.gameplay)
+    touchOwned.controls.setWarpGateTouchSnapshot(prompt)
+    touchOwned.controls.performNativeWarpGateAction(.useWarpGate, for: prompt)
+    check(touchOwned.frame().buttons == .circle
+          && touchOwned.controls.consumeHapticEvents() == [.button(.circle)],
+          "warp prompt touch emits its action regardless of physical-input ownership")
+    touchOwned.controls.setWarpGateTouchSnapshot(list)
+    check(touchOwned.controls.performNativeWarpGateSwipe(
         translation: CGSize(width: TouchControls.nativeWarpSwipeDistance, height: 0),
-        for: list, isSuppressed: true),
-          "physical-controller suppression rejects the hidden full-screen list gesture")
+        for: list),
+          "full-screen warp swipes remain touchable alongside physical input")
 
     var run = Runner()
     run.controls.setNativeMenuMode(.gameplay)

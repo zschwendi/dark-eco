@@ -372,7 +372,7 @@ private func remappingAndCollisions() {
 }
 
 private func primaryInputSourcePolicy() {
-    print("Primary Controller preferences are exclusive when available and safe when unavailable")
+    print("Primary Controller preferences preserve always-on touch input")
     let automatic = InputSourcePolicy(preference: .automatic, touchAvailable: true,
                                       controllerConnected: true, keyboardMouseConnected: true)
     check(automatic.allowsTouch && automatic.allowsController && automatic.allowsKeyboardMouse,
@@ -395,19 +395,23 @@ private func primaryInputSourcePolicy() {
 
     let controller = InputSourcePolicy(preference: .controller, touchAvailable: true,
                                        controllerConnected: true, keyboardMouseConnected: true)
-    check(controller.allowsController && !controller.allowsTouch
+    check(controller.allowsController && controller.allowsTouch
           && !controller.allowsKeyboardMouse,
-          "Controller explicitly owns the pad while connected")
-    check(controller.suppressesTouchChrome(recentPhysicalActivity: false),
-          "an explicitly selected connected Controller hides idle touch chrome")
-    check(!controller.allowsTouchRecovery,
-          "an explicitly selected connected Controller rejects touch reclaim")
+          "Controller remains primary while touch stays additive")
+    check(controller.suppressesTouchChrome(recentPhysicalActivity: true)
+          && !controller.suppressesTouchChrome(recentPhysicalActivity: false),
+          "Controller hides touch chrome only while it has recent activity")
+    check(controller.allowsTouchRecovery,
+          "a screen touch can reclaim controls from an explicitly selected Controller")
 
     let keyboardMouse = InputSourcePolicy(preference: .keyboardMouse, touchAvailable: true,
                                           controllerConnected: true,
                                           keyboardMouseConnected: true)
-    check(!keyboardMouse.allowsTouchRecovery,
-          "an explicitly selected connected Keyboard/Mouse rejects touch reclaim")
+    check(keyboardMouse.allowsKeyboardMouse && keyboardMouse.allowsTouch
+          && !keyboardMouse.allowsController,
+          "Keyboard/Mouse remains primary while touch stays additive")
+    check(keyboardMouse.allowsTouchRecovery,
+          "a screen touch can reclaim controls from explicit Keyboard/Mouse")
 
     let unavailable = InputSourcePolicy(preference: .controller, touchAvailable: true,
                                         controllerConnected: false,
@@ -584,12 +588,12 @@ private func drivingArbitration() {
     let explicitController = InputSourcePolicy(
         preference: .controller, touchAvailable: true,
         controllerConnected: true, keyboardMouseConnected: false)
-    check(!activity.reclaimTouch(using: explicitController)
-          && activity.isDriving(at: 301,
-                                controllerConnected: true,
-                                keyboardConnected: false,
-                                mouseConnected: false),
-          "explicit Controller rejects reclaim without clearing its activity")
+    check(activity.reclaimTouch(using: explicitController)
+          && !activity.isDriving(at: 301,
+                                 controllerConnected: true,
+                                 keyboardConnected: false,
+                                 mouseConnected: false),
+          "touch reclaim clears recent explicit Controller activity")
 
     let automatic = InputSourcePolicy(
         preference: .automatic, touchAvailable: true,
@@ -607,12 +611,12 @@ private func drivingArbitration() {
     let explicitKeyboardMouse = InputSourcePolicy(
         preference: .keyboardMouse, touchAvailable: true,
         controllerConnected: false, keyboardMouseConnected: true)
-    check(!activity.reclaimTouch(using: explicitKeyboardMouse)
-          && activity.isDriving(at: 401,
-                                controllerConnected: false,
-                                keyboardConnected: true,
-                                mouseConnected: false),
-          "explicit Keyboard/Mouse remains authoritative after a touch")
+    check(activity.reclaimTouch(using: explicitKeyboardMouse)
+          && !activity.isDriving(at: 401,
+                                 controllerConnected: false,
+                                 keyboardConnected: true,
+                                 mouseConnected: false),
+          "touch reclaim clears recent explicit Keyboard/Mouse activity")
 
     let explicitTouch = InputSourcePolicy(
         preference: .touch, touchAvailable: true,

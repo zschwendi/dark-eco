@@ -72,8 +72,7 @@ final class ControllerInput {
         self.bindings = bindings
     }
 
-    /// End Automatic's recent physical-input suppression as soon as the player touches the
-    /// screen. Explicit physical source selections reject the reclaim and keep touch gated.
+    /// End recent physical-input suppression as soon as the player touches the screen.
     @discardableResult
     func reclaimTouchInput() -> Bool {
         guard activity.reclaimTouch(using: sourcePolicy) else { return false }
