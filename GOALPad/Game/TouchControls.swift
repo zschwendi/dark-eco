@@ -1012,6 +1012,7 @@ final class TouchControls {
     private(set) var titleStartState: GOALPadTitleStartState = .unknown
     private(set) var warpGateTouchSnapshot: NativeWarpGateTouchSnapshot = .invalid
     private(set) var cutsceneSkipTouchSnapshot: NativeCutsceneSkipTouchSnapshot = .invalid
+    @ObservationIgnored private var retainsWarpGateTouchCapture = false
 
     enum Role: Equatable {
         case movement
@@ -1075,11 +1076,14 @@ final class TouchControls {
     }
 
     var capturesNativeTouchInput: Bool {
-        capturesNativeMenuInput
+        capturesNativeMenuInput || capturesWarpGateTouchInput
     }
 
     var capturesWarpGateTouchInput: Bool {
-        false
+        Self.capturesWarpGateTouchInput(
+            mode: nativeMenuMode,
+            snapshot: warpGateTouchSnapshot,
+            retainingAfterInvalidRead: retainsWarpGateTouchCapture)
     }
 
     func setStyle(_ style: TouchControlStyle) {
@@ -1116,7 +1120,20 @@ final class TouchControls {
     /// Any published semantic or sequence change invalidates touch-owned work from the prior
     /// snapshot, including live gameplay touches under the non-capturing use prompt.
     func setWarpGateTouchSnapshot(_ snapshot: NativeWarpGateTouchSnapshot) {
+        let nextCaptureRetention: Bool
+        if snapshot.isStructurallyValid {
+            nextCaptureRetention = switch snapshot.state {
+            case .destinationListActive, .transitioning: true
+            case .unavailable, .circleUseAvailable: false
+            }
+        } else {
+            nextCaptureRetention = retainsWarpGateTouchCapture
+        }
+        guard snapshot != warpGateTouchSnapshot
+                || nextCaptureRetention != retainsWarpGateTouchCapture else { return }
         warpGateTouchSnapshot = snapshot
+        retainsWarpGateTouchCapture = nextCaptureRetention
+        reset()
     }
 
     /// Owner/availability generation changes and stale native reads cancel a pending SKIP tap.

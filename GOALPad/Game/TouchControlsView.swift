@@ -70,6 +70,10 @@ struct TouchControlsView: View {
         TouchControls.capturesNativeMenuInput(mode: gameMode)
     }
 
+    private var capturesWarpGateTouchInput: Bool {
+        controls.capturesWarpGateTouchInput
+    }
+
     private var warpGateActions: [NativeWarpGateTouchAction] {
         NativeWarpGateTouchAction.available(in: gameMode, snapshot: warpGateTouchSnapshot)
     }
@@ -97,7 +101,7 @@ struct TouchControlsView: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                if !capturesNativeMenuInput {
+                if !capturesNativeMenuInput && !capturesWarpGateTouchInput {
                     #if canImport(UIKit)
                     TouchSurface(controls: controls, lookAroundState: lookAroundState)
                     #endif
@@ -116,11 +120,12 @@ struct TouchControlsView: View {
                         .padding(.bottom, max(20, proxy.safeAreaInsets.bottom))
                 }
 
-                if !capturesNativeMenuInput && !warpGateActions.isEmpty {
+                if !capturesNativeMenuInput
+                    && (capturesWarpGateTouchInput || !warpGateActions.isEmpty) {
                     NativeWarpGateTouchControls(controls: controls,
                                                 snapshot: warpGateTouchSnapshot,
                                                 actions: warpGateActions,
-                                                capturesInput: false,
+                                                capturesInput: capturesWarpGateTouchInput,
                                                 isSuppressed: isSuppressed,
                                                 isVisible: warpGateTouchControlsAreVisible)
                         .padding(.horizontal, 20)
