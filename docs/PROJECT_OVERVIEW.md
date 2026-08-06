@@ -1,6 +1,6 @@
 # GOALPad — Project Overview
 
-> **Status:** Experimental playable Jak 1 port; Build 90 is the accepted baseline within its physically tested scope
+> **Status:** Experimental playable Jak 1 port; Build 93 is the accepted baseline within its physically tested scope
 > **Working name:** GOALPad
 > **Public product name:** Eco Pro
 > **App Store subtitle:** Native OpenGOAL Runtime
@@ -111,13 +111,14 @@ Jak II begins only after Jak 1 has a stable platform foundation. Work that is na
 
 ### Current enhancement direction
 
-Build 90 is the unified regression baseline for subsequent Apple-device work.
-It retains Build 89's accepted **Classic Mode** behavior and adds the first
-accepted **Graphics Modern** option, Fill Width (Hor+). The maintainer accepted
-Build 89 after a broad physical-iPad early-game session because it ran well,
-then accepted Build 90 and its Hor+ presentation on an 11-inch iPad Pro. That
-acceptance is intentionally scoped: it is not yet a complete-playthrough,
-every-level, every-save, every-orientation, or every-controller certification.
+Build 93 is the unified regression baseline for subsequent Apple-device work.
+It retains Build 89's accepted **Classic Mode** behavior, Build 90's accepted
+**Graphics Modern** Fill Width presentation, and the corrected native/iCloud
+save behavior validated across the maintainer's iPhone and iPad. The maintainer
+accepted Build 93 as known-good for gameplay, performance, graphics, current
+touch behavior, settings persistence, and iCloud saves. That acceptance is
+intentionally scoped: it is not yet a complete-playthrough, every-level,
+every-save, every-orientation, or every-controller certification.
 
 The first enhancement layer is a versioned Modern/Classic settings model.
 Controls, Graphics, Audio, and UI each retain an independent profile and their
@@ -130,15 +131,16 @@ saves.
 
 Enhancement work proceeds in this order:
 
-1. Preserve Build 90 as the unified Classic/Modern regression baseline.
-2. Continue enhancing the independent settings sections without changing
-   Classic compatibility behavior.
-3. Resume touch-device changes only when the maintainer chooses the next input
-   contract, then bring the shared windowed app to Apple Vision Pro without
-   assuming an immersive rewrite.
+1. Preserve Build 93 as the unified known-good regression baseline.
+2. Establish Classic touch as an understandable fallback while preserving the
+   accepted Build 93 Modern touch behavior.
+3. Continue the Jak 1-scoped settings and input-source work in small physical
+   checkpoints without changing Classic gameplay or renderer compatibility.
+4. Return to visionOS-specific work only after the iPhone/iPad interaction
+   contract is stable; do not assume an immersive rewrite.
 
 No enhancement may fork gameplay semantics, weaken user-owned asset separation,
-or replace the accepted Build 90 baseline before its replacement has been
+or replace the accepted Build 93 baseline before its replacement has been
 physically compared and accepted.
 
 ### Potential future scope

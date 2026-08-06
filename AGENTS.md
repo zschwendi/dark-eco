@@ -431,6 +431,23 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 - [ ] Physically compare the next candidate against Build 93 on iPhone and iPad
   before calling it the replacement baseline.
 
+Active lanes:
+
+- `In progress` — Classic touch fallback owns `TouchControls.swift`,
+  `TouchControlsView.swift`, and touch-focused tests on
+  `agent/build94-classic-touch` in `/private/tmp/GP-build94-classic-touch`.
+- `In progress` — Jak 1 settings and combined iCloud presentation owns
+  `PresentationSettings.swift`, `SaveSyncController.swift`, and focused tests on
+  `agent/build94-jak1-settings-icloud` in
+  `/private/tmp/GP-build94-jak1-settings-icloud`.
+- `In progress` — portrait renderer alignment and game-library cleanup owns
+  `ContentView.swift`, `GameLibrary.swift`, and focused tests on
+  `agent/build94-portrait-library` in
+  `/private/tmp/GP-build94-portrait-library`.
+- `Investigating` — root integration owns native pause/menu/input-source,
+  remapping, haptics, skip, warp, mod, save-conflict, and Game Center seam
+  discovery. It will not edit a worker-owned file while that lane is active.
+
 #### Settings shell and per-game ownership
 
 - [ ] Hide the app Settings and developer-log controls during gameplay; expose
