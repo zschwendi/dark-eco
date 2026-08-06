@@ -57,17 +57,31 @@ do {
     let tile = try declaration(in: libraryView,
                                startingWith: "private struct GameLibraryTile",
                                endingWith: "\n\nprivate struct FallbackGameArtwork")
-    guard tile.contains("Button(action: activate)")
+    guard let cardButton = tile.range(of: "Button(action: activate)"),
+          let cardButtonStyle = tile.range(of: ".buttonStyle(.plain)",
+                                           range: cardButton.upperBound..<tile.endIndex)
+    else {
+        throw NSError(domain: "portrait-library-check", code: 2,
+                      userInfo: [NSLocalizedDescriptionKey:
+                        "library tile lost its semantic launch button"])
+    }
+    let cardLabel = tile[cardButton.lowerBound..<cardButtonStyle.lowerBound]
+    guard cardLabel.contains(".padding(12)")
+            && cardLabel.contains(".frame(maxWidth: .infinity")
+            && cardLabel.contains(".background(.thinMaterial")
+            && cardLabel.contains(".contentShape(RoundedRectangle")
+            && !cardLabel.contains("artworkMenu")
             && tile.contains(".disabled(state == .planned)")
             && !tile.contains(".accessibilityElement(children: .combine)")
             && tile.contains(".frame(minWidth: 44, minHeight: 44)")
             && tile.contains(".contentShape(Rectangle())")
+            && tile[cardButtonStyle.upperBound...].contains("artworkMenu")
     else {
         throw NSError(domain: "portrait-library-check", code: 2,
                       userInfo: [NSLocalizedDescriptionKey:
-                        "library tile or artwork menu lost its semantic touch target"])
+                        "full-card launch target or independent artwork menu regressed"])
     }
-    print("  ok   library tile and artwork menu remain independent semantic touch targets")
+    print("  ok   the full library card and artwork menu are independent semantic touch targets")
     guard gameplaySurface.contains("if frame.origin == .zero, frame.size == proxy.size"),
           let fullSurfaceBranch = gameplaySurface.range(of: "if frame.origin == .zero, frame.size == proxy.size"),
           let portraitBranch = gameplaySurface.range(of: "} else {", range: fullSurfaceBranch.upperBound..<gameplaySurface.endIndex),
