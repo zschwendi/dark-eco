@@ -6,7 +6,7 @@ nonisolated private let touchLog = Logger(subsystem: "com.zephyrstudiosllc.eco",
 
 /// The PS2 buttons the on-screen controls drive.
 enum TouchButton: CaseIterable, Hashable, Sendable {
-    case cross, square, circle, crouch, start, select
+    case cross, square, circle, crouch, start, select, stats
     case up, down, left, right
     case triangle, leftShoulder, rightShoulder
 
@@ -18,6 +18,7 @@ enum TouchButton: CaseIterable, Hashable, Sendable {
         case .crouch: .L1
         case .start: .start
         case .select: .select
+        case .stats: [.L2, .R2]
         case .up: .up
         case .down: .down
         case .left: .left
@@ -36,6 +37,7 @@ enum TouchButton: CaseIterable, Hashable, Sendable {
         case .crouch: "↓"
         case .start: "START"
         case .select: "SELECT"
+        case .stats: "STATS"
         case .up: "↑"
         case .down: "↓"
         case .left: "←"
@@ -168,6 +170,54 @@ struct NativeWarpGateTouchSnapshot: Equatable, Sendable {
                 false
             }
         }
+    }
+}
+
+/// GOAL publishes this only while the central `process-taskable` spooled-animation Triangle
+/// query is both explicitly skippable and undecided. Native freshness validation makes a stopped
+/// heartbeat invalid without changing the stable owner/availability generation each frame.
+struct NativeCutsceneSkipTouchSnapshot: Equatable, Sendable {
+    enum State: Equatable, Sendable {
+        case unavailable
+        case triangleQueryAvailable
+    }
+
+    let valid: Bool
+    let state: State
+    let sequence: UInt32
+
+    static let invalid = NativeCutsceneSkipTouchSnapshot(
+        valid: false, state: .unavailable, sequence: 0)
+
+    init(valid: Bool, state: State, sequence: UInt32) {
+        self.valid = valid
+        self.state = state
+        self.sequence = sequence
+    }
+
+    init(_ snapshot: GOALPadCutsceneSkipTouchSnapshot) {
+        let mappedState: State? = switch snapshot.state {
+        case .unavailable: .unavailable
+        case .triangleQueryAvailable: .triangleQueryAvailable
+        @unknown default: nil
+        }
+        guard snapshot.valid.boolValue, let mappedState else {
+            self = .invalid
+            return
+        }
+        self.init(valid: true, state: mappedState, sequence: snapshot.sequence)
+    }
+
+    static func triangleQueryAvailable(sequence: UInt32) -> Self {
+        Self(valid: true, state: .triangleQueryAvailable, sequence: sequence)
+    }
+
+    static func validUnavailable(sequence: UInt32) -> Self {
+        Self(valid: true, state: .unavailable, sequence: sequence)
+    }
+
+    var isStructurallyValid: Bool {
+        valid && sequence & 1 == 0
     }
 }
 
@@ -438,7 +488,7 @@ struct ModernTouchLayout: Sendable {
     static let rightStickSpacerCap: CGFloat = 200
 
     private static let pillSize = CGSize(width: 82, height: 42)
-    private static let pillSpacing: CGFloat = 20
+    private static let pillSpacing: CGFloat = 10
     private static let pillHitInsets = CGSize(width: 10, height: 12)
     private static let controlGap: CGFloat = 8
 
@@ -447,6 +497,7 @@ struct ModernTouchLayout: Sendable {
     let rightStickArtworkFrame: CGRect
     let rightStickHitFrame: CGRect
     let selectPillFrame: CGRect
+    let statsPillFrame: CGRect
     let startPillFrame: CGRect
 
     init(size: CGSize, safeAreaInsets: TouchSafeAreaInsets = .zero) {
@@ -467,10 +518,12 @@ struct ModernTouchLayout: Sendable {
         rightStickSpacer = min(targetSpacer,
                                 max(0, safe.width - TouchControls.rightStickRadius * 2))
 
-        let pillOffset = (Self.pillSize.width + Self.pillSpacing) / 2
+        let pillOffset = Self.pillSize.width + Self.pillSpacing
         let pillY = bounds.maxY - 30 - Self.pillSize.height / 2
         selectPillFrame = Self.frame(centre: CGPoint(x: bounds.midX - pillOffset, y: pillY),
                                      size: Self.pillSize)
+        statsPillFrame = Self.frame(centre: CGPoint(x: bounds.midX, y: pillY),
+                                    size: Self.pillSize)
         startPillFrame = Self.frame(centre: CGPoint(x: bounds.midX + pillOffset, y: pillY),
                                     size: Self.pillSize)
 
@@ -480,7 +533,7 @@ struct ModernTouchLayout: Sendable {
         let candidateHitFrame = Self.frame(centre: CGPoint(x: centreX, y: lowestCentreY),
                                            diameter: radius * 2)
             .insetBy(dx: -Self.rightStickHitSlop, dy: -Self.rightStickHitSlop)
-        let pillHitFrames = [selectPillFrame, startPillFrame].map {
+        let pillHitFrames = [selectPillFrame, statsPillFrame, startPillFrame].map {
             $0.insetBy(dx: -Self.pillHitInsets.width, dy: -Self.pillHitInsets.height)
         }
         let overlapsPillHorizontally = pillHitFrames.contains {
@@ -516,7 +569,7 @@ struct ClassicTouchLayout {
     static let minimumButtonHitSize = CGSize(width: 44, height: 44)
     static let buttons: [TouchButton] = [
         .up, .down, .left, .right,
-        .select, .start,
+        .select, .stats, .start,
         .leftShoulder, .rightShoulder,
         .triangle, .square, .circle, .cross,
     ]
@@ -541,7 +594,8 @@ struct ClassicTouchLayout {
                           width: bounds.width - leading - trailing,
                           height: bounds.height - top - bottom)
         let padding = min(18, max(0, min(safe.width, safe.height) * 0.025))
-        safeBounds = safe.insetBy(dx: padding, dy: padding)
+        let boundedSafeBounds = safe.insetBy(dx: padding, dy: padding)
+        safeBounds = boundedSafeBounds
 
         let scale = min(1, max(0.5, min(safeBounds.width / 560, safeBounds.height / 240)))
         let buttonDiameter = 44 * scale
@@ -601,25 +655,33 @@ struct ClassicTouchLayout {
 
         let pillSize = CGSize(width: 68 * scale, height: 30 * scale)
         let centreGap = rightStickFrame.minX - leftStickFrame.maxX
-        let centrePillsAreSideBySide = centreGap >= pillSize.width * 2 + buttonGap
+        let centrePillsAreSideBySide = centreGap >= pillSize.width * 3 + buttonGap * 2
         if centrePillsAreSideBySide {
-            let offset = pillSize.width / 2 + buttonGap / 2
+            let offset = pillSize.width + buttonGap
             frames[.select] = Self.frame(centre: CGPoint(x: safeBounds.midX - offset, y: stickY),
                                          size: pillSize)
+            frames[.stats] = Self.frame(centre: CGPoint(x: safeBounds.midX, y: stickY),
+                                        size: pillSize)
             frames[.start] = Self.frame(centre: CGPoint(x: safeBounds.midX + offset, y: stickY),
                                         size: pillSize)
         } else {
-            frames[.start] = Self.frame(centre: CGPoint(x: safeBounds.midX, y: shoulderY),
-                                        size: pillSize)
+            let minimumStep = Self.minimumButtonHitSize.height
+            let stackHeight = minimumStep * 3
+            let stackTop = min(max(safeBounds.minY, shoulderY - stackHeight / 2),
+                               max(safeBounds.minY, safeBounds.maxY - stackHeight))
             frames[.select] = Self.frame(
-                centre: CGPoint(x: safeBounds.midX,
-                                y: shoulderY - pillSize.height - buttonGap),
+                centre: CGPoint(x: safeBounds.midX, y: stackTop + minimumStep / 2),
                 size: pillSize)
+            frames[.stats] = Self.frame(
+                centre: CGPoint(x: safeBounds.midX, y: stackTop + minimumStep * 1.5),
+                size: pillSize)
+            frames[.start] = Self.frame(
+                centre: CGPoint(x: safeBounds.midX, y: stackTop + minimumStep * 2.5),
+                                        size: pillSize)
         }
         buttonFrames = frames
-        buttonHitFrames = Self.hitFrames(for: frames,
-                                         boundedTo: safeBounds,
-                                         centrePillsAreSideBySide: centrePillsAreSideBySide)
+        buttonHitFrames = frames.mapValues { Self.minimumHitFrame(for: $0,
+                                                                  boundedTo: boundedSafeBounds) }
     }
 
     func frame(for button: TouchButton) -> CGRect? {
@@ -628,30 +690,6 @@ struct ClassicTouchLayout {
 
     func hitFrame(for button: TouchButton) -> CGRect? {
         buttonHitFrames[button]
-    }
-
-    private static func hitFrames(for visualFrames: [TouchButton: CGRect],
-                                  boundedTo safeBounds: CGRect,
-                                  centrePillsAreSideBySide: Bool) -> [TouchButton: CGRect] {
-        var frames = visualFrames.mapValues { minimumHitFrame(for: $0, boundedTo: safeBounds) }
-        guard !centrePillsAreSideBySide,
-              let startVisual = visualFrames[.start],
-              let selectFrame = frames[.select],
-              let startFrame = frames[.start]
-        else { return frames }
-
-        // On the compact stacked centre controls, expanding both pills around their artwork would
-        // make Select own Start's visual centre. Keep their 44-point targets adjacent instead.
-        let selectOriginY = min(max(safeBounds.minY, startVisual.minY - selectFrame.height),
-                                safeBounds.maxY - selectFrame.height)
-        let adjustedSelect = CGRect(x: selectFrame.minX, y: selectOriginY,
-                                    width: selectFrame.width, height: selectFrame.height)
-        let startOriginY = min(max(adjustedSelect.maxY, startVisual.maxY - startFrame.height),
-                               safeBounds.maxY - startFrame.height)
-        frames[.select] = adjustedSelect
-        frames[.start] = CGRect(x: startFrame.minX, y: startOriginY,
-                                width: startFrame.width, height: startFrame.height)
-        return frames
     }
 
     private static func minimumHitFrame(for visualFrame: CGRect, boundedTo safeBounds: CGRect) -> CGRect {
@@ -727,6 +765,7 @@ final class TouchControls {
     private(set) var nativeMenuMode: GOALPadGameMode = .unknown
     private(set) var progressMenuSnapshot: NativeProgressMenuSnapshot = .unavailable
     private(set) var warpGateTouchSnapshot: NativeWarpGateTouchSnapshot = .invalid
+    private(set) var cutsceneSkipTouchSnapshot: NativeCutsceneSkipTouchSnapshot = .invalid
     @ObservationIgnored private var retainsWarpGateTouchCapture = false
 
     enum Role: Equatable {
@@ -734,6 +773,7 @@ final class TouchControls {
         case rightStick
         case gesture
         case pill(TouchButton)
+        case skip(NativeCutsceneSkipTouchSnapshot)
     }
 
     struct Tracked: Identifiable {
@@ -765,7 +805,13 @@ final class TouchControls {
     }
 
     func isPillDown(_ button: TouchButton) -> Bool {
-        touches.values.contains { $0.role == .pill(button) }
+        touches.values.contains {
+            switch $0.role {
+            case .pill(let pressed): pressed == button
+            case .skip: button == .select
+            case .movement, .rightStick, .gesture: false
+            }
+        }
     }
 
     @ObservationIgnored private var rightStickFrame = CGRect.zero
@@ -814,12 +860,17 @@ final class TouchControls {
         let capturedInput = capturesNativeTouchInput
         let warpSemanticWasActive = nativeMenuMode == .gameplay
             && warpGateTouchSnapshot.state != .unavailable
+        let skipWasActive = Self.cutsceneSkipIsAvailable(
+            in: nativeMenuMode, snapshot: cutsceneSkipTouchSnapshot)
         nativeMenuMode = mode
         progressMenuSnapshot = progress
         let warpSemanticIsActive = nativeMenuMode == .gameplay
             && warpGateTouchSnapshot.state != .unavailable
+        let skipIsActive = Self.cutsceneSkipIsAvailable(
+            in: nativeMenuMode, snapshot: cutsceneSkipTouchSnapshot)
         if capturedInput || capturesNativeTouchInput
-            || warpSemanticWasActive || warpSemanticIsActive { reset() }
+            || warpSemanticWasActive || warpSemanticIsActive
+            || skipWasActive || skipIsActive { reset() }
     }
 
     /// Any published semantic or sequence change invalidates touch-owned work from the prior
@@ -838,6 +889,13 @@ final class TouchControls {
                 || nextCaptureRetention != retainsWarpGateTouchCapture else { return }
         warpGateTouchSnapshot = snapshot
         retainsWarpGateTouchCapture = nextCaptureRetention
+        reset()
+    }
+
+    /// Owner/availability generation changes and stale native reads cancel a pending SKIP tap.
+    func setCutsceneSkipTouchSnapshot(_ snapshot: NativeCutsceneSkipTouchSnapshot) {
+        guard snapshot != cutsceneSkipTouchSnapshot else { return }
+        cutsceneSkipTouchSnapshot = snapshot
         reset()
     }
 
@@ -874,6 +932,18 @@ final class TouchControls {
         else { return }
         press(action.button)
         enqueueHaptic(.button(action.button))
+    }
+
+    /// A completed tap emits the ordinary Triangle edge only if its full GOAL generation remains
+    /// current and gameplay mode has not changed since touch-down.
+    func performCutsceneSkip(for expectedSnapshot: NativeCutsceneSkipTouchSnapshot,
+                             isSuppressed: Bool = false) {
+        guard !isSuppressed, expectedSnapshot == cutsceneSkipTouchSnapshot,
+              Self.cutsceneSkipIsAvailable(in: nativeMenuMode,
+                                           snapshot: cutsceneSkipTouchSnapshot)
+        else { return }
+        press(.triangle)
+        enqueueHaptic(.button(.triangle))
     }
 
     /// The destination responder is Left/Right-driven. A completed horizontal swipe maps to
@@ -940,7 +1010,7 @@ final class TouchControls {
                 radius = Self.rightStickRadius
                 deadzone = Self.rightStickDeadzone
             }
-        case .gesture, .pill:
+        case .gesture, .pill, .skip:
             origin = point
             radius = 0
             deadzone = 0
@@ -996,7 +1066,10 @@ final class TouchControls {
     }
 
     func ended(_ id: ObjectIdentifier, at _: TimeInterval) {
-        guard touches.removeValue(forKey: id) != nil else { return }
+        guard let touch = touches.removeValue(forKey: id) else { return }
+        if case .skip(let expectedSnapshot) = touch.role {
+            performCutsceneSkip(for: expectedSnapshot)
+        }
         fadeWhenIdle()
     }
 
@@ -1055,17 +1128,28 @@ final class TouchControls {
         if let layout = classicLayout {
             for button in ClassicTouchLayout.buttons
             where layout.hitFrame(for: button)?.contains(point) == true {
-                return .pill(button)
+                return pillRole(for: button)
             }
             if stick == nil, layout.leftStickFrame.contains(point) { return .movement }
             if rightStick == nil, layout.rightStickFrame.contains(point) { return .rightStick }
             return nil
         }
-        for (button, frame) in pillFrames where frame.contains(point) { return .pill(button) }
+        for (button, frame) in pillFrames where frame.contains(point) {
+            return pillRole(for: button)
+        }
         if rightStick == nil, rightStickFrame.contains(point) { return .rightStick }
         if stick == nil, point.x < size.width / 2 { return .movement }
         if point.x >= size.width / 2 { return .gesture }
         return nil
+    }
+
+    private func pillRole(for button: TouchButton) -> Role {
+        if button == .select,
+           Self.cutsceneSkipIsAvailable(in: nativeMenuMode,
+                                        snapshot: cutsceneSkipTouchSnapshot) {
+            return .skip(cutsceneSkipTouchSnapshot)
+        }
+        return .pill(button)
     }
 
     // MARK: - The frame
@@ -1090,7 +1174,7 @@ final class TouchControls {
                 if let button = touch.swiped, button != .crouch {
                     pulses[button, default: Pulse()].sustain()
                 }
-            case .movement, .rightStick:
+            case .movement, .rightStick, .skip:
                 break
             }
         }
@@ -1152,9 +1236,19 @@ final class TouchControls {
     }
 
     nonisolated static func artworkLabel(for button: TouchButton,
-                                         isNativeMenuOpen: Bool) -> String {
+                                         isNativeMenuOpen: Bool,
+                                         cutsceneSkipAvailable: Bool = false) -> String {
+        if button == .select, cutsceneSkipAvailable { return "SKIP" }
         guard button == .start else { return button.glyph }
         return isNativeMenuOpen ? "RESUME" : "PAUSE"
+    }
+
+    nonisolated static func cutsceneSkipIsAvailable(
+        in mode: GOALPadGameMode,
+        snapshot: NativeCutsceneSkipTouchSnapshot
+    ) -> Bool {
+        mode == .gameplay && snapshot.isStructurallyValid
+            && snapshot.state == .triangleQueryAvailable
     }
 
     nonisolated static func nativeMenuControlsAreVisible(mode: GOALPadGameMode,

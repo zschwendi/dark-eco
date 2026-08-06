@@ -89,6 +89,187 @@ struct WarpGateTouchSnapshot {
   bool selection_moving = false;
 };
 
+enum class CutsceneSkipTouchState : std::int32_t {
+  Unavailable = 0,
+  TriangleQueryAvailable = 1,
+};
+
+struct CutsceneSkipTouchSnapshot {
+  bool valid = false;
+  std::uint32_t sequence = 0;
+  CutsceneSkipTouchState state = CutsceneSkipTouchState::Unavailable;
+};
+
+namespace cutscene_skip_touch_layout {
+
+// checked_goal_object returns the bytes after the basic object's four-byte type tag.
+constexpr std::size_t kRevisionOffset = 0;
+constexpr std::size_t kSequenceOffset = 4;
+constexpr std::size_t kStateOffset = 8;
+constexpr std::size_t kOwnerOffset = 12;
+constexpr std::size_t kHeartbeatOffset = 20;
+constexpr std::size_t kRequiredObjectBytes = 0x18;
+constexpr std::int32_t kRevision = 1;
+constexpr std::uint64_t kMaximumStaleFrames = 2;
+
+}  // namespace cutscene_skip_touch_layout
+
+struct CutsceneSkipTouchRawSnapshot {
+  bool valid = false;
+  std::uint32_t sequence = 0;
+  CutsceneSkipTouchState state = CutsceneSkipTouchState::Unavailable;
+  std::uint64_t owner = 0;
+  std::uint32_t heartbeat = 0;
+};
+
+inline CutsceneSkipTouchRawSnapshot validate_cutscene_skip_touch_snapshot(
+    std::int32_t first_sequence,
+    std::int32_t revision,
+    std::int32_t state_value,
+    std::uint64_t owner,
+    std::int32_t heartbeat,
+    std::int32_t final_sequence) noexcept {
+  CutsceneSkipTouchRawSnapshot snapshot;
+  if (revision != cutscene_skip_touch_layout::kRevision ||
+      first_sequence != final_sequence ||
+      (static_cast<std::uint32_t>(first_sequence) & 1u) != 0) {
+    return snapshot;
+  }
+
+  const auto state = static_cast<CutsceneSkipTouchState>(state_value);
+  switch (state) {
+    case CutsceneSkipTouchState::Unavailable:
+      if (owner != 0 || heartbeat != 0) {
+        return snapshot;
+      }
+      break;
+    case CutsceneSkipTouchState::TriangleQueryAvailable:
+      if (owner == 0) {
+        return snapshot;
+      }
+      break;
+    default:
+      return snapshot;
+  }
+
+  snapshot.valid = true;
+  snapshot.sequence = static_cast<std::uint32_t>(first_sequence);
+  snapshot.state = state;
+  snapshot.owner = owner;
+  snapshot.heartbeat = static_cast<std::uint32_t>(heartbeat);
+  return snapshot;
+}
+
+inline std::int32_t read_cutscene_skip_touch_field(const volatile std::uint8_t* bytes,
+                                                   std::size_t offset) noexcept {
+  std::int32_t value = 0;
+  auto* value_bytes = reinterpret_cast<std::uint8_t*>(&value);
+  for (std::size_t index = 0; index < sizeof(value); ++index) {
+    value_bytes[index] = bytes[offset + index];
+  }
+  return value;
+}
+
+inline std::uint64_t read_cutscene_skip_touch_owner(const volatile std::uint8_t* bytes,
+                                                    std::size_t offset) noexcept {
+  std::uint64_t value = 0;
+  auto* value_bytes = reinterpret_cast<std::uint8_t*>(&value);
+  for (std::size_t index = 0; index < sizeof(value); ++index) {
+    value_bytes[index] = bytes[offset + index];
+  }
+  return value;
+}
+
+inline CutsceneSkipTouchRawSnapshot read_cutscene_skip_touch_raw_snapshot(
+    const void* memory,
+    std::size_t memory_bytes,
+    std::size_t low_protect_bytes,
+    std::uint32_t object_offset,
+    std::uint32_t expected_type) noexcept {
+  const void* object = camera_correction_trace::checked_goal_object(
+      memory, memory_bytes, low_protect_bytes, object_offset, expected_type,
+      cutscene_skip_touch_layout::kRequiredObjectBytes, nullptr);
+  if (!object) {
+    return {};
+  }
+
+  const auto* bytes = static_cast<const volatile std::uint8_t*>(object);
+  const auto first_sequence =
+      read_cutscene_skip_touch_field(bytes, cutscene_skip_touch_layout::kSequenceOffset);
+  const auto revision =
+      read_cutscene_skip_touch_field(bytes, cutscene_skip_touch_layout::kRevisionOffset);
+  const auto state =
+      read_cutscene_skip_touch_field(bytes, cutscene_skip_touch_layout::kStateOffset);
+  const auto owner =
+      read_cutscene_skip_touch_owner(bytes, cutscene_skip_touch_layout::kOwnerOffset);
+  const auto heartbeat =
+      read_cutscene_skip_touch_field(bytes, cutscene_skip_touch_layout::kHeartbeatOffset);
+  const auto final_sequence =
+      read_cutscene_skip_touch_field(bytes, cutscene_skip_touch_layout::kSequenceOffset);
+  return validate_cutscene_skip_touch_snapshot(first_sequence, revision, state, owner, heartbeat,
+                                               final_sequence);
+}
+
+class CutsceneSkipTouchReader {
+ public:
+  CutsceneSkipTouchSnapshot read(const void* memory,
+                                 std::size_t memory_bytes,
+                                 std::size_t low_protect_bytes,
+                                 std::uint32_t object_offset,
+                                 std::uint32_t expected_type,
+                                 std::uint64_t current_frame) noexcept {
+    const auto raw = read_cutscene_skip_touch_raw_snapshot(
+        memory, memory_bytes, low_protect_bytes, object_offset, expected_type);
+    if (!raw.valid) {
+      return {};
+    }
+
+    CutsceneSkipTouchSnapshot snapshot;
+    snapshot.valid = true;
+    snapshot.sequence = raw.sequence;
+    snapshot.state = raw.state;
+    if (raw.state == CutsceneSkipTouchState::Unavailable) {
+      reset_freshness();
+      return snapshot;
+    }
+
+    if (!has_freshness_ || raw.sequence != sequence_ || raw.owner != owner_ ||
+        raw.heartbeat != heartbeat_ || current_frame < last_refresh_frame_) {
+      has_freshness_ = true;
+      sequence_ = raw.sequence;
+      owner_ = raw.owner;
+      heartbeat_ = raw.heartbeat;
+      last_refresh_frame_ = current_frame;
+      return snapshot;
+    }
+
+    if (current_frame - last_refresh_frame_ >
+        cutscene_skip_touch_layout::kMaximumStaleFrames) {
+      return {};
+    }
+    return snapshot;
+  }
+
+  void reset() noexcept {
+    reset_freshness();
+  }
+
+ private:
+  void reset_freshness() noexcept {
+    has_freshness_ = false;
+    sequence_ = 0;
+    owner_ = 0;
+    heartbeat_ = 0;
+    last_refresh_frame_ = 0;
+  }
+
+  bool has_freshness_ = false;
+  std::uint32_t sequence_ = 0;
+  std::uint64_t owner_ = 0;
+  std::uint32_t heartbeat_ = 0;
+  std::uint64_t last_refresh_frame_ = 0;
+};
+
 namespace warp_gate_touch_layout {
 
 // checked_goal_object returns the bytes after the basic object's four-byte type tag.
@@ -368,6 +549,8 @@ LookAroundState look_around_state() noexcept;
 ProgressMenuSnapshot progress_menu_snapshot() noexcept;
 /*! GOAL-owned warp-gate touch semantics. Invalid publication and valid unavailable are distinct. */
 WarpGateTouchSnapshot warp_gate_touch_snapshot() noexcept;
+/*! GOAL-owned skippable spooled-animation availability. Invalid and stale reads fail closed. */
+CutsceneSkipTouchSnapshot cutscene_skip_touch_snapshot() noexcept;
 
 /*! Forget the boot. The heap goes away with the kernel; this only drops what this file caches. */
 void reset_game() noexcept;

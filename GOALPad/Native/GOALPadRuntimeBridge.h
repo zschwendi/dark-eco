@@ -168,6 +168,19 @@ typedef struct GOALPadWarpGateTouchSnapshot {
   BOOL selectionMoving;
 } GOALPadWarpGateTouchSnapshot;
 
+typedef NS_ENUM(NSInteger, GOALPadCutsceneSkipTouchState) {
+  GOALPadCutsceneSkipTouchStateUnavailable = 0,
+  GOALPadCutsceneSkipTouchStateTriangleQueryAvailable = 1,
+};
+
+typedef struct GOALPadCutsceneSkipTouchSnapshot {
+  /// YES means the GOAL object, revision, seqlock, owner, state, and heartbeat are current.
+  BOOL valid;
+  /// Stable even owner/availability generation. Heartbeats do not change this value.
+  uint32_t sequence;
+  GOALPadCutsceneSkipTouchState state;
+} GOALPadCutsceneSkipTouchSnapshot;
+
 /// The whole Swift-facing surface of the native runtime. The GOAL kernel is a process-wide
 /// singleton, so this is a class API rather than an instantiable object.
 @interface GOALPadRuntimeBridge : NSObject
@@ -208,6 +221,8 @@ typedef struct GOALPadWarpGateTouchSnapshot {
 @property(class, nonatomic, readonly) GOALPadProgressMenuSnapshot progressMenuSnapshot;
 /// GOAL-owned warp-gate touch semantics. Invalid and valid-unavailable snapshots are distinct.
 @property(class, nonatomic, readonly) GOALPadWarpGateTouchSnapshot warpGateTouchSnapshot;
+/// GOAL-owned, fail-closed Triangle-query availability for explicitly skippable animations only.
+@property(class, nonatomic, readonly) GOALPadCutsceneSkipTouchSnapshot cutsceneSkipTouchSnapshot;
 @property(class, nonatomic, readonly) GOALPadFrameChainStats frameChainStats;
 
 /// Whether this build carries each engine host seam. A seam that is not linked reports its absence

@@ -57,6 +57,9 @@ int32_t* g_progress_process = nullptr;
 std::uint32_t g_progress_type = 0;
 int32_t* g_warp_gate_touch_snapshot = nullptr;
 std::uint32_t g_warp_gate_touch_snapshot_type = 0;
+int32_t* g_cutscene_skip_touch_snapshot = nullptr;
+std::uint32_t g_cutscene_skip_touch_snapshot_type = 0;
+goalpad::CutsceneSkipTouchReader g_cutscene_skip_touch_reader;
 int32_t* g_target = nullptr;
 std::uint32_t g_target_type = 0;
 std::uint32_t g_look_around_mode = 0;
@@ -546,6 +549,23 @@ BootStatus boot_game() noexcept {
                    "touch controls are unavailable.");
     }
 
+    uint32_t cutscene_skip_touch_snapshot_type = 0;
+    const bool cutscene_skip_touch_symbols =
+        goal_game_find_symbol("*goalpad-cutscene-skip-touch-snapshot*", nullptr) &&
+        goal_game_find_symbol("goalpad-cutscene-skip-touch-snapshot",
+                              &cutscene_skip_touch_snapshot_type) &&
+        cutscene_skip_touch_snapshot_type;
+    if (cutscene_skip_touch_symbols) {
+      g_cutscene_skip_touch_snapshot =
+          goal_game_symbol_slot("*goalpad-cutscene-skip-touch-snapshot*");
+      g_cutscene_skip_touch_snapshot_type = cutscene_skip_touch_snapshot_type;
+      g_cutscene_skip_touch_reader.reset();
+    } else {
+      os_log_error(boot_log(),
+                   "GAME.CGO did not expose the cutscene-skip touch snapshot and type; "
+                   "cutscene-skip touch controls are unavailable.");
+    }
+
     uint32_t target_type = 0;
     const uint32_t look_around_mode = goal_game_find_symbol("look-around", nullptr);
     const bool target_state_symbols = goal_game_find_symbol("*target*", nullptr) &&
@@ -690,6 +710,9 @@ void reset_game() noexcept {
   g_progress_type = 0;
   g_warp_gate_touch_snapshot = nullptr;
   g_warp_gate_touch_snapshot_type = 0;
+  g_cutscene_skip_touch_snapshot = nullptr;
+  g_cutscene_skip_touch_snapshot_type = 0;
+  g_cutscene_skip_touch_reader.reset();
   g_target = nullptr;
   g_target_type = 0;
   g_look_around_mode = 0;
@@ -768,6 +791,18 @@ WarpGateTouchSnapshot warp_gate_touch_snapshot() noexcept {
       g_warp_gate_touch_snapshot_type);
 }
 
+CutsceneSkipTouchSnapshot cutscene_skip_touch_snapshot() noexcept {
+  if (!g_booted || game_mode() != GameMode::Gameplay || !g_cutscene_skip_touch_snapshot ||
+      !g_cutscene_skip_touch_snapshot_type || !g_ee_main_mem) {
+    return {};
+  }
+
+  return g_cutscene_skip_touch_reader.read(
+      g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT,
+      static_cast<std::uint32_t>(*g_cutscene_skip_touch_snapshot),
+      g_cutscene_skip_touch_snapshot_type, g_frames);
+}
+
 #else  // GOALPAD_HAVE_GAME_BOOT
 
 BootStatus boot_game() noexcept {
@@ -817,6 +852,10 @@ ProgressMenuSnapshot progress_menu_snapshot() noexcept {
 }
 
 WarpGateTouchSnapshot warp_gate_touch_snapshot() noexcept {
+  return {};
+}
+
+CutsceneSkipTouchSnapshot cutscene_skip_touch_snapshot() noexcept {
   return {};
 }
 

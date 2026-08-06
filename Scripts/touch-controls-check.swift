@@ -27,6 +27,7 @@ private struct Runner {
                                                      bottom: 20, trailing: 18)
     static let select = CGRect(x: 500, y: 690, width: 102, height: 66)
     static let start = CGRect(x: 610, y: 690, width: 102, height: 66)
+    static let stats = CGRect(x: 720, y: 690, width: 102, height: 66)
     static let rightStick = CGRect(x: 1040, y: 668, width: 108, height: 108)
 
     let screen: CGSize
@@ -52,6 +53,7 @@ private struct Runner {
         controls = TouchControls(style: style)
         controls.setPillFrame(.select, Self.select)
         controls.setPillFrame(.start, Self.start)
+        controls.setPillFrame(.stats, Self.stats)
         controls.setRightStickFrame(rightStickFrame)
     }
 
@@ -141,13 +143,14 @@ private func modernLayoutIsCompactAndSafe() {
         check(layout.rightStickHitFrame == layout.rightStickArtworkFrame.insetBy(
             dx: -ModernTouchLayout.rightStickHitSlop, dy: -ModernTouchLayout.rightStickHitSlop),
               "Modern layout \(index + 1) derives the raw R hit frame from its artwork")
-        let pillHits = [layout.selectPillFrame, layout.startPillFrame].map {
+        let pillHits = [layout.selectPillFrame, layout.statsPillFrame,
+                        layout.startPillFrame].map {
             $0.insetBy(dx: -10, dy: -12)
         }
         check(pillHits.allSatisfy {
             let intersection = $0.intersection(layout.rightStickHitFrame)
             return intersection.isNull || intersection.width <= 0.001 || intersection.height <= 0.001
-        }, "Modern layout \(index + 1) avoids Pause/Select hit-target overlap")
+        }, "Modern layout \(index + 1) clears all three centre-pill hit targets")
     }
 
     var former = Runner()
@@ -481,7 +484,7 @@ private func movementAlsoStepsTheDpad() {
 
 @MainActor
 private func pillsRemainExplicitControls() {
-    print("Start and Select remain explicit held controls")
+    print("Start, Select, and Stats remain explicit controls")
     var run = Runner()
     let finger = Finger()
     let centre = CGPoint(x: Runner.start.midX, y: Runner.start.midY)
@@ -498,6 +501,19 @@ private func pillsRemainExplicitControls() {
     run.up(finger)
     check(!run.frames(TouchControls.holdFrames + 2).last!.buttons.contains(.start),
           "Start releases after the finger lifts")
+
+    let stats = Finger()
+    run.down(stats, CGPoint(x: Runner.stats.midX, y: Runner.stats.midY))
+    let heldStats = run.frames(3)
+    check(heldStats.allSatisfy { $0.buttons.contains(.L2) && $0.buttons.contains(.R2) },
+          "Stats holds the exact L2+R2 controller chord")
+    check(heldStats.allSatisfy {
+        !$0.buttons.contains(.select) && !$0.buttons.contains(.triangle)
+    }, "Stats does not alias Select or Triangle")
+    run.up(stats)
+    check(run.frames(TouchControls.holdFrames + TouchControls.releaseFrames + 2).last!
+        .buttons.intersection([.L2, .R2]).isEmpty,
+          "Stats releases both trigger bits after the finger lifts")
 }
 
 @MainActor
@@ -784,11 +800,12 @@ private func classicHitTargetsLeaveArtworkAndBytesIntact() {
         .circle: CGRect(x: 254, y: 102, width: 22, height: 22),
         .leftShoulder: CGRect(x: 59, y: 51, width: 41, height: 17),
         .rightShoulder: CGRect(x: 180, y: 51, width: 41, height: 17),
-        .select: CGRect(x: 123, y: 31, width: 34, height: 15),
-        .start: CGRect(x: 123, y: 52, width: 34, height: 15),
+        .select: CGRect(x: 123, y: 18.5, width: 34, height: 15),
+        .stats: CGRect(x: 123, y: 62.5, width: 34, height: 15),
+        .start: CGRect(x: 123, y: 106.5, width: 34, height: 15),
     ]
     check(layout.buttonFrames == expectedVisualFrames,
-          "the compact Classic artwork retains its existing scaled frames")
+          "the compact Classic artwork fits all three centre pills deterministically")
 
     let hitFrames = ClassicTouchLayout.buttons.compactMap { layout.hitFrame(for: $0) }
     check(hitFrames.count == ClassicTouchLayout.buttons.count,
@@ -911,15 +928,16 @@ private func classicGeometryStaysSafeAndBalanced() {
 }
 
 @MainActor
-private func classicHasNoTriggerOverlay() {
-    print("Classic deliberately omits L2 and R2")
+private func classicHasOnlyTheStatsTriggerChord() {
+    print("Classic exposes one explicit Stats chord without separate trigger controls")
     let layout = ClassicTouchLayout(size: Runner.screen,
                                     safeAreaInsets: Runner.safeAreaInsets)
     check(Set(layout.buttonFrames.keys) == Set(ClassicTouchLayout.buttons),
           "the overlay contains exactly the declared Classic controls")
-    check(ClassicTouchLayout.buttons.allSatisfy {
+    check(ClassicTouchLayout.buttons.filter { $0 != .stats }.allSatisfy {
         !$0.bit.contains(.L2) && !$0.bit.contains(.R2)
-    }, "no visible Classic control maps to L2 or R2")
+    } && TouchButton.stats.bit == [.L2, .R2],
+          "only Stats maps to the exact L2+R2 chord")
 }
 
 @MainActor
@@ -953,6 +971,91 @@ private func classicMultitouchReachesOneFrame() {
     check(state.buttons.contains(.cross) && state.buttons.contains(.L1)
           && state.buttons.contains(.start),
           "face, shoulder, and Start touches coexist with both sticks")
+}
+
+@MainActor
+private func cutsceneSkipIsContextualExactAndLifecycleSafe() {
+    print("SKIP is a validated release-edge Triangle action with stale-work cancellation")
+    let available = NativeCutsceneSkipTouchSnapshot.triangleQueryAvailable(sequence: 10)
+    let unavailable = NativeCutsceneSkipTouchSnapshot.validUnavailable(sequence: 12)
+    let odd = NativeCutsceneSkipTouchSnapshot.triangleQueryAvailable(sequence: 11)
+
+    check(TouchControls.cutsceneSkipIsAvailable(in: .gameplay, snapshot: available),
+          "a valid even Triangle-query publication enables SKIP in gameplay")
+    check(!TouchControls.cutsceneSkipIsAvailable(in: .pause, snapshot: available)
+          && !TouchControls.cutsceneSkipIsAvailable(in: .gameplay, snapshot: unavailable)
+          && !TouchControls.cutsceneSkipIsAvailable(in: .gameplay, snapshot: odd)
+          && !TouchControls.cutsceneSkipIsAvailable(in: .gameplay, snapshot: .invalid),
+          "wrong mode, unavailable, odd, and invalid publications fail closed")
+    check(TouchControls.artworkLabel(for: .select, isNativeMenuOpen: false,
+                                     cutsceneSkipAvailable: true) == "SKIP"
+          && TouchControls.artworkLabel(for: .select, isNativeMenuOpen: false,
+                                        cutsceneSkipAvailable: false) == "SELECT",
+          "the Select artwork changes to SKIP only for validated availability")
+
+    var accepted = Runner()
+    accepted.controls.setNativeMenuMode(.gameplay)
+    accepted.controls.setCutsceneSkipTouchSnapshot(available)
+    let acceptedFinger = Finger()
+    accepted.down(acceptedFinger, CGPoint(x: Runner.select.midX, y: Runner.select.midY))
+    check(accepted.controls.isPillDown(.select) && accepted.frame() == .neutral
+          && accepted.controls.consumeHapticEvents().isEmpty,
+          "touch-down owns SKIP without sending an early pad edge")
+    accepted.up(acceptedFinger)
+    check(accepted.controls.consumeHapticEvents() == [.button(.triangle)],
+          "a completed current SKIP tap emits one Triangle haptic")
+    let acceptedFrames = accepted.frames(TouchControls.holdFrames
+                                          + TouchControls.releaseFrames + 2)
+    check(acceptedFrames.prefix(TouchControls.holdFrames).allSatisfy {
+        $0.buttons == .triangle
+    } && acceptedFrames.dropFirst(TouchControls.holdFrames).allSatisfy {
+        !$0.buttons.contains(.triangle)
+    }, "a completed current SKIP tap emits one isolated Triangle pulse")
+
+    var ordinarySelect = Runner()
+    ordinarySelect.controls.setNativeMenuMode(.gameplay)
+    ordinarySelect.controls.setCutsceneSkipTouchSnapshot(unavailable)
+    let selectFinger = Finger()
+    ordinarySelect.down(selectFinger, CGPoint(x: Runner.select.midX,
+                                               y: Runner.select.midY))
+    check(ordinarySelect.frame().buttons == .select
+          && ordinarySelect.controls.consumeHapticEvents() == [.button(.select)],
+          "Select keeps its ordinary held mapping while SKIP is unavailable")
+
+    var changedSequence = Runner()
+    changedSequence.controls.setNativeMenuMode(.gameplay)
+    changedSequence.controls.setCutsceneSkipTouchSnapshot(available)
+    let sequenceFinger = Finger()
+    changedSequence.down(sequenceFinger, CGPoint(x: Runner.select.midX,
+                                                  y: Runner.select.midY))
+    changedSequence.controls.setCutsceneSkipTouchSnapshot(
+        .triangleQueryAvailable(sequence: 14))
+    changedSequence.up(sequenceFinger)
+    check(changedSequence.frames(TouchControls.holdFrames + 2).allSatisfy { $0 == .neutral }
+          && changedSequence.controls.consumeHapticEvents().isEmpty,
+          "an owner-sequence change cancels a pending SKIP tap")
+
+    var stale = Runner()
+    stale.controls.setNativeMenuMode(.gameplay)
+    stale.controls.setCutsceneSkipTouchSnapshot(available)
+    let staleFinger = Finger()
+    stale.down(staleFinger, CGPoint(x: Runner.select.midX, y: Runner.select.midY))
+    stale.controls.setCutsceneSkipTouchSnapshot(.invalid)
+    stale.up(staleFinger)
+    check(stale.frames(TouchControls.holdFrames + 2).allSatisfy { $0 == .neutral }
+          && stale.controls.consumeHapticEvents().isEmpty,
+          "a stale native read cancels a pending SKIP tap")
+
+    var changedMode = Runner()
+    changedMode.controls.setNativeMenuMode(.gameplay)
+    changedMode.controls.setCutsceneSkipTouchSnapshot(available)
+    let modeFinger = Finger()
+    changedMode.down(modeFinger, CGPoint(x: Runner.select.midX, y: Runner.select.midY))
+    changedMode.controls.setNativeMenuMode(.pause)
+    changedMode.up(modeFinger)
+    check(changedMode.frames(TouchControls.holdFrames + 2).allSatisfy { $0 == .neutral }
+          && changedMode.controls.consumeHapticEvents().isEmpty,
+          "leaving gameplay cancels a pending SKIP tap")
 }
 
 @MainActor
@@ -1650,8 +1753,9 @@ struct TouchControlsCheck {
         classicHitTargetsLeaveArtworkAndBytesIntact()
         classicSticksAreSymmetricalAndAnalog()
         classicGeometryStaysSafeAndBalanced()
-        classicHasNoTriggerOverlay()
+        classicHasOnlyTheStatsTriggerChord()
         classicMultitouchReachesOneFrame()
+        cutsceneSkipIsContextualExactAndLifecycleSafe()
         pausePresentationFollowsNativeMenuState()
         controllerSuppressionKeepsTouchRecovery()
         nativeMenuActionsAreTruthfullyGatedAndLabelled()

@@ -257,6 +257,17 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
   return snapshot;
 }
 
++ (GOALPadCutsceneSkipTouchSnapshot)cutsceneSkipTouchSnapshot {
+  const auto core = goalpad::cutscene_skip_touch_snapshot();
+  GOALPadCutsceneSkipTouchSnapshot snapshot = {
+      core.valid ? YES : NO,
+      core.sequence,
+      core.valid ? static_cast<GOALPadCutsceneSkipTouchState>(core.state)
+                 : GOALPadCutsceneSkipTouchStateUnavailable,
+  };
+  return snapshot;
+}
+
 + (GOALPadFrameChainStats)frameChainStats {
   const auto core = goalpad::frame_chain_stats();
   GOALPadFrameChainStats stats = {core.chains, core.last_payload_bytes,

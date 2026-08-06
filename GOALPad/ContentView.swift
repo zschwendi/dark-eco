@@ -65,6 +65,7 @@ struct ContentView: View {
                                   gameMode: session.gameMode,
                                   progressMenuSnapshot: session.progressMenuSnapshot,
                                   warpGateTouchSnapshot: session.warpGateTouchSnapshot,
+                                  cutsceneSkipTouchSnapshot: session.cutsceneSkipTouchSnapshot,
                                   reclaimTouchInput: session.input.reclaimTouchInput)
                 #endif
 

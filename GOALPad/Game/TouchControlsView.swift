@@ -13,6 +13,7 @@ struct TouchControlsView: View {
     let gameMode: GOALPadGameMode
     let progressMenuSnapshot: NativeProgressMenuSnapshot
     let warpGateTouchSnapshot: NativeWarpGateTouchSnapshot
+    let cutsceneSkipTouchSnapshot: NativeCutsceneSkipTouchSnapshot
     let reclaimTouchInput: () -> Bool
 
     fileprivate static let space = "GOALPadTouchControls"
@@ -61,6 +62,11 @@ struct TouchControlsView: View {
         TouchControls.warpGateTouchControlsAreVisible(mode: gameMode,
                                                       snapshot: warpGateTouchSnapshot,
                                                       isSuppressed: isSuppressed)
+    }
+
+    private var cutsceneSkipAvailable: Bool {
+        TouchControls.cutsceneSkipIsAvailable(in: gameMode,
+                                              snapshot: cutsceneSkipTouchSnapshot)
     }
 
     private var isVisible: Bool {
@@ -148,8 +154,9 @@ struct TouchControlsView: View {
                 GestureRose(gesture: gesture)
             }
 
-            HStack(spacing: 20) {
+            HStack(spacing: 10) {
                 pill(.select)
+                pill(.stats)
                 pill(.start)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
@@ -183,7 +190,8 @@ struct TouchControlsView: View {
                     ClassicButtonControl(button: button,
                                          label: TouchControls.artworkLabel(
                                             for: button,
-                                            isNativeMenuOpen: isNativeMenuOpen),
+                                            isNativeMenuOpen: isNativeMenuOpen,
+                                            cutsceneSkipAvailable: cutsceneSkipAvailable),
                                          isDown: controls.isPillDown(button), frame: frame)
                 }
             }
@@ -193,7 +201,8 @@ struct TouchControlsView: View {
     private func pill(_ button: TouchButton) -> some View {
         let isDown = controls.isPillDown(button)
         return Text(TouchControls.artworkLabel(for: button,
-                                               isNativeMenuOpen: isNativeMenuOpen))
+                                               isNativeMenuOpen: isNativeMenuOpen,
+                                               cutsceneSkipAvailable: cutsceneSkipAvailable))
             .font(.system(size: 12, weight: .semibold, design: .rounded))
             .tracking(1.4)
             .foregroundStyle(.white.opacity(isDown ? 1 : 0.8))
