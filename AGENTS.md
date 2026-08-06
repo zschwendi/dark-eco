@@ -1054,12 +1054,15 @@ Active lanes:
   coverage for native pause/progress menus, plus this exact physical state matrix:
   - Title/pre-run and captured pause/progress menus show only the centered
     Start/Resume pill. They do not show Stats, SKIP, or the right camera stick.
-  - Ordinary active gameplay shows Stats and Pause. During an authored skippable
-    cutscene, that Stats slot becomes SKIP while Pause remains available, and the
+  - Ordinary active gameplay keeps Zoom, Stats, and Pause visible even after the
+    rest of the transient touch artwork becomes idle. Build 127 incorrectly hid
+    Zoom and Stats/Pause with the global idle fade. During an authored skippable
+    cutscene, the Stats slot becomes SKIP while Pause remains available, and the
     right camera stick is hidden.
-  - In ordinary gameplay, hide the right camera stick after three seconds with no
-    screen interaction. Keep its invisible hit target live so the first camera
-    drag is delivered and restores the artwork; never require a wake-up tap.
+  - In ordinary gameplay, the right camera stick is the only fixed gameplay
+    control that hides after three seconds with no screen interaction. Keep its
+    invisible hit target live so the first camera drag is delivered and restores
+    the artwork; never require a wake-up tap.
   - Present non-warp contextual face-button actions in the lower-right boxed
     command format used by the accepted warp-gate/start-menu controls. Do not
     float a circular button over authored text, including the Circle prompt for

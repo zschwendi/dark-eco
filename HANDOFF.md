@@ -14950,12 +14950,15 @@ touch-chrome refinement on top of 127 with these physical acceptance requirement
 
 - Title/pre-run and captured pause/progress menus show only a centered Start or
   Resume pill. Stats, SKIP, and the right camera stick are absent there.
-- Ordinary active gameplay shows Stats and Pause. An authored skippable cutscene
-  changes the Stats slot to SKIP while preserving Pause and hiding the right stick.
-- During ordinary gameplay, the right-stick artwork hides after three seconds
-  without screen interaction. Its hit target remains active so the first camera
-  drag is delivered and reveals the control rather than being consumed as a
-  wake-up touch.
+- Ordinary active gameplay keeps Zoom, Stats, and Pause visible even after idle.
+  Build 127 physically hid Zoom and Stats/Select together under its global artwork
+  fade; Build 128 must separate those persistent controls from transient chrome.
+  An authored skippable cutscene changes the Stats slot to SKIP while preserving
+  Pause and hiding the right stick.
+- During ordinary gameplay, the right-stick artwork is the only fixed gameplay
+  control that hides after three seconds without screen interaction. Its hit
+  target remains active so the first camera drag is delivered and reveals the
+  control rather than being consumed as a wake-up touch.
 - Non-warp contextual face-button actions use the lower-right boxed command format
   established by the accepted warp-gate/start-menu controls. A face symbol must not
   float over authored prompt text; the observed Circle prompt for trading 90
