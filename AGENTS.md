@@ -51,15 +51,20 @@ After editing:
 
 Use subagents whenever bounded work can proceed independently. Keep all four
 available concurrency slots productive when there are useful non-overlapping
-tasks. Use one `gpt-5.6-sol` `xhigh` integration lane, up to two
+tasks. Use one `gpt-5.6-sol` `xhigh` integration lane and up to two
 `gpt-5.6-sol` `xhigh` implementation lanes for importer architecture,
-renderer behavior, ABI/AOT work, and unsafe file handling, and one
-`gpt-5.6-terra` `medium` or `high` lane for bounded CMake wiring,
-documentation, fixture expansion, build-log triage, formatting, and mechanical
-API plumbing. Editing subagents should use dedicated branches and worktrees
-where practical; never let agents edit the same files concurrently. The
-primary agent must review and validate every subagent result before
-integration.
+renderer behavior, ABI/AOT work, unsafe file handling, and other ambiguous or
+high-risk changes. When available, prefer `gpt-5.6-luna` at `max` (or `high`
+for very narrow work) for bounded builds, test execution, simple validated
+commands, CMake wiring, documentation, fixture expansion, build-log triage,
+formatting, and mechanical API plumbing. Have Sol xhigh review Luna's exact
+patch and first useful failure before integration whenever the result affects
+architecture or product behavior. If Luna is not exposed in the current agent
+model picker, use `gpt-5.6-terra` `high` for those bounded lanes and record the
+fallback honestly; never claim Luna ran when it did not. Editing subagents
+should use dedicated branches and worktrees where practical; never let agents
+edit the same files concurrently. The primary agent must review and validate
+every subagent result before integration.
 
 Avoid duplicated validation work:
 
@@ -82,6 +87,16 @@ Avoid duplicated validation work:
 8. Stop speculative visual work when static review reaches a physical A/B
    gate. Continue only with a bounded deterministic test or existing diagnostic
    seam until a newly authorized capture can distinguish explicit hypotheses.
+
+Every major feature that reaches integration is a numbered release checkpoint.
+Before beginning integration of the next major feature: give the current
+checkpoint the next global `CURRENT_PROJECT_VERSION` in every target
+configuration, commit it, run validation proportional to the affected targets,
+push the integration branch, and record the exact local/remote hash plus artifact
+or pending physical gate in `HANDOFF.md`. Small corrective commits needed to make
+that same feature build and pass remain part of its checkpoint; unrelated major
+features do not silently accumulate under one build number. Workers never bump
+the build independently.
 
 Preserve enough state for a context wipe at all times. When context usage
 reaches approximately 70 percent, or earlier when the platform does not expose
