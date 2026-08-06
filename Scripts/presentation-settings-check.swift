@@ -81,6 +81,28 @@ private func legacyDocumentAndPickerOrderingRemainCompatible() async throws {
           "the legacy graphics option remains persisted even while Classic is selected")
     check(!value.developerLogsEnabled,
           "a Build 93 document defaults the newly added developer logs setting off")
+    check(value.primaryInputSource == .automatic,
+          "a Build 93 document defaults the new Primary Controller choice to Automatic")
+}
+
+@MainActor
+private func primaryInputSourcePersistsAndResets() async throws {
+    print("Primary Controller is a compatible per-game synced setting")
+    let fixture = try Fixture(name: "primary-input")
+    let value = settings(fixture, writerID: "device-a", cloudAvailable: false)
+    check(value.primaryInputSource == .automatic, "Primary Controller begins Automatic")
+    value.setPrimaryInputSource(.controller)
+    check(value.primaryInputSource == .controller, "Controller can be explicitly preferred")
+    let restored = settings(fixture, writerID: "device-b", cloudAvailable: false)
+    check(restored.primaryInputSource == .controller,
+          "Primary Controller persists in the Jak 1 document")
+    restored.restoreDefaults(for: .controls)
+    check(restored.primaryInputSource == .automatic,
+          "Restore Controls Defaults restores Automatic source selection")
+    restored.setPrimaryInputSource(.keyboardMouse)
+    restored.resetAll()
+    check(restored.primaryInputSource == .automatic,
+          "Reset Jak 1 Settings restores Automatic source selection")
 }
 
 @MainActor
@@ -292,6 +314,7 @@ private struct PresentationSettingsCheck {
         do {
             try await legacyDocumentAndPickerOrderingRemainCompatible()
             try await developerLogsPersistAndReset()
+            try await primaryInputSourcePersistsAndResets()
             try await defaultsUseModernGraphics()
             try await savedChoicesSurviveNewDefaults()
             try await profilesCanBeMixedWithoutLosingOptions()

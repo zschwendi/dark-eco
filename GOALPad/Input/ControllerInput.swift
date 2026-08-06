@@ -26,8 +26,22 @@ final class ControllerInput {
     private(set) var rightStick: (x: UInt8, y: UInt8) = (UInt8(GOALPadAnalogNeutral),
                                                          UInt8(GOALPadAnalogNeutral))
     private(set) var rumble = GOALPadRumble(large: 0, small: 0)
+    private(set) var primarySource: PrimaryInputSource = .automatic
 
     var isConnected: Bool { controller != nil }
+    var isKeyboardMouseConnected: Bool { keyboard != nil || mouse != nil }
+    var effectivePrimarySource: PrimaryInputSource { sourcePolicy.effectiveSource }
+
+    var availablePrimarySources: [PrimaryInputSource] {
+        PrimaryInputSource.allCases.filter {
+            switch $0 {
+            case .automatic: true
+            case .touch: Self.touchAvailable
+            case .controller: controller != nil
+            case .keyboardMouse: isKeyboardMouseConnected
+            }
+        }
+    }
 
     /// True while a physical controller, keyboard, or mouse is the thing being played with.
     private(set) var isDriving = false
@@ -39,6 +53,12 @@ final class ControllerInput {
     private var observers: [NSObjectProtocol] = []
     @ObservationIgnored private var keyboardMouseState = KeyboardMouseInputState()
     @ObservationIgnored private var activity = InputActivityTracker()
+
+    func setPrimarySource(_ source: PrimaryInputSource) {
+        guard source != primarySource else { return }
+        primarySource = source
+        noteDriving()
+    }
 
     func startWatching() {
         guard observers.isEmpty else { return }
@@ -107,7 +127,8 @@ final class ControllerInput {
     private func pushFrame(merging touch: TouchPadState?) {
         var state = Self.neutralState()
         let now = CACurrentMediaTime()
-        if let gamepad = controller?.extendedGamepad {
+        let policy = sourcePolicy
+        if policy.allowsController, let gamepad = controller?.extendedGamepad {
             state.buttons = Self.buttons(of: gamepad)
             state.leftX = Self.axisByte(gamepad.leftThumbstick.xAxis.value)
             state.leftY = Self.axisByte(-gamepad.leftThumbstick.yAxis.value)
@@ -121,26 +142,29 @@ final class ControllerInput {
         let keyboardMouse = keyboardMouseState.consumeFrame()
         if keyboardMouse.hasKeyboardInput { activity.noteKeyboard(at: now) }
         if keyboardMouse.hasMouseInput { activity.noteMouse(at: now) }
-        state.buttons.formUnion(keyboardMouse.buttons)
-        var preferred = PadStickMerge.preferred(
-            primaryX: state.leftX,
-            primaryY: state.leftY,
-            fallbackX: keyboardMouse.leftX,
-            fallbackY: keyboardMouse.leftY,
-            fallbackActive: PadStickMerge.isDeflected(x: keyboardMouse.leftX,
-                                                      y: keyboardMouse.leftY))
-        state.leftX = preferred.x
-        state.leftY = preferred.y
-        preferred = PadStickMerge.preferred(primaryX: state.rightX,
-                                            primaryY: state.rightY,
-                                            fallbackX: keyboardMouse.rightX,
-                                            fallbackY: keyboardMouse.rightY,
-                                            fallbackActive: keyboardMouse.hasMouseInput)
-        state.rightX = preferred.x
-        state.rightY = preferred.y
+        var preferred = (x: state.leftX, y: state.leftY)
+        if policy.allowsKeyboardMouse {
+            state.buttons.formUnion(keyboardMouse.buttons)
+            preferred = PadStickMerge.preferred(
+                primaryX: state.leftX,
+                primaryY: state.leftY,
+                fallbackX: keyboardMouse.leftX,
+                fallbackY: keyboardMouse.leftY,
+                fallbackActive: PadStickMerge.isDeflected(x: keyboardMouse.leftX,
+                                                          y: keyboardMouse.leftY))
+            state.leftX = preferred.x
+            state.leftY = preferred.y
+            preferred = PadStickMerge.preferred(primaryX: state.rightX,
+                                                primaryY: state.rightY,
+                                                fallbackX: keyboardMouse.rightX,
+                                                fallbackY: keyboardMouse.rightY,
+                                                fallbackActive: keyboardMouse.hasMouseInput)
+            state.rightX = preferred.x
+            state.rightY = preferred.y
+        }
         noteDriving(at: now)
 
-        if let touch {
+        if let touch, policy.allowsTouch {
             preferred = PadStickMerge.preferred(primaryX: state.leftX,
                                                 primaryY: state.leftY,
                                                 fallbackX: touch.leftX,
@@ -161,7 +185,8 @@ final class ControllerInput {
         buttons = state.buttons
         leftStick = (state.leftX, state.leftY)
         rightStick = (state.rightX, state.rightY)
-        if controller != nil || keyboard != nil || mouse != nil || touch != nil {
+        if policy.allowsController || policy.allowsKeyboardMouse
+            || (touch != nil && policy.allowsTouch) {
             GOALPadInputSetState(Self.primaryPort, state)
         } else {
             GOALPadInputSetDisconnected(Self.primaryPort)
@@ -199,11 +224,29 @@ final class ControllerInput {
     /// Only assigned when it changes: this runs every frame and every assignment to an observed
     /// property redraws whatever is watching it.
     private func noteDriving(at time: TimeInterval = CACurrentMediaTime()) {
-        let driving = activity.isDriving(at: time,
-                                         controllerConnected: controller != nil,
-                                         keyboardConnected: keyboard != nil,
-                                         mouseConnected: mouse != nil)
+        let recentPhysicalActivity = activity.isDriving(
+            at: time,
+            controllerConnected: controller != nil,
+            keyboardConnected: keyboard != nil,
+            mouseConnected: mouse != nil)
+        let driving = sourcePolicy.suppressesTouchChrome(
+            recentPhysicalActivity: recentPhysicalActivity)
         if driving != isDriving { isDriving = driving }
+    }
+
+    private static var touchAvailable: Bool {
+        #if os(iOS)
+        true
+        #else
+        false
+        #endif
+    }
+
+    private var sourcePolicy: InputSourcePolicy {
+        InputSourcePolicy(preference: primarySource,
+                          touchAvailable: Self.touchAvailable,
+                          controllerConnected: controller != nil,
+                          keyboardMouseConnected: isKeyboardMouseConnected)
     }
 
     nonisolated private static func keyboardKey(for code: GCKeyCode) -> KeyboardMouseKey? {
@@ -217,6 +260,7 @@ final class ControllerInput {
         case .upArrow: .upArrow
         case .downArrow: .downArrow
         case .escape: .escape
+        case .tab: .tab
         default: nil
         }
     }
@@ -311,7 +355,7 @@ final class ControllerInput {
             }
         }
         let mappedCodes: [GCKeyCode] = [.keyW, .keyA, .keyS, .keyD, .leftArrow, .rightArrow,
-                                        .upArrow, .downArrow, .escape]
+                                        .upArrow, .downArrow, .escape, .tab]
         var adoptedHeldInput = false
         for code in mappedCodes where input.button(forKeyCode: code)?.isPressed == true {
             if let key = Self.keyboardKey(for: code) {

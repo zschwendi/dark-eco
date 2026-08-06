@@ -9,7 +9,9 @@ mkdir -p "$module_cache"
 
 swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
   -module-cache-path "$module_cache" \
+  -import-objc-header "$root/GOALPad/Native/GOALPadRuntimeBridge.h" \
   -swift-version 5 \
+  "$root/GOALPad/Input/KeyboardMouseInput.swift" \
   "$root/GOALPad/Game/PresentationSettings.swift" \
   "$root/Scripts/presentation-settings-check.swift" \
   -o "$out"

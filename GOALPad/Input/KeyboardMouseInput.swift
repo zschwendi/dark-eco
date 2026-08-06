@@ -1,5 +1,61 @@
 import Foundation
 
+enum PrimaryInputSource: String, CaseIterable, Codable, Sendable {
+    case automatic
+    case touch
+    case controller
+    case keyboardMouse
+
+    var title: String {
+        switch self {
+        case .automatic: "Automatic"
+        case .touch: "Touch"
+        case .controller: "Controller"
+        case .keyboardMouse: "Mouse & Keyboard"
+        }
+    }
+}
+
+/// Resolves a persisted preference against what this device currently has. An unavailable
+/// explicit source falls back to Automatic so a cloud-synced preference cannot strand a player.
+struct InputSourcePolicy: Equatable {
+    let preference: PrimaryInputSource
+    let touchAvailable: Bool
+    let controllerConnected: Bool
+    let keyboardMouseConnected: Bool
+
+    var effectiveSource: PrimaryInputSource {
+        switch preference {
+        case .touch where touchAvailable: .touch
+        case .controller where controllerConnected: .controller
+        case .keyboardMouse where keyboardMouseConnected: .keyboardMouse
+        default: .automatic
+        }
+    }
+
+    var allowsTouch: Bool {
+        touchAvailable && (effectiveSource == .automatic || effectiveSource == .touch)
+    }
+
+    var allowsController: Bool {
+        controllerConnected && (effectiveSource == .automatic || effectiveSource == .controller)
+    }
+
+    var allowsKeyboardMouse: Bool {
+        keyboardMouseConnected
+            && (effectiveSource == .automatic || effectiveSource == .keyboardMouse)
+    }
+
+    func suppressesTouchChrome(recentPhysicalActivity: Bool) -> Bool {
+        switch effectiveSource {
+        case .automatic: recentPhysicalActivity
+        case .controller: controllerConnected
+        case .keyboardMouse: keyboardMouseConnected
+        case .touch: false
+        }
+    }
+}
+
 /// Only the keyboard keys intentionally exposed as Jak 1 controls. Text entry and every other key
 /// stay outside the gameplay pad until a later remapping slice chooses them explicitly.
 enum KeyboardMouseKey: CaseIterable, Hashable {
@@ -12,6 +68,7 @@ enum KeyboardMouseKey: CaseIterable, Hashable {
     case upArrow
     case downArrow
     case escape
+    case tab
 }
 
 struct KeyboardMouseFrame {
@@ -112,6 +169,11 @@ struct KeyboardMouseInputState {
             frame.buttons.formUnion([.L1, .R1])
         }
         if heldKeys.contains(.escape) { frame.buttons.insert(.start) }
+        if heldKeys.contains(.tab) {
+            // Either rear trigger opens Jak 1's native progress/stats readout. Holding the pair
+            // keeps the action layout-independent and distinct from Escape's full pause.
+            frame.buttons.formUnion([.L2, .R2])
+        }
 
         frame.hasMouseInput = pendingMouseX != 0 || pendingMouseY != 0
         frame.rightX = Self.mouseAxisByte(pendingMouseX)

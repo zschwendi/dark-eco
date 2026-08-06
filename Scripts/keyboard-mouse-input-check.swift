@@ -41,8 +41,8 @@ private func keyboardMovement() {
 }
 
 private func keyboardButtons() {
-    print("only the nine chosen gameplay keys have mappings")
-    check(KeyboardMouseKey.allCases.count == 9, "the explicit keyboard surface stays bounded")
+    print("only the ten chosen gameplay keys have mappings")
+    check(KeyboardMouseKey.allCases.count == 10, "the explicit keyboard surface stays bounded")
 
     let expected: [(KeyboardMouseKey, GOALPadButton, String)] = [
         (.leftArrow, .square, "Left Arrow is Square"),
@@ -64,6 +64,44 @@ private func keyboardButtons() {
           "the shoulder chord emits only pad bits 10 and 11")
     check(!shoulderButtons.contains(.start),
           "the shoulder chord is distinct from ordinary Start pause/progress")
+
+    var stats = KeyboardMouseInputState()
+    stats.setKey(.tab, pressed: true)
+    check(stats.consumeFrame().buttons == [.L2, .R2],
+          "Tab is the explicit native progress/stats shoulder chord")
+}
+
+private func primaryInputSourcePolicy() {
+    print("Primary Controller preferences are exclusive when available and safe when unavailable")
+    let automatic = InputSourcePolicy(preference: .automatic, touchAvailable: true,
+                                      controllerConnected: true, keyboardMouseConnected: true)
+    check(automatic.allowsTouch && automatic.allowsController && automatic.allowsKeyboardMouse,
+          "Automatic preserves the accepted merged-source behavior")
+    check(automatic.suppressesTouchChrome(recentPhysicalActivity: true)
+          && !automatic.suppressesTouchChrome(recentPhysicalActivity: false),
+          "Automatic keeps activity-driven touch suppression")
+
+    let touch = InputSourcePolicy(preference: .touch, touchAvailable: true,
+                                  controllerConnected: true, keyboardMouseConnected: true)
+    check(touch.effectiveSource == .touch && touch.allowsTouch
+          && !touch.allowsController && !touch.allowsKeyboardMouse,
+          "Touch explicitly excludes connected physical input")
+    check(!touch.suppressesTouchChrome(recentPhysicalActivity: true),
+          "ignored physical activity cannot hide explicit Touch controls")
+
+    let controller = InputSourcePolicy(preference: .controller, touchAvailable: true,
+                                       controllerConnected: true, keyboardMouseConnected: true)
+    check(controller.allowsController && !controller.allowsTouch
+          && !controller.allowsKeyboardMouse,
+          "Controller explicitly owns the pad while connected")
+    check(controller.suppressesTouchChrome(recentPhysicalActivity: false),
+          "an explicitly selected connected Controller hides idle touch chrome")
+
+    let unavailable = InputSourcePolicy(preference: .controller, touchAvailable: true,
+                                        controllerConnected: false,
+                                        keyboardMouseConnected: false)
+    check(unavailable.effectiveSource == .automatic && unavailable.allowsTouch,
+          "an unavailable cloud-synced preference falls back without stranding input")
 }
 
 private func relativeMouse() {
@@ -186,6 +224,7 @@ struct KeyboardMouseInputCheck {
         relativeMouse()
         drivingArbitration()
         stickSourcePrecedence()
+        primaryInputSourcePolicy()
 
         if failures > 0 {
             print("\nkeyboard/mouse input check failed: \(failures) assertion(s)")

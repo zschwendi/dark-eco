@@ -107,6 +107,7 @@ final class GameSession {
         async let settingsPreparation: Void = presentationSettings.prepare()
         await saveSync.prepare()
         await settingsPreparation
+        input.setPrimarySource(presentationSettings.primaryInputSource)
         await refreshDataReport()
     }
 

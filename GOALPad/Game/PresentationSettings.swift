@@ -38,6 +38,9 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
     /// Optional so Build 93 settings documents decode without a migration. Developer logs are
     /// hidden by default and belong to this title's synced settings document.
     var developerLogsEnabledOverride: Bool?
+    /// Optional for compatibility with Build 93 documents. Automatic preserves the accepted
+    /// activity-driven source selection while explicit choices follow the player across devices.
+    var primaryInputSourceOverride: PrimaryInputSource?
     var modifiedAt: Date
     var writerID: String
 
@@ -79,11 +82,17 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         developerLogsEnabledOverride ?? false
     }
 
+    var primaryInputSource: PrimaryInputSource {
+        primaryInputSourceOverride ?? .automatic
+    }
+
     mutating func restoreDefaults(for section: SettingsSection) {
         switch section {
         case .graphics:
             graphicsModernFillWidthOverride = nil
-        case .controls, .audio, .interface:
+        case .controls:
+            primaryInputSourceOverride = nil
+        case .audio, .interface:
             break
         }
     }
@@ -95,6 +104,7 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         interfaceProfile = .classic
         graphicsModernFillWidthOverride = nil
         developerLogsEnabledOverride = nil
+        primaryInputSourceOverride = nil
     }
 }
 
@@ -347,6 +357,8 @@ final class PresentationSettings {
 
     var developerLogsEnabled: Bool { document.developerLogsEnabled }
 
+    var primaryInputSource: PrimaryInputSource { document.primaryInputSource }
+
     var lastSyncDate: Date? {
         lastSuccessfulSyncDate
     }
@@ -384,6 +396,10 @@ final class PresentationSettings {
 
     func setDeveloperLogsEnabled(_ enabled: Bool) {
         change { $0.developerLogsEnabledOverride = enabled }
+    }
+
+    func setPrimaryInputSource(_ source: PrimaryInputSource) {
+        change { $0.primaryInputSourceOverride = source == .automatic ? nil : source }
     }
 
     func restoreDefaults(for section: SettingsSection) {
