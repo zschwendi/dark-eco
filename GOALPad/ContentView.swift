@@ -63,7 +63,8 @@ struct ContentView: View {
                                   lookAroundState: session.lookAroundState,
                                   isSuppressed: session.input.isDriving,
                                   gameMode: session.gameMode,
-                                  progressMenuSnapshot: session.progressMenuSnapshot)
+                                  progressMenuSnapshot: session.progressMenuSnapshot,
+                                  warpGateTouchSnapshot: session.warpGateTouchSnapshot)
                 #endif
 
                 if session.isNativeMenuOpen

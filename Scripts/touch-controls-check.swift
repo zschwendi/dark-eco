@@ -1006,6 +1006,13 @@ private func progressSnapshot(screen: Int, option: Int = 0,
                                selectedOption: selected, inTransition: transition)
 }
 
+private func warpList(slot: Int32 = 0, mask: UInt32 = 0x1f,
+                      moving: Bool = false,
+                      sequence: UInt32 = 1) -> NativeWarpGateTouchSnapshot {
+    .destinationListActive(selectedSlot: slot, permittedMask: mask,
+                           selectionMoving: moving, sequence: sequence)
+}
+
 @MainActor
 private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
     print("dedicated native-menu actions use only authoritative mode meanings")
@@ -1262,6 +1269,256 @@ private func nativeMenuSuppressionCancellationAndResetAreSafe() {
     check(run.frame() == .neutral, "lifecycle reset clears dedicated menu input")
 }
 
+private func nativeWarpActionsAreStructurallyGatedAndExact() {
+    print("warp-gate actions validate exact authoritative semantics")
+    let prompt = NativeWarpGateTouchSnapshot.circleUseAvailable(sequence: 10)
+    check(NativeWarpGateTouchAction.available(in: .gameplay, snapshot: prompt)
+          == [.useWarpGate],
+          "the Circle-use prompt exposes only Use Warp Gate")
+    check(NativeWarpGateTouchAction.available(in: .pause, snapshot: prompt).isEmpty,
+          "a warp snapshot outside gameplay cannot override native-menu semantics")
+
+    for slot in 0...4 {
+        let list = warpList(slot: Int32(slot), mask: UInt32(1 << slot),
+                            sequence: UInt32(slot + 20))
+        check(NativeWarpGateTouchAction.available(in: .gameplay, snapshot: list)
+              == [.previous, .next, .warp, .back],
+              "destination slot \(slot) accepts only the five-bit permitted mask")
+    }
+    check(NativeWarpGateTouchAction.available(
+        in: .gameplay, snapshot: warpList(slot: 2, mask: 0b00011)).isEmpty,
+          "a selected destination outside the permitted mask fails closed")
+    check(NativeWarpGateTouchAction.available(
+        in: .gameplay, snapshot: warpList(slot: 2, moving: true)) == [.warp, .back],
+          "selection movement gates Left and Right but retains source-proven Warp and Back")
+    check(NativeWarpGateTouchAction.available(
+        in: .gameplay, snapshot: .transitioning(sequence: 30)).isEmpty,
+          "warp transition presents no actions")
+    check(NativeWarpGateTouchAction.available(
+        in: .gameplay, snapshot: .unavailable).isEmpty,
+          "unavailable state presents no actions")
+
+    let invalidSlotLow = warpList(slot: -1)
+    let invalidSlotHigh = warpList(slot: 5)
+    let invalidMask = warpList(mask: 0x20)
+    let unpermittedSelection = warpList(slot: 4, mask: 0x0f)
+    let malformedPrompt = NativeWarpGateTouchSnapshot(
+        valid: true, state: .circleUseAvailable, selectedSlot: 0,
+        permittedMask: 1, selectionMoving: false, sequence: 31)
+    let rejectedSchema = NativeWarpGateTouchSnapshot(
+        valid: false, state: .destinationListActive, selectedSlot: 0,
+        permittedMask: 1, selectionMoving: false, sequence: 32)
+    check([invalidSlotLow, invalidSlotHigh, invalidMask, unpermittedSelection,
+           malformedPrompt, rejectedSchema].allSatisfy {
+        NativeWarpGateTouchAction.available(in: .gameplay, snapshot: $0).isEmpty
+    }, "invalid schema, slots, masks, selections, and contradictory fields fail closed")
+
+    check(NativeWarpGateTouchAction.useWarpGate.button.bit == .circle
+          && NativeWarpGateTouchAction.previous.button.bit == .left
+          && NativeWarpGateTouchAction.next.button.bit == .right
+          && NativeWarpGateTouchAction.warp.button.bit == .circle
+          && NativeWarpGateTouchAction.back.button.bit == .triangle,
+          "warp actions map exactly to Circle, Left, Right, Circle, and Triangle")
+    check(NativeWarpGateTouchAction.back.button != NativeMenuTouchAction.back.button
+          && NativeWarpGateTouchAction.warp.button != NativeMenuTouchAction.confirm.button,
+          "warp Back and Warp do not reuse the menu's Square and Cross actions")
+    check(NativeWarpGateTouchAction.allCases.map(\.label)
+          == ["Use Warp Gate", "Previous", "Next", "Warp", "Back"],
+          "warp controls retain their exact accessible labels")
+}
+
+@MainActor
+private func nativeWarpPromptCoexistsAndRejectsStaleActions() {
+    print("warp prompt coexists with gameplay and rejects stale closures")
+    var run = Runner()
+    run.controls.setNativeMenuMode(.gameplay)
+    let prompt = NativeWarpGateTouchSnapshot.circleUseAvailable(sequence: 40)
+    run.controls.setWarpGateTouchSnapshot(prompt)
+
+    let movement = Finger()
+    let centre = CGPoint(x: 180, y: 650)
+    run.down(movement, centre)
+    run.move(movement, CGPoint(x: centre.x + TouchControls.movementRadius * 0.4,
+                               y: centre.y))
+    run.controls.performNativeWarpGateAction(.useWarpGate, for: prompt)
+    check(run.controls.consumeHapticEvents() == [.button(.circle)],
+          "accepted Use Warp Gate emits one immediate Circle haptic")
+    let combined = run.frame()
+    check(combined.isLeftDeflected && combined.buttons == .circle,
+          "the explicit prompt button coexists with ordinary gameplay movement")
+
+    run.controls.performNativeWarpGateAction(.useWarpGate, for: prompt)
+    run.controls.performNativeWarpGateAction(.useWarpGate, for: prompt)
+    let newerPrompt = NativeWarpGateTouchSnapshot.circleUseAvailable(sequence: 41)
+    run.controls.setWarpGateTouchSnapshot(newerPrompt)
+    check(run.controls.touches.isEmpty && run.frame() == .neutral,
+          "a sequence change cancels carried touch plus active and queued prompt pulses")
+    run.controls.performNativeWarpGateAction(.useWarpGate, for: prompt)
+    check(run.frame() == .neutral && run.controls.consumeHapticEvents().isEmpty,
+          "an action closure from the prior sequence fails closed")
+
+    run.controls.performNativeWarpGateAction(.useWarpGate, for: newerPrompt)
+    run.controls.setNativeMenuMode(.pause)
+    check(run.frame() == .neutral && run.controls.consumeHapticEvents().isEmpty,
+          "leaving gameplay cancels an unfinished prompt action")
+    run.controls.setNativeMenuMode(.gameplay)
+    let listAtSameSequence = warpList(slot: 1, sequence: newerPrompt.sequence)
+    run.controls.setWarpGateTouchSnapshot(listAtSameSequence)
+    check(run.frame() == .neutral && run.controls.consumeHapticEvents().isEmpty,
+          "a same-sequence semantic transition still cancels queued input and feedback")
+    run.controls.performNativeWarpGateAction(.previous, for: newerPrompt)
+    check(run.frame() == .neutral,
+          "an action from a prior semantic snapshot is rejected even if sequence did not advance")
+}
+
+@MainActor
+private func nativeWarpListActionsSwipesAndResetAreExact() {
+    print("warp list emits exact isolated bytes, haptics, and horizontal swipes")
+    var run = Runner()
+    run.controls.setNativeMenuMode(.gameplay)
+    let list = warpList(slot: 2, sequence: 50)
+    run.controls.setWarpGateTouchSnapshot(list)
+    for action in [NativeWarpGateTouchAction.previous, .next, .warp, .back] {
+        run.controls.performNativeWarpGateAction(action, for: list)
+    }
+    check(run.controls.consumeHapticEvents() == [
+        .button(.left), .button(.right), .button(.circle), .button(.triangle),
+    ], "list actions emit one exact immediate haptic each")
+    let frame = run.frame()
+    check(frame.buttons == [.left, .right, .circle, .triangle]
+          && !frame.isLeftDeflected && !frame.isRightDeflected,
+          "list actions emit only Left, Right, Circle, and Triangle pad bytes")
+    check(!frame.buttons.contains(.cross) && !frame.buttons.contains(.square),
+          "list actions never leak menu Confirm/Cross or Back/Square")
+
+    let nextList = warpList(slot: 3, sequence: 51)
+    run.controls.setWarpGateTouchSnapshot(nextList)
+    check(run.controls.performNativeWarpGateSwipe(
+        translation: CGSize(width: -TouchControls.nativeWarpSwipeDistance, height: 2),
+        for: nextList), "an unambiguous leftward list swipe selects Previous")
+    check(run.controls.consumeHapticEvents() == [.button(.left)]
+          && run.frame().buttons == .left,
+          "leftward swipe emits exactly one Left pulse and haptic")
+
+    let lastList = warpList(slot: 4, sequence: 52)
+    run.controls.setWarpGateTouchSnapshot(lastList)
+    check(run.controls.performNativeWarpGateSwipe(
+        translation: CGSize(width: TouchControls.nativeWarpSwipeDistance, height: -2),
+        for: lastList), "an unambiguous rightward list swipe selects Next")
+    check(run.controls.consumeHapticEvents() == [.button(.right)]
+          && run.frame().buttons == .right,
+          "rightward swipe emits exactly one Right pulse and haptic")
+    check(!run.controls.performNativeWarpGateSwipe(
+        translation: CGSize(width: 2, height: TouchControls.nativeWarpSwipeDistance),
+        for: lastList), "vertical list swipes remain inert without a source meaning")
+    check(!run.controls.performNativeWarpGateSwipe(
+        translation: CGSize(width: TouchControls.nativeWarpSwipeDistance,
+                            height: TouchControls.nativeWarpSwipeDistance),
+        for: lastList), "ambiguous diagonal list swipes remain inert")
+
+    let movedList = warpList(slot: 4, moving: true, sequence: 53)
+    run.controls.setWarpGateTouchSnapshot(movedList)
+    check(!run.controls.performNativeWarpGateSwipe(
+        translation: CGSize(width: TouchControls.nativeWarpSwipeDistance, height: 0),
+        for: movedList), "selection-moving state rejects even a clear horizontal swipe")
+    run.controls.performNativeWarpGateAction(.warp, for: movedList)
+    run.controls.performNativeWarpGateAction(.back, for: movedList)
+    check(run.controls.consumeHapticEvents() == [.button(.circle), .button(.triangle)]
+          && run.frame().buttons == [.circle, .triangle],
+          "selection-moving state retains exact Warp/Circle and Back/Triangle input")
+    check(!run.controls.performNativeWarpGateSwipe(
+        translation: CGSize(width: -TouchControls.nativeWarpSwipeDistance, height: 0),
+        for: lastList), "a horizontal swipe from the prior sequence fails closed")
+
+    run.controls.setWarpGateTouchSnapshot(list)
+    run.controls.performNativeWarpGateAction(.back, for: list)
+    run.controls.reset()
+    check(run.frame() == .neutral && run.controls.consumeHapticEvents().isEmpty,
+          "lifecycle reset clears warp pulses and touch-owned feedback")
+}
+
+@MainActor
+private func nativeWarpCaptureAndSuppressionAreFailClosed() {
+    print("warp capture and controller suppression follow the authoritative phase")
+    let prompt = NativeWarpGateTouchSnapshot.circleUseAvailable(sequence: 60)
+    let list = warpList(sequence: 61)
+    let moving = warpList(moving: true, sequence: 62)
+    let transitioning = NativeWarpGateTouchSnapshot.transitioning(sequence: 63)
+    let malformedList = NativeWarpGateTouchSnapshot(
+        valid: false, state: .destinationListActive, selectedSlot: 0,
+        permittedMask: 1, selectionMoving: false, sequence: 64)
+    check(!TouchControls.capturesWarpGateTouchInput(mode: .gameplay, snapshot: .unavailable)
+          && !TouchControls.capturesWarpGateTouchInput(mode: .gameplay, snapshot: prompt),
+          "unavailable and Circle-use prompt states preserve ordinary gameplay touch")
+    check(TouchControls.capturesWarpGateTouchInput(mode: .gameplay, snapshot: list)
+          && TouchControls.capturesWarpGateTouchInput(mode: .gameplay, snapshot: moving)
+          && TouchControls.capturesWarpGateTouchInput(
+            mode: .gameplay, snapshot: transitioning),
+          "valid destination, selection-moving, and transition states capture gameplay touch")
+    check(!TouchControls.capturesWarpGateTouchInput(
+        mode: .gameplay, snapshot: malformedList),
+          "a malformed native snapshot cannot suppress ordinary gameplay touch")
+    check(!TouchControls.capturesWarpGateTouchInput(mode: .pause, snapshot: list),
+          "warp capture cannot replace the active native-menu owner")
+
+    check(TouchControls.warpGateTouchControlsAreVisible(
+        mode: .gameplay, snapshot: prompt, isSuppressed: false)
+          && TouchControls.warpGateTouchControlsAreVisible(
+            mode: .gameplay, snapshot: list, isSuppressed: false),
+          "prompt and settled list show their exact actions without suppression")
+    check(!TouchControls.warpGateTouchControlsAreVisible(
+        mode: .gameplay, snapshot: prompt, isSuppressed: true)
+          && !TouchControls.warpGateTouchControlsAreVisible(
+            mode: .gameplay, snapshot: list, isSuppressed: true),
+          "physical-controller activity suppresses all warp chrome")
+    check(TouchControls.warpGateTouchControlsAreVisible(
+        mode: .gameplay, snapshot: moving, isSuppressed: false)
+          && !TouchControls.warpGateTouchControlsAreVisible(
+            mode: .gameplay, snapshot: transitioning, isSuppressed: false),
+          "selection movement retains Warp and Back while transition presents no actions")
+    check(!TouchControls.warpGateTouchControlsAreVisible(
+        mode: .gameplay, snapshot: malformedList, isSuppressed: false),
+          "a malformed list neither captures nor presents actions")
+
+    var suppressed = Runner()
+    suppressed.controls.setNativeMenuMode(.gameplay)
+    suppressed.controls.setWarpGateTouchSnapshot(prompt)
+    suppressed.controls.performNativeWarpGateAction(
+        .useWarpGate, for: prompt, isSuppressed: true)
+    check(suppressed.frame() == .neutral
+          && suppressed.controls.consumeHapticEvents().isEmpty,
+          "physical-controller suppression rejects a hidden prompt action and haptic")
+    suppressed.controls.setWarpGateTouchSnapshot(list)
+    check(!suppressed.controls.performNativeWarpGateSwipe(
+        translation: CGSize(width: TouchControls.nativeWarpSwipeDistance, height: 0),
+        for: list, isSuppressed: true),
+          "physical-controller suppression rejects the hidden full-screen list gesture")
+
+    var run = Runner()
+    run.controls.setNativeMenuMode(.gameplay)
+    run.controls.setWarpGateTouchSnapshot(list)
+    let ignored = Finger()
+    let centre = CGPoint(x: 180, y: 650)
+    run.down(ignored, centre)
+    run.move(ignored, CGPoint(x: centre.x + TouchControls.movementRadius, y: centre.y))
+    run.beginPinch()
+    run.pinch(scale: 1 + TouchControls.pinchScaleDelta, lookAroundState: .normal)
+    check(run.frame() == .neutral,
+          "captured list touch cannot leak gameplay movement, gesture, or pinch input")
+
+    run.controls.setWarpGateTouchSnapshot(transitioning)
+    run.controls.performNativeWarpGateAction(.back, for: transitioning)
+    check(run.frame() == .neutral && run.controls.consumeHapticEvents().isEmpty,
+          "transitioning captures input while rejecting every explicit action")
+
+    run.controls.setWarpGateTouchSnapshot(.unavailable)
+    let resumed = Finger()
+    run.down(resumed, centre)
+    run.move(resumed, CGPoint(x: centre.x + TouchControls.movementRadius, y: centre.y))
+    check(run.frame().isLeftDeflected,
+          "unavailable state resumes ordinary gameplay touch")
+}
+
 @main
 @MainActor
 struct TouchControlsCheck {
@@ -1297,6 +1554,10 @@ struct TouchControlsCheck {
         nativeProgressListSwipeIsOneShotAndStateGated()
         nativeMenuTransitionPreventsGameplayLeakage()
         nativeMenuSuppressionCancellationAndResetAreSafe()
+        nativeWarpActionsAreStructurallyGatedAndExact()
+        nativeWarpPromptCoexistsAndRejectsStaleActions()
+        nativeWarpListActionsSwipesAndResetAreExact()
+        nativeWarpCaptureAndSuppressionAreFailClosed()
 
         print(failures == 0 ? "\nall checks passed" : "\n\(failures) checks FAILED")
         exit(failures == 0 ? 0 : 1)

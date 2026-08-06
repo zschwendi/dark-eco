@@ -82,6 +82,115 @@ struct NativeProgressMenuSnapshot: Equatable {
     }
 }
 
+/// The authoritative warp-gate interaction state. Native publication is wired separately; until
+/// then the app supplies `unavailable` and exposes no warp-specific controls.
+struct NativeWarpGateTouchSnapshot: Equatable, Sendable {
+    enum State: Equatable, Sendable {
+        case unavailable
+        case circleUseAvailable
+        case destinationListActive
+        case transitioning
+    }
+
+    let valid: Bool
+    let state: State
+    let selectedSlot: Int32
+    let permittedMask: UInt32
+    let selectionMoving: Bool
+    let sequence: UInt32
+
+    static let unavailable = NativeWarpGateTouchSnapshot(
+        valid: false, state: .unavailable, selectedSlot: -1,
+        permittedMask: 0, selectionMoving: false, sequence: 0)
+
+    static func circleUseAvailable(sequence: UInt32) -> Self {
+        Self(valid: true, state: .circleUseAvailable, selectedSlot: -1,
+             permittedMask: 0, selectionMoving: false, sequence: sequence)
+    }
+
+    static func destinationListActive(selectedSlot: Int32, permittedMask: UInt32,
+                                      selectionMoving: Bool, sequence: UInt32) -> Self {
+        Self(valid: true, state: .destinationListActive, selectedSlot: selectedSlot,
+             permittedMask: permittedMask, selectionMoving: selectionMoving,
+             sequence: sequence)
+    }
+
+    static func transitioning(sequence: UInt32) -> Self {
+        Self(valid: true, state: .transitioning, selectedSlot: -1,
+             permittedMask: 0, selectionMoving: false, sequence: sequence)
+    }
+
+    var isStructurallyValid: Bool {
+        guard valid else { return false }
+        return switch state {
+        case .unavailable, .circleUseAvailable, .transitioning:
+            selectedSlot == -1 && permittedMask == 0 && !selectionMoving
+        case .destinationListActive:
+            if (0...4).contains(selectedSlot), permittedMask & ~0x1f == 0 {
+                permittedMask & (UInt32(1) << UInt32(selectedSlot)) != 0
+            } else {
+                false
+            }
+        }
+    }
+}
+
+/// Warp actions remain distinct from native-menu actions because Jak consumes different face
+/// buttons for Warp and Back than the Progress and debug menus do.
+enum NativeWarpGateTouchAction: CaseIterable, Hashable, Sendable {
+    case useWarpGate
+    case previous
+    case next
+    case warp
+    case back
+
+    var button: TouchButton {
+        switch self {
+        case .useWarpGate, .warp: .circle
+        case .previous: .left
+        case .next: .right
+        case .back: .triangle
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .useWarpGate: "Use Warp Gate"
+        case .previous: "Previous"
+        case .next: "Next"
+        case .warp: "Warp"
+        case .back: "Back"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .useWarpGate: "circle"
+        case .previous: "chevron.left"
+        case .next: "chevron.right"
+        case .warp: "arrow.right.circle.fill"
+        case .back: "xmark"
+        }
+    }
+
+    nonisolated static func available(
+        in mode: GOALPadGameMode,
+        snapshot: NativeWarpGateTouchSnapshot
+    ) -> [Self] {
+        guard mode == .gameplay, snapshot.isStructurallyValid else { return [] }
+        switch snapshot.state {
+        case .unavailable, .transitioning:
+            return []
+        case .circleUseAvailable:
+            return [.useWarpGate]
+        case .destinationListActive:
+            var actions: [Self] = snapshot.selectionMoving ? [] : [.previous, .next]
+            actions.append(contentsOf: [.warp, .back])
+            return actions
+        }
+    }
+}
+
 /// Touch-friendly actions whose meanings are authoritative for the current native game state.
 enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
     case up, down, left, right
@@ -525,6 +634,7 @@ final class TouchControls {
     nonisolated static let rollJumpDistance: CGFloat = 44
     nonisolated static let swipeDistance: CGFloat = 44
     nonisolated static let nativeMenuSwipeDistance: CGFloat = 44
+    nonisolated static let nativeWarpSwipeDistance: CGFloat = 44
     nonisolated static let pinchScaleDelta: CGFloat = 0.12
 
     /// Frames a recognised one-shot press remains down, followed by a guaranteed release gap.
@@ -541,6 +651,7 @@ final class TouchControls {
     private(set) var style: TouchControlStyle
     private(set) var nativeMenuMode: GOALPadGameMode = .unknown
     private(set) var progressMenuSnapshot: NativeProgressMenuSnapshot = .unavailable
+    private(set) var warpGateTouchSnapshot: NativeWarpGateTouchSnapshot = .unavailable
 
     enum Role: Equatable {
         case movement
@@ -596,6 +707,12 @@ final class TouchControls {
         Self.capturesNativeMenuInput(mode: nativeMenuMode)
     }
 
+    var capturesNativeTouchInput: Bool {
+        capturesNativeMenuInput
+            || Self.capturesWarpGateTouchInput(mode: nativeMenuMode,
+                                               snapshot: warpGateTouchSnapshot)
+    }
+
     func setStyle(_ style: TouchControlStyle) {
         guard style != self.style else { return }
         reset()
@@ -612,10 +729,23 @@ final class TouchControls {
     func setNativeMenuState(_ mode: GOALPadGameMode,
                             progress: NativeProgressMenuSnapshot) {
         guard mode != nativeMenuMode || progress != progressMenuSnapshot else { return }
-        let capturedInput = capturesNativeMenuInput
+        let capturedInput = capturesNativeTouchInput
+        let warpSemanticWasActive = nativeMenuMode == .gameplay
+            && warpGateTouchSnapshot.state != .unavailable
         nativeMenuMode = mode
         progressMenuSnapshot = progress
-        if capturedInput || capturesNativeMenuInput { reset() }
+        let warpSemanticIsActive = nativeMenuMode == .gameplay
+            && warpGateTouchSnapshot.state != .unavailable
+        if capturedInput || capturesNativeTouchInput
+            || warpSemanticWasActive || warpSemanticIsActive { reset() }
+    }
+
+    /// Any published semantic or sequence change invalidates touch-owned work from the prior
+    /// snapshot, including live gameplay touches under the non-capturing use prompt.
+    func setWarpGateTouchSnapshot(_ snapshot: NativeWarpGateTouchSnapshot) {
+        guard snapshot != warpGateTouchSnapshot else { return }
+        warpGateTouchSnapshot = snapshot
+        reset()
     }
 
     /// Emits one ordinary pad pulse. Availability is mode-gated so a stale SwiftUI action cannot
@@ -641,6 +771,36 @@ final class TouchControls {
         return true
     }
 
+    /// Emits only when the view's full source snapshot, including its sequence, is still current.
+    func performNativeWarpGateAction(_ action: NativeWarpGateTouchAction,
+                                     for expectedSnapshot: NativeWarpGateTouchSnapshot,
+                                     isSuppressed: Bool = false) {
+        guard !isSuppressed, expectedSnapshot == warpGateTouchSnapshot,
+              NativeWarpGateTouchAction.available(in: nativeMenuMode,
+                                                  snapshot: warpGateTouchSnapshot).contains(action)
+        else { return }
+        press(action.button)
+        enqueueHaptic(.button(action.button))
+    }
+
+    /// The destination responder is Left/Right-driven. A completed horizontal swipe maps to
+    /// exactly one of those source semantics; vertical or diagonal intent remains inert.
+    @discardableResult
+    func performNativeWarpGateSwipe(translation: CGSize,
+                                    for expectedSnapshot: NativeWarpGateTouchSnapshot,
+                                    isSuppressed: Bool = false) -> Bool {
+        guard !isSuppressed else { return false }
+        guard abs(translation.width) >= Self.nativeWarpSwipeDistance,
+              abs(translation.width) > abs(translation.height) else { return false }
+        let action: NativeWarpGateTouchAction = translation.width < 0 ? .previous : .next
+        let actions = NativeWarpGateTouchAction.available(in: nativeMenuMode,
+                                                          snapshot: warpGateTouchSnapshot)
+        guard expectedSnapshot == warpGateTouchSnapshot,
+              actions.contains(action) else { return false }
+        performNativeWarpGateAction(action, for: expectedSnapshot)
+        return true
+    }
+
     func setRightStickFrame(_ frame: CGRect) {
         rightStickFrame = frame
     }
@@ -658,7 +818,7 @@ final class TouchControls {
 
     func began(_ id: ObjectIdentifier, at point: CGPoint, in size: CGSize,
                safeAreaInsets: TouchSafeAreaInsets = .zero, at _: TimeInterval) {
-        guard !capturesNativeMenuInput else { return }
+        guard !capturesNativeTouchInput else { return }
         let layout = style == .classic
             ? ClassicTouchLayout(size: size, safeAreaInsets: safeAreaInsets)
             : nil
@@ -753,7 +913,7 @@ final class TouchControls {
     }
 
     func pinchBegan() {
-        guard style == .modern, !capturesNativeMenuInput else {
+        guard style == .modern, !capturesNativeTouchInput else {
             pinchZoom.reset()
             return
         }
@@ -761,7 +921,7 @@ final class TouchControls {
     }
 
     func pinchChanged(scale: CGFloat, lookAroundState: GOALPadLookAroundState) {
-        guard style == .modern, !capturesNativeMenuInput,
+        guard style == .modern, !capturesNativeTouchInput,
               let direction = pinchZoom.recognize(scale: scale) else { return }
         switch (direction, lookAroundState) {
         case (.zoomIn, .normal), (.zoomOut, .firstPerson):
@@ -819,7 +979,7 @@ final class TouchControls {
 
     /// Advances every one-shot button state machine exactly once per game frame.
     func frameState() -> TouchPadState {
-        if capturesNativeMenuInput {
+        if capturesNativeTouchInput {
             var state = TouchPadState()
             for button in TouchButton.allCases {
                 var pulse = pulses[button] ?? Pulse()
@@ -909,6 +1069,28 @@ final class TouchControls {
                                                          isSuppressed: Bool) -> Bool {
         !isSuppressed && !NativeMenuTouchAction.available(in: mode,
                                                           progress: progress).isEmpty
+    }
+
+    nonisolated static func warpGateTouchControlsAreVisible(
+        mode: GOALPadGameMode,
+        snapshot: NativeWarpGateTouchSnapshot,
+        isSuppressed: Bool
+    ) -> Bool {
+        !isSuppressed
+            && !NativeWarpGateTouchAction.available(in: mode, snapshot: snapshot).isEmpty
+    }
+
+    nonisolated static func capturesWarpGateTouchInput(
+        mode: GOALPadGameMode,
+        snapshot: NativeWarpGateTouchSnapshot
+    ) -> Bool {
+        guard mode == .gameplay, snapshot.isStructurallyValid else { return false }
+        return switch snapshot.state {
+        case .destinationListActive, .transitioning:
+            true
+        case .unavailable, .circleUseAvailable:
+            false
+        }
     }
 
     nonisolated static func capturesNativeMenuInput(mode: GOALPadGameMode) -> Bool {

@@ -12,6 +12,7 @@ struct TouchControlsView: View {
     let isSuppressed: Bool
     let gameMode: GOALPadGameMode
     let progressMenuSnapshot: NativeProgressMenuSnapshot
+    let warpGateTouchSnapshot: NativeWarpGateTouchSnapshot
 
     fileprivate static let space = "GOALPadTouchControls"
     private static let pillWidth: CGFloat = 82
@@ -34,6 +35,25 @@ struct TouchControlsView: View {
                                                    isSuppressed: isSuppressed)
     }
 
+    private var capturesNativeMenuInput: Bool {
+        TouchControls.capturesNativeMenuInput(mode: gameMode)
+    }
+
+    private var capturesWarpGateTouchInput: Bool {
+        TouchControls.capturesWarpGateTouchInput(mode: gameMode,
+                                                snapshot: warpGateTouchSnapshot)
+    }
+
+    private var warpGateActions: [NativeWarpGateTouchAction] {
+        NativeWarpGateTouchAction.available(in: gameMode, snapshot: warpGateTouchSnapshot)
+    }
+
+    private var warpGateTouchControlsAreVisible: Bool {
+        TouchControls.warpGateTouchControlsAreVisible(mode: gameMode,
+                                                      snapshot: warpGateTouchSnapshot,
+                                                      isSuppressed: isSuppressed)
+    }
+
     private var isVisible: Bool {
         TouchControls.artworkIsVisible(isEngaged: controls.isEngaged,
                                        isSuppressed: isSuppressed,
@@ -44,7 +64,7 @@ struct TouchControlsView: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                if !TouchControls.capturesNativeMenuInput(mode: gameMode) {
+                if !capturesNativeMenuInput && !capturesWarpGateTouchInput {
                     #if canImport(UIKit)
                     TouchSurface(controls: controls, lookAroundState: lookAroundState)
                     #endif
@@ -53,10 +73,24 @@ struct TouchControlsView: View {
                         .allowsHitTesting(false)
                         .opacity(isVisible ? 1 : 0)
                         .animation(.easeOut(duration: 0.16), value: isVisible)
-                } else {
+                }
+
+                if capturesNativeMenuInput {
                     NativeMenuTouchControls(controls: controls,
                                             actions: nativeMenuActions,
                                             isVisible: nativeMenuControlsAreVisible)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, max(20, proxy.safeAreaInsets.bottom))
+                }
+
+                if !capturesNativeMenuInput
+                    && (capturesWarpGateTouchInput || !warpGateActions.isEmpty) {
+                    NativeWarpGateTouchControls(controls: controls,
+                                                snapshot: warpGateTouchSnapshot,
+                                                actions: warpGateActions,
+                                                capturesInput: capturesWarpGateTouchInput,
+                                                isSuppressed: isSuppressed,
+                                                isVisible: warpGateTouchControlsAreVisible)
                         .padding(.horizontal, 20)
                         .padding(.bottom, max(20, proxy.safeAreaInsets.bottom))
                 }
@@ -154,6 +188,90 @@ struct TouchControlsView: View {
             } action: {
                 controls.setPillFrame(button, $0)
             }
+    }
+}
+
+private struct NativeWarpGateTouchControls: View {
+    let controls: TouchControls
+    let snapshot: NativeWarpGateTouchSnapshot
+    let actions: [NativeWarpGateTouchAction]
+    let capturesInput: Bool
+    let isSuppressed: Bool
+    let isVisible: Bool
+
+    #if canImport(UIKit)
+    @State private var haptics = TouchHapticDriver()
+    #endif
+
+    var body: some View {
+        Group {
+            if capturesInput {
+                ZStack {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .allowsHitTesting(true)
+                    controlsRow
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 12)
+                        .onEnded { performSwipe($0.translation) }
+                )
+                .allowsHitTesting(isVisible)
+            } else {
+                controlsRow
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Warp Gate controls")
+    }
+
+    private var controlsRow: some View {
+        HStack(spacing: 12) {
+            Spacer(minLength: 0)
+            ForEach(actions, id: \.self) { action in
+                Button { perform(action) } label: {
+                    Label(action.label, systemImage: action.systemImage)
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                        .frame(minWidth: action == .useWarpGate ? 168 : 104, minHeight: 60)
+                        .foregroundStyle(.white)
+                        .background(.black.opacity(0.68),
+                                    in: RoundedRectangle(cornerRadius: 16))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 16)
+                                .strokeBorder(.white.opacity(0.55), lineWidth: 1.5)
+                        }
+                        .contentShape(RoundedRectangle(cornerRadius: 16))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(action.label)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .opacity(isVisible ? 1 : 0)
+        .allowsHitTesting(isVisible)
+        .animation(.easeOut(duration: 0.16), value: isVisible)
+    }
+
+    private func perform(_ action: NativeWarpGateTouchAction) {
+        controls.performNativeWarpGateAction(action, for: snapshot,
+                                             isSuppressed: isSuppressed)
+        playFeedback()
+    }
+
+    private func performSwipe(_ translation: CGSize) {
+        guard controls.performNativeWarpGateSwipe(translation: translation,
+                                                  for: snapshot,
+                                                  isSuppressed: isSuppressed) else { return }
+        playFeedback()
+    }
+
+    private func playFeedback() {
+        #if canImport(UIKit)
+        haptics.play(controls.consumeHapticEvents())
+        #else
+        _ = controls.consumeHapticEvents()
+        #endif
     }
 }
 
