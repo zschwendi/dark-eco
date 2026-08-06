@@ -498,7 +498,7 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 Active lanes:
 
-- `Build 125 adaptive touch-chrome checkpoint ready; contextual prompts next` —
+- `Build 126 simplified native-menu checkpoint ready; interaction inventory next` —
   Build 118's physical run exposed
   missing Start/Resume chrome and missing native-menu Back actions. Parent
   `3588baf3`, `64050a11`, `c6757a51`, and `c85ce554` add exact read-only title
@@ -570,7 +570,16 @@ Active lanes:
   session, and warp targets mounted. The first hidden touch still performs its
   intended action and reclaims visible touch chrome. Focused suites and the
   signed generic-iOS Release build pass at pushed parent `ea6cb0f1`; Build 125
-  has not been installed on a physical device. Physical
+  has not been installed on a physical device. Build 126 removes the redundant
+  Stats pill from both the title Start presentation and captured pause/progress
+  menus, centers the sole Start/Resume pill and its semantic target, and keeps
+  ordinary active-gameplay Stats/Pause geometry unchanged. Whenever a proven
+  native menu has any directional action, it now draws a complete D-pad while
+  disabling unsupported directions. Fuel-cell stats enables all four source-
+  proven directions; other stats keep only Up/Down enabled. Independent Sol
+  xhigh review returned ACCEPT, all focused suites and the signed generic-iOS
+  Release build pass, and pushed parent `0d86e2df` carries build 126. No physical
+  install has been performed. Physical
   card, warp, and background-resume acceptance remain pending. After that,
   stop nonessential iOS settings work and prioritize true stereoscopic visionOS
   rendering.
@@ -1036,6 +1045,11 @@ Active lanes:
   heartbeat seams used by warp and cutscene SKIP; never infer availability from
   pixels, proximity, or remembered level-specific behavior. The frozen Build 96
   gameplay controls remain the fallback elsewhere.
+- [x] On the title Start presentation and captured pause/progress menus, remove
+  the redundant Stats pill and center the sole Start/Resume pill. Draw a complete
+  four-button D-pad whenever any directional navigation is authoritative, but
+  keep unsupported directions disabled. Build 126 adds exact fuel-cell task/
+  level navigation without inventing Left/Right behavior on other progress rows.
 - [x] For warp gates, prefer a truthful `Touch gate to use warp gate` interaction
   only if gate focus/availability can be read safely. Otherwise show large
   explicit button controls and make the destination list swipe-selectable. The
@@ -1045,7 +1059,10 @@ Active lanes:
   slots), and transitioning states; do not infer this from pixels or proximity.
   Build 120 retains the implemented full-screen destination capture, explicit
   actions, horizontal swipes, stale-snapshot rejection, and transient-invalid
-  retention. Deterministic tests pass; physical warp testing remains pending.
+  retention. The maintainer physically accepts the existing `Circle - Use Warp
+  Gate` presentation and explicitly froze it: do not relabel, generalize, or
+  route it through a replacement generic prompt system. Deterministic tests pass;
+  broader physical destination-list testing remains pending.
 - [x] In portrait gameplay, top-align the renderer instead of vertically
   centering it so the remaining lower area is available to touch controls.
 

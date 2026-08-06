@@ -14775,9 +14775,53 @@ payload extension scan is empty. Xcode emitted only the repository's known Swift
 actor-isolation warnings. No physical device was accessed or installed in this
 checkpoint.
 
-The next feature is not an Oracle-specific label. The maintainer requires one
-generic contextual face-button prompt that draws only the authored Cross, Square,
-Triangle, or Circle symbol and sends that exact button. It must use authoritative
-native query state and cover interactions such as the Oracle, warp gates, vehicles,
-and other authored prompts without guessing their meaning. Treat it as the next
-numbered runtime/AOT checkpoint rather than silently adding it to Build 125.
+The next feature is not an Oracle-only label. Inventory authored Cross, Square,
+Triangle, and Circle interactions outside the already accepted warp-gate path, then
+add only the missing source-backed touch actions. Treat that as the next numbered
+runtime/AOT checkpoint rather than silently adding it to Build 125.
+
+## Build 126 centered Start/Resume and complete native D-pad signed
+
+Date: 2026-08-06. Parent `0d86e2df` is pushed on
+`agent/build94-jak1-settings`. The title Start presentation and captured native
+pause/progress menus no longer draw the redundant Stats pill. Their sole Start or
+Resume pill and its semantic touch target are centered at the accepted bottom
+height. Ordinary active gameplay retains the accepted two-pill Stats/Pause centres,
+Zoom spacing, controller-driven suppression, and single UIKit gameplay touch owner.
+
+Every native menu with at least one proven directional action now draws a complete
+four-button D-pad. Per-direction enablement remains reducer-owned, so unsupported
+arrows are visible but disabled rather than emitting invented input. Raw fuel-cell
+stats screen 0 enables Up/Down level navigation and Left/Right task navigation;
+money and scout-fly stats retain only source-proven Up/Down. Selected settings keep
+Left/Right, unselected settings and file rows do not gain unproven actions, and raw
+pause still exposes no directional input. Independent Sol xhigh source review and
+post-patch diff review returned ACCEPT.
+
+Validation passed:
+
+- `git diff --check` and Swift parsing for both changed touch sources.
+- `Scripts/run-touch-controls-check.sh`, including centered title/captured session
+  geometry, removal of captured Stats, complete D-pad structure, exact stats action
+  sets and emitted bytes, disabled unsupported directions, and all Build 125 input-
+  ownership/suppression regressions.
+- `Scripts/run-keyboard-mouse-input-check.sh`.
+- `Scripts/run-game-menu-state-check.sh`.
+- `Scripts/run-presentation-settings-check.sh`.
+- `Scripts/run-portrait-library-check.sh`.
+- Signed generic-iOS Release build, bundle build 126, using the canonical incremental
+  DerivedData and unchanged 518-object source pack. Full output is
+  `/private/tmp/GOALPad-build126-menu-chrome.log`.
+
+The frozen artifact is `/private/tmp/GOALPad-build126-menu-chrome-signed/GOALPad.app`:
+Eco `1.0 (126)`, `com.zephyrstudiosllc.eco`, thin ARM64, 53 MB, executable SHA-256
+`630ad82b248a66b8fbc233e8f1c5353a35273b31f2623c60c94e95757c34e270`.
+Strict signature verification passes and the audited retail-payload extension scan
+is empty. Xcode emitted only the known Swift actor-isolation warnings. No physical
+device was accessed or installed for Build 126.
+
+The maintainer then clarified that the existing `Circle - Use Warp Gate` UI is
+physically accepted and must not change. Freeze its labels, action list, capture,
+and swipe behavior. The next inventory/implementation must cover only other authored
+Jak 1 prompts and interactions, using their actual owner/button state rather than
+generalizing or replacing the warp implementation.
