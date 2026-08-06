@@ -1452,11 +1452,25 @@ private func sessionControlStateMatrixIsExactAndFailClosed() {
           == [.back, .resume],
           "an eligible PC-only screen has nonblank Back and Resume exits")
 
+    for statsScreen in 1...2 {
+        let stats = progressSnapshot(screen: statsScreen, startingScreen: statsScreen,
+                                     canExitWithStart: true, canGoBack: true)
+        check(NativeMenuTouchAction.available(in: .progress, progress: stats)
+              == [.fuelCells, .precursorOrbs, .scoutFlies, .settings, .resume],
+              "stats screen \(statsScreen) does not relabel its state-dependent Square as Back")
+    }
+
     let validBack = progressSnapshot(screen: 3, option: 2, startingScreen: 0,
                                      canExitWithStart: true, canGoBack: true)
     check(NativeMenuTouchAction.available(in: .progress, progress: validBack)
           == [.up, .down, .back, .confirm, .resume],
           "exact can-go-back adds Back without relabelling another action")
+
+    let fileBack = progressSnapshot(screen: 16, option: 4, startingScreen: 16,
+                                    canExitWithStart: false, canGoBack: true)
+    check(NativeMenuTouchAction.available(in: .progress, progress: fileBack)
+          == [.up, .down, .back, .confirm, .resume],
+          "file lists retain their source-proven Back beside persistent Resume")
 
     let selected = progressSnapshot(screen: 3, option: 2, selected: true,
                                     startingScreen: 0, canExitWithStart: true,

@@ -502,7 +502,9 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         default:
             actions = []
         }
-        if snapshot.canGoBack, !snapshot.selectedOption, !actions.contains(.back) {
+        let isStatsScreen = (0...2).contains(snapshot.screenRawValue)
+        if snapshot.canGoBack, !isStatsScreen, !snapshot.selectedOption,
+           !actions.contains(.back) {
             actions.insert(.back, at: max(0, actions.count - 1))
         }
         return actions
