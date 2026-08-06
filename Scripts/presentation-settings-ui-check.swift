@@ -45,28 +45,34 @@ let renderer = source(at: root + "/GOALPad/Game/RenderSettings.swift")
 
 check(occursInOrder([
     "Section(\"Preset\")",
-    "Use Classic Everywhere",
     "Use Modern Everywhere",
+    "Use Classic Everywhere",
     "profileSection(.controls)",
     "profileSection(.graphics)",
-    "profileSection(.audio)",
-    "profileSection(.interface)",
-    "Section(\"iCloud Settings\")",
-    "Sync settings with iCloud",
-    "Section(\"iCloud Saves\")",
-    "Button(\"Reset All\"",
-], in: view), "Settings presents the global preset, all four sections, independent sync, and Reset All")
+    "Section(\"iCloud\")",
+    "Toggle(\"Sync Settings\"",
+    "Toggle(\"Sync Saves\"",
+    "Button(cloudState.actionTitle)",
+    "Button(\"Reset Jak 1 Settings\"",
+], in: view), "Jak 1 Settings leads with Modern and presents one iCloud block")
+check(!view.contains("profileSection(.audio)")
+        && !view.contains("profileSection(.interface)")
+        && store.contains("var audioProfile: SettingsProfile")
+        && store.contains("var interfaceProfile: SettingsProfile"),
+      "empty Audio and UI forms are hidden without removing their persisted fields")
 check(view.components(separatedBy: ".fileImporter(").count - 1 == 1
         && view.contains("private enum SaveTransferPicker"),
       "one picker routes both save import and export choices")
-check(view.contains("Sync Settings Now") && view.contains("Sync Saves Now")
-        && view.contains("Retry Settings Sync") && view.contains("Retry Save Sync")
-        && !view.contains("Button(\"Sync Now\")"),
-      "manual pulls remain available while error states use distinct retry labels")
-check(view.contains("ProgressView(\"Syncing settings…\")")
-        && view.contains("ProgressView(message)")
-        && view.contains(".disabled(sync.isBusy)"),
-      "settings and save work expose progress while conflicting controls stay disabled")
+check(view.components(separatedBy: "Section(\"iCloud\")").count - 1 == 1
+        && !view.contains("Section(\"iCloud Settings\")")
+        && !view.contains("Section(\"iCloud Saves\")")
+        && view.contains("Label(cloudState.summary")
+        && view.contains("cloudState.lastSyncDate")
+        && view.contains("CloudSyncPresentation.synchronize"),
+      "one iCloud status, date, and action coordinate both independent domains")
+check(view.contains("if let message = cloudState.progressMessage")
+        && view.contains(".disabled(!cloudState.isActionEnabled)"),
+      "combined cloud progress disables its single conflicting action")
 check(view.contains("ordinary four Jak save slots")
         && !view.contains("resolution.relativePath")
         && !view.contains("Section(\"Automatic Resolution\")")
@@ -78,12 +84,16 @@ check(view.contains("older divergent copies were preserved automatically")
 check(view.contains("settings.globalProfile?.title ?? \"Mixed\""),
       "a mixed set of section profiles is shown as Mixed, not as a preset")
 check(view.contains("settings.profile(for: .graphics) == .modern")
-        && view.contains("Fill Width (Hor+)"),
-      "Fill Width is visible only for Modern graphics")
+        && view.contains("Toggle(\"Fit to Screen\"")
+        && !view.contains("Hor+"),
+      "Fit to Screen is visible only for Modern graphics without implementation jargon")
 check(store.contains("var graphicsModernFillWidthOverride: Bool?")
         && store.contains("var graphicsProfile: SettingsProfile = .modern")
         && store.contains("return graphicsModernFillWidthOverride ?? true"),
       "Graphics and Fill Width default to Modern while preserving a user override")
+check(occursInOrder(["case modern", "case classic"], in: store)
+        && store.contains("enum SettingsProfile: String, CaseIterable, Codable"),
+      "CaseIterable ordering changes without changing string-backed document compatibility")
 check(!store.contains("SaveSyncEngine") && !store.contains("TouchControls"),
       "presentation settings remain separate from save and touch behavior")
 check(store.contains("actor PresentationSettingsCloudStore")

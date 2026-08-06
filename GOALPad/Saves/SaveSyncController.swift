@@ -165,7 +165,7 @@ final class SaveSyncController {
             let hasUnsafeLocalMutation = try await engine.hasUnsafePendingLocalMutation()
             activeOperation = nil
             guard !hasUnsafeLocalMutation else {
-                status = .failed("Save recovery is incomplete. Retry iCloud Saves before playing.")
+                status = .failed("Save recovery is incomplete. Retry sync before playing.")
                 return false
             }
             return true
@@ -380,6 +380,179 @@ final class SaveSyncController {
     }
 }
 
+nonisolated struct CloudSyncPresentationState: Equatable, Sendable {
+    enum Phase: Equatable, Sendable {
+        case disabled
+        case waiting
+        case syncing
+        case unavailable
+        case synced
+        case failed
+    }
+
+    let phase: Phase
+    let summary: String
+    let progressMessage: String?
+    let lastSyncDate: Date?
+    let actionTitle: String
+    let isActionEnabled: Bool
+}
+
+@MainActor
+enum CloudSyncPresentation {
+    static func state(settings: PresentationSettings,
+                      saves: SaveSyncController) -> CloudSyncPresentationState {
+        state(settingsEnabled: settings.cloudSyncEnabled,
+              settingsStatus: settings.syncStatus,
+              settingsSummary: settings.syncSummary,
+              settingsLastSyncDate: settings.lastSyncDate,
+              savesEnabled: saves.isEnabled,
+              savesStatus: saves.status,
+              savesSummary: saves.summary,
+              savesLastSyncDate: saves.lastSyncDate,
+              savesIsBusy: saves.isBusy,
+              savesIsSyncing: saves.activeOperation == .syncing
+                  || saves.activeOperation == .checking,
+              savesProgressMessage: saves.progressMessage)
+    }
+
+    static func state(settingsEnabled: Bool,
+                      settingsStatus: PresentationSettings.SyncStatus,
+                      settingsSummary: String,
+                      settingsLastSyncDate: Date?,
+                      savesEnabled: Bool,
+                      savesStatus: SaveSyncController.Status,
+                      savesSummary: String,
+                      savesLastSyncDate: Date?,
+                      savesIsBusy: Bool,
+                      savesIsSyncing: Bool,
+                      savesProgressMessage: String?) -> CloudSyncPresentationState {
+        let settingsFailure = settingsEnabled ? failureMessage(for: settingsStatus) : nil
+        let savesFailure = savesEnabled ? failureMessage(for: savesStatus) : nil
+        let settingsUnavailable = settingsEnabled && settingsStatus == .unavailable
+        let savesUnavailable = savesEnabled && savesStatus == .unavailable
+        let settingsSyncing = settingsEnabled && settingsStatus == .syncing
+        let savesSyncing = savesEnabled && (savesStatus == .syncing || savesIsSyncing)
+        let anyEnabled = settingsEnabled || savesEnabled
+        let phase: CloudSyncPresentationState.Phase
+
+        if settingsFailure != nil || savesFailure != nil {
+            phase = .failed
+        } else if settingsSyncing || savesSyncing {
+            phase = .syncing
+        } else if settingsUnavailable || savesUnavailable {
+            phase = .unavailable
+        } else if isWaiting(settingsEnabled: settingsEnabled, status: settingsStatus)
+                    || isWaiting(savesEnabled: savesEnabled, status: savesStatus) {
+            phase = .waiting
+        } else {
+            phase = anyEnabled ? .synced : .disabled
+        }
+
+        let progressMessage: String?
+        switch (settingsSyncing, savesSyncing) {
+        case (true, true): progressMessage = "Syncing settings and saves…"
+        case (true, false): progressMessage = "Syncing settings…"
+        case (false, true): progressMessage = savesProgressMessage ?? "Syncing saves…"
+        case (false, false): progressMessage = nil
+        }
+
+        return CloudSyncPresentationState(
+            phase: phase,
+            summary: summary(phase: phase,
+                             settingsEnabled: settingsEnabled,
+                             settingsSummary: settingsSummary,
+                             settingsFailure: settingsFailure,
+                             settingsUnavailable: settingsUnavailable,
+                             savesEnabled: savesEnabled,
+                             savesSummary: savesSummary,
+                             savesFailure: savesFailure,
+                             savesUnavailable: savesUnavailable,
+                             progressMessage: progressMessage),
+            progressMessage: progressMessage,
+            lastSyncDate: [settingsLastSyncDate, savesLastSyncDate].compactMap { $0 }.max(),
+            actionTitle: phase == .failed || phase == .unavailable ? "Retry" : "Sync",
+            isActionEnabled: anyEnabled && !settingsSyncing && !savesSyncing
+                && !(savesEnabled && savesIsBusy))
+    }
+
+    static func synchronize(settingsEnabled: Bool,
+                            savesEnabled: Bool,
+                            syncSettings: () async -> Void,
+                            syncSaves: () async -> Void) async {
+        guard !Task.isCancelled else { return }
+        if settingsEnabled {
+            await syncSettings()
+        }
+        guard !Task.isCancelled else { return }
+        if savesEnabled {
+            await syncSaves()
+        }
+    }
+
+    private static func failureMessage(
+        for status: PresentationSettings.SyncStatus
+    ) -> String? {
+        guard case .failed(let message) = status else { return nil }
+        return message
+    }
+
+    private static func failureMessage(for status: SaveSyncController.Status) -> String? {
+        guard case .failed(let message) = status else { return nil }
+        return message
+    }
+
+    private static func isWaiting(settingsEnabled: Bool,
+                                  status: PresentationSettings.SyncStatus) -> Bool {
+        guard settingsEnabled else { return false }
+        return status == .waiting || status == .disabled
+    }
+
+    private static func isWaiting(savesEnabled: Bool,
+                                  status: SaveSyncController.Status) -> Bool {
+        guard savesEnabled else { return false }
+        return status == .waiting || status == .disabled
+    }
+
+    private static func summary(
+        phase: CloudSyncPresentationState.Phase,
+        settingsEnabled: Bool,
+        settingsSummary: String,
+        settingsFailure: String?,
+        settingsUnavailable: Bool,
+        savesEnabled: Bool,
+        savesSummary: String,
+        savesFailure: String?,
+        savesUnavailable: Bool,
+        progressMessage: String?
+    ) -> String {
+        switch phase {
+        case .disabled:
+            return "Off — settings and saves stay on this device"
+        case .failed:
+            let issues = [settingsFailure.map { "Settings — \($0)" },
+                          savesFailure.map { "Saves — \($0)" }].compactMap { $0 }
+            return "Sync issue: " + issues.joined(separator: "; ")
+        case .syncing:
+            return progressMessage ?? "Syncing…"
+        case .unavailable:
+            if settingsUnavailable && savesUnavailable {
+                return "iCloud unavailable — using local settings and saves"
+            }
+            if settingsUnavailable {
+                return "iCloud unavailable for settings — using local settings"
+            }
+            return "iCloud unavailable for saves — using local saves"
+        case .waiting:
+            return "Waiting to sync"
+        case .synced:
+            if settingsEnabled && !savesEnabled { return settingsSummary }
+            if savesEnabled && !settingsEnabled { return savesSummary }
+            return savesSummary == "Up to date" ? "Up to date" : savesSummary
+        }
+    }
+}
+
 struct SaveSettingsView: View {
     private enum SaveTransferPicker {
         case importSaves
@@ -395,8 +568,8 @@ struct SaveSettingsView: View {
         Form {
             Section("Preset") {
                 Menu {
-                    Button("Use Classic Everywhere") { settings.applyPreset(.classic) }
                     Button("Use Modern Everywhere") { settings.applyPreset(.modern) }
+                    Button("Use Classic Everywhere") { settings.applyPreset(.classic) }
                 } label: {
                     LabeledContent("Global profile", value: globalProfileTitle)
                 }
@@ -407,53 +580,34 @@ struct SaveSettingsView: View {
 
             profileSection(.controls)
             profileSection(.graphics)
-            profileSection(.audio)
-            profileSection(.interface)
 
-            Section("iCloud Settings") {
-                Toggle("Sync settings with iCloud", isOn: $settings.cloudSyncEnabled)
+            Section("iCloud") {
+                Toggle("Sync Settings", isOn: $settings.cloudSyncEnabled)
                     .disabled(settings.syncStatus == .syncing)
-                Label(settings.syncSummary, systemImage: settingsStatusSymbol)
-                    .foregroundStyle(settingsStatusColor)
-                if settings.syncStatus == .syncing {
-                    ProgressView("Syncing settings…")
-                }
-                if let date = settings.lastSyncDate {
-                    LabeledContent("Last sync", value: date.formatted(date: .abbreviated,
-                                                                        time: .shortened))
-                }
-                if settingsRetryAvailable {
-                    Button("Retry Settings Sync") { Task { await settings.syncNow() } }
-                        .disabled(!settings.cloudSyncEnabled)
-                } else {
-                    Button("Sync Settings Now") { Task { await settings.syncNow() } }
-                        .disabled(!settings.cloudSyncEnabled || settings.syncStatus == .syncing)
-                }
-                Text("This switch applies only to this device and does not change iCloud Saves.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section("iCloud Saves") {
-                Toggle("Sync saves with iCloud", isOn: $sync.isEnabled)
+                Toggle("Sync Saves", isOn: $sync.isEnabled)
                     .disabled(sync.isBusy)
-                Label(sync.summary, systemImage: statusSymbol)
-                    .foregroundStyle(statusColor)
-                if sync.activeOperation == .syncing || sync.activeOperation == .checking,
-                   let message = sync.progressMessage {
+                Label(cloudState.summary, systemImage: cloudStatusSymbol)
+                    .foregroundStyle(cloudStatusColor)
+                if let message = cloudState.progressMessage {
                     ProgressView(message)
                 }
-                if let date = sync.lastSyncDate {
+                if let date = cloudState.lastSyncDate {
                     LabeledContent("Last sync", value: date.formatted(date: .abbreviated,
                                                                       time: .shortened))
                 }
-                if saveRetryAvailable {
-                    Button("Retry Save Sync") { Task { await sync.syncNow() } }
-                        .disabled(!sync.isEnabled || sync.isBusy)
-                } else {
-                    Button("Sync Saves Now") { Task { await sync.syncNow() } }
-                        .disabled(!sync.isEnabled || sync.isBusy)
+                Button(cloudState.actionTitle) {
+                    Task {
+                        await CloudSyncPresentation.synchronize(
+                            settingsEnabled: settings.cloudSyncEnabled,
+                            savesEnabled: sync.isEnabled,
+                            syncSettings: { await settings.syncNow() },
+                            syncSaves: { await sync.syncNow() })
+                    }
                 }
+                .disabled(!cloudState.isActionEnabled)
+                Text("Choose settings and save sync independently on this device.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Save Files") {
@@ -491,7 +645,7 @@ struct SaveSettingsView: View {
             }
 
             Section {
-                Button("Reset All", role: .destructive) { settings.resetAll() }
+                Button("Reset Jak 1 Settings", role: .destructive) { settings.resetAll() }
             }
         }
         .navigationTitle("Settings")
@@ -519,31 +673,21 @@ struct SaveSettingsView: View {
         }
     }
 
-    private var settingsRetryAvailable: Bool {
-        switch settings.syncStatus {
-        case .unavailable, .failed: true
-        default: false
+    private var cloudState: CloudSyncPresentationState {
+        CloudSyncPresentation.state(settings: settings, saves: sync)
+    }
+
+    private var cloudStatusSymbol: String {
+        switch cloudState.phase {
+        case .disabled: "icloud.slash"
+        case .waiting, .syncing: "arrow.triangle.2.circlepath.icloud"
+        case .unavailable, .failed: "exclamationmark.icloud"
+        case .synced: "checkmark.icloud"
         }
     }
 
-    private var saveRetryAvailable: Bool {
-        switch sync.status {
-        case .unavailable, .failed: true
-        default: false
-        }
-    }
-
-    private var statusSymbol: String {
-        switch sync.status {
-        case .disabled: return "icloud.slash"
-        case .waiting, .syncing: return "arrow.triangle.2.circlepath.icloud"
-        case .unavailable, .failed: return "exclamationmark.icloud"
-        case .synced: return "checkmark.icloud"
-        }
-    }
-
-    private var statusColor: Color {
-        switch sync.status {
+    private var cloudStatusColor: Color {
+        switch cloudState.phase {
         case .unavailable: return .secondary
         case .failed: return .orange
         default: return .primary
@@ -568,7 +712,7 @@ struct SaveSettingsView: View {
             .pickerStyle(.segmented)
 
             if section == .graphics, settings.profile(for: .graphics) == .modern {
-                Toggle("Fill Width (Hor+)", isOn: Binding(
+                Toggle("Fit to Screen", isOn: Binding(
                     get: { settings.graphicsFillWidth },
                     set: { settings.setGraphicsFillWidth($0) }
                 ))
@@ -580,23 +724,6 @@ struct SaveSettingsView: View {
             Button("Restore \(section.title) Defaults") {
                 settings.restoreDefaults(for: section)
             }
-        }
-    }
-
-    private var settingsStatusSymbol: String {
-        switch settings.syncStatus {
-        case .disabled: "icloud.slash"
-        case .waiting, .syncing: "arrow.triangle.2.circlepath.icloud"
-        case .unavailable, .failed: "exclamationmark.icloud"
-        case .synced: "checkmark.icloud"
-        }
-    }
-
-    private var settingsStatusColor: Color {
-        switch settings.syncStatus {
-        case .unavailable: .secondary
-        case .failed: .orange
-        default: .primary
         }
     }
 }
