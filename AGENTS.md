@@ -574,14 +574,17 @@ Active lanes:
   `/private/tmp/GP-build94-portrait-library`. Worker commit `f7669744` was
   integrated as `3db17c67`; root removed the remaining dead Jak X enum/palette
   code and reran `Scripts/run-portrait-library-check.sh`.
-- `Implemented; focused validation passed; full build pending` — root integration
+- `Implemented; signed Build 108 validation passed; physical presentation pending` — root integration
   added a read-only native `*master-mode*` bridge for exact game/pause/progress/
   menu state, exposed it through `GameSession`, and added
   `Scripts/run-game-menu-state-check.sh`. Root then used it to gate the in-game
   Eco Settings control and optional synced developer logs, and bound the
-  saved Controls profile to the matching live touch style. Root still owns input-source,
-  remapping, haptics, skip, warp, mod, save-conflict, and Game Center seam
-  discovery. It will not edit a worker-owned file while that lane is active.
+  saved Controls profile to the matching live touch style. Build 108 adds an
+  explicit touch Resume action for native pause and a truthful D-pad plus
+  Confirm/Back/Resume surface for the native debug menu. It deliberately leaves
+  `progress` unchanged until its internal screen state is bridged. Root still
+  owns skip, warp, mod, and the remaining Game Center seam discovery. It will
+  not edit a worker-owned file while that lane is active.
 
 #### Critical Sandover-to-Misty transition blocker
 
@@ -732,18 +735,34 @@ Active lanes:
   and avoid intrusive touch chrome.
 - [ ] When touch is active, make the app-owned settings/library surfaces use
   normal touch targets and scroll/swipe behavior.
-- [ ] Investigate native Jak menu state/readback before attempting touch hit
+- [x] Investigate native Jak menu state/readback before attempting touch hit
   targets over GOAL-rendered rows; do not infer selection rectangles from a
-  screenshot.
+  screenshot. `*progress-process*` is the authoritative object: after a checked
+  type/tag dereference it exposes `display-state`, `option-index`,
+  `selected-option`, and `in-transition`. Build 108 still exposes only coarse
+  `*master-mode*`; the checked progress snapshot is the next FIFO feature.
+- [x] Add only the coarse native actions whose meanings are already
+  authoritative: Pause exposes Resume/Start, and the debug Menu exposes D-pad,
+  Confirm/Cross, Back/Square, and Resume/Start. Build 108 cancels carried
+  gameplay gestures at these transitions, suppresses touch chrome while a
+  physical controller is driving, and delivers menu haptics immediately.
 - [ ] Make the native pause menu usable by touch, beginning with swipe selection
   and explicit confirm/back controls, then direct row taps only if deterministic
-  menu state is available.
+  menu state is available. Next expose a fail-closed progress snapshot and use
+  screen-specific actions: list/options screens may use D-pad and conservative
+  Confirm/Back, stats need labelled tab actions, and transition/autosave states
+  must expose no row controls. Do not claim direct row taps until option text and
+  availability can be read truthfully.
 - [ ] Replace raw X/Square/Triangle/Circle instructional chrome with clear touch
   actions where the app truly owns the target; Classic overlay remains the MVP
   fallback elsewhere.
 - [ ] For warp gates, prefer a truthful `Touch gate to use warp gate` interaction
   only if gate focus/availability can be read safely. Otherwise show large
-  explicit button controls and make the destination list swipe-selectable.
+  explicit button controls and make the destination list swipe-selectable. The
+  gate remains in gameplay mode, so `*master-mode*` cannot identify it. The
+  narrow safe seam is read-only GOAL state owned by `villagep-obs.gc` with
+  unavailable, Circle-use-available, destination-list-active (selected/permitted
+  slots), and transitioning states; do not infer this from pixels or proximity.
 - [x] In portrait gameplay, top-align the renderer instead of vertically
   centering it so the remaining lower area is available to touch controls.
 

@@ -13531,3 +13531,67 @@ Next FIFO integration checkpoint: the already-completed touch-menu MVP at
 Game Center in the maintainer's queue. The completed raw Game Center activity
 evidence seam at `5a259d69` remains isolated for Build 109 or later; it does not
 define normal-run start, completion, fastest/PB, leaderboard IDs, or submission.
+
+# Build 108 truthful native touch-menu controls
+
+Date: 2026-08-06. Build 108 is the isolated first native-menu touch checkpoint
+layered on pushed Build 107. Worker commit
+`ead94a24c2e6f5bcfeb1c245ca22ca60ac3a2167` from
+`/private/tmp/GP-build106-touch-menu-mvp` was reviewed and integrated as parent
+`d7257911`. Root fixed delayed menu haptics in `f5cccb69`: the dedicated SwiftUI
+buttons now consume and play their touch-owned event immediately instead of
+leaving it queued until gameplay touch resumes. Packaging commit is `43730237`
+before this handoff commit.
+
+Implemented:
+
+- Native Pause exposes one large, truthful Resume action that emits ordinary
+  Start input.
+- Native debug Menu exposes a large D-pad plus Confirm/Cross, Back/Square, and
+  Resume/Start. It does not relabel or bypass ordinary game input.
+- Entering or leaving a dedicated menu clears carried gameplay gestures and
+  queued pulses. Stale SwiftUI actions fail closed after mode changes.
+- Active physical input suppresses dedicated touch chrome. Touch-owned menu
+  haptics are delivered immediately and consumed exactly once.
+- Native Progress remains unchanged. Its face-button meanings vary across
+  title/options, stats tabs, load/save/error, and transition states, so coarse
+  `gameMode == .progress` is not enough for honest labels.
+
+Validation passed:
+
+- `Scripts/run-touch-controls-check.sh` with Xcode macro-service access.
+- `Scripts/run-game-menu-state-check.sh`.
+- `Scripts/run-presentation-settings-check.sh` with Xcode macro-service access.
+- `Scripts/run-keyboard-mouse-input-check.sh`.
+- Focused production Swift parse and `git diff --check`.
+- Signed generic iOS Release Build 108 using cached DerivedData and the unchanged
+  canonical 518-object source pack. Full log:
+  `/private/tmp/GOALPad-build108-generic-ios.log`.
+
+Preserved signed app:
+`/private/tmp/GOALPad-build108-touch-menu-signed/GOALPad.app`. It identifies as
+Eco `1.0 (108)`, `com.zephyrstudiosllc.eco`, thin arm64, contains exactly one
+privacy manifest, and contains no ISO/DGO/CGO/WAD/VAG/FR3 files. The embedded
+profile is for team `V729QMY3V6` and contains Game Center plus
+`iCloud.com.zephyrstudiosllc.eco`. Executable SHA-256:
+`541f55acd9990ec650b00f7fe6cf11f9751aadb9040ec1a4ee87eb6ce4aba945`.
+Strict local signature verification reports the same
+`CSSMERR_TP_NOT_TRUSTED` chain result as Build 107.
+
+Not validated: physical visual placement, accessibility, touch feel, haptic
+feel, controller-suppression handoff, or any native Progress interaction. No
+physical device was accessed.
+
+Next FIFO work:
+
+1. Add a checked, read-only native Progress snapshot from `*progress-process*`:
+   `display-state`, `option-index`, `selected-option`, and `in-transition`.
+   Expose only screen-specific touch actions and keep transitions/autosave inert.
+   Direct row taps remain out until dynamic option text/availability is known.
+2. After that touch-menu slice, add an authoritative warp-gate state owned by
+   `villagep-obs.gc`. Gate focus/list state remains gameplay mode and must not be
+   inferred from `*master-mode*`, proximity, or pixels. The read-only state must
+   distinguish unavailable, Circle-use-available, list-active with selected and
+   permitted slots, and transitioning.
+3. Keep the raw Game Center activity commit `5a259d69` isolated until these
+   earlier touch FIFO items are integrated.
