@@ -799,6 +799,21 @@ per-view color/depth targets and compositor timing. A useful tabletop proof may
 use RealityKit, but a textured flat plane is only a compatibility prototype,
 not the requested volumetric world.
 
+#### Background lifecycle and memory (newest FIFO item)
+
+- [ ] Reproduce and repair the report that after Eco/Jak remains open through a
+  phone lock and background interruption, the SwiftUI/touch shell resumes but
+  native gameplay stays frozen. Trace scene activation, display-link recreation,
+  audio-session interruption, render-surface availability, and any in-flight
+  frame ownership; preserve the active run and do not treat a responsive overlay
+  as proof that native frames resumed.
+- [ ] Make suspended gameplay as background-friendly as iOS permits: stop active
+  clocks/audio work, release only safely recreatable transient renderer/importer
+  resources under lifecycle or memory pressure, keep user saves and the resumable
+  gameplay authority intact, and add deterministic suspend/resume plus memory-
+  warning coverage before physical lock/unlock validation. This item follows the
+  older interaction/settings/visionOS queue and must not preempt it.
+
 ## Code clarity
 
 Write clean, human-readable code suitable for an open-source project.
