@@ -1177,6 +1177,18 @@ loader and `TexturePool` can support user-generated Jak II art, but the current
 Jak II app has no prepared-art path and the 840-unit AOT source pack contains no
 texture pixels. Those are explicit next renderer/data boundaries.
 
+Checkpoint 79 adds a standalone ARM64 macOS AOT/Metal runtime shell and the
+first host-owned Jak II texture-residency boundary at nested `e172efcb9`.
+Synthetic FR3, real upload/relocation, textured SKY lookup, ownership teardown,
+and the five-test focused Metal matrix pass. A three-tick prepared-data Mac run
+loads 632 common and 90 title textures and completes three exact GPU/readback
+frames. Its only enabled live SKY draw remains an untextured alpha-only quad
+with zero RGB vertex color, so the strict RGB gate remains `INCOMPLETE`.
+Non-interactive macOS presentation callbacks were dropped and are not claimed
+as visible output. The next renderer checkpoint must capture the exact live
+bucket-4 animator descriptors, then implement its bounded ordinary-upload plus
+41 and 14/16/15 subsets before an explicit `TextureUpload` policy promotion.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and

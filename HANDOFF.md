@@ -11657,3 +11657,102 @@ after common textures is: the live mixed bucket-4 animator subset, level/VisData
 ownership, Tfrag, Tie, Merc/Generic2, then remaining shrub/water/ocean/shadow/
 sprite/composite families. Audio follows a sustained correctly textured title;
 then controller, touch-capability, local save/relaunch, and lifecycle adapters.
+
+# Checkpoint 79: standalone Jak II Mac runtime and host-owned texture residency
+
+Date: 2026-08-06. This checkpoint remains isolated in parent worktree
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-jak2-real-dma-draw` and nested
+OpenGOAL worktree `GP-jak2-real-dma-draw/OpenGOAL`. The active Jak 1 checkout
+was not edited, staged, cleaned, reset, or built.
+
+Nested branch `agent/jak2-real-dma-draw-proof` now ends at `e172efcb9`:
+
+- `82e57d56c` adds `jak2-metal-runtime-proof`, a standalone ARM64 macOS SDL/
+  `CAMetalLayer` shell around the existing 840-unit AOT runtime and external
+  Jak II Metal host. It runs at most three serial ticks and does not link Eco,
+  the desktop RWX runtime, or the Jak 1 shell.
+- `8dc49662b` adds host-owned `.fr3` residency. The host loads `GAME.fr3`
+  before publishing callbacks, loads valid requested basenames once, applies
+  real out-of-chain texture upload/relocation callbacks, and unloads recorded
+  serialized level keys plus the placeholder in exact reverse ownership order.
+- `fc327b5fd` corrects the synthetic textured-SKY fixture so its first GIF
+  state tag does not terminate the full 224-byte DIRECT payload.
+- `e172efcb9` makes the documented GPU/readback and presentation-required gates
+  distinct. Asynchronous presentation drops and ordering remain reported but
+  decide the result only under `--require-presentation`; drawable acquisition,
+  submission, GPU completion, lateness, errors, and readback remain strict in
+  both modes. A shared pure counter gate has deterministic coverage.
+
+The standalone proof roots both memcard saves and PC settings under its
+`--saves-dir`; it did not read or write the normal OpenGOAL configuration.
+
+## Canonical validation
+
+The integration owner built the affected host and complete AOT shell in the
+single canonical Release/Ninja/ccache directory:
+
+```text
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host \
+  --target jak2-metal-host-bridge-test jak2-metal-runtime-proof -j2
+```
+
+The build passed, including regeneration/compilation of all 840 Jak II AOT
+units. A sandboxed first test process could not allocate the new Metal
+placeholder; the required rerun with normal macOS Metal service access created
+the host normally. That rerun exposed the malformed synthetic GIF termination,
+which was fixed in `fc327b5fd`. The rebuilt direct host test then passed every
+counter-gate, synthetic FR3, idempotence, basename/path rejection, real upload,
+relocate, textured SKY lookup, recreation, fail-closed, and teardown assertion.
+
+```text
+ctest --test-dir /private/tmp/GOALPad-jak2-real-dma-host \
+  -R '^(metal-bucket-chain-semantics-test|jak2-metal-bucket-table-test|jak2-metal-dispatch-proof|jak2-metal-submit-readback-proof|jak2-metal-host-bridge-test)$' \
+  --output-on-failure
+```
+
+The focused matrix passed 5/5 in 0.42 seconds with normal Metal access.
+
+## Real prepared-data Mac evidence
+
+The final bounded command was:
+
+```text
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-metal-runtime-proof \
+  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  --saves-dir /private/tmp/goalpad-jak2-macos-residency-saves --ticks 3
+```
+
+It synchronously loaded the common FR3 under its serialized empty common key:
+632 textures in 104.8 ms. Tick 2's real `__pc-set-levels` callback loaded
+serialized level key `title`: 90 more textures in 23.8 ms. The three real DMA
+chains each dispatched all 327 buckets, acquired a drawable, submitted and
+completed one command buffer, and produced a 640x480 readback. Final counters
+were 3/3 completed, zero host failures, zero GPU errors, zero drawable misses,
+zero late submissions, zero unsupported blends, and 37,584 skipped bytes.
+
+The non-interactive macOS command launch returned three `presentedTime == 0`
+callbacks. Those three compositor drops are honest diagnostics, not evidence of
+visible presentation; the default GPU/readback gate was exact, while
+`--require-presentation` would reject them.
+
+The first frame was transparent black with hash `f318e0e2f9b92325`. Ticks 2
+and 3 retained the exact live SKY result: one draw, two triangles, six vertices,
+hash `742a0703fa4da325`, 307,200 nonzero-alpha pixels, and zero non-black RGB.
+The batch is untextured, has zero nonzero-RGB vertices, writes RGB, uses blend
+`(0,1,0,1)`, and uses alpha test `(mode 1, aref 0, afail 0)`. Static texture
+residency therefore does not change this alpha-only quad, and the strict
+same-frame RGB gate remains correctly `INCOMPLETE`.
+
+The title path made zero out-of-chain upload and relocate callbacks. Its mixed
+416-byte bucket 4 contains the relevant in-chain ordinary texture descriptor
+and two animator arrays; it remains deferred. The next smallest checkpoint is
+a parser/diagnostic seam that captures the exact opcode-14/16/15 descriptors
+and opcode-41 destination from this live packet, followed by the bounded
+animator subset and an explicit `TextureUpload` bucket policy. Do not guess
+texture formats or promote bucket 4 while its 368 animator bytes would remain
+silent.
+
+No simulator or physical device was accessed. The completed, clean residency
+worker worktree was removed after integration; its branch and commits remain
+recoverable. The standalone Mac shell worktree was also previously removed
+cleanly with its branch preserved.
