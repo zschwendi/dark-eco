@@ -61,6 +61,87 @@ struct TouchSafeAreaInsets: Equatable, Sendable {
     static let zero = TouchSafeAreaInsets()
 }
 
+/// Deterministic Modern artwork geometry. Input radii remain owned by TouchControls.
+struct ModernTouchLayout: Sendable {
+    static let movementKnobSize: CGFloat = 66
+    static let movementVisualRadius: CGFloat = 54
+    static let rightStickHitSlop: CGFloat = 16
+    static let rightStickSpacerCap: CGFloat = 200
+
+    private static let pillSize = CGSize(width: 82, height: 42)
+    private static let pillSpacing: CGFloat = 20
+    private static let pillHitInsets = CGSize(width: 10, height: 12)
+    private static let controlGap: CGFloat = 8
+
+    let safeBounds: CGRect
+    let rightStickSpacer: CGFloat
+    let rightStickArtworkFrame: CGRect
+    let rightStickHitFrame: CGRect
+    let selectPillFrame: CGRect
+    let startPillFrame: CGRect
+
+    init(size: CGSize, safeAreaInsets: TouchSafeAreaInsets = .zero) {
+        let bounds = CGRect(origin: .zero,
+                            size: CGSize(width: max(0, size.width), height: max(0, size.height)))
+        let leading = min(max(0, safeAreaInsets.leading), bounds.width)
+        let trailing = min(max(0, safeAreaInsets.trailing), bounds.width - leading)
+        let top = min(max(0, safeAreaInsets.top), bounds.height)
+        let bottom = min(max(0, safeAreaInsets.bottom), bounds.height - top)
+        let safe = CGRect(x: leading, y: top,
+                          width: bounds.width - leading - trailing,
+                          height: bounds.height - top - bottom)
+        safeBounds = safe
+
+        let legacyEdge = Self.legacyRightStickEdge(for: bounds.size)
+        let targetSpacer = min(Self.rightStickSpacerCap,
+                               max(legacyEdge, safe.width * 0.24))
+        rightStickSpacer = min(targetSpacer,
+                                max(0, safe.width - TouchControls.rightStickRadius * 2))
+
+        let pillOffset = (Self.pillSize.width + Self.pillSpacing) / 2
+        let pillY = bounds.maxY - 30 - Self.pillSize.height / 2
+        selectPillFrame = Self.frame(centre: CGPoint(x: bounds.midX - pillOffset, y: pillY),
+                                     size: Self.pillSize)
+        startPillFrame = Self.frame(centre: CGPoint(x: bounds.midX + pillOffset, y: pillY),
+                                    size: Self.pillSize)
+
+        let radius = TouchControls.rightStickRadius
+        let centreX = max(safe.minX + radius, safe.maxX - radius - rightStickSpacer)
+        let lowestCentreY = safe.maxY - radius - legacyEdge
+        let candidateHitFrame = Self.frame(centre: CGPoint(x: centreX, y: lowestCentreY),
+                                           diameter: radius * 2)
+            .insetBy(dx: -Self.rightStickHitSlop, dy: -Self.rightStickHitSlop)
+        let pillHitFrames = [selectPillFrame, startPillFrame].map {
+            $0.insetBy(dx: -Self.pillHitInsets.width, dy: -Self.pillHitInsets.height)
+        }
+        let overlapsPillHorizontally = pillHitFrames.contains {
+            $0.minX < candidateHitFrame.maxX && candidateHitFrame.minX < $0.maxX
+        }
+        let clearCentreY = pillHitFrames.map(\.minY).min()
+            .map { $0 - radius - Self.rightStickHitSlop - Self.controlGap }
+            ?? lowestCentreY
+        let centreY = max(safe.minY + radius,
+                          overlapsPillHorizontally ? min(lowestCentreY, clearCentreY) : lowestCentreY)
+        rightStickArtworkFrame = Self.frame(centre: CGPoint(x: centreX, y: centreY),
+                                            diameter: radius * 2)
+        rightStickHitFrame = rightStickArtworkFrame.insetBy(dx: -Self.rightStickHitSlop,
+                                                             dy: -Self.rightStickHitSlop)
+    }
+
+    static func legacyRightStickEdge(for size: CGSize) -> CGFloat {
+        max(28, min(max(0, size.width), max(0, size.height)) * 0.06)
+    }
+
+    private static func frame(centre: CGPoint, diameter: CGFloat) -> CGRect {
+        frame(centre: centre, size: CGSize(width: diameter, height: diameter))
+    }
+
+    private static func frame(centre: CGPoint, size: CGSize) -> CGRect {
+        CGRect(x: centre.x - size.width / 2, y: centre.y - size.height / 2,
+               width: size.width, height: size.height)
+    }
+}
+
 /// Deterministic hit targets shared by the Classic artwork and raw touch surface.
 struct ClassicTouchLayout {
     static let buttons: [TouchButton] = [

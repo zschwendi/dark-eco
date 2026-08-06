@@ -464,6 +464,15 @@ Active lanes:
   `origin/agent/build100-pause-label`. Root reran
   `Scripts/run-touch-controls-check.sh`, iOS Swift parsing, and
   `git diff --check`; all passed.
+- `Integrated; focused validation passed; physical ergonomics pending` —
+  Modern touch geometry came from `agent/build101-modern-touch-layout` in
+  `/private/tmp/GP-build101-modern-touch-layout`, commit `6005cfdc`, pushed to
+  `origin/agent/build101-modern-touch-layout`. It moves the right stick inward
+  with a deterministic safe-area-aware spacer and reduces only the movement
+  ring artwork. Root additionally routed UIKit-captured safe-area insets into
+  the Modern helper because the full touch surface intentionally ignores the
+  SwiftUI safe area. The dynamic movement input radius, knob size, right-stick
+  radius, deadzone, and controller bytes remain unchanged.
 - `Integrated; focused validation passed; profile binding and physical
   ergonomics pending` — Classic touch fallback plus Modern held-crouch-left
   punch came from `agent/build94-classic-touch` in
@@ -572,9 +581,9 @@ Active lanes:
   left without releasing must trigger crouch + punch. Preserve the existing
   held down-then-up crouch jump and ordinary left-swipe behavior, with focused
   sequencing and one-shot/retrigger tests.
-- [ ] Reduce the Modern movement stick's outer ring while retaining its accepted
+- [x] Reduce the Modern movement stick's outer ring while retaining its accepted
   thumb/knob size.
-- [ ] Move the Modern right stick inward from the bottom-trailing corner with an
+- [x] Move the Modern right stick inward from the bottom-trailing corner with an
   adaptive spacer capped at 200 points.
 - [ ] Add Modern pinch-to-zoom gestures that map unambiguously to the existing Y
   zoom toggle: pinch in and pinch out must not accidentally perform each other's

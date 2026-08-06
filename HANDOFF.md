@@ -13114,3 +13114,21 @@ sensitivity remain explicit ergonomic gates because Apple's raw-delta API does
 not specify the vertical sign; the isolated tentative convention matches the
 existing controller-Y conversion. Primary-source selection and remapping UI
 remain unimplemented rather than simulated.
+
+Build 102 integrates the Modern touch-layout worker commit `6005cfdc`. The
+movement artwork ring is now 108 points across instead of following the
+180-point input diameter, while the accepted 66-point knob and exact 90-point
+input radius/bytes remain unchanged. The right camera stick now uses a
+deterministic adaptive trailing spacer capped at 200 points, retains its radius,
+deadzone, and raw hit geometry, stays inside representative iPhone/iPad safe
+areas, and avoids the Pause/Select hit targets. Root additionally routed the
+UIKit touch surface's captured safe-area insets into Modern layout because the
+full touch overlay intentionally ignores SwiftUI safe areas.
+
+The complete `Scripts/run-touch-controls-check.sh` suite passed after
+integration, including byte compatibility, representative portrait/landscape
+containment, no-overlap, Classic regression, Pause/Resume, roll-jump, and the
+new crouch-punch sequence. Swift parsing and `git diff --check` also passed.
+Worker commit `6005cfdc` is pushed as
+`origin/agent/build101-modern-touch-layout`. Physical comfort and exact spacing
+remain candidate gates.
