@@ -92,7 +92,7 @@ struct TouchControlsView: View {
                     TouchSurface(controls: controls, lookAroundState: lookAroundState)
                     #endif
 
-                    artwork(in: proxy.size)
+                    artwork(in: proxy)
                         .allowsHitTesting(false)
                         .opacity(isVisible ? 1 : 0)
                         .animation(.easeOut(duration: 0.16), value: isVisible)
@@ -130,8 +130,13 @@ struct TouchControlsView: View {
         .ignoresSafeArea()
     }
 
-    private func artwork(in size: CGSize) -> some View {
-        let edge = max(28, min(size.width, size.height) * 0.06)
+    private func artwork(in proxy: GeometryProxy) -> some View {
+        let safeAreaInsets = TouchSafeAreaInsets(top: proxy.safeAreaInsets.top,
+                                                 leading: proxy.safeAreaInsets.leading,
+                                                 bottom: proxy.safeAreaInsets.bottom,
+                                                 trailing: proxy.safeAreaInsets.trailing)
+        let layout = ModernTouchLayout(size: proxy.size, safeAreaInsets: safeAreaInsets)
+        let bottomInset = ModernTouchLayout.legacyRightStickEdge(for: proxy.size)
 
         return ZStack {
             if let stick = controls.stick {
@@ -151,8 +156,8 @@ struct TouchControlsView: View {
 
             RightStickControl(controls: controls)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                .padding(.trailing, edge)
-                .padding(.bottom, edge)
+                .padding(.trailing, layout.rightStickSpacer)
+                .padding(.bottom, bottomInset)
         }
     }
 
@@ -548,19 +553,22 @@ private struct RightStickControl: View {
     let controls: TouchControls
     private let knobSize: CGFloat = 32
 
+    private var isDown: Bool { controls.rightStick != nil }
+
     var body: some View {
         ZStack {
             Circle()
-                .fill(.black.opacity(0.24))
-                .overlay(Circle().strokeBorder(.yellow.opacity(0.55), lineWidth: 2))
+                .fill(.black.opacity(isDown ? 0.72 : 0.42))
+                .overlay(Circle().strokeBorder(.white.opacity(isDown ? 0.9 : 0.35),
+                                               lineWidth: 1))
             Circle()
-                .fill(.yellow.opacity(0.72))
-                .overlay(Circle().strokeBorder(.white.opacity(0.8), lineWidth: 1))
+                .fill(.white.opacity(isDown ? 0.96 : 0.8))
+                .overlay(Circle().strokeBorder(.white.opacity(isDown ? 1 : 0.7), lineWidth: 1))
                 .frame(width: knobSize, height: knobSize)
                 .overlay {
                     Text("R")
                         .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .foregroundStyle(.black.opacity(0.72))
+                        .foregroundStyle(.black.opacity(isDown ? 0.82 : 0.68))
                 }
                 .offset(knobOffset)
         }
