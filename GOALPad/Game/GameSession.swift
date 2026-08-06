@@ -180,6 +180,8 @@ final class GameSession {
         updateNativeMenuState(mode: GOALPadRuntimeBridge.gameMode,
                               progress: NativeProgressMenuSnapshot(
                                 GOALPadRuntimeBridge.progressMenuSnapshot))
+        updateWarpGateTouchSnapshot(NativeWarpGateTouchSnapshot(
+            GOALPadRuntimeBridge.warpGateTouchSnapshot))
         lookAroundState = GOALPadRuntimeBridge.lookAroundState
         isForeground = currentScenePhase == .active
         saveSync.setGameplayActive(isForeground)
@@ -202,8 +204,7 @@ final class GameSession {
         boot = nil
         isRunning = false
         updateNativeMenuState(mode: .unknown, progress: .unavailable)
-        warpGateTouchSnapshot = .unavailable
-        touch.setWarpGateTouchSnapshot(.unavailable)
+        updateWarpGateTouchSnapshot(.unavailable)
         lookAroundState = .unknown
         saveSync.setGameplayActive(false)
         touch.reset()
@@ -245,6 +246,11 @@ final class GameSession {
             if currentMode != gameMode || currentProgress != progressMenuSnapshot {
                 updateNativeMenuState(mode: currentMode, progress: currentProgress)
             }
+            let currentWarpGateTouchSnapshot = NativeWarpGateTouchSnapshot(
+                GOALPadRuntimeBridge.warpGateTouchSnapshot)
+            if currentWarpGateTouchSnapshot != warpGateTouchSnapshot {
+                updateWarpGateTouchSnapshot(currentWarpGateTouchSnapshot)
+            }
             let currentLookAroundState = GOALPadRuntimeBridge.lookAroundState
             if currentLookAroundState != lookAroundState {
                 lookAroundState = currentLookAroundState
@@ -268,6 +274,11 @@ final class GameSession {
         gameMode = mode
         progressMenuSnapshot = progress
         touch.setNativeMenuState(mode, progress: progress)
+    }
+
+    private func updateWarpGateTouchSnapshot(_ snapshot: NativeWarpGateTouchSnapshot) {
+        warpGateTouchSnapshot = snapshot
+        touch.setWarpGateTouchSnapshot(snapshot)
     }
 
     /// The same numbers the on-screen readout shows, every ten seconds, so a run can be checked

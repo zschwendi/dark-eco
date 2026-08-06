@@ -82,8 +82,8 @@ struct NativeProgressMenuSnapshot: Equatable {
     }
 }
 
-/// The authoritative warp-gate interaction state. Native publication is wired separately; until
-/// then the app supplies `unavailable` and exposes no warp-specific controls.
+/// The authoritative warp-gate interaction state published by GOAL and checked by the native
+/// bridge. Invalid bridge reads expose no warp-specific controls.
 struct NativeWarpGateTouchSnapshot: Equatable, Sendable {
     enum State: Equatable, Sendable {
         case unavailable
@@ -102,6 +102,36 @@ struct NativeWarpGateTouchSnapshot: Equatable, Sendable {
     static let unavailable = NativeWarpGateTouchSnapshot(
         valid: false, state: .unavailable, selectedSlot: -1,
         permittedMask: 0, selectionMoving: false, sequence: 0)
+
+    init(valid: Bool, state: State, selectedSlot: Int32, permittedMask: UInt32,
+         selectionMoving: Bool, sequence: UInt32) {
+        self.valid = valid
+        self.state = state
+        self.selectedSlot = selectedSlot
+        self.permittedMask = permittedMask
+        self.selectionMoving = selectionMoving
+        self.sequence = sequence
+    }
+
+    init(_ snapshot: GOALPadWarpGateTouchSnapshot) {
+        let mappedState: State? = switch snapshot.state {
+        case .unavailable: .unavailable
+        case .circleUseAvailable: .circleUseAvailable
+        case .destinationListActive: .destinationListActive
+        case .transitioning: .transitioning
+        @unknown default: nil
+        }
+        guard snapshot.valid.boolValue, let mappedState else {
+            self = .unavailable
+            return
+        }
+        self.init(valid: true,
+                  state: mappedState,
+                  selectedSlot: snapshot.selectedSlot,
+                  permittedMask: snapshot.permittedMask,
+                  selectionMoving: snapshot.selectionMoving.boolValue,
+                  sequence: snapshot.sequence)
+    }
 
     static func circleUseAvailable(sequence: UInt32) -> Self {
         Self(valid: true, state: .circleUseAvailable, selectedSlot: -1,
