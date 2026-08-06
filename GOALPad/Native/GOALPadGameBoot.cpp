@@ -55,6 +55,10 @@ std::uint32_t g_progress_mode = 0;
 std::uint32_t g_menu_mode = 0;
 int32_t* g_progress_process = nullptr;
 std::uint32_t g_progress_type = 0;
+int32_t* g_progress_state = nullptr;
+std::uint32_t g_progress_state_type = 0;
+std::uint32_t g_state_type = 0;
+std::uint32_t g_progress_normal_symbol = 0;
 int32_t* g_warp_gate_touch_snapshot = nullptr;
 std::uint32_t g_warp_gate_touch_snapshot_type = 0;
 int32_t* g_cutscene_skip_touch_snapshot = nullptr;
@@ -63,6 +67,7 @@ goalpad::CutsceneSkipTouchReader g_cutscene_skip_touch_reader;
 int32_t* g_target = nullptr;
 std::uint32_t g_target_type = 0;
 std::uint32_t g_look_around_mode = 0;
+std::uint32_t g_target_title_wait_symbol = 0;
 int32_t* g_math_camera = nullptr;
 int32_t* g_camera_master = nullptr;
 int32_t* g_camera_combiner = nullptr;
@@ -521,16 +526,30 @@ BootStatus boot_game() noexcept {
     }
 
     uint32_t progress_type = 0;
+    uint32_t progress_state_type = 0;
+    uint32_t state_type = 0;
+    const bool state_type_available =
+        goal_game_find_symbol("state", &state_type) && state_type;
+    if (state_type_available) {
+      g_state_type = state_type;
+    }
     const bool progress_state_symbols =
         goal_game_find_symbol("*progress-process*", nullptr) &&
-        goal_game_find_symbol("progress", &progress_type) && progress_type;
+        goal_game_find_symbol("progress", &progress_type) && progress_type &&
+        goal_game_find_symbol("*progress-state*", nullptr) &&
+        goal_game_find_symbol("progress-global-state", &progress_state_type) &&
+        progress_state_type && state_type_available &&
+        goal_game_find_symbol("progress-normal", nullptr);
     if (progress_state_symbols) {
       g_progress_process = goal_game_symbol_slot("*progress-process*");
       g_progress_type = progress_type;
+      g_progress_state = goal_game_symbol_slot("*progress-state*");
+      g_progress_state_type = progress_state_type;
+      g_progress_normal_symbol = goal_game_find_symbol("progress-normal", nullptr);
     } else {
       os_log_error(boot_log(),
-                   "GAME.CGO did not expose the progress process and type; progress touch "
-                   "controls are unavailable.");
+                   "GAME.CGO did not expose the checked progress navigation state; progress "
+                   "touch controls are unavailable.");
     }
 
     uint32_t warp_gate_touch_snapshot_type = 0;
@@ -567,18 +586,17 @@ BootStatus boot_game() noexcept {
     }
 
     uint32_t target_type = 0;
-    const uint32_t look_around_mode = goal_game_find_symbol("look-around", nullptr);
     const bool target_state_symbols = goal_game_find_symbol("*target*", nullptr) &&
-                                      goal_game_find_symbol("target", &target_type) &&
-                                      target_type && look_around_mode;
+                                      goal_game_find_symbol("target", &target_type) && target_type;
     if (target_state_symbols) {
       g_target = goal_game_symbol_slot("*target*");
       g_target_type = target_type;
-      g_look_around_mode = look_around_mode;
+      g_target_title_wait_symbol = goal_game_find_symbol("target-title-wait", nullptr);
+      g_look_around_mode = goal_game_find_symbol("look-around", nullptr);
     } else {
       os_log_error(boot_log(),
-                   "GAME.CGO did not expose the target look-around symbols; first-person state "
-                   "is unavailable.");
+                   "GAME.CGO did not expose the target state; title and first-person state are "
+                   "unavailable.");
     }
 
     goal_kernel_core_state state = {};
@@ -708,6 +726,10 @@ void reset_game() noexcept {
   g_menu_mode = 0;
   g_progress_process = nullptr;
   g_progress_type = 0;
+  g_progress_state = nullptr;
+  g_progress_state_type = 0;
+  g_state_type = 0;
+  g_progress_normal_symbol = 0;
   g_warp_gate_touch_snapshot = nullptr;
   g_warp_gate_touch_snapshot_type = 0;
   g_cutscene_skip_touch_snapshot = nullptr;
@@ -716,6 +738,7 @@ void reset_game() noexcept {
   g_target = nullptr;
   g_target_type = 0;
   g_look_around_mode = 0;
+  g_target_title_wait_symbol = 0;
   g_math_camera = nullptr;
   g_camera_master = nullptr;
   g_camera_combiner = nullptr;
@@ -743,6 +766,17 @@ GameMode game_mode() noexcept {
   }
   return classify_game_mode(static_cast<std::uint32_t>(*g_master_mode), g_gameplay_mode,
                             g_pause_mode, g_progress_mode, g_menu_mode);
+}
+
+TitleStartState title_start_state() noexcept {
+  if (!g_booted || !g_target || !g_target_type || !g_state_type ||
+      !g_target_title_wait_symbol || !g_ee_main_mem) {
+    return TitleStartState::Unknown;
+  }
+  return read_title_start_state(
+      g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT,
+      static_cast<std::uint32_t>(*g_target), g_target_type, g_state_type,
+      g_target_title_wait_symbol);
 }
 
 LookAroundState look_around_state() noexcept {
@@ -776,7 +810,9 @@ ProgressMenuSnapshot progress_menu_snapshot() noexcept {
 
   return read_progress_menu_snapshot(
       g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT, goal_game_false_offset(),
-      goal_game_true_offset(), static_cast<std::uint32_t>(*g_progress_process), g_progress_type);
+      goal_game_true_offset(), static_cast<std::uint32_t>(*g_progress_process), g_progress_type,
+      g_progress_state ? static_cast<std::uint32_t>(*g_progress_state) : 0,
+      g_progress_state_type, g_state_type, g_progress_normal_symbol);
 }
 
 WarpGateTouchSnapshot warp_gate_touch_snapshot() noexcept {
@@ -841,6 +877,10 @@ bool game_is_booted() noexcept {
 
 GameMode game_mode() noexcept {
   return GameMode::Unknown;
+}
+
+TitleStartState title_start_state() noexcept {
+  return TitleStartState::Unknown;
 }
 
 LookAroundState look_around_state() noexcept {

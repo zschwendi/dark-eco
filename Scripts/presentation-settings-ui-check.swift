@@ -296,6 +296,10 @@ check(content.contains("LabeledContent(\"Jak 1 Settings\", value: \"Available\")
       "only Jak 1 settings are functional and its navigation title is title-scoped")
 check(content.contains("if session.isRunning && !isOpen { settingsPresentation = nil }"),
       "leaving the native menu still dismisses an in-game Settings sheet")
+check(content.contains("@Environment(\\.dismiss) private var dismiss")
+        && content.contains("ToolbarItem(placement: .confirmationAction)")
+        && content.contains("Button(\"Done\") { dismiss() }"),
+      "every Settings sheet level retains an explicit app-owned Done exit")
 check(occursInOrder([
     "let presentationSettings = PresentationSettings()",
     "async let settingsPreparation: Void = presentationSettings.prepare()",

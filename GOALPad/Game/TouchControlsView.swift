@@ -11,6 +11,7 @@ struct TouchControlsView: View {
     /// Active physical input hides the artwork until the screen is touched again.
     let isSuppressed: Bool
     let gameMode: GOALPadGameMode
+    let titleStartState: GOALPadTitleStartState
     let progressMenuSnapshot: NativeProgressMenuSnapshot
     let warpGateTouchSnapshot: NativeWarpGateTouchSnapshot
     let cutsceneSkipTouchSnapshot: NativeCutsceneSkipTouchSnapshot
@@ -36,7 +37,14 @@ struct TouchControlsView: View {
     }
 
     private var nativeMenuActions: [NativeMenuTouchAction] {
-        NativeMenuTouchAction.available(in: gameMode, progress: progressMenuSnapshot)
+        NativeMenuTouchAction.available(in: gameMode, progress: progressMenuSnapshot,
+                                        titleStartState: titleStartState)
+    }
+
+    private var sessionControl: NativeSessionControlPresentation? {
+        NativeSessionControlPresentation.reduce(mode: gameMode,
+                                                titleStartState: titleStartState,
+                                                progress: progressMenuSnapshot)
     }
 
     private var nativeMenuControlsAreVisible: Bool {
@@ -72,7 +80,9 @@ struct TouchControlsView: View {
         TouchControls.artworkIsVisible(isEngaged: controls.isEngaged,
                                        isSuppressed: isSuppressed,
                                        hasTouches: !controls.touches.isEmpty,
-                                       isNativeMenuOpen: isNativeMenuOpen)
+                                       isNativeMenuOpen: isNativeMenuOpen,
+                                       isAwaitingTitleStart: sessionControl?.action == .start
+                                           && gameMode == .gameplay)
     }
 
     var body: some View {
@@ -207,7 +217,7 @@ struct TouchControlsView: View {
                     ClassicButtonControl(button: button,
                                          label: TouchControls.artworkLabel(
                                             for: button,
-                                            isNativeMenuOpen: isNativeMenuOpen,
+                                            sessionAction: sessionControl?.action,
                                             cutsceneSkipAvailable: cutsceneSkipAvailable),
                                          isDown: controls.isPillDown(button), frame: frame)
                         .opacity(controls.layoutCustomization.opacity(for: control))
@@ -221,7 +231,7 @@ struct TouchControlsView: View {
                       frame: CGRect) -> some View {
         let isDown = controls.isPillDown(outputButton)
         return Text(TouchControls.artworkLabel(for: outputButton,
-                                               isNativeMenuOpen: isNativeMenuOpen,
+                                               sessionAction: sessionControl?.action,
                                                cutsceneSkipAvailable: cutsceneSkipAvailable))
             .font(.system(size: 12, weight: .semibold, design: .rounded))
             .tracking(1.4)
@@ -419,7 +429,10 @@ private struct NativeMenuTouchControls: View {
 
     private func menuButton(_ action: NativeMenuTouchAction,
                             width: CGFloat = 60) -> some View {
-        Button { perform(action) } label: {
+        let isEnabled = NativeMenuTouchAction.isEnabled(
+            action, in: controls.nativeMenuMode, progress: controls.progressMenuSnapshot,
+            titleStartState: controls.titleStartState)
+        return Button { perform(action) } label: {
             HStack(spacing: 8) {
                 Image(systemName: action.systemImage)
                 if !directionalActions.contains(action) {
@@ -437,6 +450,8 @@ private struct NativeMenuTouchControls: View {
                 .contentShape(RoundedRectangle(cornerRadius: 16))
         }
         .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.55)
         .accessibilityLabel(action.label)
     }
 

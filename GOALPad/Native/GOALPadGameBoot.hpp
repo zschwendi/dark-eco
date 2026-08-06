@@ -18,13 +18,19 @@ enum class GameMode : std::uint8_t {
   Menu,
 };
 
+enum class TitleStartState : std::uint8_t {
+  Unknown,
+  NotAwaiting,
+  Awaiting,
+};
+
 enum class LookAroundState : std::uint8_t {
   Unknown,
   Normal,
   FirstPerson,
 };
 
-// Jak 1's original progress display states. PC-only states continue through 66; they remain valid
+// Jak 1's original progress display states. PC-only states continue through 65; they remain valid
 // native snapshots but deliberately have no touch semantics until their responders are proven.
 enum class ProgressScreen : std::int32_t {
   Invalid = -1,
@@ -71,6 +77,10 @@ struct ProgressMenuSnapshot {
   std::int32_t option_index = -1;
   bool selected_option = false;
   bool in_transition = false;
+  bool navigation_available = false;
+  ProgressScreen starting_screen = ProgressScreen::Invalid;
+  bool can_exit_with_start = false;
+  bool can_go_back = false;
 };
 
 enum class WarpGateTouchState : std::int32_t {
@@ -383,10 +393,117 @@ constexpr std::size_t kOptionIndexOffset = 144 - 4;
 constexpr std::size_t kSelectedOptionOffset = 148 - 4;
 constexpr std::size_t kInTransitionOffset = 172 - 4;
 constexpr std::size_t kRequiredObjectBytes = kInTransitionOffset + sizeof(std::uint32_t);
+constexpr std::size_t kNextStateOffset = 76 - 4;
+constexpr std::size_t kStartingStateOffset = 24 - 4;
+constexpr std::size_t kStartingStateRequiredObjectBytes =
+    kStartingStateOffset + sizeof(std::int64_t);
+constexpr std::size_t kStateNameOffset = 4 - 4;
+constexpr std::size_t kStateRequiredObjectBytes = kStateNameOffset + sizeof(std::uint32_t);
 constexpr std::int64_t kMinimumScreen = -1;
-constexpr std::int64_t kMaximumScreenExclusive = 67;
+constexpr std::int64_t kMaximumScreenExclusive = 66;
+
+constexpr bool is_known_screen(std::int64_t screen) noexcept {
+  return screen >= kMinimumScreen && screen < kMaximumScreenExclusive;
+}
+
+constexpr bool can_exit_with_start(std::int64_t screen,
+                                   std::int64_t starting_screen,
+                                   bool selected_option,
+                                   bool in_transition,
+                                   bool next_state_is_progress_normal) noexcept {
+  if (selected_option || in_transition || !next_state_is_progress_normal) {
+    return false;
+  }
+  if (screen >= 0 && screen <= 2) {
+    return true;
+  }
+  const bool supported_origin =
+      (starting_screen >= 0 && starting_screen <= 2) || starting_screen == 27 ||
+      starting_screen == 64;
+  if (!supported_origin) {
+    return false;
+  }
+  switch (screen) {
+    case 3:
+    case 4:
+    case 5:
+    case 6:
+    case 27:
+    case 28:
+    case 35:
+    case 36:
+    case 37:
+    case 38:
+    case 39:
+    case 40:
+    case 41:
+    case 42:
+    case 43:
+    case 44:
+    case 45:
+    case 46:
+    case 47:
+    case 49:
+    case 50:
+    case 51:
+    case 53:
+    case 55:
+    case 59:
+    case 62:
+    case 63:
+    case 64:
+    case 65:
+      return true;
+    default:
+      return false;
+  }
+}
 
 }  // namespace progress_layout
+
+namespace live_state_layout {
+
+constexpr std::size_t kProcessStateOffset = 56 - 4;
+constexpr std::size_t kStateNameOffset = 4 - 4;
+constexpr std::size_t kProcessRequiredObjectBytes =
+    kProcessStateOffset + sizeof(std::uint32_t);
+constexpr std::size_t kStateRequiredObjectBytes = kStateNameOffset + sizeof(std::uint32_t);
+
+}  // namespace live_state_layout
+
+inline TitleStartState read_title_start_state(const void* memory,
+                                              std::size_t memory_bytes,
+                                              std::size_t low_protect_bytes,
+                                              std::uint32_t target_offset,
+                                              std::uint32_t target_type,
+                                              std::uint32_t state_type,
+                                              std::uint32_t target_title_wait_symbol) noexcept {
+  if (!target_title_wait_symbol) {
+    return TitleStartState::Unknown;
+  }
+  const void* target = camera_correction_trace::checked_goal_object(
+      memory, memory_bytes, low_protect_bytes, target_offset, target_type,
+      live_state_layout::kProcessRequiredObjectBytes, nullptr);
+  if (!target) {
+    return TitleStartState::Unknown;
+  }
+  std::uint32_t state_offset = 0;
+  std::memcpy(&state_offset,
+              static_cast<const std::uint8_t*>(target) + live_state_layout::kProcessStateOffset,
+              sizeof(state_offset));
+  const void* state = camera_correction_trace::checked_goal_object(
+      memory, memory_bytes, low_protect_bytes, state_offset, state_type,
+      live_state_layout::kStateRequiredObjectBytes, nullptr);
+  if (!state) {
+    return TitleStartState::Unknown;
+  }
+  std::uint32_t state_name = 0;
+  std::memcpy(&state_name,
+              static_cast<const std::uint8_t*>(state) + live_state_layout::kStateNameOffset,
+              sizeof(state_name));
+  return state_name == target_title_wait_symbol ? TitleStartState::Awaiting
+                                                : TitleStartState::NotAwaiting;
+}
 
 /*! Read a Jak 1 `progress` through `*progress-process*` without advancing or mutating GOAL. */
 inline ProgressMenuSnapshot read_progress_menu_snapshot(const void* memory,
@@ -395,7 +512,11 @@ inline ProgressMenuSnapshot read_progress_menu_snapshot(const void* memory,
                                                          std::uint32_t goal_false,
                                                          std::uint32_t goal_true,
                                                          std::uint32_t progress_ppointer,
-                                                         std::uint32_t expected_type) noexcept {
+                                                         std::uint32_t expected_type,
+                                                         std::uint32_t progress_state_offset = 0,
+                                                         std::uint32_t progress_state_type = 0,
+                                                         std::uint32_t state_type = 0,
+                                                         std::uint32_t progress_normal_symbol = 0) noexcept {
   ProgressMenuSnapshot snapshot;
   std::uint32_t progress_offset = 0;
   if (!goal_true || goal_true == goal_false ||
@@ -427,8 +548,7 @@ inline ProgressMenuSnapshot read_progress_menu_snapshot(const void* memory,
   const auto is_goal_boolean = [goal_false, goal_true](std::uint32_t value) {
     return value == goal_false || value == goal_true;
   };
-  if (screen < progress_layout::kMinimumScreen ||
-      screen >= progress_layout::kMaximumScreenExclusive || option_index < 0 ||
+  if (!progress_layout::is_known_screen(screen) || option_index < 0 ||
       !is_goal_boolean(selected_option) || !is_goal_boolean(in_transition)) {
     return snapshot;
   }
@@ -438,6 +558,40 @@ inline ProgressMenuSnapshot read_progress_menu_snapshot(const void* memory,
   snapshot.option_index = option_index;
   snapshot.selected_option = selected_option == goal_true;
   snapshot.in_transition = in_transition == goal_true;
+
+  const void* progress_state = camera_correction_trace::checked_goal_object(
+      memory, memory_bytes, low_protect_bytes, progress_state_offset, progress_state_type,
+      progress_layout::kStartingStateRequiredObjectBytes, nullptr);
+  std::uint32_t next_state_offset = 0;
+  std::memcpy(&next_state_offset, bytes + progress_layout::kNextStateOffset,
+              sizeof(next_state_offset));
+  const void* next_state = camera_correction_trace::checked_goal_object(
+      memory, memory_bytes, low_protect_bytes, next_state_offset, state_type,
+      progress_layout::kStateRequiredObjectBytes, nullptr);
+  if (!progress_state || !next_state || !progress_normal_symbol) {
+    return snapshot;
+  }
+  std::int64_t starting_screen = 0;
+  std::uint32_t next_state_name = 0;
+  std::memcpy(&starting_screen,
+              static_cast<const std::uint8_t*>(progress_state) +
+                  progress_layout::kStartingStateOffset,
+              sizeof(starting_screen));
+  std::memcpy(&next_state_name,
+              static_cast<const std::uint8_t*>(next_state) + progress_layout::kStateNameOffset,
+              sizeof(next_state_name));
+  if (!progress_layout::is_known_screen(starting_screen)) {
+    return snapshot;
+  }
+  snapshot.navigation_available = true;
+  snapshot.starting_screen = static_cast<ProgressScreen>(starting_screen);
+  snapshot.can_exit_with_start = progress_layout::can_exit_with_start(
+      screen, starting_screen, snapshot.selected_option, snapshot.in_transition,
+      next_state_name == progress_normal_symbol);
+  snapshot.can_go_back = snapshot.can_exit_with_start ||
+                         (!snapshot.selected_option && !snapshot.in_transition &&
+                          next_state_name == progress_normal_symbol &&
+                          (screen == 16 || screen == 17 || screen == 18));
   return snapshot;
 }
 
@@ -543,6 +697,7 @@ std::uint64_t frames_run() noexcept;
 bool game_is_booted() noexcept;
 /*! Jak's own `*master-mode*`, read without advancing or mutating the game. */
 GameMode game_mode() noexcept;
+TitleStartState title_start_state() noexcept;
 /*! Jak's live target state; Billy and unavailable or inconsistent state remain unknown. */
 LookAroundState look_around_state() noexcept;
 /*! Jak's live progress state. Malformed, absent, and internally inconsistent state is unavailable. */

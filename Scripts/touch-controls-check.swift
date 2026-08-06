@@ -1310,9 +1310,9 @@ private func cutsceneSkipIsContextualExactAndLifecycleSafe() {
           && !TouchControls.cutsceneSkipIsAvailable(in: .gameplay, snapshot: odd)
           && !TouchControls.cutsceneSkipIsAvailable(in: .gameplay, snapshot: .invalid),
           "wrong mode, unavailable, odd, and invalid publications fail closed")
-    check(TouchControls.artworkLabel(for: .select, isNativeMenuOpen: false,
+    check(TouchControls.artworkLabel(for: .select, sessionAction: .pause,
                                      cutsceneSkipAvailable: true) == "SKIP"
-          && TouchControls.artworkLabel(for: .select, isNativeMenuOpen: false,
+          && TouchControls.artworkLabel(for: .select, sessionAction: .pause,
                                         cutsceneSkipAvailable: false) == "SELECT",
           "the Select artwork changes to SKIP only for validated availability")
 
@@ -1384,11 +1384,15 @@ private func cutsceneSkipIsContextualExactAndLifecycleSafe() {
 @MainActor
 private func pausePresentationFollowsNativeMenuState() {
     print("native menu drives Pause/Resume artwork and visibility")
-    check(TouchControls.artworkLabel(for: .start, isNativeMenuOpen: false) == "PAUSE",
+    check(TouchControls.artworkLabel(for: .start, sessionAction: .pause) == "PAUSE",
           "gameplay Start artwork says PAUSE")
-    check(TouchControls.artworkLabel(for: .start, isNativeMenuOpen: true) == "RESUME",
+    check(TouchControls.artworkLabel(for: .start, sessionAction: .resume) == "RESUME",
           "native-menu Start artwork says RESUME")
-    check(TouchControls.artworkLabel(for: .select, isNativeMenuOpen: false) == "SELECT",
+    check(TouchControls.artworkLabel(for: .start, sessionAction: .start) == "START",
+          "title-prompt Start artwork says START")
+    check(TouchControls.artworkLabel(for: .start, sessionAction: nil) == "START",
+          "unknown session state falls back to the physical Start label")
+    check(TouchControls.artworkLabel(for: .select, sessionAction: .pause) == "SELECT",
           "Select keeps its existing label")
 
     check(TouchControls.artworkIsVisible(isEngaged: false, isSuppressed: false,
@@ -1400,6 +1404,10 @@ private func pausePresentationFollowsNativeMenuState() {
     check(TouchControls.artworkIsVisible(isEngaged: false, isSuppressed: true,
                                          hasTouches: true, isNativeMenuOpen: true),
           "a live touch restores native-menu artwork under suppression")
+    check(TouchControls.artworkIsVisible(isEngaged: false, isSuppressed: true,
+                                         hasTouches: false, isNativeMenuOpen: false,
+                                         isAwaitingTitleStart: true),
+          "the exact title prompt keeps Start visible through controller suppression")
 
     var run = Runner()
     let finger = Finger()
@@ -1407,6 +1415,64 @@ private func pausePresentationFollowsNativeMenuState() {
     run.down(finger, centre)
     check(run.frame().buttons.contains(.start),
           "Pause/Resume presentation preserves the Start input bit")
+}
+
+private func sessionControlStateMatrixIsExactAndFailClosed() {
+    print("app-owned Start, Pause, and Resume follow exact native state")
+    check(NativeSessionControlPresentation.reduce(
+        mode: .gameplay, titleStartState: .awaiting, progress: .unavailable)
+          == NativeSessionControlPresentation(action: .start, isEnabled: true),
+          "the exact titlePrompt state presents Start")
+    check(NativeSessionControlPresentation.reduce(
+        mode: .gameplay, titleStartState: .notAwaiting, progress: .unavailable)
+          == NativeSessionControlPresentation(action: .pause, isEnabled: true),
+          "active gameplay presents Pause")
+    check(NativeSessionControlPresentation.reduce(
+        mode: .pause, titleStartState: .unknown, progress: .unavailable)
+          == NativeSessionControlPresentation(action: .resume, isEnabled: true),
+          "bare native pause presents Resume")
+
+    let gameplayProgress = progressSnapshot(screen: 3, startingScreen: 0,
+                                            canExitWithStart: false, canGoBack: true)
+    check(NativeSessionControlPresentation.reduce(
+        mode: .progress, titleStartState: .unknown, progress: gameplayProgress)
+          == NativeSessionControlPresentation(action: .resume, isEnabled: false),
+          "gameplay-origin progress keeps Resume visible while native Start is transiently disabled")
+
+    let titleProgress = progressSnapshot(screen: 28, startingScreen: 27,
+                                         canExitWithStart: true, canGoBack: true)
+    check(NativeSessionControlPresentation.reduce(
+        mode: .progress, titleStartState: .unknown, progress: titleProgress)
+          == NativeSessionControlPresentation(action: .start, isEnabled: true),
+          "title-origin progress uses the physical Start label for Back/exit")
+
+    let pcOnly = progressSnapshot(screen: 35, startingScreen: 0,
+                                  canExitWithStart: true, canGoBack: true)
+    check(NativeMenuTouchAction.available(in: .progress, progress: pcOnly)
+          == [.back, .resume],
+          "an eligible PC-only screen has nonblank Back and Resume exits")
+
+    let validBack = progressSnapshot(screen: 3, option: 2, startingScreen: 0,
+                                     canExitWithStart: true, canGoBack: true)
+    check(NativeMenuTouchAction.available(in: .progress, progress: validBack)
+          == [.up, .down, .back, .confirm, .resume],
+          "exact can-go-back adds Back without relabelling another action")
+
+    let selected = progressSnapshot(screen: 3, option: 2, selected: true,
+                                    startingScreen: 0, canExitWithStart: true,
+                                    canGoBack: true)
+    check(NativeMenuTouchAction.available(in: .progress, progress: selected)
+          == [.left, .right, .cancel, .confirm, .resume],
+          "a selected option preserves Cancel and does not invent Back")
+
+    check(NativeSessionControlPresentation.reduce(
+        mode: .gameplay, titleStartState: .unknown, progress: .unavailable) == nil
+          && NativeSessionControlPresentation.reduce(
+            mode: .progress, titleStartState: .unknown,
+            progress: progressSnapshot(screen: 35)) == nil
+          && NativeSessionControlPresentation.reduce(
+            mode: .unknown, titleStartState: .awaiting, progress: titleProgress) == nil,
+          "unknown title, progress navigation, and master mode states fail closed")
 }
 
 private func controllerSuppressionKeepsTouchRecovery() {
@@ -1441,9 +1507,16 @@ private func controllerSuppressionKeepsTouchRecovery() {
 
 private func progressSnapshot(screen: Int, option: Int = 0,
                               selected: Bool = false,
-                              transition: Bool = false) -> NativeProgressMenuSnapshot {
+                              transition: Bool = false,
+                              startingScreen: Int = -2,
+                              canExitWithStart: Bool = false,
+                              canGoBack: Bool = false) -> NativeProgressMenuSnapshot {
     NativeProgressMenuSnapshot(available: true, screenRawValue: screen, optionIndex: option,
-                               selectedOption: selected, inTransition: transition)
+                               selectedOption: selected, inTransition: transition,
+                               navigationAvailable: startingScreen != -2,
+                               startingScreenRawValue: startingScreen,
+                               canExitWithStart: canExitWithStart,
+                               canGoBack: canGoBack)
 }
 
 private func warpList(slot: Int32 = 0, mask: UInt32 = 0x1f,
@@ -1516,8 +1589,10 @@ private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
     check(NativeMenuTouchAction.confirm.button.bit == .cross
           && NativeMenuTouchAction.back.button.bit == .square
           && NativeMenuTouchAction.cancel.button.bit == .square
+          && NativeMenuTouchAction.start.button.bit == .start
+          && NativeMenuTouchAction.pause.button.bit == .start
           && NativeMenuTouchAction.resume.button.bit == .start,
-          "Confirm, Back, Cancel, and Resume retain Jak's ordinary pad bytes")
+          "Confirm, Back, Cancel, Start, Pause, and Resume retain Jak's ordinary pad bytes")
     check(NativeMenuTouchAction.fuelCells.button.bit == .square
           && NativeMenuTouchAction.precursorOrbs.button.bit == .cross
           && NativeMenuTouchAction.scoutFlies.button.bit == .triangle
@@ -1526,6 +1601,8 @@ private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
     check(NativeMenuTouchAction.confirm.label == "Confirm"
           && NativeMenuTouchAction.back.label == "Back"
           && NativeMenuTouchAction.cancel.label == "Cancel"
+          && NativeMenuTouchAction.start.label == "Start"
+          && NativeMenuTouchAction.pause.label == "Pause"
           && NativeMenuTouchAction.resume.label == "Resume",
           "command targets have explicit accessible labels")
     check(NativeMenuTouchAction.fuelCells.label == "Fuel Cells"
@@ -1598,6 +1675,23 @@ private func nativeMenuActionsEmitOnlyExpectedInputBytes() {
     run.controls.performNativeMenuAction(.cancel)
     check(run.controls.consumeHapticEvents() == [.button(.square)],
           "selected option rejects stale Back and emits only the truthful Cancel pulse")
+
+    run.controls.setNativeMenuState(
+        .progress, progress: progressSnapshot(screen: 3, transition: true,
+                                               startingScreen: 0,
+                                               canExitWithStart: false))
+    run.controls.performNativeMenuAction(.resume)
+    check(run.frame() == .neutral && run.controls.consumeHapticEvents().isEmpty,
+          "a visible but disabled transitional Resume rejects stale activation")
+
+    run.controls.setNativeMenuState(
+        .progress, progress: progressSnapshot(screen: 28, startingScreen: 27,
+                                               canExitWithStart: true,
+                                               canGoBack: true))
+    run.controls.performNativeMenuAction(.start)
+    check(run.frame().buttons.contains(.start)
+          && run.controls.consumeHapticEvents() == [.button(.start)],
+          "an eligible title-progress Start emits the ordinary physical Start pulse")
 }
 
 @MainActor
@@ -1681,19 +1775,19 @@ private func nativeMenuTransitionPreventsGameplayLeakage() {
 
 @MainActor
 private func nativeMenuSuppressionCancellationAndResetAreSafe() {
-    print("menu chrome follows controller suppression and cancellation boundaries")
+    print("paused menu chrome survives controller suppression and respects cancellation boundaries")
     check(TouchControls.nativeMenuControlsAreVisible(mode: .menu, isSuppressed: false),
           "menu controls are visible without physical-input suppression")
-    check(!TouchControls.nativeMenuControlsAreVisible(mode: .menu, isSuppressed: true),
-          "physical controller activity suppresses menu touch chrome")
+    check(TouchControls.nativeMenuControlsAreVisible(mode: .menu, isSuppressed: true),
+          "paused menu exit chrome remains visible after physical controller activity")
     check(!TouchControls.nativeMenuControlsAreVisible(mode: .progress, isSuppressed: false),
           "unavailable progress does not present controls with unproven labels")
     check(TouchControls.nativeMenuControlsAreVisible(
         mode: .progress, progress: progressSnapshot(screen: 0), isSuppressed: false),
           "validated progress stats present exact touch controls")
-    check(!TouchControls.nativeMenuControlsAreVisible(
+    check(TouchControls.nativeMenuControlsAreVisible(
         mode: .progress, progress: progressSnapshot(screen: 0), isSuppressed: true),
-          "physical controller activity suppresses progress touch chrome")
+          "paused progress chrome remains visible after physical controller activity")
     check(TouchControls.capturesNativeMenuInput(mode: .progress),
           "progress captures raw gameplay touch even when its command set is inert")
 
@@ -2085,6 +2179,7 @@ struct TouchControlsCheck {
         liveLayoutChangesCancelOwnedInput()
         cutsceneSkipIsContextualExactAndLifecycleSafe()
         pausePresentationFollowsNativeMenuState()
+        sessionControlStateMatrixIsExactAndFailClosed()
         controllerSuppressionKeepsTouchRecovery()
         nativeMenuActionsAreTruthfullyGatedAndLabelled()
         nativeMenuActionsEmitOnlyExpectedInputBytes()

@@ -63,6 +63,7 @@ struct ContentView: View {
                                   lookAroundState: session.lookAroundState,
                                   isSuppressed: session.input.isDriving,
                                   gameMode: session.gameMode,
+                                  titleStartState: session.titleStartState,
                                   progressMenuSnapshot: session.progressMenuSnapshot,
                                   warpGateTouchSnapshot: session.warpGateTouchSnapshot,
                                   cutsceneSkipTouchSnapshot: session.cutsceneSkipTouchSnapshot,
@@ -179,6 +180,7 @@ private struct SettingsSheetView: View {
         case jak1
     }
 
+    @Environment(\.dismiss) private var dismiss
     @Bindable var sync: SaveSyncController
     @Bindable var settings: PresentationSettings
     @Bindable var input: ControllerInput
@@ -203,6 +205,11 @@ private struct SettingsSheetView: View {
                         SaveSettingsView(sync: sync, settings: settings, input: input)
                     }
                 }
+        }
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Done") { dismiss() }
+            }
         }
     }
 }

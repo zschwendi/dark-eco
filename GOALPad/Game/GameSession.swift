@@ -36,6 +36,7 @@ final class GameSession {
     private(set) var isBooting = false
     private(set) var isRunning = false
     private(set) var gameMode: GOALPadGameMode = .unknown
+    private(set) var titleStartState: GOALPadTitleStartState = .unknown
     private(set) var progressMenuSnapshot: NativeProgressMenuSnapshot = .unavailable
     private(set) var warpGateTouchSnapshot: NativeWarpGateTouchSnapshot = .invalid
     private(set) var cutsceneSkipTouchSnapshot: NativeCutsceneSkipTouchSnapshot = .invalid
@@ -180,7 +181,8 @@ final class GameSession {
         isRunning = true
         updateNativeMenuState(mode: GOALPadRuntimeBridge.gameMode,
                               progress: NativeProgressMenuSnapshot(
-                                GOALPadRuntimeBridge.progressMenuSnapshot))
+                                GOALPadRuntimeBridge.progressMenuSnapshot),
+                              titleStartState: GOALPadRuntimeBridge.titleStartState)
         updateWarpGateTouchSnapshot(NativeWarpGateTouchSnapshot(
             GOALPadRuntimeBridge.warpGateTouchSnapshot))
         updateCutsceneSkipTouchSnapshot(NativeCutsceneSkipTouchSnapshot(
@@ -206,7 +208,8 @@ final class GameSession {
         kernel = nil
         boot = nil
         isRunning = false
-        updateNativeMenuState(mode: .unknown, progress: .unavailable)
+        updateNativeMenuState(mode: .unknown, progress: .unavailable,
+                              titleStartState: .unknown)
         updateWarpGateTouchSnapshot(.invalid)
         updateCutsceneSkipTouchSnapshot(.invalid)
         lookAroundState = .unknown
@@ -247,8 +250,11 @@ final class GameSession {
             let currentMode = GOALPadRuntimeBridge.gameMode
             let currentProgress = NativeProgressMenuSnapshot(
                 GOALPadRuntimeBridge.progressMenuSnapshot)
-            if currentMode != gameMode || currentProgress != progressMenuSnapshot {
-                updateNativeMenuState(mode: currentMode, progress: currentProgress)
+            let currentTitleStartState = GOALPadRuntimeBridge.titleStartState
+            if currentMode != gameMode || currentProgress != progressMenuSnapshot
+                || currentTitleStartState != titleStartState {
+                updateNativeMenuState(mode: currentMode, progress: currentProgress,
+                                      titleStartState: currentTitleStartState)
             }
             let currentWarpGateTouchSnapshot = NativeWarpGateTouchSnapshot(
                 GOALPadRuntimeBridge.warpGateTouchSnapshot)
@@ -279,10 +285,12 @@ final class GameSession {
     }
 
     private func updateNativeMenuState(mode: GOALPadGameMode,
-                                       progress: NativeProgressMenuSnapshot) {
+                                       progress: NativeProgressMenuSnapshot,
+                                       titleStartState: GOALPadTitleStartState) {
         gameMode = mode
         progressMenuSnapshot = progress
-        touch.setNativeMenuState(mode, progress: progress)
+        self.titleStartState = titleStartState
+        touch.setNativeMenuState(mode, progress: progress, titleStartState: titleStartState)
     }
 
     private func updateWarpGateTouchSnapshot(_ snapshot: NativeWarpGateTouchSnapshot) {

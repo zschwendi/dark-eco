@@ -219,6 +219,17 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
   }
 }
 
++ (GOALPadTitleStartState)titleStartState {
+  switch (goalpad::title_start_state()) {
+    case goalpad::TitleStartState::Awaiting:
+      return GOALPadTitleStartStateAwaiting;
+    case goalpad::TitleStartState::NotAwaiting:
+      return GOALPadTitleStartStateNotAwaiting;
+    case goalpad::TitleStartState::Unknown:
+      return GOALPadTitleStartStateUnknown;
+  }
+}
+
 + (GOALPadLookAroundState)lookAroundState {
   switch (goalpad::look_around_state()) {
     case goalpad::LookAroundState::Normal:
@@ -239,6 +250,11 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
       core.option_index,
       core.selected_option ? YES : NO,
       core.in_transition ? YES : NO,
+      core.navigation_available ? YES : NO,
+      core.navigation_available ? static_cast<GOALPadProgressScreen>(core.starting_screen)
+                                : GOALPadProgressScreenUnknown,
+      core.can_exit_with_start ? YES : NO,
+      core.can_go_back ? YES : NO,
   };
   return snapshot;
 }

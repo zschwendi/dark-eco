@@ -83,18 +83,29 @@ struct NativeProgressMenuSnapshot: Equatable {
     let optionIndex: Int
     let selectedOption: Bool
     let inTransition: Bool
+    let navigationAvailable: Bool
+    let startingScreenRawValue: Int
+    let canExitWithStart: Bool
+    let canGoBack: Bool
 
     static let unavailable = NativeProgressMenuSnapshot(
         available: false, screenRawValue: -2, optionIndex: -1,
-        selectedOption: false, inTransition: false)
+        selectedOption: false, inTransition: false, navigationAvailable: false,
+        startingScreenRawValue: -2, canExitWithStart: false, canGoBack: false)
 
     init(available: Bool, screenRawValue: Int, optionIndex: Int,
-         selectedOption: Bool, inTransition: Bool) {
+         selectedOption: Bool, inTransition: Bool,
+         navigationAvailable: Bool = false, startingScreenRawValue: Int = -2,
+         canExitWithStart: Bool = false, canGoBack: Bool = false) {
         self.available = available
         self.screenRawValue = screenRawValue
         self.optionIndex = optionIndex
         self.selectedOption = selectedOption
         self.inTransition = inTransition
+        self.navigationAvailable = navigationAvailable
+        self.startingScreenRawValue = startingScreenRawValue
+        self.canExitWithStart = canExitWithStart
+        self.canGoBack = canGoBack
     }
 
     init(_ snapshot: GOALPadProgressMenuSnapshot) {
@@ -103,6 +114,10 @@ struct NativeProgressMenuSnapshot: Equatable {
         optionIndex = Int(snapshot.optionIndex)
         selectedOption = snapshot.selectedOption.boolValue
         inTransition = snapshot.inTransition.boolValue
+        navigationAvailable = snapshot.navigationAvailable.boolValue
+        startingScreenRawValue = snapshot.startingScreen.rawValue
+        canExitWithStart = snapshot.canExitWithStart.boolValue
+        canGoBack = snapshot.canGoBack.boolValue
     }
 }
 
@@ -341,7 +356,7 @@ enum NativeWarpGateTouchAction: CaseIterable, Hashable, Sendable {
 /// Touch-friendly actions whose meanings are authoritative for the current native game state.
 enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
     case up, down, left, right
-    case confirm, back, cancel, resume
+    case confirm, back, cancel, start, pause, resume
     case fuelCells, precursorOrbs, scoutFlies, settings
 
     /// Boxed-array lengths installed by Jak 1's shipping PC `init-game-options` override.
@@ -364,7 +379,7 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         case .confirm: .cross
         case .back: .square
         case .cancel: .square
-        case .resume: .start
+        case .start, .pause, .resume: .start
         case .fuelCells: .square
         case .precursorOrbs: .cross
         case .scoutFlies: .triangle
@@ -381,6 +396,8 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         case .confirm: "Confirm"
         case .back: "Back"
         case .cancel: "Cancel"
+        case .start: "Start"
+        case .pause: "Pause"
         case .resume: "Resume"
         case .fuelCells: "Fuel Cells"
         case .precursorOrbs: "Precursor Orbs"
@@ -398,6 +415,8 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         case .confirm: "checkmark"
         case .back: "arrow.uturn.backward"
         case .cancel: "xmark"
+        case .start: "play.fill"
+        case .pause: "pause.fill"
         case .resume: "play.fill"
         case .fuelCells: "battery.100percent"
         case .precursorOrbs: "circle.grid.2x2.fill"
@@ -408,13 +427,14 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
 
     nonisolated static func available(
         in mode: GOALPadGameMode,
-        progress: NativeProgressMenuSnapshot = .unavailable
+        progress: NativeProgressMenuSnapshot = .unavailable,
+        titleStartState: GOALPadTitleStartState = .unknown
     ) -> [Self] {
-        switch mode {
+        var actions: [Self] = switch mode {
         case .pause:
-            [.resume]
+            []
         case .menu:
-            [.up, .down, .left, .right, .back, .confirm, .resume]
+            [.up, .down, .left, .right, .back, .confirm]
         case .progress:
             progressActions(for: progress)
         case .unknown, .gameplay:
@@ -422,6 +442,27 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         @unknown default:
             []
         }
+        if mode != .gameplay,
+           let session = NativeSessionControlPresentation.reduce(
+                mode: mode, titleStartState: titleStartState, progress: progress) {
+            actions.append(session.action)
+        }
+        return actions
+    }
+
+    nonisolated static func isEnabled(
+        _ action: Self,
+        in mode: GOALPadGameMode,
+        progress: NativeProgressMenuSnapshot,
+        titleStartState: GOALPadTitleStartState
+    ) -> Bool {
+        if let session = NativeSessionControlPresentation.reduce(
+            mode: mode, titleStartState: titleStartState, progress: progress),
+           action == session.action {
+            return session.isEnabled
+        }
+        return available(in: mode, progress: progress,
+                         titleStartState: titleStartState).contains(action)
     }
 
     nonisolated private static func progressActions(
@@ -429,37 +470,42 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
     ) -> [Self] {
         guard snapshot.available, !snapshot.inTransition else { return [] }
 
+        var actions: [Self]
         switch snapshot.screenRawValue {
         case 0, 1, 2:
             guard !snapshot.selectedOption else { return [] }
-            return [.fuelCells, .precursorOrbs, .scoutFlies, .settings]
+            actions = [.fuelCells, .precursorOrbs, .scoutFlies, .settings]
         case 3:
             // The snapshot does not expose whether secrets are unlocked, so accept the larger of
             // the two authoritative shipping arrays while still rejecting every later index.
-            return commonOptions(for: snapshot,
-                                 optionCount: ShippingPCOptionCount.settingsWithSecrets)
+            actions = commonOptions(
+                for: snapshot, optionCount: ShippingPCOptionCount.settingsWithSecrets)
         case 4:
-            return commonOptions(for: snapshot,
-                                 optionCount: ShippingPCOptionCount.gameSettings)
+            actions = commonOptions(for: snapshot,
+                                    optionCount: ShippingPCOptionCount.gameSettings)
         case 5:
-            return commonOptions(for: snapshot,
-                                 optionCount: ShippingPCOptionCount.graphicSettings)
+            actions = commonOptions(for: snapshot,
+                                    optionCount: ShippingPCOptionCount.graphicSettings)
         case 6:
-            return commonOptions(for: snapshot,
-                                 optionCount: ShippingPCOptionCount.soundSettings)
+            actions = commonOptions(for: snapshot,
+                                    optionCount: ShippingPCOptionCount.soundSettings)
         case 27:
-            return commonOptions(for: snapshot,
-                                 optionCount: ShippingPCOptionCount.title)
+            actions = commonOptions(for: snapshot,
+                                    optionCount: ShippingPCOptionCount.title)
         case 28:
-            return commonOptions(for: snapshot,
-                                 optionCount: ShippingPCOptionCount.settingsTitle)
+            actions = commonOptions(for: snapshot,
+                                    optionCount: ShippingPCOptionCount.settingsTitle)
         case 16, 17:
-            return fileOptions(for: snapshot, optionCount: 5)
+            actions = fileOptions(for: snapshot, optionCount: 5)
         case 18:
-            return fileOptions(for: snapshot, optionCount: 6)
+            actions = fileOptions(for: snapshot, optionCount: 6)
         default:
-            return []
+            actions = []
         }
+        if snapshot.canGoBack, !snapshot.selectedOption, !actions.contains(.back) {
+            actions.insert(.back, at: max(0, actions.count - 1))
+        }
+        return actions
     }
 
     nonisolated private static func commonOptions(
@@ -482,6 +528,38 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
             return [.cancel, .confirm]
         }
         return [.up, .down, .back, .confirm]
+    }
+}
+
+nonisolated struct NativeSessionControlPresentation: Equatable, Sendable {
+    let action: NativeMenuTouchAction
+    let isEnabled: Bool
+
+    static func reduce(
+        mode: GOALPadGameMode,
+        titleStartState: GOALPadTitleStartState,
+        progress: NativeProgressMenuSnapshot
+    ) -> Self? {
+        switch mode {
+        case .gameplay:
+            switch titleStartState {
+            case .awaiting: return Self(action: .start, isEnabled: true)
+            case .notAwaiting: return Self(action: .pause, isEnabled: true)
+            case .unknown: return nil
+            @unknown default: return nil
+            }
+        case .pause, .menu:
+            return Self(action: .resume, isEnabled: true)
+        case .progress:
+            guard progress.navigationAvailable else { return nil }
+            let action: NativeMenuTouchAction = progress.startingScreenRawValue == 27
+                ? .start : .resume
+            return Self(action: action, isEnabled: progress.canExitWithStart)
+        case .unknown:
+            return nil
+        @unknown default:
+            return nil
+        }
     }
 }
 
@@ -930,6 +1008,7 @@ final class TouchControls {
     private(set) var layoutCustomization = TouchLayoutCustomization.standard
     private(set) var nativeMenuMode: GOALPadGameMode = .unknown
     private(set) var progressMenuSnapshot: NativeProgressMenuSnapshot = .unavailable
+    private(set) var titleStartState: GOALPadTitleStartState = .unknown
     private(set) var warpGateTouchSnapshot: NativeWarpGateTouchSnapshot = .invalid
     private(set) var cutsceneSkipTouchSnapshot: NativeCutsceneSkipTouchSnapshot = .invalid
     @ObservationIgnored private var retainsWarpGateTouchCapture = false
@@ -1021,14 +1100,16 @@ final class TouchControls {
 
     /// Compatibility entry point for callers that only have the master-mode classification.
     func setNativeMenuMode(_ mode: GOALPadGameMode) {
-        setNativeMenuState(mode, progress: .unavailable)
+        setNativeMenuState(mode, progress: .unavailable, titleStartState: .unknown)
     }
 
     /// Applies the read-only native menu snapshot. Any semantic transition cancels carried input
     /// before another frame reaches the engine, including progress screen and selection changes.
     func setNativeMenuState(_ mode: GOALPadGameMode,
-                            progress: NativeProgressMenuSnapshot) {
-        guard mode != nativeMenuMode || progress != progressMenuSnapshot else { return }
+                            progress: NativeProgressMenuSnapshot,
+                            titleStartState: GOALPadTitleStartState = .unknown) {
+        guard mode != nativeMenuMode || progress != progressMenuSnapshot
+                || titleStartState != self.titleStartState else { return }
         let capturedInput = capturesNativeTouchInput
         let warpSemanticWasActive = nativeMenuMode == .gameplay
             && warpGateTouchSnapshot.state != .unavailable
@@ -1036,6 +1117,7 @@ final class TouchControls {
             in: nativeMenuMode, snapshot: cutsceneSkipTouchSnapshot)
         nativeMenuMode = mode
         progressMenuSnapshot = progress
+        self.titleStartState = titleStartState
         let warpSemanticIsActive = nativeMenuMode == .gameplay
             && warpGateTouchSnapshot.state != .unavailable
         let skipIsActive = Self.cutsceneSkipIsAvailable(
@@ -1074,8 +1156,9 @@ final class TouchControls {
     /// Emits one ordinary pad pulse. Availability is mode-gated so a stale SwiftUI action cannot
     /// send menu input after the game has returned to gameplay or moved into progress.
     func performNativeMenuAction(_ action: NativeMenuTouchAction) {
-        guard NativeMenuTouchAction.available(in: nativeMenuMode,
-                                              progress: progressMenuSnapshot).contains(action)
+        guard NativeMenuTouchAction.isEnabled(action, in: nativeMenuMode,
+                                              progress: progressMenuSnapshot,
+                                              titleStartState: titleStartState)
         else { return }
         press(action.button)
         enqueueHaptic(.button(action.button))
@@ -1494,16 +1577,18 @@ final class TouchControls {
 
     nonisolated static func artworkIsVisible(isEngaged: Bool, isSuppressed: Bool,
                                              hasTouches: Bool,
-                                             isNativeMenuOpen: Bool) -> Bool {
-        (isEngaged || isNativeMenuOpen) && (!isSuppressed || hasTouches)
+                                             isNativeMenuOpen: Bool,
+                                             isAwaitingTitleStart: Bool = false) -> Bool {
+        if isAwaitingTitleStart { return true }
+        return (isEngaged || isNativeMenuOpen) && (!isSuppressed || hasTouches)
     }
 
     nonisolated static func artworkLabel(for button: TouchButton,
-                                         isNativeMenuOpen: Bool,
+                                         sessionAction: NativeMenuTouchAction?,
                                          cutsceneSkipAvailable: Bool = false) -> String {
         if button == .select, cutsceneSkipAvailable { return "SKIP" }
         guard button == .start else { return button.glyph }
-        return isNativeMenuOpen ? "RESUME" : "PAUSE"
+        return (sessionAction?.label ?? button.glyph).uppercased()
     }
 
     nonisolated static func cutsceneSkipIsAvailable(
@@ -1517,8 +1602,8 @@ final class TouchControls {
     nonisolated static func nativeMenuControlsAreVisible(mode: GOALPadGameMode,
                                                          progress: NativeProgressMenuSnapshot = .unavailable,
                                                          isSuppressed: Bool) -> Bool {
-        !isSuppressed && !NativeMenuTouchAction.available(in: mode,
-                                                          progress: progress).isEmpty
+        _ = isSuppressed
+        return !NativeMenuTouchAction.available(in: mode, progress: progress).isEmpty
     }
 
     nonisolated static func warpGateTouchControlsAreVisible(

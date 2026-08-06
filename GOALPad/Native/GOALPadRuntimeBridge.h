@@ -96,6 +96,12 @@ typedef NS_ENUM(NSInteger, GOALPadGameMode) {
   GOALPadGameModeMenu,
 };
 
+typedef NS_ENUM(NSInteger, GOALPadTitleStartState) {
+  GOALPadTitleStartStateUnknown,
+  GOALPadTitleStartStateNotAwaiting,
+  GOALPadTitleStartStateAwaiting,
+};
+
 typedef NS_ENUM(NSInteger, GOALPadLookAroundState) {
   GOALPadLookAroundStateUnknown,
   GOALPadLookAroundStateNormal,
@@ -148,6 +154,10 @@ typedef struct GOALPadProgressMenuSnapshot {
   int32_t optionIndex;
   BOOL selectedOption;
   BOOL inTransition;
+  BOOL navigationAvailable;
+  GOALPadProgressScreen startingScreen;
+  BOOL canExitWithStart;
+  BOOL canGoBack;
 } GOALPadProgressMenuSnapshot;
 
 typedef NS_ENUM(NSInteger, GOALPadWarpGateTouchState) {
@@ -215,6 +225,8 @@ typedef struct GOALPadCutsceneSkipTouchSnapshot {
 @property(class, nonatomic, readonly, getter=isGameBooted) BOOL gameBooted;
 /// Jak's own `*master-mode*`; reading it never advances or mutates gameplay.
 @property(class, nonatomic, readonly) GOALPadGameMode gameMode;
+/// Exact read of whether Jak's live target is in `target-title-wait`.
+@property(class, nonatomic, readonly) GOALPadTitleStartState titleStartState;
 /// Jak's live directional look-around state. Unavailable and other first-person modes are unknown.
 @property(class, nonatomic, readonly) GOALPadLookAroundState lookAroundState;
 /// A fail-closed read of Jak's live progress process; reading it never advances or mutates GOAL.
