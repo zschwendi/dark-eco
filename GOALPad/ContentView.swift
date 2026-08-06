@@ -47,7 +47,9 @@ struct ContentView: View {
 
             if session.isRunning {
                 #if os(iOS)
-                TouchControlsView(controls: session.touch, isSuppressed: session.input.isDriving)
+                TouchControlsView(controls: session.touch,
+                                  isSuppressed: session.input.isDriving,
+                                  isNativeMenuOpen: session.isNativeMenuOpen)
                 #endif
 
                 if session.isNativeMenuOpen

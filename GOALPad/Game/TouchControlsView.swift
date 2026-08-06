@@ -7,8 +7,9 @@ import UIKit
 /// The selected Modern gesture layer or Classic DualShock-like overlay over the game surface.
 struct TouchControlsView: View {
     let controls: TouchControls
-    /// Physical-controller activity hides the artwork until the screen is touched again.
+    /// Active physical input hides the artwork until the screen is touched again.
     let isSuppressed: Bool
+    let isNativeMenuOpen: Bool
 
     fileprivate static let space = "GOALPadTouchControls"
     private static let pillWidth: CGFloat = 82
@@ -16,7 +17,8 @@ struct TouchControlsView: View {
     private var isVisible: Bool {
         TouchControls.artworkIsVisible(isEngaged: controls.isEngaged,
                                        isSuppressed: isSuppressed,
-                                       hasTouches: !controls.touches.isEmpty)
+                                       hasTouches: !controls.touches.isEmpty,
+                                       isNativeMenuOpen: isNativeMenuOpen)
     }
 
     var body: some View {
@@ -91,6 +93,9 @@ struct TouchControlsView: View {
             ForEach(ClassicTouchLayout.buttons, id: \.self) { button in
                 if let frame = layout.frame(for: button) {
                     ClassicButtonControl(button: button,
+                                         label: TouchControls.artworkLabel(
+                                            for: button,
+                                            isNativeMenuOpen: isNativeMenuOpen),
                                          isDown: controls.isPillDown(button), frame: frame)
                 }
             }
@@ -99,7 +104,8 @@ struct TouchControlsView: View {
 
     private func pill(_ button: TouchButton) -> some View {
         let isDown = controls.isPillDown(button)
-        return Text(button.glyph)
+        return Text(TouchControls.artworkLabel(for: button,
+                                               isNativeMenuOpen: isNativeMenuOpen))
             .font(.system(size: 12, weight: .semibold, design: .rounded))
             .tracking(1.4)
             .foregroundStyle(.white.opacity(isDown ? 1 : 0.8))
@@ -116,6 +122,7 @@ struct TouchControlsView: View {
 
 private struct ClassicButtonControl: View {
     let button: TouchButton
+    let label: String
     let isDown: Bool
     let frame: CGRect
 
@@ -129,7 +136,7 @@ private struct ClassicButtonControl: View {
     }
 
     var body: some View {
-        Text(button.glyph)
+        Text(label)
             .font(.system(size: min(16, frame.height * 0.42), weight: .semibold,
                           design: .rounded))
             .tracking(isWide ? 0.8 : 0)

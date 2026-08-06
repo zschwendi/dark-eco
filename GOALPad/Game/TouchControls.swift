@@ -467,8 +467,15 @@ final class TouchControls {
     }
 
     nonisolated static func artworkIsVisible(isEngaged: Bool, isSuppressed: Bool,
-                                             hasTouches: Bool) -> Bool {
-        isEngaged && (!isSuppressed || hasTouches)
+                                             hasTouches: Bool,
+                                             isNativeMenuOpen: Bool) -> Bool {
+        (isEngaged || isNativeMenuOpen) && (!isSuppressed || hasTouches)
+    }
+
+    nonisolated static func artworkLabel(for button: TouchButton,
+                                         isNativeMenuOpen: Bool) -> String {
+        guard button == .start else { return button.glyph }
+        return isNativeMenuOpen ? "RESUME" : "PAUSE"
     }
 
     nonisolated private static func radialDeflection(from origin: CGPoint,
