@@ -13479,3 +13479,53 @@ Next executable task: review and integrate the remapping commit as its own Build
 107 checkpoint, rerun its focused suites plus the full affected Xcode build,
 bump only after integration, commit, push, and update this handoff. Do not begin
 the later Game Center or touch-menu integration under the same build number.
+
+# Build 107 Jak 1 physical remapping
+
+Date: 2026-08-06. Build 107 is the isolated remapping checkpoint layered on the
+pushed Build 106 parent. Worker commit
+`13197fd72cf0a9d2ece24c922ab4396f9333c7dd` from
+`/private/tmp/GP-build94-input-remapping` was reviewed and integrated as parent
+`10986ec9`; packaging commit is `1167dd31` before this handoff commit.
+
+Implemented:
+
+- Exact standard controller button mapping and the existing keyboard defaults
+  remain byte-compatible, including Down Arrow = L1+R1 and Tab = Stats/L2+R2.
+- Every explicitly exposed controller button, bounded keyboard key, and left/
+  right/middle mouse button can bind to a Jak 1 logical action. Arbitrary typing
+  remains outside gameplay input.
+- Assigning an already-owned action swaps bindings deterministically; decoded
+  duplicates prefer declared physical-control order. Not Used removes a binding.
+- Remaps persist as an optional compatibility-safe field in the existing Jak 1
+  local/iCloud document, apply live, and participate in Controls and full reset.
+- Settings reports controller/keyboard/mouse availability honestly while keeping
+  bindings editable when hardware is disconnected.
+- Analog movement/camera axes remain fixed. Build 107 does not claim full analog
+  axis remapping.
+
+Validation passed:
+
+- `Scripts/run-keyboard-mouse-input-check.sh`
+- `Scripts/run-presentation-settings-check.sh`
+- `Scripts/run-save-sync-check.sh`
+- `Scripts/run-game-center-check.sh`
+- `Scripts/run-vision-scene-foundation-check.sh`
+- Focused production Swift parse and `git diff --check`
+- Signed generic iOS Release Build 107 using cached DerivedData and the unchanged
+  canonical 518-object source pack; full log is
+  `/private/tmp/GOALPad-build107-generic-ios.log`.
+
+Preserved signed app:
+`/private/tmp/GOALPad-build107-remapping-signed/GOALPad.app`. It identifies as
+Build 107, carries one privacy manifest and no ISO/DGO/WAD/VAG/FR3 files.
+Executable SHA-256:
+`2710aca90a7a40f74fb30b8d007e583a8be065673d1b11a22c75e477c71689d6`.
+
+Not validated: physical controller/keyboard/mouse behavior, remapping Settings
+layout, and actual iCloud propagation between devices. These remain hardware/UI
+acceptance gates.
+
+Next FIFO integration checkpoint: the already-completed raw Game Center activity
+evidence seam at `5a259d69`, as Build 108. It exposes evidence only and does not
+define normal-run start, completion, fastest/PB, leaderboard IDs, or submission.
