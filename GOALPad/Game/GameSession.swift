@@ -41,6 +41,7 @@ final class GameSession {
     private(set) var runReadiness: GameplayRunReadiness = .preRun
     private(set) var warpGateTouchSnapshot: NativeWarpGateTouchSnapshot = .invalid
     private(set) var cutsceneSkipTouchSnapshot: NativeCutsceneSkipTouchSnapshot = .invalid
+    private(set) var facePromptTouchSnapshot: NativeFacePromptTouchSnapshot = .invalid
     private(set) var lookAroundState: GOALPadLookAroundState = .unknown
     private(set) var framesRun: UInt64 = 0
     private(set) var framesPresented: UInt64 = 0
@@ -198,6 +199,8 @@ final class GameSession {
             GOALPadRuntimeBridge.warpGateTouchSnapshot))
         updateCutsceneSkipTouchSnapshot(NativeCutsceneSkipTouchSnapshot(
             GOALPadRuntimeBridge.cutsceneSkipTouchSnapshot))
+        updateFacePromptTouchSnapshot(NativeFacePromptTouchSnapshot(
+            GOALPadRuntimeBridge.facePromptTouchSnapshot))
         lookAroundState = GOALPadRuntimeBridge.lookAroundState
         let active = lifecycle.activateWithoutPreparation()
         saveSync.setGameplayActive(active)
@@ -225,6 +228,7 @@ final class GameSession {
                               titleStartState: .unknown)
         updateWarpGateTouchSnapshot(.invalid)
         updateCutsceneSkipTouchSnapshot(.invalid)
+        updateFacePromptTouchSnapshot(.invalid)
         lookAroundState = .unknown
         saveSync.setGameplayActive(false)
         touch.reset()
@@ -279,6 +283,11 @@ final class GameSession {
             if currentCutsceneSkipTouchSnapshot != cutsceneSkipTouchSnapshot {
                 updateCutsceneSkipTouchSnapshot(currentCutsceneSkipTouchSnapshot)
             }
+            let currentFacePromptTouchSnapshot = NativeFacePromptTouchSnapshot(
+                GOALPadRuntimeBridge.facePromptTouchSnapshot)
+            if currentFacePromptTouchSnapshot != facePromptTouchSnapshot {
+                updateFacePromptTouchSnapshot(currentFacePromptTouchSnapshot)
+            }
             let currentLookAroundState = GOALPadRuntimeBridge.lookAroundState
             if currentLookAroundState != lookAroundState {
                 lookAroundState = currentLookAroundState
@@ -317,6 +326,11 @@ final class GameSession {
     private func updateCutsceneSkipTouchSnapshot(_ snapshot: NativeCutsceneSkipTouchSnapshot) {
         cutsceneSkipTouchSnapshot = snapshot
         touch.setCutsceneSkipTouchSnapshot(snapshot)
+    }
+
+    private func updateFacePromptTouchSnapshot(_ snapshot: NativeFacePromptTouchSnapshot) {
+        facePromptTouchSnapshot = snapshot
+        touch.setFacePromptTouchSnapshot(snapshot)
     }
 
     /// The same numbers the on-screen readout shows, every ten seconds, so a run can be checked

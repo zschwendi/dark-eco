@@ -280,6 +280,41 @@ struct NativeCutsceneSkipTouchSnapshot: Equatable, Sendable {
     }
 }
 
+/// A freshness-checked set of ordinary face buttons requested by the active GOAL interaction.
+/// Only the four public pad bits are accepted; unknown or in-progress publications fail closed.
+struct NativeFacePromptTouchSnapshot: Equatable, Sendable {
+    static let triangleMask: UInt32 = 1 << 12
+    static let circleMask: UInt32 = 1 << 13
+    static let crossMask: UInt32 = 1 << 14
+    static let squareMask: UInt32 = 1 << 15
+    static let supportedMask = triangleMask | circleMask | crossMask | squareMask
+
+    let valid: Bool
+    let requestedButtons: UInt32
+    let sequence: UInt32
+
+    static let invalid = NativeFacePromptTouchSnapshot(
+        valid: false, requestedButtons: 0, sequence: 0)
+
+    init(valid: Bool, requestedButtons: UInt32, sequence: UInt32) {
+        self.valid = valid
+        self.requestedButtons = requestedButtons
+        self.sequence = sequence
+    }
+
+    init(_ snapshot: GOALPadFacePromptTouchSnapshot) {
+        let candidate = Self(valid: snapshot.valid.boolValue,
+                             requestedButtons: snapshot.requestedButtons,
+                             sequence: snapshot.sequence)
+        self = candidate.isStructurallyValid ? candidate : .invalid
+    }
+
+    var isStructurallyValid: Bool {
+        valid && sequence & 1 == 0 && requestedButtons != 0
+            && requestedButtons & ~Self.supportedMask == 0
+    }
+}
+
 /// The four destination commands retain their existing one-row presentation on ordinary wide
 /// layouts and switch to a two-column grid before their semantic labels would clip.
 struct NativeWarpGateTouchLayout: Equatable, Sendable {
@@ -371,6 +406,65 @@ enum NativeWarpGateTouchAction: CaseIterable, Hashable, Sendable {
             var actions: [Self] = snapshot.selectionMoving ? [] : [.previous, .next]
             actions.append(contentsOf: [.warp, .back])
             return actions
+        }
+    }
+}
+
+/// The visual order is stable and deliberately independent from the native bit order.
+enum NativeFacePromptTouchAction: CaseIterable, Hashable, Sendable {
+    case cross
+    case square
+    case triangle
+    case circle
+
+    var button: TouchButton {
+        switch self {
+        case .cross: .cross
+        case .square: .square
+        case .triangle: .triangle
+        case .circle: .circle
+        }
+    }
+
+    var requestedMask: UInt32 {
+        switch self {
+        case .cross: NativeFacePromptTouchSnapshot.crossMask
+        case .square: NativeFacePromptTouchSnapshot.squareMask
+        case .triangle: NativeFacePromptTouchSnapshot.triangleMask
+        case .circle: NativeFacePromptTouchSnapshot.circleMask
+        }
+    }
+
+    var glyph: String {
+        switch self {
+        case .cross: "×"
+        case .square: "□"
+        case .triangle: "△"
+        case .circle: "○"
+        }
+    }
+
+    var accessibilityLabel: String {
+        switch self {
+        case .cross: "Cross button"
+        case .square: "Square button"
+        case .triangle: "Triangle button"
+        case .circle: "Circle button"
+        }
+    }
+
+    nonisolated static func available(
+        in mode: GOALPadGameMode,
+        snapshot: NativeFacePromptTouchSnapshot,
+        warpGateControlsVisible: Bool,
+        warpGateCapturesInput: Bool,
+        cutsceneSkipAvailable: Bool
+    ) -> [Self] {
+        guard mode == .gameplay, snapshot.isStructurallyValid,
+              !warpGateControlsVisible, !warpGateCapturesInput else { return [] }
+        return allCases.filter { action in
+            snapshot.requestedButtons & action.requestedMask != 0
+                && !(cutsceneSkipAvailable && action == .triangle)
         }
     }
 }
@@ -1078,6 +1172,7 @@ final class TouchControls {
     private(set) var runReadiness: GameplayRunReadiness = .preRun
     private(set) var warpGateTouchSnapshot: NativeWarpGateTouchSnapshot = .invalid
     private(set) var cutsceneSkipTouchSnapshot: NativeCutsceneSkipTouchSnapshot = .invalid
+    private(set) var facePromptTouchSnapshot: NativeFacePromptTouchSnapshot = .invalid
     @ObservationIgnored private var retainsWarpGateTouchCapture = false
 
     enum Role: Equatable {
@@ -1129,6 +1224,8 @@ final class TouchControls {
     @ObservationIgnored private var rightStickFrame = CGRect.zero
     @ObservationIgnored private var pillFrames: [TouchButton: CGRect] = [:]
     @ObservationIgnored private var pulses: [TouchButton: Pulse] = [:]
+    @ObservationIgnored private var facePromptPulses: [TouchButton: Pulse] = [:]
+    @ObservationIgnored private var facePromptHapticEvents: [TouchHapticEvent] = []
     @ObservationIgnored private var fadeToken = 0
     @ObservationIgnored private var dpad = DirectionRepeat()
 
@@ -1182,6 +1279,7 @@ final class TouchControls {
         progressMenuSnapshot = progress
         self.titleStartState = titleStartState
         self.runReadiness = runReadiness
+        if mode != .gameplay { cancelFacePromptInput() }
         if capturedInput || capturesNativeTouchInput { reset() }
     }
 
@@ -1208,12 +1306,21 @@ final class TouchControls {
     func setCutsceneSkipTouchSnapshot(_ snapshot: NativeCutsceneSkipTouchSnapshot) {
         guard snapshot != cutsceneSkipTouchSnapshot else { return }
         cutsceneSkipTouchSnapshot = snapshot
+        cancelFacePromptInput()
         let pending = touches.compactMap { id, touch -> ObjectIdentifier? in
             if case .skip = touch.role { return id }
             return nil
         }
         for id in pending { touches.removeValue(forKey: id) }
         if !pending.isEmpty { fadeWhenIdle() }
+    }
+
+    /// A semantic or generation change invalidates prompt-owned pulses without disturbing raw
+    /// gameplay touches that continue beneath this non-capturing control layer.
+    func setFacePromptTouchSnapshot(_ snapshot: NativeFacePromptTouchSnapshot) {
+        guard snapshot != facePromptTouchSnapshot else { return }
+        facePromptTouchSnapshot = snapshot
+        cancelFacePromptInput()
     }
 
     /// Emits one ordinary pad pulse. Availability is mode-gated so a stale SwiftUI action cannot
@@ -1269,6 +1376,26 @@ final class TouchControls {
         else { return }
         press(.triangle)
         enqueueHaptic(.button(.triangle))
+    }
+
+    /// Emits one exact ordinary face-button pulse only while the complete source snapshot and
+    /// every higher-priority semantic owner remain current.
+    func performFacePromptAction(_ action: NativeFacePromptTouchAction,
+                                 for expectedSnapshot: NativeFacePromptTouchSnapshot) {
+        let warpVisible = Self.warpGateTouchControlsAreVisible(
+            mode: nativeMenuMode, snapshot: warpGateTouchSnapshot)
+        let cutsceneAvailable = Self.cutsceneSkipIsAvailable(
+            in: nativeMenuMode, snapshot: cutsceneSkipTouchSnapshot)
+        guard expectedSnapshot == facePromptTouchSnapshot,
+              NativeFacePromptTouchAction.available(
+                in: nativeMenuMode,
+                snapshot: facePromptTouchSnapshot,
+                warpGateControlsVisible: warpVisible,
+                warpGateCapturesInput: capturesWarpGateTouchInput,
+                cutsceneSkipAvailable: cutsceneAvailable).contains(action)
+        else { return }
+        facePromptPulses[action.button, default: Pulse()].press()
+        facePromptHapticEvents.append(.button(action.button))
     }
 
     /// The destination responder is Left/Right-driven. A completed horizontal swipe maps to
@@ -1429,16 +1556,21 @@ final class TouchControls {
     func reset() {
         touches.removeAll()
         pulses.removeAll()
+        facePromptPulses.removeAll()
         dpad = DirectionRepeat()
         hapticEvents.removeAll()
+        facePromptHapticEvents.removeAll()
         fadeToken += 1
         isEngaged = false
     }
 
     /// Returns and clears touch-owned feedback actions without affecting game input state.
     func consumeHapticEvents() -> [TouchHapticEvent] {
-        defer { hapticEvents.removeAll() }
-        return hapticEvents
+        defer {
+            hapticEvents.removeAll()
+            facePromptHapticEvents.removeAll()
+        }
+        return hapticEvents + facePromptHapticEvents
     }
 
     private func role(for point: CGPoint, in size: CGSize,
@@ -1556,6 +1688,9 @@ final class TouchControls {
             var pulse = pulses[button] ?? Pulse()
             if pulse.advance() { state.buttons.insert(button.bit) }
             pulses[button] = pulse
+            var facePromptPulse = facePromptPulses[button] ?? Pulse()
+            if facePromptPulse.advance() { state.buttons.insert(button.bit) }
+            facePromptPulses[button] = facePromptPulse
         }
         if isCrouching { state.buttons.insert(TouchButton.crouch.bit) }
 
@@ -1702,6 +1837,11 @@ final class TouchControls {
 
     private func enqueueHaptic(_ event: TouchHapticEvent) {
         hapticEvents.append(event)
+    }
+
+    private func cancelFacePromptInput() {
+        facePromptPulses.removeAll()
+        facePromptHapticEvents.removeAll()
     }
 
     /// Converts strong movement into one repeated dominant-axis D-pad direction for menus.
