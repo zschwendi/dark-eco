@@ -14408,18 +14408,21 @@ Date: 2026-08-06. The maintainer physically accepted Fit to Screen in Build
 118, but rejected Build 118 as an MVP baseline for two independent regressions:
 
 - Ordinary gameplay touch has been materially broken for several builds. The
-  maintainer wants it restored exactly to Build 96 behavior and then frozen.
+  maintainer wants its foundational layout and handling restored to Build 96
+  and then frozen while retaining the later bounded touch additions.
 - Leaving/backgrounding Eco and resuming can loop a black screen with the theme
   song while the SwiftUI/touch shell remains responsive. This is a native
   lifecycle failure, not an app-shell success.
 
 The maintainer also explicitly scrapped the entire Classic touch concept. Build
-119 must provide one Build 96 gameplay-touch scheme, remove the Controls
-Modern/Classic picker and touch-layout editor/runtime effect, retain old synced
-documents only for decode compatibility, and preserve Build 118's native-menu
-Start/Pause/Resume/Back/Done additions. Primary Controller, physical-controller
-bindings, mouse/keyboard bindings, Graphics Modern/Classic, and accepted Fit to
-Screen are separate and remain.
+119 must provide the Build 96 stick geometry, two-pill layout, and base gesture
+handling; retain crouch-left punch, pinch, contextual SKIP, touch haptics,
+full-screen warp capture, and Build 118's native-menu
+Start/Pause/Resume/Back/Done additions; remove the Controls Modern/Classic picker
+and touch-layout editor/runtime effect; and retain old synced documents only for
+decode compatibility. Primary Controller, physical-controller bindings,
+mouse/keyboard bindings, Graphics Modern/Classic, and accepted Fit to Screen are
+separate and remain.
 
 The existing isolated lifecycle work at `/private/tmp/GP-build118-background-recovery`
 (`ae399b3e`, `804cfaf1`) is being rebased and audited against the reported black-
@@ -14431,3 +14434,22 @@ After the Build 119/120 MVP recovery, stop expanding nonessential iOS settings
 or touch features. Audit only actual TestFlight/App Store blockers, then
 prioritize true stereoscopic visionOS rendering with Comfort/Normal preserved as
 fallback. Build 118 remains preserved evidence, not the release baseline.
+
+## Build 120 integrated MVP candidate
+
+Parent integration commits `6e7bdb8c`, `079a9f74`, `e3f8ffce`, `fa4b8613`,
+`17969eb7`, and `4ec879f8` implement and test the corrected Build 119 touch
+boundary. `ed1f5c11` records the Build 119 checkpoint. Full-screen warp capture
+remains included for physical testing. Independent Sol xhigh review returned
+ACCEPT after `Scripts/run-touch-controls-check.sh`,
+`Scripts/run-presentation-settings-check.sh`, and
+`Scripts/run-save-sync-check.sh` passed.
+
+Parent commits `4941d17b`, `11911bd8`, and `79df1004` then integrate the
+independently accepted lifecycle recovery for Build 120. It preserves the
+existing kernel/run while scene activation recreates the display link,
+reattaches the Metal layer, closes any armed detached frame, and gates frames
+and audio behind the latest foreground save generation. Deterministic lifecycle
+and save-gate tests pass. A signed Xcode build and physical Build 120 touch,
+warp, app-switch, device-lock, and same-run resume test remain pending; a
+responsive SwiftUI shell or restarted theme alone is not acceptance.

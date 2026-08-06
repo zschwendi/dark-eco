@@ -123,7 +123,10 @@ every-save, every-orientation, or every-controller certification.
 The implemented settings documents retain their versioned fields for backward
 and iCloud compatibility, but the shipped touch experience is no longer a
 Modern/Classic choice. The maintainer rejected the post-Build-96 Classic touch
-concept and touch editor in favor of one frozen Build 96 gameplay-touch scheme.
+concept and touch editor in favor of one gameplay-touch scheme whose stick
+placement, radii, two-pill layout, and base face gestures match Build 96. Later
+bounded additions remain: crouch-left punch, pinch zoom, contextual SKIP,
+touch haptics, truthful native-menu controls, and validated warp-gate capture.
 Graphics retains its independent Modern/Classic presentation choice, including
 Modern Fit to Screen. Old Controls profile and touch-layout documents must stay
 decodable, but they no longer control gameplay or appear as player-facing touch
@@ -133,8 +136,9 @@ saves.
 Enhancement work proceeds in this order:
 
 1. Preserve Build 93 as the unified known-good regression baseline.
-2. Restore and freeze Build 96 ordinary gameplay touch while retaining the
-   later truthful native-menu Start/Pause/Resume/Back layer.
+2. Restore and freeze the Build 96 gameplay-touch foundation while retaining
+   the explicitly accepted later touch additions and truthful native-menu
+   Start/Pause/Resume/Back layer.
 3. Repair background/foreground recovery and close only actual MVP shipping
    blockers; do not expand the touch or settings feature surface.
 4. After the iPhone/iPad MVP contract is physically stable, prioritize true

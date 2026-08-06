@@ -491,8 +491,8 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 Active lanes:
 
-- `Build 118 physically rejected; Build 119/120 MVP recovery in progress` —
-  Build 117's touch editor remains integrated, but its physical run exposed
+- `Build 120 MVP candidate integrated; signed build and physical acceptance
+  pending` — Build 118's physical run exposed
   missing Start/Resume chrome and missing native-menu Back actions. Parent
   `3588baf3`, `64050a11`, `c6757a51`, and `c85ce554` add exact read-only title
   and progress navigation state, restore Start at `target-title-wait`, use
@@ -507,11 +507,16 @@ Active lanes:
   maintainer accepted Fit to Screen but rejected the candidate: ordinary touch
   input has regressed from Build 96, and leaving/backgrounding then resuming can
   loop a black screen with the theme song while the SwiftUI/touch shell remains
-  responsive. Build 119 restores one frozen Build 96 gameplay-touch scheme,
-  removes Classic touch/editor UI, and retains the accepted native menu chrome.
-  Build 120 is reserved if needed for the isolated lifecycle recovery. After
-  that, stop nonessential iOS settings work and prioritize true stereoscopic
-  visionOS rendering.
+  responsive. Build 119 restores the Build 96 stick geometry, two-pill layout,
+  and base gesture handling while retaining crouch-left punch, pinch, SKIP,
+  haptics, full-screen warp capture, and the accepted native-menu chrome. It
+  removes Classic touch/editor UI while preserving old synced documents as
+  inert compatibility data. Build 120 adds the independently accepted scene,
+  display-link, Metal-layer, audio, and save-generation lifecycle recovery.
+  Focused touch, presentation, save, and lifecycle suites pass; signed build and
+  physical touch/warp/background-resume acceptance remain pending. After that,
+  stop nonessential iOS settings work and prioritize true stereoscopic visionOS
+  rendering.
 - `Build 114 signed generic-iOS candidate ready; physical Misty/title gate
   pending` — nested OpenGOAL `352064ace`, `f260ae7df`, and `cb5032a83` make
   fisherman-boat arrival atomic: destination collision must genuinely ground
@@ -902,19 +907,19 @@ Active lanes:
   touch and the Controls Modern/Classic picker were implemented, but the entire
   concept is now rejected and must be removed from player-facing runtime/UI.
   Keep old synced documents decodable only.
-- [ ] Restore one frozen ordinary gameplay-touch scheme exactly matching Build
-  96 (`f5643c41`): dynamic left stick, fixed right stick, original face
-  gestures, Select, and Start. Preserve the later native-menu
-  Start/Pause/Resume/Back controls as a separate layer and stop further touch
-  feature work after physical acceptance.
+- [x] Restore the Build 96 (`f5643c41`) ordinary gameplay-touch foundation:
+  dynamic left stick, fixed right stick, original face gestures, Select, and
+  Start. Retain the explicitly accepted later crouch-left punch, pinch, SKIP,
+  haptics, full-screen warp capture, and native-menu
+  Start/Pause/Resume/Back controls. Focused suites and independent Sol xhigh
+  review pass; physical acceptance remains pending.
 - [x] In Modern touch, once a held downward gesture has engaged crouch, sliding
   left without releasing must trigger crouch + punch. Preserve the existing
   held down-then-up crouch jump and ordinary left-swipe behavior, with focused
   sequencing and one-shot/retrigger tests.
-- [x] Reduce the Modern movement stick's outer ring while retaining its accepted
-  thumb/knob size.
-- [x] Move the Modern right stick inward from the bottom-trailing corner with an
-  adaptive spacer capped at 200 points.
+- [x] `Superseded by the Build 96 restoration` — the smaller outer movement
+  ring and adaptive inward right-stick spacer were implemented but are not part
+  of the Build 120 gameplay layout.
 - [x] Add Modern pinch-to-zoom gestures that map unambiguously to the existing Y
   zoom toggle: pinch in and pinch out must not accidentally perform each other's
   action. The implementation emits Triangle only for an authoritative
@@ -963,15 +968,18 @@ Active lanes:
   actions, and vertical one-shot swipes. Direct row hit-testing is intentionally
   out of scope; do not reopen it unless the maintainer changes direction.
 - [ ] Replace raw X/Square/Triangle/Circle instructional chrome with clear touch
-  actions where the app truly owns the target; Classic overlay remains the MVP
-  fallback elsewhere.
-- [ ] For warp gates, prefer a truthful `Touch gate to use warp gate` interaction
+  actions where the app truly owns the target; the frozen Build 96 gameplay
+  controls remain the fallback elsewhere.
+- [x] For warp gates, prefer a truthful `Touch gate to use warp gate` interaction
   only if gate focus/availability can be read safely. Otherwise show large
   explicit button controls and make the destination list swipe-selectable. The
   gate remains in gameplay mode, so `*master-mode*` cannot identify it. The
   narrow safe seam is read-only GOAL state owned by `villagep-obs.gc` with
   unavailable, Circle-use-available, destination-list-active (selected/permitted
   slots), and transitioning states; do not infer this from pixels or proximity.
+  Build 120 retains the implemented full-screen destination capture, explicit
+  actions, horizontal swipes, stale-snapshot rejection, and transient-invalid
+  retention. Deterministic tests pass; physical warp testing remains pending.
 - [x] In portrait gameplay, top-align the renderer instead of vertically
   centering it so the remaining lower area is available to touch controls.
 
