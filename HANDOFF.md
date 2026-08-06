@@ -13595,3 +13595,104 @@ Next FIFO work:
    permitted slots, and transitioning.
 3. Keep the raw Game Center activity commit `5a259d69` isolated until these
    earlier touch FIFO items are integrated.
+
+# Build 109 checked progress touch controls
+
+Date: 2026-08-06. Build 109 is the next isolated touch-menu checkpoint on the
+pushed Build 108 integration branch. Worker commit `2954142f` from
+`/private/tmp/GP-build109-progress-touch` added a fail-closed read-only native
+snapshot of Jak 1's `*progress-process*`. Independent source review blocked the
+first candidate because it used original-console option counts instead of the
+shipping PC arrays and exposed Left/Right on unselected rows that do not consume
+those inputs. Corrective worker commit `59b79a7c` fixed both issues and added
+boundary/stale-action coverage. Root integrated them as `f2874b7c` and
+`01f854be`; packaging commit is `dc15f811` before this handoff commit.
+
+Implemented:
+
+- The native bridge validates the GOAL ppointer, type, allocation span,
+  display-state range, nonnegative option index, and exact GOAL booleans before
+  publishing `display-state`, `option-index`, `selected-option`, and
+  `in-transition`. Missing or inconsistent state remains unavailable.
+- Stats expose exact labelled Fuel Cells/Square, Precursor Orbs/Cross, Scout
+  Flies/Triangle, and Settings/Circle actions.
+- Shipping PC settings/title lists expose Up, Down, and Confirm only while
+  unselected. Selected options expose Left, Right, Cancel/Square, and
+  Confirm/Cross. The authoritative PC row counts are covered through their last
+  valid row and fail closed at the next row.
+- Load/save lists expose source-proven Up, Down, Back/Square, and Confirm/Cross;
+  selected file operations expose Cancel and Confirm.
+- A completed predominantly vertical swipe emits one bounded Up or Down pulse.
+  Autosave, transition, unknown PC screens, malformed state, and unavailable
+  state capture gameplay touch without presenting false controls or leaking a
+  gameplay gesture.
+- Dynamic option text, direct row hit-testing, and unsupported notification/error
+  screens are not claimed.
+
+Validation passed:
+
+- `Scripts/run-touch-controls-check.sh` with Xcode macro-service access.
+- `Scripts/run-game-menu-state-check.sh`.
+- `Scripts/run-game-progress-state-check.sh`.
+- `Scripts/run-presentation-settings-check.sh` with Xcode macro-service access.
+- `Scripts/run-keyboard-mouse-input-check.sh`.
+- `Scripts/run-portrait-library-check.sh`.
+- `Scripts/run-save-sync-check.sh`.
+- `Scripts/run-game-center-check.sh`.
+- `Scripts/run-game-look-around-state-check.sh`.
+- `Scripts/run-vision-scene-foundation-check.sh`.
+- The worker's warnings-as-errors native C++ and Objective-C++ syntax checks,
+  Swift/source checks, shell syntax checks, and both worker/root
+  `git diff --check` passed.
+- Signed generic iOS Release Build 109 passed using cached DerivedData
+  `/private/tmp/GOALPad-build103-jak1-settings`, nested OpenGOAL `c63c73ecf`,
+  and the unchanged canonical 518-object source pack. Full log:
+  `/private/tmp/GOALPad-build109-generic-ios.log`.
+
+Preserved signed app:
+`/private/tmp/GOALPad-build109-progress-touch-signed/GOALPad.app`. It identifies
+as Eco `1.0 (109)`, `com.zephyrstudiosllc.eco`, thin arm64, contains one valid
+privacy manifest, and contains no ISO/BIN/DGO/CGO/STR/VAG files. Its DER
+entitlements contain team `V729QMY3V6`, Game Center, and
+`iCloud.com.zephyrstudiosllc.eco`. Executable SHA-256:
+`09d395ea402fafb6fd8400c5d514ddaa171b474195190addd72ea72063460f92`.
+Strict local signature verification reports the same known development-chain
+`CSSMERR_TP_NOT_TRUSTED` result as Builds 93, 105, and 108; the Xcode signed
+build itself succeeded.
+
+Physical state:
+
+- Build 109 was not installed or launched on a physical device.
+- At the maintainer's explicit request, preserved Build 105 was installed in
+  place on Z iPad Pro without uninstalling or clearing data. The maintainer was
+  given the exact Sandover boat/Misty arrival/Fire Canyon preview route; that
+  physical result is still pending.
+
+Worktree/storage hygiene:
+
+- Removed 62 exact clean obsolete parent worktrees and pruned 25 stale parent
+  registrations, then removed 22 exact clean obsolete OpenGOAL Jak 1/Build
+  84–88 worktrees. Free space recovered from the second pass was about 10 GiB.
+- No branch or commit was deleted. Dirty maintainer/audit worktrees, the held
+  Game Center seam, Build 109/110 lanes, and both Jak II worktrees were
+  preserved. No Jak II path was edited.
+- Cleanup exposed one surviving Build 94 OpenGOAL alternate pointing at the
+  removed Build 89 object store. It was repointed to the held fsck-clean
+  `/private/tmp/GP-game-center-run-seams` OpenGOAL object store; Build 94 nested
+  `git status` and `git fsck --connectivity-only --no-dangling` then passed.
+
+Next FIFO work:
+
+1. Review and integrate prepared library accessibility commit `a21de013` from
+   `/private/tmp/GP-build110-library-touch`, then add the non-overlapping 44-point
+   in-game Eco Settings target and conservatively address Classic control hit
+   frames without changing their visible geometry. This becomes Build 110 only
+   after focused and signed validation.
+2. Implement the audited GOAL-owned warp-gate semantic publication seam before
+   any native touch overlay. The read-only audit found that existing controller
+   injection is sufficient, but native state cannot truthfully derive prompt
+   ownership or the active destination list. Publication must occur inside
+   `villagep-obs.gc` and be owner-aware across competing gate processes; do not
+   infer from proximity, pixels, or `*master-mode*`.
+3. Keep raw Game Center activity commit `5a259d69` isolated until these earlier
+   touch FIFO items are integrated.

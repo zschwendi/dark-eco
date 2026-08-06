@@ -505,11 +505,14 @@ Active lanes:
   approval boundary; every worker commit is preserved in this integration
   branch and will be pushed with the checkpoint. Modern pinch zoom is the only
   active touch-file owner.
-- `Signed and simulator validated; physical route pending` — Build 105 packages
+- `Signed, installed in place on Z iPad Pro; physical route pending` — Build 105 packages
   the Misty transition, Metal allocation rollback, DGO terminal failure, and
   Fire Canyon preview-title fixes. Parent packaging commit `5153fcfa` and nested
   OpenGOAL `c63c73ecf` are pushed. The preserved signed app is
-  `/private/tmp/GOALPad-build105-misty-signed/GOALPad.app`.
+  `/private/tmp/GOALPad-build105-misty-signed/GOALPad.app`. It was installed
+  without uninstalling or clearing app data on 2026-08-06; the authored route,
+  arrival collision, and Fire Canyon preview-title gate remain for the
+  maintainer to exercise.
 
 - `Integrated; focused validation and signed-build validation passed; physical
   presentation pending` — the public product rename from Eco Pro to Eco came
@@ -585,10 +588,26 @@ Active lanes:
   `progress` unchanged until its internal screen state is bridged. Root still
   owns skip, warp, mod, and the remaining Game Center seam discovery. It will
   not edit a worker-owned file while that lane is active.
+- `Implemented; signed Build 109 validation passed; physical presentation pending` —
+  worker commits `2954142f` and corrective `59b79a7c` from
+  `/private/tmp/GP-build109-progress-touch` were independently source-reviewed
+  and integrated as `f2874b7c` and `01f854be`. A checked read-only
+  `*progress-process*` snapshot now gates exact stats actions, shipping-PC
+  settings/file-list navigation, selected-option Cancel, and vertical one-shot
+  swipes. Autosave, transitions, malformed objects, unsupported PC screens, and
+  unknown rows remain inert. Review caught incorrect PC list lengths and
+  unhandled unselected Left/Right affordances before the full build. Preserved
+  app: `/private/tmp/GOALPad-build109-progress-touch-signed/GOALPad.app`.
+- `Storage cleanup complete; dirty and Jak II work preserved` — removed 62 clean
+  obsolete parent worktrees, then 22 clean obsolete OpenGOAL Jak 1/Build 84–88
+  worktrees. No branch or commit was deleted. Dirty maintainer/audit worktrees,
+  the held Game Center seam, current Build 109/110 lanes, and both Jak II paths
+  remain. A stale surviving OpenGOAL alternate now targets the fsck-clean held
+  Game Center object store.
 
 #### Critical Sandover-to-Misty transition blocker
 
-- [ ] `In progress; physical Build 93 reproduction supplied by maintainer` —
+- [ ] `In progress; Build 105 installed for the exact physical route` —
   taking the Sandover Village boat toward Misty Island first presents a
   low-detail/untextured Sandover-like scene, then streamed world geometry
   collapses into broken polygons/vertices during travel. Misty Island remains
@@ -739,20 +758,22 @@ Active lanes:
   targets over GOAL-rendered rows; do not infer selection rectangles from a
   screenshot. `*progress-process*` is the authoritative object: after a checked
   type/tag dereference it exposes `display-state`, `option-index`,
-  `selected-option`, and `in-transition`. Build 108 still exposes only coarse
-  `*master-mode*`; the checked progress snapshot is the next FIFO feature.
+  `selected-option`, and `in-transition`. Build 109 now exposes that checked
+  snapshot and fails closed for malformed, transitional, or unsupported state.
 - [x] Add only the coarse native actions whose meanings are already
   authoritative: Pause exposes Resume/Start, and the debug Menu exposes D-pad,
   Confirm/Cross, Back/Square, and Resume/Start. Build 108 cancels carried
   gameplay gestures at these transitions, suppresses touch chrome while a
   physical controller is driving, and delivers menu haptics immediately.
-- [ ] Make the native pause menu usable by touch, beginning with swipe selection
+- [ ] `Partially implemented in Build 109` — make the native pause/progress menu
+  usable by touch, beginning with swipe selection
   and explicit confirm/back controls, then direct row taps only if deterministic
   menu state is available. Next expose a fail-closed progress snapshot and use
   screen-specific actions: list/options screens may use D-pad and conservative
   Confirm/Back, stats need labelled tab actions, and transition/autosave states
-  must expose no row controls. Do not claim direct row taps until option text and
-  availability can be read truthfully.
+  must expose no row controls. Build 109 provides exact stats shortcuts,
+  conservative PC settings/file-list actions, and vertical one-shot swipes;
+  direct row taps and dynamic option text/availability remain open.
 - [ ] Replace raw X/Square/Triangle/Circle instructional chrome with clear touch
   actions where the app truly owns the target; Classic overlay remains the MVP
   fallback elsewhere.
