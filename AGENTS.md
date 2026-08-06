@@ -512,8 +512,7 @@ Active lanes:
   tests do not cover that semantic state. Nested `93dd44e16` and source-pack
   identity `c2fa7910dd863ae7` remain reproducible build evidence, not an
   accepted gameplay fix. Build 113 must not be installed as the Misty candidate.
-- `Integrated in Build 116 source; signed build and physical input check
-  pending` — parent
+- `Integrated and signed in Build 116; physical input check pending` — parent
   `23be12e8` adds a Standard/Swapped Sticks
   whole-vector controller mapping. It preserves paired X/Y stick vectors,
   existing Y normalization and trigger semantics, applies before keyboard,
@@ -531,6 +530,9 @@ Active lanes:
   Standard/Swapped role assignment; defaults retain exact old bytes. Independent
   review found no P0-P2 issue, and root input, parse, UI, settings/iCloud, and
   save-sync regression suites pass. Both iOS configurations are now 116.
+  The signed generic-iOS product is preserved at
+  `/private/tmp/GOALPad-build116-analog-signed/GOALPad.app`; no device validation
+  is claimed.
 - `Integrated locally; synthetic visionOS proof only` — parent `9edcf64e` plus
   actor-isolation correction `2f29c327` render one immutable synthetic,
   depth-tested tetrahedron through distinct compositor views using predicted

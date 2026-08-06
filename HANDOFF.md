@@ -14205,9 +14205,20 @@ parent `60ddc9c0`; both iOS configurations are bumped from 115 to 116.
   production Swift parse, the UI source check, the authorized
   `Scripts/run-presentation-settings-check.sh`, and the full authorized
   `Scripts/run-save-sync-check.sh` regression suite.
-- A signed generic-iOS Build 116, artifact inspection, simulator, device, and
-  physical controller ergonomics/VoiceOver/two-device iCloud checks are not yet
-  claimed at this source checkpoint.
+- Signed generic-iOS Release Build 116 passed with the unchanged verified
+  Build 114 source-pack/AOT identity. Full output is
+  `/private/tmp/GOALPad-build116-generic-ios.log`; Xcode emitted the existing
+  actor-isolation/generated-AOT warnings and exited 0.
+- The preserved product is
+  `/private/tmp/GOALPad-build116-analog-signed/GOALPad.app`: Eco `1.0 (116)`,
+  bundle `com.zephyrstudiosllc.eco`, thin ARM64, executable SHA-256
+  `476c5c0b8917dd5765c0f7cfabcd1392e0c0bbdecc78e8bf5011ebae8018c120`.
+  It contains the privacy manifest, expected Zephyr Studios Game Center/iCloud
+  entitlements, and none of the audited retail payload extensions. Strict local
+  verification has the known development-chain `CSSMERR_TP_NOT_TRUSTED` result;
+  Xcode signing and entitlement extraction passed.
+- No simulator, device access, physical controller ergonomics/VoiceOver, or
+  real two-device iCloud check is claimed.
 
 The data-only FR3 validator corrective branch is also ready but intentionally
 parked. Nested `97e564ae04` and parent `f3818815` close every independently
