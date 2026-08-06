@@ -23,3 +23,14 @@ swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
 # an idealized cached pill frame can emit the same Start bit.
 rg -Fq 'Button { performTitleStart() }' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'controls.performNativeMenuAction(.start)' "$root/GOALPad/Game/TouchControlsView.swift"
+
+# Gameplay must have one UIKit touch owner. A root zero-distance SwiftUI gesture can arbitrate the
+# same streams away from TouchSurfaceView and make normal one-finger input appear only rarely.
+if rg -Fq 'DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))' \
+    "$root/GOALPad/Game/TouchControlsView.swift"; then
+  echo "root zero-distance SwiftUI gesture still competes with gameplay touch" >&2
+  exit 1
+fi
+rg -Fq 'reclaimTouchInput: reclaimTouchInput)' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'TouchControlsView.forwardGameplayTouchBatch(' \
+  "$root/GOALPad/Game/TouchControlsView.swift"

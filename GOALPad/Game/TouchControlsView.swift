@@ -33,6 +33,17 @@ struct TouchControlsView: View {
         return reclaim()
     }
 
+    /// Orders optional chrome recovery before the same UIKit-owned touches enter gameplay.
+    nonisolated static func forwardGameplayTouchBatch<T>(
+        _ touches: [T],
+        isSuppressed: Bool,
+        reclaim: () -> Bool,
+        began: (T) -> Void
+    ) {
+        _ = requestTouchRecovery(isSuppressed: isSuppressed, reclaim: reclaim)
+        for touch in touches { began(touch) }
+    }
+
     private var isNativeMenuOpen: Bool {
         switch gameMode {
         case .pause, .progress, .menu: true
@@ -93,7 +104,10 @@ struct TouchControlsView: View {
             ZStack {
                 if !capturesNativeMenuInput && !capturesWarpGateTouchInput {
                     #if canImport(UIKit)
-                    TouchSurface(controls: controls, lookAroundState: lookAroundState)
+                    TouchSurface(controls: controls,
+                                 lookAroundState: lookAroundState,
+                                 isSuppressed: isSuppressed,
+                                 reclaimTouchInput: reclaimTouchInput)
                     #endif
 
                     artwork(in: proxy)
@@ -109,7 +123,8 @@ struct TouchControlsView: View {
                 if capturesNativeMenuInput {
                     NativeMenuTouchControls(controls: controls,
                                             actions: nativeMenuActions,
-                                            isVisible: nativeMenuControlsAreVisible)
+                                            isVisible: nativeMenuControlsAreVisible,
+                                            reclaimTouchInput: reclaimTouchInput)
                         .padding(.horizontal, 20)
                         .padding(.bottom, max(20, proxy.safeAreaInsets.bottom))
                 }
@@ -120,21 +135,14 @@ struct TouchControlsView: View {
                                                 snapshot: warpGateTouchSnapshot,
                                                 actions: warpGateActions,
                                                 capturesInput: capturesWarpGateTouchInput,
-                                                isVisible: warpGateTouchControlsAreVisible)
+                                                isVisible: warpGateTouchControlsAreVisible,
+                                                reclaimTouchInput: reclaimTouchInput)
                         .padding(.horizontal, 20)
                         .padding(.bottom, max(20, proxy.safeAreaInsets.bottom))
                 }
             }
         }
         .coordinateSpace(.named(Self.space))
-        .contentShape(Rectangle())
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))
-                .onChanged { _ in
-                    Self.requestTouchRecovery(isSuppressed: isSuppressed,
-                                              reclaim: reclaimTouchInput)
-                }
-        )
         .ignoresSafeArea()
     }
 
@@ -213,6 +221,7 @@ struct TouchControlsView: View {
     }
 
     private func performTitleStart() {
+        _ = reclaimTouchInput()
         controls.performNativeMenuAction(.start)
         #if canImport(UIKit)
         titleStartHaptics.play(controls.consumeHapticEvents())
@@ -229,6 +238,7 @@ private struct NativeWarpGateTouchControls: View {
     let actions: [NativeWarpGateTouchAction]
     let capturesInput: Bool
     let isVisible: Bool
+    let reclaimTouchInput: () -> Bool
 
     #if canImport(UIKit)
     @State private var haptics = TouchHapticDriver()
@@ -322,11 +332,13 @@ private struct NativeWarpGateTouchControls: View {
     }
 
     private func perform(_ action: NativeWarpGateTouchAction) {
+        _ = reclaimTouchInput()
         controls.performNativeWarpGateAction(action, for: snapshot)
         playFeedback()
     }
 
     private func performSwipe(_ translation: CGSize) {
+        _ = reclaimTouchInput()
         guard controls.performNativeWarpGateSwipe(translation: translation,
                                                   for: snapshot) else { return }
         playFeedback()
@@ -345,6 +357,7 @@ private struct NativeMenuTouchControls: View {
     let controls: TouchControls
     let actions: [NativeMenuTouchAction]
     let isVisible: Bool
+    let reclaimTouchInput: () -> Bool
 
     #if canImport(UIKit)
     @State private var haptics = TouchHapticDriver()
@@ -428,11 +441,13 @@ private struct NativeMenuTouchControls: View {
     }
 
     private func perform(_ action: NativeMenuTouchAction) {
+        _ = reclaimTouchInput()
         controls.performNativeMenuAction(action)
         playFeedback()
     }
 
     private func performSwipe(_ translation: CGSize) {
+        _ = reclaimTouchInput()
         guard controls.performNativeMenuVerticalSwipe(translation: translation) else { return }
         playFeedback()
     }
@@ -637,6 +652,8 @@ private struct RightStickControl: View {
 private struct TouchSurface: UIViewRepresentable {
     let controls: TouchControls
     let lookAroundState: GOALPadLookAroundState
+    let isSuppressed: Bool
+    let reclaimTouchInput: () -> Bool
 
     func makeUIView(context: Context) -> TouchSurfaceView {
         let view = TouchSurfaceView()
@@ -644,18 +661,24 @@ private struct TouchSurface: UIViewRepresentable {
         view.backgroundColor = .clear
         view.controls = controls
         view.lookAroundState = lookAroundState
+        view.isSuppressed = isSuppressed
+        view.reclaimTouchInput = reclaimTouchInput
         return view
     }
 
     func updateUIView(_ view: TouchSurfaceView, context: Context) {
         view.controls = controls
         view.lookAroundState = lookAroundState
+        view.isSuppressed = isSuppressed
+        view.reclaimTouchInput = reclaimTouchInput
     }
 }
 
 private final class TouchSurfaceView: UIView {
     var controls: TouchControls?
     var lookAroundState = GOALPadLookAroundState.unknown
+    var isSuppressed = false
+    var reclaimTouchInput: (() -> Bool)?
     private let haptics = TouchHapticDriver()
     private let pinchRecognizer = UIPinchGestureRecognizer()
 
@@ -670,7 +693,11 @@ private final class TouchSurfaceView: UIView {
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for touch in touches {
+        // Keep one gameplay touch owner. A competing zero-distance SwiftUI gesture can starve this
+        // raw multitouch path; recovery belongs here, before the same touches are mapped.
+        TouchControlsView.forwardGameplayTouchBatch(
+            Array(touches), isSuppressed: isSuppressed,
+            reclaim: { reclaimTouchInput?() ?? false }) { touch in
             controls?.began(ObjectIdentifier(touch), at: touch.location(in: self),
                             in: bounds.size, at: touch.timestamp)
         }

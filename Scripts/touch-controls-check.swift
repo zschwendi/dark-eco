@@ -1528,6 +1528,49 @@ private func controllerSuppressionKeepsTouchRecovery() {
           "a failed recovery callback does not claim that ownership changed")
 }
 
+@MainActor
+private func gameplayTouchBatchHasOneOrderedOwner() {
+    print("gameplay touch recovery and mapping share one ordered UIKit owner")
+    var events: [String] = []
+    TouchControlsView.forwardGameplayTouchBatch(
+        ["A", "B"], isSuppressed: true,
+        reclaim: {
+            events.append("reclaim")
+            return true
+        },
+        began: { events.append("began-\($0)") })
+    check(events == ["reclaim", "began-A", "began-B"],
+          "a suppressed batch recovers once before forwarding every touch")
+
+    events.removeAll()
+    TouchControlsView.forwardGameplayTouchBatch(
+        ["A"], isSuppressed: false,
+        reclaim: {
+            events.append("unexpected-reclaim")
+            return true
+        },
+        began: { events.append("began-\($0)") })
+    check(events == ["began-A"],
+          "an unsuppressed batch forwards immediately without recovery")
+
+    var run = Runner()
+    let finger = Finger()
+    events.removeAll()
+    TouchControlsView.forwardGameplayTouchBatch(
+        [finger], isSuppressed: true,
+        reclaim: {
+            events.append("failed-reclaim")
+            return false
+        },
+        began: { forwarded in
+            events.append("began")
+            run.down(forwarded, CGPoint(x: Runner.start.midX, y: Runner.start.midY))
+        })
+    check(events == ["failed-reclaim", "began"]
+          && run.frame().buttons.contains(.start),
+          "failed chrome recovery never gates the UIKit gameplay touch")
+}
+
 private func progressSnapshot(screen: Int, option: Int = 0,
                               selected: Bool = false,
                               transition: Bool = false,
@@ -2180,6 +2223,7 @@ struct TouchControlsCheck {
         semanticTitleStartBypassesArtworkGeometryAndSurvivesCadence()
         sessionControlStateMatrixIsExactAndFailClosed()
         controllerSuppressionKeepsTouchRecovery()
+        gameplayTouchBatchHasOneOrderedOwner()
         nativeMenuActionsAreTruthfullyGatedAndLabelled()
         nativeMenuActionsEmitOnlyExpectedInputBytes()
         nativeProgressListSwipeIsOneShotAndStateGated()

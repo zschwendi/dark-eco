@@ -14602,3 +14602,22 @@ than the rejected Build 121 instance. Immediate physical gate: open Jak, tap
 the visible START pill once at `PRESS START`, and confirm the title progresses.
 Then verify the same control says Pause in gameplay and Resume in the native
 menu. Do not modify the camera stick; its Build 121 physical result is accepted.
+
+## Build 122 physical rejection: gameplay touch is starved
+
+The maintainer rejected Build 122 after reaching gameplay. The controls mostly
+look correct, but ordinary one-finger walking, jumping, Pause, and camera input
+normally do nothing. Spamming five fingers in a way no player would naturally
+use can occasionally produce one movement, kick, or camera sample only about
+once every several seconds. This rules out a mere label, mapping, or pulse-length
+problem and points at touch-stream ownership before `TouchControls.began`.
+
+Build 96 had one gameplay owner: the UIKit `TouchSurfaceView`. Commit
+`31d6c62b` later added a root `DragGesture(minimumDistance: 0)` solely to reclaim
+touch chrome after physical-input suppression. That SwiftUI gesture observes the
+same full-screen streams as the embedded UIKit view and is the narrow behavioral
+difference consistent with the physical starvation. Build 123 must remove that
+competing root gesture and call the existing recovery closure from
+`TouchSurfaceView.touchesBegan` before mapping those same UIKit touches. Keep the
+semantic title/native-menu buttons, intentional menu/warp swipe gestures, and
+the physically accepted right-camera geometry unchanged.
