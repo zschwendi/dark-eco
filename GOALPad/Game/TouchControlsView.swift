@@ -160,6 +160,10 @@ private struct NativeMenuTouchControls: View {
     let actions: [NativeMenuTouchAction]
     let isVisible: Bool
 
+    #if canImport(UIKit)
+    @State private var haptics = TouchHapticDriver()
+    #endif
+
     private var directionalActions: Set<NativeMenuTouchAction> {
         Set(actions.filter { [.up, .down, .left, .right].contains($0) })
     }
@@ -207,7 +211,7 @@ private struct NativeMenuTouchControls: View {
 
     private func menuButton(_ action: NativeMenuTouchAction,
                             width: CGFloat = 60) -> some View {
-        Button { controls.performNativeMenuAction(action) } label: {
+        Button { perform(action) } label: {
             HStack(spacing: 8) {
                 Image(systemName: action.systemImage)
                 if action == .confirm || action == .back || action == .resume {
@@ -226,6 +230,15 @@ private struct NativeMenuTouchControls: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(action.label)
+    }
+
+    private func perform(_ action: NativeMenuTouchAction) {
+        controls.performNativeMenuAction(action)
+        #if canImport(UIKit)
+        haptics.play(controls.consumeHapticEvents())
+        #else
+        _ = controls.consumeHapticEvents()
+        #endif
     }
 }
 

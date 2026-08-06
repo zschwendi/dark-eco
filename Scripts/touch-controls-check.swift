@@ -967,6 +967,11 @@ private func nativeMenuActionsEmitOnlyExpectedInputBytes() {
     run.controls.performNativeMenuAction(.confirm)
     run.controls.performNativeMenuAction(.back)
     run.controls.performNativeMenuAction(.resume)
+    check(run.controls.consumeHapticEvents() == [
+        .button(.up), .button(.cross), .button(.square), .button(.start),
+    ], "menu actions emit immediate touch-owned feedback events")
+    check(run.controls.consumeHapticEvents().isEmpty,
+          "menu feedback events are consumed exactly once")
 
     let held = run.frames(TouchControls.holdFrames)
     check(held.allSatisfy {
