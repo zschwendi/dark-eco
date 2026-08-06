@@ -6,9 +6,9 @@ import QuartzCore
 nonisolated private let inputLog = Logger(subsystem: "com.zephyrstudiosllc.eco",
                                           category: "Input")
 
-/// Reads a physical controller through GameController, merges it with the on-screen controls, and
-/// pushes the result at the engine once per frame, then reads the engine's vibration request back
-/// out and drives the controller's haptics.
+/// Reads physical controller, keyboard, and mouse input through GameController, merges it with the
+/// on-screen controls, and pushes the result at the engine once per frame, then reads the engine's
+/// vibration request back out and drives the controller's haptics.
 ///
 /// The engine has no input library of its own: `game/kernel/core/pad.h` is a state the host pushes
 /// in, shaped like the PS2 pad `engine/ps2/pad.gc` expects. Everything Apple-specific stops here.
@@ -17,14 +17,6 @@ nonisolated private let inputLog = Logger(subsystem: "com.zephyrstudiosllc.eco",
 final class ControllerInput {
     /// The port the engine reads first, and the only one GOALPad drives.
     static let primaryPort: Int32 = 0
-
-    /// How long after a physical control was last moved the controller still counts as the one
-    /// being played with, which is what keeps the on-screen controls off the screen.
-    private static let drivingTimeout: TimeInterval = 2
-
-    /// Match the smallest deadzone used by Jak 1's GOAL analog readers. Drift the game treats as
-    /// neutral must not override a deliberate on-screen stick or hide its controls.
-    private static let stickDeadzone: UInt8 = 32
 
     private(set) var controllerName: String?
     private(set) var isDualSense = false
@@ -37,13 +29,16 @@ final class ControllerInput {
 
     var isConnected: Bool { controller != nil }
 
-    /// True while a physical controller is the thing being played with.
+    /// True while a physical controller, keyboard, or mouse is the thing being played with.
     private(set) var isDriving = false
 
     private var controller: GCController?
+    private var keyboard: GCKeyboard?
+    private var mouse: GCMouse?
     private var motors: ControllerRumble?
     private var observers: [NSObjectProtocol] = []
-    @ObservationIgnored private var lastControllerActivity = -Double.infinity
+    @ObservationIgnored private var keyboardMouseState = KeyboardMouseInputState()
+    @ObservationIgnored private var activity = InputActivityTracker()
 
     func startWatching() {
         guard observers.isEmpty else { return }
@@ -51,14 +46,38 @@ final class ControllerInput {
         observers = [
             center.addObserver(forName: .GCControllerDidConnect, object: nil, queue: .main) {
                 [weak self] note in
-                MainActor.assumeIsolated { self?.adopt(note.object as? GCController) }
+                MainActor.assumeIsolated { self?.adoptController(note.object as? GCController) }
             },
             center.addObserver(forName: .GCControllerDidDisconnect, object: nil, queue: .main) {
                 [weak self] note in
-                MainActor.assumeIsolated { self?.drop(note.object as? GCController) }
+                MainActor.assumeIsolated { self?.dropController(note.object as? GCController) }
+            },
+            center.addObserver(forName: .GCKeyboardDidConnect, object: nil, queue: .main) {
+                [weak self] note in
+                MainActor.assumeIsolated { self?.adoptKeyboard(note.object as? GCKeyboard) }
+            },
+            center.addObserver(forName: .GCKeyboardDidDisconnect, object: nil, queue: .main) {
+                [weak self] note in
+                MainActor.assumeIsolated { self?.dropKeyboard(note.object as? GCKeyboard) }
+            },
+            center.addObserver(forName: .GCMouseDidConnect, object: nil, queue: .main) {
+                [weak self] note in
+                MainActor.assumeIsolated { self?.adoptMouse(note.object as? GCMouse) }
+            },
+            center.addObserver(forName: .GCMouseDidDisconnect, object: nil, queue: .main) {
+                [weak self] note in
+                MainActor.assumeIsolated { self?.dropMouse(note.object as? GCMouse) }
+            },
+            center.addObserver(forName: .GCMouseDidBecomeCurrent, object: nil, queue: .main) {
+                [weak self] note in
+                MainActor.assumeIsolated {
+                    self?.mouseBecameCurrent(note.object as? GCMouse)
+                }
             },
         ]
-        adopt(GCController.current ?? GCController.controllers().first)
+        adoptController(GCController.current ?? GCController.controllers().first)
+        adoptKeyboard(GCKeyboard.coalesced)
+        adoptMouse(GCMouse.current ?? GCMouse.mice().first)
         GCController.startWirelessControllerDiscovery()
     }
 
@@ -66,28 +85,28 @@ final class ControllerInput {
         observers.forEach(NotificationCenter.default.removeObserver)
         observers.removeAll()
         GCController.stopWirelessControllerDiscovery()
-        release()
+        releaseAll()
     }
 
-    /// Read the physical controller and hand the engine this frame's pad state. Non-iOS hosts use
-    /// this path so no controller remains a disconnected port rather than a synthetic neutral pad.
+    /// Read the physical inputs and hand the engine this frame's pad state. Non-iOS hosts use this
+    /// path so an attached keyboard or mouse can provide the otherwise-disconnected port.
     func pushFrame() {
         pushFrame(merging: nil)
     }
 
-    /// Read the controller, merge the on-screen controls into it, and hand the engine this frame's
-    /// pad state. Call before the frame runs.
+    /// Read the physical inputs, merge the on-screen controls into them, and hand the engine this
+    /// frame's pad state. Call before the frame runs.
     ///
-    /// The two sources are one pad: the buttons are the union, and each stick is the controller's
-    /// whenever it is off centre and the on-screen one otherwise, so a real stick always wins and a
-    /// stray finger can never fight it. The port is reported as connected either way - on an iPad
-    /// the on-screen controls are always there, so there is always a pad.
+    /// The sources are one pad: buttons are the union. A deflected controller stick wins first,
+    /// then keyboard/mouse, then touch, so a stray finger cannot fight physical input. The port is
+    /// reported as connected either way - on an iPad the on-screen controls are always present.
     func pushFrame(merging touch: TouchPadState) {
         pushFrame(merging: Optional(touch))
     }
 
     private func pushFrame(merging touch: TouchPadState?) {
         var state = Self.neutralState()
+        let now = CACurrentMediaTime()
         if let gamepad = controller?.extendedGamepad {
             state.buttons = Self.buttons(of: gamepad)
             state.leftX = Self.axisByte(gamepad.leftThumbstick.xAxis.value)
@@ -96,26 +115,53 @@ final class ControllerInput {
             state.rightY = Self.axisByte(-gamepad.rightThumbstick.yAxis.value)
             state.leftTrigger = Self.triggerByte(gamepad.leftTrigger.value)
             state.rightTrigger = Self.triggerByte(gamepad.rightTrigger.value)
-            if Self.isActive(state) { lastControllerActivity = CACurrentMediaTime() }
+            if Self.isActive(state) { activity.noteController(at: now) }
         }
-        noteDriving()
+
+        let keyboardMouse = keyboardMouseState.consumeFrame()
+        if keyboardMouse.hasKeyboardInput { activity.noteKeyboard(at: now) }
+        if keyboardMouse.hasMouseInput { activity.noteMouse(at: now) }
+        state.buttons.formUnion(keyboardMouse.buttons)
+        var preferred = PadStickMerge.preferred(
+            primaryX: state.leftX,
+            primaryY: state.leftY,
+            fallbackX: keyboardMouse.leftX,
+            fallbackY: keyboardMouse.leftY,
+            fallbackActive: PadStickMerge.isDeflected(x: keyboardMouse.leftX,
+                                                      y: keyboardMouse.leftY))
+        state.leftX = preferred.x
+        state.leftY = preferred.y
+        preferred = PadStickMerge.preferred(primaryX: state.rightX,
+                                            primaryY: state.rightY,
+                                            fallbackX: keyboardMouse.rightX,
+                                            fallbackY: keyboardMouse.rightY,
+                                            fallbackActive: keyboardMouse.hasMouseInput)
+        state.rightX = preferred.x
+        state.rightY = preferred.y
+        noteDriving(at: now)
 
         if let touch {
-            if !Self.isDeflected(state.leftX, state.leftY), touch.isLeftDeflected {
-                state.leftX = touch.leftX
-                state.leftY = touch.leftY
-            }
-            if !Self.isDeflected(state.rightX, state.rightY), touch.isRightDeflected {
-                state.rightX = touch.rightX
-                state.rightY = touch.rightY
-            }
+            preferred = PadStickMerge.preferred(primaryX: state.leftX,
+                                                primaryY: state.leftY,
+                                                fallbackX: touch.leftX,
+                                                fallbackY: touch.leftY,
+                                                fallbackActive: touch.isLeftDeflected)
+            state.leftX = preferred.x
+            state.leftY = preferred.y
+            preferred = PadStickMerge.preferred(primaryX: state.rightX,
+                                                primaryY: state.rightY,
+                                                fallbackX: touch.rightX,
+                                                fallbackY: touch.rightY,
+                                                fallbackActive: touch.isRightDeflected)
+            state.rightX = preferred.x
+            state.rightY = preferred.y
             state.buttons.formUnion(touch.buttons)
         }
 
         buttons = state.buttons
         leftStick = (state.leftX, state.leftY)
         rightStick = (state.rightX, state.rightY)
-        if controller != nil || touch != nil {
+        if controller != nil || keyboard != nil || mouse != nil || touch != nil {
             GOALPadInputSetState(Self.primaryPort, state)
         } else {
             GOALPadInputSetDisconnected(Self.primaryPort)
@@ -145,22 +191,34 @@ final class ControllerInput {
                                rightTrigger: 0)
     }
 
-    private static func isDeflected(_ x: UInt8, _ y: UInt8) -> Bool {
-        let neutral = Int(GOALPadAnalogNeutral)
-        return abs(Int(x) - neutral) > Int(stickDeadzone) || abs(Int(y) - neutral) > Int(stickDeadzone)
-    }
-
     private static func isActive(_ state: GOALPadControllerState) -> Bool {
-        !state.buttons.isEmpty || isDeflected(state.leftX, state.leftY)
-            || isDeflected(state.rightX, state.rightY)
+        !state.buttons.isEmpty || PadStickMerge.isDeflected(x: state.leftX, y: state.leftY)
+            || PadStickMerge.isDeflected(x: state.rightX, y: state.rightY)
     }
 
     /// Only assigned when it changes: this runs every frame and every assignment to an observed
     /// property redraws whatever is watching it.
-    private func noteDriving() {
-        let driving = controller != nil
-            && CACurrentMediaTime() - lastControllerActivity < Self.drivingTimeout
+    private func noteDriving(at time: TimeInterval = CACurrentMediaTime()) {
+        let driving = activity.isDriving(at: time,
+                                         controllerConnected: controller != nil,
+                                         keyboardConnected: keyboard != nil,
+                                         mouseConnected: mouse != nil)
         if driving != isDriving { isDriving = driving }
+    }
+
+    nonisolated private static func keyboardKey(for code: GCKeyCode) -> KeyboardMouseKey? {
+        switch code {
+        case .keyW: .w
+        case .keyA: .a
+        case .keyS: .s
+        case .keyD: .d
+        case .leftArrow: .leftArrow
+        case .rightArrow: .rightArrow
+        case .upArrow: .upArrow
+        case .downArrow: .downArrow
+        case .escape: .escape
+        default: nil
+        }
     }
 
     /// The DualSense face buttons sit exactly where the PS2 ones did, and GameController names its
@@ -203,10 +261,11 @@ final class ControllerInput {
 
     // MARK: - Connection
 
-    private func adopt(_ candidate: GCController?) {
+    private func adoptController(_ candidate: GCController?) {
         guard let candidate, candidate.extendedGamepad != nil else { return }
         guard controller !== candidate else { return }
 
+        releaseController()
         controller = candidate
         controllerName = candidate.vendorName ?? candidate.productCategory
         isDualSense = candidate.extendedGamepad is GCDualSenseGamepad
@@ -215,24 +274,122 @@ final class ControllerInput {
     }
 
     /// One controller went away. Another that is still attached takes over the port.
-    private func drop(_ leaving: GCController?) {
+    private func dropController(_ leaving: GCController?) {
         guard leaving === controller else { return }
-        release()
+        releaseController()
         inputLog.notice("Controller disconnected")
 
         if let next = GCController.controllers().first(where: { $0.extendedGamepad != nil }) {
-            adopt(next)
+            adoptController(next)
         }
+        noteDriving()
     }
 
-    private func release() {
+    private func releaseController() {
         motors?.stop()
         motors = nil
         controller = nil
         controllerName = nil
         isDualSense = false
+        activity.disconnectController()
+    }
+
+    private func adoptKeyboard(_ candidate: GCKeyboard?) {
+        guard let candidate, let input = candidate.keyboardInput else { return }
+        guard keyboard !== candidate else { return }
+
+        releaseKeyboard()
+        keyboard = candidate
+        input.keyChangedHandler = { [weak self, weak candidate] _, _, code, pressed in
+            guard let key = Self.keyboardKey(for: code) else { return }
+            DispatchQueue.main.async { [weak self, weak candidate] in
+                guard let self, self.keyboard === candidate else { return }
+                if self.keyboardMouseState.setKey(key, pressed: pressed) {
+                    self.activity.noteKeyboard(at: CACurrentMediaTime())
+                    self.noteDriving()
+                }
+            }
+        }
+        let mappedCodes: [GCKeyCode] = [.keyW, .keyA, .keyS, .keyD, .leftArrow, .rightArrow,
+                                        .upArrow, .downArrow, .escape]
+        var adoptedHeldInput = false
+        for code in mappedCodes where input.button(forKeyCode: code)?.isPressed == true {
+            if let key = Self.keyboardKey(for: code) {
+                adoptedHeldInput = keyboardMouseState.setKey(key, pressed: true)
+                    || adoptedHeldInput
+            }
+        }
+        if adoptedHeldInput {
+            activity.noteKeyboard(at: CACurrentMediaTime())
+            noteDriving()
+        }
+        inputLog.notice("Keyboard connected: \(candidate.vendorName ?? "unnamed", privacy: .public)")
+    }
+
+    private func dropKeyboard(_ leaving: GCKeyboard?) {
+        guard leaving === keyboard else { return }
+        releaseKeyboard()
+        noteDriving()
+        inputLog.notice("Keyboard disconnected")
+
+        if let next = GCKeyboard.coalesced { adoptKeyboard(next) }
+    }
+
+    private func releaseKeyboard() {
+        keyboard?.keyboardInput?.keyChangedHandler = nil
+        keyboard = nil
+        keyboardMouseState.clearKeyboard()
+        activity.disconnectKeyboard()
+    }
+
+    private func adoptMouse(_ candidate: GCMouse?) {
+        guard let candidate, let input = candidate.mouseInput else { return }
+        guard mouse !== candidate else { return }
+
+        releaseMouse()
+        mouse = candidate
+        input.mouseMovedHandler = { [weak self, weak candidate] _, deltaX, deltaY in
+            DispatchQueue.main.async { [weak self, weak candidate] in
+                guard let self, self.mouse === candidate else { return }
+                if self.keyboardMouseState.addMouseMovement(deltaX: deltaX, deltaY: deltaY) {
+                    self.activity.noteMouse(at: CACurrentMediaTime())
+                    self.noteDriving()
+                }
+            }
+        }
+        inputLog.notice("Mouse connected: \(candidate.vendorName ?? "unnamed", privacy: .public)")
+    }
+
+    private func dropMouse(_ leaving: GCMouse?) {
+        guard leaving === mouse else { return }
+        releaseMouse()
+        noteDriving()
+        inputLog.notice("Mouse disconnected")
+
+        if let next = GCMouse.current ?? GCMouse.mice().first { adoptMouse(next) }
+    }
+
+    private func mouseBecameCurrent(_ candidate: GCMouse?) {
+        adoptMouse(candidate)
+        guard mouse === candidate else { return }
+        activity.noteMouse(at: CACurrentMediaTime())
+        noteDriving()
+    }
+
+    private func releaseMouse() {
+        mouse?.mouseInput?.mouseMovedHandler = nil
+        mouse = nil
+        keyboardMouseState.clearMouse()
+        activity.disconnectMouse()
+    }
+
+    private func releaseAll() {
+        releaseController()
+        releaseKeyboard()
+        releaseMouse()
+        keyboardMouseState.reset()
+        activity.reset()
         isDriving = false
-        lastControllerActivity = -.infinity
         GOALPadInputSetDisconnected(Self.primaryPort)
     }
 }
