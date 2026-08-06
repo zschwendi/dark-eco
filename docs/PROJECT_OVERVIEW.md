@@ -404,13 +404,13 @@ resumes and can merge both directions. Synchronization triggered after completed
 saves is upload-only: it archives divergent cloud members before mirroring the
 active local pair and cannot replace local gameplay files. Each
 OpenGOAL alternating bank pair is merged as one save slot with a pair baseline.
-Eco Pro reproduces the loader's validation and `save_count` selection, then ranks
-the effective generations by the checksummed completion percentage OpenGOAL
-writes for its save picker. A loadable valid slot always beats a corrupt or
-unsupported peer. Equal valid progress uses the effective generations'
-modification dates; when neither copy validates, the newest available pair member
-wins. Hashes are used only for byte identity. Equal or missing dates retain the
-local gameplay authority.
+Eco Pro reproduces the loader's validation and `save_count` selection. A
+loadable valid memcard always beats a corrupt or unsupported peer. Divergent
+valid memcards are ranked by their effective modification dates, then by the
+loader-selected native save generation; completion percentage is display data,
+not conflict authority. When neither copy validates, the newest available pair
+member wins. Hashes are used only for byte identity. Equal or missing dates
+retain the local gameplay authority.
 Divergent originals are archived locally and in iCloud before the winning pair,
 including member presence, becomes canonical. Pair replacement removes a stale
 odd generation before atomically replacing the even bank. A durable phased intent
@@ -423,9 +423,10 @@ FIFO-exclusive lease. Gameplay remains paused if a committed local-target intent
 cannot be validated and recovered. A source generation that changed after commit
 is reconciled in that same pregame sync. A one-bank slot without a matching intent
 is ranked as normal divergence rather than inferred to be an interrupted write.
-Settings retains the latest
-automatic-resolution result until it is replaced or dismissed, without presenting
-a gameplay-blocking decision.
+Settings reports sync progress, availability, the last successful sync, and a
+concise recovery action without exposing internal memcard paths or presenting a
+second save picker. The game's ordinary four save positions remain inside its
+native OpenGOAL memcard banks and appear through Jak's own Load/Save menu.
 State and archive files remain outside the gameplay save directory. Import accepts
 only the exact `OpenGOAL/jak1/saves` root with its single Jak 1 slot, or the exact
 slot directory with raw banks directly inside; it bounds and validates the files
