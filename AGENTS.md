@@ -488,6 +488,14 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 Active lanes:
 
+- `Integrated; focused validation passed; Build 107 full Xcode build pending` —
+  Jak 1 physical-button/key remapping came from
+  `/private/tmp/GP-build94-input-remapping`, worker commit `13197fd7`, and is
+  integrated as `10986ec9`. It preserves exact controller and keyboard defaults,
+  adds mouse-button bindings, uses deterministic swap/duplicate normalization,
+  persists in the title-scoped iCloud document, and participates in Controls/full
+  reset. Analog stick and mouse camera axes remain fixed and are not claimed as
+  remappable yet.
 - `Integrated through 88e97b6f; focused validation passed; consolidated Build
   106 pending` — post-Build-105 work now includes title-scoped stable Settings,
   Primary Controller arbitration persisted in the Jak 1/iCloud document, a
@@ -669,8 +677,10 @@ Active lanes:
   deterministic tested policy.
 - [ ] Add remapping for all supported physical-controller inputs.
 - [ ] Add remapping for all supported mouse-and-keyboard inputs.
-- [ ] Define collision/duplicate-binding behavior, reset defaults, persistence,
+- [x] Define collision/duplicate-binding behavior, reset defaults, persistence,
   cloud sync, and unavailable-device presentation before calling remapping done.
+  Current bindable buttons/keys use deterministic swapping and declared-order
+  duplicate normalization. Full remapping remains open for fixed analog axes.
 - [x] Implement mouse/trackpad camera control and WASD movement.
 - [x] Default keyboard face directions to Left = Square, Right = Circle,
   Up = Triangle, and Down = the exact L1+R1 shoulder chord. Ordinary Jak 1
