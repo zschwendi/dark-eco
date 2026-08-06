@@ -12982,3 +12982,37 @@ data was not intentionally cleared. A follow-up device inventory confirmed
 Eco Pro `1.0 (93)` on both devices. Install and launch are proven; the
 maintainer's two-device gameplay/load-menu/cloud-sync acceptance remains the
 physical gate.
+
+# Build 94/95 Jak 1 interaction program
+
+Date: 2026-08-06. Build 93 commit `9c87b0be` is now the maintainer-accepted
+known-good baseline for gameplay, performance, graphics, current touch,
+settings persistence, and iCloud saves. It is pushed as
+`origin/agent/build93-cloud-save-ux` and must remain immutable. New integration
+work is in `/private/tmp/GP-build94-jak1-settings` on
+`agent/build94-jak1-settings`, also pushed to origin. `AGENTS.md` is the live
+tracked backlog and ownership ledger and must be updated at every worker or
+integration checkpoint.
+
+Commit `8ba102b2` opened Build 94, updated the project overview to the Build 93
+baseline, assigned three non-overlapping worker lanes, and set both Xcode
+configurations to build 94. The active worker lanes are Classic touch,
+Jak 1 settings/combined iCloud, and portrait alignment/library cleanup; their
+exact worktrees and ownership are in `AGENTS.md`.
+
+The next root slice advances the source build to 95 and adds a read-only native
+menu-state seam. `GOALPadGameBoot` resolves Jak 1's existing `*master-mode*` and
+the `game`, `pause`, `progress`, and `menu` symbols after `play`, classifies
+without mutating the heap, clears every cached address at reset, and reports
+Unknown when the game or symbols are unavailable. The Objective-C++ bridge and
+`GameSession` expose that state so later UI can gate Settings/logs and label
+Pause/Resume from the game's truth. `Scripts/run-game-menu-state-check.sh`
+passed all gameplay/menu/unknown classifications and Swift parsing. Full Xcode,
+physical pause transitions, and UI gating remain pending until worker slices
+are reviewed and integrated.
+
+The maintainer authorized in-place installation and launch on unlocked
+`Z iPad Pro` for this active interaction program without repeated approval.
+Never uninstall or clear app data, and never hand over a blind build: provide
+the exact build number, a short test route, expected results, and Build 93
+regression checks after agent-owned automation is exhausted.

@@ -48,6 +48,11 @@ os_log_t boot_log() {
 bool g_booted = false;
 std::uint64_t g_frames = 0;
 Ptr<jak1::Symbol> g_dispatcher;
+int32_t* g_master_mode = nullptr;
+std::uint32_t g_gameplay_mode = 0;
+std::uint32_t g_pause_mode = 0;
+std::uint32_t g_progress_mode = 0;
+std::uint32_t g_menu_mode = 0;
 int32_t* g_math_camera = nullptr;
 int32_t* g_camera_master = nullptr;
 int32_t* g_camera_combiner = nullptr;
@@ -475,6 +480,24 @@ BootStatus boot_game() noexcept {
       return failure("kernel-dispatcher holds nothing.");
     }
 
+    uint32_t master_mode = 0;
+    const bool mode_symbols = goal_game_find_symbol("*master-mode*", &master_mode) &&
+                              goal_game_find_symbol("game", nullptr) &&
+                              goal_game_find_symbol("pause", nullptr) &&
+                              goal_game_find_symbol("progress", nullptr) &&
+                              goal_game_find_symbol("menu", nullptr);
+    if (mode_symbols) {
+      g_master_mode = goal_game_symbol_slot("*master-mode*");
+      g_gameplay_mode = goal_game_find_symbol("game", nullptr);
+      g_pause_mode = goal_game_find_symbol("pause", nullptr);
+      g_progress_mode = goal_game_find_symbol("progress", nullptr);
+      g_menu_mode = goal_game_find_symbol("menu", nullptr);
+    } else {
+      os_log_error(boot_log(),
+                   "GAME.CGO did not expose the master-mode symbols; native menu state is "
+                   "unavailable.");
+    }
+
     goal_kernel_core_state state = {};
     goal_kernel_core_get_state(&state);
     status.global_heap_used_bytes = state.global_heap_used_bytes;
@@ -595,6 +618,11 @@ void reset_game() noexcept {
   g_booted = false;
   g_frames = 0;
   g_dispatcher = Ptr<jak1::Symbol>();
+  g_master_mode = nullptr;
+  g_gameplay_mode = 0;
+  g_pause_mode = 0;
+  g_progress_mode = 0;
+  g_menu_mode = 0;
   g_math_camera = nullptr;
   g_camera_master = nullptr;
   g_camera_combiner = nullptr;
@@ -614,6 +642,14 @@ std::uint64_t frames_run() noexcept {
 
 bool game_is_booted() noexcept {
   return g_booted;
+}
+
+GameMode game_mode() noexcept {
+  if (!g_booted || !g_master_mode) {
+    return GameMode::Unknown;
+  }
+  return classify_game_mode(static_cast<std::uint32_t>(*g_master_mode), g_gameplay_mode,
+                            g_pause_mode, g_progress_mode, g_menu_mode);
 }
 
 #else  // GOALPAD_HAVE_GAME_BOOT
@@ -650,6 +686,10 @@ std::uint64_t frames_run() noexcept {
 
 bool game_is_booted() noexcept {
   return false;
+}
+
+GameMode game_mode() noexcept {
+  return GameMode::Unknown;
 }
 
 #endif  // GOALPAD_HAVE_GAME_BOOT

@@ -204,6 +204,21 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
   return goalpad::game_is_booted() ? YES : NO;
 }
 
++ (GOALPadGameMode)gameMode {
+  switch (goalpad::game_mode()) {
+    case goalpad::GameMode::Gameplay:
+      return GOALPadGameModeGameplay;
+    case goalpad::GameMode::Pause:
+      return GOALPadGameModePause;
+    case goalpad::GameMode::Progress:
+      return GOALPadGameModeProgress;
+    case goalpad::GameMode::Menu:
+      return GOALPadGameModeMenu;
+    case goalpad::GameMode::Unknown:
+      return GOALPadGameModeUnknown;
+  }
+}
+
 + (GOALPadFrameChainStats)frameChainStats {
   const auto core = goalpad::frame_chain_stats();
   GOALPadFrameChainStats stats = {core.chains, core.last_payload_bytes,

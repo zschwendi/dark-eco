@@ -35,6 +35,7 @@ final class GameSession {
     private(set) var boot: GOALPadGameBootStatus?
     private(set) var isBooting = false
     private(set) var isRunning = false
+    private(set) var gameMode: GOALPadGameMode = .unknown
     private(set) var framesRun: UInt64 = 0
     private(set) var framesPresented: UInt64 = 0
     private(set) var memoryWarnings = 0
@@ -47,6 +48,14 @@ final class GameSession {
     private(set) var displaySampleCount = 0
 
     var frameChain: GOALPadFrameChainStats { GOALPadRuntimeBridge.frameChainStats }
+
+    var isNativeMenuOpen: Bool {
+        switch gameMode {
+        case .pause, .progress, .menu: true
+        case .unknown, .gameplay: false
+        @unknown default: false
+        }
+    }
 
     /// Booting runs the game's own startup - two DGO archives and `play` - which takes seconds and
     /// must not block the frame loop or the UI.
@@ -163,6 +172,7 @@ final class GameSession {
         input.startWatching()
         audio.start()
         isRunning = true
+        gameMode = GOALPadRuntimeBridge.gameMode
         isForeground = currentScenePhase == .active
         saveSync.setGameplayActive(isForeground)
         #if os(iOS) || os(visionOS)
@@ -184,6 +194,7 @@ final class GameSession {
         kernel = nil
         boot = nil
         isRunning = false
+        gameMode = .unknown
         saveSync.setGameplayActive(false)
         touch.reset()
         framesRun = 0
@@ -218,6 +229,8 @@ final class GameSession {
         var shouldLog = false
         if GOALPadRuntimeBridge.runFrame(at: targetPresentationTime) {
             framesRun = GOALPadRuntimeBridge.framesRun
+            let currentMode = GOALPadRuntimeBridge.gameMode
+            if currentMode != gameMode { gameMode = currentMode }
             shouldLog = framesRun % 600 == 0
             saveSync.gameplayFrameCompleted()
         }

@@ -88,6 +88,14 @@ typedef struct GOALPadFrameChainStats {
   int32_t lastTextureUploads;
 } GOALPadFrameChainStats;
 
+typedef NS_ENUM(NSInteger, GOALPadGameMode) {
+  GOALPadGameModeUnknown,
+  GOALPadGameModeGameplay,
+  GOALPadGameModePause,
+  GOALPadGameModeProgress,
+  GOALPadGameModeMenu,
+};
+
 /// The whole Swift-facing surface of the native runtime. The GOAL kernel is a process-wide
 /// singleton, so this is a class API rather than an instantiable object.
 @interface GOALPadRuntimeBridge : NSObject
@@ -120,6 +128,8 @@ typedef struct GOALPadFrameChainStats {
 
 @property(class, nonatomic, readonly) uint64_t framesRun;
 @property(class, nonatomic, readonly, getter=isGameBooted) BOOL gameBooted;
+/// Jak's own `*master-mode*`; reading it never advances or mutates gameplay.
+@property(class, nonatomic, readonly) GOALPadGameMode gameMode;
 @property(class, nonatomic, readonly) GOALPadFrameChainStats frameChainStats;
 
 /// Whether this build carries each engine host seam. A seam that is not linked reports its absence

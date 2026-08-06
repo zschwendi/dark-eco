@@ -428,6 +428,22 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
   work, commit and push every verified slice, mark unverified work explicitly,
   update this ledger and `HANDOFF.md`, recheck parent/child status, then resume
   from a compact handoff instead of carrying the full transcript.
+- [ ] Agents must test every deterministic behavior they can themselves before
+  involving the maintainer: focused unit/static checks, simulator interaction,
+  affected host compilation, signed generic builds, and safe device automation
+  in proportion to risk. Do not use the maintainer as a substitute for a test
+  the agent can run.
+- [ ] Loop the maintainer in only for a material product/branding choice, a new
+  authority boundary, or physical visual, ergonomic, audio, haptic, thermal, or
+  gameplay acceptance that automation cannot establish.
+- [ ] For this active Jak 1 interaction program, `Z iPad Pro` is authorized for
+  in-place Build 94-and-later candidate installation and launch whenever it is
+  unlocked and available; do not uninstall or clear its app data. This standing
+  authorization does not silently extend to destructive data changes or broad
+  screen/log capture unrelated to the active test.
+- [ ] Never present a physical candidate blind. Before asking the maintainer to
+  test, provide the exact build number, the changed behavior, a short numbered
+  test route, expected results, and the Build 93 regression checks that matter.
 - [ ] Physically compare the next candidate against Build 93 on iPhone and iPad
   before calling it the replacement baseline.
 
@@ -444,7 +460,10 @@ Active lanes:
   `ContentView.swift`, `GameLibrary.swift`, and focused tests on
   `agent/build94-portrait-library` in
   `/private/tmp/GP-build94-portrait-library`.
-- `Investigating` — root integration owns native pause/menu/input-source,
+- `Implemented; focused validation passed; full build pending` — root integration
+  added a read-only native `*master-mode*` bridge for exact game/pause/progress/
+  menu state, exposed it through `GameSession`, and added
+  `Scripts/run-game-menu-state-check.sh`. Root still owns input-source,
   remapping, haptics, skip, warp, mod, save-conflict, and Game Center seam
   discovery. It will not edit a worker-owned file while that lane is active.
 
@@ -538,6 +557,9 @@ Active lanes:
 
 #### Touch-friendly game and launcher interaction
 
+- [x] Expose Jak 1's real `*master-mode*` as a read-only Apple-host state so
+  pause-gated chrome and Pause/Resume labels do not rely on screenshots,
+  timing, or a duplicate Swift pause flag.
 - [ ] When a physical controller is active, preserve ordinary controller input
   and avoid intrusive touch chrome.
 - [ ] When touch is active, make the app-owned settings/library surfaces use

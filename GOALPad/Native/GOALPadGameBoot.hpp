@@ -8,6 +8,37 @@
 
 namespace goalpad {
 
+enum class GameMode : std::uint8_t {
+  Unknown,
+  Gameplay,
+  Pause,
+  Progress,
+  Menu,
+};
+
+constexpr GameMode classify_game_mode(std::uint32_t current,
+                                      std::uint32_t gameplay,
+                                      std::uint32_t pause,
+                                      std::uint32_t progress,
+                                      std::uint32_t menu) noexcept {
+  if (!current) {
+    return GameMode::Unknown;
+  }
+  if (current == gameplay) {
+    return GameMode::Gameplay;
+  }
+  if (current == pause) {
+    return GameMode::Pause;
+  }
+  if (current == progress) {
+    return GameMode::Progress;
+  }
+  if (current == menu) {
+    return GameMode::Menu;
+  }
+  return GameMode::Unknown;
+}
+
 /*! What the boot did, read out of the live kernel. */
 struct BootStatus {
   bool booted = false;
@@ -68,6 +99,8 @@ CameraFrameIdentity current_camera_frame_identity() noexcept;
 
 std::uint64_t frames_run() noexcept;
 bool game_is_booted() noexcept;
+/*! Jak's own `*master-mode*`, read without advancing or mutating the game. */
+GameMode game_mode() noexcept;
 
 /*! Forget the boot. The heap goes away with the kernel; this only drops what this file caches. */
 void reset_game() noexcept;
