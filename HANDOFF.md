@@ -12901,3 +12901,28 @@ To recover disk space, only the exact reproducible Build 92 DerivedData and
 four older reproducible cache/DerivedData directories were removed after the
 signed app and logs were preserved. Source worktrees, signed baselines, and
 user data were untouched; the removed directories can be recreated by builds.
+
+# Build 93 continuation boundary
+
+Date: 2026-08-05. Resume in `/private/tmp/GP-modern-mode-horplus` on branch
+`agent/build93-cloud-save-ux` at parent commit `929c41fa`. The worktree and its
+OpenGOAL child were clean at this boundary. Build 92 remains the version
+installed on the maintainer's iPad; that fact is not authorization for later
+device access, installation, launch, logging, or capture.
+
+Commit `929c41fa` is the first Build 93 fix. It refreshes prepared Jak 1 data
+discovery when an idle launcher becomes active, keeps refreshes out of live
+startup/gameplay, and explains that prepared game data is device-local rather
+than part of iCloud Settings or iCloud Saves. The focused command
+`Scripts/run-game-data-install-check.sh` passed on 2026-08-05, including the
+preexisting-install and guarded-foreground-refresh cases.
+
+Continue Build 93 with the smallest user-visible save slice. Audit and fix the
+two-device iCloud save discovery, conflict presentation, and interaction
+problems without weakening the tested pair-journal/CAS recovery rules or
+exposing raw internal bank paths as product language. Preserve local native
+OpenGOAL saves as gameplay authority and keep imported game data out of
+iCloud. Run focused save/UI checks before one batched signed generic-iOS Build
+93; do not rebuild OpenGOAL/AOT unless an actual nested or generated input
+changes. Do not touch the dirty main checkout or the separate Jak II renderer
+worktrees.
