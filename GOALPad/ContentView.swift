@@ -117,6 +117,7 @@ struct ContentView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 9)
+                    .frame(minHeight: 44)
                     .background(.black.opacity(0.5), in: Capsule())
                     .contentShape(Capsule())
                 }

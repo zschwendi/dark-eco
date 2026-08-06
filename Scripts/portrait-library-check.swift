@@ -40,6 +40,7 @@ do {
     let root = CommandLine.arguments[1]
     let content = try source(at: root + "/GOALPad/ContentView.swift")
     let library = try source(at: root + "/GOALPad/Library/GameLibrary.swift")
+    let libraryView = try source(at: root + "/GOALPad/Library/GameLibraryView.swift")
     let layout = try declaration(in: content,
                                  startingWith: "nonisolated enum GameplaySurfaceLayout",
                                  endingWith: "\n\nstruct ContentView")
@@ -50,6 +51,20 @@ do {
         throw NSError(domain: "portrait-library-check", code: 1,
                       userInfo: [NSLocalizedDescriptionKey: "Jak X remains in GameLibraryTitle"])
     }
+    let tile = try declaration(in: libraryView,
+                               startingWith: "private struct GameLibraryTile",
+                               endingWith: "\n\nprivate struct FallbackGameArtwork")
+    guard tile.contains("Button(action: activate)")
+            && tile.contains(".disabled(state == .planned)")
+            && !tile.contains(".accessibilityElement(children: .combine)")
+            && tile.contains(".frame(minWidth: 44, minHeight: 44)")
+            && tile.contains(".contentShape(Rectangle())")
+    else {
+        throw NSError(domain: "portrait-library-check", code: 2,
+                      userInfo: [NSLocalizedDescriptionKey:
+                        "library tile or artwork menu lost its semantic touch target"])
+    }
+    print("  ok   library tile and artwork menu remain independent semantic touch targets")
     let directory = FileManager.default.temporaryDirectory
         .appending(path: "goalpad-portrait-library-\(UUID().uuidString)", directoryHint: .isDirectory)
     defer { try? FileManager.default.removeItem(at: directory) }
