@@ -67,7 +67,7 @@ Avoid duplicated validation work:
    checks, focused unit tests, and the smallest isolated compile for its patch.
 2. Integrate several reviewed non-overlapping commits before running the full
    compiler, Metal proof, AOT build, or Xcode matrix once per checkpoint.
-3. Do not rebuild Eco Pro for an importer-only nested OpenGOAL change that is
+3. Do not rebuild Eco for an importer-only nested OpenGOAL change that is
    not part of the Xcode target.
 4. Keep one canonical OpenGOAL CMake build directory and one current Xcode
    DerivedData directory. Do not run multiple heavy C++, AOT, or Xcode builds
@@ -449,13 +449,23 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 Active lanes:
 
-- `Integrated; Apple SDK validation passed; provisioning and signed runtime
+- `Integrated; focused validation and signed-build validation passed; physical
+  presentation pending` — the public product rename from Eco Pro to Eco came
+  from `agent/build104-eco-branding` in
+  `/private/tmp/GP-build104-eco-branding`. Worker commit `76d0110e` is pushed
+  to `origin/agent/build104-eco-branding` and integrated as `b1faac13`.
+  User-facing source, Settings copy, app display metadata, focused tests, and
+  maintained product documentation use Eco; durable bundle, iCloud, storage,
+  source, scheme, and target identifiers remain unchanged.
+- `Integrated; Apple SDK and signed-profile validation passed; runtime sign-in
   pending` — Game Center authentication foundation came from
   `agent/build100-game-center-foundation` in
   `/private/tmp/GP-build100-game-center`. Code commit `9c825502` is integrated
   as `d47233e4`; worker/ledger HEAD `31f32584` is pushed to
   `origin/agent/build100-game-center-foundation`. Root wired launcher/gameplay
-  state into the access-point policy and reran `Scripts/run-game-center-check.sh`.
+  state into the access-point policy, reran `Scripts/run-game-center-check.sh`,
+  and verified that the Build 103 development provisioning profile carries the
+  standard Game Center and existing iCloud entitlements.
 - `Integrated; focused validation passed; physical keyboard/mouse tuning
   pending` — default keyboard/mouse input came from
   `agent/build97-keyboard-mouse` in `/private/tmp/GP-build97-keyboard-mouse`.
@@ -506,7 +516,7 @@ Active lanes:
   added a read-only native `*master-mode*` bridge for exact game/pause/progress/
   menu state, exposed it through `GameSession`, and added
   `Scripts/run-game-menu-state-check.sh`. Root then used it to gate the in-game
-  Eco Pro Settings control and optional synced developer logs, and bound the
+  Eco Settings control and optional synced developer logs, and bound the
   saved Controls profile to the matching live touch style. Root still owns input-source,
   remapping, haptics, skip, warp, mod, save-conflict, and Game Center seam
   discovery. It will not edit a worker-owned file while that lane is active.
@@ -515,7 +525,7 @@ Active lanes:
 
 - [x] Hide the app Settings and developer-log controls during gameplay; expose
   them only while the native Jak pause/start menu is open.
-- [x] In the paused overlay, use white `Eco Pro` plus the Settings icon.
+- [x] In the paused overlay, use white `Eco` plus the Settings icon.
 - [x] Add a per-game `Show developer logs` setting; logs remain off the normal
   player surface when disabled.
 - [ ] Fix the stationary Settings sheet/modal layout flicker and roughly
@@ -549,9 +559,9 @@ Active lanes:
   native memcard without weakening archive/journal/CAS safety.
 - [ ] Finalize the in-game Jak 1 title with the maintainer before changing player
   strings. Do not guess.
-- [ ] Finalize the app/product name with the maintainer before changing Eco Pro,
-  bundle-facing metadata, or public branding. Current candidates include JKDX,
-  JKDX HD, JKDX 4K, and JKDX iOS; do not pick one autonomously.
+- [x] Use `Eco` as the maintainer-selected public product and display name.
+  Keep GOALPad as the internal repository, scheme, target, and runtime name,
+  and preserve existing bundle, iCloud, and durable storage identifiers.
 
 #### Input-source ownership and remapping
 
@@ -581,7 +591,7 @@ Active lanes:
 - [x] Make Controls Classic select a DualShock-style overlay with symmetrical
   sticks, PlayStation-like spacing, Jak 1 face/shoulder controls, no L2/R2
   overlay, and visibly intentional inactive/dead controls where requested.
-- [ ] Keep Modern first and Classic second in the touch profile picker.
+- [x] Keep Modern first and Classic second in the touch profile picker.
 - [ ] Preserve current Modern behavior until its separate polish patch is
   physically accepted.
 - [x] In Modern touch, once a held downward gesture has engaged crouch, sliding

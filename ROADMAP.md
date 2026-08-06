@@ -37,7 +37,7 @@ as completing the overall goal.
   CI artifacts, or hosted services.
 - The preferred public distribution path is TestFlight followed by the App
   Store, while source and supported sideloading remain first-class. Storefront
-  and first-run presentation use the neutral **Eco Pro** identity and calm
+  and first-run presentation use the neutral **Eco** identity and calm
   **compatible user-supplied data** language rather than franchise marketing;
   technical documentation and App Review notes remain precise and transparent.
 - GitHub, TestFlight, and App Store archives fail closed unless the complete
@@ -849,7 +849,7 @@ improvement: camera and world-depth fighting felt worse than Checkpoint 36,
 Merc deformation remained, and metallic materials developed a new flicker.
 Checkpoints 38-44 record the original app icon, neutral App Store distribution
 direction, fail-closed release-AOT policy, windowed visionOS target,
-local-first iCloud saves, and current **Eco Pro** identity at
+local-first iCloud saves, and current **Eco** identity at
 `com.zephyrstudiosllc.eco`. Checkpoint 45 adds an enforced Jak 1 Release-AOT
 preflight and a mutually exclusive Jak II iPhoneOS full-AOT link proof; it does
 not make Jak II an app target. Checkpoints 46-50 add the checked Jak 1 raw-disc
@@ -911,7 +911,7 @@ pointers begin after it; the v5 observer consequently read `node-list` at live
 `c2f933ba0` applies the shared `BASIC_OFFSET` to all diagnostic target/control/
 cpad fields, keeps exact runtime types and declared allocated-size checks, and
 adds a decoy-old-slot regression. All 58 focused C++ checks and both parent
-bridge checks passed. A new signed thin ARM64 Eco Pro build passed with SHA-256
+bridge checks passed. A new signed thin ARM64 Eco build passed with SHA-256
 `4b9eb6e0848a2e1c222f0ef8bd16aae9b00739043b4379ecb2f271ca64e9d315`.
 It was update-installed on the authorized Z iPad Pro while preserving app data;
 launch is pending only because the iPad locked. No corrected physical trace or
@@ -1033,7 +1033,7 @@ Checkpoint 63 adds a checked 840-object Jak II source pack (aggregate
 the final merged nested head `9edd580`. The proof links all 840 corpus units,
 the portable pad and interrupt-handler seams, and `pc-rand`; focused Jak 1/Jak
 II regressions and the one-frame real-data `play-boot` frontier pass. This is a
-signed build artifact only, not Eco Pro app/runtime, renderer, simulator,
+signed build artifact only, not Eco app/runtime, renderer, simulator,
 device, title-screen, or gameplay evidence.
 
 Checkpoint 64 implements Jak II's portable profiler/cache seams and crosses
@@ -1052,7 +1052,7 @@ their symbols overlap.
 Checkpoint 66 reconciles that archive with the final portable machine seams and
 a strict opt-in DMA gate. The canonical host tests, prepared-data title/DMA
 probe, reusable Ninja archive/link, signed Jak II generic-iPhoneOS proof, and
-signed Jak 1/Eco Pro generic-iOS Release all pass at nested `0eba7a18c`.
+signed Jak 1/Eco generic-iOS Release all pass at nested `0eba7a18c`.
 Jak II still lacks a renderer/app loop. The maintainer's current photos classify
 Flat Stanley as a heading-dependent weighted-skin singularity and the wall
 burst as a separate whole-camera recurrence; schema v7 is the next physical
@@ -1065,7 +1065,7 @@ proof. Separate `--play-gfx-host`, combined `--play-dma`, and unchanged plain
 same title frontier with the complete callback contract, while only the DMA
 mode parses the one valid 327-bucket chain. Focused Jak 1 and Jak II graphics,
 machine, DMA, and kernel regressions pass. Fresh unsigned and signed Jak II AOT
-proofs and the signed Jak 1/Eco Pro generic-iOS Release also pass. The host is
+proofs and the signed Jak 1/Eco generic-iOS Release also pass. The host is
 still headless: no Jak II Apple app target, Metal renderer lifecycle, real
 display pacing, visible title, or gameplay is claimed.
 
