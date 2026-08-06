@@ -14245,3 +14245,29 @@ the docs now truthfully describe complete bounded Level deserialization. The
 manager itself remains unintegrated until scoped app-sandbox filesystem
 transaction authority is explicit; no manager or filesystem operation was
 performed.
+
+# Jak 1 mod inventory checkpoint
+
+Date: 2026-08-06. Parent `eaa3b5e0` adds
+`docs/JAK1_MOD_INVENTORY.md`, a research-only primary-source inventory of the
+pinned OpenGOAL Jak 1 capabilities and discoverable community mod landscape.
+
+- Existing upstream presentation, accessibility, camera, and gameplay options
+  are classified as native Modern-setting candidates only after their Apple
+  implementation is validated; they are not third-party mods.
+- No surveyed third-party package is currently verified against Eco's exact
+  signed source/AOT pin as a user-importable data-only package.
+- Executable GOAL and custom-level forks require source, license, dependency,
+  non-retail asset-provenance, AOT, signing, and physical-iPad review before any
+  curated inclusion.
+- No catalogue, executable, mod, texture, level, or other content was downloaded
+  or added. The current MVP boundary remains the signed base Jak 1 corpus plus
+  user-supplied base-game data.
+- The worker used `/private/tmp/GP-jak1-mod-inventory`, branch
+  `agent/jak1-mod-inventory`, commit `f2850fec`; `git diff --cached --check`
+  passed before its clean commit. Root reviewed and cherry-picked it as
+  `eaa3b5e0`.
+
+This is documentation, not iPad compatibility or a legal conclusion. The
+curated Modern pack remains unapproved and the data-only manager remains parked
+behind its separate filesystem-authority decision.

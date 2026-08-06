@@ -567,6 +567,13 @@ Active lanes:
   authorizes the scoped app-sandbox filesystem transaction layer; same-FD
   publication, immutable copies, strict registry JSON, rollback/recovery, and
   process-wide transaction ownership remain part of that separate gate.
+- `Mod inventory documented; no curated bundle approved` — parent `eaa3b5e0`
+  adds `docs/JAK1_MOD_INVENTORY.md` from a primary-source review of the pinned
+  OpenGOAL capabilities and discoverable Jak 1 mod landscape through
+  2026-08-06. Existing upstream settings are separated from third-party mods;
+  no surveyed package is currently verified as data-only, compatible with the
+  signed source pin, and redistributable with audited asset provenance. No
+  mod, executable, or asset was downloaded or added.
 - `Integrated; focused validation passed; Build 107 full Xcode build pending` —
   Jak 1 physical-button/key remapping came from
   `/private/tmp/GP-build94-input-remapping`, worker commit `13197fd7`, and is
@@ -1071,7 +1078,7 @@ not the requested volumetric world.
   simulator/Memory Graph diagnostic, while keeping physical thermal acceptance
   separate from simulator evidence. Investigate the comfortable-but-warm iPhone
   report and the iPad process-loss report only when this FIFO item is reached.
-- [ ] Inventory the current pinned OpenGOAL and relevant community mod landscape
+- [x] Inventory the current pinned OpenGOAL and relevant community mod landscape
   when this FIFO item is reached. Compare Eco against useful QoL and graphics
   capabilities, texture replacement packs, original custom levels, and other
   supported extensions. Classify each candidate as: a stable engine option Eco
@@ -1082,6 +1089,11 @@ not the requested volumetric world.
   and iCloud policy, safe rollback, and whether content is original/user-owned.
   Do not bundle, download, recommend importing, or silently accept retail-derived
   game assets, and do not present the existing game-data importer as a mod manager.
+  The bounded primary-source result is recorded in
+  `docs/JAK1_MOD_INVENTORY.md`: upstream-native options are the only immediate
+  Modern candidates, no third-party package passed the current bundle boundary,
+  and executable mods remain a signed-AOT review path rather than a runtime
+  import format.
 - [ ] After that inventory, define a maintainer-approved Modern curated pack
   covering the major compatible QoL, graphics, texture, and original-content
   additions available through August 2026. Classic must remain the accepted
