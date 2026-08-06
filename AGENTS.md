@@ -954,15 +954,11 @@ Active lanes:
   Confirm/Cross, Back/Square, and Resume/Start. Build 108 cancels carried
   gameplay gestures at these transitions, suppresses touch chrome while a
   physical controller is driving, and delivers menu haptics immediately.
-- [ ] `Partially implemented in Build 109` — make the native pause/progress menu
-  usable by touch, beginning with swipe selection
-  and explicit confirm/back controls, then direct row taps only if deterministic
-  menu state is available. Next expose a fail-closed progress snapshot and use
-  screen-specific actions: list/options screens may use D-pad and conservative
-  Confirm/Back, stats need labelled tab actions, and transition/autosave states
-  must expose no row controls. Build 109 provides exact stats shortcuts,
-  conservative PC settings/file-list actions, and vertical one-shot swipes;
-  direct row taps and dynamic option text/availability remain open.
+- [ ] Finish truthful Start/Pause/Resume and explicit Back coverage for the
+  native pause/progress menus. Build 109 already provides the maintainer-accepted
+  interaction model: exact stats shortcuts, conservative PC settings/file-list
+  actions, and vertical one-shot swipes. Direct row hit-testing is intentionally
+  out of scope; do not reopen it unless the maintainer changes direction.
 - [ ] Replace raw X/Square/Triangle/Circle instructional chrome with clear touch
   actions where the app truly owns the target; Classic overlay remains the MVP
   fallback elsewhere.
@@ -988,9 +984,11 @@ Active lanes:
   source cannot mask or continuously restart the other.
 - [ ] Preserve a reachable Stats action even though the latest touch pill is
   named `SKIP`; document controller and keyboard defaults.
-- [ ] Treat `skip anything` as Investigating until cutscene/dialog/event state,
-  safe completion hooks, and progression invariants are known. Do not implement
-  a generic state jump or arbitrary GOAL call.
+- [ ] Extend the existing `SKIP` touch control across the game's authored skip
+  interactions by emitting the same context-appropriate native button or chord
+  a controller player would use. This is input accessibility, not a generic
+  state jump: do not call arbitrary GOAL completion hooks or skip transitions
+  the game itself does not make skippable.
 
 #### Game Center
 
@@ -1008,15 +1006,10 @@ Active lanes:
   checks do not prove authentication or App Store Connect configuration.
 - [ ] Define player-visible friend presence/current-run information with an
   explicit privacy and refresh model.
-- [ ] Add validated native read-only seams for run start, reset, completion,
-  elapsed time, and completion percentage before submitting any Game Center
-  activity or score.
-- [ ] Define authoritative timing boundaries for current run, fastest completed
-  run, and fastest completion percentage category before creating leaderboards.
-- [ ] Confirm whether the completion category is 100% or 101% from actual game
-  semantics and maintainer direction; do not guess.
-- [ ] Decide offline behavior, retries, duplicate submissions, clock tampering,
-  save imports, mods, and version/category compatibility before publishing times.
+- [ ] Add validated native read-only seams for the friend's current area and
+  overall run progress before publishing Game Center presence. Competitive
+  timing, fastest-run records, completion leaderboards, and score submission are
+  not part of the requested Game Center scope.
 
 #### Candidate later-update scope
 
@@ -1024,15 +1017,19 @@ Keep this list at ten or fewer. These are currently the strongest candidates
 to defer from the first post-Build-93 update because they require a larger
 architecture, gameplay-semantic, backend, or physical-tuning gate:
 
-1. Game Center friend presence and competitive run leaderboards.
-2. Universal `skip anything` behavior.
-3. Touch-layout presets/sharing and further physical ergonomics beyond the
+1. Touch-layout presets/sharing and further physical ergonomics beyond the
    bounded Build 117 editor.
-4. Direct touch hit-testing for every native GOAL-rendered menu.
-5. Complete controller and mouse/keyboard remapping UI.
-6. Full mod manager/browser beyond a truthful local import entry.
-7. Rich localized device/controller haptic design beyond preserved native
+2. Complete controller and mouse/keyboard remapping UI.
+3. Full mod manager/browser and curated mod pack beyond a truthful local import
+   entry; mods remain a nice-to-have rather than release-critical work.
+4. Rich localized device/controller haptic design beyond preserved native
    rumble and a small UI-haptic proof.
+5. ProMotion/120 Hz; research is complete and the maintainer does not need an
+   implementation in the current product cycle.
+6. Stereoscopic, tabletop, room-scale, and first-person visionOS modes beyond
+   the conventional Comfort window.
+7. Extensive low-memory optimization after confirmed lifecycle freezes are
+   repaired and basic footprint measurements establish a real bottleneck.
 
 Classic touch, portrait top alignment, Modern-first ordering, empty-section
 removal, pause-gated app chrome, and the unified iCloud presentation are not in
@@ -1040,7 +1037,7 @@ this defer list; they are the preferred first executable slices.
 
 #### visionOS presentation modes
 
-These are visionOS-only follow-on modes requested by the maintainer. The scene
+These are deferred visionOS-only follow-on modes requested by the maintainer. The scene
 coordinator and five-mode capability model are **Implemented**, and a synthetic
 per-view compositor layer is **Validated by Apple SDK typecheck**. Only
 Comfort/Normal is playable; game stereo and spatial world modes remain
@@ -1088,7 +1085,8 @@ not the requested volumetric world.
   gameplay authority intact, and add deterministic suspend/resume plus memory-
   warning coverage before physical lock/unlock validation. This item follows the
   older interaction/settings/visionOS queue and must not preempt it.
-- [ ] Measure, do not estimate, Eco's foreground resident footprint, peak during
+- [ ] `Deferred after basic lifecycle correctness` — measure, do not estimate,
+  Eco's foreground resident footprint, peak during
   representative Jak 1 level transitions, post-transition steady state,
   background footprint, memory-warning response, and jetsam/background survival.
   Record the exact build, device RAM class, OS, route, and measurement source.
@@ -1113,7 +1111,8 @@ not the requested volumetric world.
   Modern candidates, no third-party package passed the current bundle boundary,
   and executable mods remain a signed-AOT review path rather than a runtime
   import format.
-- [ ] After that inventory, define a maintainer-approved Modern curated pack
+- [ ] `Nice-to-have / deprioritized` — after that inventory, define a
+  maintainer-approved Modern curated pack
   covering the major compatible QoL, graphics, texture, and original-content
   additions available through August 2026. Classic must remain the accepted
   unmodified presentation; Modern may enable the approved built-in features and
