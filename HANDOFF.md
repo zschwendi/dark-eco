@@ -12080,3 +12080,104 @@ footprint with synthetic data. Re-run the real three-tick Mac proof. Only if
 that changes title RGB should the following checkpoint add the source-supported
 full-frame depth probe and 640-to-40 downsample chain. No simulator or physical
 device was accessed for Checkpoint 83.
+
+# Checkpoint 84: diagnostic Jak II glow final pass and exact live rejection telemetry
+
+Date: 2026-08-06. The isolated nested branch
+`agent/jak2-real-dma-draw-proof` now ends at `4bf6e2749`. The five commits after
+Checkpoint 83 are:
+
+- `f679d7e40`, which adds the Metal final-flare renderer, shader, and strict
+  offscreen GPU readback proof;
+- `bb35cc9dc`, which parses the exact constants-led Jak II glow DMA packet into
+  shared transformed records;
+- `fcf3acb62`, which enforces the source 400-record limit transactionally;
+- `8d4a1bbdc`, which validates ADGIF state fail-closed before GPU work; and
+- `4bf6e2749`, which wires the diagnostic renderer into Sprite3, propagates
+  exact stats to the host proof, preserves parser-only invalid-record tests,
+  uses OpenGL's default new-mode UV behavior, and reports bounded transform
+  rejection reasons.
+
+The final-flare pass intentionally forces visibility and boost to one after a
+record has passed the source VU transform. It preserves the source additive
+`ONE/ONE` blend, disabled depth test/write, fan-to-strip ordering, texture and
+sampler state, and fail-closed ADGIF validation. The source-faithful depth
+probe and 640-to-40 visibility downsample chain remain unimplemented.
+
+The transactional finite guard now checks only constants the C++/VU transform
+actually consumes. `sincos`, `pfog0`, `min_scale`, and `inv_area` are not read
+by this path and may contain stale or nonfinite lanes without rejecting an
+otherwise valid record. A deterministic regression test poisons all of those
+unused values while requiring finite accepted output. Rejection telemetry is
+one-time and aggregate; it does not dump retail packet contents.
+
+## Canonical validation
+
+The integration owner used the one canonical Release/Ninja/ccache build. The
+first combined build performed a fresh 840-object Jak II AOT emission and
+completed 876 Ninja steps. The final current-source build was:
+
+```text
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host --target \
+  sprite-glow-math-test jak2-metal-sprite-renderer-test \
+  jak2-metal-glow-final-flare-proof jak2-metal-dispatch-proof \
+  jak2-metal-submit-readback-proof jak2-metal-host-bridge-test \
+  jak2-metal-runtime-proof -j2
+```
+
+It passed with existing upstream warnings only. The sandbox could not expose a
+default Metal device, so the identical focused matrix was rerun with normal
+macOS Metal service access:
+
+```text
+ctest --test-dir /private/tmp/GOALPad-jak2-real-dma-host \
+  -R '^(sprite-glow-math-test|jak2-metal-sprite-renderer-test|jak2-metal-glow-final-flare-proof|jak2-metal-dispatch-proof|jak2-metal-submit-readback-proof|jak2-metal-host-bridge-test)$' \
+  --output-on-failure
+```
+
+All six tests passed. The standalone GPU proof still verifies the exact
+force-visible center pixels and unchanged outside pixels. The parser proof
+still verifies accepted, clipped, malformed, exact-400, and fail-closed-401
+packets. Invalid ADGIF records perform no Metal context or GPU work.
+
+## Real prepared-data Mac evidence
+
+```text
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-metal-runtime-proof \
+  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  --saves-dir /private/tmp/goalpad-jak2-macos-glow-checkpoint-live \
+  --ticks 3
+```
+
+The final command returned the expected `INCOMPLETE`/exit 1. It was not a DMA,
+host, GPU, texture, or submission failure: all three chains completed, all 327
+buckets dispatched per chain, and all three command buffers completed without
+GPU errors, missing textures, late submissions, or unsupported blends.
+
+At tick 3, Sprite3 again classified 64 2D inputs as 60 ordinary and four
+glow-marked records. The exact glow packet parsed all four records, but the
+source VU transform rejected all four on the X clip plane. OpenGL cancels the
+same records at that point, before its probe/downsample passes. Consequently
+there were zero force-visible submissions/draws, four skipped records, two
+ordinary sprite draws, 120 triangles, and the unchanged alpha-only hash
+`742a0703fa4da325` with zero non-black RGB. Do not claim a real-DMA glow draw
+from this checkpoint; only the isolated synthetic GPU final-flare proof is
+complete.
+
+The new host metrics fields grow the internal C metrics struct. All current
+clients are rebuilt together from source and are safe; an independently built
+stale binary client would not be ABI-compatible. Add a size/versioned metrics
+API before treating that bridge as a stable external binary interface.
+
+## Next executable task
+
+Extend the standalone Mac diagnostic from its current three-tick bound just
+far enough to observe whether the title naturally publishes an accepted glow
+record, while preserving exact chain/submission accounting and bounded runtime.
+If a live record is accepted, implement the active OpenGL new-mode depth-grid,
+four-stage linear downsample, and visibility-scaled final pass with a split-
+depth synthetic proof before claiming glow complete. If no accepted title glow
+appears, retain this gate and promote the smallest observed title-active
+texture-upload family, bucket 187 `TEX_LCOM_TFRAG` (672 bytes), before broader
+Tfrag geometry. Audio and controls remain later. No simulator or physical
+device was accessed for Checkpoint 84.

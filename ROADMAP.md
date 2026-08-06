@@ -1227,8 +1227,20 @@ transactional backend-neutral C++ at nested `149acb8fa`. Asset-free tests cover
 finite accepted output, exact ADGIF copy, clipping, zero denominators, and
 nonfinite rejection; the focused 2-test matrix, complete 850-unit AOT rebuild,
 and unchanged three-chain Mac title proof pass. Metal still does not draw the
-four accepted candidates. A force-visible final-flare proof is the next
+four glow-marked candidates. A force-visible final-flare proof is the next
 diagnostic before implementing the real depth-probe/downsample visibility path.
+
+Checkpoint 84 advances the isolated Jak II glow line to nested `4bf6e2749`.
+The exact constants-led DMA parser is transactional and source-bounded to 400
+records; ADGIF validation fails closed; a dedicated Metal final-flare pass and
+strict synthetic GPU readback proof pass; and parser/draw stats reach the host
+proof. The final six-test matrix passes after a fresh full AOT checkpoint
+build. In the real three-tick title run, all four parsed glow records are
+source-correctly rejected on the X clip plane, so no real flare is submitted
+and the strict RGB gate remains `INCOMPLETE`. The next diagnostic is a bounded
+longer title run to find a naturally accepted record. Only then should the
+active OpenGL new-mode depth-grid and downsample chain be ported; otherwise
+continue with title-active texture bucket 187 while preserving the glow gate.
 
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
