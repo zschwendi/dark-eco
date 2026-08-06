@@ -39,7 +39,6 @@ struct ContentView: View {
     @State private var session = GameSession()
     @State private var artworkStore = GameArtworkStore()
     @State private var launcherDestination = LauncherDestination.library
-    @State private var showDiagnostics = false
     @State private var showSettings = false
 
     var body: some View {
@@ -51,7 +50,8 @@ struct ContentView: View {
                 TouchControlsView(controls: session.touch, isSuppressed: session.input.isDriving)
                 #endif
 
-                if showDiagnostics {
+                if session.isNativeMenuOpen
+                    && session.presentationSettings.developerLogsEnabled {
                     DiagnosticsOverlay(session: session)
                         .frame(maxWidth: 620, alignment: .leading)
                         .padding()
@@ -91,20 +91,21 @@ struct ContentView: View {
                 }
             }
 
-            if session.isRunning {
-                HStack {
-                    Button { showDiagnostics.toggle() } label: {
-                        Image(systemName: "line.3.horizontal")
-                            .frame(minWidth: 24, minHeight: 24)
-                    }
-                    .accessibilityLabel(showDiagnostics ? "Hide diagnostics" : "Show diagnostics")
-                    Button { showSettings = true } label: {
+            if session.isRunning && session.isNativeMenuOpen {
+                Button { showSettings = true } label: {
+                    HStack(spacing: 7) {
+                        Text("Eco Pro")
                         Image(systemName: "gearshape")
-                            .frame(minWidth: 24, minHeight: 24)
                     }
-                    .accessibilityLabel("Settings")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+                    .background(.black.opacity(0.5), in: Capsule())
+                    .contentShape(Capsule())
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.plain)
+                .accessibilityLabel("Eco Pro Settings")
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
@@ -114,6 +115,13 @@ struct ContentView: View {
         .onChange(of: session.presentationSettings.graphicsFillWidth, initial: true) {
             _, enabled in
             session.settings.horizontalPlusEnabled = enabled
+        }
+        .onChange(of: session.presentationSettings.profile(for: .controls), initial: true) {
+            _, profile in
+            session.touch.setStyle(profile == .modern ? .modern : .classic)
+        }
+        .onChange(of: session.isNativeMenuOpen) { _, isOpen in
+            if session.isRunning && !isOpen { showSettings = false }
         }
         .sheet(isPresented: $showSettings) {
             NavigationStack {

@@ -78,6 +78,11 @@ check(view.contains("ordinary four Jak save slots")
         && !view.contains("Section(\"Automatic Resolution\")")
         && !view.contains("BASCUS-"),
       "save UI describes slots and automatic preservation without internal paths")
+check(view.contains("Section(\"Developer\")")
+        && view.contains("Toggle(\"Show Developer Logs\"")
+        && store.contains("var developerLogsEnabledOverride: Bool?")
+        && store.contains("developerLogsEnabledOverride ?? false"),
+      "developer logs are an off-by-default setting in the compatible synced document")
 check(view.contains("older divergent copies were preserved automatically")
         && !view.contains("switch resolution.basis"),
       "automatic resolution copy remains generic across engine ranking cases")
@@ -105,6 +110,16 @@ check(content.contains("session.presentationSettings.graphicsFillWidth")
         && content.contains("session.settings.horizontalPlusEnabled = enabled")
         && renderer.contains("surface.setHorizontalPlusEnabled(horizontalPlusEnabled)"),
       "the effective Graphics setting reaches only the opt-in Hor+ renderer seam")
+check(content.contains("session.presentationSettings.profile(for: .controls)")
+        && content.contains("session.touch.setStyle(profile == .modern ? .modern : .classic)"),
+      "the Controls profile selects the matching live touch model")
+check(content.contains("session.isRunning && session.isNativeMenuOpen")
+        && content.contains("Text(\"Eco Pro\")")
+        && content.contains("Image(systemName: \"gearshape\")")
+        && content.contains("session.presentationSettings.developerLogsEnabled")
+        && !content.contains("showDiagnostics")
+        && !content.contains("line.3.horizontal"),
+      "native menu truth gates the white Eco Pro Settings control and optional logs")
 check(occursInOrder([
     "let presentationSettings = PresentationSettings()",
     "async let settingsPreparation: Void = presentationSettings.prepare()",

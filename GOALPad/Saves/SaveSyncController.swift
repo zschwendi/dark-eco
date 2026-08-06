@@ -644,6 +644,16 @@ struct SaveSettingsView: View {
                 }
             }
 
+            Section("Developer") {
+                Toggle("Show Developer Logs", isOn: Binding(
+                    get: { settings.developerLogsEnabled },
+                    set: { settings.setDeveloperLogsEnabled($0) }
+                ))
+                Text("Shows the live engine readout only while Jak's pause or progress menu is open.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
             Section {
                 Button("Reset Jak 1 Settings", role: .destructive) { settings.resetAll() }
             }

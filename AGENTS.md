@@ -474,16 +474,18 @@ Active lanes:
 - `Implemented; focused validation passed; full build pending` — root integration
   added a read-only native `*master-mode*` bridge for exact game/pause/progress/
   menu state, exposed it through `GameSession`, and added
-  `Scripts/run-game-menu-state-check.sh`. Root still owns input-source,
+  `Scripts/run-game-menu-state-check.sh`. Root then used it to gate the in-game
+  Eco Pro Settings control and optional synced developer logs, and bound the
+  saved Controls profile to the matching live touch style. Root still owns input-source,
   remapping, haptics, skip, warp, mod, save-conflict, and Game Center seam
   discovery. It will not edit a worker-owned file while that lane is active.
 
 #### Settings shell and per-game ownership
 
-- [ ] Hide the app Settings and developer-log controls during gameplay; expose
+- [x] Hide the app Settings and developer-log controls during gameplay; expose
   them only while the native Jak pause/start menu is open.
-- [ ] In the paused overlay, use white `Eco Pro` plus the Settings icon.
-- [ ] Add a per-game `Show developer logs` setting; logs remain off the normal
+- [x] In the paused overlay, use white `Eco Pro` plus the Settings icon.
+- [x] Add a per-game `Show developer logs` setting; logs remain off the normal
   player surface when disabled.
 - [ ] Fix the stationary Settings sheet/modal layout flicker and roughly
   100-point vertical text jump before adding more rows.
@@ -542,8 +544,8 @@ Active lanes:
 
 - [x] Implement Classic touch before deeper native-menu touch conversion so
   every touch device has an understandable fallback.
-- [ ] Make Controls Modern select the existing Build 93 gesture/touch scheme.
-- [ ] Make Controls Classic select a DualShock-style overlay with symmetrical
+- [x] Make Controls Modern select the existing Build 93 gesture/touch scheme.
+- [x] Make Controls Classic select a DualShock-style overlay with symmetrical
   sticks, PlayStation-like spacing, Jak 1 face/shoulder controls, no L2/R2
   overlay, and visibly intentional inactive/dead controls where requested.
 - [ ] Keep Modern first and Classic second in the touch profile picker.

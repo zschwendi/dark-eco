@@ -79,6 +79,23 @@ private func legacyDocumentAndPickerOrderingRemainCompatible() async throws {
           "the pre-existing four-section document loads without migration loss")
     check(value.document.graphicsModernFillWidthOverride == true,
           "the legacy graphics option remains persisted even while Classic is selected")
+    check(!value.developerLogsEnabled,
+          "a Build 93 document defaults the newly added developer logs setting off")
+}
+
+@MainActor
+private func developerLogsPersistAndReset() async throws {
+    print("developer logs are a synced-document option with a safe default")
+    let fixture = try Fixture(name: "developer-logs")
+    let value = settings(fixture, writerID: "device-a", cloudAvailable: false)
+    check(!value.developerLogsEnabled, "developer logs begin off")
+    value.setDeveloperLogsEnabled(true)
+    check(value.developerLogsEnabled, "the developer option can be enabled")
+    let restored = settings(fixture, writerID: "device-b", cloudAvailable: false)
+    check(restored.developerLogsEnabled, "the developer option persists locally")
+    restored.resetAll()
+    check(!restored.developerLogsEnabled,
+          "Reset Jak 1 Settings restores developer logs to off")
 }
 
 @MainActor
@@ -274,6 +291,7 @@ private struct PresentationSettingsCheck {
     static func main() async {
         do {
             try await legacyDocumentAndPickerOrderingRemainCompatible()
+            try await developerLogsPersistAndReset()
             try await defaultsUseModernGraphics()
             try await savedChoicesSurviveNewDefaults()
             try await profilesCanBeMixedWithoutLosingOptions()

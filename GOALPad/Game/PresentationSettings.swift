@@ -35,6 +35,9 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
     /// `nil` means the selected profile's default. The only current graphics option belongs to
     /// Modern, whose default is enabled; Classic always uses the preserved compatibility view.
     var graphicsModernFillWidthOverride: Bool?
+    /// Optional so Build 93 settings documents decode without a migration. Developer logs are
+    /// hidden by default and belong to this title's synced settings document.
+    var developerLogsEnabledOverride: Bool?
     var modifiedAt: Date
     var writerID: String
 
@@ -72,6 +75,10 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         return graphicsModernFillWidthOverride ?? true
     }
 
+    var developerLogsEnabled: Bool {
+        developerLogsEnabledOverride ?? false
+    }
+
     mutating func restoreDefaults(for section: SettingsSection) {
         switch section {
         case .graphics:
@@ -87,6 +94,7 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         audioProfile = .classic
         interfaceProfile = .classic
         graphicsModernFillWidthOverride = nil
+        developerLogsEnabledOverride = nil
     }
 }
 
@@ -337,6 +345,8 @@ final class PresentationSettings {
 
     var graphicsFillWidth: Bool { document.graphicsFillWidth }
 
+    var developerLogsEnabled: Bool { document.developerLogsEnabled }
+
     var lastSyncDate: Date? {
         lastSuccessfulSyncDate
     }
@@ -370,6 +380,10 @@ final class PresentationSettings {
 
     func setGraphicsFillWidth(_ enabled: Bool) {
         change { $0.graphicsModernFillWidthOverride = enabled }
+    }
+
+    func setDeveloperLogsEnabled(_ enabled: Bool) {
+        change { $0.developerLogsEnabledOverride = enabled }
     }
 
     func restoreDefaults(for section: SettingsSection) {

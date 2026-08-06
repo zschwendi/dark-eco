@@ -13065,3 +13065,20 @@ moving `presentation-v1.json` requires ranking the legacy document, a new Jak 1
 document, and both sets of iCloud conflict versions in a one-time migration.
 This presentation slice did not change that cloud-authority contract or imply
 that later-title settings are implemented.
+
+Build 99 wires the new settings and native-menu seams into live presentation.
+The saved Controls profile now selects Modern Build 93 gestures or the new
+Classic overlay through `TouchControls.setStyle`; style changes clear active
+and queued input. During native gameplay the app adds no Settings or diagnostics
+buttons. Jak `pause`, `progress`, or `menu` state exposes one white `Eco Pro`
+plus gear control, and leaving that native state dismisses an in-game Settings
+sheet. `Show Developer Logs` is an off-by-default optional field in the existing
+schema-1 synced settings document, so Build 93 documents decode unchanged; when
+enabled, diagnostics are still rendered only while the native menu is open.
+
+`Scripts/run-game-menu-state-check.sh`, Swift parser checks for all changed UI
+files, `Scripts/run-presentation-settings-check.sh`, its UI checks, and
+`git diff --check` passed. A full target compile and simulator/native transition
+validation remain batched with the keyboard/mouse lane. Existing stored Controls
+profile values are respected: a saved Classic profile selects the new Classic
+overlay, while Modern selects the exact gesture model.
