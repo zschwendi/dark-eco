@@ -23,7 +23,9 @@ enum GOALPadBuildIdentity {
 struct GOALPadApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            GameCenterRootView {
+                ContentView()
+            }
         }
     }
 }
