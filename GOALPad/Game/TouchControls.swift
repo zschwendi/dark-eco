@@ -489,9 +489,13 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
 
         var actions: [Self]
         switch snapshot.screenRawValue {
-        case 0, 1, 2:
+        case 0:
             guard !snapshot.selectedOption else { return [] }
-            actions = [.precursorOrbs, .fuelCells, .scoutFlies, .settings]
+            actions = [.up, .down, .left, .right,
+                       .precursorOrbs, .fuelCells, .scoutFlies, .settings]
+        case 1, 2:
+            guard !snapshot.selectedOption else { return [] }
+            actions = [.up, .down, .precursorOrbs, .fuelCells, .scoutFlies, .settings]
         case 3:
             // The snapshot does not expose whether secrets are unlocked, so accept the larger of
             // the two authoritative shipping arrays while still rejecting every later index.
@@ -614,6 +618,7 @@ struct ModernTouchChromeLayout: Equatable, Sendable {
     let zoomFrame: CGRect
     let statsFrame: CGRect
     let startFrame: CGRect
+    let centeredSessionFrame: CGRect
 
     init(size: CGSize) {
         let width = max(0, size.width)
@@ -624,6 +629,10 @@ struct ModernTouchChromeLayout: Equatable, Sendable {
                            width: Self.pillSize.width, height: Self.pillSize.height)
         statsFrame = stats
         startFrame = stats.offsetBy(dx: Self.pillSize.width + Self.pillSpacing, dy: 0)
+        centeredSessionFrame = CGRect(x: (width - Self.pillSize.width) / 2,
+                                      y: stats.minY,
+                                      width: Self.pillSize.width,
+                                      height: Self.pillSize.height)
         zoomFrame = CGRect(x: stats.minX - Self.zoomGap - Self.zoomDiameter,
                            y: stats.midY - Self.zoomDiameter / 2,
                            width: Self.zoomDiameter, height: Self.zoomDiameter)

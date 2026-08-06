@@ -643,6 +643,10 @@ private func modernChromeAddsZoomWithoutMovingAcceptedPills() {
           "Stats retains the accepted left pill frame")
     check(chrome.startFrame == CGRect(x: 615, y: 762, width: 82, height: 42),
           "Start retains the accepted right pill frame")
+    check(chrome.centeredSessionFrame
+          == CGRect(x: 564, y: 762, width: 82, height: 42)
+          && chrome.centeredSessionFrame.midX == Runner.screen.width / 2,
+          "a captured start or pause menu centers its sole session pill")
     check(ModernTouchChromeLayout.zoomGap == ModernTouchChromeLayout.pillSpacing,
           "Zoom-to-Stats and Stats-to-Start use the same spacing")
     check(chrome.zoomFrame == CGRect(x: 451, y: 762, width: 42, height: 42),
@@ -1426,8 +1430,8 @@ private func sessionControlStateMatrixIsExactAndFailClosed() {
         let stats = progressSnapshot(screen: statsScreen, startingScreen: statsScreen,
                                      canExitWithStart: true, canGoBack: true)
         check(NativeMenuTouchAction.available(in: .progress, progress: stats)
-              == [.precursorOrbs, .fuelCells, .scoutFlies, .settings],
-              "stats screen \(statsScreen) has X, Square, Triangle, Circle top-down")
+              == [.up, .down, .precursorOrbs, .fuelCells, .scoutFlies, .settings],
+              "stats screen \(statsScreen) has level navigation plus its face-button actions")
     }
 
     let validBack = progressSnapshot(screen: 3, option: 2, startingScreen: 0,
@@ -1576,8 +1580,13 @@ private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
           "progress fails closed without an authoritative internal snapshot")
     let stats = progressSnapshot(screen: 0)
     check(NativeMenuTouchAction.available(in: .progress, progress: stats)
-          == [.precursorOrbs, .fuelCells, .scoutFlies, .settings],
-          "stats expose exact X, Square, Triangle, and Circle destinations top-down")
+          == [.up, .down, .left, .right,
+              .precursorOrbs, .fuelCells, .scoutFlies, .settings],
+          "fuel-cell stats expose its exact full D-pad and face-button destinations")
+    check(NativeMenuTouchAction.available(
+        in: .progress, progress: progressSnapshot(screen: 1))
+          == [.up, .down, .precursorOrbs, .fuelCells, .scoutFlies, .settings],
+          "other stats retain level navigation without inventing left or right input")
     let settings = progressSnapshot(screen: 3, option: 2)
     check(NativeMenuTouchAction.available(in: .progress, progress: settings)
           == [.up, .down, .confirm],
@@ -1708,6 +1717,18 @@ private func nativeMenuActionsEmitOnlyExpectedInputBytes() {
           && statsFrame.buttons.contains(.triangle) && statsFrame.buttons.contains(.circle),
           "progress stats actions emit exact ordinary pad bits")
 
+    var fuelCellNavigation = Runner()
+    fuelCellNavigation.controls.setNativeMenuState(
+        .progress, progress: progressSnapshot(screen: 0))
+    for direction in [NativeMenuTouchAction.up, .down, .left, .right] {
+        fuelCellNavigation.controls.performNativeMenuAction(direction)
+    }
+    check(fuelCellNavigation.controls.consumeHapticEvents()
+          == [.button(.up), .button(.down), .button(.left), .button(.right)]
+          && fuelCellNavigation.frame().buttons
+          == [.up, .down, .left, .right],
+          "fuel-cell stats D-pad emits all four exact ordinary navigation bytes")
+
     run.controls.setNativeMenuState(.progress,
                                     progress: progressSnapshot(screen: 4, option: 9))
     run.controls.performNativeMenuAction(.left)
@@ -1777,9 +1798,12 @@ private func nativeProgressListSwipeIsOneShotAndStateGated() {
         translation: CGSize(width: 0, height: -TouchControls.nativeMenuSwipeDistance)),
           "transitioning progress state rejects a stale list swipe")
     run.controls.setNativeMenuState(.progress, progress: progressSnapshot(screen: 0))
-    check(!run.controls.performNativeMenuVerticalSwipe(
+    check(run.controls.performNativeMenuVerticalSwipe(
         translation: CGSize(width: 0, height: -TouchControls.nativeMenuSwipeDistance)),
-          "stats shortcuts do not pretend to be a selectable list")
+          "fuel-cell stats accept their source-proven upward level navigation")
+    check(run.controls.consumeHapticEvents() == [.button(.up)]
+          && run.frame().buttons.contains(.up),
+          "fuel-cell stats swipe emits one exact Up pulse")
 }
 
 @MainActor

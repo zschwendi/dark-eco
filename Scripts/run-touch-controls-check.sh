@@ -46,6 +46,14 @@ rg -Fq 'arrow.up.left.and.arrow.down.right' "$root/GOALPad/Game/TouchControlsVie
 rg -Fq 'arrow.down.right.and.arrow.up.left' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'ModernTouchChromeLayout' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'pill(.stats)' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'chrome.centeredSessionFrame.midX' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'if isAwaitingTitleStart {' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq '.allowsHitTesting(!isAwaitingTitleStart)' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+if rg -Fq 'Button { performCapturedStats() }' "$root/GOALPad/Game/TouchControlsView.swift"; then
+  echo "captured start/pause menu still presents the redundant Stats pill" >&2
+  exit 1
+fi
 
 # Controller activity suppresses every touch-control drawing without removing its semantic hit
 # target. The first hidden touch must still perform its action and reclaim touch presentation.
@@ -72,3 +80,12 @@ rg -Fq '.padding(.horizontal, NativeMenuCommandLayout.horizontalInset)' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq '.frame(width: NativeMenuCommandLayout.iconColumnWidth,' \
   "$root/GOALPad/Game/TouchControlsView.swift"
+
+# A directional native menu always draws a complete D-pad. Per-direction enablement still comes
+# from NativeMenuTouchAction.isEnabled, so unsupported directions remain inert.
+rg -Fq 'private static let dpadActions: Set<NativeMenuTouchAction>' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'menuButton(.up)' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'menuButton(.left)' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'menuButton(.down)' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'menuButton(.right)' "$root/GOALPad/Game/TouchControlsView.swift"

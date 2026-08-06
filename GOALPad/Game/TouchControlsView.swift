@@ -92,13 +92,16 @@ struct TouchControlsView: View {
                                               snapshot: cutsceneSkipTouchSnapshot)
     }
 
+    private var isAwaitingTitleStart: Bool {
+        sessionControl?.action == .start && gameMode == .gameplay
+    }
+
     private var isVisible: Bool {
         TouchControls.artworkIsVisible(isEngaged: controls.isEngaged,
                                        isSuppressed: isSuppressed,
                                        hasTouches: !controls.touches.isEmpty,
                                        isNativeMenuOpen: isNativeMenuOpen,
-                                       isAwaitingTitleStart: sessionControl?.action == .start
-                                           && gameMode == .gameplay)
+                                       isAwaitingTitleStart: isAwaitingTitleStart)
     }
 
     var body: some View {
@@ -121,7 +124,8 @@ struct TouchControlsView: View {
                     }
 
                     zoomButton(in: proxy)
-                        .opacity(isVisible ? 1 : 0)
+                        .opacity(isVisible && !isAwaitingTitleStart ? 1 : 0)
+                        .allowsHitTesting(!isAwaitingTitleStart)
                         .animation(.easeOut(duration: 0.16), value: isVisible)
                 }
 
@@ -175,10 +179,16 @@ struct TouchControlsView: View {
                 GestureRose(gesture: gesture)
             }
 
-            pill(.stats)
-                .position(x: chrome.statsFrame.midX, y: chrome.statsFrame.midY)
-            pill(.start)
-                .position(x: chrome.startFrame.midX, y: chrome.startFrame.midY)
+            if isAwaitingTitleStart {
+                pill(.start)
+                    .position(x: chrome.centeredSessionFrame.midX,
+                              y: chrome.centeredSessionFrame.midY)
+            } else {
+                pill(.stats)
+                    .position(x: chrome.statsFrame.midX, y: chrome.statsFrame.midY)
+                pill(.start)
+                    .position(x: chrome.startFrame.midX, y: chrome.startFrame.midY)
+            }
 
             RightStickControl(controls: controls)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
@@ -235,14 +245,6 @@ struct TouchControlsView: View {
     private func capturedMenuChrome(in proxy: GeometryProxy) -> some View {
         let chrome = ModernTouchChromeLayout(size: proxy.size)
         return ZStack {
-            Button { performCapturedStats() } label: {
-                capturedPillLabel("STATS", isEnabled: gameMode == .pause)
-            }
-            .buttonStyle(.plain)
-            .disabled(gameMode != .pause)
-            .position(x: chrome.statsFrame.midX, y: chrome.statsFrame.midY)
-            .accessibilityLabel("Stats")
-
             if let sessionControl {
                 Button { performSessionControl(sessionControl) } label: {
                     capturedPillLabel(sessionControl.action.label.uppercased(),
@@ -250,7 +252,8 @@ struct TouchControlsView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(!sessionControl.isEnabled)
-                .position(x: chrome.startFrame.midX, y: chrome.startFrame.midY)
+                .position(x: chrome.centeredSessionFrame.midX,
+                          y: chrome.centeredSessionFrame.midY)
                 .accessibilityLabel(sessionControl.action.label)
             }
         }
@@ -279,19 +282,14 @@ struct TouchControlsView: View {
     }
 
     private var titleStartTouchTarget: some View {
-        HStack(spacing: 20) {
+        Button { performTitleStart() } label: {
             Color.clear
-                .frame(width: Self.pillWidth, height: 42)
-                .allowsHitTesting(false)
-            Button { performTitleStart() } label: {
-                Color.clear
-                    .frame(width: Self.pillWidth + 20, height: 66)
-                    .contentShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            .contentShape(Capsule())
-            .accessibilityLabel("Start")
+                .frame(width: Self.pillWidth + 20, height: 66)
+                .contentShape(Capsule())
         }
+        .buttonStyle(.plain)
+        .contentShape(Capsule())
+        .accessibilityLabel("Start")
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .padding(.bottom, 18)
     }
@@ -305,12 +303,6 @@ struct TouchControlsView: View {
     private func performZoomToggle() {
         _ = reclaimTouchInput()
         guard controls.performZoomToggle(lookAroundState: lookAroundState) else { return }
-        playChromeFeedback()
-    }
-
-    private func performCapturedStats() {
-        _ = reclaimTouchInput()
-        controls.performCapturedStats()
         playChromeFeedback()
     }
 
@@ -463,17 +455,19 @@ private struct NativeMenuTouchControls: View {
     @State private var haptics = TouchHapticDriver()
     #endif
 
-    private var directionalActions: Set<NativeMenuTouchAction> {
-        Set(actions.filter { [.up, .down, .left, .right].contains($0) })
+    private static let dpadActions: Set<NativeMenuTouchAction> = [.up, .down, .left, .right]
+
+    private var availableDirectionalActions: Set<NativeMenuTouchAction> {
+        Set(actions.filter(Self.dpadActions.contains))
     }
 
     private var commandActions: [NativeMenuTouchAction] {
-        actions.filter { !directionalActions.contains($0) }
+        actions.filter { !Self.dpadActions.contains($0) }
     }
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 24) {
-            if !directionalActions.isEmpty {
+            if !availableDirectionalActions.isEmpty {
                 directionPad
             }
 
@@ -499,13 +493,11 @@ private struct NativeMenuTouchControls: View {
 
     private var directionPad: some View {
         VStack(spacing: 8) {
-            if directionalActions.contains(.up) {
-                menuButton(.up)
-            }
+            menuButton(.up)
             HStack(spacing: 8) {
-                if directionalActions.contains(.left) { menuButton(.left) }
-                if directionalActions.contains(.down) { menuButton(.down) }
-                if directionalActions.contains(.right) { menuButton(.right) }
+                menuButton(.left)
+                menuButton(.down)
+                menuButton(.right)
             }
         }
         .accessibilityElement(children: .contain)
@@ -519,7 +511,7 @@ private struct NativeMenuTouchControls: View {
             titleStartState: controls.titleStartState)
         return Button { perform(action) } label: {
             Group {
-                if directionalActions.contains(action) {
+                if Self.dpadActions.contains(action) {
                     Image(systemName: action.systemImage)
                         .frame(width: width, height: NativeMenuCommandLayout.height)
                 } else {
