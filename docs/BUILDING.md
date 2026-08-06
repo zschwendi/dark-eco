@@ -268,7 +268,7 @@ The current separate ARM64 headless probe registers all 840 Jak II AOT units,
 loads KERNEL 8/8 and GAME 465/465 from explicit user data, and runs 100 kernel
 dispatcher frames. The corpus contains 18,479 emitted functions plus 7 shared
 native routines with no coverage failures. This host result and the thin
-iPhoneOS final-link product do not wire Jak II into Eco Pro, initialize its
+iPhoneOS final-link product do not wire Jak II into Eco, initialize its
 renderer or audio on an Apple device, or establish signing, simulator, physical
 device, title-screen, or gameplay support.
 
@@ -310,7 +310,7 @@ xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
-The macOS command builds the native Apple Silicon Eco Pro launcher. A Release
+The macOS command builds the native Apple Silicon Eco launcher. A Release
 validation has exercised its library, prepared-data import, shared Metal host,
 real Jak 1 AOT boot, and title screen. A controller is still required for
 gameplay because the launcher does not yet map keyboard input, and a complete

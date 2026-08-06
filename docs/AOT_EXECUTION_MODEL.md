@@ -207,6 +207,6 @@ The linked binary has only ordinary Mach-O segments, and the GOAL functions are
   coverage failures. The explicit user-data headless probe registers all 840
   units, loads KERNEL 8/8 and GAME 465/465, and runs 100 dispatcher frames. A
   separate thin iPhoneOS ARM64 product final-links all 840 translations plus
-  the manifest with `jak2-kernel-core`. Jak II is not wired into Eco Pro and has
+  the manifest with `jak2-kernel-core`. Jak II is not wired into Eco and has
   no app signing, Apple simulator/device launch, renderer/audio, title-screen,
   or gameplay validation. Jak 3 and Jak X remain outside this validated model.

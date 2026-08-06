@@ -9,7 +9,7 @@ import Foundation
 import SwiftUI
 
 enum GOALPadBuildIdentity {
-    static let displayName = value(for: "CFBundleDisplayName", fallback: "Eco Pro")
+    static let displayName = value(for: "CFBundleDisplayName", fallback: "Eco")
     static let version = value(for: "CFBundleShortVersionString", fallback: "unknown")
     static let build = value(for: "CFBundleVersion", fallback: "unknown")
     static let displayText = "\(displayName) \(version) (\(build))"

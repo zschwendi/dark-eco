@@ -97,7 +97,7 @@ struct ContentView: View {
             if session.isRunning && session.isNativeMenuOpen {
                 Button { showSettings = true } label: {
                     HStack(spacing: 7) {
-                        Text("Eco Pro")
+                        Text("Eco")
                         Image(systemName: "gearshape")
                     }
                     .font(.headline)
@@ -108,7 +108,7 @@ struct ContentView: View {
                     .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Eco Pro Settings")
+                .accessibilityLabel("Eco Settings")
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }

@@ -194,7 +194,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
         } catch {
             throw Self.failure(
                 .stagingFailed,
-                "Eco Pro could not open private ZIP extraction staging: \(error.localizedDescription)"
+                "Eco could not open private ZIP extraction staging: \(error.localizedDescription)"
             )
         }
         defer { try? output.close() }
@@ -871,7 +871,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
         }
         return failure(
             .stagingFailed,
-            "Eco Pro could not write the extracted ISO: \(error.localizedDescription)"
+            "Eco could not write the extracted ISO: \(error.localizedDescription)"
         )
     }
 }

@@ -627,7 +627,7 @@ struct SaveSettingsView: View {
                     Label("Export Saves", systemImage: "square.and.arrow.up")
                 }
                 .disabled(sync.isBusy)
-                Text("Eco Pro imports and exports the ordinary four Jak save slots. When copies "
+                Text("Eco imports and exports the ordinary four Jak save slots. When copies "
                      + "differ, the older copy is preserved automatically.")
                     .font(.callout)
                     .foregroundStyle(.secondary)

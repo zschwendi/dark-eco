@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// What the player sees until their own game data is in place, and the two ways of getting it
-/// there. Eco Pro ships with no game data and never downloads any.
+/// there. Eco ships with no game data and never downloads any.
 struct GameDataSetupView: View {
     private static let rawISOType = UTType(filenameExtension: "iso", conformingTo: .data)
 
@@ -43,7 +43,7 @@ struct GameDataSetupView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Add compatible game data")
                 .font(.title2.weight(.semibold))
-            Text("Eco Pro runs compatible data you provide. No game data ships with this app.")
+            Text("Eco runs compatible data you provide. No game data ships with this app.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
         }
@@ -95,7 +95,7 @@ struct GameDataSetupView: View {
     private var setupInstructions: String {
         if canImportRawISO {
             return """
-            Eco Pro can prepare a supported `.iso` disc image or a standard `.zip` containing one \
+            Eco can prepare a supported `.iso` disc image or a standard `.zip` containing one \
             `.iso` on this device, or import an existing OpenGOAL `out/jak1` folder containing \
             `iso/` and `fr3/`.
 

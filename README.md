@@ -8,7 +8,7 @@ GOALPad is a native ARM64 port of OpenGOAL for Apple platforms. The first
 supported game is *Jak and Daxter: The Precursor Legacy*, using game data
 supplied and prepared by the user.
 
-**Eco Pro** is the public App Store-facing product name; GOALPad remains the
+**Eco** is the public App Store-facing product name; GOALPad remains the
 repository, Xcode target, and internal runtime name.
 
 It is not a PS2 emulator, not a Swift rewrite of OpenGOAL, and not a source of
@@ -127,7 +127,7 @@ app.
 
 Gameplay uses OpenGOAL's desktop-compatible memcard files under Application
 Support. The optional iCloud Saves setting mirrors those files into the app's
-iCloud Documents container; the runtime never plays from iCloud paths. Eco Pro
+iCloud Documents container; the runtime never plays from iCloud paths. Eco
 treats OpenGOAL's alternating bank pairs as complete save slots, selects the
 generation OpenGOAL's loader would use, and compares its checksummed completion
 percentage. The farther valid slot wins as a unit, so banks from different
@@ -152,7 +152,7 @@ without presenting them over gameplay.
 
 Settings also provides **Import Saves** and **Export Saves**. These actions copy
 the unchanged desktop layout under `OpenGOAL/jak1/saves`, so transfers remain
-compatible with desktop OpenGOAL rather than introducing an Eco Pro save format.
+compatible with desktop OpenGOAL rather than introducing an Eco save format.
 Import accepts only the exact `OpenGOAL/jak1/saves` directory with its single
 `BASCUS-97124AYBABTU!` slot, or that exact slot directory itself. Banks must be
 direct children, use the raw `bank0.bin` through `bank7.bin` names and sizes, and
