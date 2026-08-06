@@ -42,7 +42,33 @@ if rg -Fq 'UIPinchGestureRecognizer' "$root/GOALPad/Game/TouchControlsView.swift
   exit 1
 fi
 rg -Fq 'Button { performZoomToggle() }' "$root/GOALPad/Game/TouchControlsView.swift"
-rg -Fq 'magnifyingglass.plus' "$root/GOALPad/Game/TouchControlsView.swift"
-rg -Fq 'magnifyingglass.minus' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'arrow.up.left.and.arrow.down.right' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'arrow.down.right.and.arrow.up.left' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'ModernTouchChromeLayout' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'pill(.stats)' "$root/GOALPad/Game/TouchControlsView.swift"
+
+# Controller activity suppresses every touch-control drawing without removing its semantic hit
+# target. The first hidden touch must still perform its action and reclaim touch presentation.
+if rg -Fq 'if isVisible {' "$root/GOALPad/Game/TouchControlsView.swift"; then
+  echo "controller suppression still removes a semantic touch control" >&2
+  exit 1
+fi
+rg -Fq '.opacity(isVisible ? 1 : 0)' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'isInteractive: nativeMenuControlsAreVisible' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'showsChrome: nativeMenuControlsAreVisible' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'isInteractive: warpGateTouchControlsAreVisible' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'showsChrome: warpGateTouchControlsAreVisible' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq '.allowsHitTesting(isInteractive)' "$root/GOALPad/Game/TouchControlsView.swift"
+
+# Every title/pause right-stack command uses one fixed left-aligned content grid. Directional
+# controls keep their existing centred D-pad geometry.
+rg -Fq 'HStack(spacing: NativeMenuCommandLayout.iconTextSpacing)' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq '.padding(.horizontal, NativeMenuCommandLayout.horizontalInset)' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq '.frame(width: NativeMenuCommandLayout.iconColumnWidth,' \
+  "$root/GOALPad/Game/TouchControlsView.swift"

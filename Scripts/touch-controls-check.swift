@@ -643,12 +643,16 @@ private func modernChromeAddsZoomWithoutMovingAcceptedPills() {
           "Stats retains the accepted left pill frame")
     check(chrome.startFrame == CGRect(x: 615, y: 762, width: 82, height: 42),
           "Start retains the accepted right pill frame")
-    check(chrome.zoomFrame == CGRect(x: 459, y: 762, width: 42, height: 42),
+    check(ModernTouchChromeLayout.zoomGap == ModernTouchChromeLayout.pillSpacing,
+          "Zoom-to-Stats and Stats-to-Start use the same spacing")
+    check(chrome.zoomFrame == CGRect(x: 451, y: 762, width: 42, height: 42),
           "zoom is an independent 42-point circle immediately left of Stats")
     check(chrome.zoomFrame.maxX + ModernTouchChromeLayout.zoomGap
           == chrome.statsFrame.minX
+          && chrome.statsFrame.minX - chrome.zoomFrame.maxX
+          == chrome.startFrame.minX - chrome.statsFrame.maxX
           && chrome.zoomFrame.midY == chrome.statsFrame.midY,
-          "zoom is gap-separated and vertically centered without offsetting the pills")
+          "zoom is equally gap-separated and vertically centered without offsetting the pills")
 }
 
 @MainActor
@@ -1321,10 +1325,14 @@ private func pausePresentationFollowsNativeMenuState() {
     check(TouchControls.artworkIsVisible(isEngaged: false, isSuppressed: true,
                                          hasTouches: true, isNativeMenuOpen: true),
           "a live touch restores native-menu artwork under suppression")
+    check(!TouchControls.artworkIsVisible(isEngaged: false, isSuppressed: true,
+                                          hasTouches: false, isNativeMenuOpen: false,
+                                          isAwaitingTitleStart: true),
+          "controller suppression hides the exact title Start artwork")
     check(TouchControls.artworkIsVisible(isEngaged: false, isSuppressed: true,
-                                         hasTouches: false, isNativeMenuOpen: false,
+                                         hasTouches: true, isNativeMenuOpen: false,
                                          isAwaitingTitleStart: true),
-          "the exact title prompt keeps Start visible through controller suppression")
+          "a live title-screen touch restores the Start artwork")
 
     var run = Runner()
     let finger = Finger()
@@ -1553,6 +1561,12 @@ private func warpList(slot: Int32 = 0, mask: UInt32 = 0x1f,
 @MainActor
 private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
     print("dedicated native-menu actions use only authoritative mode meanings")
+    check(NativeMenuCommandLayout.width == 148
+          && NativeMenuCommandLayout.height == 60
+          && NativeMenuCommandLayout.horizontalInset == 16
+          && NativeMenuCommandLayout.iconColumnWidth == 20
+          && NativeMenuCommandLayout.iconTextSpacing == 10,
+          "every right-stack command shares one left inset, icon column, and text gap")
     check(NativeMenuTouchAction.available(in: .pause).isEmpty,
           "pause keeps Resume in the persistent bottom session pill")
     check(NativeMenuTouchAction.available(in: .menu)

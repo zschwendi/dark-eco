@@ -586,6 +586,15 @@ nonisolated struct NativeSessionControlPresentation: Equatable, Sendable {
     }
 }
 
+/// A fixed content grid keeps every right-stack command aligned across title and pause menus.
+nonisolated struct NativeMenuCommandLayout: Equatable, Sendable {
+    static let width: CGFloat = 148
+    static let height: CGFloat = 60
+    static let horizontalInset: CGFloat = 16
+    static let iconColumnWidth: CGFloat = 20
+    static let iconTextSpacing: CGFloat = 10
+}
+
 /// A discrete, app-owned touch action that may receive device feedback.
 /// These are intentionally separate from native game/controller rumble.
 enum TouchHapticEvent: Equatable {
@@ -599,7 +608,7 @@ struct ModernTouchChromeLayout: Equatable, Sendable {
     nonisolated static let pillSize = CGSize(width: 82, height: 42)
     nonisolated static let pillSpacing: CGFloat = 20
     nonisolated static let zoomDiameter: CGFloat = 42
-    nonisolated static let zoomGap: CGFloat = 12
+    nonisolated static let zoomGap: CGFloat = pillSpacing
     nonisolated static let bottomInset: CGFloat = 30
 
     let zoomFrame: CGRect
@@ -1591,8 +1600,8 @@ final class TouchControls {
                                              hasTouches: Bool,
                                              isNativeMenuOpen: Bool,
                                              isAwaitingTitleStart: Bool = false) -> Bool {
-        if isAwaitingTitleStart { return true }
-        return (isEngaged || isNativeMenuOpen) && (!isSuppressed || hasTouches)
+        (isEngaged || isNativeMenuOpen || isAwaitingTitleStart)
+            && (!isSuppressed || hasTouches)
     }
 
     nonisolated static func artworkLabel(for button: TouchButton,

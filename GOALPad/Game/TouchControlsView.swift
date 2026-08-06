@@ -120,15 +120,17 @@ struct TouchControlsView: View {
                         titleStartTouchTarget
                     }
 
-                    if isVisible {
-                        zoomButton(in: proxy)
-                    }
+                    zoomButton(in: proxy)
+                        .opacity(isVisible ? 1 : 0)
+                        .animation(.easeOut(duration: 0.16), value: isVisible)
                 }
 
                 if capturesNativeMenuInput {
                     NativeMenuTouchControls(controls: controls,
                                             actions: nativeMenuActions,
-                                            isVisible: nativeMenuControlsAreVisible,
+                                            isInteractive: nativeMenuControlsAreVisible,
+                                            showsChrome: nativeMenuControlsAreVisible
+                                                && !isSuppressed,
                                             reclaimTouchInput: reclaimTouchInput)
                         .padding(.horizontal, 20)
                         .padding(.bottom, max(20, proxy.safeAreaInsets.bottom))
@@ -142,7 +144,9 @@ struct TouchControlsView: View {
                                                 snapshot: warpGateTouchSnapshot,
                                                 actions: warpGateActions,
                                                 capturesInput: capturesWarpGateTouchInput,
-                                                isVisible: warpGateTouchControlsAreVisible,
+                                                isInteractive: warpGateTouchControlsAreVisible,
+                                                showsChrome: warpGateTouchControlsAreVisible
+                                                    && !isSuppressed,
                                                 reclaimTouchInput: reclaimTouchInput)
                         .padding(.horizontal, 20)
                         .padding(.bottom, max(20, proxy.safeAreaInsets.bottom))
@@ -202,7 +206,9 @@ struct TouchControlsView: View {
     }
 
     private var zoomSystemImage: String {
-        lookAroundState == .firstPerson ? "magnifyingglass.minus" : "magnifyingglass.plus"
+        lookAroundState == .firstPerson
+            ? "arrow.down.right.and.arrow.up.left"
+            : "arrow.up.left.and.arrow.down.right"
     }
 
     private var zoomAccessibilityLabel: String {
@@ -249,6 +255,8 @@ struct TouchControlsView: View {
             }
         }
         .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+        .opacity(isSuppressed ? 0 : 1)
+        .animation(.easeOut(duration: 0.16), value: isSuppressed)
     }
 
     private func capturedPillLabel(_ label: String, isEnabled: Bool) -> some View {
@@ -327,7 +335,8 @@ private struct NativeWarpGateTouchControls: View {
     let snapshot: NativeWarpGateTouchSnapshot
     let actions: [NativeWarpGateTouchAction]
     let capturesInput: Bool
-    let isVisible: Bool
+    let isInteractive: Bool
+    let showsChrome: Bool
     let reclaimTouchInput: () -> Bool
 
     #if canImport(UIKit)
@@ -348,7 +357,7 @@ private struct NativeWarpGateTouchControls: View {
                     DragGesture(minimumDistance: 12)
                         .onEnded { performSwipe($0.translation) }
                 )
-                .allowsHitTesting(isVisible)
+                .allowsHitTesting(isInteractive)
             } else {
                 controlsRow
             }
@@ -385,9 +394,9 @@ private struct NativeWarpGateTouchControls: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         }
-        .opacity(isVisible ? 1 : 0)
-        .allowsHitTesting(isVisible)
-        .animation(.easeOut(duration: 0.16), value: isVisible)
+        .opacity(showsChrome ? 1 : 0)
+        .allowsHitTesting(isInteractive)
+        .animation(.easeOut(duration: 0.16), value: showsChrome)
     }
 
     private func actionButton(_ action: NativeWarpGateTouchAction,
@@ -446,7 +455,8 @@ private struct NativeWarpGateTouchControls: View {
 private struct NativeMenuTouchControls: View {
     let controls: TouchControls
     let actions: [NativeMenuTouchAction]
-    let isVisible: Bool
+    let isInteractive: Bool
+    let showsChrome: Bool
     let reclaimTouchInput: () -> Bool
 
     #if canImport(UIKit)
@@ -471,14 +481,14 @@ private struct NativeMenuTouchControls: View {
 
             VStack(alignment: .trailing, spacing: 12) {
                 ForEach(commandActions, id: \.self) { action in
-                    menuButton(action, width: 148)
+                    menuButton(action, width: NativeMenuCommandLayout.width)
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-        .opacity(isVisible ? 1 : 0)
-        .allowsHitTesting(isVisible)
-        .animation(.easeOut(duration: 0.16), value: isVisible)
+        .opacity(showsChrome ? 1 : 0)
+        .allowsHitTesting(isInteractive)
+        .animation(.easeOut(duration: 0.16), value: showsChrome)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Game menu controls")
         .simultaneousGesture(
@@ -508,21 +518,31 @@ private struct NativeMenuTouchControls: View {
             action, in: controls.nativeMenuMode, progress: controls.progressMenuSnapshot,
             titleStartState: controls.titleStartState)
         return Button { perform(action) } label: {
-            HStack(spacing: 8) {
-                Image(systemName: action.systemImage)
-                if !directionalActions.contains(action) {
-                    Text(action.label)
+            Group {
+                if directionalActions.contains(action) {
+                    Image(systemName: action.systemImage)
+                        .frame(width: width, height: NativeMenuCommandLayout.height)
+                } else {
+                    HStack(spacing: NativeMenuCommandLayout.iconTextSpacing) {
+                        Image(systemName: action.systemImage)
+                            .frame(width: NativeMenuCommandLayout.iconColumnWidth,
+                                   alignment: .center)
+                        Text(action.label)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(.horizontal, NativeMenuCommandLayout.horizontalInset)
+                    .frame(width: width, height: NativeMenuCommandLayout.height,
+                           alignment: .leading)
                 }
             }
-                .font(.system(size: 17, weight: .semibold, design: .rounded))
-                .frame(width: width, height: 60)
-                .foregroundStyle(.white)
-                .background(.black.opacity(0.68), in: RoundedRectangle(cornerRadius: 16))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 16)
-                        .strokeBorder(.white.opacity(0.55), lineWidth: 1.5)
-                }
-                .contentShape(RoundedRectangle(cornerRadius: 16))
+            .font(.system(size: 17, weight: .semibold, design: .rounded))
+            .foregroundStyle(.white)
+            .background(.black.opacity(0.68), in: RoundedRectangle(cornerRadius: 16))
+            .overlay {
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(.white.opacity(0.55), lineWidth: 1.5)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 16))
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
