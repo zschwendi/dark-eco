@@ -14468,3 +14468,65 @@ app-data clear occurred. At `12:42:43` it was launched with
 `--terminate-existing`, so the foreground Eco process is the new candidate and
 not a backgrounded Build 118 instance. Physical acceptance remains with the
 maintainer.
+
+## Build 121 always-on touch and full-card launcher candidate
+
+Date: 2026-08-06. Parent `368f8d88` removes the input-ownership bug that let an
+explicit Controller or Keyboard/Mouse preference discard every iOS touch frame.
+Touch is now additive whenever the iOS surface exists, a screen contact can
+reclaim faded chrome from any physical source, and native-menu plus warp-gate
+actions no longer disappear or reject the first touch under recent physical
+activity. Gameplay artwork may still fade while a physical device is actively
+driving, but that visual state no longer gates input. Build 96 movement/camera
+semantics and later crouch-punch, pinch, SKIP, haptic, native-menu, and warp
+features remain.
+
+Parent `f6ec94d2` makes the complete padded/material-backed Jak library card the
+semantic launch Button. The artwork ellipsis Menu is a sibling rather than a
+nested control. Parent `a9fd72fb` adds a deterministic structural check for the
+full-card label and independent 44-point artwork menu. Parent `c9c22041` bumps
+both iOS configurations to Build 121. Parent `8c9839ad` restores only the
+previously accepted adaptive horizontal camera-stick spacer, capped at 200
+points, and replaces its yellow art with the same translucent black/white visual
+language as Start and Select. The Build 96 radius, deadzone, analog conversion,
+bottom placement, and hit slop are unchanged.
+
+Focused validation passed:
+
+- `Scripts/run-keyboard-mouse-input-check.sh`
+- `Scripts/run-touch-controls-check.sh`
+- `Scripts/run-game-menu-state-check.sh`
+- `Scripts/run-presentation-settings-check.sh`
+- `Scripts/run-portrait-library-check.sh`
+- `swiftc -parse GOALPad/Library/GameLibraryView.swift`
+- `swiftc -parse GOALPad/Game/TouchControlsView.swift`
+- `git diff --check`
+
+The first Build 121 Xcode invocation was intentionally interrupted after the
+camera-stick follow-up arrived; it produced no candidate. The final committed
+source then passed this signed generic-iOS Release build:
+
+`xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad -configuration Release -destination generic/platform=iOS -derivedDataPath /private/tmp/GOALPad-build121-launch-card -jobs 4 -allowProvisioningUpdates GOALPAD_OPENGOAL_ROOT=/private/tmp/GP-build94-jak1-settings/OpenGOAL GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/private/tmp/GP-build94-jak1-settings/build/jak1-source-object-pack build`
+
+The complete Xcode activity log is
+`/private/tmp/GOALPad-build121-launch-card/Logs/Build/EF57D068-7A97-4A24-91F0-2B35C12E2B8E.xcactivitylog`.
+The build reverified all 518 source objects at aggregate
+`2b812636de96f221`. The frozen app is
+`/private/tmp/GOALPad-build121-launch-card-signed/GOALPad.app`: Eco `1.0
+(121)`, bundle `com.zephyrstudiosllc.eco`, thin ARM64, 52 MB, executable
+SHA-256 `4d10fc8699b13eb46927ccd060792c2b85962b2713abe5581a8c9353901bf7ee`.
+It contains exactly one byte-identical valid privacy manifest, the expected
+Zephyr Studios Game Center/iCloud entitlements, and no audited
+ISO/BIN/DGO/CGO/STR/VAG/FR3 payload. Strict local signature verification retains
+the known development-chain `CSSMERR_TP_NOT_TRUSTED` result; Xcode signing
+succeeded.
+
+At `13:04:15` Build 121 was installed in place on `Z iPad Pro` without an
+uninstall or data clear. At `13:04:29` it was launched with
+`--terminate-existing`, so the foreground process is Build 121 rather than a
+backgrounded older instance. Physical acceptance should verify: tap the Jak card
+near every edge and on its empty padded area; ensure the ellipsis still opens
+only artwork options; select Controller and Keyboard/Mouse in turn and confirm
+screen gameplay/menu/warp actions still work immediately; inspect and use the
+white inward camera stick; then repeat the Build 120 background/lock same-run
+resume gate.

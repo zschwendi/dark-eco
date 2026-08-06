@@ -491,8 +491,8 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 Active lanes:
 
-- `Build 120 MVP candidate integrated; signed build and physical acceptance
-  pending` — Build 118's physical run exposed
+- `Build 121 touch/launcher candidate installed; physical acceptance pending` —
+  Build 118's physical run exposed
   missing Start/Resume chrome and missing native-menu Back actions. Parent
   `3588baf3`, `64050a11`, `c6757a51`, and `c85ce554` add exact read-only title
   and progress navigation state, restore Start at `target-title-wait`, use
@@ -513,8 +513,18 @@ Active lanes:
   removes Classic touch/editor UI while preserving old synced documents as
   inert compatibility data. Build 120 adds the independently accepted scene,
   display-link, Metal-layer, audio, and save-generation lifecycle recovery.
-  Focused touch, presentation, save, and lifecycle suites pass; signed build and
-  physical touch/warp/background-resume acceptance remain pending. After that,
+  Focused touch, presentation, save, and lifecycle suites pass. Build 120 was
+  signed and installed, but the next physical report identified a separate
+  input-ownership gate: explicit Controller or Keyboard/Mouse selection could
+  discard all screen input. Build 121 makes touch additive and recoverable for
+  gameplay, native menus, and warp controls regardless of the selected physical
+  source; makes the entire launcher card the launch target while keeping its
+  artwork menu independent; and restores only the accepted adaptive camera-stick
+  horizontal spacer, capped at 200 points, with black/white Start/Select styling.
+  It keeps the Build 96 radius, deadzone, vertical placement, and emitted bytes.
+  The signed Build 121 candidate is installed in place on `Z iPad Pro` with its
+  data preserved. Physical card, simultaneous touch/physical-input, camera-stick
+  visual, warp, and background-resume acceptance remain pending. After that,
   stop nonessential iOS settings work and prioritize true stereoscopic visionOS
   rendering.
 - `Build 114 signed generic-iOS candidate ready; physical Misty/title gate
@@ -945,6 +955,10 @@ Active lanes:
   timing, or a duplicate Swift pause flag.
 - [x] When a physical controller is active, preserve ordinary controller input
   and avoid intrusive touch chrome.
+- [x] Never use Primary Controller or recent controller/keyboard/mouse activity
+  to disable screen input. Build 121 always merges iOS touch, lets a screen touch
+  reclaim faded gameplay chrome, and keeps native-menu and warp touch actions
+  enabled while physical input remains available.
 - [x] When touch is active, make the app-owned settings/library surfaces use
   normal touch targets and scroll/swipe behavior. Build 110 preserves native
   SwiftUI Form/List/ScrollView controls, converts the launcher tile to a
