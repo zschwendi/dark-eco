@@ -21,11 +21,27 @@ enum GOALPadBuildIdentity {
 
 @main
 struct GOALPadApp: App {
+    #if os(visionOS)
+    @State private var visionPresentation = VisionPresentationCoordinator(graphicsProfile: .modern)
+    #endif
+
     var body: some Scene {
         WindowGroup {
+            #if os(visionOS)
+            VisionPresentationSessionBridge(coordinator: visionPresentation) {
+                GameCenterRootView {
+                    ContentView()
+                }
+            }
+            #else
             GameCenterRootView {
                 ContentView()
             }
+            #endif
         }
+
+        #if os(visionOS)
+        GOALPadVisionSpatialScenes(coordinator: visionPresentation)
+        #endif
     }
 }
