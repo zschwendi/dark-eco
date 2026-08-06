@@ -14933,3 +14933,36 @@ acceptance must cover Oracle or another ordinary NPC, Zoomer, boat, Flut Flut,
 cannon, periscope, gondola, Billy/Fisher Cross/Triangle queries, and the first-intro
 Square notice. It must also confirm that the already accepted `Circle - Use Warp
 Gate` presentation and destination behavior are unchanged.
+
+## Build 127 physical install and Build 128 touch-chrome refinement
+
+Date: 2026-08-06. With explicit current-request authorization, the frozen signed
+Build 127 artifact at
+`/private/tmp/GOALPad-build127-face-prompts-signed/GOALPad.app` was verified as Eco
+`1.0 (127)`, bundle `com.zephyrstudiosllc.eco`, strict-signature valid, executable
+SHA-256 `98c0672a591c74101589f8ba701a7fe3f32a2ec9f1ea505ddbd48dceea4ea34e`.
+It was update-installed on `Z iPad Pro` at 15:31:34 without uninstalling or clearing
+the app container, then launched at 15:31:39 with `--terminate-existing`.
+
+Build 127 remains the completed contextual-prompt foundation. Do not reject,
+discard, revert, or replace it. The next numbered checkpoint is a narrow Build 128
+touch-chrome refinement on top of 127 with these physical acceptance requirements:
+
+- Title/pre-run and captured pause/progress menus show only a centered Start or
+  Resume pill. Stats, SKIP, and the right camera stick are absent there.
+- Ordinary active gameplay shows Stats and Pause. An authored skippable cutscene
+  changes the Stats slot to SKIP while preserving Pause and hiding the right stick.
+- During ordinary gameplay, the right-stick artwork hides after three seconds
+  without screen interaction. Its hit target remains active so the first camera
+  drag is delivered and reveals the control rather than being consumed as a
+  wake-up touch.
+- Non-warp contextual face-button actions use the lower-right boxed command format
+  established by the accepted warp-gate/start-menu controls. A face symbol must not
+  float over authored prompt text; the observed Circle prompt for trading 90
+  precursor orbs for a power cell is the concrete regression case.
+- Preserve all Build 127 source-backed prompt behavior, Build 96 gameplay-touch
+  geometry, controller-driven chrome suppression with additive first-touch
+  recovery, saves, graphics, and the accepted warp-gate UI and behavior.
+
+This is documented planned work only. No Build 128 product source, build number,
+artifact, or validation result exists at this checkpoint.

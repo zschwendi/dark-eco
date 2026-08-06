@@ -1048,11 +1048,27 @@ Active lanes:
   Confirm/Cross, Back/Square, and Resume/Start. Build 108 cancels carried
   gameplay gestures at these transitions, suppresses touch chrome while a
   physical controller is driving, and delivers menu haptics immediately.
-- [ ] Finish truthful Start/Pause/Resume and explicit Back coverage for the
-  native pause/progress menus. Build 109 already provides the maintainer-accepted
-  interaction model: exact stats shortcuts, conservative PC settings/file-list
-  actions, and vertical one-shot swipes. Direct row hit-testing is intentionally
-  out of scope; do not reopen it unless the maintainer changes direction.
+- [ ] Finish Build 127 touch-chrome acceptance as a narrow Build 128 refinement;
+  Build 127 remains the foundation and its contextual-prompt work must not be
+  reverted or discarded. Preserve truthful Start/Pause/Resume and explicit Back
+  coverage for native pause/progress menus, plus this exact physical state matrix:
+  - Title/pre-run and captured pause/progress menus show only the centered
+    Start/Resume pill. They do not show Stats, SKIP, or the right camera stick.
+  - Ordinary active gameplay shows Stats and Pause. During an authored skippable
+    cutscene, that Stats slot becomes SKIP while Pause remains available, and the
+    right camera stick is hidden.
+  - In ordinary gameplay, hide the right camera stick after three seconds with no
+    screen interaction. Keep its invisible hit target live so the first camera
+    drag is delivered and restores the artwork; never require a wake-up tap.
+  - Present non-warp contextual face-button actions in the lower-right boxed
+    command format used by the accepted warp-gate/start-menu controls. Do not
+    float a circular button over authored text, including the Circle prompt for
+    trading 90 precursor orbs for a power cell.
+  Preserve Build 127's source-backed prompt ownership, Build 96 gameplay-touch
+  geometry, controller-driven chrome suppression, first-touch recovery, saves,
+  graphics, and the frozen warp-gate implementation. Build 109 already provides
+  conservative PC settings/file-list actions and vertical one-shot swipes. Direct
+  row hit-testing remains out of scope unless the maintainer changes direction.
 - [x] Expose one authoritative contextual face-button touch prompt wherever Jak
   currently requests Cross, Square, Triangle, or Circle. Draw only the requested
   button symbol, without inferring an action label, and emit that exact ordinary
@@ -1094,8 +1110,9 @@ Active lanes:
   cleanly when it does not.
 - [x] Keep native Jak rumble fidelity separate from new app UI haptics so one
   source cannot mask or continuously restart the other.
-- [ ] Preserve a reachable Stats action even though the latest touch pill is
-  named `SKIP`; document controller and keyboard defaults.
+- [ ] Preserve a reachable Stats action during ordinary active gameplay. Change
+  that same touch slot to `SKIP` only while an authoritative authored cutscene
+  skip is available; document controller and keyboard defaults.
 - [ ] Extend the existing `SKIP` touch control across the game's authored skip
   interactions by emitting the same context-appropriate native button or chord
   a controller player would use. This is input accessibility, not a generic
