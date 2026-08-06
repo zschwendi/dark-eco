@@ -36,6 +36,16 @@ private final class Fixture: @unchecked Sendable {
         defaults.removePersistentDomain(forName: defaultsSuiteName)
     }
 
+    var localTouchLayout: URL {
+        local.deletingLastPathComponent()
+            .appending(path: "jak1-touch-layout-v1.json", directoryHint: .notDirectory)
+    }
+
+    var cloudTouchLayout: URL {
+        cloud.deletingLastPathComponent()
+            .appending(path: "jak1-touch-layout-v1.json", directoryHint: .notDirectory)
+    }
+
     func configuration(cloudAvailable: Bool = true) -> PresentationSettingsConfiguration {
         PresentationSettingsConfiguration(localDocumentURL: local,
                                           cloudDocumentURL: { cloudAvailable ? self.cloud : nil },
@@ -57,6 +67,20 @@ private final class TestClock: @unchecked Sendable {
 
 private struct TestCloudError: LocalizedError {
     var errorDescription: String? { "intentional cloud test failure" }
+}
+
+private struct Build116PresentationDocument: Codable {
+    var schemaVersion: Int
+    var controlsProfile: SettingsProfile
+    var graphicsProfile: SettingsProfile
+    var audioProfile: SettingsProfile
+    var interfaceProfile: SettingsProfile
+    var graphicsModernFillWidthOverride: Bool?
+    var developerLogsEnabledOverride: Bool?
+    var primaryInputSourceOverride: PrimaryInputSource?
+    var jak1InputBindingsOverride: Jak1InputBindings?
+    var modifiedAt: Date
+    var writerID: String
 }
 
 private actor DelayedCloudStore: PresentationSettingsCloudStoring {
@@ -109,6 +133,8 @@ private actor DelayedCloudStore: PresentationSettingsCloudStoring {
         storedDocument = document
         pendingDocument = nil
     }
+
+    func write(_ document: Jak1TouchLayoutSettingsDocument, to _: URL) async throws {}
 
     func waitUntilReadStarts(_ expectedCount: Int) async {
         if readCount >= expectedCount, releaseReadContinuation != nil { return }
@@ -167,6 +193,23 @@ private func readDocument(at url: URL) -> PresentationSettingsDocument? {
     return try? JSONDecoder().decode(PresentationSettingsDocument.self, from: data)
 }
 
+private func readTouchLayoutDocument(at url: URL) -> Jak1TouchLayoutSettingsDocument? {
+    guard let data = try? Data(contentsOf: url) else { return nil }
+    return try? JSONDecoder().decode(Jak1TouchLayoutSettingsDocument.self, from: data)
+}
+
+private func embeddedBuild117DocumentData(
+    _ document: PresentationSettingsDocument,
+    layout: TouchLayoutCustomization
+) throws -> Data {
+    let encoder = JSONEncoder()
+    var object = try JSONSerialization.jsonObject(with: encoder.encode(document))
+        as! [String: Any]
+    object["jak1TouchLayoutOverride"] = try JSONSerialization.jsonObject(
+        with: encoder.encode(layout))
+    return try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+}
+
 @MainActor
 private func legacyDocumentAndPickerOrderingRemainCompatible() async throws {
     print("legacy documents keep their raw values while pickers lead with Modern")
@@ -201,8 +244,69 @@ private func legacyDocumentAndPickerOrderingRemainCompatible() async throws {
           && value.document.jak1InputBindingsOverride == nil,
           "a document without remapping data decodes to exact established input defaults")
     check(value.jak1TouchLayout == .standard
-          && value.document.jak1TouchLayoutOverride == nil,
+          && value.touchLayoutDocument.jak1TouchLayoutOverride == nil,
           "a Build 93 document preserves the exact established touch layouts without migration")
+}
+
+@MainActor
+private func embeddedBuild117TouchLayoutMigratesBeforeLegacyRewrite() async throws {
+    print("embedded Build 117 touch layout migrates before an old local writer rewrites settings")
+    let fixture = try Fixture(name: "embedded-touch-migration")
+    let date = Date(timeIntervalSince1970: 2_300_000_000)
+    let presentation = PresentationSettingsDocument(modifiedAt: date,
+                                                    writerID: "build117-device")
+    var layout = TouchLayoutCustomization.standard
+    layout.setPosition(NormalizedTouchPosition(x: 0.22, y: 0.71),
+                       for: .modernMovement)
+    layout.setSizePercent(135, for: .classicCross)
+    try FileManager.default.createDirectory(at: fixture.local.deletingLastPathComponent(),
+                                            withIntermediateDirectories: true)
+    try embeddedBuild117DocumentData(presentation, layout: layout)
+        .write(to: fixture.local, options: .atomic)
+
+    let migrated = settings(fixture, writerID: "current-device", cloudAvailable: false)
+    check(migrated.jak1TouchLayout == layout
+          && readTouchLayoutDocument(at: fixture.localTouchLayout)?.jak1TouchLayout == layout,
+          "a missing sidecar is populated from the embedded Build 117 override")
+
+    var legacy = try JSONDecoder().decode(Build116PresentationDocument.self,
+                                          from: Data(contentsOf: fixture.local))
+    legacy.graphicsProfile = .classic
+    legacy.modifiedAt = date.addingTimeInterval(10)
+    legacy.writerID = "build116-device"
+    try JSONEncoder().encode(legacy).write(to: fixture.local, options: .atomic)
+
+    let restored = settings(fixture, writerID: "new-device", cloudAvailable: false)
+    check(restored.profile(for: .graphics) == .classic,
+          "the Build 116-shaped whole-document rewrite remains readable")
+    check(restored.jak1TouchLayout == layout,
+          "the old presentation writer cannot erase the migrated touch sidecar")
+}
+
+@MainActor
+private func embeddedCloudBuild117TouchLayoutMigratesToSidecar() async throws {
+    print("embedded cloud Build 117 touch layout migrates before presentation cleanup")
+    let fixture = try Fixture(name: "embedded-cloud-touch-migration")
+    let presentation = PresentationSettingsDocument(
+        modifiedAt: Date(timeIntervalSince1970: 2_350_000_000),
+        writerID: "build117-cloud-device")
+    var layout = TouchLayoutCustomization.standard
+    layout.setPosition(NormalizedTouchPosition(x: 0.81, y: 0.24), for: .modernCamera)
+    layout.setOpacityPercent(60, for: .classicStats)
+    try FileManager.default.createDirectory(at: fixture.cloud.deletingLastPathComponent(),
+                                            withIntermediateDirectories: true)
+    try embeddedBuild117DocumentData(presentation, layout: layout)
+        .write(to: fixture.cloud, options: .atomic)
+
+    let migrated = settings(fixture, writerID: "current-device")
+    await migrated.prepare()
+    let cloudPresentationJSON = try String(contentsOf: fixture.cloud, encoding: .utf8)
+    check(migrated.jak1TouchLayout == layout
+          && readTouchLayoutDocument(at: fixture.localTouchLayout)?.jak1TouchLayout == layout
+          && readTouchLayoutDocument(at: fixture.cloudTouchLayout)?.jak1TouchLayout == layout,
+          "cloud migration secures matching local and cloud touch sidecars")
+    check(!cloudPresentationJSON.contains("jak1TouchLayoutOverride"),
+          "the embedded cloud key is removed only after the sidecar is written")
 }
 
 @MainActor
@@ -312,7 +416,7 @@ private func touchLayoutPersistsSyncsAndResets() async throws {
     let fixture = try Fixture(name: "touch-layout")
     let value = settings(fixture, writerID: "device-a", cloudAvailable: false)
     check(value.jak1TouchLayout == .standard
-          && value.document.jak1TouchLayoutOverride == nil,
+          && value.touchLayoutDocument.jak1TouchLayoutOverride == nil,
           "a fresh title uses the existing geometry without storing an override")
 
     value.setTouchControlPosition(NormalizedTouchPosition(x: 0.18, y: 0.76),
@@ -332,12 +436,16 @@ private func touchLayoutPersistsSyncsAndResets() async throws {
           && value.jak1TouchLayout.opacity(for: .modernActions) == 0.55
           && value.jak1TouchLayout.scale(for: .classicCross) == 1.35,
           "position, swap remaps, gesture mapping, opacity, and size update one live value")
-    let localJSON = try String(contentsOf: fixture.local, encoding: .utf8)
-    check(localJSON.contains("jak1TouchLayoutOverride")
-          && localJSON.contains("modernMovement")
-          && !localJSON.contains("opacityPercent\":100")
-          && !localJSON.contains("sizePercent\":100"),
-          "only customized touch fields occupy the existing title document")
+    let presentationJSON = (try? String(contentsOf: fixture.local, encoding: .utf8)) ?? ""
+    let touchLayoutJSON = try String(contentsOf: fixture.localTouchLayout, encoding: .utf8)
+    check(!presentationJSON.contains("jak1TouchLayoutOverride")
+          && !presentationJSON.contains("modernMovement"),
+          "touch-only writes never add Build 117 fields to the frozen presentation document")
+    check(touchLayoutJSON.contains("jak1TouchLayoutOverride")
+          && touchLayoutJSON.contains("modernMovement")
+          && !touchLayoutJSON.contains("opacityPercent\":100")
+          && !touchLayoutJSON.contains("sizePercent\":100"),
+          "only customized touch fields occupy the versioned Jak 1 sidecar")
 
     let restored = settings(fixture, writerID: "device-b", cloudAvailable: false)
     check(restored.jak1TouchLayout == value.jak1TouchLayout,
@@ -349,20 +457,21 @@ private func touchLayoutPersistsSyncsAndResets() async throws {
           "Reset Control restores only that control's safe defaults")
     restored.resetTouchLayout()
     check(restored.jak1TouchLayout == .standard
-          && restored.document.jak1TouchLayoutOverride == nil,
-          "Reset Layout removes all Modern and Classic layout overrides")
+          && restored.touchLayoutDocument.jak1TouchLayoutOverride == nil
+          && readTouchLayoutDocument(at: fixture.localTouchLayout) != nil,
+          "Reset Layout persists a sidecar tombstone for all layout overrides")
     restored.setTouchControlPosition(NormalizedTouchPosition(x: 0.3, y: 0.7),
                                      for: .modernMovement)
     restored.setTouchControlSizePercent(125, for: .classicCross)
     restored.restoreDefaults(for: .controls)
     check(restored.jak1TouchLayout == .standard
-          && restored.document.jak1TouchLayoutOverride == nil,
+          && restored.touchLayoutDocument.jak1TouchLayoutOverride == nil,
           "Restore Controls Defaults removes both Modern and Classic customizations")
 
     restored.setTouchControlSizePercent(145, for: .classicCamera)
     restored.resetAll()
     check(restored.jak1TouchLayout == .standard
-          && restored.document.jak1TouchLayoutOverride == nil,
+          && restored.touchLayoutDocument.jak1TouchLayoutOverride == nil,
           "Reset Jak 1 Settings also returns the complete touch layout to default")
 }
 
@@ -471,8 +580,8 @@ private func localOptOutDoesNotTouchCloud() async throws {
 }
 
 @MainActor
-private func cloudSettingsConvergeAsOneDocument() async throws {
-    print("the complete profile document syncs together")
+private func cloudSettingsAndTouchLayoutConverge() async throws {
+    print("presentation settings and the isolated touch document sync under one gate")
     let fixtureA = try Fixture(name: "cloud-a")
     let fixtureB = try Fixture(name: "cloud-b")
     let sharedCloud = fixtureA.cloud
@@ -528,7 +637,66 @@ private func cloudSettingsConvergeAsOneDocument() async throws {
           && second.jak1TouchLayout.action(for: .classicCross) == .triangle
           && second.jak1TouchLayout.action(for: .classicTriangle) == .cross
           && second.jak1TouchLayout.opacity(for: .classicStats) == 0.6,
-          "the second device receives the same complete touch layout document")
+          "the second device receives the separate complete touch layout document")
+
+    first.resetTouchLayout()
+    await first.syncNow()
+    await second.syncNow()
+    check(second.jak1TouchLayout == .standard
+          && readTouchLayoutDocument(at: fixtureA.cloudTouchLayout)?
+            .jak1TouchLayoutOverride == nil,
+          "a synced nil sidecar tombstone clears a previously customized layout")
+}
+
+@MainActor
+private func legacyCloudRewriteCannotEraseTouchLayout() async throws {
+    print("a staggered Build 116 client cannot erase Build 117 touch layout")
+    let fixtureA = try Fixture(name: "staggered-cloud-a")
+    let fixtureB = try Fixture(name: "staggered-cloud-b")
+    let sharedCloud = fixtureA.cloud
+    let configurationA = PresentationSettingsConfiguration(
+        localDocumentURL: fixtureA.local,
+        cloudDocumentURL: { sharedCloud },
+        coordinateCloudAccess: false)
+    let configurationB = PresentationSettingsConfiguration(
+        localDocumentURL: fixtureB.local,
+        cloudDocumentURL: { sharedCloud },
+        coordinateCloudAccess: false)
+    let current = PresentationSettings(defaults: fixtureA.defaults,
+                                       configuration: configurationA,
+                                       writerID: "build117-device")
+    await current.prepare()
+    current.setTouchControlPosition(NormalizedTouchPosition(x: 0.77, y: 0.31),
+                                    for: .modernCamera)
+    current.setTouchControlOpacityPercent(65, for: .classicStats)
+    await current.syncNow()
+
+    let touchBeforeRewrite = try Data(contentsOf: fixtureA.cloudTouchLayout)
+    var oldClient = try JSONDecoder().decode(Build116PresentationDocument.self,
+                                             from: Data(contentsOf: sharedCloud))
+    oldClient.audioProfile = .modern
+    oldClient.modifiedAt = Date(timeIntervalSince1970: 4_000_000_000)
+    oldClient.writerID = "build116-device"
+    let oldRewrite = try JSONEncoder().encode(oldClient)
+    try oldRewrite.write(to: sharedCloud, options: .atomic)
+
+    check(!String(decoding: oldRewrite, as: UTF8.self)
+            .contains("jak1TouchLayoutOverride"),
+          "the Build 116-shaped writer drops every unknown presentation key")
+    let touchAfterRewrite = try Data(contentsOf: fixtureA.cloudTouchLayout)
+    check(touchAfterRewrite == touchBeforeRewrite,
+          "rewriting presentation-v1 leaves jak1-touch-layout-v1 byte-identical")
+
+    let newer = PresentationSettings(defaults: fixtureB.defaults,
+                                     configuration: configurationB,
+                                     writerID: "new-device")
+    await newer.prepare()
+    check(newer.profile(for: .audio) == .modern,
+          "the newer client still accepts the old client's presentation update")
+    check(newer.jak1TouchLayout.position(for: .modernCamera)
+            == NormalizedTouchPosition(x: 0.77, y: 0.31)
+          && newer.jak1TouchLayout.opacity(for: .classicStats) == 0.65,
+          "the newer client independently reapplies the untouched touch sidecar")
 }
 
 @MainActor
@@ -552,21 +720,20 @@ private func changeDuringCloudWriteQueuesNewestDocument() async throws {
     check(value.syncStatus == .syncing && value.lastSyncDate == nil,
           "the first delayed cloud write remains Syncing rather than Up to date")
 
-    value.setTouchControlPosition(NormalizedTouchPosition(x: 0.73, y: 0.27),
-                                  for: .modernCamera)
-    value.setTouchControlOpacityPercent(55, for: .classicCross)
+    value.setGraphicsFillWidth(false)
+    value.setProfile(.modern, for: .audio)
     let firstPending = await cloudStore.pendingWrite()
-    check(firstPending?.jak1TouchLayoutOverride == nil,
+    check(firstPending?.graphicsModernFillWidthOverride == nil
+          && firstPending?.audioProfile == .classic,
           "the in-flight write is the older document snapshot")
     let releasedFirst = await cloudStore.releaseWrite(1)
     check(releasedFirst, "the deterministic store releases the first write")
 
     await cloudStore.waitUntilWriteStarts(2)
     let newestPending = await cloudStore.pendingWrite()
-    check(newestPending?.jak1TouchLayout.position(for: .modernCamera)
-            == NormalizedTouchPosition(x: 0.73, y: 0.27)
-          && newestPending?.jak1TouchLayout.opacity(for: .classicCross) == 0.55,
-          "the queued pass writes the newest complete settings document")
+    check(newestPending?.graphicsModernFillWidthOverride == false
+          && newestPending?.audioProfile == .modern,
+          "the queued pass writes the newest complete presentation document")
     check(value.syncStatus == .syncing && value.lastSyncDate == nil,
           "status stays Syncing until the newest document finishes writing")
     let releasedSecond = await cloudStore.releaseWrite(2)
@@ -599,7 +766,7 @@ private func changeDuringCloudReadQueuesAnotherPass() async throws {
 
     let firstSync = Task { await value.syncNow() }
     await cloudStore.waitUntilReadStarts(1)
-    value.setTouchControlSizePercent(140, for: .classicCamera)
+    value.setGraphicsFillWidth(false)
     check(value.syncStatus == .syncing && value.lastSyncDate == nil,
           "a change during the delayed read cannot publish Up to date")
     let released = await cloudStore.releaseRead(1)
@@ -612,7 +779,7 @@ private func changeDuringCloudReadQueuesAnotherPass() async throws {
     if case .synced = value.syncStatus { isSynced = true } else { isSynced = false }
     check(reads == 2,
           "the local revision change forces a second cloud read pass")
-    check(stored?.jak1TouchLayout.scale(for: .classicCamera) == 1.4
+    check(stored?.graphicsModernFillWidthOverride == false
           && stored == value.document && isSynced,
           "the read-race pass stores the newest document before publishing Up to date")
 }
@@ -738,6 +905,8 @@ private struct PresentationSettingsCheck {
     static func main() async {
         do {
             try await legacyDocumentAndPickerOrderingRemainCompatible()
+            try await embeddedBuild117TouchLayoutMigratesBeforeLegacyRewrite()
+            try await embeddedCloudBuild117TouchLayoutMigratesToSidecar()
             try await developerLogsPersistAndReset()
             try await primaryInputSourcePersistsAndResets()
             try await inputBindingsPersistSyncAndReset()
@@ -746,7 +915,8 @@ private struct PresentationSettingsCheck {
             try await savedChoicesSurviveNewDefaults()
             try await profilesCanBeMixedWithoutLosingOptions()
             try await localOptOutDoesNotTouchCloud()
-            try await cloudSettingsConvergeAsOneDocument()
+            try await cloudSettingsAndTouchLayoutConverge()
+            try await legacyCloudRewriteCannotEraseTouchLayout()
             try await changeDuringCloudReadQueuesAnotherPass()
             try await changeDuringCloudWriteQueuesNewestDocument()
             try await inFlightOptOutAndCloudErrorsRemainExplicit()

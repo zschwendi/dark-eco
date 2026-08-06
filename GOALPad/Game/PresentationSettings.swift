@@ -44,9 +44,6 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
     /// Optional so every existing title-scoped document decodes as the exact established mapping.
     /// Only customized Jak 1 physical-input bindings need to occupy the synced document.
     var jak1InputBindingsOverride: Jak1InputBindings?
-    /// Optional so Build 93 and current documents decode to the exact established touch geometry.
-    /// Only customized controls occupy the title-scoped local/iCloud settings document.
-    var jak1TouchLayoutOverride: TouchLayoutCustomization?
     var modifiedAt: Date
     var writerID: String
 
@@ -96,10 +93,6 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         jak1InputBindingsOverride ?? .standard
     }
 
-    var jak1TouchLayout: TouchLayoutCustomization {
-        jak1TouchLayoutOverride ?? .standard
-    }
-
     mutating func restoreDefaults(for section: SettingsSection) {
         switch section {
         case .graphics:
@@ -107,7 +100,6 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         case .controls:
             primaryInputSourceOverride = nil
             jak1InputBindingsOverride = nil
-            jak1TouchLayoutOverride = nil
         case .audio, .interface:
             break
         }
@@ -122,7 +114,48 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         developerLogsEnabledOverride = nil
         primaryInputSourceOverride = nil
         jak1InputBindingsOverride = nil
-        jak1TouchLayoutOverride = nil
+    }
+}
+
+/// Frozen outside `presentation-v1.json` so an older same-schema writer cannot erase it.
+nonisolated struct Jak1TouchLayoutSettingsDocument: Codable, Equatable, Sendable {
+    static let schemaVersion = 1
+
+    var schemaVersion = Self.schemaVersion
+    var jak1TouchLayoutOverride: TouchLayoutCustomization?
+    var modifiedAt: Date
+    var writerID: String
+
+    init(jak1TouchLayoutOverride: TouchLayoutCustomization? = nil,
+         modifiedAt: Date = Date(), writerID: String) {
+        self.jak1TouchLayoutOverride = jak1TouchLayoutOverride
+        self.modifiedAt = modifiedAt
+        self.writerID = writerID
+    }
+
+    var jak1TouchLayout: TouchLayoutCustomization {
+        jak1TouchLayoutOverride ?? .standard
+    }
+}
+
+private struct EmbeddedJak1TouchLayoutDocument: Decodable {
+    let schemaVersion: Int
+    let jak1TouchLayoutOverride: TouchLayoutCustomization?
+    let modifiedAt: Date
+    let writerID: String
+}
+
+private extension Jak1TouchLayoutSettingsDocument {
+    init?(migratingEmbeddedData data: Data) {
+        guard let embedded = try? JSONDecoder().decode(EmbeddedJak1TouchLayoutDocument.self,
+                                                       from: data),
+              embedded.schemaVersion == PresentationSettingsDocument.schemaVersion,
+              let layout = embedded.jak1TouchLayoutOverride else {
+            return nil
+        }
+        self.init(jak1TouchLayoutOverride: layout,
+                  modifiedAt: embedded.modifiedAt,
+                  writerID: embedded.writerID)
     }
 }
 
@@ -142,6 +175,16 @@ nonisolated struct PresentationSettingsConfiguration: Sendable {
         self.coordinateCloudAccess = coordinateCloudAccess
         self.cloudConflictDocumentData = cloudConflictDocumentData
         self.now = now
+    }
+
+    var localTouchLayoutDocumentURL: URL {
+        localDocumentURL.deletingLastPathComponent()
+            .appending(path: "jak1-touch-layout-v1.json", directoryHint: .notDirectory)
+    }
+
+    func cloudTouchLayoutDocumentURL() -> URL? {
+        cloudDocumentURL()?.deletingLastPathComponent()
+            .appending(path: "jak1-touch-layout-v1.json", directoryHint: .notDirectory)
     }
 }
 
@@ -189,11 +232,34 @@ nonisolated struct PresentationSettingsCloudState: Sendable {
     let url: URL
     let document: PresentationSettingsDocument?
     let hasConflicts: Bool
+    let touchLayoutURL: URL
+    let touchLayoutDocument: Jak1TouchLayoutSettingsDocument?
+    let touchLayoutFileExists: Bool
+    let touchLayoutHasConflicts: Bool
+    let embeddedTouchLayoutDocument: Jak1TouchLayoutSettingsDocument?
+
+    init(url: URL, document: PresentationSettingsDocument?, hasConflicts: Bool,
+         touchLayoutURL: URL? = nil,
+         touchLayoutDocument: Jak1TouchLayoutSettingsDocument? = nil,
+         touchLayoutFileExists: Bool = false,
+         touchLayoutHasConflicts: Bool = false,
+         embeddedTouchLayoutDocument: Jak1TouchLayoutSettingsDocument? = nil) {
+        self.url = url
+        self.document = document
+        self.hasConflicts = hasConflicts
+        self.touchLayoutURL = touchLayoutURL ?? url.deletingLastPathComponent()
+            .appending(path: "jak1-touch-layout-v1.json", directoryHint: .notDirectory)
+        self.touchLayoutDocument = touchLayoutDocument
+        self.touchLayoutFileExists = touchLayoutFileExists
+        self.touchLayoutHasConflicts = touchLayoutHasConflicts
+        self.embeddedTouchLayoutDocument = embeddedTouchLayoutDocument
+    }
 }
 
 nonisolated protocol PresentationSettingsCloudStoring: Sendable {
     func read() async throws -> PresentationSettingsCloudState?
     func write(_ document: PresentationSettingsDocument, to url: URL) async throws
+    func write(_ document: Jak1TouchLayoutSettingsDocument, to url: URL) async throws
 }
 
 private actor PresentationSettingsCloudStore: PresentationSettingsCloudStoring {
@@ -206,31 +272,75 @@ private actor PresentationSettingsCloudStore: PresentationSettingsCloudStoring {
 
     func read() async throws -> PresentationSettingsCloudState? {
         guard let url = configuration.cloudDocumentURL() else { return nil }
-        guard manager.fileExists(atPath: url.path) else {
-            return PresentationSettingsCloudState(url: url, document: nil, hasConflicts: false)
-        }
-        try await ensureDocumentIsCurrent(at: url)
-        let primaryData = try readData(at: url)
-        let conflictData = try configuration.cloudConflictDocumentData(url)
-        let documents = ([primaryData] + conflictData).compactMap {
-            data -> PresentationSettingsDocument? in
-            guard let value = try? JSONDecoder().decode(PresentationSettingsDocument.self,
-                                                        from: data),
-                  value.schemaVersion == PresentationSettingsDocument.schemaVersion else {
-                return nil
+        let touchLayoutURL = configuration.cloudTouchLayoutDocumentURL()
+            ?? url.deletingLastPathComponent()
+                .appending(path: "jak1-touch-layout-v1.json", directoryHint: .notDirectory)
+
+        var presentationCandidates: [(document: PresentationSettingsDocument,
+                                      embedded: Jak1TouchLayoutSettingsDocument?)] = []
+        var presentationConflictData: [Data] = []
+        if manager.fileExists(atPath: url.path) {
+            try await ensureDocumentIsCurrent(at: url)
+            let primaryData = try readData(at: url)
+            presentationConflictData = try configuration.cloudConflictDocumentData(url)
+            presentationCandidates = ([primaryData] + presentationConflictData).compactMap { data in
+                guard let value = try? JSONDecoder().decode(PresentationSettingsDocument.self,
+                                                            from: data),
+                      value.schemaVersion == PresentationSettingsDocument.schemaVersion else {
+                    return nil
+                }
+                return (value, Jak1TouchLayoutSettingsDocument(migratingEmbeddedData: data))
             }
-            return value
         }
-        let newest = documents.max { lhs, rhs in
+
+        let presentationWinner = presentationCandidates.max { lhs, rhs in
+            if lhs.document.modifiedAt != rhs.document.modifiedAt {
+                return lhs.document.modifiedAt < rhs.document.modifiedAt
+            }
+            return lhs.document.writerID < rhs.document.writerID
+        }
+
+        var touchLayoutDocuments: [Jak1TouchLayoutSettingsDocument] = []
+        var touchLayoutConflictData: [Data] = []
+        let touchLayoutFileExists = manager.fileExists(atPath: touchLayoutURL.path)
+        if touchLayoutFileExists {
+            try await ensureDocumentIsCurrent(at: touchLayoutURL)
+            let primaryData = try readData(at: touchLayoutURL)
+            touchLayoutConflictData = try configuration.cloudConflictDocumentData(touchLayoutURL)
+            touchLayoutDocuments = ([primaryData] + touchLayoutConflictData).compactMap { data in
+                guard let value = try? JSONDecoder().decode(Jak1TouchLayoutSettingsDocument.self,
+                                                            from: data),
+                      value.schemaVersion == Jak1TouchLayoutSettingsDocument.schemaVersion else {
+                    return nil
+                }
+                return value
+            }
+        }
+        let touchLayoutWinner = touchLayoutDocuments.max { lhs, rhs in
             if lhs.modifiedAt != rhs.modifiedAt { return lhs.modifiedAt < rhs.modifiedAt }
             return lhs.writerID < rhs.writerID
         }
-        return PresentationSettingsCloudState(url: url, document: newest,
-                                              hasConflicts: !conflictData.isEmpty)
+
+        return PresentationSettingsCloudState(
+            url: url,
+            document: presentationWinner?.document,
+            hasConflicts: !presentationConflictData.isEmpty,
+            touchLayoutURL: touchLayoutURL,
+            touchLayoutDocument: touchLayoutWinner,
+            touchLayoutFileExists: touchLayoutFileExists,
+            touchLayoutHasConflicts: !touchLayoutConflictData.isEmpty,
+            embeddedTouchLayoutDocument: presentationWinner?.embedded)
     }
 
     func write(_ document: PresentationSettingsDocument, to url: URL) async throws {
-        let data = try JSONEncoder().encode(document)
+        try writeData(JSONEncoder().encode(document), to: url)
+    }
+
+    func write(_ document: Jak1TouchLayoutSettingsDocument, to url: URL) async throws {
+        try writeData(JSONEncoder().encode(document), to: url)
+    }
+
+    private func writeData(_ data: Data, to url: URL) throws {
         guard configuration.coordinateCloudAccess else {
             try manager.createDirectory(at: url.deletingLastPathComponent(),
                                         withIntermediateDirectories: true)
@@ -331,6 +441,7 @@ final class PresentationSettings {
 
     private(set) var syncStatus: SyncStatus
     private(set) var document: PresentationSettingsDocument
+    private(set) var touchLayoutDocument: Jak1TouchLayoutSettingsDocument
     private(set) var lastSuccessfulSyncDate: Date?
 
     private let defaults: UserDefaults
@@ -339,6 +450,7 @@ final class PresentationSettings {
     private let localWriterID: String
     private let manager = FileManager.default
     private var hasLocalDocument: Bool
+    private var hasLocalTouchLayoutDocument: Bool
     private var isSyncing = false
     private var syncRequested = false
     private var documentRevision: UInt64 = 0
@@ -361,7 +473,8 @@ final class PresentationSettings {
         self.configuration = resolvedConfiguration
         self.cloudStore = cloudStore
             ?? PresentationSettingsCloudStore(configuration: resolvedConfiguration)
-        if let data = try? Data(contentsOf: self.configuration.localDocumentURL),
+        let localPresentationData = try? Data(contentsOf: self.configuration.localDocumentURL)
+        if let data = localPresentationData,
            let stored = try? JSONDecoder().decode(PresentationSettingsDocument.self, from: data),
            stored.schemaVersion == PresentationSettingsDocument.schemaVersion {
             document = stored
@@ -371,11 +484,36 @@ final class PresentationSettings {
                                                     writerID: storedWriterID)
             hasLocalDocument = false
         }
+        let localTouchLayoutFileExists = FileManager.default.fileExists(
+            atPath: self.configuration.localTouchLayoutDocumentURL.path)
+        if let data = try? Data(contentsOf: self.configuration.localTouchLayoutDocumentURL),
+           let stored = try? JSONDecoder().decode(Jak1TouchLayoutSettingsDocument.self, from: data),
+           stored.schemaVersion == Jak1TouchLayoutSettingsDocument.schemaVersion {
+            touchLayoutDocument = stored
+            hasLocalTouchLayoutDocument = true
+        } else if !localTouchLayoutFileExists, let localPresentationData,
+                  let migrated = Jak1TouchLayoutSettingsDocument(
+                    migratingEmbeddedData: localPresentationData) {
+            touchLayoutDocument = migrated
+            hasLocalTouchLayoutDocument = true
+        } else {
+            touchLayoutDocument = Jak1TouchLayoutSettingsDocument(
+                modifiedAt: self.configuration.now(), writerID: storedWriterID)
+            hasLocalTouchLayoutDocument = false
+        }
         let enabled = defaults.object(forKey: Self.cloudSyncEnabledKey) == nil
             || defaults.bool(forKey: Self.cloudSyncEnabledKey)
         cloudSyncEnabled = enabled
         syncStatus = enabled ? .waiting : .disabled
         lastSuccessfulSyncDate = nil
+        if hasLocalTouchLayoutDocument && !localTouchLayoutFileExists {
+            do {
+                try writeLocalTouchLayoutDocument(touchLayoutDocument)
+            } catch {
+                hasLocalTouchLayoutDocument = false
+                syncStatus = .failed(error.localizedDescription)
+            }
+        }
     }
 
     var globalProfile: SettingsProfile? { document.globalProfile }
@@ -388,7 +526,7 @@ final class PresentationSettings {
 
     var jak1InputBindings: Jak1InputBindings { document.jak1InputBindings }
 
-    var jak1TouchLayout: TouchLayoutCustomization { document.jak1TouchLayout }
+    var jak1TouchLayout: TouchLayoutCustomization { touchLayoutDocument.jak1TouchLayout }
 
     var lastSyncDate: Date? {
         lastSuccessfulSyncDate
@@ -533,16 +671,20 @@ final class PresentationSettings {
     }
 
     func resetTouchLayout() {
-        guard document.jak1TouchLayoutOverride != nil else { return }
-        change { $0.jak1TouchLayoutOverride = nil }
+        guard touchLayoutDocument.jak1TouchLayoutOverride != nil else { return }
+        changeTouchLayout { $0.jak1TouchLayoutOverride = nil }
     }
 
     func restoreDefaults(for section: SettingsSection) {
         change { $0.restoreDefaults(for: section) }
+        if section == .controls {
+            changeTouchLayout { $0.jak1TouchLayoutOverride = nil }
+        }
     }
 
     func resetAll() {
         change { $0.resetAll() }
+        changeTouchLayout { $0.jak1TouchLayoutOverride = nil }
     }
 
     func prepare() async {
@@ -569,6 +711,9 @@ final class PresentationSettings {
                     return
                 }
                 let remote = remoteState.document
+                let remoteTouchLayout = remoteState.touchLayoutDocument
+                    ?? (remoteState.touchLayoutFileExists
+                        ? nil : remoteState.embeddedTouchLayoutDocument)
                 guard cloudSyncEnabled else {
                     syncStatus = .disabled
                     return
@@ -581,12 +726,41 @@ final class PresentationSettings {
                 } else {
                     winner = document
                 }
+
+                let touchLayoutWinner: Jak1TouchLayoutSettingsDocument?
+                if !hasLocalTouchLayoutDocument {
+                    touchLayoutWinner = remoteTouchLayout
+                } else if let remoteTouchLayout {
+                    touchLayoutWinner = isNewer(touchLayoutDocument,
+                                                than: remoteTouchLayout)
+                        ? touchLayoutDocument : remoteTouchLayout
+                } else {
+                    touchLayoutWinner = touchLayoutDocument
+                }
+                if let touchLayoutWinner {
+                    if touchLayoutWinner != touchLayoutDocument
+                        || !hasLocalTouchLayoutDocument {
+                        touchLayoutDocument = touchLayoutWinner
+                        try writeLocalTouchLayoutDocument(touchLayoutWinner)
+                        hasLocalTouchLayoutDocument = true
+                    }
+                    if remoteState.touchLayoutDocument != touchLayoutWinner
+                        || remoteState.touchLayoutHasConflicts {
+                        try await cloudStore.write(touchLayoutWinner,
+                                                   to: remoteState.touchLayoutURL)
+                    }
+                }
                 if winner != document || !hasLocalDocument {
                     document = winner
                     try writeLocalDocument(winner)
                     hasLocalDocument = true
                 }
-                if remote != winner || remoteState.hasConflicts {
+                let hasMigratableEmbeddedLayout =
+                    remoteState.embeddedTouchLayoutDocument != nil
+                    && (!remoteState.touchLayoutFileExists
+                        || remoteState.touchLayoutDocument != nil)
+                if remote != winner || remoteState.hasConflicts
+                    || hasMigratableEmbeddedLayout {
                     try await cloudStore.write(winner, to: remoteState.url)
                 }
                 guard cloudSyncEnabled else {
@@ -633,11 +807,37 @@ final class PresentationSettings {
         var layout = jak1TouchLayout
         update(&layout)
         guard layout != jak1TouchLayout else { return }
-        change { $0.jak1TouchLayoutOverride = layout.isDefault ? nil : layout }
+        changeTouchLayout {
+            $0.jak1TouchLayoutOverride = layout.isDefault ? nil : layout
+        }
+    }
+
+    private func changeTouchLayout(
+        _ update: (inout Jak1TouchLayoutSettingsDocument) -> Void
+    ) {
+        update(&touchLayoutDocument)
+        touchLayoutDocument.modifiedAt = configuration.now()
+        touchLayoutDocument.writerID = writerID
+        do {
+            try writeLocalTouchLayoutDocument(touchLayoutDocument)
+            hasLocalTouchLayoutDocument = true
+            documentRevision &+= 1
+        } catch {
+            syncStatus = .failed(error.localizedDescription)
+            return
+        }
+        guard cloudSyncEnabled else { return }
+        Task { [weak self] in await self?.syncNow() }
     }
 
     private func isNewer(_ lhs: PresentationSettingsDocument,
                          than rhs: PresentationSettingsDocument) -> Bool {
+        if lhs.modifiedAt != rhs.modifiedAt { return lhs.modifiedAt > rhs.modifiedAt }
+        return lhs.writerID > rhs.writerID
+    }
+
+    private func isNewer(_ lhs: Jak1TouchLayoutSettingsDocument,
+                         than rhs: Jak1TouchLayoutSettingsDocument) -> Bool {
         if lhs.modifiedAt != rhs.modifiedAt { return lhs.modifiedAt > rhs.modifiedAt }
         return lhs.writerID > rhs.writerID
     }
@@ -647,6 +847,16 @@ final class PresentationSettings {
                                     withIntermediateDirectories: true)
         let data = try JSONEncoder().encode(document)
         try data.write(to: configuration.localDocumentURL, options: .atomic)
+    }
+
+    private func writeLocalTouchLayoutDocument(
+        _ document: Jak1TouchLayoutSettingsDocument
+    ) throws {
+        try manager.createDirectory(
+            at: configuration.localTouchLayoutDocumentURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        let data = try JSONEncoder().encode(document)
+        try data.write(to: configuration.localTouchLayoutDocumentURL, options: .atomic)
     }
 
 }

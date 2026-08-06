@@ -125,9 +125,10 @@ Controls, Graphics, Audio, and UI each retain an independent profile and their
 own option values; a global preset can switch all four while accurately showing
 Mixed when they differ. Fresh settings and Reset All select Modern Graphics
 with Fill Width enabled while Controls, Audio, and UI remain Classic. Existing
-saved profile choices are preserved. Settings sync through a separate iCloud
-document by default, with a device-local opt-out that does not disable iCloud
-saves.
+saved profile choices are preserved. Settings sync through separate iCloud
+documents by default, with Jak 1 touch customization isolated from the frozen
+presentation document so older same-schema clients cannot erase it when they
+rewrite settings. A device-local opt-out does not disable iCloud saves.
 
 Enhancement work proceeds in this order:
 
