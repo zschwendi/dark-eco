@@ -142,6 +142,10 @@ struct ContentView: View {
             _, source in
             session.input.setPrimarySource(source)
         }
+        .onChange(of: session.presentationSettings.jak1InputBindings, initial: true) {
+            _, bindings in
+            session.input.setBindings(bindings)
+        }
         .onChange(of: session.isNativeMenuOpen) { _, isOpen in
             if session.isRunning && !isOpen { settingsPresentation = nil }
         }

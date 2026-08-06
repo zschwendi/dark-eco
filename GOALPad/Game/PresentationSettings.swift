@@ -41,6 +41,9 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
     /// Optional for compatibility with Build 93 documents. Automatic preserves the accepted
     /// activity-driven source selection while explicit choices follow the player across devices.
     var primaryInputSourceOverride: PrimaryInputSource?
+    /// Optional so every existing title-scoped document decodes as the exact established mapping.
+    /// Only customized Jak 1 physical-input bindings need to occupy the synced document.
+    var jak1InputBindingsOverride: Jak1InputBindings?
     var modifiedAt: Date
     var writerID: String
 
@@ -86,12 +89,17 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         primaryInputSourceOverride ?? .automatic
     }
 
+    var jak1InputBindings: Jak1InputBindings {
+        jak1InputBindingsOverride ?? .standard
+    }
+
     mutating func restoreDefaults(for section: SettingsSection) {
         switch section {
         case .graphics:
             graphicsModernFillWidthOverride = nil
         case .controls:
             primaryInputSourceOverride = nil
+            jak1InputBindingsOverride = nil
         case .audio, .interface:
             break
         }
@@ -105,6 +113,7 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         graphicsModernFillWidthOverride = nil
         developerLogsEnabledOverride = nil
         primaryInputSourceOverride = nil
+        jak1InputBindingsOverride = nil
     }
 }
 
@@ -359,6 +368,8 @@ final class PresentationSettings {
 
     var primaryInputSource: PrimaryInputSource { document.primaryInputSource }
 
+    var jak1InputBindings: Jak1InputBindings { document.jak1InputBindings }
+
     var lastSyncDate: Date? {
         lastSuccessfulSyncDate
     }
@@ -400,6 +411,20 @@ final class PresentationSettings {
 
     func setPrimaryInputSource(_ source: PrimaryInputSource) {
         change { $0.primaryInputSourceOverride = source == .automatic ? nil : source }
+    }
+
+    func setControllerAction(_ action: Jak1InputAction?, for control: Jak1ControllerControl) {
+        var bindings = jak1InputBindings
+        bindings.setControllerAction(action, for: control)
+        guard bindings != jak1InputBindings else { return }
+        change { $0.jak1InputBindingsOverride = bindings == .standard ? nil : bindings }
+    }
+
+    func setKeyboardMouseAction(_ action: Jak1InputAction?, for control: KeyboardMouseKey) {
+        var bindings = jak1InputBindings
+        bindings.setKeyboardMouseAction(action, for: control)
+        guard bindings != jak1InputBindings else { return }
+        change { $0.jak1InputBindingsOverride = bindings == .standard ? nil : bindings }
     }
 
     func restoreDefaults(for section: SettingsSection) {

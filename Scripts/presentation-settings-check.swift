@@ -83,6 +83,9 @@ private func legacyDocumentAndPickerOrderingRemainCompatible() async throws {
           "a Build 93 document defaults the newly added developer logs setting off")
     check(value.primaryInputSource == .automatic,
           "a Build 93 document defaults the new Primary Controller choice to Automatic")
+    check(value.jak1InputBindings == .standard
+          && value.document.jak1InputBindingsOverride == nil,
+          "a document without remapping data decodes to the exact established bindings")
 }
 
 @MainActor
@@ -103,6 +106,40 @@ private func primaryInputSourcePersistsAndResets() async throws {
     restored.resetAll()
     check(restored.primaryInputSource == .automatic,
           "Reset Jak 1 Settings restores Automatic source selection")
+}
+
+@MainActor
+private func inputBindingsPersistSyncAndReset() async throws {
+    print("Jak 1 physical-input bindings persist in the compatible synced document")
+    let fixture = try Fixture(name: "input-bindings")
+    let value = settings(fixture, writerID: "device-a", cloudAvailable: false)
+    check(value.jak1InputBindings == .standard, "a fresh title begins with standard bindings")
+
+    value.setControllerAction(.square, for: .buttonA)
+    value.setKeyboardMouseAction(.stats, for: .spacebar)
+    check(value.jak1InputBindings.action(for: .buttonA) == .square
+          && value.jak1InputBindings.action(for: .buttonX) == .cross,
+          "controller collision swaps are stored through PresentationSettings")
+    check(value.jak1InputBindings.action(for: .spacebar) == .stats
+          && value.jak1InputBindings.action(for: .tab) == nil,
+          "an explicit added Stats key is stored without duplicate ownership")
+
+    let restored = settings(fixture, writerID: "device-b", cloudAvailable: false)
+    check(restored.jak1InputBindings == value.jak1InputBindings,
+          "controller and mouse/keyboard remaps survive local document decoding")
+    restored.setPrimaryInputSource(.controller)
+    restored.restoreDefaults(for: .controls)
+    check(restored.jak1InputBindings == .standard
+          && restored.document.jak1InputBindingsOverride == nil
+          && restored.primaryInputSource == .automatic,
+          "Restore Controls Defaults resets bindings and source selection together")
+
+    restored.setControllerAction(.stats, for: .buttonA)
+    restored.setKeyboardMouseAction(.cross, for: .mouseLeft)
+    restored.resetAll()
+    check(restored.jak1InputBindings == .standard
+          && restored.document.jak1InputBindingsOverride == nil,
+          "Reset Jak 1 Settings also restores every physical-input binding")
 }
 
 @MainActor
@@ -227,6 +264,8 @@ private func cloudSettingsConvergeAsOneDocument() async throws {
     first.setProfile(.modern, for: .graphics)
     first.setProfile(.modern, for: .audio)
     first.setGraphicsFillWidth(false)
+    first.setControllerAction(.square, for: .buttonA)
+    first.setKeyboardMouseAction(.stats, for: .spacebar)
     await first.syncNow()
 
     let second = PresentationSettings(defaults: fixtureB.defaults, configuration: sharedConfigurationB,
@@ -235,6 +274,11 @@ private func cloudSettingsConvergeAsOneDocument() async throws {
     check(second.profile(for: .graphics) == .modern && second.profile(for: .audio) == .modern,
           "a second device receives every changed section profile together")
     check(!second.graphicsFillWidth, "the second device receives the customized Modern option")
+    check(second.jak1InputBindings.action(for: .buttonA) == .square
+          && second.jak1InputBindings.action(for: .buttonX) == .cross
+          && second.jak1InputBindings.action(for: .spacebar) == .stats
+          && second.jak1InputBindings.action(for: .tab) == nil,
+          "the second device receives the title's remapped physical inputs")
 }
 
 @MainActor
@@ -315,6 +359,7 @@ private struct PresentationSettingsCheck {
             try await legacyDocumentAndPickerOrderingRemainCompatible()
             try await developerLogsPersistAndReset()
             try await primaryInputSourcePersistsAndResets()
+            try await inputBindingsPersistSyncAndReset()
             try await defaultsUseModernGraphics()
             try await savedChoicesSurviveNewDefaults()
             try await profilesCanBeMixedWithoutLosingOptions()

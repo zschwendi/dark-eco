@@ -110,6 +110,7 @@ final class GameSession {
         await saveSync.prepare()
         await settingsPreparation
         input.setPrimarySource(presentationSettings.primaryInputSource)
+        input.setBindings(presentationSettings.jak1InputBindings)
         await refreshDataReport()
     }
 

@@ -41,8 +41,22 @@ private func keyboardMovement() {
 }
 
 private func keyboardButtons() {
-    print("only the ten chosen gameplay keys have mappings")
-    check(KeyboardMouseKey.allCases.count == 10, "the explicit keyboard surface stays bounded")
+    print("default keyboard bytes remain exact while the remapping surface stays explicit")
+    check(KeyboardMouseKey.keyboardCases.count == 12
+          && KeyboardMouseKey.mouseCases == [.mouseLeft, .mouseRight, .mouseMiddle],
+          "only the named keyboard keys and three mouse buttons can be bound")
+    check(Jak1InputBindings.standard.keyboardMouseBindings.count == 10,
+          "the default mapping still assigns exactly the original ten keys")
+    check(Jak1InputBindings.standard.action(for: .spacebar) == nil
+          && Jak1InputBindings.standard.action(for: .returnOrEnter) == nil
+          && KeyboardMouseKey(rawValue: "q") == nil,
+          "additional named keys begin unused and arbitrary typing has no control value")
+    var unused = KeyboardMouseInputState()
+    unused.setControl(.spacebar, pressed: true)
+    unused.setControl(.mouseLeft, pressed: true)
+    let unusedFrame = unused.consumeFrame()
+    check(unusedFrame.buttons.isEmpty && !unusedFrame.hasKeyboardInput && !unusedFrame.hasMouseInput,
+          "Not Used candidates emit no bytes and do not report gameplay activity")
 
     let expected: [(KeyboardMouseKey, GOALPadButton, String)] = [
         (.leftArrow, .square, "Left Arrow is Square"),
@@ -69,6 +83,70 @@ private func keyboardButtons() {
     stats.setKey(.tab, pressed: true)
     check(stats.consumeFrame().buttons == [.L2, .R2],
           "Tab is the explicit native progress/stats shoulder chord")
+}
+
+private func defaultControllerBytes() {
+    print("the standard physical controller mapping emits the preserved pad bytes")
+    let allPressed = Set(Jak1ControllerControl.allCases)
+    let frame = Jak1InputBindings.standard.controllerFrame(
+        pressed: allPressed,
+        values: [.leftTrigger: 0.25, .rightTrigger: 0.75])
+    check(frame.buttons.rawValue == 0xffff,
+          "the sixteen standard controls still cover exactly every PS2 pad button bit")
+    check(frame.leftTrigger == 64 && frame.rightTrigger == 191,
+          "default physical trigger pressure keeps the existing rounded byte conversion")
+    check(Jak1InputBindings.standard.action(for: .buttonA) == .cross
+          && Jak1InputBindings.standard.action(for: .buttonB) == .circle
+          && Jak1InputBindings.standard.action(for: .buttonX) == .square
+          && Jak1InputBindings.standard.action(for: .buttonY) == .triangle,
+          "face-button position defaults remain Cross, Circle, Square, Triangle")
+}
+
+private func remappingAndCollisions() {
+    print("remapping is deterministic and never leaves duplicate action owners")
+    var bindings = Jak1InputBindings.standard
+    bindings.setControllerAction(.square, for: .buttonA)
+    check(bindings.action(for: .buttonA) == .square
+          && bindings.action(for: .buttonX) == .cross,
+          "assigning an occupied controller action swaps its prior and new controls")
+    check(bindings.controllerFrame(pressed: [.buttonA]).buttons == .square
+          && bindings.controllerFrame(pressed: [.buttonX]).buttons == .cross,
+          "the controller remap reaches emitted GOALPad button bytes")
+
+    bindings.setKeyboardMouseAction(.stats, for: .spacebar)
+    check(bindings.action(for: .spacebar) == .stats && bindings.action(for: .tab) == nil,
+          "an unused explicit key moves Stats away from Tab without a duplicate")
+    var keyboard = KeyboardMouseInputState()
+    keyboard.setControl(.spacebar, pressed: true)
+    check(keyboard.consumeFrame(bindings: bindings).buttons == [.L2, .R2],
+          "an explicitly remapped key emits the Stats chord")
+
+    bindings.setKeyboardMouseAction(.square, for: .spacebar)
+    check(bindings.action(for: .spacebar) == .square
+          && bindings.action(for: .leftArrow) == .stats,
+          "a second occupied assignment swaps the two keyboard actions deterministically")
+
+    bindings.setKeyboardMouseAction(.cross, for: .mouseLeft)
+    var mouse = KeyboardMouseInputState()
+    mouse.setControl(.mouseLeft, pressed: true)
+    let mouseFrame = mouse.consumeFrame(bindings: bindings)
+    check(mouseFrame.buttons == .cross && mouseFrame.hasMouseInput,
+          "an explicitly bound mouse button emits its remapped pad bit and activity")
+
+    let duplicate = Jak1InputBindings(
+        controllerBindings: [
+            .init(control: .buttonB, action: .cross),
+            .init(control: .buttonA, action: .cross),
+        ],
+        keyboardMouseBindings: [
+            .init(control: .d, action: .moveForward),
+            .init(control: .w, action: .moveForward),
+        ])
+    check(duplicate.action(for: .buttonA) == .cross
+          && duplicate.action(for: .buttonB) == nil,
+          "duplicate controller actions normalize by declared control order")
+    check(duplicate.action(for: .w) == .moveForward && duplicate.action(for: .d) == nil,
+          "duplicate keyboard actions use the same stable first-control policy")
 }
 
 private func primaryInputSourcePolicy() {
@@ -221,6 +299,8 @@ struct KeyboardMouseInputCheck {
     static func main() {
         keyboardMovement()
         keyboardButtons()
+        defaultControllerBytes()
+        remappingAndCollisions()
         relativeMouse()
         drivingArbitration()
         stickSourcePrecedence()

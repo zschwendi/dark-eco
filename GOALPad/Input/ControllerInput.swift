@@ -27,8 +27,11 @@ final class ControllerInput {
                                                          UInt8(GOALPadAnalogNeutral))
     private(set) var rumble = GOALPadRumble(large: 0, small: 0)
     private(set) var primarySource: PrimaryInputSource = .automatic
+    private(set) var bindings = Jak1InputBindings.standard
 
     var isConnected: Bool { controller != nil }
+    var isKeyboardConnected: Bool { keyboard != nil }
+    var isMouseConnected: Bool { mouse != nil }
     var isKeyboardMouseConnected: Bool { keyboard != nil || mouse != nil }
     var effectivePrimarySource: PrimaryInputSource { sourcePolicy.effectiveSource }
 
@@ -62,6 +65,11 @@ final class ControllerInput {
         guard source != primarySource else { return }
         primarySource = source
         noteDriving()
+    }
+
+    func setBindings(_ bindings: Jak1InputBindings) {
+        guard bindings != self.bindings else { return }
+        self.bindings = bindings
     }
 
     func startWatching() {
@@ -133,17 +141,20 @@ final class ControllerInput {
         let now = CACurrentMediaTime()
         let policy = sourcePolicy
         if policy.allowsController, let gamepad = controller?.extendedGamepad {
-            state.buttons = Self.buttons(of: gamepad)
+            let controllerFrame = bindings.controllerFrame(
+                pressed: Self.pressedControls(of: gamepad),
+                values: Self.controlValues(of: gamepad))
+            state.buttons = controllerFrame.buttons
             state.leftX = Self.axisByte(gamepad.leftThumbstick.xAxis.value)
             state.leftY = Self.axisByte(-gamepad.leftThumbstick.yAxis.value)
             state.rightX = Self.axisByte(gamepad.rightThumbstick.xAxis.value)
             state.rightY = Self.axisByte(-gamepad.rightThumbstick.yAxis.value)
-            state.leftTrigger = Self.triggerByte(gamepad.leftTrigger.value)
-            state.rightTrigger = Self.triggerByte(gamepad.rightTrigger.value)
+            state.leftTrigger = controllerFrame.leftTrigger
+            state.rightTrigger = controllerFrame.rightTrigger
             if Self.isActive(state) { activity.noteController(at: now) }
         }
 
-        let keyboardMouse = keyboardMouseState.consumeFrame()
+        let keyboardMouse = keyboardMouseState.consumeFrame(bindings: bindings)
         if keyboardMouse.hasKeyboardInput { activity.noteKeyboard(at: now) }
         if keyboardMouse.hasMouseInput { activity.noteMouse(at: now) }
         var preferred = (x: state.leftX, y: state.leftY)
@@ -265,35 +276,77 @@ final class ControllerInput {
         case .downArrow: .downArrow
         case .escape: .escape
         case .tab: .tab
+        case .spacebar: .spacebar
+        case .returnOrEnter: .returnOrEnter
         default: nil
         }
     }
 
-    /// The DualSense face buttons sit exactly where the PS2 ones did, and GameController names its
-    /// face buttons by position, so A/B/X/Y are cross/circle/square/triangle without a special
-    /// case. `buttonMenu` is Options and `buttonOptions` is Create, which are Start and Select.
-    private static func buttons(of pad: GCExtendedGamepad) -> GOALPadButton {
-        var pressed: GOALPadButton = []
-        func add(_ button: GCControllerButtonInput?, _ bit: GOALPadButton) {
-            if button?.isPressed == true { pressed.insert(bit) }
+    nonisolated private static func keyboardCode(for control: KeyboardMouseKey) -> GCKeyCode? {
+        switch control {
+        case .w: .keyW
+        case .a: .keyA
+        case .s: .keyS
+        case .d: .keyD
+        case .leftArrow: .leftArrow
+        case .rightArrow: .rightArrow
+        case .upArrow: .upArrow
+        case .downArrow: .downArrow
+        case .escape: .escape
+        case .tab: .tab
+        case .spacebar: .spacebar
+        case .returnOrEnter: .returnOrEnter
+        case .mouseLeft, .mouseRight, .mouseMiddle: nil
         }
-        add(pad.buttonA, .cross)
-        add(pad.buttonB, .circle)
-        add(pad.buttonX, .square)
-        add(pad.buttonY, .triangle)
-        add(pad.dpad.up, .up)
-        add(pad.dpad.down, .down)
-        add(pad.dpad.left, .left)
-        add(pad.dpad.right, .right)
-        add(pad.leftShoulder, .L1)
-        add(pad.rightShoulder, .R1)
-        add(pad.leftTrigger, .L2)
-        add(pad.rightTrigger, .R2)
-        add(pad.leftThumbstickButton, .L3)
-        add(pad.rightThumbstickButton, .R3)
-        add(pad.buttonMenu, .start)
-        add(pad.buttonOptions, .select)
+    }
+
+    /// Keep Apple's positional controls distinct here so the persisted mapping, rather than a
+    /// controller-brand special case, decides which PS2 pad action each one emits.
+    private static func pressedControls(of pad: GCExtendedGamepad) -> Set<Jak1ControllerControl> {
+        var pressed: Set<Jak1ControllerControl> = []
+        func add(_ button: GCControllerButtonInput?, _ control: Jak1ControllerControl) {
+            if button?.isPressed == true { pressed.insert(control) }
+        }
+        add(pad.buttonA, .buttonA)
+        add(pad.buttonB, .buttonB)
+        add(pad.buttonX, .buttonX)
+        add(pad.buttonY, .buttonY)
+        add(pad.dpad.up, .dpadUp)
+        add(pad.dpad.down, .dpadDown)
+        add(pad.dpad.left, .dpadLeft)
+        add(pad.dpad.right, .dpadRight)
+        add(pad.leftShoulder, .leftShoulder)
+        add(pad.rightShoulder, .rightShoulder)
+        add(pad.leftTrigger, .leftTrigger)
+        add(pad.rightTrigger, .rightTrigger)
+        add(pad.leftThumbstickButton, .leftThumbstickButton)
+        add(pad.rightThumbstickButton, .rightThumbstickButton)
+        add(pad.buttonMenu, .menu)
+        add(pad.buttonOptions, .options)
         return pressed
+    }
+
+    private static func controlValues(
+        of pad: GCExtendedGamepad
+    ) -> [Jak1ControllerControl: Float] {
+        [
+            .buttonA: pad.buttonA.value,
+            .buttonB: pad.buttonB.value,
+            .buttonX: pad.buttonX.value,
+            .buttonY: pad.buttonY.value,
+            .dpadUp: pad.dpad.up.value,
+            .dpadDown: pad.dpad.down.value,
+            .dpadLeft: pad.dpad.left.value,
+            .dpadRight: pad.dpad.right.value,
+            .leftShoulder: pad.leftShoulder.value,
+            .rightShoulder: pad.rightShoulder.value,
+            .leftTrigger: pad.leftTrigger.value,
+            .rightTrigger: pad.rightTrigger.value,
+            .leftThumbstickButton: pad.leftThumbstickButton?.value ?? 0,
+            .rightThumbstickButton: pad.rightThumbstickButton?.value ?? 0,
+            .menu: pad.buttonMenu.value,
+            .options: pad.buttonOptions?.value ?? 0,
+        ]
     }
 
     /// GameController reports an axis as -1...1. The pad reports a byte per axis with 127 at rest,
@@ -301,10 +354,6 @@ final class ControllerInput {
     private static func axisByte(_ value: Float) -> UInt8 {
         let scaled = Float(GOALPadAnalogNeutral) + value * 127
         return UInt8(max(0, min(255, scaled.rounded())))
-    }
-
-    private static func triggerByte(_ value: Float) -> UInt8 {
-        UInt8(max(0, min(255, (value * 255).rounded())))
     }
 
     // MARK: - Connection
@@ -353,18 +402,20 @@ final class ControllerInput {
             DispatchQueue.main.async { [weak self, weak candidate] in
                 guard let self, self.keyboard === candidate else { return }
                 if self.keyboardMouseState.setKey(key, pressed: pressed) {
-                    self.activity.noteKeyboard(at: CACurrentMediaTime())
-                    self.noteDriving()
+                    if self.bindings.action(for: key) != nil {
+                        self.activity.noteKeyboard(at: CACurrentMediaTime())
+                        self.noteDriving()
+                    }
                 }
             }
         }
-        let mappedCodes: [GCKeyCode] = [.keyW, .keyA, .keyS, .keyD, .leftArrow, .rightArrow,
-                                        .upArrow, .downArrow, .escape, .tab]
+        let mappedCodes = KeyboardMouseKey.keyboardCases.compactMap(Self.keyboardCode(for:))
         var adoptedHeldInput = false
         for code in mappedCodes where input.button(forKeyCode: code)?.isPressed == true {
             if let key = Self.keyboardKey(for: code) {
-                adoptedHeldInput = keyboardMouseState.setKey(key, pressed: true)
-                    || adoptedHeldInput
+                let adoptedMappedKey = keyboardMouseState.setKey(key, pressed: true)
+                    && bindings.action(for: key) != nil
+                adoptedHeldInput = adoptedMappedKey || adoptedHeldInput
             }
         }
         if adoptedHeldInput {
@@ -405,7 +456,30 @@ final class ControllerInput {
                 }
             }
         }
+        observeMouseButton(input.leftButton, as: .mouseLeft, from: candidate)
+        observeMouseButton(input.rightButton, as: .mouseRight, from: candidate)
+        observeMouseButton(input.middleButton, as: .mouseMiddle, from: candidate)
         inputLog.notice("Mouse connected: \(candidate.vendorName ?? "unnamed", privacy: .public)")
+    }
+
+    private func observeMouseButton(_ button: GCDeviceButtonInput?,
+                                    as control: KeyboardMouseKey,
+                                    from candidate: GCMouse) {
+        guard let button else { return }
+        button.pressedChangedHandler = { [weak self, weak candidate] _, _, pressed in
+            DispatchQueue.main.async { [weak self, weak candidate] in
+                guard let self, self.mouse === candidate else { return }
+                if self.keyboardMouseState.setControl(control, pressed: pressed) {
+                    if self.bindings.action(for: control) != nil {
+                        self.activity.noteMouse(at: CACurrentMediaTime())
+                        self.noteDriving()
+                    }
+                }
+            }
+        }
+        if button.isPressed {
+            _ = keyboardMouseState.setControl(control, pressed: true)
+        }
     }
 
     private func dropMouse(_ leaving: GCMouse?) {
@@ -426,6 +500,9 @@ final class ControllerInput {
 
     private func releaseMouse() {
         mouse?.mouseInput?.mouseMovedHandler = nil
+        mouse?.mouseInput?.leftButton.pressedChangedHandler = nil
+        mouse?.mouseInput?.rightButton?.pressedChangedHandler = nil
+        mouse?.mouseInput?.middleButton?.pressedChangedHandler = nil
         mouse = nil
         keyboardMouseState.clearMouse()
         activity.disconnectMouse()

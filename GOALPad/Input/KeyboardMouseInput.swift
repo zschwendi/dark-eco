@@ -16,6 +16,352 @@ enum PrimaryInputSource: String, CaseIterable, Codable, Sendable {
     }
 }
 
+enum Jak1InputAction: String, CaseIterable, Codable, Hashable, Sendable {
+    case moveForward
+    case moveBackward
+    case moveLeft
+    case moveRight
+    case cross
+    case circle
+    case square
+    case triangle
+    case dpadUp
+    case dpadDown
+    case dpadLeft
+    case dpadRight
+    case L1
+    case R1
+    case L2
+    case R2
+    case L3
+    case R3
+    case start
+    case select
+    case shoulderChord
+    case stats
+
+    var title: String {
+        switch self {
+        case .moveForward: "Move Forward"
+        case .moveBackward: "Move Backward"
+        case .moveLeft: "Move Left"
+        case .moveRight: "Move Right"
+        case .cross: "Cross"
+        case .circle: "Circle"
+        case .square: "Square"
+        case .triangle: "Triangle"
+        case .dpadUp: "D-Pad Up"
+        case .dpadDown: "D-Pad Down"
+        case .dpadLeft: "D-Pad Left"
+        case .dpadRight: "D-Pad Right"
+        case .L1: "L1"
+        case .R1: "R1"
+        case .L2: "L2"
+        case .R2: "R2"
+        case .L3: "L3"
+        case .R3: "R3"
+        case .start: "Start / Pause"
+        case .select: "Select"
+        case .shoulderChord: "L1 + R1"
+        case .stats: "Stats"
+        }
+    }
+
+    var buttons: GOALPadButton {
+        switch self {
+        case .moveForward, .moveBackward, .moveLeft, .moveRight: []
+        case .cross: .cross
+        case .circle: .circle
+        case .square: .square
+        case .triangle: .triangle
+        case .dpadUp: .up
+        case .dpadDown: .down
+        case .dpadLeft: .left
+        case .dpadRight: .right
+        case .L1: .L1
+        case .R1: .R1
+        case .L2: .L2
+        case .R2: .R2
+        case .L3: .L3
+        case .R3: .R3
+        case .start: .start
+        case .select: .select
+        case .shoulderChord: [.L1, .R1]
+        case .stats: [.L2, .R2]
+        }
+    }
+
+    var isControllerBindable: Bool {
+        switch self {
+        case .moveForward, .moveBackward, .moveLeft, .moveRight: false
+        default: true
+        }
+    }
+
+    static var controllerChoices: [Self] {
+        allCases.filter(\.isControllerBindable)
+    }
+}
+
+enum Jak1ControllerControl: String, CaseIterable, Codable, Hashable, Sendable {
+    case buttonA
+    case buttonB
+    case buttonX
+    case buttonY
+    case dpadUp
+    case dpadDown
+    case dpadLeft
+    case dpadRight
+    case leftShoulder
+    case rightShoulder
+    case leftTrigger
+    case rightTrigger
+    case leftThumbstickButton
+    case rightThumbstickButton
+    case menu
+    case options
+
+    var title: String {
+        switch self {
+        case .buttonA: "Bottom Face (A / Cross)"
+        case .buttonB: "Right Face (B / Circle)"
+        case .buttonX: "Left Face (X / Square)"
+        case .buttonY: "Top Face (Y / Triangle)"
+        case .dpadUp: "D-Pad Up"
+        case .dpadDown: "D-Pad Down"
+        case .dpadLeft: "D-Pad Left"
+        case .dpadRight: "D-Pad Right"
+        case .leftShoulder: "Left Shoulder"
+        case .rightShoulder: "Right Shoulder"
+        case .leftTrigger: "Left Trigger"
+        case .rightTrigger: "Right Trigger"
+        case .leftThumbstickButton: "Left Stick Click"
+        case .rightThumbstickButton: "Right Stick Click"
+        case .menu: "Menu / Options"
+        case .options: "Options / Create"
+        }
+    }
+}
+
+/// Only these named keyboard and mouse controls can become gameplay input. In particular, ordinary
+/// typing never falls through to a gameplay action merely because bindings are customizable.
+enum KeyboardMouseKey: String, CaseIterable, Codable, Hashable, Sendable {
+    case w
+    case a
+    case s
+    case d
+    case leftArrow
+    case rightArrow
+    case upArrow
+    case downArrow
+    case escape
+    case tab
+    case spacebar
+    case returnOrEnter
+    case mouseLeft
+    case mouseRight
+    case mouseMiddle
+
+    static var keyboardCases: [Self] { allCases.filter(\.isKeyboard) }
+    static var mouseCases: [Self] { allCases.filter { !$0.isKeyboard } }
+
+    var isKeyboard: Bool {
+        switch self {
+        case .mouseLeft, .mouseRight, .mouseMiddle: false
+        default: true
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .w: "W"
+        case .a: "A"
+        case .s: "S"
+        case .d: "D"
+        case .leftArrow: "Left Arrow"
+        case .rightArrow: "Right Arrow"
+        case .upArrow: "Up Arrow"
+        case .downArrow: "Down Arrow"
+        case .escape: "Escape"
+        case .tab: "Tab"
+        case .spacebar: "Space"
+        case .returnOrEnter: "Return / Enter"
+        case .mouseLeft: "Left Mouse Button"
+        case .mouseRight: "Right Mouse Button"
+        case .mouseMiddle: "Middle Mouse Button"
+        }
+    }
+}
+
+struct Jak1InputBindings: Codable, Equatable, Sendable {
+    struct ControllerBinding: Codable, Equatable, Sendable {
+        let control: Jak1ControllerControl
+        let action: Jak1InputAction
+    }
+
+    struct KeyboardMouseBinding: Codable, Equatable, Sendable {
+        let control: KeyboardMouseKey
+        let action: Jak1InputAction
+    }
+
+    static let standard = Jak1InputBindings(
+        controllerBindings: [
+            .init(control: .buttonA, action: .cross),
+            .init(control: .buttonB, action: .circle),
+            .init(control: .buttonX, action: .square),
+            .init(control: .buttonY, action: .triangle),
+            .init(control: .dpadUp, action: .dpadUp),
+            .init(control: .dpadDown, action: .dpadDown),
+            .init(control: .dpadLeft, action: .dpadLeft),
+            .init(control: .dpadRight, action: .dpadRight),
+            .init(control: .leftShoulder, action: .L1),
+            .init(control: .rightShoulder, action: .R1),
+            .init(control: .leftTrigger, action: .L2),
+            .init(control: .rightTrigger, action: .R2),
+            .init(control: .leftThumbstickButton, action: .L3),
+            .init(control: .rightThumbstickButton, action: .R3),
+            .init(control: .menu, action: .start),
+            .init(control: .options, action: .select),
+        ],
+        keyboardMouseBindings: [
+            .init(control: .w, action: .moveForward),
+            .init(control: .a, action: .moveLeft),
+            .init(control: .s, action: .moveBackward),
+            .init(control: .d, action: .moveRight),
+            .init(control: .leftArrow, action: .square),
+            .init(control: .rightArrow, action: .circle),
+            .init(control: .upArrow, action: .triangle),
+            .init(control: .downArrow, action: .shoulderChord),
+            .init(control: .escape, action: .start),
+            .init(control: .tab, action: .stats),
+        ])
+
+    private(set) var controllerBindings: [ControllerBinding]
+    private(set) var keyboardMouseBindings: [KeyboardMouseBinding]
+
+    init(controllerBindings: [ControllerBinding],
+         keyboardMouseBindings: [KeyboardMouseBinding]) {
+        self.controllerBindings = Self.normalized(controllerBindings)
+        self.keyboardMouseBindings = Self.normalized(keyboardMouseBindings)
+    }
+
+    func action(for control: Jak1ControllerControl) -> Jak1InputAction? {
+        controllerBindings.first { $0.control == control }?.action
+    }
+
+    func action(for control: KeyboardMouseKey) -> Jak1InputAction? {
+        keyboardMouseBindings.first { $0.control == control }?.action
+    }
+
+    mutating func setControllerAction(_ action: Jak1InputAction?,
+                                      for control: Jak1ControllerControl) {
+        guard action?.isControllerBindable != false, action != self.action(for: control) else {
+            return
+        }
+        var mapping = Dictionary(uniqueKeysWithValues: controllerBindings.map {
+            ($0.control, $0.action)
+        })
+        let previous = mapping.removeValue(forKey: control)
+        if let action {
+            if let owner = Jak1ControllerControl.allCases.first(where: { mapping[$0] == action }) {
+                mapping[owner] = previous
+            }
+            mapping[control] = action
+        }
+        controllerBindings = Self.normalized(mapping.map {
+            ControllerBinding(control: $0.key, action: $0.value)
+        })
+    }
+
+    mutating func setKeyboardMouseAction(_ action: Jak1InputAction?,
+                                         for control: KeyboardMouseKey) {
+        guard action != self.action(for: control) else { return }
+        var mapping = Dictionary(uniqueKeysWithValues: keyboardMouseBindings.map {
+            ($0.control, $0.action)
+        })
+        let previous = mapping.removeValue(forKey: control)
+        if let action {
+            if let owner = KeyboardMouseKey.allCases.first(where: { mapping[$0] == action }) {
+                mapping[owner] = previous
+            }
+            mapping[control] = action
+        }
+        keyboardMouseBindings = Self.normalized(mapping.map {
+            KeyboardMouseBinding(control: $0.key, action: $0.value)
+        })
+    }
+
+    func controllerFrame(pressed: Set<Jak1ControllerControl>,
+                         values: [Jak1ControllerControl: Float] = [:]) -> Jak1MappedControllerFrame {
+        var buttons: GOALPadButton = []
+        for control in pressed {
+            if let action = action(for: control) { buttons.formUnion(action.buttons) }
+        }
+        let leftTrigger = triggerByte(for: .L2, values: values)
+        let rightTrigger = triggerByte(for: .R2, values: values)
+        return Jak1MappedControllerFrame(buttons: buttons,
+                                         leftTrigger: leftTrigger,
+                                         rightTrigger: rightTrigger)
+    }
+
+    private func triggerByte(for action: Jak1InputAction,
+                             values: [Jak1ControllerControl: Float]) -> UInt8 {
+        let value = controllerBindings.lazy
+            .filter { $0.action == action }
+            .compactMap { values[$0.control] }
+            .max() ?? 0
+        return UInt8(max(0, min(255, (value * 255).rounded())))
+    }
+
+    private static func normalized(_ bindings: [ControllerBinding]) -> [ControllerBinding] {
+        let requested = Dictionary(bindings.map { ($0.control, $0.action) },
+                                   uniquingKeysWith: { _, latest in latest })
+        var claimed: Set<Jak1InputAction> = []
+        return Jak1ControllerControl.allCases.compactMap { control in
+            guard let action = requested[control], action.isControllerBindable,
+                  claimed.insert(action).inserted else { return nil }
+            return ControllerBinding(control: control, action: action)
+        }
+    }
+
+    private static func normalized(_ bindings: [KeyboardMouseBinding]) -> [KeyboardMouseBinding] {
+        let requested = Dictionary(bindings.map { ($0.control, $0.action) },
+                                   uniquingKeysWith: { _, latest in latest })
+        var claimed: Set<Jak1InputAction> = []
+        return KeyboardMouseKey.allCases.compactMap { control in
+            guard let action = requested[control], claimed.insert(action).inserted else { return nil }
+            return KeyboardMouseBinding(control: control, action: action)
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case controller
+        case keyboardMouse
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let controller = try container.decodeIfPresent([ControllerBinding].self, forKey: .controller)
+            ?? Self.standard.controllerBindings
+        let keyboardMouse = try container.decodeIfPresent([KeyboardMouseBinding].self,
+                                                           forKey: .keyboardMouse)
+            ?? Self.standard.keyboardMouseBindings
+        self.init(controllerBindings: controller, keyboardMouseBindings: keyboardMouse)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(controllerBindings, forKey: .controller)
+        try container.encode(keyboardMouseBindings, forKey: .keyboardMouse)
+    }
+}
+
+struct Jak1MappedControllerFrame: Equatable {
+    var buttons: GOALPadButton
+    var leftTrigger: UInt8
+    var rightTrigger: UInt8
+}
+
 /// Resolves a persisted preference against what this device currently has. An unavailable
 /// explicit source falls back to Automatic so a cloud-synced preference cannot strand a player.
 struct InputSourcePolicy: Equatable {
@@ -54,21 +400,6 @@ struct InputSourcePolicy: Equatable {
         case .touch: false
         }
     }
-}
-
-/// Only the keyboard keys intentionally exposed as Jak 1 controls. Text entry and every other key
-/// stay outside the gameplay pad until a later remapping slice chooses them explicitly.
-enum KeyboardMouseKey: CaseIterable, Hashable {
-    case w
-    case a
-    case s
-    case d
-    case leftArrow
-    case rightArrow
-    case upArrow
-    case downArrow
-    case escape
-    case tab
 }
 
 struct KeyboardMouseFrame {
@@ -115,16 +446,21 @@ struct KeyboardMouseInputState {
     /// mapping matches the existing Game Controller stick conversion and needs a physical A/B.
     static let mouseYSign: Float = -1
 
-    private var heldKeys: Set<KeyboardMouseKey> = []
+    private var heldControls: Set<KeyboardMouseKey> = []
     private var pendingMouseX: Float = 0
     private var pendingMouseY: Float = 0
 
     @discardableResult
     mutating func setKey(_ key: KeyboardMouseKey, pressed: Bool) -> Bool {
+        setControl(key, pressed: pressed)
+    }
+
+    @discardableResult
+    mutating func setControl(_ control: KeyboardMouseKey, pressed: Bool) -> Bool {
         if pressed {
-            return heldKeys.insert(key).inserted
+            return heldControls.insert(control).inserted
         }
-        return heldKeys.remove(key) != nil
+        return heldControls.remove(control) != nil
     }
 
     @discardableResult
@@ -136,10 +472,11 @@ struct KeyboardMouseInputState {
     }
 
     mutating func clearKeyboard() {
-        heldKeys.removeAll(keepingCapacity: true)
+        heldControls.subtract(KeyboardMouseKey.keyboardCases)
     }
 
     mutating func clearMouse() {
+        heldControls.subtract(KeyboardMouseKey.mouseCases)
         pendingMouseX = 0
         pendingMouseY = 0
     }
@@ -149,33 +486,23 @@ struct KeyboardMouseInputState {
         clearMouse()
     }
 
-    mutating func consumeFrame() -> KeyboardMouseFrame {
+    mutating func consumeFrame(bindings: Jak1InputBindings = .standard) -> KeyboardMouseFrame {
         var frame = KeyboardMouseFrame()
-        frame.hasKeyboardInput = !heldKeys.isEmpty
+        let activeControls = heldControls.filter { bindings.action(for: $0) != nil }
+        frame.hasKeyboardInput = activeControls.contains(where: \.isKeyboard)
+        let actions = Set(activeControls.compactMap { bindings.action(for: $0) })
 
-        let horizontal = Self.digitalAxis(negative: heldKeys.contains(.a),
-                                          positive: heldKeys.contains(.d))
-        let vertical = Self.digitalAxis(negative: heldKeys.contains(.w),
-                                        positive: heldKeys.contains(.s))
+        let horizontal = Self.digitalAxis(negative: actions.contains(.moveLeft),
+                                          positive: actions.contains(.moveRight))
+        let vertical = Self.digitalAxis(negative: actions.contains(.moveForward),
+                                        positive: actions.contains(.moveBackward))
         frame.leftX = Self.axisByte(horizontal)
         frame.leftY = Self.axisByte(vertical)
 
-        if heldKeys.contains(.leftArrow) { frame.buttons.insert(.square) }
-        if heldKeys.contains(.rightArrow) { frame.buttons.insert(.circle) }
-        if heldKeys.contains(.upArrow) { frame.buttons.insert(.triangle) }
-        if heldKeys.contains(.downArrow) {
-            // Jak 1's PC_PORT speedrunner entry chord checks both shoulders. Ordinary
-            // pause/progress is Start, supplied separately by Escape.
-            frame.buttons.formUnion([.L1, .R1])
-        }
-        if heldKeys.contains(.escape) { frame.buttons.insert(.start) }
-        if heldKeys.contains(.tab) {
-            // Either rear trigger opens Jak 1's native progress/stats readout. Holding the pair
-            // keeps the action layout-independent and distinct from Escape's full pause.
-            frame.buttons.formUnion([.L2, .R2])
-        }
+        for action in actions { frame.buttons.formUnion(action.buttons) }
 
         frame.hasMouseInput = pendingMouseX != 0 || pendingMouseY != 0
+            || activeControls.contains { !$0.isKeyboard }
         frame.rightX = Self.mouseAxisByte(pendingMouseX)
         frame.rightY = Self.mouseAxisByte(pendingMouseY * Self.mouseYSign)
         clearMouse()

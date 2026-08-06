@@ -725,7 +725,11 @@ struct SaveSettingsView: View {
             }
 
             Section {
-                Button("Reset Jak 1 Settings", role: .destructive) { settings.resetAll() }
+                Button("Reset Jak 1 Settings", role: .destructive) {
+                    settings.resetAll()
+                    input.setPrimarySource(settings.primaryInputSource)
+                    input.setBindings(settings.jak1InputBindings)
+                }
             }
         }
         .navigationTitle("Jak 1 Settings")
@@ -842,6 +846,17 @@ struct SaveSettingsView: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
+                NavigationLink {
+                    ControllerBindingsSettingsView(settings: settings, input: input)
+                } label: {
+                    LabeledContent("Controller Bindings", value: controllerBindingStatus)
+                }
+                NavigationLink {
+                    KeyboardMouseBindingsSettingsView(settings: settings, input: input)
+                } label: {
+                    LabeledContent("Mouse & Keyboard Bindings",
+                                   value: keyboardMouseBindingStatus)
+                }
             }
 
             if section == .graphics, settings.profile(for: .graphics) == .modern {
@@ -856,6 +871,10 @@ struct SaveSettingsView: View {
 
             Button("Restore \(section.title) Defaults") {
                 settings.restoreDefaults(for: section)
+                if section == .controls {
+                    input.setPrimarySource(settings.primaryInputSource)
+                    input.setBindings(settings.jak1InputBindings)
+                }
             }
         }
     }
@@ -869,5 +888,114 @@ struct SaveSettingsView: View {
     private func primaryInputSourceTitle(_ source: PrimaryInputSource) -> String {
         guard source != .automatic, !input.isSourceAvailable(source) else { return source.title }
         return "\(source.title) — Not Connected"
+    }
+
+    private var controllerBindingStatus: String {
+        input.isConnected ? "Connected" : "Not Connected"
+    }
+
+    private var keyboardMouseBindingStatus: String {
+        switch (input.isKeyboardConnected, input.isMouseConnected) {
+        case (true, true): "Connected"
+        case (true, false): "Keyboard Only"
+        case (false, true): "Mouse Only"
+        case (false, false): "Not Connected"
+        }
+    }
+}
+
+private struct ControllerBindingsSettingsView: View {
+    @Bindable var settings: PresentationSettings
+    @Bindable var input: ControllerInput
+
+    var body: some View {
+        Form {
+            Section("Controller") {
+                if input.isConnected {
+                    Label(input.controllerName ?? "Controller connected",
+                          systemImage: "gamecontroller.fill")
+                } else {
+                    Label("No controller connected", systemImage: "gamecontroller")
+                    Text("Bindings remain available and will apply when a controller connects.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section {
+                ForEach(Jak1ControllerControl.allCases, id: \.self) { control in
+                    Picker(control.title, selection: Binding(
+                        get: { settings.jak1InputBindings.action(for: control) },
+                        set: { action in
+                            settings.setControllerAction(action, for: control)
+                            input.setBindings(settings.jak1InputBindings)
+                        }
+                    )) {
+                        Text("Not Used").tag(nil as Jak1InputAction?)
+                        ForEach(Jak1InputAction.controllerChoices, id: \.self) { action in
+                            Text(action.title).tag(Optional(action))
+                        }
+                    }
+                }
+            } header: {
+                Text("Buttons")
+            } footer: {
+                Text("Choosing an action already in use swaps the two bindings. "
+                     + "Choosing Not Used leaves this button unassigned.")
+            }
+        }
+        .navigationTitle("Controller Bindings")
+    }
+}
+
+private struct KeyboardMouseBindingsSettingsView: View {
+    @Bindable var settings: PresentationSettings
+    @Bindable var input: ControllerInput
+
+    var body: some View {
+        Form {
+            Section("Availability") {
+                Label(input.isKeyboardConnected ? "Keyboard connected" : "Keyboard not connected",
+                      systemImage: "keyboard")
+                Label(input.isMouseConnected ? "Mouse connected" : "Mouse not connected",
+                      systemImage: "computermouse")
+                if !input.isKeyboardConnected || !input.isMouseConnected {
+                    Text("Saved bindings remain available and apply as each device connects.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            bindingSection("Keyboard", controls: KeyboardMouseKey.keyboardCases)
+            bindingSection("Mouse Buttons", controls: KeyboardMouseKey.mouseCases)
+
+            Section {
+                Text("Only the keys listed here can drive gameplay. Choosing an action already "
+                     + "in use swaps the two bindings; Not Used leaves the input unassigned.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle("Mouse & Keyboard")
+    }
+
+    @ViewBuilder
+    private func bindingSection(_ title: String, controls: [KeyboardMouseKey]) -> some View {
+        Section(title) {
+            ForEach(controls, id: \.self) { control in
+                Picker(control.title, selection: Binding(
+                    get: { settings.jak1InputBindings.action(for: control) },
+                    set: { action in
+                        settings.setKeyboardMouseAction(action, for: control)
+                        input.setBindings(settings.jak1InputBindings)
+                    }
+                )) {
+                    Text("Not Used").tag(nil as Jak1InputAction?)
+                    ForEach(Jak1InputAction.allCases, id: \.self) { action in
+                        Text(action.title).tag(Optional(action))
+                    }
+                }
+            }
+        }
     }
 }
