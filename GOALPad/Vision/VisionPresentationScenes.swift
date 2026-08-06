@@ -117,6 +117,10 @@ extension VisionStereoCompositorProofContent: CompositorLayerConfiguration {
     func makeConfiguration(capabilities: LayerRenderer.Capabilities,
                            configuration: inout LayerRenderer.Configuration) {
         configuration.isFoveationEnabled = false
+        configuration.colorUsage = [.renderTarget]
+        configuration.depthUsage = [.renderTarget]
+        let nearPlane = max(0.1, capabilities.supportedMinimumNearPlaneDistance)
+        configuration.defaultDepthRange = SIMD2(max(100, nearPlane * 1_000), nearPlane)
         let supportedLayouts = capabilities.supportedLayouts(options: [])
         configuration.layout = supportedLayouts.contains(.dedicated)
             ? .dedicated

@@ -16,6 +16,9 @@ esac
 mode_source="$root/GOALPad/Vision/VisionPresentationMode.swift"
 scene_source="$root/GOALPad/Vision/VisionPresentationScenes.swift"
 proof_source="$root/GOALPad/Vision/VisionStereoCompositorProofRenderer.swift"
+plan_source="$root/GOALPad/Vision/VisionStereoFramePlan.swift"
+plan_check="$root/Scripts/vision-stereo-frame-plan-check.swift"
+proof_shader="$root/GOALPad/Vision/VisionStereoProof.metal"
 
 mode_count=$(sed -n '/enum VisionPresentationMode:/,/var id:/p' "$mode_source" \
   | rg -c '^    case ')
@@ -37,12 +40,26 @@ rg -Fq 'readiness: .unavailable' "$mode_source"
 rg -Fq 'WindowGroup(id: VisionPresentationMode.tabletopVolume.sceneID)' "$scene_source"
 rg -Fq 'CompositorLayer(configuration: self)' "$scene_source"
 rg -Fq 'configuration.layout = supportedLayouts.contains(.dedicated)' "$scene_source"
-rg -Fq 'let textureIndices = drawable.views.map { $0.textureMap.textureIndex }' "$proof_source"
+rg -Fq 'worldTracking.queryDeviceAnchor' "$proof_source"
+rg -Fq 'drawable.computeProjection' "$proof_source"
+rg -Fq 'sliceIndex: mapping.sliceIndex' "$proof_source"
+rg -Fq 'VisionStereoFramePlanner.makePlan' "$proof_source"
 rg -Fq 'drawable.encodePresent(commandBuffer: commandBuffer)' "$proof_source"
 if rg -q 'GameSurfaceView|CAMetalLayer' "$proof_source"; then
   echo "Synthetic compositor proof must remain isolated from the game framebuffer" >&2
   exit 1
 fi
+
+host_sdk_path=$(xcrun --sdk macosx --show-sdk-path)
+swiftc -parse-as-library \
+  -sdk "$host_sdk_path" \
+  -target arm64-apple-macosx26.5 \
+  -module-cache-path "$temporary/plan-module-cache" \
+  -warnings-as-errors \
+  "$plan_source" \
+  "$plan_check" \
+  -o "$temporary/vision-stereo-frame-plan-check"
+"$temporary/vision-stereo-frame-plan-check"
 
 for sdk_and_target in \
   "macosx arm64-apple-macosx26.5" \
@@ -70,8 +87,20 @@ do
     "$root/GOALPad/GOALPadApp.swift" \
     "$mode_source" \
     "$scene_source" \
+    "$plan_source" \
     "$proof_source" \
     "$root/Scripts/vision-scene-foundation-check.swift"
 done
 
-echo "visionOS presentation modes, scene seams, compositor proof, and Apple SDK checks passed"
+if test "$requested_sdk" = all || test "$requested_sdk" = xros; then
+  mkdir -p "$temporary/metal-module-cache"
+  xcrun -sdk xros metal \
+    -Wall \
+    -Werror \
+    -fmodules-cache-path="$temporary/metal-module-cache" \
+    -o "$temporary/vision-stereo-proof.metallib" \
+    "$proof_shader"
+  echo "visionOS synthetic geometry shader check passed"
+fi
+
+echo "visionOS presentation modes, deterministic stereo plan, and selected Apple SDK checks passed"

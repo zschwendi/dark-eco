@@ -52,8 +52,9 @@ nonisolated enum VisionPresentationCapabilities {
         .init(
             mode: .stereoscopic3D,
             readiness: .syntheticCompositorProof,
-            explanation: "The compositor proof can submit distinct per-view color and depth "
-                + "targets; the game renderer is not attached."
+            explanation: "The compositor proof renders one synthetic geometry snapshot through "
+                + "tracked per-view transforms and target mappings; the game renderer is not "
+                + "attached."
         ),
         .init(
             mode: .tabletopVolume,
