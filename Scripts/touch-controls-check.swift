@@ -83,21 +83,6 @@ private struct Runner {
         controls.cancelled(ObjectIdentifier(finger))
     }
 
-    func beginPinch() {
-        controls.pinchBegan()
-    }
-
-    func pinch(scale: CGFloat, lookAroundState: GOALPadLookAroundState) {
-        controls.pinchChanged(scale: scale, lookAroundState: lookAroundState)
-    }
-
-    func endPinch() {
-        controls.pinchEnded()
-    }
-
-    func cancelPinch() {
-        controls.pinchCancelled()
-    }
 }
 
 private let neutral = UInt8(GOALPadAnalogNeutral)
@@ -619,97 +604,51 @@ private func touchHapticsAreDiscreteAndRearmSafely() {
 }
 
 @MainActor
-private func modernPinchZoomUsesAuthoritativeDirection() {
-    print("Modern pinch zoom maps outward/inward scale to one authoritative Triangle pulse")
-    var zoomIn = Runner()
-    zoomIn.beginPinch()
-    zoomIn.pinch(scale: 1 + TouchControls.pinchScaleDelta / 2, lookAroundState: .normal)
-    check(!zoomIn.frame().buttons.contains(.triangle),
-          "sub-threshold outward movement emits nothing")
-    zoomIn.pinch(scale: 1 + TouchControls.pinchScaleDelta, lookAroundState: .normal)
-    zoomIn.pinch(scale: 1.8, lookAroundState: .normal)
-    check(zoomIn.controls.consumeHapticEvents() == [.gesture(.triangle)],
-          "zooming in from normal recognises one Triangle gesture")
-    let zoomInFrames = zoomIn.frames(TouchControls.holdFrames
-                                     + TouchControls.releaseFrames + 2)
-    check(zoomInFrames.prefix(TouchControls.holdFrames).allSatisfy {
-        $0.buttons.contains(.triangle)
-    }, "zooming in from normal emits one complete Triangle pulse")
-    check(zoomInFrames.dropFirst(TouchControls.holdFrames).allSatisfy {
-        !$0.buttons.contains(.triangle)
-    }, "continued outward movement does not queue another Triangle pulse")
-
-    zoomIn.endPinch()
-    zoomIn.beginPinch()
-    zoomIn.pinch(scale: 1 - TouchControls.pinchScaleDelta,
-                 lookAroundState: .firstPerson)
-    let zoomOutFrames = zoomIn.frames(TouchControls.holdFrames
-                                      + TouchControls.releaseFrames + 2)
-    check(zoomOutFrames.prefix(TouchControls.holdFrames).allSatisfy {
-        $0.buttons.contains(.triangle)
-    }, "zooming out from first person emits one complete Triangle pulse")
-    check(zoomOutFrames.dropFirst(TouchControls.holdFrames).allSatisfy {
-        !$0.buttons.contains(.triangle)
-    }, "the zoom-out pulse has the required release and stays one-shot")
-}
-
-@MainActor
-private func modernPinchZoomFailsClosedWithoutARequestedTransition() {
-    print("Modern pinch zoom fails closed for current, unknown, and reversed directions")
-    var normal = Runner()
-    normal.beginPinch()
-    normal.pinch(scale: 1 - TouchControls.pinchScaleDelta, lookAroundState: .normal)
-    normal.pinch(scale: 1 + TouchControls.pinchScaleDelta, lookAroundState: .normal)
-    check(normal.frames(TouchControls.holdFrames + 2).allSatisfy {
-        !$0.buttons.contains(.triangle)
-    }, "zoom-out from normal stays inert and cannot reverse into zoom-in")
-
-    var firstPerson = Runner()
-    firstPerson.beginPinch()
-    firstPerson.pinch(scale: 1 + TouchControls.pinchScaleDelta,
-                      lookAroundState: .firstPerson)
-    firstPerson.pinch(scale: 1 - TouchControls.pinchScaleDelta,
-                      lookAroundState: .firstPerson)
-    check(firstPerson.frames(TouchControls.holdFrames + 2).allSatisfy {
-        !$0.buttons.contains(.triangle)
-    }, "zoom-in from first person stays inert and cannot reverse into zoom-out")
+private func semanticZoomButtonIsExactAndFailClosed() {
+    print("the semantic zoom button emits one authoritative Triangle toggle")
+    for mode in [GOALPadLookAroundState.normal, .firstPerson] {
+        var run = Runner()
+        check(run.controls.performZoomToggle(lookAroundState: mode),
+              "\(mode) accepts a zoom toggle")
+        check(run.controls.consumeHapticEvents() == [.gesture(.triangle)],
+              "\(mode) emits one zoom haptic")
+        let frames = run.frames(TouchControls.holdFrames + TouchControls.releaseFrames + 2)
+        check(frames.prefix(TouchControls.holdFrames).allSatisfy {
+            $0.buttons.contains(.triangle)
+        }, "\(mode) emits one complete Triangle pulse")
+        check(frames.dropFirst(TouchControls.holdFrames).allSatisfy {
+            !$0.buttons.contains(.triangle)
+        }, "\(mode) ends with a deterministic release")
+    }
 
     var unknown = Runner()
-    unknown.beginPinch()
-    unknown.pinch(scale: 1 + TouchControls.pinchScaleDelta, lookAroundState: .unknown)
-    unknown.pinch(scale: 1 - TouchControls.pinchScaleDelta, lookAroundState: .unknown)
-    check(unknown.frames(TouchControls.holdFrames + 2).allSatisfy {
-        !$0.buttons.contains(.triangle)
-    }, "unknown, including Billy and other first-person modes, emits nothing")
-    check(normal.controls.consumeHapticEvents().isEmpty
-          && firstPerson.controls.consumeHapticEvents().isEmpty
+    check(!unknown.controls.performZoomToggle(lookAroundState: .unknown)
+          && unknown.frame() == .neutral
           && unknown.controls.consumeHapticEvents().isEmpty,
-          "failed-closed pinches emit no gesture haptics")
+          "unknown camera state cannot emit zoom input")
+
+    var captured = Runner()
+    captured.controls.setNativeMenuMode(.pause)
+    check(!captured.controls.performZoomToggle(lookAroundState: .normal)
+          && captured.frame() == .neutral
+          && captured.controls.consumeHapticEvents().isEmpty,
+          "a native-menu owner rejects gameplay zoom input")
 }
 
 @MainActor
-private func pinchZoomIsLifecycleSafe() {
-    print("pinch zoom re-arms only after an explicit lifecycle boundary")
-    var cancelled = Runner()
-    cancelled.beginPinch()
-    cancelled.pinch(scale: 1 + TouchControls.pinchScaleDelta / 2,
-                     lookAroundState: .normal)
-    cancelled.cancelPinch()
-    cancelled.pinch(scale: 1 + TouchControls.pinchScaleDelta, lookAroundState: .normal)
-    check(!cancelled.frame().buttons.contains(.triangle),
-          "a cancelled recognizer cannot emit until a new pinch begins")
-    cancelled.beginPinch()
-    cancelled.pinch(scale: 1 + TouchControls.pinchScaleDelta, lookAroundState: .normal)
-    check(cancelled.frame().buttons.contains(.triangle),
-          "a new pinch can emit after cancellation")
-
-    cancelled.controls.reset()
-    check(cancelled.frame() == .neutral,
-          "reset clears an emitted pinch pulse and its recognizer state")
-    cancelled.beginPinch()
-    cancelled.pinch(scale: 1 + TouchControls.pinchScaleDelta, lookAroundState: .normal)
-    check(cancelled.frame().buttons.contains(.triangle),
-          "reset re-arms a fresh Modern pinch")
+private func modernChromeAddsZoomWithoutMovingAcceptedPills() {
+    print("zoom keeps the accepted Stats and Start pill centres unchanged")
+    let chrome = ModernTouchChromeLayout(size: Runner.screen)
+    check(chrome.statsFrame == CGRect(x: 513, y: 762, width: 82, height: 42),
+          "Stats retains the accepted left pill frame")
+    check(chrome.startFrame == CGRect(x: 615, y: 762, width: 82, height: 42),
+          "Start retains the accepted right pill frame")
+    check(chrome.zoomFrame == CGRect(x: 459, y: 762, width: 42, height: 42),
+          "zoom is an independent 42-point circle immediately left of Stats")
+    check(chrome.zoomFrame.maxX + ModernTouchChromeLayout.zoomGap
+          == chrome.statsFrame.minX
+          && chrome.zoomFrame.midY == chrome.statsFrame.midY,
+          "zoom is gap-separated and vertically centered without offsetting the pills")
 }
 
 @MainActor
@@ -1289,18 +1228,18 @@ private func cutsceneSkipIsContextualExactAndLifecycleSafe() {
           && !TouchControls.cutsceneSkipIsAvailable(in: .gameplay, snapshot: odd)
           && !TouchControls.cutsceneSkipIsAvailable(in: .gameplay, snapshot: .invalid),
           "wrong mode, unavailable, odd, and invalid publications fail closed")
-    check(TouchControls.artworkLabel(for: .select, sessionAction: .pause,
+    check(TouchControls.artworkLabel(for: .stats, sessionAction: .pause,
                                      cutsceneSkipAvailable: true) == "SKIP"
-          && TouchControls.artworkLabel(for: .select, sessionAction: .pause,
-                                        cutsceneSkipAvailable: false) == "SELECT",
-          "the Select artwork changes to SKIP only for validated availability")
+          && TouchControls.artworkLabel(for: .stats, sessionAction: .pause,
+                                        cutsceneSkipAvailable: false) == "STATS",
+          "the Stats artwork changes to SKIP only for validated availability")
 
     var accepted = Runner()
     accepted.controls.setNativeMenuMode(.gameplay)
     accepted.controls.setCutsceneSkipTouchSnapshot(available)
     let acceptedFinger = Finger()
-    accepted.down(acceptedFinger, CGPoint(x: Runner.select.midX, y: Runner.select.midY))
-    check(accepted.controls.isPillDown(.select) && accepted.frame() == .neutral
+    accepted.down(acceptedFinger, CGPoint(x: Runner.stats.midX, y: Runner.stats.midY))
+    check(accepted.controls.isPillDown(.stats) && accepted.frame() == .neutral
           && accepted.controls.consumeHapticEvents().isEmpty,
           "touch-down owns SKIP without sending an early pad edge")
     accepted.up(acceptedFinger)
@@ -1314,22 +1253,21 @@ private func cutsceneSkipIsContextualExactAndLifecycleSafe() {
         !$0.buttons.contains(.triangle)
     }, "a completed current SKIP tap emits one isolated Triangle pulse")
 
-    var ordinarySelect = Runner()
-    ordinarySelect.controls.setNativeMenuMode(.gameplay)
-    ordinarySelect.controls.setCutsceneSkipTouchSnapshot(unavailable)
-    let selectFinger = Finger()
-    ordinarySelect.down(selectFinger, CGPoint(x: Runner.select.midX,
-                                               y: Runner.select.midY))
-    check(ordinarySelect.frame().buttons == .select
-          && ordinarySelect.controls.consumeHapticEvents() == [.button(.select)],
-          "Select keeps its ordinary held mapping while SKIP is unavailable")
+    var ordinaryStats = Runner()
+    ordinaryStats.controls.setNativeMenuMode(.gameplay)
+    ordinaryStats.controls.setCutsceneSkipTouchSnapshot(unavailable)
+    let statsFinger = Finger()
+    ordinaryStats.down(statsFinger, CGPoint(x: Runner.stats.midX, y: Runner.stats.midY))
+    check(ordinaryStats.frame().buttons == [.L2, .R2]
+          && ordinaryStats.controls.consumeHapticEvents() == [.button(.stats)],
+          "Stats keeps its ordinary trigger chord while SKIP is unavailable")
 
     var changedSequence = Runner()
     changedSequence.controls.setNativeMenuMode(.gameplay)
     changedSequence.controls.setCutsceneSkipTouchSnapshot(available)
     let sequenceFinger = Finger()
-    changedSequence.down(sequenceFinger, CGPoint(x: Runner.select.midX,
-                                                  y: Runner.select.midY))
+    changedSequence.down(sequenceFinger, CGPoint(x: Runner.stats.midX,
+                                                  y: Runner.stats.midY))
     changedSequence.controls.setCutsceneSkipTouchSnapshot(
         .triangleQueryAvailable(sequence: 14))
     changedSequence.up(sequenceFinger)
@@ -1341,7 +1279,7 @@ private func cutsceneSkipIsContextualExactAndLifecycleSafe() {
     stale.controls.setNativeMenuMode(.gameplay)
     stale.controls.setCutsceneSkipTouchSnapshot(available)
     let staleFinger = Finger()
-    stale.down(staleFinger, CGPoint(x: Runner.select.midX, y: Runner.select.midY))
+    stale.down(staleFinger, CGPoint(x: Runner.stats.midX, y: Runner.stats.midY))
     stale.controls.setCutsceneSkipTouchSnapshot(.invalid)
     stale.up(staleFinger)
     check(stale.frames(TouchControls.holdFrames + 2).allSatisfy { $0 == .neutral }
@@ -1352,7 +1290,7 @@ private func cutsceneSkipIsContextualExactAndLifecycleSafe() {
     changedMode.controls.setNativeMenuMode(.gameplay)
     changedMode.controls.setCutsceneSkipTouchSnapshot(available)
     let modeFinger = Finger()
-    changedMode.down(modeFinger, CGPoint(x: Runner.select.midX, y: Runner.select.midY))
+    changedMode.down(modeFinger, CGPoint(x: Runner.stats.midX, y: Runner.stats.midY))
     changedMode.controls.setNativeMenuMode(.pause)
     changedMode.up(modeFinger)
     check(changedMode.frames(TouchControls.holdFrames + 2).allSatisfy { $0 == .neutral }
@@ -1371,8 +1309,8 @@ private func pausePresentationFollowsNativeMenuState() {
           "title-prompt Start artwork says START")
     check(TouchControls.artworkLabel(for: .start, sessionAction: nil) == "START",
           "unknown session state falls back to the physical Start label")
-    check(TouchControls.artworkLabel(for: .select, sessionAction: .pause) == "SELECT",
-          "Select keeps its existing label")
+    check(TouchControls.artworkLabel(for: .stats, sessionAction: .pause) == "STATS",
+          "Stats keeps its ordinary label outside a skippable cutscene")
 
     check(TouchControls.artworkIsVisible(isEngaged: false, isSuppressed: false,
                                          hasTouches: false, isNativeMenuOpen: true),
@@ -1426,11 +1364,18 @@ private func semanticTitleStartBypassesArtworkGeometryAndSurvivesCadence() {
 private func sessionControlStateMatrixIsExactAndFailClosed() {
     print("app-owned Start, Pause, and Resume follow exact native state")
     check(NativeSessionControlPresentation.reduce(
-        mode: .gameplay, titleStartState: .awaiting, progress: .unavailable)
+        mode: .gameplay, titleStartState: .notAwaiting, progress: .unavailable,
+        runReadiness: .preRun)
+          == NativeSessionControlPresentation(action: .start, isEnabled: false),
+          "boot and pre-run gameplay say Start without inventing an active save")
+    check(NativeSessionControlPresentation.reduce(
+        mode: .gameplay, titleStartState: .awaiting, progress: .unavailable,
+        runReadiness: .preRun)
           == NativeSessionControlPresentation(action: .start, isEnabled: true),
           "the exact titlePrompt state presents Start")
     check(NativeSessionControlPresentation.reduce(
-        mode: .gameplay, titleStartState: .notAwaiting, progress: .unavailable)
+        mode: .gameplay, titleStartState: .notAwaiting, progress: .unavailable,
+        runReadiness: .active)
           == NativeSessionControlPresentation(action: .pause, isEnabled: true),
           "active gameplay presents Pause")
     check(NativeSessionControlPresentation.reduce(
@@ -1441,61 +1386,74 @@ private func sessionControlStateMatrixIsExactAndFailClosed() {
     let gameplayProgress = progressSnapshot(screen: 3, startingScreen: 0,
                                             canExitWithStart: false, canGoBack: true)
     check(NativeSessionControlPresentation.reduce(
-        mode: .progress, titleStartState: .unknown, progress: gameplayProgress)
+        mode: .progress, titleStartState: .unknown, progress: gameplayProgress,
+        runReadiness: .active)
           == NativeSessionControlPresentation(action: .resume, isEnabled: false),
           "gameplay-origin progress keeps Resume visible while native Start is transiently disabled")
 
     let titleProgress = progressSnapshot(screen: 28, startingScreen: 27,
                                          canExitWithStart: true, canGoBack: true)
     check(NativeSessionControlPresentation.reduce(
-        mode: .progress, titleStartState: .unknown, progress: titleProgress)
+        mode: .progress, titleStartState: .unknown, progress: titleProgress,
+        runReadiness: .titleMenu)
           == NativeSessionControlPresentation(action: .start, isEnabled: true),
           "title-origin progress uses the physical Start label for Back/exit")
+
+    let titleWait = GameplayRunReadiness.advance(
+        .active, mode: .gameplay, titleStartState: .awaiting, progress: .unavailable)
+    let titleMenu = GameplayRunReadiness.advance(
+        titleWait, mode: .progress, titleStartState: .unknown, progress: titleProgress)
+    let activeRun = GameplayRunReadiness.advance(
+        titleMenu, mode: .gameplay, titleStartState: .notAwaiting, progress: .unavailable)
+    check(titleWait == .preRun && titleMenu == .titleMenu && activeRun == .active,
+          "title wait, title menu, and resumed gameplay form the exact run-readiness sequence")
 
     let pcOnly = progressSnapshot(screen: 35, startingScreen: 0,
                                   canExitWithStart: true, canGoBack: true)
     check(NativeMenuTouchAction.available(in: .progress, progress: pcOnly)
-          == [.back, .resume],
-          "an eligible PC-only screen has nonblank Back and Resume exits")
+          == [.back],
+          "an eligible PC-only screen keeps Back while session Resume stays in the bottom pill")
 
     for statsScreen in 1...2 {
         let stats = progressSnapshot(screen: statsScreen, startingScreen: statsScreen,
                                      canExitWithStart: true, canGoBack: true)
         check(NativeMenuTouchAction.available(in: .progress, progress: stats)
-              == [.fuelCells, .precursorOrbs, .scoutFlies, .settings, .resume],
-              "stats screen \(statsScreen) does not relabel its state-dependent Square as Back")
+              == [.precursorOrbs, .fuelCells, .scoutFlies, .settings],
+              "stats screen \(statsScreen) has X, Square, Triangle, Circle top-down")
     }
 
     let validBack = progressSnapshot(screen: 3, option: 2, startingScreen: 0,
                                      canExitWithStart: true, canGoBack: true)
     check(NativeMenuTouchAction.available(in: .progress, progress: validBack)
-          == [.up, .down, .back, .confirm, .resume],
+          == [.up, .down, .back, .confirm],
           "exact can-go-back adds Back without relabelling another action")
     check(NativeMenuTouchAction.available(in: .progress, progress: validBack)
-          == [.up, .down, .back, .confirm, .resume],
+          == [.up, .down, .back, .confirm],
           "physical-input activity cannot reduce the proven progress touch action set")
 
     let fileBack = progressSnapshot(screen: 16, option: 4, startingScreen: 16,
                                     canExitWithStart: false, canGoBack: true)
     check(NativeMenuTouchAction.available(in: .progress, progress: fileBack)
-          == [.up, .down, .back, .confirm, .resume],
-          "file lists retain their source-proven Back beside persistent Resume")
+          == [.up, .down, .back, .confirm],
+          "file lists retain their source-proven Back beside the separate session pill")
 
     let selected = progressSnapshot(screen: 3, option: 2, selected: true,
                                     startingScreen: 0, canExitWithStart: true,
                                     canGoBack: true)
     check(NativeMenuTouchAction.available(in: .progress, progress: selected)
-          == [.left, .right, .cancel, .confirm, .resume],
+          == [.left, .right, .cancel, .confirm],
           "a selected option preserves Cancel and does not invent Back")
 
     check(NativeSessionControlPresentation.reduce(
-        mode: .gameplay, titleStartState: .unknown, progress: .unavailable) == nil
+        mode: .gameplay, titleStartState: .unknown, progress: .unavailable,
+        runReadiness: .preRun)
+          == NativeSessionControlPresentation(action: .start, isEnabled: false)
           && NativeSessionControlPresentation.reduce(
             mode: .progress, titleStartState: .unknown,
             progress: progressSnapshot(screen: 35)) == nil
           && NativeSessionControlPresentation.reduce(
             mode: .unknown, titleStartState: .awaiting, progress: titleProgress) == nil,
-          "unknown title, progress navigation, and master mode states fail closed")
+          "unknown title stays disabled Start while invalid progress and master mode fail closed")
 }
 
 private func controllerSuppressionKeepsTouchRecovery() {
@@ -1595,17 +1553,17 @@ private func warpList(slot: Int32 = 0, mask: UInt32 = 0x1f,
 @MainActor
 private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
     print("dedicated native-menu actions use only authoritative mode meanings")
-    check(NativeMenuTouchAction.available(in: .pause) == [.resume],
-          "pause exposes only the authoritative Start resume action")
+    check(NativeMenuTouchAction.available(in: .pause).isEmpty,
+          "pause keeps Resume in the persistent bottom session pill")
     check(NativeMenuTouchAction.available(in: .menu)
-          == [.up, .down, .left, .right, .back, .confirm, .resume],
-          "debug menu exposes its exact D-pad, Square, X, and Start actions")
+          == [.up, .down, .left, .right, .back, .confirm],
+          "debug menu exposes its exact D-pad, Square, and X actions without duplicate Resume")
     check(NativeMenuTouchAction.available(in: .progress).isEmpty,
           "progress fails closed without an authoritative internal snapshot")
     let stats = progressSnapshot(screen: 0)
     check(NativeMenuTouchAction.available(in: .progress, progress: stats)
-          == [.fuelCells, .precursorOrbs, .scoutFlies, .settings],
-          "stats expose the exact Square, X, Triangle, and Circle destinations")
+          == [.precursorOrbs, .fuelCells, .scoutFlies, .settings],
+          "stats expose exact X, Square, Triangle, and Circle destinations top-down")
     let settings = progressSnapshot(screen: 3, option: 2)
     check(NativeMenuTouchAction.available(in: .progress, progress: settings)
           == [.up, .down, .confirm],
@@ -1671,11 +1629,19 @@ private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
           && NativeMenuTouchAction.pause.label == "Pause"
           && NativeMenuTouchAction.resume.label == "Resume",
           "command targets have explicit accessible labels")
-    check(NativeMenuTouchAction.fuelCells.label == "Fuel Cells"
-          && NativeMenuTouchAction.precursorOrbs.label == "Precursor Orbs"
-          && NativeMenuTouchAction.scoutFlies.label == "Scout Flies"
-          && NativeMenuTouchAction.settings.label == "Settings",
-          "stats targets use exact user-facing names")
+    check(NativeMenuTouchAction.precursorOrbs.label == "Orbs"
+          && NativeMenuTouchAction.fuelCells.label == "Cells"
+          && NativeMenuTouchAction.scoutFlies.label == "Flies"
+          && NativeMenuTouchAction.settings.label == "Options",
+          "stats targets use the requested compact user-facing names")
+    check(NativeMenuTouchAction.confirm.systemImage == "xmark"
+          && NativeMenuTouchAction.back.systemImage == "circle"
+          && NativeMenuTouchAction.cancel.systemImage == "circle"
+          && NativeMenuTouchAction.precursorOrbs.systemImage == "xmark"
+          && NativeMenuTouchAction.fuelCells.systemImage == "square"
+          && NativeMenuTouchAction.scoutFlies.systemImage == "triangle"
+          && NativeMenuTouchAction.settings.systemImage == "circle",
+          "confirm/cancel and stats rows use the requested PlayStation-shaped symbols")
     check(NativeMenuTouchAction.up.label == "Up"
           && NativeMenuTouchAction.down.label == "Down"
           && NativeMenuTouchAction.left.label == "Left"
@@ -1824,10 +1790,9 @@ private func nativeMenuTransitionPreventsGameplayLeakage() {
     run.down(ignored, movementCentre)
     run.move(ignored, CGPoint(x: movementCentre.x + TouchControls.movementRadius,
                               y: movementCentre.y))
-    run.beginPinch()
-    run.pinch(scale: 1 + TouchControls.pinchScaleDelta, lookAroundState: .normal)
-    check(run.frame() == .neutral,
-          "raw gameplay touch and pinch input stay disabled under dedicated menu controls")
+    check(!run.controls.performZoomToggle(lookAroundState: .normal)
+          && run.frame() == .neutral,
+          "raw gameplay touch and zoom input stay disabled under dedicated menu controls")
 
     run.controls.setNativeMenuMode(.progress)
     let progressIgnored = Finger()
@@ -2123,10 +2088,9 @@ private func nativeWarpCaptureAndSuppressionAreFailClosed() {
     let centre = CGPoint(x: 180, y: 650)
     run.down(ignored, centre)
     run.move(ignored, CGPoint(x: centre.x + TouchControls.movementRadius, y: centre.y))
-    run.beginPinch()
-    run.pinch(scale: 1 + TouchControls.pinchScaleDelta, lookAroundState: .normal)
-    check(run.frame() == .neutral,
-          "captured list touch cannot leak gameplay movement, gesture, or pinch input")
+    check(!run.controls.performZoomToggle(lookAroundState: .normal)
+          && run.frame() == .neutral,
+          "captured list touch cannot leak gameplay movement, gesture, or zoom input")
 
     run.controls.setWarpGateTouchSnapshot(transitioning)
     run.controls.performNativeWarpGateAction(.back, for: transitioning)
@@ -2215,9 +2179,8 @@ struct TouchControlsCheck {
         visibilityFollowsRecognisedTouch()
         resetClearsInterruptedInput()
         touchHapticsAreDiscreteAndRearmSafely()
-        modernPinchZoomUsesAuthoritativeDirection()
-        modernPinchZoomFailsClosedWithoutARequestedTransition()
-        pinchZoomIsLifecycleSafe()
+        semanticZoomButtonIsExactAndFailClosed()
+        modernChromeAddsZoomWithoutMovingAcceptedPills()
         cutsceneSkipIsContextualExactAndLifecycleSafe()
         pausePresentationFollowsNativeMenuState()
         semanticTitleStartBypassesArtworkGeometryAndSurvivesCadence()

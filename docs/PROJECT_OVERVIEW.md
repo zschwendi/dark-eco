@@ -125,13 +125,14 @@ and iCloud compatibility, but the shipped touch experience is no longer a
 Modern/Classic choice. The maintainer rejected the post-Build-96 Classic touch
 concept and touch editor in favor of one gameplay-touch scheme whose stick
 placement, radii, two-pill layout, and base face gestures match Build 96. Later
-bounded additions remain: crouch-left punch, pinch zoom, contextual SKIP,
+bounded additions remain: crouch-left punch, semantic zoom, contextual SKIP,
 touch haptics, truthful native-menu controls, and validated warp-gate capture.
 Graphics retains its independent Modern/Classic presentation choice, including
 Modern Fit to Screen. Old Controls profile and touch-layout documents must stay
 decodable, but they no longer control gameplay or appear as player-facing touch
-configuration. A device-local settings-sync opt-out does not disable iCloud
-saves.
+configuration. Pinch input is not part of the frozen touch contract; camera zoom
+uses one explicit semantic toggle. A device-local settings-sync opt-out does not
+disable iCloud saves.
 
 Enhancement work proceeds in this order:
 

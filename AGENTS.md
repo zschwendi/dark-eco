@@ -498,7 +498,7 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 Active lanes:
 
-- `Build 123 installed; physical single-owner touch acceptance pending` —
+- `Build 124 controller-plus-touch and session-chrome checkpoint in progress` —
   Build 118's physical run exposed
   missing Start/Resume chrome and missing native-menu Back actions. Parent
   `3588baf3`, `64050a11`, `c6757a51`, and `c85ce554` add exact read-only title
@@ -549,10 +549,18 @@ Active lanes:
   same batch is mapped, and the post-Build-96 root zero-distance SwiftUI gesture
   is gone. The semantic title/menu buttons and accepted camera layout are
   unchanged. Focused input/menu/settings checks and the signed Release build
-  pass; Build 123 is update-installed and launched with the existing app data
-  preserved. Normal one- and two-finger physical gameplay is the immediate gate.
-  Physical card, simultaneous touch/physical-input, warp, and background-resume
-  acceptance remain pending after title entry works. After that,
+  pass; Build 123 was update-installed and launched with the existing app data
+  preserved. The maintainer physically accepted its normal touch delivery and
+  the inward white camera stick. Build 123 nevertheless fails connected-controller
+  acceptance in both Automatic and explicit Controller modes. Build 124 declares
+  Extended Gamepad support, adopts current-controller transitions, keeps every
+  connected controller active regardless of the saved preference, and preserves
+  touch as an additive source. It also replaces pinch with an independent circular
+  zoom toggle, keeps the accepted Stats/Start pill centres, uses Start until a run
+  becomes active, removes duplicate right-stack Start/Resume actions, and presents
+  pause stats as X Orbs, Square Cells, Triangle Flies, and Circle Options.
+  Signed-build and physical controller-plus-touch acceptance are pending. Physical
+  card, warp, and background-resume acceptance remain pending. After that,
   stop nonessential iOS settings work and prioritize true stereoscopic visionOS
   rendering.
 - `Build 114 signed generic-iOS candidate ready; physical Misty/title gate
@@ -946,8 +954,8 @@ Active lanes:
   concept is now rejected and must be removed from player-facing runtime/UI.
   Keep old synced documents decodable only.
 - [x] Restore the Build 96 (`f5643c41`) ordinary gameplay-touch foundation:
-  dynamic left stick, fixed right stick, original face gestures, Select, and
-  Start. Retain the explicitly accepted later crouch-left punch, pinch, SKIP,
+  dynamic left stick, fixed right stick, original face gestures, Stats, and
+  Start. Retain the explicitly accepted later crouch-left punch, zoom, SKIP,
   haptics, full-screen warp capture, and native-menu
   Start/Pause/Resume/Back controls. Focused suites and independent Sol xhigh
   review pass; physical acceptance remains pending.
@@ -958,11 +966,10 @@ Active lanes:
 - [x] `Superseded by the Build 96 restoration` — the smaller outer movement
   ring and adaptive inward right-stick spacer were implemented but are not part
   of the Build 120 gameplay layout.
-- [x] Add Modern pinch-to-zoom gestures that map unambiguously to the existing Y
-  zoom toggle: pinch in and pinch out must not accidentally perform each other's
-  action. The implementation emits Triangle only for an authoritative
-  normal-to-look-around or look-around-to-normal transition and fails closed for
-  Billy, unavailable state, or a reversed gesture.
+- [x] `Superseded in Build 124` — remove pinch-to-zoom and provide one circular
+  semantic zoom toggle immediately left of Stats. It displays plus in normal
+  camera and minus in first person, emits the existing Triangle toggle, and
+  fails closed when camera state is unavailable or gameplay touch is captured.
 - [x] Replace the second Pause/Select pill with `SKIP` per the maintainer's
   latest direction. Define exactly which skippable state is active before
   emitting input; never bypass progression or corrupt game state. Builds 114

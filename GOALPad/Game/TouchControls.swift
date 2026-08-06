@@ -121,6 +121,28 @@ struct NativeProgressMenuSnapshot: Equatable {
     }
 }
 
+/// App-session knowledge that is stricter than `target-title-wait`: boot/title transitions remain
+/// pre-run until the native title menu has been seen and gameplay subsequently resumes.
+enum GameplayRunReadiness: Equatable, Sendable {
+    case preRun
+    case titleMenu
+    case active
+
+    nonisolated static func advance(
+        _ current: Self,
+        mode: GOALPadGameMode,
+        titleStartState: GOALPadTitleStartState,
+        progress: NativeProgressMenuSnapshot
+    ) -> Self {
+        if mode == .gameplay, titleStartState == .awaiting { return .preRun }
+        if mode == .progress, progress.available,
+           progress.startingScreenRawValue == 27 { return .titleMenu }
+        if current == .titleMenu, mode == .gameplay,
+           titleStartState == .notAwaiting { return .active }
+        return current
+    }
+}
+
 /// The authoritative warp-gate interaction state published by GOAL and checked by the native
 /// bridge. Invalid bridge reads remain distinct from a valid unavailable publication so a
 /// transient seqlock read cannot accidentally release an already captured destination screen.
@@ -399,10 +421,10 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         case .start: "Start"
         case .pause: "Pause"
         case .resume: "Resume"
-        case .fuelCells: "Fuel Cells"
-        case .precursorOrbs: "Precursor Orbs"
-        case .scoutFlies: "Scout Flies"
-        case .settings: "Settings"
+        case .fuelCells: "Cells"
+        case .precursorOrbs: "Orbs"
+        case .scoutFlies: "Flies"
+        case .settings: "Options"
         }
     }
 
@@ -412,16 +434,15 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         case .down: "chevron.down"
         case .left: "chevron.left"
         case .right: "chevron.right"
-        case .confirm: "checkmark"
-        case .back: "arrow.uturn.backward"
-        case .cancel: "xmark"
+        case .confirm: "xmark"
+        case .back, .cancel: "circle"
         case .start: "play.fill"
         case .pause: "pause.fill"
         case .resume: "play.fill"
-        case .fuelCells: "battery.100percent"
-        case .precursorOrbs: "circle.grid.2x2.fill"
-        case .scoutFlies: "triangle.fill"
-        case .settings: "gearshape.fill"
+        case .fuelCells: "square"
+        case .precursorOrbs: "xmark"
+        case .scoutFlies: "triangle"
+        case .settings: "circle"
         }
     }
 
@@ -430,7 +451,7 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         progress: NativeProgressMenuSnapshot = .unavailable,
         titleStartState: GOALPadTitleStartState = .unknown
     ) -> [Self] {
-        var actions: [Self] = switch mode {
+        return switch mode {
         case .pause:
             []
         case .menu:
@@ -442,22 +463,18 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         @unknown default:
             []
         }
-        if mode != .gameplay,
-           let session = NativeSessionControlPresentation.reduce(
-                mode: mode, titleStartState: titleStartState, progress: progress) {
-            actions.append(session.action)
-        }
-        return actions
     }
 
     nonisolated static func isEnabled(
         _ action: Self,
         in mode: GOALPadGameMode,
         progress: NativeProgressMenuSnapshot,
-        titleStartState: GOALPadTitleStartState
+        titleStartState: GOALPadTitleStartState,
+        runReadiness: GameplayRunReadiness = .active
     ) -> Bool {
         if let session = NativeSessionControlPresentation.reduce(
-            mode: mode, titleStartState: titleStartState, progress: progress),
+            mode: mode, titleStartState: titleStartState, progress: progress,
+            runReadiness: runReadiness),
            action == session.action {
             return session.isEnabled
         }
@@ -474,7 +491,7 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         switch snapshot.screenRawValue {
         case 0, 1, 2:
             guard !snapshot.selectedOption else { return [] }
-            actions = [.fuelCells, .precursorOrbs, .scoutFlies, .settings]
+            actions = [.precursorOrbs, .fuelCells, .scoutFlies, .settings]
         case 3:
             // The snapshot does not expose whether secrets are unlocked, so accept the larger of
             // the two authoritative shipping arrays while still rejecting every later index.
@@ -540,22 +557,26 @@ nonisolated struct NativeSessionControlPresentation: Equatable, Sendable {
     static func reduce(
         mode: GOALPadGameMode,
         titleStartState: GOALPadTitleStartState,
-        progress: NativeProgressMenuSnapshot
+        progress: NativeProgressMenuSnapshot,
+        runReadiness: GameplayRunReadiness = .active
     ) -> Self? {
         switch mode {
         case .gameplay:
             switch titleStartState {
             case .awaiting: return Self(action: .start, isEnabled: true)
-            case .notAwaiting: return Self(action: .pause, isEnabled: true)
-            case .unknown: return nil
-            @unknown default: return nil
+            case .notAwaiting, .unknown:
+                return runReadiness == .active
+                    ? Self(action: .pause, isEnabled: true)
+                    : Self(action: .start, isEnabled: false)
+            @unknown default:
+                return Self(action: .start, isEnabled: false)
             }
         case .pause, .menu:
             return Self(action: .resume, isEnabled: true)
         case .progress:
             guard progress.navigationAvailable else { return nil }
-            let action: NativeMenuTouchAction = progress.startingScreenRawValue == 27
-                ? .start : .resume
+            let action: NativeMenuTouchAction = runReadiness == .active
+                && progress.startingScreenRawValue != 27 ? .resume : .start
             return Self(action: action, isEnabled: progress.canExitWithStart)
         case .unknown:
             return nil
@@ -571,6 +592,33 @@ enum TouchHapticEvent: Equatable {
     case button(TouchButton)
     case gesture(TouchButton)
     case stickEngaged
+}
+
+/// Preserves the accepted two-pill centres while adding an independent circular zoom control.
+struct ModernTouchChromeLayout: Equatable, Sendable {
+    nonisolated static let pillSize = CGSize(width: 82, height: 42)
+    nonisolated static let pillSpacing: CGFloat = 20
+    nonisolated static let zoomDiameter: CGFloat = 42
+    nonisolated static let zoomGap: CGFloat = 12
+    nonisolated static let bottomInset: CGFloat = 30
+
+    let zoomFrame: CGRect
+    let statsFrame: CGRect
+    let startFrame: CGRect
+
+    init(size: CGSize) {
+        let width = max(0, size.width)
+        let height = max(0, size.height)
+        let pairWidth = Self.pillSize.width * 2 + Self.pillSpacing
+        let stats = CGRect(x: (width - pairWidth) / 2,
+                           y: height - Self.bottomInset - Self.pillSize.height,
+                           width: Self.pillSize.width, height: Self.pillSize.height)
+        statsFrame = stats
+        startFrame = stats.offsetBy(dx: Self.pillSize.width + Self.pillSpacing, dy: 0)
+        zoomFrame = CGRect(x: stats.minX - Self.zoomGap - Self.zoomDiameter,
+                           y: stats.midY - Self.zoomDiameter / 2,
+                           width: Self.zoomDiameter, height: Self.zoomDiameter)
+    }
 }
 
 /// Deterministic Modern artwork geometry. Input radii remain owned by TouchControls.
@@ -992,7 +1040,6 @@ final class TouchControls {
     nonisolated static let swipeDistance: CGFloat = 44
     nonisolated static let nativeMenuSwipeDistance: CGFloat = 44
     nonisolated static let nativeWarpSwipeDistance: CGFloat = 44
-    nonisolated static let pinchScaleDelta: CGFloat = 0.12
 
     /// Frames a recognised one-shot press remains down, followed by a guaranteed release gap.
     nonisolated static let holdFrames = 6
@@ -1010,6 +1057,7 @@ final class TouchControls {
     private(set) var nativeMenuMode: GOALPadGameMode = .unknown
     private(set) var progressMenuSnapshot: NativeProgressMenuSnapshot = .unavailable
     private(set) var titleStartState: GOALPadTitleStartState = .unknown
+    private(set) var runReadiness: GameplayRunReadiness = .preRun
     private(set) var warpGateTouchSnapshot: NativeWarpGateTouchSnapshot = .invalid
     private(set) var cutsceneSkipTouchSnapshot: NativeCutsceneSkipTouchSnapshot = .invalid
     @ObservationIgnored private var retainsWarpGateTouchCapture = false
@@ -1054,7 +1102,7 @@ final class TouchControls {
         touches.values.contains {
             switch $0.role {
             case .pill(let pressed): pressed == button
-            case .skip: button == .select
+            case .skip: button == .stats
             case .movement, .rightStick, .gesture: false
             }
         }
@@ -1065,7 +1113,6 @@ final class TouchControls {
     @ObservationIgnored private var pulses: [TouchButton: Pulse] = [:]
     @ObservationIgnored private var fadeToken = 0
     @ObservationIgnored private var dpad = DirectionRepeat()
-    @ObservationIgnored private var pinchZoom = PinchZoom()
 
     init(style: TouchControlStyle = .modern) {
         self.style = style
@@ -1107,13 +1154,16 @@ final class TouchControls {
     /// before another frame reaches the engine, including progress screen and selection changes.
     func setNativeMenuState(_ mode: GOALPadGameMode,
                             progress: NativeProgressMenuSnapshot,
-                            titleStartState: GOALPadTitleStartState = .unknown) {
+                            titleStartState: GOALPadTitleStartState = .unknown,
+                            runReadiness: GameplayRunReadiness = .active) {
         guard mode != nativeMenuMode || progress != progressMenuSnapshot
-                || titleStartState != self.titleStartState else { return }
+                || titleStartState != self.titleStartState
+                || runReadiness != self.runReadiness else { return }
         let capturedInput = capturesNativeTouchInput
         nativeMenuMode = mode
         progressMenuSnapshot = progress
         self.titleStartState = titleStartState
+        self.runReadiness = runReadiness
         if capturedInput || capturesNativeTouchInput { reset() }
     }
 
@@ -1153,10 +1203,19 @@ final class TouchControls {
     func performNativeMenuAction(_ action: NativeMenuTouchAction) {
         guard NativeMenuTouchAction.isEnabled(action, in: nativeMenuMode,
                                               progress: progressMenuSnapshot,
-                                              titleStartState: titleStartState)
+                                              titleStartState: titleStartState,
+                                              runReadiness: runReadiness)
         else { return }
         press(action.button)
         enqueueHaptic(.button(action.button))
+    }
+
+    /// The compact STATS pill mirrors the physical L2+R2 chord while the native pause owner has
+    /// captured raw gameplay touches. Progress screens keep it visible but inert.
+    func performCapturedStats() {
+        guard nativeMenuMode == .pause else { return }
+        press(.stats)
+        enqueueHaptic(.button(.stats))
     }
 
     /// Converts one completed, predominantly vertical list swipe into one ordinary D-pad pulse.
@@ -1332,32 +1391,20 @@ final class TouchControls {
         fadeWhenIdle()
     }
 
-    func pinchBegan() {
-        guard !capturesNativeTouchInput else {
-            pinchZoom.reset()
-            return
-        }
-        pinchZoom.begin()
-    }
-
-    func pinchChanged(scale: CGFloat, lookAroundState: GOALPadLookAroundState) {
-        guard !capturesNativeTouchInput,
-              let direction = pinchZoom.recognize(scale: scale) else { return }
-        switch (direction, lookAroundState) {
-        case (.zoomIn, .normal), (.zoomOut, .firstPerson):
+    /// Jak's zoom is a Triangle toggle. The live camera mode supplies the truthful next direction.
+    @discardableResult
+    func performZoomToggle(lookAroundState: GOALPadLookAroundState) -> Bool {
+        guard !capturesNativeTouchInput else { return false }
+        switch lookAroundState {
+        case .normal, .firstPerson:
             press(.triangle)
             enqueueHaptic(.gesture(.triangle))
-        default:
-            break
+            return true
+        case .unknown:
+            return false
+        @unknown default:
+            return false
         }
-    }
-
-    func pinchEnded() {
-        pinchZoom.reset()
-    }
-
-    func pinchCancelled() {
-        pinchZoom.reset()
     }
 
     /// UIKit may not deliver individual cancellations during a lifecycle transition.
@@ -1365,7 +1412,6 @@ final class TouchControls {
         touches.removeAll()
         pulses.removeAll()
         dpad = DirectionRepeat()
-        pinchZoom.reset()
         hapticEvents.removeAll()
         fadeToken += 1
         isEngaged = false
@@ -1442,7 +1488,7 @@ final class TouchControls {
     }
 
     private func pillRole(for button: TouchButton) -> Role {
-        if button == .select,
+        if button == .stats,
            Self.cutsceneSkipIsAvailable(in: nativeMenuMode,
                                         snapshot: cutsceneSkipTouchSnapshot) {
             return .skip(cutsceneSkipTouchSnapshot)
@@ -1552,7 +1598,7 @@ final class TouchControls {
     nonisolated static func artworkLabel(for button: TouchButton,
                                          sessionAction: NativeMenuTouchAction?,
                                          cutsceneSkipAvailable: Bool = false) -> String {
-        if button == .select, cutsceneSkipAvailable { return "SKIP" }
+        if button == .stats, cutsceneSkipAvailable { return "SKIP" }
         guard button == .start else { return button.glyph }
         return (sessionAction?.label ?? button.glyph).uppercased()
     }
@@ -1638,40 +1684,6 @@ final class TouchControls {
 
     private func enqueueHaptic(_ event: TouchHapticEvent) {
         hapticEvents.append(event)
-    }
-
-    private struct PinchZoom {
-        enum Direction {
-            case zoomIn
-            case zoomOut
-        }
-
-        private var isActive = false
-        private var direction: Direction?
-
-        mutating func begin() {
-            isActive = true
-            direction = nil
-        }
-
-        mutating func recognize(scale: CGFloat) -> Direction? {
-            guard isActive, direction == nil else { return nil }
-            let recognized: Direction
-            if scale >= 1 + TouchControls.pinchScaleDelta {
-                recognized = .zoomIn
-            } else if scale <= 1 - TouchControls.pinchScaleDelta {
-                recognized = .zoomOut
-            } else {
-                return nil
-            }
-            direction = recognized
-            return recognized
-        }
-
-        mutating func reset() {
-            isActive = false
-            direction = nil
-        }
     }
 
     /// Converts strong movement into one repeated dominant-axis D-pad direction for menus.

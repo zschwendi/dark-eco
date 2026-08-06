@@ -34,3 +34,15 @@ fi
 rg -Fq 'reclaimTouchInput: reclaimTouchInput)' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'TouchControlsView.forwardGameplayTouchBatch(' \
   "$root/GOALPad/Game/TouchControlsView.swift"
+
+# Zoom is one explicit semantic button. Reintroducing a full-screen pinch recognizer would compete
+# with the accepted single-owner gameplay touch surface.
+if rg -Fq 'UIPinchGestureRecognizer' "$root/GOALPad/Game/TouchControlsView.swift"; then
+  echo "pinch recognizer still competes with gameplay touch" >&2
+  exit 1
+fi
+rg -Fq 'Button { performZoomToggle() }' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'magnifyingglass.plus' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'magnifyingglass.minus' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'ModernTouchChromeLayout' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'pill(.stats)' "$root/GOALPad/Game/TouchControlsView.swift"

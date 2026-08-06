@@ -760,13 +760,11 @@ struct InputSourcePolicy: Equatable {
         }
     }
 
-    /// On-screen input is additive on iOS. A primary physical-source preference may choose which
-    /// attached device is read, but it must never make the screen stop responding.
+    /// Touch and a connected controller are always additive. The preference can choose whether a
+    /// keyboard/mouse joins them, but it must never strand either of the primary play methods.
     var allowsTouch: Bool { touchAvailable }
 
-    var allowsController: Bool {
-        controllerConnected && (effectiveSource == .automatic || effectiveSource == .controller)
-    }
+    var allowsController: Bool { controllerConnected }
 
     var allowsKeyboardMouse: Bool {
         keyboardMouseConnected

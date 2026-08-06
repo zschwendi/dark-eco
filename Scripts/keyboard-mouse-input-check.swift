@@ -386,8 +386,8 @@ private func primaryInputSourcePolicy() {
     let touch = InputSourcePolicy(preference: .touch, touchAvailable: true,
                                   controllerConnected: true, keyboardMouseConnected: true)
     check(touch.effectiveSource == .touch && touch.allowsTouch
-          && !touch.allowsController && !touch.allowsKeyboardMouse,
-          "Touch explicitly excludes connected physical input")
+          && touch.allowsController && !touch.allowsKeyboardMouse,
+          "a connected controller immediately joins explicit Touch")
     check(!touch.suppressesTouchChrome(recentPhysicalActivity: true),
           "ignored physical activity cannot hide explicit Touch controls")
     check(touch.allowsTouchRecovery,
@@ -408,8 +408,8 @@ private func primaryInputSourcePolicy() {
                                           controllerConnected: true,
                                           keyboardMouseConnected: true)
     check(keyboardMouse.allowsKeyboardMouse && keyboardMouse.allowsTouch
-          && !keyboardMouse.allowsController,
-          "Keyboard/Mouse remains primary while touch stays additive")
+          && keyboardMouse.allowsController,
+          "Keyboard/Mouse keeps both controller and touch additive")
     check(keyboardMouse.allowsTouchRecovery,
           "a screen touch can reclaim controls from explicit Keyboard/Mouse")
 
@@ -418,6 +418,14 @@ private func primaryInputSourcePolicy() {
                                         keyboardMouseConnected: false)
     check(unavailable.effectiveSource == .automatic && unavailable.allowsTouch,
           "an unavailable cloud-synced preference falls back without stranding input")
+
+    for preference in PrimaryInputSource.allCases {
+        let coexistence = InputSourcePolicy(preference: preference, touchAvailable: true,
+                                            controllerConnected: true,
+                                            keyboardMouseConnected: false)
+        check(coexistence.allowsController && coexistence.allowsTouch,
+              "\(preference.title) cannot disable controller-plus-touch coexistence")
+    }
 }
 
 private func relativeMouse() {

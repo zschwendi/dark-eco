@@ -86,11 +86,19 @@ final class ControllerInput {
         observers = [
             center.addObserver(forName: .GCControllerDidConnect, object: nil, queue: .main) {
                 [weak self] note in
-                MainActor.assumeIsolated { self?.adoptController(note.object as? GCController) }
+                MainActor.assumeIsolated {
+                    self?.controllerDidConnect(note.object as? GCController)
+                }
             },
             center.addObserver(forName: .GCControllerDidDisconnect, object: nil, queue: .main) {
                 [weak self] note in
                 MainActor.assumeIsolated { self?.dropController(note.object as? GCController) }
+            },
+            center.addObserver(forName: .GCControllerDidBecomeCurrent,
+                               object: nil, queue: .main) { [weak self] note in
+                MainActor.assumeIsolated {
+                    self?.adoptController(note.object as? GCController)
+                }
             },
             center.addObserver(forName: .GCKeyboardDidConnect, object: nil, queue: .main) {
                 [weak self] note in
@@ -115,7 +123,7 @@ final class ControllerInput {
                 }
             },
         ]
-        adoptController(GCController.current ?? GCController.controllers().first)
+        adoptController(Self.preferredController())
         adoptKeyboard(GCKeyboard.coalesced)
         adoptMouse(GCMouse.current ?? GCMouse.mice().first)
         GCController.startWirelessControllerDiscovery()
@@ -366,6 +374,21 @@ final class ControllerInput {
 
     // MARK: - Connection
 
+    private static func preferredController(excluding excluded: GCController? = nil) -> GCController? {
+        if let current = GCController.current,
+           current !== excluded,
+           current.extendedGamepad != nil { return current }
+        return GCController.controllers().first {
+            $0 !== excluded && $0.extendedGamepad != nil
+        }
+    }
+
+    private func controllerDidConnect(_ candidate: GCController?) {
+        guard let candidate, candidate.extendedGamepad != nil else { return }
+        guard controller == nil else { return }
+        adoptController(Self.preferredController() ?? candidate)
+    }
+
     private func adoptController(_ candidate: GCController?) {
         guard let candidate, candidate.extendedGamepad != nil else { return }
         guard controller !== candidate else { return }
@@ -384,7 +407,7 @@ final class ControllerInput {
         releaseController()
         inputLog.notice("Controller disconnected")
 
-        if let next = GCController.controllers().first(where: { $0.extendedGamepad != nil }) {
+        if let next = Self.preferredController(excluding: leaving) {
             adoptController(next)
         }
         noteDriving()

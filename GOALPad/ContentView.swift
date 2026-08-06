@@ -64,6 +64,7 @@ struct ContentView: View {
                                   isSuppressed: session.input.isDriving,
                                   gameMode: session.gameMode,
                                   titleStartState: session.titleStartState,
+                                  runReadiness: session.runReadiness,
                                   progressMenuSnapshot: session.progressMenuSnapshot,
                                   warpGateTouchSnapshot: session.warpGateTouchSnapshot,
                                   cutsceneSkipTouchSnapshot: session.cutsceneSkipTouchSnapshot,

@@ -38,6 +38,7 @@ final class GameSession {
     private(set) var gameMode: GOALPadGameMode = .unknown
     private(set) var titleStartState: GOALPadTitleStartState = .unknown
     private(set) var progressMenuSnapshot: NativeProgressMenuSnapshot = .unavailable
+    private(set) var runReadiness: GameplayRunReadiness = .preRun
     private(set) var warpGateTouchSnapshot: NativeWarpGateTouchSnapshot = .invalid
     private(set) var cutsceneSkipTouchSnapshot: NativeCutsceneSkipTouchSnapshot = .invalid
     private(set) var lookAroundState: GOALPadLookAroundState = .unknown
@@ -166,6 +167,7 @@ final class GameSession {
         saveSync.setGameplayActive(true)
         startupError = nil
         settings.apply()
+        runReadiness = .preRun
         isBooting = true
         sessionLog.notice("Booting Jak 1")
         bootQueue.async {
@@ -218,6 +220,7 @@ final class GameSession {
         kernel = nil
         boot = nil
         isRunning = false
+        runReadiness = .preRun
         updateNativeMenuState(mode: .unknown, progress: .unavailable,
                               titleStartState: .unknown)
         updateWarpGateTouchSnapshot(.invalid)
@@ -297,10 +300,13 @@ final class GameSession {
     private func updateNativeMenuState(mode: GOALPadGameMode,
                                        progress: NativeProgressMenuSnapshot,
                                        titleStartState: GOALPadTitleStartState) {
+        runReadiness = GameplayRunReadiness.advance(
+            runReadiness, mode: mode, titleStartState: titleStartState, progress: progress)
         gameMode = mode
         progressMenuSnapshot = progress
         self.titleStartState = titleStartState
-        touch.setNativeMenuState(mode, progress: progress, titleStartState: titleStartState)
+        touch.setNativeMenuState(mode, progress: progress, titleStartState: titleStartState,
+                                 runReadiness: runReadiness)
     }
 
     private func updateWarpGateTouchSnapshot(_ snapshot: NativeWarpGateTouchSnapshot) {

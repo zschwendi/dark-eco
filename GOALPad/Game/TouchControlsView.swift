@@ -12,6 +12,7 @@ struct TouchControlsView: View {
     let isSuppressed: Bool
     let gameMode: GOALPadGameMode
     let titleStartState: GOALPadTitleStartState
+    let runReadiness: GameplayRunReadiness
     let progressMenuSnapshot: NativeProgressMenuSnapshot
     let warpGateTouchSnapshot: NativeWarpGateTouchSnapshot
     let cutsceneSkipTouchSnapshot: NativeCutsceneSkipTouchSnapshot
@@ -21,7 +22,7 @@ struct TouchControlsView: View {
     private static let pillWidth: CGFloat = 82
 
     #if canImport(UIKit)
-    @State private var titleStartHaptics = TouchHapticDriver()
+    @State private var chromeHaptics = TouchHapticDriver()
     #endif
 
     @discardableResult
@@ -60,7 +61,8 @@ struct TouchControlsView: View {
     private var sessionControl: NativeSessionControlPresentation? {
         NativeSessionControlPresentation.reduce(mode: gameMode,
                                                 titleStartState: titleStartState,
-                                                progress: progressMenuSnapshot)
+                                                progress: progressMenuSnapshot,
+                                                runReadiness: runReadiness)
     }
 
     private var nativeMenuControlsAreVisible: Bool {
@@ -105,7 +107,6 @@ struct TouchControlsView: View {
                 if !capturesNativeMenuInput && !capturesWarpGateTouchInput {
                     #if canImport(UIKit)
                     TouchSurface(controls: controls,
-                                 lookAroundState: lookAroundState,
                                  isSuppressed: isSuppressed,
                                  reclaimTouchInput: reclaimTouchInput)
                     #endif
@@ -118,6 +119,10 @@ struct TouchControlsView: View {
                     if titleStartTouchTargetIsVisible {
                         titleStartTouchTarget
                     }
+
+                    if isVisible {
+                        zoomButton(in: proxy)
+                    }
                 }
 
                 if capturesNativeMenuInput {
@@ -127,6 +132,8 @@ struct TouchControlsView: View {
                                             reclaimTouchInput: reclaimTouchInput)
                         .padding(.horizontal, 20)
                         .padding(.bottom, max(20, proxy.safeAreaInsets.bottom))
+
+                    capturedMenuChrome(in: proxy)
                 }
 
                 if !capturesNativeMenuInput
@@ -152,6 +159,7 @@ struct TouchControlsView: View {
                                                  bottom: proxy.safeAreaInsets.bottom,
                                                  trailing: proxy.safeAreaInsets.trailing)
         let layout = ModernTouchLayout(size: proxy.size, safeAreaInsets: safeAreaInsets)
+        let chrome = ModernTouchChromeLayout(size: proxy.size)
         let bottomInset = ModernTouchLayout.legacyRightStickEdge(for: proxy.size)
 
         return ZStack {
@@ -163,12 +171,10 @@ struct TouchControlsView: View {
                 GestureRose(gesture: gesture)
             }
 
-            HStack(spacing: 20) {
-                pill(.select)
-                pill(.start)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-            .padding(.bottom, 30)
+            pill(.stats)
+                .position(x: chrome.statsFrame.midX, y: chrome.statsFrame.midY)
+            pill(.start)
+                .position(x: chrome.startFrame.midX, y: chrome.startFrame.midY)
 
             RightStickControl(controls: controls)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
@@ -193,6 +199,68 @@ struct TouchControlsView: View {
             } action: {
                 controls.setPillFrame(button, $0)
             }
+    }
+
+    private var zoomSystemImage: String {
+        lookAroundState == .firstPerson ? "magnifyingglass.minus" : "magnifyingglass.plus"
+    }
+
+    private var zoomAccessibilityLabel: String {
+        lookAroundState == .firstPerson ? "Zoom Out" : "Zoom In"
+    }
+
+    private func zoomButton(in proxy: GeometryProxy) -> some View {
+        let frame = ModernTouchChromeLayout(size: proxy.size).zoomFrame
+        return Button { performZoomToggle() } label: {
+            Image(systemName: zoomSystemImage)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(.white.opacity(lookAroundState == .unknown ? 0.45 : 0.82))
+                .frame(width: frame.width, height: frame.height)
+                .background(Circle().fill(.black.opacity(0.42)))
+                .overlay(Circle().strokeBorder(.white.opacity(0.35), lineWidth: 1))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .disabled(lookAroundState == .unknown)
+        .position(x: frame.midX, y: frame.midY)
+        .accessibilityLabel(zoomAccessibilityLabel)
+    }
+
+    private func capturedMenuChrome(in proxy: GeometryProxy) -> some View {
+        let chrome = ModernTouchChromeLayout(size: proxy.size)
+        return ZStack {
+            Button { performCapturedStats() } label: {
+                capturedPillLabel("STATS", isEnabled: gameMode == .pause)
+            }
+            .buttonStyle(.plain)
+            .disabled(gameMode != .pause)
+            .position(x: chrome.statsFrame.midX, y: chrome.statsFrame.midY)
+            .accessibilityLabel("Stats")
+
+            if let sessionControl {
+                Button { performSessionControl(sessionControl) } label: {
+                    capturedPillLabel(sessionControl.action.label.uppercased(),
+                                      isEnabled: sessionControl.isEnabled)
+                }
+                .buttonStyle(.plain)
+                .disabled(!sessionControl.isEnabled)
+                .position(x: chrome.startFrame.midX, y: chrome.startFrame.midY)
+                .accessibilityLabel(sessionControl.action.label)
+            }
+        }
+        .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+    }
+
+    private func capturedPillLabel(_ label: String, isEnabled: Bool) -> some View {
+        Text(label)
+            .font(.system(size: 12, weight: .semibold, design: .rounded))
+            .tracking(1.4)
+            .foregroundStyle(.white.opacity(isEnabled ? 0.8 : 0.42))
+            .frame(width: Self.pillWidth, height: 42)
+            .background(Capsule().fill(.black.opacity(0.42)))
+            .overlay(Capsule().strokeBorder(.white.opacity(isEnabled ? 0.35 : 0.18),
+                                            lineWidth: 1))
+            .contentShape(Capsule())
     }
 
     /// The title prompt is an app-owned semantic action. Keep its visible Build 96 pill, but do
@@ -223,8 +291,30 @@ struct TouchControlsView: View {
     private func performTitleStart() {
         _ = reclaimTouchInput()
         controls.performNativeMenuAction(.start)
+        playChromeFeedback()
+    }
+
+    private func performZoomToggle() {
+        _ = reclaimTouchInput()
+        guard controls.performZoomToggle(lookAroundState: lookAroundState) else { return }
+        playChromeFeedback()
+    }
+
+    private func performCapturedStats() {
+        _ = reclaimTouchInput()
+        controls.performCapturedStats()
+        playChromeFeedback()
+    }
+
+    private func performSessionControl(_ presentation: NativeSessionControlPresentation) {
+        _ = reclaimTouchInput()
+        controls.performNativeMenuAction(presentation.action)
+        playChromeFeedback()
+    }
+
+    private func playChromeFeedback() {
         #if canImport(UIKit)
-        titleStartHaptics.play(controls.consumeHapticEvents())
+        chromeHaptics.play(controls.consumeHapticEvents())
         #else
         _ = controls.consumeHapticEvents()
         #endif
@@ -651,7 +741,6 @@ private struct RightStickControl: View {
 /// The one view that sees raw multitouch and hands each finger to the state machine by identity.
 private struct TouchSurface: UIViewRepresentable {
     let controls: TouchControls
-    let lookAroundState: GOALPadLookAroundState
     let isSuppressed: Bool
     let reclaimTouchInput: () -> Bool
 
@@ -660,7 +749,6 @@ private struct TouchSurface: UIViewRepresentable {
         view.isMultipleTouchEnabled = true
         view.backgroundColor = .clear
         view.controls = controls
-        view.lookAroundState = lookAroundState
         view.isSuppressed = isSuppressed
         view.reclaimTouchInput = reclaimTouchInput
         return view
@@ -668,7 +756,6 @@ private struct TouchSurface: UIViewRepresentable {
 
     func updateUIView(_ view: TouchSurfaceView, context: Context) {
         view.controls = controls
-        view.lookAroundState = lookAroundState
         view.isSuppressed = isSuppressed
         view.reclaimTouchInput = reclaimTouchInput
     }
@@ -676,16 +763,12 @@ private struct TouchSurface: UIViewRepresentable {
 
 private final class TouchSurfaceView: UIView {
     var controls: TouchControls?
-    var lookAroundState = GOALPadLookAroundState.unknown
     var isSuppressed = false
     var reclaimTouchInput: (() -> Bool)?
     private let haptics = TouchHapticDriver()
-    private let pinchRecognizer = UIPinchGestureRecognizer()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        pinchRecognizer.addTarget(self, action: #selector(handlePinch(_:)))
-        addGestureRecognizer(pinchRecognizer)
     }
 
     required init?(coder: NSCoder) {
@@ -721,25 +804,6 @@ private final class TouchSurfaceView: UIView {
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             controls?.cancelled(ObjectIdentifier(touch))
-        }
-        flushHaptics()
-    }
-
-    @objc private func handlePinch(_ pinch: UIPinchGestureRecognizer) {
-        switch pinch.state {
-        case .began:
-            controls?.pinchBegan()
-            controls?.pinchChanged(scale: pinch.scale, lookAroundState: lookAroundState)
-        case .changed:
-            controls?.pinchChanged(scale: pinch.scale, lookAroundState: lookAroundState)
-        case .ended:
-            controls?.pinchEnded()
-        case .cancelled, .failed:
-            controls?.pinchCancelled()
-        case .possible:
-            break
-        @unknown default:
-            controls?.pinchCancelled()
         }
         flushHaptics()
     }
