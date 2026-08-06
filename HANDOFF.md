@@ -12774,3 +12774,105 @@ execution behind an exact owned plan and preserve in-order dispatch. Do not
 promote GMerc or a visual family that has no live title packet merely to reduce
 the deferred count. Batch the next heavy validation checkpoint; continue using
 focused tests and short fresh-settings replays between source-backed changes.
+
+# Checkpoint 92: ARM64 graphics callbacks leave GOAL process stacks
+
+Date: 2026-08-06. The isolated nested branch
+`agent/jak2-real-dma-draw-proof` adds `888302b1d`. The crash supplied after the
+first common-bucket capture was not a settings problem or AOT lookup defect. A
+hardware watchpoint showed `CAMetalLayer`/IOSurface stack use overwriting the
+nearby `kill-by-type` symbol-name bytes while the renderer ran on Jak II's
+32-KiB DRAM process stack. The later lookup rejected the corrupted name,
+interned a duplicate zero-valued symbol, and eventually aborted through
+`traffic-start`.
+
+The shared ARM64 native-to-GOAL trampoline now publishes the exact aligned
+post-prologue pthread stack pointer in a nesting-safe thread-local slot. Each
+installed graphics-host callback synchronously switches back to that suspended
+native stack through the existing bounded six-argument assembly seam, then
+returns to the same GOAL frame. Borrowed DMA and level-name pointer lifetimes,
+`sync-path` ordering, and GOAL-side before-vsync handling remain synchronous
+and unchanged. A callback that violates the nonthrowing host ABI is caught
+before the inner assembly boundary and terminates after stack restoration; it
+cannot unwind through GOAL/AOT or hand-written stack-switch frames.
+
+An independent ABI review confirmed register preservation, 16-byte alignment,
+return-value preservation, safe reuse of the suspended stack, and nested TLS
+restoration. It caught the initial unsafe exception rethrow before commit. The
+Jak II graphics-host regression now enters through a real EE-memory stack and
+proves both a void DMA callback and the non-void `sync-path` result cross the
+native-host seam correctly.
+
+## Canonical validation
+
+The integration owner reused the canonical Release/Ninja/ccache build and ran:
+
+```text
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host --target \
+  jak2-gfx-host-test -j2
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-gfx-host-test
+
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host --target \
+  jak1-gfx-host-test -j2
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak1-gfx-host-test
+
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host --target \
+  jak2-thread-switch-test -j2
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-thread-switch-test
+
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host --target \
+  jak1-thread-switch-test -j2
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak1-thread-switch-test
+
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host --target \
+  jak2-metal-runtime-proof -j2
+```
+
+Both graphics-host tests and both ARM64 thread-switch tests passed. The final
+runtime target built after temporary symbol-watch diagnostics were removed.
+`git diff --check` and the independent review passed. The canonical Ninja log
+had one recoverable truncated tail after two small test-target builds were
+started together; `ninja -t recompact` repaired it, and subsequent sequential
+builds completed without the warning. No Xcode or broad Metal matrix was run.
+
+## Real prepared-data Mac evidence
+
+The final reviewed replay was:
+
+```text
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-metal-runtime-proof \
+  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  --saves-dir /private/tmp/goalpad-jak2-native-host-stack-reviewed-40 \
+  --ticks 40 --hidden
+```
+
+The complete log is
+`/private/tmp/goalpad-jak2-native-host-stack-reviewed-40.log` (SHA-256
+`0604d7696d41e45c960a452eca18500e6aa6bb3357f95603b46a659cc1b369c8`).
+The proof reached all 40 ticks with 40/40 completed Metal chains, zero failed
+chains, GPU errors, drawable misses, late submissions, ordering errors, or
+unsupported blends. The final frame was fully nonblack with hash
+`557e841173042025`. Exit 1 remains the expected title-attribution diagnostic:
+`exact=1`, `title=1`, `last-non-black=307200`, and `tick-failed=0`; no abort or
+symbol corruption recurred. The fresh save directory had no prior settings and
+the runtime wrote clean defaults. No Eco target, simulator, or physical device
+was accessed.
+
+## Preserved work and next executable task
+
+The nested worktree intentionally remains dirty only with the bounded common
+TFRAG bucket-187 telemetry in:
+
+```text
+game/graphics/pipelines/metal/metal_jak2_host_bridge.h
+game/graphics/pipelines/metal/metal_jak2_host_bridge.mm
+game/graphics/pipelines/metal/metal_jak2_host_bridge_test.mm
+game/kernel/core/jak2_macos_metal_runtime_proof.mm
+```
+
+The 40-frame trace consistently observes one ordinary descriptor, one
+opcode-27 animator array, and the terminal reset in bucket 187, with no live
+eye contribution. Continue from that owned capture and implement the exact
+opcode-27 animator semantics before changing bucket policy. Keep general eyes,
+GMerc, audio output, controls, Eco, and simulator integration behind their own
+later gates.

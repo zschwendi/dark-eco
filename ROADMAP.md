@@ -1324,6 +1324,15 @@ exactly 5,568 deferred bytes with no GPU, ordering, or frame-hash change. Common
 texture/setup bucket 187 is the next efficient renderer seam; full validation
 remains batched until another material checkpoint.
 
+Checkpoint 92 advances the shared ARM64 runtime to nested `888302b1d`. Apple
+Metal/IOSurface calls no longer consume a Jak GOAL process stack: graphics-host
+callbacks synchronously return to the exact suspended pthread stack and then
+resume the same GOAL frame, with nonthrowing ABI enforcement. Focused Jak 1 and
+Jak II graphics-host and thread-switch tests pass, and a fresh-settings 40-frame
+Jak II replay completes 40/40 Metal chains with zero runtime/GPU failure after
+the prior symbol-name corruption point. Common bucket 187 remains the next
+renderer seam; its capture is preserved separately and not part of this fix.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
