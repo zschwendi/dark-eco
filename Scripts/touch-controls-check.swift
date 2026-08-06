@@ -929,6 +929,13 @@ private func controllerSuppressionKeepsTouchRecovery() {
           "unengaged artwork remains hidden")
 }
 
+private func progressSnapshot(screen: Int, option: Int = 0,
+                              selected: Bool = false,
+                              transition: Bool = false) -> NativeProgressMenuSnapshot {
+    NativeProgressMenuSnapshot(available: true, screenRawValue: screen, optionIndex: option,
+                               selectedOption: selected, inTransition: transition)
+}
+
 @MainActor
 private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
     print("dedicated native-menu actions use only authoritative mode meanings")
@@ -938,19 +945,57 @@ private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
           == [.up, .down, .left, .right, .back, .confirm, .resume],
           "debug menu exposes its exact D-pad, Square, X, and Start actions")
     check(NativeMenuTouchAction.available(in: .progress).isEmpty,
-          "progress does not fake confirm/back without its internal display state")
+          "progress fails closed without an authoritative internal snapshot")
+    let stats = progressSnapshot(screen: 0)
+    check(NativeMenuTouchAction.available(in: .progress, progress: stats)
+          == [.fuelCells, .precursorOrbs, .scoutFlies, .settings],
+          "stats expose the exact Square, X, Triangle, and Circle destinations")
+    let settings = progressSnapshot(screen: 3, option: 2)
+    check(NativeMenuTouchAction.available(in: .progress, progress: settings)
+          == [.up, .down, .left, .right, .confirm],
+          "ordinary settings expose navigation and confirm without an unproven Back")
+    check(NativeMenuTouchAction.available(
+        in: .progress, progress: progressSnapshot(screen: 3, option: 2, selected: true))
+          == [.left, .right, .cancel, .confirm],
+          "selected settings expose the source-proven unconditional Cancel meaning")
+    check(NativeMenuTouchAction.available(
+        in: .progress, progress: progressSnapshot(screen: 16, option: 4))
+          == [.up, .down, .back, .confirm],
+          "load files expose the source-proven file-list Back meaning")
+    check(NativeMenuTouchAction.available(
+        in: .progress, progress: progressSnapshot(screen: 3, option: 7)).isEmpty,
+          "out-of-range screen option state fails closed")
+    check(NativeMenuTouchAction.available(
+        in: .progress, progress: progressSnapshot(screen: 29)).isEmpty
+          && NativeMenuTouchAction.available(
+            in: .progress, progress: progressSnapshot(screen: 3, transition: true)).isEmpty
+          && NativeMenuTouchAction.available(
+            in: .progress, progress: progressSnapshot(screen: 35)).isEmpty,
+          "auto-save, transition, and unclassified PC progress states remain inert")
     check(NativeMenuTouchAction.available(in: .gameplay).isEmpty
           && NativeMenuTouchAction.available(in: .unknown).isEmpty,
           "gameplay and unknown modes expose no native-menu actions")
 
     check(NativeMenuTouchAction.confirm.button.bit == .cross
           && NativeMenuTouchAction.back.button.bit == .square
+          && NativeMenuTouchAction.cancel.button.bit == .square
           && NativeMenuTouchAction.resume.button.bit == .start,
-          "Confirm, Back, and Resume retain Jak's ordinary pad bytes")
+          "Confirm, Back, Cancel, and Resume retain Jak's ordinary pad bytes")
+    check(NativeMenuTouchAction.fuelCells.button.bit == .square
+          && NativeMenuTouchAction.precursorOrbs.button.bit == .cross
+          && NativeMenuTouchAction.scoutFlies.button.bit == .triangle
+          && NativeMenuTouchAction.settings.button.bit == .circle,
+          "stats destinations use Jak's exact face-button mapping")
     check(NativeMenuTouchAction.confirm.label == "Confirm"
           && NativeMenuTouchAction.back.label == "Back"
+          && NativeMenuTouchAction.cancel.label == "Cancel"
           && NativeMenuTouchAction.resume.label == "Resume",
           "command targets have explicit accessible labels")
+    check(NativeMenuTouchAction.fuelCells.label == "Fuel Cells"
+          && NativeMenuTouchAction.precursorOrbs.label == "Precursor Orbs"
+          && NativeMenuTouchAction.scoutFlies.label == "Scout Flies"
+          && NativeMenuTouchAction.settings.label == "Settings",
+          "stats targets use exact user-facing names")
     check(NativeMenuTouchAction.up.label == "Up"
           && NativeMenuTouchAction.down.label == "Down"
           && NativeMenuTouchAction.left.label == "Left"
@@ -988,7 +1033,69 @@ private func nativeMenuActionsEmitOnlyExpectedInputBytes() {
     run.controls.setNativeMenuMode(.progress)
     run.controls.performNativeMenuAction(.confirm)
     check(run.frame() == .neutral,
-          "a stale Confirm action is rejected when progress has no authoritative semantic seam")
+          "a stale Confirm action is rejected when progress has no authoritative snapshot")
+
+    run.controls.setNativeMenuState(.progress, progress: progressSnapshot(screen: 0))
+    run.controls.performNativeMenuAction(.fuelCells)
+    run.controls.performNativeMenuAction(.precursorOrbs)
+    run.controls.performNativeMenuAction(.scoutFlies)
+    run.controls.performNativeMenuAction(.settings)
+    check(run.controls.consumeHapticEvents() == [
+        .button(.square), .button(.cross), .button(.triangle), .button(.circle),
+    ], "progress stats actions emit immediate exact feedback events")
+    let statsFrame = run.frame()
+    check(statsFrame.buttons.contains(.square) && statsFrame.buttons.contains(.cross)
+          && statsFrame.buttons.contains(.triangle) && statsFrame.buttons.contains(.circle),
+          "progress stats actions emit exact ordinary pad bits")
+
+    run.controls.setNativeMenuState(
+        .progress, progress: progressSnapshot(screen: 3, option: 1, selected: true))
+    run.controls.performNativeMenuAction(.back)
+    run.controls.performNativeMenuAction(.cancel)
+    check(run.controls.consumeHapticEvents() == [.button(.square)],
+          "selected option rejects stale Back and emits only the truthful Cancel pulse")
+}
+
+@MainActor
+private func nativeProgressListSwipeIsOneShotAndStateGated() {
+    print("progress list swipes are one-shot, directional, and fail closed")
+    var run = Runner()
+    run.controls.setNativeMenuState(.progress,
+                                    progress: progressSnapshot(screen: 3, option: 1))
+    check(!run.controls.performNativeMenuVerticalSwipe(
+        translation: CGSize(width: 0, height: -(TouchControls.nativeMenuSwipeDistance - 1))),
+          "subthreshold vertical swipe is inert")
+    check(!run.controls.performNativeMenuVerticalSwipe(
+        translation: CGSize(width: TouchControls.nativeMenuSwipeDistance + 1,
+                            height: TouchControls.nativeMenuSwipeDistance)),
+          "horizontal-dominant swipe is inert")
+    check(run.controls.performNativeMenuVerticalSwipe(
+        translation: CGSize(width: 2, height: -TouchControls.nativeMenuSwipeDistance)),
+          "upward settings-list swipe is accepted")
+    check(run.controls.consumeHapticEvents() == [.button(.up)],
+          "one completed swipe emits one feedback event")
+    check(run.frame().buttons.contains(.up), "upward swipe emits one Up pulse")
+
+    run.controls.setNativeMenuState(.progress,
+                                    progress: progressSnapshot(screen: 3, option: 2))
+    check(run.controls.performNativeMenuVerticalSwipe(
+        translation: CGSize(width: 0, height: TouchControls.nativeMenuSwipeDistance)),
+          "downward settings-list swipe is accepted")
+    check(run.controls.consumeHapticEvents() == [.button(.down)],
+          "downward swipe emits one feedback event")
+    check(run.frame().buttons.contains(.down), "downward swipe emits one Down pulse")
+
+    run.controls.setNativeMenuState(.progress,
+                                    progress: progressSnapshot(screen: 3, option: 2,
+                                                               transition: true))
+    check(run.frame() == .neutral, "entering transition cancels an unfinished list pulse")
+    check(!run.controls.performNativeMenuVerticalSwipe(
+        translation: CGSize(width: 0, height: -TouchControls.nativeMenuSwipeDistance)),
+          "transitioning progress state rejects a stale list swipe")
+    run.controls.setNativeMenuState(.progress, progress: progressSnapshot(screen: 0))
+    check(!run.controls.performNativeMenuVerticalSwipe(
+        translation: CGSize(width: 0, height: -TouchControls.nativeMenuSwipeDistance)),
+          "stats shortcuts do not pretend to be a selectable list")
 }
 
 @MainActor
@@ -1017,6 +1124,15 @@ private func nativeMenuTransitionPreventsGameplayLeakage() {
     run.pinch(scale: 1 + TouchControls.pinchScaleDelta, lookAroundState: .normal)
     check(run.frame() == .neutral,
           "raw gameplay touch and pinch input stay disabled under dedicated menu controls")
+
+    run.controls.setNativeMenuMode(.progress)
+    let progressIgnored = Finger()
+    run.down(progressIgnored, movementCentre)
+    run.move(progressIgnored,
+             CGPoint(x: movementCentre.x + TouchControls.movementRadius,
+                     y: movementCentre.y))
+    check(run.frame() == .neutral,
+          "unavailable progress state remains inert instead of leaking gameplay touch")
 }
 
 @MainActor
@@ -1027,7 +1143,15 @@ private func nativeMenuSuppressionCancellationAndResetAreSafe() {
     check(!TouchControls.nativeMenuControlsAreVisible(mode: .menu, isSuppressed: true),
           "physical controller activity suppresses menu touch chrome")
     check(!TouchControls.nativeMenuControlsAreVisible(mode: .progress, isSuppressed: false),
-          "progress does not present dedicated controls with unproven labels")
+          "unavailable progress does not present controls with unproven labels")
+    check(TouchControls.nativeMenuControlsAreVisible(
+        mode: .progress, progress: progressSnapshot(screen: 0), isSuppressed: false),
+          "validated progress stats present exact touch controls")
+    check(!TouchControls.nativeMenuControlsAreVisible(
+        mode: .progress, progress: progressSnapshot(screen: 0), isSuppressed: true),
+          "physical controller activity suppresses progress touch chrome")
+    check(TouchControls.capturesNativeMenuInput(mode: .progress),
+          "progress captures raw gameplay touch even when its command set is inert")
 
     var run = Runner()
     run.controls.setNativeMenuMode(.menu)
@@ -1072,6 +1196,7 @@ struct TouchControlsCheck {
         controllerSuppressionKeepsTouchRecovery()
         nativeMenuActionsAreTruthfullyGatedAndLabelled()
         nativeMenuActionsEmitOnlyExpectedInputBytes()
+        nativeProgressListSwipeIsOneShotAndStateGated()
         nativeMenuTransitionPreventsGameplayLeakage()
         nativeMenuSuppressionCancellationAndResetAreSafe()
 

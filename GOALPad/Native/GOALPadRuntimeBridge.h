@@ -102,6 +102,54 @@ typedef NS_ENUM(NSInteger, GOALPadLookAroundState) {
   GOALPadLookAroundStateFirstPerson,
 };
 
+typedef NS_ENUM(NSInteger, GOALPadProgressScreen) {
+  GOALPadProgressScreenUnknown = -2,
+  GOALPadProgressScreenInvalid = -1,
+  GOALPadProgressScreenFuelCells = 0,
+  GOALPadProgressScreenPrecursorOrbs = 1,
+  GOALPadProgressScreenScoutFlies = 2,
+  GOALPadProgressScreenSettings = 3,
+  GOALPadProgressScreenGameSettings = 4,
+  GOALPadProgressScreenGraphicSettings = 5,
+  GOALPadProgressScreenSoundSettings = 6,
+  GOALPadProgressScreenMemoryCardNoSpace = 7,
+  GOALPadProgressScreenMemoryCardNotInserted = 8,
+  GOALPadProgressScreenMemoryCardNotFormatted = 9,
+  GOALPadProgressScreenMemoryCardFormat = 10,
+  GOALPadProgressScreenMemoryCardDataExists = 11,
+  GOALPadProgressScreenLoading = 12,
+  GOALPadProgressScreenSaving = 13,
+  GOALPadProgressScreenFormatting = 14,
+  GOALPadProgressScreenCreating = 15,
+  GOALPadProgressScreenLoadGame = 16,
+  GOALPadProgressScreenSaveGame = 17,
+  GOALPadProgressScreenSaveGameTitle = 18,
+  GOALPadProgressScreenInsert = 19,
+  GOALPadProgressScreenErrorLoading = 20,
+  GOALPadProgressScreenErrorSaving = 21,
+  GOALPadProgressScreenRemoved = 22,
+  GOALPadProgressScreenNoData = 23,
+  GOALPadProgressScreenErrorFormatting = 24,
+  GOALPadProgressScreenErrorCreating = 25,
+  GOALPadProgressScreenAutoSaveError = 26,
+  GOALPadProgressScreenTitle = 27,
+  GOALPadProgressScreenSettingsTitle = 28,
+  GOALPadProgressScreenAutoSave = 29,
+  GOALPadProgressScreenPalChange = 30,
+  GOALPadProgressScreenPalNow = 31,
+  GOALPadProgressScreenNoDisc = 32,
+  GOALPadProgressScreenBadDisc = 33,
+  GOALPadProgressScreenQuit = 34,
+};
+
+typedef struct GOALPadProgressMenuSnapshot {
+  BOOL available;
+  GOALPadProgressScreen screen;
+  int32_t optionIndex;
+  BOOL selectedOption;
+  BOOL inTransition;
+} GOALPadProgressMenuSnapshot;
+
 /// The whole Swift-facing surface of the native runtime. The GOAL kernel is a process-wide
 /// singleton, so this is a class API rather than an instantiable object.
 @interface GOALPadRuntimeBridge : NSObject
@@ -138,6 +186,8 @@ typedef NS_ENUM(NSInteger, GOALPadLookAroundState) {
 @property(class, nonatomic, readonly) GOALPadGameMode gameMode;
 /// Jak's live directional look-around state. Unavailable and other first-person modes are unknown.
 @property(class, nonatomic, readonly) GOALPadLookAroundState lookAroundState;
+/// A fail-closed read of Jak's live progress process; reading it never advances or mutates GOAL.
+@property(class, nonatomic, readonly) GOALPadProgressMenuSnapshot progressMenuSnapshot;
 @property(class, nonatomic, readonly) GOALPadFrameChainStats frameChainStats;
 
 /// Whether this build carries each engine host seam. A seam that is not linked reports its absence

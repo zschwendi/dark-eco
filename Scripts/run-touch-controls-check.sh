@@ -12,6 +12,7 @@ swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
   -import-objc-header "$root/GOALPad/Native/GOALPadRuntimeBridge.h" \
   -swift-version 5 \
   "$root/GOALPad/Game/TouchControls.swift" \
+  "$root/GOALPad/Game/TouchControlsView.swift" \
   "$root/Scripts/touch-controls-check.swift" \
   -o "$out"
 

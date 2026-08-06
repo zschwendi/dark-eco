@@ -53,6 +53,8 @@ std::uint32_t g_gameplay_mode = 0;
 std::uint32_t g_pause_mode = 0;
 std::uint32_t g_progress_mode = 0;
 std::uint32_t g_menu_mode = 0;
+int32_t* g_progress_process = nullptr;
+std::uint32_t g_progress_type = 0;
 int32_t* g_target = nullptr;
 std::uint32_t g_target_type = 0;
 std::uint32_t g_look_around_mode = 0;
@@ -513,6 +515,19 @@ BootStatus boot_game() noexcept {
                    "unavailable.");
     }
 
+    uint32_t progress_type = 0;
+    const bool progress_state_symbols =
+        goal_game_find_symbol("*progress-process*", nullptr) &&
+        goal_game_find_symbol("progress", &progress_type) && progress_type;
+    if (progress_state_symbols) {
+      g_progress_process = goal_game_symbol_slot("*progress-process*");
+      g_progress_type = progress_type;
+    } else {
+      os_log_error(boot_log(),
+                   "GAME.CGO did not expose the progress process and type; progress touch "
+                   "controls are unavailable.");
+    }
+
     uint32_t target_type = 0;
     const uint32_t look_around_mode = goal_game_find_symbol("look-around", nullptr);
     const bool target_state_symbols = goal_game_find_symbol("*target*", nullptr) &&
@@ -653,6 +668,8 @@ void reset_game() noexcept {
   g_pause_mode = 0;
   g_progress_mode = 0;
   g_menu_mode = 0;
+  g_progress_process = nullptr;
+  g_progress_type = 0;
   g_target = nullptr;
   g_target_type = 0;
   g_look_around_mode = 0;
@@ -708,6 +725,17 @@ LookAroundState look_around_state() noexcept {
   return classify_look_around_state(true, state_flags, camera_user_mode, g_look_around_mode);
 }
 
+ProgressMenuSnapshot progress_menu_snapshot() noexcept {
+  if (!g_booted || game_mode() != GameMode::Progress || !g_progress_process ||
+      !g_progress_type || !g_ee_main_mem) {
+    return {};
+  }
+
+  return read_progress_menu_snapshot(
+      g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT, goal_game_false_offset(),
+      goal_game_true_offset(), static_cast<std::uint32_t>(*g_progress_process), g_progress_type);
+}
+
 #else  // GOALPAD_HAVE_GAME_BOOT
 
 BootStatus boot_game() noexcept {
@@ -750,6 +778,10 @@ GameMode game_mode() noexcept {
 
 LookAroundState look_around_state() noexcept {
   return LookAroundState::Unknown;
+}
+
+ProgressMenuSnapshot progress_menu_snapshot() noexcept {
+  return {};
 }
 
 #endif  // GOALPAD_HAVE_GAME_BOOT

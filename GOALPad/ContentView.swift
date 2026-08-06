@@ -62,7 +62,8 @@ struct ContentView: View {
                 TouchControlsView(controls: session.touch,
                                   lookAroundState: session.lookAroundState,
                                   isSuppressed: session.input.isDriving,
-                                  gameMode: session.gameMode)
+                                  gameMode: session.gameMode,
+                                  progressMenuSnapshot: session.progressMenuSnapshot)
                 #endif
 
                 if session.isNativeMenuOpen

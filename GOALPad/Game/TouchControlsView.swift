@@ -11,6 +11,7 @@ struct TouchControlsView: View {
     /// Active physical input hides the artwork until the screen is touched again.
     let isSuppressed: Bool
     let gameMode: GOALPadGameMode
+    let progressMenuSnapshot: NativeProgressMenuSnapshot
 
     fileprivate static let space = "GOALPadTouchControls"
     private static let pillWidth: CGFloat = 82
@@ -24,11 +25,12 @@ struct TouchControlsView: View {
     }
 
     private var nativeMenuActions: [NativeMenuTouchAction] {
-        NativeMenuTouchAction.available(in: gameMode)
+        NativeMenuTouchAction.available(in: gameMode, progress: progressMenuSnapshot)
     }
 
     private var nativeMenuControlsAreVisible: Bool {
         TouchControls.nativeMenuControlsAreVisible(mode: gameMode,
+                                                   progress: progressMenuSnapshot,
                                                    isSuppressed: isSuppressed)
     }
 
@@ -42,7 +44,7 @@ struct TouchControlsView: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                if nativeMenuActions.isEmpty {
+                if !TouchControls.capturesNativeMenuInput(mode: gameMode) {
                     #if canImport(UIKit)
                     TouchSurface(controls: controls, lookAroundState: lookAroundState)
                     #endif
@@ -192,6 +194,10 @@ private struct NativeMenuTouchControls: View {
         .animation(.easeOut(duration: 0.16), value: isVisible)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Game menu controls")
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 12)
+                .onEnded { performSwipe($0.translation) }
+        )
     }
 
     private var directionPad: some View {
@@ -214,7 +220,7 @@ private struct NativeMenuTouchControls: View {
         Button { perform(action) } label: {
             HStack(spacing: 8) {
                 Image(systemName: action.systemImage)
-                if action == .confirm || action == .back || action == .resume {
+                if !directionalActions.contains(action) {
                     Text(action.label)
                 }
             }
@@ -234,6 +240,15 @@ private struct NativeMenuTouchControls: View {
 
     private func perform(_ action: NativeMenuTouchAction) {
         controls.performNativeMenuAction(action)
+        playFeedback()
+    }
+
+    private func performSwipe(_ translation: CGSize) {
+        guard controls.performNativeMenuVerticalSwipe(translation: translation) else { return }
+        playFeedback()
+    }
+
+    private func playFeedback() {
         #if canImport(UIKit)
         haptics.play(controls.consumeHapticEvents())
         #else

@@ -52,12 +52,41 @@ enum TouchControlStyle: String, CaseIterable, Sendable {
     case classic
 }
 
-/// Touch-friendly actions whose meanings are authoritative for the current native game mode.
-/// Progress is deliberately absent: Jak reuses its face buttons for both stat tabs and nested
-/// option confirmation, and GameSession does not expose that internal display state.
+/// The read-only progress state that Swift uses to expose only screen-proven touch semantics.
+struct NativeProgressMenuSnapshot: Equatable {
+    let available: Bool
+    let screenRawValue: Int
+    let optionIndex: Int
+    let selectedOption: Bool
+    let inTransition: Bool
+
+    static let unavailable = NativeProgressMenuSnapshot(
+        available: false, screenRawValue: -2, optionIndex: -1,
+        selectedOption: false, inTransition: false)
+
+    init(available: Bool, screenRawValue: Int, optionIndex: Int,
+         selectedOption: Bool, inTransition: Bool) {
+        self.available = available
+        self.screenRawValue = screenRawValue
+        self.optionIndex = optionIndex
+        self.selectedOption = selectedOption
+        self.inTransition = inTransition
+    }
+
+    init(_ snapshot: GOALPadProgressMenuSnapshot) {
+        available = snapshot.available.boolValue
+        screenRawValue = snapshot.screen.rawValue
+        optionIndex = Int(snapshot.optionIndex)
+        selectedOption = snapshot.selectedOption.boolValue
+        inTransition = snapshot.inTransition.boolValue
+    }
+}
+
+/// Touch-friendly actions whose meanings are authoritative for the current native game state.
 enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
     case up, down, left, right
-    case confirm, back, resume
+    case confirm, back, cancel, resume
+    case fuelCells, precursorOrbs, scoutFlies, settings
 
     var button: TouchButton {
         switch self {
@@ -67,7 +96,12 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         case .right: .right
         case .confirm: .cross
         case .back: .square
+        case .cancel: .square
         case .resume: .start
+        case .fuelCells: .square
+        case .precursorOrbs: .cross
+        case .scoutFlies: .triangle
+        case .settings: .circle
         }
     }
 
@@ -79,7 +113,12 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         case .right: "Right"
         case .confirm: "Confirm"
         case .back: "Back"
+        case .cancel: "Cancel"
         case .resume: "Resume"
+        case .fuelCells: "Fuel Cells"
+        case .precursorOrbs: "Precursor Orbs"
+        case .scoutFlies: "Scout Flies"
+        case .settings: "Settings"
         }
     }
 
@@ -91,21 +130,75 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         case .right: "chevron.right"
         case .confirm: "checkmark"
         case .back: "arrow.uturn.backward"
+        case .cancel: "xmark"
         case .resume: "play.fill"
+        case .fuelCells: "battery.100percent"
+        case .precursorOrbs: "circle.grid.2x2.fill"
+        case .scoutFlies: "triangle.fill"
+        case .settings: "gearshape.fill"
         }
     }
 
-    nonisolated static func available(in mode: GOALPadGameMode) -> [Self] {
+    nonisolated static func available(
+        in mode: GOALPadGameMode,
+        progress: NativeProgressMenuSnapshot = .unavailable
+    ) -> [Self] {
         switch mode {
         case .pause:
             [.resume]
         case .menu:
             [.up, .down, .left, .right, .back, .confirm, .resume]
-        case .unknown, .gameplay, .progress:
+        case .progress:
+            progressActions(for: progress)
+        case .unknown, .gameplay:
             []
         @unknown default:
             []
         }
+    }
+
+    nonisolated private static func progressActions(
+        for snapshot: NativeProgressMenuSnapshot
+    ) -> [Self] {
+        guard snapshot.available, !snapshot.inTransition else { return [] }
+
+        switch snapshot.screenRawValue {
+        case 0, 1, 2:
+            guard !snapshot.selectedOption else { return [] }
+            return [.fuelCells, .precursorOrbs, .scoutFlies, .settings]
+        case 3:
+            return commonOptions(for: snapshot, maximumOptionCount: 7)
+        case 4, 5, 6, 27, 28:
+            return commonOptions(for: snapshot, maximumOptionCount: 4)
+        case 16, 17:
+            return fileOptions(for: snapshot, optionCount: 5)
+        case 18:
+            return fileOptions(for: snapshot, optionCount: 6)
+        default:
+            return []
+        }
+    }
+
+    nonisolated private static func commonOptions(
+        for snapshot: NativeProgressMenuSnapshot,
+        maximumOptionCount: Int
+    ) -> [Self] {
+        guard (0..<maximumOptionCount).contains(snapshot.optionIndex) else { return [] }
+        if snapshot.selectedOption {
+            return [.left, .right, .cancel, .confirm]
+        }
+        return [.up, .down, .left, .right, .confirm]
+    }
+
+    nonisolated private static func fileOptions(
+        for snapshot: NativeProgressMenuSnapshot,
+        optionCount: Int
+    ) -> [Self] {
+        guard (0..<optionCount).contains(snapshot.optionIndex) else { return [] }
+        if snapshot.selectedOption {
+            return [.cancel, .confirm]
+        }
+        return [.up, .down, .back, .confirm]
     }
 }
 
@@ -354,6 +447,7 @@ final class TouchControls {
     nonisolated static let rightStickDeadzone: CGFloat = 12
     nonisolated static let rollJumpDistance: CGFloat = 44
     nonisolated static let swipeDistance: CGFloat = 44
+    nonisolated static let nativeMenuSwipeDistance: CGFloat = 44
     nonisolated static let pinchScaleDelta: CGFloat = 0.12
 
     /// Frames a recognised one-shot press remains down, followed by a guaranteed release gap.
@@ -369,6 +463,7 @@ final class TouchControls {
 
     private(set) var style: TouchControlStyle
     private(set) var nativeMenuMode: GOALPadGameMode = .unknown
+    private(set) var progressMenuSnapshot: NativeProgressMenuSnapshot = .unavailable
 
     enum Role: Equatable {
         case movement
@@ -420,8 +515,8 @@ final class TouchControls {
         self.style = style
     }
 
-    var hasDedicatedNativeMenuControls: Bool {
-        !NativeMenuTouchAction.available(in: nativeMenuMode).isEmpty
+    var capturesNativeMenuInput: Bool {
+        Self.capturesNativeMenuInput(mode: nativeMenuMode)
     }
 
     func setStyle(_ style: TouchControlStyle) {
@@ -430,21 +525,43 @@ final class TouchControls {
         self.style = style
     }
 
-    /// Applies the read-only native master-mode classification. Entering or leaving a dedicated
-    /// menu surface cancels carried gameplay touches before another frame reaches the engine.
+    /// Compatibility entry point for callers that only have the master-mode classification.
     func setNativeMenuMode(_ mode: GOALPadGameMode) {
-        guard mode != nativeMenuMode else { return }
-        let hadDedicatedControls = hasDedicatedNativeMenuControls
+        setNativeMenuState(mode, progress: .unavailable)
+    }
+
+    /// Applies the read-only native menu snapshot. Any semantic transition cancels carried input
+    /// before another frame reaches the engine, including progress screen and selection changes.
+    func setNativeMenuState(_ mode: GOALPadGameMode,
+                            progress: NativeProgressMenuSnapshot) {
+        guard mode != nativeMenuMode || progress != progressMenuSnapshot else { return }
+        let capturedInput = capturesNativeMenuInput
         nativeMenuMode = mode
-        if hadDedicatedControls || hasDedicatedNativeMenuControls { reset() }
+        progressMenuSnapshot = progress
+        if capturedInput || capturesNativeMenuInput { reset() }
     }
 
     /// Emits one ordinary pad pulse. Availability is mode-gated so a stale SwiftUI action cannot
     /// send menu input after the game has returned to gameplay or moved into progress.
     func performNativeMenuAction(_ action: NativeMenuTouchAction) {
-        guard NativeMenuTouchAction.available(in: nativeMenuMode).contains(action) else { return }
+        guard NativeMenuTouchAction.available(in: nativeMenuMode,
+                                              progress: progressMenuSnapshot).contains(action)
+        else { return }
         press(action.button)
         enqueueHaptic(.button(action.button))
+    }
+
+    /// Converts one completed, predominantly vertical list swipe into one ordinary D-pad pulse.
+    @discardableResult
+    func performNativeMenuVerticalSwipe(translation: CGSize) -> Bool {
+        let actions = NativeMenuTouchAction.available(in: nativeMenuMode,
+                                                      progress: progressMenuSnapshot)
+        guard abs(translation.height) >= Self.nativeMenuSwipeDistance,
+              abs(translation.height) > abs(translation.width) else { return false }
+        let action: NativeMenuTouchAction = translation.height < 0 ? .up : .down
+        guard actions.contains(action) else { return false }
+        performNativeMenuAction(action)
+        return true
     }
 
     func setRightStickFrame(_ frame: CGRect) {
@@ -464,7 +581,7 @@ final class TouchControls {
 
     func began(_ id: ObjectIdentifier, at point: CGPoint, in size: CGSize,
                safeAreaInsets: TouchSafeAreaInsets = .zero, at _: TimeInterval) {
-        guard !hasDedicatedNativeMenuControls else { return }
+        guard !capturesNativeMenuInput else { return }
         let layout = style == .classic
             ? ClassicTouchLayout(size: size, safeAreaInsets: safeAreaInsets)
             : nil
@@ -559,7 +676,7 @@ final class TouchControls {
     }
 
     func pinchBegan() {
-        guard style == .modern, !hasDedicatedNativeMenuControls else {
+        guard style == .modern, !capturesNativeMenuInput else {
             pinchZoom.reset()
             return
         }
@@ -567,7 +684,7 @@ final class TouchControls {
     }
 
     func pinchChanged(scale: CGFloat, lookAroundState: GOALPadLookAroundState) {
-        guard style == .modern, !hasDedicatedNativeMenuControls,
+        guard style == .modern, !capturesNativeMenuInput,
               let direction = pinchZoom.recognize(scale: scale) else { return }
         switch (direction, lookAroundState) {
         case (.zoomIn, .normal), (.zoomOut, .firstPerson):
@@ -625,7 +742,7 @@ final class TouchControls {
 
     /// Advances every one-shot button state machine exactly once per game frame.
     func frameState() -> TouchPadState {
-        if hasDedicatedNativeMenuControls {
+        if capturesNativeMenuInput {
             var state = TouchPadState()
             for button in TouchButton.allCases {
                 var pulse = pulses[button] ?? Pulse()
@@ -711,8 +828,21 @@ final class TouchControls {
     }
 
     nonisolated static func nativeMenuControlsAreVisible(mode: GOALPadGameMode,
+                                                         progress: NativeProgressMenuSnapshot = .unavailable,
                                                          isSuppressed: Bool) -> Bool {
-        !isSuppressed && !NativeMenuTouchAction.available(in: mode).isEmpty
+        !isSuppressed && !NativeMenuTouchAction.available(in: mode,
+                                                          progress: progress).isEmpty
+    }
+
+    nonisolated static func capturesNativeMenuInput(mode: GOALPadGameMode) -> Bool {
+        switch mode {
+        case .pause, .progress, .menu:
+            true
+        case .unknown, .gameplay:
+            false
+        @unknown default:
+            false
+        }
     }
 
     nonisolated private static func radialDeflection(from origin: CGPoint,

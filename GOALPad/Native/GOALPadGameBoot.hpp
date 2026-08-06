@@ -3,7 +3,9 @@
 #include "GOALPadCameraCorrectionTrace.hpp"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <string>
 
 namespace goalpad {
@@ -21,6 +23,122 @@ enum class LookAroundState : std::uint8_t {
   Normal,
   FirstPerson,
 };
+
+// Jak 1's original progress display states. PC-only states continue through 66; they remain valid
+// native snapshots but deliberately have no touch semantics until their responders are proven.
+enum class ProgressScreen : std::int32_t {
+  Invalid = -1,
+  FuelCells = 0,
+  PrecursorOrbs = 1,
+  ScoutFlies = 2,
+  Settings = 3,
+  GameSettings = 4,
+  GraphicSettings = 5,
+  SoundSettings = 6,
+  MemoryCardNoSpace = 7,
+  MemoryCardNotInserted = 8,
+  MemoryCardNotFormatted = 9,
+  MemoryCardFormat = 10,
+  MemoryCardDataExists = 11,
+  Loading = 12,
+  Saving = 13,
+  Formatting = 14,
+  Creating = 15,
+  LoadGame = 16,
+  SaveGame = 17,
+  SaveGameTitle = 18,
+  Insert = 19,
+  ErrorLoading = 20,
+  ErrorSaving = 21,
+  Removed = 22,
+  NoData = 23,
+  ErrorFormatting = 24,
+  ErrorCreating = 25,
+  AutoSaveError = 26,
+  Title = 27,
+  SettingsTitle = 28,
+  AutoSave = 29,
+  PalChange = 30,
+  PalNow = 31,
+  NoDisc = 32,
+  BadDisc = 33,
+  Quit = 34,
+};
+
+struct ProgressMenuSnapshot {
+  bool available = false;
+  ProgressScreen screen = ProgressScreen::Invalid;
+  std::int32_t option_index = -1;
+  bool selected_option = false;
+  bool in_transition = false;
+};
+
+namespace progress_layout {
+
+// The GOAL :offset-assert values include the four-byte basic-object tag. A basic pointer starts
+// immediately after it, so every native field offset subtracts four.
+constexpr std::size_t kDisplayStateOffset = 128 - 4;
+constexpr std::size_t kOptionIndexOffset = 144 - 4;
+constexpr std::size_t kSelectedOptionOffset = 148 - 4;
+constexpr std::size_t kInTransitionOffset = 172 - 4;
+constexpr std::size_t kRequiredObjectBytes = kInTransitionOffset + sizeof(std::uint32_t);
+constexpr std::int64_t kMinimumScreen = -1;
+constexpr std::int64_t kMaximumScreenExclusive = 67;
+
+}  // namespace progress_layout
+
+/*! Read a Jak 1 `progress` through `*progress-process*` without advancing or mutating GOAL. */
+inline ProgressMenuSnapshot read_progress_menu_snapshot(const void* memory,
+                                                         std::size_t memory_bytes,
+                                                         std::size_t low_protect_bytes,
+                                                         std::uint32_t goal_false,
+                                                         std::uint32_t goal_true,
+                                                         std::uint32_t progress_ppointer,
+                                                         std::uint32_t expected_type) noexcept {
+  ProgressMenuSnapshot snapshot;
+  std::uint32_t progress_offset = 0;
+  if (!goal_true || goal_true == goal_false ||
+      !camera_correction_trace::resolve_goal_ppointer(
+          memory, memory_bytes, low_protect_bytes, goal_false, progress_ppointer,
+          &progress_offset)) {
+    return snapshot;
+  }
+
+  const void* progress = camera_correction_trace::checked_goal_object(
+      memory, memory_bytes, low_protect_bytes, progress_offset, expected_type,
+      progress_layout::kRequiredObjectBytes, nullptr);
+  if (!progress) {
+    return snapshot;
+  }
+
+  const auto* bytes = static_cast<const std::uint8_t*>(progress);
+  std::int64_t screen = 0;
+  std::int32_t option_index = 0;
+  std::uint32_t selected_option = 0;
+  std::uint32_t in_transition = 0;
+  std::memcpy(&screen, bytes + progress_layout::kDisplayStateOffset, sizeof(screen));
+  std::memcpy(&option_index, bytes + progress_layout::kOptionIndexOffset, sizeof(option_index));
+  std::memcpy(&selected_option, bytes + progress_layout::kSelectedOptionOffset,
+              sizeof(selected_option));
+  std::memcpy(&in_transition, bytes + progress_layout::kInTransitionOffset,
+              sizeof(in_transition));
+
+  const auto is_goal_boolean = [goal_false, goal_true](std::uint32_t value) {
+    return value == goal_false || value == goal_true;
+  };
+  if (screen < progress_layout::kMinimumScreen ||
+      screen >= progress_layout::kMaximumScreenExclusive || option_index < 0 ||
+      !is_goal_boolean(selected_option) || !is_goal_boolean(in_transition)) {
+    return snapshot;
+  }
+
+  snapshot.available = true;
+  snapshot.screen = static_cast<ProgressScreen>(screen);
+  snapshot.option_index = option_index;
+  snapshot.selected_option = selected_option == goal_true;
+  snapshot.in_transition = in_transition == goal_true;
+  return snapshot;
+}
 
 // `state-flags` declares `first-person-mode` as bit 9 in Jak 1's game-h.gc.
 constexpr std::uint32_t kJak1FirstPersonModeFlag = 1u << 9;
@@ -126,6 +244,8 @@ bool game_is_booted() noexcept;
 GameMode game_mode() noexcept;
 /*! Jak's live target state; Billy and unavailable or inconsistent state remain unknown. */
 LookAroundState look_around_state() noexcept;
+/*! Jak's live progress state. Malformed, absent, and internally inconsistent state is unavailable. */
+ProgressMenuSnapshot progress_menu_snapshot() noexcept;
 
 /*! Forget the boot. The heap goes away with the kernel; this only drops what this file caches. */
 void reset_game() noexcept;

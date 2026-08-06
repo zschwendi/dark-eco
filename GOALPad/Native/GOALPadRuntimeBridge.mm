@@ -230,6 +230,19 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
   }
 }
 
++ (GOALPadProgressMenuSnapshot)progressMenuSnapshot {
+  const auto core = goalpad::progress_menu_snapshot();
+  GOALPadProgressMenuSnapshot snapshot = {
+      core.available ? YES : NO,
+      core.available ? static_cast<GOALPadProgressScreen>(core.screen)
+                     : GOALPadProgressScreenUnknown,
+      core.option_index,
+      core.selected_option ? YES : NO,
+      core.in_transition ? YES : NO,
+  };
+  return snapshot;
+}
+
 + (GOALPadFrameChainStats)frameChainStats {
   const auto core = goalpad::frame_chain_stats();
   GOALPadFrameChainStats stats = {core.chains, core.last_payload_bytes,

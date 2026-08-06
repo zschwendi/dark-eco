@@ -36,6 +36,7 @@ final class GameSession {
     private(set) var isBooting = false
     private(set) var isRunning = false
     private(set) var gameMode: GOALPadGameMode = .unknown
+    private(set) var progressMenuSnapshot: NativeProgressMenuSnapshot = .unavailable
     private(set) var lookAroundState: GOALPadLookAroundState = .unknown
     private(set) var framesRun: UInt64 = 0
     private(set) var framesPresented: UInt64 = 0
@@ -175,7 +176,9 @@ final class GameSession {
 
         audio.start()
         isRunning = true
-        updateGameMode(GOALPadRuntimeBridge.gameMode)
+        updateNativeMenuState(mode: GOALPadRuntimeBridge.gameMode,
+                              progress: NativeProgressMenuSnapshot(
+                                GOALPadRuntimeBridge.progressMenuSnapshot))
         lookAroundState = GOALPadRuntimeBridge.lookAroundState
         isForeground = currentScenePhase == .active
         saveSync.setGameplayActive(isForeground)
@@ -197,7 +200,7 @@ final class GameSession {
         kernel = nil
         boot = nil
         isRunning = false
-        updateGameMode(.unknown)
+        updateNativeMenuState(mode: .unknown, progress: .unavailable)
         lookAroundState = .unknown
         saveSync.setGameplayActive(false)
         touch.reset()
@@ -234,7 +237,11 @@ final class GameSession {
         if GOALPadRuntimeBridge.runFrame(at: targetPresentationTime) {
             framesRun = GOALPadRuntimeBridge.framesRun
             let currentMode = GOALPadRuntimeBridge.gameMode
-            if currentMode != gameMode { updateGameMode(currentMode) }
+            let currentProgress = NativeProgressMenuSnapshot(
+                GOALPadRuntimeBridge.progressMenuSnapshot)
+            if currentMode != gameMode || currentProgress != progressMenuSnapshot {
+                updateNativeMenuState(mode: currentMode, progress: currentProgress)
+            }
             let currentLookAroundState = GOALPadRuntimeBridge.lookAroundState
             if currentLookAroundState != lookAroundState {
                 lookAroundState = currentLookAroundState
@@ -253,9 +260,11 @@ final class GameSession {
         input.applyRumble()
     }
 
-    private func updateGameMode(_ mode: GOALPadGameMode) {
+    private func updateNativeMenuState(mode: GOALPadGameMode,
+                                       progress: NativeProgressMenuSnapshot) {
         gameMode = mode
-        touch.setNativeMenuMode(mode)
+        progressMenuSnapshot = progress
+        touch.setNativeMenuState(mode, progress: progress)
     }
 
     /// The same numbers the on-screen readout shows, every ten seconds, so a run can be checked
