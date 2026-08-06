@@ -9,6 +9,9 @@ entitlements="$root/GOALPad/GOALPad.entitlements"
 plutil -lint "$entitlements"
 game_center_entitlement=$(plutil -extract 'com\.apple\.developer\.game-center' raw -expect bool "$entitlements")
 test "$game_center_entitlement" = true
+rg -Fq '@EnvironmentObject private var gameCenter: GameCenterService' \
+  "$root/GOALPad/ContentView.swift"
+rg -Fq 'gameCenter.setGameplayActive(isRunning)' "$root/GOALPad/ContentView.swift"
 
 macos_sdk=$(xcrun --sdk macosx --show-sdk-path)
 swiftc -sdk "$macos_sdk" \

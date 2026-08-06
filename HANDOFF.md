@@ -13132,3 +13132,22 @@ new crouch-punch sequence. Swift parsing and `git diff --check` also passed.
 Worker commit `6005cfdc` is pushed as
 `origin/agent/build101-modern-touch-layout`. Physical comfort and exact spacing
 remain candidate gates.
+
+Build 103 integrates the Game Center foundation worker code from `9c825502` as
+`d47233e4`. The app now carries only the standard Game Center entitlement and
+uses `GKLocalPlayer.authenticateHandler` with Apple's platform authentication
+controller when required. Authentication errors remain quiet published state.
+The standard `GKAccessPoint` is enabled only for an authenticated player while
+ContentView reports the launcher; gameplay always hides it. No leaderboard IDs,
+Game Activity definitions, friend-presence claims, run metrics, or fabricated
+scores were added.
+
+`Scripts/run-game-center-check.sh` passed entitlement lint/value checks, pure
+authentication/access-point policy tests, ContentView wiring checks, and
+warnings-as-errors macOS, iOS, and visionOS 26.5 SDK type-checks. Worker/ledger
+HEAD `31f32584` is pushed as
+`origin/agent/build100-game-center-foundation`. The next signed build must prove
+the managed profile accepts Game Center and that the final app carries the
+entitlement. Test-account authentication remains a runtime gate. Current-run,
+fastest-run, and 100/101-percent features still require native timing/progress
+seams, product rules, and App Store Connect identifiers rather than guesses.

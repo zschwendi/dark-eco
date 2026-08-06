@@ -449,6 +449,13 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 Active lanes:
 
+- `Integrated; Apple SDK validation passed; provisioning and signed runtime
+  pending` — Game Center authentication foundation came from
+  `agent/build100-game-center-foundation` in
+  `/private/tmp/GP-build100-game-center`. Code commit `9c825502` is integrated
+  as `d47233e4`; worker/ledger HEAD `31f32584` is pushed to
+  `origin/agent/build100-game-center-foundation`. Root wired launcher/gameplay
+  state into the access-point policy and reran `Scripts/run-game-center-check.sh`.
 - `Integrated; focused validation passed; physical keyboard/mouse tuning
   pending` — default keyboard/mouse input came from
   `agent/build97-keyboard-mouse` in `/private/tmp/GP-build97-keyboard-mouse`.
@@ -639,11 +646,21 @@ Active lanes:
 
 #### Game Center
 
-- [ ] Add Game Center capability/entitlements only with a concrete authenticated
-  runtime slice and App Store Connect configuration; a project entitlement alone
-  is not a completed feature.
+- [x] Add the source-level Game Center authentication foundation and standard
+  `com.apple.developer.game-center` entitlement without adding private
+  entitlements, custom social behavior, leaderboard IDs, or activity definitions.
+- [x] Wire `GameCenterService.setGameplayActive(_:)` to
+  `GameSession.isRunning`, so the authenticated standard access point is
+  launcher-only and cannot overlay gameplay.
+- [ ] Enable Game Center for the existing `com.zephyrstudiosllc.eco` app record
+  and identifier if automatic provisioning does not do so, inspect the signed
+  app entitlement, and exercise sign-in with a Game Center test account. Source
+  entitlement and SDK type-checks do not prove provisioning or authentication.
 - [ ] Define player-visible friend presence/current-run information with an
   explicit privacy and refresh model.
+- [ ] Add validated native read-only seams for run start, reset, completion,
+  elapsed time, and completion percentage before submitting any Game Center
+  activity or score.
 - [ ] Define authoritative timing boundaries for current run, fastest completed
   run, and fastest completion percentage category before creating leaderboards.
 - [ ] Confirm whether the completion category is 100% or 101% from actual game

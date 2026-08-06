@@ -36,6 +36,7 @@ struct ContentView: View {
     }
 
     @Environment(\.scenePhase) private var scenePhase
+    @EnvironmentObject private var gameCenter: GameCenterService
     @State private var session = GameSession()
     @State private var artworkStore = GameArtworkStore()
     @State private var launcherDestination = LauncherDestination.library
@@ -114,6 +115,9 @@ struct ContentView: View {
         }
         .task { await session.prepare() }
         .onChange(of: scenePhase) { _, phase in session.scenePhaseChanged(to: phase) }
+        .onChange(of: session.isRunning, initial: true) { _, isRunning in
+            gameCenter.setGameplayActive(isRunning)
+        }
         .onChange(of: session.presentationSettings.graphicsFillWidth, initial: true) {
             _, enabled in
             session.settings.horizontalPlusEnabled = enabled
