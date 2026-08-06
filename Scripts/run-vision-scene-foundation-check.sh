@@ -61,9 +61,11 @@ do
     -sdk "$sdk_path" \
     -target "$target" \
     -module-cache-path "$module_cache" \
+    -import-objc-header "$root/GOALPad/Native/GOALPadRuntimeBridge.h" \
     -module-name GOALPadVisionSceneCheck \
     -swift-version 5 \
     -warnings-as-errors \
+    "$root/GOALPad/Input/KeyboardMouseInput.swift" \
     "$root/GOALPad/Game/PresentationSettings.swift" \
     "$root/GOALPad/GOALPadApp.swift" \
     "$mode_source" \
