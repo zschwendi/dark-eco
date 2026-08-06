@@ -459,8 +459,8 @@ private func inputBindingsPersistSyncAndReset() async throws {
 }
 
 @MainActor
-private func touchLayoutPersistsSyncsAndResets() async throws {
-    print("Jak 1 touch layout is default-omitted, persistent, and reset with Controls")
+private func legacyTouchLayoutSidecarPersistsAcrossPresentationResets() async throws {
+    print("the legacy touch-layout sidecar is default-omitted, persistent, and preserved by presentation resets")
     let fixture = try Fixture(name: "touch-layout")
     let value = settings(fixture, writerID: "device-a", cloudAvailable: false)
     check(value.jak1TouchLayout == .standard
@@ -511,16 +511,18 @@ private func touchLayoutPersistsSyncsAndResets() async throws {
     restored.setTouchControlPosition(NormalizedTouchPosition(x: 0.3, y: 0.7),
                                      for: .modernMovement)
     restored.setTouchControlSizePercent(125, for: .classicCross)
+    let sidecarBeforeControlsDefaults = restored.touchLayoutDocument
     restored.restoreDefaults(for: .controls)
-    check(restored.jak1TouchLayout == .standard
-          && restored.touchLayoutDocument.jak1TouchLayoutOverride == nil,
-          "Restore Controls Defaults removes both Modern and Classic customizations")
+    check(restored.touchLayoutDocument == sidecarBeforeControlsDefaults
+          && readTouchLayoutDocument(at: fixture.localTouchLayout) == sidecarBeforeControlsDefaults,
+          "Restore Controls Defaults preserves the legacy touch-layout sidecar unchanged")
 
     restored.setTouchControlSizePercent(145, for: .classicCamera)
+    let sidecarBeforeFullReset = restored.touchLayoutDocument
     restored.resetAll()
-    check(restored.jak1TouchLayout == .standard
-          && restored.touchLayoutDocument.jak1TouchLayoutOverride == nil,
-          "Reset Jak 1 Settings also returns the complete touch layout to default")
+    check(restored.touchLayoutDocument == sidecarBeforeFullReset
+          && readTouchLayoutDocument(at: fixture.localTouchLayout) == sidecarBeforeFullReset,
+          "Reset Jak 1 Settings preserves the legacy touch-layout sidecar unchanged")
 }
 
 @MainActor
@@ -1102,7 +1104,7 @@ private struct PresentationSettingsCheck {
             try await developerLogsPersistAndReset()
             try await primaryInputSourcePersistsAndResets()
             try await inputBindingsPersistSyncAndReset()
-            try await touchLayoutPersistsSyncsAndResets()
+            try await legacyTouchLayoutSidecarPersistsAcrossPresentationResets()
             try await explicitFreshResetBeatsOlderRemoteTouchLayout()
             try await defaultsUseModernGraphics()
             try await savedChoicesSurviveNewDefaults()

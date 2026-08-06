@@ -19,4 +19,3 @@ swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
 
 "$out"
 swift "$root/Scripts/presentation-settings-ui-check.swift" "$root"
-"$root/Scripts/run-touch-layout-editor-typecheck.sh"

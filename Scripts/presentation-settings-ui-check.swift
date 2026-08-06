@@ -43,22 +43,25 @@ let session = source(at: root + "/GOALPad/Game/GameSession.swift")
 let content = source(at: root + "/GOALPad/ContentView.swift")
 let renderer = source(at: root + "/GOALPad/Game/RenderSettings.swift")
 let touchLayout = source(at: root + "/GOALPad/Game/TouchLayoutSettings.swift")
-let touchEditor = source(at: root + "/GOALPad/Game/TouchLayoutEditorView.swift")
-let touchRuntime = source(at: root + "/GOALPad/Game/TouchControls.swift")
-let touchEditorTypecheck = source(at: root + "/Scripts/run-touch-layout-editor-typecheck.sh")
 
 check(occursInOrder([
-    "Section(\"Preset\")",
-    "Use Modern Everywhere",
-    "Use Classic Everywhere",
-    "profileSection(.controls)",
+    "controlsSection",
     "profileSection(.graphics)",
     "Section(\"iCloud\")",
     "Toggle(\"Sync Settings\"",
     "Toggle(\"Sync Saves\"",
     "Button(cloudState.actionTitle)",
     "Button(\"Reset Jak 1 Settings\"",
-], in: view), "Jak 1 Settings leads with Modern and presents one iCloud block")
+], in: view), "Jak 1 Settings presents plain Controls, a Graphics profile, and one iCloud block")
+check(view.contains("Section(\"Controls\")")
+        && !view.contains("Section(\"Preset\")")
+        && !view.contains("Use Modern Everywhere")
+        && !view.contains("Use Classic Everywhere")
+        && !view.contains("settings.applyPreset")
+        && !view.contains("globalProfileTitle")
+        && !view.contains("settings.globalProfile")
+        && !view.contains("profileSection(.controls)"),
+      "Controls has no Classic or global-profile selector")
 check(!view.contains("profileSection(.audio)")
         && !view.contains("profileSection(.interface)")
         && store.contains("var audioProfile: SettingsProfile")
@@ -100,8 +103,6 @@ check(view.contains("Section(\"Developer\")")
 check(view.contains("older divergent copies were preserved automatically")
         && !view.contains("switch resolution.basis"),
       "automatic resolution copy remains generic across engine ranking cases")
-check(view.contains("settings.globalProfile?.title ?? \"Mixed\""),
-      "a mixed set of section profiles is shown as Mixed, not as a preset")
 check(view.contains("settings.profile(for: .graphics) == .modern")
         && view.contains("Toggle(\"Fit to Screen\"")
         && !view.contains("Hor+"),
@@ -124,9 +125,11 @@ check(content.contains("session.presentationSettings.graphicsFillWidth")
         && content.contains("session.settings.horizontalPlusEnabled = enabled")
         && renderer.contains("surface.setHorizontalPlusEnabled(horizontalPlusEnabled)"),
       "the effective Graphics setting reaches only the opt-in Hor+ renderer seam")
-check(content.contains("session.presentationSettings.profile(for: .controls)")
-        && content.contains("session.touch.setStyle(profile == .modern ? .modern : .classic)"),
-      "the Controls profile selects the matching live touch model")
+check(!content.contains("session.presentationSettings.profile(for: .controls)")
+        && !content.contains("session.touch.setStyle(")
+        && !content.contains("session.presentationSettings.jak1TouchLayout")
+        && !content.contains("session.touch.setLayoutCustomization("),
+      "presentation settings no longer drive a Classic touch profile or touch-layout runtime")
 check(view.contains("Picker(\"Primary Controller\"")
         && view.contains("settings.primaryInputSource")
         && view.contains("input.availablePrimarySources")
@@ -194,7 +197,7 @@ check(store.contains("var jak1InputBindingsOverride: Jak1InputBindings?")
         && store.contains("func setMouseCameraSensitivityPercent")
         && store.contains("func setMouseCameraInvertHorizontal")
         && store.contains("func setMouseCameraInvertVertical")
-        && view.contains("settings.restoreDefaults(for: section)")
+        && view.contains("settings.restoreDefaults(for: .controls)")
         && view.contains("input.setBindings(settings.jak1InputBindings)"),
       "title-scoped persisted remaps participate in Controls and full-settings resets")
 check(store.contains("var jak1TouchLayoutOverride: TouchLayoutCustomization?")
@@ -206,42 +209,11 @@ check(store.contains("var jak1TouchLayoutOverride: TouchLayoutCustomization?")
         && store.contains("func setTouchControlSizePercent")
         && store.contains("func resetTouchControl")
         && store.contains("func resetTouchLayout")
-        && view.contains("TouchLayoutEditorView(settings: settings)")
-        && view.contains("LabeledContent(\"Touch Layout\"")
-        && view.contains("settings.jak1TouchLayout.isDefault"),
-      "structural source check: Controls declares the touch editor and persisted seams")
-check(touchEditor.contains("Picker(\"Layout\"")
-        && touchEditor.contains("Section(\"Preview\")")
-        && touchEditor.contains("DragGesture(minimumDistance: 1")
-        && touchEditor.contains("TouchLayoutGeometry.normalizedPosition")
-        && touchEditor.contains("Picker(\"Action\"")
-        && touchEditor.contains("TouchGestureDirection.remappableCases")
-        && touchEditor.contains("Swipe \\(direction.title)")
-        && touchEditor.contains("LabeledContent(\"Swipe Down\", value: \"Crouch (Fixed)\")")
-        && touchEditor.contains("LabeledContent(\"Opacity\"")
-        && touchEditor.contains("LabeledContent(\"Size\"")
-        && touchEditor.contains("Button(\"Reset Layout\", role: .destructive)")
-        && touchEditor.contains("Button(\"Reset \\(selectedControl.title)\"")
-        && touchEditor.contains("Classic intentionally exposes no separate")
-        && touchEditor.contains("L2 or R2 control"),
-      "structural source check: the editor declares direct manipulation and reset controls")
-check(touchEditor.contains(".accessibilityLabel(control.title)")
-        && touchEditor.contains(".accessibilityValue(accessibilityValue(for: control))")
-        && touchEditor.contains(".accessibilityHint(\"Drag to reposition")
-        && touchEditor.contains(".accessibilityAction(named: \"Move Left\"")
-        && touchEditor.contains(".accessibilityAction(named: \"Move Right\"")
-        && touchEditor.contains(".accessibilityAction(named: \"Move Up\"")
-        && touchEditor.contains(".accessibilityAction(named: \"Move Down\"")
-        && touchEditor.contains(".accessibilityAction(named: \"Use Default Position\"")
-        && touchEditor.contains(".frame(width: hitFrame.width, height: hitFrame.height)"),
-      "structural source check: preview controls declare 44-point frames and accessibility actions")
-check(touchEditor.contains("ForEach(visualOrder)")
-        && touchEditor.contains("TouchLayoutControlID.visualOrder(for: profile)")
-        && touchLayout.contains("static func visualOrder(for profile: TouchLayoutProfile)")
-        && touchLayout.contains("static func hitTestOrder(for profile: TouchLayoutProfile)")
-        && touchRuntime.contains("TouchLayoutControlID.hitTestOrder(for: .modern)")
-        && touchRuntime.contains("TouchLayoutControlID.hitTestOrder(for: .classic)"),
-      "structural source check: preview and runtime consume one shared visual-order contract")
+        && !view.contains("TouchLayoutEditorView")
+        && !view.contains("LabeledContent(\"Touch Layout\"")
+        && !view.contains("settings.jak1TouchLayout")
+        && !FileManager.default.fileExists(atPath: root + "/GOALPad/Game/TouchLayoutEditorView.swift"),
+      "legacy touch-layout decoding APIs remain compatible without a player-facing editor")
 check(touchLayout.contains("static let minimumHitDimension: CGFloat = 44")
         && touchLayout.contains("struct NormalizedTouchPosition: Codable")
         && touchLayout.contains("static func normalizedPosition")
@@ -252,19 +224,6 @@ check(touchLayout.contains("static let minimumHitDimension: CGFloat = 44")
         && !touchLayout.contains("case classicL2")
         && !touchLayout.contains("case classicR2"),
       "structural source check: the model declares safe geometry without dead Classic triggers")
-check(content.contains("session.presentationSettings.jak1TouchLayout")
-        && content.contains("session.touch.setLayoutCustomization(layout)")
-        && touchRuntime.contains("func setLayoutCustomization")
-        && touchRuntime.contains("layoutCustomization.gestureAction")
-        && touchRuntime.contains("layoutCustomization.action(for: movementControl)"),
-      "structural source check: persisted remap values are wired to the touch runtime")
-check(touchEditorTypecheck.contains("iphoneos arm64-apple-ios26.5")
-        && touchEditorTypecheck.contains("macosx arm64-apple-macosx26.5")
-        && touchEditorTypecheck.contains("GOALPad/Game/TouchLayoutEditorView.swift")
-        && touchEditorTypecheck.contains("GOALPad/Game/PresentationSettings.swift")
-        && touchEditorTypecheck.contains("GOALPad/Game/TouchControls.swift")
-        && touchEditorTypecheck.contains("-warnings-as-errors"),
-      "structural source check: the Apple SDK runner names the editor and production dependencies")
 check(content.contains("session.presentationSettings.jak1InputBindings")
         && content.contains("session.input.setBindings(bindings)")
         && view.contains("settings.setControllerStickRoles(roles)"),
