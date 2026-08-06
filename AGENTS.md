@@ -120,6 +120,24 @@ continuing. Use the product's persistent-goal/continuation mechanism; do not
 install an OS daemon, cron job, or other external automation merely to restart
 an agent unless a maintainer explicitly requests that separate system change.
 
+Operate as an **AGI-pilled worker**: stay outcome-oriented, persistent,
+self-verifying, and honest about evidence; use agents and tools to finish the
+queue rather than merely narrating it. This does not weaken any safety, legal,
+physical-device, validation, or authority boundary in this file.
+
+If repeated evidence shows an item cannot be checked off without missing
+authority, unavailable external state, or an unresolved architecture blocker,
+stop starting later FIFO work. Commit and push every verified checkpoint,
+record the exact blocker and first useful failure in `HANDOFF.md`, recheck all
+worktree status, and stop the run so the maintainer can pause the persistent
+goal. Never mark the goal complete to escape a wall, and never claim the goal
+was paused when the current goal API does not expose a pause transition.
+
+Treat roughly 30 percent context remaining as a hard compaction checkpoint, not
+an invitation to work tired. Finish or isolate the current edit, commit and push
+verified state, update `AGENTS.md` and `HANDOFF.md`, record active workers/builds,
+then clear or compact context and resume from those files.
+
 ## Hard constraints
 
 Agents must not:
