@@ -1128,14 +1128,20 @@ returned. 989snd is the exception and is designed to be: it takes its own lock,
 so the audio device's render thread pulls from it while the game frame runs on
 the main thread.
 
-`scenePhase` drives it. Going inactive or background stops the frame loop —
-asking a backgrounded layer for a drawable blocks until the app returns —
-suspends the audio device, stops rumble, and resets in-flight touch state.
-Coming back resumes the frame loop and audio. The idle timer is disabled only
-while a session is live. `willTerminate` shuts the session down cleanly through
-the bridge. A memory warning is counted and logged; the kernel's 128 MiB is
-fixed for the life of the session so the shell has nothing to give back, and
-dropping cached level data will be the fused renderer's decision.
+`scenePhase` drives it. Going inactive or background synchronously closes frame
+eligibility, suspends the audio device, stops rumble, and resets in-flight touch
+state. The surface view separately invalidates its display link and detaches its
+`CAMetalLayer`, closing any armed presentation tick before releasing the layer.
+On activation it reattaches the layer and creates a new display link. Gameplay
+and audio remain suspended until the existing save-recovery gate completes for
+the latest active-scene generation; a completion from an older activation can
+only start preparation for the latest generation, never reopen frames itself.
+Audio interruptions and route changes also remain subordinate to that lifecycle
+permission. The idle timer is disabled only while an active session can run.
+`willTerminate` shuts the session down cleanly through the bridge. A memory
+warning is counted and logged; the kernel's 128 MiB is fixed for the life of the
+session so the shell has nothing to give back, and dropping cached level data
+will be the fused renderer's decision.
 
 ### What was observed on the simulator
 

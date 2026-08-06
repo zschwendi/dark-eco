@@ -110,17 +110,20 @@ check(occursInOrder([
 
 let lifecycle = section(session, from: "func scenePhaseChanged", to: "private func resetDisplayTiming")
 check(occursInOrder([
+    "let action = lifecycle.transition(",
     "case .active:",
-    "isForeground = false",
-    "if isBooting",
+    "beginForegroundPreparation(generation: generation)",
     "let savesReady = await saveSync.syncBeforeGameplay()",
-    "guard currentScenePhase == .active else { return }",
-    "guard savesReady else",
-    "audio.suspend()",
+    "lifecycle.completePreparation(generation: generation, succeeded: savesReady)",
+    "case .resumed:",
     "saveSync.setGameplayActive(kernel != nil)",
-    "isForeground = true",
     "audio.resumeIfSuspended()",
+    "case .failed:",
+    "saveSync.setGameplayActive(false)",
+    "audio.suspend()",
 ], in: lifecycle), "foreground resume stays paused and silent until save recovery is safe")
+check(!lifecycle.contains("guard !isPreparingGameplay else { return }"),
+      "activation cannot be dropped merely because another preparation is in flight")
 check(lifecycle.components(separatedBy: "audio.suspend()").count - 1 >= 3,
       "failed, inactive, and background lifecycle routes suspend audio")
 

@@ -67,11 +67,14 @@ final class GameSession {
     private let bootQueue = DispatchQueue(label: "com.zephyrstudiosllc.eco.boot",
                                           qos: .userInitiated)
     private var observers: [NSObjectProtocol] = []
-    /// The frame loop only runs while the scene is on screen: asking a backgrounded app's layer
-    /// for a drawable blocks until it comes back.
-    private var isForeground = true
+    /// Only the latest active-scene generation may reopen the frame loop after its save gate.
+    private var lifecycle = GameplayLifecycleState()
     private var currentScenePhase: ScenePhase = .active
-    private var isPreparingGameplay = false
+    private var isStartingGameplay = false
+    private var foregroundPreparationTask: Task<Void, Never>?
+    private var isPreparingGameplay: Bool {
+        isStartingGameplay || lifecycle.isPreparingForeground
+    }
     private var previousDisplayCallback: CFTimeInterval?
     private var displayIntervals: [Double] = []
     #if os(iOS) || os(visionOS)
@@ -136,13 +139,14 @@ final class GameSession {
             return
         }
 
-        isPreparingGameplay = true
-        defer { isPreparingGameplay = false }
+        isStartingGameplay = true
+        defer { isStartingGameplay = false }
         guard await saveSync.syncBeforeGameplay() else {
             startupError = Self.saveRecoveryMessage
             return
         }
         guard !isRunning, !isBooting, currentScenePhase == .active else { return }
+        audio.resumeIfSuspended()
 
         let status = GOALPadRuntimeBridge.startKernel(
             withDataDirectory: GameDataLayout.gameDirectory.path,
@@ -177,7 +181,6 @@ final class GameSession {
             return
         }
 
-        audio.start()
         isRunning = true
         updateNativeMenuState(mode: GOALPadRuntimeBridge.gameMode,
                               progress: NativeProgressMenuSnapshot(
@@ -188,12 +191,13 @@ final class GameSession {
         updateCutsceneSkipTouchSnapshot(NativeCutsceneSkipTouchSnapshot(
             GOALPadRuntimeBridge.cutsceneSkipTouchSnapshot))
         lookAroundState = GOALPadRuntimeBridge.lookAroundState
-        isForeground = currentScenePhase == .active
-        saveSync.setGameplayActive(isForeground)
+        let active = lifecycle.activateWithoutPreparation()
+        saveSync.setGameplayActive(active)
+        audio.start()
         #if os(iOS) || os(visionOS)
         startCameraDiagnostics()
         #endif
-        setIdleTimerDisabled(true)
+        setIdleTimerDisabled(active)
         sessionLog.notice("Session started: \(status.message)")
     }
 
@@ -232,7 +236,7 @@ final class GameSession {
     // MARK: - The frame loop
 
     func tick(targetPresentationTime: CFTimeInterval) {
-        guard isRunning, isForeground else { return }
+        guard isRunning, lifecycle.frameLoopEnabled else { return }
         recordDisplayCallback()
         let surface = GOALPadRenderSurface.shared
         guard surface.beginFrame(at: targetPresentationTime) else { return }
@@ -1352,44 +1356,40 @@ final class GameSession {
     // MARK: - App lifecycle
 
     func scenePhaseChanged(to phase: ScenePhase) {
+        let wasPreparingGameplay = isPreparingGameplay
         currentScenePhase = phase
+        let lifecyclePhase = GameplayLifecycleState.Phase(phase)
+        let action = lifecycle.transition(
+            to: lifecyclePhase,
+            prepareOnActivation: !isBooting && !isStartingGameplay
+        )
+        sessionLog.notice("""
+            Lifecycle \(lifecyclePhase.rawValue, privacy: .public) generation \
+            \(self.lifecycle.generation), frame loop \
+            \(self.lifecycle.frameLoopEnabled ? "enabled" : "suspended", privacy: .public), \
+            preparation \(self.lifecycle.preparationGeneration ?? 0)
+            """)
         switch phase {
         case .active:
-            isForeground = false
             if GameDataRefreshPolicy.shouldRefreshOnActivation(
                 isRunning: isRunning,
                 isBooting: isBooting,
-                isPreparingGameplay: isPreparingGameplay
+                isPreparingGameplay: wasPreparingGameplay
             ) {
                 Task { [weak self] in await self?.refreshDataReport() }
             }
             if isBooting {
                 saveSync.setGameplayActive(true)
+                audio.resumeIfSuspended()
                 return
             }
-            guard !isPreparingGameplay else { return }
-            isPreparingGameplay = true
-            Task { [weak self] in
-                guard let self else { return }
-                defer { isPreparingGameplay = false }
-                let savesReady = await saveSync.syncBeforeGameplay()
-                guard currentScenePhase == .active else { return }
-                guard savesReady else {
-                    startupError = Self.saveRecoveryMessage
-                    audio.suspend()
-                    return
-                }
-                if startupError == Self.saveRecoveryMessage {
-                    startupError = nil
-                }
-                saveSync.setGameplayActive(kernel != nil)
-                isForeground = true
-                guard isRunning else { return }
+            if isStartingGameplay {
                 audio.resumeIfSuspended()
-                setIdleTimerDisabled(true)
+            }
+            if case .prepareForeground(let generation) = action {
+                beginForegroundPreparation(generation: generation)
             }
         case .inactive:
-            isForeground = false
             if !isBooting { saveSync.setGameplayActive(false) }
             #if os(iOS) || os(visionOS)
             persistCameraDiagnosticsForLifecycleEvent()
@@ -1401,7 +1401,6 @@ final class GameSession {
             audio.suspend()
             input.stopRumble()
         case .background:
-            isForeground = false
             if !isBooting { saveSync.setGameplayActive(false) }
             #if os(iOS) || os(visionOS)
             persistCameraDiagnosticsForLifecycleEvent()
@@ -1413,6 +1412,45 @@ final class GameSession {
             setIdleTimerDisabled(false)
         @unknown default:
             break
+        }
+    }
+
+    private func beginForegroundPreparation(generation: UInt64) {
+        guard foregroundPreparationTask == nil else { return }
+        sessionLog.notice("Preparing foreground generation \(generation)")
+        foregroundPreparationTask = Task { [weak self] in
+            guard let self else { return }
+            let savesReady = await saveSync.syncBeforeGameplay()
+            finishForegroundPreparation(generation: generation, savesReady: savesReady)
+        }
+    }
+
+    private func finishForegroundPreparation(generation: UInt64, savesReady: Bool) {
+        foregroundPreparationTask = nil
+        let action = lifecycle.completePreparation(generation: generation, succeeded: savesReady)
+        switch action {
+        case .prepareForeground(let nextGeneration):
+            sessionLog.notice("Foreground generation \(generation) became stale; preparing \(nextGeneration)")
+            beginForegroundPreparation(generation: nextGeneration)
+        case .resumed:
+            if startupError == Self.saveRecoveryMessage {
+                startupError = nil
+            }
+            saveSync.setGameplayActive(kernel != nil)
+            audio.resumeIfSuspended()
+            setIdleTimerDisabled(isRunning)
+            sessionLog.notice("Foreground generation \(generation) resumed")
+        case .failed:
+            startupError = Self.saveRecoveryMessage
+            saveSync.setGameplayActive(false)
+            audio.suspend()
+            setIdleTimerDisabled(false)
+            sessionLog.error("Foreground generation \(generation) remains suspended for save recovery")
+        case .suspended:
+            saveSync.setGameplayActive(false)
+            sessionLog.notice("Foreground generation \(generation) completed after suspension")
+        case .none:
+            sessionLog.notice("Ignored stale foreground completion for generation \(generation)")
         }
     }
 
@@ -1455,12 +1493,30 @@ final class GameSession {
     /// fused renderer's decision to make, not this shell's.
     private func handleMemoryWarning() {
         memoryWarnings += 1
-        sessionLog.warning("Memory warning #\(self.memoryWarnings) - nothing reclaimable in the app shell")
+        sessionLog.warning("""
+            Memory warning #\(self.memoryWarnings) - nothing safely reclaimable in the app shell; \
+            lifecycle \(self.lifecycle.phase.rawValue, privacy: .public) generation \
+            \(self.lifecycle.generation), frame loop \
+            \(self.lifecycle.frameLoopEnabled ? "enabled" : "suspended", privacy: .public), \
+            running \(self.isRunning), audio \(self.audio.isRunning), save work \
+            \(self.saveSync.isBusy)
+            """)
     }
 
     private func setIdleTimerDisabled(_ disabled: Bool) {
         #if canImport(UIKit)
         UIApplication.shared.isIdleTimerDisabled = disabled
         #endif
+    }
+}
+
+private extension GameplayLifecycleState.Phase {
+    init(_ phase: ScenePhase) {
+        switch phase {
+        case .active: self = .active
+        case .inactive: self = .inactive
+        case .background: self = .background
+        @unknown default: self = .inactive
+        }
     }
 }

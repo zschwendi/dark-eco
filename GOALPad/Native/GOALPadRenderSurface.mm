@@ -409,6 +409,9 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
 
 - (void)attachLayer:(CAMetalLayer *)layer {
   if (layer == nil) {
+    // Scene deactivation and view removal are both idempotent. Close any armed tick before
+    // dropping the only retained presentation-layer reference.
+    goalpad::metal_host_end_frame();
     _layer = nil;
     return;
   }

@@ -29,6 +29,7 @@ struct GameSurfaceView: View {
 private final class MetalHostView: UIView {
     var onFrame: ((CFTimeInterval) -> Void)?
     private var frameLink: CADisplayLink?
+    private var observesSceneLifecycle = false
 
     override class var layerClass: AnyClass { CAMetalLayer.self }
 
@@ -37,10 +38,19 @@ private final class MetalHostView: UIView {
     override func didMoveToWindow() {
         super.didMoveToWindow()
         if window == nil {
-            stopDisplayLink()
-            GOALPadRenderSurface.shared.attach(nil)
+            stopObservingSceneLifecycle()
+            suspendPresentation()
             return
         }
+        startObservingSceneLifecycle()
+        guard window?.windowScene?.activationState == .foregroundActive else {
+            suspendPresentation()
+            return
+        }
+        resumePresentation()
+    }
+
+    private func resumePresentation() {
         #if os(visionOS)
         layer.contentsScale = contentScaleFactor
         #else
@@ -49,6 +59,11 @@ private final class MetalHostView: UIView {
         GOALPadRenderSurface.shared.attach(metalLayer)
         updateDrawableSize()
         startDisplayLink()
+    }
+
+    private func suspendPresentation() {
+        stopDisplayLink()
+        GOALPadRenderSurface.shared.attach(nil)
     }
 
     override func layoutSubviews() {
@@ -74,6 +89,40 @@ private final class MetalHostView: UIView {
     private func stopDisplayLink() {
         frameLink?.invalidate()
         frameLink = nil
+    }
+
+    private func startObservingSceneLifecycle() {
+        guard !observesSceneLifecycle else { return }
+        let center = NotificationCenter.default
+        center.addObserver(self, selector: #selector(sceneWillDeactivate(_:)),
+                           name: UIScene.willDeactivateNotification, object: nil)
+        center.addObserver(self, selector: #selector(sceneDidActivate(_:)),
+                           name: UIScene.didActivateNotification, object: nil)
+        observesSceneLifecycle = true
+    }
+
+    private func stopObservingSceneLifecycle() {
+        guard observesSceneLifecycle else { return }
+        let center = NotificationCenter.default
+        center.removeObserver(self, name: UIScene.willDeactivateNotification, object: nil)
+        center.removeObserver(self, name: UIScene.didActivateNotification, object: nil)
+        observesSceneLifecycle = false
+    }
+
+    private func belongsToCurrentScene(_ notification: Notification) -> Bool {
+        guard let scene = notification.object as? UIScene,
+              let windowScene = window?.windowScene else { return false }
+        return scene === windowScene
+    }
+
+    @objc private func sceneWillDeactivate(_ notification: Notification) {
+        guard belongsToCurrentScene(notification) else { return }
+        suspendPresentation()
+    }
+
+    @objc private func sceneDidActivate(_ notification: Notification) {
+        guard belongsToCurrentScene(notification), window != nil else { return }
+        resumePresentation()
     }
 
     @objc private func step(_ link: CADisplayLink) {
@@ -102,6 +151,7 @@ private struct SurfaceRepresentable: UIViewRepresentable {
 private final class MetalHostView: NSView {
     var onFrame: ((CFTimeInterval) -> Void)?
     private var frameLink: CADisplayLink?
+    private var observesApplicationLifecycle = false
 
     override func makeBackingLayer() -> CALayer { CAMetalLayer() }
 
@@ -109,12 +159,21 @@ private final class MetalHostView: NSView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        guard let window else {
-            frameLink?.invalidate()
-            frameLink = nil
-            GOALPadRenderSurface.shared.attach(nil)
+        guard window != nil else {
+            stopObservingApplicationLifecycle()
+            suspendPresentation()
             return
         }
+        startObservingApplicationLifecycle()
+        guard NSApplication.shared.isActive else {
+            suspendPresentation()
+            return
+        }
+        resumePresentation()
+    }
+
+    private func resumePresentation() {
+        guard let window else { return }
         wantsLayer = true
         layer?.contentsScale = window.backingScaleFactor
         if let metalLayer {
@@ -128,6 +187,39 @@ private final class MetalHostView: NSView {
             link.add(to: .main, forMode: .common)
             frameLink = link
         }
+    }
+
+    private func suspendPresentation() {
+        frameLink?.invalidate()
+        frameLink = nil
+        GOALPadRenderSurface.shared.attach(nil)
+    }
+
+    private func startObservingApplicationLifecycle() {
+        guard !observesApplicationLifecycle else { return }
+        let center = NotificationCenter.default
+        center.addObserver(self, selector: #selector(applicationDidResignActive(_:)),
+                           name: NSApplication.didResignActiveNotification, object: nil)
+        center.addObserver(self, selector: #selector(applicationDidBecomeActive(_:)),
+                           name: NSApplication.didBecomeActiveNotification, object: nil)
+        observesApplicationLifecycle = true
+    }
+
+    private func stopObservingApplicationLifecycle() {
+        guard observesApplicationLifecycle else { return }
+        let center = NotificationCenter.default
+        center.removeObserver(self, name: NSApplication.didResignActiveNotification, object: nil)
+        center.removeObserver(self, name: NSApplication.didBecomeActiveNotification, object: nil)
+        observesApplicationLifecycle = false
+    }
+
+    @objc private func applicationDidResignActive(_ notification: Notification) {
+        suspendPresentation()
+    }
+
+    @objc private func applicationDidBecomeActive(_ notification: Notification) {
+        guard window != nil else { return }
+        resumePresentation()
     }
 
     override func layout() {

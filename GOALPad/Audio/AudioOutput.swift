@@ -31,10 +31,34 @@ final class AudioOutput {
     private var engine: AVAudioEngine?
     private var sourceNode: AVAudioSourceNode?
     private var observers: [NSObjectProtocol] = []
-    private var interruptedWhileRunning = false
+    private var playbackPolicy = AudioPlaybackPolicy()
 
     func start() {
-        guard !isRunning else { return }
+        playbackPolicy.requestStart()
+        startHardwareIfAllowed()
+    }
+
+    func stop() {
+        playbackPolicy.requestStop()
+        stopHardware()
+    }
+
+    /// Give up the device but retain the engine's request to play. Audio-session and route
+    /// callbacks cannot override this lifecycle suspension while the scene is inactive.
+    func suspend() {
+        playbackPolicy.setLifecycleActive(false)
+        guard isRunning else { return }
+        stopHardware()
+        audioLog.notice("Audio suspended after \(self.framesRequested) frames")
+    }
+
+    func resumeIfSuspended() {
+        playbackPolicy.setLifecycleActive(true)
+        startHardwareIfAllowed()
+    }
+
+    private func startHardwareIfAllowed() {
+        guard playbackPolicy.shouldRun, !isRunning else { return }
         observeSession()
 
         do {
@@ -63,32 +87,14 @@ final class AudioOutput {
         } catch {
             lastError = error.localizedDescription
             audioLog.error("Audio start failed: \(error.localizedDescription, privacy: .public)")
-            teardown()
+            stopHardware()
         }
     }
 
-    func stop() {
+    private func stopHardware() {
         teardown()
         deactivateSession()
         isRunning = false
-    }
-
-    /// Give up the device but keep watching the session, so the app holds no audio hardware while
-    /// it is in the background and picks the device back up when it returns.
-    func suspend() {
-        guard isRunning else { return }
-        teardown()
-        deactivateSession()
-        isRunning = false
-        interruptedWhileRunning = true
-        audioLog.notice("Audio suspended after \(self.framesRequested) frames")
-    }
-
-    func resumeIfSuspended() {
-        guard interruptedWhileRunning, !isRunning else { return }
-        interruptedWhileRunning = false
-        audioLog.notice("Audio resuming")
-        start()
     }
 
     private func teardown() {
@@ -153,12 +159,14 @@ final class AudioOutput {
         switch type {
         case .began:
             audioLog.notice("Audio interrupted")
-            suspend()
+            playbackPolicy.interruptionBegan()
+            stopHardware()
         case .ended:
             let optionsRaw = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
-            if AVAudioSession.InterruptionOptions(rawValue: optionsRaw).contains(.shouldResume) {
-                resumeIfSuspended()
-            }
+            let shouldResume = AVAudioSession.InterruptionOptions(rawValue: optionsRaw)
+                .contains(.shouldResume)
+            playbackPolicy.interruptionEnded(shouldResume: shouldResume)
+            startHardwareIfAllowed()
         @unknown default:
             break
         }
@@ -175,9 +183,11 @@ final class AudioOutput {
             // Headphones came out. Stopping is what a player expects, and it is also what keeps
             // the game's audio off the built-in speaker in a quiet room.
             audioLog.notice("Audio route lost its old device")
-            suspend()
+            playbackPolicy.setRouteAvailable(false)
+            stopHardware()
         case .newDeviceAvailable, .routeConfigurationChange:
-            resumeIfSuspended()
+            playbackPolicy.setRouteAvailable(true)
+            startHardwareIfAllowed()
         default:
             break
         }
@@ -185,11 +195,10 @@ final class AudioOutput {
     #endif
 
     private func rebuild() {
-        guard isRunning else { return }
+        guard playbackPolicy.playbackRequested else { return }
         audioLog.notice("Rebuilding the audio graph")
-        teardown()
-        isRunning = false
-        start()
+        stopHardware()
+        startHardwareIfAllowed()
     }
 
     private enum AudioOutputError: LocalizedError {
