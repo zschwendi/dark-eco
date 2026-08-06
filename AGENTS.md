@@ -449,9 +449,14 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 Active lanes:
 
-- `In progress` — Classic touch fallback owns `TouchControls.swift`,
-  `TouchControlsView.swift`, and touch-focused tests on
-  `agent/build94-classic-touch` in `/private/tmp/GP-build94-classic-touch`.
+- `Integrated; focused validation passed; profile binding and physical
+  ergonomics pending` — Classic touch fallback plus Modern held-crouch-left
+  punch came from `agent/build94-classic-touch` in
+  `/private/tmp/GP-build94-classic-touch`. Code commit `501d64a3` was integrated
+  as `e032457b`; worker/ledger HEAD `7936b744` is pushed to
+  `origin/agent/build94-classic-touch`. Root reran
+  `Scripts/run-touch-controls-check.sh` with Xcode macro services and all checks
+  passed.
 - `In progress` — Jak 1 settings and combined iCloud presentation owns
   `PresentationSettings.swift`, `SaveSyncController.swift`, and focused tests on
   `agent/build94-jak1-settings-icloud` in
@@ -531,7 +536,7 @@ Active lanes:
 
 #### Touch profiles and customization
 
-- [ ] Implement Classic touch before deeper native-menu touch conversion so
+- [x] Implement Classic touch before deeper native-menu touch conversion so
   every touch device has an understandable fallback.
 - [ ] Make Controls Modern select the existing Build 93 gesture/touch scheme.
 - [ ] Make Controls Classic select a DualShock-style overlay with symmetrical
@@ -540,7 +545,7 @@ Active lanes:
 - [ ] Keep Modern first and Classic second in the touch profile picker.
 - [ ] Preserve current Modern behavior until its separate polish patch is
   physically accepted.
-- [ ] In Modern touch, once a held downward gesture has engaged crouch, sliding
+- [x] In Modern touch, once a held downward gesture has engaged crouch, sliding
   left without releasing must trigger crouch + punch. Preserve the existing
   held down-then-up crouch jump and ordinary left-swipe behavior, with focused
   sequencing and one-shot/retrigger tests.

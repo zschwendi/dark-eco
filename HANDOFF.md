@@ -13031,3 +13031,17 @@ after a held downward gesture engages crouch, sliding left without releasing
 must trigger crouch + punch, while held down-then-up remains crouch jump and an
 ordinary left swipe remains unchanged. The Classic-touch worker owns its
 implementation and deterministic sequencing tests.
+
+Build 97 integrates the Classic touch worker code from `501d64a3` as
+`e032457b`. `TouchControls` now has an explicitly Modern-first style seam;
+switching profiles clears active touches and queued input. Classic provides a
+safe-area-aware DualShock-like layout with symmetrical analog sticks, D-pad,
+Start/Select, four face buttons, and L1/R1, with no L2/R2. Modern down-then-left
+while the crouch gesture remains held emits one bounded Square pulse alongside
+held L1; down-then-up crouch jump and ordinary left-first Square are unchanged.
+The root rerun of `Scripts/run-touch-controls-check.sh` initially hit the known
+sandboxed Observation-macro service failure; its authorized Xcode-service rerun
+passed every state, geometry, multitouch, sequence, and regression check.
+`git diff --check` also passed. Worker/ledger HEAD `7936b744` is pushed as
+`origin/agent/build94-classic-touch`. Binding the saved Controls profile and
+physical iPhone/iPad ergonomics remain pending.
