@@ -622,19 +622,47 @@ private func classicMultitouchReachesOneFrame() {
           "face, shoulder, and Start touches coexist with both sticks")
 }
 
+@MainActor
+private func pausePresentationFollowsNativeMenuState() {
+    print("native menu drives Pause/Resume artwork and visibility")
+    check(TouchControls.artworkLabel(for: .start, isNativeMenuOpen: false) == "PAUSE",
+          "gameplay Start artwork says PAUSE")
+    check(TouchControls.artworkLabel(for: .start, isNativeMenuOpen: true) == "RESUME",
+          "native-menu Start artwork says RESUME")
+    check(TouchControls.artworkLabel(for: .select, isNativeMenuOpen: false) == "SELECT",
+          "Select keeps its existing label")
+
+    check(TouchControls.artworkIsVisible(isEngaged: false, isSuppressed: false,
+                                         hasTouches: false, isNativeMenuOpen: true),
+          "the native menu keeps idle fallback artwork visible")
+    check(!TouchControls.artworkIsVisible(isEngaged: false, isSuppressed: true,
+                                          hasTouches: false, isNativeMenuOpen: true),
+          "controller suppression hides idle native-menu artwork")
+    check(TouchControls.artworkIsVisible(isEngaged: false, isSuppressed: true,
+                                         hasTouches: true, isNativeMenuOpen: true),
+          "a live touch restores native-menu artwork under suppression")
+
+    var run = Runner()
+    let finger = Finger()
+    let centre = CGPoint(x: Runner.start.midX, y: Runner.start.midY)
+    run.down(finger, centre)
+    check(run.frame().buttons.contains(.start),
+          "Pause/Resume presentation preserves the Start input bit")
+}
+
 private func controllerSuppressionKeepsTouchRecovery() {
     print("controller suppression hides idle artwork but permits touch recovery")
     check(TouchControls.artworkIsVisible(isEngaged: true, isSuppressed: false,
-                                         hasTouches: false),
+                                         hasTouches: false, isNativeMenuOpen: false),
           "engaged artwork is visible without controller suppression")
     check(!TouchControls.artworkIsVisible(isEngaged: true, isSuppressed: true,
-                                          hasTouches: false),
+                                          hasTouches: false, isNativeMenuOpen: false),
           "controller suppression hides idle touch artwork")
     check(TouchControls.artworkIsVisible(isEngaged: true, isSuppressed: true,
-                                         hasTouches: true),
+                                         hasTouches: true, isNativeMenuOpen: false),
           "a live screen touch reveals controls despite prior suppression")
     check(!TouchControls.artworkIsVisible(isEngaged: false, isSuppressed: false,
-                                          hasTouches: false),
+                                          hasTouches: false, isNativeMenuOpen: false),
           "unengaged artwork remains hidden")
 }
 
@@ -660,6 +688,7 @@ struct TouchControlsCheck {
         classicGeometryStaysSafeAndBalanced()
         classicHasNoTriggerOverlay()
         classicMultitouchReachesOneFrame()
+        pausePresentationFollowsNativeMenuState()
         controllerSuppressionKeepsTouchRecovery()
 
         print(failures == 0 ? "\nall checks passed" : "\n\(failures) checks FAILED")
