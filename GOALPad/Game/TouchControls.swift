@@ -123,7 +123,7 @@ struct NativeProgressMenuSnapshot: Equatable {
 
 /// App-session knowledge that is stricter than `target-title-wait`: boot/title transitions remain
 /// pre-run until the native title menu has been seen and gameplay subsequently resumes.
-enum GameplayRunReadiness: Equatable, Sendable {
+nonisolated enum GameplayRunReadiness: Equatable, Sendable {
     case preRun
     case titleMenu
     case active
