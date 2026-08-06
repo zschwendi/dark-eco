@@ -427,6 +427,13 @@ final class PresentationSettings {
         change { $0.jak1InputBindingsOverride = bindings == .standard ? nil : bindings }
     }
 
+    func setControllerStickRoles(_ roles: Jak1ControllerStickRoles) {
+        var bindings = jak1InputBindings
+        bindings.setControllerStickRoles(roles)
+        guard bindings != jak1InputBindings else { return }
+        change { $0.jak1InputBindingsOverride = bindings == .standard ? nil : bindings }
+    }
+
     func restoreDefaults(for section: SettingsSection) {
         change { $0.restoreDefaults(for: section) }
     }

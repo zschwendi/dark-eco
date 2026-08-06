@@ -153,11 +153,17 @@ final class ControllerInput {
             let controllerFrame = bindings.controllerFrame(
                 pressed: Self.pressedControls(of: gamepad),
                 values: Self.controlValues(of: gamepad))
+            let controllerSticks = Jak1MappedControllerSticks(
+                roles: bindings.controllerStickRoles,
+                physicalLeftX: gamepad.leftThumbstick.xAxis.value,
+                physicalLeftY: gamepad.leftThumbstick.yAxis.value,
+                physicalRightX: gamepad.rightThumbstick.xAxis.value,
+                physicalRightY: gamepad.rightThumbstick.yAxis.value)
             state.buttons = controllerFrame.buttons
-            state.leftX = Self.axisByte(gamepad.leftThumbstick.xAxis.value)
-            state.leftY = Self.axisByte(-gamepad.leftThumbstick.yAxis.value)
-            state.rightX = Self.axisByte(gamepad.rightThumbstick.xAxis.value)
-            state.rightY = Self.axisByte(-gamepad.rightThumbstick.yAxis.value)
+            state.leftX = controllerSticks.leftX
+            state.leftY = controllerSticks.leftY
+            state.rightX = controllerSticks.rightX
+            state.rightY = controllerSticks.rightY
             state.leftTrigger = controllerFrame.leftTrigger
             state.rightTrigger = controllerFrame.rightTrigger
             if Self.isActive(state) { activity.noteController(at: now) }
@@ -356,13 +362,6 @@ final class ControllerInput {
             .menu: pad.buttonMenu.value,
             .options: pad.buttonOptions?.value ?? 0,
         ]
-    }
-
-    /// GameController reports an axis as -1...1. The pad reports a byte per axis with 127 at rest,
-    /// growing right and down, so the caller negates the Y axis before calling this.
-    private static func axisByte(_ value: Float) -> UInt8 {
-        let scaled = Float(GOALPadAnalogNeutral) + value * 127
-        return UInt8(max(0, min(255, scaled.rounded())))
     }
 
     // MARK: - Connection

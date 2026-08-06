@@ -84,8 +84,9 @@ private func legacyDocumentAndPickerOrderingRemainCompatible() async throws {
     check(value.primaryInputSource == .automatic,
           "a Build 93 document defaults the new Primary Controller choice to Automatic")
     check(value.jak1InputBindings == .standard
+          && value.jak1InputBindings.controllerStickRoles == .standard
           && value.document.jak1InputBindingsOverride == nil,
-          "a document without remapping data decodes to the exact established bindings")
+          "a document without remapping data decodes to exact established buttons and sticks")
 }
 
 @MainActor
@@ -113,33 +114,43 @@ private func inputBindingsPersistSyncAndReset() async throws {
     print("Jak 1 physical-input bindings persist in the compatible synced document")
     let fixture = try Fixture(name: "input-bindings")
     let value = settings(fixture, writerID: "device-a", cloudAvailable: false)
-    check(value.jak1InputBindings == .standard, "a fresh title begins with standard bindings")
+    check(value.jak1InputBindings == .standard
+          && value.jak1InputBindings.controllerStickRoles == .standard
+          && value.document.jak1InputBindingsOverride == nil,
+          "a fresh title begins with standard bindings without storing an override")
 
     value.setControllerAction(.square, for: .buttonA)
     value.setKeyboardMouseAction(.stats, for: .spacebar)
+    value.setControllerStickRoles(.swapped)
     check(value.jak1InputBindings.action(for: .buttonA) == .square
           && value.jak1InputBindings.action(for: .buttonX) == .cross,
           "controller collision swaps are stored through PresentationSettings")
     check(value.jak1InputBindings.action(for: .spacebar) == .stats
           && value.jak1InputBindings.action(for: .tab) == nil,
           "an explicit added Stats key is stored without duplicate ownership")
+    check(value.jak1InputBindings.controllerStickRoles == .swapped,
+          "Swapped Sticks is stored through the same live Jak 1 input binding value")
 
     let restored = settings(fixture, writerID: "device-b", cloudAvailable: false)
-    check(restored.jak1InputBindings == value.jak1InputBindings,
-          "controller and mouse/keyboard remaps survive local document decoding")
+    check(restored.jak1InputBindings == value.jak1InputBindings
+          && restored.jak1InputBindings.controllerStickRoles == .swapped,
+          "controller sticks, buttons, and mouse/keyboard remaps survive local decoding")
     restored.setPrimaryInputSource(.controller)
     restored.restoreDefaults(for: .controls)
     check(restored.jak1InputBindings == .standard
+          && restored.jak1InputBindings.controllerStickRoles == .standard
           && restored.document.jak1InputBindingsOverride == nil
           && restored.primaryInputSource == .automatic,
-          "Restore Controls Defaults resets bindings and source selection together")
+          "Restore Controls Defaults resets sticks, bindings, and source selection together")
 
     restored.setControllerAction(.stats, for: .buttonA)
     restored.setKeyboardMouseAction(.cross, for: .mouseLeft)
+    restored.setControllerStickRoles(.swapped)
     restored.resetAll()
     check(restored.jak1InputBindings == .standard
+          && restored.jak1InputBindings.controllerStickRoles == .standard
           && restored.document.jak1InputBindingsOverride == nil,
-          "Reset Jak 1 Settings also restores every physical-input binding")
+          "Reset Jak 1 Settings also restores every physical-input binding and stick role")
 }
 
 @MainActor
@@ -266,6 +277,7 @@ private func cloudSettingsConvergeAsOneDocument() async throws {
     first.setGraphicsFillWidth(false)
     first.setControllerAction(.square, for: .buttonA)
     first.setKeyboardMouseAction(.stats, for: .spacebar)
+    first.setControllerStickRoles(.swapped)
     await first.syncNow()
 
     let second = PresentationSettings(defaults: fixtureB.defaults, configuration: sharedConfigurationB,
@@ -277,8 +289,9 @@ private func cloudSettingsConvergeAsOneDocument() async throws {
     check(second.jak1InputBindings.action(for: .buttonA) == .square
           && second.jak1InputBindings.action(for: .buttonX) == .cross
           && second.jak1InputBindings.action(for: .spacebar) == .stats
-          && second.jak1InputBindings.action(for: .tab) == nil,
-          "the second device receives the title's remapped physical inputs")
+          && second.jak1InputBindings.action(for: .tab) == nil
+          && second.jak1InputBindings.controllerStickRoles == .swapped,
+          "the second device receives the title's remapped buttons, keys, and stick roles")
 }
 
 @MainActor

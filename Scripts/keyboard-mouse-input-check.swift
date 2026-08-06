@@ -102,6 +102,69 @@ private func defaultControllerBytes() {
           "face-button position defaults remain Cross, Circle, Square, Triangle")
 }
 
+private func controllerStickRoleMapping() {
+    print("controller stick roles preserve normalized vectors and apply before source merge")
+    check(Jak1ControllerStickRoles.allCases == [.standard, .swapped]
+          && Jak1ControllerStickRoles.standard.title == "Standard"
+          && Jak1ControllerStickRoles.swapped.title == "Swapped Sticks",
+          "the role surface exposes only Standard and Swapped Sticks")
+    let standard = Jak1MappedControllerSticks(
+        roles: .standard,
+        physicalLeftX: 1,
+        physicalLeftY: 1,
+        physicalRightX: -1,
+        physicalRightY: -1)
+    check(standard.leftX == 254 && standard.leftY == 0
+          && standard.rightX == 0 && standard.rightY == 254,
+          "Standard emits the exact established bytes, including GameController Y normalization")
+
+    var bindings = Jak1InputBindings.standard
+    bindings.setControllerStickRoles(.swapped)
+    let swapped = Jak1MappedControllerSticks(
+        roles: bindings.controllerStickRoles,
+        physicalLeftX: -0.5,
+        physicalLeftY: 0.25,
+        physicalRightX: 1,
+        physicalRightY: -1)
+    check(swapped.leftX == 254 && swapped.leftY == 254
+          && swapped.rightX == 64 && swapped.rightY == 95,
+          "Swapped Sticks exchanges complete normalized X/Y vectors without changing their bytes")
+
+    let cameraOnly = Jak1MappedControllerSticks(
+        roles: .swapped,
+        physicalLeftX: 1,
+        physicalLeftY: 0,
+        physicalRightX: 0,
+        physicalRightY: 0)
+    let movement = PadStickMerge.preferred(
+        primaryX: cameraOnly.leftX,
+        primaryY: cameraOnly.leftY,
+        fallbackX: 254,
+        fallbackY: 0,
+        fallbackActive: true)
+    let camera = PadStickMerge.preferred(
+        primaryX: cameraOnly.rightX,
+        primaryY: cameraOnly.rightY,
+        fallbackX: 0,
+        fallbackY: 254,
+        fallbackActive: true)
+    check(movement.x == 254 && movement.y == 0,
+          "a neutral mapped controller movement role yields to keyboard movement")
+    check(camera.x == 254 && camera.y == neutral,
+          "a mapped controller camera role keeps controller-first precedence over mouse")
+}
+
+private func legacyControllerBindingsDefaultToStandardSticks() {
+    print("legacy button-remapping data defaults its absent stick field to Standard")
+    let legacy = Data(
+        #"{"controller":[{"control":"buttonA","action":"square"}],"keyboardMouse":[{"control":"w","action":"moveForward"}]}"#.utf8)
+    let decoded = try? JSONDecoder().decode(Jak1InputBindings.self, from: legacy)
+    check(decoded?.controllerStickRoles == .standard
+          && decoded?.action(for: .buttonA) == .square
+          && decoded?.action(for: .w) == .moveForward,
+          "a pre-stick-layout customized document preserves its mappings and exact default roles")
+}
+
 private func remappingAndCollisions() {
     print("remapping is deterministic and never leaves duplicate action owners")
     var bindings = Jak1InputBindings.standard
@@ -355,6 +418,8 @@ struct KeyboardMouseInputCheck {
         keyboardMovement()
         keyboardButtons()
         defaultControllerBytes()
+        controllerStickRoleMapping()
+        legacyControllerBindingsDefaultToStandardSticks()
         remappingAndCollisions()
         relativeMouse()
         drivingArbitration()

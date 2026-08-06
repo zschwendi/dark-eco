@@ -923,6 +923,26 @@ private struct ControllerBindingsSettingsView: View {
             }
 
             Section {
+                Picker("Stick Roles", selection: Binding(
+                    get: { settings.jak1InputBindings.controllerStickRoles },
+                    set: { roles in
+                        settings.setControllerStickRoles(roles)
+                        input.setBindings(settings.jak1InputBindings)
+                    }
+                )) {
+                    ForEach(Jak1ControllerStickRoles.allCases, id: \.self) { roles in
+                        Text(roles.title).tag(roles)
+                    }
+                }
+            } header: {
+                Text("Sticks")
+            } footer: {
+                Text("Standard uses the left stick for movement and the right stick for camera. "
+                     + "Swapped Sticks exchanges those whole-stick roles while keeping each "
+                     + "stick's X and Y axes together.")
+            }
+
+            Section {
                 ForEach(Jak1ControllerControl.allCases, id: \.self) { control in
                     Picker(control.title, selection: Binding(
                         get: { settings.jak1InputBindings.action(for: control) },

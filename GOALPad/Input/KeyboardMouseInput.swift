@@ -143,6 +143,51 @@ enum Jak1ControllerControl: String, CaseIterable, Codable, Hashable, Sendable {
     }
 }
 
+enum Jak1ControllerStickRoles: String, CaseIterable, Codable, Sendable {
+    case standard
+    case swapped
+
+    var title: String {
+        switch self {
+        case .standard: "Standard"
+        case .swapped: "Swapped Sticks"
+        }
+    }
+}
+
+/// Converts Game Controller axes to the PS2 pad byte convention, then assigns each complete
+/// physical stick to its Jak 1 role. Camera inversion remains GOAL-owned downstream.
+struct Jak1MappedControllerSticks: Equatable, Sendable {
+    let leftX: UInt8
+    let leftY: UInt8
+    let rightX: UInt8
+    let rightY: UInt8
+
+    init(roles: Jak1ControllerStickRoles,
+         physicalLeftX: Float,
+         physicalLeftY: Float,
+         physicalRightX: Float,
+         physicalRightY: Float) {
+        let physicalLeft = (x: Self.axisByte(physicalLeftX),
+                            y: Self.axisByte(-physicalLeftY))
+        let physicalRight = (x: Self.axisByte(physicalRightX),
+                             y: Self.axisByte(-physicalRightY))
+        switch roles {
+        case .standard:
+            (leftX, leftY) = physicalLeft
+            (rightX, rightY) = physicalRight
+        case .swapped:
+            (leftX, leftY) = physicalRight
+            (rightX, rightY) = physicalLeft
+        }
+    }
+
+    private static func axisByte(_ value: Float) -> UInt8 {
+        let scaled = Float(GOALPadAnalogNeutral) + value * 127
+        return UInt8(max(0, min(255, scaled.rounded())))
+    }
+}
+
 /// Only these named keyboard and mouse controls can become gameplay input. In particular, ordinary
 /// typing never falls through to a gameplay action merely because bindings are customizable.
 enum KeyboardMouseKey: String, CaseIterable, Codable, Hashable, Sendable {
@@ -234,15 +279,19 @@ struct Jak1InputBindings: Codable, Equatable, Sendable {
             .init(control: .downArrow, action: .shoulderChord),
             .init(control: .escape, action: .start),
             .init(control: .tab, action: .stats),
-        ])
+        ],
+        controllerStickRoles: .standard)
 
     private(set) var controllerBindings: [ControllerBinding]
     private(set) var keyboardMouseBindings: [KeyboardMouseBinding]
+    private(set) var controllerStickRoles: Jak1ControllerStickRoles
 
     init(controllerBindings: [ControllerBinding],
-         keyboardMouseBindings: [KeyboardMouseBinding]) {
+         keyboardMouseBindings: [KeyboardMouseBinding],
+         controllerStickRoles: Jak1ControllerStickRoles = .standard) {
         self.controllerBindings = Self.normalized(controllerBindings)
         self.keyboardMouseBindings = Self.normalized(keyboardMouseBindings)
+        self.controllerStickRoles = controllerStickRoles
     }
 
     func action(for control: Jak1ControllerControl) -> Jak1InputAction? {
@@ -291,6 +340,10 @@ struct Jak1InputBindings: Codable, Equatable, Sendable {
         })
     }
 
+    mutating func setControllerStickRoles(_ roles: Jak1ControllerStickRoles) {
+        controllerStickRoles = roles
+    }
+
     func controllerFrame(pressed: Set<Jak1ControllerControl>,
                          values: [Jak1ControllerControl: Float] = [:]) -> Jak1MappedControllerFrame {
         var buttons: GOALPadButton = []
@@ -337,6 +390,7 @@ struct Jak1InputBindings: Codable, Equatable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case controller
         case keyboardMouse
+        case controllerStickRoles
     }
 
     init(from decoder: Decoder) throws {
@@ -346,13 +400,20 @@ struct Jak1InputBindings: Codable, Equatable, Sendable {
         let keyboardMouse = try container.decodeIfPresent([KeyboardMouseBinding].self,
                                                            forKey: .keyboardMouse)
             ?? Self.standard.keyboardMouseBindings
-        self.init(controllerBindings: controller, keyboardMouseBindings: keyboardMouse)
+        let controllerStickRoles = try container.decodeIfPresent(Jak1ControllerStickRoles.self,
+                                                                  forKey: .controllerStickRoles)
+            ?? .standard
+        self.init(controllerBindings: controller, keyboardMouseBindings: keyboardMouse,
+                  controllerStickRoles: controllerStickRoles)
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(controllerBindings, forKey: .controller)
         try container.encode(keyboardMouseBindings, forKey: .keyboardMouse)
+        if controllerStickRoles != .standard {
+            try container.encode(controllerStickRoles, forKey: .controllerStickRoles)
+        }
     }
 }
 
