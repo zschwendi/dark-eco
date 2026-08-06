@@ -238,6 +238,70 @@ enum KeyboardMouseKey: String, CaseIterable, Codable, Hashable, Sendable {
     }
 }
 
+struct Jak1MouseCameraSettings: Codable, Equatable, Sendable {
+    static let minimumSensitivityPercent = 25
+    static let maximumSensitivityPercent = 400
+    static let standard = Jak1MouseCameraSettings()
+
+    private(set) var sensitivityPercent: Int
+    private(set) var invertHorizontal: Bool
+    private(set) var invertVertical: Bool
+
+    init(sensitivityPercent: Int = 100,
+         invertHorizontal: Bool = false,
+         invertVertical: Bool = false) {
+        self.sensitivityPercent = Self.clampedSensitivity(sensitivityPercent)
+        self.invertHorizontal = invertHorizontal
+        self.invertVertical = invertVertical
+    }
+
+    mutating func setSensitivityPercent(_ percent: Int) {
+        sensitivityPercent = Self.clampedSensitivity(percent)
+    }
+
+    mutating func setInvertHorizontal(_ inverted: Bool) {
+        invertHorizontal = inverted
+    }
+
+    mutating func setInvertVertical(_ inverted: Bool) {
+        invertVertical = inverted
+    }
+
+    private static func clampedSensitivity(_ percent: Int) -> Int {
+        max(minimumSensitivityPercent, min(maximumSensitivityPercent, percent))
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case sensitivityPercent
+        case invertHorizontal
+        case invertVertical
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            sensitivityPercent: try container.decodeIfPresent(Int.self,
+                                                               forKey: .sensitivityPercent) ?? 100,
+            invertHorizontal: try container.decodeIfPresent(Bool.self,
+                                                              forKey: .invertHorizontal) ?? false,
+            invertVertical: try container.decodeIfPresent(Bool.self,
+                                                            forKey: .invertVertical) ?? false)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        if sensitivityPercent != 100 {
+            try container.encode(sensitivityPercent, forKey: .sensitivityPercent)
+        }
+        if invertHorizontal {
+            try container.encode(true, forKey: .invertHorizontal)
+        }
+        if invertVertical {
+            try container.encode(true, forKey: .invertVertical)
+        }
+    }
+}
+
 struct Jak1InputBindings: Codable, Equatable, Sendable {
     struct ControllerBinding: Codable, Equatable, Sendable {
         let control: Jak1ControllerControl
@@ -280,18 +344,22 @@ struct Jak1InputBindings: Codable, Equatable, Sendable {
             .init(control: .escape, action: .start),
             .init(control: .tab, action: .stats),
         ],
-        controllerStickRoles: .standard)
+        controllerStickRoles: .standard,
+        mouseCamera: .standard)
 
     private(set) var controllerBindings: [ControllerBinding]
     private(set) var keyboardMouseBindings: [KeyboardMouseBinding]
     private(set) var controllerStickRoles: Jak1ControllerStickRoles
+    private(set) var mouseCamera: Jak1MouseCameraSettings
 
     init(controllerBindings: [ControllerBinding],
          keyboardMouseBindings: [KeyboardMouseBinding],
-         controllerStickRoles: Jak1ControllerStickRoles = .standard) {
+         controllerStickRoles: Jak1ControllerStickRoles = .standard,
+         mouseCamera: Jak1MouseCameraSettings = .standard) {
         self.controllerBindings = Self.normalized(controllerBindings)
         self.keyboardMouseBindings = Self.normalized(keyboardMouseBindings)
         self.controllerStickRoles = controllerStickRoles
+        self.mouseCamera = mouseCamera
     }
 
     func action(for control: Jak1ControllerControl) -> Jak1InputAction? {
@@ -344,6 +412,18 @@ struct Jak1InputBindings: Codable, Equatable, Sendable {
         controllerStickRoles = roles
     }
 
+    mutating func setMouseCameraSensitivityPercent(_ percent: Int) {
+        mouseCamera.setSensitivityPercent(percent)
+    }
+
+    mutating func setMouseCameraInvertHorizontal(_ inverted: Bool) {
+        mouseCamera.setInvertHorizontal(inverted)
+    }
+
+    mutating func setMouseCameraInvertVertical(_ inverted: Bool) {
+        mouseCamera.setInvertVertical(inverted)
+    }
+
     func controllerFrame(pressed: Set<Jak1ControllerControl>,
                          values: [Jak1ControllerControl: Float] = [:]) -> Jak1MappedControllerFrame {
         var buttons: GOALPadButton = []
@@ -391,6 +471,7 @@ struct Jak1InputBindings: Codable, Equatable, Sendable {
         case controller
         case keyboardMouse
         case controllerStickRoles
+        case mouseCamera
     }
 
     init(from decoder: Decoder) throws {
@@ -403,8 +484,11 @@ struct Jak1InputBindings: Codable, Equatable, Sendable {
         let controllerStickRoles = try container.decodeIfPresent(Jak1ControllerStickRoles.self,
                                                                   forKey: .controllerStickRoles)
             ?? .standard
+        let mouseCamera = try container.decodeIfPresent(Jak1MouseCameraSettings.self,
+                                                        forKey: .mouseCamera)
+            ?? .standard
         self.init(controllerBindings: controller, keyboardMouseBindings: keyboardMouse,
-                  controllerStickRoles: controllerStickRoles)
+                  controllerStickRoles: controllerStickRoles, mouseCamera: mouseCamera)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -413,6 +497,9 @@ struct Jak1InputBindings: Codable, Equatable, Sendable {
         try container.encode(keyboardMouseBindings, forKey: .keyboardMouse)
         if controllerStickRoles != .standard {
             try container.encode(controllerStickRoles, forKey: .controllerStickRoles)
+        }
+        if mouseCamera != .standard {
+            try container.encode(mouseCamera, forKey: .mouseCamera)
         }
     }
 }
@@ -502,7 +589,7 @@ enum PadStickMerge {
 /// Pure held-key and relative-mouse state. Mouse movement is consumed exactly once so a stopped
 /// mouse produces a neutral right stick on the following game frame.
 struct KeyboardMouseInputState {
-    /// Raw Game Controller mouse units accumulated during one game frame before the stick clamps.
+    /// Raw Game Controller mouse units needed for full deflection at the default 100% setting.
     static let mouseDeltaForFullDeflection: Float = 24
     /// Any real mouse delta starts one unit beyond Jak 1's deadzone and then scales linearly to the
     /// full byte range.
@@ -529,10 +616,17 @@ struct KeyboardMouseInputState {
     }
 
     @discardableResult
-    mutating func addMouseMovement(deltaX: Float, deltaY: Float) -> Bool {
+    mutating func addMouseMovement(deltaX: Float,
+                                   deltaY: Float,
+                                   camera: Jak1MouseCameraSettings = .standard) -> Bool {
         guard deltaX.isFinite, deltaY.isFinite, deltaX != 0 || deltaY != 0 else { return false }
-        pendingMouseX = Self.clampMouseDelta(pendingMouseX + deltaX)
-        pendingMouseY = Self.clampMouseDelta(pendingMouseY + deltaY)
+        let sensitivity = Float(camera.sensitivityPercent) / 100
+        let horizontalSign: Float = camera.invertHorizontal ? -1 : 1
+        let verticalSign = Self.mouseYSign * (camera.invertVertical ? -1 : 1)
+        pendingMouseX = Self.clampMouseDelta(
+            pendingMouseX + deltaX * sensitivity * horizontalSign)
+        pendingMouseY = Self.clampMouseDelta(
+            pendingMouseY + deltaY * sensitivity * verticalSign)
         return true
     }
 
@@ -569,7 +663,7 @@ struct KeyboardMouseInputState {
         frame.hasMouseInput = pendingMouseX != 0 || pendingMouseY != 0
             || activeControls.contains { !$0.isKeyboard }
         frame.rightX = Self.mouseAxisByte(pendingMouseX)
-        frame.rightY = Self.mouseAxisByte(pendingMouseY * Self.mouseYSign)
+        frame.rightY = Self.mouseAxisByte(pendingMouseY)
         clearMouse()
         return frame
     }

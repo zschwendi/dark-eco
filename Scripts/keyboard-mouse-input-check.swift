@@ -40,6 +40,33 @@ private func keyboardMovement() {
     check(!frame.hasKeyboardInput, "released keys no longer count as active")
 }
 
+private func configurableKeyboardMovement() {
+    print("keyboard movement directions use the same deterministic remapping surface")
+    var bindings = Jak1InputBindings.standard
+    bindings.setKeyboardMouseAction(.moveLeft, for: .leftArrow)
+    bindings.setKeyboardMouseAction(.moveRight, for: .rightArrow)
+    bindings.setKeyboardMouseAction(.moveForward, for: .upArrow)
+    bindings.setKeyboardMouseAction(.moveBackward, for: .downArrow)
+
+    check(bindings.action(for: .leftArrow) == .moveLeft
+          && bindings.action(for: .rightArrow) == .moveRight
+          && bindings.action(for: .upArrow) == .moveForward
+          && bindings.action(for: .downArrow) == .moveBackward,
+          "all four movement directions can move away from their WASD defaults")
+    check(bindings.action(for: .a) == .square
+          && bindings.action(for: .d) == .circle
+          && bindings.action(for: .w) == .triangle
+          && bindings.action(for: .s) == .shoulderChord,
+          "occupied arrow actions swap back to WASD without duplicate owners")
+
+    var state = KeyboardMouseInputState()
+    state.setKey(.upArrow, pressed: true)
+    state.setKey(.rightArrow, pressed: true)
+    let frame = state.consumeFrame(bindings: bindings)
+    check(frame.leftX == 254 && frame.leftY == 0 && frame.buttons.isEmpty,
+          "remapped Up+Right arrows emit only the exact full-range movement vector")
+}
+
 private func keyboardButtons() {
     print("default keyboard bytes remain exact while the remapping surface stays explicit")
     check(KeyboardMouseKey.keyboardCases.count == 12
@@ -155,14 +182,15 @@ private func controllerStickRoleMapping() {
 }
 
 private func legacyControllerBindingsDefaultToStandardSticks() {
-    print("legacy button-remapping data defaults its absent stick field to Standard")
+    print("legacy remapping data defaults absent stick and mouse-camera fields")
     let legacy = Data(
         #"{"controller":[{"control":"buttonA","action":"square"}],"keyboardMouse":[{"control":"w","action":"moveForward"}]}"#.utf8)
     let decoded = try? JSONDecoder().decode(Jak1InputBindings.self, from: legacy)
     check(decoded?.controllerStickRoles == .standard
+          && decoded?.mouseCamera == .standard
           && decoded?.action(for: .buttonA) == .square
           && decoded?.action(for: .w) == .moveForward,
-          "a pre-stick-layout customized document preserves its mappings and exact default roles")
+          "a legacy customized document preserves mappings and exact analog defaults")
 }
 
 private func remappingAndCollisions() {
@@ -287,11 +315,92 @@ private func relativeMouse() {
     check(frame.rightX == 0 && frame.rightY == 254,
           "large movement stays inside the PS2 stick byte range")
 
+    state.addMouseMovement(deltaX: 100, deltaY: 0)
+    state.addMouseMovement(deltaX: -90, deltaY: 0)
+    frame = state.consumeFrame()
+    check(frame.rightX == 0,
+          "100% preserves the established per-event clamp for alternating same-frame deltas")
+
     check(!state.addMouseMovement(deltaX: .nan, deltaY: 2),
           "non-finite movement is rejected")
     frame = state.consumeFrame()
     check(frame.rightX == neutral && frame.rightY == neutral,
           "rejected movement cannot leave sticky state")
+}
+
+private func mouseCameraTuning() throws {
+    print("mouse camera sensitivity and directions preserve exact defaults and tune independently")
+    check(Jak1InputBindings.standard.mouseCamera == .standard
+          && Jak1InputBindings.standard.mouseCamera.sensitivityPercent == 100
+          && !Jak1InputBindings.standard.mouseCamera.invertHorizontal
+          && !Jak1InputBindings.standard.mouseCamera.invertVertical,
+          "the persisted mouse camera defaults are exactly 100% with neither direction inverted")
+
+    var bindings = Jak1InputBindings.standard
+    bindings.setMouseCameraInvertHorizontal(true)
+    var state = KeyboardMouseInputState()
+    state.addMouseMovement(deltaX: 12, deltaY: 12, camera: bindings.mouseCamera)
+    var frame = state.consumeFrame(bindings: bindings)
+    check(frame.rightX == 64 && frame.rightY == 64,
+          "horizontal inversion flips only X while default vertical conversion stays exact")
+
+    bindings.setMouseCameraInvertHorizontal(false)
+    bindings.setMouseCameraInvertVertical(true)
+    state.addMouseMovement(deltaX: 12, deltaY: 12, camera: bindings.mouseCamera)
+    frame = state.consumeFrame(bindings: bindings)
+    check(frame.rightX == 191 && frame.rightY == 191,
+          "vertical inversion flips only Y while default horizontal conversion stays exact")
+
+    bindings.setMouseCameraInvertVertical(false)
+    bindings.setMouseCameraSensitivityPercent(200)
+    state.addMouseMovement(deltaX: 6, deltaY: 0, camera: bindings.mouseCamera)
+    frame = state.consumeFrame(bindings: bindings)
+    check(frame.rightX == 191,
+          "200% sensitivity reaches the established half-scale byte with half the raw delta")
+
+    bindings.setMouseCameraSensitivityPercent(400)
+    state.addMouseMovement(deltaX: -1000, deltaY: 0, camera: bindings.mouseCamera)
+    frame = state.consumeFrame(bindings: bindings)
+    check(frame.rightX == 0,
+          "maximum sensitivity remains clamped to the PS2 stick byte range")
+
+    bindings.setMouseCameraSensitivityPercent(25)
+    state.addMouseMovement(deltaX: 96, deltaY: 0, camera: bindings.mouseCamera)
+    frame = state.consumeFrame(bindings: bindings)
+    check(frame.rightX == 254,
+          "25% sensitivity can still reach full deflection through bounded accumulated motion")
+    state.addMouseMovement(deltaX: 1, deltaY: 0, camera: bindings.mouseCamera)
+    frame = state.consumeFrame(bindings: bindings)
+    check(frame.rightX == neutral + PadStickMerge.deadzone + 1,
+          "custom sensitivity preserves the exact one-unit-beyond-deadzone minimum")
+
+    bindings.setMouseCameraSensitivityPercent(999)
+    check(bindings.mouseCamera.sensitivityPercent
+          == Jak1MouseCameraSettings.maximumSensitivityPercent,
+          "sensitivity setters clamp to the supported maximum")
+    bindings.setMouseCameraSensitivityPercent(-1)
+    check(bindings.mouseCamera.sensitivityPercent
+          == Jak1MouseCameraSettings.minimumSensitivityPercent,
+          "sensitivity setters clamp to the supported minimum")
+
+    bindings.setMouseCameraSensitivityPercent(175)
+    bindings.setMouseCameraInvertHorizontal(true)
+    let encoded = try JSONEncoder().encode(bindings)
+    let decoded = try JSONDecoder().decode(Jak1InputBindings.self, from: encoded)
+    check(decoded == bindings,
+          "custom mouse camera tuning round-trips with the complete binding payload")
+
+    let standardJSON = String(decoding: try JSONEncoder().encode(Jak1InputBindings.standard),
+                              as: UTF8.self)
+    check(!standardJSON.contains("mouseCamera"),
+          "the exact default omits the optional mouse-camera compatibility field")
+
+    let outOfRange = Data(
+        #"{"controller":[],"keyboardMouse":[],"mouseCamera":{"sensitivityPercent":999}}"#.utf8)
+    let clamped = try JSONDecoder().decode(Jak1InputBindings.self, from: outOfRange)
+    check(clamped.mouseCamera.sensitivityPercent
+          == Jak1MouseCameraSettings.maximumSensitivityPercent,
+          "decoded sensitivity is bounded before it can reach input emission")
 }
 
 private func drivingArbitration() {
@@ -416,12 +525,19 @@ private func stickSourcePrecedence() {
 struct KeyboardMouseInputCheck {
     static func main() {
         keyboardMovement()
+        configurableKeyboardMovement()
         keyboardButtons()
         defaultControllerBytes()
         controllerStickRoleMapping()
         legacyControllerBindingsDefaultToStandardSticks()
         remappingAndCollisions()
         relativeMouse()
+        do {
+            try mouseCameraTuning()
+        } catch {
+            print("  FAIL mouse camera tuning threw: \(error)")
+            failures += 1
+        }
         drivingArbitration()
         stickSourcePrecedence()
         primaryInputSourcePolicy()

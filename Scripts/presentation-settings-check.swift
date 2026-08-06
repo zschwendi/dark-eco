@@ -85,8 +85,9 @@ private func legacyDocumentAndPickerOrderingRemainCompatible() async throws {
           "a Build 93 document defaults the new Primary Controller choice to Automatic")
     check(value.jak1InputBindings == .standard
           && value.jak1InputBindings.controllerStickRoles == .standard
+          && value.jak1InputBindings.mouseCamera == .standard
           && value.document.jak1InputBindingsOverride == nil,
-          "a document without remapping data decodes to exact established buttons and sticks")
+          "a document without remapping data decodes to exact established input defaults")
 }
 
 @MainActor
@@ -116,41 +117,58 @@ private func inputBindingsPersistSyncAndReset() async throws {
     let value = settings(fixture, writerID: "device-a", cloudAvailable: false)
     check(value.jak1InputBindings == .standard
           && value.jak1InputBindings.controllerStickRoles == .standard
+          && value.jak1InputBindings.mouseCamera == .standard
           && value.document.jak1InputBindingsOverride == nil,
           "a fresh title begins with standard bindings without storing an override")
 
     value.setControllerAction(.square, for: .buttonA)
     value.setKeyboardMouseAction(.stats, for: .spacebar)
+    value.setKeyboardMouseAction(.moveForward, for: .returnOrEnter)
     value.setControllerStickRoles(.swapped)
+    value.setMouseCameraSensitivityPercent(175)
+    value.setMouseCameraInvertHorizontal(true)
+    value.setMouseCameraInvertVertical(true)
     check(value.jak1InputBindings.action(for: .buttonA) == .square
           && value.jak1InputBindings.action(for: .buttonX) == .cross,
           "controller collision swaps are stored through PresentationSettings")
     check(value.jak1InputBindings.action(for: .spacebar) == .stats
           && value.jak1InputBindings.action(for: .tab) == nil,
           "an explicit added Stats key is stored without duplicate ownership")
+    check(value.jak1InputBindings.action(for: .returnOrEnter) == .moveForward
+          && value.jak1InputBindings.action(for: .w) == nil,
+          "a movement direction can move away from its default W key")
     check(value.jak1InputBindings.controllerStickRoles == .swapped,
           "Swapped Sticks is stored through the same live Jak 1 input binding value")
+    check(value.jak1InputBindings.mouseCamera.sensitivityPercent == 175
+          && value.jak1InputBindings.mouseCamera.invertHorizontal
+          && value.jak1InputBindings.mouseCamera.invertVertical,
+          "mouse sensitivity and both camera directions use that same live binding value")
 
     let restored = settings(fixture, writerID: "device-b", cloudAvailable: false)
     check(restored.jak1InputBindings == value.jak1InputBindings
-          && restored.jak1InputBindings.controllerStickRoles == .swapped,
-          "controller sticks, buttons, and mouse/keyboard remaps survive local decoding")
+          && restored.jak1InputBindings.controllerStickRoles == .swapped
+          && restored.jak1InputBindings.mouseCamera.sensitivityPercent == 175,
+          "controller sticks, buttons, keys, movement, and mouse tuning survive local decoding")
     restored.setPrimaryInputSource(.controller)
     restored.restoreDefaults(for: .controls)
     check(restored.jak1InputBindings == .standard
           && restored.jak1InputBindings.controllerStickRoles == .standard
+          && restored.jak1InputBindings.mouseCamera == .standard
           && restored.document.jak1InputBindingsOverride == nil
           && restored.primaryInputSource == .automatic,
-          "Restore Controls Defaults resets sticks, bindings, and source selection together")
+          "Restore Controls Defaults resets all remaps, tuning, and source selection together")
 
     restored.setControllerAction(.stats, for: .buttonA)
     restored.setKeyboardMouseAction(.cross, for: .mouseLeft)
     restored.setControllerStickRoles(.swapped)
+    restored.setMouseCameraSensitivityPercent(250)
+    restored.setMouseCameraInvertVertical(true)
     restored.resetAll()
     check(restored.jak1InputBindings == .standard
           && restored.jak1InputBindings.controllerStickRoles == .standard
+          && restored.jak1InputBindings.mouseCamera == .standard
           && restored.document.jak1InputBindingsOverride == nil,
-          "Reset Jak 1 Settings also restores every physical-input binding and stick role")
+          "Reset Jak 1 Settings restores every physical-input binding, role, and mouse option")
 }
 
 @MainActor
@@ -277,7 +295,10 @@ private func cloudSettingsConvergeAsOneDocument() async throws {
     first.setGraphicsFillWidth(false)
     first.setControllerAction(.square, for: .buttonA)
     first.setKeyboardMouseAction(.stats, for: .spacebar)
+    first.setKeyboardMouseAction(.moveForward, for: .returnOrEnter)
     first.setControllerStickRoles(.swapped)
+    first.setMouseCameraSensitivityPercent(150)
+    first.setMouseCameraInvertVertical(true)
     await first.syncNow()
 
     let second = PresentationSettings(defaults: fixtureB.defaults, configuration: sharedConfigurationB,
@@ -290,8 +311,13 @@ private func cloudSettingsConvergeAsOneDocument() async throws {
           && second.jak1InputBindings.action(for: .buttonX) == .cross
           && second.jak1InputBindings.action(for: .spacebar) == .stats
           && second.jak1InputBindings.action(for: .tab) == nil
-          && second.jak1InputBindings.controllerStickRoles == .swapped,
-          "the second device receives the title's remapped buttons, keys, and stick roles")
+          && second.jak1InputBindings.action(for: .returnOrEnter) == .moveForward
+          && second.jak1InputBindings.action(for: .w) == nil
+          && second.jak1InputBindings.controllerStickRoles == .swapped
+          && second.jak1InputBindings.mouseCamera.sensitivityPercent == 150
+          && !second.jak1InputBindings.mouseCamera.invertHorizontal
+          && second.jak1InputBindings.mouseCamera.invertVertical,
+          "the second device receives the title's remapped input and mouse camera tuning")
 }
 
 @MainActor

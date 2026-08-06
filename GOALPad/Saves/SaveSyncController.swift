@@ -986,7 +986,48 @@ private struct KeyboardMouseBindingsSettingsView: View {
                 }
             }
 
-            bindingSection("Keyboard", controls: KeyboardMouseKey.keyboardCases)
+            Section {
+                LabeledContent("Sensitivity",
+                               value: "\(settings.jak1InputBindings.mouseCamera.sensitivityPercent)%")
+                Slider(value: Binding(
+                    get: {
+                        Double(settings.jak1InputBindings.mouseCamera.sensitivityPercent)
+                    },
+                    set: { value in
+                        settings.setMouseCameraSensitivityPercent(Int(value.rounded()))
+                        input.setBindings(settings.jak1InputBindings)
+                    }
+                ), in: Double(Jak1MouseCameraSettings.minimumSensitivityPercent)
+                    ... Double(Jak1MouseCameraSettings.maximumSensitivityPercent), step: 25)
+                .accessibilityLabel("Camera Sensitivity")
+                .accessibilityValue(
+                    "\(settings.jak1InputBindings.mouseCamera.sensitivityPercent) percent")
+                Toggle("Invert Horizontal", isOn: Binding(
+                    get: { settings.jak1InputBindings.mouseCamera.invertHorizontal },
+                    set: { inverted in
+                        settings.setMouseCameraInvertHorizontal(inverted)
+                        input.setBindings(settings.jak1InputBindings)
+                    }
+                ))
+                Toggle("Invert Vertical", isOn: Binding(
+                    get: { settings.jak1InputBindings.mouseCamera.invertVertical },
+                    set: { inverted in
+                        settings.setMouseCameraInvertVertical(inverted)
+                        input.setBindings(settings.jak1InputBindings)
+                    }
+                ))
+            } header: {
+                Text("Mouse / Trackpad Camera")
+            } footer: {
+                Text("100% preserves the default camera response. Horizontal and vertical "
+                     + "direction can be inverted independently.")
+            }
+
+            bindingSection(
+                "Keyboard",
+                controls: KeyboardMouseKey.keyboardCases,
+                footer: "Movement defaults to W, A, S, and D. Movement directions are ordinary "
+                    + "remappable actions in the same keyboard binding list.")
             bindingSection("Mouse Buttons", controls: KeyboardMouseKey.mouseCases)
 
             Section {
@@ -1000,8 +1041,10 @@ private struct KeyboardMouseBindingsSettingsView: View {
     }
 
     @ViewBuilder
-    private func bindingSection(_ title: String, controls: [KeyboardMouseKey]) -> some View {
-        Section(title) {
+    private func bindingSection(_ title: String,
+                                controls: [KeyboardMouseKey],
+                                footer: String? = nil) -> some View {
+        Section {
             ForEach(controls, id: \.self) { control in
                 Picker(control.title, selection: Binding(
                     get: { settings.jak1InputBindings.action(for: control) },
@@ -1016,6 +1059,10 @@ private struct KeyboardMouseBindingsSettingsView: View {
                     }
                 }
             }
+        } header: {
+            Text(title)
+        } footer: {
+            if let footer { Text(footer) }
         }
     }
 }

@@ -434,6 +434,27 @@ final class PresentationSettings {
         change { $0.jak1InputBindingsOverride = bindings == .standard ? nil : bindings }
     }
 
+    func setMouseCameraSensitivityPercent(_ percent: Int) {
+        var bindings = jak1InputBindings
+        bindings.setMouseCameraSensitivityPercent(percent)
+        guard bindings != jak1InputBindings else { return }
+        change { $0.jak1InputBindingsOverride = bindings == .standard ? nil : bindings }
+    }
+
+    func setMouseCameraInvertHorizontal(_ inverted: Bool) {
+        var bindings = jak1InputBindings
+        bindings.setMouseCameraInvertHorizontal(inverted)
+        guard bindings != jak1InputBindings else { return }
+        change { $0.jak1InputBindingsOverride = bindings == .standard ? nil : bindings }
+    }
+
+    func setMouseCameraInvertVertical(_ inverted: Bool) {
+        var bindings = jak1InputBindings
+        bindings.setMouseCameraInvertVertical(inverted)
+        guard bindings != jak1InputBindings else { return }
+        change { $0.jak1InputBindingsOverride = bindings == .standard ? nil : bindings }
+    }
+
     func restoreDefaults(for section: SettingsSection) {
         change { $0.restoreDefaults(for: section) }
     }

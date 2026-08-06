@@ -458,7 +458,10 @@ final class ControllerInput {
         input.mouseMovedHandler = { [weak self, weak candidate] _, deltaX, deltaY in
             DispatchQueue.main.async { [weak self, weak candidate] in
                 guard let self, self.mouse === candidate else { return }
-                if self.keyboardMouseState.addMouseMovement(deltaX: deltaX, deltaY: deltaY) {
+                if self.keyboardMouseState.addMouseMovement(
+                    deltaX: deltaX,
+                    deltaY: deltaY,
+                    camera: self.bindings.mouseCamera) {
                     self.activity.noteMouse(at: CACurrentMediaTime())
                     self.noteDriving()
                 }
