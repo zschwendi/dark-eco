@@ -150,6 +150,24 @@ typedef struct GOALPadProgressMenuSnapshot {
   BOOL inTransition;
 } GOALPadProgressMenuSnapshot;
 
+typedef NS_ENUM(NSInteger, GOALPadWarpGateTouchState) {
+  GOALPadWarpGateTouchStateUnavailable = 0,
+  GOALPadWarpGateTouchStateCircleUseAvailable = 1,
+  GOALPadWarpGateTouchStateDestinationListActive = 2,
+  GOALPadWarpGateTouchStateTransitioning = 3,
+};
+
+typedef struct GOALPadWarpGateTouchSnapshot {
+  /// YES means the GOAL object and its seqlock-protected payload passed every contract check.
+  BOOL valid;
+  /// Stable even generation; changes for every semantic publication.
+  uint32_t sequence;
+  GOALPadWarpGateTouchState state;
+  int32_t selectedSlot;
+  uint32_t permittedMask;
+  BOOL selectionMoving;
+} GOALPadWarpGateTouchSnapshot;
+
 /// The whole Swift-facing surface of the native runtime. The GOAL kernel is a process-wide
 /// singleton, so this is a class API rather than an instantiable object.
 @interface GOALPadRuntimeBridge : NSObject
@@ -188,6 +206,8 @@ typedef struct GOALPadProgressMenuSnapshot {
 @property(class, nonatomic, readonly) GOALPadLookAroundState lookAroundState;
 /// A fail-closed read of Jak's live progress process; reading it never advances or mutates GOAL.
 @property(class, nonatomic, readonly) GOALPadProgressMenuSnapshot progressMenuSnapshot;
+/// GOAL-owned warp-gate touch semantics. Invalid and valid-unavailable snapshots are distinct.
+@property(class, nonatomic, readonly) GOALPadWarpGateTouchSnapshot warpGateTouchSnapshot;
 @property(class, nonatomic, readonly) GOALPadFrameChainStats frameChainStats;
 
 /// Whether this build carries each engine host seam. A seam that is not linked reports its absence

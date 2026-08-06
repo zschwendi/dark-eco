@@ -55,6 +55,8 @@ std::uint32_t g_progress_mode = 0;
 std::uint32_t g_menu_mode = 0;
 int32_t* g_progress_process = nullptr;
 std::uint32_t g_progress_type = 0;
+int32_t* g_warp_gate_touch_snapshot = nullptr;
+std::uint32_t g_warp_gate_touch_snapshot_type = 0;
 int32_t* g_target = nullptr;
 std::uint32_t g_target_type = 0;
 std::uint32_t g_look_around_mode = 0;
@@ -528,6 +530,22 @@ BootStatus boot_game() noexcept {
                    "controls are unavailable.");
     }
 
+    uint32_t warp_gate_touch_snapshot_type = 0;
+    const bool warp_gate_touch_symbols =
+        goal_game_find_symbol("*goalpad-warp-gate-touch-snapshot*", nullptr) &&
+        goal_game_find_symbol("goalpad-warp-gate-touch-snapshot",
+                              &warp_gate_touch_snapshot_type) &&
+        warp_gate_touch_snapshot_type;
+    if (warp_gate_touch_symbols) {
+      g_warp_gate_touch_snapshot =
+          goal_game_symbol_slot("*goalpad-warp-gate-touch-snapshot*");
+      g_warp_gate_touch_snapshot_type = warp_gate_touch_snapshot_type;
+    } else {
+      os_log_error(boot_log(),
+                   "GAME.CGO did not expose the warp-gate touch snapshot and type; warp-gate "
+                   "touch controls are unavailable.");
+    }
+
     uint32_t target_type = 0;
     const uint32_t look_around_mode = goal_game_find_symbol("look-around", nullptr);
     const bool target_state_symbols = goal_game_find_symbol("*target*", nullptr) &&
@@ -670,6 +688,8 @@ void reset_game() noexcept {
   g_menu_mode = 0;
   g_progress_process = nullptr;
   g_progress_type = 0;
+  g_warp_gate_touch_snapshot = nullptr;
+  g_warp_gate_touch_snapshot_type = 0;
   g_target = nullptr;
   g_target_type = 0;
   g_look_around_mode = 0;
@@ -736,6 +756,18 @@ ProgressMenuSnapshot progress_menu_snapshot() noexcept {
       goal_game_true_offset(), static_cast<std::uint32_t>(*g_progress_process), g_progress_type);
 }
 
+WarpGateTouchSnapshot warp_gate_touch_snapshot() noexcept {
+  if (!g_booted || !g_warp_gate_touch_snapshot || !g_warp_gate_touch_snapshot_type ||
+      !g_ee_main_mem) {
+    return {};
+  }
+
+  return read_warp_gate_touch_snapshot(
+      g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT,
+      static_cast<std::uint32_t>(*g_warp_gate_touch_snapshot),
+      g_warp_gate_touch_snapshot_type);
+}
+
 #else  // GOALPAD_HAVE_GAME_BOOT
 
 BootStatus boot_game() noexcept {
@@ -781,6 +813,10 @@ LookAroundState look_around_state() noexcept {
 }
 
 ProgressMenuSnapshot progress_menu_snapshot() noexcept {
+  return {};
+}
+
+WarpGateTouchSnapshot warp_gate_touch_snapshot() noexcept {
   return {};
 }
 

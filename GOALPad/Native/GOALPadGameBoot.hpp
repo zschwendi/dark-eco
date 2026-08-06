@@ -73,6 +73,126 @@ struct ProgressMenuSnapshot {
   bool in_transition = false;
 };
 
+enum class WarpGateTouchState : std::int32_t {
+  Unavailable = 0,
+  CircleUseAvailable = 1,
+  DestinationListActive = 2,
+  Transitioning = 3,
+};
+
+struct WarpGateTouchSnapshot {
+  bool valid = false;
+  std::uint32_t sequence = 0;
+  WarpGateTouchState state = WarpGateTouchState::Unavailable;
+  std::int32_t selected_slot = -1;
+  std::uint32_t permitted_mask = 0;
+  bool selection_moving = false;
+};
+
+namespace warp_gate_touch_layout {
+
+// checked_goal_object returns the bytes after the basic object's four-byte type tag.
+constexpr std::size_t kRevisionOffset = 0;
+constexpr std::size_t kSequenceOffset = 4;
+constexpr std::size_t kStateOffset = 8;
+constexpr std::size_t kSelectedSlotOffset = 12;
+constexpr std::size_t kPermittedMaskOffset = 16;
+constexpr std::size_t kSelectionMovingOffset = 20;
+constexpr std::size_t kRequiredObjectBytes = 0x18;
+constexpr std::int32_t kRevision = 1;
+constexpr std::int32_t kDestinationCount = 5;
+constexpr std::uint32_t kDestinationMask = (1u << kDestinationCount) - 1u;
+
+}  // namespace warp_gate_touch_layout
+
+inline WarpGateTouchSnapshot validate_warp_gate_touch_snapshot(
+    std::int32_t first_sequence,
+    std::int32_t revision,
+    std::int32_t state_value,
+    std::int32_t selected_slot,
+    std::int32_t permitted_mask,
+    std::int32_t selection_moving,
+    std::int32_t final_sequence) noexcept {
+  WarpGateTouchSnapshot snapshot;
+  if (revision != warp_gate_touch_layout::kRevision || first_sequence != final_sequence ||
+      (static_cast<std::uint32_t>(first_sequence) & 1u) != 0) {
+    return snapshot;
+  }
+
+  const auto state = static_cast<WarpGateTouchState>(state_value);
+  switch (state) {
+    case WarpGateTouchState::Unavailable:
+    case WarpGateTouchState::CircleUseAvailable:
+    case WarpGateTouchState::Transitioning:
+      if (selected_slot != -1 || permitted_mask != 0 || selection_moving != 0) {
+        return snapshot;
+      }
+      break;
+    case WarpGateTouchState::DestinationListActive: {
+      if (selected_slot < 0 || selected_slot >= warp_gate_touch_layout::kDestinationCount ||
+          permitted_mask <= 0 ||
+          (static_cast<std::uint32_t>(permitted_mask) &
+           ~warp_gate_touch_layout::kDestinationMask) != 0 ||
+          (static_cast<std::uint32_t>(permitted_mask) & (1u << selected_slot)) == 0 ||
+          (selection_moving != 0 && selection_moving != 1)) {
+        return snapshot;
+      }
+      break;
+    }
+    default:
+      return snapshot;
+  }
+
+  snapshot.valid = true;
+  snapshot.sequence = static_cast<std::uint32_t>(first_sequence);
+  snapshot.state = state;
+  snapshot.selected_slot = selected_slot;
+  snapshot.permitted_mask = static_cast<std::uint32_t>(permitted_mask);
+  snapshot.selection_moving = selection_moving == 1;
+  return snapshot;
+}
+
+inline std::int32_t read_warp_gate_touch_field(const volatile std::uint8_t* bytes,
+                                               std::size_t offset) noexcept {
+  std::int32_t value = 0;
+  auto* value_bytes = reinterpret_cast<std::uint8_t*>(&value);
+  for (std::size_t index = 0; index < sizeof(value); ++index) {
+    value_bytes[index] = bytes[offset + index];
+  }
+  return value;
+}
+
+/*! Read the GOAL-owned warp-gate publication without advancing or mutating GOAL. */
+inline WarpGateTouchSnapshot read_warp_gate_touch_snapshot(const void* memory,
+                                                           std::size_t memory_bytes,
+                                                           std::size_t low_protect_bytes,
+                                                           std::uint32_t object_offset,
+                                                           std::uint32_t expected_type) noexcept {
+  const void* object = camera_correction_trace::checked_goal_object(
+      memory, memory_bytes, low_protect_bytes, object_offset, expected_type,
+      warp_gate_touch_layout::kRequiredObjectBytes, nullptr);
+  if (!object) {
+    return {};
+  }
+
+  const auto* bytes = static_cast<const volatile std::uint8_t*>(object);
+  const auto first_sequence =
+      read_warp_gate_touch_field(bytes, warp_gate_touch_layout::kSequenceOffset);
+  const auto revision =
+      read_warp_gate_touch_field(bytes, warp_gate_touch_layout::kRevisionOffset);
+  const auto state = read_warp_gate_touch_field(bytes, warp_gate_touch_layout::kStateOffset);
+  const auto selected_slot =
+      read_warp_gate_touch_field(bytes, warp_gate_touch_layout::kSelectedSlotOffset);
+  const auto permitted_mask =
+      read_warp_gate_touch_field(bytes, warp_gate_touch_layout::kPermittedMaskOffset);
+  const auto selection_moving =
+      read_warp_gate_touch_field(bytes, warp_gate_touch_layout::kSelectionMovingOffset);
+  const auto final_sequence =
+      read_warp_gate_touch_field(bytes, warp_gate_touch_layout::kSequenceOffset);
+  return validate_warp_gate_touch_snapshot(first_sequence, revision, state, selected_slot,
+                                           permitted_mask, selection_moving, final_sequence);
+}
+
 namespace progress_layout {
 
 // The GOAL :offset-assert values include the four-byte basic-object tag. A basic pointer starts
@@ -246,6 +366,8 @@ GameMode game_mode() noexcept;
 LookAroundState look_around_state() noexcept;
 /*! Jak's live progress state. Malformed, absent, and internally inconsistent state is unavailable. */
 ProgressMenuSnapshot progress_menu_snapshot() noexcept;
+/*! GOAL-owned warp-gate touch semantics. Invalid publication and valid unavailable are distinct. */
+WarpGateTouchSnapshot warp_gate_touch_snapshot() noexcept;
 
 /*! Forget the boot. The heap goes away with the kernel; this only drops what this file caches. */
 void reset_game() noexcept;
