@@ -1333,6 +1333,19 @@ Jak II replay completes 40/40 Metal chains with zero runtime/GPU failure after
 the prior symbol-name corruption point. Common bucket 187 remains the next
 renderer seam; its capture is preserved separately and not part of this fix.
 
+Checkpoint 93 advances exact common bucket-187 skull-gem animation through
+nested `4a9d5d578`, `784e876bb`, and `035c69af7`. The owned parser,
+deterministic CPU compositor, stable Metal publication, and bounded animated
+slot-14 resolver pass focused and real-GPU tests. A fresh-settings 40-frame Mac
+replay completes 40/40 chains with exact opcode-12/13/27, preparation, and
+publication counts, zero runtime/GPU failure, and 26,880 fewer deferred bytes.
+The remaining glow and draw-only renderer debt is not the current critical
+path. Jak II is now treated as early Stage 9 with Stage 7 debt: prioritize a
+recognizable stable Mac/Eco title and runtime input, reuse Jak 1 audio,
+controls, settings, lifecycle, and Eco seams where applicable, then start a new
+game and enter Stage 10. Only renderer gaps that block visibility, navigation,
+or gameplay should preempt that path.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and

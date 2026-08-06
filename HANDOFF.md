@@ -12876,3 +12876,105 @@ eye contribution. Continue from that owned capture and implement the exact
 opcode-27 animator semantics before changing bucket policy. Keep general eyes,
 GMerc, audio output, controls, Eco, and simulator integration behind their own
 later gates.
+
+# Checkpoint 93: exact common skull-gem animation publication
+
+Date: 2026-08-06. The isolated nested branch
+`agent/jak2-real-dma-draw-proof` adds the exact owned parser at `4a9d5d578`,
+the deterministic CPU compositor at `784e876bb`, and the ordered Metal
+integration at `035c69af7`. Common TFRAG texture bucket 187 is now host-owned.
+Its exact mixed packet executes the ordinary page upload first, composites the
+three `skull-gem-alpha-00/01/02` layers with the source interpolation,
+transform, repeat-bilinear, modulation, and two-pass blend semantics, and then
+publishes the result at the parsed destination TBP. The registry handle remains
+stable while the underlying Metal texture changes.
+
+The three source textures are resolved by unique debug name from the common
+FR3 level, including valid non-`load_to_pool` sources; missing, duplicate,
+zero-sized, or malformed data fails before mutation. The resulting handle is
+published through the persistent Jak II animated-texture slot 14, which is
+asserted to remain `skull-gem-dest`. Negative animated texture IDs use bounded
+wide signed arithmetic, including `INT_MIN`, and still fall back to the
+placeholder with telemetry when a slot is missing. Planning and CPU
+preparation happen before any renderer mutation; ordinary upload, publication,
+and metrics stay ordered at bucket 187. A post-upload publication failure is a
+sticky fatal chain error rather than a silently retained old frame.
+
+Independent parser, compositor, animated-slot, ownership, and final integration
+reviews found and closed the original source-ownership and raw VIF/DMA header
+gaps. The final read-only integration review returned GO with no blocking
+finding.
+
+## Canonical validation
+
+The integration owner reused the canonical Release/Ninja/ccache build and ran:
+
+```text
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host --target \
+  jak2-common-tfrag-texture-upload-capture-test \
+  jak2-metal-opcode27-skull-gem-cpu-test \
+  jak2-opcode27-skull-gem-executor-test \
+  jak2-metal-bucket-table-test -j2
+
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-common-tfrag-texture-upload-capture-test
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-metal-opcode27-skull-gem-cpu-test
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-metal-bucket-table-test
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-opcode27-skull-gem-executor-test
+
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host --target \
+  jak2-metal-host-bridge-test jak2-metal-runtime-proof -j2
+
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-metal-host-bridge-test
+git diff --check
+```
+
+All four focused parser/policy/CPU/real-Metal executor tests passed. The
+executor and host tests were rerun with normal macOS Metal service access after
+the restricted command sandbox correctly reported no Metal device. The host
+bridge test passed, the complete 840-object Jak II AOT runtime built, and `git
+diff --check` passed. One mistyped CTest regular expression selected zero tests;
+the exact test binaries above were then run directly and passed. No redundant
+broad Jak 1, Xcode, or multi-configuration matrix was run.
+
+## Real prepared-data Mac evidence
+
+The fresh-settings bounded replay was:
+
+```text
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-metal-runtime-proof \
+  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  --saves-dir /private/tmp/goalpad-jak2-opcode27-checkpoint93-40a \
+  --ticks 40 --hidden
+```
+
+The complete log is
+`/private/tmp/goalpad-jak2-opcode27-checkpoint93-40a.log` (SHA-256
+`2ad9c6217b7c7151abf9dcf8413fbc29c63187db2ce27a6f85d0b75169f3b5d2`).
+All 40 chains completed with 327 buckets and zero failed chains, GPU errors,
+drawable misses, late submissions, ordering errors, or unsupported blends.
+Bucket 187 captured and executed 40 exact mixed packets; opcodes 12, 13, and 27
+each appeared 40 times; ordinary upload, CPU preparation, and Metal publication
+each completed 40 times with stable texture handle 1268, destination TBP 4544,
+and animated slot 14. Deferred DMA fell by the predicted 26,880 bytes from
+136,176 to 109,296. The final frame remained fully nonblack with hash
+`557e841173042025`.
+
+The proof retains its expected `INCOMPLETE` diagnostic only because the real
+title glow attribution gate remains clipped. The fresh save directory had no
+prior `pc-settings.gc`; defaults were initialized and written. No Eco target,
+simulator, or physical device was accessed.
+
+## New priority and next executable task
+
+Treat Jak II as early Stage 9 with Stage 7 renderer debt. Optimize for the
+Stage 9 exit gate: a recognizable stable title in the Mac/Eco host with input
+reaching the runtime. Do not finish every remaining renderer family or cosmetic
+effect first. Safely defer draw-only gaps with telemetry unless they block title
+visibility, navigation, or gameplay.
+
+Begin by auditing and reusing the proven Jak 1 audio, controls, settings,
+lifecycle, and Eco seams in bounded non-overlapping lanes. Integrate the
+smallest Mac/Eco title host and input route, ask the maintainer to test the first
+meaningful visible and navigable milestone, then launch a new game and enter
+Stage 10 immediately. Keep the separate Jak II worktree, scripts-first workflow,
+focused patch-local tests, and one heavy AOT/Metal build per checkpoint.
