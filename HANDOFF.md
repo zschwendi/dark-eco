@@ -12926,3 +12926,59 @@ iCloud. Run focused save/UI checks before one batched signed generic-iOS Build
 93; do not rebuild OpenGOAL/AOT unless an actual nested or generated input
 changes. Do not touch the dirty main checkout or the separate Jak II renderer
 worktrees.
+
+# Build 93 iCloud save candidate installed on iPhone and iPad
+
+Date: 2026-08-05. Build 93 is the iCloud/save-UX checkpoint; the maintainer
+explicitly deferred new Controls, Graphics, Audio, UI, Mac, and visionOS work.
+The source commits after the Build 92 baseline are:
+
+- `929c41fa` — refresh device-local prepared-data discovery and clarify that
+  game data is not transferred by iCloud.
+- `4c292bed` — pass the canonical native saves directory into the runtime,
+  rank divergent valid memcards by effective modification date and native save
+  generation instead of completion, and enforce cancellation after the save
+  engine's exclusive lease is acquired.
+- `ca5610c6` — give sync/import/export/frame checks one explicit busy contract,
+  coalesce retries, preserve frame-task ownership, move settings-cloud I/O off
+  the main actor, use one file picker, and remove raw bank paths and generation
+  numbers from Settings.
+- `80236e4d` — set both project configurations to build 93 and document the
+  native four-slot presentation and merge authority.
+
+Focused validation passed:
+
+- `Scripts/run-game-data-install-check.sh`.
+- `Scripts/run-save-sync-check.sh` (rerun serially with normal Xcode macro
+  service access after parallel sandboxed macro compiles were rejected).
+- `Scripts/run-presentation-settings-check.sh` with normal Xcode macro service
+  access.
+- `swift Scripts/save-pregame-gate-check.swift "$PWD"`.
+- `Scripts/verify-generated-aot.sh Generated/jak1-aot 518`: 518 objects,
+  10,596 emitted functions, and 7 native functions.
+- `plutil -lint GOALPad/PrivacyInfo.xcprivacy GOALPad-Info.plist`.
+- `git diff --check`; nested OpenGOAL remained clean.
+
+The signed generic iPhoneOS Release build used Zephyr Studios LLC team
+`V729QMY3V6`, bundle `com.zephyrstudiosllc.eco`, automatic provisioning, two
+build jobs, the canonical OpenGOAL child, and the recorded 518-object public
+source pack. Xcode emitted the existing upstream/AOT warnings and completed
+successfully. The result reports Eco Pro `1.0 (93)`, contains exactly one
+byte-identical `PrivacyInfo.xcprivacy`, contains no retail ISO/DGO/WAD/VAG/FR3
+files, and carries iCloud Documents container
+`iCloud.com.zephyrstudiosllc.eco`.
+
+Preserved signed product:
+
+- App: `/private/tmp/GOALPad-build93-cloud-save-ux-signed/GOALPad.app`
+- Xcode activity logs:
+  `/private/tmp/GOALPad-build93-cloud-save-ux-signed/BuildLogs`
+- Executable SHA-256:
+  `c6d1119658c420c9e311677e1e31b19cf5cbf9af873a9d970dccb580e2513630`
+
+Build 93 was installed in place and launched with `--terminate-existing` on
+`Z iPhone Air` and `Z iPad Pro`; neither app was uninstalled and existing app
+data was not intentionally cleared. A follow-up device inventory confirmed
+Eco Pro `1.0 (93)` on both devices. Install and launch are proven; the
+maintainer's two-device gameplay/load-menu/cloud-sync acceptance remains the
+physical gate.
