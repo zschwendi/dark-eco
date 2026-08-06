@@ -56,6 +56,25 @@ check(occursInOrder([
     "Section(\"iCloud Saves\")",
     "Button(\"Reset All\"",
 ], in: view), "Settings presents the global preset, all four sections, independent sync, and Reset All")
+check(view.components(separatedBy: ".fileImporter(").count - 1 == 1
+        && view.contains("private enum SaveTransferPicker"),
+      "one picker routes both save import and export choices")
+check(view.contains("Sync Settings Now") && view.contains("Sync Saves Now")
+        && view.contains("Retry Settings Sync") && view.contains("Retry Save Sync")
+        && !view.contains("Button(\"Sync Now\")"),
+      "manual pulls remain available while error states use distinct retry labels")
+check(view.contains("ProgressView(\"Syncing settings…\")")
+        && view.contains("ProgressView(message)")
+        && view.contains(".disabled(sync.isBusy)"),
+      "settings and save work expose progress while conflicting controls stay disabled")
+check(view.contains("ordinary four Jak save slots")
+        && !view.contains("resolution.relativePath")
+        && !view.contains("Section(\"Automatic Resolution\")")
+        && !view.contains("BASCUS-"),
+      "save UI describes slots and automatic preservation without internal paths")
+check(view.contains("older divergent copies were preserved automatically")
+        && !view.contains("switch resolution.basis"),
+      "automatic resolution copy remains generic across engine ranking cases")
 check(view.contains("settings.globalProfile?.title ?? \"Mixed\""),
       "a mixed set of section profiles is shown as Mixed, not as a preset")
 check(view.contains("settings.profile(for: .graphics) == .modern")
@@ -67,6 +86,11 @@ check(store.contains("var graphicsModernFillWidthOverride: Bool?")
       "Graphics and Fill Width default to Modern while preserving a user override")
 check(!store.contains("SaveSyncEngine") && !store.contains("TouchControls"),
       "presentation settings remain separate from save and touch behavior")
+check(store.contains("actor PresentationSettingsCloudStore")
+        && store.contains("try await cloudStore.read()")
+        && store.contains("try await cloudStore.write")
+        && store.contains("lastSuccessfulSyncDate"),
+      "iCloud settings I/O is actor-owned and preserves the latest successful sync date")
 check(content.contains("session.presentationSettings.graphicsFillWidth")
         && content.contains("session.settings.horizontalPlusEnabled = enabled")
         && renderer.contains("surface.setHorizontalPlusEnabled(horizontalPlusEnabled)"),

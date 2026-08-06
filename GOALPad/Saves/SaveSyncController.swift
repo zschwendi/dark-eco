@@ -48,6 +48,13 @@ nonisolated enum SaveDataLayout {
 @MainActor
 @Observable
 final class SaveSyncController {
+    enum Operation: Equatable {
+        case syncing
+        case checking
+        case importing
+        case exporting
+    }
+
     enum Status: Equatable {
         case disabled
         case waiting
@@ -67,22 +74,24 @@ final class SaveSyncController {
                 status = .waiting
                 Task { await syncNow() }
             } else {
-                frameCheckTask?.cancel()
-                frameCheckTask = nil
+                cancelPendingFrameCheck()
+                pendingSyncMode = nil
                 status = .disabled
             }
         }
     }
     private(set) var status: Status
     private(set) var transferMessage: String?
-    private(set) var isTransferring = false
+    private(set) var activeOperation: Operation?
     private(set) var isGameplayActive = false
     private(set) var recentResolutions: [SaveResolution]
+    private(set) var lastSuccessfulSyncDate: Date?
 
     private let defaults: UserDefaults
     private let engine: SaveSyncEngine
-    private var isWorking = false
     private var frameCheckTask: Task<Void, Never>?
+    private var frameCheckGeneration = 0
+    private var pendingSyncMode: SaveSyncMode?
 
     init(defaults: UserDefaults = .standard, engine: SaveSyncEngine? = nil) {
         self.defaults = defaults
@@ -100,6 +109,7 @@ final class SaveSyncController {
         } else {
             recentResolutions = []
         }
+        lastSuccessfulSyncDate = nil
         self.engine = engine ?? SaveSyncEngine(configuration: .init(
             localRoot: SaveDataLayout.localSavesDirectory,
             localConflictsRoot: SaveDataLayout.localConflictsDirectory,
@@ -108,36 +118,39 @@ final class SaveSyncController {
             coordinateCloudAccess: true))
     }
 
+    var isBusy: Bool { activeOperation != nil }
+
+    var isTransferring: Bool {
+        activeOperation == .importing || activeOperation == .exporting
+    }
+
+    var hasPendingFrameCheck: Bool { frameCheckTask != nil }
+
+    var progressMessage: String? {
+        switch activeOperation {
+        case .syncing: "Syncing saves…"
+        case .checking: "Checking saves…"
+        case .importing: "Importing saves…"
+        case .exporting: "Exporting saves…"
+        case nil: nil
+        }
+    }
+
     func prepare() async {
         guard isEnabled else { return }
         await syncNow()
     }
 
     func syncNow(mode requestedMode: SaveSyncMode? = nil) async {
-        guard isEnabled, !isWorking else { return }
+        guard isEnabled else { return }
         let mode = requestedMode ?? (isGameplayActive ? .uploadOnly : .bidirectional)
-        isWorking = true
-        status = .syncing
-        defer { isWorking = false }
-        do {
-            let outcome = try await engine.sync(mode: mode)
-            guard isEnabled else {
-                status = .disabled
-                return
-            }
-            apply(outcome)
-        } catch {
-            guard isEnabled else {
-                status = .disabled
-                return
-            }
-            status = .failed(error.localizedDescription)
-        }
+        enqueueSync(mode)
+        await drainPendingSync()
     }
 
     func syncBeforeGameplay() async -> Bool {
         setGameplayActive(false)
-        while isWorking {
+        while isBusy || frameCheckTask != nil || pendingSyncMode != nil {
             do {
                 try await Task.sleep(for: .milliseconds(10))
             } catch {
@@ -147,14 +160,17 @@ final class SaveSyncController {
         if isEnabled {
             await syncNow(mode: .bidirectional)
         }
+        activeOperation = .checking
         do {
             let hasUnsafeLocalMutation = try await engine.hasUnsafePendingLocalMutation()
+            activeOperation = nil
             guard !hasUnsafeLocalMutation else {
                 status = .failed("Save recovery is incomplete. Retry iCloud Saves before playing.")
                 return false
             }
             return true
         } catch {
+            activeOperation = nil
             status = .failed(error.localizedDescription)
             return false
         }
@@ -163,61 +179,76 @@ final class SaveSyncController {
     /// Called after completed gameplay frames. The native save is synchronous, so any successful
     /// memcard write is closed before this check runs. Coalescing keeps file I/O off the hot loop.
     func gameplayFrameCompleted() {
-        guard isEnabled, !isWorking, frameCheckTask == nil else { return }
+        guard isEnabled, isGameplayActive, !isBusy, frameCheckTask == nil else { return }
+        frameCheckGeneration += 1
+        let generation = frameCheckGeneration
         frameCheckTask = Task { [weak self] in
             guard let self else { return }
-            defer { frameCheckTask = nil }
+            defer { clearFrameCheckTask(for: generation) }
             do {
                 try await Task.sleep(for: .milliseconds(250))
             } catch {
                 return
             }
-            guard isEnabled, !Task.isCancelled else { return }
+            guard isEnabled, !Task.isCancelled, generation == frameCheckGeneration else { return }
+            guard !isBusy else {
+                enqueueSync(.uploadOnly)
+                return
+            }
+            activeOperation = .checking
             do {
                 if let outcome = try await engine.syncIfLocalFilesChanged(mode: .uploadOnly) {
                     guard isEnabled else {
                         status = .disabled
+                        activeOperation = nil
                         return
                     }
                     apply(outcome)
                 }
+            } catch is CancellationError {
+                // Cancellation during the debounce is expected; active save work is not cancelled.
             } catch {
                 guard isEnabled else {
                     status = .disabled
+                    activeOperation = nil
                     return
                 }
                 status = .failed(error.localizedDescription)
             }
+            activeOperation = nil
+            await drainPendingSync()
         }
     }
 
     func importSaves(from source: URL) async {
-        guard !isTransferring else { return }
+        guard !isBusy else { return }
         guard !isGameplayActive else {
             transferMessage = "Pause gameplay before importing saves."
             return
         }
-        isTransferring = true
+        activeOperation = .importing
         transferMessage = "Importing saves…"
-        defer { isTransferring = false }
         let accessed = source.startAccessingSecurityScopedResource()
         defer { if accessed { source.stopAccessingSecurityScopedResource() } }
+        var shouldSync = false
         do {
             let result = try await engine.importSaves(from: source)
             transferMessage = result.fileCount == 0
                 ? "The selected saves already match this device."
                 : "Imported \(result.fileCount) save file(s). Replaced copies were preserved."
-            if isEnabled { await syncNow() }
+            shouldSync = isEnabled
         } catch {
             transferMessage = "Import issue: \(error.localizedDescription)"
         }
+        activeOperation = nil
+        if shouldSync { enqueueSync(.bidirectional) }
+        await drainPendingSync()
     }
 
     func exportSaves(to destination: URL) async {
-        guard !isTransferring else { return }
-        isTransferring = true
+        guard !isBusy else { return }
+        activeOperation = .exporting
         transferMessage = "Exporting saves…"
-        defer { isTransferring = false }
         let accessed = destination.startAccessingSecurityScopedResource()
         defer { if accessed { destination.stopAccessingSecurityScopedResource() } }
         do {
@@ -229,10 +260,18 @@ final class SaveSyncController {
         } catch {
             transferMessage = "Export issue: \(error.localizedDescription)"
         }
+        activeOperation = nil
+        await drainPendingSync()
     }
 
     func clearTransferMessage() {
         transferMessage = nil
+    }
+
+    func reportPickerIssue(_ error: Error) {
+        if error is CancellationError { return }
+        if let cocoaError = error as? CocoaError, cocoaError.code == .userCancelled { return }
+        transferMessage = "Save picker issue: \(error.localizedDescription)"
     }
 
     func acknowledgeRecentResolutions() {
@@ -243,8 +282,7 @@ final class SaveSyncController {
     func setGameplayActive(_ active: Bool) {
         isGameplayActive = active
         if !active {
-            frameCheckTask?.cancel()
-            frameCheckTask = nil
+            cancelPendingFrameCheck()
         }
     }
 
@@ -263,27 +301,62 @@ final class SaveSyncController {
     }
 
     var lastSyncDate: Date? {
-        switch status {
-        case .synced(let date, _, _, _): return date
-        default: return nil
+        lastSuccessfulSyncDate
+    }
+
+    private func enqueueSync(_ mode: SaveSyncMode) {
+        switch (pendingSyncMode, mode) {
+        case (.bidirectional, _), (_, .bidirectional):
+            pendingSyncMode = .bidirectional
+        case (_, .uploadOnly):
+            pendingSyncMode = .uploadOnly
         }
     }
 
-    func resolutionDescription(_ resolution: SaveResolution) -> String {
-        let winner = resolution.winner.rawValue
-        switch resolution.basis {
-        case .completionPercentage(let percentage):
-            return "\(winner) won at \(String(format: "%.0f", percentage))% completion; "
-                + "the other copy was preserved."
-        case .onlyValidJak1Bank:
-            return "\(winner) was the only valid Jak 1 save; the other copy was preserved."
-        case .modificationDate:
-            return "\(winner) was newer; the other copy was preserved."
-        case .localGameplayAuthority:
-            return "this device stayed active because the dates tied; the iCloud copy was preserved."
-        case .activeGameplayAuthority:
-            return "this device stayed active during gameplay; the iCloud copy was preserved."
+    private func drainPendingSync() async {
+        guard activeOperation == nil else { return }
+        while isEnabled, let mode = pendingSyncMode {
+            pendingSyncMode = nil
+            activeOperation = .syncing
+            status = .syncing
+            do {
+                let outcome = try await engine.sync(mode: mode)
+                guard isEnabled else {
+                    activeOperation = nil
+                    status = .disabled
+                    pendingSyncMode = nil
+                    return
+                }
+                apply(outcome)
+            } catch is CancellationError {
+                if isEnabled { status = .waiting }
+            } catch {
+                status = isEnabled ? .failed(error.localizedDescription) : .disabled
+            }
+            activeOperation = nil
+            if Task.isCancelled {
+                if pendingSyncMode != nil {
+                    Task { [weak self] in await self?.drainPendingSync() }
+                }
+                return
+            }
         }
+        if !isEnabled {
+            pendingSyncMode = nil
+            status = .disabled
+        }
+    }
+
+    private func cancelPendingFrameCheck() {
+        guard activeOperation != .checking else { return }
+        frameCheckGeneration += 1
+        frameCheckTask?.cancel()
+        frameCheckTask = nil
+    }
+
+    private func clearFrameCheckTask(for generation: Int) {
+        guard frameCheckGeneration == generation else { return }
+        frameCheckTask = nil
     }
 
     private func apply(_ outcome: SaveSyncOutcome) {
@@ -297,26 +370,26 @@ final class SaveSyncController {
                 defaults.set(data, forKey: Self.lastResolutionsDefaultsKey)
             }
         }
+        lastSuccessfulSyncDate = outcome.completedAt
         status = .synced(outcome.completedAt, uploaded: outcome.uploaded,
                          downloaded: outcome.downloaded, resolutions: outcome.resolutions)
     }
 
     private func resolutionNotice(for resolutions: [SaveResolution]) -> String {
-        if resolutions.count == 1, let resolution = resolutions.first {
-            return "Auto-resolved: \(resolutionDescription(resolution))"
-        }
-        let localWins = resolutions.filter { $0.winner == .local }.count
-        let cloudWins = resolutions.count - localWins
-        return "Auto-resolved \(resolutions.count) saves: this device won \(localWins), "
-            + "iCloud won \(cloudWins); every other copy was preserved."
+        "Synced save slots; older divergent copies were preserved automatically."
     }
 }
 
 struct SaveSettingsView: View {
+    private enum SaveTransferPicker {
+        case importSaves
+        case exportSaves
+    }
+
     @Bindable var sync: SaveSyncController
     @Bindable var settings: PresentationSettings
-    @State private var isChoosingImport = false
-    @State private var isChoosingExportDestination = false
+    @State private var saveTransferPicker: SaveTransferPicker?
+    @State private var isShowingSavePicker = false
 
     var body: some View {
         Form {
@@ -339,14 +412,23 @@ struct SaveSettingsView: View {
 
             Section("iCloud Settings") {
                 Toggle("Sync settings with iCloud", isOn: $settings.cloudSyncEnabled)
+                    .disabled(settings.syncStatus == .syncing)
                 Label(settings.syncSummary, systemImage: settingsStatusSymbol)
                     .foregroundStyle(settingsStatusColor)
+                if settings.syncStatus == .syncing {
+                    ProgressView("Syncing settings…")
+                }
                 if let date = settings.lastSyncDate {
                     LabeledContent("Last sync", value: date.formatted(date: .abbreviated,
                                                                         time: .shortened))
                 }
-                Button("Sync Now") { Task { await settings.syncNow() } }
-                    .disabled(!settings.cloudSyncEnabled || settings.syncStatus == .syncing)
+                if settingsRetryAvailable {
+                    Button("Retry Settings Sync") { Task { await settings.syncNow() } }
+                        .disabled(!settings.cloudSyncEnabled)
+                } else {
+                    Button("Sync Settings Now") { Task { await settings.syncNow() } }
+                        .disabled(!settings.cloudSyncEnabled || settings.syncStatus == .syncing)
+                }
                 Text("This switch applies only to this device and does not change iCloud Saves.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -354,35 +436,50 @@ struct SaveSettingsView: View {
 
             Section("iCloud Saves") {
                 Toggle("Sync saves with iCloud", isOn: $sync.isEnabled)
+                    .disabled(sync.isBusy)
                 Label(sync.summary, systemImage: statusSymbol)
                     .foregroundStyle(statusColor)
+                if sync.activeOperation == .syncing || sync.activeOperation == .checking,
+                   let message = sync.progressMessage {
+                    ProgressView(message)
+                }
                 if let date = sync.lastSyncDate {
                     LabeledContent("Last sync", value: date.formatted(date: .abbreviated,
                                                                       time: .shortened))
                 }
-                Button("Sync Now") { Task { await sync.syncNow() } }
-                    .disabled(!sync.isEnabled || sync.status == .syncing)
+                if saveRetryAvailable {
+                    Button("Retry Save Sync") { Task { await sync.syncNow() } }
+                        .disabled(!sync.isEnabled || sync.isBusy)
+                } else {
+                    Button("Sync Saves Now") { Task { await sync.syncNow() } }
+                        .disabled(!sync.isEnabled || sync.isBusy)
+                }
             }
 
             Section("Save Files") {
                 Button {
                     sync.clearTransferMessage()
-                    isChoosingImport = true
+                    saveTransferPicker = .importSaves
+                    isShowingSavePicker = true
                 } label: {
                     Label("Import Saves", systemImage: "square.and.arrow.down")
                 }
-                .disabled(sync.isTransferring || sync.isGameplayActive)
+                .disabled(sync.isBusy || sync.isGameplayActive)
                 Button {
                     sync.clearTransferMessage()
-                    isChoosingExportDestination = true
+                    saveTransferPicker = .exportSaves
+                    isShowingSavePicker = true
                 } label: {
                     Label("Export Saves", systemImage: "square.and.arrow.up")
                 }
-                .disabled(sync.isTransferring)
-                Text("Import an OpenGOAL `saves` folder, or export the unchanged desktop layout "
-                     + "under `OpenGOAL/jak1/saves`.")
+                .disabled(sync.isBusy)
+                Text("Eco Pro imports and exports the ordinary four Jak save slots. When copies "
+                     + "differ, the older copy is preserved automatically.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                if sync.isTransferring, let message = sync.progressMessage {
+                    ProgressView(message)
+                }
                 if sync.isGameplayActive {
                     Text("Pause gameplay before importing saves.")
                         .font(.callout)
@@ -393,39 +490,46 @@ struct SaveSettingsView: View {
                 }
             }
 
-            if !sync.recentResolutions.isEmpty {
-                Section("Automatic Resolution") {
-                    ForEach(sync.recentResolutions, id: \.relativePath) { resolution in
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(resolution.relativePath)
-                                .font(.system(.caption, design: .monospaced))
-                            Text(sync.resolutionDescription(resolution))
-                                .font(.callout)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    Button("Dismiss Details") { sync.acknowledgeRecentResolutions() }
-                }
-            }
-
             Section {
                 Button("Reset All", role: .destructive) { settings.resetAll() }
             }
         }
         .navigationTitle("Settings")
-        .fileImporter(isPresented: $isChoosingImport,
+        .fileImporter(isPresented: $isShowingSavePicker,
                       allowedContentTypes: [.folder],
                       allowsMultipleSelection: false) { result in
-            if case .success(let urls) = result, let source = urls.first {
-                Task { await sync.importSaves(from: source) }
-            }
+            handleSavePickerResult(result)
         }
-        .fileImporter(isPresented: $isChoosingExportDestination,
-                      allowedContentTypes: [.folder],
-                      allowsMultipleSelection: false) { result in
-            if case .success(let urls) = result, let destination = urls.first {
-                Task { await sync.exportSaves(to: destination) }
+    }
+
+    private func handleSavePickerResult(_ result: Result<[URL], Error>) {
+        let picker = saveTransferPicker
+        saveTransferPicker = nil
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first, let picker else { return }
+            switch picker {
+            case .importSaves:
+                Task { await sync.importSaves(from: url) }
+            case .exportSaves:
+                Task { await sync.exportSaves(to: url) }
             }
+        case .failure(let error):
+            sync.reportPickerIssue(error)
+        }
+    }
+
+    private var settingsRetryAvailable: Bool {
+        switch settings.syncStatus {
+        case .unavailable, .failed: true
+        default: false
+        }
+    }
+
+    private var saveRetryAvailable: Bool {
+        switch sync.status {
+        case .unavailable, .failed: true
+        default: false
         }
     }
 

@@ -187,6 +187,10 @@ private func coordinatedFirstCloudWriteCreatesItsNestedDocument() async throws {
     let stored = readDocument(at: fixture.cloud)
     check(stored?.globalProfile == nil && stored?.graphicsProfile == .modern,
           "a fresh coordinated cloud stores the default Modern Graphics mix")
+    let successfulDate = value.lastSyncDate
+    value.cloudSyncEnabled = false
+    check(successfulDate != nil && value.lastSyncDate == successfulDate,
+          "turning sync off preserves the most recent successful settings sync date")
 }
 
 @MainActor

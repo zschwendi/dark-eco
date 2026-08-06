@@ -2010,6 +2010,80 @@ private func importCountAndByteBoundsAreEnforced() async throws {
           "eight exact-size banks at the aggregate limit are accepted")
 }
 
+@MainActor
+private func waitForController(_ condition: () -> Bool) async -> Bool {
+    for _ in 0..<200 {
+        if condition() { return true }
+        try? await Task.sleep(for: .milliseconds(10))
+    }
+    return condition()
+}
+
+@MainActor
+private func controllerCoalescesSyncIntentAndPreservesLastSuccess() async throws {
+    print("controller exposes one busy operation and drains a coalesced retry")
+    let gate = OperationGate()
+    let fixture = try Fixture(operationAwaitHook: { await gate.pauseFirstEntry() })
+    let defaults = UserDefaults(suiteName: "goalpad-save-controller-\(UUID().uuidString)")!
+    let controller = SaveSyncController(defaults: defaults, engine: fixture.engine)
+
+    let firstSync = Task { await controller.syncNow(mode: .uploadOnly) }
+    await gate.waitUntilEntered()
+    check(controller.isBusy && controller.activeOperation == .syncing,
+          "the controller reports its active sync while the engine is suspended")
+
+    await controller.syncNow(mode: .bidirectional)
+    let entriesBeforeRelease = await gate.entries()
+    check(entriesBeforeRelease == 1,
+          "a retry during active work is coalesced instead of entering the engine concurrently")
+
+    await gate.release()
+    await firstSync.value
+    let becameIdle = await waitForController { !controller.isBusy }
+    let completedEntries = await gate.entries()
+    check(becameIdle && completedEntries == 2,
+          "the queued retry runs exactly once after the active operation")
+    check(controller.lastSyncDate != nil,
+          "a successful sync records an independent last-success value for later UI states")
+
+    controller.isEnabled = false
+    check(controller.lastSyncDate != nil,
+          "disabling sync does not erase the last successful sync date")
+}
+
+@MainActor
+private func replacementFrameCheckKeepsTaskOwnershipAndCancelsQuietly() async throws {
+    print("replacement frame checks retain ownership after an older debounce is cancelled")
+    let gate = OperationGate()
+    let fixture = try Fixture(operationAwaitHook: { await gate.pauseFirstEntry() })
+    let defaults = UserDefaults(suiteName: "goalpad-frame-controller-\(UUID().uuidString)")!
+    let controller = SaveSyncController(defaults: defaults, engine: fixture.engine)
+
+    controller.setGameplayActive(true)
+    controller.gameplayFrameCompleted()
+    controller.setGameplayActive(false)
+    controller.setGameplayActive(true)
+    controller.gameplayFrameCompleted()
+
+    await gate.waitUntilEntered()
+    check(controller.activeOperation == .checking && controller.hasPendingFrameCheck,
+          "the replacement check owns the visible checking operation")
+    try await Task.sleep(for: .milliseconds(30))
+    check(controller.hasPendingFrameCheck,
+          "the cancelled check cannot clear the replacement task")
+    if case .failed = controller.status {
+        check(false, "cancelling the superseded debounce is not reported as a sync failure")
+    } else {
+        check(true, "cancelling the superseded debounce is not reported as a sync failure")
+    }
+
+    await gate.release()
+    let becameIdle = await waitForController {
+        !controller.isBusy && !controller.hasPendingFrameCheck
+    }
+    check(becameIdle, "the replacement check clears its own busy and task state on completion")
+}
+
 @main
 private struct SaveSyncCheck {
     static func main() async {
@@ -2059,6 +2133,8 @@ private struct SaveSyncCheck {
             try await interruptedManualImportRecoversFromJournal()
             try await broadAndNestedImportsAreRejected()
             try await importCountAndByteBoundsAreEnforced()
+            try await controllerCoalescesSyncIntentAndPreservesLastSuccess()
+            try await replacementFrameCheckKeepsTaskOwnershipAndCancelsQuietly()
         } catch {
             print("  FAIL unexpected error: \(error)")
             failures += 1

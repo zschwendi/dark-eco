@@ -11,6 +11,8 @@ swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
   -module-cache-path "$module_cache" \
   -swift-version 5 \
   "$root/GOALPad/Saves/SaveSyncEngine.swift" \
+  "$root/GOALPad/Game/PresentationSettings.swift" \
+  "$root/GOALPad/Saves/SaveSyncController.swift" \
   "$root/Scripts/save-sync-check.swift" \
   -o "$out"
 
