@@ -743,6 +743,39 @@ Classic touch, portrait top alignment, Modern-first ordering, empty-section
 removal, pause-gated app chrome, and the unified iCloud presentation are not in
 this defer list; they are the preferred first executable slices.
 
+#### visionOS presentation modes
+
+These are visionOS-only follow-on modes requested by the maintainer. They are
+**Planned** or **Investigating**, not implemented, and must not delay the current
+Jak 1 iPhone/iPad correctness track. Preserve the conventional window as the
+fallback while the shared renderer is isolated from its current single
+`CAMetalLayer`, single display clock, and gameplay-camera assumptions.
+
+1. **Comfort / Normal:** the existing monoscopic conventional window.
+2. **Stereoscopic 3D:** the default visionOS presentation for the Modern
+   graphics profile once true per-eye rendering passes physical Vision Pro
+   validation. Duplicating one completed framebuffer is not stereo.
+3. **Tabletop / Volume:** render a bounded Jak world in front of the user so
+   rotating or walking around the volume changes the viewer relationship while
+   gameplay remains third-person. Provide an immersion/zoom control for how
+   much world the volume contains.
+4. **Room-scale World:** expand the stationary third-person world to an
+   environment-sized mixed or progressive immersive space that the user can
+   physically walk around without the world rotating with head movement.
+5. **First-person VR:** an immersive player-view mode with gameplay-camera and
+   head-pose separation. Rolls, spins, cutscenes, vehicles, death, HUD, turning,
+   and camera shake require explicit comfort behavior; default to a stable
+   floating/spectator treatment rather than forcing artificial head rotation.
+
+Implement in narrow proofs: keep the flat window healthy, add a visionOS-only
+scene/session coordinator, prove a synthetic compositor stereo layer, define an
+immutable per-frame simulation snapshot plus external view/projection and
+render-target contract, cover renderer buckets and culling, then add stereo,
+tabletop, room-scale, and first-person in that order. Real stereo requires
+per-view color/depth targets and compositor timing. A useful tabletop proof may
+use RealityKit, but a textured flat plane is only a compatibility prototype,
+not the requested volumetric world.
+
 ## Code clarity
 
 Write clean, human-readable code suitable for an open-source project.

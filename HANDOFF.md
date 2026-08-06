@@ -13284,3 +13284,91 @@ the independent commits, rerun the direct route and focused proofs, then bump
 the next candidate build once. Physical installation still requires a fresh
 explicit current request accepted by the execution approval layer; never
 uninstall or clear the existing app data.
+
+# Build 105 Misty-transition candidate
+
+Date: 2026-08-06. Build 105 is committed runtime work plus a signed and
+simulator-validated candidate. It is not a replacement for Build 93's accepted
+physical baseline until the maintainer completes the long-session route below.
+
+Integrated commits:
+
+- Parent `11b2e7b2`: evict stale iOS level art and release renderer resources.
+- Nested `fd00316bf`: fail closed and roll back partial Metal allocations.
+- Nested `901ad2961`: terminate failed DGO loads through the established Jak 1
+  failure path instead of presenting terminal failure as pending.
+- Nested `9d9425c0d`: deterministic DGO terminal-response coverage.
+- Nested `f9efc4498`: suppress off-player-level destination titles during
+  authored preview-camera movement while preserving actual same-level entry.
+- Parent `2ede9090`: integrate and stabilize the transition fixes.
+- Nested `c63c73ecf` and parent `7f293693`: pin the regenerated Build 105 source
+  pack identity `aa31de9e2fab29d8`.
+
+Behavior now covered in source and host validation:
+
+- The iOS Metal host evicts art unwanted for 180 frames and only retries a
+  failed level allocation after an actual stale-resource release.
+- Texture, buffer, Merc, background, placeholder, unload, clear, and stop paths
+  fail closed or release their partial resources.
+- A terminal DGO failure cannot leave a level looking indefinitely pending while
+  gameplay continues without destination BSP or collision.
+- The Fire Canyon preview camera cannot emit the large destination title while
+  the player remains in a different active level; normal same-level entry and
+  non-title hints are unchanged.
+
+Validation completed by the integration owner:
+
+- `cmake --build /private/tmp/GOALPad-misty-diagnosis-cmake --target goalc-test metal-proof jak1-data-boot-test goalpad-play -j 2` passed before that reproducible build directory was pruned for disk space.
+- `/private/tmp/GOALPad-misty-diagnosis-cmake/game/metal-proof` passed every
+  proof, including new allocation rollback checks.
+- The 5000-frame `jak1-data-boot-test` title/new-game/`misty-start` AOT route
+  exited 0 with 518 translation units, 35 AOT level objects, active Misty, zero
+  illegal visibility, and zero DGO errors.
+- The 1700-frame `goalpad-play` Metal route exited 0 with 627 textures, 73.2 MB
+  of vertices, 10.1 MB of indices, expected title-art eviction, and zero load
+  failures. Screenshots `/private/tmp/GOALPad-build105-misty-direct-1300.png`
+  and `/private/tmp/GOALPad-build105-misty-direct-1600.png` show intact Misty
+  geometry, textures, characters, and props.
+- All seven focused integration scripts passed: game-menu state,
+  portrait/library, touch controls, presentation/settings, save sync,
+  keyboard/mouse, and Game Center. Three Swift suites required their unchanged
+  rerun with macro-service access after the restricted sandbox rejected the
+  Observation macro service.
+- Fresh public pack verification passed for all 518 objects: aggregate
+  `aa31de9e2fab29d8`, 10,731,583 bytes, 10,600 of 10,607 functions emitted,
+  seven native, and zero source failures. Fresh `Generated/jak1-aot` generation
+  passed with the same 518-object identity.
+- Generic signed iPhoneOS Release Build 105 passed with the canonical pack and
+  AOT output. The preserved app is
+  `/private/tmp/GOALPad-build105-misty-signed/GOALPad.app`; executable SHA-256
+  is `e301db6e365583115ecfaaa9f1813a2a9511f652474749e84bc8d9824de17063`.
+  It identifies as Eco `1.0 (105)`, `com.zephyrstudiosllc.eco`, team
+  `V729QMY3V6`, contains the expected iCloud and Game Center entitlements,
+  exactly one privacy manifest, and no ISO/DGO/WAD/VAG/FR3 payloads. Local
+  `codesign --verify` could not resolve the development certificate trust chain,
+  but the signature structure and CMS provisioning profile decode correctly.
+- The first M5 iPad simulator build was blocked by restricted CoreSimulator
+  discovery. The authorized rerun compiled, then exhausted disk space at dSYM
+  generation. After preserving the signed app and deleting only its redundant
+  iPhoneOS DerivedData product/intermediates, the incremental simulator Release
+  build passed. Build 105 installed and launched on the already-booted approved
+  simulator. `/private/tmp/GOALPad-build105-misty-simulator.png` shows the
+  healthy Eco library; the simulator was left booted because this run did not
+  boot it. The simulator had no user game data, so this is launcher proof only.
+
+The direct host routes are not the reported long-session boat sequence. A
+physical Build 105 pass must start from the maintainer's existing save, travel
+Sandover Village to Misty Island by boat after ordinary play, verify stable
+world geometry throughout, verify Misty beach/ocean collision on arrival, and
+confirm the Fire Canyon preview title stays suppressed until physical entry.
+Also compare cadence, performance, heat, saves/iCloud, and current touch
+behavior against the accepted baseline. Do not uninstall or clear app data.
+Physical device access requires a fresh request naming Build 105 and
+`Z iPad Pro`.
+
+visionOS follow-on modes are now recorded in `AGENTS.md`: Comfort/Normal,
+true stereoscopic 3D as the eventual Modern default, bounded tabletop volume,
+room-scale stationary world, and first-person VR with explicit motion-comfort
+handling. They remain Planned/Investigating. The current implementation is one
+monoscopic conventional window backed by one `CAMetalLayer`; stereo first needs
+a visionOS compositor proof and a simulation-once/render-many renderer boundary.
