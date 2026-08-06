@@ -14103,8 +14103,28 @@ Root integration validation:
   `Generated/jak1-aot` output and passed preflight: 518 objects, 10,618 emitted
   functions, seven native functions, zero failed files. Log:
   `/private/tmp/GOALPad-build114-aot.log`.
-- Signed Xcode build, artifact inspection, push, simulator, and physical device
-  are not claimed at this AOT checkpoint.
+- Signed generic-iOS Release Build 114 passed without accessing a physical
+  device. Exact command output is preserved at
+  `/private/tmp/GOALPad-build114-generic-ios.log`. Xcode verified the 518-object
+  source pack and rebuilt/linked the complete generated AOT corpus; the
+  post-build preflight again reported 518 objects, 10,618 emitted functions,
+  and seven native functions.
+- The frozen candidate is
+  `/private/tmp/GOALPad-build114-misty-skip-signed/GOALPad.app`. It identifies
+  as Eco `1.0 (114)`, bundle `com.zephyrstudiosllc.eco`, and a thin ARM64 Mach-O.
+  Its executable SHA-256 is
+  `4cfb021a9bf0a531f05345302a5089ae5fa948e6bf4611f861624b216017e17e`.
+  The bundle contains `PrivacyInfo.xcprivacy`, carries the expected Zephyr
+  Studios team, Game Center, and iCloud entitlements, and contains none of the
+  audited retail payload extensions (`iso`, `bin`, `dgo`, `cgo`, `str`, or
+  `vag`). Strict local verification reaches the same development-certificate
+  chain result as prior candidates, `CSSMERR_TP_NOT_TRUSTED`; Xcode signing and
+  entitlement extraction succeeded, so this is recorded accurately rather
+  than described as distribution trust.
+- No simulator run, physical install/launch, or physical gameplay acceptance is
+  claimed. Parent push remains the final packaging step for this checkpoint;
+  the nested OpenGOAL branch cannot be pushed to its configured remote under
+  the current policy and remains locally ahead with its exact commits recorded.
 
 Physical acceptance remains the exact ordinary first-trip route: board once in
 Sandover, arrive at intact/collidable Misty with Jak and the boat at the dock,

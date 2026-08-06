@@ -491,6 +491,18 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 Active lanes:
 
+- `Build 114 signed generic-iOS candidate ready; physical Misty/title gate
+  pending` — nested OpenGOAL `352064ace`, `f260ae7df`, and `cb5032a83` make
+  fisherman-boat arrival atomic: destination collision must genuinely ground
+  Jak before clone exit, destination continue/title ownership, and dock-ready
+  state commit. Nested `2e0438416` pins the regenerated 518-object source pack
+  at aggregate `2b812636de96f221`. Parent `7d017e73` and `a2c31501` bump both
+  iOS configurations to 114 and record that identity. The signed generic-iOS
+  Release build passed and is preserved at
+  `/private/tmp/GOALPad-build114-misty-skip-signed/GOALPad.app`; it has not been
+  installed or physically accepted. Acceptance must prove the ordinary first
+  Sandover-to-Misty ride, `MISTY ISLAND` on arrival only, grounded dock exit,
+  no stale source interaction, and a clean return trip without the Misty title.
 - `Signed Build 113 validation passed; Misty ownership trace rejected the
   candidate before physical install` — nested OpenGOAL `ef48da80a` retries a
   false animation clone, waits for the destination level to become active, and
@@ -700,8 +712,9 @@ Active lanes:
   must make destination ownership authoritative before the first reevaluation,
   consume the arrival title once at arrival, never on departure, and prove the
   docked/source-interaction state in both directions.
-- [x] `Corrected Build 114 source path independently accepted; physical gate
-  pending` — nested OpenGOAL `352064ace`, `f260ae7df`, and `cb5032a83` end the
+- [x] `Corrected Build 114 source path independently accepted and signed;
+  physical gate pending` — nested OpenGOAL `352064ace`, `f260ae7df`, and
+  `cb5032a83` end the
   clone animation's stale-position fallback, make destination collision a
   fail-closed prerequisite, and preserve the passenger-relative target offset
   across every failed-ground retry. Each retry reapplies the intended target
