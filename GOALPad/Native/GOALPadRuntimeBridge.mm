@@ -107,14 +107,16 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
 
 @implementation GOALPadRuntimeBridge
 
-+ (GOALPadKernelStatus *)startKernelWithDataDirectory:(NSString *)dataDirectory {
++ (GOALPadKernelStatus *)startKernelWithDataDirectory:(NSString *)dataDirectory
+                                      savesDirectory:(NSString *)savesDirectory {
   NSString *path = dataDirectory ?: @"";
+  NSString *savePath = savesDirectory ?: @"";
 
   // goalpad::start_kernel is noexcept and reports failure in its status, but the conversions below
   // allocate, so nothing C++ is allowed to escape into Objective-C either way.
   goalpad::KernelStatus core;
   try {
-    core = goalpad::start_kernel(path.UTF8String);
+    core = goalpad::start_kernel(path.UTF8String ?: "", savePath.UTF8String ?: "");
   } catch (...) {
     goalpad::stop_kernel();
     return GOALPadFailedStatus(@"The native kernel bridge threw; no session is live.", path);

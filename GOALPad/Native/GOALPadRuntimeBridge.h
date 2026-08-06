@@ -94,8 +94,10 @@ typedef struct GOALPadFrameChainStats {
 
 /// Bring the kernel up, pointed at the player's own prepared data. All-or-nothing: if the returned
 /// status is not `running`, nothing is live and `message` says why. `dataDirectory` is the
-/// directory that holds `iso/` and `fr3/`; pass nil to start without game data.
-+ (GOALPadKernelStatus *)startKernelWithDataDirectory:(nullable NSString *)dataDirectory;
+/// directory that holds `iso/` and `fr3/`; pass nil to start without game data. `savesDirectory`
+/// is the canonical local OpenGOAL save root and must not be empty.
++ (GOALPadKernelStatus *)startKernelWithDataDirectory:(nullable NSString *)dataDirectory
+                                      savesDirectory:(NSString *)savesDirectory;
 
 /// Tear the kernel down. Safe to call when no session is live.
 + (void)stopKernel;

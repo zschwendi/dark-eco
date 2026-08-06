@@ -49,6 +49,10 @@ guard CommandLine.arguments.count == 2 else {
 let root = CommandLine.arguments[1]
 let controller = source(at: root + "/GOALPad/Saves/SaveSyncController.swift")
 let session = source(at: root + "/GOALPad/Game/GameSession.swift")
+let coreHeader = source(at: root + "/GOALPad/Native/GOALPadRuntimeCore.hpp")
+let core = source(at: root + "/GOALPad/Native/GOALPadRuntimeCore.cpp")
+let bridgeHeader = source(at: root + "/GOALPad/Native/GOALPadRuntimeBridge.h")
+let bridge = source(at: root + "/GOALPad/Native/GOALPadRuntimeBridge.mm")
 
 let gate = section(controller,
                    from: "func syncBeforeGameplay() async -> Bool",
@@ -72,9 +76,37 @@ check(occursInOrder([
     "guard await saveSync.syncBeforeGameplay() else",
     "startupError = Self.saveRecoveryMessage",
     "GOALPadRuntimeBridge.startKernel",
+    "savesDirectory: SaveDataLayout.localSavesDirectory.path",
 ], in: start), "startup rejects unsafe saves before starting the native kernel")
 check(session.contains("Open Settings and retry iCloud Saves before playing."),
       "startup exposes a concise Settings recovery action")
+
+check(coreHeader.contains(
+    "KernelStatus start_kernel(std::string data_directory, std::string saves_directory) noexcept;"),
+      "the C++ startup contract requires an explicit saves directory")
+check(bridgeHeader.contains(
+    "savesDirectory:(NSString *)savesDirectory;"),
+      "the Objective-C bridge exposes the saves directory to Swift")
+check(bridge.contains(
+    "goalpad::start_kernel(path.UTF8String ?: \"\", savePath.UTF8String ?: \"\")"),
+      "the Objective-C++ bridge forwards both native paths")
+
+let saveSetter = section(core,
+                         from: "static bool set_saves_directory",
+                         to: "KernelStatus start_kernel")
+check(occursInOrder([
+    "path.empty()",
+    "goal_kernel_core_set_saves_directory(path.c_str())",
+    "goal_kernel_core_saves_directory()",
+    "path != accepted_path",
+], in: saveSetter), "the runtime rejects empty, failed, or non-exact save paths")
+let nativeStart = section(core, from: "KernelStatus start_kernel", to: "void stop_kernel")
+check(occursInOrder([
+    "goal_kernel_core_initialize()",
+    "set_saves_directory(saves_directory, &saves_error)",
+    "return failure",
+    "goal_kernel_core_get_state",
+], in: nativeStart), "the verified save path is installed after init and before kernel use")
 
 let lifecycle = section(session, from: "func scenePhaseChanged", to: "private func resetDisplayTiming")
 check(occursInOrder([

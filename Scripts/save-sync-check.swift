@@ -475,37 +475,40 @@ private func twoSidedChangeAutomaticallyResolves() async throws {
           "the cloud mirror receives the winner")
 }
 
-private func completionPercentageBeatsModificationDate() async throws {
-    print("validated OpenGOAL completion percentage ranks real Jak 1 banks")
+private func newerLowerProgressWins() async throws {
+    print("the newest valid OpenGOAL save wins regardless of displayed completion")
     let fixture = try Fixture()
     let older = Date(timeIntervalSince1970: 1_700_000_000)
     let newer = older.addingTimeInterval(300)
-    try writeBank(progress: 72, marker: 1, under: fixture.local, modificationDate: older)
-    try writeBank(progress: 44, marker: 2, under: fixture.cloud, modificationDate: newer)
+    try writeBank(progress: 72, saveCount: 9, marker: 1,
+                  under: fixture.local, modificationDate: older)
+    try writeBank(progress: 44, saveCount: 1, marker: 2,
+                  under: fixture.cloud, modificationDate: newer)
 
     let outcome = try await fixture.engine.sync()
-    check(outcome.resolutions == [SaveResolution(relativePath: bankPath, winner: .local,
-                                                  basis: .completionPercentage(72))],
-          "the farther-progress local bank wins even though its date is older")
+    check(outcome.resolutions == [SaveResolution(relativePath: bankPath, winner: .iCloud,
+                                                  basis: .modificationDate)],
+          "the newer lower-progress cloud bank wins")
     check(data(under: fixture.local) == data(under: fixture.cloud),
-          "both canonical copies contain the progress winner")
-    check(data(under: fixture.local) == jak1Bank(progress: 72, saveCount: 1, marker: 1),
+          "both canonical copies contain the newest user action")
+    check(data(under: fixture.local) == jak1Bank(progress: 44, saveCount: 1, marker: 2),
           "the winning bank remains byte-for-byte desktop compatible")
 }
 
-private func equalProgressFallsBackToNewestDate() async throws {
-    print("equal validated progress falls back to modification date")
+private func equalDateHigherSaveGenerationWins() async throws {
+    print("equal valid dates fall back to the loader-selected save generation")
     let fixture = try Fixture()
-    let older = Date(timeIntervalSince1970: 1_700_000_000)
-    let newer = older.addingTimeInterval(300)
-    try writeBank(progress: 55, marker: 1, under: fixture.local, modificationDate: older)
-    try writeBank(progress: 55, marker: 2, under: fixture.cloud, modificationDate: newer)
+    let sameDate = Date(timeIntervalSince1970: 1_700_000_000)
+    try writeBank(progress: 95, saveCount: 4, marker: 1,
+                  under: fixture.local, modificationDate: sameDate)
+    try writeBank(progress: 12, saveCount: 5, marker: 2,
+                  under: fixture.cloud, modificationDate: sameDate)
 
     let outcome = try await fixture.engine.sync()
     check(outcome.resolutions.first?.winner == .iCloud,
-          "the newer bank wins when neither has farther progress")
-    check(outcome.resolutions.first?.basis == .modificationDate,
-          "the tie is explicitly date-based")
+          "the higher generation wins even with lower displayed completion")
+    check(outcome.resolutions.first?.basis == .saveGeneration(5),
+          "the resolution records the native save generation")
 }
 
 private func validBankBeatsNewerCorruptBank() async throws {
@@ -534,9 +537,9 @@ private func pairedBanksResolveAsOneSlot() async throws {
     print("alternating Jak 1 banks resolve as one logical slot")
     let fixture = try Fixture()
     let date = Date(timeIntervalSince1970: 1_700_000_000)
-    try writeBank(progress: 80, saveCount: 4, marker: 1,
+    try writeBank(progress: 80, saveCount: 6, marker: 1,
                   to: bankFilePath(0), under: fixture.local, modificationDate: date)
-    try writeBank(progress: 10, saveCount: 3, marker: 2,
+    try writeBank(progress: 10, saveCount: 5, marker: 2,
                   to: bankFilePath(1), under: fixture.local, modificationDate: date)
     try writeBank(progress: 70, saveCount: 4, marker: 3,
                   to: bankFilePath(0), under: fixture.cloud, modificationDate: date)
@@ -547,8 +550,8 @@ private func pairedBanksResolveAsOneSlot() async throws {
 
     let outcome = try await fixture.engine.sync()
     check(outcome.resolutions == [SaveResolution(relativePath: bankFilePath(0), winner: .local,
-                                                  basis: .completionPercentage(80))],
-          "the side whose loader-selected generation is farther wins the whole slot")
+                                                  basis: .saveGeneration(6))],
+          "the higher loader-selected generation wins the whole slot")
     check(data(bankFilePath(0), under: fixture.cloud) == originalLocalEven,
           "the winning even bank replaces its cloud peer")
     check(data(bankFilePath(1), under: fixture.cloud) == originalLocalOdd,
@@ -568,7 +571,7 @@ private func pairResolutionRemovesLoserOnlyPeerAfterArchiving() async throws {
     print("pair resolution removes a loser-only peer after archiving it")
     let fixture = try Fixture()
     let date = Date(timeIntervalSince1970: 1_700_000_000)
-    try writeBank(progress: 80, saveCount: 4, marker: 1,
+    try writeBank(progress: 80, saveCount: 6, marker: 1,
                   to: bankFilePath(0), under: fixture.local, modificationDate: date)
     try writeBank(progress: 60, saveCount: 4, marker: 2,
                   to: bankFilePath(0), under: fixture.cloud, modificationDate: date)
@@ -578,7 +581,7 @@ private func pairResolutionRemovesLoserOnlyPeerAfterArchiving() async throws {
 
     let outcome = try await fixture.engine.sync()
     check(outcome.resolutions.first?.winner == .local,
-          "the 80% local slot beats the 70% cloud slot")
+          "the higher-generation local slot beats the cloud slot")
     check(data(bankFilePath(1), under: fixture.local) == nil,
           "the winner remains a one-bank slot")
     check(data(bankFilePath(1), under: fixture.cloud) == nil,
@@ -605,12 +608,12 @@ private func loaderSaveCountTieSelectsOddBank() async throws {
                   to: bankFilePath(1), under: fixture.cloud, modificationDate: date)
 
     let outcome = try await fixture.engine.sync()
-    check(outcome.resolutions.first?.winner == .iCloud,
-          "the local odd-bank tie exposes 10%, so the cloud slot's 20% wins")
-    check(outcome.downloaded == 2,
-          "replacing both local members reports two logical downloads")
-    check(loaderSelectedCompletion(evenIndex: 0, under: fixture.local) == 20,
-          "the canonical pair follows the loader's exact tie rule")
+    check(outcome.resolutions.first?.winner == .local,
+          "the local odd-bank tie exposes generation 4, which beats cloud generation 3")
+    check(outcome.uploaded == 2,
+          "replacing both cloud members reports two logical uploads")
+    check(loaderSelectedCompletion(evenIndex: 0, under: fixture.cloud) == 10,
+          "the canonical pair follows the loader's odd-bank tie rule")
 }
 
 private func equalDatesKeepLocalAuthorityWithoutHashOrdering() async throws {
@@ -1371,7 +1374,7 @@ private func legitimateOneBankDivergenceIsSurfaced() async throws {
     let outcome = try await fixture.engine.sync()
     check(outcome.resolutions == [SaveResolution(relativePath: bankFilePath(0),
                                                   winner: .iCloud,
-                                                  basis: .completionPercentage(70))],
+                                                  basis: .modificationDate)],
           "missing-odd divergence is explicitly ranked and surfaced")
     check(loaderSelectedCompletion(evenIndex: 0, under: fixture.local) == 70,
           "the ranked full pair becomes the local loader generation")
@@ -1521,7 +1524,7 @@ private func interruptedResolutionSurfacesExactlyOnce() async throws {
           "the exact automatic resolution survives interruption in the journal")
 
     let expected = SaveResolution(relativePath: bankFilePath(0), winner: .local,
-                                  basis: .completionPercentage(80))
+                                  basis: .saveGeneration(6))
     let recovery = try await engine(for: fixture).sync()
     check(recovery.resolutions == [expected],
           "successful recovery surfaces the journaled resolution")
@@ -1607,7 +1610,7 @@ private func malformedEmbeddedPairIsRejectedBeforeMutation() async throws {
 }
 
 private func operationsAreFIFOExclusiveAcrossAwaitPoints() async throws {
-    print("top-level save operations remain FIFO-exclusive across actor await points")
+    print("top-level save operations remain FIFO-exclusive and cancellation-safe")
     let gate = OperationGate()
     let fixture = try Fixture(operationAwaitHook: { await gate.pauseFirstEntry() })
     let date = Date(timeIntervalSince1970: 1_700_000_000)
@@ -1619,17 +1622,34 @@ private func operationsAreFIFOExclusiveAcrossAwaitPoints() async throws {
                                             directoryHint: .isDirectory)
     try FileManager.default.createDirectory(at: exportRoot,
                                             withIntermediateDirectories: true)
-    let second = Task { try await fixture.engine.exportSaves(to: exportRoot) }
+    let canceledRoot = fixture.root.appending(path: "canceled-export",
+                                              directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: canceledRoot,
+                                            withIntermediateDirectories: true)
+    let canceled = Task { try await fixture.engine.exportSaves(to: canceledRoot) }
+    try await Task.sleep(for: .milliseconds(20))
+    canceled.cancel()
+    let survivor = Task { try await fixture.engine.exportSaves(to: exportRoot) }
     try await Task.sleep(for: .milliseconds(20))
     let entriesWhileBlocked = await gate.entries()
     check(entriesWhileBlocked == 1,
-          "a second operation cannot cross its await hook while the first owns the lease")
+          "queued operations cannot cross their await hook while the first owns the lease")
     await gate.release()
     _ = try await first.value
-    _ = try await second.value
+    var cancellationReachedCaller = false
+    do {
+        _ = try await canceled.value
+    } catch is CancellationError {
+        cancellationReachedCaller = true
+    }
+    _ = try await survivor.value
+    check(cancellationReachedCaller,
+          "a canceled queued operation throws after acquiring and releasing its lease")
+    check(regularFiles(under: canceledRoot).isEmpty,
+          "the canceled queued export cannot mutate after its lease resumes")
     let finalEntries = await gate.entries()
     check(finalEntries == 2,
-          "the queued operation enters only after the first releases the FIFO lease")
+          "only the surviving queued operation reaches its hook after FIFO release")
 }
 
 private func archiveFailureLeavesCanonicalPairsUntouched() async throws {
@@ -2000,8 +2020,8 @@ private struct SaveSyncCheck {
             try await changedSideWinsAgainstBaseline()
             try await initialDivergenceUsesNewestDateAndPreservesBoth()
             try await twoSidedChangeAutomaticallyResolves()
-            try await completionPercentageBeatsModificationDate()
-            try await equalProgressFallsBackToNewestDate()
+            try await newerLowerProgressWins()
+            try await equalDateHigherSaveGenerationWins()
             try await validBankBeatsNewerCorruptBank()
             try await pairedBanksResolveAsOneSlot()
             try await pairResolutionRemovesLoserOnlyPeerAfterArchiving()

@@ -51,13 +51,14 @@ struct KernelStatus {
  * and the returned status has `running == false` and a message naming the failure.
  *
  * `data_directory` is the directory holding the player's own prepared `iso/` and `fr3/` data, or
- * empty to start without game data. No game data ships with this application and none is ever
- * written into it.
+ * empty to start without game data. `saves_directory` is the canonical local directory where the
+ * existing OpenGOAL memory-card implementation reads and writes saves. No game data ships with
+ * this application and none is ever written into it.
  *
  * Never throws. The kernel is a process-wide singleton, so a second call while a session is live
  * fails instead of starting a second one.
  */
-KernelStatus start_kernel(std::string data_directory) noexcept;
+KernelStatus start_kernel(std::string data_directory, std::string saves_directory) noexcept;
 
 /*! Tear the kernel down. Safe to call when no session is live. Never throws. */
 void stop_kernel() noexcept;

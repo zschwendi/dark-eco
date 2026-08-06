@@ -60,6 +60,7 @@ nonisolated struct SaveResolution: Sendable, Equatable, Codable {
         case completionPercentage(Float)
         case onlyValidJak1Bank
         case modificationDate
+        case saveGeneration(UInt32)
         case localGameplayAuthority
         case activeGameplayAuthority
     }
@@ -282,8 +283,10 @@ actor SaveSyncEngine {
     /// Performs an unconditional launch, foreground, or user-requested synchronization.
     func sync(mode: SaveSyncMode = .bidirectional) async throws -> SaveSyncOutcome {
         await acquireOperation()
-        await configuration.operationAwaitHook()
         defer { releaseOperation() }
+        try Task.checkCancellation()
+        await configuration.operationAwaitHook()
+        try Task.checkCancellation()
         return try await syncUnlocked(mode: mode)
     }
 
@@ -546,8 +549,10 @@ actor SaveSyncEngine {
     func syncIfLocalFilesChanged(mode: SaveSyncMode = .bidirectional) async throws
         -> SaveSyncOutcome? {
         await acquireOperation()
-        await configuration.operationAwaitHook()
         defer { releaseOperation() }
+        try Task.checkCancellation()
+        await configuration.operationAwaitHook()
+        try Task.checkCancellation()
         let current = try stamps(in: configuration.localRoot)
         guard current != lastLocalStamps else { return nil }
         return try await syncUnlocked(mode: mode)
@@ -557,8 +562,10 @@ actor SaveSyncEngine {
     /// Existing divergent local files are archived before the selected copies replace them.
     func importSaves(from selectedDirectory: URL) async throws -> SaveTransferResult {
         await acquireOperation()
-        await configuration.operationAwaitHook()
         defer { releaseOperation() }
+        try Task.checkCancellation()
+        await configuration.operationAwaitHook()
+        try Task.checkCancellation()
         return try await importSavesUnlocked(from: selectedDirectory)
     }
 
@@ -641,6 +648,7 @@ actor SaveSyncEngine {
     func hasUnsafePendingLocalMutation() async throws -> Bool {
         await acquireOperation()
         defer { releaseOperation() }
+        try Task.checkCancellation()
         let state = try loadState()
         guard let intent = state.pairMutationIntent else { return false }
         try validatePairMutationIntent(intent)
@@ -650,8 +658,10 @@ actor SaveSyncEngine {
     /// Writes a stable desktop-compatible `OpenGOAL/jak1/saves` tree without changing local saves.
     func exportSaves(to selectedDirectory: URL) async throws -> SaveTransferResult {
         await acquireOperation()
-        await configuration.operationAwaitHook()
         defer { releaseOperation() }
+        try Task.checkCancellation()
+        await configuration.operationAwaitHook()
+        try Task.checkCancellation()
         return try await exportSavesUnlocked(to: selectedDirectory)
     }
 
@@ -1288,28 +1298,29 @@ actor SaveSyncEngine {
         let path = local.evenPath
         let localMetadata = local.effectiveMetadata
         let remoteMetadata = remote.effectiveMetadata
-        if let localMetadata, let remoteMetadata,
-           localMetadata.completionPercentage != remoteMetadata.completionPercentage {
-            let winner: SaveResolution.Copy = localMetadata.completionPercentage
-                > remoteMetadata.completionPercentage ? .local : .iCloud
-            return SaveResolution(
-                relativePath: path,
-                winner: winner,
-                basis: .completionPercentage(max(localMetadata.completionPercentage,
-                                                 remoteMetadata.completionPercentage)))
-        }
         if (localMetadata != nil) != (remoteMetadata != nil) {
             return SaveResolution(relativePath: path,
                                   winner: localMetadata != nil ? .local : .iCloud,
                                   basis: .onlyValidJak1Bank)
         }
 
-        let localDate = local.effectiveFile?.modificationDate ?? slotModificationDate(local)
-        let remoteDate = remote.effectiveFile?.modificationDate ?? slotModificationDate(remote)
+        let localDate = localMetadata == nil
+            ? slotModificationDate(local) : local.effectiveFile?.modificationDate
+        let remoteDate = remoteMetadata == nil
+            ? slotModificationDate(remote) : remote.effectiveFile?.modificationDate
         if let localDate, let remoteDate, localDate != remoteDate {
             return SaveResolution(relativePath: path,
                                   winner: localDate > remoteDate ? .local : .iCloud,
                                   basis: .modificationDate)
+        }
+        if let localMetadata, let remoteMetadata,
+           localMetadata.saveCount != remoteMetadata.saveCount {
+            let winner: SaveResolution.Copy = localMetadata.saveCount
+                > remoteMetadata.saveCount ? .local : .iCloud
+            return SaveResolution(relativePath: path,
+                                  winner: winner,
+                                  basis: .saveGeneration(max(localMetadata.saveCount,
+                                                             remoteMetadata.saveCount)))
         }
         return SaveResolution(relativePath: path, winner: .local,
                               basis: .localGameplayAuthority)

@@ -128,7 +128,8 @@ final class GameSession {
         guard !isRunning, !isBooting, currentScenePhase == .active else { return }
 
         let status = GOALPadRuntimeBridge.startKernel(
-            withDataDirectory: GameDataLayout.gameDirectory.path)
+            withDataDirectory: GameDataLayout.gameDirectory.path,
+            savesDirectory: SaveDataLayout.localSavesDirectory.path)
         kernel = status
         guard status.isRunning else {
             startupError = status.message

@@ -92,7 +92,24 @@ static bool set_data_directory(const std::string& path, std::string* out_error) 
 #endif
 }
 
-KernelStatus start_kernel(std::string data_directory) noexcept {
+static bool set_saves_directory(const std::string& path, std::string* out_error) {
+  if (path.empty()) {
+    *out_error = "the canonical local saves directory was empty";
+    return false;
+  }
+  if (goal_kernel_core_set_saves_directory(path.c_str()) != GOAL_KERNEL_CORE_OK) {
+    *out_error = goal_kernel_core_last_error();
+    return false;
+  }
+  const char* accepted_path = goal_kernel_core_saves_directory();
+  if (!accepted_path || path != accepted_path) {
+    *out_error = "the runtime accepted a different saves directory";
+    return false;
+  }
+  return true;
+}
+
+KernelStatus start_kernel(std::string data_directory, std::string saves_directory) noexcept {
   try {
     std::string architecture = architecture_name();
 
@@ -107,6 +124,13 @@ KernelStatus start_kernel(std::string data_directory) noexcept {
       return failure(
           std::string("goal_kernel_core_initialize failed: ") + goal_kernel_core_last_error(),
           std::move(architecture));
+    }
+
+    std::string saves_error;
+    if (!set_saves_directory(saves_directory, &saves_error)) {
+      return failure("OpenGOAL rejected the canonical local saves directory '" + saves_directory +
+                         "': " + saves_error + ".",
+                     std::move(architecture));
     }
 
     goal_kernel_core_state state = {};
