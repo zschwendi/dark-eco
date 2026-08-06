@@ -48,7 +48,7 @@ rg -Fq 'ModernTouchChromeLayout' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'pill(.stats)' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'chrome.centeredSessionFrame.midX' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'if isAwaitingTitleStart {' "$root/GOALPad/Game/TouchControlsView.swift"
-rg -Fq '.allowsHitTesting(!isAwaitingTitleStart)' \
+rg -Fq '.allowsHitTesting(zoomIsAvailable)' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 if rg -Fq 'Button { performCapturedStats() }' "$root/GOALPad/Game/TouchControlsView.swift"; then
   echo "captured start/pause menu still presents the redundant Stats pill" >&2
@@ -56,12 +56,22 @@ if rg -Fq 'Button { performCapturedStats() }' "$root/GOALPad/Game/TouchControlsV
 fi
 
 # Controller activity suppresses every touch-control drawing without removing its semantic hit
-# target. The first hidden touch must still perform its action and reclaim touch presentation.
+# target. Ordinary gameplay keeps Zoom, Stats, and Pause visible while only the R-stick artwork
+# idles away. The first hidden touch must still perform its action and reclaim presentation.
 if rg -Fq 'if isVisible {' "$root/GOALPad/Game/TouchControlsView.swift"; then
   echo "controller suppression still removes a semantic touch control" >&2
   exit 1
 fi
-rg -Fq '.opacity(isVisible ? 1 : 0)' "$root/GOALPad/Game/TouchControlsView.swift"
+if rg -Fq '.opacity(isVisible ? 1 : 0)' "$root/GOALPad/Game/TouchControlsView.swift"; then
+  echo "global idle opacity still hides persistent gameplay controls" >&2
+  exit 1
+fi
+rg -Fq 'persistentGameplayChromeIsVisible' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'rightStickArtworkIsVisible' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq '.opacity(rightStickArtworkIsVisible ? 1 : 0)' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'rightStickFadeOutDelay: TimeInterval = 3' "$root/GOALPad/Game/TouchControls.swift"
+rg -Fq 'noteScreenInteraction()' "$root/GOALPad/Game/TouchControls.swift"
 rg -Fq 'isInteractive: nativeMenuControlsAreVisible' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'showsChrome: nativeMenuControlsAreVisible' \
@@ -104,6 +114,17 @@ rg -Fq 'warpGateControlsVisible: warpGateTouchControlsAreVisible' \
 rg -Fq 'warpGateCapturesInput: capturesWarpGateTouchInput' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'cutsceneSkipAvailable: cutsceneSkipAvailable' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'VStack(alignment: .trailing, spacing: 12)' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq '.frame(width: NativeMenuCommandLayout.width,' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'height: NativeMenuCommandLayout.height)' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'in: RoundedRectangle(cornerRadius: 16)' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'alignment: .bottomTrailing)' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq '.padding(.bottom, max(20, proxy.safeAreaInsets.bottom))' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 face_prompt_view=$(sed -n \
   '/private struct NativeFacePromptTouchControls: View {/,/private struct NativeWarpGateTouchControls: View {/p' \

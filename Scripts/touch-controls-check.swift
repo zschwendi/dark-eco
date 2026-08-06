@@ -1499,6 +1499,86 @@ private func controllerSuppressionKeepsTouchRecovery() {
 }
 
 @MainActor
+private func build128ChromeStateMatrixAndRightStickRecovery() {
+    print("Build 128 keeps gameplay chrome persistent and idles only the R artwork")
+    check(TouchControls.rightStickFadeOutDelay == 3,
+          "the R-stick artwork uses the exact three-second idle delay")
+
+    let persistentCases: [(GOALPadGameMode, GameplayRunReadiness, Bool, Bool, Bool, Bool)] = [
+        (.gameplay, .active, false, false, false, true),
+        (.gameplay, .preRun, false, false, false, false),
+        (.gameplay, .active, true, false, false, false),
+        (.pause, .active, false, false, false, false),
+        (.progress, .active, false, false, false, false),
+        (.gameplay, .active, false, true, false, false),
+        (.gameplay, .active, false, true, true, true),
+    ]
+    for (mode, readiness, awaiting, suppressed, hasTouches, expected) in persistentCases {
+        check(TouchControls.persistentGameplayChromeIsVisible(
+            mode: mode,
+            runReadiness: readiness,
+            isAwaitingTitleStart: awaiting,
+            isSuppressed: suppressed,
+            hasTouches: hasTouches) == expected,
+              "persistent chrome matrix rejects title/menu/controller states exactly")
+    }
+
+    check(TouchControls.titleStartChromeIsVisible(
+        mode: .gameplay, isAwaitingTitleStart: true,
+        isSuppressed: false, hasTouches: false),
+          "the title prompt presents its centered Start control")
+    check(!TouchControls.titleStartChromeIsVisible(
+        mode: .gameplay, isAwaitingTitleStart: false,
+        isSuppressed: false, hasTouches: false)
+          && !TouchControls.titleStartChromeIsVisible(
+            mode: .pause, isAwaitingTitleStart: true,
+            isSuppressed: false, hasTouches: false),
+          "title Start is absent from active gameplay and captured native menus")
+
+    check(TouchControls.rightStickArtworkIsVisible(
+        mode: .gameplay, runReadiness: .active, isAwaitingTitleStart: false,
+        cutsceneSkipAvailable: false, isEngaged: true,
+        isSuppressed: false, hasTouches: false),
+          "engaged active gameplay shows the fixed R-stick artwork")
+    check(!TouchControls.rightStickArtworkIsVisible(
+        mode: .gameplay, runReadiness: .active, isAwaitingTitleStart: false,
+        cutsceneSkipAvailable: false, isEngaged: false,
+        isSuppressed: false, hasTouches: false),
+          "idle gameplay hides only the fixed R-stick artwork")
+    check(!TouchControls.rightStickArtworkIsVisible(
+        mode: .gameplay, runReadiness: .active, isAwaitingTitleStart: false,
+        cutsceneSkipAvailable: true, isEngaged: true,
+        isSuppressed: false, hasTouches: false),
+          "authoritative SKIP ownership hides the conflicting camera chrome")
+    check(!TouchControls.rightStickArtworkIsVisible(
+        mode: .pause, runReadiness: .active, isAwaitingTitleStart: false,
+        cutsceneSkipAvailable: false, isEngaged: true,
+        isSuppressed: false, hasTouches: false),
+          "captured pause hides the gameplay R-stick artwork")
+
+    var hiddenStick = Runner()
+    hiddenStick.controls.setNativeMenuState(
+        .gameplay, progress: .unavailable, titleStartState: .notAwaiting,
+        runReadiness: .active)
+    hiddenStick.controls.reset()
+    check(!hiddenStick.controls.isEngaged,
+          "reset deterministically models fully idle R-stick artwork")
+    let camera = Finger()
+    let cameraCentre = CGPoint(x: Runner.rightStick.midX, y: Runner.rightStick.midY)
+    hiddenStick.down(camera, cameraCentre)
+    hiddenStick.move(camera, CGPoint(x: cameraCentre.x + TouchControls.rightStickRadius,
+                                     y: cameraCentre.y))
+    check(hiddenStick.controls.isEngaged && hiddenStick.frame().isRightDeflected,
+          "the first drag on hidden R artwork both restores it and controls the camera")
+
+    hiddenStick.up(camera)
+    hiddenStick.controls.reset()
+    check(hiddenStick.controls.performZoomToggle(lookAroundState: .normal)
+          && hiddenStick.controls.isEngaged,
+          "a semantic Zoom tap also restores touch presentation immediately")
+}
+
+@MainActor
 private func gameplayTouchBatchHasOneOrderedOwner() {
     print("gameplay touch recovery and mapping share one ordered UIKit owner")
     var events: [String] = []
@@ -2354,6 +2434,7 @@ struct TouchControlsCheck {
         semanticTitleStartBypassesArtworkGeometryAndSurvivesCadence()
         sessionControlStateMatrixIsExactAndFailClosed()
         controllerSuppressionKeepsTouchRecovery()
+        build128ChromeStateMatrixAndRightStickRecovery()
         gameplayTouchBatchHasOneOrderedOwner()
         nativeMenuActionsAreTruthfullyGatedAndLabelled()
         nativeMenuActionsEmitOnlyExpectedInputBytes()

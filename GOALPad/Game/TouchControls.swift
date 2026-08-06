@@ -1156,7 +1156,8 @@ final class TouchControls {
     /// Frames a recognised one-shot press remains down, followed by a guaranteed release gap.
     nonisolated static let holdFrames = 6
     nonisolated static let releaseFrames = 2
-    nonisolated static let fadeOutDelay: TimeInterval = 0.9
+    /// Only the fixed camera-stick artwork idles away. Persistent gameplay buttons do not.
+    nonisolated static let rightStickFadeOutDelay: TimeInterval = 3
 
     /// Strong movement pushes also step list-style menus through the D-pad.
     nonisolated static let dpadPress: CGFloat = 0.55
@@ -1274,6 +1275,8 @@ final class TouchControls {
         guard mode != nativeMenuMode || progress != progressMenuSnapshot
                 || titleStartState != self.titleStartState
                 || runReadiness != self.runReadiness else { return }
+        let entersActiveGameplay = mode == .gameplay && runReadiness == .active
+            && (nativeMenuMode != .gameplay || self.runReadiness != .active)
         let capturedInput = capturesNativeTouchInput
         nativeMenuMode = mode
         progressMenuSnapshot = progress
@@ -1281,6 +1284,7 @@ final class TouchControls {
         self.runReadiness = runReadiness
         if mode != .gameplay { cancelFacePromptInput() }
         if capturedInput || capturesNativeTouchInput { reset() }
+        if entersActiveGameplay { noteScreenInteraction() }
     }
 
     /// Any published semantic or sequence change invalidates touch-owned work from the prior
@@ -1331,6 +1335,7 @@ final class TouchControls {
                                               titleStartState: titleStartState,
                                               runReadiness: runReadiness)
         else { return }
+        noteScreenInteraction()
         press(action.button)
         enqueueHaptic(.button(action.button))
     }
@@ -1339,6 +1344,7 @@ final class TouchControls {
     /// captured raw gameplay touches. Progress screens keep it visible but inert.
     func performCapturedStats() {
         guard nativeMenuMode == .pause else { return }
+        noteScreenInteraction()
         press(.stats)
         enqueueHaptic(.button(.stats))
     }
@@ -1363,6 +1369,7 @@ final class TouchControls {
               NativeWarpGateTouchAction.available(in: nativeMenuMode,
                                                   snapshot: warpGateTouchSnapshot).contains(action)
         else { return }
+        noteScreenInteraction()
         press(action.button)
         enqueueHaptic(.button(action.button))
     }
@@ -1374,6 +1381,7 @@ final class TouchControls {
               Self.cutsceneSkipIsAvailable(in: nativeMenuMode,
                                            snapshot: cutsceneSkipTouchSnapshot)
         else { return }
+        noteScreenInteraction()
         press(.triangle)
         enqueueHaptic(.button(.triangle))
     }
@@ -1394,6 +1402,7 @@ final class TouchControls {
                 warpGateCapturesInput: capturesWarpGateTouchInput,
                 cutsceneSkipAvailable: cutsceneAvailable).contains(action)
         else { return }
+        noteScreenInteraction()
         facePromptPulses[action.button, default: Pulse()].press()
         facePromptHapticEvents.append(.button(action.button))
     }
@@ -1472,7 +1481,7 @@ final class TouchControls {
             press(button)
             enqueueHaptic(.button(button))
         }
-        engage()
+        noteScreenInteraction()
     }
 
     func moved(_ id: ObjectIdentifier, to point: CGPoint) {
@@ -1542,6 +1551,7 @@ final class TouchControls {
         guard !capturesNativeTouchInput else { return false }
         switch lookAroundState {
         case .normal, .firstPerson:
+            noteScreenInteraction()
             press(.triangle)
             enqueueHaptic(.gesture(.triangle))
             return true
@@ -1748,6 +1758,44 @@ final class TouchControls {
             && (!isSuppressed || hasTouches)
     }
 
+    nonisolated static func persistentGameplayChromeIsVisible(
+        mode: GOALPadGameMode,
+        runReadiness: GameplayRunReadiness,
+        isAwaitingTitleStart: Bool,
+        isSuppressed: Bool,
+        hasTouches: Bool
+    ) -> Bool {
+        mode == .gameplay && runReadiness == .active && !isAwaitingTitleStart
+            && (!isSuppressed || hasTouches)
+    }
+
+    nonisolated static func titleStartChromeIsVisible(
+        mode: GOALPadGameMode,
+        isAwaitingTitleStart: Bool,
+        isSuppressed: Bool,
+        hasTouches: Bool
+    ) -> Bool {
+        mode == .gameplay && isAwaitingTitleStart && (!isSuppressed || hasTouches)
+    }
+
+    nonisolated static func rightStickArtworkIsVisible(
+        mode: GOALPadGameMode,
+        runReadiness: GameplayRunReadiness,
+        isAwaitingTitleStart: Bool,
+        cutsceneSkipAvailable: Bool,
+        isEngaged: Bool,
+        isSuppressed: Bool,
+        hasTouches: Bool
+    ) -> Bool {
+        persistentGameplayChromeIsVisible(
+            mode: mode,
+            runReadiness: runReadiness,
+            isAwaitingTitleStart: isAwaitingTitleStart,
+            isSuppressed: isSuppressed,
+            hasTouches: hasTouches)
+            && !cutsceneSkipAvailable && isEngaged
+    }
+
     nonisolated static func artworkLabel(for button: TouchButton,
                                          sessionAction: NativeMenuTouchAction?,
                                          cutsceneSkipAvailable: Bool = false) -> String {
@@ -1909,6 +1957,12 @@ final class TouchControls {
 
     // MARK: - Visibility
 
+    /// Records either a raw UIKit touch or an app-owned semantic touch action.
+    func noteScreenInteraction() {
+        engage()
+        if touches.isEmpty { fadeWhenIdle() }
+    }
+
     private func engage() {
         fadeToken += 1
         isEngaged = true
@@ -1919,7 +1973,7 @@ final class TouchControls {
         fadeToken += 1
         let token = fadeToken
         Task { [weak self] in
-            try? await Task.sleep(for: .seconds(Self.fadeOutDelay))
+            try? await Task.sleep(for: .seconds(Self.rightStickFadeOutDelay))
             guard let self, token == fadeToken, touches.isEmpty else { return }
             isEngaged = false
         }

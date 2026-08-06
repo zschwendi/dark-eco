@@ -46,14 +46,6 @@ struct TouchControlsView: View {
         for touch in touches { began(touch) }
     }
 
-    private var isNativeMenuOpen: Bool {
-        switch gameMode {
-        case .pause, .progress, .menu: true
-        case .unknown, .gameplay: false
-        @unknown default: false
-        }
-    }
-
     private var nativeMenuActions: [NativeMenuTouchAction] {
         NativeMenuTouchAction.available(
             in: gameMode, progress: progressMenuSnapshot, titleStartState: titleStartState)
@@ -106,12 +98,43 @@ struct TouchControlsView: View {
         sessionControl?.action == .start && gameMode == .gameplay
     }
 
-    private var isVisible: Bool {
-        TouchControls.artworkIsVisible(isEngaged: controls.isEngaged,
-                                       isSuppressed: isSuppressed,
-                                       hasTouches: !controls.touches.isEmpty,
-                                       isNativeMenuOpen: isNativeMenuOpen,
-                                       isAwaitingTitleStart: isAwaitingTitleStart)
+    private var hasScreenTouches: Bool { !controls.touches.isEmpty }
+
+    private var activeGameplayChromeIsAvailable: Bool {
+        gameMode == .gameplay && runReadiness == .active && !isAwaitingTitleStart
+    }
+
+    private var persistentGameplayChromeIsVisible: Bool {
+        TouchControls.persistentGameplayChromeIsVisible(
+            mode: gameMode,
+            runReadiness: runReadiness,
+            isAwaitingTitleStart: isAwaitingTitleStart,
+            isSuppressed: isSuppressed,
+            hasTouches: hasScreenTouches)
+    }
+
+    private var titleStartChromeIsVisible: Bool {
+        TouchControls.titleStartChromeIsVisible(
+            mode: gameMode,
+            isAwaitingTitleStart: isAwaitingTitleStart,
+            isSuppressed: isSuppressed,
+            hasTouches: hasScreenTouches)
+    }
+
+    private var rightStickArtworkIsVisible: Bool {
+        TouchControls.rightStickArtworkIsVisible(
+            mode: gameMode,
+            runReadiness: runReadiness,
+            isAwaitingTitleStart: isAwaitingTitleStart,
+            cutsceneSkipAvailable: cutsceneSkipAvailable,
+            isEngaged: controls.isEngaged,
+            isSuppressed: isSuppressed,
+            hasTouches: hasScreenTouches)
+    }
+
+    /// Triangle belongs to SKIP while the authored cutscene query owns it.
+    private var zoomIsAvailable: Bool {
+        activeGameplayChromeIsAvailable && !cutsceneSkipAvailable
     }
 
     var body: some View {
@@ -126,17 +149,16 @@ struct TouchControlsView: View {
 
                     artwork(in: proxy)
                         .allowsHitTesting(false)
-                        .opacity(isVisible ? 1 : 0)
-                        .animation(.easeOut(duration: 0.16), value: isVisible)
 
                     if titleStartTouchTargetIsVisible {
                         titleStartTouchTarget
                     }
 
                     zoomButton(in: proxy)
-                        .opacity(isVisible && !isAwaitingTitleStart ? 1 : 0)
-                        .allowsHitTesting(!isAwaitingTitleStart)
-                        .animation(.easeOut(duration: 0.16), value: isVisible)
+                        .opacity(zoomIsAvailable && persistentGameplayChromeIsVisible ? 1 : 0)
+                        .allowsHitTesting(zoomIsAvailable)
+                        .animation(.easeOut(duration: 0.16),
+                                   value: persistentGameplayChromeIsVisible)
                 }
 
                 if capturesNativeMenuInput {
@@ -173,9 +195,10 @@ struct TouchControlsView: View {
                                                   isInteractive: true,
                                                   showsChrome: !isSuppressed,
                                                   reclaimTouchInput: reclaimTouchInput)
-                        .position(x: proxy.size.width / 2,
-                                  y: max(30, proxy.size.height
-                                    - max(220, proxy.safeAreaInsets.bottom + 200)))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity,
+                               alignment: .bottomTrailing)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, max(20, proxy.safeAreaInsets.bottom))
                 }
             }
         }
@@ -205,7 +228,8 @@ struct TouchControlsView: View {
                 pill(.start)
                     .position(x: chrome.centeredSessionFrame.midX,
                               y: chrome.centeredSessionFrame.midY)
-            } else {
+                    .opacity(titleStartChromeIsVisible ? 1 : 0)
+            } else if activeGameplayChromeIsAvailable {
                 pill(.stats)
                     .position(x: chrome.statsFrame.midX, y: chrome.statsFrame.midY)
                 pill(.start)
@@ -216,7 +240,11 @@ struct TouchControlsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 .padding(.trailing, layout.rightStickSpacer)
                 .padding(.bottom, bottomInset)
+                .opacity(rightStickArtworkIsVisible ? 1 : 0)
+                .animation(.easeOut(duration: 0.16), value: rightStickArtworkIsVisible)
         }
+        .opacity(isSuppressed && !hasScreenTouches ? 0 : 1)
+        .animation(.easeOut(duration: 0.16), value: isSuppressed)
     }
 
     private func pill(_ button: TouchButton) -> some View {
@@ -357,16 +385,21 @@ private struct NativeFacePromptTouchControls: View {
     #endif
 
     var body: some View {
-        HStack(spacing: 12) {
+        VStack(alignment: .trailing, spacing: 12) {
             ForEach(actions, id: \.self) { action in
                 Button { perform(action) } label: {
                     Text(action.glyph)
                         .font(.system(size: 27, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white)
-                        .frame(width: 60, height: 60)
-                        .background(.black.opacity(0.68), in: Circle())
-                        .overlay(Circle().strokeBorder(.white.opacity(0.55), lineWidth: 1.5))
-                        .contentShape(Circle())
+                        .frame(width: NativeMenuCommandLayout.width,
+                               height: NativeMenuCommandLayout.height)
+                        .background(.black.opacity(0.68),
+                                    in: RoundedRectangle(cornerRadius: 16))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 16)
+                                .strokeBorder(.white.opacity(0.55), lineWidth: 1.5)
+                        }
+                        .contentShape(RoundedRectangle(cornerRadius: 16))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(action.accessibilityLabel)
