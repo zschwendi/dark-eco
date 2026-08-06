@@ -13,9 +13,19 @@ struct TouchControlsView: View {
     let gameMode: GOALPadGameMode
     let progressMenuSnapshot: NativeProgressMenuSnapshot
     let warpGateTouchSnapshot: NativeWarpGateTouchSnapshot
+    let reclaimTouchInput: () -> Bool
 
     fileprivate static let space = "GOALPadTouchControls"
     private static let pillWidth: CGFloat = 82
+
+    @discardableResult
+    nonisolated static func requestTouchRecovery(
+        isSuppressed: Bool,
+        reclaim: () -> Bool
+    ) -> Bool {
+        guard isSuppressed else { return false }
+        return reclaim()
+    }
 
     private var isNativeMenuOpen: Bool {
         switch gameMode {
@@ -40,8 +50,7 @@ struct TouchControlsView: View {
     }
 
     private var capturesWarpGateTouchInput: Bool {
-        TouchControls.capturesWarpGateTouchInput(mode: gameMode,
-                                                snapshot: warpGateTouchSnapshot)
+        controls.capturesWarpGateTouchInput
     }
 
     private var warpGateActions: [NativeWarpGateTouchAction] {
@@ -97,6 +106,14 @@ struct TouchControlsView: View {
             }
         }
         .coordinateSpace(.named(Self.space))
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))
+                .onChanged { _ in
+                    Self.requestTouchRecovery(isSuppressed: isSuppressed,
+                                              reclaim: reclaimTouchInput)
+                }
+        )
         .ignoresSafeArea()
     }
 
@@ -227,30 +244,67 @@ private struct NativeWarpGateTouchControls: View {
     }
 
     private var controlsRow: some View {
-        HStack(spacing: 12) {
-            Spacer(minLength: 0)
-            ForEach(actions, id: \.self) { action in
-                Button { perform(action) } label: {
-                    Label(action.label, systemImage: action.systemImage)
-                        .font(.system(size: 17, weight: .semibold, design: .rounded))
-                        .frame(minWidth: action == .useWarpGate ? 168 : 104, minHeight: 60)
-                        .foregroundStyle(.white)
-                        .background(.black.opacity(0.68),
-                                    in: RoundedRectangle(cornerRadius: 16))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 16)
-                                .strokeBorder(.white.opacity(0.55), lineWidth: 1.5)
+        GeometryReader { proxy in
+            let layout = NativeWarpGateTouchLayout(availableWidth: proxy.size.width,
+                                                   actionCount: actions.count)
+            Group {
+                if layout.arrangement == .compactGrid {
+                    LazyVGrid(columns: Array(
+                        repeating: GridItem(.fixed(layout.buttonWidth),
+                                            spacing: NativeWarpGateTouchLayout.compactSpacing),
+                        count: layout.columnCount),
+                        alignment: .trailing,
+                        spacing: NativeWarpGateTouchLayout.compactSpacing) {
+                        ForEach(actions, id: \.self) { action in
+                            actionButton(action, width: layout.buttonWidth, compact: true)
                         }
-                        .contentShape(RoundedRectangle(cornerRadius: 16))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                } else {
+                    HStack(spacing: NativeWarpGateTouchLayout.wideSpacing) {
+                        Spacer(minLength: 0)
+                        ForEach(actions, id: \.self) { action in
+                            actionButton(action, width: layout.buttonWidth, compact: false)
+                        }
+                    }
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(action.label)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .opacity(isVisible ? 1 : 0)
         .allowsHitTesting(isVisible)
         .animation(.easeOut(duration: 0.16), value: isVisible)
+    }
+
+    private func actionButton(_ action: NativeWarpGateTouchAction,
+                              width: CGFloat,
+                              compact: Bool) -> some View {
+        Button { perform(action) } label: {
+            Group {
+                if compact {
+                    VStack(spacing: 3) {
+                        Image(systemName: action.systemImage)
+                        Text(action.label)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                    }
+                } else {
+                    Label(action.label, systemImage: action.systemImage)
+                }
+            }
+            .font(.system(size: 17, weight: .semibold, design: .rounded))
+            .frame(width: width)
+            .frame(minHeight: NativeWarpGateTouchLayout.buttonMinimumHeight)
+            .foregroundStyle(.white)
+            .background(.black.opacity(0.68), in: RoundedRectangle(cornerRadius: 16))
+            .overlay {
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(.white.opacity(0.55), lineWidth: 1.5)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(action.label)
     }
 
     private func perform(_ action: NativeWarpGateTouchAction) {

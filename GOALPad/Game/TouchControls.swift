@@ -83,7 +83,8 @@ struct NativeProgressMenuSnapshot: Equatable {
 }
 
 /// The authoritative warp-gate interaction state published by GOAL and checked by the native
-/// bridge. Invalid bridge reads expose no warp-specific controls.
+/// bridge. Invalid bridge reads remain distinct from a valid unavailable publication so a
+/// transient seqlock read cannot accidentally release an already captured destination screen.
 struct NativeWarpGateTouchSnapshot: Equatable, Sendable {
     enum State: Equatable, Sendable {
         case unavailable
@@ -99,7 +100,7 @@ struct NativeWarpGateTouchSnapshot: Equatable, Sendable {
     let selectionMoving: Bool
     let sequence: UInt32
 
-    static let unavailable = NativeWarpGateTouchSnapshot(
+    static let invalid = NativeWarpGateTouchSnapshot(
         valid: false, state: .unavailable, selectedSlot: -1,
         permittedMask: 0, selectionMoving: false, sequence: 0)
 
@@ -122,7 +123,7 @@ struct NativeWarpGateTouchSnapshot: Equatable, Sendable {
         @unknown default: nil
         }
         guard snapshot.valid.boolValue, let mappedState else {
-            self = .unavailable
+            self = .invalid
             return
         }
         self.init(valid: true,
@@ -150,8 +151,13 @@ struct NativeWarpGateTouchSnapshot: Equatable, Sendable {
              permittedMask: 0, selectionMoving: false, sequence: sequence)
     }
 
+    static func validUnavailable(sequence: UInt32) -> Self {
+        Self(valid: true, state: .unavailable, selectedSlot: -1,
+             permittedMask: 0, selectionMoving: false, sequence: sequence)
+    }
+
     var isStructurallyValid: Bool {
-        guard valid else { return false }
+        guard valid, sequence & 1 == 0 else { return false }
         return switch state {
         case .unavailable, .circleUseAvailable, .transitioning:
             selectedSlot == -1 && permittedMask == 0 && !selectionMoving
@@ -161,6 +167,45 @@ struct NativeWarpGateTouchSnapshot: Equatable, Sendable {
             } else {
                 false
             }
+        }
+    }
+}
+
+/// The four destination commands retain their existing one-row presentation on ordinary wide
+/// layouts and switch to a two-column grid before their semantic labels would clip.
+struct NativeWarpGateTouchLayout: Equatable, Sendable {
+    enum Arrangement: Equatable, Sendable {
+        case wideRow
+        case compactGrid
+    }
+
+    static let destinationActionCount = 4
+    static let wideButtonMinimumWidth: CGFloat = 104
+    static let wideSpacing: CGFloat = 12
+    static let compactSpacing: CGFloat = 8
+    static let buttonMinimumHeight: CGFloat = 60
+    static let minimumTargetDimension: CGFloat = 44
+
+    let arrangement: Arrangement
+    let columnCount: Int
+    let buttonWidth: CGFloat
+
+    init(availableWidth: CGFloat, actionCount: Int) {
+        let boundedWidth = max(0, availableWidth)
+        let wideRequiredWidth = CGFloat(actionCount) * Self.wideButtonMinimumWidth
+            + CGFloat(max(0, actionCount - 1)) * Self.wideSpacing
+        if actionCount == Self.destinationActionCount && boundedWidth < wideRequiredWidth {
+            arrangement = .compactGrid
+            columnCount = 2
+            buttonWidth = max(
+                Self.minimumTargetDimension,
+                (boundedWidth - Self.compactSpacing) / CGFloat(columnCount))
+        } else {
+            arrangement = .wideRow
+            columnCount = max(1, actionCount)
+            buttonWidth = actionCount == 1
+                ? max(168, Self.minimumTargetDimension)
+                : Self.wideButtonMinimumWidth
         }
     }
 }
@@ -232,7 +277,7 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         static let settingsWithoutSecrets = 8
         static let settingsWithSecrets = 9
         static let gameSettings = 10
-        static let graphicSettings = 9
+        static let graphicSettings = 5
         static let soundSettings = 4
         static let title = 6
         static let settingsTitle = 4
@@ -681,7 +726,8 @@ final class TouchControls {
     private(set) var style: TouchControlStyle
     private(set) var nativeMenuMode: GOALPadGameMode = .unknown
     private(set) var progressMenuSnapshot: NativeProgressMenuSnapshot = .unavailable
-    private(set) var warpGateTouchSnapshot: NativeWarpGateTouchSnapshot = .unavailable
+    private(set) var warpGateTouchSnapshot: NativeWarpGateTouchSnapshot = .invalid
+    @ObservationIgnored private var retainsWarpGateTouchCapture = false
 
     enum Role: Equatable {
         case movement
@@ -739,8 +785,14 @@ final class TouchControls {
 
     var capturesNativeTouchInput: Bool {
         capturesNativeMenuInput
-            || Self.capturesWarpGateTouchInput(mode: nativeMenuMode,
-                                               snapshot: warpGateTouchSnapshot)
+            || capturesWarpGateTouchInput
+    }
+
+    var capturesWarpGateTouchInput: Bool {
+        Self.capturesWarpGateTouchInput(
+            mode: nativeMenuMode,
+            snapshot: warpGateTouchSnapshot,
+            retainingAfterInvalidRead: retainsWarpGateTouchCapture)
     }
 
     func setStyle(_ style: TouchControlStyle) {
@@ -773,8 +825,19 @@ final class TouchControls {
     /// Any published semantic or sequence change invalidates touch-owned work from the prior
     /// snapshot, including live gameplay touches under the non-capturing use prompt.
     func setWarpGateTouchSnapshot(_ snapshot: NativeWarpGateTouchSnapshot) {
-        guard snapshot != warpGateTouchSnapshot else { return }
+        let nextCaptureRetention: Bool
+        if snapshot.isStructurallyValid {
+            nextCaptureRetention = switch snapshot.state {
+            case .destinationListActive, .transitioning: true
+            case .unavailable, .circleUseAvailable: false
+            }
+        } else {
+            nextCaptureRetention = retainsWarpGateTouchCapture
+        }
+        guard snapshot != warpGateTouchSnapshot
+                || nextCaptureRetention != retainsWarpGateTouchCapture else { return }
         warpGateTouchSnapshot = snapshot
+        retainsWarpGateTouchCapture = nextCaptureRetention
         reset()
     }
 
@@ -1112,9 +1175,11 @@ final class TouchControls {
 
     nonisolated static func capturesWarpGateTouchInput(
         mode: GOALPadGameMode,
-        snapshot: NativeWarpGateTouchSnapshot
+        snapshot: NativeWarpGateTouchSnapshot,
+        retainingAfterInvalidRead: Bool = false
     ) -> Bool {
-        guard mode == .gameplay, snapshot.isStructurallyValid else { return false }
+        guard mode == .gameplay else { return false }
+        guard snapshot.isStructurallyValid else { return retainingAfterInvalidRead }
         return switch snapshot.state {
         case .destinationListActive, .transitioning:
             true

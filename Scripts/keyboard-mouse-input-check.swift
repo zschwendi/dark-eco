@@ -158,6 +158,8 @@ private func primaryInputSourcePolicy() {
     check(automatic.suppressesTouchChrome(recentPhysicalActivity: true)
           && !automatic.suppressesTouchChrome(recentPhysicalActivity: false),
           "Automatic keeps activity-driven touch suppression")
+    check(automatic.allowsTouchRecovery,
+          "Automatic permits a screen touch to reclaim the touch UI")
 
     let touch = InputSourcePolicy(preference: .touch, touchAvailable: true,
                                   controllerConnected: true, keyboardMouseConnected: true)
@@ -166,6 +168,8 @@ private func primaryInputSourcePolicy() {
           "Touch explicitly excludes connected physical input")
     check(!touch.suppressesTouchChrome(recentPhysicalActivity: true),
           "ignored physical activity cannot hide explicit Touch controls")
+    check(touch.allowsTouchRecovery,
+          "explicit Touch may clear stale physical ownership")
 
     let controller = InputSourcePolicy(preference: .controller, touchAvailable: true,
                                        controllerConnected: true, keyboardMouseConnected: true)
@@ -174,6 +178,14 @@ private func primaryInputSourcePolicy() {
           "Controller explicitly owns the pad while connected")
     check(controller.suppressesTouchChrome(recentPhysicalActivity: false),
           "an explicitly selected connected Controller hides idle touch chrome")
+    check(!controller.allowsTouchRecovery,
+          "an explicitly selected connected Controller rejects touch reclaim")
+
+    let keyboardMouse = InputSourcePolicy(preference: .keyboardMouse, touchAvailable: true,
+                                          controllerConnected: true,
+                                          keyboardMouseConnected: true)
+    check(!keyboardMouse.allowsTouchRecovery,
+          "an explicitly selected connected Keyboard/Mouse rejects touch reclaim")
 
     let unavailable = InputSourcePolicy(preference: .controller, touchAvailable: true,
                                         controllerConnected: false,
@@ -265,6 +277,49 @@ private func drivingArbitration() {
                               keyboardConnected: false,
                               mouseConnected: false),
           "recent activity from a disconnected controller cannot suppress touch")
+
+    let explicitController = InputSourcePolicy(
+        preference: .controller, touchAvailable: true,
+        controllerConnected: true, keyboardMouseConnected: false)
+    check(!activity.reclaimTouch(using: explicitController)
+          && activity.isDriving(at: 301,
+                                controllerConnected: true,
+                                keyboardConnected: false,
+                                mouseConnected: false),
+          "explicit Controller rejects reclaim without clearing its activity")
+
+    let automatic = InputSourcePolicy(
+        preference: .automatic, touchAvailable: true,
+        controllerConnected: true, keyboardMouseConnected: true)
+    activity.noteKeyboard(at: 300)
+    activity.noteMouse(at: 300)
+    check(activity.reclaimTouch(using: automatic)
+          && !activity.isDriving(at: 301,
+                                 controllerConnected: true,
+                                 keyboardConnected: true,
+                                 mouseConnected: true),
+          "Automatic touch reclaim immediately clears every recent physical owner")
+
+    activity.noteKeyboard(at: 400)
+    let explicitKeyboardMouse = InputSourcePolicy(
+        preference: .keyboardMouse, touchAvailable: true,
+        controllerConnected: false, keyboardMouseConnected: true)
+    check(!activity.reclaimTouch(using: explicitKeyboardMouse)
+          && activity.isDriving(at: 401,
+                                controllerConnected: false,
+                                keyboardConnected: true,
+                                mouseConnected: false),
+          "explicit Keyboard/Mouse remains authoritative after a touch")
+
+    let explicitTouch = InputSourcePolicy(
+        preference: .touch, touchAvailable: true,
+        controllerConnected: true, keyboardMouseConnected: true)
+    check(activity.reclaimTouch(using: explicitTouch)
+          && !activity.isDriving(at: 401,
+                                 controllerConnected: true,
+                                 keyboardConnected: true,
+                                 mouseConnected: true),
+          "explicit Touch may clear stale physical activity deterministically")
 }
 
 private func stickSourcePrecedence() {

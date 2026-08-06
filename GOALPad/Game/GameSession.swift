@@ -37,7 +37,7 @@ final class GameSession {
     private(set) var isRunning = false
     private(set) var gameMode: GOALPadGameMode = .unknown
     private(set) var progressMenuSnapshot: NativeProgressMenuSnapshot = .unavailable
-    private(set) var warpGateTouchSnapshot: NativeWarpGateTouchSnapshot = .unavailable
+    private(set) var warpGateTouchSnapshot: NativeWarpGateTouchSnapshot = .invalid
     private(set) var lookAroundState: GOALPadLookAroundState = .unknown
     private(set) var framesRun: UInt64 = 0
     private(set) var framesPresented: UInt64 = 0
@@ -204,7 +204,7 @@ final class GameSession {
         boot = nil
         isRunning = false
         updateNativeMenuState(mode: .unknown, progress: .unavailable)
-        updateWarpGateTouchSnapshot(.unavailable)
+        updateWarpGateTouchSnapshot(.invalid)
         lookAroundState = .unknown
         saveSync.setGameplayActive(false)
         touch.reset()

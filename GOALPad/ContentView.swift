@@ -64,7 +64,8 @@ struct ContentView: View {
                                   isSuppressed: session.input.isDriving,
                                   gameMode: session.gameMode,
                                   progressMenuSnapshot: session.progressMenuSnapshot,
-                                  warpGateTouchSnapshot: session.warpGateTouchSnapshot)
+                                  warpGateTouchSnapshot: session.warpGateTouchSnapshot,
+                                  reclaimTouchInput: session.input.reclaimTouchInput)
                 #endif
 
                 if session.isNativeMenuOpen

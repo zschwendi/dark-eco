@@ -392,6 +392,10 @@ struct InputSourcePolicy: Equatable {
             && (effectiveSource == .automatic || effectiveSource == .keyboardMouse)
     }
 
+    var allowsTouchRecovery: Bool {
+        effectiveSource == .automatic || effectiveSource == .touch
+    }
+
     func suppressesTouchChrome(recentPhysicalActivity: Bool) -> Bool {
         switch effectiveSource {
         case .automatic: recentPhysicalActivity
@@ -572,6 +576,15 @@ struct InputActivityTracker {
         disconnectController()
         disconnectKeyboard()
         disconnectMouse()
+    }
+
+    /// A screen touch can end Automatic's short physical-input ownership interval. Explicit
+    /// connected Controller or Keyboard/Mouse choices remain authoritative.
+    @discardableResult
+    mutating func reclaimTouch(using policy: InputSourcePolicy) -> Bool {
+        guard policy.allowsTouchRecovery else { return false }
+        reset()
+        return true
     }
 
     func isDriving(at time: TimeInterval,

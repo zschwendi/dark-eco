@@ -997,6 +997,20 @@ private func controllerSuppressionKeepsTouchRecovery() {
     check(!TouchControls.artworkIsVisible(isEngaged: false, isSuppressed: false,
                                           hasTouches: false, isNativeMenuOpen: false),
           "unengaged artwork remains hidden")
+
+    var recoveries = 0
+    check(TouchControlsView.requestTouchRecovery(isSuppressed: true) {
+        recoveries += 1
+        return true
+    } && recoveries == 1,
+          "the first suppressed screen contact invokes immediate touch recovery")
+    check(!TouchControlsView.requestTouchRecovery(isSuppressed: false) {
+        recoveries += 1
+        return true
+    } && recoveries == 1,
+          "an already visible touch UI does not repeat recovery work")
+    check(!TouchControlsView.requestTouchRecovery(isSuppressed: true) { false },
+          "an explicit physical source can reject recovery without exposing an action")
 }
 
 private func progressSnapshot(screen: Int, option: Int = 0,
@@ -1008,7 +1022,7 @@ private func progressSnapshot(screen: Int, option: Int = 0,
 
 private func warpList(slot: Int32 = 0, mask: UInt32 = 0x1f,
                       moving: Bool = false,
-                      sequence: UInt32 = 1) -> NativeWarpGateTouchSnapshot {
+                      sequence: UInt32 = 2) -> NativeWarpGateTouchSnapshot {
     .destinationListActive(selectedSlot: slot, permittedMask: mask,
                            selectionMoving: moving, sequence: sequence)
 }
@@ -1046,7 +1060,7 @@ private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
     let shippingPCLists = [
         (label: "settings with secrets", screen: 3, optionCount: 9),
         (label: "game settings", screen: 4, optionCount: 10),
-        (label: "graphic settings", screen: 5, optionCount: 9),
+        (label: "graphic settings", screen: 5, optionCount: 5),
         (label: "sound settings", screen: 6, optionCount: 4),
         (label: "title", screen: 27, optionCount: 6),
         (label: "title settings", screen: 28, optionCount: 4),
@@ -1280,7 +1294,7 @@ private func nativeWarpActionsAreStructurallyGatedAndExact() {
 
     for slot in 0...4 {
         let list = warpList(slot: Int32(slot), mask: UInt32(1 << slot),
-                            sequence: UInt32(slot + 20))
+                            sequence: UInt32(slot * 2 + 20))
         check(NativeWarpGateTouchAction.available(in: .gameplay, snapshot: list)
               == [.previous, .next, .warp, .back],
               "destination slot \(slot) accepts only the five-bit permitted mask")
@@ -1295,8 +1309,10 @@ private func nativeWarpActionsAreStructurallyGatedAndExact() {
         in: .gameplay, snapshot: .transitioning(sequence: 30)).isEmpty,
           "warp transition presents no actions")
     check(NativeWarpGateTouchAction.available(
-        in: .gameplay, snapshot: .unavailable).isEmpty,
-          "unavailable state presents no actions")
+        in: .gameplay, snapshot: .invalid).isEmpty
+          && NativeWarpGateTouchAction.available(
+            in: .gameplay, snapshot: .validUnavailable(sequence: 32)).isEmpty,
+          "invalid and valid unavailable states both present no actions")
 
     let invalidSlotLow = warpList(slot: -1)
     let invalidSlotHigh = warpList(slot: 5)
@@ -1304,14 +1320,15 @@ private func nativeWarpActionsAreStructurallyGatedAndExact() {
     let unpermittedSelection = warpList(slot: 4, mask: 0x0f)
     let malformedPrompt = NativeWarpGateTouchSnapshot(
         valid: true, state: .circleUseAvailable, selectedSlot: 0,
-        permittedMask: 1, selectionMoving: false, sequence: 31)
+        permittedMask: 1, selectionMoving: false, sequence: 34)
+    let oddPublication = NativeWarpGateTouchSnapshot.circleUseAvailable(sequence: 35)
     let rejectedSchema = NativeWarpGateTouchSnapshot(
         valid: false, state: .destinationListActive, selectedSlot: 0,
-        permittedMask: 1, selectionMoving: false, sequence: 32)
+        permittedMask: 1, selectionMoving: false, sequence: 36)
     check([invalidSlotLow, invalidSlotHigh, invalidMask, unpermittedSelection,
-           malformedPrompt, rejectedSchema].allSatisfy {
+           malformedPrompt, oddPublication, rejectedSchema].allSatisfy {
         NativeWarpGateTouchAction.available(in: .gameplay, snapshot: $0).isEmpty
-    }, "invalid schema, slots, masks, selections, and contradictory fields fail closed")
+    }, "odd or invalid schema, slots, masks, selections, and fields fail closed")
 
     check(NativeWarpGateTouchAction.useWarpGate.button.bit == .circle
           && NativeWarpGateTouchAction.previous.button.bit == .left
@@ -1325,6 +1342,34 @@ private func nativeWarpActionsAreStructurallyGatedAndExact() {
     check(NativeWarpGateTouchAction.allCases.map(\.label)
           == ["Use Warp Gate", "Previous", "Next", "Warp", "Back"],
           "warp controls retain their exact accessible labels")
+}
+
+private func nativeWarpDestinationLayoutAdaptsWithoutClipping() {
+    print("warp destination actions adapt without changing their semantics")
+    let wide = NativeWarpGateTouchLayout(availableWidth: 794, actionCount: 4)
+    check(wide.arrangement == .wideRow && wide.columnCount == 4
+          && wide.buttonWidth == NativeWarpGateTouchLayout.wideButtonMinimumWidth,
+          "ordinary wide layouts preserve the four-button 104-point row")
+
+    let compactWidths: [CGFloat] = [353, 280, 232]
+    for width in compactWidths {
+        let layout = NativeWarpGateTouchLayout(availableWidth: width, actionCount: 4)
+        let occupiedWidth = layout.buttonWidth * CGFloat(layout.columnCount)
+            + NativeWarpGateTouchLayout.compactSpacing * CGFloat(layout.columnCount - 1)
+        check(layout.arrangement == .compactGrid && layout.columnCount == 2,
+              "each compact portrait or multitasking width uses two columns")
+        check(occupiedWidth <= width && layout.buttonWidth
+              >= NativeWarpGateTouchLayout.minimumTargetDimension,
+              "each compact layout fits without clipping 44-point targets")
+    }
+    check(NativeWarpGateTouchLayout.buttonMinimumHeight
+          >= NativeWarpGateTouchLayout.minimumTargetDimension,
+          "every wide and compact destination action keeps a 44-point minimum target")
+
+    let prompt = NativeWarpGateTouchLayout(availableWidth: 232, actionCount: 1)
+    check(prompt.arrangement == .wideRow && prompt.columnCount == 1
+          && prompt.buttonWidth == 168,
+          "the single Use Warp Gate prompt retains its existing presentation")
 }
 
 @MainActor
@@ -1349,7 +1394,7 @@ private func nativeWarpPromptCoexistsAndRejectsStaleActions() {
 
     run.controls.performNativeWarpGateAction(.useWarpGate, for: prompt)
     run.controls.performNativeWarpGateAction(.useWarpGate, for: prompt)
-    let newerPrompt = NativeWarpGateTouchSnapshot.circleUseAvailable(sequence: 41)
+    let newerPrompt = NativeWarpGateTouchSnapshot.circleUseAvailable(sequence: 42)
     run.controls.setWarpGateTouchSnapshot(newerPrompt)
     check(run.controls.touches.isEmpty && run.frame() == .neutral,
           "a sequence change cancels carried touch plus active and queued prompt pulses")
@@ -1391,7 +1436,7 @@ private func nativeWarpListActionsSwipesAndResetAreExact() {
     check(!frame.buttons.contains(.cross) && !frame.buttons.contains(.square),
           "list actions never leak menu Confirm/Cross or Back/Square")
 
-    let nextList = warpList(slot: 3, sequence: 51)
+    let nextList = warpList(slot: 3, sequence: 52)
     run.controls.setWarpGateTouchSnapshot(nextList)
     check(run.controls.performNativeWarpGateSwipe(
         translation: CGSize(width: -TouchControls.nativeWarpSwipeDistance, height: 2),
@@ -1400,7 +1445,7 @@ private func nativeWarpListActionsSwipesAndResetAreExact() {
           && run.frame().buttons == .left,
           "leftward swipe emits exactly one Left pulse and haptic")
 
-    let lastList = warpList(slot: 4, sequence: 52)
+    let lastList = warpList(slot: 4, sequence: 54)
     run.controls.setWarpGateTouchSnapshot(lastList)
     check(run.controls.performNativeWarpGateSwipe(
         translation: CGSize(width: TouchControls.nativeWarpSwipeDistance, height: -2),
@@ -1416,7 +1461,7 @@ private func nativeWarpListActionsSwipesAndResetAreExact() {
                             height: TouchControls.nativeWarpSwipeDistance),
         for: lastList), "ambiguous diagonal list swipes remain inert")
 
-    let movedList = warpList(slot: 4, moving: true, sequence: 53)
+    let movedList = warpList(slot: 4, moving: true, sequence: 56)
     run.controls.setWarpGateTouchSnapshot(movedList)
     check(!run.controls.performNativeWarpGateSwipe(
         translation: CGSize(width: TouchControls.nativeWarpSwipeDistance, height: 0),
@@ -1441,15 +1486,17 @@ private func nativeWarpListActionsSwipesAndResetAreExact() {
 private func nativeWarpCaptureAndSuppressionAreFailClosed() {
     print("warp capture and controller suppression follow the authoritative phase")
     let prompt = NativeWarpGateTouchSnapshot.circleUseAvailable(sequence: 60)
-    let list = warpList(sequence: 61)
-    let moving = warpList(moving: true, sequence: 62)
-    let transitioning = NativeWarpGateTouchSnapshot.transitioning(sequence: 63)
+    let list = warpList(sequence: 62)
+    let moving = warpList(moving: true, sequence: 64)
+    let transitioning = NativeWarpGateTouchSnapshot.transitioning(sequence: 66)
     let malformedList = NativeWarpGateTouchSnapshot(
         valid: false, state: .destinationListActive, selectedSlot: 0,
-        permittedMask: 1, selectionMoving: false, sequence: 64)
-    check(!TouchControls.capturesWarpGateTouchInput(mode: .gameplay, snapshot: .unavailable)
+        permittedMask: 1, selectionMoving: false, sequence: 68)
+    check(!TouchControls.capturesWarpGateTouchInput(mode: .gameplay, snapshot: .invalid)
+          && !TouchControls.capturesWarpGateTouchInput(
+            mode: .gameplay, snapshot: .validUnavailable(sequence: 58))
           && !TouchControls.capturesWarpGateTouchInput(mode: .gameplay, snapshot: prompt),
-          "unavailable and Circle-use prompt states preserve ordinary gameplay touch")
+          "invalid, valid unavailable, and Circle-use states begin as ordinary gameplay touch")
     check(TouchControls.capturesWarpGateTouchInput(mode: .gameplay, snapshot: list)
           && TouchControls.capturesWarpGateTouchInput(mode: .gameplay, snapshot: moving)
           && TouchControls.capturesWarpGateTouchInput(
@@ -1511,12 +1558,70 @@ private func nativeWarpCaptureAndSuppressionAreFailClosed() {
     check(run.frame() == .neutral && run.controls.consumeHapticEvents().isEmpty,
           "transitioning captures input while rejecting every explicit action")
 
-    run.controls.setWarpGateTouchSnapshot(.unavailable)
+    run.controls.setWarpGateTouchSnapshot(.validUnavailable(sequence: 70))
     let resumed = Finger()
     run.down(resumed, centre)
     run.move(resumed, CGPoint(x: centre.x + TouchControls.movementRadius, y: centre.y))
     check(run.frame().isLeftDeflected,
-          "unavailable state resumes ordinary gameplay touch")
+          "a valid unavailable state resumes ordinary gameplay touch")
+}
+
+@MainActor
+private func nativeWarpTransientInvalidReadsRetainNeutralCapture() {
+    print("transient invalid warp publications retain neutral capture after destination ownership")
+    var run = Runner()
+    run.controls.setNativeMenuMode(.gameplay)
+    check(!run.controls.capturesWarpGateTouchInput,
+          "an invalid bridge read before any capture is ordinary unavailable")
+
+    let list = warpList(slot: 2, sequence: 80)
+    run.controls.setWarpGateTouchSnapshot(list)
+    run.controls.performNativeWarpGateAction(.next, for: list)
+    check(run.controls.capturesWarpGateTouchInput && run.frame().buttons == .right,
+          "a valid destination publication establishes full-screen capture")
+
+    run.controls.setWarpGateTouchSnapshot(.invalid)
+    check(run.controls.warpGateTouchSnapshot == .invalid
+          && run.controls.capturesWarpGateTouchInput
+          && NativeWarpGateTouchAction.available(
+            in: .gameplay, snapshot: run.controls.warpGateTouchSnapshot).isEmpty
+          && run.frame() == .neutral,
+          "an invalid read remains explicit while retaining neutral capture and no actions")
+
+    let oddPrompt = NativeWarpGateTouchSnapshot.circleUseAvailable(sequence: 81)
+    run.controls.setWarpGateTouchSnapshot(oddPrompt)
+    run.controls.performNativeWarpGateAction(.useWarpGate, for: oddPrompt)
+    check(run.controls.capturesWarpGateTouchInput && run.frame() == .neutral
+          && run.controls.consumeHapticEvents().isEmpty,
+          "an odd in-progress publication cannot release capture or emit an action")
+
+    let malformedTransition = NativeWarpGateTouchSnapshot(
+        valid: true, state: .transitioning, selectedSlot: -1,
+        permittedMask: 0, selectionMoving: true, sequence: 82)
+    run.controls.setWarpGateTouchSnapshot(malformedTransition)
+    check(run.controls.capturesWarpGateTouchInput
+          && NativeWarpGateTouchAction.available(
+            in: .gameplay, snapshot: malformedTransition).isEmpty,
+          "a malformed transition remains a neutral capture state")
+
+    let prompt = NativeWarpGateTouchSnapshot.circleUseAvailable(sequence: 84)
+    run.controls.setWarpGateTouchSnapshot(prompt)
+    check(!run.controls.capturesWarpGateTouchInput
+          && NativeWarpGateTouchAction.available(in: .gameplay, snapshot: prompt)
+            == [.useWarpGate],
+          "only a valid Circle-use publication releases capture to its exact action")
+
+    run.controls.setWarpGateTouchSnapshot(.invalid)
+    check(!run.controls.capturesWarpGateTouchInput,
+          "invalid remains ordinary unavailable after a valid non-capturing publication")
+
+    run.controls.setWarpGateTouchSnapshot(.transitioning(sequence: 86))
+    run.controls.setWarpGateTouchSnapshot(.invalid)
+    check(run.controls.capturesWarpGateTouchInput,
+          "a valid transition also establishes capture across a transient invalid read")
+    run.controls.setWarpGateTouchSnapshot(.validUnavailable(sequence: 88))
+    check(!run.controls.capturesWarpGateTouchInput,
+          "a valid unavailable publication explicitly releases retained capture")
 }
 
 @main
@@ -1555,9 +1660,11 @@ struct TouchControlsCheck {
         nativeMenuTransitionPreventsGameplayLeakage()
         nativeMenuSuppressionCancellationAndResetAreSafe()
         nativeWarpActionsAreStructurallyGatedAndExact()
+        nativeWarpDestinationLayoutAdaptsWithoutClipping()
         nativeWarpPromptCoexistsAndRejectsStaleActions()
         nativeWarpListActionsSwipesAndResetAreExact()
         nativeWarpCaptureAndSuppressionAreFailClosed()
+        nativeWarpTransientInvalidReadsRetainNeutralCapture()
 
         print(failures == 0 ? "\nall checks passed" : "\n\(failures) checks FAILED")
         exit(failures == 0 ? 0 : 1)
