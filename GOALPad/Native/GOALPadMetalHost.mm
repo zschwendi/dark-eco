@@ -53,6 +53,12 @@ constexpr bool kJak1TieEnvmapSecondPassEnabled = true;
 // and VU work, separating the reported self-shadow from material/depth state.
 constexpr bool kJak1ShadowOutputEnabled = false;
 
+struct LoadedLevelArt {
+  std::string name;
+  bool ok = false;              // failed loads stay listed so they are not retried
+  int frames_since_wanted = 0;  // 0 while __pc-set-levels names the level
+};
+
 /*!
  * Everything the renderer owns, in one place, all of it touched from one thread at a time - the
  * boot queue while the game boots, and the main thread from the first presented frame on.
@@ -83,7 +89,7 @@ struct MetalHost {
   bool wanted_changed = false;
   bool common_loaded = false;
   bool reported_no_directory = false;
-  std::vector<std::string> loaded;  // in load order, including levels that would not load
+  std::vector<LoadedLevelArt> loaded;  // in load order, including levels that failed
 
   goalpad::MetalHostStats stats;
   goalpad::camera_correction_trace::EventTrace camera_correction_trace;
@@ -101,6 +107,22 @@ std::string join_plus(const std::vector<std::string>& names) {
   }
   return out;
 }
+
+std::string join_plus(const std::vector<LoadedLevelArt>& levels) {
+  std::string out;
+  for (const auto& level : levels) {
+    if (!out.empty()) {
+      out += '+';
+    }
+    out += level.name;
+  }
+  return out;
+}
+
+// Match the desktop Metal and GL loaders: keep the game's three level slots plus a brief grace
+// period, rather than keeping every level visited during the session.
+constexpr int kMaxResidentLevels = jak1::LEVEL_TOTAL;
+constexpr int kEvictAfterFrames = 180;
 
 /*!
  * One level's art into both places it has to go: the background renderers' registry (tfrag / tie /
@@ -144,9 +166,8 @@ bool load_level_art(const std::string& name, bool is_common) {
  * finished, so the load has to happen when it is asked for. Nothing is drawing either way, which
  * is what makes both safe.
  *
- * Levels are not unloaded: nothing here knows when the last draw referencing a level's buffers has
- * retired, which is what the GL loader's reference counting is for. Memory therefore grows with
- * the number of distinct levels a session visits.
+ * Eviction is deliberately separate and runs once at the next frame boundary. Loading must remain
+ * synchronous here so texture relocation cannot observe a wanted level before its art exists.
  */
 void service_level_requests() {
   if (g_host.art_directory.empty()) {
@@ -174,13 +195,15 @@ void service_level_requests() {
   }
 
   for (const auto& name : g_host.wanted) {
-    if (std::find(g_host.loaded.begin(), g_host.loaded.end(), name) != g_host.loaded.end()) {
+    if (std::find_if(g_host.loaded.begin(), g_host.loaded.end(), [&](const auto& level) {
+          return level.name == name;
+        }) != g_host.loaded.end()) {
       continue;
     }
     const bool ok = load_level_art(name, false);
     // Remembered either way, so a level whose art will not load is reported once rather than
     // retried every frame.
-    g_host.loaded.push_back(name);
+    g_host.loaded.push_back({name, ok, 0});
     if (ok) {
       g_host.stats.levels_loaded++;
       g_host.stats.levels_loaded_names = join_plus(g_host.loaded);
@@ -188,6 +211,49 @@ void service_level_requests() {
       g_host.stats.level_failures++;
     }
   }
+}
+
+/*!
+ * Age loaded art once per host frame and evict at most one old level, mirroring the desktop Metal
+ * loader. This is called before GOAL starts the frame, so no CPU-side encoder can still be reading
+ * the removed registries. Previously committed Metal command buffers use retained references and
+ * keep their buffers and textures alive until the GPU retires them.
+ */
+void evict_unwanted_level_art() {
+  int resident = 0;
+  for (auto& entry : g_host.loaded) {
+    const bool is_wanted =
+        std::find(g_host.wanted.begin(), g_host.wanted.end(), entry.name) != g_host.wanted.end();
+    entry.frames_since_wanted = is_wanted ? 0 : entry.frames_since_wanted + 1;
+    if (entry.ok) {
+      resident++;
+    }
+  }
+  if (resident < kMaxResidentLevels) {
+    return;
+  }
+
+  auto oldest = g_host.loaded.end();
+  for (auto it = g_host.loaded.begin(); it != g_host.loaded.end(); ++it) {
+    if (it->ok && it->frames_since_wanted > kEvictAfterFrames &&
+        (oldest == g_host.loaded.end() ||
+         it->frames_since_wanted > oldest->frames_since_wanted)) {
+      oldest = it;
+    }
+  }
+  if (oldest == g_host.loaded.end()) {
+    return;
+  }
+
+  const std::string victim = oldest->name;
+  const int victim_age = oldest->frames_since_wanted;
+  g_host.loaded.erase(oldest);
+  g_host.stats.levels_loaded_names = join_plus(g_host.loaded);
+
+  metal_level_data::unload(*g_host.texture_pool, victim);
+  metal_merc_models().remove_level(victim);
+  os_log(gfx_log(), "Evicted level art %{public}s after %d frames unwanted.", victim.c_str(),
+         victim_age);
 }
 
 goalpad::MetalHostMercTransformEvent retain_merc_transform_event(
@@ -1005,6 +1071,7 @@ bool metal_host_begin_frame(CAMetalLayer* layer, const MetalHostFrame& frame) {
   // Normally nothing to do: the loading happens where the game asks, in `host_set_levels`. This
   // only catches a request that arrived before the art directory was known.
   service_level_requests();
+  evict_unwanted_level_art();
 
   if (g_host.frame_open) {
     os_log_error(gfx_log(), "Beginning a Metal frame before the previous frame was closed.");
