@@ -711,8 +711,10 @@ Active lanes:
   post-commit suspension. Three Sol xhigh review passes caught and corrected
   ordering, fabricated-ground, and clone-overwrite bugs; final review returned
   ACCEPT. Root integration passes 6/6 structural contracts and a 328-dependency
-  GOAL compile. These are source proofs, not physical boat/title/collision
-  acceptance.
+  GOAL compile. Nested `2e0438416` records the regenerated 518-object source
+  pack identity `2b812636de96f221`; canonical generation emits 10,618
+  functions with seven native functions and zero failed files. These are
+  source/AOT proofs, not physical boat/title/collision acceptance.
 - [x] Establish that Build 90 and Build 93 pin the same OpenGOAL revision and
   contain no renderer, shader, Metal-host, AOT, or generated-source delta.
   Classify this as an unvisited transition gap unless later evidence proves a

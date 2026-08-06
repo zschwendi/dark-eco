@@ -14089,8 +14089,22 @@ Root integration validation:
   "obj/fishermans-boat")' --disable-ansi` — 328/328 dependencies built.
 - The parent gitlink now points at the integration branch's corrected nested
   source. Both iOS configurations are bumped from Build 113 to Build 114.
-- Source-pack regeneration, AOT, signed Xcode build, artifact inspection, push,
-  simulator, and physical device are not claimed at this source checkpoint.
+- The first fresh source sweep deterministically produced 518 objects,
+  aggregate `2b812636de96f221`, 10,740,864 bytes, 10,618 emitted functions,
+  seven native functions, and zero failed files. The verifier correctly
+  rejected the still-pinned Build 113 identity before publication. That full
+  fail-closed log is
+  `/private/tmp/GOALPad-build114-source-pack-initial-identity.log`.
+- Nested `2e0438416` records the fresh aggregate. The rerun verified and
+  published all 518 objects at `build/jak1-source-object-pack`; Build 113's
+  prior pack remains preserved at `build/jak1-source-object-pack-build113`.
+  Successful log: `/private/tmp/GOALPad-build114-source-pack.log`.
+- `Scripts/generate-jak1-aot.sh` regenerated the canonical
+  `Generated/jak1-aot` output and passed preflight: 518 objects, 10,618 emitted
+  functions, seven native functions, zero failed files. Log:
+  `/private/tmp/GOALPad-build114-aot.log`.
+- Signed Xcode build, artifact inspection, push, simulator, and physical device
+  are not claimed at this AOT checkpoint.
 
 Physical acceptance remains the exact ordinary first-trip route: board once in
 Sandover, arrive at intact/collidable Misty with Jak and the boat at the dock,
