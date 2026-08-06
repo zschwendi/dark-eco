@@ -13225,3 +13225,62 @@ on arrival and expected beach/ocean collision is missing, so Jak falls through
 and dies. This invalidates any global Build 93 acceptance claim. Renderer/DMA,
 level/AOT/data loading, and regression-history diagnosis are active in separate
 read-only lanes; no speculative source fix has been started.
+
+# Misty transition diagnosis after Build 104
+
+Date: 2026-08-06. Root and three read-only Sol/Terra lanes separated the
+destination's steady state from the boat transition before starting fixes.
+
+- Build 90 and Build 93 use the identical OpenGOAL commit `bcc4ee8e`; the
+  Build 90-to-93 parent delta contains no renderer, shader, Metal host, AOT, or
+  generated-source change. The failure is therefore treated as an unvisited
+  transition gap, not an iCloud regression.
+- Root configured `/private/tmp/GOALPad-misty-diagnosis-cmake` from the exact
+  integration child with Release, Ninja, `BUILD_TESTING=ON`, and ccache, then
+  built `jak1-data-boot-test` successfully.
+- A 5000-frame direct `misty-start` run against the maintainer's local prepared
+  Jak 1 data passed. `MIS.DGO` loaded, all Misty code/data linked through the
+  AOT path, `misty-vis` logged in, Misty reached `'active`, and the target
+  remained in a stable stance. This is not physical-device or boat-sequence
+  proof.
+- Root built `goalpad-play` and ran the same direct route through Metal. The
+  loader reported 627 textures, 73.2 MB of Misty vertices, 10.1 MB of Misty
+  indices, zero failures, and resident Village1 plus Misty after the desktop
+  host evicted title art after 181 unwanted frames. Screenshots
+  `/private/tmp/GOALPad-misty-direct-1300.png` and
+  `/private/tmp/GOALPad-misty-direct-1600.png` show intact Misty geometry,
+  textures, Jak, Daxter, collision, and lighting.
+- The strongest iOS-specific cause is now parent Metal resource lifetime. The
+  app host never evicts visited level art, while the desktop Metal host does.
+  Nested FR3 loading can also accept nil Metal buffers or zero texture handles
+  as success, allowing partially allocated geometry to be recorded as loaded
+  after a long session.
+- A separate loader bug is confirmed: C++ reports a terminal DGO archive error,
+  but GOAL maps it to the same `#f` as pending. A level can remain `'loading`
+  forever while a `:wait-for-load #f` transition continues without its BSP and
+  collision. The actual physical Build 93 DGO result remains unknown because
+  no device log or container inspection was authorized in this run.
+
+The maintainer also reported a potentially related transition-state symptom:
+after collecting enough power cells, the Fire Canyon staircase camera preview
+displayed the large `FIRE CANYON` title before Jak physically entered, and it
+cleared only after pause/unpause and additional time. Local source shows that
+the authored preview camera can cross non-player Fire Canyon display boundaries
+and ambient collection is camera/ear-position based. Do not call this a port
+regression until compared with original behavior, but keep it in the same
+transition-state test route.
+
+Active isolated implementation lanes, all based on integration commit
+`2140e532` and prohibited from changing the build number:
+
+- `/root/misty_ios_metal_lifecycle`: parent iOS Metal eviction/lifecycle only.
+- `/root/misty_metal_allocation_errors`: nested Metal allocation failure and
+  partial-resource cleanup only.
+- `/root/misty_dgo_terminal_error`: nested DGO terminal-error propagation and
+  deterministic no-retail coverage only.
+
+Root remains the sole integration and heavy-build owner. Review and integrate
+the independent commits, rerun the direct route and focused proofs, then bump
+the next candidate build once. Physical installation still requires a fresh
+explicit current request accepted by the execution approval layer; never
+uninstall or clear the existing app data.

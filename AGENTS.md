@@ -532,14 +532,34 @@ Active lanes:
   collapses into broken polygons/vertices during travel. Misty Island remains
   corrupt on arrival and expected beach/ocean collision is absent, allowing
   Jak to fall through and die.
-- [ ] Treat the wrong low-detail scene, transition-time vertex collapse, corrupt
-  Misty arrival, and missing collision as one streaming/transition failure
-  until a deterministic discriminator proves separate causes.
-- [ ] Compare renderer/DMA resource lifetime, Jak 1 level/AOT/DGO/FR3 loading,
-  and the Build 79/85/90/93 change history without broad speculative edits.
-- [ ] Add the smallest deterministic transition/load regression that can run
-  without retail data. Do not claim a fix from title-screen, static-level, or
-  source-manifest checks alone.
+- [x] Establish that Build 90 and Build 93 pin the same OpenGOAL revision and
+  contain no renderer, shader, Metal-host, AOT, or generated-source delta.
+  Classify this as an unvisited transition gap unless later evidence proves a
+  regression earlier than Build 90.
+- [x] Build the exact 518-object host engine and run a direct `misty-start`
+  load against the maintainer's local prepared data. `MIS.DGO` completed,
+  Misty reached `'active`, the target remained in a stable stance, and the
+  canonical AOT/data path passed.
+- [x] Run the same direct `misty-start` state through `goalpad-play` and Metal.
+  `misty.fr3` loaded with 627 textures, 73.2 MB of vertices, 10.1 MB of
+  indices, zero level failures, and healthy screenshots at frames 1300 and
+  1600. The desktop host evicted unwanted title art after 181 frames and kept
+  only Village1 plus Misty resident.
+- [ ] Repair the iOS parent's missing level-art eviction/lifecycle seam and the
+  nested Metal loader's silent nil-buffer/zero-texture success path. Review
+  those worker patches independently before integrating either.
+- [ ] Repair the independent DGO fail-open seam: a terminal archive error is
+  currently indistinguishable from pending to GOAL, so a non-wait transition
+  can continue forever without the destination BSP/collision.
+- [ ] Add deterministic direct-Misty, terminal-DGO-error, and exact boat
+  transition/load coverage without committing retail data. Do not claim a fix
+  from title-screen, static-level, or source-manifest checks alone.
+- [ ] Investigate the related physical report that the 20-cell Fire Canyon
+  camera preview displayed the `FIRE CANYON` title before Jak entered and that
+  the title cleared only after pause/unpause plus time. The authored preview
+  moves the camera across non-player display boundaries, while ambient/hint
+  collection uses `ear-trans`; distinguish original behavior from leaked
+  transition state before changing GOAL UI logic.
 - [ ] Any candidate fix must preserve Build 93 saves, accepted graphics,
   performance, input, and iCloud behavior and requires this exact physical
   Sandover-to-Misty route before becoming a new gameplay baseline.
