@@ -693,6 +693,11 @@ Active lanes:
 - [ ] Remove the PC-only `Display` and `Display Mode` rows from Jak 1's native
   Graphics options on Apple devices. They cannot meaningfully control Eco's
   app-owned surface and must not persist incompatible presentation state.
+- [ ] Remove `MSAA` from the Apple-managed native Graphics list. Also remove
+  `V-Sync`: both setters are only loud machine stubs in the current portable
+  Jak 1 kernel and neither changes Eco's Metal configuration. Do not confuse
+  the renderer's required internal `syncv` callback with a wired player V-Sync
+  option. Preserve ordinary desktop OpenGOAL's menu unchanged.
 - [ ] Repair the Build 105 physical presentation regression: Modern/Fit to
   Screen must again fill the iPad Pro 11-inch as accepted in Build 90/93, with
   no top/bottom black bars or squashing. Include a safe migration/reset for a

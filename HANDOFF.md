@@ -13821,8 +13821,35 @@ Exact local state at this checkpoint:
   this documentation commit and has the intentional modified OpenGOAL gitlink.
 - Nested worktree is clean at `e82893326`, one commit ahead of
   `origin/agent/build105-misty-runtime`.
-- The independent Build 111 review and read-only Build 112 aspect diagnosis may
-  still be running. Recheck their mailbox/state after resuming.
+- The independent Build 111 review and read-only Build 112 aspect diagnosis
+  completed after the initial checkpoint; their findings are recorded below.
+
+The independent Build 111 review subsequently accepted the GOAL basic-pointer
+layout, `0x1c` allocation/`0x18` payload, same-thread seqlock read, and exact
+Circle/Left/Right/Circle/Triangle mappings. Root commit `68629374` resolves its
+original missing native-readback blocker. Before Build 111 can ship, three
+remaining review findings need corrective work: retain neutral capture if a
+previously valid warp list becomes an invalid read until GOAL publishes valid
+unavailable; preserve a touch-recovery path while Automatic input is temporarily
+controller-suppressed; and make the four destination actions fit compact widths
+with an adaptive layout.
+
+Read-only Build 112 diagnosis found no committed landscape geometry regression
+between Build 93 and Build 105. `GameplaySurfaceLayout` changed portrait only
+and correctly preserves the requested top-aligned renderer. The native PC
+Aspect Ratio setting is a separate persisted authority: fixed/custom choices
+turn automatic drawable following off and can produce the reported top/bottom
+scissor bars and squashed camera/HUD projection. Immediate manual recovery is
+Eco Settings > Graphics > Modern + Fit to Screen, then native Jak Graphics >
+Aspect Ratio > Fit to Screen. The implementation direction is a portable-host
+capability, managed-host-only aspect-auto migration preserving unrelated PC
+settings, and a safe managed menu while leaving normal desktop behavior intact.
+
+The maintainer additionally requested removal of MSAA and removal of V-Sync if
+unwired. Root verified both `pc-set-msaa` and `pc-set-vsync` remain loud machine
+stubs in the Jak 1 portable kernel; neither is replaced by the portable settings
+seams or connected to Eco's Metal configuration. Both are therefore queued for
+removal from the managed Apple Graphics list, without changing desktop menus.
 
 Next executable task: diagnose the Build 105 letterboxing/squashing against the
 accepted Build 90/93 presentation and settings persistence, implement the
