@@ -175,7 +175,7 @@ final class GameSession {
 
         audio.start()
         isRunning = true
-        gameMode = GOALPadRuntimeBridge.gameMode
+        updateGameMode(GOALPadRuntimeBridge.gameMode)
         lookAroundState = GOALPadRuntimeBridge.lookAroundState
         isForeground = currentScenePhase == .active
         saveSync.setGameplayActive(isForeground)
@@ -197,7 +197,7 @@ final class GameSession {
         kernel = nil
         boot = nil
         isRunning = false
-        gameMode = .unknown
+        updateGameMode(.unknown)
         lookAroundState = .unknown
         saveSync.setGameplayActive(false)
         touch.reset()
@@ -234,7 +234,7 @@ final class GameSession {
         if GOALPadRuntimeBridge.runFrame(at: targetPresentationTime) {
             framesRun = GOALPadRuntimeBridge.framesRun
             let currentMode = GOALPadRuntimeBridge.gameMode
-            if currentMode != gameMode { gameMode = currentMode }
+            if currentMode != gameMode { updateGameMode(currentMode) }
             let currentLookAroundState = GOALPadRuntimeBridge.lookAroundState
             if currentLookAroundState != lookAroundState {
                 lookAroundState = currentLookAroundState
@@ -251,6 +251,11 @@ final class GameSession {
         // display callback.
         if shouldLog { logRunningState(renderer: renderer) }
         input.applyRumble()
+    }
+
+    private func updateGameMode(_ mode: GOALPadGameMode) {
+        gameMode = mode
+        touch.setNativeMenuMode(mode)
     }
 
     /// The same numbers the on-screen readout shows, every ten seconds, so a run can be checked

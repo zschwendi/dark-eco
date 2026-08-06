@@ -62,7 +62,7 @@ struct ContentView: View {
                 TouchControlsView(controls: session.touch,
                                   lookAroundState: session.lookAroundState,
                                   isSuppressed: session.input.isDriving,
-                                  isNativeMenuOpen: session.isNativeMenuOpen)
+                                  gameMode: session.gameMode)
                 #endif
 
                 if session.isNativeMenuOpen

@@ -10,10 +10,27 @@ struct TouchControlsView: View {
     let lookAroundState: GOALPadLookAroundState
     /// Active physical input hides the artwork until the screen is touched again.
     let isSuppressed: Bool
-    let isNativeMenuOpen: Bool
+    let gameMode: GOALPadGameMode
 
     fileprivate static let space = "GOALPadTouchControls"
     private static let pillWidth: CGFloat = 82
+
+    private var isNativeMenuOpen: Bool {
+        switch gameMode {
+        case .pause, .progress, .menu: true
+        case .unknown, .gameplay: false
+        @unknown default: false
+        }
+    }
+
+    private var nativeMenuActions: [NativeMenuTouchAction] {
+        NativeMenuTouchAction.available(in: gameMode)
+    }
+
+    private var nativeMenuControlsAreVisible: Bool {
+        TouchControls.nativeMenuControlsAreVisible(mode: gameMode,
+                                                   isSuppressed: isSuppressed)
+    }
 
     private var isVisible: Bool {
         TouchControls.artworkIsVisible(isEngaged: controls.isEngaged,
@@ -25,14 +42,22 @@ struct TouchControlsView: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                #if canImport(UIKit)
-                TouchSurface(controls: controls, lookAroundState: lookAroundState)
-                #endif
+                if nativeMenuActions.isEmpty {
+                    #if canImport(UIKit)
+                    TouchSurface(controls: controls, lookAroundState: lookAroundState)
+                    #endif
 
-                artwork(in: proxy)
-                    .allowsHitTesting(false)
-                    .opacity(isVisible ? 1 : 0)
-                    .animation(.easeOut(duration: 0.16), value: isVisible)
+                    artwork(in: proxy)
+                        .allowsHitTesting(false)
+                        .opacity(isVisible ? 1 : 0)
+                        .animation(.easeOut(duration: 0.16), value: isVisible)
+                } else {
+                    NativeMenuTouchControls(controls: controls,
+                                            actions: nativeMenuActions,
+                                            isVisible: nativeMenuControlsAreVisible)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, max(20, proxy.safeAreaInsets.bottom))
+                }
             }
         }
         .coordinateSpace(.named(Self.space))
@@ -127,6 +152,80 @@ struct TouchControlsView: View {
             } action: {
                 controls.setPillFrame(button, $0)
             }
+    }
+}
+
+private struct NativeMenuTouchControls: View {
+    let controls: TouchControls
+    let actions: [NativeMenuTouchAction]
+    let isVisible: Bool
+
+    private var directionalActions: Set<NativeMenuTouchAction> {
+        Set(actions.filter { [.up, .down, .left, .right].contains($0) })
+    }
+
+    private var commandActions: [NativeMenuTouchAction] {
+        actions.filter { !directionalActions.contains($0) }
+    }
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 24) {
+            if !directionalActions.isEmpty {
+                directionPad
+            }
+
+            Spacer(minLength: 0)
+
+            VStack(alignment: .trailing, spacing: 12) {
+                ForEach(commandActions, id: \.self) { action in
+                    menuButton(action, width: 148)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .opacity(isVisible ? 1 : 0)
+        .allowsHitTesting(isVisible)
+        .animation(.easeOut(duration: 0.16), value: isVisible)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Game menu controls")
+    }
+
+    private var directionPad: some View {
+        VStack(spacing: 8) {
+            if directionalActions.contains(.up) {
+                menuButton(.up)
+            }
+            HStack(spacing: 8) {
+                if directionalActions.contains(.left) { menuButton(.left) }
+                if directionalActions.contains(.down) { menuButton(.down) }
+                if directionalActions.contains(.right) { menuButton(.right) }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Menu navigation")
+    }
+
+    private func menuButton(_ action: NativeMenuTouchAction,
+                            width: CGFloat = 60) -> some View {
+        Button { controls.performNativeMenuAction(action) } label: {
+            HStack(spacing: 8) {
+                Image(systemName: action.systemImage)
+                if action == .confirm || action == .back || action == .resume {
+                    Text(action.label)
+                }
+            }
+                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                .frame(width: width, height: 60)
+                .foregroundStyle(.white)
+                .background(.black.opacity(0.68), in: RoundedRectangle(cornerRadius: 16))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16)
+                        .strokeBorder(.white.opacity(0.55), lineWidth: 1.5)
+                }
+                .contentShape(RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(action.label)
     }
 }
 

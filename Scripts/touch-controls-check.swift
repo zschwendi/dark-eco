@@ -929,6 +929,113 @@ private func controllerSuppressionKeepsTouchRecovery() {
           "unengaged artwork remains hidden")
 }
 
+@MainActor
+private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
+    print("dedicated native-menu actions use only authoritative mode meanings")
+    check(NativeMenuTouchAction.available(in: .pause) == [.resume],
+          "pause exposes only the authoritative Start resume action")
+    check(NativeMenuTouchAction.available(in: .menu)
+          == [.up, .down, .left, .right, .back, .confirm, .resume],
+          "debug menu exposes its exact D-pad, Square, X, and Start actions")
+    check(NativeMenuTouchAction.available(in: .progress).isEmpty,
+          "progress does not fake confirm/back without its internal display state")
+    check(NativeMenuTouchAction.available(in: .gameplay).isEmpty
+          && NativeMenuTouchAction.available(in: .unknown).isEmpty,
+          "gameplay and unknown modes expose no native-menu actions")
+
+    check(NativeMenuTouchAction.confirm.button.bit == .cross
+          && NativeMenuTouchAction.back.button.bit == .square
+          && NativeMenuTouchAction.resume.button.bit == .start,
+          "Confirm, Back, and Resume retain Jak's ordinary pad bytes")
+    check(NativeMenuTouchAction.confirm.label == "Confirm"
+          && NativeMenuTouchAction.back.label == "Back"
+          && NativeMenuTouchAction.resume.label == "Resume",
+          "command targets have explicit accessible labels")
+    check(NativeMenuTouchAction.up.label == "Up"
+          && NativeMenuTouchAction.down.label == "Down"
+          && NativeMenuTouchAction.left.label == "Left"
+          && NativeMenuTouchAction.right.label == "Right",
+          "direction targets have deterministic navigation labels")
+}
+
+@MainActor
+private func nativeMenuActionsEmitOnlyExpectedInputBytes() {
+    print("dedicated native-menu actions emit ordinary isolated pad pulses")
+    var run = Runner()
+    run.controls.setNativeMenuMode(.menu)
+    run.controls.performNativeMenuAction(.up)
+    run.controls.performNativeMenuAction(.confirm)
+    run.controls.performNativeMenuAction(.back)
+    run.controls.performNativeMenuAction(.resume)
+
+    let held = run.frames(TouchControls.holdFrames)
+    check(held.allSatisfy {
+        $0.buttons.contains(.up) && $0.buttons.contains(.cross)
+            && $0.buttons.contains(.square) && $0.buttons.contains(.start)
+    }, "menu actions hold the expected pad bits for one pulse")
+    check(held.allSatisfy {
+        !$0.isLeftDeflected && !$0.isRightDeflected
+            && !$0.buttons.contains(.L1) && !$0.buttons.contains(.triangle)
+    }, "menu actions emit no gameplay axes or unrelated buttons")
+    check(run.frames(TouchControls.releaseFrames + 1).allSatisfy { $0.buttons.isEmpty },
+          "menu pulses include a deterministic release")
+
+    run.controls.setNativeMenuMode(.progress)
+    run.controls.performNativeMenuAction(.confirm)
+    check(run.frame() == .neutral,
+          "a stale Confirm action is rejected when progress has no authoritative semantic seam")
+}
+
+@MainActor
+private func nativeMenuTransitionPreventsGameplayLeakage() {
+    print("entering dedicated menu controls cancels gameplay gestures")
+    var run = Runner()
+    let movement = Finger()
+    let gesture = Finger()
+    let movementCentre = CGPoint(x: 180, y: 650)
+    let gestureCentre = CGPoint(x: 900, y: 360)
+    run.down(movement, movementCentre)
+    run.move(movement, CGPoint(x: movementCentre.x + TouchControls.movementRadius,
+                               y: movementCentre.y))
+    run.down(gesture, gestureCentre)
+    run.move(gesture, CGPoint(x: gestureCentre.x, y: gestureCentre.y + 60))
+    check(run.frame().isLeftDeflected, "gameplay input is live before the mode transition")
+
+    run.controls.setNativeMenuMode(.menu)
+    check(run.frame() == .neutral,
+          "entering the menu clears carried stick, crouch, and queued gesture state")
+    let ignored = Finger()
+    run.down(ignored, movementCentre)
+    run.move(ignored, CGPoint(x: movementCentre.x + TouchControls.movementRadius,
+                              y: movementCentre.y))
+    run.beginPinch()
+    run.pinch(scale: 1 + TouchControls.pinchScaleDelta, lookAroundState: .normal)
+    check(run.frame() == .neutral,
+          "raw gameplay touch and pinch input stay disabled under dedicated menu controls")
+}
+
+@MainActor
+private func nativeMenuSuppressionCancellationAndResetAreSafe() {
+    print("menu chrome follows controller suppression and cancellation boundaries")
+    check(TouchControls.nativeMenuControlsAreVisible(mode: .menu, isSuppressed: false),
+          "menu controls are visible without physical-input suppression")
+    check(!TouchControls.nativeMenuControlsAreVisible(mode: .menu, isSuppressed: true),
+          "physical controller activity suppresses menu touch chrome")
+    check(!TouchControls.nativeMenuControlsAreVisible(mode: .progress, isSuppressed: false),
+          "progress does not present dedicated controls with unproven labels")
+
+    var run = Runner()
+    run.controls.setNativeMenuMode(.menu)
+    run.controls.performNativeMenuAction(.confirm)
+    run.controls.setNativeMenuMode(.gameplay)
+    check(run.frame() == .neutral, "leaving the native menu cancels an unfinished pulse")
+
+    run.controls.setNativeMenuMode(.menu)
+    run.controls.performNativeMenuAction(.back)
+    run.controls.reset()
+    check(run.frame() == .neutral, "lifecycle reset clears dedicated menu input")
+}
+
 @main
 @MainActor
 struct TouchControlsCheck {
@@ -958,6 +1065,10 @@ struct TouchControlsCheck {
         classicMultitouchReachesOneFrame()
         pausePresentationFollowsNativeMenuState()
         controllerSuppressionKeepsTouchRecovery()
+        nativeMenuActionsAreTruthfullyGatedAndLabelled()
+        nativeMenuActionsEmitOnlyExpectedInputBytes()
+        nativeMenuTransitionPreventsGameplayLeakage()
+        nativeMenuSuppressionCancellationAndResetAreSafe()
 
         print(failures == 0 ? "\nall checks passed" : "\n\(failures) checks FAILED")
         exit(failures == 0 ? 0 : 1)

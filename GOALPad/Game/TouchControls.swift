@@ -52,6 +52,63 @@ enum TouchControlStyle: String, CaseIterable, Sendable {
     case classic
 }
 
+/// Touch-friendly actions whose meanings are authoritative for the current native game mode.
+/// Progress is deliberately absent: Jak reuses its face buttons for both stat tabs and nested
+/// option confirmation, and GameSession does not expose that internal display state.
+enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
+    case up, down, left, right
+    case confirm, back, resume
+
+    var button: TouchButton {
+        switch self {
+        case .up: .up
+        case .down: .down
+        case .left: .left
+        case .right: .right
+        case .confirm: .cross
+        case .back: .square
+        case .resume: .start
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .up: "Up"
+        case .down: "Down"
+        case .left: "Left"
+        case .right: "Right"
+        case .confirm: "Confirm"
+        case .back: "Back"
+        case .resume: "Resume"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .up: "chevron.up"
+        case .down: "chevron.down"
+        case .left: "chevron.left"
+        case .right: "chevron.right"
+        case .confirm: "checkmark"
+        case .back: "arrow.uturn.backward"
+        case .resume: "play.fill"
+        }
+    }
+
+    nonisolated static func available(in mode: GOALPadGameMode) -> [Self] {
+        switch mode {
+        case .pause:
+            [.resume]
+        case .menu:
+            [.up, .down, .left, .right, .back, .confirm, .resume]
+        case .unknown, .gameplay, .progress:
+            []
+        @unknown default:
+            []
+        }
+    }
+}
+
 /// A discrete, app-owned touch action that may receive device feedback.
 /// These are intentionally separate from native game/controller rumble.
 enum TouchHapticEvent: Equatable {
@@ -311,6 +368,7 @@ final class TouchControls {
     nonisolated static let dpadRepeatInterval = 10
 
     private(set) var style: TouchControlStyle
+    private(set) var nativeMenuMode: GOALPadGameMode = .unknown
 
     enum Role: Equatable {
         case movement
@@ -362,10 +420,31 @@ final class TouchControls {
         self.style = style
     }
 
+    var hasDedicatedNativeMenuControls: Bool {
+        !NativeMenuTouchAction.available(in: nativeMenuMode).isEmpty
+    }
+
     func setStyle(_ style: TouchControlStyle) {
         guard style != self.style else { return }
         reset()
         self.style = style
+    }
+
+    /// Applies the read-only native master-mode classification. Entering or leaving a dedicated
+    /// menu surface cancels carried gameplay touches before another frame reaches the engine.
+    func setNativeMenuMode(_ mode: GOALPadGameMode) {
+        guard mode != nativeMenuMode else { return }
+        let hadDedicatedControls = hasDedicatedNativeMenuControls
+        nativeMenuMode = mode
+        if hadDedicatedControls || hasDedicatedNativeMenuControls { reset() }
+    }
+
+    /// Emits one ordinary pad pulse. Availability is mode-gated so a stale SwiftUI action cannot
+    /// send menu input after the game has returned to gameplay or moved into progress.
+    func performNativeMenuAction(_ action: NativeMenuTouchAction) {
+        guard NativeMenuTouchAction.available(in: nativeMenuMode).contains(action) else { return }
+        press(action.button)
+        enqueueHaptic(.button(action.button))
     }
 
     func setRightStickFrame(_ frame: CGRect) {
@@ -385,6 +464,7 @@ final class TouchControls {
 
     func began(_ id: ObjectIdentifier, at point: CGPoint, in size: CGSize,
                safeAreaInsets: TouchSafeAreaInsets = .zero, at _: TimeInterval) {
+        guard !hasDedicatedNativeMenuControls else { return }
         let layout = style == .classic
             ? ClassicTouchLayout(size: size, safeAreaInsets: safeAreaInsets)
             : nil
@@ -479,7 +559,7 @@ final class TouchControls {
     }
 
     func pinchBegan() {
-        guard style == .modern else {
+        guard style == .modern, !hasDedicatedNativeMenuControls else {
             pinchZoom.reset()
             return
         }
@@ -487,7 +567,7 @@ final class TouchControls {
     }
 
     func pinchChanged(scale: CGFloat, lookAroundState: GOALPadLookAroundState) {
-        guard style == .modern,
+        guard style == .modern, !hasDedicatedNativeMenuControls,
               let direction = pinchZoom.recognize(scale: scale) else { return }
         switch (direction, lookAroundState) {
         case (.zoomIn, .normal), (.zoomOut, .firstPerson):
@@ -545,6 +625,16 @@ final class TouchControls {
 
     /// Advances every one-shot button state machine exactly once per game frame.
     func frameState() -> TouchPadState {
+        if hasDedicatedNativeMenuControls {
+            var state = TouchPadState()
+            for button in TouchButton.allCases {
+                var pulse = pulses[button] ?? Pulse()
+                if pulse.advance() { state.buttons.insert(button.bit) }
+                pulses[button] = pulse
+            }
+            return state
+        }
+
         for touch in touches.values {
             switch touch.role {
             case .pill(let button):
@@ -618,6 +708,11 @@ final class TouchControls {
                                          isNativeMenuOpen: Bool) -> String {
         guard button == .start else { return button.glyph }
         return isNativeMenuOpen ? "RESUME" : "PAUSE"
+    }
+
+    nonisolated static func nativeMenuControlsAreVisible(mode: GOALPadGameMode,
+                                                         isSuppressed: Bool) -> Bool {
+        !isSuppressed && !NativeMenuTouchAction.available(in: mode).isEmpty
     }
 
     nonisolated private static func radialDeflection(from origin: CGPoint,
