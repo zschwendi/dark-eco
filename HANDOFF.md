@@ -12036,3 +12036,47 @@ decide whether glow changes the strict RGB readback. If it does, implement the
 real visibility/occlusion, downsample, and final glow stages with synthetic
 tests before claiming the family complete. Continue using the standalone Mac
 host; no simulator or physical device was accessed for Checkpoint 82.
+
+# Checkpoint 83: shared transactional Jak II glow math
+
+Date: 2026-08-06. Nested branch `agent/jak2-real-dma-draw-proof` now ends at
+`149acb8fa`, integrating reviewed worker commit `e3da929de`. The change moves
+the existing Jak II VU glow transform and its input/output layouts into
+backend-neutral C++ used unchanged by OpenGL and ready for Metal. It adds
+asset-free deterministic coverage and rejects clipped, zero-denominator, and
+nonfinite cases without modifying the destination. No Metal rendering behavior
+or active Jak 1 file changed.
+
+## Validation
+
+```text
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host --target \
+  sprite-glow-math-test jak2-metal-sprite-renderer-test -j2
+
+ctest --test-dir /private/tmp/GOALPad-jak2-real-dma-host \
+  -R '^(sprite-glow-math-test|jak2-metal-sprite-renderer-test)$' \
+  --output-on-failure
+
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host \
+  --target jak2-metal-runtime-proof -j2
+```
+
+Both focused tests passed 2/2 and the complete 850-unit AOT/runtime target
+rebuilt successfully. A first runtime launch inside the filesystem sandbox
+could not enumerate a display. The approved standalone Mac rerun with normal
+display/Metal service access completed all three real title chains and returned
+the expected `INCOMPLETE`/exit 1 only because glow is not drawn yet. Tick 3
+remained exactly 60 ordinary submissions, four glow-marked/skipped records, two
+ordinary draws, 120 triangles, zero missing textures/GPU failures, hash
+`742a0703fa4da325`, and zero non-black RGB.
+
+## Next executable task
+
+Parse the constants-led live glow packet into the shared transactional math and
+feed accepted outputs to a dedicated Metal final-flare renderer. The first
+checkpoint deliberately fixes visibility and boost to `1`, uses the source
+additive/no-depth final pass, and proves a strict center-versus-outside pixel
+footprint with synthetic data. Re-run the real three-tick Mac proof. Only if
+that changes title RGB should the following checkpoint add the source-supported
+full-frame depth probe and 640-to-40 downsample chain. No simulator or physical
+device was accessed for Checkpoint 83.

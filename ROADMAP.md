@@ -77,7 +77,7 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Current
 blockers are visual correctness and remaining platform gaps, not real-media
 import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 82 is the authoritative current build and next-task
+`HANDOFF.md` Checkpoint 83 is the authoritative current build and next-task
 record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
 evidence.
 
@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 82 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 83 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -1221,6 +1221,14 @@ alpha-only because those ordinary records are intentionally inactive and the
 four meaningful glow-marked records still feed an explicitly unsupported
 separate glow stage. Deterministic glow math plus a bounded final-flare proof is
 the next renderer gate; audio and controls remain later milestones.
+
+Checkpoint 83 extracts Jak II's existing glow transform into shared,
+transactional backend-neutral C++ at nested `149acb8fa`. Asset-free tests cover
+finite accepted output, exact ADGIF copy, clipping, zero denominators, and
+nonfinite rejection; the focused 2-test matrix, complete 850-unit AOT rebuild,
+and unchanged three-chain Mac title proof pass. Metal still does not draw the
+four accepted candidates. A force-visible final-flare proof is the next
+diagnostic before implementing the real depth-probe/downsample visibility path.
 
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
