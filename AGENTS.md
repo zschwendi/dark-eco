@@ -410,7 +410,10 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 #### Baseline and integration
 
-- [x] Preserve Build 93 at `9c87b0be` as the immutable known-good baseline.
+- [x] Preserve Build 93 at `9c87b0be` as the immutable known-good baseline only
+  within the physically exercised areas. It is not accepted for unvisited
+  progression or level transitions; the Sandover-to-Misty boat transition is
+  now a confirmed critical failure.
 - [x] Create Build 94 integration branch `agent/build94-jak1-settings` from
   Build 93 in `/private/tmp/GP-build94-jak1-settings`.
 - [ ] Record every worker branch, worktree, commit, validation command, and
@@ -520,6 +523,26 @@ Active lanes:
   saved Controls profile to the matching live touch style. Root still owns input-source,
   remapping, haptics, skip, warp, mod, save-conflict, and Game Center seam
   discovery. It will not edit a worker-owned file while that lane is active.
+
+#### Critical Sandover-to-Misty transition blocker
+
+- [ ] `In progress; physical Build 93 reproduction supplied by maintainer` —
+  taking the Sandover Village boat toward Misty Island first presents a
+  low-detail/untextured Sandover-like scene, then streamed world geometry
+  collapses into broken polygons/vertices during travel. Misty Island remains
+  corrupt on arrival and expected beach/ocean collision is absent, allowing
+  Jak to fall through and die.
+- [ ] Treat the wrong low-detail scene, transition-time vertex collapse, corrupt
+  Misty arrival, and missing collision as one streaming/transition failure
+  until a deterministic discriminator proves separate causes.
+- [ ] Compare renderer/DMA resource lifetime, Jak 1 level/AOT/DGO/FR3 loading,
+  and the Build 79/85/90/93 change history without broad speculative edits.
+- [ ] Add the smallest deterministic transition/load regression that can run
+  without retail data. Do not claim a fix from title-screen, static-level, or
+  source-manifest checks alone.
+- [ ] Any candidate fix must preserve Build 93 saves, accepted graphics,
+  performance, input, and iCloud behavior and requires this exact physical
+  Sandover-to-Misty route before becoming a new gameplay baseline.
 
 #### Settings shell and per-game ownership
 
@@ -662,10 +685,12 @@ Active lanes:
 - [x] Wire `GameCenterService.setGameplayActive(_:)` to
   `GameSession.isRunning`, so the authenticated standard access point is
   launcher-only and cannot overlay gameplay.
-- [ ] Enable Game Center for the existing `com.zephyrstudiosllc.eco` app record
-  and identifier if automatic provisioning does not do so, inspect the signed
-  app entitlement, and exercise sign-in with a Game Center test account. Source
-  entitlement and SDK type-checks do not prove provisioning or authentication.
+- [x] Confirm automatic provisioning for `com.zephyrstudiosllc.eco` accepts
+  Game Center and inspect the signed Build 104 profile. It carries the standard
+  Game Center entitlement alongside the existing iCloud container.
+- [ ] Exercise sign-in with a Game Center test account and verify launcher-only
+  access-point presentation on a real runtime. Source, SDK, and signed-profile
+  checks do not prove authentication or App Store Connect configuration.
 - [ ] Define player-visible friend presence/current-run information with an
   explicit privacy and refresh model.
 - [ ] Add validated native read-only seams for run start, reset, completion,

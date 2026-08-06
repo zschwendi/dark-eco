@@ -13151,3 +13151,77 @@ the managed profile accepts Game Center and that the final app carries the
 entitlement. Test-account authentication remains a runtime gate. Current-run,
 fastest-run, and 100/101-percent features still require native timing/progress
 seams, product rules, and App Store Connect identifiers rather than guesses.
+
+# Build 104 Eco identity and new Misty-transition blocker
+
+Date: 2026-08-06. Build 104 is the current committed and pushed integration
+checkpoint, not a new gameplay baseline. Build 93 commit `9c87b0be` remains
+immutable, but its acceptance is now explicitly limited to the maintainer's
+physically exercised routes.
+
+The maintainer selected **Eco** as the final public/display product name. The
+branding worker used `/private/tmp/GP-build104-eco-branding` on
+`agent/build104-eco-branding`; commit
+`76d0110e1d792a0c1f8cc500230cd55c85cc0cf9` is pushed to origin. Root reviewed
+and integrated it as `b1faac13e0eb92cffe8e11ef451f161186903d17`, then set both
+project configurations to build 104 and pushed integration commit
+`cdd4261ad152ce719e61751056bd1d81813272ab`. Public source strings, Settings,
+launcher fallback artwork, display metadata, focused tests, README, build docs,
+project overview, and App Store docs now use Eco. GOALPad remains the internal
+repository, target, scheme, and runtime name; bundle identifier
+`com.zephyrstudiosllc.eco`, iCloud identity, storage paths, and synced document
+schemas are unchanged. Older Handoff checkpoints retain former names and exact
+artifact paths as historical evidence rather than current product guidance.
+
+Root validation passed:
+
+- All seven focused integration suites: game-menu state, portrait/library,
+  complete touch controls, presentation/settings, save sync, keyboard/mouse,
+  and Game Center.
+- The touch suite explicitly verifies held down, then left without release,
+  emits one bounded crouch-plus-Square press; it cannot retrigger on the same
+  finger, rearms for a fresh gesture, and preserves held down-then-up crouch
+  jump and ordinary left-first Square.
+- `git diff --check`, the branding audit outside historical ledgers, and the
+  focused presentation/settings checks passed.
+- The first generic iPhoneOS attempt failed before source compilation because
+  the integration worktree's exact `bcc4ee8e` OpenGOAL gitlink was empty and
+  Xcode's Metal file references could not find its shaders. Root populated that
+  exact submodule commit and reran the same command successfully; parent and
+  child source remained clean.
+- The signed generic iPhoneOS Release and unsigned M5 iPad simulator Release
+  both completed with the canonical 518-object source pack and 518-object AOT
+  pack. Xcode emitted the existing upstream/AOT warnings and a stale Xcode
+  account-token warning, but automatic provisioning and signing completed.
+- Build 104 installed and launched on the repository-approved `iPad Pro
+  11-inch (M5)` simulator. A screenshot at
+  `/private/tmp/GOALPad-build104-eco-simulator.png` shows the healthy launcher,
+  Eco artwork, and only Jak 1/Jak II/Jak 3. The simulator was shut down after
+  validation. It had no user game data, so this is not gameplay proof.
+
+Preserved signed product:
+
+- App: `/private/tmp/GOALPad-build104-eco-signed/GOALPad.app`
+- Identity: Eco `1.0 (104)`, `com.zephyrstudiosllc.eco`, Zephyr Studios LLC
+  team `V729QMY3V6`, Apple Development signature, thin ARM64.
+- Executable SHA-256:
+  `f44aed4599fcf3d1959577560f4414c35f735e191c82f3b68dcb05e9a0df44e9`.
+- The managed profile includes `com.apple.developer.game-center = true` and
+  `iCloud.com.zephyrstudiosllc.eco`; code-signature verification passed.
+- The app contains exactly one byte-identical valid `PrivacyInfo.xcprivacy`
+  and no ISO/DGO/WAD/VAG/FR3 files. Preserved app size is approximately 51 MB.
+
+Physical Build 104 installation did not occur. CoreDevice access was requested
+only after giving the maintainer a numbered test route, but the execution
+approval layer rejected the repository's standing device authorization and
+required a fresh explicit request naming Build 104 and `Z iPad Pro`. No device
+lookup, install, launch, uninstall, data clear, or capture was performed.
+
+After the signed checkpoint, the maintainer reported the first major unvisited
+Build 93 gameplay failure: taking the Sandover Village boat toward Misty Island
+first presents a low-detail/untextured Sandover-like scene, then the world
+breaks into collapsed polygons/vertices during the trip. Misty remains corrupt
+on arrival and expected beach/ocean collision is missing, so Jak falls through
+and dies. This invalidates any global Build 93 acceptance claim. Renderer/DMA,
+level/AOT/data loading, and regression-history diagnosis are active in separate
+read-only lanes; no speculative source fix has been started.
