@@ -14530,3 +14530,15 @@ only artwork options; select Controller and Keyboard/Mouse in turn and confirm
 screen gameplay/menu/warp actions still work immediately; inspect and use the
 white inward camera stick; then repeat the Build 120 background/lock same-run
 resume gate.
+
+## Build 121 physical rejection: title START is inert
+
+The maintainer physically accepted the inward white camera stick as perfect.
+Build 121 is nevertheless rejected: after opening Jak, the visible START touch
+pill at the title screen is not recognized and the player cannot progress into
+the game. Do not change the camera stick again. The next candidate must trace
+the exact Start event from the SwiftUI geometry/raw-touch owner through
+`TouchControls.frameState()`, `ControllerInput.pushFrame(merging:)`, and the
+native `target-title-wait` consumer. Add a deterministic regression that proves
+the title Start pulse survives the real frame cadence and mode transition; do
+not treat a label/visibility assertion or a generic Start byte test as proof.

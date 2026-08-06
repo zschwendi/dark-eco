@@ -491,7 +491,7 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 Active lanes:
 
-- `Build 121 touch/launcher candidate installed; physical acceptance pending` —
+- `Build 121 physically rejected; title START touch is the sole immediate blocker` —
   Build 118's physical run exposed
   missing Start/Resume chrome and missing native-menu Back actions. Parent
   `3588baf3`, `64050a11`, `c6757a51`, and `c85ce554` add exact read-only title
@@ -523,8 +523,12 @@ Active lanes:
   horizontal spacer, capped at 200 points, with black/white Start/Select styling.
   It keeps the Build 96 radius, deadzone, vertical placement, and emitted bytes.
   The signed Build 121 candidate is installed in place on `Z iPad Pro` with its
-  data preserved. Physical card, simultaneous touch/physical-input, camera-stick
-  visual, warp, and background-resume acceptance remain pending. After that,
+  data preserved. The maintainer physically accepted the restored inward white
+  camera stick, but the visible START pill at the Jak title does not deliver a
+  usable Start press, so gameplay cannot begin. Treat that as a blocking
+  regression and fix the title-Start delivery path before any other UI work.
+  Physical card, simultaneous touch/physical-input, warp, and background-resume
+  acceptance remain pending after title entry works. After that,
   stop nonessential iOS settings work and prioritize true stereoscopic visionOS
   rendering.
 - `Build 114 signed generic-iOS candidate ready; physical Misty/title gate
