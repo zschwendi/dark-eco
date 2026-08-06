@@ -14181,3 +14181,41 @@ Mode, MSAA, and unwired V-Sync. Geometry, 6/6 managed-display tests, 287/287
 `progress-pc` dependencies, portrait checks, settings/iCloud checks, and both
 clean-worktree diff checks passed. Physical iPad presentation remains the only
 acceptance gate for that report.
+
+# Build 116 whole-stick analog source checkpoint
+
+Date: 2026-08-06. Isolated parent `624a9f44` was independently reviewed and
+returned ACCEPT with no P0-P2 findings. Root reviewed and integrated it as
+parent `60ddc9c0`; both iOS configurations are bumped from 115 to 116.
+
+- Standard/Swapped continues assigning each complete physical X/Y stick vector
+  to Movement or Camera. Independent logical-role tuning then provides 50-200%
+  sensitivity, 0-50% additional radial dead zone with deterministic rescaling,
+  and horizontal/vertical inversion. Whole-vector saturation preserves
+  direction, finite defaults retain the exact prior bytes, non-finite input
+  fails neutral, and the default optional Codable field is omitted.
+- Controller tuning occurs after Game Controller Y normalization and before the
+  unchanged controller-first keyboard/mouse/touch merge. Mouse/trackpad remains
+  the explicitly requested camera-only relative source with its separate
+  Build 115 tuning; no global SKIP action, per-component role tearing, or
+  mouse-to-movement routing was introduced.
+- Legacy/local/iCloud decoding, live application, disconnected-hardware UI,
+  accessibility labels/values, Controls reset, and Reset Jak 1 Settings are
+  covered. Root passed `Scripts/run-keyboard-mouse-input-check.sh`, iPhoneOS
+  production Swift parse, the UI source check, the authorized
+  `Scripts/run-presentation-settings-check.sh`, and the full authorized
+  `Scripts/run-save-sync-check.sh` regression suite.
+- A signed generic-iOS Build 116, artifact inspection, simulator, device, and
+  physical controller ergonomics/VoiceOver/two-device iCloud checks are not yet
+  claimed at this source checkpoint.
+
+The data-only FR3 validator corrective branch is also ready but intentionally
+parked. Nested `97e564ae04` and parent `f3818815` close every independently
+reported parser/renderer-consumer finding: visibility and ownership bounds,
+exact restart/group coverage, complete projected Metal allocation budgeting,
+Hfrag corner/occlusion limits, Tie/Shrub invariants, DrawMode/matrix safety, and
+Merc/Blerc ownership/capacities. The warnings-as-errors focused suite passes and
+the docs now truthfully describe complete bounded Level deserialization. The
+manager itself remains unintegrated until scoped app-sandbox filesystem
+transaction authority is explicit; no manager or filesystem operation was
+performed.

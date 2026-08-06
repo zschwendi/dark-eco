@@ -512,7 +512,8 @@ Active lanes:
   tests do not cover that semantic state. Nested `93dd44e16` and source-pack
   identity `c2fa7910dd863ae7` remain reproducible build evidence, not an
   accepted gameplay fix. Build 113 must not be installed as the Misty candidate.
-- `Integrated and signed in Build 115; physical input check pending` — parent
+- `Integrated in Build 116 source; signed build and physical input check
+  pending` — parent
   `23be12e8` adds a Standard/Swapped Sticks
   whole-vector controller mapping. It preserves paired X/Y stick vectors,
   existing Y normalization and trigger semantics, applies before keyboard,
@@ -525,7 +526,11 @@ Active lanes:
   Swift parse, settings UI, local/iCloud, legacy decoding, and reset checks pass.
   The generic-iOS Release build also passes and is preserved at
   `/private/tmp/GOALPad-build115-input-signed/GOALPad.app`; no device validation
-  is claimed.
+  is claimed. Parent `60ddc9c0` adds independent Movement/Camera whole-vector
+  sensitivity, radial dead-zone, and horizontal/vertical inversion after
+  Standard/Swapped role assignment; defaults retain exact old bytes. Independent
+  review found no P0-P2 issue, and root input, parse, UI, settings/iCloud, and
+  save-sync regression suites pass. Both iOS configurations are now 116.
 - `Integrated locally; synthetic visionOS proof only` — parent `9edcf64e` plus
   actor-isolation correction `2f29c327` render one immutable synthetic,
   depth-tested tetrahedron through distinct compositor views using predicted
@@ -545,15 +550,18 @@ Active lanes:
   menu/progress, and keyboard/controller gates. This is not permission to jump
   arbitrary states, skip load/death/warp/boat transitions, or claim every
   cinematic is authored skippable.
-- `Parked; security review still BLOCKS integration` — the data-only mod branch
-  preserves initial manager commit `72587e9c`, parent validator follow-up
-  `0050b4d6`, and nested checked production Level validator `ad3d5d5410`.
-  Fourteen adversarial semantic FR3 cases pass, but same-FD publication,
-  distinct-inode immutable copies, strict JSON, rollback journaling, corrupt
-  registry recovery, and concurrent-scene transactions remain unresolved. Do
-  not integrate or expose the manager until the maintainer authorizes the
-  scoped app-sandbox filesystem transaction layer and every independent review
-  finding is corrected and re-reviewed.
+- `Validator accepted but parked; manager authority still BLOCKS product
+  integration` — the data-only mod branch preserves initial manager commit
+  `72587e9c`, parent validator chain through `f3818815`, and nested checked
+  production Level validator through `97e564ae04`. Complete bounded Level
+  deserialization now rejects malicious strip/BVH, runtime-budget, Hfrag,
+  Tie/Shrub, DrawMode/matrix, and Merc/Blerc relationships before install.
+  Two independent security passes found and closed all source findings; the
+  warnings-as-errors package/FR3 suite passes and the validation-boundary docs
+  are current. Do not integrate or expose the manager until the maintainer
+  authorizes the scoped app-sandbox filesystem transaction layer; same-FD
+  publication, immutable copies, strict registry JSON, rollback/recovery, and
+  process-wide transaction ownership remain part of that separate gate.
 - `Integrated; focused validation passed; Build 107 full Xcode build pending` —
   Jak 1 physical-button/key remapping came from
   `/private/tmp/GP-build94-input-remapping`, worker commit `13197fd7`, and is
@@ -833,12 +841,20 @@ Active lanes:
 - [x] Preserve normal controller-first behavior while a physical controller is
   actively driving input; return to touch after touch activity according to a
   deterministic tested policy.
-- [ ] Add remapping for all supported physical-controller inputs.
-- [ ] Add remapping for all supported mouse-and-keyboard inputs.
+- [x] Add remapping for all supported physical-controller inputs. All 16
+  ingested buttons are assignable, whole sticks can exchange Movement/Camera
+  roles, and each complete logical vector has bounded sensitivity, radial dead
+  zone, and independent horizontal/vertical inversion without splitting X/Y.
+- [x] Add remapping for all supported mouse-and-keyboard inputs. All 12 bounded
+  named keys and three mouse buttons are assignable; WASD movement is ordinary
+  remappable input, while relative mouse/trackpad motion remains the requested
+  camera source with bounded sensitivity and independent inversion.
 - [x] Define collision/duplicate-binding behavior, reset defaults, persistence,
   cloud sync, and unavailable-device presentation before calling remapping done.
-  Current bindable buttons/keys use deterministic swapping and declared-order
-  duplicate normalization. Full remapping remains open for fixed analog axes.
+  Bindable buttons/keys use deterministic swapping and declared-order duplicate
+  normalization. Analog customization preserves whole-vector ownership and
+  exact default bytes; arbitrary typing and per-component stick tearing remain
+  intentionally unsupported.
 - [x] Implement mouse/trackpad camera control and WASD movement.
 - [x] Default keyboard face directions to Left = Square, Right = Circle,
   Up = Triangle, and Down = the exact L1+R1 shoulder chord. Ordinary Jak 1
@@ -871,9 +887,12 @@ Active lanes:
   action. The implementation emits Triangle only for an authoritative
   normal-to-look-around or look-around-to-normal transition and fails closed for
   Billy, unavailable state, or a reversed gesture.
-- [ ] Replace the second Pause/Select pill with `SKIP` per the maintainer's
+- [x] Replace the second Pause/Select pill with `SKIP` per the maintainer's
   latest direction. Define exactly which skippable state is active before
-  emitting input; never bypass progression or corrupt game state.
+  emitting input; never bypass progression or corrupt game state. Builds 114
+  and 115 expose it only for the native, authored, skip-enabled central
+  Triangle query with current owner/sequence/heartbeat validation; STATS remains
+  a separate L2+R2 action and generic state jumps remain unsupported.
 - [x] Make Start display `Pause` during gameplay and `Resume` while the native
   pause menu is open; keep Resume visible throughout that menu.
 - [ ] Add a touch-layout editor for position pinning/movement, remapping,
