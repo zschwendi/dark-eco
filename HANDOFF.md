@@ -14271,3 +14271,56 @@ pinned OpenGOAL Jak 1 capabilities and discoverable community mod landscape.
 This is documentation, not iPad compatibility or a legal conclusion. The
 curated Modern pack remains unapproved and the data-only manager remains parked
 behind its separate filesystem-authority decision.
+
+# Build 117 touch-editor in-flight checkpoint
+
+Date: 2026-08-06. Parent commits `f3058a64`, `270c2175`, and `a39e56af`
+integrate the reviewed Jak 1 touch-layout editor; `37614dd1` bumps both iOS
+configurations to Build 117. Root commit `1c5a2650` updates the full save-sync
+runner to compile the new production layout model and editor source.
+
+- The editor covers all six active Modern controls and fifteen active Classic
+  controls. It supports safe-area-normalized position pinning, 65-160% size,
+  25-100% opacity, compatible typed remapping, per-control reset, and whole
+  layout reset. Modern Down remains fixed to Crouch; Classic exposes no L2/R2.
+- Preview, gameplay rendering, and reverse hit ownership use the same explicit
+  visual order. Modern camera owns topmost overlaps; Classic retains its
+  established stack. Layout changes cancel active touches and transient input.
+- Root focused validation passed the touch-layout settings, touch runtime,
+  production presentation/typecheck, and complete save-sync suites. Logs are
+  `/private/tmp/GP-build117-root-touch-layout.log`,
+  `/private/tmp/GP-build117-root-touch-controls-serial.log`,
+  `/private/tmp/GP-build117-root-presentation-serial.log`, and
+  `/private/tmp/GP-build117-root-save-sync-serial.log`.
+- A signed generic-iOS Release compile exited 0 at Build 117 using the verified
+  518-object source pack (`2b812636de96f221`) and canonical 10,618-function AOT
+  corpus. Full log: `/private/tmp/GOALPad-build117-generic-ios.log`.
+- The compiled app was intentionally not installed. Independent review found
+  that embedding the new layout in schema-1 `presentation-v1.json` lets an
+  older Build 116-style client discard the unknown field and later overwrite
+  the customized layout. A schema bump at the same path would also be unsafe
+  because old clients treat it as absent and overwrite it with schema 1.
+- Corrective lane `/private/tmp/GP-build117-touch-layout-cloud-compat`, branch
+  `agent/build117-touch-layout-cloud-compat`, is moving layout persistence to a
+  distinct frozen `jak1-touch-layout-v1.json` local/iCloud document. It must
+  preserve a reset tombstone, reconcile both settings documents under the one
+  settings-sync status, and prove that a legacy presentation writer cannot
+  erase the layout before Build 117 is installed.
+
+Exact safe storage cleanup performed before the build removed only verified
+reproducible non-worktree caches
+`/private/tmp/goalpad-zip-module-cache`,
+`/private/tmp/goalpad-swift-module-cache`,
+`/private/tmp/goalpad-build111-input-module-cache`, and
+`/private/tmp/GOALPad-ccache` (about 849 MB), plus obsolete DerivedData
+`/private/tmp/GOALPad-build103-jak1-settings` and
+`/private/tmp/GOALPad-build93-cloud-save-ux` (about 1.9 GB). The signed Build 93
+app at `/private/tmp/GOALPad-build93-cloud-save-ux-signed/GOALPad.app`, current
+worktrees and candidates, user data, simulators, and every Jak II path were
+preserved. The removed directories are reproducible only by rebuilding.
+
+Physical touch ergonomics, VoiceOver operation, gameplay, Build 93 regression,
+Misty/title correctness, and Fit to Screen acceptance remain pending. `Z iPad
+Pro` is authorized for an in-place update-install and launch only after the
+cloud-compatibility correction passes review, focused tests, and a final signed
+build; do not uninstall or clear its app data.
