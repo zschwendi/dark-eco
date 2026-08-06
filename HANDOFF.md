@@ -13045,3 +13045,23 @@ passed every state, geometry, multitouch, sequence, and regression check.
 `git diff --check` also passed. Worker/ledger HEAD `7936b744` is pushed as
 `origin/agent/build94-classic-touch`. Binding the saved Controls profile and
 physical iPhone/iPad ergonomics remain pending.
+
+Build 98 integrates the Jak 1 settings/iCloud worker code from `a289e36e` as
+`5b268b8a`. Modern now precedes Classic without changing persisted raw values;
+empty Audio/UI forms are hidden while their legacy document fields remain
+decodable; `Fit to Screen` replaces the Hor+ implementation term; and the
+destructive action reads `Reset Jak 1 Settings`. One iCloud block now owns the
+independent `Sync Settings` and `Sync Saves` opt-outs, one combined status and
+newest successful date, and one cancellation-safe Sync/Retry action. Enabled
+domain failures dominate the combined status, and underlying save authority,
+conflict ranking, busy ownership, and the pregame recovery gate are unchanged.
+Root reruns of `Scripts/run-presentation-settings-check.sh` and
+`Scripts/run-save-sync-check.sh` passed with Xcode macro/file-coordination
+services. Worker/ledger HEAD `3e5c4e52` is pushed as
+`origin/agent/build94-jak1-settings-icloud`.
+
+Title-scoped local/iCloud settings paths remain explicitly deferred: safely
+moving `presentation-v1.json` requires ranking the legacy document, a new Jak 1
+document, and both sets of iCloud conflict versions in a one-time migration.
+This presentation slice did not change that cloud-authority contract or imply
+that later-title settings are implemented.

@@ -457,10 +457,14 @@ Active lanes:
   `origin/agent/build94-classic-touch`. Root reran
   `Scripts/run-touch-controls-check.sh` with Xcode macro services and all checks
   passed.
-- `In progress` — Jak 1 settings and combined iCloud presentation owns
-  `PresentationSettings.swift`, `SaveSyncController.swift`, and focused tests on
+- `Integrated; focused validation passed; physical presentation pending` —
+  Jak 1 settings and combined iCloud presentation came from
   `agent/build94-jak1-settings-icloud` in
-  `/private/tmp/GP-build94-jak1-settings-icloud`.
+  `/private/tmp/GP-build94-jak1-settings-icloud`. Code commit `a289e36e` is
+  integrated as `5b268b8a`; worker/ledger HEAD `3e5c4e52` is pushed to
+  `origin/agent/build94-jak1-settings-icloud`. Root reran both
+  `Scripts/run-presentation-settings-check.sh` and
+  `Scripts/run-save-sync-check.sh` with Xcode services; both passed.
 - `Integrated; focused validation passed; physical portrait check pending` —
   portrait renderer alignment and complete Jak X library removal came from
   `agent/build94-portrait-library` in
@@ -483,7 +487,7 @@ Active lanes:
   player surface when disabled.
 - [ ] Fix the stationary Settings sheet/modal layout flicker and roughly
   100-point vertical text jump before adding more rows.
-- [ ] Present Modern before Classic in every global and section picker while
+- [x] Present Modern before Classic in every global and section picker while
   preserving stored enum/document compatibility.
 - [ ] Make app settings title-scoped. The launcher Settings entry lists Jak 1,
   Jak II, and later supported titles; each title remembers its own profile and
@@ -491,19 +495,19 @@ Active lanes:
 - [ ] Do not present unimplemented title settings as functional. Jak 1 is the
   active settings document; later-title rows may be clearly unavailable until
   their title support is real.
-- [ ] Rename `Reset All` to `Reset Jak 1 Settings` in the Jak 1 document.
+- [x] Rename `Reset All` to `Reset Jak 1 Settings` in the Jak 1 document.
 - [x] Remove Jak X from the game library because it is outside OpenGOAL scope.
-- [ ] Remove empty Audio and UI sections for now unless a setting exists that is
+- [x] Remove empty Audio and UI sections for now unless a setting exists that is
   not already meaningfully covered by Jak's native options.
-- [ ] Move Fill Width into the in-game Graphics settings, call the user-facing
+- [x] Move Fill Width into the in-game Graphics settings, call the user-facing
   option `Fit to Screen`, and do not expose the implementation term `Hor+`.
 - [ ] Preserve Build 93's accepted Modern Graphics default and exact Classic
   presentation while moving that option.
-- [ ] Combine the duplicate `iCloud Settings` and `iCloud Saves` sections into
+- [x] Combine the duplicate `iCloud Settings` and `iCloud Saves` sections into
   one `iCloud` block with independent `Sync Settings` and `Sync Saves` toggles.
-- [ ] Give that block one combined progress/status, last-sync date, and
+- [x] Give that block one combined progress/status, last-sync date, and
   Sync/Retry action covering whichever toggles are enabled.
-- [ ] Preserve the existing independent opt-outs and safe pregame save gate
+- [x] Preserve the existing independent opt-outs and safe pregame save gate
   beneath the combined presentation.
 - [ ] Add the smallest truthful settings entry needed to import/manage supported
   data-only mods; do not imply a mod browser or code-mod support exists.
