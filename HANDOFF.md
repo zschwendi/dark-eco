@@ -13082,3 +13082,14 @@ files, `Scripts/run-presentation-settings-check.sh`, its UI checks, and
 validation remain batched with the keyboard/mouse lane. Existing stored Controls
 profile values are respected: a saved Classic profile selects the new Classic
 overlay, while Modern selects the exact gesture model.
+
+Build 100 integrates the Pause/Resume presentation worker code from
+`c5da85d4` as `501f3f4d`. Both Modern and Classic render their existing Start
+hit target as `PAUSE` in gameplay and `RESUME` when the native pause, progress,
+or menu state is open; the emitted controller bit remains `.start`. A native
+menu keeps the touch fallback visible after its normal fade unless active
+physical input suppresses touch, and a live screen touch still restores it.
+Root reran `Scripts/run-touch-controls-check.sh`, iOS Swift parser checks, and
+`git diff --check`; all passed. Worker/ledger HEAD `074d9cdb` is pushed as
+`origin/agent/build100-pause-label`. Physical label fit, menu transitions, and
+touch ergonomics remain candidate gates.
