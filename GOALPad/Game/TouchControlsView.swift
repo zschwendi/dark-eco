@@ -7,11 +7,14 @@ import UIKit
 /// The frozen Build 96 gameplay controls plus the later native-menu touch layer.
 struct TouchControlsView: View {
     let controls: TouchControls
+    let lookAroundState: GOALPadLookAroundState
     /// Active physical input hides the artwork until the screen is touched again.
     let isSuppressed: Bool
     let gameMode: GOALPadGameMode
     let titleStartState: GOALPadTitleStartState
     let progressMenuSnapshot: NativeProgressMenuSnapshot
+    let warpGateTouchSnapshot: NativeWarpGateTouchSnapshot
+    let cutsceneSkipTouchSnapshot: NativeCutsceneSkipTouchSnapshot
     let reclaimTouchInput: () -> Bool
 
     fileprivate static let space = "GOALPadTouchControls"
@@ -67,6 +70,21 @@ struct TouchControlsView: View {
         TouchControls.capturesNativeMenuInput(mode: gameMode)
     }
 
+    private var warpGateActions: [NativeWarpGateTouchAction] {
+        NativeWarpGateTouchAction.available(in: gameMode, snapshot: warpGateTouchSnapshot)
+    }
+
+    private var warpGateTouchControlsAreVisible: Bool {
+        TouchControls.warpGateTouchControlsAreVisible(mode: gameMode,
+                                                      snapshot: warpGateTouchSnapshot,
+                                                      isSuppressed: isSuppressed)
+    }
+
+    private var cutsceneSkipAvailable: Bool {
+        TouchControls.cutsceneSkipIsAvailable(in: gameMode,
+                                              snapshot: cutsceneSkipTouchSnapshot)
+    }
+
     private var isVisible: Bool {
         TouchControls.artworkIsVisible(isEngaged: controls.isEngaged,
                                        isSuppressed: isSuppressed,
@@ -81,7 +99,7 @@ struct TouchControlsView: View {
             ZStack {
                 if !capturesNativeMenuInput {
                     #if canImport(UIKit)
-                    TouchSurface(controls: controls)
+                    TouchSurface(controls: controls, lookAroundState: lookAroundState)
                     #endif
 
                     artwork(in: proxy.size)
@@ -94,6 +112,17 @@ struct TouchControlsView: View {
                     NativeMenuTouchControls(controls: controls,
                                             actions: nativeMenuActions,
                                             isVisible: nativeMenuControlsAreVisible)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, max(20, proxy.safeAreaInsets.bottom))
+                }
+
+                if !capturesNativeMenuInput && !warpGateActions.isEmpty {
+                    NativeWarpGateTouchControls(controls: controls,
+                                                snapshot: warpGateTouchSnapshot,
+                                                actions: warpGateActions,
+                                                capturesInput: false,
+                                                isSuppressed: isSuppressed,
+                                                isVisible: warpGateTouchControlsAreVisible)
                         .padding(.horizontal, 20)
                         .padding(.bottom, max(20, proxy.safeAreaInsets.bottom))
                 }
@@ -140,7 +169,8 @@ struct TouchControlsView: View {
     private func pill(_ button: TouchButton) -> some View {
         let isDown = controls.isPillDown(button)
         return Text(TouchControls.artworkLabel(for: button,
-                                               sessionAction: sessionControl?.action))
+                                               sessionAction: sessionControl?.action,
+                                               cutsceneSkipAvailable: cutsceneSkipAvailable))
             .font(.system(size: 12, weight: .semibold, design: .rounded))
             .tracking(1.4)
             .foregroundStyle(.white.opacity(isDown ? 1 : 0.8))
@@ -569,46 +599,89 @@ private struct RightStickControl: View {
 /// The one view that sees raw multitouch and hands each finger to the state machine by identity.
 private struct TouchSurface: UIViewRepresentable {
     let controls: TouchControls
+    let lookAroundState: GOALPadLookAroundState
 
     func makeUIView(context: Context) -> TouchSurfaceView {
         let view = TouchSurfaceView()
         view.isMultipleTouchEnabled = true
         view.backgroundColor = .clear
         view.controls = controls
+        view.lookAroundState = lookAroundState
         return view
     }
 
     func updateUIView(_ view: TouchSurfaceView, context: Context) {
         view.controls = controls
+        view.lookAroundState = lookAroundState
     }
 }
 
 private final class TouchSurfaceView: UIView {
     var controls: TouchControls?
+    var lookAroundState = GOALPadLookAroundState.unknown
+    private let haptics = TouchHapticDriver()
+    private let pinchRecognizer = UIPinchGestureRecognizer()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        pinchRecognizer.addTarget(self, action: #selector(handlePinch(_:)))
+        addGestureRecognizer(pinchRecognizer)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             controls?.began(ObjectIdentifier(touch), at: touch.location(in: self),
                             in: bounds.size, at: touch.timestamp)
         }
+        flushHaptics()
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             controls?.moved(ObjectIdentifier(touch), to: touch.location(in: self))
         }
+        flushHaptics()
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             controls?.ended(ObjectIdentifier(touch), at: touch.timestamp)
         }
+        flushHaptics()
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             controls?.cancelled(ObjectIdentifier(touch))
         }
+        flushHaptics()
+    }
+
+    @objc private func handlePinch(_ pinch: UIPinchGestureRecognizer) {
+        switch pinch.state {
+        case .began:
+            controls?.pinchBegan()
+            controls?.pinchChanged(scale: pinch.scale, lookAroundState: lookAroundState)
+        case .changed:
+            controls?.pinchChanged(scale: pinch.scale, lookAroundState: lookAroundState)
+        case .ended:
+            controls?.pinchEnded()
+        case .cancelled, .failed:
+            controls?.pinchCancelled()
+        case .possible:
+            break
+        @unknown default:
+            controls?.pinchCancelled()
+        }
+        flushHaptics()
+    }
+
+    private func flushHaptics() {
+        haptics.play(controls?.consumeHapticEvents() ?? [])
     }
 }
 

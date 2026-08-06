@@ -60,10 +60,13 @@ struct ContentView: View {
             if session.isRunning {
                 #if os(iOS)
                 TouchControlsView(controls: session.touch,
+                                  lookAroundState: session.lookAroundState,
                                   isSuppressed: session.input.isDriving,
                                   gameMode: session.gameMode,
                                   titleStartState: session.titleStartState,
                                   progressMenuSnapshot: session.progressMenuSnapshot,
+                                  warpGateTouchSnapshot: session.warpGateTouchSnapshot,
+                                  cutsceneSkipTouchSnapshot: session.cutsceneSkipTouchSnapshot,
                                   reclaimTouchInput: session.input.reclaimTouchInput)
                 #endif
 
