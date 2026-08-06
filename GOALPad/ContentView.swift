@@ -1,5 +1,34 @@
 import SwiftUI
 
+nonisolated enum GameplaySurfaceLayout {
+    struct SafeAreaInsets: Equatable, Sendable {
+        let top: CGFloat
+        let leading: CGFloat
+        let bottom: CGFloat
+        let trailing: CGFloat
+    }
+
+    /// Uses a 4:3 host surface in portrait so the renderer's existing Classic and Fit to Screen
+    /// geometry continues to choose the presentation. Landscape keeps its full existing surface.
+    static func frame(in container: CGSize, safeAreaInsets: SafeAreaInsets) -> CGRect {
+        let width = max(container.width, 0)
+        let height = max(container.height, 0)
+        guard height > width else {
+            return CGRect(origin: .zero, size: CGSize(width: width, height: height))
+        }
+
+        let top = min(max(safeAreaInsets.top, 0), height)
+        let bottom = min(max(safeAreaInsets.bottom, 0), height - top)
+        let leading = min(max(safeAreaInsets.leading, 0), width)
+        let trailing = min(max(safeAreaInsets.trailing, 0), width - leading)
+        let contentWidth = width - leading - trailing
+        let contentHeight = height - top - bottom
+        let rendererHeight = min(contentWidth * 3 / 4, contentHeight)
+
+        return CGRect(x: leading, y: top, width: contentWidth, height: rendererHeight)
+    }
+}
+
 struct ContentView: View {
     private enum LauncherDestination {
         case library
@@ -15,7 +44,7 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            GameSurfaceView { session.tick(targetPresentationTime: $0) }
+            GameplaySurface(session: session)
 
             if session.isRunning {
                 #if os(iOS)
@@ -91,6 +120,29 @@ struct ContentView: View {
                 SaveSettingsView(sync: session.saveSync, settings: session.presentationSettings)
             }
                 .frame(minWidth: 360, minHeight: 360)
+        }
+    }
+}
+
+private struct GameplaySurface: View {
+    let session: GameSession
+
+    var body: some View {
+        GeometryReader { proxy in
+            let frame = GameplaySurfaceLayout.frame(
+                in: proxy.size,
+                safeAreaInsets: .init(
+                    top: proxy.safeAreaInsets.top,
+                    leading: proxy.safeAreaInsets.leading,
+                    bottom: proxy.safeAreaInsets.bottom,
+                    trailing: proxy.safeAreaInsets.trailing
+                )
+            )
+
+            GameSurfaceView { session.tick(targetPresentationTime: $0) }
+                .frame(width: frame.width, height: frame.height)
+                .clipped()
+                .position(x: frame.midX, y: frame.midY)
         }
     }
 }

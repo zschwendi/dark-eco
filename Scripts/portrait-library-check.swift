@@ -1,0 +1,123 @@
+import Foundation
+
+private func source(at path: String) throws -> String {
+    try String(contentsOfFile: path, encoding: .utf8)
+}
+
+private func declaration(in source: String, startingWith start: String, endingWith end: String) throws -> String {
+    guard let lower = source.range(of: start),
+          let upper = source.range(of: end, range: lower.upperBound..<source.endIndex)
+    else {
+        throw CocoaError(.fileReadCorruptFile)
+    }
+    return String(source[lower.lowerBound..<upper.lowerBound])
+}
+
+private func run(_ executable: String, arguments: [String]) throws -> String {
+    let process = Process()
+    let output = Pipe()
+    process.executableURL = URL(fileURLWithPath: executable)
+    process.arguments = arguments
+    process.standardOutput = output
+    process.standardError = output
+    try process.run()
+    process.waitUntilExit()
+    let data = output.fileHandleForReading.readDataToEndOfFile()
+    let text = String(decoding: data, as: UTF8.self)
+    guard process.terminationStatus == 0 else {
+        throw NSError(domain: "portrait-library-check", code: Int(process.terminationStatus),
+                      userInfo: [NSLocalizedDescriptionKey: text])
+    }
+    return text
+}
+
+guard CommandLine.arguments.count == 2 else {
+    print("usage: swift Scripts/portrait-library-check.swift <repository-root>")
+    Foundation.exit(2)
+}
+
+do {
+    let root = CommandLine.arguments[1]
+    let content = try source(at: root + "/GOALPad/ContentView.swift")
+    let library = try source(at: root + "/GOALPad/Library/GameLibrary.swift")
+    let layout = try declaration(in: content,
+                                 startingWith: "nonisolated enum GameplaySurfaceLayout",
+                                 endingWith: "\n\nstruct ContentView")
+    let titles = try declaration(in: library,
+                                 startingWith: "nonisolated enum GameLibraryTitle",
+                                 endingWith: "\n\nnonisolated enum GameLibraryState")
+    let directory = FileManager.default.temporaryDirectory
+        .appending(path: "goalpad-portrait-library-\(UUID().uuidString)", directoryHint: .isDirectory)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+    let program = """
+    import Foundation
+    import CoreGraphics
+
+    \(layout)
+
+    \(titles)
+
+    func check(_ condition: Bool, _ message: String) {
+        if !condition {
+            fatalError("FAIL \\(message)")
+        }
+        print("  ok   \\(message)")
+    }
+
+    func approximatelyEqual(_ lhs: CGFloat, _ rhs: CGFloat) -> Bool {
+        abs(lhs - rhs) < 0.001
+    }
+
+    func checkPortrait(_ size: CGSize,
+                       _ insets: GameplaySurfaceLayout.SafeAreaInsets,
+                       _ name: String) {
+        let frame = GameplaySurfaceLayout.frame(in: size, safeAreaInsets: insets)
+        check(approximatelyEqual(frame.minX, insets.leading)
+              && approximatelyEqual(frame.minY, insets.top),
+              "\\(name) starts at the safe-content top")
+        check(frame.maxX <= size.width - insets.trailing + 0.001
+              && frame.maxY <= size.height - insets.bottom + 0.001,
+              "\\(name) stays inside safe-content bounds")
+        check(approximatelyEqual(frame.height, frame.width * 3 / 4),
+              "\\(name) keeps the renderer's Classic 4:3 host aspect")
+    }
+
+    let iphone = GameplaySurfaceLayout.frame(
+        in: CGSize(width: 393, height: 852),
+        safeAreaInsets: .init(top: 59, leading: 0, bottom: 34, trailing: 0)
+    )
+    check(approximatelyEqual(iphone.minY, 59), "portrait iPhone renderer is top-aligned")
+    check(approximatelyEqual(iphone.height, 294.75), "portrait iPhone leaves remaining space below")
+    checkPortrait(CGSize(width: 393, height: 852), .init(top: 59, leading: 0, bottom: 34, trailing: 0), "portrait iPhone")
+    checkPortrait(CGSize(width: 834, height: 1194), .init(top: 24, leading: 0, bottom: 20, trailing: 0), "portrait iPad")
+
+    let landscape = GameplaySurfaceLayout.frame(
+        in: CGSize(width: 1194, height: 834),
+        safeAreaInsets: .init(top: 0, leading: 24, bottom: 21, trailing: 24)
+    )
+    check(landscape == CGRect(x: 0, y: 0, width: 1194, height: 834),
+          "landscape keeps the full existing renderer surface")
+
+    check(GameLibraryTitle.allCases == [.jak1, .jak2, .jak3],
+          "the deterministic launcher catalog contains only Jak 1, Jak II, and Jak 3")
+    check(!GameLibraryTitle.allCases.contains(.jakX), "Jak X is absent from the launcher catalog")
+    print("portrait and library checks passed")
+    """
+
+    let sourceURL = directory.appending(path: "portrait-library-check.swift", directoryHint: .notDirectory)
+    let executableURL = directory.appending(path: "portrait-library-check", directoryHint: .notDirectory)
+    let moduleCacheURL = directory.appending(path: "module-cache", directoryHint: .isDirectory)
+    try program.write(to: sourceURL, atomically: true, encoding: .utf8)
+    try FileManager.default.createDirectory(at: moduleCacheURL, withIntermediateDirectories: true)
+    let sdk = try run("/usr/bin/xcrun", arguments: ["--sdk", "macosx", "--show-sdk-path"])
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    _ = try run("/usr/bin/xcrun", arguments: ["swiftc", "-sdk", sdk,
+                                                  "-module-cache-path", moduleCacheURL.path,
+                                                  sourceURL.path, "-o", executableURL.path])
+    print(try run(executableURL.path, arguments: []), terminator: "")
+} catch {
+    print("portrait and library checks failed: \(error.localizedDescription)")
+    Foundation.exit(1)
+}
