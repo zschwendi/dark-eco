@@ -327,8 +327,9 @@ struct ModernTouchLayout: Sendable {
     }
 }
 
-/// Deterministic hit targets shared by the Classic artwork and raw touch surface.
+/// Deterministic Classic artwork and app-owned touch targets.
 struct ClassicTouchLayout {
+    static let minimumButtonHitSize = CGSize(width: 44, height: 44)
     static let buttons: [TouchButton] = [
         .up, .down, .left, .right,
         .select, .start,
@@ -340,7 +341,10 @@ struct ClassicTouchLayout {
     let stickRadius: CGFloat
     let leftStickFrame: CGRect
     let rightStickFrame: CGRect
+    /// Artwork geometry. This remains independent from the larger touch targets below.
     let buttonFrames: [TouchButton: CGRect]
+    /// Touch geometry for fixed Classic buttons, kept within `safeBounds`.
+    let buttonHitFrames: [TouchButton: CGRect]
 
     init(size: CGSize, safeAreaInsets: TouchSafeAreaInsets = .zero) {
         let bounds = CGRect(origin: .zero,
@@ -413,7 +417,8 @@ struct ClassicTouchLayout {
 
         let pillSize = CGSize(width: 68 * scale, height: 30 * scale)
         let centreGap = rightStickFrame.minX - leftStickFrame.maxX
-        if centreGap >= pillSize.width * 2 + buttonGap {
+        let centrePillsAreSideBySide = centreGap >= pillSize.width * 2 + buttonGap
+        if centrePillsAreSideBySide {
             let offset = pillSize.width / 2 + buttonGap / 2
             frames[.select] = Self.frame(centre: CGPoint(x: safeBounds.midX - offset, y: stickY),
                                          size: pillSize)
@@ -428,10 +433,55 @@ struct ClassicTouchLayout {
                 size: pillSize)
         }
         buttonFrames = frames
+        buttonHitFrames = Self.hitFrames(for: frames,
+                                         boundedTo: safeBounds,
+                                         centrePillsAreSideBySide: centrePillsAreSideBySide)
     }
 
     func frame(for button: TouchButton) -> CGRect? {
         buttonFrames[button]
+    }
+
+    func hitFrame(for button: TouchButton) -> CGRect? {
+        buttonHitFrames[button]
+    }
+
+    private static func hitFrames(for visualFrames: [TouchButton: CGRect],
+                                  boundedTo safeBounds: CGRect,
+                                  centrePillsAreSideBySide: Bool) -> [TouchButton: CGRect] {
+        var frames = visualFrames.mapValues { minimumHitFrame(for: $0, boundedTo: safeBounds) }
+        guard !centrePillsAreSideBySide,
+              let startVisual = visualFrames[.start],
+              let selectFrame = frames[.select],
+              let startFrame = frames[.start]
+        else { return frames }
+
+        // On the compact stacked centre controls, expanding both pills around their artwork would
+        // make Select own Start's visual centre. Keep their 44-point targets adjacent instead.
+        let selectOriginY = min(max(safeBounds.minY, startVisual.minY - selectFrame.height),
+                                safeBounds.maxY - selectFrame.height)
+        let adjustedSelect = CGRect(x: selectFrame.minX, y: selectOriginY,
+                                    width: selectFrame.width, height: selectFrame.height)
+        let startOriginY = min(max(adjustedSelect.maxY, startVisual.maxY - startFrame.height),
+                               safeBounds.maxY - startFrame.height)
+        frames[.select] = adjustedSelect
+        frames[.start] = CGRect(x: startFrame.minX, y: startOriginY,
+                                width: startFrame.width, height: startFrame.height)
+        return frames
+    }
+
+    private static func minimumHitFrame(for visualFrame: CGRect, boundedTo safeBounds: CGRect) -> CGRect {
+        let size = CGSize(width: min(safeBounds.width,
+                                    max(minimumButtonHitSize.width, visualFrame.width)),
+                          height: min(safeBounds.height,
+                                      max(minimumButtonHitSize.height, visualFrame.height)))
+        let origin = CGPoint(
+            x: min(max(safeBounds.minX, visualFrame.midX - size.width / 2),
+                   safeBounds.maxX - size.width),
+            y: min(max(safeBounds.minY, visualFrame.midY - size.height / 2),
+                   safeBounds.maxY - size.height)
+        )
+        return CGRect(origin: origin, size: size)
     }
 
     private static func frame(centre: CGPoint, diameter: CGFloat) -> CGRect {
@@ -751,7 +801,7 @@ final class TouchControls {
                       classicLayout: ClassicTouchLayout?) -> Role? {
         if let layout = classicLayout {
             for button in ClassicTouchLayout.buttons
-            where layout.frame(for: button)?.contains(point) == true {
+            where layout.hitFrame(for: button)?.contains(point) == true {
                 return .pill(button)
             }
             if stick == nil, layout.leftStickFrame.contains(point) { return .movement }

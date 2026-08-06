@@ -29,6 +29,8 @@ private struct Runner {
     static let start = CGRect(x: 610, y: 690, width: 102, height: 66)
     static let rightStick = CGRect(x: 1040, y: 668, width: 108, height: 108)
 
+    let screen: CGSize
+    let safeAreaInsets: TouchSafeAreaInsets
     let controls: TouchControls
     var clock: TimeInterval = 0
 
@@ -37,6 +39,16 @@ private struct Runner {
     }
 
     init(style: TouchControlStyle = .modern, rightStickFrame: CGRect) {
+        self.init(style: style, size: Self.screen, safeAreaInsets: Self.safeAreaInsets,
+                  rightStickFrame: rightStickFrame)
+    }
+
+    init(style: TouchControlStyle,
+         size: CGSize,
+         safeAreaInsets: TouchSafeAreaInsets = .zero,
+         rightStickFrame: CGRect) {
+        self.screen = size
+        self.safeAreaInsets = safeAreaInsets
         controls = TouchControls(style: style)
         controls.setPillFrame(.select, Self.select)
         controls.setPillFrame(.start, Self.start)
@@ -53,8 +65,8 @@ private struct Runner {
     }
 
     func down(_ finger: Finger, _ point: CGPoint) {
-        controls.began(ObjectIdentifier(finger), at: point, in: Self.screen,
-                       safeAreaInsets: Self.safeAreaInsets, at: clock)
+        controls.began(ObjectIdentifier(finger), at: point, in: screen,
+                       safeAreaInsets: safeAreaInsets, at: clock)
     }
 
     func move(_ finger: Finger, _ point: CGPoint) {
@@ -757,6 +769,64 @@ private func classicButtonsMapDirectly() {
 }
 
 @MainActor
+private func classicHitTargetsLeaveArtworkAndBytesIntact() {
+    print("Classic hit targets expand without moving compact artwork or remapping controls")
+    let compactSize = CGSize(width: 280, height: 160)
+    let layout = ClassicTouchLayout(size: compactSize)
+    let expectedVisualFrames: [TouchButton: CGRect] = [
+        .up: CGRect(x: 32, y: 74, width: 22, height: 22),
+        .down: CGRect(x: 32, y: 130, width: 22, height: 22),
+        .left: CGRect(x: 4, y: 102, width: 22, height: 22),
+        .right: CGRect(x: 60, y: 102, width: 22, height: 22),
+        .triangle: CGRect(x: 226, y: 74, width: 22, height: 22),
+        .cross: CGRect(x: 226, y: 130, width: 22, height: 22),
+        .square: CGRect(x: 198, y: 102, width: 22, height: 22),
+        .circle: CGRect(x: 254, y: 102, width: 22, height: 22),
+        .leftShoulder: CGRect(x: 59, y: 51, width: 41, height: 17),
+        .rightShoulder: CGRect(x: 180, y: 51, width: 41, height: 17),
+        .select: CGRect(x: 123, y: 31, width: 34, height: 15),
+        .start: CGRect(x: 123, y: 52, width: 34, height: 15),
+    ]
+    check(layout.buttonFrames == expectedVisualFrames,
+          "the compact Classic artwork retains its existing scaled frames")
+
+    let hitFrames = ClassicTouchLayout.buttons.compactMap { layout.hitFrame(for: $0) }
+    check(hitFrames.count == ClassicTouchLayout.buttons.count,
+          "every Classic artwork control has an app-owned hit target")
+    check(hitFrames.allSatisfy {
+        $0.width >= ClassicTouchLayout.minimumButtonHitSize.width
+            && $0.height >= ClassicTouchLayout.minimumButtonHitSize.height
+    }, "every compact Classic hit target is at least 44 by 44 points")
+    check(hitFrames.allSatisfy { layout.safeBounds.contains($0) },
+          "every compact Classic hit target stays inside the safe bounds")
+    check(ClassicTouchLayout.buttons.allSatisfy {
+        guard let visual = layout.frame(for: $0), let hit = layout.hitFrame(for: $0) else {
+            return false
+        }
+        return hit.contains(visual)
+    }, "every compact hit target still contains its visible control")
+
+    for button in ClassicTouchLayout.buttons {
+        guard let visualFrame = layout.frame(for: button) else {
+            check(false, "Classic has compact artwork for \(button)")
+            continue
+        }
+        let visualCentre = CGPoint(x: visualFrame.midX, y: visualFrame.midY)
+        let owners = ClassicTouchLayout.buttons.filter {
+            layout.hitFrame(for: $0)?.contains(visualCentre) == true
+        }
+        check(owners == [button],
+              "the compact \(button) artwork centre has one deterministic hit owner")
+
+        var run = Runner(style: .classic, size: compactSize, rightStickFrame: .zero)
+        let finger = Finger()
+        run.down(finger, visualCentre)
+        check(run.frame().buttons == button.bit,
+              "the compact \(button) hit target preserves its controller byte")
+    }
+}
+
+@MainActor
 private func classicSticksAreSymmetricalAndAnalog() {
     print("Classic has two equal fixed analog sticks")
     var run = Runner(style: .classic)
@@ -1215,6 +1285,7 @@ struct TouchControlsCheck {
         pinchZoomIsModernOnlyAndLifecycleSafe()
         styleSwitchClearsInterruptedInput()
         classicButtonsMapDirectly()
+        classicHitTargetsLeaveArtworkAndBytesIntact()
         classicSticksAreSymmetricalAndAnalog()
         classicGeometryStaysSafeAndBalanced()
         classicHasNoTriggerOverlay()
