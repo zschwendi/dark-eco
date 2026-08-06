@@ -252,10 +252,17 @@ private struct GameplaySurface: View {
                 )
             )
 
-            GameSurfaceView { session.tick(targetPresentationTime: $0) }
-                .frame(width: frame.width, height: frame.height)
-                .clipped()
-                .position(x: frame.midX, y: frame.midY)
+            if frame.origin == .zero, frame.size == proxy.size {
+                // Preserve Build 93's exact edge-to-edge surface in landscape. Constraining an
+                // ignoresSafeArea view to the GeometryReader's safe-area proposal reintroduced
+                // thin bars even though the calculated frame itself covered the proposal.
+                GameSurfaceView { session.tick(targetPresentationTime: $0) }
+            } else {
+                GameSurfaceView { session.tick(targetPresentationTime: $0) }
+                    .frame(width: frame.width, height: frame.height)
+                    .clipped()
+                    .position(x: frame.midX, y: frame.midY)
+            }
         }
     }
 }
