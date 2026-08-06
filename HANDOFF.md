@@ -11499,7 +11499,8 @@ The nested integration branch now ends at `cd4176935`:
   bucket 4 deferred, and keeps PASS dependent on increased non-black RGB.
 
 The currently enabled Jak II Metal policy remains exactly three Direct buckets:
-`SKY_DRAW` id 5, `SCREEN_FILTER` id 256, and `DEBUG_NO_ZBUF2` id 325. The other
+`SKY_DRAW` id 5, `SCREEN_FILTER` id 321 (batch size 256), and
+`DEBUG_NO_ZBUF2` id 325. The other
 197 nonempty-capable buckets remain deferred and 127 remain strict-empty.
 
 ## Runtime evidence before the diagnostic commit
@@ -11601,3 +11602,58 @@ of storage. No physical-device validation was performed or authorized.
    build gates. Shared Jak 1 settings should then be ported through a title
    descriptor/capability adapter, not by wholesale cherry-picking Jak 1-owned
    storage, render, save, or boot assumptions.
+
+## Post-checkpoint maintainer direction and Mac baseline
+
+The maintainer explicitly authorized standalone macOS OpenGOAL testing and set
+the implementation order: port and validate Jak II renderer subsystems one at
+a time as was done for Jak 1, then audio, then controls/lifecycle wiring, then
+prepare a maintainer test build. Do not use the Eco application as the routine
+Mac integration surface. Reuse Jak 1 implementations where their contracts are
+title-neutral, with explicit Jak II adapters for bucket layouts, data, symbols,
+and save/settings ownership.
+
+With maintainer approval, five clean worker worktrees whose patches were already
+cherry-picked were removed; their branches and commits remain recoverable. Free
+space increased to about 3.9 GiB. The isolated parent and nested integration
+worktrees remain clean at `d21e810f` and `cd4176935`.
+
+The deleted canonical host build was recreated at
+`/private/tmp/GOALPad-jak2-real-dma-host` with Release, Ninja, `-j2`, and the
+bounded ccache launchers. An initial aggregate build was stopped after its first
+sandbox-only failure to write Clang Metal modules under `~/.cache`; it resumed
+normally with standard Mac tool-service access. To preserve the renderer-first
+sequence, the integration owner then built only:
+
+```text
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host --target \
+  jak2-metal-host-bridge-test jak2-metal-bucket-table-test \
+  metal-bucket-chain-semantics-test jak2-metal-dispatch-proof \
+  jak2-metal-submit-readback-proof -j2
+
+ctest --test-dir /private/tmp/GOALPad-jak2-real-dma-host \
+  -R '^(metal-bucket-chain-semantics-test|jak2-metal-bucket-table-test|jak2-metal-dispatch-proof|jak2-metal-submit-readback-proof|jak2-metal-host-bridge-test)$' \
+  --output-on-failure
+```
+
+The focused build passed and CTest passed 5/5 in 1.64 seconds. The broader host,
+AOT, full Jak 1 Metal regression, standalone live Mac runtime, simulator, and
+generic iPhoneOS matrices remain pending at this exact source. No physical
+device was accessed.
+
+The standalone audit found that desktop `gk` is not a safe Jak II test surface:
+it uses the desktop runtime/RWX object-code model, not the 840-unit AOT runtime.
+The first implementation slice is therefore a narrow macOS CLI target,
+`jak2-metal-runtime-proof`, combining the existing Jak II AOT runtime and Metal
+host with a hidden 640x480 SDL Metal layer. It should run at most three real DMA
+chains, retain the iOS proof's exact counters and strict RGB gate, log the new
+SKY batch facts, and write diagnostic PNGs only under `/private/tmp`.
+
+After that Mac diagnostic, branch on evidence. A textured placeholder/miss means
+the next renderer slice is common `GAME.fr3` residency plus real upload and
+relocation callbacks, with bucket 4 still deferred. A valid texture hit means
+fix the observed Direct color/blend/alpha state first. Renderer dependency order
+after common textures is: the live mixed bucket-4 animator subset, level/VisData
+ownership, Tfrag, Tie, Merc/Generic2, then remaining shrub/water/ocean/shadow/
+sprite/composite families. Audio follows a sustained correctly textured title;
+then controller, touch-capability, local save/relaunch, and lifecycle adapters.
