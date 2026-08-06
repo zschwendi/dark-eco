@@ -14850,3 +14850,13 @@ verify the changed 518-object Jak 1 source pack and AOT corpus once, bump both i
 configurations to 127, run the focused matrix and one signed generic-iOS build, then
 record the physical acceptance route without accessing a device unless currently
 authorized.
+
+Native worker `47d19dd8` is pushed on `origin/agent/build127-face-native` and
+integrated/pushed on the parent as `a7c8f7bc`. It adds the hardened two-sample
+owner/mask/heartbeat reader, exact four-face-bit validation, fail-closed symbol
+discovery/reset, Objective-C snapshot, and focused C++/Swift/native syntax suite.
+The worker and root reruns of
+`GOALPAD_OPENGOAL_SOURCE=/private/tmp/GP-build94-jak1-settings/OpenGOAL Scripts/run-game-face-prompt-touch-state-check.sh`
+pass, as does the worker's existing cutscene-skip regression. Matching GOAL symbols
+are not present in the canonical nested checkout yet, so runtime discovery/AOT proof
+remains pending that worker integration.

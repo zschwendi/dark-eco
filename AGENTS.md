@@ -593,7 +593,11 @@ Active lanes:
   `agent/build127-face-swift`. Root remains the sole integration and heavy-build
   owner. No worker may edit the accepted warp implementation, Jak II, docs, or
   the Xcode build number. Integration, source-pack/AOT regeneration, signed
-  Build 127, and physical gameplay acceptance are pending.
+  Build 127, and physical gameplay acceptance are pending. Native worker
+  `47d19dd8` is pushed and integrated as parent `a7c8f7bc`; its C++ behavior,
+  Swift import, warnings-as-errors native/Objective-C++ syntax, existing
+  cutscene-skip regression, and root rerun all pass. GOAL and Swift workers
+  remain active.
 - `Build 114 signed generic-iOS candidate ready; physical Misty/title gate
   pending` — nested OpenGOAL `352064ace`, `f260ae7df`, and `cb5032a83` make
   fisherman-boat arrival atomic: destination collision must genuinely ground
