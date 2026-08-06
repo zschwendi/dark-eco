@@ -631,6 +631,20 @@ Active lanes:
   its expected destination position. This proves the destination can become
   resident after recovery, but it does not validate the boat transition,
   cutscene world, or initial-arrival collision.
+- [ ] `First-trip relocation failure clarified after extended Misty play` —
+  the boat does not authoritatively move to its destination on the first trip.
+  It remains at the old location in a de-resolved state while Jak remains in
+  the boat and can invoke `Take Boat` again. That second invocation begins from
+  stale transition state and corrupts world streaming. Jumping out before a
+  death/respawn falls through the unloaded route. The fix must complete the
+  boat and Jak relocation on the first trip, leave the source boat
+  non-interactable, and must not treat death/respawn recovery as success.
+- [ ] The same recovered session displayed `MISTY ISLAND` only when the
+  maintainer later boarded the boat to leave Misty. Treat this as evidence that
+  first-arrival completion/title state remained armed across death/respawn and
+  fired on the next boat interaction. Acceptance requires the title on the
+  completed first arrival, never on departure, without changing ordinary
+  level-title boundaries elsewhere.
 - [x] Establish that Build 90 and Build 93 pin the same OpenGOAL revision and
   contain no renderer, shader, Metal-host, AOT, or generated-source delta.
   Classify this as an unvisited transition gap unless later evidence proves a

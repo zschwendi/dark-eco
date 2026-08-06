@@ -13856,3 +13856,34 @@ accepted Build 90/93 presentation and settings persistence, implement the
 narrowest deterministic repair plus native-aspect recovery, then produce a
 numbered signed candidate. Return to Build 111 AOT packaging only after the
 physical presentation blocker has a safe checkpoint.
+
+# Build 105 Misty boat first-trip relocation clarification
+
+Date: 2026-08-06. After completing most of Misty Island, the maintainer
+reproduced and clarified the transition failure again:
+
+- The first `Take Boat` trip does not authoritatively relocate the boat from
+  the source to the destination. The boat remains at the old location but is
+  de-resolved, with Jak still attached to it.
+- That stale boat remains interactable. Invoking `Take Boat` a second time
+  starts from invalid transition/stream state and produces the severe broken
+  world/vertex behavior previously reported.
+- Jumping out after the failed first trip falls through the unloaded route and
+  kills Jak. Death/respawn may then place Jak and the boat on intact Misty, but
+  that recovery is not an acceptable transition fix.
+- In that recovered session, `MISTY ISLAND` appeared only when the maintainer
+  later boarded the boat to leave. This strongly suggests that first-arrival
+  completion/title state remained armed after the death/respawn bypass and was
+  consumed by the next boat interaction. The implementation must verify this
+  against the authored state machine rather than moving a title trigger by
+  guesswork.
+- Physical acceptance now explicitly requires the first trip itself to finish
+  with Jak and the boat at the correct destination, the old-location boat no
+  longer interactable, destination collision/geometry resident, and no death,
+  respawn, pause cycle, or second boat invocation required. `MISTY ISLAND`
+  must appear on that completed first arrival and not when departing.
+
+A dedicated Sol xhigh OpenGOAL lane owns this first-trip relocation diagnosis
+and fix. It must not mask the bug by disabling the stale interaction or forcing
+a respawn. Aspect/menu recovery and Build 111 touch corrections are separate,
+already-focused commits awaiting root review/integration.
