@@ -468,6 +468,19 @@ Active lanes:
   `Scripts/run-game-menu-state-check.sh`. Root still owns input-source,
   remapping, haptics, skip, warp, mod, save-conflict, and Game Center seam
   discovery. It will not edit a worker-owned file while that lane is active.
+- `Implemented; focused validation passed; physical keyboard/mouse gate pending`
+  — the Automatic-input backend slice is commit `ddb0e8ed` on
+  `agent/build97-keyboard-mouse` in `/private/tmp/GP-build97-keyboard-mouse`.
+  `GCKeyboard` drives WASD; Left, Right, and Up emit Square, Circle, and
+  Triangle. Arrow Down emits exactly L1 + R1 (`0x0c00`, bits 10 and 11), the
+  distinct PC_PORT speedrunner shoulder chord, while Escape emits Start
+  (`0x0008`) for ordinary pause/progress. `GCMouse` raw deltas drive a bounded,
+  one-frame R stick and recent mapped activity suppresses touch chrome for
+  exactly two seconds; idle connected devices do not. The pure input check,
+  existing touch check, and warnings-as-errors Swift type-checks against
+  macOS, iPhoneOS, and visionOS 26.5 passed. Physical mouse/trackpad direction
+  and sensitivity remain pending; the isolated tentative Y convention negates
+  positive `deltaY` because Apple's API contract does not specify that sign.
 
 #### Settings shell and per-game ownership
 
