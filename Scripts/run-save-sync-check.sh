@@ -17,10 +17,12 @@ swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
   -import-objc-header "$root/GOALPad/Native/GOALPadRuntimeBridge.h" \
   -swift-version 5 \
   "$root/GOALPad/Input/KeyboardMouseInput.swift" \
+  "$root/GOALPad/Game/TouchLayoutSettings.swift" \
   "$root/GOALPad/Game/TouchControls.swift" \
   "$root/GOALPad/Input/ControllerInput.swift" \
   "$root/GOALPad/Saves/SaveSyncEngine.swift" \
   "$root/GOALPad/Game/PresentationSettings.swift" \
+  "$root/GOALPad/Game/TouchLayoutEditorView.swift" \
   "$root/GOALPad/Saves/SaveSyncController.swift" \
   "$root/Scripts/save-sync-check.swift" \
   "$input_stubs" \
