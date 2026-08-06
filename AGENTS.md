@@ -484,6 +484,20 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 #### Touch profiles and customization
 
+- [x] **Implemented (worker checkpoint):** branch
+  `agent/build94-classic-touch`, commit `501d64a3`, adds the default-Modern
+  touch-style seam and fixed Classic DualShock-like overlay/input layout. The
+  Classic surface exposes symmetrical analog sticks, D-pad, Start/Select,
+  Cross/Square/Circle/Triangle, and L1/R1 with no L2/R2. Profile changes clear
+  touches and queued input. `Scripts/run-touch-controls-check.sh`, an iPhone
+  Simulator SDK Swift type-check of both changed touch files, and
+  `git diff --check` pass. Settings-document binding, app integration, and
+  physical ergonomics remain pending integration-owner gates.
+- [x] **Implemented (worker checkpoint):** Modern down-then-left while the
+  crouch gesture remains held emits one bounded Square press alongside held
+  L1. Down-then-up crouch+jump and ordinary left-first Square behavior remain
+  covered, including same-touch non-retrigger and fresh-touch rearm, by the
+  `501d64a3` focused harness.
 - [ ] Implement Classic touch before deeper native-menu touch conversion so
   every touch device has an understandable fallback.
 - [ ] Make Controls Modern select the existing Build 93 gesture/touch scheme.
