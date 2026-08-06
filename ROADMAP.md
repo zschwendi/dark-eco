@@ -1274,6 +1274,20 @@ shrub remain deferred pending source audits and isolated synthetic proofs;
 audio output, controls, lifecycle, Eco, and the M5 simulator remain later
 checkpoints.
 
+Checkpoint 87 advances the isolated Jak II line to nested `a0aded315`. Exactly
+the six normal SHRUB level buckets now use the existing Metal shrub geometry,
+shader, level-texture, and time-of-day path plus transactional Jak II hidden-
+prototype masks. The synthetic GPU proof models real out-of-line bucket data,
+legal empty CNT entries, linked same-bucket segments, multi-tree local prototype
+indices, exact pixels/counts, malformed fail-closed cases, and Jak 1
+compatibility. The final focused matrix passes 6/6 after independent adversarial
+GO. A corrected 1,120-tick standalone Mac run completes every chain with zero
+GPU or SHRUB grammar error, removes buckets 74/101 from deferred warnings,
+reduces skipped DMA by exactly 1,225,840 bytes, and reaches 44 draws/245,722
+triangles with fully nonblack output. Normal TIE/ETIE is next; texture/setup,
+translucent/water, Merc/GMerc, audio-device output, controls, lifecycle, Eco,
+and M5 simulator integration remain separate checkpoints.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and

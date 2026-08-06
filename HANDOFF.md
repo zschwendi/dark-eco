@@ -12392,3 +12392,126 @@ host-upload semantics are independently proved. Continue renderer families
 before broad audio work; preserve the verified bank lifecycle, then validate
 audio output and controls/lifecycle as separate checkpoints. No simulator or
 physical device was accessed for Checkpoint 86.
+
+# Checkpoint 87: source-shaped normal Jak II SHRUB rendering
+
+Date: 2026-08-06. The isolated nested branch
+`agent/jak2-real-dma-draw-proof` now ends at `a0aded315`. The four commits after
+Checkpoint 86 are:
+
+- `ea923ed1e`, which promotes exactly normal SHRUB buckets 74, 83, 92, 101,
+  110, and 119 and adds the first named-prototype Metal proof;
+- `306907d82`, which makes the Jak II camera/mask grammar transactional,
+  validates tag kinds before traversal, and adds malformed, multi-tree, and
+  Jak 1 compatibility coverage;
+- `97b699568`, which replaces an incorrect inline-payload assumption with the
+  real bucket-table/out-of-line-payload topology; and
+- `a0aded315`, which admits source-shaped empty CNT buckets and linked
+  multi-segment populated buckets while keeping exact first-segment grammar.
+
+Normal SHRUB reuses the existing FR3 shrub geometry, level textures,
+time-of-day palette, Metal shader, and draw-mode path. The new Jak II portion
+parses the 400-byte PC background block plus the first bounded PC_PORT hidden-
+prototype-name mask. Names are owned and NUL-bounded, unknown names are
+ignored, and each FR3 draw's tree-local `proto_idx` is validated for every tree
+before any tree can draw. Unterminated masks, malformed tag kinds, a truncated
+boundary, or an out-of-range index reject the whole bucket before camera state
+or GPU work is published. Jak 1 retains its no-mask grammar.
+
+The final DMA proof models the real Jak II topology: consecutive bucket entries
+at offsets zero and 16, an opening NEXT to payload stored later, and a final
+tail back to entry 16. It also covers a legal empty `CNT qwc0` bucket and two
+same-bucket PC/mask segments. The first segment controls the render, matching
+OpenGL; later linked segments are drained to the bucket boundary. This matters
+because the GOAL producer may insert several collected shrub-tree segments in
+one bucket. The immediate first-segment tail is therefore required to be exact
+zero-qword, non-SPR, zero-VIF NEXT, but only the final linked tail must target
+`next_bucket`.
+
+An independent adversarial review initially returned NO-GO for unsafe missing-
+mask traversal, premature camera publication, and missing exact tag checks.
+After those were corrected it found a second live-layout bug in the synthetic
+fixture's payload ordering, then a real replay exposed the legal empty-CNT and
+multi-segment shapes. The final review of `a0aded315` returned GO with no
+remaining traversal, overflow, ownership, lifetime, or coverage finding.
+
+## Canonical validation
+
+The integration owner used the single canonical Release/Ninja/ccache build:
+
+```text
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host --target \
+  jak2-metal-bucket-table-test jak2-metal-shrub-renderer-test \
+  jak2-metal-host-bridge-test jak2-metal-runtime-proof -j2
+
+ctest --test-dir /private/tmp/GOALPad-jak2-real-dma-host \
+  -R '^(jak2-metal-host-bridge-test|jak2-sound-rpc-test|jak2-metal-bucket-table-test|jak2-metal-dispatch-proof|jak2-metal-tfrag-renderer-test|jak2-metal-shrub-renderer-test)$' \
+  --output-on-failure
+```
+
+The canonical build completed, including fresh 840-object Jak II AOT links
+after CMake revision changes. The final integrated matrix passed 6/6 with
+normal macOS Metal service access. The SHRUB proof covers exact 560-byte live-
+shaped input, empty and multi-segment real layouts, zero-qword and named masks,
+unknown names, malformed termination, wrong tag kinds, truncated boundaries,
+two tree-local prototype maps, later-tree preflight, exact GPU pixels/counts,
+and the legacy Jak 1 chain. The worker's duplicate reproducible 154 MB build at
+`/private/tmp/OG-jak2-normal-shrub-cmake` was removed after canonical
+validation.
+
+## Real prepared-data Mac evidence
+
+The first integrated replay at `97b699568` is retained at:
+
+```text
+/private/tmp/goalpad-jak2-shrub-1120.log
+```
+
+It completed 1,120/1,120 chains with zero GPU errors but correctly did not pass
+the SHRUB acceptance gate. Metadata-only warnings showed that all six empty
+level slots used legal `CNT qwc0` openings and that populated level-0/level-3
+chains did not immediately tail to `next_bucket`. Source tracing established
+the empty and linked-segment grammar; no payload bytes or names were logged.
+
+The corrected final replay was:
+
+```text
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-metal-runtime-proof \
+  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  --saves-dir /private/tmp/goalpad-jak2-shrub-source-1120 \
+  --ticks 1120
+```
+
+Its full log is `/private/tmp/goalpad-jak2-shrub-source-1120.log`. The proof
+again returned its expected diagnostic `INCOMPLETE`/exit 1 only because real
+title glow remains clipped. It completed all 1,120 chains and 327 buckets per
+chain with zero failed chains, GPU errors, drawable misses, late submissions,
+ordering errors, unsupported blends, missing Sprite textures, SHRUB grammar
+warnings, or GOAL version/link assertions. The empty CNT and populated linked
+SHRUB layouts were accepted live. Buckets 74 and 101 disappeared from the
+deferred warnings; preceding texture/setup buckets 73 and 100 remain deferred.
+
+At tick 1,120 aggregate rendering rose from the Checkpoint-86 title's 11 draws
+and 310 triangles to 44 draws and 245,722 triangles. Cumulative skipped DMA fell
+from 9,980,688 to 8,754,848 bytes: exactly 1,225,840 bytes, or 2,189 source
+packets of 560 bytes. The final 640-by-480 readback had all 307,200 RGB pixels
+nonblack, 307,197 nonzero-alpha pixels, max alpha 255, and hash
+`ef18bb4c7caee780`. Presentation accounting reported 808 diagnostic drops and
+311 presents under the bounded offscreen proof, but no drawable miss, late
+submission, ordering error, or GPU failure. This is not a frame-pacing claim.
+
+The audio lifecycle remained healthy in the same run: `empty0` unloaded, slot
+zero loaded `demo1`, and neither the command-6 nor bank-capacity warning
+returned.
+
+## Next executable task
+
+Normal TIE/ETIE is the next source-backed visible family. Promote all six
+normal parent/child pairs together only after implementing Jak II's variable
+prototype mask, `/128` environment tint, separate strict-empty ETIE child, and
+stale-parent invalidation with an asset-free paired GPU proof. Keep normal
+SHRUB TEX/setup buckets, translucent/water/scissor TIE variants, Merc/GMerc,
+and animated negative texture slots deferred. After renderer families, add a
+narrow CoreAudio owner that pulls the already-tested 48 kHz sound seam, then
+controls and lifecycle. No simulator or physical device was accessed for
+Checkpoint 87.
