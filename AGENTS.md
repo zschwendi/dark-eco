@@ -449,6 +449,15 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 Active lanes:
 
+- `Implemented; focused validation passed; physical presentation pending` — Build
+  100 Pause/Resume touch artwork came from `agent/build100-pause-label` in
+  `/private/tmp/GP-build100-pause-label`. Code commit `c5da85d4` passes
+  `Scripts/run-touch-controls-check.sh` with Xcode macro services and an iOS
+  Swift parse of `TouchControlsView.swift` and `ContentView.swift`. It threads
+  the read-only native menu state into both touch profiles, preserves the
+  Start input bit and Classic hit geometry, and keeps the fallback visible in
+  a native menu unless active physical input suppresses it. Physical
+  presentation remains pending.
 - `Integrated; focused validation passed; profile binding and physical
   ergonomics pending` — Classic touch fallback plus Modern held-crouch-left
   punch came from `agent/build94-classic-touch` in
@@ -565,7 +574,7 @@ Active lanes:
 - [ ] Replace the second Pause/Select pill with `SKIP` per the maintainer's
   latest direction. Define exactly which skippable state is active before
   emitting input; never bypass progression or corrupt game state.
-- [ ] Make Start display `Pause` during gameplay and `Resume` while the native
+- [x] Make Start display `Pause` during gameplay and `Resume` while the native
   pause menu is open; keep Resume visible throughout that menu.
 - [ ] Add a touch-layout editor for position pinning/movement, remapping,
   opacity, and size only after Classic and Modern have stable layout models.
