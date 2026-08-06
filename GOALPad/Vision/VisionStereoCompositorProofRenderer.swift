@@ -8,7 +8,7 @@ import simd
 /// An isolated compositor contract proof. It renders one immutable synthetic scene snapshot from
 /// each compositor view into that view's own color and depth mapping. It never consumes or
 /// duplicates the game's completed window framebuffer.
-final class VisionStereoCompositorProofRenderer: @unchecked Sendable {
+nonisolated final class VisionStereoCompositorProofRenderer: @unchecked Sendable {
     private struct ProofVertex {
         let position: SIMD3<Float>
         let color: SIMD3<Float>
@@ -388,7 +388,7 @@ final class VisionStereoCompositorProofRenderer: @unchecked Sendable {
 }
 
 private extension LayerRenderer.Clock.Instant {
-    var goalpadTimeInterval: TimeInterval {
+    nonisolated var goalpadTimeInterval: TimeInterval {
         let components = LayerRenderer.Clock.Instant.epoch.duration(to: self).components
         let nanoseconds = TimeInterval(components.attoseconds / 1_000_000_000)
         return TimeInterval(components.seconds) + nanoseconds / TimeInterval(NSEC_PER_SEC)

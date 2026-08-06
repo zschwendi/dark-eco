@@ -44,6 +44,7 @@ rg -Fq 'worldTracking.queryDeviceAnchor' "$proof_source"
 rg -Fq 'drawable.computeProjection' "$proof_source"
 rg -Fq 'sliceIndex: mapping.sliceIndex' "$proof_source"
 rg -Fq 'VisionStereoFramePlanner.makePlan' "$proof_source"
+rg -Fq 'nonisolated final class VisionStereoCompositorProofRenderer' "$proof_source"
 rg -Fq 'drawable.encodePresent(commandBuffer: commandBuffer)' "$proof_source"
 if rg -q 'GameSurfaceView|CAMetalLayer' "$proof_source"; then
   echo "Synthetic compositor proof must remain isolated from the game framebuffer" >&2
@@ -78,12 +79,15 @@ do
     -sdk "$sdk_path" \
     -target "$target" \
     -module-cache-path "$module_cache" \
-    -import-objc-header "$root/GOALPad/Native/GOALPadRuntimeBridge.h" \
     -module-name GOALPadVisionSceneCheck \
     -swift-version 5 \
+    -default-isolation MainActor \
+    -enable-upcoming-feature DisableOutwardActorInference \
+    -enable-upcoming-feature GlobalActorIsolatedTypesUsability \
+    -enable-upcoming-feature InferIsolatedConformances \
+    -enable-upcoming-feature InferSendableFromCaptures \
+    -enable-upcoming-feature NonisolatedNonsendingByDefault \
     -warnings-as-errors \
-    "$root/GOALPad/Input/KeyboardMouseInput.swift" \
-    "$root/GOALPad/Game/PresentationSettings.swift" \
     "$root/GOALPad/GOALPadApp.swift" \
     "$mode_source" \
     "$scene_source" \
