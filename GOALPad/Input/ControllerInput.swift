@@ -43,6 +43,10 @@ final class ControllerInput {
         }
     }
 
+    func isSourceAvailable(_ source: PrimaryInputSource) -> Bool {
+        availablePrimarySources.contains(source)
+    }
+
     /// True while a physical controller, keyboard, or mouse is the thing being played with.
     private(set) var isDriving = false
 

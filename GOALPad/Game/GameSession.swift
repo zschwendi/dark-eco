@@ -103,6 +103,7 @@ final class GameSession {
             PID \(processID) ==========
             """)
         observeSystem()
+        input.startWatching()
         try? GameDataLayout.prepare()
         async let settingsPreparation: Void = presentationSettings.prepare()
         await saveSync.prepare()
@@ -170,7 +171,6 @@ final class GameSession {
             return
         }
 
-        input.startWatching()
         audio.start()
         isRunning = true
         gameMode = GOALPadRuntimeBridge.gameMode
@@ -186,7 +186,6 @@ final class GameSession {
     func shutdown() {
         guard isRunning || kernel != nil else { return }
         input.stopRumble()
-        input.stopWatching()
         audio.stop()
         #if os(iOS) || os(visionOS)
         persistCameraDiagnosticsForLifecycleEvent()

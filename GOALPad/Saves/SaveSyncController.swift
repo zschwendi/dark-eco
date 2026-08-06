@@ -561,6 +561,7 @@ struct SaveSettingsView: View {
 
     @Bindable var sync: SaveSyncController
     @Bindable var settings: PresentationSettings
+    @Bindable var input: ControllerInput
     @State private var saveTransferPicker: SaveTransferPicker?
 
     var body: some View {
@@ -721,6 +722,26 @@ struct SaveSettingsView: View {
             }
             .pickerStyle(.segmented)
 
+            if section == .controls {
+                Picker("Primary Controller", selection: Binding(
+                    get: { settings.primaryInputSource },
+                    set: {
+                        settings.setPrimaryInputSource($0)
+                        input.setPrimarySource($0)
+                    }
+                )) {
+                    ForEach(primaryInputSourceChoices, id: \.self) { source in
+                        Text(primaryInputSourceTitle(source)).tag(source)
+                    }
+                }
+                if settings.primaryInputSource != .automatic,
+                   !input.isSourceAvailable(settings.primaryInputSource) {
+                    Text("The selected source is not connected. Eco uses Automatic until it returns.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             if section == .graphics, settings.profile(for: .graphics) == .modern {
                 Toggle("Fit to Screen", isOn: Binding(
                     get: { settings.graphicsFillWidth },
@@ -735,5 +756,16 @@ struct SaveSettingsView: View {
                 settings.restoreDefaults(for: section)
             }
         }
+    }
+
+    private var primaryInputSourceChoices: [PrimaryInputSource] {
+        let selected = settings.primaryInputSource
+        if input.isSourceAvailable(selected) { return input.availablePrimarySources }
+        return input.availablePrimarySources + [selected]
+    }
+
+    private func primaryInputSourceTitle(_ source: PrimaryInputSource) -> String {
+        guard source != .automatic, !input.isSourceAvailable(source) else { return source.title }
+        return "\(source.title) — Not Connected"
     }
 }

@@ -137,13 +137,18 @@ struct ContentView: View {
             _, profile in
             session.touch.setStyle(profile == .modern ? .modern : .classic)
         }
+        .onChange(of: session.presentationSettings.primaryInputSource, initial: true) {
+            _, source in
+            session.input.setPrimarySource(source)
+        }
         .onChange(of: session.isNativeMenuOpen) { _, isOpen in
             if session.isRunning && !isOpen { settingsPresentation = nil }
         }
         .sheet(item: $settingsPresentation) { presentation in
             SettingsSheetView(initialEntry: presentation.entry,
                               sync: session.saveSync,
-                              settings: session.presentationSettings)
+                              settings: session.presentationSettings,
+                              input: session.input)
                 .id(presentation.id)
                 .frame(minWidth: 360, minHeight: 360)
         }
@@ -162,13 +167,16 @@ private struct SettingsSheetView: View {
 
     @Bindable var sync: SaveSyncController
     @Bindable var settings: PresentationSettings
+    @Bindable var input: ControllerInput
     @State private var path: [Destination]
 
     init(initialEntry: SettingsSheetEntry,
          sync: SaveSyncController,
-         settings: PresentationSettings) {
+         settings: PresentationSettings,
+         input: ControllerInput) {
         self.sync = sync
         self.settings = settings
+        self.input = input
         _path = State(initialValue: initialEntry == .jak1 ? [.jak1] : [])
     }
 
@@ -178,7 +186,7 @@ private struct SettingsSheetView: View {
                 .navigationDestination(for: Destination.self) { destination in
                     switch destination {
                     case .jak1:
-                        SaveSettingsView(sync: sync, settings: settings)
+                        SaveSettingsView(sync: sync, settings: settings, input: input)
                     }
                 }
         }
