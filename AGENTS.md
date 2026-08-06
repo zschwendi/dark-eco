@@ -512,11 +512,17 @@ Active lanes:
   tests do not cover that semantic state. Nested `93dd44e16` and source-pack
   identity `c2fa7910dd863ae7` remain reproducible build evidence, not an
   accepted gameplay fix. Build 113 must not be installed as the Misty candidate.
-- `Integrated locally; focused validation passed; numbered build and physical
-  input check pending` — parent `23be12e8` adds a Standard/Swapped Sticks
+- `Integrated in Build 115 source; focused validation passed; signed build and
+  physical input check pending` — parent `23be12e8` adds a Standard/Swapped Sticks
   whole-vector controller mapping. It preserves paired X/Y stick vectors,
   existing Y normalization and trigger semantics, applies before keyboard,
   mouse, and touch merge, and participates in local/iCloud/reset persistence.
+  Parent `0657614b` then adds 25–400% mouse/trackpad camera sensitivity and
+  independent horizontal/vertical inversion while preserving exact 100%
+  bytes, the existing accumulator clamp, one-frame consumption, remappable
+  WASD ownership, and controller-first arbitration. Parent `96c24efd` bumps
+  both iOS configurations to 115. Independent review and root focused input,
+  Swift parse, settings UI, local/iCloud, legacy decoding, and reset checks pass.
 - `Integrated locally; synthetic visionOS proof only` — parent `9edcf64e` plus
   actor-isolation correction `2f29c327` render one immutable synthetic,
   depth-tested tetrahedron through distinct compositor views using predicted

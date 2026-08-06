@@ -14132,3 +14132,40 @@ see `MISTY ISLAND` on arrival only, jump out and survive, observe no stale sourc
 boat/second invocation, then return once without a Misty title on departure.
 Build 93 performance, thermal, input, saves/iCloud, and Build 90/93 Fit to
 Screen presentation remain regression gates.
+
+# Build 115 input-tuning source checkpoint
+
+Date: 2026-08-06. Build 114 remains frozen at parent `74bef484` and preserved
+at `/private/tmp/GOALPad-build114-misty-skip-signed/GOALPad.app` for the exact
+physical Misty/title/aspect gate. Later source integration does not change that
+artifact.
+
+- Isolated parent `b55ac2c0` was independently reviewed and returned ACCEPT.
+  Root reviewed the production and test diff, then integrated it as parent
+  `0657614b`.
+- Mouse/trackpad camera tuning now offers bounded 25–400% sensitivity plus
+  independent horizontal and vertical inversion. The exact 100% default keeps
+  the prior byte output; scaling/direction apply before the unchanged 24-unit
+  accumulator clamp, and mouse movement remains consumed once per game frame.
+- The same title-scoped binding document owns controller buttons, whole-stick
+  roles, keyboard/mouse actions, remappable WASD movement, and camera tuning.
+  Legacy documents default the new field safely; local persistence, iCloud,
+  Controls reset, full reset, and live input application are covered.
+- Root validation passed `Scripts/run-keyboard-mouse-input-check.sh`, production
+  Swift parse for all four affected app files,
+  `Scripts/presentation-settings-ui-check.swift`, and the authorized
+  `Scripts/run-presentation-settings-check.sh` macro-service run. Parent
+  `96c24efd` bumps both iOS configurations from 114 to 115.
+- No full Xcode/AOT build, signed Build 115 artifact, simulator, device access,
+  physical mouse/trackpad feel check, or push is claimed at this source
+  checkpoint.
+
+The independent Fit to Screen lane made no changes and returned ACCEPT on the
+already-integrated nested `ef4a9b597` repair. Build 90 and current landscape
+geometry/surface files are identical; Modern fills the drawable, Classic keeps
+exact centered 4:3, migration from a compensating native Aspect Ratio choice is
+scoped and idempotent, and the Apple native menu still omits Display, Display
+Mode, MSAA, and unwired V-Sync. Geometry, 6/6 managed-display tests, 287/287
+`progress-pc` dependencies, portrait checks, settings/iCloud checks, and both
+clean-worktree diff checks passed. Physical iPad presentation remains the only
+acceptance gate for that report.
