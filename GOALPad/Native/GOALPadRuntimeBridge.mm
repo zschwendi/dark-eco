@@ -284,6 +284,16 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
   return snapshot;
 }
 
++ (GOALPadFacePromptTouchSnapshot)facePromptTouchSnapshot {
+  const auto core = goalpad::face_prompt_touch_snapshot();
+  GOALPadFacePromptTouchSnapshot snapshot = {
+      core.valid ? YES : NO,
+      core.valid ? core.requested_buttons : 0,
+      core.sequence,
+  };
+  return snapshot;
+}
+
 + (GOALPadFrameChainStats)frameChainStats {
   const auto core = goalpad::frame_chain_stats();
   GOALPadFrameChainStats stats = {core.chains, core.last_payload_bytes,

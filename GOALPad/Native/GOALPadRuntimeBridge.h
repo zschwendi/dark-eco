@@ -191,6 +191,15 @@ typedef struct GOALPadCutsceneSkipTouchSnapshot {
   GOALPadCutsceneSkipTouchState state;
 } GOALPadCutsceneSkipTouchSnapshot;
 
+typedef struct GOALPadFacePromptTouchSnapshot {
+  /// YES only after the same GOAL owner and requested mask publish a fresh later-frame heartbeat.
+  BOOL valid;
+  /// Ordinary Jak 1 pad bits: Triangle 12, Circle 13, Cross 14, and Square 15.
+  uint32_t requestedButtons;
+  /// Stable even semantic generation. Heartbeats do not change this value.
+  uint32_t sequence;
+} GOALPadFacePromptTouchSnapshot;
+
 /// The whole Swift-facing surface of the native runtime. The GOAL kernel is a process-wide
 /// singleton, so this is a class API rather than an instantiable object.
 @interface GOALPadRuntimeBridge : NSObject
@@ -235,6 +244,8 @@ typedef struct GOALPadCutsceneSkipTouchSnapshot {
 @property(class, nonatomic, readonly) GOALPadWarpGateTouchSnapshot warpGateTouchSnapshot;
 /// GOAL-owned, fail-closed Triangle-query availability for explicitly skippable animations only.
 @property(class, nonatomic, readonly) GOALPadCutsceneSkipTouchSnapshot cutsceneSkipTouchSnapshot;
+/// GOAL-owned contextual face-button requests; first, malformed, and stale reads fail closed.
+@property(class, nonatomic, readonly) GOALPadFacePromptTouchSnapshot facePromptTouchSnapshot;
 @property(class, nonatomic, readonly) GOALPadFrameChainStats frameChainStats;
 
 /// Whether this build carries each engine host seam. A seam that is not linked reports its absence
