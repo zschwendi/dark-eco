@@ -14462,3 +14462,9 @@ signature verification retains the known development-chain
 `CSSMERR_TP_NOT_TRUSTED` result; Xcode signing itself succeeded. Physical Build
 120 touch, warp, app-switch, device-lock, and same-run resume testing remains
 pending; a responsive SwiftUI shell or restarted theme alone is not acceptance.
+
+At `12:42:22` Build 120 was installed in place on `Z iPad Pro`; no uninstall or
+app-data clear occurred. At `12:42:43` it was launched with
+`--terminate-existing`, so the foreground Eco process is the new candidate and
+not a backgrounded Build 118 instance. Physical acceptance remains with the
+maintainer.
