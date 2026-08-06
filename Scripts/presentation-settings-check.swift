@@ -85,6 +85,7 @@ private func legacyDocumentAndPickerOrderingRemainCompatible() async throws {
           "a Build 93 document defaults the new Primary Controller choice to Automatic")
     check(value.jak1InputBindings == .standard
           && value.jak1InputBindings.controllerStickRoles == .standard
+          && value.jak1InputBindings.controllerAnalog == .standard
           && value.jak1InputBindings.mouseCamera == .standard
           && value.document.jak1InputBindingsOverride == nil,
           "a document without remapping data decodes to exact established input defaults")
@@ -117,6 +118,7 @@ private func inputBindingsPersistSyncAndReset() async throws {
     let value = settings(fixture, writerID: "device-a", cloudAvailable: false)
     check(value.jak1InputBindings == .standard
           && value.jak1InputBindings.controllerStickRoles == .standard
+          && value.jak1InputBindings.controllerAnalog == .standard
           && value.jak1InputBindings.mouseCamera == .standard
           && value.document.jak1InputBindingsOverride == nil,
           "a fresh title begins with standard bindings without storing an override")
@@ -125,6 +127,12 @@ private func inputBindingsPersistSyncAndReset() async throws {
     value.setKeyboardMouseAction(.stats, for: .spacebar)
     value.setKeyboardMouseAction(.moveForward, for: .returnOrEnter)
     value.setControllerStickRoles(.swapped)
+    value.setControllerSensitivityPercent(150, for: .movement)
+    value.setControllerDeadZonePercent(20, for: .movement)
+    value.setControllerInvertHorizontal(true, for: .movement)
+    value.setControllerSensitivityPercent(75, for: .camera)
+    value.setControllerDeadZonePercent(10, for: .camera)
+    value.setControllerInvertVertical(true, for: .camera)
     value.setMouseCameraSensitivityPercent(175)
     value.setMouseCameraInvertHorizontal(true)
     value.setMouseCameraInvertVertical(true)
@@ -139,6 +147,13 @@ private func inputBindingsPersistSyncAndReset() async throws {
           "a movement direction can move away from its default W key")
     check(value.jak1InputBindings.controllerStickRoles == .swapped,
           "Swapped Sticks is stored through the same live Jak 1 input binding value")
+    check(value.jak1InputBindings.controllerAnalog.movement.sensitivityPercent == 150
+          && value.jak1InputBindings.controllerAnalog.movement.deadZonePercent == 20
+          && value.jak1InputBindings.controllerAnalog.movement.invertHorizontal
+          && value.jak1InputBindings.controllerAnalog.camera.sensitivityPercent == 75
+          && value.jak1InputBindings.controllerAnalog.camera.deadZonePercent == 10
+          && value.jak1InputBindings.controllerAnalog.camera.invertVertical,
+          "movement and camera controller vectors store independent bounded tuning")
     check(value.jak1InputBindings.mouseCamera.sensitivityPercent == 175
           && value.jak1InputBindings.mouseCamera.invertHorizontal
           && value.jak1InputBindings.mouseCamera.invertVertical,
@@ -147,12 +162,15 @@ private func inputBindingsPersistSyncAndReset() async throws {
     let restored = settings(fixture, writerID: "device-b", cloudAvailable: false)
     check(restored.jak1InputBindings == value.jak1InputBindings
           && restored.jak1InputBindings.controllerStickRoles == .swapped
+          && restored.jak1InputBindings.controllerAnalog.movement.deadZonePercent == 20
+          && restored.jak1InputBindings.controllerAnalog.camera.sensitivityPercent == 75
           && restored.jak1InputBindings.mouseCamera.sensitivityPercent == 175,
-          "controller sticks, buttons, keys, movement, and mouse tuning survive local decoding")
+          "controller roles/tuning, buttons, keys, movement, and mouse tuning survive local decoding")
     restored.setPrimaryInputSource(.controller)
     restored.restoreDefaults(for: .controls)
     check(restored.jak1InputBindings == .standard
           && restored.jak1InputBindings.controllerStickRoles == .standard
+          && restored.jak1InputBindings.controllerAnalog == .standard
           && restored.jak1InputBindings.mouseCamera == .standard
           && restored.document.jak1InputBindingsOverride == nil
           && restored.primaryInputSource == .automatic,
@@ -161,11 +179,14 @@ private func inputBindingsPersistSyncAndReset() async throws {
     restored.setControllerAction(.stats, for: .buttonA)
     restored.setKeyboardMouseAction(.cross, for: .mouseLeft)
     restored.setControllerStickRoles(.swapped)
+    restored.setControllerDeadZonePercent(25, for: .movement)
+    restored.setControllerInvertVertical(true, for: .camera)
     restored.setMouseCameraSensitivityPercent(250)
     restored.setMouseCameraInvertVertical(true)
     restored.resetAll()
     check(restored.jak1InputBindings == .standard
           && restored.jak1InputBindings.controllerStickRoles == .standard
+          && restored.jak1InputBindings.controllerAnalog == .standard
           && restored.jak1InputBindings.mouseCamera == .standard
           && restored.document.jak1InputBindingsOverride == nil,
           "Reset Jak 1 Settings restores every physical-input binding, role, and mouse option")
@@ -297,6 +318,9 @@ private func cloudSettingsConvergeAsOneDocument() async throws {
     first.setKeyboardMouseAction(.stats, for: .spacebar)
     first.setKeyboardMouseAction(.moveForward, for: .returnOrEnter)
     first.setControllerStickRoles(.swapped)
+    first.setControllerSensitivityPercent(175, for: .movement)
+    first.setControllerDeadZonePercent(15, for: .camera)
+    first.setControllerInvertHorizontal(true, for: .camera)
     first.setMouseCameraSensitivityPercent(150)
     first.setMouseCameraInvertVertical(true)
     await first.syncNow()
@@ -314,10 +338,13 @@ private func cloudSettingsConvergeAsOneDocument() async throws {
           && second.jak1InputBindings.action(for: .returnOrEnter) == .moveForward
           && second.jak1InputBindings.action(for: .w) == nil
           && second.jak1InputBindings.controllerStickRoles == .swapped
+          && second.jak1InputBindings.controllerAnalog.movement.sensitivityPercent == 175
+          && second.jak1InputBindings.controllerAnalog.camera.deadZonePercent == 15
+          && second.jak1InputBindings.controllerAnalog.camera.invertHorizontal
           && second.jak1InputBindings.mouseCamera.sensitivityPercent == 150
           && !second.jak1InputBindings.mouseCamera.invertHorizontal
           && second.jak1InputBindings.mouseCamera.invertVertical,
-          "the second device receives the title's remapped input and mouse camera tuning")
+          "the second device receives the title's remapped controller and mouse tuning")
 }
 
 @MainActor

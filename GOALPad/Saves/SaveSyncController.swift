@@ -942,6 +942,10 @@ private struct ControllerBindingsSettingsView: View {
                      + "stick's X and Y axes together.")
             }
 
+            ForEach(Jak1ControllerAnalogRole.allCases, id: \.self) { role in
+                analogSection(role)
+            }
+
             Section {
                 ForEach(Jak1ControllerControl.allCases, id: \.self) { control in
                     Picker(control.title, selection: Binding(
@@ -965,6 +969,71 @@ private struct ControllerBindingsSettingsView: View {
             }
         }
         .navigationTitle("Controller Bindings")
+    }
+
+    @ViewBuilder
+    private func analogSection(_ role: Jak1ControllerAnalogRole) -> some View {
+        let roleSettings = settings.jak1InputBindings.controllerAnalog.settings(for: role)
+        Section {
+            LabeledContent("Sensitivity", value: "\(roleSettings.sensitivityPercent)%")
+            Slider(value: Binding(
+                get: {
+                    Double(settings.jak1InputBindings.controllerAnalog
+                        .settings(for: role).sensitivityPercent)
+                },
+                set: { value in
+                    settings.setControllerSensitivityPercent(Int(value.rounded()), for: role)
+                    input.setBindings(settings.jak1InputBindings)
+                }
+            ), in: Double(Jak1ControllerStickSettings.minimumSensitivityPercent)
+                ... Double(Jak1ControllerStickSettings.maximumSensitivityPercent), step: 25)
+            .accessibilityLabel("\(role.title) Stick Sensitivity")
+            .accessibilityValue("\(roleSettings.sensitivityPercent) percent")
+
+            LabeledContent("Additional Dead Zone", value: "\(roleSettings.deadZonePercent)%")
+            Slider(value: Binding(
+                get: {
+                    Double(settings.jak1InputBindings.controllerAnalog
+                        .settings(for: role).deadZonePercent)
+                },
+                set: { value in
+                    settings.setControllerDeadZonePercent(Int(value.rounded()), for: role)
+                    input.setBindings(settings.jak1InputBindings)
+                }
+            ), in: Double(Jak1ControllerStickSettings.minimumDeadZonePercent)
+                ... Double(Jak1ControllerStickSettings.maximumDeadZonePercent), step: 5)
+            .accessibilityLabel("\(role.title) Stick Additional Dead Zone")
+            .accessibilityValue("\(roleSettings.deadZonePercent) percent")
+
+            Toggle("Invert Horizontal", isOn: Binding(
+                get: {
+                    settings.jak1InputBindings.controllerAnalog
+                        .settings(for: role).invertHorizontal
+                },
+                set: { inverted in
+                    settings.setControllerInvertHorizontal(inverted, for: role)
+                    input.setBindings(settings.jak1InputBindings)
+                }
+            ))
+            .accessibilityLabel("\(role.title) Stick Invert Horizontal")
+            Toggle("Invert Vertical", isOn: Binding(
+                get: {
+                    settings.jak1InputBindings.controllerAnalog
+                        .settings(for: role).invertVertical
+                },
+                set: { inverted in
+                    settings.setControllerInvertVertical(inverted, for: role)
+                    input.setBindings(settings.jak1InputBindings)
+                }
+            ))
+            .accessibilityLabel("\(role.title) Stick Invert Vertical")
+        } header: {
+            Text("\(role.title) Stick")
+        } footer: {
+            Text("100% sensitivity and 0% additional dead zone preserve the default. Tuning "
+                 + "transforms the complete \(role.title.lowercased()) vector; horizontal and "
+                 + "vertical inversion change direction without splitting X/Y ownership.")
+        }
     }
 }
 
@@ -1020,7 +1089,8 @@ private struct KeyboardMouseBindingsSettingsView: View {
                 Text("Mouse / Trackpad Camera")
             } footer: {
                 Text("100% preserves the default camera response. Horizontal and vertical "
-                     + "direction can be inverted independently.")
+                     + "direction can be inverted independently. Relative mouse or trackpad "
+                     + "motion remains dedicated to camera control.")
             }
 
             bindingSection(

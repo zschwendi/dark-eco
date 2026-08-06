@@ -155,8 +155,174 @@ enum Jak1ControllerStickRoles: String, CaseIterable, Codable, Sendable {
     }
 }
 
+enum Jak1ControllerAnalogRole: CaseIterable, Hashable, Sendable {
+    case movement
+    case camera
+
+    var title: String {
+        switch self {
+        case .movement: "Movement"
+        case .camera: "Camera"
+        }
+    }
+}
+
+struct Jak1ControllerStickSettings: Codable, Equatable, Sendable {
+    static let minimumSensitivityPercent = 50
+    static let maximumSensitivityPercent = 200
+    static let minimumDeadZonePercent = 0
+    static let maximumDeadZonePercent = 50
+    static let standard = Jak1ControllerStickSettings()
+
+    private(set) var sensitivityPercent: Int
+    private(set) var deadZonePercent: Int
+    private(set) var invertHorizontal: Bool
+    private(set) var invertVertical: Bool
+
+    init(sensitivityPercent: Int = 100,
+         deadZonePercent: Int = 0,
+         invertHorizontal: Bool = false,
+         invertVertical: Bool = false) {
+        self.sensitivityPercent = Self.clampedSensitivity(sensitivityPercent)
+        self.deadZonePercent = Self.clampedDeadZone(deadZonePercent)
+        self.invertHorizontal = invertHorizontal
+        self.invertVertical = invertVertical
+    }
+
+    mutating func setSensitivityPercent(_ percent: Int) {
+        sensitivityPercent = Self.clampedSensitivity(percent)
+    }
+
+    mutating func setDeadZonePercent(_ percent: Int) {
+        deadZonePercent = Self.clampedDeadZone(percent)
+    }
+
+    mutating func setInvertHorizontal(_ inverted: Bool) {
+        invertHorizontal = inverted
+    }
+
+    mutating func setInvertVertical(_ inverted: Bool) {
+        invertVertical = inverted
+    }
+
+    private static func clampedSensitivity(_ percent: Int) -> Int {
+        max(minimumSensitivityPercent, min(maximumSensitivityPercent, percent))
+    }
+
+    private static func clampedDeadZone(_ percent: Int) -> Int {
+        max(minimumDeadZonePercent, min(maximumDeadZonePercent, percent))
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case sensitivityPercent
+        case deadZonePercent
+        case invertHorizontal
+        case invertVertical
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            sensitivityPercent: try container.decodeIfPresent(Int.self,
+                                                               forKey: .sensitivityPercent) ?? 100,
+            deadZonePercent: try container.decodeIfPresent(Int.self,
+                                                            forKey: .deadZonePercent) ?? 0,
+            invertHorizontal: try container.decodeIfPresent(Bool.self,
+                                                              forKey: .invertHorizontal) ?? false,
+            invertVertical: try container.decodeIfPresent(Bool.self,
+                                                            forKey: .invertVertical) ?? false)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        if sensitivityPercent != 100 {
+            try container.encode(sensitivityPercent, forKey: .sensitivityPercent)
+        }
+        if deadZonePercent != 0 {
+            try container.encode(deadZonePercent, forKey: .deadZonePercent)
+        }
+        if invertHorizontal {
+            try container.encode(true, forKey: .invertHorizontal)
+        }
+        if invertVertical {
+            try container.encode(true, forKey: .invertVertical)
+        }
+    }
+}
+
+struct Jak1ControllerAnalogSettings: Codable, Equatable, Sendable {
+    static let standard = Jak1ControllerAnalogSettings()
+
+    private(set) var movement: Jak1ControllerStickSettings
+    private(set) var camera: Jak1ControllerStickSettings
+
+    init(movement: Jak1ControllerStickSettings = .standard,
+         camera: Jak1ControllerStickSettings = .standard) {
+        self.movement = movement
+        self.camera = camera
+    }
+
+    func settings(for role: Jak1ControllerAnalogRole) -> Jak1ControllerStickSettings {
+        switch role {
+        case .movement: movement
+        case .camera: camera
+        }
+    }
+
+    mutating func setSensitivityPercent(_ percent: Int, for role: Jak1ControllerAnalogRole) {
+        update(role) { $0.setSensitivityPercent(percent) }
+    }
+
+    mutating func setDeadZonePercent(_ percent: Int, for role: Jak1ControllerAnalogRole) {
+        update(role) { $0.setDeadZonePercent(percent) }
+    }
+
+    mutating func setInvertHorizontal(_ inverted: Bool, for role: Jak1ControllerAnalogRole) {
+        update(role) { $0.setInvertHorizontal(inverted) }
+    }
+
+    mutating func setInvertVertical(_ inverted: Bool, for role: Jak1ControllerAnalogRole) {
+        update(role) { $0.setInvertVertical(inverted) }
+    }
+
+    private mutating func update(
+        _ role: Jak1ControllerAnalogRole,
+        _ operation: (inout Jak1ControllerStickSettings) -> Void
+    ) {
+        switch role {
+        case .movement: operation(&movement)
+        case .camera: operation(&camera)
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case movement
+        case camera
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            movement: try container.decodeIfPresent(Jak1ControllerStickSettings.self,
+                                                     forKey: .movement) ?? .standard,
+            camera: try container.decodeIfPresent(Jak1ControllerStickSettings.self,
+                                                   forKey: .camera) ?? .standard)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        if movement != .standard {
+            try container.encode(movement, forKey: .movement)
+        }
+        if camera != .standard {
+            try container.encode(camera, forKey: .camera)
+        }
+    }
+}
+
 /// Converts Game Controller axes to the PS2 pad byte convention, then assigns each complete
-/// physical stick to its Jak 1 role. Camera inversion remains GOAL-owned downstream.
+/// physical stick to its Jak 1 role. Tuning is applied to that complete logical-role vector so
+/// customization can never send a physical stick's X and Y components to different owners.
 struct Jak1MappedControllerSticks: Equatable, Sendable {
     let leftX: UInt8
     let leftY: UInt8
@@ -164,22 +330,57 @@ struct Jak1MappedControllerSticks: Equatable, Sendable {
     let rightY: UInt8
 
     init(roles: Jak1ControllerStickRoles,
+         analog: Jak1ControllerAnalogSettings = .standard,
          physicalLeftX: Float,
          physicalLeftY: Float,
          physicalRightX: Float,
          physicalRightY: Float) {
-        let physicalLeft = (x: Self.axisByte(physicalLeftX),
-                            y: Self.axisByte(-physicalLeftY))
-        let physicalRight = (x: Self.axisByte(physicalRightX),
-                             y: Self.axisByte(-physicalRightY))
+        let physicalLeft = (x: physicalLeftX, y: -physicalLeftY)
+        let physicalRight = (x: physicalRightX, y: -physicalRightY)
+        let movement: (x: Float, y: Float)
+        let camera: (x: Float, y: Float)
         switch roles {
         case .standard:
-            (leftX, leftY) = physicalLeft
-            (rightX, rightY) = physicalRight
+            movement = physicalLeft
+            camera = physicalRight
         case .swapped:
-            (leftX, leftY) = physicalRight
-            (rightX, rightY) = physicalLeft
+            movement = physicalRight
+            camera = physicalLeft
         }
+        let tunedMovement = Self.tuned(movement, settings: analog.movement)
+        let tunedCamera = Self.tuned(camera, settings: analog.camera)
+        (leftX, leftY) = (Self.axisByte(tunedMovement.x), Self.axisByte(tunedMovement.y))
+        (rightX, rightY) = (Self.axisByte(tunedCamera.x), Self.axisByte(tunedCamera.y))
+    }
+
+    private static func tuned(
+        _ vector: (x: Float, y: Float),
+        settings: Jak1ControllerStickSettings
+    ) -> (x: Float, y: Float) {
+        guard vector.x.isFinite, vector.y.isFinite else { return (0, 0) }
+        var x = max(-1, min(1, vector.x))
+        var y = max(-1, min(1, vector.y))
+        let magnitude = hypotf(x, y)
+        let deadZone = Float(settings.deadZonePercent) / 100
+        guard magnitude > deadZone else { return (0, 0) }
+
+        let remainingScale = deadZone == 0
+            ? 1
+            : (magnitude - deadZone) / ((1 - deadZone) * magnitude)
+        let sensitivityScale = Float(settings.sensitivityPercent) / 100
+        x *= remainingScale * sensitivityScale
+        y *= remainingScale * sensitivityScale
+
+        // Saturate the complete vector against the PS2 byte square instead of clamping each
+        // component independently, which would change the requested direction near an edge.
+        let largestComponent = max(abs(x), abs(y))
+        if largestComponent > 1 {
+            x /= largestComponent
+            y /= largestComponent
+        }
+        if settings.invertHorizontal { x = -x }
+        if settings.invertVertical { y = -y }
+        return (x, y)
     }
 
     private static func axisByte(_ value: Float) -> UInt8 {
@@ -345,20 +546,24 @@ struct Jak1InputBindings: Codable, Equatable, Sendable {
             .init(control: .tab, action: .stats),
         ],
         controllerStickRoles: .standard,
+        controllerAnalog: .standard,
         mouseCamera: .standard)
 
     private(set) var controllerBindings: [ControllerBinding]
     private(set) var keyboardMouseBindings: [KeyboardMouseBinding]
     private(set) var controllerStickRoles: Jak1ControllerStickRoles
+    private(set) var controllerAnalog: Jak1ControllerAnalogSettings
     private(set) var mouseCamera: Jak1MouseCameraSettings
 
     init(controllerBindings: [ControllerBinding],
          keyboardMouseBindings: [KeyboardMouseBinding],
          controllerStickRoles: Jak1ControllerStickRoles = .standard,
+         controllerAnalog: Jak1ControllerAnalogSettings = .standard,
          mouseCamera: Jak1MouseCameraSettings = .standard) {
         self.controllerBindings = Self.normalized(controllerBindings)
         self.keyboardMouseBindings = Self.normalized(keyboardMouseBindings)
         self.controllerStickRoles = controllerStickRoles
+        self.controllerAnalog = controllerAnalog
         self.mouseCamera = mouseCamera
     }
 
@@ -410,6 +615,26 @@ struct Jak1InputBindings: Codable, Equatable, Sendable {
 
     mutating func setControllerStickRoles(_ roles: Jak1ControllerStickRoles) {
         controllerStickRoles = roles
+    }
+
+    mutating func setControllerSensitivityPercent(_ percent: Int,
+                                                  for role: Jak1ControllerAnalogRole) {
+        controllerAnalog.setSensitivityPercent(percent, for: role)
+    }
+
+    mutating func setControllerDeadZonePercent(_ percent: Int,
+                                               for role: Jak1ControllerAnalogRole) {
+        controllerAnalog.setDeadZonePercent(percent, for: role)
+    }
+
+    mutating func setControllerInvertHorizontal(_ inverted: Bool,
+                                                for role: Jak1ControllerAnalogRole) {
+        controllerAnalog.setInvertHorizontal(inverted, for: role)
+    }
+
+    mutating func setControllerInvertVertical(_ inverted: Bool,
+                                              for role: Jak1ControllerAnalogRole) {
+        controllerAnalog.setInvertVertical(inverted, for: role)
     }
 
     mutating func setMouseCameraSensitivityPercent(_ percent: Int) {
@@ -471,6 +696,7 @@ struct Jak1InputBindings: Codable, Equatable, Sendable {
         case controller
         case keyboardMouse
         case controllerStickRoles
+        case controllerAnalog
         case mouseCamera
     }
 
@@ -484,11 +710,15 @@ struct Jak1InputBindings: Codable, Equatable, Sendable {
         let controllerStickRoles = try container.decodeIfPresent(Jak1ControllerStickRoles.self,
                                                                   forKey: .controllerStickRoles)
             ?? .standard
+        let controllerAnalog = try container.decodeIfPresent(Jak1ControllerAnalogSettings.self,
+                                                              forKey: .controllerAnalog)
+            ?? .standard
         let mouseCamera = try container.decodeIfPresent(Jak1MouseCameraSettings.self,
                                                         forKey: .mouseCamera)
             ?? .standard
         self.init(controllerBindings: controller, keyboardMouseBindings: keyboardMouse,
-                  controllerStickRoles: controllerStickRoles, mouseCamera: mouseCamera)
+                  controllerStickRoles: controllerStickRoles, controllerAnalog: controllerAnalog,
+                  mouseCamera: mouseCamera)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -497,6 +727,9 @@ struct Jak1InputBindings: Codable, Equatable, Sendable {
         try container.encode(keyboardMouseBindings, forKey: .keyboardMouse)
         if controllerStickRoles != .standard {
             try container.encode(controllerStickRoles, forKey: .controllerStickRoles)
+        }
+        if controllerAnalog != .standard {
+            try container.encode(controllerAnalog, forKey: .controllerAnalog)
         }
         if mouseCamera != .standard {
             try container.encode(mouseCamera, forKey: .mouseCamera)

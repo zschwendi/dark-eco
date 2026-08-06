@@ -155,6 +155,7 @@ final class ControllerInput {
                 values: Self.controlValues(of: gamepad))
             let controllerSticks = Jak1MappedControllerSticks(
                 roles: bindings.controllerStickRoles,
+                analog: bindings.controllerAnalog,
                 physicalLeftX: gamepad.leftThumbstick.xAxis.value,
                 physicalLeftY: gamepad.leftThumbstick.yAxis.value,
                 physicalRightX: gamepad.rightThumbstick.xAxis.value,

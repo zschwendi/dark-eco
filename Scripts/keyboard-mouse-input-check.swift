@@ -181,12 +181,143 @@ private func controllerStickRoleMapping() {
           "a mapped controller camera role keeps controller-first precedence over mouse")
 }
 
+private func controllerAnalogTuning() throws {
+    print("controller analog tuning is role-based, bounded, radial, and compatibility-safe")
+    check(Jak1InputBindings.standard.controllerAnalog == .standard
+          && Jak1InputBindings.standard.controllerAnalog.movement == .standard
+          && Jak1InputBindings.standard.controllerAnalog.camera == .standard,
+          "the established controller bytes begin with no host-side analog tuning")
+
+    var bindings = Jak1InputBindings.standard
+    bindings.setControllerSensitivityPercent(200, for: .movement)
+    bindings.setControllerInvertHorizontal(true, for: .movement)
+    bindings.setControllerSensitivityPercent(50, for: .camera)
+    bindings.setControllerInvertVertical(true, for: .camera)
+    var tuned = Jak1MappedControllerSticks(
+        roles: bindings.controllerStickRoles,
+        analog: bindings.controllerAnalog,
+        physicalLeftX: 0.25,
+        physicalLeftY: 0.5,
+        physicalRightX: 0.5,
+        physicalRightY: 0.25)
+    check(tuned.leftX == 64 && tuned.leftY == 0,
+          "movement sensitivity and horizontal inversion transform only the movement vector")
+    check(tuned.rightX == 159 && tuned.rightY == 143,
+          "camera sensitivity and vertical inversion transform only the camera vector")
+
+    bindings.setControllerDeadZonePercent(25, for: .movement)
+    bindings.setControllerSensitivityPercent(100, for: .movement)
+    bindings.setControllerInvertHorizontal(false, for: .movement)
+    tuned = Jak1MappedControllerSticks(
+        roles: .standard,
+        analog: bindings.controllerAnalog,
+        physicalLeftX: 0.25,
+        physicalLeftY: 0,
+        physicalRightX: 0,
+        physicalRightY: 0)
+    check(tuned.leftX == neutral && tuned.leftY == neutral,
+          "the additional radial dead zone is inclusive at its configured boundary")
+    tuned = Jak1MappedControllerSticks(
+        roles: .standard,
+        analog: bindings.controllerAnalog,
+        physicalLeftX: 0.5,
+        physicalLeftY: 0,
+        physicalRightX: 0,
+        physicalRightY: 0)
+    check(tuned.leftX == 169 && tuned.leftY == neutral,
+          "the range beyond the additional radial dead zone is deterministically rescaled")
+
+    bindings.setControllerDeadZonePercent(0, for: .camera)
+    bindings.setControllerSensitivityPercent(200, for: .camera)
+    bindings.setControllerInvertVertical(false, for: .camera)
+    tuned = Jak1MappedControllerSticks(
+        roles: .standard,
+        analog: bindings.controllerAnalog,
+        physicalLeftX: 0,
+        physicalLeftY: 0,
+        physicalRightX: 1,
+        physicalRightY: -0.5)
+    check(tuned.rightX == 254 && tuned.rightY == 191,
+          "whole-vector saturation preserves a two-to-one direction instead of clipping Y")
+
+    bindings.setControllerStickRoles(.swapped)
+    bindings.setControllerDeadZonePercent(0, for: .movement)
+    bindings.setControllerSensitivityPercent(200, for: .movement)
+    bindings.setControllerInvertHorizontal(true, for: .movement)
+    tuned = Jak1MappedControllerSticks(
+        roles: bindings.controllerStickRoles,
+        analog: bindings.controllerAnalog,
+        physicalLeftX: 0.25,
+        physicalLeftY: -0.5,
+        physicalRightX: 0.5,
+        physicalRightY: 0)
+    check(tuned.leftX == 0 && tuned.leftY == neutral,
+          "Swapped Sticks assigns the whole right vector to movement before movement tuning")
+    check(tuned.rightX == 191 && tuned.rightY == 254,
+          "Swapped Sticks assigns the whole left vector to camera before camera tuning")
+
+    bindings.setControllerSensitivityPercent(999, for: .movement)
+    bindings.setControllerDeadZonePercent(999, for: .movement)
+    bindings.setControllerSensitivityPercent(-1, for: .camera)
+    bindings.setControllerDeadZonePercent(-1, for: .camera)
+    check(bindings.controllerAnalog.movement.sensitivityPercent
+            == Jak1ControllerStickSettings.maximumSensitivityPercent
+          && bindings.controllerAnalog.movement.deadZonePercent
+            == Jak1ControllerStickSettings.maximumDeadZonePercent
+          && bindings.controllerAnalog.camera.sensitivityPercent
+            == Jak1ControllerStickSettings.minimumSensitivityPercent
+          && bindings.controllerAnalog.camera.deadZonePercent
+            == Jak1ControllerStickSettings.minimumDeadZonePercent,
+          "controller analog setters clamp every bounded value")
+
+    let encoded = try JSONEncoder().encode(bindings)
+    let decoded = try JSONDecoder().decode(Jak1InputBindings.self, from: encoded)
+    check(decoded == bindings,
+          "custom whole-role controller analog settings round-trip with the binding payload")
+    let standardJSON = String(decoding: try JSONEncoder().encode(Jak1InputBindings.standard),
+                              as: UTF8.self)
+    check(!standardJSON.contains("controllerAnalog"),
+          "the exact default omits the optional controller-analog compatibility field")
+
+    let outOfRange = Data(
+        #"{"controller":[],"keyboardMouse":[],"controllerAnalog":{"movement":{"sensitivityPercent":999,"deadZonePercent":999},"camera":{"sensitivityPercent":-1,"deadZonePercent":-1}}}"#.utf8)
+    let clamped = try JSONDecoder().decode(Jak1InputBindings.self, from: outOfRange)
+    check(clamped.controllerAnalog.movement.sensitivityPercent
+            == Jak1ControllerStickSettings.maximumSensitivityPercent
+          && clamped.controllerAnalog.movement.deadZonePercent
+            == Jak1ControllerStickSettings.maximumDeadZonePercent
+          && clamped.controllerAnalog.camera.sensitivityPercent
+            == Jak1ControllerStickSettings.minimumSensitivityPercent
+          && clamped.controllerAnalog.camera.deadZonePercent
+            == Jak1ControllerStickSettings.minimumDeadZonePercent,
+          "decoded controller tuning is bounded before it can reach input emission")
+
+    let invalid = Jak1MappedControllerSticks(
+        roles: .standard,
+        analog: bindings.controllerAnalog,
+        physicalLeftX: .nan,
+        physicalLeftY: 0,
+        physicalRightX: .infinity,
+        physicalRightY: 0)
+    check(invalid.leftX == neutral && invalid.leftY == neutral
+          && invalid.rightX == neutral && invalid.rightY == neutral,
+          "non-finite controller vectors fail neutral instead of producing invalid bytes")
+
+    var mouse = KeyboardMouseInputState()
+    mouse.addMouseMovement(deltaX: 12, deltaY: 0, camera: bindings.mouseCamera)
+    let mouseFrame = mouse.consumeFrame(bindings: bindings)
+    check(mouseFrame.leftX == neutral && mouseFrame.leftY == neutral
+          && mouseFrame.rightX == 191 && mouseFrame.rightY == neutral,
+          "controller role tuning cannot reroute relative mouse motion away from camera")
+}
+
 private func legacyControllerBindingsDefaultToStandardSticks() {
-    print("legacy remapping data defaults absent stick and mouse-camera fields")
+    print("legacy remapping data defaults absent stick-role, analog, and mouse-camera fields")
     let legacy = Data(
         #"{"controller":[{"control":"buttonA","action":"square"}],"keyboardMouse":[{"control":"w","action":"moveForward"}]}"#.utf8)
     let decoded = try? JSONDecoder().decode(Jak1InputBindings.self, from: legacy)
     check(decoded?.controllerStickRoles == .standard
+          && decoded?.controllerAnalog == .standard
           && decoded?.mouseCamera == .standard
           && decoded?.action(for: .buttonA) == .square
           && decoded?.action(for: .w) == .moveForward,
@@ -529,6 +660,12 @@ struct KeyboardMouseInputCheck {
         keyboardButtons()
         defaultControllerBytes()
         controllerStickRoleMapping()
+        do {
+            try controllerAnalogTuning()
+        } catch {
+            print("  FAIL controller analog tuning threw: \(error)")
+            failures += 1
+        }
         legacyControllerBindingsDefaultToStandardSticks()
         remappingAndCollisions()
         relativeMouse()

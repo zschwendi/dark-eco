@@ -434,6 +434,34 @@ final class PresentationSettings {
         change { $0.jak1InputBindingsOverride = bindings == .standard ? nil : bindings }
     }
 
+    func setControllerSensitivityPercent(_ percent: Int, for role: Jak1ControllerAnalogRole) {
+        var bindings = jak1InputBindings
+        bindings.setControllerSensitivityPercent(percent, for: role)
+        guard bindings != jak1InputBindings else { return }
+        change { $0.jak1InputBindingsOverride = bindings == .standard ? nil : bindings }
+    }
+
+    func setControllerDeadZonePercent(_ percent: Int, for role: Jak1ControllerAnalogRole) {
+        var bindings = jak1InputBindings
+        bindings.setControllerDeadZonePercent(percent, for: role)
+        guard bindings != jak1InputBindings else { return }
+        change { $0.jak1InputBindingsOverride = bindings == .standard ? nil : bindings }
+    }
+
+    func setControllerInvertHorizontal(_ inverted: Bool, for role: Jak1ControllerAnalogRole) {
+        var bindings = jak1InputBindings
+        bindings.setControllerInvertHorizontal(inverted, for: role)
+        guard bindings != jak1InputBindings else { return }
+        change { $0.jak1InputBindingsOverride = bindings == .standard ? nil : bindings }
+    }
+
+    func setControllerInvertVertical(_ inverted: Bool, for role: Jak1ControllerAnalogRole) {
+        var bindings = jak1InputBindings
+        bindings.setControllerInvertVertical(inverted, for: role)
+        guard bindings != jak1InputBindings else { return }
+        change { $0.jak1InputBindingsOverride = bindings == .standard ? nil : bindings }
+    }
+
     func setMouseCameraSensitivityPercent(_ percent: Int) {
         var bindings = jak1InputBindings
         bindings.setMouseCameraSensitivityPercent(percent)
