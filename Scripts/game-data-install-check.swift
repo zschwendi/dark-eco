@@ -95,19 +95,48 @@ private func read(_ url: URL) -> String? {
     (try? Data(contentsOf: url)).map { String(decoding: $0, as: UTF8.self) }
 }
 
-private func preparedFolder(under root: URL, payload: String = "fixture") throws -> URL {
-    let prepared = root.appending(path: "prepared", directoryHint: .isDirectory)
-    let iso = prepared.appending(path: GameDataLayout.isoDirectoryName,
-                                 directoryHint: .isDirectory)
-    let fr3 = prepared.appending(path: GameDataLayout.fr3DirectoryName,
-                                 directoryHint: .isDirectory)
+private func writeCompletePreparedData(at prepared: URL, payload: String = "fixture") throws {
+    let iso = prepared.appending(path: GameDataLayout.isoDirectoryName, directoryHint: .isDirectory)
+    let fr3 = prepared.appending(path: GameDataLayout.fr3DirectoryName, directoryHint: .isDirectory)
     for name in Set(GameDataManifest.bootArchives + GameDataManifest.levelArchives) {
         try write(payload, to: iso.appending(path: name))
     }
     for name in GameDataManifest.levelGeometry {
         try write(payload, to: fr3.appending(path: name))
     }
+}
+
+private func preparedFolder(under root: URL, payload: String = "fixture") throws -> URL {
+    let prepared = root.appending(path: "prepared", directoryHint: .isDirectory)
+    try writeCompletePreparedData(at: prepared, payload: payload)
     return prepared
+}
+
+@MainActor private func preexistingActiveInstallIsRecognized() throws {
+    print("a complete preexisting active install is recognized without importing")
+    let fixture = try Fixture()
+    try writeCompletePreparedData(at: fixture.active)
+
+    let report = GameDataInspector.inspect(gameDirectory: fixture.active)
+    check(report.status == .ready, "the existing Documents/Jak1 install is ready immediately")
+    check(report.canBoot, "the existing install keeps the launcher bootable")
+    check(fixture.candidates.isEmpty, "recognition does not create an import candidate")
+}
+
+@MainActor private func foregroundRefreshPolicyIsGuarded() {
+    print("foreground data refresh runs only outside a live startup or session")
+    check(GameDataRefreshPolicy.shouldRefreshOnActivation(
+        isRunning: false, isBooting: false, isPreparingGameplay: false
+    ), "an idle launcher refreshes after returning to the foreground")
+    check(!GameDataRefreshPolicy.shouldRefreshOnActivation(
+        isRunning: true, isBooting: false, isPreparingGameplay: false
+    ), "a running game does not rescan data")
+    check(!GameDataRefreshPolicy.shouldRefreshOnActivation(
+        isRunning: false, isBooting: true, isPreparingGameplay: false
+    ), "a booting game does not rescan data")
+    check(!GameDataRefreshPolicy.shouldRefreshOnActivation(
+        isRunning: false, isBooting: false, isPreparingGameplay: true
+    ), "an in-flight startup does not rescan data")
 }
 
 @MainActor private func completeCandidateActivates() async throws {
@@ -393,6 +422,8 @@ private func preparedFolder(under root: URL, payload: String = "fixture") throws
 private struct GameDataInstallCheck {
     @MainActor static func main() async {
         do {
+            try preexistingActiveInstallIsRecognized()
+            foregroundRefreshPolicyIsGuarded()
             try await completeCandidateActivates()
             try await incompleteCandidateIsRecoverable()
             try await sourceFilesAreNotCopiedFromActiveFirst()

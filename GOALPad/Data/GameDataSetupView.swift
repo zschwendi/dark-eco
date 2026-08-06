@@ -58,6 +58,11 @@ struct GameDataSetupView: View {
             missingList("Missing from iso/ (the game cannot boot)", report.missingBootArchives)
             missingList("Missing level archives", report.missingLevelArchives)
             missingList("Missing level geometry", report.missingLevelGeometry)
+            if report.status != .ready {
+                Text("Prepared game data stays on this device. iCloud Settings and iCloud Saves do not transfer it. Select your prepared out/jak1 folder to copy it into this app.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
         }
         .font(.system(.footnote, design: .monospaced))
     }

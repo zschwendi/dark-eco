@@ -114,6 +114,18 @@ nonisolated struct GameDataReport: Sendable {
     }
 }
 
+/// Keeps external Files or Finder transfers visible when the launcher returns to the foreground
+/// without racing an active game startup or session.
+nonisolated enum GameDataRefreshPolicy {
+    nonisolated static func shouldRefreshOnActivation(
+        isRunning: Bool,
+        isBooting: Bool,
+        isPreparingGameplay: Bool
+    ) -> Bool {
+        !isRunning && !isBooting && !isPreparingGameplay
+    }
+}
+
 /// Reads the layout and reports on it. Off the main actor: it stats a few hundred files.
 nonisolated enum GameDataInspector {
     private static let log = Logger(subsystem: "com.zephyrstudiosllc.eco", category: "GameData")

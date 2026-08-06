@@ -1284,6 +1284,13 @@ final class GameSession {
         switch phase {
         case .active:
             isForeground = false
+            if GameDataRefreshPolicy.shouldRefreshOnActivation(
+                isRunning: isRunning,
+                isBooting: isBooting,
+                isPreparingGameplay: isPreparingGameplay
+            ) {
+                Task { [weak self] in await self?.refreshDataReport() }
+            }
             if isBooting {
                 saveSync.setGameplayActive(true)
                 return
