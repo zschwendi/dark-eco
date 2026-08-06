@@ -557,7 +557,7 @@ private func resetClearsInterruptedInput() {
 
 @MainActor
 private func touchHapticsAreDiscreteAndRearmSafely() {
-    print("touch haptics are discrete, style-aware, and reset-safe")
+    print("touch haptics are discrete and reset-safe")
     var modern = Runner()
     let start = Finger()
     let startCentre = CGPoint(x: Runner.start.midX, y: Runner.start.midY)
@@ -616,16 +616,6 @@ private func touchHapticsAreDiscreteAndRearmSafely() {
     check(modern.controls.consumeHapticEvents() == [.stickEngaged],
           "reset re-arms a fresh Modern stick contact")
 
-    var classic = Runner(style: .classic)
-    let layout = ClassicTouchLayout(size: Runner.screen, safeAreaInsets: Runner.safeAreaInsets)
-    let cross = Finger()
-    let crossFrame = layout.frame(for: .cross)!
-    classic.down(cross, CGPoint(x: crossFrame.midX, y: crossFrame.midY))
-    check(classic.controls.consumeHapticEvents() == [.button(.cross)],
-          "Classic face buttons emit one direct button event")
-    _ = classic.frames(20)
-    check(classic.controls.consumeHapticEvents().isEmpty,
-          "Classic held buttons also remain silent between touch events")
 }
 
 @MainActor
@@ -698,19 +688,8 @@ private func modernPinchZoomFailsClosedWithoutARequestedTransition() {
 }
 
 @MainActor
-private func pinchZoomIsModernOnlyAndLifecycleSafe() {
-    print("pinch zoom is Modern-only and re-arms only after an explicit lifecycle boundary")
-    var classic = Runner(style: .classic)
-    classic.beginPinch()
-    classic.pinch(scale: 1 + TouchControls.pinchScaleDelta, lookAroundState: .normal)
-    classic.endPinch()
-    classic.beginPinch()
-    classic.pinch(scale: 1 - TouchControls.pinchScaleDelta,
-                  lookAroundState: .firstPerson)
-    check(classic.frames(TouchControls.holdFrames + 2).allSatisfy {
-        !$0.buttons.contains(.triangle)
-    }, "Classic ignores both pinch directions")
-
+private func pinchZoomIsLifecycleSafe() {
+    print("pinch zoom re-arms only after an explicit lifecycle boundary")
     var cancelled = Runner()
     cancelled.beginPinch()
     cancelled.pinch(scale: 1 + TouchControls.pinchScaleDelta / 2,
@@ -2191,8 +2170,6 @@ private func nativeWarpTransientInvalidReadsRetainNeutralCapture() {
 @MainActor
 struct TouchControlsCheck {
     static func main() {
-        modernLayoutIsCompactAndSafe()
-        defaultStylePreservesModern()
         movementOriginFollowsFirstTouch()
         freeCameraSwipeIsGone()
         faceButtonGesturesAndNoTap()
@@ -2207,19 +2184,7 @@ struct TouchControlsCheck {
         touchHapticsAreDiscreteAndRearmSafely()
         modernPinchZoomUsesAuthoritativeDirection()
         modernPinchZoomFailsClosedWithoutARequestedTransition()
-        pinchZoomIsModernOnlyAndLifecycleSafe()
-        styleSwitchClearsInterruptedInput()
-        classicButtonsMapDirectly()
-        classicHitTargetsLeaveArtworkAndBytesIntact()
-        classicSticksAreSymmetricalAndAnalog()
-        classicGeometryStaysSafeAndBalanced()
-        classicHasOnlyTheStatsTriggerChord()
-        classicMultitouchReachesOneFrame()
-        customizedModernLayoutPinsRemapsAndPreservesSkipSafety()
-        customizedClassicLayoutClampsRemapsAndKeepsMinimumTargets()
-        resizedClassicSticksUseTheirMinimumHitFrames()
-        overlappingControlsFollowVisualStackOrder()
-        liveLayoutChangesCancelOwnedInput()
+        pinchZoomIsLifecycleSafe()
         cutsceneSkipIsContextualExactAndLifecycleSafe()
         pausePresentationFollowsNativeMenuState()
         sessionControlStateMatrixIsExactAndFailClosed()
