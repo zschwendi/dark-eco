@@ -53,6 +53,8 @@ final class SaveSyncController {
         case checking
         case importing
         case exporting
+        case loadingArchives
+        case restoringArchive
     }
 
     enum Status: Equatable {
@@ -85,6 +87,7 @@ final class SaveSyncController {
     private(set) var activeOperation: Operation?
     private(set) var isGameplayActive = false
     private(set) var recentResolutions: [SaveResolution]
+    private(set) var archivedSaves: [ArchivedSaveCandidate] = []
     private(set) var lastSuccessfulSyncDate: Date?
 
     private let defaults: UserDefaults
@@ -122,6 +125,7 @@ final class SaveSyncController {
 
     var isTransferring: Bool {
         activeOperation == .importing || activeOperation == .exporting
+            || activeOperation == .restoringArchive
     }
 
     var hasPendingFrameCheck: Bool { frameCheckTask != nil }
@@ -132,8 +136,44 @@ final class SaveSyncController {
         case .checking: "Checking saves…"
         case .importing: "Importing saves…"
         case .exporting: "Exporting saves…"
+        case .loadingArchives: "Loading preserved saves…"
+        case .restoringArchive: "Making preserved save active…"
         case nil: nil
         }
+    }
+
+    func refreshArchivedSaves() async {
+        guard !isBusy else { return }
+        activeOperation = .loadingArchives
+        do {
+            archivedSaves = try await engine.archivedSaveCandidates()
+        } catch {
+            transferMessage = "Preserved saves issue: \(error.localizedDescription)"
+        }
+        activeOperation = nil
+    }
+
+    func promoteArchivedSave(_ candidate: ArchivedSaveCandidate) async {
+        guard !isBusy else { return }
+        guard !isGameplayActive else {
+            transferMessage = "Pause gameplay before changing the active save."
+            return
+        }
+        activeOperation = .restoringArchive
+        transferMessage = "Making Save Slot \(candidate.slotNumber) active…"
+        var shouldSync = false
+        do {
+            let restored = try await engine.promoteArchivedSave(id: candidate.id)
+            transferMessage = "Save Slot \(restored.slotNumber) is now active. "
+                + "The previous active copy was preserved."
+            archivedSaves = try await engine.archivedSaveCandidates()
+            shouldSync = isEnabled
+        } catch {
+            transferMessage = "Preserved save issue: \(error.localizedDescription)"
+        }
+        activeOperation = nil
+        if shouldSync { enqueueSync(.bidirectional) }
+        await drainPendingSync()
     }
 
     func prepare() async {
@@ -563,6 +603,7 @@ struct SaveSettingsView: View {
     @Bindable var settings: PresentationSettings
     @Bindable var input: ControllerInput
     @State private var saveTransferPicker: SaveTransferPicker?
+    @State private var archivedSaveToPromote: ArchivedSaveCandidate?
 
     var body: some View {
         Form {
@@ -642,6 +683,37 @@ struct SaveSettingsView: View {
                 }
             }
 
+            Section("Preserved Saves") {
+                if sync.archivedSaves.isEmpty {
+                    Text("No preserved save copies are available.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(sync.archivedSaves) { candidate in
+                        Button {
+                            archivedSaveToPromote = candidate
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Save Slot \(candidate.slotNumber)")
+                                Text(archiveSummary(candidate))
+                                    .font(.callout)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .disabled(sync.isBusy || sync.isGameplayActive)
+                    }
+                }
+                Button {
+                    Task { await sync.refreshArchivedSaves() }
+                } label: {
+                    Label("Refresh Preserved Saves", systemImage: "arrow.clockwise")
+                }
+                .disabled(sync.isBusy)
+                Text("Choose Make Active to restore a preserved native Jak save. Eco preserves "
+                     + "the current active copy before replacing it.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Developer") {
                 Toggle("Show Developer Logs", isOn: Binding(
                     get: { settings.developerLogsEnabled },
@@ -665,6 +737,25 @@ struct SaveSettingsView: View {
                       allowsMultipleSelection: false) { result in
             handleSavePickerResult(result)
         }
+        .confirmationDialog(
+            "Make this preserved save active?",
+            isPresented: Binding(
+                get: { archivedSaveToPromote != nil },
+                set: { if !$0 { archivedSaveToPromote = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: archivedSaveToPromote
+        ) { candidate in
+            Button("Make Save Slot \(candidate.slotNumber) Active") {
+                archivedSaveToPromote = nil
+                Task { await sync.promoteArchivedSave(candidate) }
+            }
+            Button("Cancel", role: .cancel) { archivedSaveToPromote = nil }
+        } message: { candidate in
+            Text(archiveSummary(candidate)
+                 + ". The current active copy will be preserved before replacement.")
+        }
+        .task { await sync.refreshArchivedSaves() }
     }
 
     private func handleSavePickerResult(_ result: Result<[URL], Error>) {
@@ -682,6 +773,17 @@ struct SaveSettingsView: View {
         case .failure(let error):
             sync.reportPickerIssue(error)
         }
+    }
+
+    private func archiveSummary(_ candidate: ArchivedSaveCandidate) -> String {
+        let completion = String(format: "%.0f%% complete", candidate.completionPercentage)
+        let generation = "generation \(candidate.saveGeneration)"
+        let source = candidate.source.rawValue
+        guard let date = candidate.modificationDate else {
+            return "\(completion) · \(generation) · \(source)"
+        }
+        return "\(completion) · \(generation) · \(source) · "
+            + date.formatted(date: .abbreviated, time: .shortened)
     }
 
     private var cloudState: CloudSyncPresentationState {

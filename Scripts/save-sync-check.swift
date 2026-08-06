@@ -471,6 +471,75 @@ private func initialDivergenceUsesNewestDateAndPreservesBoth() async throws {
     check(cloudArchiveData == expected, "the iCloud archive contains both originals")
 }
 
+private func preservedNativeBankCanBecomeActive() async throws {
+    print("a preserved native bank can become the active save without exposing archive paths")
+    let fixture = try Fixture()
+    let date = Date(timeIntervalSince1970: 1_900_000_000)
+    try writeBank(progress: 31, saveCount: 4, marker: 31,
+                  to: bankFilePath(0), under: fixture.cloud,
+                  modificationDate: date)
+    let preservedCloud = data(bankFilePath(0), under: fixture.cloud)
+    try writeBank(progress: 82, saveCount: 7, marker: 82,
+                  to: bankFilePath(0), under: fixture.local,
+                  modificationDate: date.addingTimeInterval(10))
+    let activeBeforeRestore = data(bankFilePath(0), under: fixture.local)
+
+    _ = try await fixture.engine.sync()
+    var candidates = try await fixture.engine.archivedSaveCandidates()
+    check(candidates.count == 2, "both validated divergent banks appear in the archive catalog")
+    guard let cloudCandidate = candidates.first(where: {
+        $0.source == .iCloud && $0.saveGeneration == 4
+    }) else {
+        check(false, "the preserved iCloud bank is listed by native metadata")
+        return
+    }
+    check(cloudCandidate.slotNumber == 1
+          && cloudCandidate.completionPercentage == 31,
+          "the catalog reports native slot, completion, generation, and source")
+    check(!cloudCandidate.id.isEmpty,
+          "the controller receives an opaque stable identity for promotion")
+
+    let restored = try await fixture.engine.promoteArchivedSave(id: cloudCandidate.id)
+    check(restored.slotNumber == 1 && restored.saveGeneration == 4,
+          "promotion returns the selected native save metadata")
+    check(data(bankFilePath(0), under: fixture.local) == preservedCloud,
+          "the selected preserved bank becomes the canonical even bank byte-for-byte")
+    check(data(bankFilePath(1), under: fixture.local) == nil,
+          "promotion removes a stale odd peer instead of creating a hybrid pair")
+
+    candidates = try await fixture.engine.archivedSaveCandidates()
+    check(candidates.contains { $0.source == .beforeRestore && $0.saveGeneration == 7 },
+          "the previous active bank is preserved before replacement")
+    check(regularFiles(under: fixture.localConflicts).contains {
+        (try? Data(contentsOf: $0)) == activeBeforeRestore
+    }, "the previous active bytes remain recoverable")
+
+    _ = try await fixture.engine.sync()
+    check(data(bankFilePath(0), under: fixture.cloud) == preservedCloud,
+          "the next ordinary sync mirrors the chosen active bank to iCloud")
+
+    let outside = fixture.localConflicts.deletingLastPathComponent()
+        .appending(path: "outside", directoryHint: .isDirectory)
+    try writeBank(progress: 12, saveCount: 12, marker: 12,
+                  to: bankFilePath(0), under: outside,
+                  modificationDate: date.addingTimeInterval(20))
+    let outsideData = data(bankFilePath(0), under: outside)!
+    let outsideArchivePath = bankFilePath(0) + ".local-" + hash(outsideData)
+    let outsideArchiveURL = file(outsideArchivePath, under: outside)
+    try FileManager.default.createDirectory(at: outsideArchiveURL.deletingLastPathComponent(),
+                                            withIntermediateDirectories: true)
+    try outsideData.write(to: outsideArchiveURL, options: .atomic)
+    let traversalID = "../outside/\(outsideArchivePath)"
+    do {
+        _ = try await fixture.engine.promoteArchivedSave(id: traversalID)
+        check(false, "archive promotion rejects a path outside its preservation root")
+    } catch {
+        check(true, "archive promotion rejects a path outside its preservation root")
+    }
+    check(data(bankFilePath(0), under: fixture.local) == preservedCloud,
+          "a rejected archive identity cannot replace the active native save")
+}
+
 private func twoSidedChangeAutomaticallyResolves() async throws {
     print("two changes after a shared baseline also resolve without blocking")
     let fixture = try Fixture()
@@ -2232,6 +2301,7 @@ private struct SaveSyncCheck {
             try await cloudOnlyDownloadsBeforeGameplay()
             try await changedSideWinsAgainstBaseline()
             try await initialDivergenceUsesNewestDateAndPreservesBoth()
+            try await preservedNativeBankCanBecomeActive()
             try await twoSidedChangeAutomaticallyResolves()
             try await newerLowerProgressWins()
             try await equalDateHigherSaveGenerationWins()
