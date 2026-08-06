@@ -1308,6 +1308,22 @@ trace, so the next efficient renderer step is capture/classification of normal
 TFRAG texture/setup buckets 7/18/29/40/51/62, not GMerc. Audio-device output,
 controls/lifecycle, Eco, and M5 simulator integration remain separate gates.
 
+Checkpoint 90 advances ordered normal TFRAG texture uploads to nested
+`d4821b892`. Exact owned plans for buckets 7/18/29/40/51/62 preflight page
+metadata, revalidate immediately before mutation, and execute at their matching
+renderer boundaries. A fresh-settings 40-frame Mac replay completes without
+GPU or ordering errors and removes exactly the observed descriptor/setup bytes.
+
+Checkpoint 91 advances ordered normal SHRUB Direct-only setup to nested
+`4d619ab01`. Source inspection proves buckets 73/82/91/100/109/118 contain only
+the non-PC TEXFLUSH plus normal GS-reset envelope ignored by the matching GL
+handler. The exact five-transfer grammar is preflighted for all six buckets and
+acknowledged in order without texture mutation. Focused tests pass 3/3,
+independent review returns GO, and a fresh-settings 40-frame Mac replay removes
+exactly 5,568 deferred bytes with no GPU, ordering, or frame-hash change. Common
+texture/setup bucket 187 is the next efficient renderer seam; full validation
+remains batched until another material checkpoint.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and

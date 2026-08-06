@@ -12696,3 +12696,81 @@ Apply the same capture-first path to normal SHRUB texture/setup buckets 73, 82,
 and 100; classify its exact source grammar before changing policy or executing
 it. Keep common bucket 187, GMerc, translucent/water/scissor families, audio
 device output, and controls deferred until their own bounded evidence gates.
+
+# Checkpoint 91: ordered normal Jak II SHRUB Direct-only setup
+
+Date: 2026-08-06. The isolated nested branch
+`agent/jak2-real-dma-draw-proof` adds `4d619ab01`. Source inspection established
+that normal SHRUB texture/setup buckets 73, 82, 91, 100, 109, and 118 use the
+non-PC `upload-vram-pages-pris` path. Its exact five-transfer envelope is three
+inert NEXT links around a 32-byte TEXFLUSH Direct packet and the normal
+160-byte FLUSHA/Direct-10 GS reset. The matching OpenGL texture handler is
+constructed without Direct handling, so this envelope performs no PC texture
+upload and has no page descriptor, live page pointer, animator array, or eye
+DMA.
+
+The bounded capture now names that exact 192-byte envelope `GsSetupOnly` and
+rejects every other shape. All six plans are created before any texture or
+renderer mutation. Present plans are acknowledged through the existing
+synchronous host callback at their exact renderer bucket boundary and only
+increment execution telemetry; they do not claim or perform texture-pool
+mutation. The six setup buckets move from deferred to host-owned policy. An
+independent adversarial review returned GO with no parser, classification,
+ordering, lifetime, metrics, ABI, or malformed-input finding.
+
+## Canonical validation
+
+The integration owner reused the canonical Release/Ninja/ccache build:
+
+```text
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host --target \
+  jak2-common-tfrag-texture-upload-capture-test \
+  jak2-metal-bucket-table-test jak2-metal-host-bridge-test \
+  jak2-metal-runtime-proof -j2
+
+ctest --test-dir /private/tmp/GOALPad-jak2-real-dma-host \
+  -R '^(jak2-common-tfrag-texture-upload-capture-test|jak2-metal-bucket-table-test|jak2-metal-host-bridge-test)$' \
+  --output-on-failure
+```
+
+The build passed. The first focused CTest run exposed one stale fixture
+expectation: an isolated Direct-2 packet is now recorded as one GS setup rather
+than generic other work, while its incomplete envelope still classifies
+`EyeOrOther`. Correcting that expectation made the final matrix pass 3/3.
+`git diff --check` and the independent read-only review passed. No broad AOT,
+Metal, or Xcode matrix was repeated for this focused checkpoint.
+
+## Real prepared-data Mac evidence
+
+The fresh-settings bounded replay was:
+
+```text
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-metal-runtime-proof \
+  --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  --saves-dir /private/tmp/goalpad-jak2-shrub-setup-final-40 \
+  --ticks 40
+```
+
+The complete log is `/private/tmp/goalpad-jak2-shrub-setup-final-40.log`
+(SHA-256 `24e4b6cf9dbac369e97edae9bf2f9e67a42a956e2d4682b477112364d4d1e236`).
+The proof returned its expected diagnostic `INCOMPLETE` only because real title
+glow remains clipped. All 40 chains completed with 327 buckets, zero failed
+chains, GPU errors, drawable misses, late submissions, ordering errors, or
+unsupported blends. Bucket 73 was present and acknowledged 19 times; bucket
+100 was present and acknowledged 10 times; the other four were exact-empty.
+Deferred bytes fell by exactly 5,568, or 29 packets times 192 bytes, to 136,176.
+The final 640-by-480 frame remained fully nonblack with hash
+`557e841173042025`.
+
+The new save directory again contained no prior `pc-settings.gc`; the runtime
+initialized and wrote defaults. No Eco target, simulator, or physical device
+was accessed.
+
+## Next executable task
+
+Use source plus compact title telemetry to classify the remaining active common
+and special setup buckets, starting with common TFRAG texture bucket 187. Keep
+execution behind an exact owned plan and preserve in-order dispatch. Do not
+promote GMerc or a visual family that has no live title packet merely to reduce
+the deferred count. Batch the next heavy validation checkpoint; continue using
+focused tests and short fresh-settings replays between source-backed changes.
