@@ -30,7 +30,7 @@ enum class LookAroundState : std::uint8_t {
   FirstPerson,
 };
 
-// Jak 1's original progress display states. PC-only states continue through 65; they remain valid
+// Jak 1's original progress display states. PC-only states continue through 66; they remain valid
 // native snapshots but deliberately have no touch semantics until their responders are proven.
 enum class ProgressScreen : std::int32_t {
   Invalid = -1,
@@ -400,7 +400,7 @@ constexpr std::size_t kStartingStateRequiredObjectBytes =
 constexpr std::size_t kStateNameOffset = 4 - 4;
 constexpr std::size_t kStateRequiredObjectBytes = kStateNameOffset + sizeof(std::uint32_t);
 constexpr std::int64_t kMinimumScreen = -1;
-constexpr std::int64_t kMaximumScreenExclusive = 66;
+constexpr std::int64_t kMaximumScreenExclusive = 67;
 
 constexpr bool is_known_screen(std::int64_t screen) noexcept {
   return screen >= kMinimumScreen && screen < kMaximumScreenExclusive;
@@ -453,6 +453,7 @@ constexpr bool can_exit_with_start(std::int64_t screen,
     case 63:
     case 64:
     case 65:
+    case 66:
       return true;
     default:
       return false;

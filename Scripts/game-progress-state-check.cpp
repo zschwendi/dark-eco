@@ -156,8 +156,16 @@ int main() {
   monitor.set_screen(62);
   expect(monitor.read().can_exit_with_start,
          "PC monitor retains its exact can-go-back eligibility");
-  pc_only.set_screen(66);
-  expect(!pc_only.read().available, "the PC max sentinel is rejected as a display state");
+  Fixture speedrun_category;
+  speedrun_category.set_screen(66);
+  speedrun_category.set_starting_screen(64);
+  const auto speedrun_category_snapshot = speedrun_category.read();
+  expect(speedrun_category_snapshot.available &&
+             speedrun_category_snapshot.can_exit_with_start,
+         "speedrun category options are readable and Start-exitable from speedrun options");
+  speedrun_category.set_screen(67);
+  expect(!speedrun_category.read().available,
+         "the PC max sentinel is rejected as a display state");
 
   Fixture absent;
   expect(!absent.read(kMemoryBytes, kGoalFalse).available,
