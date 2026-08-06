@@ -498,7 +498,7 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
 
 Active lanes:
 
-- `Build 121 physically rejected; title START touch is the sole immediate blocker` —
+- `Build 122 semantic title START candidate installed; physical confirmation pending` —
   Build 118's physical run exposed
   missing Start/Resume chrome and missing native-menu Back actions. Parent
   `3588baf3`, `64050a11`, `c6757a51`, and `c85ce554` add exact read-only title
@@ -532,8 +532,15 @@ Active lanes:
   The signed Build 121 candidate is installed in place on `Z iPad Pro` with its
   data preserved. The maintainer physically accepted the restored inward white
   camera stick, but the visible START pill at the Jak title does not deliver a
-  usable Start press, so gameplay cannot begin. Treat that as a blocking
-  regression and fix the title-Start delivery path before any other UI work.
+  usable Start press, so gameplay cannot begin. Build 122 makes only the exact
+  gameplay `target-title-wait` START region a semantic SwiftUI button. It queues
+  the existing ordinary Start pulse without relying on the asynchronously cached
+  artwork frame or raw-touch gesture arbitration; all ordinary Build 96 touch
+  behavior and the physically accepted camera stick remain unchanged. The new
+  no-pill-frame cadence regression, focused touch/input/menu/settings checks,
+  and signed generic-iOS Release build pass. Build 122 is installed in place and
+  launched on `Z iPad Pro` with its data preserved; physical title entry is the
+  immediate acceptance gate.
   Physical card, simultaneous touch/physical-input, warp, and background-resume
   acceptance remain pending after title entry works. After that,
   stop nonessential iOS settings work and prioritize true stereoscopic visionOS

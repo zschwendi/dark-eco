@@ -14542,3 +14542,63 @@ the exact Start event from the SwiftUI geometry/raw-touch owner through
 native `target-title-wait` consumer. Add a deterministic regression that proves
 the title Start pulse survives the real frame cadence and mode transition; do
 not treat a label/visibility assertion or a generic Start byte test as proof.
+
+## Build 122 semantic title START candidate
+
+Date: 2026-08-06. Parent `f671f55c` fixes the physically rejected Build 121
+title interaction without changing the accepted camera stick or ordinary
+Build 96 gameplay controls. The title-only presentation introduced after Build
+96 could force START artwork visible while interaction still depended on a raw
+UIKit touch landing inside an asynchronously cached `pillFrames[.start]`
+rectangle. A missed cached frame fell through to the right-half gesture path;
+the camera remained healthy because it owns a separate frame. Static evidence
+cannot distinguish stale geometry from gesture arbitration as the concrete
+UIKit failure, but the title-only semantic target removes both dependencies.
+
+When native state is exactly gameplay plus `target-title-wait`, the existing
+START artwork now has a real SwiftUI Button above it. The Button invokes the
+already-gated `performNativeMenuAction(.start)`, which emits the same ordinary
+six-frame Start pulse consumed by `cpad-pressed?`. A regression deliberately
+registers no Start pill frame, invokes that semantic action, proves the next
+engine frame contains Start, preserves the remaining hold across the title-state
+transition, and verifies the deterministic release. The maintainer's workspace
+boundary is also recorded in `AGENTS.md`: remain inside the GOALPad workspace
+and its established GOALPad-specific worktree, temporary build, and device
+workflow unless expanded scope is explicitly authorized.
+
+Validation passed:
+
+- `Scripts/run-touch-controls-check.sh`
+- `Scripts/run-game-menu-state-check.sh`
+- `Scripts/run-keyboard-mouse-input-check.sh`
+- `Scripts/run-presentation-settings-check.sh`
+- `swiftc -parse GOALPad/Game/TouchControlsView.swift`
+- `git diff --check`
+
+The first sandboxed Swift checks encountered the environment's Xcode
+Observation macro/plugin restriction; rerunning those exact repo-local checks
+with normal Xcode service access passed. The signed generic-iOS Release build
+passed with:
+
+`xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad -configuration Release -destination generic/platform=iOS -derivedDataPath /private/tmp/GOALPad-build122-title-start -jobs 4 -allowProvisioningUpdates GOALPAD_OPENGOAL_ROOT=/private/tmp/GP-build94-jak1-settings/OpenGOAL GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/private/tmp/GP-build94-jak1-settings/build/jak1-source-object-pack build`
+
+The complete Xcode activity log is
+`/private/tmp/GOALPad-build122-title-start/Logs/Build/3D37B5C2-40A4-4D15-B0A0-C80146DC4E8A.xcactivitylog`.
+The build reverified all 518 source objects at aggregate
+`2b812636de96f221`. The frozen app is
+`/private/tmp/GOALPad-build122-title-start-signed/GOALPad.app`: Eco `1.0
+(122)`, bundle `com.zephyrstudiosllc.eco`, thin ARM64, 52 MB, executable
+SHA-256 `7f9692d8438da2df2162c523a80e786af36901a5c79aeec135bc4205f86a0e1b`.
+Its privacy manifest lints, the signed app reports the expected Zephyr Studios
+Game Center and iCloud entitlements, and no audited
+ISO/BIN/DGO/CGO/STR/VAG/FR3 payload is present. Strict offline signature
+verification retains the known development-chain `CSSMERR_TP_NOT_TRUSTED`
+result; Xcode signing and device installation succeeded.
+
+At `13:20:50` Build 122 was update-installed in place on `Z iPad Pro` without
+an uninstall or data clear. At `13:21:04` it was launched with
+`--terminate-existing`, so the foreground process is the new candidate rather
+than the rejected Build 121 instance. Immediate physical gate: open Jak, tap
+the visible START pill once at `PRESS START`, and confirm the title progresses.
+Then verify the same control says Pause in gameplay and Resume in the native
+menu. Do not modify the camera stick; its Build 121 physical result is accepted.
