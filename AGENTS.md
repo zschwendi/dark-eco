@@ -512,6 +512,27 @@ Active lanes:
   gate passes. This is not game stereo, tabletop, room-scale, first-person,
   real DMA, or physical Vision Pro evidence; Comfort remains the active game
   mode.
+- `Integrated locally; independent review ACCEPT; numbered build pending` —
+  parent `535810a1` plus Classic artwork correction `5a4e5ff2` and nested
+  OpenGOAL `39e451aa1` add a safe authored-cutscene SKIP and a distinct STATS
+  touch control. GOAL exposes SKIP only for the central explicitly skippable,
+  skip-enabled, undecided Triangle query; native owner/sequence/heartbeat
+  validation and touch lifecycle changes fail closed. A completed current tap
+  emits one ordinary Triangle pulse, while STATS holds exactly L2+R2. The
+  independent Sol xhigh review found no remaining safety or UI blocker. Root
+  rebuilt all 277 focused GOAL dependencies and passed the native, touch,
+  menu/progress, and keyboard/controller gates. This is not permission to jump
+  arbitrary states, skip load/death/warp/boat transitions, or claim every
+  cinematic is authored skippable.
+- `Parked; security review still BLOCKS integration` — the data-only mod branch
+  preserves initial manager commit `72587e9c`, parent validator follow-up
+  `0050b4d6`, and nested checked production Level validator `ad3d5d5410`.
+  Fourteen adversarial semantic FR3 cases pass, but same-FD publication,
+  distinct-inode immutable copies, strict JSON, rollback journaling, corrupt
+  registry recovery, and concurrent-scene transactions remain unresolved. Do
+  not integrate or expose the manager until the maintainer authorizes the
+  scoped app-sandbox filesystem transaction layer and every independent review
+  finding is corrected and re-reviewed.
 - `Integrated; focused validation passed; Build 107 full Xcode build pending` —
   Jak 1 physical-button/key remapping came from
   `/private/tmp/GP-build94-input-remapping`, worker commit `13197fd7`, and is

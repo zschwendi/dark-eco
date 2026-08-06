@@ -14003,3 +14003,53 @@ Other reviewed changes integrated locally after Build 113 packaging:
   authored-cutscene SKIP plus distinct STATS touch behavior, and the seven-part
   security correction for the unintegrated data-only mod manager. Do not run
   overlapping heavy builds; integrate and independently review each lane first.
+
+# Safe SKIP/STATS integration and parked mod-validation checkpoint
+
+Date: 2026-08-06. Safe SKIP/STATS is integrated locally after independent
+review; the data-only mod manager remains blocked and unintegrated.
+
+SKIP/STATS:
+
+- Nested OpenGOAL `39e451aa1` publishes a revisioned, owner-aware,
+  even-sequence snapshot only around the central `process-taskable` spooled
+  animation query when the authored process is skippable, PC movie skipping is
+  enabled, and the query remains undecided. It clears on predicate failure,
+  response, return, and exit.
+- Parent `535810a1` validates the exact GOAL layout, type, revision, owner,
+  stable sequence, state, and a two-run-frame heartbeat. A current completed
+  SKIP tap emits one ordinary Triangle pulse; mode, owner, sequence, stale,
+  suppression, and lifecycle changes cancel it. STATS remains a distinct exact
+  L2+R2 hold.
+- Independent review found one Classic rendering defect: the new STATS frame
+  used circular artwork. Follow-up `5a4e5ff2` classifies it as pill artwork and
+  adds a focused geometry assertion. Re-review returned ACCEPT with no P0-P2
+  findings.
+- Root integration rebuilt `process-taskable.o` with all 277 dependencies and
+  passed 5/5 GOAL contracts, native ABI/freshness validation, the full touch
+  suite, game-menu/progress checks, and keyboard/controller checks. The first
+  touch invocation hit the sandbox's known Observation macro-service failure;
+  the authorized Xcode-services rerun passed completely.
+- No source pack, AOT package, full Xcode build, version bump, simulator,
+  physical device, or push is claimed yet. SKIP v1 intentionally excludes
+  generic movie/state jumps, loads, autosaves, death, warp/boat transitions,
+  hints, credits, and any cutscene not authored through the proven central
+  skippable query.
+
+Data-only mods:
+
+- Initial branch commit `72587e9c` remains blocked by seven independent
+  security findings and is not integrated.
+- Parent follow-up `0050b4d65adab038310a03c7ebe50f62fd3fc225` and nested
+  `ad3d5d5410f3cac9842bf9f9ddd05b97c549c53d` preserve an opt-in bounded
+  Serializer path, production `tfrag3::Level` semantic validation, and an
+  FD-only native bridge. Fourteen adversarial cases cover versions, decoded
+  size, allocation caps, malicious strings/counts/nested vectors, structural
+  ranges, exact consumption, truncation, and multiple/trailing zstd frames.
+- These commits are parked only. The manager still lacks descriptor-relative
+  same-FD publication, distinct-inode immutable clone/copy, strict duplicate
+  and unknown-key JSON rejection, crash-safe removal reconciliation, corrupt
+  registry recovery, and process-wide transaction/session isolation.
+- The security tool rejected that filesystem patch until the maintainer gives
+  direct authorization limited to Eco's app-sandbox `DataOnlyMods` and
+  generated effective-root transaction directories. No workaround was used.
