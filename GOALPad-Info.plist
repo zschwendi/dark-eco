@@ -11,5 +11,9 @@
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<!-- The app implements no non-exempt encryption. CryptoKit is used only for one-way save-file
+	     identity hashes; transport and iCloud protection are provided by the operating system. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

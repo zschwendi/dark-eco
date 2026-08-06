@@ -10,6 +10,19 @@
 - **Bundle identifier:** `com.zephyrstudiosllc.eco`
 - **iCloud container:** `iCloud.com.zephyrstudiosllc.eco`
 
+## Build disclosures
+
+Build 92 includes `PrivacyInfo.xcprivacy` in the shared app target. It declares
+only required-reason API access: checking free space before local preparation,
+reading file metadata in app/iCloud containers and user-selected locations,
+and storing app-only preferences. These declarations do not replace the
+separate App Store Connect privacy questionnaire.
+
+`ITSAppUsesNonExemptEncryption` is `false`. The app implements no encryption;
+CryptoKit is used only for one-way save-file identity hashes, while iCloud and
+transport protection are operating-system services. This is the project's
+technical configuration, not a legal or export-classification guarantee.
+
 ## Identity migration
 
 Eco Pro intentionally uses a new paid-team application identity instead of the

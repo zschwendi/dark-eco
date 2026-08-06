@@ -12861,3 +12861,43 @@ frames, cumulative game time, submitted/presented/late frames, and prior-command
 buffer waits. A valid result must sustain approximately 8.33 ms callbacks while
 game time, camera, input, timers, audio fades, and dialogue duration remain
 correct. No 120 Hz code was implemented and no physical ProMotion test was run.
+
+# Build 92 release-readiness checkpoint
+
+Date: 2026-08-05. Build 92 adds the app privacy manifest, records the app's
+required-reason API uses, declares that the app does not implement non-exempt
+encryption, and disables previews and the debug dylib in Release builds. The
+project build number is 92 in both configurations.
+
+Validation passed:
+
+- `plutil -lint GOALPad/PrivacyInfo.xcprivacy GOALPad-Info.plist`.
+- `Scripts/verify-generated-aot.sh Generated/jak1-aot 518`: 518 objects,
+  10,596 emitted functions, and 7 native functions.
+- `git diff --check` in the parent; the nested OpenGOAL worktree remained clean.
+- Signed generic iPhoneOS Release build using Zephyr Studios LLC team
+  `V729QMY3V6` and bundle identifier `com.zephyrstudiosllc.eco`.
+- The built app contains exactly one byte-identical `PrivacyInfo.xcprivacy`,
+  reports Eco Pro `1.0 (92)`, contains no retail-data-like files, and carries
+  the expected iCloud container `iCloud.com.zephyrstudiosllc.eco`.
+- Build 92 was installed in place and launched on `Z iPad Pro` and
+  `Z iPhone Air`; neither operation uninstalled the app or cleared its data.
+
+Preserved signed product:
+
+- App: `/private/tmp/GOALPad-build92-cloud-signed/GOALPad.app`
+- Xcode activity logs: `/private/tmp/GOALPad-build92-cloud-signed/BuildLogs`
+- Executable SHA-256:
+  `900b07b9b089c09f5d171f15e9a4f709ec65fc3794f6e68cd1834d878d5d7ae8`
+
+A signed macOS iCloud build was not produced. Xcode reported that this Mac was
+not registered with the Zephyr Studios team and that no matching Mac App
+Development profile existed. An ad-hoc Mac build was intentionally not used
+for cloud-save testing. Physical validation is limited to install and launch;
+the maintainer's subsequent two-device test found cloud-save discovery,
+conflict presentation, and interaction problems that are Build 93 work.
+
+To recover disk space, only the exact reproducible Build 92 DerivedData and
+four older reproducible cache/DerivedData directories were removed after the
+signed app and logs were preserved. Source worktrees, signed baselines, and
+user data were untouched; the removed directories can be recreated by builds.
