@@ -14860,3 +14860,14 @@ The worker and root reruns of
 pass, as does the worker's existing cutscene-skip regression. Matching GOAL symbols
 are not present in the canonical nested checkout yet, so runtime discovery/AOT proof
 remains pending that worker integration.
+
+Swift worker `a4b8159b` is pushed on `origin/agent/build127-face-swift` and
+integrated as parent `61ad1b6e`. It adds strict mask/order mapping, isolated prompt
+pulses/haptics, GameSession polling, and non-capturing symbol-only buttons whose
+controller suppression is opacity-only. Warp visibility/capture and cutscene SKIP
+retain priority. The first compiled root run exposed only a bad test expectation:
+full movement correctly also emitted its ordinary D-pad direction. Parent
+`a2ccfbc4` narrows that assertion to the real contract, consumes the setup stick
+haptic, and proves prompt Cross work is cancelled without disturbing raw movement.
+`Scripts/run-touch-controls-check.sh` then passes in full. GOAL publication remains
+the only active worker slice.

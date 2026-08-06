@@ -596,8 +596,11 @@ Active lanes:
   Build 127, and physical gameplay acceptance are pending. Native worker
   `47d19dd8` is pushed and integrated as parent `a7c8f7bc`; its C++ behavior,
   Swift import, warnings-as-errors native/Objective-C++ syntax, existing
-  cutscene-skip regression, and root rerun all pass. GOAL and Swift workers
-  remain active.
+  cutscene-skip regression, and root rerun all pass. Swift worker `a4b8159b` is
+  pushed and integrated as parent
+  `61ad1b6e`; root corrected one overbroad cancellation-test assertion in
+  `a2ccfbc4`, and the fully compiled touch suite now passes against the native
+  bridge. Only the GOAL publication worker remains active.
 - `Build 114 signed generic-iOS candidate ready; physical Misty/title gate
   pending` — nested OpenGOAL `352064ace`, `f260ae7df`, and `cb5032a83` make
   fisherman-boat arrival atomic: destination collision must genuinely ground
