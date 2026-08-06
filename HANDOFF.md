@@ -11469,3 +11469,135 @@ After the signed app and ZIP were copied and re-hashed, only the disposable
 `/private/tmp/GOALPad-jak2-cp77-device-derived` directories were removed. No
 worktree was removed. The simulator Xcode products, simulator screenshot, and
 preserved app/ZIP remain available at the paths recorded above.
+
+# Checkpoint 78: first real Jak II Direct draw and bounded SKY diagnostics
+
+Date: 2026-08-06. Work is isolated from the active Jak 1 checkout in parent
+worktree `/Users/zach/Developer/OS_Projects/GOALPad/GP-jak2-real-dma-draw` on
+branch `agent/jak2-real-dma-draw-parent` and nested OpenGOAL worktree
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-jak2-real-dma-draw/OpenGOAL` on
+branch `agent/jak2-real-dma-draw-proof`. The active maintainer checkout at
+`/Users/zach/Developer/OS_Projects/GOALPad/GOALPad` was inspected read-only and
+was not edited, staged, cleaned, built, or reset.
+
+## Integrated nested state
+
+The nested integration branch now ends at `cd4176935`:
+
+- `892aac690` routes real runtime DMA through the existing presenting Metal
+  host and reads back the completed game target.
+- `d64b3bcbc` permits nil-layer Direct encoding for deterministic host tests.
+- `8e8949895`, `3ba1da29b`, `a0d311ea5`, and `d6a58363a` add the first Direct
+  bucket policy, fixtures, host frame summaries, and the initial later-chain
+  pixel gate.
+- `f333059fd` and `16419b0ff` promote and attribute `DEBUG_NO_ZBUF2`; the real
+  packet consumes setup bytes but emits no draw.
+- `2ef89c08e` and `c7ff6e4eb` promote `SKY_DRAW` and retarget the strict proof
+  to the live one-draw/two-triangle packet.
+- `cd4176935` adds fixed-size SKY last-batch diagnostics, frame alpha summaries,
+  app logging/status, and focused tests. It retains no packet bytes, leaves
+  bucket 4 deferred, and keeps PASS dependent on increased non-black RGB.
+
+The currently enabled Jak II Metal policy remains exactly three Direct buckets:
+`SKY_DRAW` id 5, `SCREEN_FILTER` id 256, and `DEBUG_NO_ZBUF2` id 325. The other
+197 nonempty-capable buckets remain deferred and 127 remain strict-empty.
+
+## Runtime evidence before the diagnostic commit
+
+At exact nested source `c7ff6e4eb`, the canonical host build and nine focused
+tests passed, the full Jak 1 `metal-proof` ended `METAL PROOF PASSED`, and the
+real prepared-data boot loaded all 840 AOT units plus KERNEL, GAME, and
+TITLE.DGO and reached the title frontier. The approved M5 simulator Release
+build also passed and the app was installed and launched with:
+
+```text
+SIMCTL_CHILD_GOALPAD_JAK2_DATA_DIR=/Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2
+SIMCTL_CHILD_GOALPAD_JAK2_REAL_DMA_DRAW_CAMETAL_LAYER_PROOF=1
+xcrun simctl launch --terminate-running-process --console \
+  96C5C21A-B925-4213-82A3-90DCB8518339 com.zephyrstudiosllc.eco.jak2dev
+```
+
+Chain 1 was the exact zero-draw transparent-black baseline with hash
+`17516998016114434853`. Chain 2 completed with 327 buckets, 393216 copied
+bytes, 15840 skipped bytes, one draw, two triangles, and exact `SKY_DRAW`
+attribution. Its hash changed to `8370510571087176485`, but non-black RGB
+remained zero. The strict proof therefore failed correctly: the live draw
+changed alpha only. Screenshot `/private/tmp/jak2-cp80-sky-draw.png` records
+that result. The app was terminated after the bounded diagnostic. No physical
+device was accessed.
+
+## Packet and texture findings
+
+Read-only structural classification of the first chain's 416-byte bucket 4
+packet found 16 DMA transfers and seven payload-bearing transfers. It is mixed:
+
+- 48 bytes are ordinary work: one TEXFLUSH packet and one `PC_PORT 0` texture
+  page descriptor with signed mode `-1` (`seg0-1-2`).
+- 368 bytes are two animator arrays using `PC_PORT` immediates 12/41/13 and
+  12/14/16/15/13, plus DIRECT payloads.
+
+The current `MetalTextureUploadHandler` deliberately skips animator arrays, so
+binding bucket 4 to that handler would silently omit most of the packet. Keep
+bucket 4 deferred until a deterministic mixed-packet fixture and the required
+bounded animator subset exist.
+
+For actual pixels, reuse `metal_level_data::load_fr3` to register user-generated
+`GAME.fr3` and requested level `.fr3` textures into the host-owned Jak II
+`TexturePool`, then apply real `texture_upload_now` and relocation callbacks.
+The app does not yet accept that prepared-art path, and the 840-unit AOT source
+pack contains executable source only, not texture pixels. Do not embed or commit
+retail-derived art.
+
+## Validation at `cd4176935`
+
+The implementation worker passed `git diff --check`, syntax-only compilation of
+all affected Objective-C++/Objective-C units, and a separately linked focused
+host test. The integration owner then ran:
+
+```text
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host \
+  --target jak2-metal-host-bridge-test -j2
+
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-metal-host-bridge-test
+```
+
+Both passed. The test covered empty, SCREEN_FILTER, DEBUG_NO_ZBUF2, and SKY_DRAW
+isolation plus exact synthetic SKY vertex, texture, blend, alpha-test, and RGB
+write facts.
+
+A broader canonical build was then attempted with the prior focused target
+matrix. Compilation progressed through the affected Metal objects, but linking
+`game/libruntime.a` failed with the first useful error:
+
+```text
+write64() failed, returned -1 expected 206969176, errno=28
+ranlib: error writing file 'game/libruntime.a'
+```
+
+The shared data volume had roughly 249 MiB free afterward. Treat
+`/private/tmp/GOALPad-jak2-real-dma-host/game/libruntime.a` as an incomplete
+build product until it is rebuilt. No source failure was observed. Full focused
+CTest, Jak 1 Metal regression, real-data boot, refreshed simulator build/run,
+and generic iPhoneOS signed build remain pending at `cd4176935` solely because
+of storage. No physical-device validation was performed or authorized.
+
+## Exact resume sequence
+
+1. Recover at least 1-2 GiB without touching the active Jak 1 checkout or
+   user-owned game data. Prefer maintainer-approved removal of clean, fully
+   integrated Jak II worker worktrees or obsolete reproducible build products.
+2. Rebuild the canonical focused host matrix, run the nine focused CTests, Jak 1
+   `metal-proof`, and the real prepared-data boot.
+3. Rebuild/reinstall the Release app on the approved M5 simulator and rerun the
+   same strict proof. Record the new `GOALPAD_JAK2_SKY_DRAW_BATCH` line and alpha
+   summary. Do not accept alpha-only change as a pixel pass.
+4. If the live batch is textured and uses the placeholder, implement the
+   user-generated `.fr3` host configuration/loading seam and real texture
+   callbacks before the mixed bucket-4 animator. If vertices or blend state
+   explain black RGB, fix or retarget the narrow renderer slice indicated by
+   those exact diagnostics.
+5. Only after a correctly textured title path is sustained should Jak II move
+   through controller, audio, save/relaunch, real lifecycle, and signed-device
+   build gates. Shared Jak 1 settings should then be ported through a title
+   descriptor/capability adapter, not by wholesale cherry-picking Jak 1-owned
+   storage, render, save, or boot assumptions.

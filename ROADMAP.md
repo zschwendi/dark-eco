@@ -806,7 +806,7 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 76 is the current integration checkpoint. Checkpoint 37 remains the
+Checkpoint 78 is the current integration checkpoint. Checkpoint 37 remains the
 latest sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
@@ -1156,6 +1156,26 @@ is still a policy/display-tick proof with zero draw calls, submissions, or
 presented frames. The next Jak II gate is real-DMA Metal drawing and completed
 frame submission through the existing product renderer; title-screen pixels,
 gameplay, and physical-device support remain unproved.
+
+Checkpoint 78 advances that same normal-runtime path through an app-owned
+`CAMetalLayer`, three narrowly audited Direct buckets, and the first real Jak II
+title-path draw. On the approved M5 simulator, the second real DMA chain acquires
+and completes a drawable-backed command buffer and attributes one draw/two
+triangles exactly to `SKY_DRAW`. The game-target RGBA hash changes, but every RGB
+channel remains black; only alpha changes. Nested `cd4176935` adds bounded
+last-batch SKY state and alpha summaries without weakening the RGB-visible proof
+gate. A focused Metal host build and test pass at that commit. Broader canonical,
+simulator, and signed-device validation are pending because the shared volume
+filled while rebuilding `libruntime.a`. This is a real encoded draw, not visible
+title-screen, gameplay, or physical-device evidence.
+
+The preceding bucket-4 packet was classified as mixed ordinary texture upload
+and texture-animation work. Its 416 payload bytes contain only 48 bytes of
+ordinary upload traffic and 368 bytes of animator commands, so it must not be
+routed through the ordinary Metal upload adapter alone. The existing `.fr3`
+loader and `TexturePool` can support user-generated Jak II art, but the current
+Jak II app has no prepared-art path and the 840-unit AOT source pack contains no
+texture pixels. Those are explicit next renderer/data boundaries.
 
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
