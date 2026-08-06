@@ -49,9 +49,15 @@ After editing:
 
 ## Long-running work and delegation
 
-Use subagents whenever bounded work can proceed independently. Keep all four
-available concurrency slots productive when there are useful non-overlapping
-tasks. Use one `gpt-5.6-sol` `xhigh` integration lane, up to two
+Operating stance: **AGI-pilled**.
+
+Prefer scripts, deterministic automation, direct repository inspection, and
+reusable test commands over spending an agent turn on mechanical work. Use
+subagents only when bounded work needs independent reasoning or can materially
+shorten the critical path; an unused slot is better than duplicate review,
+speculative scouting, or validation that a script can perform. Keep all four
+available concurrency slots productive only when there are useful
+non-overlapping tasks. Use one `gpt-5.6-sol` `xhigh` integration lane, up to two
 `gpt-5.6-sol` `xhigh` implementation lanes for importer architecture,
 renderer behavior, ABI/AOT work, and unsafe file handling, and one
 `gpt-5.6-terra` `medium` or `high` lane for bounded CMake wiring,
