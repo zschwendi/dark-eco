@@ -129,7 +129,7 @@ nonisolated enum ArtworkError: LocalizedError {
         case .fileTooLarge:
             "Artwork must be no larger than 25 MB."
         case .invalidImage:
-            "Eco Pro could not read that image, or its dimensions are too large."
+            "Eco could not read that image, or its dimensions are too large."
         }
     }
 }

@@ -5,7 +5,7 @@
 
 ## Product identity
 
-- **Title:** Eco Pro
+- **Title:** Eco
 - **Subtitle:** Native OpenGOAL Runtime
 - **Bundle identifier:** `com.zephyrstudiosllc.eco`
 - **iCloud container:** `iCloud.com.zephyrstudiosllc.eco`
@@ -25,11 +25,11 @@ technical configuration, not a legal or export-classification guarantee.
 
 ## Identity migration
 
-Eco Pro intentionally uses a new paid-team application identity instead of the
+Eco intentionally uses a new paid-team application identity instead of the
 earlier GOALPad development bundle identifier. Apple treats it as a separate
 app and sandbox, so local game data, settings, and saves from an existing
 GOALPad installation do not migrate automatically. Export or otherwise preserve
-local saves before moving a device to Eco Pro; never uninstall the existing app
+local saves before moving a device to Eco; never uninstall the existing app
 as part of migration testing.
 
 ## Platform presentation

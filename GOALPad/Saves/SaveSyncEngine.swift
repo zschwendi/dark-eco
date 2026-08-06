@@ -1542,7 +1542,7 @@ actor SaveSyncEngine {
     }
 
     private func uniqueExportRoot(in selectedDirectory: URL) -> URL {
-        let baseName = "Eco Pro Save Export"
+        let baseName = "Eco Save Export"
         var candidate = selectedDirectory.appending(path: baseName, directoryHint: .isDirectory)
         var suffix = 2
         while manager.fileExists(atPath: candidate.path) {

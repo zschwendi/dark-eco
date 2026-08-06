@@ -297,7 +297,7 @@ private struct FallbackGameArtwork: View {
                                        startPoint: .top, endPoint: .bottom)
                     )
                     .shadow(color: .orange.opacity(0.55), radius: 12)
-                Text("ECO PRO")
+                Text("ECO")
                     .font(.caption2.weight(.bold))
                     .tracking(3)
                     .foregroundStyle(.white.opacity(0.72))

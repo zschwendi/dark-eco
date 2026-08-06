@@ -2,7 +2,7 @@
 
 > **Status:** Experimental playable Jak 1 port; Build 93 is the accepted baseline within its physically tested scope
 > **Working name:** GOALPad
-> **Public product name:** Eco Pro
+> **Public product name:** Eco
 > **App Store subtitle:** Native OpenGOAL Runtime
 > **Primary target:** iPadOS on Apple silicon; the shared windowed app also supports macOS and visionOS
 > **Initial game target:** *Jak and Daxter: The Precursor Legacy*
@@ -20,7 +20,7 @@ Read this before changing architecture, adding dependencies, rewriting upstream 
 
 Build an open-source, native ARM64 Apple-platform port of OpenGOAL that allows
 users to run supported Jak games from game data they legally provide themselves.
-iPadOS remains the primary correctness and performance target; Eco Pro also
+iPadOS remains the primary correctness and performance target; Eco also
 builds and runs as a conventional windowed Apple Silicon macOS app.
 
 The intended result is a high-resolution, controller-friendly iPad and Mac
@@ -31,9 +31,9 @@ and a path toward custom levels and other OpenGOAL-compatible mods.
 
 A user should eventually be able to:
 
-1. Obtain Eco Pro through a supported open-source, Mac, or sideloading workflow.
+1. Obtain Eco through a supported open-source, Mac, or sideloading workflow.
 2. Provide a supported, legally obtained PlayStation 2 copy of the game.
-3. Use Eco Pro or the desktop tooling to verify and prepare the required game data.
+3. Use Eco or the desktop tooling to verify and prepare the required game data.
 4. Keep that prepared data on the Mac or transfer it to another Apple device.
 5. Launch the game natively on iPadOS or Apple Silicon macOS.
 6. Play with a supported controller at platform-appropriate resolutions and presentation settings.
@@ -273,7 +273,7 @@ Simulator success is useful but insufficient. Architecture, executable memory, M
 
 ```text
 ┌────────────────────────────────────────────────────────────┐
-│ SwiftUI Eco Pro application — iPadOS / macOS / visionOS    │
+│ SwiftUI Eco application — iPadOS / macOS / visionOS        │
 │                                                            │
 │ Launcher · Settings · Import status · Saves · iPad touch UI│
 └──────────────────────────────┬─────────────────────────────┘
@@ -351,7 +351,7 @@ The project follows a bring-your-own-game model.
 
 ### macOS app and desktop-tool responsibilities
 
-The macOS Eco Pro app or command-line tooling should:
+The macOS Eco app or command-line tooling should:
 
 - Accept a user-selected game image or extracted disc directory.
 - Verify that the input matches a supported retail revision.
@@ -363,7 +363,7 @@ The macOS Eco Pro app or command-line tooling should:
 - Avoid uploading the user's game data to any service.
 - Avoid bundling game data into the public repository or CI artifacts.
 
-### Eco Pro app responsibilities
+### Eco app responsibilities
 
 The Apple app should:
 
@@ -406,7 +406,7 @@ resumes and can merge both directions. Synchronization triggered after completed
 saves is upload-only: it archives divergent cloud members before mirroring the
 active local pair and cannot replace local gameplay files. Each
 OpenGOAL alternating bank pair is merged as one save slot with a pair baseline.
-Eco Pro reproduces the loader's validation and `save_count` selection. A
+Eco reproduces the loader's validation and `save_count` selection. A
 loadable valid memcard always beats a corrupt or unsupported peer. Divergent
 valid memcards are ranked by their effective modification dates, then by the
 loader-selected native save generation; completion percentage is display data,
@@ -474,7 +474,7 @@ boundary and does not make a legal guarantee.
 
 ### Public product identity
 
-Public-facing product surfaces use **Eco Pro**, with the App Store subtitle
+Public-facing product surfaces use **Eco**, with the App Store subtitle
 **Native OpenGOAL Runtime**, and a calm, platform-oriented voice. GOALPad
 remains the repository, target, scheme, and internal runtime name. The App
 Store name, subtitle, icon, screenshots, preview media, and first-run setup

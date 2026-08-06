@@ -114,12 +114,12 @@ check(content.contains("session.presentationSettings.profile(for: .controls)")
         && content.contains("session.touch.setStyle(profile == .modern ? .modern : .classic)"),
       "the Controls profile selects the matching live touch model")
 check(content.contains("session.isRunning && session.isNativeMenuOpen")
-        && content.contains("Text(\"Eco Pro\")")
+        && content.contains("Text(\"Eco\")")
         && content.contains("Image(systemName: \"gearshape\")")
         && content.contains("session.presentationSettings.developerLogsEnabled")
         && !content.contains("showDiagnostics")
         && !content.contains("line.3.horizontal"),
-      "native menu truth gates the white Eco Pro Settings control and optional logs")
+      "native menu truth gates the white Eco Settings control and optional logs")
 check(occursInOrder([
     "let presentationSettings = PresentationSettings()",
     "async let settingsPreparation: Void = presentationSettings.prepare()",
