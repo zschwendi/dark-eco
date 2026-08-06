@@ -397,6 +397,9 @@ and its preserved signed app is
 `/private/tmp/GOALPad-build93-cloud-save-ux-signed/GOALPad.app`. Do not rewrite,
 amend, or repurpose that branch. New work starts from Build 93 in a later build
 and must not replace it until the maintainer accepts the physical comparison.
+Build 105 is the current signed transition candidate, not the accepted baseline;
+its exact long-session Sandover-to-Misty and Fire Canyon physical gate remains
+pending.
 
 ### Live Jak 1 orchestration ledger
 
@@ -451,6 +454,21 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
   before calling it the replacement baseline.
 
 Active lanes:
+
+- `Integrated through 88e97b6f; focused validation passed; consolidated Build
+  106 pending` — post-Build-105 work now includes title-scoped stable Settings,
+  Primary Controller arbitration persisted in the Jak 1/iCloud document, a
+  validated native preserved-save promotion manager, discrete touch haptics,
+  authoritative look-around state readback, and the visionOS five-mode scene
+  foundation. Worker pushes were attempted but rejected by the execution
+  approval boundary; every worker commit is preserved in this integration
+  branch and will be pushed with the checkpoint. Modern pinch zoom is the only
+  active touch-file owner.
+- `Signed and simulator validated; physical route pending` — Build 105 packages
+  the Misty transition, Metal allocation rollback, DGO terminal failure, and
+  Fire Canyon preview-title fixes. Parent packaging commit `5153fcfa` and nested
+  OpenGOAL `c63c73ecf` are pushed. The preserved signed app is
+  `/private/tmp/GOALPad-build105-misty-signed/GOALPad.app`.
 
 - `Integrated; focused validation and signed-build validation passed; physical
   presentation pending` — the public product rename from Eco Pro to Eco came
@@ -545,16 +563,17 @@ Active lanes:
   indices, zero level failures, and healthy screenshots at frames 1300 and
   1600. The desktop host evicted unwanted title art after 181 frames and kept
   only Village1 plus Misty resident.
-- [ ] Repair the iOS parent's missing level-art eviction/lifecycle seam and the
+- [x] Repair the iOS parent's missing level-art eviction/lifecycle seam and the
   nested Metal loader's silent nil-buffer/zero-texture success path. Review
   those worker patches independently before integrating either.
-- [ ] Repair the independent DGO fail-open seam: a terminal archive error is
+- [x] Repair the independent DGO fail-open seam: a terminal archive error is
   currently indistinguishable from pending to GOAL, so a non-wait transition
   can continue forever without the destination BSP/collision.
-- [ ] Add deterministic direct-Misty, terminal-DGO-error, and exact boat
-  transition/load coverage without committing retail data. Do not claim a fix
-  from title-screen, static-level, or source-manifest checks alone.
-- [ ] Investigate the related physical report that the 20-cell Fire Canyon
+- [x] Add deterministic direct-Misty and terminal-DGO-error coverage plus the
+  closest synthetic boat-transition state coverage available without retail
+  fixtures. The exact authored boat route remains a physical Build 105 gate;
+  do not claim it from title-screen, static-level, or source-manifest checks.
+- [x] Investigate and repair the related physical report that the 20-cell Fire Canyon
   camera preview displayed the `FIRE CANYON` title before Jak entered and that
   the title cleared only after pause/unpause plus time. The authored preview
   moves the camera across non-player display boundaries, while ambient/hint
@@ -571,14 +590,15 @@ Active lanes:
 - [x] In the paused overlay, use white `Eco` plus the Settings icon.
 - [x] Add a per-game `Show developer logs` setting; logs remain off the normal
   player surface when disabled.
-- [ ] Fix the stationary Settings sheet/modal layout flicker and roughly
-  100-point vertical text jump before adding more rows.
+- [x] Replace the unstable boolean Settings sheet with one item-backed,
+  title-scoped presentation identity. Focused presentation tests pass; stationary
+  physical confirmation remains part of the next candidate check.
 - [x] Present Modern before Classic in every global and section picker while
   preserving stored enum/document compatibility.
-- [ ] Make app settings title-scoped. The launcher Settings entry lists Jak 1,
+- [x] Make app settings title-scoped. The launcher Settings entry lists Jak 1,
   Jak II, and later supported titles; each title remembers its own profile and
   options locally and in iCloud.
-- [ ] Do not present unimplemented title settings as functional. Jak 1 is the
+- [x] Do not present unimplemented title settings as functional. Jak 1 is the
   active settings document; later-title rows may be clearly unavailable until
   their title support is real.
 - [x] Rename `Reset All` to `Reset Jak 1 Settings` in the Jak 1 document.
@@ -597,7 +617,7 @@ Active lanes:
   beneath the combined presentation.
 - [ ] Add the smallest truthful settings entry needed to import/manage supported
   data-only mods; do not imply a mod browser or code-mod support exists.
-- [ ] Add a save-conflict manager that lists preserved divergent copies in
+- [x] Add a save-conflict manager that lists preserved divergent copies in
   player language and can explicitly promote a validated copy to the canonical
   native memcard without weakening archive/journal/CAS safety.
 - [ ] Finalize the in-game Jak 1 title with the maintainer before changing player
@@ -608,10 +628,10 @@ Active lanes:
 
 #### Input-source ownership and remapping
 
-- [ ] Add a Jak 1 `Primary Controller` choice that can explicitly prefer Touch,
+- [x] Add a Jak 1 `Primary Controller` choice that can explicitly prefer Touch,
   a connected controller, or Mouse & Keyboard, with an honest Automatic/default
   behavior when the preferred source is unavailable.
-- [ ] Preserve normal controller-first behavior while a physical controller is
+- [x] Preserve normal controller-first behavior while a physical controller is
   actively driving input; return to touch after touch activity according to a
   deterministic tested policy.
 - [ ] Add remapping for all supported physical-controller inputs.
@@ -623,8 +643,8 @@ Active lanes:
   Up = Triangle, and Down = the exact L1+R1 shoulder chord. Ordinary Jak 1
   progress/stats remains Start and is distinct from this speedrunner chord.
 - [x] Default Escape to Start/Pause.
-- [ ] Map additional explicitly chosen keys to Stats rather than treating
-  arbitrary typing as gameplay input.
+- [x] Map explicit Tab to the native L2+R2 Stats chord without treating arbitrary
+  typing as gameplay input. Further bindings belong to the remapping lane.
 
 #### Touch profiles and customization
 
@@ -663,7 +683,7 @@ Active lanes:
 - [x] Expose Jak 1's real `*master-mode*` as a read-only Apple-host state so
   pause-gated chrome and Pause/Resume labels do not rely on screenshots,
   timing, or a duplicate Swift pause flag.
-- [ ] When a physical controller is active, preserve ordinary controller input
+- [x] When a physical controller is active, preserve ordinary controller input
   and avoid intrusive touch chrome.
 - [ ] When touch is active, make the app-owned settings/library surfaces use
   normal touch targets and scroll/swipe behavior.
@@ -684,12 +704,13 @@ Active lanes:
 
 #### Haptics, stats, and skipping
 
-- [ ] Add satisfying, state-appropriate touch-device haptics without duplicating
-  every frame or vibrating for passive UI changes.
+- [x] Add a bounded touch-device haptic proof for direct buttons, recognized
+  gestures, and one meaningful stick-engagement edge. It emits only from touch
+  callbacks, never from the frame loop; physical feel remains pending.
 - [ ] Preserve and extend connected-controller rumble through Game Controller;
   use supported left/right localities when the device exposes them and degrade
   cleanly when it does not.
-- [ ] Keep native Jak rumble fidelity separate from new app UI haptics so one
+- [x] Keep native Jak rumble fidelity separate from new app UI haptics so one
   source cannot mask or continuously restart the other.
 - [ ] Preserve a reachable Stats action even though the latest touch pill is
   named `SKIP`; document controller and keyboard defaults.
@@ -735,8 +756,7 @@ architecture, gameplay-semantic, backend, or physical-tuning gate:
 4. Direct touch hit-testing for every native GOAL-rendered menu.
 5. Complete controller and mouse/keyboard remapping UI.
 6. Full mod manager/browser beyond a truthful local import entry.
-7. Manual archived-save promotion/conflict-management UI.
-8. Rich localized device/controller haptic design beyond preserved native
+7. Rich localized device/controller haptic design beyond preserved native
    rumble and a small UI-haptic proof.
 
 Classic touch, portrait top alignment, Modern-first ordering, empty-section
@@ -745,8 +765,11 @@ this defer list; they are the preferred first executable slices.
 
 #### visionOS presentation modes
 
-These are visionOS-only follow-on modes requested by the maintainer. They are
-**Planned** or **Investigating**, not implemented, and must not delay the current
+These are visionOS-only follow-on modes requested by the maintainer. The scene
+coordinator and five-mode capability model are **Implemented**, and a synthetic
+per-view compositor layer is **Validated by Apple SDK typecheck**. Only
+Comfort/Normal is playable; game stereo and spatial world modes remain
+**Planned** or **Investigating** and must not delay the current
 Jak 1 iPhone/iPad correctness track. Preserve the conventional window as the
 fallback while the shared renderer is isolated from its current single
 `CAMetalLayer`, single display clock, and gameplay-camera assumptions.
@@ -767,8 +790,8 @@ fallback while the shared renderer is isolated from its current single
    and camera shake require explicit comfort behavior; default to a stable
    floating/spectator treatment rather than forcing artificial head rotation.
 
-Implement in narrow proofs: keep the flat window healthy, add a visionOS-only
-scene/session coordinator, prove a synthetic compositor stereo layer, define an
+Implement in narrow proofs: keep the flat window healthy, preserve the existing
+visionOS-only scene/session coordinator and synthetic compositor proof, define an
 immutable per-frame simulation snapshot plus external view/projection and
 render-target contract, cover renderer buckets and culling, then add stereo,
 tabletop, room-scale, and first-person in that order. Real stereo requires
