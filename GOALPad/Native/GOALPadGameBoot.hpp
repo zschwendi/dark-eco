@@ -280,6 +280,192 @@ class CutsceneSkipTouchReader {
   std::uint64_t last_refresh_frame_ = 0;
 };
 
+struct FacePromptTouchSnapshot {
+  bool valid = false;
+  std::uint32_t sequence = 0;
+  std::uint32_t requested_buttons = 0;
+};
+
+namespace face_prompt_touch_layout {
+
+// checked_goal_object returns the bytes after the basic object's four-byte type tag.
+constexpr std::size_t kRevisionOffset = 0;
+constexpr std::size_t kSequenceOffset = 4;
+constexpr std::size_t kRequestedButtonsOffset = 8;
+constexpr std::size_t kOwnerOffset = 12;
+constexpr std::size_t kHeartbeatOffset = 20;
+constexpr std::size_t kRequiredObjectBytes = 0x18;
+constexpr std::int32_t kRevision = 1;
+constexpr std::uint32_t kTriangleButton = 1u << 12;
+constexpr std::uint32_t kCircleButton = 1u << 13;
+constexpr std::uint32_t kCrossButton = 1u << 14;
+constexpr std::uint32_t kSquareButton = 1u << 15;
+constexpr std::uint32_t kFaceButtonMask =
+    kTriangleButton | kCircleButton | kCrossButton | kSquareButton;
+constexpr std::uint64_t kMaximumStaleFrames = 2;
+
+}  // namespace face_prompt_touch_layout
+
+struct FacePromptTouchRawSnapshot {
+  bool valid = false;
+  std::uint32_t sequence = 0;
+  std::uint32_t requested_buttons = 0;
+  std::uint64_t owner = 0;
+  std::uint32_t heartbeat = 0;
+};
+
+inline FacePromptTouchRawSnapshot validate_face_prompt_touch_snapshot(
+    std::int32_t first_sequence,
+    std::int32_t revision,
+    std::int32_t requested_buttons_value,
+    std::uint64_t owner,
+    std::int32_t heartbeat,
+    std::int32_t final_sequence) noexcept {
+  FacePromptTouchRawSnapshot snapshot;
+  const auto requested_buttons = static_cast<std::uint32_t>(requested_buttons_value);
+  if (revision != face_prompt_touch_layout::kRevision ||
+      first_sequence != final_sequence ||
+      (static_cast<std::uint32_t>(first_sequence) & 1u) != 0 || owner == 0 ||
+      requested_buttons == 0 ||
+      (requested_buttons & ~face_prompt_touch_layout::kFaceButtonMask) != 0) {
+    return snapshot;
+  }
+
+  snapshot.valid = true;
+  snapshot.sequence = static_cast<std::uint32_t>(first_sequence);
+  snapshot.requested_buttons = requested_buttons;
+  snapshot.owner = owner;
+  snapshot.heartbeat = static_cast<std::uint32_t>(heartbeat);
+  return snapshot;
+}
+
+inline bool face_prompt_touch_symbols_available(std::uint32_t snapshot_symbol,
+                                                bool type_symbol_found,
+                                                std::uint32_t snapshot_type) noexcept {
+  return snapshot_symbol != 0 && type_symbol_found && snapshot_type != 0;
+}
+
+inline std::int32_t read_face_prompt_touch_field(const volatile std::uint8_t* bytes,
+                                                 std::size_t offset) noexcept {
+  std::int32_t value = 0;
+  auto* value_bytes = reinterpret_cast<std::uint8_t*>(&value);
+  for (std::size_t index = 0; index < sizeof(value); ++index) {
+    value_bytes[index] = bytes[offset + index];
+  }
+  return value;
+}
+
+inline std::uint64_t read_face_prompt_touch_owner(const volatile std::uint8_t* bytes,
+                                                  std::size_t offset) noexcept {
+  std::uint64_t value = 0;
+  auto* value_bytes = reinterpret_cast<std::uint8_t*>(&value);
+  for (std::size_t index = 0; index < sizeof(value); ++index) {
+    value_bytes[index] = bytes[offset + index];
+  }
+  return value;
+}
+
+inline FacePromptTouchRawSnapshot read_face_prompt_touch_raw_snapshot(
+    const void* memory,
+    std::size_t memory_bytes,
+    std::size_t low_protect_bytes,
+    std::uint32_t object_offset,
+    std::uint32_t expected_type) noexcept {
+  const void* object = camera_correction_trace::checked_goal_object(
+      memory, memory_bytes, low_protect_bytes, object_offset, expected_type,
+      face_prompt_touch_layout::kRequiredObjectBytes, nullptr);
+  if (!object) {
+    return {};
+  }
+
+  const auto* bytes = static_cast<const volatile std::uint8_t*>(object);
+  const auto first_sequence =
+      read_face_prompt_touch_field(bytes, face_prompt_touch_layout::kSequenceOffset);
+  const auto revision =
+      read_face_prompt_touch_field(bytes, face_prompt_touch_layout::kRevisionOffset);
+  const auto requested_buttons =
+      read_face_prompt_touch_field(bytes, face_prompt_touch_layout::kRequestedButtonsOffset);
+  const auto owner =
+      read_face_prompt_touch_owner(bytes, face_prompt_touch_layout::kOwnerOffset);
+  const auto heartbeat =
+      read_face_prompt_touch_field(bytes, face_prompt_touch_layout::kHeartbeatOffset);
+  const auto final_sequence =
+      read_face_prompt_touch_field(bytes, face_prompt_touch_layout::kSequenceOffset);
+  return validate_face_prompt_touch_snapshot(first_sequence, revision, requested_buttons, owner,
+                                             heartbeat, final_sequence);
+}
+
+class FacePromptTouchReader {
+ public:
+  FacePromptTouchSnapshot read(const void* memory,
+                               std::size_t memory_bytes,
+                               std::size_t low_protect_bytes,
+                               std::uint32_t object_offset,
+                               std::uint32_t expected_type,
+                               std::uint64_t current_frame) noexcept {
+    const auto raw = read_face_prompt_touch_raw_snapshot(
+        memory, memory_bytes, low_protect_bytes, object_offset, expected_type);
+    if (!raw.valid) {
+      reset();
+      return {};
+    }
+
+    if (!has_sample_ || raw.sequence != sequence_ || raw.owner != owner_ ||
+        raw.requested_buttons != requested_buttons_ || current_frame < sample_frame_) {
+      has_sample_ = true;
+      freshness_confirmed_ = false;
+      sequence_ = raw.sequence;
+      owner_ = raw.owner;
+      requested_buttons_ = raw.requested_buttons;
+      heartbeat_ = raw.heartbeat;
+      sample_frame_ = current_frame;
+      last_refresh_frame_ = current_frame;
+      return {};
+    }
+
+    if (current_frame == sample_frame_) {
+      return {};
+    }
+
+    if (raw.heartbeat != heartbeat_) {
+      freshness_confirmed_ = true;
+      heartbeat_ = raw.heartbeat;
+      last_refresh_frame_ = current_frame;
+    } else if (!freshness_confirmed_ ||
+               current_frame - last_refresh_frame_ >
+                   face_prompt_touch_layout::kMaximumStaleFrames) {
+      return {};
+    }
+
+    FacePromptTouchSnapshot snapshot;
+    snapshot.valid = true;
+    snapshot.sequence = raw.sequence;
+    snapshot.requested_buttons = raw.requested_buttons;
+    return snapshot;
+  }
+
+  void reset() noexcept {
+    has_sample_ = false;
+    freshness_confirmed_ = false;
+    sequence_ = 0;
+    owner_ = 0;
+    requested_buttons_ = 0;
+    heartbeat_ = 0;
+    sample_frame_ = 0;
+    last_refresh_frame_ = 0;
+  }
+
+ private:
+  bool has_sample_ = false;
+  bool freshness_confirmed_ = false;
+  std::uint32_t sequence_ = 0;
+  std::uint64_t owner_ = 0;
+  std::uint32_t requested_buttons_ = 0;
+  std::uint32_t heartbeat_ = 0;
+  std::uint64_t sample_frame_ = 0;
+  std::uint64_t last_refresh_frame_ = 0;
+};
+
 namespace warp_gate_touch_layout {
 
 // checked_goal_object returns the bytes after the basic object's four-byte type tag.
@@ -707,6 +893,8 @@ ProgressMenuSnapshot progress_menu_snapshot() noexcept;
 WarpGateTouchSnapshot warp_gate_touch_snapshot() noexcept;
 /*! GOAL-owned skippable spooled-animation availability. Invalid and stale reads fail closed. */
 CutsceneSkipTouchSnapshot cutscene_skip_touch_snapshot() noexcept;
+/*! GOAL-owned contextual face-button requests. First, malformed, and stale samples fail closed. */
+FacePromptTouchSnapshot face_prompt_touch_snapshot() noexcept;
 
 /*! Forget the boot. The heap goes away with the kernel; this only drops what this file caches. */
 void reset_game() noexcept;

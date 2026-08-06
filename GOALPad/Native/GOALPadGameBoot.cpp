@@ -64,6 +64,9 @@ std::uint32_t g_warp_gate_touch_snapshot_type = 0;
 int32_t* g_cutscene_skip_touch_snapshot = nullptr;
 std::uint32_t g_cutscene_skip_touch_snapshot_type = 0;
 goalpad::CutsceneSkipTouchReader g_cutscene_skip_touch_reader;
+int32_t* g_face_prompt_touch_snapshot = nullptr;
+std::uint32_t g_face_prompt_touch_snapshot_type = 0;
+goalpad::FacePromptTouchReader g_face_prompt_touch_reader;
 int32_t* g_target = nullptr;
 std::uint32_t g_target_type = 0;
 std::uint32_t g_look_around_mode = 0;
@@ -585,6 +588,25 @@ BootStatus boot_game() noexcept {
                    "cutscene-skip touch controls are unavailable.");
     }
 
+    uint32_t face_prompt_touch_snapshot_type = 0;
+    const auto face_prompt_touch_snapshot_symbol =
+        goal_game_find_symbol("*goalpad-face-prompt-touch-snapshot*", nullptr);
+    const bool face_prompt_touch_type_found =
+        goal_game_find_symbol("goalpad-face-prompt-touch-snapshot",
+                              &face_prompt_touch_snapshot_type);
+    if (goalpad::face_prompt_touch_symbols_available(
+            face_prompt_touch_snapshot_symbol, face_prompt_touch_type_found,
+            face_prompt_touch_snapshot_type)) {
+      g_face_prompt_touch_snapshot =
+          goal_game_symbol_slot("*goalpad-face-prompt-touch-snapshot*");
+      g_face_prompt_touch_snapshot_type = face_prompt_touch_snapshot_type;
+      g_face_prompt_touch_reader.reset();
+    } else {
+      os_log_error(boot_log(),
+                   "GAME.CGO did not expose the contextual face-prompt touch snapshot and type; "
+                   "contextual face-button touch controls are unavailable.");
+    }
+
     uint32_t target_type = 0;
     const bool target_state_symbols = goal_game_find_symbol("*target*", nullptr) &&
                                       goal_game_find_symbol("target", &target_type) && target_type;
@@ -735,6 +757,9 @@ void reset_game() noexcept {
   g_cutscene_skip_touch_snapshot = nullptr;
   g_cutscene_skip_touch_snapshot_type = 0;
   g_cutscene_skip_touch_reader.reset();
+  g_face_prompt_touch_snapshot = nullptr;
+  g_face_prompt_touch_snapshot_type = 0;
+  g_face_prompt_touch_reader.reset();
   g_target = nullptr;
   g_target_type = 0;
   g_look_around_mode = 0;
@@ -839,6 +864,19 @@ CutsceneSkipTouchSnapshot cutscene_skip_touch_snapshot() noexcept {
       g_cutscene_skip_touch_snapshot_type, g_frames);
 }
 
+FacePromptTouchSnapshot face_prompt_touch_snapshot() noexcept {
+  if (!g_booted || game_mode() != GameMode::Gameplay || !g_face_prompt_touch_snapshot ||
+      !g_face_prompt_touch_snapshot_type || !g_ee_main_mem) {
+    g_face_prompt_touch_reader.reset();
+    return {};
+  }
+
+  return g_face_prompt_touch_reader.read(
+      g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT,
+      static_cast<std::uint32_t>(*g_face_prompt_touch_snapshot),
+      g_face_prompt_touch_snapshot_type, g_frames);
+}
+
 #else  // GOALPAD_HAVE_GAME_BOOT
 
 BootStatus boot_game() noexcept {
@@ -896,6 +934,10 @@ WarpGateTouchSnapshot warp_gate_touch_snapshot() noexcept {
 }
 
 CutsceneSkipTouchSnapshot cutscene_skip_touch_snapshot() noexcept {
+  return {};
+}
+
+FacePromptTouchSnapshot face_prompt_touch_snapshot() noexcept {
   return {};
 }
 
