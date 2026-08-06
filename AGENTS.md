@@ -459,8 +459,8 @@ Active lanes:
   106 pending` — post-Build-105 work now includes title-scoped stable Settings,
   Primary Controller arbitration persisted in the Jak 1/iCloud document, a
   validated native preserved-save promotion manager, discrete touch haptics,
-  authoritative look-around state readback, and the visionOS five-mode scene
-  foundation. Worker pushes were attempted but rejected by the execution
+  authoritative look-around state readback, state-aware Modern pinch zoom, and
+  the visionOS five-mode scene foundation. Worker pushes were attempted but rejected by the execution
   approval boundary; every worker commit is preserved in this integration
   branch and will be pushed with the checkpoint. Modern pinch zoom is the only
   active touch-file owner.
@@ -665,9 +665,11 @@ Active lanes:
   thumb/knob size.
 - [x] Move the Modern right stick inward from the bottom-trailing corner with an
   adaptive spacer capped at 200 points.
-- [ ] Add Modern pinch-to-zoom gestures that map unambiguously to the existing Y
+- [x] Add Modern pinch-to-zoom gestures that map unambiguously to the existing Y
   zoom toggle: pinch in and pinch out must not accidentally perform each other's
-  action.
+  action. The implementation emits Triangle only for an authoritative
+  normal-to-look-around or look-around-to-normal transition and fails closed for
+  Billy, unavailable state, or a reversed gesture.
 - [ ] Replace the second Pause/Select pill with `SKIP` per the maintainer's
   latest direction. Define exactly which skippable state is active before
   emitting input; never bypass progression or corrupt game state.
@@ -813,6 +815,15 @@ not the requested volumetric world.
   gameplay authority intact, and add deterministic suspend/resume plus memory-
   warning coverage before physical lock/unlock validation. This item follows the
   older interaction/settings/visionOS queue and must not preempt it.
+- [ ] Measure, do not estimate, Eco's foreground resident footprint, peak during
+  representative Jak 1 level transitions, post-transition steady state,
+  background footprint, memory-warning response, and jetsam/background survival.
+  Record the exact build, device RAM class, OS, route, and measurement source.
+  Compare the current 12 GB iPad Pro M5 and iPhone Air observations with at least
+  one materially lower-memory supported iPhone/iPad or an appropriate controlled
+  simulator/Memory Graph diagnostic, while keeping physical thermal acceptance
+  separate from simulator evidence. Investigate the comfortable-but-warm iPhone
+  report and the iPad process-loss report only when this FIFO item is reached.
 
 ## Code clarity
 
