@@ -146,47 +146,43 @@ private struct GameLibraryTile: View {
     let removeArtwork: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            artwork
-                .aspectRatio(4 / 3, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        Button(action: activate) {
+            VStack(alignment: .leading, spacing: 12) {
+                artwork
+                    .aspectRatio(4 / 3, contentMode: .fit)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title.name)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                Label(stateLabel, systemImage: stateSymbol)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(stateColor)
-                if case .preparing(let fraction) = state, let fraction {
-                    ProgressView(value: fraction)
-                        .tint(.orange)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title.name)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                    Label(stateLabel, systemImage: stateSymbol)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(stateColor)
+                    if case .preparing(let fraction) = state, let fraction {
+                        ProgressView(value: fraction)
+                            .tint(.orange)
+                    }
+                    if let progress {
+                        Text("\(progress.filesCopied) of \(progress.filesTotal) files")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                if let progress {
-                    Text("\(progress.filesCopied) of \(progress.filesTotal) files")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
+                .padding(.horizontal, 2)
             }
-            .padding(.horizontal, 2)
         }
+        .buttonStyle(.plain)
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay(alignment: .topTrailing) { artworkMenu }
         .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .onTapGesture {
-            if state != .planned { open() }
-        }
         .contextMenu {
             artworkActions
         }
         .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isButton)
-        .accessibilityAction {
-            if state != .planned { open() }
-        }
         .accessibilityHint(accessibilityHint)
     }
 
@@ -214,6 +210,7 @@ private struct GameLibraryTile: View {
                 .background(.black.opacity(0.55), in: Circle())
         }
         .buttonStyle(.plain)
+        .frame(minWidth: 44, minHeight: 44)
         .padding(22)
         .accessibilityLabel("Artwork options for \(title.name)")
     }
@@ -265,6 +262,10 @@ private struct GameLibraryTile: View {
         case .notImported, .preparing, .needsAttention: "Opens game setup"
         case .planned: "This title is not available yet"
         }
+    }
+
+    private func activate() {
+        if state != .planned { open() }
     }
 }
 
