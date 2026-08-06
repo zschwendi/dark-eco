@@ -89,6 +89,9 @@ private func legacyDocumentAndPickerOrderingRemainCompatible() async throws {
           && value.jak1InputBindings.mouseCamera == .standard
           && value.document.jak1InputBindingsOverride == nil,
           "a document without remapping data decodes to exact established input defaults")
+    check(value.jak1TouchLayout == .standard
+          && value.document.jak1TouchLayoutOverride == nil,
+          "a Build 93 document preserves the exact established touch layouts without migration")
 }
 
 @MainActor
@@ -190,6 +193,64 @@ private func inputBindingsPersistSyncAndReset() async throws {
           && restored.jak1InputBindings.mouseCamera == .standard
           && restored.document.jak1InputBindingsOverride == nil,
           "Reset Jak 1 Settings restores every physical-input binding, role, and mouse option")
+}
+
+@MainActor
+private func touchLayoutPersistsSyncsAndResets() async throws {
+    print("Jak 1 touch layout is default-omitted, persistent, and reset with Controls")
+    let fixture = try Fixture(name: "touch-layout")
+    let value = settings(fixture, writerID: "device-a", cloudAvailable: false)
+    check(value.jak1TouchLayout == .standard
+          && value.document.jak1TouchLayoutOverride == nil,
+          "a fresh title uses the existing geometry without storing an override")
+
+    value.setTouchControlPosition(NormalizedTouchPosition(x: 0.18, y: 0.76),
+                                  for: .modernMovement)
+    value.setTouchControlAction(.cameraStick, for: .modernMovement)
+    value.setTouchGestureAction(.square, for: .up)
+    value.setTouchControlOpacityPercent(55, for: .modernActions)
+    value.setTouchControlSizePercent(135, for: .classicCross)
+    check(value.jak1TouchLayout.position(for: .modernMovement)
+            == NormalizedTouchPosition(x: 0.18, y: 0.76)
+          && value.jak1TouchLayout.action(for: .modernMovement) == .cameraStick
+          && value.jak1TouchLayout.action(for: .modernCamera) == .movementStick
+          && value.jak1TouchLayout.gestureAction(for: .up) == .square
+          && value.jak1TouchLayout.gestureAction(for: .left) == .cross
+          && value.jak1TouchLayout.opacity(for: .modernActions) == 0.55
+          && value.jak1TouchLayout.scale(for: .classicCross) == 1.35,
+          "position, swap remaps, gesture mapping, opacity, and size update one live value")
+    let localJSON = try String(contentsOf: fixture.local, encoding: .utf8)
+    check(localJSON.contains("jak1TouchLayoutOverride")
+          && localJSON.contains("modernMovement")
+          && !localJSON.contains("opacityPercent\":100")
+          && !localJSON.contains("sizePercent\":100"),
+          "only customized touch fields occupy the existing title document")
+
+    let restored = settings(fixture, writerID: "device-b", cloudAvailable: false)
+    check(restored.jak1TouchLayout == value.jak1TouchLayout,
+          "the complete customized layout survives local relaunch decoding")
+    restored.resetTouchControl(.modernActions)
+    check(restored.jak1TouchLayout.gestureAction(for: .up) == .cross
+          && restored.jak1TouchLayout.opacity(for: .modernActions) == 1
+          && restored.jak1TouchLayout.position(for: .modernMovement) != nil,
+          "Reset Control restores only that control's safe defaults")
+    restored.resetTouchLayout()
+    check(restored.jak1TouchLayout == .standard
+          && restored.document.jak1TouchLayoutOverride == nil,
+          "Reset Layout removes all Modern and Classic layout overrides")
+    restored.setTouchControlPosition(NormalizedTouchPosition(x: 0.3, y: 0.7),
+                                     for: .modernMovement)
+    restored.setTouchControlSizePercent(125, for: .classicCross)
+    restored.restoreDefaults(for: .controls)
+    check(restored.jak1TouchLayout == .standard
+          && restored.document.jak1TouchLayoutOverride == nil,
+          "Restore Controls Defaults removes both Modern and Classic customizations")
+
+    restored.setTouchControlSizePercent(145, for: .classicCamera)
+    restored.resetAll()
+    check(restored.jak1TouchLayout == .standard
+          && restored.document.jak1TouchLayoutOverride == nil,
+          "Reset Jak 1 Settings also returns the complete touch layout to default")
 }
 
 @MainActor
@@ -323,6 +384,10 @@ private func cloudSettingsConvergeAsOneDocument() async throws {
     first.setControllerInvertHorizontal(true, for: .camera)
     first.setMouseCameraSensitivityPercent(150)
     first.setMouseCameraInvertVertical(true)
+    first.setTouchControlPosition(NormalizedTouchPosition(x: 0.8, y: 0.3),
+                                  for: .modernCamera)
+    first.setTouchControlAction(.triangle, for: .classicCross)
+    first.setTouchControlOpacityPercent(60, for: .classicStats)
     await first.syncNow()
 
     let second = PresentationSettings(defaults: fixtureB.defaults, configuration: sharedConfigurationB,
@@ -345,6 +410,12 @@ private func cloudSettingsConvergeAsOneDocument() async throws {
           && !second.jak1InputBindings.mouseCamera.invertHorizontal
           && second.jak1InputBindings.mouseCamera.invertVertical,
           "the second device receives the title's remapped controller and mouse tuning")
+    check(second.jak1TouchLayout.position(for: .modernCamera)
+            == NormalizedTouchPosition(x: 0.8, y: 0.3)
+          && second.jak1TouchLayout.action(for: .classicCross) == .triangle
+          && second.jak1TouchLayout.action(for: .classicTriangle) == .cross
+          && second.jak1TouchLayout.opacity(for: .classicStats) == 0.6,
+          "the second device receives the same complete touch layout document")
 }
 
 @MainActor
@@ -426,6 +497,7 @@ private struct PresentationSettingsCheck {
             try await developerLogsPersistAndReset()
             try await primaryInputSourcePersistsAndResets()
             try await inputBindingsPersistSyncAndReset()
+            try await touchLayoutPersistsSyncsAndResets()
             try await defaultsUseModernGraphics()
             try await savedChoicesSurviveNewDefaults()
             try await profilesCanBeMixedWithoutLosingOptions()

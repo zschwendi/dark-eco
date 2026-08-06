@@ -143,6 +143,10 @@ struct ContentView: View {
             _, profile in
             session.touch.setStyle(profile == .modern ? .modern : .classic)
         }
+        .onChange(of: session.presentationSettings.jak1TouchLayout, initial: true) {
+            _, layout in
+            session.touch.setLayoutCustomization(layout)
+        }
         .onChange(of: session.presentationSettings.primaryInputSource, initial: true) {
             _, source in
             session.input.setPrimarySource(source)

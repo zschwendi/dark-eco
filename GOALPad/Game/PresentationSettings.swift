@@ -44,6 +44,9 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
     /// Optional so every existing title-scoped document decodes as the exact established mapping.
     /// Only customized Jak 1 physical-input bindings need to occupy the synced document.
     var jak1InputBindingsOverride: Jak1InputBindings?
+    /// Optional so Build 93 and current documents decode to the exact established touch geometry.
+    /// Only customized controls occupy the title-scoped local/iCloud settings document.
+    var jak1TouchLayoutOverride: TouchLayoutCustomization?
     var modifiedAt: Date
     var writerID: String
 
@@ -93,6 +96,10 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         jak1InputBindingsOverride ?? .standard
     }
 
+    var jak1TouchLayout: TouchLayoutCustomization {
+        jak1TouchLayoutOverride ?? .standard
+    }
+
     mutating func restoreDefaults(for section: SettingsSection) {
         switch section {
         case .graphics:
@@ -100,6 +107,7 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         case .controls:
             primaryInputSourceOverride = nil
             jak1InputBindingsOverride = nil
+            jak1TouchLayoutOverride = nil
         case .audio, .interface:
             break
         }
@@ -114,6 +122,7 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         developerLogsEnabledOverride = nil
         primaryInputSourceOverride = nil
         jak1InputBindingsOverride = nil
+        jak1TouchLayoutOverride = nil
     }
 }
 
@@ -370,6 +379,8 @@ final class PresentationSettings {
 
     var jak1InputBindings: Jak1InputBindings { document.jak1InputBindings }
 
+    var jak1TouchLayout: TouchLayoutCustomization { document.jak1TouchLayout }
+
     var lastSyncDate: Date? {
         lastSuccessfulSyncDate
     }
@@ -483,6 +494,40 @@ final class PresentationSettings {
         change { $0.jak1InputBindingsOverride = bindings == .standard ? nil : bindings }
     }
 
+    func setTouchControlPosition(_ position: NormalizedTouchPosition?,
+                                 for control: TouchLayoutControlID) {
+        updateTouchLayout { $0.setPosition(position, for: control) }
+    }
+
+    func setTouchControlAction(_ action: TouchLayoutAction,
+                               for control: TouchLayoutControlID) {
+        updateTouchLayout { $0.setAction(action, for: control) }
+    }
+
+    func setTouchGestureAction(_ action: TouchLayoutAction,
+                               for direction: TouchGestureDirection) {
+        updateTouchLayout { $0.setGestureAction(action, for: direction) }
+    }
+
+    func setTouchControlOpacityPercent(_ percent: Int,
+                                       for control: TouchLayoutControlID) {
+        updateTouchLayout { $0.setOpacityPercent(percent, for: control) }
+    }
+
+    func setTouchControlSizePercent(_ percent: Int,
+                                    for control: TouchLayoutControlID) {
+        updateTouchLayout { $0.setSizePercent(percent, for: control) }
+    }
+
+    func resetTouchControl(_ control: TouchLayoutControlID) {
+        updateTouchLayout { $0.reset(control) }
+    }
+
+    func resetTouchLayout() {
+        guard document.jak1TouchLayoutOverride != nil else { return }
+        change { $0.jak1TouchLayoutOverride = nil }
+    }
+
     func restoreDefaults(for section: SettingsSection) {
         change { $0.restoreDefaults(for: section) }
     }
@@ -558,6 +603,13 @@ final class PresentationSettings {
     }
 
     private var writerID: String { localWriterID }
+
+    private func updateTouchLayout(_ update: (inout TouchLayoutCustomization) -> Void) {
+        var layout = jak1TouchLayout
+        update(&layout)
+        guard layout != jak1TouchLayout else { return }
+        change { $0.jak1TouchLayoutOverride = layout.isDefault ? nil : layout }
+    }
 
     private func isNewer(_ lhs: PresentationSettingsDocument,
                          than rhs: PresentationSettingsDocument) -> Bool {

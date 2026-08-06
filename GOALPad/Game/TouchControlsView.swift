@@ -17,7 +17,6 @@ struct TouchControlsView: View {
     let reclaimTouchInput: () -> Bool
 
     fileprivate static let space = "GOALPadTouchControls"
-    private static let pillWidth: CGFloat = 82
 
     @discardableResult
     nonisolated static func requestTouchRecovery(
@@ -143,28 +142,41 @@ struct TouchControlsView: View {
             : controls.surfaceSafeAreaInsets
         let layout = ModernTouchLayout(
             size: proxy.size,
-            safeAreaInsets: insets)
+            safeAreaInsets: insets,
+            customization: controls.layoutCustomization)
 
         return ZStack {
             if let stick = controls.stick {
-                MovementStickArtwork(touch: stick)
+                MovementStickArtwork(
+                    touch: stick,
+                    scale: controls.layoutCustomization.scale(for: .modernMovement))
+                    .opacity(controls.layoutCustomization.opacity(for: .modernMovement))
             }
 
             ForEach(controls.gestures) { gesture in
-                GestureRose(gesture: gesture)
+                GestureRose(gesture: gesture,
+                            actions: controls.layoutCustomization)
+                    .scaleEffect(controls.layoutCustomization.scale(for: .modernActions),
+                                 anchor: .center)
+                    .opacity(controls.layoutCustomization.opacity(for: .modernActions))
             }
 
-            HStack(spacing: 10) {
-                pill(.select)
-                pill(.stats)
-                pill(.start)
+            ForEach([TouchButton.select, .stats, .start], id: \.self) { sourceButton in
+                if let control = modernControlID(for: sourceButton),
+                   let output = controls.layoutCustomization.action(for: control)?.touchButton {
+                    pill(sourceButton: sourceButton, outputButton: output,
+                         frame: layout.frame(for: control)!)
+                        .position(x: layout.frame(for: control)!.midX,
+                                  y: layout.frame(for: control)!.midY)
+                        .opacity(controls.layoutCustomization.opacity(for: control))
+                }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-            .padding(.bottom, 30)
 
-            RightStickControl(controls: controls)
+            RightStickControl(controls: controls,
+                              frame: layout.rightStickArtworkFrame)
                 .position(x: layout.rightStickArtworkFrame.midX,
                           y: layout.rightStickArtworkFrame.midY)
+                .opacity(controls.layoutCustomization.opacity(for: .modernCamera))
         }
         .frame(width: proxy.size.width, height: proxy.size.height)
     }
@@ -177,43 +189,60 @@ struct TouchControlsView: View {
         let insets = controls.surfaceSafeAreaInsets == .zero
             ? proxyInsets
             : controls.surfaceSafeAreaInsets
-        let layout = ClassicTouchLayout(size: proxy.size, safeAreaInsets: insets)
+        let layout = ClassicTouchLayout(size: proxy.size, safeAreaInsets: insets,
+                                        customization: controls.layoutCustomization)
 
         return ZStack {
             ClassicStickControl(controls: controls, side: .left,
-                                frame: layout.leftStickFrame, radius: layout.stickRadius)
+                                frame: layout.leftStickFrame, radius: layout.leftStickRadius)
+                .opacity(controls.layoutCustomization.opacity(for: .classicMovement))
             ClassicStickControl(controls: controls, side: .right,
-                                frame: layout.rightStickFrame, radius: layout.stickRadius)
+                                frame: layout.rightStickFrame, radius: layout.rightStickRadius)
+                .opacity(controls.layoutCustomization.opacity(for: .classicCamera))
 
-            ForEach(ClassicTouchLayout.buttons, id: \.self) { button in
-                if let frame = layout.frame(for: button) {
+            ForEach(ClassicTouchLayout.buttons, id: \.self) { sourceButton in
+                let control = ClassicTouchLayout.controlID(for: sourceButton)
+                if let frame = layout.frame(for: sourceButton),
+                   let button = controls.layoutCustomization.action(for: control)?.touchButton {
                     ClassicButtonControl(button: button,
                                          label: TouchControls.artworkLabel(
                                             for: button,
                                             isNativeMenuOpen: isNativeMenuOpen,
                                             cutsceneSkipAvailable: cutsceneSkipAvailable),
                                          isDown: controls.isPillDown(button), frame: frame)
+                        .opacity(controls.layoutCustomization.opacity(for: control))
                 }
             }
         }
     }
 
-    private func pill(_ button: TouchButton) -> some View {
-        let isDown = controls.isPillDown(button)
-        return Text(TouchControls.artworkLabel(for: button,
+    private func pill(sourceButton: TouchButton,
+                      outputButton: TouchButton,
+                      frame: CGRect) -> some View {
+        let isDown = controls.isPillDown(outputButton)
+        return Text(TouchControls.artworkLabel(for: outputButton,
                                                isNativeMenuOpen: isNativeMenuOpen,
                                                cutsceneSkipAvailable: cutsceneSkipAvailable))
             .font(.system(size: 12, weight: .semibold, design: .rounded))
             .tracking(1.4)
             .foregroundStyle(.white.opacity(isDown ? 1 : 0.8))
-            .frame(width: Self.pillWidth, height: 42)
+            .frame(width: frame.width, height: frame.height)
             .background(Capsule().fill(.black.opacity(isDown ? 0.72 : 0.42)))
             .overlay(Capsule().strokeBorder(.white.opacity(isDown ? 0.9 : 0.35), lineWidth: 1))
             .onGeometryChange(for: CGRect.self) { proxy in
                 proxy.frame(in: .named(Self.space)).insetBy(dx: -10, dy: -12)
             } action: {
-                controls.setPillFrame(button, $0)
+                controls.setPillFrame(sourceButton, $0)
             }
+    }
+
+    private func modernControlID(for button: TouchButton) -> TouchLayoutControlID? {
+        switch button {
+        case .select: .modernSelect
+        case .stats: .modernStats
+        case .start: .modernStart
+        default: nil
+        }
     }
 }
 
@@ -529,18 +558,25 @@ private struct ClassicStickControl: View {
 /// Face-button gestures remain available in open space without producing camera axes.
 private struct GestureRose: View {
     let gesture: TouchControls.Tracked
+    let actions: TouchLayoutCustomization
 
     private static let reach = TouchControls.swipeDistance + 24
 
     var body: some View {
         ZStack {
-            chip(.cross, isLit: gesture.swiped == .cross || gesture.jumpTriggered)
+            chip(actions.gestureAction(for: .up).touchButton ?? .cross,
+                 isLit: gesture.swiped == actions.gestureAction(for: .up).touchButton
+                    || gesture.jumpTriggered)
                 .position(x: gesture.origin.x, y: gesture.origin.y - Self.reach)
-            chip(.square, isLit: gesture.swiped == .square || gesture.punchTriggered)
+            chip(actions.gestureAction(for: .left).touchButton ?? .square,
+                 isLit: gesture.swiped == actions.gestureAction(for: .left).touchButton
+                    || gesture.punchTriggered)
                 .position(x: gesture.origin.x - Self.reach, y: gesture.origin.y)
-            chip(.circle, isLit: gesture.swiped == .circle)
+            chip(actions.gestureAction(for: .right).touchButton ?? .circle,
+                 isLit: gesture.swiped == actions.gestureAction(for: .right).touchButton)
                 .position(x: gesture.origin.x + Self.reach, y: gesture.origin.y)
-            chip(.crouch, isLit: gesture.swiped == .crouch)
+            chip(actions.gestureAction(for: .down).touchButton ?? .crouch,
+                 isLit: gesture.swiped == actions.gestureAction(for: .down).touchButton)
                 .position(x: gesture.origin.x, y: gesture.origin.y + Self.reach)
         }
     }
@@ -558,7 +594,9 @@ private struct GestureRose: View {
 /// The movement ring appears under the first finger that lands on the left half.
 private struct MovementStickArtwork: View {
     let touch: TouchControls.Tracked
-    private let knobSize = ModernTouchLayout.movementKnobSize
+    let scale: CGFloat
+
+    private var knobSize: CGFloat { ModernTouchLayout.movementKnobSize * scale }
 
     var body: some View {
         ZStack {
@@ -571,22 +609,25 @@ private struct MovementStickArtwork: View {
                 .frame(width: knobSize, height: knobSize)
                 .offset(knobOffset)
         }
-        .frame(width: ModernTouchLayout.movementVisualRadius * 2,
-               height: ModernTouchLayout.movementVisualRadius * 2)
+        .frame(width: ModernTouchLayout.movementVisualRadius * 2 * scale,
+               height: ModernTouchLayout.movementVisualRadius * 2 * scale)
         .position(touch.origin)
     }
 
     private var knobOffset: CGSize {
-        let push = TouchControls.movementDeflection(from: touch.origin, to: touch.point)
-        let travel = TouchControls.movementRadius - knobSize / 2
+        let push = TouchControls.stickDeflection(from: touch.origin, to: touch.point,
+                                                 radius: touch.radius,
+                                                 deadzone: touch.deadzone)
+        let travel = touch.radius - knobSize / 2
         return CGSize(width: push.x * travel, height: push.y * travel)
     }
 }
 
 private struct RightStickControl: View {
     let controls: TouchControls
+    let frame: CGRect
 
-    private let knobSize: CGFloat = 32
+    private var knobSize: CGFloat { frame.width * 32 / (TouchControls.rightStickRadius * 2) }
 
     var body: some View {
         ZStack {
@@ -604,8 +645,7 @@ private struct RightStickControl: View {
                 }
                 .offset(knobOffset)
         }
-        .frame(width: TouchControls.rightStickRadius * 2,
-               height: TouchControls.rightStickRadius * 2)
+        .frame(width: frame.width, height: frame.height)
         .onGeometryChange(for: CGRect.self) { proxy in
             proxy.frame(in: .named(TouchControlsView.space)).insetBy(dx: -16, dy: -16)
         } action: {
@@ -615,8 +655,10 @@ private struct RightStickControl: View {
 
     private var knobOffset: CGSize {
         guard let touch = controls.rightStick else { return .zero }
-        let push = TouchControls.rightStickDeflection(from: touch.origin, to: touch.point)
-        let travel = TouchControls.rightStickRadius - knobSize / 2
+        let push = TouchControls.stickDeflection(from: touch.origin, to: touch.point,
+                                                 radius: touch.radius,
+                                                 deadzone: touch.deadzone)
+        let travel = touch.radius - knobSize / 2
         return CGSize(width: push.x * travel, height: push.y * travel)
     }
 }

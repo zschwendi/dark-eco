@@ -857,6 +857,11 @@ struct SaveSettingsView: View {
                     LabeledContent("Mouse & Keyboard Bindings",
                                    value: keyboardMouseBindingStatus)
                 }
+                NavigationLink {
+                    TouchLayoutEditorView(settings: settings)
+                } label: {
+                    LabeledContent("Touch Layout", value: touchLayoutStatus)
+                }
             }
 
             if section == .graphics, settings.profile(for: .graphics) == .modern {
@@ -901,6 +906,10 @@ struct SaveSettingsView: View {
         case (false, true): "Mouse Only"
         case (false, false): "Not Connected"
         }
+    }
+
+    private var touchLayoutStatus: String {
+        settings.jak1TouchLayout.isDefault ? "Default" : "Customized"
     }
 }
 

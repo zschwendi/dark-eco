@@ -54,6 +54,28 @@ enum TouchControlStyle: String, CaseIterable, Sendable {
     case classic
 }
 
+extension TouchLayoutAction {
+    var touchButton: TouchButton? {
+        switch self {
+        case .movementStick, .cameraStick: nil
+        case .cross: .cross
+        case .square: .square
+        case .circle: .circle
+        case .crouch: .crouch
+        case .triangle: .triangle
+        case .dpadUp: .up
+        case .dpadDown: .down
+        case .dpadLeft: .left
+        case .dpadRight: .right
+        case .select: .select
+        case .stats: .stats
+        case .start: .start
+        case .leftShoulder: .leftShoulder
+        case .rightShoulder: .rightShoulder
+        }
+    }
+}
+
 /// The read-only progress state that Swift uses to expose only screen-proven touch semantics.
 struct NativeProgressMenuSnapshot: Equatable {
     let available: Bool
@@ -471,15 +493,6 @@ enum TouchHapticEvent: Equatable {
     case stickEngaged
 }
 
-struct TouchSafeAreaInsets: Equatable, Sendable {
-    var top: CGFloat = 0
-    var leading: CGFloat = 0
-    var bottom: CGFloat = 0
-    var trailing: CGFloat = 0
-
-    static let zero = TouchSafeAreaInsets()
-}
-
 /// Deterministic Modern artwork geometry. Input radii remain owned by TouchControls.
 struct ModernTouchLayout: Sendable {
     static let movementKnobSize: CGFloat = 66
@@ -494,13 +507,18 @@ struct ModernTouchLayout: Sendable {
 
     let safeBounds: CGRect
     let rightStickSpacer: CGFloat
+    let movementArtworkFrame: CGRect
+    let movementHitFrame: CGRect?
+    let actionGestureFrame: CGRect
+    let actionGestureHitFrame: CGRect?
     let rightStickArtworkFrame: CGRect
     let rightStickHitFrame: CGRect
     let selectPillFrame: CGRect
     let statsPillFrame: CGRect
     let startPillFrame: CGRect
 
-    init(size: CGSize, safeAreaInsets: TouchSafeAreaInsets = .zero) {
+    init(size: CGSize, safeAreaInsets: TouchSafeAreaInsets = .zero,
+         customization: TouchLayoutCustomization = .standard) {
         let bounds = CGRect(origin: .zero,
                             size: CGSize(width: max(0, size.width), height: max(0, size.height)))
         let leading = min(max(0, safeAreaInsets.leading), bounds.width)
@@ -520,12 +538,43 @@ struct ModernTouchLayout: Sendable {
 
         let pillOffset = Self.pillSize.width + Self.pillSpacing
         let pillY = bounds.maxY - 30 - Self.pillSize.height / 2
-        selectPillFrame = Self.frame(centre: CGPoint(x: bounds.midX - pillOffset, y: pillY),
-                                     size: Self.pillSize)
-        statsPillFrame = Self.frame(centre: CGPoint(x: bounds.midX, y: pillY),
-                                    size: Self.pillSize)
-        startPillFrame = Self.frame(centre: CGPoint(x: bounds.midX + pillOffset, y: pillY),
-                                    size: Self.pillSize)
+        let defaultSelectPillFrame = Self.frame(
+            centre: CGPoint(x: bounds.midX - pillOffset, y: pillY), size: Self.pillSize)
+        let defaultStatsPillFrame = Self.frame(
+            centre: CGPoint(x: bounds.midX, y: pillY), size: Self.pillSize)
+        let defaultStartPillFrame = Self.frame(
+            centre: CGPoint(x: bounds.midX + pillOffset, y: pillY), size: Self.pillSize)
+        selectPillFrame = Self.resolvedFrame(defaultSelectPillFrame, id: .modernSelect,
+                                             customization: customization, safeBounds: safe)
+        statsPillFrame = Self.resolvedFrame(defaultStatsPillFrame, id: .modernStats,
+                                            customization: customization, safeBounds: safe)
+        startPillFrame = Self.resolvedFrame(defaultStartPillFrame, id: .modernStart,
+                                            customization: customization, safeBounds: safe)
+
+        let movementCentre = CGPoint(x: safe.minX + Self.movementVisualRadius,
+                                     y: safe.maxY - Self.movementVisualRadius)
+        let defaultMovementFrame = Self.frame(centre: movementCentre,
+                                              diameter: Self.movementVisualRadius * 2)
+        movementArtworkFrame = Self.resolvedFrame(defaultMovementFrame, id: .modernMovement,
+                                                  customization: customization, safeBounds: safe)
+        if customization.position(for: .modernMovement) != nil {
+            let diameter = min(safe.width, safe.height,
+                               TouchControls.movementRadius * 2
+                                   * customization.scale(for: .modernMovement))
+            let requested = Self.frame(centre: movementArtworkFrame.centre, diameter: diameter)
+            movementHitFrame = TouchLayoutGeometry.minimumHitFrame(for: requested, in: safe)
+        } else {
+            movementHitFrame = nil
+        }
+
+        let defaultGestureFrame = Self.frame(
+            centre: CGPoint(x: safe.minX + safe.width * 0.75, y: safe.midY),
+            diameter: 176)
+        actionGestureFrame = Self.resolvedFrame(defaultGestureFrame, id: .modernActions,
+                                                customization: customization, safeBounds: safe)
+        actionGestureHitFrame = customization.position(for: .modernActions) == nil
+            ? nil
+            : TouchLayoutGeometry.minimumHitFrame(for: actionGestureFrame, in: safe)
 
         let radius = TouchControls.rightStickRadius
         let centreX = max(safe.minX + radius, safe.maxX - radius - rightStickSpacer)
@@ -544,14 +593,59 @@ struct ModernTouchLayout: Sendable {
             ?? lowestCentreY
         let centreY = max(safe.minY + radius,
                           overlapsPillHorizontally ? min(lowestCentreY, clearCentreY) : lowestCentreY)
-        rightStickArtworkFrame = Self.frame(centre: CGPoint(x: centreX, y: centreY),
-                                            diameter: radius * 2)
-        rightStickHitFrame = rightStickArtworkFrame.insetBy(dx: -Self.rightStickHitSlop,
-                                                             dy: -Self.rightStickHitSlop)
+        let defaultRightStickFrame = Self.frame(centre: CGPoint(x: centreX, y: centreY),
+                                                diameter: radius * 2)
+        rightStickArtworkFrame = Self.resolvedFrame(defaultRightStickFrame, id: .modernCamera,
+                                                    customization: customization, safeBounds: safe)
+        rightStickHitFrame = customization.hasCustomGeometry(for: .modernCamera)
+            ? TouchLayoutGeometry.minimumHitFrame(for: rightStickArtworkFrame, in: safe)
+            : rightStickArtworkFrame.insetBy(dx: -Self.rightStickHitSlop,
+                                              dy: -Self.rightStickHitSlop)
     }
 
     static func legacyRightStickEdge(for size: CGSize) -> CGFloat {
         max(28, min(max(0, size.width), max(0, size.height)) * 0.06)
+    }
+
+    func frame(for control: TouchLayoutControlID) -> CGRect? {
+        switch control {
+        case .modernMovement: movementArtworkFrame
+        case .modernCamera: rightStickArtworkFrame
+        case .modernActions: actionGestureFrame
+        case .modernSelect: selectPillFrame
+        case .modernStats: statsPillFrame
+        case .modernStart: startPillFrame
+        default: nil
+        }
+    }
+
+    func hitFrame(for control: TouchLayoutControlID) -> CGRect? {
+        switch control {
+        case .modernMovement: movementHitFrame
+        case .modernCamera: rightStickHitFrame
+        case .modernActions: actionGestureHitFrame
+        case .modernSelect:
+            customHitFrame(selectPillFrame)
+        case .modernStats:
+            customHitFrame(statsPillFrame)
+        case .modernStart:
+            customHitFrame(startPillFrame)
+        default: nil
+        }
+    }
+
+    private func customHitFrame(_ frame: CGRect) -> CGRect {
+        TouchLayoutGeometry.minimumHitFrame(for: frame, in: safeBounds)
+    }
+
+    private static func resolvedFrame(_ frame: CGRect,
+                                      id: TouchLayoutControlID,
+                                      customization: TouchLayoutCustomization,
+                                      safeBounds: CGRect) -> CGRect {
+        guard customization.hasCustomGeometry(for: id) else { return frame }
+        return TouchLayoutGeometry.visualFrame(default: frame, control: id,
+                                               customization: customization,
+                                               safeBounds: safeBounds)
     }
 
     private static func frame(centre: CGPoint, diameter: CGFloat) -> CGRect {
@@ -585,6 +679,8 @@ struct ClassicTouchLayout {
 
     let safeBounds: CGRect
     let stickRadius: CGFloat
+    let leftStickRadius: CGFloat
+    let rightStickRadius: CGFloat
     let leftStickFrame: CGRect
     let rightStickFrame: CGRect
     /// Artwork geometry. This remains independent from the larger touch targets below.
@@ -592,7 +688,8 @@ struct ClassicTouchLayout {
     /// Touch geometry for fixed Classic buttons, kept within `safeBounds`.
     let buttonHitFrames: [TouchButton: CGRect]
 
-    init(size: CGSize, safeAreaInsets: TouchSafeAreaInsets = .zero) {
+    init(size: CGSize, safeAreaInsets: TouchSafeAreaInsets = .zero,
+         customization: TouchLayoutCustomization = .standard) {
         let bounds = CGRect(origin: .zero,
                             size: CGSize(width: max(0, size.width), height: max(0, size.height)))
         let leading = min(max(0, safeAreaInsets.leading), bounds.width)
@@ -623,8 +720,16 @@ struct ClassicTouchLayout {
         let leftStickCentre = CGPoint(x: safeBounds.minX + stickInset, y: stickY)
         let rightStickCentre = CGPoint(x: safeBounds.maxX - stickInset, y: stickY)
 
-        leftStickFrame = Self.frame(centre: leftStickCentre, diameter: stickRadius * 2)
-        rightStickFrame = Self.frame(centre: rightStickCentre, diameter: stickRadius * 2)
+        let defaultLeftStickFrame = Self.frame(centre: leftStickCentre, diameter: stickRadius * 2)
+        let defaultRightStickFrame = Self.frame(centre: rightStickCentre, diameter: stickRadius * 2)
+        leftStickFrame = Self.resolvedFrame(defaultLeftStickFrame, id: .classicMovement,
+                                            customization: customization,
+                                            safeBounds: boundedSafeBounds)
+        rightStickFrame = Self.resolvedFrame(defaultRightStickFrame, id: .classicCamera,
+                                             customization: customization,
+                                             safeBounds: boundedSafeBounds)
+        leftStickRadius = leftStickFrame.width / 2
+        rightStickRadius = rightStickFrame.width / 2
 
         var frames: [TouchButton: CGRect] = [:]
         frames[.up] = Self.frame(centre: CGPoint(x: leftCluster.x,
@@ -688,9 +793,15 @@ struct ClassicTouchLayout {
                 centre: CGPoint(x: safeBounds.midX, y: stackTop + minimumStep * 2.5),
                                         size: pillSize)
         }
-        buttonFrames = frames
-        buttonHitFrames = frames.mapValues { Self.minimumHitFrame(for: $0,
-                                                                  boundedTo: boundedSafeBounds) }
+        let resolvedFrames = Dictionary(uniqueKeysWithValues: frames.map { button, frame in
+            let id = Self.controlID(for: button)
+            return (button, Self.resolvedFrame(frame, id: id, customization: customization,
+                                               safeBounds: boundedSafeBounds))
+        })
+        buttonFrames = resolvedFrames
+        buttonHitFrames = resolvedFrames.mapValues {
+            TouchLayoutGeometry.minimumHitFrame(for: $0, in: boundedSafeBounds)
+        }
     }
 
     func frame(for button: TouchButton) -> CGRect? {
@@ -701,18 +812,59 @@ struct ClassicTouchLayout {
         buttonHitFrames[button]
     }
 
-    private static func minimumHitFrame(for visualFrame: CGRect, boundedTo safeBounds: CGRect) -> CGRect {
-        let size = CGSize(width: min(safeBounds.width,
-                                    max(minimumButtonHitSize.width, visualFrame.width)),
-                          height: min(safeBounds.height,
-                                      max(minimumButtonHitSize.height, visualFrame.height)))
-        let origin = CGPoint(
-            x: min(max(safeBounds.minX, visualFrame.midX - size.width / 2),
-                   safeBounds.maxX - size.width),
-            y: min(max(safeBounds.minY, visualFrame.midY - size.height / 2),
-                   safeBounds.maxY - size.height)
-        )
-        return CGRect(origin: origin, size: size)
+    func frame(for control: TouchLayoutControlID) -> CGRect? {
+        switch control {
+        case .classicMovement: return leftStickFrame
+        case .classicCamera: return rightStickFrame
+        default:
+            guard let button = Self.sourceButton(for: control) else { return nil }
+            return frame(for: button)
+        }
+    }
+
+    func hitFrame(for control: TouchLayoutControlID) -> CGRect? {
+        switch control {
+        case .classicMovement:
+            return TouchLayoutGeometry.minimumHitFrame(for: leftStickFrame, in: safeBounds)
+        case .classicCamera:
+            return TouchLayoutGeometry.minimumHitFrame(for: rightStickFrame, in: safeBounds)
+        default:
+            guard let button = Self.sourceButton(for: control) else { return nil }
+            return hitFrame(for: button)
+        }
+    }
+
+    static func controlID(for button: TouchButton) -> TouchLayoutControlID {
+        switch button {
+        case .up: .classicDpadUp
+        case .down: .classicDpadDown
+        case .left: .classicDpadLeft
+        case .right: .classicDpadRight
+        case .select: .classicSelect
+        case .stats: .classicStats
+        case .start: .classicStart
+        case .leftShoulder: .classicLeftShoulder
+        case .rightShoulder: .classicRightShoulder
+        case .triangle: .classicTriangle
+        case .square: .classicSquare
+        case .circle: .classicCircle
+        case .cross: .classicCross
+        case .crouch: .classicLeftShoulder
+        }
+    }
+
+    static func sourceButton(for control: TouchLayoutControlID) -> TouchButton? {
+        buttons.first { controlID(for: $0) == control }
+    }
+
+    private static func resolvedFrame(_ frame: CGRect,
+                                      id: TouchLayoutControlID,
+                                      customization: TouchLayoutCustomization,
+                                      safeBounds: CGRect) -> CGRect {
+        guard customization.hasCustomGeometry(for: id) else { return frame }
+        return TouchLayoutGeometry.visualFrame(default: frame, control: id,
+                                               customization: customization,
+                                               safeBounds: safeBounds)
     }
 
     private static func frame(centre: CGPoint, diameter: CGFloat) -> CGRect {
@@ -771,6 +923,7 @@ final class TouchControls {
     nonisolated static let dpadRepeatInterval = 10
 
     private(set) var style: TouchControlStyle
+    private(set) var layoutCustomization = TouchLayoutCustomization.standard
     private(set) var nativeMenuMode: GOALPadGameMode = .unknown
     private(set) var progressMenuSnapshot: NativeProgressMenuSnapshot = .unavailable
     private(set) var warpGateTouchSnapshot: NativeWarpGateTouchSnapshot = .invalid
@@ -854,6 +1007,12 @@ final class TouchControls {
         guard style != self.style else { return }
         reset()
         self.style = style
+    }
+
+    func setLayoutCustomization(_ customization: TouchLayoutCustomization) {
+        guard customization != layoutCustomization else { return }
+        reset()
+        layoutCustomization = customization
     }
 
     /// Compatibility entry point for callers that only have the master-mode classification.
@@ -991,35 +1150,51 @@ final class TouchControls {
     func began(_ id: ObjectIdentifier, at point: CGPoint, in size: CGSize,
                safeAreaInsets: TouchSafeAreaInsets = .zero, at _: TimeInterval) {
         guard !capturesNativeTouchInput else { return }
-        let layout = style == .classic
-            ? ClassicTouchLayout(size: size, safeAreaInsets: safeAreaInsets)
+        let classicLayout = style == .classic
+            ? ClassicTouchLayout(size: size, safeAreaInsets: safeAreaInsets,
+                                 customization: layoutCustomization)
             : nil
-        guard let role = role(for: point, in: size, classicLayout: layout) else { return }
+        let modernLayout = style == .modern
+            ? ModernTouchLayout(size: size, safeAreaInsets: safeAreaInsets,
+                                customization: layoutCustomization)
+            : nil
+        guard let role = role(for: point, in: size, classicLayout: classicLayout,
+                              modernLayout: modernLayout) else { return }
         let origin: CGPoint
         let radius: CGFloat
         let deadzone: CGFloat
         switch role {
         case .movement:
-            if let layout {
-                origin = layout.leftStickFrame.centre
-                radius = layout.stickRadius
-                deadzone = layout.stickRadius * 0.16
+            if let classicLayout {
+                origin = classicLayout.leftStickFrame.centre
+                radius = classicLayout.leftStickRadius
+                deadzone = classicLayout.leftStickRadius * 0.16
             } else {
-                origin = point
-                radius = Self.movementRadius
+                origin = modernLayout?.movementHitFrame == nil
+                    ? point
+                    : modernLayout?.movementArtworkFrame.centre ?? point
+                radius = Self.movementRadius * layoutCustomization.scale(for: .modernMovement)
                 deadzone = 0
             }
         case .rightStick:
-            if let layout {
-                origin = layout.rightStickFrame.centre
-                radius = layout.stickRadius
-                deadzone = layout.stickRadius * 0.16
+            if let classicLayout {
+                origin = classicLayout.rightStickFrame.centre
+                radius = classicLayout.rightStickRadius
+                deadzone = classicLayout.rightStickRadius * 0.16
             } else {
-                origin = rightStickFrame.centre
-                radius = Self.rightStickRadius
-                deadzone = Self.rightStickDeadzone
+                origin = layoutCustomization.hasCustomGeometry(for: .modernCamera)
+                    ? modernLayout?.rightStickArtworkFrame.centre ?? rightStickFrame.centre
+                    : rightStickFrame.centre
+                radius = Self.rightStickRadius * layoutCustomization.scale(for: .modernCamera)
+                deadzone = Self.rightStickDeadzone * layoutCustomization.scale(for: .modernCamera)
             }
-        case .gesture, .pill, .skip:
+        case .gesture:
+            origin = modernLayout?.actionGestureHitFrame == nil
+                ? point
+                : modernLayout?.actionGestureFrame.centre ?? point
+            radius = 0
+            deadzone = 0
+        case .pill, .skip:
             origin = point
             radius = 0
             deadzone = 0
@@ -1045,7 +1220,8 @@ final class TouchControls {
             enqueueHaptic(.stickEngaged)
         } else if touch.role == .gesture, touch.swiped == nil,
                   touch.travelled >= Self.swipeDistance,
-           let button = Self.swipe(from: touch.origin, to: point) {
+           let direction = Self.swipeDirection(from: touch.origin, to: point),
+           let button = layoutCustomization.gestureAction(for: direction).touchButton {
             touch.swiped = button
             enqueueHaptic(.gesture(button))
             if button == .crouch {
@@ -1133,23 +1309,49 @@ final class TouchControls {
     }
 
     private func role(for point: CGPoint, in size: CGSize,
-                      classicLayout: ClassicTouchLayout?) -> Role? {
+                      classicLayout: ClassicTouchLayout?,
+                      modernLayout: ModernTouchLayout?) -> Role? {
         if let layout = classicLayout {
-            for button in ClassicTouchLayout.buttons
-            where layout.hitFrame(for: button)?.contains(point) == true {
+            for sourceButton in ClassicTouchLayout.buttons
+            where layout.hitFrame(for: sourceButton)?.contains(point) == true {
+                let control = ClassicTouchLayout.controlID(for: sourceButton)
+                guard let button = layoutCustomization.action(for: control)?.touchButton else {
+                    continue
+                }
                 return pillRole(for: button)
             }
             if stick == nil, layout.leftStickFrame.contains(point) { return .movement }
             if rightStick == nil, layout.rightStickFrame.contains(point) { return .rightStick }
             return nil
         }
-        for (button, frame) in pillFrames where frame.contains(point) {
-            return pillRole(for: button)
+        for (sourceButton, registeredFrame) in pillFrames {
+            guard let control = Self.modernControlID(for: sourceButton),
+                  let output = layoutCustomization.action(for: control)?.touchButton else { continue }
+            let frame = layoutCustomization.hasCustomGeometry(for: control)
+                ? modernLayout?.hitFrame(for: control) ?? registeredFrame
+                : registeredFrame
+            if frame.contains(point) { return pillRole(for: output) }
         }
-        if rightStick == nil, rightStickFrame.contains(point) { return .rightStick }
-        if stick == nil, point.x < size.width / 2 { return .movement }
-        if point.x >= size.width / 2 { return .gesture }
+        let cameraFrame = layoutCustomization.hasCustomGeometry(for: .modernCamera)
+            ? modernLayout?.rightStickHitFrame ?? rightStickFrame
+            : rightStickFrame
+        if rightStick == nil, cameraFrame.contains(point) { return .rightStick }
+        let pinnedMovement = modernLayout?.movementHitFrame
+        let pinnedActions = modernLayout?.actionGestureHitFrame
+        if stick == nil, pinnedMovement?.contains(point) == true { return .movement }
+        if pinnedActions?.contains(point) == true { return .gesture }
+        if stick == nil, pinnedMovement == nil, point.x < size.width / 2 { return .movement }
+        if pinnedActions == nil, point.x >= size.width / 2 { return .gesture }
         return nil
+    }
+
+    private static func modernControlID(for button: TouchButton) -> TouchLayoutControlID? {
+        switch button {
+        case .select: .modernSelect
+        case .stats: .modernStats
+        case .start: .modernStart
+        default: nil
+        }
     }
 
     private func pillRole(for button: TouchButton) -> Role {
@@ -1188,10 +1390,30 @@ final class TouchControls {
             }
         }
 
-        let movement = stick.map {
+        let movementSource = stick.map {
             Self.radialDeflection(from: $0.origin, to: $0.point,
                                   radius: $0.radius, deadzone: $0.deadzone)
         } ?? .zero
+        let cameraSource = rightStick.map {
+            Self.radialDeflection(from: $0.origin, to: $0.point,
+                                  radius: $0.radius, deadzone: $0.deadzone)
+        } ?? .zero
+        let movementControl: TouchLayoutControlID = style == .modern
+            ? .modernMovement : .classicMovement
+        let cameraControl: TouchLayoutControlID = style == .modern
+            ? .modernCamera : .classicCamera
+        var movement = CGPoint.zero
+        var camera = CGPoint.zero
+        if layoutCustomization.action(for: movementControl) == .cameraStick {
+            camera = movementSource
+        } else {
+            movement = movementSource
+        }
+        if layoutCustomization.action(for: cameraControl) == .movementStick {
+            movement = cameraSource
+        } else {
+            camera = cameraSource
+        }
         if let direction = dpad.advance(push: movement) { press(direction) }
 
         var state = TouchPadState()
@@ -1203,23 +1425,20 @@ final class TouchControls {
         if isCrouching { state.buttons.insert(TouchButton.crouch.bit) }
 
         (state.leftX, state.leftY) = Self.axes(movement)
-        if let rightStick {
-            let look = Self.radialDeflection(from: rightStick.origin, to: rightStick.point,
-                                             radius: rightStick.radius,
-                                             deadzone: rightStick.deadzone)
-            (state.rightX, state.rightY) = Self.axes(look)
-        }
+        (state.rightX, state.rightY) = Self.axes(camera)
         return state
     }
 
     // MARK: - Mapping
 
     /// The three face-button gestures plus held crouch on the downward direction.
-    private static func swipe(from origin: CGPoint, to point: CGPoint) -> TouchButton? {
+    private static func swipeDirection(from origin: CGPoint,
+                                       to point: CGPoint) -> TouchGestureDirection? {
         let dx = point.x - origin.x
         let dy = point.y - origin.y
-        if abs(dy) > abs(dx) { return dy < 0 ? .cross : .crouch }
-        return dx < 0 ? .square : .circle
+        guard dx != 0 || dy != 0 else { return nil }
+        if abs(dy) > abs(dx) { return dy < 0 ? .up : .down }
+        return dx < 0 ? .left : .right
     }
 
     nonisolated static func movementDeflection(from origin: CGPoint, to point: CGPoint) -> CGPoint {
@@ -1236,6 +1455,11 @@ final class TouchControls {
     nonisolated static func classicStickDeflection(from origin: CGPoint, to point: CGPoint,
                                                    radius: CGFloat) -> CGPoint {
         radialDeflection(from: origin, to: point, radius: radius, deadzone: radius * 0.16)
+    }
+
+    nonisolated static func stickDeflection(from origin: CGPoint, to point: CGPoint,
+                                            radius: CGFloat, deadzone: CGFloat) -> CGPoint {
+        radialDeflection(from: origin, to: point, radius: radius, deadzone: deadzone)
     }
 
     nonisolated static func artworkIsVisible(isEngaged: Bool, isSuppressed: Bool,

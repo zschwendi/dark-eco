@@ -977,6 +977,123 @@ private func classicMultitouchReachesOneFrame() {
 }
 
 @MainActor
+private func customizedModernLayoutPinsRemapsAndPreservesSkipSafety() {
+    print("customized Modern controls pin safely and remap only existing outputs")
+    var customization = TouchLayoutCustomization.standard
+    customization.setPosition(NormalizedTouchPosition(x: 0.2, y: 0.72),
+                              for: .modernMovement)
+    customization.setPosition(NormalizedTouchPosition(x: 0.25, y: 0.38),
+                              for: .modernActions)
+    customization.setAction(.cameraStick, for: .modernMovement)
+    customization.setGestureAction(.square, for: .up)
+    customization.setAction(.start, for: .modernSelect)
+    customization.setSizePercent(130, for: .modernMovement)
+    customization.setOpacityPercent(45, for: .modernCamera)
+
+    var run = Runner(style: .modern)
+    run.controls.setLayoutCustomization(customization)
+    let layout = ModernTouchLayout(size: Runner.screen,
+                                   safeAreaInsets: Runner.safeAreaInsets,
+                                   customization: customization)
+    check(layout.movementHitFrame != nil && layout.actionGestureHitFrame != nil,
+          "dragged dynamic controls become explicit pinned safe-area targets")
+    check(layout.safeBounds.contains(layout.movementArtworkFrame)
+          && layout.safeBounds.contains(layout.actionGestureFrame),
+          "pinned Modern artwork remains inside the safe screen")
+
+    let outside = Finger()
+    run.down(outside, CGPoint(x: 40, y: Runner.screen.height - 80))
+    check(run.frame() == .neutral,
+          "pinning movement stops unrelated left-side touches from stealing the stick")
+    run.up(outside)
+
+    let movement = Finger()
+    let movementCentre = CGPoint(x: layout.movementArtworkFrame.midX,
+                                 y: layout.movementArtworkFrame.midY)
+    run.down(movement, movementCentre)
+    run.move(movement, CGPoint(x: movementCentre.x
+                               + TouchControls.movementRadius * 1.3,
+                               y: movementCentre.y))
+    var state = run.frame()
+    check(!state.isLeftDeflected && state.isRightDeflected,
+          "the pinned movement source emits the remapped camera stick vector")
+    run.up(movement)
+
+    let gesture = Finger()
+    let gestureCentre = CGPoint(x: layout.actionGestureFrame.midX,
+                                y: layout.actionGestureFrame.midY)
+    run.down(gesture, gestureCentre)
+    run.move(gesture, CGPoint(x: gestureCentre.x,
+                              y: gestureCentre.y - TouchControls.swipeDistance - 4))
+    state = run.frame()
+    check(state.buttons.contains(.square) && !state.buttons.contains(.cross),
+          "the pinned up swipe works across halves and emits its swapped safe face action")
+    run.up(gesture)
+
+    let selectSource = Finger()
+    run.down(selectSource, CGPoint(x: Runner.select.midX, y: Runner.select.midY))
+    check(run.frame().buttons.contains(.start),
+          "the Select source can emit the swapped Pause action")
+    run.up(selectSource)
+
+    let skipSnapshot = NativeCutsceneSkipTouchSnapshot.triangleQueryAvailable(sequence: 40)
+    run.controls.setNativeMenuMode(.gameplay)
+    run.controls.setCutsceneSkipTouchSnapshot(skipSnapshot)
+    let remappedSelectSource = Finger()
+    run.down(remappedSelectSource, CGPoint(x: Runner.start.midX, y: Runner.start.midY))
+    check(run.frame() == .neutral,
+          "the remapped Select source still waits for a validated SKIP release")
+    run.up(remappedSelectSource)
+    check(run.frames(TouchControls.holdFrames).allSatisfy { $0.buttons.contains(.triangle) },
+          "SKIP safety follows the Select action without exposing an early or unsafe button")
+}
+
+@MainActor
+private func customizedClassicLayoutClampsRemapsAndKeepsMinimumTargets() {
+    print("customized Classic controls clamp, resize, and remap active controls only")
+    var customization = TouchLayoutCustomization.standard
+    customization.setPosition(NormalizedTouchPosition(x: 1, y: 0), for: .classicCross)
+    customization.setSizePercent(65, for: .classicCross)
+    customization.setOpacityPercent(30, for: .classicCross)
+    customization.setAction(.triangle, for: .classicCross)
+    customization.setAction(.cameraStick, for: .classicMovement)
+
+    let layout = ClassicTouchLayout(size: CGSize(width: 393, height: 852),
+                                    safeAreaInsets: TouchSafeAreaInsets(
+                                        top: 59, leading: 0, bottom: 34, trailing: 0),
+                                    customization: customization)
+    let crossFrame = layout.frame(for: .cross)!
+    let crossHit = layout.hitFrame(for: .cross)!
+    check(layout.safeBounds.contains(crossFrame) && layout.safeBounds.contains(crossHit),
+          "an edge-pinned resized Classic control remains inside its safe bounds")
+    check(crossHit.width >= 44 && crossHit.height >= 44,
+          "a visually smaller Classic control keeps a 44-point hit target")
+    check(customization.opacity(for: .classicCross) == 0.3,
+          "Classic opacity is independent from its hit target and action")
+
+    var run = Runner(style: .classic, size: CGSize(width: 393, height: 852),
+                     safeAreaInsets: TouchSafeAreaInsets(
+                        top: 59, leading: 0, bottom: 34, trailing: 0),
+                     rightStickFrame: .zero)
+    run.controls.setLayoutCustomization(customization)
+    let cross = Finger()
+    run.down(cross, CGPoint(x: crossFrame.midX, y: crossFrame.midY))
+    check(run.frame().buttons == .triangle,
+          "the customized Cross source emits only its swapped Triangle action")
+    run.up(cross)
+
+    let movement = Finger()
+    let movementCentre = CGPoint(x: layout.leftStickFrame.midX,
+                                 y: layout.leftStickFrame.midY)
+    run.down(movement, movementCentre)
+    run.move(movement, CGPoint(x: movementCentre.x + layout.leftStickRadius,
+                               y: movementCentre.y))
+    let state = run.frame()
+    check(!state.isLeftDeflected && state.isRightDeflected,
+          "a Classic whole-stick remap reaches the camera axes without splitting them")
+}
+
+@MainActor
 private func cutsceneSkipIsContextualExactAndLifecycleSafe() {
     print("SKIP is a validated release-edge Triangle action with stale-work cancellation")
     let available = NativeCutsceneSkipTouchSnapshot.triangleQueryAvailable(sequence: 10)
@@ -1758,6 +1875,8 @@ struct TouchControlsCheck {
         classicGeometryStaysSafeAndBalanced()
         classicHasOnlyTheStatsTriggerChord()
         classicMultitouchReachesOneFrame()
+        customizedModernLayoutPinsRemapsAndPreservesSkipSafety()
+        customizedClassicLayoutClampsRemapsAndKeepsMinimumTargets()
         cutsceneSkipIsContextualExactAndLifecycleSafe()
         pausePresentationFollowsNativeMenuState()
         controllerSuppressionKeepsTouchRecovery()
