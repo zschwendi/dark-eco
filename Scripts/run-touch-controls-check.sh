@@ -55,22 +55,33 @@ if rg -Fq 'Button { performCapturedStats() }' "$root/GOALPad/Game/TouchControlsV
   exit 1
 fi
 
-# Controller activity suppresses every touch-control drawing without removing its semantic hit
-# target. Ordinary gameplay keeps Zoom, Stats, and Pause visible while only the R-stick artwork
-# idles away. The first hidden touch must still perform its action and reclaim presentation.
+# Controller activity and the shared idle timer suppress gameplay artwork without removing its
+# raw or semantic hit target. A raw gameplay gesture suppresses all gameplay button/stick artwork
+# until that same delivered gesture ends. Required title, native-menu, and captured-warp chrome
+# stay on their dedicated visibility paths.
 if rg -Fq 'if isVisible {' "$root/GOALPad/Game/TouchControlsView.swift"; then
   echo "controller suppression still removes a semantic touch control" >&2
   exit 1
 fi
 if rg -Fq '.opacity(isVisible ? 1 : 0)' "$root/GOALPad/Game/TouchControlsView.swift"; then
-  echo "global idle opacity still hides persistent gameplay controls" >&2
+  echo "gameplay chrome visibility removed a mounted semantic control" >&2
   exit 1
 fi
-rg -Fq 'persistentGameplayChromeIsVisible' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'gameplayChromeIsVisible' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'hasActiveGameplayGesture: controls.hasActiveGameplayGesture' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'rightStickArtworkIsVisible' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq '.opacity(rightStickArtworkIsVisible ? 1 : 0)' \
   "$root/GOALPad/Game/TouchControlsView.swift"
-rg -Fq 'rightStickFadeOutDelay: TimeInterval = 3' "$root/GOALPad/Game/TouchControls.swift"
+rg -Fq 'ordinaryGameplayChromeIsVisible' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq '.opacity(ordinaryGameplayChromeIsVisible ? 1 : 0)' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'showsChrome: gameplayChromeIsVisible' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'facePromptActions.isEmpty' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq '.allowsHitTesting(zoomIsAvailable)' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'contextualFacePromptOwnsGameplayActions' "$root/GOALPad/Game/TouchControls.swift"
+rg -Fq 'gameplayChromeFadeOutDelay: TimeInterval = 3' "$root/GOALPad/Game/TouchControls.swift"
 rg -Fq 'noteScreenInteraction()' "$root/GOALPad/Game/TouchControls.swift"
 rg -Fq 'isInteractive: nativeMenuControlsAreVisible' \
   "$root/GOALPad/Game/TouchControlsView.swift"
@@ -81,6 +92,18 @@ rg -Fq 'isInteractive: warpGateTouchControlsAreVisible' \
 rg -Fq 'showsChrome: warpGateTouchControlsAreVisible' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq '.allowsHitTesting(isInteractive)' "$root/GOALPad/Game/TouchControlsView.swift"
+
+# The dynamic left movement artwork gains only an L label. Its accepted 66-point knob and
+# movement-radius geometry remain the same as the deterministic byte checks above.
+movement_stick_view=$(sed -n \
+  '/private struct MovementStickArtwork: View {/,/private struct RightStickControl: View {/p' \
+  "$root/GOALPad/Game/TouchControlsView.swift")
+printf '%s\n' "$movement_stick_view" | rg -Fq 'private let knobSize: CGFloat = 66'
+printf '%s\n' "$movement_stick_view" | rg -Fq 'Text("L")'
+printf '%s\n' "$movement_stick_view" \
+  | rg -Fq '.font(.system(size: 13, weight: .bold, design: .rounded))'
+printf '%s\n' "$movement_stick_view" | rg -Fq '.foregroundStyle(.black.opacity(0.82))'
+printf '%s\n' "$movement_stick_view" | rg -Fq '.offset(knobOffset)'
 
 # Every title/pause right-stack command uses one fixed left-aligned content grid. Directional
 # controls keep their existing centred D-pad geometry.

@@ -104,13 +104,19 @@ struct TouchControlsView: View {
         gameMode == .gameplay && runReadiness == .active && !isAwaitingTitleStart
     }
 
-    private var persistentGameplayChromeIsVisible: Bool {
-        TouchControls.persistentGameplayChromeIsVisible(
+    private var gameplayChromeIsVisible: Bool {
+        TouchControls.gameplayChromeIsVisible(
             mode: gameMode,
             runReadiness: runReadiness,
             isAwaitingTitleStart: isAwaitingTitleStart,
+            isEngaged: controls.isEngaged,
             isSuppressed: isSuppressed,
-            hasTouches: hasScreenTouches)
+            hasTouches: hasScreenTouches,
+            hasActiveGameplayGesture: controls.hasActiveGameplayGesture)
+    }
+
+    private var ordinaryGameplayChromeIsVisible: Bool {
+        gameplayChromeIsVisible && facePromptActions.isEmpty
     }
 
     private var titleStartChromeIsVisible: Bool {
@@ -129,12 +135,14 @@ struct TouchControlsView: View {
             cutsceneSkipAvailable: cutsceneSkipAvailable,
             isEngaged: controls.isEngaged,
             isSuppressed: isSuppressed,
-            hasTouches: hasScreenTouches)
+            hasTouches: hasScreenTouches,
+            hasActiveGameplayGesture: controls.hasActiveGameplayGesture,
+            contextualFacePromptOwnsGameplayActions: !facePromptActions.isEmpty)
     }
 
     /// Triangle belongs to SKIP while the authored cutscene query owns it.
     private var zoomIsAvailable: Bool {
-        activeGameplayChromeIsAvailable && !cutsceneSkipAvailable
+        activeGameplayChromeIsAvailable && !cutsceneSkipAvailable && facePromptActions.isEmpty
     }
 
     var body: some View {
@@ -155,10 +163,10 @@ struct TouchControlsView: View {
                     }
 
                     zoomButton(in: proxy)
-                        .opacity(zoomIsAvailable && persistentGameplayChromeIsVisible ? 1 : 0)
+                        .opacity(zoomIsAvailable && ordinaryGameplayChromeIsVisible ? 1 : 0)
                         .allowsHitTesting(zoomIsAvailable)
                         .animation(.easeOut(duration: 0.16),
-                                   value: persistentGameplayChromeIsVisible)
+                                   value: ordinaryGameplayChromeIsVisible)
                 }
 
                 if capturesNativeMenuInput {
@@ -193,7 +201,7 @@ struct TouchControlsView: View {
                                                   snapshot: facePromptTouchSnapshot,
                                                   actions: facePromptActions,
                                                   isInteractive: true,
-                                                  showsChrome: !isSuppressed,
+                                                  showsChrome: gameplayChromeIsVisible,
                                                   reclaimTouchInput: reclaimTouchInput)
                         .frame(maxWidth: .infinity, maxHeight: .infinity,
                                alignment: .bottomTrailing)
@@ -218,10 +226,12 @@ struct TouchControlsView: View {
         return ZStack {
             if let stick = controls.stick {
                 MovementStickArtwork(touch: stick)
+                    .opacity(ordinaryGameplayChromeIsVisible ? 1 : 0)
             }
 
             ForEach(controls.gestures) { gesture in
                 GestureRose(gesture: gesture)
+                    .opacity(ordinaryGameplayChromeIsVisible ? 1 : 0)
             }
 
             if isAwaitingTitleStart {
@@ -232,8 +242,10 @@ struct TouchControlsView: View {
             } else if activeGameplayChromeIsAvailable {
                 pill(.stats)
                     .position(x: chrome.statsFrame.midX, y: chrome.statsFrame.midY)
+                    .opacity(ordinaryGameplayChromeIsVisible ? 1 : 0)
                 pill(.start)
                     .position(x: chrome.startFrame.midX, y: chrome.startFrame.midY)
+                    .opacity(ordinaryGameplayChromeIsVisible ? 1 : 0)
             }
 
             RightStickControl(controls: controls)
@@ -795,6 +807,11 @@ private struct MovementStickArtwork: View {
                 .fill(.white.opacity(0.56))
                 .overlay(Circle().strokeBorder(.white.opacity(0.86), lineWidth: 1.5))
                 .frame(width: knobSize, height: knobSize)
+                .overlay {
+                    Text("L")
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(.black.opacity(0.82))
+                }
                 .offset(knobOffset)
         }
         .frame(width: TouchControls.movementRadius * 2,

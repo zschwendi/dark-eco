@@ -1157,8 +1157,8 @@ final class TouchControls {
     /// Frames a recognised one-shot press remains down, followed by a guaranteed release gap.
     nonisolated static let holdFrames = 6
     nonisolated static let releaseFrames = 2
-    /// Only the fixed camera-stick artwork idles away. Persistent gameplay buttons do not.
-    nonisolated static let rightStickFadeOutDelay: TimeInterval = 3
+    /// App-owned gameplay artwork idles away together after the last screen interaction.
+    nonisolated static let gameplayChromeFadeOutDelay: TimeInterval = 3
 
     /// Strong movement pushes also step list-style menus through the D-pad.
     nonisolated static let dpadPress: CGFloat = 0.55
@@ -1209,6 +1209,7 @@ final class TouchControls {
     var stick: Tracked? { touches.values.first { $0.role == .movement } }
     var rightStick: Tracked? { touches.values.first { $0.role == .rightStick } }
     var gestures: [Tracked] { touches.values.filter { $0.role == .gesture } }
+    var hasActiveGameplayGesture: Bool { !gestures.isEmpty }
     var isCrouching: Bool {
         gestures.contains { $0.swiped == .crouch }
     }
@@ -1250,6 +1251,18 @@ final class TouchControls {
             retainingAfterInvalidRead: retainsWarpGateTouchCapture)
     }
 
+    var contextualFacePromptOwnsGameplayActions: Bool {
+        Self.contextualFacePromptOwnsGameplayActions(
+            mode: nativeMenuMode,
+            runReadiness: runReadiness,
+            snapshot: facePromptTouchSnapshot,
+            warpGateControlsVisible: Self.warpGateTouchControlsAreVisible(
+                mode: nativeMenuMode, snapshot: warpGateTouchSnapshot),
+            warpGateCapturesInput: capturesWarpGateTouchInput,
+            cutsceneSkipAvailable: Self.cutsceneSkipIsAvailable(
+                in: nativeMenuMode, snapshot: cutsceneSkipTouchSnapshot))
+    }
+
     func setStyle(_ style: TouchControlStyle) {
         guard style != self.style else { return }
         reset()
@@ -1285,6 +1298,9 @@ final class TouchControls {
         self.runReadiness = runReadiness
         if mode != .gameplay { cancelFacePromptInput() }
         if capturedInput || capturesNativeTouchInput { reset() }
+        if contextualFacePromptOwnsGameplayActions {
+            cancelOrdinaryGameplayCommandInput()
+        }
         if entersActiveGameplay { noteScreenInteraction() }
     }
 
@@ -1327,6 +1343,9 @@ final class TouchControls {
         guard snapshot != facePromptTouchSnapshot else { return }
         facePromptTouchSnapshot = snapshot
         cancelFacePromptInput()
+        if contextualFacePromptOwnsGameplayActions {
+            cancelOrdinaryGameplayCommandInput()
+        }
     }
 
     /// Emits one ordinary pad pulse. Availability is mode-gated so a stale SwiftUI action cannot
@@ -1441,11 +1460,14 @@ final class TouchControls {
     /// Build 96 owns ordinary gameplay hit testing independently from compatibility settings.
     private func build96Role(for point: CGPoint, in size: CGSize) -> Role? {
         for (button, frame) in pillFrames where frame.contains(point) {
-            return pillRole(for: button)
+            if !contextualFacePromptOwnsGameplayActions { return pillRole(for: button) }
         }
-        if rightStick == nil, rightStickFrame.contains(point) { return .rightStick }
+        if !contextualFacePromptOwnsGameplayActions,
+           rightStick == nil, rightStickFrame.contains(point) { return .rightStick }
         if stick == nil, point.x < size.width / 2 { return .movement }
-        if point.x >= size.width / 2 { return .gesture }
+        if !contextualFacePromptOwnsGameplayActions, point.x >= size.width / 2 {
+            return .gesture
+        }
         return nil
     }
 
@@ -1550,7 +1572,9 @@ final class TouchControls {
     /// Jak's zoom is a Triangle toggle. The live camera mode supplies the truthful next direction.
     @discardableResult
     func performZoomToggle(lookAroundState: GOALPadLookAroundState) -> Bool {
-        guard !capturesNativeTouchInput else { return false }
+        guard !capturesNativeTouchInput, !contextualFacePromptOwnsGameplayActions else {
+            return false
+        }
         switch lookAroundState {
         case .normal, .firstPerson:
             noteScreenInteraction()
@@ -1769,15 +1793,17 @@ final class TouchControls {
             && (!isSuppressed || hasTouches)
     }
 
-    nonisolated static func persistentGameplayChromeIsVisible(
+    nonisolated static func gameplayChromeIsVisible(
         mode: GOALPadGameMode,
         runReadiness: GameplayRunReadiness,
         isAwaitingTitleStart: Bool,
+        isEngaged: Bool,
         isSuppressed: Bool,
-        hasTouches: Bool
+        hasTouches: Bool,
+        hasActiveGameplayGesture: Bool
     ) -> Bool {
         mode == .gameplay && runReadiness == .active && !isAwaitingTitleStart
-            && (!isSuppressed || hasTouches)
+            && isEngaged && !hasActiveGameplayGesture && (!isSuppressed || hasTouches)
     }
 
     nonisolated static func titleStartChromeIsVisible(
@@ -1796,15 +1822,19 @@ final class TouchControls {
         cutsceneSkipAvailable: Bool,
         isEngaged: Bool,
         isSuppressed: Bool,
-        hasTouches: Bool
+        hasTouches: Bool,
+        hasActiveGameplayGesture: Bool,
+        contextualFacePromptOwnsGameplayActions: Bool = false
     ) -> Bool {
-        persistentGameplayChromeIsVisible(
+        gameplayChromeIsVisible(
             mode: mode,
             runReadiness: runReadiness,
             isAwaitingTitleStart: isAwaitingTitleStart,
+            isEngaged: isEngaged,
             isSuppressed: isSuppressed,
-            hasTouches: hasTouches)
-            && !cutsceneSkipAvailable && isEngaged
+            hasTouches: hasTouches,
+            hasActiveGameplayGesture: hasActiveGameplayGesture)
+            && !cutsceneSkipAvailable && !contextualFacePromptOwnsGameplayActions
     }
 
     nonisolated static func artworkLabel(for button: TouchButton,
@@ -1821,6 +1851,23 @@ final class TouchControls {
     ) -> Bool {
         mode == .gameplay && snapshot.isStructurallyValid
             && snapshot.state == .triangleQueryAvailable
+    }
+
+    nonisolated static func contextualFacePromptOwnsGameplayActions(
+        mode: GOALPadGameMode,
+        runReadiness: GameplayRunReadiness,
+        snapshot: NativeFacePromptTouchSnapshot,
+        warpGateControlsVisible: Bool,
+        warpGateCapturesInput: Bool,
+        cutsceneSkipAvailable: Bool
+    ) -> Bool {
+        guard runReadiness == .active else { return false }
+        return !NativeFacePromptTouchAction.available(
+            in: mode,
+            snapshot: snapshot,
+            warpGateControlsVisible: warpGateControlsVisible,
+            warpGateCapturesInput: warpGateCapturesInput,
+            cutsceneSkipAvailable: cutsceneSkipAvailable).isEmpty
     }
 
     nonisolated static func nativeMenuControlsAreVisible(mode: GOALPadGameMode,
@@ -1901,6 +1948,13 @@ final class TouchControls {
     private func cancelFacePromptInput() {
         facePromptPulses.removeAll()
         facePromptHapticEvents.removeAll()
+    }
+
+    private func cancelOrdinaryGameplayCommandInput() {
+        touches = touches.filter { $0.value.role == .movement }
+        pulses.removeAll()
+        hapticEvents.removeAll()
+        fadeWhenIdle()
     }
 
     /// Converts strong movement into one repeated dominant-axis D-pad direction for menus.
@@ -1984,7 +2038,7 @@ final class TouchControls {
         fadeToken += 1
         let token = fadeToken
         Task { [weak self] in
-            try? await Task.sleep(for: .seconds(Self.rightStickFadeOutDelay))
+            try? await Task.sleep(for: .seconds(Self.gameplayChromeFadeOutDelay))
             guard let self, token == fadeToken, touches.isEmpty else { return }
             isEngaged = false
         }
