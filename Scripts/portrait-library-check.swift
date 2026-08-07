@@ -41,6 +41,7 @@ do {
     let content = try source(at: root + "/GOALPad/ContentView.swift")
     let library = try source(at: root + "/GOALPad/Library/GameLibrary.swift")
     let libraryView = try source(at: root + "/GOALPad/Library/GameLibraryView.swift")
+    let supportViews = try source(at: root + "/GOALPad/Support/EcoSupportViews.swift")
     let gameplayLayout = try declaration(in: content,
                                          startingWith: "nonisolated enum GameplaySurfaceLayout",
                                          endingWith: "\n\nprivate enum SettingsSheetEntry")
@@ -74,10 +75,10 @@ do {
                                endingWith: "\n\nprivate struct FallbackGameArtwork")
     let libraryScreen = try declaration(in: libraryView,
                                         startingWith: "struct GameLibraryView",
-                                        endingWith: "\n\nprivate struct CreditsView")
-    let credits = try declaration(in: libraryView,
-                                  startingWith: "private struct CreditsView",
-                                  endingWith: "\n\nprivate struct GameLibraryTile")
+                                        endingWith: "\n\nprivate struct GameLibraryTile")
+    let credits = try declaration(in: supportViews,
+                                  startingWith: "struct EcoCreditsView",
+                                  endingWith: "\n\nstruct EcoSupportView")
     guard let cardButton = tile.range(of: "Button(action: activate)"),
           let cardButtonStyle = tile.range(of: ".buttonStyle(.plain)",
                                            range: cardButton.upperBound..<tile.endIndex)
@@ -112,7 +113,10 @@ do {
               of: "Label(\"Settings\", systemImage: \"gearshape\")"),
           let creditsMenuLabel = libraryScreen.range(
               of: "Label(\"Credits\", systemImage: \"person.3\")"),
+          let supportMenuLabel = libraryScreen.range(
+              of: "Label(\"Support\", systemImage: \"heart\")"),
           settingsMenuLabel.lowerBound < creditsMenuLabel.lowerBound,
+          creditsMenuLabel.lowerBound < supportMenuLabel.lowerBound,
           libraryScreen.contains("GeometryReader { proxy in")
             && libraryScreen.contains("usesRegularWidth: (horizontalSizeClass ?? .regular) == .regular")
             && libraryScreen.contains("HStack(alignment: .top, spacing: layout.spacing)")
@@ -122,11 +126,12 @@ do {
             && !libraryScreen.contains("GridItem")
             && !libraryScreen.contains("Import Game")
             && !libraryScreen.contains("ToolbarItem(placement: .primaryAction)")
-            && libraryScreen.contains("CreditsView()")
+            && libraryScreen.contains("EcoCreditsView()")
+            && libraryScreen.contains("EcoSupportView(tipStore: tipStore)")
             && libraryScreen.contains(".tint(DarkEcoTheme.accent)")
-            && credits.contains(".navigationTitle(\"Credits\")")
-            && credits.contains(".tint(DarkEcoTheme.accent)")
-            && credits.contains("Built on the open-source OpenGOAL project")
+            && credits.contains("SupportPage(title: \"Credits\")")
+            && supportViews.contains(".tint(DarkEcoTheme.accent)")
+            && credits.contains("Eco is built on the open-source OpenGOAL project")
             && credits.contains("Button(\"Done\")")
             && settingsSheet.contains(".tint(DarkEcoTheme.accent)")
             && settingsSheet.contains(".background(DarkEcoTheme.background)")
@@ -135,7 +140,7 @@ do {
                       userInfo: [NSLocalizedDescriptionKey:
                         "launcher shelf, adaptive gutters, menu ordering, or Credits destination regressed"])
     }
-    print("  ok   launcher menu is Settings then a real Credits destination")
+    print("  ok   launcher menu is Settings, Credits, then a real Support destination")
     guard gameplaySurface.contains("if frame.origin == .zero, frame.size == proxy.size"),
           let fullSurfaceBranch = gameplaySurface.range(of: "if frame.origin == .zero, frame.size == proxy.size"),
           let portraitBranch = gameplaySurface.range(of: "} else {", range: fullSurfaceBranch.upperBound..<gameplaySurface.endIndex),

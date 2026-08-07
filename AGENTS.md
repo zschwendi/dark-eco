@@ -1072,10 +1072,13 @@ Active lanes:
   that iCloud transfers game data. Keep the existing staged-candidate and
   active-install safety guarantees behind the simpler presentation. Build 131
   exposes one phase/progress path with visible cancellation and recovery.
-- [x] Reduce the launcher hamburger to `Settings` followed by `Credits`. Remove
+- [x] Reduce the launcher hamburger to `Settings`, `Credits`, then `Support`.
+  Support owns Contact, About, and optional consumable StoreKit tips; purchase
+  prices come from StoreKit and tips unlock no app functionality. Remove
   `Import Game` from that menu and remove the separate toolbar Settings button;
   title-card activation owns import entry. Add a real Credits destination before
-  exposing that row. Implemented in Build 131.
+  exposing that row. Settings/Credits landed in Build 131; Support is the bounded
+  Build 133 follow-on.
 - [x] Apply one accessible Dark Eco visual system across the app-owned launcher,
   settings, import, progress, and credits surfaces: deep black/purple foundations
   with restrained luminous energy accents. Centralize the palette/material

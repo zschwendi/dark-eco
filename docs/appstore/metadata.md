@@ -18,6 +18,11 @@ reading file metadata in app/iCloud containers and user-selected locations,
 and storing app-only preferences. These declarations do not replace the
 separate App Store Connect privacy questionnaire.
 
+Build 133 adds three optional consumable StoreKit tips. The app displays Apple's
+localized prices and provides no feature, content, or entitlement in return.
+Product identifiers, intended US price points, test cases, and required App Store
+Connect setup are recorded in [Eco optional tips](STOREKIT_TIPS.md).
+
 `ITSAppUsesNonExemptEncryption` is `false`. The app implements no encryption;
 CryptoKit is used only for one-way save-file identity hashes, while iCloud and
 transport protection are operating-system services. This is the project's

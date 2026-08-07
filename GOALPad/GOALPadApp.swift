@@ -33,10 +33,12 @@ struct GOALPadApp: App {
                     ContentView()
                 }
             }
+            .task { await EcoTipTransactionObserver.run() }
             #else
             GameCenterRootView {
                 ContentView()
             }
+            .task { await EcoTipTransactionObserver.run() }
             #endif
         }
 

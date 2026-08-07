@@ -174,9 +174,23 @@ prepared packages are ignored by default.
 
 ## Credits
 
-GOALPad exists because of the [OpenGOAL](https://github.com/open-goal/jak-project)
-project, which reimplemented the GOAL language, compiler, and runtime that Naughty
-Dog built Jak and Daxter on. The compiler front end, the GOAL source, the object
-and level formats, the 989snd sound implementation, and the renderer this port
-translates are all their work. This fork adds an ARM64 ahead-of-time code path, a
-Metal renderer, and Apple platform hosts on top of it.
+Eco is an app by Zach Schwendiman, published by Zephyr Studios, and made
+available free as a gift to fans of the Jak trilogy. Zach created the native
+Apple mobile port and its platform-runtime integration.
+
+Eco exists because of the [OpenGOAL](https://github.com/open-goal/jak-project)
+project, which reimplemented the GOAL language, compiler, and runtime that
+Naughty Dog built Jak and Daxter on. The compiler front end, GOAL source, object
+and level formats, 989snd sound implementation, and renderer this port translates
+are all their work. This fork adds an ARM64 ahead-of-time code path, a Metal
+renderer, and Apple platform hosts on top of it.
+
+Eco is an unofficial community project and is not affiliated with Sony
+Interactive Entertainment, Naughty Dog, or the OpenGOAL team.
+
+## Support
+
+The launcher Support screen provides project information, contact details, and
+three optional one-time StoreKit tips. Tips unlock no features or content. Their
+product identifiers and App Store Connect requirements are documented in
+[Eco optional tips](docs/appstore/STOREKIT_TIPS.md).

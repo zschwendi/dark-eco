@@ -26,6 +26,8 @@ struct GameLibraryView: View {
     @State private var isChoosingArtwork = false
     @State private var presentedAlert: GameLibraryAlert?
     @State private var isShowingCredits = false
+    @State private var isShowingSupport = false
+    @State private var tipStore = EcoTipStore()
 
     var body: some View {
         NavigationStack {
@@ -76,6 +78,9 @@ struct GameLibraryView: View {
                         Button { isShowingCredits = true } label: {
                             Label("Credits", systemImage: "person.3")
                         }
+                        Button { isShowingSupport = true } label: {
+                            Label("Support", systemImage: "heart")
+                        }
                     } label: {
                         Image(systemName: "line.3.horizontal")
                     }
@@ -87,7 +92,14 @@ struct GameLibraryView: View {
         .tint(DarkEcoTheme.accent)
         .sheet(isPresented: $isShowingCredits) {
             NavigationStack {
-                CreditsView()
+                EcoCreditsView()
+            }
+            .preferredColorScheme(.dark)
+            .tint(DarkEcoTheme.accent)
+        }
+        .sheet(isPresented: $isShowingSupport) {
+            NavigationStack {
+                EcoSupportView(tipStore: tipStore)
             }
             .preferredColorScheme(.dark)
             .tint(DarkEcoTheme.accent)
@@ -177,48 +189,6 @@ struct GameLibraryView: View {
     private func chooseArtwork(for title: GameLibraryTitle) {
         artworkTitle = title
         isChoosingArtwork = true
-    }
-}
-
-private struct CreditsView: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        ScrollView {
-            DarkEcoPanel {
-                VStack(alignment: .leading, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Eco")
-                            .font(.largeTitle.bold())
-                        Text("Native OpenGOAL Runtime")
-                            .font(.headline)
-                            .foregroundStyle(DarkEcoTheme.accentGlow)
-                    }
-
-                    Text("Built on the open-source OpenGOAL project and the work of its contributors.")
-                    Text("Eco is an unofficial community project and is not affiliated with Sony Interactive Entertainment, Naughty Dog, or the OpenGOAL team.")
-                        .foregroundStyle(.secondary)
-                    Text("Game data is not included. Players provide compatible data from copies they legally own.")
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .padding(24)
-            .frame(maxWidth: 640)
-            .frame(maxWidth: .infinity)
-        }
-        .background {
-            LinearGradient(colors: [Color.black, DarkEcoTheme.background],
-                           startPoint: .top, endPoint: .bottom)
-                .ignoresSafeArea()
-        }
-        .navigationTitle("Credits")
-        .tint(DarkEcoTheme.accent)
-        .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Done") { dismiss() }
-            }
-        }
     }
 }
 
