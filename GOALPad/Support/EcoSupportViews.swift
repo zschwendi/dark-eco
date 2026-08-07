@@ -89,18 +89,18 @@ private struct EcoAboutView: View {
 }
 
 private struct EcoContactView: View {
-    private let emailURL = URL(string: "mailto:zschwendi@zephyrstudios.dev?subject=Eco%20Support")!
+    private let emailURL = URL(string: "mailto:contact@zephyrstudios.dev?subject=Eco%20Support")!
 
     var body: some View {
         SupportPage(title: "Contact") {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Questions, feedback, or a bug report?")
                 Link(destination: emailURL) {
-                    Label("Email Zach", systemImage: "envelope")
+                    Label("Contact support", systemImage: "envelope")
                         .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
                         .contentShape(Rectangle())
                 }
-                Text("zschwendi@zephyrstudios.dev")
+                Text("contact@zephyrstudios.dev")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
