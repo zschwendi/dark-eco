@@ -312,11 +312,12 @@ xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
 
 The macOS command builds the native Apple Silicon Eco launcher. A Release
 validation has exercised its library, prepared-data import, shared Metal host,
-real Jak 1 AOT boot, and title screen. Keyboard/mouse mappings now exist, but a
-complete macOS gameplay and physical-input pass remains unvalidated. The generic
-iOS commands validate compilation and linking only; a generic iOS build is not
-physical-device validation. The generic simulator invocation is documented
-below as an expected architecture mismatch, not a required passing build.
+real Jak 1 AOT boot, and title screen. A controller is still required for
+gameplay because the launcher does not yet map keyboard input, and a complete
+macOS gameplay pass remains unvalidated. The generic iOS commands validate
+compilation and linking only; a generic iOS build is not physical-device
+validation. The generic simulator invocation is documented below as an
+expected architecture mismatch, not a required passing build.
 
 For ARM64 runtime validation, do not substitute the generic simulator
 destination for the named M5 simulator. The generic simulator build selected
@@ -975,42 +976,31 @@ controller attached on a non-iOS host, the port is pushed as disconnected. On
 iOS the on-screen controls provide a neutral connected pad, merged with
 GameController once per successfully armed display-link frame.
 
-The default native Stats action is the L2+R2 chord: press both physical
-triggers together. GameController Menu/Options continue to map Start/Select
-respectively. The default keyboard equivalent for Stats is Tab; Escape is
-Start/Pause.
+### Modern and Classic settings
 
-### Jak 1 settings
+`PresentationSettings` stores one versioned document for the Controls,
+Graphics, Audio, and UI sections. Each section has an independent
+Classic/Modern profile. The top preset sets all four profiles without deleting
+their customized option values and displays Mixed when they differ. Section
+Restore Defaults resets only that section's options for its selected profile;
+fresh settings and Reset All select Classic Controls, Modern Graphics with Fill
+Width enabled, Classic Audio, and Classic UI. This intentional default appears
+as Mixed. Existing local or iCloud documents retain their saved profiles and
+option overrides.
 
-`PresentationSettings` retains one versioned title-scoped document. Its legacy
-Controls, Graphics, Audio, UI, and touch-layout fields remain decodable so an
-older local or iCloud writer cannot erase or corrupt current choices. The
-player-facing document deliberately exposes only settings that now do real work:
-
-- Controls: Primary Controller, physical-controller bindings and whole-stick
-  tuning, mouse/keyboard bindings, and Restore Controls Defaults. The rejected
-  Classic touch profile/editor no longer controls gameplay or appears in UI.
-- Graphics: Modern first, Classic second. Modern defaults to Fit to Screen;
-  Classic always selects the preserved compatibility presentation.
-- iCloud: independent Sync Settings and Sync Saves toggles with one combined
-  state, last-sync date, and Sync/Retry action.
-- Native save import/export, preserved-save promotion, pause-gated developer
-  logs, and Reset Jak 1 Settings.
-
-The local settings document is
+The local document is
 `Library/Application Support/GOALPad/Settings/presentation-v1.json`. When
 available, the same complete document is merged through
 `Documents/GOALPad/Settings/presentation-v1.json` in the app's iCloud container
 using modification time and a stable writer ID. Unresolved iCloud file versions
-participate in that merge. Sync Settings is stored only on the current device
-and remains independent from Sync Saves.
+participate in that merge. The `Sync settings with iCloud` switch is stored only
+on the current device and is separate from `iCloud Saves`.
 
-Graphics Modern exposes Fit to Screen. Internally this is the horizontal-plus
-presentation: on a drawable wider than 4:3 it preserves internal target height,
-widens the target, fills the drawable, and reports the wide aspect to GOAL.
-Classic keeps the prior 4:3 target, letterbox, and machine-query behavior. On
-portrait or narrower drawables Fit to Screen does not reduce the Classic
-horizontal field of view.
+Graphics Modern currently exposes Fill Width (Hor+). On a drawable wider than
+4:3 it preserves internal target height, widens the target, fills the drawable,
+and reports the wide aspect to GOAL. Classic keeps the prior 4:3 target,
+letterbox, and machine-query behavior. On portrait or narrower drawables Hor+
+does not reduce the Classic horizontal field of view.
 
 The deterministic checks are:
 
@@ -1019,36 +1009,29 @@ Scripts/run-presentation-settings-check.sh
 Scripts/run-presentation-geometry-check.sh
 ```
 
-These checks cover legacy decoding, current defaults, option preservation,
-section restore, Reset Jak 1 Settings, first cloud write, conflict ranking,
-save-sync isolation, migration, and exact geometry. Build 130 supplies bounded
-physical Fit-to-Screen acceptance; it does not establish every orientation,
-device, performance condition, or real two-device iCloud convergence.
+These checks cover settings defaults, Mixed profiles, option preservation,
+restores, Reset All, first cloud write, conflict ranking, save-sync isolation,
+and exact geometry. They do not replace the bounded physical Hor+ acceptance
+and do not establish a full Classic/Hor+ A/B, orientation/performance coverage,
+or real two-device iCloud convergence.
 
-#### On-screen controls
+#### Experimental on-screen controls
 
-The accepted iOS touch layer has one gameplay profile. It creates a movement
-stick under the first left-side contact and keeps a continuous analog camera
-stick at bottom right. Right-side gameplay gestures retain the established
-Cross/Square/Circle and held-crouch mappings, including held crouch-to-jump and
-crouch-left punch. While Jak is in one of the nine checked speeder states, the
-same finger may hold the upward Cross acceleration gesture and reverse downward
-to add L1+R1 brake/drift without releasing Cross; lifting releases the gesture.
-The same reversal remains Cross-only on foot.
-
-Zoom is an independent semantic toggle. STATS emits the native L2+R2 chord; it
-becomes SKIP only while the checked authored Triangle-query owner is current.
-Start presents Start, Pause, or Resume from native title/menu state. Contextual
-face prompts and the separately frozen warp-gate surface emit only their exact
-authoritative pad input. Raw swipe-guide artwork is never rendered.
+The iOS Classic Mode touch layer creates a movement stick under the first
+left-half contact and keeps a continuous analog R stick at bottom right.
+Right-half swipes map up/left/right to Cross/Square/Circle; a downward swipe
+holds L1 directly for as long as its finger remains down, and reversing that
+drag upward adds one bounded Cross pulse without releasing L1. Short right-half
+taps are deliberately inert. Start and Select remain fixed pills. There is no
+free camera drag outside the R stick. Strong movement-stick pushes still
+synthesize D-pad edges and bounded repeats for menus.
 
 Physical-controller buttons are unioned with touch buttons, and a physical
 stick outside the engine's minimum deadzone takes priority over the matching
-touch stick. Recent physical input hides touch artwork without disabling or
-removing its targets; the first new touch both executes and restores chrome.
-Build 135 additionally reconciles every ended, cancelled, interrupted, or
-transferred UIKit touch so camera, Start, movement, and gestures cannot retain
-stale ownership across controller/touch transitions.
+touch stick. Recent physical input hides the artwork without disabling touch.
+The diagnostics overlay and its internal-resolution picker are hidden by
+default. A compact button using the `line.3.horizontal` symbol opens them; the
+default game view has no zoom controls or keyboard/ellipsis icon over the game.
 
 Touch state is cleared on shutdown and whenever the scene becomes inactive or
 backgrounded. The deterministic state-machine check is:
@@ -1057,12 +1040,14 @@ backgrounded. The deterministic state-machine check is:
 Scripts/run-touch-controls-check.sh
 ```
 
-It covers movement/camera analog behavior, contextual gestures, speeder/on-foot
-reversal, D-pad repeat, simultaneous controls, semantic buttons, visibility,
-controller-to-touch transitions, cancellation, mixed release ordering, stale
-identifier cleanup, and reset. The generic iOS Release build passes. The
-deterministic harness does not replace physical multitouch ergonomics, latency,
-or controller-plus-touch acceptance.
+It covers the movable movement origin and analog clamp, absence of free camera
+gestures, face-button swipes with inert short taps, continuous analog R-stick
+deadzone/travel/release behavior, continuous L1 through the reverse-to-Cross
+gesture, immediate L1 release, D-pad repeat, simultaneous controls, pill hit
+testing, visibility, and reset. The macOS and generic iOS builds pass, and the
+named M5 simulator launches. The harness does not directly cover
+`ControllerInput` merging, UIKit delivery, physical multitouch ergonomics, or
+physical-iPad latency.
 
 Rumble reads `goal_pad_get_rumble` each frame and drives two Core Haptics
 engines, `.leftHandle` for the on/off motor and `.rightHandle` for the analog
@@ -1070,10 +1055,10 @@ one, through a continuous event whose intensity is updated in place. The
 DualSense's adaptive triggers are deliberately not driven: the PS2 pad had none,
 so nothing in the game asks for them.
 
-Physical controller input has been exercised in later candidates, but native
-large/small motor feel and left/right locality degradation have not been
-separately accepted on representative controller hardware. Source and signed
-build evidence cannot establish that physical haptic result.
+**Not validated:** no physical controller. The simulator's virtual "Gamepad" was
+detected, adopted, and polled, which exercises discovery, adoption and the push
+path, but no real button mapping, stick range, or haptic output has been
+confirmed on hardware, and no DualSense has ever been connected.
 
 ### Audio
 

@@ -37,7 +37,7 @@ as completing the overall goal.
   CI artifacts, or hosted services.
 - The preferred public distribution path is TestFlight followed by the App
   Store, while source and supported sideloading remain first-class. Storefront
-  and first-run presentation use the neutral **Eco Pro** identity and calm
+  and first-run presentation use the neutral **Eco** identity and calm
   **compatible user-supplied data** language rather than franchise marketing;
   technical documentation and App Review notes remain precise and transparent.
 - GitHub, TestFlight, and App Store archives fail closed unless the complete
@@ -68,18 +68,28 @@ as completing the overall goal.
 | User-owned Jak 1 import pipeline | Experimental; prepared folders remain supported, and Release builds can select a supported raw ISO or a standard ZIP32 archive containing exactly one ISO. The native composer, Objective-C++ bridge, recoverable staging/activation, ZIP extraction, and deterministic validation are implemented; a successful end-to-end simulator import and a real-device Files-provider import remain unrecorded |
 | Compiler-produced ARM64 GOAL execution | Implemented for the current Jak 1 AOT set; seven native routines remain |
 | OpenGOAL game frame or title screen | Implemented and physically verified |
-| Playable gameplay slice | Experimental; sustained physical play reached Misty and Training |
+| Playable gameplay slice | Experimental; Build 130 is the physically accepted unified baseline, with Build 131 installed as an unaccepted client-polish candidate |
 | Jak 1 completion track | Planned |
 
 The current application initializes the real OpenGOAL Jak 1 kernel, loads
 user-local game data, runs linked AOT/native game code without executable arena
 pages, renders through the Metal backend, accepts controller/touch input, and
-plays audio. Signed physical-iPad runs reach sustained gameplay. Current
-blockers are visual correctness and remaining platform gaps, not real-media
-import validation, the earlier synthetic arena, or literal-instruction probes.
-`HANDOFF.md` Checkpoint 66 is the authoritative current build and next-task
-record; Checkpoint 37 remains the latest sustained physical-iPad gameplay
-evidence.
+plays audio. Signed physical-iPad runs reach sustained gameplay. Build 130 is
+the unified regression baseline after physical acceptance of its gameplay-touch,
+presentation, settings, saves, and runtime behavior within the exercised scope.
+This is not a complete-playthrough claim. The Build 130 section in `HANDOFF.md`
+is the authoritative artifact, physical-test, and limitation record.
+
+The active product sequence is now:
+
+1. Preserve Build 130 unchanged as the accepted runtime baseline.
+2. Physically validate Build 131's bounded touch-chrome, launcher, import, Dark
+   Eco theme, and app-icon polish against Build 130 before promoting it.
+3. Keep Graphics Modern Fit to Screen and the accepted single-owner touch path
+   unchanged while closing only actual MVP shipping blockers.
+4. After the iPhone/iPad MVP is stable, advance the conventional windowed
+   visionOS application toward Apple Vision Pro physical validation without
+   assuming immersive or stereo rendering.
 
 ## Required code and data pipelines
 
@@ -806,8 +816,49 @@ Operating rules:
 
 ## Current checkpoint
 
-Checkpoint 67 is the current integration checkpoint. Checkpoint 37 remains the
-latest sustained physical gameplay and visual-fidelity run. Its signed build
+Build 130 is the current unified integration checkpoint. Its exact parent,
+nested OpenGOAL, signed product, install, launch, acceptance identities, and
+annotated tags are recorded in `HANDOFF.md`. The maintainer physically accepted
+it as the best known-good baseline within the exercised scope; that verdict is
+not evidence for completion, unvisited levels, or every device.
+
+Build 131's signed build and install passed, but physical review rejected its
+phone-sized iPad launcher and gesture-driven suppression of the rest of the touch
+chrome. Build 132 is the corrective source candidate. It expands the three-cover
+shelf on regular-width devices, removes the raw swipe-guide symbols while keeping
+their invisible input mappings, uses one three-second idle fade for eligible
+gameplay chrome, places Eco Settings beside the persistent Start/Resume control
+after the initial title gate, and makes quit confirmation horizontally operable.
+Focused deterministic and parse checks pass; its batched Xcode and physical gates
+remain pending. Build 130 therefore remains the accepted baseline.
+
+Build 133 adds only the launcher Support/Credits and optional-tip slice on top of
+Build 132. The launcher menu is Settings, Credits, then Support; Support contains
+Contact, About, and Donate. Three repeatable consumable StoreKit tips display
+Apple-localized prices, grant no features, verify transactions before finishing,
+and report unavailable, pending, cancellation, verification, and failure states.
+An app-lifetime observer finishes only verified Eco tip transactions. Focused
+checks and the signed generic-iOS Release build pass. App Store Connect product
+creation and sandbox/TestFlight purchase validation remain external gates, and
+Build 133 has not been installed on a physical device.
+
+Build 134 replaces the rejected Build 131 app icon with the maintainer-selected
+Precursor-first broken-relay mark. The versioned Apple asset catalog contains
+opaque 16-through-1024-pixel derivatives, and the focused icon check plus signed
+generic-iOS Release build pass. A Release M5-simulator smoke also confirms the
+regular-width three-card library geometry. Build 134 makes no gameplay change.
+Its physical Home Screen/App Library appearance and the combined Build 132-134
+client slice remain unaccepted, so Build 130 remains the immutable physical
+baseline.
+
+Room-play Jak is a deferred visionOS direction after true stereo and stationary
+room-scale rendering: Jak may leave the framed view and use a private,
+device-local room reconstruction as temporary level geometry while the existing
+simulation remains authoritative. The maintainer's proposed “RIP” base is
+recorded without guessing its exact dependency or API.
+
+The historical checkpoint record follows. Checkpoint 37 was an earlier
+sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive
 chains during the final run, reached Misty and Training, and exited cleanly.
 The maintainer nevertheless rejected it as a camera or visual-fidelity
@@ -815,7 +866,7 @@ improvement: camera and world-depth fighting felt worse than Checkpoint 36,
 Merc deformation remained, and metallic materials developed a new flicker.
 Checkpoints 38-44 record the original app icon, neutral App Store distribution
 direction, fail-closed release-AOT policy, windowed visionOS target,
-local-first iCloud saves, and current **Eco Pro** identity at
+local-first iCloud saves, and current **Eco** identity at
 `com.zephyrstudiosllc.eco`. Checkpoint 45 adds an enforced Jak 1 Release-AOT
 preflight and a mutually exclusive Jak II iPhoneOS full-AOT link proof; it does
 not make Jak II an app target. Checkpoints 46-50 add the checked Jak 1 raw-disc
@@ -877,7 +928,7 @@ pointers begin after it; the v5 observer consequently read `node-list` at live
 `c2f933ba0` applies the shared `BASIC_OFFSET` to all diagnostic target/control/
 cpad fields, keeps exact runtime types and declared allocated-size checks, and
 adds a decoy-old-slot regression. All 58 focused C++ checks and both parent
-bridge checks passed. A new signed thin ARM64 Eco Pro build passed with SHA-256
+bridge checks passed. A new signed thin ARM64 Eco build passed with SHA-256
 `4b9eb6e0848a2e1c222f0ef8bd16aae9b00739043b4379ecb2f271ca64e9d315`.
 It was update-installed on the authorized Z iPad Pro while preserving app data;
 launch is pending only because the iPad locked. No corrected physical trace or
@@ -999,7 +1050,7 @@ Checkpoint 63 adds a checked 840-object Jak II source pack (aggregate
 the final merged nested head `9edd580`. The proof links all 840 corpus units,
 the portable pad and interrupt-handler seams, and `pc-rand`; focused Jak 1/Jak
 II regressions and the one-frame real-data `play-boot` frontier pass. This is a
-signed build artifact only, not Eco Pro app/runtime, renderer, simulator,
+signed build artifact only, not Eco app/runtime, renderer, simulator,
 device, title-screen, or gameplay evidence.
 
 Checkpoint 64 implements Jak II's portable profiler/cache seams and crosses
@@ -1018,35 +1069,144 @@ their symbols overlap.
 Checkpoint 66 reconciles that archive with the final portable machine seams and
 a strict opt-in DMA gate. The canonical host tests, prepared-data title/DMA
 probe, reusable Ninja archive/link, signed Jak II generic-iPhoneOS proof, and
-signed Jak 1/Eco Pro generic-iOS Release all pass at nested `0eba7a18c`.
+signed Jak 1/Eco generic-iOS Release all pass at nested `0eba7a18c`.
 Jak II still lacks a renderer/app loop. The maintainer's current photos classify
 Flat Stanley as a heading-dependent weighted-skin singularity and the wall
 burst as a separate whole-camera recurrence; schema v7 is the next physical
 discriminator for both.
 
-Checkpoint 67 generalizes the portable graphics-host contract across Jak 1 and
-Jak II at nested `935915b1f`. The Jak II title/DMA proof now exercises
-host-owned send, synchronous `sync-path`, vblank-before-host-`syncv` ordering,
-inactive mouse, and separate desired/active level lists. Focused host tests,
-the real prepared-data DMA probe, the reusable signed Jak II AOT/kernel
-artifacts, and the signed Jak 1/Eco Pro generic-iOS Release all pass at the
-final source. This remains a headless contract: it rendered and presented zero
-frames and has no CADisplayLink, app loop, title-screen, gameplay, simulator,
-or device claim.
+Checkpoint 67 installs the portable Jak II graphics host, composes DMA
+measurement behind that host, and retains both interfaces in the current Apple
+proof. Separate `--play-gfx-host`, combined `--play-dma`, and unchanged plain
+`--play` prepared-data modes pass at nested `a5a1bebbc`; the first two reach the
+same title frontier with the complete callback contract, while only the DMA
+mode parses the one valid 327-bucket chain. Focused Jak 1 and Jak II graphics,
+machine, DMA, and kernel regressions pass. Fresh unsigned and signed Jak II AOT
+proofs and the signed Jak 1/Eco generic-iOS Release also pass. The host is
+still headless: no Jak II Apple app target, Metal renderer lifecycle, real
+display pacing, visible title, or gameplay is claimed.
 
-Checkpoint 68 adds the separate development-only headless application at
-nested `64bda6103`. A reusable C runtime owns Jak II KERNEL/GAME/AOT startup,
-one dispatcher tick, copied metrics, and teardown; a portable coordinator
-enforces one foreground display callback to one synchronous runtime tick with
-no queue or catch-up. The Xcode-only UIKit shell uses CADisplayLink and
-lifecycle notifications, keeps prepared data in Documents and saves in local
-Application Support, and links a one-object runtime archive outside the
-unchanged 841-member AOT corpus. Seven focused host tests, real prepared-data
-plain and DMA play probes, the 840-unit host rebuild, the signed generic-
-iPhoneOS app, and the preserved signed full-AOT link scheme pass. The app links
-no Metal and still reports zero rendered and presented frames; no simulator,
-device, install, launch, title screen, gameplay, or physical lifecycle claim is
-made.
+Checkpoint 68 adds a separate development-only Jak II UIKit/CADisplayLink app
+target and a reusable start/tick/shutdown runtime. One accepted foreground
+display tick advances exactly one kernel/host/DMA frame; inactive ticks are
+rejected without catch-up. Focused tests, the real-data title/DMA frontier, and
+a signed thin-ARM64 generic-iPhoneOS build pass at nested `b724cee30`. The final
+reconciliation routes plain, complete graphics-host, and DMA validation through
+the same reusable runtime with distinct graphics modes. The app is still deliberately
+headless: no Jak II Metal dispatch, audio output, simulator/device launch,
+visible title, presented frame, or gameplay is claimed.
+
+Checkpoint 69 validates that development app on the ARM64 M5 iPad simulator
+with prepared data: one accepted foreground tick produces one runtime/host/DMA
+frame and zero rendered or presented frames, while background/foreground keeps
+the same process and does not advance counters. Nested `05b3d0ced` also exposes
+a selected-game audio pull used by Jak 1 and Jak II; both focused audio/lifecycle
+tests and the parent signed generic-iOS Release build pass. The parent bridge
+now consumes that neutral seam. The Jak II development app still has no
+AVAudioEngine output or Metal dispatch, and this is not physical-device,
+visible-title, pixel, or gameplay evidence.
+
+Checkpoint 70 defines and deterministically validates Jak II's plain-C++ Metal
+bucket policy at nested `9687fcc2f`: all 327 IDs are contiguous, 200 current
+OpenGL-bound slots are `DeferredSkip`, 127 unbound slots are `StrictEmpty`, and
+the fixed FNV fingerprint is `0x6a36218fa2275590`. Direct native ARM64 and
+x86_64 warning-clean builds and the focused CMake/CTest gates pass. This is a
+policy table only; it is not linked into the Metal product/runtime and provides
+no Objective-C++ dispatch, DMA rendering, pixel, submission, or presentation
+evidence. Ancestor `06cc9ddec` separately makes the test-only Jak II boot probe
+use an exclusive randomized temporary save directory with post-shutdown RAII
+cleanup, preventing parallel probes from deleting a shared save directory. The
+canonical prepared-data `--play-dma` rebuild and run pass after integration with
+one complete 327-bucket chain and zero rendered or presented frames.
+
+Checkpoint 71 records the exact-current Apple evidence for that nested pin.
+Ancestor `06cc9ddec` routes all three real-data modes through the reusable
+runtime, adds the 48 kHz selected-game audio pull, permits ARM64 simulator
+generation, and isolates every host diagnostic run's saves. The full 876-step
+host rebuild, focused Jak 1/Jak II tests, and all three play modes pass. Fresh
+generic ARM64 simulator and signed iPhoneOS builds pass; Checkpoint 70's policy
+source is host-only and does not change either Apple target's inputs. The final
+simulator product was not launched. Jak II still has no Metal pixel,
+audio-device output, visible title, physical-device run, or gameplay proof.
+
+Checkpoint 72 makes the Metal Empty/Skip/Direct chain consumers game-version
+aware at nested `739ec9683`. Jak 1's existing default-register bounce and full
+Metal proof remain green, while Jak II strict-empty buckets consume only one
+zero-QWC `CNT` and deferred paths no longer follow Jak 1's buffer. The focused
+semantics and fixed 327-bucket-policy tests pass. A deterministic Merc proof now
+reproduces the reported Flat-Stanley silhouette from healthy rigid bones whose
+relative counter-rotation collapses weighted vertices, separating that bug from
+the maintainer's wall screenshots of a coherent whole-camera recurrence while
+Jak is absent. Product-linked Jak II initialization/dispatch and visible pixels
+remain unimplemented.
+
+Checkpoint 73 links the fixed Jak II policy into the Metal product/runtime and
+adds the first real version-selected dispatcher at nested `1e41324fa`. All 327
+slots dispatch under the audited table; five shared Direct slots use their
+reviewed batch sizes, one synthetic deferred payload is consumed, and a DEBUG3
+Direct NOP payload traverses without drawing. The focused semantics, table,
+and Objective-C++ Metal tests pass 3/3 with zero command-buffer commits,
+drawable attempts, submissions, presentations, draw calls, and triangles.
+This is a product-linked policy/dispatch proof, not a committed GPU frame,
+visible pixel, title screen, or gameplay. The exact-current full Jak 1 Metal
+proof remains pending because the system volume ran out of space while
+rebuilding unrelated runtime/AOT outputs. After those outputs were removed,
+the exact generic-iPhoneOS parent Release built and signed successfully,
+reverified the 518-object Jak 1 pack, and retained both Jak II bucket-table
+symbols in the thin ARM64 executable.
+
+Checkpoint 74 closes Checkpoint 73's exact-current Jak 1 renderer gap and adds
+the first submitted Jak II Metal pixel proof at nested `0963b1c4c`. The full
+Jak 1 Metal proof passes, and the four focused Jak II semantics, table,
+nil-layer dispatch, and offscreen-submit tests pass 4/4. One audited DEBUG3
+Direct payload encodes a synthetic triangle, completes a real offscreen Metal
+command buffer, and returns the expected pixels. This is GPU submission and
+readback evidence, not `CAMetalLayer` acquisition, presentation, title-screen,
+gameplay, or physical-device evidence. The signed generic-iPhoneOS development
+app remains Metal-free.
+
+Checkpoint 75 moves that same fixed policy and renderer into the separate Jak
+II development app at nested `5264a3097`. A narrow product host copies each
+runtime DMA chain, dispatches all 327 audited slots with a nil presentation
+layer, and preserves zero drawable attempts, command-buffer commits,
+submissions, presentations, draws, and triangles. The full Jak 1 Metal proof,
+focused host/renderer suite, and signed generic-iPhoneOS app all pass. This is
+the real runtime-to-product-host seam, not a visible frame or title boot.
+
+Checkpoint 76 adds a mutually exclusive, opt-in `CAMetalLayer` proof at nested
+`c44408a3b`. On the approved M5 simulator, one synthetic public 327-bucket
+chain acquires one drawable and completes one command-buffer submission with
+zero errors, drops, draws, or triangles. Simulator presentation callbacks are
+unavailable and correctly remain zero; drawable acquisition plus completion is
+the simulator evidence. The default real-DMA nil-layer path is unchanged. A
+fresh signed generic-iPhoneOS app retains the validated 840-unit Jak II AOT
+corpus and the full focused suite plus exact-current Jak 1 Metal proof pass.
+This is not a real-DMA presented frame, title screen, gameplay, or physical-
+device result.
+
+A separate maintainer-supplied crash from an older normal-runtime `jak2dev`
+simulator binary reaches the first `display-loop` suspend and then indirect-
+branches to zero. The display process, top cpu-thread, and suspend-hook GOAL
+object are valid; the hook object's stored 64-bit native entry is zero. The
+next Jak II runtime gate is therefore a product-linked AOT/thread-initialization
+proof that determines whether the intended `goal_native_thread_suspend` entry
+is born zero or overwritten before the first display tick. Do not bypass the
+suspend or substitute the expected function without identifying that cause.
+
+Checkpoint 77 completes the first bounded normal-runtime Jak II display tick at nested
+`b0db0d9f1`. Product-linked suspend diagnostics and guarded generated indirect
+calls replace the original PC-zero failure; narrow portable PC settings and
+file-stream seams replace the low-page settings crash; and target-local
+Release optimization keeps converted GOAL thread frames inside their recorded
+stack backups. The prepared-data host proof and approved M5 simulator load
+KERNEL, GAME, and TITLE.DGO, traverse one complete 327-bucket runtime chain,
+and report one accepted display tick with no failures. A fresh generic iPhoneOS
+compile/link/CodeSign build also passes, although standalone trust verification
+is pending because the current shell reports no valid signing identity. This
+is still a policy/display-tick proof with zero draw calls, submissions, or
+presented frames. The next Jak II gate is real-DMA Metal drawing and completed
+frame submission through the existing product renderer; title-screen pixels,
+gameplay, and physical-device support remain unproved.
 
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
@@ -1072,16 +1232,19 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Preserve the Checkpoint-68 headless UIKit/CADisplayLink proof and continue
-   Jak II with a bounded renderer-input audit plus the smallest deterministic
-   Jak II bucket-to-existing-Metal-host proof. Do not add a presentation claim
-   until the measured DMA is actually drawn; simulator/device runtime and
-   physical gameplay remain unproved.
+4. Advance the first bounded Jak II normal-runtime display tick into a sustained
+   multi-tick/lifecycle proof, then real-DMA Metal
+   draw calls, drawable acquisition, and completed submission through the
+   existing product host. Preserve the guarded indirect-call diagnostic and
+   the nil-layer, offscreen-readback, and opt-in CAMetalLayer proofs. Correct
+   the GOAL-side failed-stream validity comparison and resolve local signing
+   trust before stronger recovery or install claims; do not claim title-screen,
+   gameplay, or physical-device support from these gates.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
 Use the local iPad Pro 11-inch (M5) simulator as the routine runtime gate.
-Checkpoint 68 did not access Z iPad Pro. The maintainer supplied screenshots
+Checkpoint 77 did not access Z iPad Pro. The maintainer supplied screenshots
 from their own current physical run, but the agent did not install, launch,
 log, copy, or otherwise access the device. The maintainer reported that the app
 was backgrounded or closed, and any later install, launch, logging, capture, or

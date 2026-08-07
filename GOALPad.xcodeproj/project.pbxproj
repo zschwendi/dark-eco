@@ -7,340 +7,331 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A73000000000000000020000 /* xdbg.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010000 /* xdbg.cpp */; };
-		A73000000000000000020001 /* log.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010001 /* log.cpp */; };
-		A73000000000000000020002 /* Assert.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010002 /* Assert.cpp */; };
-		A73000000000000000020003 /* crc32.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010003 /* crc32.cpp */; };
-		A73000000000000000020004 /* diff.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010004 /* diff.cpp */; };
-		A73000000000000000020005 /* FileUtil.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010005 /* FileUtil.cpp */; };
-		A73000000000000000020006 /* string_util.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010006 /* string_util.cpp */; };
-		A73000000000000000020007 /* Timer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010007 /* Timer.cpp */; };
-		A73000000000000000020008 /* unicode_util.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010008 /* unicode_util.cpp */; };
-		A73000000000000000020009 /* lzokay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010009 /* lzokay.cpp */; };
-		A7300000000000000002000A /* fileio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001000A /* fileio.cpp */; };
-		A7300000000000000002000B /* kboot.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001000B /* kboot.cpp */; };
-		A7300000000000000002000C /* kdgo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001000C /* kdgo.cpp */; };
-		A7300000000000000002000D /* kdsnetm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001000D /* kdsnetm.cpp */; };
-		A7300000000000000002000E /* klink.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001000E /* klink.cpp */; };
-		A7300000000000000002000F /* klisten.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001000F /* klisten.cpp */; };
-		A73000000000000000020010 /* kmalloc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010010 /* kmalloc.cpp */; };
-		A73000000000000000020011 /* kmemcard.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010011 /* kmemcard.cpp */; };
-		A73000000000000000020012 /* kprint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010012 /* kprint.cpp */; };
-		A73000000000000000020013 /* kscheme.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010013 /* kscheme.cpp */; };
-		A73000000000000000020014 /* ksocket.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010014 /* ksocket.cpp */; };
-		A73000000000000000020015 /* fileio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010015 /* fileio.cpp */; };
-		A73000000000000000020016 /* klink.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010016 /* klink.cpp */; };
-		A73000000000000000020017 /* klisten.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010017 /* klisten.cpp */; };
-		A73000000000000000020018 /* kprint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010018 /* kprint.cpp */; };
-		A73000000000000000020019 /* kscheme.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010019 /* kscheme.cpp */; };
-		A7300000000000000002001A /* sif_ee_memcard.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001001A /* sif_ee_memcard.cpp */; };
-		A7300000000000000002001B /* kernel_core.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001001B /* kernel_core.cpp */; };
-		A7300000000000000002001C /* desktop_seams.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001001C /* desktop_seams.cpp */; };
-		A7300000000000000002001D /* aot_loader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001001D /* aot_loader.cpp */; };
-		A7300000000000000002001E /* dgo_loader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001001E /* dgo_loader.cpp */; };
-		A7300000000000000002001F /* pad.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001001F /* pad.cpp */; };
-		A73000000000000000020020 /* sound_rpc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010020 /* sound_rpc.cpp */; };
-		A73000000000000000020021 /* sbank.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010021 /* sbank.cpp */; };
-		A73000000000000000020022 /* soundcommon.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010022 /* soundcommon.cpp */; };
-		A73000000000000000020023 /* srpc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010023 /* srpc.cpp */; };
-		A73000000000000000020024 /* ssound.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010024 /* ssound.cpp */; };
-		A73000000000000000020025 /* sdshim.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010025 /* sdshim.cpp */; };
-		A73000000000000000020026 /* sndshim.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010026 /* sndshim.cpp */; };
-		A73000000000000000020027 /* envelope.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010027 /* envelope.cpp */; };
-		A73000000000000000020028 /* synth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010028 /* synth.cpp */; };
-		A73000000000000000020029 /* voice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010029 /* voice.cpp */; };
-		A7300000000000000002002A /* ame_handler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001002A /* ame_handler.cpp */; };
-		A7300000000000000002002B /* blocksound_handler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001002B /* blocksound_handler.cpp */; };
-		A7300000000000000002002C /* lfo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001002C /* lfo.cpp */; };
-		A7300000000000000002002D /* loader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001002D /* loader.cpp */; };
-		A7300000000000000002002E /* midi_handler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001002E /* midi_handler.cpp */; };
-		A7300000000000000002002F /* musicbank.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001002F /* musicbank.cpp */; };
-		A73000000000000000020030 /* player.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010030 /* player.cpp */; };
-		A73000000000000000020031 /* plugin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010031 /* plugin.cpp */; };
-		A73000000000000000020032 /* sfxblock.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010032 /* sfxblock.cpp */; };
-		A73000000000000000020033 /* sfxgrain.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010033 /* sfxgrain.cpp */; };
-		A73000000000000000020034 /* vagvoice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010034 /* vagvoice.cpp */; };
-		A73000000000000000020035 /* util.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010035 /* util.cpp */; };
-		A73000000000000000020036 /* dma_capture.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010036 /* dma_capture.cpp */; };
-		A73000000000000000020037 /* dma_copy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010037 /* dma_copy.cpp */; };
-		A73000000000000000020038 /* dma.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010038 /* dma.cpp */; };
-		A73000000000000000020039 /* mips2c_seam.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010039 /* mips2c_seam.cpp */; };
-		A7300000000000000002003A /* goal_native_kernel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001003A /* goal_native_kernel.cpp */; };
-		A7300000000000000002003B /* goal_thread_arm64.s in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001003B /* goal_thread_arm64.s */; };
-		A7300000000000000002003C /* asm_funcs_arm64.s in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001003C /* asm_funcs_arm64.s */; };
-		A7300000000000000002003D /* bones.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001003D /* bones.cpp */; };
-		A7300000000000000002003E /* collide_cache.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001003E /* collide_cache.cpp */; };
-		A7300000000000000002003F /* collide_edge_grab.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001003F /* collide_edge_grab.cpp */; };
-		A73000000000000000020040 /* collide_func.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010040 /* collide_func.cpp */; };
-		A73000000000000000020041 /* collide_mesh.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010041 /* collide_mesh.cpp */; };
-		A73000000000000000020042 /* collide_probe.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010042 /* collide_probe.cpp */; };
-		A73000000000000000020043 /* draw_string.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010043 /* draw_string.cpp */; };
-		A73000000000000000020044 /* generic_effect.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010044 /* generic_effect.cpp */; };
-		A73000000000000000020045 /* generic_effect2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010045 /* generic_effect2.cpp */; };
-		A73000000000000000020046 /* generic_merc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010046 /* generic_merc.cpp */; };
-		A73000000000000000020047 /* generic_tie.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010047 /* generic_tie.cpp */; };
-		A73000000000000000020048 /* joint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010048 /* joint.cpp */; };
-		A73000000000000000020049 /* merc_blend_shape.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010049 /* merc_blend_shape.cpp */; };
-		A7300000000000000002004A /* ocean.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001004A /* ocean.cpp */; };
-		A7300000000000000002004B /* ocean_vu0.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001004B /* ocean_vu0.cpp */; };
-		A7300000000000000002004C /* ripple.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001004C /* ripple.cpp */; };
-		A7300000000000000002004D /* shadow.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001004D /* shadow.cpp */; };
-		A7300000000000000002004E /* sky_tng.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001004E /* sky_tng.cpp */; };
-		A7300000000000000002004F /* sparticle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001004F /* sparticle.cpp */; };
-		A73000000000000000020050 /* sparticle_launcher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010050 /* sparticle_launcher.cpp */; };
-		A73000000000000000020051 /* test_func.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010051 /* test_func.cpp */; };
-		A73000000000000000020052 /* texture.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010052 /* texture.cpp */; };
-		A73000000000000000020053 /* tfrag.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010053 /* tfrag.cpp */; };
-		A73000000000000000020054 /* tie_methods.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010054 /* tie_methods.cpp */; };
-		A73000000000000000020055 /* time_of_day.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010055 /* time_of_day.cpp */; };
-		A73000000000000000020056 /* libscf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010056 /* libscf.cpp */; };
-		A73000000000000000020057 /* kernel_game_jak1.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010057 /* kernel_game_jak1.cpp */; };
-		A73000000000000000020058 /* vag_stream.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010058 /* vag_stream.cpp */; };
-		A73000000000000000020059 /* mips2c_jak1.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010059 /* mips2c_jak1.cpp */; };
-		A73100000000000000020000 /* metal_bucket_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010000 /* metal_bucket_renderer.mm */; };
-		A73100000000000000020001 /* metal_direct_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010001 /* metal_direct_renderer.mm */; };
-		A73100000000000000020002 /* metal_level_data.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010002 /* metal_level_data.mm */; };
-		A73100000000000000020003 /* metal_merc.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010003 /* metal_merc.mm */; };
-		A73100000000000000020004 /* metal_merc_model_pool.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010004 /* metal_merc_model_pool.mm */; };
-		A73100000000000000020005 /* metal_ocean_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010005 /* metal_ocean_renderer.mm */; };
-		A73100000000000000020006 /* metal_pso_cache.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010006 /* metal_pso_cache.mm */; };
-		A73100000000000000020007 /* metal_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010007 /* metal_renderer.mm */; };
-		A73100000000000000020008 /* metal_shrub.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010008 /* metal_shrub.mm */; };
-		A73100000000000000020009 /* metal_sky_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010009 /* metal_sky_renderer.mm */; };
-		A7310000000000000002000A /* metal_sprite_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001000A /* metal_sprite_renderer.mm */; };
-		A7310000000000000002000B /* metal_texture.mm in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001000B /* metal_texture.mm */; };
-		A7310000000000000002000C /* metal_tfrag.mm in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001000C /* metal_tfrag.mm */; };
-		A7310000000000000002000D /* metal_tie.mm in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001000D /* metal_tie.mm */; };
-		A7310000000000000002000E /* metal_host_seams.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001000E /* metal_host_seams.cpp */; };
-		A7310000000000000002000F /* metal_kernel_bridge.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001000F /* metal_kernel_bridge.cpp */; };
-		A73100000000000000020010 /* metal_texture_upload_handler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010010 /* metal_texture_upload_handler.cpp */; };
-		A73100000000000000020011 /* dma_helpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010011 /* dma_helpers.cpp */; };
-		A73100000000000000020012 /* OceanMid_PS2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010012 /* OceanMid_PS2.cpp */; };
-		A73100000000000000020013 /* OceanNear_PS2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010013 /* OceanNear_PS2.cpp */; };
-		A73100000000000000020014 /* OceanTexture_VU.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010014 /* OceanTexture_VU.cpp */; };
-		A73100000000000000020015 /* jak1_tpage_dir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010015 /* jak1_tpage_dir.cpp */; };
-		A73100000000000000020016 /* jak2_tpage_dir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010016 /* jak2_tpage_dir.cpp */; };
-		A73100000000000000020017 /* jak3_tpage_dir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010017 /* jak3_tpage_dir.cpp */; };
-		A73100000000000000020018 /* TextureConverter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010018 /* TextureConverter.cpp */; };
-		A73100000000000000020019 /* TexturePool.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010019 /* TexturePool.cpp */; };
-		A7310000000000000002001A /* TFrag3Data.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001001A /* TFrag3Data.cpp */; };
-		A7310000000000000002001B /* pack_helpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001001B /* pack_helpers.cpp */; };
-		A7310000000000000002001C /* gs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001001C /* gs.cpp */; };
-		A7310000000000000002001D /* GlobalProfiler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001001D /* GlobalProfiler.cpp */; };
-		A7310000000000000002001E /* texture_slots.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001001E /* texture_slots.cpp */; };
-		A7310000000000000002001F /* compress.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001001F /* compress.cpp */; };
-		A73100000000000000020020 /* FrameLimiter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010020 /* FrameLimiter.cpp */; };
-		A73100000000000000020021 /* imgui.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010021 /* imgui.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A73100000000000000020022 /* imgui_draw.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010022 /* imgui_draw.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A73100000000000000020023 /* imgui_tables.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010023 /* imgui_tables.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A73100000000000000020024 /* imgui_widgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010024 /* imgui_widgets.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A73100000000000000020025 /* debug.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010025 /* debug.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A73100000000000000020026 /* entropy_common.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010026 /* entropy_common.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A73100000000000000020027 /* error_private.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010027 /* error_private.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A73100000000000000020028 /* fse_decompress.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010028 /* fse_decompress.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A73100000000000000020029 /* pool.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010029 /* pool.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A7310000000000000002002A /* threading.c in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001002A /* threading.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A7310000000000000002002B /* xxhash.c in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001002B /* xxhash.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A7310000000000000002002C /* zstd_common.c in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001002C /* zstd_common.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A7310000000000000002002D /* fse_compress.c in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001002D /* fse_compress.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A7310000000000000002002E /* hist.c in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001002E /* hist.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A7310000000000000002002F /* huf_compress.c in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001002F /* huf_compress.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A73100000000000000020030 /* zstd_compress.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010030 /* zstd_compress.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A73100000000000000020031 /* zstd_compress_literals.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010031 /* zstd_compress_literals.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A73100000000000000020032 /* zstd_compress_sequences.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010032 /* zstd_compress_sequences.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A73100000000000000020033 /* zstd_compress_superblock.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010033 /* zstd_compress_superblock.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A73100000000000000020034 /* zstd_double_fast.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010034 /* zstd_double_fast.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A73100000000000000020035 /* zstd_fast.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010035 /* zstd_fast.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A73100000000000000020036 /* zstd_lazy.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010036 /* zstd_lazy.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A73100000000000000020037 /* zstd_ldm.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010037 /* zstd_ldm.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A73100000000000000020038 /* zstd_opt.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010038 /* zstd_opt.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A73100000000000000020039 /* zstdmt_compress.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010039 /* zstdmt_compress.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A7310000000000000002003A /* huf_decompress.c in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001003A /* huf_decompress.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A7310000000000000002003B /* zstd_ddict.c in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001003B /* zstd_ddict.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A7310000000000000002003C /* zstd_decompress.c in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001003C /* zstd_decompress.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A7310000000000000002003D /* zstd_decompress_block.c in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001003D /* zstd_decompress_block.c */; settings = {COMPILER_FLAGS = "-w"; }; };
-		A73100000000000000021000 /* gfx_host.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000011000 /* gfx_host.cpp */; };
-		A73200000000000000020000 /* metal_eye_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73200000000000000010000 /* metal_eye_renderer.mm */; };
-		A73200000000000000020001 /* metal_generic2.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73200000000000000010001 /* metal_generic2.mm */; };
-		A73200000000000000020002 /* metal_shadow_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73200000000000000010002 /* metal_shadow_renderer.mm */; };
-		A73200000000000000020003 /* Shadow_PS2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73200000000000000010003 /* Shadow_PS2.cpp */; };
-		A73200000000000000020004 /* ShadowVu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73200000000000000010004 /* ShadowVu.cpp */; };
+		A73000000000000000020000 /* common/cross_os_debug/xdbg.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010000 /* common/cross_os_debug/xdbg.cpp */; };
+		A73000000000000000020001 /* common/log/log.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010001 /* common/log/log.cpp */; };
+		A73000000000000000020002 /* common/util/Assert.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010002 /* common/util/Assert.cpp */; };
+		A73000000000000000020003 /* common/util/crc32.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010003 /* common/util/crc32.cpp */; };
+		A73000000000000000020004 /* common/util/diff.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010004 /* common/util/diff.cpp */; };
+		A73000000000000000020005 /* common/util/FileUtil.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010005 /* common/util/FileUtil.cpp */; };
+		A73000000000000000020006 /* common/util/string_util.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010006 /* common/util/string_util.cpp */; };
+		A73000000000000000020007 /* common/util/Timer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010007 /* common/util/Timer.cpp */; };
+		A73000000000000000020008 /* common/util/unicode_util.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010008 /* common/util/unicode_util.cpp */; };
+		A73000000000000000020009 /* third-party/lzokay/lzokay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010009 /* third-party/lzokay/lzokay.cpp */; };
+		A7300000000000000002000A /* game/kernel/common/fileio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001000A /* game/kernel/common/fileio.cpp */; };
+		A7300000000000000002000B /* game/kernel/common/kboot.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001000B /* game/kernel/common/kboot.cpp */; };
+		A7300000000000000002000C /* game/kernel/common/kdgo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001000C /* game/kernel/common/kdgo.cpp */; };
+		A7300000000000000002000D /* game/kernel/common/kdsnetm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001000D /* game/kernel/common/kdsnetm.cpp */; };
+		A7300000000000000002000E /* game/kernel/common/klink.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001000E /* game/kernel/common/klink.cpp */; };
+		A7300000000000000002000F /* game/kernel/common/klisten.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001000F /* game/kernel/common/klisten.cpp */; };
+		A73000000000000000020010 /* game/kernel/common/kmalloc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010010 /* game/kernel/common/kmalloc.cpp */; };
+		A73000000000000000020011 /* game/kernel/common/kmemcard.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010011 /* game/kernel/common/kmemcard.cpp */; };
+		A73000000000000000020012 /* game/kernel/common/kprint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010012 /* game/kernel/common/kprint.cpp */; };
+		A73000000000000000020013 /* game/kernel/common/kscheme.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010013 /* game/kernel/common/kscheme.cpp */; };
+		A73000000000000000020014 /* game/kernel/common/ksocket.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010014 /* game/kernel/common/ksocket.cpp */; };
+		A73000000000000000020015 /* game/kernel/jak1/fileio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010015 /* game/kernel/jak1/fileio.cpp */; };
+		A73000000000000000020016 /* game/kernel/jak1/klink.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010016 /* game/kernel/jak1/klink.cpp */; };
+		A73000000000000000020017 /* game/kernel/jak1/klisten.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010017 /* game/kernel/jak1/klisten.cpp */; };
+		A73000000000000000020018 /* game/kernel/jak1/kprint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010018 /* game/kernel/jak1/kprint.cpp */; };
+		A73000000000000000020019 /* game/kernel/jak1/kscheme.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010019 /* game/kernel/jak1/kscheme.cpp */; };
+		A7300000000000000002001A /* game/sce/sif_ee_memcard.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001001A /* game/sce/sif_ee_memcard.cpp */; };
+		A7300000000000000002001B /* game/kernel/core/kernel_core.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001001B /* game/kernel/core/kernel_core.cpp */; };
+		A7300000000000000002001C /* game/kernel/core/desktop_seams.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001001C /* game/kernel/core/desktop_seams.cpp */; };
+		A7300000000000000002001D /* game/kernel/core/aot_loader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001001D /* game/kernel/core/aot_loader.cpp */; };
+		A7300000000000000002001E /* game/kernel/core/dgo_loader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001001E /* game/kernel/core/dgo_loader.cpp */; };
+		A7300000000000000002001F /* game/kernel/core/pad.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001001F /* game/kernel/core/pad.cpp */; };
+		A73000000000000000020020 /* game/kernel/core/sound_rpc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010020 /* game/kernel/core/sound_rpc.cpp */; };
+		A73000000000000000020056 /* game/sce/libscf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010056 /* game/sce/libscf.cpp */; };
+		A73000000000000000020057 /* game/kernel/core/kernel_game_jak1.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010057 /* game/kernel/core/kernel_game_jak1.cpp */; };
+		A73000000000000000020058 /* game/kernel/core/vag_stream.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010058 /* game/kernel/core/vag_stream.cpp */; };
+		A73000000000000000020059 /* game/kernel/core/mips2c_jak1.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010059 /* game/kernel/core/mips2c_jak1.cpp */; };
+		A73000000000000000020021 /* game/overlord/common/sbank.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010021 /* game/overlord/common/sbank.cpp */; };
+		A73000000000000000020022 /* game/overlord/common/soundcommon.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010022 /* game/overlord/common/soundcommon.cpp */; };
+		A73000000000000000020023 /* game/overlord/common/srpc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010023 /* game/overlord/common/srpc.cpp */; };
+		A73000000000000000020024 /* game/overlord/common/ssound.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010024 /* game/overlord/common/ssound.cpp */; };
+		A73000000000000000020025 /* game/sound/sdshim.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010025 /* game/sound/sdshim.cpp */; };
+		A73000000000000000020026 /* game/sound/sndshim.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010026 /* game/sound/sndshim.cpp */; };
+		A73000000000000000020027 /* game/sound/common/envelope.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010027 /* game/sound/common/envelope.cpp */; };
+		A73000000000000000020028 /* game/sound/common/synth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010028 /* game/sound/common/synth.cpp */; };
+		A73000000000000000020029 /* game/sound/common/voice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010029 /* game/sound/common/voice.cpp */; };
+		A7300000000000000002002A /* game/sound/989snd/ame_handler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001002A /* game/sound/989snd/ame_handler.cpp */; };
+		A7300000000000000002002B /* game/sound/989snd/blocksound_handler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001002B /* game/sound/989snd/blocksound_handler.cpp */; };
+		A7300000000000000002002C /* game/sound/989snd/lfo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001002C /* game/sound/989snd/lfo.cpp */; };
+		A7300000000000000002002D /* game/sound/989snd/loader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001002D /* game/sound/989snd/loader.cpp */; };
+		A7300000000000000002002E /* game/sound/989snd/midi_handler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001002E /* game/sound/989snd/midi_handler.cpp */; };
+		A7300000000000000002002F /* game/sound/989snd/musicbank.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001002F /* game/sound/989snd/musicbank.cpp */; };
+		A73000000000000000020030 /* game/sound/989snd/player.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010030 /* game/sound/989snd/player.cpp */; };
+		A73000000000000000020031 /* game/sound/989snd/plugin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010031 /* game/sound/989snd/plugin.cpp */; };
+		A73000000000000000020032 /* game/sound/989snd/sfxblock.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010032 /* game/sound/989snd/sfxblock.cpp */; };
+		A73000000000000000020033 /* game/sound/989snd/sfxgrain.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010033 /* game/sound/989snd/sfxgrain.cpp */; };
+		A73000000000000000020034 /* game/sound/989snd/vagvoice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010034 /* game/sound/989snd/vagvoice.cpp */; };
+		A73000000000000000020035 /* game/sound/989snd/util.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010035 /* game/sound/989snd/util.cpp */; };
+		A73000000000000000020036 /* game/kernel/core/dma_capture.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010036 /* game/kernel/core/dma_capture.cpp */; };
+		A73000000000000000020037 /* common/dma/dma_copy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010037 /* common/dma/dma_copy.cpp */; };
+		A73000000000000000020038 /* common/dma/dma.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010038 /* common/dma/dma.cpp */; };
+		A73000000000000000020039 /* game/kernel/core/mips2c_seam.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010039 /* game/kernel/core/mips2c_seam.cpp */; };
+		A7300000000000000002003A /* game/kernel/core/goal_native_kernel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001003A /* game/kernel/core/goal_native_kernel.cpp */; };
+		A7300000000000000002003B /* game/kernel/core/goal_thread_arm64.s in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001003B /* game/kernel/core/goal_thread_arm64.s */; };
+		A7300000000000000002003C /* game/kernel/asm_funcs_arm64.s in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001003C /* game/kernel/asm_funcs_arm64.s */; };
+		A7300000000000000002003D /* game/mips2c/jak1_functions/bones.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001003D /* game/mips2c/jak1_functions/bones.cpp */; };
+		A7300000000000000002003E /* game/mips2c/jak1_functions/collide_cache.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001003E /* game/mips2c/jak1_functions/collide_cache.cpp */; };
+		A7300000000000000002003F /* game/mips2c/jak1_functions/collide_edge_grab.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001003F /* game/mips2c/jak1_functions/collide_edge_grab.cpp */; };
+		A73000000000000000020040 /* game/mips2c/jak1_functions/collide_func.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010040 /* game/mips2c/jak1_functions/collide_func.cpp */; };
+		A73000000000000000020041 /* game/mips2c/jak1_functions/collide_mesh.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010041 /* game/mips2c/jak1_functions/collide_mesh.cpp */; };
+		A73000000000000000020042 /* game/mips2c/jak1_functions/collide_probe.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010042 /* game/mips2c/jak1_functions/collide_probe.cpp */; };
+		A73000000000000000020043 /* game/mips2c/jak1_functions/draw_string.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010043 /* game/mips2c/jak1_functions/draw_string.cpp */; };
+		A73000000000000000020044 /* game/mips2c/jak1_functions/generic_effect.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010044 /* game/mips2c/jak1_functions/generic_effect.cpp */; };
+		A73000000000000000020045 /* game/mips2c/jak1_functions/generic_effect2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010045 /* game/mips2c/jak1_functions/generic_effect2.cpp */; };
+		A73000000000000000020046 /* game/mips2c/jak1_functions/generic_merc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010046 /* game/mips2c/jak1_functions/generic_merc.cpp */; };
+		A73000000000000000020047 /* game/mips2c/jak1_functions/generic_tie.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010047 /* game/mips2c/jak1_functions/generic_tie.cpp */; };
+		A73000000000000000020048 /* game/mips2c/jak1_functions/joint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010048 /* game/mips2c/jak1_functions/joint.cpp */; };
+		A73000000000000000020049 /* game/mips2c/jak1_functions/merc_blend_shape.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010049 /* game/mips2c/jak1_functions/merc_blend_shape.cpp */; };
+		A7300000000000000002004A /* game/mips2c/jak1_functions/ocean.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001004A /* game/mips2c/jak1_functions/ocean.cpp */; };
+		A7300000000000000002004B /* game/mips2c/jak1_functions/ocean_vu0.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001004B /* game/mips2c/jak1_functions/ocean_vu0.cpp */; };
+		A7300000000000000002004C /* game/mips2c/jak1_functions/ripple.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001004C /* game/mips2c/jak1_functions/ripple.cpp */; };
+		A7300000000000000002004D /* game/mips2c/jak1_functions/shadow.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001004D /* game/mips2c/jak1_functions/shadow.cpp */; };
+		A7300000000000000002004E /* game/mips2c/jak1_functions/sky_tng.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001004E /* game/mips2c/jak1_functions/sky_tng.cpp */; };
+		A7300000000000000002004F /* game/mips2c/jak1_functions/sparticle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7300000000000000001004F /* game/mips2c/jak1_functions/sparticle.cpp */; };
+		A73000000000000000020050 /* game/mips2c/jak1_functions/sparticle_launcher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010050 /* game/mips2c/jak1_functions/sparticle_launcher.cpp */; };
+		A73000000000000000020051 /* game/mips2c/jak1_functions/test_func.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010051 /* game/mips2c/jak1_functions/test_func.cpp */; };
+		A73000000000000000020052 /* game/mips2c/jak1_functions/texture.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010052 /* game/mips2c/jak1_functions/texture.cpp */; };
+		A73000000000000000020053 /* game/mips2c/jak1_functions/tfrag.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010053 /* game/mips2c/jak1_functions/tfrag.cpp */; };
+		A73000000000000000020054 /* game/mips2c/jak1_functions/tie_methods.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010054 /* game/mips2c/jak1_functions/tie_methods.cpp */; };
+		A73000000000000000020055 /* game/mips2c/jak1_functions/time_of_day.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010055 /* game/mips2c/jak1_functions/time_of_day.cpp */; };
+		A73100000000000000020000 /* game/graphics/pipelines/metal/metal_bucket_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010000 /* game/graphics/pipelines/metal/metal_bucket_renderer.mm */; };
+		A73100000000000000020001 /* game/graphics/pipelines/metal/metal_direct_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010001 /* game/graphics/pipelines/metal/metal_direct_renderer.mm */; };
+		A73200000000000000020000 /* game/graphics/pipelines/metal/metal_eye_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73200000000000000010000 /* game/graphics/pipelines/metal/metal_eye_renderer.mm */; };
+		A73200000000000000020001 /* game/graphics/pipelines/metal/metal_generic2.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73200000000000000010001 /* game/graphics/pipelines/metal/metal_generic2.mm */; };
+		A73200000000000000020002 /* game/graphics/pipelines/metal/metal_shadow_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73200000000000000010002 /* game/graphics/pipelines/metal/metal_shadow_renderer.mm */; };
+		A73200000000000000020003 /* game/graphics/opengl_renderer/Shadow_PS2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73200000000000000010003 /* game/graphics/opengl_renderer/Shadow_PS2.cpp */; };
+		A73200000000000000020004 /* game/graphics/opengl_renderer/ShadowVu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73200000000000000010004 /* game/graphics/opengl_renderer/ShadowVu.cpp */; };
+		A73100000000000000020002 /* game/graphics/pipelines/metal/metal_level_data.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010002 /* game/graphics/pipelines/metal/metal_level_data.mm */; };
+		A73100000000000000020003 /* game/graphics/pipelines/metal/metal_merc.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010003 /* game/graphics/pipelines/metal/metal_merc.mm */; };
+		A73100000000000000020004 /* game/graphics/pipelines/metal/metal_merc_model_pool.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010004 /* game/graphics/pipelines/metal/metal_merc_model_pool.mm */; };
+		A73100000000000000020005 /* game/graphics/pipelines/metal/metal_ocean_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010005 /* game/graphics/pipelines/metal/metal_ocean_renderer.mm */; };
+		A73100000000000000020006 /* game/graphics/pipelines/metal/metal_pso_cache.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010006 /* game/graphics/pipelines/metal/metal_pso_cache.mm */; };
+		A73100000000000000020007 /* game/graphics/pipelines/metal/metal_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010007 /* game/graphics/pipelines/metal/metal_renderer.mm */; };
+		A73100000000000000020008 /* game/graphics/pipelines/metal/metal_shrub.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010008 /* game/graphics/pipelines/metal/metal_shrub.mm */; };
+		A73100000000000000020009 /* game/graphics/pipelines/metal/metal_sky_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010009 /* game/graphics/pipelines/metal/metal_sky_renderer.mm */; };
+		A7310000000000000002000A /* game/graphics/pipelines/metal/metal_sprite_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001000A /* game/graphics/pipelines/metal/metal_sprite_renderer.mm */; };
+		A7310000000000000002000B /* game/graphics/pipelines/metal/metal_texture.mm in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001000B /* game/graphics/pipelines/metal/metal_texture.mm */; };
+		A7310000000000000002000C /* game/graphics/pipelines/metal/metal_tfrag.mm in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001000C /* game/graphics/pipelines/metal/metal_tfrag.mm */; };
+		A7310000000000000002000D /* game/graphics/pipelines/metal/metal_tie.mm in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001000D /* game/graphics/pipelines/metal/metal_tie.mm */; };
+		A7310000000000000002000E /* game/graphics/pipelines/metal/metal_host_seams.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001000E /* game/graphics/pipelines/metal/metal_host_seams.cpp */; };
+		A7310000000000000002000F /* game/graphics/pipelines/metal/metal_kernel_bridge.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001000F /* game/graphics/pipelines/metal/metal_kernel_bridge.cpp */; };
+		A73100000000000000020010 /* game/graphics/pipelines/metal/metal_texture_upload_handler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010010 /* game/graphics/pipelines/metal/metal_texture_upload_handler.cpp */; };
+		A7310000000000000002003E /* game/graphics/pipelines/metal/metal_jak2_bucket_table.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001003E /* game/graphics/pipelines/metal/metal_jak2_bucket_table.cpp */; };
+		A73100000000000000020011 /* game/graphics/opengl_renderer/dma_helpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010011 /* game/graphics/opengl_renderer/dma_helpers.cpp */; };
+		A73100000000000000020012 /* game/graphics/opengl_renderer/ocean/OceanMid_PS2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010012 /* game/graphics/opengl_renderer/ocean/OceanMid_PS2.cpp */; };
+		A73100000000000000020013 /* game/graphics/opengl_renderer/ocean/OceanNear_PS2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010013 /* game/graphics/opengl_renderer/ocean/OceanNear_PS2.cpp */; };
+		A73100000000000000020014 /* game/graphics/opengl_renderer/ocean/OceanTexture_VU.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010014 /* game/graphics/opengl_renderer/ocean/OceanTexture_VU.cpp */; };
+		A73100000000000000020015 /* game/graphics/texture/jak1_tpage_dir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010015 /* game/graphics/texture/jak1_tpage_dir.cpp */; };
+		A73100000000000000020016 /* game/graphics/texture/jak2_tpage_dir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010016 /* game/graphics/texture/jak2_tpage_dir.cpp */; };
+		A73100000000000000020017 /* game/graphics/texture/jak3_tpage_dir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010017 /* game/graphics/texture/jak3_tpage_dir.cpp */; };
+		A73100000000000000020018 /* game/graphics/texture/TextureConverter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010018 /* game/graphics/texture/TextureConverter.cpp */; };
+		A73100000000000000020019 /* game/graphics/texture/TexturePool.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010019 /* game/graphics/texture/TexturePool.cpp */; };
+		A7310000000000000002001A /* common/custom_data/TFrag3Data.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001001A /* common/custom_data/TFrag3Data.cpp */; };
+		A7310000000000000002001B /* common/custom_data/pack_helpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001001B /* common/custom_data/pack_helpers.cpp */; };
+		A7310000000000000002001C /* common/dma/gs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001001C /* common/dma/gs.cpp */; };
+		A7310000000000000002001D /* common/global_profiler/GlobalProfiler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001001D /* common/global_profiler/GlobalProfiler.cpp */; };
+		A7310000000000000002001E /* common/texture/texture_slots.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001001E /* common/texture/texture_slots.cpp */; };
+		A7310000000000000002001F /* common/util/compress.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001001F /* common/util/compress.cpp */; };
+		A73100000000000000020020 /* common/util/FrameLimiter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010020 /* common/util/FrameLimiter.cpp */; };
+		A73100000000000000020021 /* third-party/imgui/imgui.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010021 /* third-party/imgui/imgui.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A73100000000000000020022 /* third-party/imgui/imgui_draw.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010022 /* third-party/imgui/imgui_draw.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A73100000000000000020023 /* third-party/imgui/imgui_tables.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010023 /* third-party/imgui/imgui_tables.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A73100000000000000020024 /* third-party/imgui/imgui_widgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010024 /* third-party/imgui/imgui_widgets.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A73100000000000000020025 /* third-party/zstd/lib/common/debug.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010025 /* third-party/zstd/lib/common/debug.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A73100000000000000020026 /* third-party/zstd/lib/common/entropy_common.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010026 /* third-party/zstd/lib/common/entropy_common.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A73100000000000000020027 /* third-party/zstd/lib/common/error_private.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010027 /* third-party/zstd/lib/common/error_private.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A73100000000000000020028 /* third-party/zstd/lib/common/fse_decompress.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010028 /* third-party/zstd/lib/common/fse_decompress.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A73100000000000000020029 /* third-party/zstd/lib/common/pool.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010029 /* third-party/zstd/lib/common/pool.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A7310000000000000002002A /* third-party/zstd/lib/common/threading.c in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001002A /* third-party/zstd/lib/common/threading.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A7310000000000000002002B /* third-party/zstd/lib/common/xxhash.c in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001002B /* third-party/zstd/lib/common/xxhash.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A7310000000000000002002C /* third-party/zstd/lib/common/zstd_common.c in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001002C /* third-party/zstd/lib/common/zstd_common.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A7310000000000000002002D /* third-party/zstd/lib/compress/fse_compress.c in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001002D /* third-party/zstd/lib/compress/fse_compress.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A7310000000000000002002E /* third-party/zstd/lib/compress/hist.c in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001002E /* third-party/zstd/lib/compress/hist.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A7310000000000000002002F /* third-party/zstd/lib/compress/huf_compress.c in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001002F /* third-party/zstd/lib/compress/huf_compress.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A73100000000000000020030 /* third-party/zstd/lib/compress/zstd_compress.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010030 /* third-party/zstd/lib/compress/zstd_compress.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A73100000000000000020031 /* third-party/zstd/lib/compress/zstd_compress_literals.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010031 /* third-party/zstd/lib/compress/zstd_compress_literals.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A73100000000000000020032 /* third-party/zstd/lib/compress/zstd_compress_sequences.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010032 /* third-party/zstd/lib/compress/zstd_compress_sequences.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A73100000000000000020033 /* third-party/zstd/lib/compress/zstd_compress_superblock.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010033 /* third-party/zstd/lib/compress/zstd_compress_superblock.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A73100000000000000020034 /* third-party/zstd/lib/compress/zstd_double_fast.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010034 /* third-party/zstd/lib/compress/zstd_double_fast.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A73100000000000000020035 /* third-party/zstd/lib/compress/zstd_fast.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010035 /* third-party/zstd/lib/compress/zstd_fast.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A73100000000000000020036 /* third-party/zstd/lib/compress/zstd_lazy.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010036 /* third-party/zstd/lib/compress/zstd_lazy.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A73100000000000000020037 /* third-party/zstd/lib/compress/zstd_ldm.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010037 /* third-party/zstd/lib/compress/zstd_ldm.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A73100000000000000020038 /* third-party/zstd/lib/compress/zstd_opt.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010038 /* third-party/zstd/lib/compress/zstd_opt.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A73100000000000000020039 /* third-party/zstd/lib/compress/zstdmt_compress.c in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010039 /* third-party/zstd/lib/compress/zstdmt_compress.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A7310000000000000002003A /* third-party/zstd/lib/decompress/huf_decompress.c in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001003A /* third-party/zstd/lib/decompress/huf_decompress.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A7310000000000000002003B /* third-party/zstd/lib/decompress/zstd_ddict.c in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001003B /* third-party/zstd/lib/decompress/zstd_ddict.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A7310000000000000002003C /* third-party/zstd/lib/decompress/zstd_decompress.c in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001003C /* third-party/zstd/lib/decompress/zstd_decompress.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A7310000000000000002003D /* third-party/zstd/lib/decompress/zstd_decompress_block.c in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001003D /* third-party/zstd/lib/decompress/zstd_decompress_block.c */; settings = {COMPILER_FLAGS = "-w"; }; };
+		A73100000000000000021000 /* game/kernel/core/gfx_host.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000011000 /* game/kernel/core/gfx_host.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		92C2B202301C0D2F0025E4D5 /* GOALPad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GOALPad.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A73000000000000000010000 /* xdbg.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = xdbg.cpp; path = common/cross_os_debug/xdbg.cpp; sourceTree = "<group>"; };
-		A73000000000000000010001 /* log.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = log.cpp; path = common/log/log.cpp; sourceTree = "<group>"; };
-		A73000000000000000010002 /* Assert.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Assert.cpp; path = common/util/Assert.cpp; sourceTree = "<group>"; };
-		A73000000000000000010003 /* crc32.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = crc32.cpp; path = common/util/crc32.cpp; sourceTree = "<group>"; };
-		A73000000000000000010004 /* diff.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = diff.cpp; path = common/util/diff.cpp; sourceTree = "<group>"; };
-		A73000000000000000010005 /* FileUtil.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = FileUtil.cpp; path = common/util/FileUtil.cpp; sourceTree = "<group>"; };
-		A73000000000000000010006 /* string_util.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = string_util.cpp; path = common/util/string_util.cpp; sourceTree = "<group>"; };
-		A73000000000000000010007 /* Timer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Timer.cpp; path = common/util/Timer.cpp; sourceTree = "<group>"; };
-		A73000000000000000010008 /* unicode_util.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = unicode_util.cpp; path = common/util/unicode_util.cpp; sourceTree = "<group>"; };
-		A73000000000000000010009 /* lzokay.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = lzokay.cpp; path = "third-party/lzokay/lzokay.cpp"; sourceTree = "<group>"; };
-		A7300000000000000001000A /* fileio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = fileio.cpp; path = game/kernel/common/fileio.cpp; sourceTree = "<group>"; };
-		A7300000000000000001000B /* kboot.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kboot.cpp; path = game/kernel/common/kboot.cpp; sourceTree = "<group>"; };
-		A7300000000000000001000C /* kdgo.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kdgo.cpp; path = game/kernel/common/kdgo.cpp; sourceTree = "<group>"; };
-		A7300000000000000001000D /* kdsnetm.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kdsnetm.cpp; path = game/kernel/common/kdsnetm.cpp; sourceTree = "<group>"; };
-		A7300000000000000001000E /* klink.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = klink.cpp; path = game/kernel/common/klink.cpp; sourceTree = "<group>"; };
-		A7300000000000000001000F /* klisten.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = klisten.cpp; path = game/kernel/common/klisten.cpp; sourceTree = "<group>"; };
-		A73000000000000000010010 /* kmalloc.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kmalloc.cpp; path = game/kernel/common/kmalloc.cpp; sourceTree = "<group>"; };
-		A73000000000000000010011 /* kmemcard.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kmemcard.cpp; path = game/kernel/common/kmemcard.cpp; sourceTree = "<group>"; };
-		A73000000000000000010012 /* kprint.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kprint.cpp; path = game/kernel/common/kprint.cpp; sourceTree = "<group>"; };
-		A73000000000000000010013 /* kscheme.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kscheme.cpp; path = game/kernel/common/kscheme.cpp; sourceTree = "<group>"; };
-		A73000000000000000010014 /* ksocket.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ksocket.cpp; path = game/kernel/common/ksocket.cpp; sourceTree = "<group>"; };
-		A73000000000000000010015 /* fileio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = fileio.cpp; path = game/kernel/jak1/fileio.cpp; sourceTree = "<group>"; };
-		A73000000000000000010016 /* klink.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = klink.cpp; path = game/kernel/jak1/klink.cpp; sourceTree = "<group>"; };
-		A73000000000000000010017 /* klisten.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = klisten.cpp; path = game/kernel/jak1/klisten.cpp; sourceTree = "<group>"; };
-		A73000000000000000010018 /* kprint.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kprint.cpp; path = game/kernel/jak1/kprint.cpp; sourceTree = "<group>"; };
-		A73000000000000000010019 /* kscheme.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kscheme.cpp; path = game/kernel/jak1/kscheme.cpp; sourceTree = "<group>"; };
-		A7300000000000000001001A /* sif_ee_memcard.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sif_ee_memcard.cpp; path = game/sce/sif_ee_memcard.cpp; sourceTree = "<group>"; };
-		A7300000000000000001001B /* kernel_core.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kernel_core.cpp; path = game/kernel/core/kernel_core.cpp; sourceTree = "<group>"; };
-		A7300000000000000001001C /* desktop_seams.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = desktop_seams.cpp; path = game/kernel/core/desktop_seams.cpp; sourceTree = "<group>"; };
-		A7300000000000000001001D /* aot_loader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = aot_loader.cpp; path = game/kernel/core/aot_loader.cpp; sourceTree = "<group>"; };
-		A7300000000000000001001E /* dgo_loader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dgo_loader.cpp; path = game/kernel/core/dgo_loader.cpp; sourceTree = "<group>"; };
-		A7300000000000000001001F /* pad.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = pad.cpp; path = game/kernel/core/pad.cpp; sourceTree = "<group>"; };
-		A73000000000000000010020 /* sound_rpc.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sound_rpc.cpp; path = game/kernel/core/sound_rpc.cpp; sourceTree = "<group>"; };
-		A73000000000000000010021 /* sbank.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sbank.cpp; path = game/overlord/common/sbank.cpp; sourceTree = "<group>"; };
-		A73000000000000000010022 /* soundcommon.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = soundcommon.cpp; path = game/overlord/common/soundcommon.cpp; sourceTree = "<group>"; };
-		A73000000000000000010023 /* srpc.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = srpc.cpp; path = game/overlord/common/srpc.cpp; sourceTree = "<group>"; };
-		A73000000000000000010024 /* ssound.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ssound.cpp; path = game/overlord/common/ssound.cpp; sourceTree = "<group>"; };
-		A73000000000000000010025 /* sdshim.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sdshim.cpp; path = game/sound/sdshim.cpp; sourceTree = "<group>"; };
-		A73000000000000000010026 /* sndshim.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sndshim.cpp; path = game/sound/sndshim.cpp; sourceTree = "<group>"; };
-		A73000000000000000010027 /* envelope.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = envelope.cpp; path = game/sound/common/envelope.cpp; sourceTree = "<group>"; };
-		A73000000000000000010028 /* synth.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = synth.cpp; path = game/sound/common/synth.cpp; sourceTree = "<group>"; };
-		A73000000000000000010029 /* voice.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = voice.cpp; path = game/sound/common/voice.cpp; sourceTree = "<group>"; };
-		A7300000000000000001002A /* ame_handler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ame_handler.cpp; path = game/sound/989snd/ame_handler.cpp; sourceTree = "<group>"; };
-		A7300000000000000001002B /* blocksound_handler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = blocksound_handler.cpp; path = game/sound/989snd/blocksound_handler.cpp; sourceTree = "<group>"; };
-		A7300000000000000001002C /* lfo.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = lfo.cpp; path = game/sound/989snd/lfo.cpp; sourceTree = "<group>"; };
-		A7300000000000000001002D /* loader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = loader.cpp; path = game/sound/989snd/loader.cpp; sourceTree = "<group>"; };
-		A7300000000000000001002E /* midi_handler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = midi_handler.cpp; path = game/sound/989snd/midi_handler.cpp; sourceTree = "<group>"; };
-		A7300000000000000001002F /* musicbank.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = musicbank.cpp; path = game/sound/989snd/musicbank.cpp; sourceTree = "<group>"; };
-		A73000000000000000010030 /* player.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = player.cpp; path = game/sound/989snd/player.cpp; sourceTree = "<group>"; };
-		A73000000000000000010031 /* plugin.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = plugin.cpp; path = game/sound/989snd/plugin.cpp; sourceTree = "<group>"; };
-		A73000000000000000010032 /* sfxblock.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sfxblock.cpp; path = game/sound/989snd/sfxblock.cpp; sourceTree = "<group>"; };
-		A73000000000000000010033 /* sfxgrain.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sfxgrain.cpp; path = game/sound/989snd/sfxgrain.cpp; sourceTree = "<group>"; };
-		A73000000000000000010034 /* vagvoice.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = vagvoice.cpp; path = game/sound/989snd/vagvoice.cpp; sourceTree = "<group>"; };
-		A73000000000000000010035 /* util.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = util.cpp; path = game/sound/989snd/util.cpp; sourceTree = "<group>"; };
-		A73000000000000000010036 /* dma_capture.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dma_capture.cpp; path = game/kernel/core/dma_capture.cpp; sourceTree = "<group>"; };
-		A73000000000000000010037 /* dma_copy.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dma_copy.cpp; path = common/dma/dma_copy.cpp; sourceTree = "<group>"; };
-		A73000000000000000010038 /* dma.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dma.cpp; path = common/dma/dma.cpp; sourceTree = "<group>"; };
-		A73000000000000000010039 /* mips2c_seam.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = mips2c_seam.cpp; path = game/kernel/core/mips2c_seam.cpp; sourceTree = "<group>"; };
-		A7300000000000000001003A /* goal_native_kernel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = goal_native_kernel.cpp; path = game/kernel/core/goal_native_kernel.cpp; sourceTree = "<group>"; };
-		A7300000000000000001003B /* goal_thread_arm64.s */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm; name = goal_thread_arm64.s; path = game/kernel/core/goal_thread_arm64.s; sourceTree = "<group>"; };
-		A7300000000000000001003C /* asm_funcs_arm64.s */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm; name = asm_funcs_arm64.s; path = game/kernel/asm_funcs_arm64.s; sourceTree = "<group>"; };
-		A7300000000000000001003D /* bones.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = bones.cpp; path = game/mips2c/jak1_functions/bones.cpp; sourceTree = "<group>"; };
-		A7300000000000000001003E /* collide_cache.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = collide_cache.cpp; path = game/mips2c/jak1_functions/collide_cache.cpp; sourceTree = "<group>"; };
-		A7300000000000000001003F /* collide_edge_grab.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = collide_edge_grab.cpp; path = game/mips2c/jak1_functions/collide_edge_grab.cpp; sourceTree = "<group>"; };
-		A73000000000000000010040 /* collide_func.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = collide_func.cpp; path = game/mips2c/jak1_functions/collide_func.cpp; sourceTree = "<group>"; };
-		A73000000000000000010041 /* collide_mesh.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = collide_mesh.cpp; path = game/mips2c/jak1_functions/collide_mesh.cpp; sourceTree = "<group>"; };
-		A73000000000000000010042 /* collide_probe.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = collide_probe.cpp; path = game/mips2c/jak1_functions/collide_probe.cpp; sourceTree = "<group>"; };
-		A73000000000000000010043 /* draw_string.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = draw_string.cpp; path = game/mips2c/jak1_functions/draw_string.cpp; sourceTree = "<group>"; };
-		A73000000000000000010044 /* generic_effect.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = generic_effect.cpp; path = game/mips2c/jak1_functions/generic_effect.cpp; sourceTree = "<group>"; };
-		A73000000000000000010045 /* generic_effect2.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = generic_effect2.cpp; path = game/mips2c/jak1_functions/generic_effect2.cpp; sourceTree = "<group>"; };
-		A73000000000000000010046 /* generic_merc.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = generic_merc.cpp; path = game/mips2c/jak1_functions/generic_merc.cpp; sourceTree = "<group>"; };
-		A73000000000000000010047 /* generic_tie.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = generic_tie.cpp; path = game/mips2c/jak1_functions/generic_tie.cpp; sourceTree = "<group>"; };
-		A73000000000000000010048 /* joint.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = joint.cpp; path = game/mips2c/jak1_functions/joint.cpp; sourceTree = "<group>"; };
-		A73000000000000000010049 /* merc_blend_shape.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = merc_blend_shape.cpp; path = game/mips2c/jak1_functions/merc_blend_shape.cpp; sourceTree = "<group>"; };
-		A7300000000000000001004A /* ocean.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ocean.cpp; path = game/mips2c/jak1_functions/ocean.cpp; sourceTree = "<group>"; };
-		A7300000000000000001004B /* ocean_vu0.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ocean_vu0.cpp; path = game/mips2c/jak1_functions/ocean_vu0.cpp; sourceTree = "<group>"; };
-		A7300000000000000001004C /* ripple.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ripple.cpp; path = game/mips2c/jak1_functions/ripple.cpp; sourceTree = "<group>"; };
-		A7300000000000000001004D /* shadow.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = shadow.cpp; path = game/mips2c/jak1_functions/shadow.cpp; sourceTree = "<group>"; };
-		A7300000000000000001004E /* sky_tng.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sky_tng.cpp; path = game/mips2c/jak1_functions/sky_tng.cpp; sourceTree = "<group>"; };
-		A7300000000000000001004F /* sparticle.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sparticle.cpp; path = game/mips2c/jak1_functions/sparticle.cpp; sourceTree = "<group>"; };
-		A73000000000000000010050 /* sparticle_launcher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sparticle_launcher.cpp; path = game/mips2c/jak1_functions/sparticle_launcher.cpp; sourceTree = "<group>"; };
-		A73000000000000000010051 /* test_func.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_func.cpp; path = game/mips2c/jak1_functions/test_func.cpp; sourceTree = "<group>"; };
-		A73000000000000000010052 /* texture.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = texture.cpp; path = game/mips2c/jak1_functions/texture.cpp; sourceTree = "<group>"; };
-		A73000000000000000010053 /* tfrag.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = tfrag.cpp; path = game/mips2c/jak1_functions/tfrag.cpp; sourceTree = "<group>"; };
-		A73000000000000000010054 /* tie_methods.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = tie_methods.cpp; path = game/mips2c/jak1_functions/tie_methods.cpp; sourceTree = "<group>"; };
-		A73000000000000000010055 /* time_of_day.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = time_of_day.cpp; path = game/mips2c/jak1_functions/time_of_day.cpp; sourceTree = "<group>"; };
-		A73000000000000000010056 /* libscf.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = libscf.cpp; path = game/sce/libscf.cpp; sourceTree = "<group>"; };
-		A73000000000000000010057 /* kernel_game_jak1.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kernel_game_jak1.cpp; path = game/kernel/core/kernel_game_jak1.cpp; sourceTree = "<group>"; };
-		A73000000000000000010058 /* vag_stream.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = vag_stream.cpp; path = game/kernel/core/vag_stream.cpp; sourceTree = "<group>"; };
-		A73000000000000000010059 /* mips2c_jak1.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = mips2c_jak1.cpp; path = game/kernel/core/mips2c_jak1.cpp; sourceTree = "<group>"; };
-		A73100000000000000010000 /* metal_bucket_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_bucket_renderer.mm; path = game/graphics/pipelines/metal/metal_bucket_renderer.mm; sourceTree = "<group>"; };
-		A73100000000000000010001 /* metal_direct_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_direct_renderer.mm; path = game/graphics/pipelines/metal/metal_direct_renderer.mm; sourceTree = "<group>"; };
-		A73100000000000000010002 /* metal_level_data.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_level_data.mm; path = game/graphics/pipelines/metal/metal_level_data.mm; sourceTree = "<group>"; };
-		A73100000000000000010003 /* metal_merc.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_merc.mm; path = game/graphics/pipelines/metal/metal_merc.mm; sourceTree = "<group>"; };
-		A73100000000000000010004 /* metal_merc_model_pool.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_merc_model_pool.mm; path = game/graphics/pipelines/metal/metal_merc_model_pool.mm; sourceTree = "<group>"; };
-		A73100000000000000010005 /* metal_ocean_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_ocean_renderer.mm; path = game/graphics/pipelines/metal/metal_ocean_renderer.mm; sourceTree = "<group>"; };
-		A73100000000000000010006 /* metal_pso_cache.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_pso_cache.mm; path = game/graphics/pipelines/metal/metal_pso_cache.mm; sourceTree = "<group>"; };
-		A73100000000000000010007 /* metal_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_renderer.mm; path = game/graphics/pipelines/metal/metal_renderer.mm; sourceTree = "<group>"; };
-		A73100000000000000010008 /* metal_shrub.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_shrub.mm; path = game/graphics/pipelines/metal/metal_shrub.mm; sourceTree = "<group>"; };
-		A73100000000000000010009 /* metal_sky_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_sky_renderer.mm; path = game/graphics/pipelines/metal/metal_sky_renderer.mm; sourceTree = "<group>"; };
-		A7310000000000000001000A /* metal_sprite_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_sprite_renderer.mm; path = game/graphics/pipelines/metal/metal_sprite_renderer.mm; sourceTree = "<group>"; };
-		A7310000000000000001000B /* metal_texture.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_texture.mm; path = game/graphics/pipelines/metal/metal_texture.mm; sourceTree = "<group>"; };
-		A7310000000000000001000C /* metal_tfrag.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_tfrag.mm; path = game/graphics/pipelines/metal/metal_tfrag.mm; sourceTree = "<group>"; };
-		A7310000000000000001000D /* metal_tie.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_tie.mm; path = game/graphics/pipelines/metal/metal_tie.mm; sourceTree = "<group>"; };
-		A7310000000000000001000E /* metal_host_seams.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_host_seams.cpp; path = game/graphics/pipelines/metal/metal_host_seams.cpp; sourceTree = "<group>"; };
-		A7310000000000000001000F /* metal_kernel_bridge.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_kernel_bridge.cpp; path = game/graphics/pipelines/metal/metal_kernel_bridge.cpp; sourceTree = "<group>"; };
-		A73100000000000000010010 /* metal_texture_upload_handler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_texture_upload_handler.cpp; path = game/graphics/pipelines/metal/metal_texture_upload_handler.cpp; sourceTree = "<group>"; };
-		A73100000000000000010011 /* dma_helpers.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dma_helpers.cpp; path = game/graphics/opengl_renderer/dma_helpers.cpp; sourceTree = "<group>"; };
-		A73100000000000000010012 /* OceanMid_PS2.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = OceanMid_PS2.cpp; path = game/graphics/opengl_renderer/ocean/OceanMid_PS2.cpp; sourceTree = "<group>"; };
-		A73100000000000000010013 /* OceanNear_PS2.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = OceanNear_PS2.cpp; path = game/graphics/opengl_renderer/ocean/OceanNear_PS2.cpp; sourceTree = "<group>"; };
-		A73100000000000000010014 /* OceanTexture_VU.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = OceanTexture_VU.cpp; path = game/graphics/opengl_renderer/ocean/OceanTexture_VU.cpp; sourceTree = "<group>"; };
-		A73100000000000000010015 /* jak1_tpage_dir.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = jak1_tpage_dir.cpp; path = game/graphics/texture/jak1_tpage_dir.cpp; sourceTree = "<group>"; };
-		A73100000000000000010016 /* jak2_tpage_dir.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = jak2_tpage_dir.cpp; path = game/graphics/texture/jak2_tpage_dir.cpp; sourceTree = "<group>"; };
-		A73100000000000000010017 /* jak3_tpage_dir.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = jak3_tpage_dir.cpp; path = game/graphics/texture/jak3_tpage_dir.cpp; sourceTree = "<group>"; };
-		A73100000000000000010018 /* TextureConverter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TextureConverter.cpp; path = game/graphics/texture/TextureConverter.cpp; sourceTree = "<group>"; };
-		A73100000000000000010019 /* TexturePool.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TexturePool.cpp; path = game/graphics/texture/TexturePool.cpp; sourceTree = "<group>"; };
-		A7310000000000000001001A /* TFrag3Data.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TFrag3Data.cpp; path = common/custom_data/TFrag3Data.cpp; sourceTree = "<group>"; };
-		A7310000000000000001001B /* pack_helpers.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = pack_helpers.cpp; path = common/custom_data/pack_helpers.cpp; sourceTree = "<group>"; };
-		A7310000000000000001001C /* gs.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = gs.cpp; path = common/dma/gs.cpp; sourceTree = "<group>"; };
-		A7310000000000000001001D /* GlobalProfiler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = GlobalProfiler.cpp; path = common/global_profiler/GlobalProfiler.cpp; sourceTree = "<group>"; };
-		A7310000000000000001001E /* texture_slots.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = texture_slots.cpp; path = common/texture/texture_slots.cpp; sourceTree = "<group>"; };
-		A7310000000000000001001F /* compress.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = compress.cpp; path = common/util/compress.cpp; sourceTree = "<group>"; };
-		A73100000000000000010020 /* FrameLimiter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = FrameLimiter.cpp; path = common/util/FrameLimiter.cpp; sourceTree = "<group>"; };
-		A73100000000000000010021 /* imgui.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = imgui.cpp; path = "third-party/imgui/imgui.cpp"; sourceTree = "<group>"; };
-		A73100000000000000010022 /* imgui_draw.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_draw.cpp; path = "third-party/imgui/imgui_draw.cpp"; sourceTree = "<group>"; };
-		A73100000000000000010023 /* imgui_tables.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_tables.cpp; path = "third-party/imgui/imgui_tables.cpp"; sourceTree = "<group>"; };
-		A73100000000000000010024 /* imgui_widgets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_widgets.cpp; path = "third-party/imgui/imgui_widgets.cpp"; sourceTree = "<group>"; };
-		A73100000000000000010025 /* debug.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = debug.c; path = "third-party/zstd/lib/common/debug.c"; sourceTree = "<group>"; };
-		A73100000000000000010026 /* entropy_common.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = entropy_common.c; path = "third-party/zstd/lib/common/entropy_common.c"; sourceTree = "<group>"; };
-		A73100000000000000010027 /* error_private.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = error_private.c; path = "third-party/zstd/lib/common/error_private.c"; sourceTree = "<group>"; };
-		A73100000000000000010028 /* fse_decompress.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = fse_decompress.c; path = "third-party/zstd/lib/common/fse_decompress.c"; sourceTree = "<group>"; };
-		A73100000000000000010029 /* pool.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = pool.c; path = "third-party/zstd/lib/common/pool.c"; sourceTree = "<group>"; };
-		A7310000000000000001002A /* threading.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = threading.c; path = "third-party/zstd/lib/common/threading.c"; sourceTree = "<group>"; };
-		A7310000000000000001002B /* xxhash.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = xxhash.c; path = "third-party/zstd/lib/common/xxhash.c"; sourceTree = "<group>"; };
-		A7310000000000000001002C /* zstd_common.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_common.c; path = "third-party/zstd/lib/common/zstd_common.c"; sourceTree = "<group>"; };
-		A7310000000000000001002D /* fse_compress.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = fse_compress.c; path = "third-party/zstd/lib/compress/fse_compress.c"; sourceTree = "<group>"; };
-		A7310000000000000001002E /* hist.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = hist.c; path = "third-party/zstd/lib/compress/hist.c"; sourceTree = "<group>"; };
-		A7310000000000000001002F /* huf_compress.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = huf_compress.c; path = "third-party/zstd/lib/compress/huf_compress.c"; sourceTree = "<group>"; };
-		A73100000000000000010030 /* zstd_compress.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_compress.c; path = "third-party/zstd/lib/compress/zstd_compress.c"; sourceTree = "<group>"; };
-		A73100000000000000010031 /* zstd_compress_literals.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_compress_literals.c; path = "third-party/zstd/lib/compress/zstd_compress_literals.c"; sourceTree = "<group>"; };
-		A73100000000000000010032 /* zstd_compress_sequences.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_compress_sequences.c; path = "third-party/zstd/lib/compress/zstd_compress_sequences.c"; sourceTree = "<group>"; };
-		A73100000000000000010033 /* zstd_compress_superblock.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_compress_superblock.c; path = "third-party/zstd/lib/compress/zstd_compress_superblock.c"; sourceTree = "<group>"; };
-		A73100000000000000010034 /* zstd_double_fast.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_double_fast.c; path = "third-party/zstd/lib/compress/zstd_double_fast.c"; sourceTree = "<group>"; };
-		A73100000000000000010035 /* zstd_fast.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_fast.c; path = "third-party/zstd/lib/compress/zstd_fast.c"; sourceTree = "<group>"; };
-		A73100000000000000010036 /* zstd_lazy.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_lazy.c; path = "third-party/zstd/lib/compress/zstd_lazy.c"; sourceTree = "<group>"; };
-		A73100000000000000010037 /* zstd_ldm.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_ldm.c; path = "third-party/zstd/lib/compress/zstd_ldm.c"; sourceTree = "<group>"; };
-		A73100000000000000010038 /* zstd_opt.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_opt.c; path = "third-party/zstd/lib/compress/zstd_opt.c"; sourceTree = "<group>"; };
-		A73100000000000000010039 /* zstdmt_compress.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstdmt_compress.c; path = "third-party/zstd/lib/compress/zstdmt_compress.c"; sourceTree = "<group>"; };
-		A7310000000000000001003A /* huf_decompress.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = huf_decompress.c; path = "third-party/zstd/lib/decompress/huf_decompress.c"; sourceTree = "<group>"; };
-		A7310000000000000001003B /* zstd_ddict.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_ddict.c; path = "third-party/zstd/lib/decompress/zstd_ddict.c"; sourceTree = "<group>"; };
-		A7310000000000000001003C /* zstd_decompress.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_decompress.c; path = "third-party/zstd/lib/decompress/zstd_decompress.c"; sourceTree = "<group>"; };
-		A7310000000000000001003D /* zstd_decompress_block.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_decompress_block.c; path = "third-party/zstd/lib/decompress/zstd_decompress_block.c"; sourceTree = "<group>"; };
-		A73100000000000000011000 /* gfx_host.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = gfx_host.cpp; path = game/kernel/core/gfx_host.cpp; sourceTree = "<group>"; };
-		A73200000000000000010000 /* metal_eye_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_eye_renderer.mm; path = game/graphics/pipelines/metal/metal_eye_renderer.mm; sourceTree = "<group>"; };
-		A73200000000000000010001 /* metal_generic2.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_generic2.mm; path = game/graphics/pipelines/metal/metal_generic2.mm; sourceTree = "<group>"; };
-		A73200000000000000010002 /* metal_shadow_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_shadow_renderer.mm; path = game/graphics/pipelines/metal/metal_shadow_renderer.mm; sourceTree = "<group>"; };
-		A73200000000000000010003 /* Shadow_PS2.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Shadow_PS2.cpp; path = game/graphics/opengl_renderer/Shadow_PS2.cpp; sourceTree = "<group>"; };
-		A73200000000000000010004 /* ShadowVu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ShadowVu.cpp; path = game/graphics/opengl_renderer/ShadowVu.cpp; sourceTree = "<group>"; };
+		A73000000000000000010000 /* common/cross_os_debug/xdbg.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = xdbg.cpp; path = common/cross_os_debug/xdbg.cpp; sourceTree = "<group>"; };
+		A73000000000000000010001 /* common/log/log.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = log.cpp; path = common/log/log.cpp; sourceTree = "<group>"; };
+		A73000000000000000010002 /* common/util/Assert.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Assert.cpp; path = common/util/Assert.cpp; sourceTree = "<group>"; };
+		A73000000000000000010003 /* common/util/crc32.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = crc32.cpp; path = common/util/crc32.cpp; sourceTree = "<group>"; };
+		A73000000000000000010004 /* common/util/diff.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = diff.cpp; path = common/util/diff.cpp; sourceTree = "<group>"; };
+		A73000000000000000010005 /* common/util/FileUtil.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = FileUtil.cpp; path = common/util/FileUtil.cpp; sourceTree = "<group>"; };
+		A73000000000000000010006 /* common/util/string_util.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = string_util.cpp; path = common/util/string_util.cpp; sourceTree = "<group>"; };
+		A73000000000000000010007 /* common/util/Timer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Timer.cpp; path = common/util/Timer.cpp; sourceTree = "<group>"; };
+		A73000000000000000010008 /* common/util/unicode_util.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = unicode_util.cpp; path = common/util/unicode_util.cpp; sourceTree = "<group>"; };
+		A73000000000000000010009 /* third-party/lzokay/lzokay.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = lzokay.cpp; path = third-party/lzokay/lzokay.cpp; sourceTree = "<group>"; };
+		A7300000000000000001000A /* game/kernel/common/fileio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = fileio.cpp; path = game/kernel/common/fileio.cpp; sourceTree = "<group>"; };
+		A7300000000000000001000B /* game/kernel/common/kboot.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kboot.cpp; path = game/kernel/common/kboot.cpp; sourceTree = "<group>"; };
+		A7300000000000000001000C /* game/kernel/common/kdgo.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kdgo.cpp; path = game/kernel/common/kdgo.cpp; sourceTree = "<group>"; };
+		A7300000000000000001000D /* game/kernel/common/kdsnetm.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kdsnetm.cpp; path = game/kernel/common/kdsnetm.cpp; sourceTree = "<group>"; };
+		A7300000000000000001000E /* game/kernel/common/klink.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = klink.cpp; path = game/kernel/common/klink.cpp; sourceTree = "<group>"; };
+		A7300000000000000001000F /* game/kernel/common/klisten.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = klisten.cpp; path = game/kernel/common/klisten.cpp; sourceTree = "<group>"; };
+		A73000000000000000010010 /* game/kernel/common/kmalloc.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kmalloc.cpp; path = game/kernel/common/kmalloc.cpp; sourceTree = "<group>"; };
+		A73000000000000000010011 /* game/kernel/common/kmemcard.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kmemcard.cpp; path = game/kernel/common/kmemcard.cpp; sourceTree = "<group>"; };
+		A73000000000000000010012 /* game/kernel/common/kprint.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kprint.cpp; path = game/kernel/common/kprint.cpp; sourceTree = "<group>"; };
+		A73000000000000000010013 /* game/kernel/common/kscheme.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kscheme.cpp; path = game/kernel/common/kscheme.cpp; sourceTree = "<group>"; };
+		A73000000000000000010014 /* game/kernel/common/ksocket.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ksocket.cpp; path = game/kernel/common/ksocket.cpp; sourceTree = "<group>"; };
+		A73000000000000000010015 /* game/kernel/jak1/fileio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = fileio.cpp; path = game/kernel/jak1/fileio.cpp; sourceTree = "<group>"; };
+		A73000000000000000010016 /* game/kernel/jak1/klink.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = klink.cpp; path = game/kernel/jak1/klink.cpp; sourceTree = "<group>"; };
+		A73000000000000000010017 /* game/kernel/jak1/klisten.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = klisten.cpp; path = game/kernel/jak1/klisten.cpp; sourceTree = "<group>"; };
+		A73000000000000000010018 /* game/kernel/jak1/kprint.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kprint.cpp; path = game/kernel/jak1/kprint.cpp; sourceTree = "<group>"; };
+		A73000000000000000010019 /* game/kernel/jak1/kscheme.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kscheme.cpp; path = game/kernel/jak1/kscheme.cpp; sourceTree = "<group>"; };
+		A7300000000000000001001A /* game/sce/sif_ee_memcard.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sif_ee_memcard.cpp; path = game/sce/sif_ee_memcard.cpp; sourceTree = "<group>"; };
+		A7300000000000000001001B /* game/kernel/core/kernel_core.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kernel_core.cpp; path = game/kernel/core/kernel_core.cpp; sourceTree = "<group>"; };
+		A7300000000000000001001C /* game/kernel/core/desktop_seams.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = desktop_seams.cpp; path = game/kernel/core/desktop_seams.cpp; sourceTree = "<group>"; };
+		A7300000000000000001001D /* game/kernel/core/aot_loader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = aot_loader.cpp; path = game/kernel/core/aot_loader.cpp; sourceTree = "<group>"; };
+		A7300000000000000001001E /* game/kernel/core/dgo_loader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dgo_loader.cpp; path = game/kernel/core/dgo_loader.cpp; sourceTree = "<group>"; };
+		A7300000000000000001001F /* game/kernel/core/pad.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = pad.cpp; path = game/kernel/core/pad.cpp; sourceTree = "<group>"; };
+		A73000000000000000010020 /* game/kernel/core/sound_rpc.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sound_rpc.cpp; path = game/kernel/core/sound_rpc.cpp; sourceTree = "<group>"; };
+		A73000000000000000010056 /* game/sce/libscf.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = libscf.cpp; path = game/sce/libscf.cpp; sourceTree = "<group>"; };
+		A73000000000000000010057 /* game/kernel/core/kernel_game_jak1.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = kernel_game_jak1.cpp; path = game/kernel/core/kernel_game_jak1.cpp; sourceTree = "<group>"; };
+		A73000000000000000010058 /* game/kernel/core/vag_stream.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = vag_stream.cpp; path = game/kernel/core/vag_stream.cpp; sourceTree = "<group>"; };
+		A73000000000000000010059 /* game/kernel/core/mips2c_jak1.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = mips2c_jak1.cpp; path = game/kernel/core/mips2c_jak1.cpp; sourceTree = "<group>"; };
+		A73000000000000000010021 /* game/overlord/common/sbank.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sbank.cpp; path = game/overlord/common/sbank.cpp; sourceTree = "<group>"; };
+		A73000000000000000010022 /* game/overlord/common/soundcommon.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = soundcommon.cpp; path = game/overlord/common/soundcommon.cpp; sourceTree = "<group>"; };
+		A73000000000000000010023 /* game/overlord/common/srpc.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = srpc.cpp; path = game/overlord/common/srpc.cpp; sourceTree = "<group>"; };
+		A73000000000000000010024 /* game/overlord/common/ssound.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ssound.cpp; path = game/overlord/common/ssound.cpp; sourceTree = "<group>"; };
+		A73000000000000000010025 /* game/sound/sdshim.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sdshim.cpp; path = game/sound/sdshim.cpp; sourceTree = "<group>"; };
+		A73000000000000000010026 /* game/sound/sndshim.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sndshim.cpp; path = game/sound/sndshim.cpp; sourceTree = "<group>"; };
+		A73000000000000000010027 /* game/sound/common/envelope.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = envelope.cpp; path = game/sound/common/envelope.cpp; sourceTree = "<group>"; };
+		A73000000000000000010028 /* game/sound/common/synth.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = synth.cpp; path = game/sound/common/synth.cpp; sourceTree = "<group>"; };
+		A73000000000000000010029 /* game/sound/common/voice.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = voice.cpp; path = game/sound/common/voice.cpp; sourceTree = "<group>"; };
+		A7300000000000000001002A /* game/sound/989snd/ame_handler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ame_handler.cpp; path = game/sound/989snd/ame_handler.cpp; sourceTree = "<group>"; };
+		A7300000000000000001002B /* game/sound/989snd/blocksound_handler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = blocksound_handler.cpp; path = game/sound/989snd/blocksound_handler.cpp; sourceTree = "<group>"; };
+		A7300000000000000001002C /* game/sound/989snd/lfo.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = lfo.cpp; path = game/sound/989snd/lfo.cpp; sourceTree = "<group>"; };
+		A7300000000000000001002D /* game/sound/989snd/loader.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = loader.cpp; path = game/sound/989snd/loader.cpp; sourceTree = "<group>"; };
+		A7300000000000000001002E /* game/sound/989snd/midi_handler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = midi_handler.cpp; path = game/sound/989snd/midi_handler.cpp; sourceTree = "<group>"; };
+		A7300000000000000001002F /* game/sound/989snd/musicbank.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = musicbank.cpp; path = game/sound/989snd/musicbank.cpp; sourceTree = "<group>"; };
+		A73000000000000000010030 /* game/sound/989snd/player.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = player.cpp; path = game/sound/989snd/player.cpp; sourceTree = "<group>"; };
+		A73000000000000000010031 /* game/sound/989snd/plugin.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = plugin.cpp; path = game/sound/989snd/plugin.cpp; sourceTree = "<group>"; };
+		A73000000000000000010032 /* game/sound/989snd/sfxblock.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sfxblock.cpp; path = game/sound/989snd/sfxblock.cpp; sourceTree = "<group>"; };
+		A73000000000000000010033 /* game/sound/989snd/sfxgrain.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sfxgrain.cpp; path = game/sound/989snd/sfxgrain.cpp; sourceTree = "<group>"; };
+		A73000000000000000010034 /* game/sound/989snd/vagvoice.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = vagvoice.cpp; path = game/sound/989snd/vagvoice.cpp; sourceTree = "<group>"; };
+		A73000000000000000010035 /* game/sound/989snd/util.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = util.cpp; path = game/sound/989snd/util.cpp; sourceTree = "<group>"; };
+		A73000000000000000010036 /* game/kernel/core/dma_capture.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dma_capture.cpp; path = game/kernel/core/dma_capture.cpp; sourceTree = "<group>"; };
+		A73000000000000000010037 /* common/dma/dma_copy.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dma_copy.cpp; path = common/dma/dma_copy.cpp; sourceTree = "<group>"; };
+		A73000000000000000010038 /* common/dma/dma.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dma.cpp; path = common/dma/dma.cpp; sourceTree = "<group>"; };
+		A73000000000000000010039 /* game/kernel/core/mips2c_seam.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = mips2c_seam.cpp; path = game/kernel/core/mips2c_seam.cpp; sourceTree = "<group>"; };
+		A7300000000000000001003A /* game/kernel/core/goal_native_kernel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = goal_native_kernel.cpp; path = game/kernel/core/goal_native_kernel.cpp; sourceTree = "<group>"; };
+		A7300000000000000001003B /* game/kernel/core/goal_thread_arm64.s */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm; name = goal_thread_arm64.s; path = game/kernel/core/goal_thread_arm64.s; sourceTree = "<group>"; };
+		A7300000000000000001003C /* game/kernel/asm_funcs_arm64.s */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm; name = asm_funcs_arm64.s; path = game/kernel/asm_funcs_arm64.s; sourceTree = "<group>"; };
+		A7300000000000000001003D /* game/mips2c/jak1_functions/bones.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = bones.cpp; path = game/mips2c/jak1_functions/bones.cpp; sourceTree = "<group>"; };
+		A7300000000000000001003E /* game/mips2c/jak1_functions/collide_cache.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = collide_cache.cpp; path = game/mips2c/jak1_functions/collide_cache.cpp; sourceTree = "<group>"; };
+		A7300000000000000001003F /* game/mips2c/jak1_functions/collide_edge_grab.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = collide_edge_grab.cpp; path = game/mips2c/jak1_functions/collide_edge_grab.cpp; sourceTree = "<group>"; };
+		A73000000000000000010040 /* game/mips2c/jak1_functions/collide_func.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = collide_func.cpp; path = game/mips2c/jak1_functions/collide_func.cpp; sourceTree = "<group>"; };
+		A73000000000000000010041 /* game/mips2c/jak1_functions/collide_mesh.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = collide_mesh.cpp; path = game/mips2c/jak1_functions/collide_mesh.cpp; sourceTree = "<group>"; };
+		A73000000000000000010042 /* game/mips2c/jak1_functions/collide_probe.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = collide_probe.cpp; path = game/mips2c/jak1_functions/collide_probe.cpp; sourceTree = "<group>"; };
+		A73000000000000000010043 /* game/mips2c/jak1_functions/draw_string.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = draw_string.cpp; path = game/mips2c/jak1_functions/draw_string.cpp; sourceTree = "<group>"; };
+		A73000000000000000010044 /* game/mips2c/jak1_functions/generic_effect.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = generic_effect.cpp; path = game/mips2c/jak1_functions/generic_effect.cpp; sourceTree = "<group>"; };
+		A73000000000000000010045 /* game/mips2c/jak1_functions/generic_effect2.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = generic_effect2.cpp; path = game/mips2c/jak1_functions/generic_effect2.cpp; sourceTree = "<group>"; };
+		A73000000000000000010046 /* game/mips2c/jak1_functions/generic_merc.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = generic_merc.cpp; path = game/mips2c/jak1_functions/generic_merc.cpp; sourceTree = "<group>"; };
+		A73000000000000000010047 /* game/mips2c/jak1_functions/generic_tie.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = generic_tie.cpp; path = game/mips2c/jak1_functions/generic_tie.cpp; sourceTree = "<group>"; };
+		A73000000000000000010048 /* game/mips2c/jak1_functions/joint.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = joint.cpp; path = game/mips2c/jak1_functions/joint.cpp; sourceTree = "<group>"; };
+		A73000000000000000010049 /* game/mips2c/jak1_functions/merc_blend_shape.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = merc_blend_shape.cpp; path = game/mips2c/jak1_functions/merc_blend_shape.cpp; sourceTree = "<group>"; };
+		A7300000000000000001004A /* game/mips2c/jak1_functions/ocean.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ocean.cpp; path = game/mips2c/jak1_functions/ocean.cpp; sourceTree = "<group>"; };
+		A7300000000000000001004B /* game/mips2c/jak1_functions/ocean_vu0.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ocean_vu0.cpp; path = game/mips2c/jak1_functions/ocean_vu0.cpp; sourceTree = "<group>"; };
+		A7300000000000000001004C /* game/mips2c/jak1_functions/ripple.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ripple.cpp; path = game/mips2c/jak1_functions/ripple.cpp; sourceTree = "<group>"; };
+		A7300000000000000001004D /* game/mips2c/jak1_functions/shadow.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = shadow.cpp; path = game/mips2c/jak1_functions/shadow.cpp; sourceTree = "<group>"; };
+		A7300000000000000001004E /* game/mips2c/jak1_functions/sky_tng.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sky_tng.cpp; path = game/mips2c/jak1_functions/sky_tng.cpp; sourceTree = "<group>"; };
+		A7300000000000000001004F /* game/mips2c/jak1_functions/sparticle.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sparticle.cpp; path = game/mips2c/jak1_functions/sparticle.cpp; sourceTree = "<group>"; };
+		A73000000000000000010050 /* game/mips2c/jak1_functions/sparticle_launcher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sparticle_launcher.cpp; path = game/mips2c/jak1_functions/sparticle_launcher.cpp; sourceTree = "<group>"; };
+		A73000000000000000010051 /* game/mips2c/jak1_functions/test_func.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_func.cpp; path = game/mips2c/jak1_functions/test_func.cpp; sourceTree = "<group>"; };
+		A73000000000000000010052 /* game/mips2c/jak1_functions/texture.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = texture.cpp; path = game/mips2c/jak1_functions/texture.cpp; sourceTree = "<group>"; };
+		A73000000000000000010053 /* game/mips2c/jak1_functions/tfrag.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = tfrag.cpp; path = game/mips2c/jak1_functions/tfrag.cpp; sourceTree = "<group>"; };
+		A73000000000000000010054 /* game/mips2c/jak1_functions/tie_methods.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = tie_methods.cpp; path = game/mips2c/jak1_functions/tie_methods.cpp; sourceTree = "<group>"; };
+		A73000000000000000010055 /* game/mips2c/jak1_functions/time_of_day.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = time_of_day.cpp; path = game/mips2c/jak1_functions/time_of_day.cpp; sourceTree = "<group>"; };
+		A73100000000000000010000 /* game/graphics/pipelines/metal/metal_bucket_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_bucket_renderer.mm; path = game/graphics/pipelines/metal/metal_bucket_renderer.mm; sourceTree = "<group>"; };
+		A73100000000000000010001 /* game/graphics/pipelines/metal/metal_direct_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_direct_renderer.mm; path = game/graphics/pipelines/metal/metal_direct_renderer.mm; sourceTree = "<group>"; };
+		A73200000000000000010000 /* game/graphics/pipelines/metal/metal_eye_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_eye_renderer.mm; path = game/graphics/pipelines/metal/metal_eye_renderer.mm; sourceTree = "<group>"; };
+		A73200000000000000010001 /* game/graphics/pipelines/metal/metal_generic2.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_generic2.mm; path = game/graphics/pipelines/metal/metal_generic2.mm; sourceTree = "<group>"; };
+		A73200000000000000010002 /* game/graphics/pipelines/metal/metal_shadow_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_shadow_renderer.mm; path = game/graphics/pipelines/metal/metal_shadow_renderer.mm; sourceTree = "<group>"; };
+		A73200000000000000010003 /* game/graphics/opengl_renderer/Shadow_PS2.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Shadow_PS2.cpp; path = game/graphics/opengl_renderer/Shadow_PS2.cpp; sourceTree = "<group>"; };
+		A73200000000000000010004 /* game/graphics/opengl_renderer/ShadowVu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ShadowVu.cpp; path = game/graphics/opengl_renderer/ShadowVu.cpp; sourceTree = "<group>"; };
+		A73100000000000000010002 /* game/graphics/pipelines/metal/metal_level_data.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_level_data.mm; path = game/graphics/pipelines/metal/metal_level_data.mm; sourceTree = "<group>"; };
+		A73100000000000000010003 /* game/graphics/pipelines/metal/metal_merc.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_merc.mm; path = game/graphics/pipelines/metal/metal_merc.mm; sourceTree = "<group>"; };
+		A73100000000000000010004 /* game/graphics/pipelines/metal/metal_merc_model_pool.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_merc_model_pool.mm; path = game/graphics/pipelines/metal/metal_merc_model_pool.mm; sourceTree = "<group>"; };
+		A73100000000000000010005 /* game/graphics/pipelines/metal/metal_ocean_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_ocean_renderer.mm; path = game/graphics/pipelines/metal/metal_ocean_renderer.mm; sourceTree = "<group>"; };
+		A73100000000000000010006 /* game/graphics/pipelines/metal/metal_pso_cache.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_pso_cache.mm; path = game/graphics/pipelines/metal/metal_pso_cache.mm; sourceTree = "<group>"; };
+		A73100000000000000010007 /* game/graphics/pipelines/metal/metal_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_renderer.mm; path = game/graphics/pipelines/metal/metal_renderer.mm; sourceTree = "<group>"; };
+		A73100000000000000010008 /* game/graphics/pipelines/metal/metal_shrub.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_shrub.mm; path = game/graphics/pipelines/metal/metal_shrub.mm; sourceTree = "<group>"; };
+		A73100000000000000010009 /* game/graphics/pipelines/metal/metal_sky_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_sky_renderer.mm; path = game/graphics/pipelines/metal/metal_sky_renderer.mm; sourceTree = "<group>"; };
+		A7310000000000000001000A /* game/graphics/pipelines/metal/metal_sprite_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_sprite_renderer.mm; path = game/graphics/pipelines/metal/metal_sprite_renderer.mm; sourceTree = "<group>"; };
+		A7310000000000000001000B /* game/graphics/pipelines/metal/metal_texture.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_texture.mm; path = game/graphics/pipelines/metal/metal_texture.mm; sourceTree = "<group>"; };
+		A7310000000000000001000C /* game/graphics/pipelines/metal/metal_tfrag.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_tfrag.mm; path = game/graphics/pipelines/metal/metal_tfrag.mm; sourceTree = "<group>"; };
+		A7310000000000000001000D /* game/graphics/pipelines/metal/metal_tie.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_tie.mm; path = game/graphics/pipelines/metal/metal_tie.mm; sourceTree = "<group>"; };
+		A7310000000000000001000E /* game/graphics/pipelines/metal/metal_host_seams.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_host_seams.cpp; path = game/graphics/pipelines/metal/metal_host_seams.cpp; sourceTree = "<group>"; };
+		A7310000000000000001000F /* game/graphics/pipelines/metal/metal_kernel_bridge.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_kernel_bridge.cpp; path = game/graphics/pipelines/metal/metal_kernel_bridge.cpp; sourceTree = "<group>"; };
+		A73100000000000000010010 /* game/graphics/pipelines/metal/metal_texture_upload_handler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_texture_upload_handler.cpp; path = game/graphics/pipelines/metal/metal_texture_upload_handler.cpp; sourceTree = "<group>"; };
+		A7310000000000000001003E /* game/graphics/pipelines/metal/metal_jak2_bucket_table.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_jak2_bucket_table.cpp; path = game/graphics/pipelines/metal/metal_jak2_bucket_table.cpp; sourceTree = "<group>"; };
+		A73100000000000000010011 /* game/graphics/opengl_renderer/dma_helpers.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dma_helpers.cpp; path = game/graphics/opengl_renderer/dma_helpers.cpp; sourceTree = "<group>"; };
+		A73100000000000000010012 /* game/graphics/opengl_renderer/ocean/OceanMid_PS2.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = OceanMid_PS2.cpp; path = game/graphics/opengl_renderer/ocean/OceanMid_PS2.cpp; sourceTree = "<group>"; };
+		A73100000000000000010013 /* game/graphics/opengl_renderer/ocean/OceanNear_PS2.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = OceanNear_PS2.cpp; path = game/graphics/opengl_renderer/ocean/OceanNear_PS2.cpp; sourceTree = "<group>"; };
+		A73100000000000000010014 /* game/graphics/opengl_renderer/ocean/OceanTexture_VU.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = OceanTexture_VU.cpp; path = game/graphics/opengl_renderer/ocean/OceanTexture_VU.cpp; sourceTree = "<group>"; };
+		A73100000000000000010015 /* game/graphics/texture/jak1_tpage_dir.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = jak1_tpage_dir.cpp; path = game/graphics/texture/jak1_tpage_dir.cpp; sourceTree = "<group>"; };
+		A73100000000000000010016 /* game/graphics/texture/jak2_tpage_dir.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = jak2_tpage_dir.cpp; path = game/graphics/texture/jak2_tpage_dir.cpp; sourceTree = "<group>"; };
+		A73100000000000000010017 /* game/graphics/texture/jak3_tpage_dir.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = jak3_tpage_dir.cpp; path = game/graphics/texture/jak3_tpage_dir.cpp; sourceTree = "<group>"; };
+		A73100000000000000010018 /* game/graphics/texture/TextureConverter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TextureConverter.cpp; path = game/graphics/texture/TextureConverter.cpp; sourceTree = "<group>"; };
+		A73100000000000000010019 /* game/graphics/texture/TexturePool.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TexturePool.cpp; path = game/graphics/texture/TexturePool.cpp; sourceTree = "<group>"; };
+		A7310000000000000001001A /* common/custom_data/TFrag3Data.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TFrag3Data.cpp; path = common/custom_data/TFrag3Data.cpp; sourceTree = "<group>"; };
+		A7310000000000000001001B /* common/custom_data/pack_helpers.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = pack_helpers.cpp; path = common/custom_data/pack_helpers.cpp; sourceTree = "<group>"; };
+		A7310000000000000001001C /* common/dma/gs.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = gs.cpp; path = common/dma/gs.cpp; sourceTree = "<group>"; };
+		A7310000000000000001001D /* common/global_profiler/GlobalProfiler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = GlobalProfiler.cpp; path = common/global_profiler/GlobalProfiler.cpp; sourceTree = "<group>"; };
+		A7310000000000000001001E /* common/texture/texture_slots.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = texture_slots.cpp; path = common/texture/texture_slots.cpp; sourceTree = "<group>"; };
+		A7310000000000000001001F /* common/util/compress.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = compress.cpp; path = common/util/compress.cpp; sourceTree = "<group>"; };
+		A73100000000000000010020 /* common/util/FrameLimiter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = FrameLimiter.cpp; path = common/util/FrameLimiter.cpp; sourceTree = "<group>"; };
+		A73100000000000000010021 /* third-party/imgui/imgui.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = imgui.cpp; path = third-party/imgui/imgui.cpp; sourceTree = "<group>"; };
+		A73100000000000000010022 /* third-party/imgui/imgui_draw.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_draw.cpp; path = third-party/imgui/imgui_draw.cpp; sourceTree = "<group>"; };
+		A73100000000000000010023 /* third-party/imgui/imgui_tables.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_tables.cpp; path = third-party/imgui/imgui_tables.cpp; sourceTree = "<group>"; };
+		A73100000000000000010024 /* third-party/imgui/imgui_widgets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_widgets.cpp; path = third-party/imgui/imgui_widgets.cpp; sourceTree = "<group>"; };
+		A73100000000000000010025 /* third-party/zstd/lib/common/debug.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = debug.c; path = third-party/zstd/lib/common/debug.c; sourceTree = "<group>"; };
+		A73100000000000000010026 /* third-party/zstd/lib/common/entropy_common.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = entropy_common.c; path = third-party/zstd/lib/common/entropy_common.c; sourceTree = "<group>"; };
+		A73100000000000000010027 /* third-party/zstd/lib/common/error_private.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = error_private.c; path = third-party/zstd/lib/common/error_private.c; sourceTree = "<group>"; };
+		A73100000000000000010028 /* third-party/zstd/lib/common/fse_decompress.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = fse_decompress.c; path = third-party/zstd/lib/common/fse_decompress.c; sourceTree = "<group>"; };
+		A73100000000000000010029 /* third-party/zstd/lib/common/pool.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = pool.c; path = third-party/zstd/lib/common/pool.c; sourceTree = "<group>"; };
+		A7310000000000000001002A /* third-party/zstd/lib/common/threading.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = threading.c; path = third-party/zstd/lib/common/threading.c; sourceTree = "<group>"; };
+		A7310000000000000001002B /* third-party/zstd/lib/common/xxhash.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = xxhash.c; path = third-party/zstd/lib/common/xxhash.c; sourceTree = "<group>"; };
+		A7310000000000000001002C /* third-party/zstd/lib/common/zstd_common.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_common.c; path = third-party/zstd/lib/common/zstd_common.c; sourceTree = "<group>"; };
+		A7310000000000000001002D /* third-party/zstd/lib/compress/fse_compress.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = fse_compress.c; path = third-party/zstd/lib/compress/fse_compress.c; sourceTree = "<group>"; };
+		A7310000000000000001002E /* third-party/zstd/lib/compress/hist.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = hist.c; path = third-party/zstd/lib/compress/hist.c; sourceTree = "<group>"; };
+		A7310000000000000001002F /* third-party/zstd/lib/compress/huf_compress.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = huf_compress.c; path = third-party/zstd/lib/compress/huf_compress.c; sourceTree = "<group>"; };
+		A73100000000000000010030 /* third-party/zstd/lib/compress/zstd_compress.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_compress.c; path = third-party/zstd/lib/compress/zstd_compress.c; sourceTree = "<group>"; };
+		A73100000000000000010031 /* third-party/zstd/lib/compress/zstd_compress_literals.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_compress_literals.c; path = third-party/zstd/lib/compress/zstd_compress_literals.c; sourceTree = "<group>"; };
+		A73100000000000000010032 /* third-party/zstd/lib/compress/zstd_compress_sequences.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_compress_sequences.c; path = third-party/zstd/lib/compress/zstd_compress_sequences.c; sourceTree = "<group>"; };
+		A73100000000000000010033 /* third-party/zstd/lib/compress/zstd_compress_superblock.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_compress_superblock.c; path = third-party/zstd/lib/compress/zstd_compress_superblock.c; sourceTree = "<group>"; };
+		A73100000000000000010034 /* third-party/zstd/lib/compress/zstd_double_fast.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_double_fast.c; path = third-party/zstd/lib/compress/zstd_double_fast.c; sourceTree = "<group>"; };
+		A73100000000000000010035 /* third-party/zstd/lib/compress/zstd_fast.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_fast.c; path = third-party/zstd/lib/compress/zstd_fast.c; sourceTree = "<group>"; };
+		A73100000000000000010036 /* third-party/zstd/lib/compress/zstd_lazy.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_lazy.c; path = third-party/zstd/lib/compress/zstd_lazy.c; sourceTree = "<group>"; };
+		A73100000000000000010037 /* third-party/zstd/lib/compress/zstd_ldm.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_ldm.c; path = third-party/zstd/lib/compress/zstd_ldm.c; sourceTree = "<group>"; };
+		A73100000000000000010038 /* third-party/zstd/lib/compress/zstd_opt.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_opt.c; path = third-party/zstd/lib/compress/zstd_opt.c; sourceTree = "<group>"; };
+		A73100000000000000010039 /* third-party/zstd/lib/compress/zstdmt_compress.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstdmt_compress.c; path = third-party/zstd/lib/compress/zstdmt_compress.c; sourceTree = "<group>"; };
+		A7310000000000000001003A /* third-party/zstd/lib/decompress/huf_decompress.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = huf_decompress.c; path = third-party/zstd/lib/decompress/huf_decompress.c; sourceTree = "<group>"; };
+		A7310000000000000001003B /* third-party/zstd/lib/decompress/zstd_ddict.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_ddict.c; path = third-party/zstd/lib/decompress/zstd_ddict.c; sourceTree = "<group>"; };
+		A7310000000000000001003C /* third-party/zstd/lib/decompress/zstd_decompress.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_decompress.c; path = third-party/zstd/lib/decompress/zstd_decompress.c; sourceTree = "<group>"; };
+		A7310000000000000001003D /* third-party/zstd/lib/decompress/zstd_decompress_block.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = zstd_decompress_block.c; path = third-party/zstd/lib/decompress/zstd_decompress_block.c; sourceTree = "<group>"; };
+		A73100000000000000011000 /* game/kernel/core/gfx_host.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = gfx_host.cpp; path = game/kernel/core/gfx_host.cpp; sourceTree = "<group>"; };
 		A73300000000000000010000 /* GOALPad-Importer-Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "GOALPad-Importer-Debug.xcconfig"; sourceTree = "<group>"; };
 		A73300000000000000010001 /* GOALPad-Importer-Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "GOALPad-Importer-Release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
-
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		A73000000000000000000002 /* Exceptions for "Generated/jak1-aot" folder in "GOALPad" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				coverage.tsv,
-				README.md,
-			);
-			target = 92C2B201301C0D2F0025E4D5 /* GOALPad */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		92C2B204301C0D2F0025E4D5 /* GOALPad */ = {
@@ -357,6 +348,17 @@
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A73000000000000000000002 /* Exceptions for "Generated/jak1-aot" folder in "GOALPad" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				coverage.tsv,
+				README.md,
+			);
+			target = 92C2B201301C0D2F0025E4D5 /* GOALPad */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		92C2B1FF301C0D2F0025E4D5 /* Frameworks */ = {
@@ -389,180 +391,6 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		A73000000000000000000000 /* OpenGOAL Jak 1 Kernel Core */ = {
-			isa = PBXGroup;
-			children = (
-				A73000000000000000010000 /* xdbg.cpp */,
-				A73000000000000000010001 /* log.cpp */,
-				A73000000000000000010002 /* Assert.cpp */,
-				A73000000000000000010003 /* crc32.cpp */,
-				A73000000000000000010004 /* diff.cpp */,
-				A73000000000000000010005 /* FileUtil.cpp */,
-				A73000000000000000010006 /* string_util.cpp */,
-				A73000000000000000010007 /* Timer.cpp */,
-				A73000000000000000010008 /* unicode_util.cpp */,
-				A73000000000000000010009 /* lzokay.cpp */,
-				A7300000000000000001000A /* fileio.cpp */,
-				A7300000000000000001000B /* kboot.cpp */,
-				A7300000000000000001000C /* kdgo.cpp */,
-				A7300000000000000001000D /* kdsnetm.cpp */,
-				A7300000000000000001000E /* klink.cpp */,
-				A7300000000000000001000F /* klisten.cpp */,
-				A73000000000000000010010 /* kmalloc.cpp */,
-				A73000000000000000010011 /* kmemcard.cpp */,
-				A73000000000000000010012 /* kprint.cpp */,
-				A73000000000000000010013 /* kscheme.cpp */,
-				A73000000000000000010014 /* ksocket.cpp */,
-				A73000000000000000010015 /* fileio.cpp */,
-				A73000000000000000010016 /* klink.cpp */,
-				A73000000000000000010017 /* klisten.cpp */,
-				A73000000000000000010018 /* kprint.cpp */,
-				A73000000000000000010019 /* kscheme.cpp */,
-				A7300000000000000001001A /* sif_ee_memcard.cpp */,
-				A73000000000000000010056 /* libscf.cpp */,
-				A7300000000000000001001B /* kernel_core.cpp */,
-				A7300000000000000001001C /* desktop_seams.cpp */,
-				A73000000000000000010057 /* kernel_game_jak1.cpp */,
-				A7300000000000000001001D /* aot_loader.cpp */,
-				A7300000000000000001001E /* dgo_loader.cpp */,
-				A7300000000000000001001F /* pad.cpp */,
-				A73000000000000000010020 /* sound_rpc.cpp */,
-				A73000000000000000010058 /* vag_stream.cpp */,
-				A73000000000000000010021 /* sbank.cpp */,
-				A73000000000000000010022 /* soundcommon.cpp */,
-				A73000000000000000010023 /* srpc.cpp */,
-				A73000000000000000010024 /* ssound.cpp */,
-				A73000000000000000010025 /* sdshim.cpp */,
-				A73000000000000000010026 /* sndshim.cpp */,
-				A73000000000000000010027 /* envelope.cpp */,
-				A73000000000000000010028 /* synth.cpp */,
-				A73000000000000000010029 /* voice.cpp */,
-				A7300000000000000001002A /* ame_handler.cpp */,
-				A7300000000000000001002B /* blocksound_handler.cpp */,
-				A7300000000000000001002C /* lfo.cpp */,
-				A7300000000000000001002D /* loader.cpp */,
-				A7300000000000000001002E /* midi_handler.cpp */,
-				A7300000000000000001002F /* musicbank.cpp */,
-				A73000000000000000010030 /* player.cpp */,
-				A73000000000000000010031 /* plugin.cpp */,
-				A73000000000000000010032 /* sfxblock.cpp */,
-				A73000000000000000010033 /* sfxgrain.cpp */,
-				A73000000000000000010034 /* vagvoice.cpp */,
-				A73000000000000000010035 /* util.cpp */,
-				A73000000000000000010036 /* dma_capture.cpp */,
-				A73100000000000000011000 /* gfx_host.cpp */,
-				A73000000000000000010037 /* dma_copy.cpp */,
-				A73000000000000000010038 /* dma.cpp */,
-				A73000000000000000010039 /* mips2c_seam.cpp */,
-				A73000000000000000010059 /* mips2c_jak1.cpp */,
-				A7300000000000000001003A /* goal_native_kernel.cpp */,
-				A7300000000000000001003B /* goal_thread_arm64.s */,
-				A7300000000000000001003C /* asm_funcs_arm64.s */,
-				A7300000000000000001003D /* bones.cpp */,
-				A7300000000000000001003E /* collide_cache.cpp */,
-				A7300000000000000001003F /* collide_edge_grab.cpp */,
-				A73000000000000000010040 /* collide_func.cpp */,
-				A73000000000000000010041 /* collide_mesh.cpp */,
-				A73000000000000000010042 /* collide_probe.cpp */,
-				A73000000000000000010043 /* draw_string.cpp */,
-				A73000000000000000010044 /* generic_effect.cpp */,
-				A73000000000000000010045 /* generic_effect2.cpp */,
-				A73000000000000000010046 /* generic_merc.cpp */,
-				A73000000000000000010047 /* generic_tie.cpp */,
-				A73000000000000000010048 /* joint.cpp */,
-				A73000000000000000010049 /* merc_blend_shape.cpp */,
-				A7300000000000000001004A /* ocean.cpp */,
-				A7300000000000000001004B /* ocean_vu0.cpp */,
-				A7300000000000000001004C /* ripple.cpp */,
-				A7300000000000000001004D /* shadow.cpp */,
-				A7300000000000000001004E /* sky_tng.cpp */,
-				A7300000000000000001004F /* sparticle.cpp */,
-				A73000000000000000010050 /* sparticle_launcher.cpp */,
-				A73000000000000000010051 /* test_func.cpp */,
-				A73000000000000000010052 /* texture.cpp */,
-				A73000000000000000010053 /* tfrag.cpp */,
-				A73000000000000000010054 /* tie_methods.cpp */,
-				A73000000000000000010055 /* time_of_day.cpp */,
-			);
-			name = "OpenGOAL Jak 1 Kernel Core";
-			path = OpenGOAL;
-			sourceTree = SOURCE_ROOT;
-		};
-		A73100000000000000000000 /* OpenGOAL Metal Renderer */ = {
-			isa = PBXGroup;
-			children = (
-				A73100000000000000010000 /* metal_bucket_renderer.mm */,
-				A73100000000000000010001 /* metal_direct_renderer.mm */,
-				A73200000000000000010000 /* metal_eye_renderer.mm */,
-				A73200000000000000010001 /* metal_generic2.mm */,
-				A73200000000000000010002 /* metal_shadow_renderer.mm */,
-				A73100000000000000010002 /* metal_level_data.mm */,
-				A73100000000000000010003 /* metal_merc.mm */,
-				A73100000000000000010004 /* metal_merc_model_pool.mm */,
-				A73100000000000000010005 /* metal_ocean_renderer.mm */,
-				A73100000000000000010006 /* metal_pso_cache.mm */,
-				A73100000000000000010007 /* metal_renderer.mm */,
-				A73100000000000000010008 /* metal_shrub.mm */,
-				A73100000000000000010009 /* metal_sky_renderer.mm */,
-				A7310000000000000001000A /* metal_sprite_renderer.mm */,
-				A7310000000000000001000B /* metal_texture.mm */,
-				A7310000000000000001000C /* metal_tfrag.mm */,
-				A7310000000000000001000D /* metal_tie.mm */,
-				A7310000000000000001000E /* metal_host_seams.cpp */,
-				A7310000000000000001000F /* metal_kernel_bridge.cpp */,
-				A73100000000000000010010 /* metal_texture_upload_handler.cpp */,
-				A73100000000000000010011 /* dma_helpers.cpp */,
-				A73200000000000000010003 /* Shadow_PS2.cpp */,
-				A73200000000000000010004 /* ShadowVu.cpp */,
-				A73100000000000000010012 /* OceanMid_PS2.cpp */,
-				A73100000000000000010013 /* OceanNear_PS2.cpp */,
-				A73100000000000000010014 /* OceanTexture_VU.cpp */,
-				A73100000000000000010015 /* jak1_tpage_dir.cpp */,
-				A73100000000000000010016 /* jak2_tpage_dir.cpp */,
-				A73100000000000000010017 /* jak3_tpage_dir.cpp */,
-				A73100000000000000010018 /* TextureConverter.cpp */,
-				A73100000000000000010019 /* TexturePool.cpp */,
-				A7310000000000000001001A /* TFrag3Data.cpp */,
-				A7310000000000000001001B /* pack_helpers.cpp */,
-				A7310000000000000001001C /* gs.cpp */,
-				A7310000000000000001001D /* GlobalProfiler.cpp */,
-				A7310000000000000001001E /* texture_slots.cpp */,
-				A7310000000000000001001F /* compress.cpp */,
-				A73100000000000000010020 /* FrameLimiter.cpp */,
-				A73100000000000000010021 /* imgui.cpp */,
-				A73100000000000000010022 /* imgui_draw.cpp */,
-				A73100000000000000010023 /* imgui_tables.cpp */,
-				A73100000000000000010024 /* imgui_widgets.cpp */,
-				A73100000000000000010025 /* debug.c */,
-				A73100000000000000010026 /* entropy_common.c */,
-				A73100000000000000010027 /* error_private.c */,
-				A73100000000000000010028 /* fse_decompress.c */,
-				A73100000000000000010029 /* pool.c */,
-				A7310000000000000001002A /* threading.c */,
-				A7310000000000000001002B /* xxhash.c */,
-				A7310000000000000001002C /* zstd_common.c */,
-				A7310000000000000001002D /* fse_compress.c */,
-				A7310000000000000001002E /* hist.c */,
-				A7310000000000000001002F /* huf_compress.c */,
-				A73100000000000000010030 /* zstd_compress.c */,
-				A73100000000000000010031 /* zstd_compress_literals.c */,
-				A73100000000000000010032 /* zstd_compress_sequences.c */,
-				A73100000000000000010033 /* zstd_compress_superblock.c */,
-				A73100000000000000010034 /* zstd_double_fast.c */,
-				A73100000000000000010035 /* zstd_fast.c */,
-				A73100000000000000010036 /* zstd_lazy.c */,
-				A73100000000000000010037 /* zstd_ldm.c */,
-				A73100000000000000010038 /* zstd_opt.c */,
-				A73100000000000000010039 /* zstdmt_compress.c */,
-				A7310000000000000001003A /* huf_decompress.c */,
-				A7310000000000000001003B /* zstd_ddict.c */,
-				A7310000000000000001003C /* zstd_decompress.c */,
-				A7310000000000000001003D /* zstd_decompress_block.c */,
-			);
-			name = "OpenGOAL Metal Renderer";
-			path = OpenGOAL;
-			sourceTree = SOURCE_ROOT;
-		};
 		A73300000000000000000000 /* Configuration */ = {
 			isa = PBXGroup;
 			children = (
@@ -571,6 +399,181 @@
 			);
 			path = Configuration;
 			sourceTree = "<group>";
+		};
+		A73000000000000000000000 /* OpenGOAL Jak 1 Kernel Core */ = {
+			isa = PBXGroup;
+			children = (
+				A73000000000000000010000 /* common/cross_os_debug/xdbg.cpp */,
+				A73000000000000000010001 /* common/log/log.cpp */,
+				A73000000000000000010002 /* common/util/Assert.cpp */,
+				A73000000000000000010003 /* common/util/crc32.cpp */,
+				A73000000000000000010004 /* common/util/diff.cpp */,
+				A73000000000000000010005 /* common/util/FileUtil.cpp */,
+				A73000000000000000010006 /* common/util/string_util.cpp */,
+				A73000000000000000010007 /* common/util/Timer.cpp */,
+				A73000000000000000010008 /* common/util/unicode_util.cpp */,
+				A73000000000000000010009 /* third-party/lzokay/lzokay.cpp */,
+				A7300000000000000001000A /* game/kernel/common/fileio.cpp */,
+				A7300000000000000001000B /* game/kernel/common/kboot.cpp */,
+				A7300000000000000001000C /* game/kernel/common/kdgo.cpp */,
+				A7300000000000000001000D /* game/kernel/common/kdsnetm.cpp */,
+				A7300000000000000001000E /* game/kernel/common/klink.cpp */,
+				A7300000000000000001000F /* game/kernel/common/klisten.cpp */,
+				A73000000000000000010010 /* game/kernel/common/kmalloc.cpp */,
+				A73000000000000000010011 /* game/kernel/common/kmemcard.cpp */,
+				A73000000000000000010012 /* game/kernel/common/kprint.cpp */,
+				A73000000000000000010013 /* game/kernel/common/kscheme.cpp */,
+				A73000000000000000010014 /* game/kernel/common/ksocket.cpp */,
+				A73000000000000000010015 /* game/kernel/jak1/fileio.cpp */,
+				A73000000000000000010016 /* game/kernel/jak1/klink.cpp */,
+				A73000000000000000010017 /* game/kernel/jak1/klisten.cpp */,
+				A73000000000000000010018 /* game/kernel/jak1/kprint.cpp */,
+				A73000000000000000010019 /* game/kernel/jak1/kscheme.cpp */,
+				A7300000000000000001001A /* game/sce/sif_ee_memcard.cpp */,
+				A73000000000000000010056 /* game/sce/libscf.cpp */,
+				A7300000000000000001001B /* game/kernel/core/kernel_core.cpp */,
+				A7300000000000000001001C /* game/kernel/core/desktop_seams.cpp */,
+				A73000000000000000010057 /* game/kernel/core/kernel_game_jak1.cpp */,
+				A7300000000000000001001D /* game/kernel/core/aot_loader.cpp */,
+				A7300000000000000001001E /* game/kernel/core/dgo_loader.cpp */,
+				A7300000000000000001001F /* game/kernel/core/pad.cpp */,
+				A73000000000000000010020 /* game/kernel/core/sound_rpc.cpp */,
+				A73000000000000000010058 /* game/kernel/core/vag_stream.cpp */,
+				A73000000000000000010021 /* game/overlord/common/sbank.cpp */,
+				A73000000000000000010022 /* game/overlord/common/soundcommon.cpp */,
+				A73000000000000000010023 /* game/overlord/common/srpc.cpp */,
+				A73000000000000000010024 /* game/overlord/common/ssound.cpp */,
+				A73000000000000000010025 /* game/sound/sdshim.cpp */,
+				A73000000000000000010026 /* game/sound/sndshim.cpp */,
+				A73000000000000000010027 /* game/sound/common/envelope.cpp */,
+				A73000000000000000010028 /* game/sound/common/synth.cpp */,
+				A73000000000000000010029 /* game/sound/common/voice.cpp */,
+				A7300000000000000001002A /* game/sound/989snd/ame_handler.cpp */,
+				A7300000000000000001002B /* game/sound/989snd/blocksound_handler.cpp */,
+				A7300000000000000001002C /* game/sound/989snd/lfo.cpp */,
+				A7300000000000000001002D /* game/sound/989snd/loader.cpp */,
+				A7300000000000000001002E /* game/sound/989snd/midi_handler.cpp */,
+				A7300000000000000001002F /* game/sound/989snd/musicbank.cpp */,
+				A73000000000000000010030 /* game/sound/989snd/player.cpp */,
+				A73000000000000000010031 /* game/sound/989snd/plugin.cpp */,
+				A73000000000000000010032 /* game/sound/989snd/sfxblock.cpp */,
+				A73000000000000000010033 /* game/sound/989snd/sfxgrain.cpp */,
+				A73000000000000000010034 /* game/sound/989snd/vagvoice.cpp */,
+				A73000000000000000010035 /* game/sound/989snd/util.cpp */,
+				A73000000000000000010036 /* game/kernel/core/dma_capture.cpp */,
+				A73100000000000000011000 /* game/kernel/core/gfx_host.cpp */,
+				A73000000000000000010037 /* common/dma/dma_copy.cpp */,
+				A73000000000000000010038 /* common/dma/dma.cpp */,
+				A73000000000000000010039 /* game/kernel/core/mips2c_seam.cpp */,
+				A73000000000000000010059 /* game/kernel/core/mips2c_jak1.cpp */,
+				A7300000000000000001003A /* game/kernel/core/goal_native_kernel.cpp */,
+				A7300000000000000001003B /* game/kernel/core/goal_thread_arm64.s */,
+				A7300000000000000001003C /* game/kernel/asm_funcs_arm64.s */,
+				A7300000000000000001003D /* game/mips2c/jak1_functions/bones.cpp */,
+				A7300000000000000001003E /* game/mips2c/jak1_functions/collide_cache.cpp */,
+				A7300000000000000001003F /* game/mips2c/jak1_functions/collide_edge_grab.cpp */,
+				A73000000000000000010040 /* game/mips2c/jak1_functions/collide_func.cpp */,
+				A73000000000000000010041 /* game/mips2c/jak1_functions/collide_mesh.cpp */,
+				A73000000000000000010042 /* game/mips2c/jak1_functions/collide_probe.cpp */,
+				A73000000000000000010043 /* game/mips2c/jak1_functions/draw_string.cpp */,
+				A73000000000000000010044 /* game/mips2c/jak1_functions/generic_effect.cpp */,
+				A73000000000000000010045 /* game/mips2c/jak1_functions/generic_effect2.cpp */,
+				A73000000000000000010046 /* game/mips2c/jak1_functions/generic_merc.cpp */,
+				A73000000000000000010047 /* game/mips2c/jak1_functions/generic_tie.cpp */,
+				A73000000000000000010048 /* game/mips2c/jak1_functions/joint.cpp */,
+				A73000000000000000010049 /* game/mips2c/jak1_functions/merc_blend_shape.cpp */,
+				A7300000000000000001004A /* game/mips2c/jak1_functions/ocean.cpp */,
+				A7300000000000000001004B /* game/mips2c/jak1_functions/ocean_vu0.cpp */,
+				A7300000000000000001004C /* game/mips2c/jak1_functions/ripple.cpp */,
+				A7300000000000000001004D /* game/mips2c/jak1_functions/shadow.cpp */,
+				A7300000000000000001004E /* game/mips2c/jak1_functions/sky_tng.cpp */,
+				A7300000000000000001004F /* game/mips2c/jak1_functions/sparticle.cpp */,
+				A73000000000000000010050 /* game/mips2c/jak1_functions/sparticle_launcher.cpp */,
+				A73000000000000000010051 /* game/mips2c/jak1_functions/test_func.cpp */,
+				A73000000000000000010052 /* game/mips2c/jak1_functions/texture.cpp */,
+				A73000000000000000010053 /* game/mips2c/jak1_functions/tfrag.cpp */,
+				A73000000000000000010054 /* game/mips2c/jak1_functions/tie_methods.cpp */,
+				A73000000000000000010055 /* game/mips2c/jak1_functions/time_of_day.cpp */,
+			);
+			name = "OpenGOAL Jak 1 Kernel Core";
+			path = OpenGOAL;
+			sourceTree = SOURCE_ROOT;
+		};
+		A73100000000000000000000 /* OpenGOAL Metal Renderer */ = {
+			isa = PBXGroup;
+			children = (
+				A73100000000000000010000 /* game/graphics/pipelines/metal/metal_bucket_renderer.mm */,
+				A73100000000000000010001 /* game/graphics/pipelines/metal/metal_direct_renderer.mm */,
+				A73200000000000000010000 /* game/graphics/pipelines/metal/metal_eye_renderer.mm */,
+				A73200000000000000010001 /* game/graphics/pipelines/metal/metal_generic2.mm */,
+				A73200000000000000010002 /* game/graphics/pipelines/metal/metal_shadow_renderer.mm */,
+				A73100000000000000010002 /* game/graphics/pipelines/metal/metal_level_data.mm */,
+				A73100000000000000010003 /* game/graphics/pipelines/metal/metal_merc.mm */,
+				A73100000000000000010004 /* game/graphics/pipelines/metal/metal_merc_model_pool.mm */,
+				A73100000000000000010005 /* game/graphics/pipelines/metal/metal_ocean_renderer.mm */,
+				A73100000000000000010006 /* game/graphics/pipelines/metal/metal_pso_cache.mm */,
+				A73100000000000000010007 /* game/graphics/pipelines/metal/metal_renderer.mm */,
+				A73100000000000000010008 /* game/graphics/pipelines/metal/metal_shrub.mm */,
+				A73100000000000000010009 /* game/graphics/pipelines/metal/metal_sky_renderer.mm */,
+				A7310000000000000001000A /* game/graphics/pipelines/metal/metal_sprite_renderer.mm */,
+				A7310000000000000001000B /* game/graphics/pipelines/metal/metal_texture.mm */,
+				A7310000000000000001000C /* game/graphics/pipelines/metal/metal_tfrag.mm */,
+				A7310000000000000001000D /* game/graphics/pipelines/metal/metal_tie.mm */,
+				A7310000000000000001000E /* game/graphics/pipelines/metal/metal_host_seams.cpp */,
+				A7310000000000000001000F /* game/graphics/pipelines/metal/metal_kernel_bridge.cpp */,
+				A73100000000000000010010 /* game/graphics/pipelines/metal/metal_texture_upload_handler.cpp */,
+				A7310000000000000001003E /* game/graphics/pipelines/metal/metal_jak2_bucket_table.cpp */,
+				A73100000000000000010011 /* game/graphics/opengl_renderer/dma_helpers.cpp */,
+				A73200000000000000010003 /* game/graphics/opengl_renderer/Shadow_PS2.cpp */,
+				A73200000000000000010004 /* game/graphics/opengl_renderer/ShadowVu.cpp */,
+				A73100000000000000010012 /* game/graphics/opengl_renderer/ocean/OceanMid_PS2.cpp */,
+				A73100000000000000010013 /* game/graphics/opengl_renderer/ocean/OceanNear_PS2.cpp */,
+				A73100000000000000010014 /* game/graphics/opengl_renderer/ocean/OceanTexture_VU.cpp */,
+				A73100000000000000010015 /* game/graphics/texture/jak1_tpage_dir.cpp */,
+				A73100000000000000010016 /* game/graphics/texture/jak2_tpage_dir.cpp */,
+				A73100000000000000010017 /* game/graphics/texture/jak3_tpage_dir.cpp */,
+				A73100000000000000010018 /* game/graphics/texture/TextureConverter.cpp */,
+				A73100000000000000010019 /* game/graphics/texture/TexturePool.cpp */,
+				A7310000000000000001001A /* common/custom_data/TFrag3Data.cpp */,
+				A7310000000000000001001B /* common/custom_data/pack_helpers.cpp */,
+				A7310000000000000001001C /* common/dma/gs.cpp */,
+				A7310000000000000001001D /* common/global_profiler/GlobalProfiler.cpp */,
+				A7310000000000000001001E /* common/texture/texture_slots.cpp */,
+				A7310000000000000001001F /* common/util/compress.cpp */,
+				A73100000000000000010020 /* common/util/FrameLimiter.cpp */,
+				A73100000000000000010021 /* third-party/imgui/imgui.cpp */,
+				A73100000000000000010022 /* third-party/imgui/imgui_draw.cpp */,
+				A73100000000000000010023 /* third-party/imgui/imgui_tables.cpp */,
+				A73100000000000000010024 /* third-party/imgui/imgui_widgets.cpp */,
+				A73100000000000000010025 /* third-party/zstd/lib/common/debug.c */,
+				A73100000000000000010026 /* third-party/zstd/lib/common/entropy_common.c */,
+				A73100000000000000010027 /* third-party/zstd/lib/common/error_private.c */,
+				A73100000000000000010028 /* third-party/zstd/lib/common/fse_decompress.c */,
+				A73100000000000000010029 /* third-party/zstd/lib/common/pool.c */,
+				A7310000000000000001002A /* third-party/zstd/lib/common/threading.c */,
+				A7310000000000000001002B /* third-party/zstd/lib/common/xxhash.c */,
+				A7310000000000000001002C /* third-party/zstd/lib/common/zstd_common.c */,
+				A7310000000000000001002D /* third-party/zstd/lib/compress/fse_compress.c */,
+				A7310000000000000001002E /* third-party/zstd/lib/compress/hist.c */,
+				A7310000000000000001002F /* third-party/zstd/lib/compress/huf_compress.c */,
+				A73100000000000000010030 /* third-party/zstd/lib/compress/zstd_compress.c */,
+				A73100000000000000010031 /* third-party/zstd/lib/compress/zstd_compress_literals.c */,
+				A73100000000000000010032 /* third-party/zstd/lib/compress/zstd_compress_sequences.c */,
+				A73100000000000000010033 /* third-party/zstd/lib/compress/zstd_compress_superblock.c */,
+				A73100000000000000010034 /* third-party/zstd/lib/compress/zstd_double_fast.c */,
+				A73100000000000000010035 /* third-party/zstd/lib/compress/zstd_fast.c */,
+				A73100000000000000010036 /* third-party/zstd/lib/compress/zstd_lazy.c */,
+				A73100000000000000010037 /* third-party/zstd/lib/compress/zstd_ldm.c */,
+				A73100000000000000010038 /* third-party/zstd/lib/compress/zstd_opt.c */,
+				A73100000000000000010039 /* third-party/zstd/lib/compress/zstdmt_compress.c */,
+				A7310000000000000001003A /* third-party/zstd/lib/decompress/huf_decompress.c */,
+				A7310000000000000001003B /* third-party/zstd/lib/decompress/zstd_ddict.c */,
+				A7310000000000000001003C /* third-party/zstd/lib/decompress/zstd_decompress.c */,
+				A7310000000000000001003D /* third-party/zstd/lib/decompress/zstd_decompress_block.c */,
+			);
+			name = "OpenGOAL Metal Renderer";
+			path = OpenGOAL;
+			sourceTree = SOURCE_ROOT;
 		};
 /* End PBXGroup section */
 
@@ -652,50 +655,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		A73100000000000000000001 /* Compile Metal shaders */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/scaffold.metal",
-				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/direct.metal",
-				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/eye.metal",
-				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/generic.metal",
-				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/shadow.metal",
-				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/sprite.metal",
-				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/background.metal",
-				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/ocean.metal",
-				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/merc2.metal",
-				"$(SRCROOT)/Scripts/compile-metal-shaders.sh",
-			);
-			name = "Compile Metal shaders";
-			outputPaths = (
-				"$(DERIVED_SOURCES_DIR)/goalpad-metal/goalpad.metallib",
-				"$(DERIVED_SOURCES_DIR)/goalpad-metal/goalpad_metallib_embed.h",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"$SRCROOT/Scripts/compile-metal-shaders.sh\"\n";
-		};
-		A73200000000000000000001 /* Verify release AOT */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"$(SRCROOT)/Scripts/verify-generated-aot.sh",
-				"$(GOALPAD_AOT_MANIFEST_INPUT)",
-				"$(GOALPAD_AOT_COVERAGE_INPUT)",
-			);
-			name = "Verify release AOT";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "if [ \"$CONFIGURATION\" = \"Release\" ]; then\n  \"$SRCROOT/Scripts/verify-generated-aot.sh\" \"$SRCROOT/Generated/jak1-aot\" 518 --manifest-only\nfi\n";
-		};
 		A73300000000000000000001 /* Build Jak 1 import composer */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -745,6 +704,51 @@
 			shellPath = /bin/sh;
 			shellScript = "if [ \"${GOALPAD_HAS_JAK1_IMPORT_COMPOSER:-0}\" != 1 ]; then\n  echo \"Skipping Jak 1 importer resources for this configuration and architecture\"\n  exit 0\nfi\n\"$SRCROOT/Scripts/stage-jak1-import-composer-resources.sh\"\n";
 		};
+		A73200000000000000000001 /* Verify release AOT */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/Scripts/verify-generated-aot.sh",
+				"$(GOALPAD_AOT_MANIFEST_INPUT)",
+				"$(GOALPAD_AOT_COVERAGE_INPUT)",
+			);
+			name = "Verify release AOT";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"$CONFIGURATION\" = \"Release\" ]; then\n  \"$SRCROOT/Scripts/verify-generated-aot.sh\" \"$SRCROOT/Generated/jak1-aot\" 518 --manifest-only\nfi\n";
+		};
+		A73100000000000000000001 /* Compile Metal shaders */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 0;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/scaffold.metal",
+				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/direct.metal",
+				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/eye.metal",
+				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/generic.metal",
+				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/shadow.metal",
+				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/sprite.metal",
+				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/background.metal",
+				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/ocean.metal",
+				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/merc2.metal",
+				"$(SRCROOT)/Scripts/compile-metal-shaders.sh",
+			);
+			name = "Compile Metal shaders";
+			outputPaths = (
+				"$(DERIVED_SOURCES_DIR)/goalpad-metal/goalpad.metallib",
+				"$(DERIVED_SOURCES_DIR)/goalpad-metal/goalpad_metallib_embed.h",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"$SRCROOT/Scripts/compile-metal-shaders.sh\"\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -752,164 +756,165 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A73000000000000000020000 /* xdbg.cpp in Sources */,
-				A73000000000000000020001 /* log.cpp in Sources */,
-				A73000000000000000020002 /* Assert.cpp in Sources */,
-				A73000000000000000020003 /* crc32.cpp in Sources */,
-				A73000000000000000020004 /* diff.cpp in Sources */,
-				A73000000000000000020005 /* FileUtil.cpp in Sources */,
-				A73000000000000000020006 /* string_util.cpp in Sources */,
-				A73000000000000000020007 /* Timer.cpp in Sources */,
-				A73000000000000000020008 /* unicode_util.cpp in Sources */,
-				A73000000000000000020009 /* lzokay.cpp in Sources */,
-				A7300000000000000002000A /* fileio.cpp in Sources */,
-				A7300000000000000002000B /* kboot.cpp in Sources */,
-				A7300000000000000002000C /* kdgo.cpp in Sources */,
-				A7300000000000000002000D /* kdsnetm.cpp in Sources */,
-				A7300000000000000002000E /* klink.cpp in Sources */,
-				A7300000000000000002000F /* klisten.cpp in Sources */,
-				A73000000000000000020010 /* kmalloc.cpp in Sources */,
-				A73000000000000000020011 /* kmemcard.cpp in Sources */,
-				A73000000000000000020012 /* kprint.cpp in Sources */,
-				A73000000000000000020013 /* kscheme.cpp in Sources */,
-				A73000000000000000020014 /* ksocket.cpp in Sources */,
-				A73000000000000000020015 /* fileio.cpp in Sources */,
-				A73000000000000000020016 /* klink.cpp in Sources */,
-				A73000000000000000020017 /* klisten.cpp in Sources */,
-				A73000000000000000020018 /* kprint.cpp in Sources */,
-				A73000000000000000020019 /* kscheme.cpp in Sources */,
-				A7300000000000000002001A /* sif_ee_memcard.cpp in Sources */,
-				A73000000000000000020056 /* libscf.cpp in Sources */,
-				A7300000000000000002001B /* kernel_core.cpp in Sources */,
-				A7300000000000000002001C /* desktop_seams.cpp in Sources */,
-				A73000000000000000020057 /* kernel_game_jak1.cpp in Sources */,
-				A7300000000000000002001D /* aot_loader.cpp in Sources */,
-				A7300000000000000002001E /* dgo_loader.cpp in Sources */,
-				A7300000000000000002001F /* pad.cpp in Sources */,
-				A73000000000000000020020 /* sound_rpc.cpp in Sources */,
-				A73000000000000000020058 /* vag_stream.cpp in Sources */,
-				A73000000000000000020021 /* sbank.cpp in Sources */,
-				A73000000000000000020022 /* soundcommon.cpp in Sources */,
-				A73000000000000000020023 /* srpc.cpp in Sources */,
-				A73000000000000000020024 /* ssound.cpp in Sources */,
-				A73000000000000000020025 /* sdshim.cpp in Sources */,
-				A73000000000000000020026 /* sndshim.cpp in Sources */,
-				A73000000000000000020027 /* envelope.cpp in Sources */,
-				A73000000000000000020028 /* synth.cpp in Sources */,
-				A73000000000000000020029 /* voice.cpp in Sources */,
-				A7300000000000000002002A /* ame_handler.cpp in Sources */,
-				A7300000000000000002002B /* blocksound_handler.cpp in Sources */,
-				A7300000000000000002002C /* lfo.cpp in Sources */,
-				A7300000000000000002002D /* loader.cpp in Sources */,
-				A7300000000000000002002E /* midi_handler.cpp in Sources */,
-				A7300000000000000002002F /* musicbank.cpp in Sources */,
-				A73000000000000000020030 /* player.cpp in Sources */,
-				A73000000000000000020031 /* plugin.cpp in Sources */,
-				A73000000000000000020032 /* sfxblock.cpp in Sources */,
-				A73000000000000000020033 /* sfxgrain.cpp in Sources */,
-				A73000000000000000020034 /* vagvoice.cpp in Sources */,
-				A73000000000000000020035 /* util.cpp in Sources */,
-				A73000000000000000020036 /* dma_capture.cpp in Sources */,
-				A73000000000000000020037 /* dma_copy.cpp in Sources */,
-				A73000000000000000020038 /* dma.cpp in Sources */,
-				A73000000000000000020039 /* mips2c_seam.cpp in Sources */,
-				A73000000000000000020059 /* mips2c_jak1.cpp in Sources */,
-				A7300000000000000002003A /* goal_native_kernel.cpp in Sources */,
-				A7300000000000000002003B /* goal_thread_arm64.s in Sources */,
-				A7300000000000000002003C /* asm_funcs_arm64.s in Sources */,
-				A7300000000000000002003D /* bones.cpp in Sources */,
-				A7300000000000000002003E /* collide_cache.cpp in Sources */,
-				A7300000000000000002003F /* collide_edge_grab.cpp in Sources */,
-				A73000000000000000020040 /* collide_func.cpp in Sources */,
-				A73000000000000000020041 /* collide_mesh.cpp in Sources */,
-				A73000000000000000020042 /* collide_probe.cpp in Sources */,
-				A73000000000000000020043 /* draw_string.cpp in Sources */,
-				A73000000000000000020044 /* generic_effect.cpp in Sources */,
-				A73000000000000000020045 /* generic_effect2.cpp in Sources */,
-				A73000000000000000020046 /* generic_merc.cpp in Sources */,
-				A73000000000000000020047 /* generic_tie.cpp in Sources */,
-				A73000000000000000020048 /* joint.cpp in Sources */,
-				A73000000000000000020049 /* merc_blend_shape.cpp in Sources */,
-				A7300000000000000002004A /* ocean.cpp in Sources */,
-				A7300000000000000002004B /* ocean_vu0.cpp in Sources */,
-				A7300000000000000002004C /* ripple.cpp in Sources */,
-				A7300000000000000002004D /* shadow.cpp in Sources */,
-				A7300000000000000002004E /* sky_tng.cpp in Sources */,
-				A7300000000000000002004F /* sparticle.cpp in Sources */,
-				A73000000000000000020050 /* sparticle_launcher.cpp in Sources */,
-				A73000000000000000020051 /* test_func.cpp in Sources */,
-				A73000000000000000020052 /* texture.cpp in Sources */,
-				A73000000000000000020053 /* tfrag.cpp in Sources */,
-				A73000000000000000020054 /* tie_methods.cpp in Sources */,
-				A73000000000000000020055 /* time_of_day.cpp in Sources */,
-				A73100000000000000020000 /* metal_bucket_renderer.mm in Sources */,
-				A73100000000000000020001 /* metal_direct_renderer.mm in Sources */,
-				A73200000000000000020000 /* metal_eye_renderer.mm in Sources */,
-				A73200000000000000020001 /* metal_generic2.mm in Sources */,
-				A73200000000000000020002 /* metal_shadow_renderer.mm in Sources */,
-				A73100000000000000020002 /* metal_level_data.mm in Sources */,
-				A73100000000000000020003 /* metal_merc.mm in Sources */,
-				A73100000000000000020004 /* metal_merc_model_pool.mm in Sources */,
-				A73100000000000000020005 /* metal_ocean_renderer.mm in Sources */,
-				A73100000000000000020006 /* metal_pso_cache.mm in Sources */,
-				A73100000000000000020007 /* metal_renderer.mm in Sources */,
-				A73100000000000000020008 /* metal_shrub.mm in Sources */,
-				A73100000000000000020009 /* metal_sky_renderer.mm in Sources */,
-				A7310000000000000002000A /* metal_sprite_renderer.mm in Sources */,
-				A7310000000000000002000B /* metal_texture.mm in Sources */,
-				A7310000000000000002000C /* metal_tfrag.mm in Sources */,
-				A7310000000000000002000D /* metal_tie.mm in Sources */,
-				A7310000000000000002000E /* metal_host_seams.cpp in Sources */,
-				A7310000000000000002000F /* metal_kernel_bridge.cpp in Sources */,
-				A73100000000000000020010 /* metal_texture_upload_handler.cpp in Sources */,
-				A73100000000000000020011 /* dma_helpers.cpp in Sources */,
-				A73200000000000000020003 /* Shadow_PS2.cpp in Sources */,
-				A73200000000000000020004 /* ShadowVu.cpp in Sources */,
-				A73100000000000000020012 /* OceanMid_PS2.cpp in Sources */,
-				A73100000000000000020013 /* OceanNear_PS2.cpp in Sources */,
-				A73100000000000000020014 /* OceanTexture_VU.cpp in Sources */,
-				A73100000000000000020015 /* jak1_tpage_dir.cpp in Sources */,
-				A73100000000000000020016 /* jak2_tpage_dir.cpp in Sources */,
-				A73100000000000000020017 /* jak3_tpage_dir.cpp in Sources */,
-				A73100000000000000020018 /* TextureConverter.cpp in Sources */,
-				A73100000000000000020019 /* TexturePool.cpp in Sources */,
-				A7310000000000000002001A /* TFrag3Data.cpp in Sources */,
-				A7310000000000000002001B /* pack_helpers.cpp in Sources */,
-				A7310000000000000002001C /* gs.cpp in Sources */,
-				A7310000000000000002001D /* GlobalProfiler.cpp in Sources */,
-				A7310000000000000002001E /* texture_slots.cpp in Sources */,
-				A7310000000000000002001F /* compress.cpp in Sources */,
-				A73100000000000000020020 /* FrameLimiter.cpp in Sources */,
-				A73100000000000000020021 /* imgui.cpp in Sources */,
-				A73100000000000000020022 /* imgui_draw.cpp in Sources */,
-				A73100000000000000020023 /* imgui_tables.cpp in Sources */,
-				A73100000000000000020024 /* imgui_widgets.cpp in Sources */,
-				A73100000000000000020025 /* debug.c in Sources */,
-				A73100000000000000020026 /* entropy_common.c in Sources */,
-				A73100000000000000020027 /* error_private.c in Sources */,
-				A73100000000000000020028 /* fse_decompress.c in Sources */,
-				A73100000000000000020029 /* pool.c in Sources */,
-				A7310000000000000002002A /* threading.c in Sources */,
-				A7310000000000000002002B /* xxhash.c in Sources */,
-				A7310000000000000002002C /* zstd_common.c in Sources */,
-				A7310000000000000002002D /* fse_compress.c in Sources */,
-				A7310000000000000002002E /* hist.c in Sources */,
-				A7310000000000000002002F /* huf_compress.c in Sources */,
-				A73100000000000000020030 /* zstd_compress.c in Sources */,
-				A73100000000000000020031 /* zstd_compress_literals.c in Sources */,
-				A73100000000000000020032 /* zstd_compress_sequences.c in Sources */,
-				A73100000000000000020033 /* zstd_compress_superblock.c in Sources */,
-				A73100000000000000020034 /* zstd_double_fast.c in Sources */,
-				A73100000000000000020035 /* zstd_fast.c in Sources */,
-				A73100000000000000020036 /* zstd_lazy.c in Sources */,
-				A73100000000000000020037 /* zstd_ldm.c in Sources */,
-				A73100000000000000020038 /* zstd_opt.c in Sources */,
-				A73100000000000000020039 /* zstdmt_compress.c in Sources */,
-				A7310000000000000002003A /* huf_decompress.c in Sources */,
-				A7310000000000000002003B /* zstd_ddict.c in Sources */,
-				A7310000000000000002003C /* zstd_decompress.c in Sources */,
-				A7310000000000000002003D /* zstd_decompress_block.c in Sources */,
-				A73100000000000000021000 /* gfx_host.cpp in Sources */,
+				A73000000000000000020000 /* common/cross_os_debug/xdbg.cpp in Sources */,
+				A73000000000000000020001 /* common/log/log.cpp in Sources */,
+				A73000000000000000020002 /* common/util/Assert.cpp in Sources */,
+				A73000000000000000020003 /* common/util/crc32.cpp in Sources */,
+				A73000000000000000020004 /* common/util/diff.cpp in Sources */,
+				A73000000000000000020005 /* common/util/FileUtil.cpp in Sources */,
+				A73000000000000000020006 /* common/util/string_util.cpp in Sources */,
+				A73000000000000000020007 /* common/util/Timer.cpp in Sources */,
+				A73000000000000000020008 /* common/util/unicode_util.cpp in Sources */,
+				A73000000000000000020009 /* third-party/lzokay/lzokay.cpp in Sources */,
+				A7300000000000000002000A /* game/kernel/common/fileio.cpp in Sources */,
+				A7300000000000000002000B /* game/kernel/common/kboot.cpp in Sources */,
+				A7300000000000000002000C /* game/kernel/common/kdgo.cpp in Sources */,
+				A7300000000000000002000D /* game/kernel/common/kdsnetm.cpp in Sources */,
+				A7300000000000000002000E /* game/kernel/common/klink.cpp in Sources */,
+				A7300000000000000002000F /* game/kernel/common/klisten.cpp in Sources */,
+				A73000000000000000020010 /* game/kernel/common/kmalloc.cpp in Sources */,
+				A73000000000000000020011 /* game/kernel/common/kmemcard.cpp in Sources */,
+				A73000000000000000020012 /* game/kernel/common/kprint.cpp in Sources */,
+				A73000000000000000020013 /* game/kernel/common/kscheme.cpp in Sources */,
+				A73000000000000000020014 /* game/kernel/common/ksocket.cpp in Sources */,
+				A73000000000000000020015 /* game/kernel/jak1/fileio.cpp in Sources */,
+				A73000000000000000020016 /* game/kernel/jak1/klink.cpp in Sources */,
+				A73000000000000000020017 /* game/kernel/jak1/klisten.cpp in Sources */,
+				A73000000000000000020018 /* game/kernel/jak1/kprint.cpp in Sources */,
+				A73000000000000000020019 /* game/kernel/jak1/kscheme.cpp in Sources */,
+				A7300000000000000002001A /* game/sce/sif_ee_memcard.cpp in Sources */,
+				A73000000000000000020056 /* game/sce/libscf.cpp in Sources */,
+				A7300000000000000002001B /* game/kernel/core/kernel_core.cpp in Sources */,
+				A7300000000000000002001C /* game/kernel/core/desktop_seams.cpp in Sources */,
+				A73000000000000000020057 /* game/kernel/core/kernel_game_jak1.cpp in Sources */,
+				A7300000000000000002001D /* game/kernel/core/aot_loader.cpp in Sources */,
+				A7300000000000000002001E /* game/kernel/core/dgo_loader.cpp in Sources */,
+				A7300000000000000002001F /* game/kernel/core/pad.cpp in Sources */,
+				A73000000000000000020020 /* game/kernel/core/sound_rpc.cpp in Sources */,
+				A73000000000000000020058 /* game/kernel/core/vag_stream.cpp in Sources */,
+				A73000000000000000020021 /* game/overlord/common/sbank.cpp in Sources */,
+				A73000000000000000020022 /* game/overlord/common/soundcommon.cpp in Sources */,
+				A73000000000000000020023 /* game/overlord/common/srpc.cpp in Sources */,
+				A73000000000000000020024 /* game/overlord/common/ssound.cpp in Sources */,
+				A73000000000000000020025 /* game/sound/sdshim.cpp in Sources */,
+				A73000000000000000020026 /* game/sound/sndshim.cpp in Sources */,
+				A73000000000000000020027 /* game/sound/common/envelope.cpp in Sources */,
+				A73000000000000000020028 /* game/sound/common/synth.cpp in Sources */,
+				A73000000000000000020029 /* game/sound/common/voice.cpp in Sources */,
+				A7300000000000000002002A /* game/sound/989snd/ame_handler.cpp in Sources */,
+				A7300000000000000002002B /* game/sound/989snd/blocksound_handler.cpp in Sources */,
+				A7300000000000000002002C /* game/sound/989snd/lfo.cpp in Sources */,
+				A7300000000000000002002D /* game/sound/989snd/loader.cpp in Sources */,
+				A7300000000000000002002E /* game/sound/989snd/midi_handler.cpp in Sources */,
+				A7300000000000000002002F /* game/sound/989snd/musicbank.cpp in Sources */,
+				A73000000000000000020030 /* game/sound/989snd/player.cpp in Sources */,
+				A73000000000000000020031 /* game/sound/989snd/plugin.cpp in Sources */,
+				A73000000000000000020032 /* game/sound/989snd/sfxblock.cpp in Sources */,
+				A73000000000000000020033 /* game/sound/989snd/sfxgrain.cpp in Sources */,
+				A73000000000000000020034 /* game/sound/989snd/vagvoice.cpp in Sources */,
+				A73000000000000000020035 /* game/sound/989snd/util.cpp in Sources */,
+				A73000000000000000020036 /* game/kernel/core/dma_capture.cpp in Sources */,
+				A73000000000000000020037 /* common/dma/dma_copy.cpp in Sources */,
+				A73000000000000000020038 /* common/dma/dma.cpp in Sources */,
+				A73000000000000000020039 /* game/kernel/core/mips2c_seam.cpp in Sources */,
+				A73000000000000000020059 /* game/kernel/core/mips2c_jak1.cpp in Sources */,
+				A7300000000000000002003A /* game/kernel/core/goal_native_kernel.cpp in Sources */,
+				A7300000000000000002003B /* game/kernel/core/goal_thread_arm64.s in Sources */,
+				A7300000000000000002003C /* game/kernel/asm_funcs_arm64.s in Sources */,
+				A7300000000000000002003D /* game/mips2c/jak1_functions/bones.cpp in Sources */,
+				A7300000000000000002003E /* game/mips2c/jak1_functions/collide_cache.cpp in Sources */,
+				A7300000000000000002003F /* game/mips2c/jak1_functions/collide_edge_grab.cpp in Sources */,
+				A73000000000000000020040 /* game/mips2c/jak1_functions/collide_func.cpp in Sources */,
+				A73000000000000000020041 /* game/mips2c/jak1_functions/collide_mesh.cpp in Sources */,
+				A73000000000000000020042 /* game/mips2c/jak1_functions/collide_probe.cpp in Sources */,
+				A73000000000000000020043 /* game/mips2c/jak1_functions/draw_string.cpp in Sources */,
+				A73000000000000000020044 /* game/mips2c/jak1_functions/generic_effect.cpp in Sources */,
+				A73000000000000000020045 /* game/mips2c/jak1_functions/generic_effect2.cpp in Sources */,
+				A73000000000000000020046 /* game/mips2c/jak1_functions/generic_merc.cpp in Sources */,
+				A73000000000000000020047 /* game/mips2c/jak1_functions/generic_tie.cpp in Sources */,
+				A73000000000000000020048 /* game/mips2c/jak1_functions/joint.cpp in Sources */,
+				A73000000000000000020049 /* game/mips2c/jak1_functions/merc_blend_shape.cpp in Sources */,
+				A7300000000000000002004A /* game/mips2c/jak1_functions/ocean.cpp in Sources */,
+				A7300000000000000002004B /* game/mips2c/jak1_functions/ocean_vu0.cpp in Sources */,
+				A7300000000000000002004C /* game/mips2c/jak1_functions/ripple.cpp in Sources */,
+				A7300000000000000002004D /* game/mips2c/jak1_functions/shadow.cpp in Sources */,
+				A7300000000000000002004E /* game/mips2c/jak1_functions/sky_tng.cpp in Sources */,
+				A7300000000000000002004F /* game/mips2c/jak1_functions/sparticle.cpp in Sources */,
+				A73000000000000000020050 /* game/mips2c/jak1_functions/sparticle_launcher.cpp in Sources */,
+				A73000000000000000020051 /* game/mips2c/jak1_functions/test_func.cpp in Sources */,
+				A73000000000000000020052 /* game/mips2c/jak1_functions/texture.cpp in Sources */,
+				A73000000000000000020053 /* game/mips2c/jak1_functions/tfrag.cpp in Sources */,
+				A73000000000000000020054 /* game/mips2c/jak1_functions/tie_methods.cpp in Sources */,
+				A73000000000000000020055 /* game/mips2c/jak1_functions/time_of_day.cpp in Sources */,
+				A73100000000000000020000 /* game/graphics/pipelines/metal/metal_bucket_renderer.mm in Sources */,
+				A73100000000000000020001 /* game/graphics/pipelines/metal/metal_direct_renderer.mm in Sources */,
+				A73200000000000000020000 /* game/graphics/pipelines/metal/metal_eye_renderer.mm in Sources */,
+				A73200000000000000020001 /* game/graphics/pipelines/metal/metal_generic2.mm in Sources */,
+				A73200000000000000020002 /* game/graphics/pipelines/metal/metal_shadow_renderer.mm in Sources */,
+				A73100000000000000020002 /* game/graphics/pipelines/metal/metal_level_data.mm in Sources */,
+				A73100000000000000020003 /* game/graphics/pipelines/metal/metal_merc.mm in Sources */,
+				A73100000000000000020004 /* game/graphics/pipelines/metal/metal_merc_model_pool.mm in Sources */,
+				A73100000000000000020005 /* game/graphics/pipelines/metal/metal_ocean_renderer.mm in Sources */,
+				A73100000000000000020006 /* game/graphics/pipelines/metal/metal_pso_cache.mm in Sources */,
+				A73100000000000000020007 /* game/graphics/pipelines/metal/metal_renderer.mm in Sources */,
+				A73100000000000000020008 /* game/graphics/pipelines/metal/metal_shrub.mm in Sources */,
+				A73100000000000000020009 /* game/graphics/pipelines/metal/metal_sky_renderer.mm in Sources */,
+				A7310000000000000002000A /* game/graphics/pipelines/metal/metal_sprite_renderer.mm in Sources */,
+				A7310000000000000002000B /* game/graphics/pipelines/metal/metal_texture.mm in Sources */,
+				A7310000000000000002000C /* game/graphics/pipelines/metal/metal_tfrag.mm in Sources */,
+				A7310000000000000002000D /* game/graphics/pipelines/metal/metal_tie.mm in Sources */,
+				A7310000000000000002000E /* game/graphics/pipelines/metal/metal_host_seams.cpp in Sources */,
+				A7310000000000000002000F /* game/graphics/pipelines/metal/metal_kernel_bridge.cpp in Sources */,
+				A73100000000000000020010 /* game/graphics/pipelines/metal/metal_texture_upload_handler.cpp in Sources */,
+				A7310000000000000002003E /* game/graphics/pipelines/metal/metal_jak2_bucket_table.cpp in Sources */,
+				A73100000000000000020011 /* game/graphics/opengl_renderer/dma_helpers.cpp in Sources */,
+				A73200000000000000020003 /* game/graphics/opengl_renderer/Shadow_PS2.cpp in Sources */,
+				A73200000000000000020004 /* game/graphics/opengl_renderer/ShadowVu.cpp in Sources */,
+				A73100000000000000020012 /* game/graphics/opengl_renderer/ocean/OceanMid_PS2.cpp in Sources */,
+				A73100000000000000020013 /* game/graphics/opengl_renderer/ocean/OceanNear_PS2.cpp in Sources */,
+				A73100000000000000020014 /* game/graphics/opengl_renderer/ocean/OceanTexture_VU.cpp in Sources */,
+				A73100000000000000020015 /* game/graphics/texture/jak1_tpage_dir.cpp in Sources */,
+				A73100000000000000020016 /* game/graphics/texture/jak2_tpage_dir.cpp in Sources */,
+				A73100000000000000020017 /* game/graphics/texture/jak3_tpage_dir.cpp in Sources */,
+				A73100000000000000020018 /* game/graphics/texture/TextureConverter.cpp in Sources */,
+				A73100000000000000020019 /* game/graphics/texture/TexturePool.cpp in Sources */,
+				A7310000000000000002001A /* common/custom_data/TFrag3Data.cpp in Sources */,
+				A7310000000000000002001B /* common/custom_data/pack_helpers.cpp in Sources */,
+				A7310000000000000002001C /* common/dma/gs.cpp in Sources */,
+				A7310000000000000002001D /* common/global_profiler/GlobalProfiler.cpp in Sources */,
+				A7310000000000000002001E /* common/texture/texture_slots.cpp in Sources */,
+				A7310000000000000002001F /* common/util/compress.cpp in Sources */,
+				A73100000000000000020020 /* common/util/FrameLimiter.cpp in Sources */,
+				A73100000000000000020021 /* third-party/imgui/imgui.cpp in Sources */,
+				A73100000000000000020022 /* third-party/imgui/imgui_draw.cpp in Sources */,
+				A73100000000000000020023 /* third-party/imgui/imgui_tables.cpp in Sources */,
+				A73100000000000000020024 /* third-party/imgui/imgui_widgets.cpp in Sources */,
+				A73100000000000000020025 /* third-party/zstd/lib/common/debug.c in Sources */,
+				A73100000000000000020026 /* third-party/zstd/lib/common/entropy_common.c in Sources */,
+				A73100000000000000020027 /* third-party/zstd/lib/common/error_private.c in Sources */,
+				A73100000000000000020028 /* third-party/zstd/lib/common/fse_decompress.c in Sources */,
+				A73100000000000000020029 /* third-party/zstd/lib/common/pool.c in Sources */,
+				A7310000000000000002002A /* third-party/zstd/lib/common/threading.c in Sources */,
+				A7310000000000000002002B /* third-party/zstd/lib/common/xxhash.c in Sources */,
+				A7310000000000000002002C /* third-party/zstd/lib/common/zstd_common.c in Sources */,
+				A7310000000000000002002D /* third-party/zstd/lib/compress/fse_compress.c in Sources */,
+				A7310000000000000002002E /* third-party/zstd/lib/compress/hist.c in Sources */,
+				A7310000000000000002002F /* third-party/zstd/lib/compress/huf_compress.c in Sources */,
+				A73100000000000000020030 /* third-party/zstd/lib/compress/zstd_compress.c in Sources */,
+				A73100000000000000020031 /* third-party/zstd/lib/compress/zstd_compress_literals.c in Sources */,
+				A73100000000000000020032 /* third-party/zstd/lib/compress/zstd_compress_sequences.c in Sources */,
+				A73100000000000000020033 /* third-party/zstd/lib/compress/zstd_compress_superblock.c in Sources */,
+				A73100000000000000020034 /* third-party/zstd/lib/compress/zstd_double_fast.c in Sources */,
+				A73100000000000000020035 /* third-party/zstd/lib/compress/zstd_fast.c in Sources */,
+				A73100000000000000020036 /* third-party/zstd/lib/compress/zstd_lazy.c in Sources */,
+				A73100000000000000020037 /* third-party/zstd/lib/compress/zstd_ldm.c in Sources */,
+				A73100000000000000020038 /* third-party/zstd/lib/compress/zstd_opt.c in Sources */,
+				A73100000000000000020039 /* third-party/zstd/lib/compress/zstdmt_compress.c in Sources */,
+				A7310000000000000002003A /* third-party/zstd/lib/decompress/huf_decompress.c in Sources */,
+				A7310000000000000002003B /* third-party/zstd/lib/decompress/zstd_ddict.c in Sources */,
+				A7310000000000000002003C /* third-party/zstd/lib/decompress/zstd_decompress.c in Sources */,
+				A7310000000000000002003D /* third-party/zstd/lib/decompress/zstd_decompress_block.c in Sources */,
+				A73100000000000000021000 /* game/kernel/core/gfx_host.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -958,8 +963,8 @@
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_OPTIMIZATION_LEVEL = s;
 				GCC_STRICT_ALIASING = NO;
+				GCC_OPTIMIZATION_LEVEL = s;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
@@ -1038,20 +1043,20 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = GOALPad/GOALPad.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 140;
 				DEVELOPMENT_TEAM = V729QMY3V6;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				GOALPAD_AOT_COVERAGE_INPUT = "$(SRCROOT)/Scripts/verify-generated-aot.sh";
+				GOALPAD_AOT_MANIFEST_INPUT = "$(SRCROOT)/Scripts/verify-generated-aot.sh";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
 					"FMT_HEADER_ONLY=1",
 					"GOALPAD_SND_NO_CUBEB=1",
 				);
-				GENERATE_INFOPLIST_FILE = YES;
-				GOALPAD_AOT_COVERAGE_INPUT = "$(SRCROOT)/Scripts/verify-generated-aot.sh";
-				GOALPAD_AOT_MANIFEST_INPUT = "$(SRCROOT)/Scripts/verify-generated-aot.sh";
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/OpenGOAL",
@@ -1064,8 +1069,6 @@
 					"$(SRCROOT)/OpenGOAL/third-party/zstd/lib/common",
 					"$(DERIVED_SOURCES_DIR)/goalpad-metal",
 				);
-				INFOPLIST_FILE = "GOALPad-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Eco Pro";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -1074,6 +1077,8 @@
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_FILE = "GOALPad-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Eco;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
@@ -1106,20 +1111,21 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = GOALPad/GOALPad.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 140;
 				DEVELOPMENT_TEAM = V729QMY3V6;
 				ENABLE_APP_SANDBOX = YES;
+				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_PREVIEWS = YES;
+				ENABLE_PREVIEWS = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				GOALPAD_AOT_COVERAGE_INPUT = "$(SRCROOT)/Generated/jak1-aot/coverage.tsv";
+				GOALPAD_AOT_MANIFEST_INPUT = "$(SRCROOT)/Generated/jak1-aot/aot_boot_manifest.c";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
 					"FMT_HEADER_ONLY=1",
 					"GOALPAD_SND_NO_CUBEB=1",
 				);
-				GENERATE_INFOPLIST_FILE = YES;
-				GOALPAD_AOT_COVERAGE_INPUT = "$(SRCROOT)/Generated/jak1-aot/coverage.tsv";
-				GOALPAD_AOT_MANIFEST_INPUT = "$(SRCROOT)/Generated/jak1-aot/aot_boot_manifest.c";
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/OpenGOAL",
@@ -1132,8 +1138,6 @@
 					"$(SRCROOT)/OpenGOAL/third-party/zstd/lib/common",
 					"$(DERIVED_SOURCES_DIR)/goalpad-metal",
 				);
-				INFOPLIST_FILE = "GOALPad-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Eco Pro";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -1142,6 +1146,8 @@
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_FILE = "GOALPad-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Eco;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.5;

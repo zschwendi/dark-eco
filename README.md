@@ -23,8 +23,8 @@ normally signed application. There is no JIT, no writable-executable memory, and
 no private entitlement anywhere in the build.
 
 - **Implemented — compiler.** An AOT backend emits C from the GOAL IR so clang
-  is the ARM64 code generator. The current checked Jak 1 corpus emits **10,631
-  functions** this way; seven additional routines remain native (GOAL's cooperative
+  is the ARM64 code generator. **10,596 of Jak 1's 10,603 functions** compile
+  this way; the remaining seven are native routines (GOAL's cooperative
   thread, catch-frame and state-entry routines, which manipulate the machine
   stack directly). All 518 object files compile for `arm64-apple-ios`.
 - **Implemented — runtime.** The real OpenGOAL kernel initializes real heaps, a
@@ -38,42 +38,39 @@ no private entitlement anywhere in the build.
 - **Implemented — audio.** Upstream's 989snd sequencer and sound banks, driven
   through the real sound RPC, with a host-supplied output seam (CoreAudio on
   macOS, AVAudioEngine on iPadOS).
-- **Implemented — additive controller, keyboard/mouse, and touch input;
-  Experimental — complete hardware coverage.** GameController and screen input
-  always merge into one pad on iPhone/iPad; recent controller activity may hide
-  touch artwork but never disables its targets. The accepted touch scheme uses
-  dynamic movement and fixed camera sticks, bounded face/crouch gestures,
-  contextual face prompts, Zoom, Stats/SKIP, and Start/Pause/Resume. Physical
-  controls are remappable; whole-stick roles and camera/movement tuning preserve
-  exact default bytes. Keyboard defaults use WASD, mouse/trackpad camera, arrow
-  face directions, Escape for Start/Pause, and Tab for Stats. Build 135 adds
-  stale-touch cleanup and a same-finger speeder acceleration-to-brake gesture;
-  its physical acceptance remains pending.
-- **Implemented — title-scoped settings; Experimental — real multi-device
-  convergence.** The player-facing Jak 1 document exposes Controls, Graphics,
-  one combined iCloud block, save import/export and preserved-copy promotion,
-  and pause-gated developer logs. Graphics defaults to Modern with **Fit to
-  Screen**; Classic preserves the compatibility presentation. Old Controls,
-  Audio, UI, and touch-layout fields remain decodable for iCloud compatibility
-  but do not expose rejected Classic touch/editor UI. Settings and saves have
-  independent per-device sync toggles, and a real two-device conflict/provider
-  pass remains an external validation gate.
-- **Experimental — iPad/iPhone.** Jak 1 boots, renders, and plays on physical
-  Apple devices. Build 130 is the accepted unified baseline for the exercised
-  gameplay, Graphics/Fit-to-Screen, touch, settings, and iCloud scope. Build 135
-  is signed but not physically accepted. No checkpoint certifies a complete
-  playthrough, every level transition, every controller, or every supported
-  device.
-- **Experimental — visionOS.** The shared Apple target runs the conventional
-  Comfort window, and a synthetic Compositor Services proof validates per-view
-  timing, transforms, projections, targets, and reverse depth. Real game stereo,
-  tabletop, room-scale, first-person VR, and room-as-level play remain planned;
-  see the [visionOS implementation manual](docs/VISIONOS_PRESENTATION_MODES_IMPLEMENTATION_MANUAL.md).
+- **Implemented — controller input; Experimental — touch input.** A narrow pad
+  seam with no windowing dependency. A DualSense uses SDL on macOS;
+  GameController and the on-screen controls merge into one pad on iPadOS. The
+  current Classic Mode touch layout creates the movement stick under the first
+  left-half contact, keeps a continuous analog R stick at bottom right, and
+  maps right-half swipes to Cross, Square, Circle, or held L1. Reversing an L1
+  swipe upward adds Cross; short taps are deliberately inert. The deterministic
+  host check and macOS/iOS builds pass, and the named M5 simulator launches.
+  Physical multitouch ergonomics remain unvalidated. Diagnostics and resolution
+  controls remain hidden behind the three-line menu button.
+- **Experimental — Modern/Classic settings.** Controls, Graphics, Audio, and UI
+  each retain an independent Classic/Modern profile, section defaults, and a
+  Restore Defaults action. A global preset switches every section and reports
+  Mixed when profiles differ. Fresh settings and Reset All use Modern Graphics
+  with Fill Width (Hor+) enabled while Controls, Audio, and UI remain Classic;
+  that intentional combination appears as Mixed. Settings sync through iCloud
+  by default, with Jak 1 touch customization isolated in its own versioned
+  document so staggered older clients cannot erase it. The per-device opt-out
+  remains separate from iCloud saves. Hor+ is physically accepted on an 11-inch
+  iPad Pro.
+- **Experimental — iPad.** Jak 1 boots, renders, and plays on physical iPad. A
+  broad Build 89 early-game session established the accepted Classic behavior.
+  Build 90 preserves it, adds the settings shell, and is now the unified
+  baseline after the maintainer accepted its Hor+ presentation on an 11-inch
+  iPad Pro. This does not certify unvisited levels or completion.
+- **Experimental — visionOS.** The shared Apple target builds and launches in a
+  conventional SwiftUI window. No immersive or volumetric presentation is
+  included, and physical-headset gameplay remains unvalidated.
 - **Experimental — macOS launcher.** The shared SwiftUI library, import flow,
   Metal surface, AOT runtime, and audio host build for Apple Silicon. A Release
   build imported prepared Jak 1 data and reached the title screen through the
-  real runtime. Keyboard/mouse mappings exist, but a complete macOS gameplay
-  and physical-input pass remain unvalidated.
+  real runtime. A controller is still required for gameplay; keyboard mapping
+  and a complete macOS gameplay pass remain unvalidated.
 - **Planned.** Level streaming without frame stalls, streamed cutscene audio,
   and the remaining fidelity renderers (TIE wind, depth cue, sprite
   distort/glow).
