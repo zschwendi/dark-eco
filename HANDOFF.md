@@ -15401,3 +15401,86 @@ local room mesh access, anchoring/scale, collision, navigation, occlusion, safe
 spawning, relocalization/reset, and comfort while keeping room geometry private
 and ephemeral by default. “RIP” remains the maintainer's unresolved label until
 its exact project or API is identified.
+
+## Build 135 touch-ownership and speeder-brake checkpoint
+
+Date: 2026-08-06. Dedicated branch `agent/build135-touch-stall-fix` starts from
+the exact Build 134 source checkpoint
+`d2d077b9bf4c06e390de2f2ad7166aafbed2c227`. The following commits are pushed:
+
+- `63f8f3a60a06aa0128e2b2230aeb939df39359ee` clears stale UIKit touch
+  identifiers and control ownership after normal ends, cancellations,
+  interruptions, window loss, and surface transfer. Controller artwork
+  suppression remains presentation-only and semantic controls remain hit-testable.
+- `0682ca20a2043a1381f950202c996b611f950bb9` closes the independent review's
+  iOS touch-phase exhaustiveness and POSIX-shell findings.
+- `b0695cae3a999eec10f53765fb999198eceeb634` adds the contextual speeder
+  brake/drift gesture. While Jak is in any of the nine authoritative
+  `target-racing*` next states, the existing right-side up swipe keeps Cross
+  held for acceleration and a 44-point downward reversal by that same finger
+  additionally holds L1 and R1 until the finger lifts. Leaving the speeder
+  state drops only the shoulder inputs. On-foot behavior remains Cross-only.
+- `e63516159086e5c1c5c63b2ad316d15144dc02d9` sets both Xcode configurations
+  to Build 135.
+
+The touch fix has deterministic coverage for controller activity followed by
+touch, normal and cancelled camera endings, Start ending and cancellation,
+multi-touch release ordering, repeated controller/touch transitions, and zero
+retained ownership after every finger lifts. An independent line-by-line review
+accepted the final patch. A separate review accepted the speeder predicate,
+fail-closed checked state reads, lifecycle cleanup, additive input, and on-foot
+invariance.
+
+Final focused validation passed:
+
+```text
+Scripts/run-touch-controls-check.sh
+Scripts/run-game-menu-state-check.sh
+Scripts/run-keyboard-mouse-input-check.sh
+Scripts/run-game-look-around-state-check.sh
+Scripts/run-game-lifecycle-check.sh
+```
+
+Logs are `/private/tmp/GP-build135-final-touch.log`,
+`/private/tmp/GP-build135-final-menu.log`,
+`/private/tmp/GP-build135-final-keyboard.log`,
+`/private/tmp/GP-build135-final-look.log`, and
+`/private/tmp/GP-build135-final-lifecycle.log`. The touch suite retains only its
+pre-existing `idlePrompt` never-mutated warning.
+
+The signed generic-iOS Release command passed with exit 0:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad -configuration Release -destination 'generic/platform=iOS' -derivedDataPath /private/tmp/GOALPad-build124-controller-chrome -jobs 4 -allowProvisioningUpdates GOALPAD_OPENGOAL_ROOT=/private/tmp/GP-build94-jak1-settings/OpenGOAL GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/private/tmp/GP-build94-jak1-settings/build/jak1-source-object-pack build
+```
+
+Full output is `/private/tmp/GOALPad-build135-touch-stall-signed.log`. The exact
+frozen artifact is
+`/private/tmp/GOALPad-build135-touch-stall-signed/GOALPad.app`:
+
+- Eco `1.0 (135)`, `com.zephyrstudiosllc.eco`, 52 MB, thin arm64
+- executable SHA-256
+  `272a6528fdc475e135bdb8920adb54e898a7f80a029bf8256624499e573fb116`
+- Mach-O UUID `7514FB99-49C9-36E6-AC37-A7F5DD2BC858`
+- CDHash `a804733d14319e0b335024cd56611138613adb08`
+- strict signature verification passed under Zephyr team `V729QMY3V6`
+- iCloud and Game Center entitlements present; privacy manifest lints
+- exactly 518 public source objects plus their manifest; audited retail-payload
+  extension scan empty
+
+The isolated worktree needed the exact ignored 518-object AOT corpus copied
+from the canonical pinned checkout and a temporary local `OpenGOAL` symlink for
+hard-wired Metal paths. The symlink was removed after the build and the empty
+submodule directory restored. No tracked source changed during this setup.
+Repository-known Swift/C++/generated-AOT warnings remain; there was no build
+error.
+
+No physical device was installed, launched, logged, or captured. Build 130
+remains the immutable physically accepted baseline until the maintainer
+authorizes and accepts Build 135. The shortest physical route is: use controller
+movement/camera/jump/Start; alternate repeatedly into touch camera,
+movement/jump, and Start/Pause without disconnecting the controller; release and
+cancel mixed touches in different orders; then on the speeder hold the up swipe,
+reverse down with the same finger to confirm acceleration plus brake/drift, and
+lift to release. Repeat the reverse gesture on foot and confirm it remains
+Cross-only.
