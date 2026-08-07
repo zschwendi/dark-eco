@@ -12978,3 +12978,88 @@ smallest Mac/Eco title host and input route, ask the maintainer to test the firs
 meaningful visible and navigable milestone, then launch a new game and enter
 Stage 10 immediately. Keep the separate Jak II worktree, scripts-first workflow,
 focused patch-local tests, and one heavy AOT/Metal build per checkpoint.
+
+# Checkpoint 94: interactive Jak II Mac title host
+
+Date: 2026-08-06. The isolated nested branch
+`agent/jak2-real-dma-draw-proof` now contains the game-neutral CoreAudio seam at
+`82ca19bf8`, interactive SDL pad routing at `a7aade873`, and the reviewed Mac
+title-host integration at `32fa867f8`. The parent branch owns
+`Scripts/run-jak2-stage9-mac.sh` for one-command focused validation and fresh-
+settings play sessions. No Jak 1 worktree was changed.
+
+The runtime boot now runs off the Cocoa/SDL event thread, matching the existing
+iPhoneOS proof, so the window remains presentable while KERNEL/GAME and title
+data load. Interactive mode shows and raises the window, requires the first
+real presentation, paces Metal at 60 Hz with a monotonic limiter floor, pauses
+ticks and CoreAudio while minimized/occluded, and resumes without creating a
+second runtime. CoreAudio pulls Jak II's 48 kHz mixer through the shared game
+sound seam and tears down before the runtime. Keyboard and the first SDL
+gamepad push the shared portable pad state before every tick.
+
+Bounded mode now has a deterministic live-runtime pad probe. It holds L3 until
+GOAL performs its first real pad read, then holds neutral until the second read
+proves release. The Stage 9 automation fails closed unless the runtime reaches
+title-ready state, completes 40/40 Metal chains, produces changing nonblack
+output with real draws, consumes both pad states, and exits successfully. The
+older exact glow-attribution signature remains telemetry, not a Stage 9 gate;
+its clipped draw-only records are still renderer debt.
+
+## Validation
+
+The final focused checkpoint command was:
+
+```text
+GOALPAD_JAK2_DATA_DIR=/Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  Scripts/run-jak2-stage9-mac.sh check
+```
+
+It incrementally built the pad, sound, external-Metal-host, and 840-object AOT
+runtime targets, then passed `jak2-pad-seam-test`, `jak2-sound-rpc-test`,
+`jak2-metal-host-bridge-test`, and the fresh 40-tick runtime gate. The complete
+runtime log is
+`/private/tmp/goalpad-jak2-stage9-check-20260806-183609-51569.log` (SHA-256
+`72481afb131b28854cbd3a26e29f4dd90ea5f49383e29349ec165aab9690e891`).
+The final metrics are 40/40 completed chains, zero failed chains, 327 buckets,
+changing 640x480 nonblack frames, and `pad-probe: pushes=40 reads=0->38
+press-read=1 release-read=2 transitioned=1`. Exact common opcodes 12, 13, and
+27, skull-gem preparation, and publication remain healthy. `git diff --check`,
+shell parsing, both changed-file compiler checks, an independent read-only
+integration review, and its two focused re-reviews passed. The first cold
+shared-audio build also compiled the Jak 1 Mac host once; later Stage 9 checks
+no longer pull that target.
+
+The visible fresh-settings smoke was:
+
+```text
+GOALPAD_JAK2_DATA_DIR=/Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  Scripts/run-jak2-stage9-mac.sh play
+```
+
+CoreAudio started at 48 kHz, `TITLE.DGO` reached title-ready state, city/title
+background levels loaded, and the host ended cleanly after 2,224 ticks. The
+last five 300-tick health windows stayed between 59.98 and 60.03 fps with zero
+failed chains, continuous presentations, changing nonblack hashes, and live pad
+reads. Fresh settings were written under
+`/private/tmp/goalpad-jak2-stage9-play-20260806-183116-50657`.
+
+## Acceptance boundary and next executable task
+
+The automation environment cannot attach its UI controller to this unbundled
+SDL process, so no screenshot or real keyboard/controller navigation was
+fabricated. Maintainer visual recognition and Start/X navigation are the next
+meaningful acceptance gate. Run `Scripts/run-jak2-stage9-mac.sh play`, confirm
+the title is recognizable and input moves it, then start a new game. Fix only
+renderer gaps that block that path; retain clipped glow and other cosmetic
+draw-only buckets as telemetry.
+
+The smoke proved CoreAudio device startup, not audible content, and did not
+exercise an explicit minimize/resume cycle. Audio perception, lifecycle resume,
+and actual title navigation therefore remain part of maintainer acceptance.
+
+After the Mac acceptance, begin the separate Jak II Eco development target and
+M5 simulator lane: reuse the controller and lifecycle shell, link only the Jak
+II 840-object AOT/runtime/Metal host, keep Jak II saves local, and do not mutate
+the shipping Jak 1 target. No Eco target, simulator, or physical device was
+accessed in this checkpoint; physical-device testing still requires fresh
+maintainer authorization.

@@ -1346,6 +1346,20 @@ controls, settings, lifecycle, and Eco seams where applicable, then start a new
 game and enter Stage 10. Only renderer gaps that block visibility, navigation,
 or gameplay should preempt that path.
 
+Checkpoint 94 advances the isolated Jak II line through nested `82ca19bf8`,
+`a7aade873`, and `32fa867f8`. The Mac host now keeps Cocoa responsive during
+boot, starts the game-neutral 48 kHz CoreAudio adapter, pushes keyboard/SDL
+gamepad state into the live runtime, suspends while non-presentable, and holds
+60 Hz with Metal presentation pacing plus a monotonic floor. The automated
+fresh-settings gate passes 40/40 chains with changing nonblack title output and
+proves a held L3 press plus its release are both read by GOAL. A visible smoke
+remains healthy for 2,224 ticks, with five steady telemetry windows at
+59.98-60.03 fps and zero failed chains. Maintainer recognition/navigation is
+still required because automation cannot inspect or operate the unbundled SDL
+window. After that acceptance, start a new game and move directly into Stage
+10; then seed the separate Jak II Eco/M5 simulator target without changing the
+shipping Jak 1 target.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
@@ -1370,14 +1384,11 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Advance the first bounded Jak II normal-runtime display tick into a sustained
-   multi-tick/lifecycle proof, then real-DMA Metal
-   draw calls, drawable acquisition, and completed submission through the
-   existing product host. Preserve the guarded indirect-call diagnostic and
-   the nil-layer, offscreen-readback, and opt-in CAMetalLayer proofs. Correct
-   the GOAL-side failed-stream validity comparison and resolve local signing
-   trust before stronger recovery or install claims; do not claim title-screen,
-   gameplay, or physical-device support from these gates.
+4. Run the Checkpoint 94 Jak II Mac play script and record maintainer visual and
+   input acceptance. Fix only visibility/navigation blockers, start a new game,
+   and enter Stage 10 immediately. Then reuse the proven controller/lifecycle
+   seams in a separate Jak II Eco/M5 simulator target without changing the
+   shipping Jak 1 target or claiming physical-device support.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
