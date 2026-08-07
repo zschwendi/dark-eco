@@ -18,6 +18,7 @@ struct TouchControlsView: View {
     let cutsceneSkipTouchSnapshot: NativeCutsceneSkipTouchSnapshot
     let facePromptTouchSnapshot: NativeFacePromptTouchSnapshot
     let reclaimTouchInput: () -> Bool
+    let openSettings: () -> Void
 
     fileprivate static let space = "GOALPadTouchControls"
     private static let pillWidth: CGFloat = 82
@@ -111,8 +112,7 @@ struct TouchControlsView: View {
             isAwaitingTitleStart: isAwaitingTitleStart,
             isEngaged: controls.isEngaged,
             isSuppressed: isSuppressed,
-            hasTouches: hasScreenTouches,
-            hasActiveGameplayGesture: controls.hasActiveGameplayGesture)
+            hasTouches: hasScreenTouches)
     }
 
     private var ordinaryGameplayChromeIsVisible: Bool {
@@ -127,17 +127,15 @@ struct TouchControlsView: View {
             hasTouches: hasScreenTouches)
     }
 
-    private var rightStickArtworkIsVisible: Bool {
-        TouchControls.rightStickArtworkIsVisible(
+    private var rightStickArtworkIsAvailable: Bool {
+        activeGameplayChromeIsAvailable && !cutsceneSkipAvailable && facePromptActions.isEmpty
+    }
+
+    private var ecoSettingsIsVisible: Bool {
+        NativeEcoSettingsPresentation.isVisible(
             mode: gameMode,
-            runReadiness: runReadiness,
-            isAwaitingTitleStart: isAwaitingTitleStart,
-            cutsceneSkipAvailable: cutsceneSkipAvailable,
-            isEngaged: controls.isEngaged,
-            isSuppressed: isSuppressed,
-            hasTouches: hasScreenTouches,
-            hasActiveGameplayGesture: controls.hasActiveGameplayGesture,
-            contextualFacePromptOwnsGameplayActions: !facePromptActions.isEmpty)
+            progress: progressMenuSnapshot,
+            runReadiness: runReadiness)
     }
 
     /// Triangle belongs to SKIP while the authored cutscene query owns it.
@@ -155,18 +153,19 @@ struct TouchControlsView: View {
                                  reclaimTouchInput: reclaimTouchInput)
                     #endif
 
-                    artwork(in: proxy)
-                        .allowsHitTesting(false)
+                    if isAwaitingTitleStart {
+                        titleStartArtwork(in: proxy)
+                            .allowsHitTesting(false)
+                    }
+
+                    ordinaryGameplayChrome(in: proxy)
+                        .opacity(ordinaryGameplayChromeIsVisible ? 1 : 0)
+                        .animation(.easeOut(duration: 0.16),
+                                   value: ordinaryGameplayChromeIsVisible)
 
                     if titleStartTouchTargetIsVisible {
                         titleStartTouchTarget
                     }
-
-                    zoomButton(in: proxy)
-                        .opacity(zoomIsAvailable && ordinaryGameplayChromeIsVisible ? 1 : 0)
-                        .allowsHitTesting(zoomIsAvailable)
-                        .animation(.easeOut(duration: 0.16),
-                                   value: ordinaryGameplayChromeIsVisible)
                 }
 
                 if capturesNativeMenuInput {
@@ -214,7 +213,16 @@ struct TouchControlsView: View {
         .ignoresSafeArea()
     }
 
-    private func artwork(in proxy: GeometryProxy) -> some View {
+    private func titleStartArtwork(in proxy: GeometryProxy) -> some View {
+        let frame = ModernTouchChromeLayout(size: proxy.size).centeredSessionFrame
+        return pill(.start)
+            .position(x: frame.midX, y: frame.midY)
+            .opacity(titleStartChromeIsVisible ? 1 : 0)
+            .animation(.easeOut(duration: 0.16), value: titleStartChromeIsVisible)
+    }
+
+    /// Every eligible gameplay ornament shares this one idle-opacity transition.
+    private func ordinaryGameplayChrome(in proxy: GeometryProxy) -> some View {
         let safeAreaInsets = TouchSafeAreaInsets(top: proxy.safeAreaInsets.top,
                                                  leading: proxy.safeAreaInsets.leading,
                                                  bottom: proxy.safeAreaInsets.bottom,
@@ -226,37 +234,25 @@ struct TouchControlsView: View {
         return ZStack {
             if let stick = controls.stick {
                 MovementStickArtwork(touch: stick)
-                    .opacity(ordinaryGameplayChromeIsVisible ? 1 : 0)
             }
 
-            ForEach(controls.gestures) { gesture in
-                GestureRose(gesture: gesture)
-                    .opacity(ordinaryGameplayChromeIsVisible ? 1 : 0)
-            }
-
-            if isAwaitingTitleStart {
-                pill(.start)
-                    .position(x: chrome.centeredSessionFrame.midX,
-                              y: chrome.centeredSessionFrame.midY)
-                    .opacity(titleStartChromeIsVisible ? 1 : 0)
-            } else if activeGameplayChromeIsAvailable {
+            if activeGameplayChromeIsAvailable {
                 pill(.stats)
                     .position(x: chrome.statsFrame.midX, y: chrome.statsFrame.midY)
-                    .opacity(ordinaryGameplayChromeIsVisible ? 1 : 0)
                 pill(.start)
                     .position(x: chrome.startFrame.midX, y: chrome.startFrame.midY)
-                    .opacity(ordinaryGameplayChromeIsVisible ? 1 : 0)
             }
 
             RightStickControl(controls: controls)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 .padding(.trailing, layout.rightStickSpacer)
                 .padding(.bottom, bottomInset)
-                .opacity(rightStickArtworkIsVisible ? 1 : 0)
-                .animation(.easeOut(duration: 0.16), value: rightStickArtworkIsVisible)
+                .opacity(rightStickArtworkIsAvailable ? 1 : 0)
+
+            zoomButton(in: proxy)
+                .opacity(zoomIsAvailable ? 1 : 0)
+                .allowsHitTesting(zoomIsAvailable)
         }
-        .opacity(isSuppressed && !hasScreenTouches ? 0 : 1)
-        .animation(.easeOut(duration: 0.16), value: isSuppressed)
     }
 
     private func pill(_ button: TouchButton) -> some View {
@@ -307,6 +303,15 @@ struct TouchControlsView: View {
     private func capturedMenuChrome(in proxy: GeometryProxy) -> some View {
         let chrome = ModernTouchChromeLayout(size: proxy.size)
         return ZStack {
+            if ecoSettingsIsVisible {
+                Button { openSettings() } label: {
+                    ecoSettingsPillLabel
+                }
+                .buttonStyle(.plain)
+                .position(x: chrome.statsFrame.midX, y: chrome.statsFrame.midY)
+                .accessibilityLabel("Eco Settings")
+            }
+
             if let sessionControl {
                 Button { performSessionControl(sessionControl) } label: {
                     capturedPillLabel(sessionControl.action.label.uppercased(),
@@ -314,8 +319,9 @@ struct TouchControlsView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(!sessionControl.isEnabled)
-                .position(x: chrome.centeredSessionFrame.midX,
-                          y: chrome.centeredSessionFrame.midY)
+                .position(x: ecoSettingsIsVisible ? chrome.startFrame.midX
+                                                  : chrome.centeredSessionFrame.midX,
+                          y: chrome.startFrame.midY)
                 .accessibilityLabel(sessionControl.action.label)
             }
         }
@@ -334,6 +340,20 @@ struct TouchControlsView: View {
             .overlay(Capsule().strokeBorder(.white.opacity(isEnabled ? 0.35 : 0.18),
                                             lineWidth: 1))
             .contentShape(Capsule())
+    }
+
+    private var ecoSettingsPillLabel: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "gearshape")
+            Text("ECO")
+        }
+        .font(.system(size: 12, weight: .semibold, design: .rounded))
+        .tracking(1.4)
+        .foregroundStyle(.white.opacity(0.8))
+        .frame(width: Self.pillWidth, height: 42)
+        .background(Capsule().fill(.black.opacity(0.42)))
+        .overlay(Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1))
+        .contentShape(Capsule())
     }
 
     /// The title prompt is an app-owned semantic action. Keep its visible Build 96 pill, but do
@@ -761,35 +781,6 @@ private struct ClassicStickControl: View {
                                                         radius: radius)
         let travel = radius - knobSize / 2
         return CGSize(width: push.x * travel, height: push.y * travel)
-    }
-}
-
-/// Face-button gestures remain available in open space without producing camera axes.
-private struct GestureRose: View {
-    let gesture: TouchControls.Tracked
-
-    private static let reach = TouchControls.swipeDistance + 24
-
-    var body: some View {
-        ZStack {
-            chip(.cross, isLit: gesture.swiped == .cross || gesture.jumpTriggered)
-                .position(x: gesture.origin.x, y: gesture.origin.y - Self.reach)
-            chip(.square, isLit: gesture.swiped == .square)
-                .position(x: gesture.origin.x - Self.reach, y: gesture.origin.y)
-            chip(.circle, isLit: gesture.swiped == .circle)
-                .position(x: gesture.origin.x + Self.reach, y: gesture.origin.y)
-            chip(.crouch, isLit: gesture.swiped == .crouch)
-                .position(x: gesture.origin.x, y: gesture.origin.y + Self.reach)
-        }
-    }
-
-    private func chip(_ button: TouchButton, isLit: Bool) -> some View {
-        Text(button.glyph)
-            .font(.system(size: 20, weight: .medium, design: .rounded))
-            .foregroundStyle(.white.opacity(isLit ? 1 : 0.7))
-            .frame(width: 46, height: 46)
-            .background(Circle().fill(.black.opacity(isLit ? 0.7 : 0.3)))
-            .overlay(Circle().strokeBorder(.white.opacity(isLit ? 0.9 : 0.3), lineWidth: 1.5))
     }
 }
 

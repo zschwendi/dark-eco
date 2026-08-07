@@ -69,7 +69,8 @@ struct ContentView: View {
                                   warpGateTouchSnapshot: session.warpGateTouchSnapshot,
                                   cutsceneSkipTouchSnapshot: session.cutsceneSkipTouchSnapshot,
                                   facePromptTouchSnapshot: session.facePromptTouchSnapshot,
-                                  reclaimTouchInput: session.input.reclaimTouchInput)
+                                  reclaimTouchInput: session.input.reclaimTouchInput,
+                                  openSettings: { presentSettings(.jak1) })
                 #endif
 
                 if session.isNativeMenuOpen
@@ -112,26 +113,6 @@ struct ContentView: View {
                     .preferredColorScheme(.dark)
                     .tint(DarkEcoTheme.accent)
                 }
-            }
-
-            if session.isRunning && session.isNativeMenuOpen {
-                Button { presentSettings(.jak1) } label: {
-                    HStack(spacing: 7) {
-                        Text("Eco")
-                        Image(systemName: "gearshape")
-                    }
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 9)
-                    .frame(minHeight: 44)
-                    .background(.black.opacity(0.5), in: Capsule())
-                    .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Eco Settings")
-                .padding()
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
         }
         .task { await session.prepare() }

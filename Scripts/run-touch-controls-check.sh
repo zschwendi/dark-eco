@@ -56,9 +56,8 @@ if rg -Fq 'Button { performCapturedStats() }' "$root/GOALPad/Game/TouchControlsV
 fi
 
 # Controller activity and the shared idle timer suppress gameplay artwork without removing its
-# raw or semantic hit target. A raw gameplay gesture suppresses all gameplay button/stick artwork
-# until that same delivered gesture ends. Required title, native-menu, and captured-warp chrome
-# stay on their dedicated visibility paths.
+# raw or semantic hit target. Every eligible gameplay ornament uses one shared opacity and one
+# animation; invisible face/crouch swipe mapping must not suppress the remaining chrome.
 if rg -Fq 'if isVisible {' "$root/GOALPad/Game/TouchControlsView.swift"; then
   echo "controller suppression still removes a semantic touch control" >&2
   exit 1
@@ -68,14 +67,39 @@ if rg -Fq '.opacity(isVisible ? 1 : 0)' "$root/GOALPad/Game/TouchControlsView.sw
   exit 1
 fi
 rg -Fq 'gameplayChromeIsVisible' "$root/GOALPad/Game/TouchControlsView.swift"
-rg -Fq 'hasActiveGameplayGesture: controls.hasActiveGameplayGesture' \
-  "$root/GOALPad/Game/TouchControlsView.swift"
-rg -Fq 'rightStickArtworkIsVisible' "$root/GOALPad/Game/TouchControlsView.swift"
-rg -Fq '.opacity(rightStickArtworkIsVisible ? 1 : 0)' \
-  "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'ordinaryGameplayChromeIsVisible' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq '.opacity(ordinaryGameplayChromeIsVisible ? 1 : 0)' \
   "$root/GOALPad/Game/TouchControlsView.swift"
+if rg -Fq 'hasActiveGameplayGesture' "$root/GOALPad/Game/TouchControlsView.swift"; then
+  echo "gesture activity still suppresses global gameplay chrome" >&2
+  exit 1
+fi
+if test "$(rg -F -c '.opacity(ordinaryGameplayChromeIsVisible ? 1 : 0)' \
+    "$root/GOALPad/Game/TouchControlsView.swift")" -ne 1; then
+  echo "gameplay ornaments do not share exactly one idle opacity" >&2
+  exit 1
+fi
+if test "$(rg -F -c 'value: ordinaryGameplayChromeIsVisible' \
+    "$root/GOALPad/Game/TouchControlsView.swift")" -ne 1; then
+  echo "gameplay ornaments do not share exactly one idle animation" >&2
+  exit 1
+fi
+ordinary_layer=$(sed -n \
+  '/private func ordinaryGameplayChrome(in proxy: GeometryProxy)/,/private func pill(/p' \
+  "$root/GOALPad/Game/TouchControlsView.swift")
+if printf '%s\n' "$ordinary_layer" | rg -Fq '.animation('; then
+  echo "an ordinary gameplay child still owns a staggered animation" >&2
+  exit 1
+fi
+if rg -q 'GestureRose|ForEach\(controls\.gestures\)' \
+    "$root/GOALPad/Game/TouchControlsView.swift"; then
+  echo "face/crouch swipe-guide artwork is still mounted" >&2
+  exit 1
+fi
+rg -Fq 'case .gesture' "$root/GOALPad/Game/TouchControls.swift"
+rg -Fq 'Self.swipeDirection(from: touch.origin, to: point)' \
+  "$root/GOALPad/Game/TouchControls.swift"
+rg -Fq 'rightStickArtworkIsAvailable' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'showsChrome: gameplayChromeIsVisible' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'facePromptActions.isEmpty' "$root/GOALPad/Game/TouchControlsView.swift"
@@ -92,6 +116,31 @@ rg -Fq 'isInteractive: warpGateTouchControlsAreVisible' \
 rg -Fq 'showsChrome: warpGateTouchControlsAreVisible' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq '.allowsHitTesting(isInteractive)' "$root/GOALPad/Game/TouchControlsView.swift"
+
+# App-owned Eco Settings occupies the ordinary Stats slot only after the exact initial title gate.
+# Resume/Start keeps the paired session slot; the former top-right duplicate is gone.
+rg -Fq 'NativeEcoSettingsPresentation.isVisible(' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'Button { openSettings() }' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq '.position(x: chrome.statsFrame.midX, y: chrome.statsFrame.midY)' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'ecoSettingsIsVisible ? chrome.startFrame.midX' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+eco_pill=$(sed -n \
+  '/private var ecoSettingsPillLabel: some View {/,/^    }/p' \
+  "$root/GOALPad/Game/TouchControlsView.swift")
+printf '%s\n' "$eco_pill" | rg -Fq 'Image(systemName: "gearshape")'
+printf '%s\n' "$eco_pill" | rg -Fq 'Text("ECO")'
+printf '%s\n' "$eco_pill" | rg -Fq '.frame(width: Self.pillWidth, height: 42)'
+if rg -Fq 'session.isRunning && session.isNativeMenuOpen' \
+    "$root/GOALPad/ContentView.swift"; then
+  echo "redundant top-right Eco Settings control is still mounted" >&2
+  exit 1
+fi
+rg -Fq 'openSettings: { presentSettings(.jak1) }' "$root/GOALPad/ContentView.swift"
+rg -Fq 'static let quit = 34' "$root/GOALPad/Game/TouchControls.swift"
+rg -Fq 'static let quitTitle = 58' "$root/GOALPad/Game/TouchControls.swift"
+rg -Fq 'return [.left, .right, .confirm]' "$root/GOALPad/Game/TouchControls.swift"
 
 # The dynamic left movement artwork gains only an L label. Its accepted 66-point knob and
 # movement-radius geometry remain the same as the deterministic byte checks above.

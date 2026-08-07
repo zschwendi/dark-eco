@@ -1400,6 +1400,13 @@ private func sessionControlStateMatrixIsExactAndFailClosed() {
           == NativeSessionControlPresentation(action: .resume, isEnabled: true),
           "bare native pause presents Resume")
 
+    check(!NativeEcoSettingsPresentation.isVisible(
+        mode: .gameplay, progress: .unavailable, runReadiness: .titlePrompt),
+          "the initial title sequence and Start gate never present Eco Settings")
+    check(NativeEcoSettingsPresentation.isVisible(
+        mode: .pause, progress: .unavailable, runReadiness: .active),
+          "native pause presents Eco Settings in the menu-only slot")
+
     let gameplayProgress = progressSnapshot(screen: 3, startingScreen: 0,
                                             canExitWithStart: false, canGoBack: true)
     check(NativeSessionControlPresentation.reduce(
@@ -1415,6 +1422,18 @@ private func sessionControlStateMatrixIsExactAndFailClosed() {
         runReadiness: .titleMenu)
           == NativeSessionControlPresentation(action: .start, isEnabled: true),
           "title-origin progress uses the physical Start label for Back/exit")
+    check(NativeEcoSettingsPresentation.isVisible(
+        mode: .progress, progress: titleProgress, runReadiness: .titleMenu),
+          "the post-initial native title menu presents Eco Settings beside Start")
+    check(!NativeEcoSettingsPresentation.isVisible(
+        mode: .progress, progress: .unavailable, runReadiness: .titleMenu)
+          && !NativeEcoSettingsPresentation.isVisible(
+            mode: .progress,
+            progress: progressSnapshot(screen: 27, transition: true),
+            runReadiness: .titleMenu)
+          && !NativeEcoSettingsPresentation.isVisible(
+            mode: .gameplay, progress: .unavailable, runReadiness: .active),
+          "unknown, transitional, and gameplay states cannot invent Eco Settings")
 
     let titleWait = GameplayRunReadiness.advance(
         .active, mode: .gameplay, titleStartState: .awaiting, progress: .unavailable)
@@ -1536,23 +1555,22 @@ private func controllerSuppressionKeepsTouchRecovery() {
 }
 
 @MainActor
-private func build131GameplayChromeFadeAndGestureSuppression() {
-    print("Build 131 fades all gameplay chrome and hides it during raw gestures")
+private func gameplayChromeUsesOneIdleStateWithoutGestureSuppression() {
+    print("all gameplay chrome shares one idle state without gesture suppression")
     check(TouchControls.gameplayChromeFadeOutDelay == 3,
           "all gameplay artwork uses the exact three-second idle delay")
 
-    let chromeCases: [(GOALPadGameMode, GameplayRunReadiness, Bool, Bool, Bool, Bool, Bool, Bool)] = [
-        (.gameplay, .active, false, true, false, false, false, true),
-        (.gameplay, .active, false, false, false, false, false, false),
-        (.gameplay, .preRun, false, true, false, false, false, false),
-        (.gameplay, .active, true, true, false, false, false, false),
-        (.pause, .active, false, true, false, false, false, false),
-        (.progress, .active, false, true, false, false, false, false),
-        (.gameplay, .active, false, true, true, false, false, false),
-        (.gameplay, .active, false, true, true, true, false, true),
-        (.gameplay, .active, false, true, false, true, true, false),
+    let chromeCases: [(GOALPadGameMode, GameplayRunReadiness, Bool, Bool, Bool, Bool, Bool)] = [
+        (.gameplay, .active, false, true, false, false, true),
+        (.gameplay, .active, false, false, false, false, false),
+        (.gameplay, .preRun, false, true, false, false, false),
+        (.gameplay, .active, true, true, false, false, false),
+        (.pause, .active, false, true, false, false, false),
+        (.progress, .active, false, true, false, false, false),
+        (.gameplay, .active, false, true, true, false, false),
+        (.gameplay, .active, false, true, true, true, true),
     ]
-    for (mode, readiness, awaiting, engaged, suppressed, hasTouches, gesture, expected)
+    for (mode, readiness, awaiting, engaged, suppressed, hasTouches, expected)
         in chromeCases {
         check(TouchControls.gameplayChromeIsVisible(
             mode: mode,
@@ -1560,9 +1578,8 @@ private func build131GameplayChromeFadeAndGestureSuppression() {
             isAwaitingTitleStart: awaiting,
             isEngaged: engaged,
             isSuppressed: suppressed,
-            hasTouches: hasTouches,
-            hasActiveGameplayGesture: gesture) == expected,
-              "gameplay chrome matrix applies readiness, idle, controller, and gesture gates")
+            hasTouches: hasTouches) == expected,
+              "gameplay chrome matrix applies readiness, idle, and controller gates")
     }
 
     check(TouchControls.titleStartChromeIsVisible(
@@ -1580,27 +1597,22 @@ private func build131GameplayChromeFadeAndGestureSuppression() {
     check(TouchControls.rightStickArtworkIsVisible(
         mode: .gameplay, runReadiness: .active, isAwaitingTitleStart: false,
         cutsceneSkipAvailable: false, isEngaged: true,
-        isSuppressed: false, hasTouches: false, hasActiveGameplayGesture: false),
+        isSuppressed: false, hasTouches: false),
           "engaged active gameplay shows the fixed R-stick artwork")
     check(!TouchControls.rightStickArtworkIsVisible(
         mode: .gameplay, runReadiness: .active, isAwaitingTitleStart: false,
         cutsceneSkipAvailable: false, isEngaged: false,
-        isSuppressed: false, hasTouches: false, hasActiveGameplayGesture: false),
+        isSuppressed: false, hasTouches: false),
           "idle gameplay hides the fixed R-stick artwork with every gameplay button")
     check(!TouchControls.rightStickArtworkIsVisible(
         mode: .gameplay, runReadiness: .active, isAwaitingTitleStart: false,
-        cutsceneSkipAvailable: false, isEngaged: true,
-        isSuppressed: false, hasTouches: true, hasActiveGameplayGesture: true),
-          "a raw gameplay gesture hides the R-stick artwork despite current touch activity")
-    check(!TouchControls.rightStickArtworkIsVisible(
-        mode: .gameplay, runReadiness: .active, isAwaitingTitleStart: false,
         cutsceneSkipAvailable: true, isEngaged: true,
-        isSuppressed: false, hasTouches: false, hasActiveGameplayGesture: false),
+        isSuppressed: false, hasTouches: false),
           "authoritative SKIP ownership hides the conflicting camera chrome")
     check(!TouchControls.rightStickArtworkIsVisible(
         mode: .pause, runReadiness: .active, isAwaitingTitleStart: false,
         cutsceneSkipAvailable: false, isEngaged: true,
-        isSuppressed: false, hasTouches: false, hasActiveGameplayGesture: false),
+        isSuppressed: false, hasTouches: false),
           "captured pause hides the gameplay R-stick artwork")
 
     var hiddenStick = Runner()
@@ -1646,7 +1658,7 @@ private func build131GameplayChromeFadeAndGestureSuppression() {
           && TouchControls.rightStickArtworkIsVisible(
             mode: .gameplay, runReadiness: .active, isAwaitingTitleStart: false,
             cutsceneSkipAvailable: false, isEngaged: hiddenStick.controls.isEngaged,
-            isSuppressed: false, hasTouches: true, hasActiveGameplayGesture: false),
+            isSuppressed: false, hasTouches: true),
           "the first ordinary screen touch is delivered and immediately reveals gameplay chrome")
 
     hiddenStick.up(movement)
@@ -1655,22 +1667,26 @@ private func build131GameplayChromeFadeAndGestureSuppression() {
     let gestureCentre = CGPoint(x: 900, y: 360)
     hiddenStick.down(gesture, gestureCentre)
     check(hiddenStick.controls.hasActiveGameplayGesture
-          && !TouchControls.gameplayChromeIsVisible(
+          && TouchControls.gameplayChromeIsVisible(
             mode: .gameplay, runReadiness: .active, isAwaitingTitleStart: false,
             isEngaged: hiddenStick.controls.isEngaged,
-            isSuppressed: false, hasTouches: true, hasActiveGameplayGesture: true),
-          "gesture touch-down wakes state but keeps all gameplay artwork suppressed")
+            isSuppressed: false, hasTouches: true),
+          "gesture touch-down wakes and preserves the shared gameplay chrome")
     hiddenStick.move(gesture, CGPoint(x: gestureCentre.x, y: gestureCentre.y - 60))
-    check(hiddenStick.frame().buttons.contains(.cross),
-          "the visually suppressed swipe still delivers its exact gameplay input")
+    check(hiddenStick.frame().buttons.contains(.cross)
+          && TouchControls.gameplayChromeIsVisible(
+            mode: .gameplay, runReadiness: .active, isAwaitingTitleStart: false,
+            isEngaged: hiddenStick.controls.isEngaged,
+            isSuppressed: false, hasTouches: true),
+          "an active face swipe preserves shared chrome and its exact gameplay input")
     hiddenStick.up(gesture)
     check(!hiddenStick.controls.hasActiveGameplayGesture
           && hiddenStick.controls.isEngaged
           && TouchControls.gameplayChromeIsVisible(
             mode: .gameplay, runReadiness: .active, isAwaitingTitleStart: false,
             isEngaged: hiddenStick.controls.isEngaged,
-            isSuppressed: false, hasTouches: false, hasActiveGameplayGesture: false),
-          "gameplay chrome returns immediately after the swipe ends")
+            isSuppressed: false, hasTouches: false),
+          "ending a swipe retains chrome until the one shared idle timer expires")
 }
 
 @MainActor
@@ -1778,6 +1794,26 @@ private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
         in: .progress, progress: progressSnapshot(screen: 3, option: 7))
           == [.up, .down, .confirm],
           "the eighth shipping main-settings row remains reachable")
+    for (screen, label) in [(34, "gameplay quit"), (58, "title quit")] {
+        let confirmation = progressSnapshot(screen: screen, option: 0)
+        check(NativeMenuTouchAction.available(in: .progress, progress: confirmation)
+              == [.left, .right, .confirm]
+              && NativeMenuTouchAction.available(
+                in: .progress,
+                progress: progressSnapshot(screen: screen, option: 0,
+                                           canGoBack: true))
+                == [.left, .right, .confirm],
+              "\(label) exposes exact horizontal Yes/No and Confirm actions")
+        check(NativeMenuTouchAction.available(
+            in: .progress,
+            progress: progressSnapshot(screen: screen, option: 1,
+                                       canGoBack: true)).isEmpty
+              && NativeMenuTouchAction.available(
+                in: .progress,
+                progress: progressSnapshot(screen: screen, option: 0,
+                                           transition: true)).isEmpty,
+              "\(label) fails closed for an invalid row or transition")
+    }
     let shippingPCLists = [
         (label: "settings with secrets", screen: 3, optionCount: 9),
         (label: "game settings", screen: 4, optionCount: 10),
@@ -1934,6 +1970,20 @@ private func nativeMenuActionsEmitOnlyExpectedInputBytes() {
     check(run.frame().buttons.contains(.start)
           && run.controls.consumeHapticEvents() == [.button(.start)],
           "an eligible title-progress Start emits the ordinary physical Start pulse")
+
+    for screen in [34, 58] {
+        var quit = Runner()
+        quit.controls.setNativeMenuState(
+            .progress,
+            progress: progressSnapshot(screen: screen, option: 0))
+        for action in [NativeMenuTouchAction.left, .right, .confirm] {
+            quit.controls.performNativeMenuAction(action)
+        }
+        check(quit.controls.consumeHapticEvents()
+              == [.button(.left), .button(.right), .button(.cross)]
+              && quit.frame().buttons == [.left, .right, .cross],
+              "quit screen \(screen) emits exact Left/Right and Confirm/Cross bytes")
+    }
 }
 
 @MainActor
@@ -2625,7 +2675,7 @@ struct TouchControlsCheck {
         semanticTitleStartBypassesArtworkGeometryAndSurvivesCadence()
         sessionControlStateMatrixIsExactAndFailClosed()
         controllerSuppressionKeepsTouchRecovery()
-        build131GameplayChromeFadeAndGestureSuppression()
+        gameplayChromeUsesOneIdleStateWithoutGestureSuppression()
         gameplayTouchBatchHasOneOrderedOwner()
         nativeMenuActionsAreTruthfullyGatedAndLabelled()
         nativeMenuActionsEmitOnlyExpectedInputBytes()
