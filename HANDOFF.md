@@ -15275,3 +15275,70 @@ nonzero source samples from host-time gaps or graph rebuilds.
 Both Xcode configurations are assigned Build 132. A batched Xcode build,
 simulator smoke, signed artifact audit, and physical-device acceptance remain
 pending. Do not access `Z iPad Pro` without fresh current-request authorization.
+
+## Build 133 optional StoreKit Support checkpoint
+
+Date: 2026-08-06. Parent `2f75288f94dee32d768b1756054cf4ae351f4611`
+adds the bounded Support/Credits and StoreKit tip slice on top of Build 132,
+bumps both Xcode configurations to 133, and is pushed with local HEAD equal to
+`origin/agent/build94-jak1-settings`.
+
+The launcher hamburger now reads Settings, Credits, Support. Support contains
+Contact, About, and Donate. Donate presents three repeatable consumable tips:
+
+- `com.zephyrstudiosllc.eco.tip.coffee`
+- `com.zephyrstudiosllc.eco.tip.development`
+- `com.zephyrstudiosllc.eco.tip.top-supporter`
+
+The UI obtains each localized price from `Product.displayPrice`; missing
+products show Unavailable and a retry action rather than a hardcoded price.
+Purchases surface pending, cancellation, verification failure, generic failure,
+and success. Only verified transactions are finished. An app-lifetime observer
+also processes verified unfinished Eco tips and verified StoreKit updates; it
+ignores unverified and unrelated products. Tips unlock no feature, content, or
+entitlement and intentionally offer no restore action.
+
+Credits now state that Eco is an app by Zach Schwendiman, published by Zephyr
+Studios; Zach created the native Apple mobile port and platform-runtime
+integration; and Eco is made available free as a gift to fans of the Jak
+trilogy. OpenGOAL attribution, unofficial/non-affiliation language, and
+user-supplied game-data separation remain explicit. The current official
+OpenGOAL repository and site expose no verified funding page, and
+`github.com/sponsors/open-goal` redirects to the organization page, so the app
+truthfully links to the official OpenGOAL project page instead of inventing a
+donation destination.
+
+Focused validation passed:
+
+```text
+Scripts/run-support-purchases-check.sh
+Scripts/run-portrait-library-check.sh
+Scripts/run-touch-controls-check.sh
+git diff --check
+```
+
+The first Release build caught one unavailable SwiftUI
+`accessibilityLiveRegion` modifier; it was removed and the same signed generic
+iOS build then passed twice after final transaction-observer integration. Full
+output is `/private/tmp/GOALPad-build133-storekit.log`. The exact frozen artifact
+is `/private/tmp/GOALPad-build133-storekit-signed/GOALPad.app`:
+
+- Eco `1.0 (133)`, `com.zephyrstudiosllc.eco`, 51 MB, thin ARM64
+- executable SHA-256
+  `3d5179e7c9f3a87d9e4fbecc5ec88dced234ceb6e69bfc6bd9e6a3c815620d64`
+- Mach-O UUID `BA12FC5B-A09C-3A23-9611-122CC5DF8D50`
+- CDHash `fb03c6c7a0362f53e6c4a890b3cccbe484890bc4`
+- strict signature verification passed under Zephyr team `V729QMY3V6`
+- iCloud and Game Center entitlements present; privacy manifest lints
+- exactly 518 public source objects; audited retail-payload extension scan empty
+
+Xcode emitted the repository's known Swift actor-isolation warnings. No
+physical device was installed, launched, logged, or captured. StoreKit purchase
+flows were not tested against real products because the three product records do
+not yet exist in App Store Connect. Before release, activate the Paid Apps
+Agreement plus banking/tax information, create all three exact IDs as
+Consumables with the intended $2.99/$4.99/$9.99 US price points and localized
+metadata, configure availability/tax/review screenshots, exercise all flows in
+StoreKit testing and sandbox/TestFlight, and submit the first consumables with a
+new app version. Product IDs are permanent after creation; verify them before
+saving the App Store Connect records.

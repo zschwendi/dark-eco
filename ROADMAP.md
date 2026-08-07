@@ -832,6 +832,16 @@ after the initial title gate, and makes quit confirmation horizontally operable.
 Focused deterministic and parse checks pass; its batched Xcode and physical gates
 remain pending. Build 130 therefore remains the accepted baseline.
 
+Build 133 adds only the launcher Support/Credits and optional-tip slice on top of
+Build 132. The launcher menu is Settings, Credits, then Support; Support contains
+Contact, About, and Donate. Three repeatable consumable StoreKit tips display
+Apple-localized prices, grant no features, verify transactions before finishing,
+and report unavailable, pending, cancellation, verification, and failure states.
+An app-lifetime observer finishes only verified Eco tip transactions. Focused
+checks and the signed generic-iOS Release build pass. App Store Connect product
+creation and sandbox/TestFlight purchase validation remain external gates, and
+Build 133 has not been installed on a physical device.
+
 The historical checkpoint record follows. Checkpoint 37 was an earlier
 sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive

@@ -445,13 +445,15 @@ until both failures have a separately validated replacement.
 
 Build 131 was physically rejected as a client-polish candidate. Its compact
 launcher remained phone-sized on iPad and its gesture-state artwork suppression
-made ordinary gameplay chrome flicker. Build 132 is the current source candidate:
+made ordinary gameplay chrome flicker. Build 132 is the corrective UI source
+checkpoint:
 it expands the three-cover shelf on regular-width devices, never renders the raw
 face/crouch swipe-guide symbols, keeps invisible swipe mappings active without
 hiding other controls, gives all eligible gameplay chrome one three-second idle
 fade, places `gear + ECO` beside Start/Resume after the initial title gate, and
-adds truthful Left/Right/Confirm controls for Jak's quit confirmations. It must
-not replace Build 130 until build and physical validation pass.
+adds truthful Left/Right/Confirm controls for Jak's quit confirmations. Build 133
+adds the bounded StoreKit Support/Credits slice on top and is the current signed
+candidate. Neither replaces Build 130 until physical validation passes.
 
 ### Live Jak 1 orchestration ledger
 
