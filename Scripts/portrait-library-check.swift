@@ -114,7 +114,10 @@ do {
               of: "Label(\"Credits\", systemImage: \"person.3\")"),
           settingsMenuLabel.lowerBound < creditsMenuLabel.lowerBound,
           libraryScreen.contains("GeometryReader { proxy in")
+            && libraryScreen.contains("usesRegularWidth: (horizontalSizeClass ?? .regular) == .regular")
             && libraryScreen.contains("HStack(alignment: .top, spacing: layout.spacing)")
+            && libraryScreen.contains("if layout.usesFlexibleGutters")
+            && libraryScreen.contains("Spacer(minLength: layout.gutter)")
             && !libraryScreen.contains("LazyVGrid")
             && !libraryScreen.contains("GridItem")
             && !libraryScreen.contains("Import Game")
@@ -130,7 +133,7 @@ do {
     else {
         throw NSError(domain: "portrait-library-check", code: 3,
                       userInfo: [NSLocalizedDescriptionKey:
-                        "launcher shelf, menu ordering, or Credits destination regressed"])
+                        "launcher shelf, adaptive gutters, menu ordering, or Credits destination regressed"])
     }
     print("  ok   launcher menu is Settings then a real Credits destination")
     guard gameplaySurface.contains("if frame.origin == .zero, frame.size == proxy.size"),
@@ -189,8 +192,8 @@ do {
               "\\(name) keeps the renderer's Classic 4:3 host aspect")
     }
 
-    func checkShelf(_ size: CGSize, _ name: String) {
-        let shelf = GameLibraryShelfLayout(containerSize: size)
+    func checkShelf(_ size: CGSize, usesRegularWidth: Bool, _ name: String) {
+        let shelf = GameLibraryShelfLayout(containerSize: size, usesRegularWidth: usesRegularWidth)
         check(shelf.coverSize.width > 0 && shelf.coverSize.height > 0,
               "\\(name) produces a visible cover frame")
         check(approximatelyEqual(shelf.coverSize.width / shelf.coverSize.height,
@@ -198,8 +201,40 @@ do {
               "\\(name) preserves the portrait cover aspect")
         check(shelf.shelfWidth + shelf.outerPadding * 2 <= size.width + 0.001,
               "\\(name) fits all three covers across without scrolling")
-        check(shelf.shelfHeight + shelf.outerPadding * 2 <= size.height + 0.001,
+        let verticalPadding = shelf.usesFlexibleGutters
+            ? GameLibraryShelfLayout.regularVerticalPadding
+            : shelf.outerPadding
+        check(shelf.shelfHeight + verticalPadding * 2 <= size.height + 0.001,
               "\\(name) fits every complete cover vertically")
+    }
+
+    func checkCompactShelf(_ size: CGSize, _ name: String) {
+        let shelf = GameLibraryShelfLayout(containerSize: size, usesRegularWidth: false)
+        let widthBound = (size.width - GameLibraryShelfLayout.compactOuterPadding * 2
+            - GameLibraryShelfLayout.compactSpacing
+                * CGFloat(GameLibraryShelfLayout.titleCount - 1)
+            - GameLibraryShelfLayout.cardHorizontalInset * 2
+                * CGFloat(GameLibraryShelfLayout.titleCount))
+            / CGFloat(GameLibraryShelfLayout.titleCount)
+        check(!shelf.usesFlexibleGutters,
+              "\\(name) preserves the compact shelf behavior")
+        check(approximatelyEqual(shelf.coverSize.width, widthBound),
+              "\\(name) preserves its existing compact cover geometry")
+        check(shelf.coverSize.width <= GameLibraryShelfLayout.maximumCoverWidth,
+              "\\(name) keeps the compact cover cap")
+    }
+
+    func checkRegularShelf(_ size: CGSize, _ name: String) {
+        let shelf = GameLibraryShelfLayout(containerSize: size, usesRegularWidth: true)
+        check(shelf.usesFlexibleGutters,
+              "\\(name) uses flexible gutters around every cover")
+        check(approximatelyEqual(shelf.shelfWidth, size.width),
+              "\\(name) expands the shelf across the available width")
+        let availableGutter = (shelf.shelfWidth
+            - shelf.cardWidth * CGFloat(GameLibraryShelfLayout.titleCount))
+            / CGFloat(GameLibraryShelfLayout.titleCount + 1)
+        check(availableGutter >= shelf.gutter - 0.001,
+              "\\(name) leaves a flexible gutter on both sides of every cover")
     }
 
     let iphone = GameplaySurfaceLayout.frame(
@@ -218,11 +253,20 @@ do {
     check(landscape == CGRect(x: 0, y: 0, width: 1194, height: 834),
           "landscape keeps the full existing renderer surface")
 
-    checkShelf(CGSize(width: 320, height: 440), "compact portrait iPhone")
-    checkShelf(CGSize(width: 393, height: 700), "modern portrait iPhone")
-    checkShelf(CGSize(width: 852, height: 280), "landscape iPhone")
-    checkShelf(CGSize(width: 834, height: 1_000), "portrait iPad")
-    checkShelf(CGSize(width: 1_194, height: 650), "landscape iPad")
+    checkShelf(CGSize(width: 320, height: 440), usesRegularWidth: false, "compact portrait iPhone")
+    checkShelf(CGSize(width: 393, height: 700), usesRegularWidth: false, "modern portrait iPhone")
+    checkShelf(CGSize(width: 852, height: 280), usesRegularWidth: false, "landscape iPhone")
+    checkShelf(CGSize(width: 834, height: 1_000), usesRegularWidth: true, "portrait iPad")
+    checkShelf(CGSize(width: 1_194, height: 650), usesRegularWidth: true, "landscape iPad")
+    checkCompactShelf(CGSize(width: 393, height: 700), "modern portrait iPhone")
+    checkRegularShelf(CGSize(width: 834, height: 1_000), "portrait iPad")
+    checkRegularShelf(CGSize(width: 1_194, height: 650), "landscape iPad")
+    check(GameLibraryShelfLayout(containerSize: CGSize(width: 834, height: 1_000), usesRegularWidth: true)
+            .coverSize.width > GameLibraryShelfLayout.maximumCoverWidth,
+          "portrait iPad covers grow beyond the compact phone cap")
+    check(GameLibraryShelfLayout(containerSize: CGSize(width: 1_194, height: 650), usesRegularWidth: true)
+            .coverSize.width > GameLibraryShelfLayout.maximumCoverWidth,
+          "landscape iPad covers grow beyond the compact phone cap")
 
     check(GameLibraryTitle.allCases == [.jak1, .jak2, .jak3],
           "the deterministic launcher catalog contains only Jak 1, Jak II, and Jak 3")

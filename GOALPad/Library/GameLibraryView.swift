@@ -16,6 +16,7 @@ private enum GameLibraryAlert: Identifiable {
 }
 
 struct GameLibraryView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Bindable var session: GameSession
     @Bindable var artworkStore: GameArtworkStore
     let openJak1Setup: () -> Void
@@ -29,8 +30,14 @@ struct GameLibraryView: View {
     var body: some View {
         NavigationStack {
             GeometryReader { proxy in
-                let layout = GameLibraryShelfLayout(containerSize: proxy.size)
+                let layout = GameLibraryShelfLayout(
+                    containerSize: proxy.size,
+                    usesRegularWidth: (horizontalSizeClass ?? .regular) == .regular
+                )
                 HStack(alignment: .top, spacing: layout.spacing) {
+                    if layout.usesFlexibleGutters {
+                        Spacer(minLength: layout.gutter)
+                    }
                     ForEach(GameLibraryTitle.allCases) { title in
                         GameLibraryTile(
                             title: title,
@@ -43,6 +50,9 @@ struct GameLibraryView: View {
                             chooseArtwork: { chooseArtwork(for: title) },
                             removeArtwork: { artworkStore.removeArtwork(for: title) }
                         )
+                        if layout.usesFlexibleGutters {
+                            Spacer(minLength: layout.gutter)
+                        }
                     }
                 }
                 .frame(width: layout.shelfWidth, height: layout.shelfHeight, alignment: .top)
