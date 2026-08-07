@@ -15380,6 +15380,15 @@ frozen artifact is
 - iCloud and Game Center entitlements present; privacy manifest lints
 - exactly 518 public source objects; audited retail-payload extension scan empty
 
+The approved iPad Pro 11-inch (M5) simulator was already booted. A separate
+Build 134 Release simulator build passed at
+`/private/tmp/GOALPad-build134-simulator`, then installed and launched as process
+`9522`. Screenshot `/private/tmp/GOALPad-build134-simulator-launcher.png` shows
+all three equal 2:3 library cards on the regular-width canvas with outer and
+inter-card gutters; unavailable titles retain the same geometry. This does not
+exercise a real import, gameplay, StoreKit products, or the physical Home Screen
+icon. The simulator was left running because this task did not boot it.
+
 Xcode emitted the repository's known Swift actor-isolation warnings and no
 build error. No physical device was installed, launched, logged, or captured.
 Build 130 therefore remains the immutable physically accepted baseline. Build
