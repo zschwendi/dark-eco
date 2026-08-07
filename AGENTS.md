@@ -1097,8 +1097,10 @@ Active lanes:
   Precursor identity over Dark Eco: the active Build 131 icon is rejected, and
   `docs/appstore/icon-concepts/build134-precursor-study.md` preserves two
   non-active candidates. Candidate 1 reads as a throne/totem at 32 points;
-  Candidate 2's broken bronze relay and green Eco heart is the current review
-  direction. Do not replace the asset catalog until the maintainer chooses it.
+  Candidate 2's broken bronze relay and green Eco heart was selected for Build
+  134 after the maintainer authorized the Precursor-first direction. The active
+  catalog now uses opaque versioned 16-through-1024-pixel derivatives. Physical
+  icon acceptance remains pending.
 
 - [x] Expose Jak 1's real `*master-mode*` as a read-only Apple-host state so
   pause-gated chrome and Pause/Resume labels do not rely on screenshots,
@@ -1281,6 +1283,14 @@ fallback while the shared renderer is isolated from its current single
 4. **Room-scale World:** expand the stationary third-person world to an
    environment-sized mixed or progressive immersive space that the user can
    physically walk around without the world rotating with head movement.
+   A later room-play variant should let Jak leave the stereoscopic frame and run
+   directly across a locally reconstructed room, with the room acting as level
+   geometry and ordinary gameplay enemies spawning into that space. Reuse the
+   existing simulation and actor systems rather than creating a second game.
+   The maintainer proposed “RIP” as the base; preserve that label until its exact
+   project/API meaning is resolved. Room reconstruction, occlusion, collision,
+   navigation, spawn safety, scale, privacy, and a stable reset boundary all need
+   narrow proofs after true stereo and stationary room-scale rendering.
 5. **First-person VR:** an immersive player-view mode with gameplay-camera and
    head-pose separation. Rolls, spins, cutscenes, vehicles, death, HUD, turning,
    and camera shake require explicit comfort behavior; default to a stable

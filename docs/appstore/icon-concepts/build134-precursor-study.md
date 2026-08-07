@@ -1,6 +1,7 @@
 # Build 134 Precursor icon study
 
-> **Status:** Candidate artwork only. The active app icon is unchanged.
+> **Status:** Candidate 2 is selected for Build 134 and wired into the versioned
+> Apple icon asset set. Physical icon acceptance remains pending.
 
 The maintainer rejected the active Build 131 icon and preferred the prior icon's
 stronger ancient-tech silhouette, while noting that neither clearly evokes the
@@ -25,10 +26,12 @@ tall silhouette reads as a throne or totem at 32 points.
 
 ## Candidate 2 — broken Precursor relay
 
-`build134-precursor-relay-v2.png` is the recommended candidate for maintainer
-review. Three large asymmetrical bronze plates cradle a green Eco heart without
-closing into a full ring. Downscaled 32- and 64-point inspections retain the
-gold mechanism, green center, and broken silhouette.
+`build134-precursor-relay-v2.png` was selected after the maintainer prioritized
+Precursor identity over Dark Eco and authorized the direction. Three large
+asymmetrical bronze plates cradle a green Eco heart without closing into a full
+ring. Downscaled 16-, 32-, and 64-point inspections retain the gold mechanism,
+green center, and broken silhouette. Build 134 derives its opaque 16 through
+1024 pixel Apple icon assets from this source without modifying gameplay code.
 
 Final generation prompt:
 
@@ -63,5 +66,4 @@ watermark, or baked Apple mask.
 
 Both candidates were generated with the built-in image-generation tool. They
 contain no project or retail game assets. Do not place either in the active app
-icon asset catalog until the maintainer selects a direction and its complete
-Apple icon-size set passes visual review.
+icon asset catalog unless its complete Apple icon-size set passes visual review.

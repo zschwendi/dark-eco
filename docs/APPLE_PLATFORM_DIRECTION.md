@@ -176,6 +176,23 @@ The surrounding spatial presentation may react to the current game area using:
 
 This should initially be driven by known game state rather than requiring unrestricted access to camera imagery or the user’s physical environment.
 
+### Room-play Jak level
+
+A later mixed-reality mode may remove the enclosing stereoscopic frame and let
+Jak traverse a local reconstruction of the user's room while ordinary gameplay
+actors and enemies spawn into that space. The room becomes temporary level
+geometry; the existing Jak simulation, controls, animation, actors, and combat
+remain authoritative. This is not a second Swift or RealityKit game simulation.
+
+The maintainer proposed “RIP” as the base for this mode. That name is recorded
+without assuming which project or API it refers to; resolve and review the exact
+dependency before implementation. Start only after true per-eye rendering and a
+stationary room-scale world work. Then prove, in order: local room-mesh access,
+stable world scale and anchoring, collision conversion, navigation boundaries,
+occlusion, safe spawn volumes, reset/relocalization, and comfort. Treat room
+geometry as private ephemeral device data: do not upload it or persist it by
+default.
+
 ## Anti-goals
 
 Do not:
