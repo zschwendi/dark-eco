@@ -12,18 +12,15 @@ struct EcoAboutView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Eco")
                             .font(.largeTitle.bold())
-                        Text("Native OpenGOAL Runtime for Apple Platforms")
-                            .font(.headline)
-                            .foregroundStyle(DarkEcoTheme.accentGlow)
                     }
 
-                    Text("Eco is an app by Zach Schwendiman, published by Zephyr Studios. Zach created the native Apple mobile port and its platform-runtime integration.")
-                    Text("Made available free as a gift to fans of the Jak trilogy.")
+                    Text("Eco is a native Apple runtime for OpenGOAL developed by Zach Schwendiman, published by Zephyr Studios.")
+          
 
                     Text("Eco is built on the open-source OpenGOAL project and the work of its contributors.")
-                        .foregroundStyle(.secondary)
 
-                    Text("Eco is an unofficial community project and is not affiliated with Sony Interactive Entertainment, Naughty Dog, or the OpenGOAL team.")
+
+                    Text("Eco is not affiliated with Sony Interactive Entertainment, Naughty Dog, or the OpenGOAL team.")
                         .foregroundStyle(.secondary)
                 }
 
@@ -78,7 +75,7 @@ private struct EcoDonateView: View {
     var body: some View {
         SupportPage(title: "Donate") {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Optional one-time tips")
+                Text("Optional tips")
                     .font(.title2.bold())
 
             ForEach(EcoTip.allCases) { tip in
@@ -118,7 +115,7 @@ private struct EcoDonateView: View {
             .buttonStyle(.plain)
             .foregroundStyle(.primary)
 
-            Text("The app is free. These are optional one-time tips that help fund development and maintenance. Thank you for your support.")
+            Text("The app is free. These are optional tips that help fund development and maintenance. Thank you for your support.")
                 .font(.footnote)
                     .foregroundStyle(.secondary)
 
