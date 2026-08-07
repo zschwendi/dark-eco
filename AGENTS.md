@@ -1093,8 +1093,12 @@ Active lanes:
   less resemblance to the current vague `MAR`/earthquake motif. Keep the current
   icon until generated alternatives have been reviewed at every required icon
   size and physically accepted; this task is FIFO behind Build 128 and the
-  launcher/import slice. Build 131 uses an original AI-assisted Dark Eco energy
-  mark and versioned icon assets; physical icon acceptance remains pending.
+  StoreKit Support checkpoint. The maintainer subsequently prioritized
+  Precursor identity over Dark Eco: the active Build 131 icon is rejected, and
+  `docs/appstore/icon-concepts/build134-precursor-study.md` preserves two
+  non-active candidates. Candidate 1 reads as a throne/totem at 32 points;
+  Candidate 2's broken bronze relay and green Eco heart is the current review
+  direction. Do not replace the asset catalog until the maintainer chooses it.
 
 - [x] Expose Jak 1's real `*master-mode*` as a read-only Apple-host state so
   pause-gated chrome and Pause/Resume labels do not rely on screenshots,
