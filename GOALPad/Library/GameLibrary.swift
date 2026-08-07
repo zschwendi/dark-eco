@@ -8,31 +8,51 @@ nonisolated struct GameLibraryShelfLayout: Equatable, Sendable {
     static let coverAspectRatio: CGFloat = 2 / 3
     static let maximumCoverWidth: CGFloat = 210
     static let compactSpacing: CGFloat = 8
-    static let regularSpacing: CGFloat = 16
     static let compactOuterPadding: CGFloat = 12
-    static let regularOuterPadding: CGFloat = 24
+    static let regularVerticalPadding: CGFloat = 24
+    static let regularMinimumGutter: CGFloat = 24
     static let cardHorizontalInset: CGFloat = 6
     static let cardFooterHeight: CGFloat = 88
 
     let coverSize: CGSize
     let spacing: CGFloat
     let outerPadding: CGFloat
+    let gutter: CGFloat
+    let usesFlexibleGutters: Bool
+    private let containerWidth: CGFloat
 
     init(containerSize: CGSize) {
+        self.init(containerSize: containerSize, usesRegularWidth: containerSize.width >= 700)
+    }
+
+    init(containerSize: CGSize, usesRegularWidth: Bool) {
         let width = max(0, containerSize.width)
         let height = max(0, containerSize.height)
-        let regular = width >= 700
-        spacing = regular ? Self.regularSpacing : Self.compactSpacing
-        outerPadding = min(regular ? Self.regularOuterPadding : Self.compactOuterPadding,
-                           width / 2)
+        containerWidth = width
+        let regular = usesRegularWidth
+        usesFlexibleGutters = regular
+        spacing = regular ? 0 : Self.compactSpacing
+        outerPadding = regular ? 0 : min(Self.compactOuterPadding, width / 2)
+        gutter = regular ? Self.regularMinimumGutter : Self.compactSpacing
 
-        let shelfChromeWidth = outerPadding * 2
-            + spacing * CGFloat(Self.titleCount - 1)
-            + Self.cardHorizontalInset * 2 * CGFloat(Self.titleCount)
-        let widthBound = max(0, (width - shelfChromeWidth) / CGFloat(Self.titleCount))
-        let availableCoverHeight = max(0, height - outerPadding * 2 - Self.cardFooterHeight)
+        let horizontalChrome: CGFloat
+        let verticalPadding: CGFloat
+        if regular {
+            horizontalChrome = gutter * CGFloat(Self.titleCount + 1)
+                + Self.cardHorizontalInset * 2 * CGFloat(Self.titleCount)
+            verticalPadding = Self.regularVerticalPadding
+        } else {
+            horizontalChrome = outerPadding * 2
+                + spacing * CGFloat(Self.titleCount - 1)
+                + Self.cardHorizontalInset * 2 * CGFloat(Self.titleCount)
+            verticalPadding = outerPadding
+        }
+        let widthBound = max(0, (width - horizontalChrome) / CGFloat(Self.titleCount))
+        let availableCoverHeight = max(0, height - verticalPadding * 2 - Self.cardFooterHeight)
         let heightBound = availableCoverHeight * Self.coverAspectRatio
-        let coverWidth = min(Self.maximumCoverWidth, widthBound, heightBound)
+        let coverWidth = regular
+            ? min(widthBound, heightBound)
+            : min(Self.maximumCoverWidth, widthBound, heightBound)
         coverSize = CGSize(width: coverWidth,
                            height: coverWidth / Self.coverAspectRatio)
     }
@@ -42,7 +62,10 @@ nonisolated struct GameLibraryShelfLayout: Equatable, Sendable {
     }
 
     var shelfWidth: CGFloat {
-        cardWidth * CGFloat(Self.titleCount) + spacing * CGFloat(Self.titleCount - 1)
+        if usesFlexibleGutters {
+            return containerWidth
+        }
+        return cardWidth * CGFloat(Self.titleCount) + spacing * CGFloat(Self.titleCount - 1)
     }
 
     var shelfHeight: CGFloat {
