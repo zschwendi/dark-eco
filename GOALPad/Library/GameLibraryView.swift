@@ -1,28 +1,42 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+private enum GameLibraryAlert: Identifiable {
+    case importJak1
+    case unsupported(GameLibraryTitle)
+    case artwork(String)
+
+    var id: String {
+        switch self {
+        case .importJak1: "import-jak1"
+        case .unsupported(let title): "unsupported-\(title.id)"
+        case .artwork: "artwork"
+        }
+    }
+}
+
 struct GameLibraryView: View {
     @Bindable var session: GameSession
     @Bindable var artworkStore: GameArtworkStore
-    let importGame: () -> Void
+    let openJak1Setup: () -> Void
     let openSettings: () -> Void
 
     @State private var artworkTitle: GameLibraryTitle?
     @State private var isChoosingArtwork = false
-
-    private let columns = [
-        GridItem(.adaptive(minimum: 330, maximum: 480), spacing: 20),
-    ]
+    @State private var presentedAlert: GameLibraryAlert?
+    @State private var isShowingCredits = false
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 24) {
+            GeometryReader { proxy in
+                let layout = GameLibraryShelfLayout(containerSize: proxy.size)
+                HStack(alignment: .top, spacing: layout.spacing) {
                     ForEach(GameLibraryTitle.allCases) { title in
                         GameLibraryTile(
                             title: title,
                             state: state(for: title),
                             progress: progress(for: title),
+                            coverSize: layout.coverSize,
                             artworkURL: artworkStore.artworkURL(for: title),
                             artworkRevision: artworkStore.revision,
                             open: { open(title) },
@@ -31,13 +45,12 @@ struct GameLibraryView: View {
                         )
                     }
                 }
-                .padding(24)
-                .frame(maxWidth: 1_000)
-                .frame(maxWidth: .infinity)
+                .frame(width: layout.shelfWidth, height: layout.shelfHeight, alignment: .top)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
             .background {
                 LinearGradient(
-                    colors: [Color.black, Color(red: 0.055, green: 0.035, blue: 0.08)],
+                    colors: [Color.black, DarkEcoTheme.background],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -47,26 +60,28 @@ struct GameLibraryView: View {
             .toolbar {
                 ToolbarItem(placement: .navigation) {
                     Menu {
-                        Button(action: importGame) {
-                            Label("Import Game", systemImage: "square.and.arrow.down")
-                        }
                         Button(action: openSettings) {
                             Label("Settings", systemImage: "gearshape")
+                        }
+                        Button { isShowingCredits = true } label: {
+                            Label("Credits", systemImage: "person.3")
                         }
                     } label: {
                         Image(systemName: "line.3.horizontal")
                     }
                     .accessibilityLabel("Main menu")
                 }
-                ToolbarItem(placement: .primaryAction) {
-                    Button(action: openSettings) {
-                        Image(systemName: "gearshape")
-                    }
-                    .accessibilityLabel("Settings")
-                }
             }
         }
         .preferredColorScheme(.dark)
+        .tint(DarkEcoTheme.accent)
+        .sheet(isPresented: $isShowingCredits) {
+            NavigationStack {
+                CreditsView()
+            }
+            .preferredColorScheme(.dark)
+            .tint(DarkEcoTheme.accent)
+        }
         .fileImporter(
             isPresented: $isChoosingArtwork,
             allowedContentTypes: [.image],
@@ -78,16 +93,34 @@ struct GameLibraryView: View {
                 Task { await artworkStore.importArtwork(from: source, for: title) }
             }
         }
-        .alert(
-            "Artwork Could Not Be Changed",
-            isPresented: Binding(
-                get: { artworkStore.errorMessage != nil },
-                set: { if !$0 { artworkStore.errorMessage = nil } }
-            )
-        ) {
-            Button("OK") { artworkStore.errorMessage = nil }
-        } message: {
-            Text(artworkStore.errorMessage ?? "Unknown error")
+        .onChange(of: artworkStore.errorMessage) { _, message in
+            guard let message else { return }
+            presentedAlert = .artwork(message)
+            artworkStore.errorMessage = nil
+        }
+        .alert(item: $presentedAlert) { alert in
+            switch alert {
+            case .importJak1:
+                Alert(
+                    title: Text("Set Up Jak 1"),
+                    message: Text(GameLibraryOfferCopy.jak1ImportMessage(
+                        canImportRawISO: RawISOCandidateProducer.isAvailable())),
+                    primaryButton: .default(Text("Continue"), action: openJak1Setup),
+                    secondaryButton: .cancel()
+                )
+            case .unsupported(let title):
+                Alert(
+                    title: Text("\(title.shelfName) Isn’t Supported Yet"),
+                    message: Text(GameLibraryOfferCopy.unsupportedMessage(for: title)),
+                    dismissButton: .default(Text("OK"))
+                )
+            case .artwork(let message):
+                Alert(
+                    title: Text("Artwork Could Not Be Changed"),
+                    message: Text(message),
+                    dismissButton: .default(Text("OK"))
+                )
+            }
         }
     }
 
@@ -119,13 +152,15 @@ struct GameLibraryView: View {
     }
 
     private func open(_ title: GameLibraryTitle) {
-        switch state(for: title) {
-        case .ready:
+        switch GameLibraryCardAction.resolve(title: title, state: state(for: title)) {
+        case .start:
             Task { await session.start() }
-        case .notImported, .preparing, .needsAttention:
-            importGame()
-        case .planned:
-            break
+        case .openJak1Setup:
+            openJak1Setup()
+        case .offerJak1Import:
+            presentedAlert = .importJak1
+        case .showUnsupported(let title):
+            presentedAlert = .unsupported(title)
         }
     }
 
@@ -135,10 +170,53 @@ struct GameLibraryView: View {
     }
 }
 
+private struct CreditsView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ScrollView {
+            DarkEcoPanel {
+                VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Eco")
+                            .font(.largeTitle.bold())
+                        Text("Native OpenGOAL Runtime")
+                            .font(.headline)
+                            .foregroundStyle(DarkEcoTheme.accentGlow)
+                    }
+
+                    Text("Built on the open-source OpenGOAL project and the work of its contributors.")
+                    Text("Eco is an unofficial community project and is not affiliated with Sony Interactive Entertainment, Naughty Dog, or the OpenGOAL team.")
+                        .foregroundStyle(.secondary)
+                    Text("Game data is not included. Players provide compatible data from copies they legally own.")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(24)
+            .frame(maxWidth: 640)
+            .frame(maxWidth: .infinity)
+        }
+        .background {
+            LinearGradient(colors: [Color.black, DarkEcoTheme.background],
+                           startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea()
+        }
+        .navigationTitle("Credits")
+        .tint(DarkEcoTheme.accent)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Done") { dismiss() }
+            }
+        }
+    }
+}
+
 private struct GameLibraryTile: View {
     let title: GameLibraryTitle
     let state: GameLibraryState
     let progress: GameDataImporter.Progress?
+    let coverSize: CGSize
     let artworkURL: URL?
     let artworkRevision: Int
     let open: () -> Void
@@ -148,39 +226,45 @@ private struct GameLibraryTile: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             Button(action: activate) {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
                     artwork
-                        .aspectRatio(4 / 3, contentMode: .fit)
-                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(title.name)
-                            .font(.headline)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(title.shelfName)
+                            .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.primary)
-                            .lineLimit(2)
+                            .lineLimit(1)
                         Label(stateLabel, systemImage: stateSymbol)
-                            .font(.subheadline.weight(.medium))
+                            .font(.caption.weight(.medium))
                             .foregroundStyle(stateColor)
                         if case .preparing(let fraction) = state, let fraction {
                             ProgressView(value: fraction)
-                                .tint(.orange)
+                                .tint(DarkEcoTheme.accent)
                         }
                         if let progress {
                             Text("\(progress.filesCopied) of \(progress.filesTotal) files")
-                                .font(.caption.monospacedDigit())
+                                .font(.caption2.monospacedDigit())
                                 .foregroundStyle(.secondary)
+                                .lineLimit(1)
                         }
                     }
-                    .padding(.horizontal, 2)
                 }
-                .padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-                .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .padding(GameLibraryShelfLayout.cardHorizontalInset)
+                .frame(width: coverSize.width
+                    + GameLibraryShelfLayout.cardHorizontalInset * 2,
+                       alignment: .leading)
+                .background(DarkEcoTheme.surface.opacity(0.9),
+                            in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(DarkEcoTheme.accent.opacity(0.42), lineWidth: 1)
+                }
+                .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
             .buttonStyle(.plain)
+            .opacity(state == .planned ? 0.48 : 1)
+            .accessibilityLabel("\(title.name), \(stateLabel)")
             .accessibilityHint(accessibilityHint)
-            .disabled(state == .planned)
 
             artworkMenu
         }
@@ -191,14 +275,23 @@ private struct GameLibraryTile: View {
 
     @ViewBuilder
     private var artwork: some View {
-        if let artworkURL,
-           let image = GameArtworkStorage.thumbnail(at: artworkURL) {
-            Image(decorative: image, scale: 1)
-                .resizable()
-                .scaledToFill()
-                .id(artworkRevision)
-        } else {
-            FallbackGameArtwork(title: title)
+        Group {
+            if let artworkURL,
+               let image = GameArtworkStorage.thumbnail(at: artworkURL) {
+                Image(decorative: image, scale: 1)
+                    .resizable()
+                    .scaledToFit()
+                    .id(artworkRevision)
+            } else {
+                FallbackGameArtwork(title: title)
+            }
+        }
+        .frame(width: coverSize.width, height: coverSize.height)
+        .background(Color.black.opacity(0.72))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(DarkEcoTheme.accent.opacity(0.5), lineWidth: 1)
         }
     }
 
@@ -215,7 +308,7 @@ private struct GameLibraryTile: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(22)
+        .padding(10)
         .accessibilityLabel("Artwork options for \(title.name)")
     }
 
@@ -237,7 +330,7 @@ private struct GameLibraryTile: View {
         case .preparing: "Preparing"
         case .ready: "Ready"
         case .needsAttention: "Needs Attention"
-        case .planned: "Planned"
+        case .planned: "Not Supported"
         }
     }
 
@@ -247,16 +340,17 @@ private struct GameLibraryTile: View {
         case .preparing: "arrow.triangle.2.circlepath"
         case .ready: "play.fill"
         case .needsAttention: "exclamationmark.triangle"
-        case .planned: "clock"
+        case .planned: "hourglass"
         }
     }
 
     private var stateColor: Color {
         switch state {
-        case .notImported, .planned: .secondary
-        case .preparing: .orange
-        case .ready: .green
-        case .needsAttention: .yellow
+        case .notImported: .secondary
+        case .planned: DarkEcoTheme.accent
+        case .preparing: DarkEcoTheme.accentGlow
+        case .ready: DarkEcoTheme.success
+        case .needsAttention: DarkEcoTheme.warning
         }
     }
 
@@ -264,12 +358,12 @@ private struct GameLibraryTile: View {
         switch state {
         case .ready: "Starts the game"
         case .notImported, .preparing, .needsAttention: "Opens game setup"
-        case .planned: "This title is not available yet"
+        case .planned: "Shows current support status"
         }
     }
 
     private func activate() {
-        if state != .planned { open() }
+        open()
     }
 }
 
@@ -280,16 +374,17 @@ private struct FallbackGameArtwork: View {
         ZStack {
             LinearGradient(colors: palette, startPoint: .topLeading, endPoint: .bottomTrailing)
             Circle()
-                .fill(.black.opacity(0.3))
+                .fill(.black.opacity(0.38))
                 .frame(width: 190, height: 190)
                 .offset(x: 80, y: -55)
             Circle()
-                .stroke(.white.opacity(0.12), lineWidth: 2)
+                .stroke(DarkEcoTheme.accent.opacity(0.18), lineWidth: 2)
                 .frame(width: 150, height: 150)
                 .offset(x: -90, y: 70)
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .stroke(
-                    LinearGradient(colors: [.white.opacity(0.42), .clear, .orange.opacity(0.5)],
+                    LinearGradient(colors: [.white.opacity(0.34), .clear,
+                                            DarkEcoTheme.accentGlow.opacity(0.48)],
                                    startPoint: .topLeading, endPoint: .bottomTrailing),
                     lineWidth: 2
                 )
@@ -298,10 +393,11 @@ private struct FallbackGameArtwork: View {
                 Text(title.fallbackMark)
                     .font(.system(size: 62, weight: .black, design: .rounded))
                     .foregroundStyle(
-                        LinearGradient(colors: [.white, .orange],
+                        LinearGradient(colors: [.white, DarkEcoTheme.accentGlow],
                                        startPoint: .top, endPoint: .bottom)
                     )
-                    .shadow(color: .orange.opacity(0.55), radius: 12)
+                    .minimumScaleFactor(0.5)
+                    .shadow(color: DarkEcoTheme.accent.opacity(0.55), radius: 12)
                 Text("ECO")
                     .font(.caption2.weight(.bold))
                     .tracking(3)
@@ -314,17 +410,12 @@ private struct FallbackGameArtwork: View {
     private var palette: [Color] {
         switch title {
         case .jak1:
-            [Color(red: 0.08, green: 0.02, blue: 0.12),
-             Color(red: 0.22, green: 0.04, blue: 0.28),
-             Color(red: 0.95, green: 0.28, blue: 0.03)]
+            [Color.black, DarkEcoTheme.background, DarkEcoTheme.accent.opacity(0.72)]
         case .jak2:
-            [Color(red: 0.02, green: 0.02, blue: 0.03),
-             Color(red: 0.18, green: 0.03, blue: 0.22),
-             Color(red: 0.38, green: 0.09, blue: 0.48)]
+            [Color.black, DarkEcoTheme.surface, Color(red: 0.24, green: 0.1, blue: 0.36)]
         case .jak3:
-            [Color(red: 0.04, green: 0.015, blue: 0.06),
-             Color(red: 0.30, green: 0.04, blue: 0.30),
-             Color(red: 0.72, green: 0.18, blue: 0.06)]
+            [Color.black, DarkEcoTheme.background,
+             DarkEcoTheme.accentGlow.opacity(0.48)]
         }
     }
 }

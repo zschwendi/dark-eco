@@ -2,7 +2,55 @@ import Foundation
 import ImageIO
 import Observation
 
-nonisolated enum GameLibraryTitle: String, CaseIterable, Identifiable, Sendable {
+/// Fits the complete three-title shelf inside the launcher proposal without scrolling.
+nonisolated struct GameLibraryShelfLayout: Equatable, Sendable {
+    static let titleCount = 3
+    static let coverAspectRatio: CGFloat = 2 / 3
+    static let maximumCoverWidth: CGFloat = 210
+    static let compactSpacing: CGFloat = 8
+    static let regularSpacing: CGFloat = 16
+    static let compactOuterPadding: CGFloat = 12
+    static let regularOuterPadding: CGFloat = 24
+    static let cardHorizontalInset: CGFloat = 6
+    static let cardFooterHeight: CGFloat = 88
+
+    let coverSize: CGSize
+    let spacing: CGFloat
+    let outerPadding: CGFloat
+
+    init(containerSize: CGSize) {
+        let width = max(0, containerSize.width)
+        let height = max(0, containerSize.height)
+        let regular = width >= 700
+        spacing = regular ? Self.regularSpacing : Self.compactSpacing
+        outerPadding = min(regular ? Self.regularOuterPadding : Self.compactOuterPadding,
+                           width / 2)
+
+        let shelfChromeWidth = outerPadding * 2
+            + spacing * CGFloat(Self.titleCount - 1)
+            + Self.cardHorizontalInset * 2 * CGFloat(Self.titleCount)
+        let widthBound = max(0, (width - shelfChromeWidth) / CGFloat(Self.titleCount))
+        let availableCoverHeight = max(0, height - outerPadding * 2 - Self.cardFooterHeight)
+        let heightBound = availableCoverHeight * Self.coverAspectRatio
+        let coverWidth = min(Self.maximumCoverWidth, widthBound, heightBound)
+        coverSize = CGSize(width: coverWidth,
+                           height: coverWidth / Self.coverAspectRatio)
+    }
+
+    var cardWidth: CGFloat {
+        coverSize.width + Self.cardHorizontalInset * 2
+    }
+
+    var shelfWidth: CGFloat {
+        cardWidth * CGFloat(Self.titleCount) + spacing * CGFloat(Self.titleCount - 1)
+    }
+
+    var shelfHeight: CGFloat {
+        coverSize.height + Self.cardFooterHeight
+    }
+}
+
+nonisolated enum GameLibraryTitle: String, CaseIterable, Equatable, Identifiable, Sendable {
     case jak1
     case jak2
     case jak3
@@ -12,6 +60,14 @@ nonisolated enum GameLibraryTitle: String, CaseIterable, Identifiable, Sendable 
     var name: String {
         switch self {
         case .jak1: "Jak and Daxter: The Precursor Legacy"
+        case .jak2: "Jak II"
+        case .jak3: "Jak 3"
+        }
+    }
+
+    var shelfName: String {
+        switch self {
+        case .jak1: "Jak 1"
         case .jak2: "Jak II"
         case .jak3: "Jak 3"
         }
@@ -32,6 +88,43 @@ nonisolated enum GameLibraryState: Equatable {
     case ready
     case needsAttention
     case planned
+}
+
+nonisolated enum GameLibraryCardAction: Equatable {
+    case start
+    case openJak1Setup
+    case offerJak1Import
+    case showUnsupported(GameLibraryTitle)
+
+    static func resolve(title: GameLibraryTitle, state: GameLibraryState) -> Self {
+        guard title == .jak1 else { return .showUnsupported(title) }
+        switch state {
+        case .ready:
+            return .start
+        case .preparing:
+            return .openJak1Setup
+        case .notImported, .needsAttention:
+            return .offerJak1Import
+        case .planned:
+            return .showUnsupported(title)
+        }
+    }
+}
+
+nonisolated enum GameLibraryOfferCopy {
+    static func jak1ImportMessage(canImportRawISO: Bool) -> String {
+        let ownership = "Provide game data from a copy of Jak 1 you legally own."
+        if canImportRawISO {
+            return ownership + " This build accepts a prepared out/jak1 folder, a supported .iso, "
+                + "or a standard .zip containing exactly one .iso."
+        }
+        return ownership + " This build accepts a prepared out/jak1 folder."
+    }
+
+    static func unsupportedMessage(for title: GameLibraryTitle) -> String {
+        "Import for \(title.shelfName) is not supported in this build. "
+            + "Eco currently supports Jak 1 game data only."
+    }
 }
 
 nonisolated enum GameArtworkStorage {
