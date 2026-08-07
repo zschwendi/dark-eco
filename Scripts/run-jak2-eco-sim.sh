@@ -72,7 +72,7 @@ check_cleanup() {
 }
 
 ensure_booted() {
-  if xcrun simctl list devices | grep -F "$simulator" | grep -Fq "(Booted)"; then
+  if xcrun simctl list devices | rg -F "$simulator" | rg -Fq "(Booted)"; then
     return
   fi
 
@@ -103,10 +103,12 @@ check() {
   trap check_cleanup 0 HUP INT TERM
 
   ensure_booted
+  log_start=$(date '+%Y-%m-%d %H:%M:%S')
   install_and_launch "$saves_directory"
   sleep 10
-  xcrun simctl spawn "$simulator" log show --style compact --last 15s \
-    --predicate 'eventMessage CONTAINS "GOALPAD_JAK2_"' >"$log_path" 2>&1 || :
+  xcrun simctl spawn "$simulator" log show --style compact --start "$log_start" \
+    --predicate 'process == "jak2-iphoneos-display-tick-proof"' \
+    >"$log_path" 2>&1 || :
   xcrun simctl io "$simulator" screenshot "$screenshot_path"
 
   echo "Log: $log_path"
@@ -114,13 +116,17 @@ check() {
   echo "Saves: $saves_directory"
 
   [ -s "$log_path" ] || fail "unified log capture is empty; see $log_path"
-  grep -Fq "GOALPAD_JAK2_ECO_TITLE PASS" "$log_path" || \
+  rg -Fq "GOALPAD_JAK2_ECO_TITLE PASS" "$log_path" || \
     fail "title-loop success telemetry is absent; see $log_path"
-  grep -Fq "GOALPAD_JAK2_ECO_INPUT" "$log_path" || \
-    fail "input telemetry is absent; see $log_path"
-  grep -E "GOALPAD_JAK2_ECO_TITLE PASS.*completed=[1-9][0-9]* failed=0" "$log_path" \
+  rg -Fq "GOALPAD_JAK2_ECO_INPUT_PROBE PASS" "$log_path" || \
+    fail "bounded GOAL input-read proof is absent; see $log_path"
+  rg -Fq "GOALPAD_JAK2_ECO_AUDIO RUNNING" "$log_path" || \
+    fail "Apple audio output did not start; see $log_path"
+  rg "GOALPAD_JAK2_ECO_AUDIO callbacks=[1-9][0-9]*" "$log_path" >/dev/null || \
+    fail "Apple audio callback telemetry is absent; see $log_path"
+  rg "GOALPAD_JAK2_ECO_TITLE PASS.*completed=[1-9][0-9]* failed=0" "$log_path" \
     >/dev/null || fail "successful Metal completion telemetry is absent; see $log_path"
-  if grep -Eiq 'Terminating app due to uncaught exception|Exception Type:|Fatal error:|Assertion failed|SIGABRT|SIGSEGV|crash' "$log_path"; then
+  if rg -iq 'Terminating app due to uncaught exception|Exception Type:|Fatal error:|Assertion failed|SIGABRT|SIGSEGV|crash' "$log_path"; then
     fail "unified log contains an obvious runtime failure or crash; see $log_path"
   fi
 
