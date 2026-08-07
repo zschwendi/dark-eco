@@ -1602,6 +1602,13 @@ final class TouchControls {
         fadeWhenIdle()
     }
 
+    /// UIKit's event-wide live set repairs a missed end/cancel before stale ownership can reject
+    /// a later finger for the same movement or camera role.
+    func reconcileActiveTouches(_ activeIdentifiers: Set<ObjectIdentifier>) {
+        let staleIdentifiers = touches.keys.filter { !activeIdentifiers.contains($0) }
+        for id in staleIdentifiers { cancelled(id) }
+    }
+
     /// Jak's zoom is a Triangle toggle. The live camera mode supplies the truthful next direction.
     @discardableResult
     func performZoomToggle(lookAroundState: GOALPadLookAroundState) -> Bool {

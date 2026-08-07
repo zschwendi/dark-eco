@@ -234,13 +234,16 @@ struct TouchControlsView: View {
         return ZStack {
             if let stick = controls.stick {
                 MovementStickArtwork(touch: stick)
+                    .allowsHitTesting(false)
             }
 
             if activeGameplayChromeIsAvailable {
                 pill(.stats)
                     .position(x: chrome.statsFrame.midX, y: chrome.statsFrame.midY)
+                    .allowsHitTesting(false)
                 pill(.start)
                     .position(x: chrome.startFrame.midX, y: chrome.startFrame.midY)
+                    .allowsHitTesting(false)
             }
 
             RightStickControl(controls: controls)
@@ -248,6 +251,7 @@ struct TouchControlsView: View {
                 .padding(.trailing, layout.rightStickSpacer)
                 .padding(.bottom, bottomInset)
                 .opacity(rightStickArtworkIsAvailable ? 1 : 0)
+                .allowsHitTesting(false)
 
             zoomButton(in: proxy)
                 .opacity(zoomIsAvailable ? 1 : 0)
@@ -869,24 +873,29 @@ private struct TouchSurface: UIViewRepresentable {
         let view = TouchSurfaceView()
         view.isMultipleTouchEnabled = true
         view.backgroundColor = .clear
-        view.controls = controls
+        view.setControls(controls)
         view.isSuppressed = isSuppressed
         view.reclaimTouchInput = reclaimTouchInput
         return view
     }
 
     func updateUIView(_ view: TouchSurfaceView, context: Context) {
-        view.controls = controls
+        view.setControls(controls)
         view.isSuppressed = isSuppressed
         view.reclaimTouchInput = reclaimTouchInput
+    }
+
+    static func dismantleUIView(_ view: TouchSurfaceView, coordinator: ()) {
+        view.detach()
     }
 }
 
 private final class TouchSurfaceView: UIView {
-    var controls: TouchControls?
+    private(set) var controls: TouchControls?
     var isSuppressed = false
     var reclaimTouchInput: (() -> Bool)?
     private let haptics = TouchHapticDriver()
+    private var activeTouchIdentifiers: Set<ObjectIdentifier> = []
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -896,9 +905,27 @@ private final class TouchSurfaceView: UIView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window == nil { cancelAllTouches() }
+    }
+
+    func setControls(_ controls: TouchControls) {
+        guard self.controls !== controls else { return }
+        cancelAllTouches()
+        self.controls = controls
+    }
+
+    func detach() {
+        cancelAllTouches()
+        controls = nil
+        reclaimTouchInput = nil
+    }
+
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         // Keep one gameplay touch owner. A competing zero-distance SwiftUI gesture can starve this
         // raw multitouch path; recovery belongs here, before the same touches are mapped.
+        reconcileTouchOwnership(with: event, updating: touches)
         TouchControlsView.forwardGameplayTouchBatch(
             Array(touches), isSuppressed: isSuppressed,
             reclaim: { reclaimTouchInput?() ?? false }) { touch in
@@ -909,6 +936,7 @@ private final class TouchSurfaceView: UIView {
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        reconcileTouchOwnership(with: event, updating: touches)
         for touch in touches {
             controls?.moved(ObjectIdentifier(touch), to: touch.location(in: self))
         }
@@ -919,6 +947,7 @@ private final class TouchSurfaceView: UIView {
         for touch in touches {
             controls?.ended(ObjectIdentifier(touch), at: touch.timestamp)
         }
+        reconcileTouchOwnership(with: event, updating: touches)
         flushHaptics()
     }
 
@@ -926,7 +955,42 @@ private final class TouchSurfaceView: UIView {
         for touch in touches {
             controls?.cancelled(ObjectIdentifier(touch))
         }
+        reconcileTouchOwnership(with: event, updating: touches)
         flushHaptics()
+    }
+
+    private func reconcileTouchOwnership(with event: UIEvent?, updating touches: Set<UITouch>) {
+        var liveIdentifiers = activeTouchIdentifiers
+        if let allTouches = event?.allTouches {
+            liveIdentifiers = Set(allTouches.compactMap { touch -> ObjectIdentifier? in
+                guard touch.view === self, Self.isActive(touch.phase) else { return nil }
+                return ObjectIdentifier(touch)
+            })
+        }
+        for touch in touches {
+            let id = ObjectIdentifier(touch)
+            if Self.isActive(touch.phase) {
+                liveIdentifiers.insert(id)
+            } else {
+                liveIdentifiers.remove(id)
+            }
+        }
+        controls?.reconcileActiveTouches(liveIdentifiers)
+        activeTouchIdentifiers = liveIdentifiers
+    }
+
+    private func cancelAllTouches() {
+        controls?.reconcileActiveTouches([])
+        activeTouchIdentifiers.removeAll()
+        _ = controls?.consumeHapticEvents()
+    }
+
+    private static func isActive(_ phase: UITouch.Phase) -> Bool {
+        switch phase {
+        case .began, .moved, .stationary: true
+        case .ended, .cancelled: false
+        @unknown default: false
+        }
     }
 
     private func flushHaptics() {

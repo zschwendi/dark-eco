@@ -1732,6 +1732,152 @@ private func gameplayTouchBatchHasOneOrderedOwner() {
           "failed chrome recovery never gates the UIKit gameplay touch")
 }
 
+@MainActor
+private func controllerTouchTransitionsNeverRetainGameplayOwnership() {
+    print("controller presentation and mixed touch endings cannot retain gameplay ownership")
+    let cameraCentre = CGPoint(x: Runner.rightStick.midX, y: Runner.rightStick.midY)
+    let cameraRight = CGPoint(x: cameraCentre.x + TouchControls.rightStickRadius,
+                              y: cameraCentre.y)
+    let movementCentre = CGPoint(x: 180, y: 650)
+    let movementRight = CGPoint(x: movementCentre.x + TouchControls.movementRadius,
+                                y: movementCentre.y)
+    let startCentre = CGPoint(x: Runner.start.midX, y: Runner.start.midY)
+
+    // 1. Recent controller activity may hide artwork, but the first camera touch still owns R.
+    var controllerThenCamera = Runner()
+    let firstCamera = Finger()
+    var recoveries = 0
+    TouchControlsView.forwardGameplayTouchBatch(
+        [firstCamera], isSuppressed: true,
+        reclaim: {
+            recoveries += 1
+            return true
+        },
+        began: { controllerThenCamera.down($0, cameraCentre) })
+    controllerThenCamera.move(firstCamera, cameraRight)
+    check(recoveries == 1 && controllerThenCamera.frame().isRightDeflected,
+          "1. controller activity then touch camera delivers the first hidden drag")
+    controllerThenCamera.up(firstCamera)
+
+    // 2. A normally ended camera drag cannot reserve R or block Start and movement.
+    var normalEnd = Runner()
+    let endedCamera = Finger()
+    normalEnd.down(endedCamera, cameraCentre)
+    normalEnd.move(endedCamera, cameraRight)
+    normalEnd.up(endedCamera)
+    let startAfterCamera = Finger()
+    let movementAfterCamera = Finger()
+    normalEnd.down(startAfterCamera, startCentre)
+    normalEnd.down(movementAfterCamera, movementCentre)
+    normalEnd.move(movementAfterCamera, movementRight)
+    let afterNormalEnd = normalEnd.frame()
+    check(normalEnd.controls.rightStick == nil
+          && afterNormalEnd.buttons.contains(.start) && afterNormalEnd.isLeftDeflected,
+          "2. camera end releases R before Start and movement begin")
+    normalEnd.up(startAfterCamera)
+    normalEnd.up(movementAfterCamera)
+
+    // 3. Explicit cancellation and event-wide interruption both re-arm Start and camera.
+    var interruptedCamera = Runner()
+    let cancelledCamera = Finger()
+    interruptedCamera.down(cancelledCamera, cameraCentre)
+    interruptedCamera.move(cancelledCamera, cameraRight)
+    interruptedCamera.cancel(cancelledCamera)
+    let interruptedOwner = Finger()
+    interruptedCamera.down(interruptedOwner, cameraCentre)
+    interruptedCamera.move(interruptedOwner, cameraRight)
+    interruptedCamera.controls.reconcileActiveTouches([])
+    let startAfterInterruption = Finger()
+    let cameraAfterInterruption = Finger()
+    interruptedCamera.down(startAfterInterruption, startCentre)
+    interruptedCamera.down(cameraAfterInterruption, cameraCentre)
+    interruptedCamera.move(cameraAfterInterruption, cameraRight)
+    let afterInterruption = interruptedCamera.frame()
+    check(afterInterruption.buttons.contains(.start) && afterInterruption.isRightDeflected,
+          "3. camera cancellation/interruption permits Start and a fresh camera drag")
+    interruptedCamera.up(startAfterInterruption)
+    interruptedCamera.up(cameraAfterInterruption)
+
+    // 4. Ending or cancelling Start cannot reserve a role needed by camera or gameplay.
+    var startTransitions = Runner()
+    let endedStart = Finger()
+    startTransitions.down(endedStart, startCentre)
+    startTransitions.up(endedStart)
+    let cancelledStart = Finger()
+    startTransitions.down(cancelledStart, startCentre)
+    startTransitions.cancel(cancelledStart)
+    let cameraAfterStart = Finger()
+    let movementAfterStart = Finger()
+    startTransitions.down(cameraAfterStart, cameraCentre)
+    startTransitions.move(cameraAfterStart, cameraRight)
+    startTransitions.down(movementAfterStart, movementCentre)
+    startTransitions.move(movementAfterStart, movementRight)
+    let afterStart = startTransitions.frame()
+    check(!startTransitions.controls.isPillDown(.start)
+          && afterStart.isRightDeflected && afterStart.isLeftDeflected,
+          "4. ended/cancelled Start leaves camera and gameplay available")
+    startTransitions.up(cameraAfterStart)
+    startTransitions.up(movementAfterStart)
+
+    // 5. Each identifier leaves independently when simultaneous fingers lift out of order.
+    let reordered = Runner()
+    let movement = Finger()
+    let camera = Finger()
+    let start = Finger()
+    reordered.down(movement, movementCentre)
+    reordered.move(movement, movementRight)
+    reordered.down(camera, cameraCentre)
+    reordered.move(camera, cameraRight)
+    reordered.down(start, startCentre)
+    reordered.up(camera)
+    check(reordered.controls.touches.count == 2 && reordered.controls.rightStick == nil
+          && reordered.controls.stick != nil && reordered.controls.isPillDown(.start),
+          "5. releasing camera first preserves only movement and Start owners")
+    reordered.up(movement)
+    check(reordered.controls.touches.count == 1 && reordered.controls.stick == nil
+          && reordered.controls.isPillDown(.start),
+          "5. releasing movement second preserves only Start")
+    reordered.up(start)
+
+    // 6. Repeated physical/touch handoffs recover once per contact without accumulating IDs.
+    var repeated = Runner()
+    var repeatedRecoveries = 0
+    for cycle in 0..<2 {
+        let finger = Finger()
+        TouchControlsView.forwardGameplayTouchBatch(
+            [finger], isSuppressed: true,
+            reclaim: {
+                repeatedRecoveries += 1
+                return true
+            },
+            began: { repeated.down($0, cycle == 0 ? cameraCentre : movementCentre) })
+        repeated.move(finger, cycle == 0 ? cameraRight : movementRight)
+        let state = repeated.frame()
+        check(cycle == 0 ? state.isRightDeflected : state.isLeftDeflected,
+              "6. controller-to-touch cycle \(cycle + 1) delivers its touch control")
+        repeated.up(finger)
+    }
+    check(repeatedRecoveries == 2 && repeated.controls.touches.isEmpty,
+          "6. repeated controller-touch-controller-touch handoffs stay additive and clean")
+
+    // 7. UIKit's authoritative live set removes missing callbacks and every retained role.
+    let reconciled = Runner()
+    let staleMovement = Finger()
+    let staleCamera = Finger()
+    let staleStart = Finger()
+    reconciled.down(staleMovement, movementCentre)
+    reconciled.down(staleCamera, cameraCentre)
+    reconciled.down(staleStart, startCentre)
+    reconciled.controls.reconcileActiveTouches([ObjectIdentifier(staleCamera)])
+    check(reconciled.controls.touches.count == 1 && reconciled.controls.rightStick != nil,
+          "7. live-set reconciliation retains only the identifier UIKit still owns")
+    reconciled.controls.reconcileActiveTouches([])
+    check(reconciled.controls.touches.isEmpty && reconciled.controls.stick == nil
+          && reconciled.controls.rightStick == nil && reconciled.controls.gestures.isEmpty
+          && !reconciled.controls.isPillDown(.start),
+          "7. all fingers lifted leaves zero identifiers or retained control ownership")
+}
+
 private func progressSnapshot(screen: Int, option: Int = 0,
                               selected: Bool = false,
                               transition: Bool = false,
@@ -2677,6 +2823,7 @@ struct TouchControlsCheck {
         controllerSuppressionKeepsTouchRecovery()
         gameplayChromeUsesOneIdleStateWithoutGestureSuppression()
         gameplayTouchBatchHasOneOrderedOwner()
+        controllerTouchTransitionsNeverRetainGameplayOwnership()
         nativeMenuActionsAreTruthfullyGatedAndLabelled()
         nativeMenuActionsEmitOnlyExpectedInputBytes()
         nativeProgressListSwipeIsOneShotAndStateGated()

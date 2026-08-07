@@ -34,6 +34,20 @@ fi
 rg -Fq 'reclaimTouchInput: reclaimTouchInput)' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'TouchControlsView.forwardGameplayTouchBatch(' \
   "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'controls?.reconcileActiveTouches(liveIdentifiers)' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'static func dismantleUIView' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'if window == nil { cancelAllTouches() }' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+
+# Artwork never owns gameplay hit testing. Suppression changes only opacity; the raw UIKit owner
+# and explicit semantic buttons retain their targets through controller/touch transitions.
+non_hit_test_artwork_count=$(rg -c '\.allowsHitTesting\(false\)' \
+  "$root/GOALPad/Game/TouchControlsView.swift")
+if (( non_hit_test_artwork_count < 5 )); then
+  echo "gameplay artwork can still intercept a touch target" >&2
+  exit 1
+fi
 
 # Zoom is one explicit semantic button. Reintroducing a full-screen pinch recognizer would compete
 # with the accepted single-owner gameplay touch surface.
