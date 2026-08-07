@@ -822,11 +822,15 @@ annotated tags are recorded in `HANDOFF.md`. The maintainer physically accepted
 it as the best known-good baseline within the exercised scope; that verdict is
 not evidence for completion, unvisited levels, or every device.
 
-Build 131 is a follow-on client-polish candidate. Its focused checks, signed
-generic iOS Release build, simulator launcher smoke, and in-place physical-iPad
-install pass. It does not replace Build 130 until the maintainer physically
-accepts the touch fade/swipe behavior, contextual dialogue ownership, launcher,
-import flow, theme, and icon.
+Build 131's signed build and install passed, but physical review rejected its
+phone-sized iPad launcher and gesture-driven suppression of the rest of the touch
+chrome. Build 132 is the corrective source candidate. It expands the three-cover
+shelf on regular-width devices, removes the raw swipe-guide symbols while keeping
+their invisible input mappings, uses one three-second idle fade for eligible
+gameplay chrome, places Eco Settings beside the persistent Start/Resume control
+after the initial title gate, and makes quit confirmation horizontally operable.
+Focused deterministic and parse checks pass; its batched Xcode and physical gates
+remain pending. Build 130 therefore remains the accepted baseline.
 
 The historical checkpoint record follows. Checkpoint 37 was an earlier
 sustained physical gameplay and visual-fidelity run. Its signed build

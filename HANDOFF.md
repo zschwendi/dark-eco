@@ -15226,3 +15226,52 @@ input; both sticks show matching `L`/`R`; Samos/Keira dialogue shows only the
 authoritative face action and cannot be cancelled by Zoom; repeat dialogue still
 offers working authored SKIP; warp behavior is unchanged; and the launcher/import
 polish is usable on the physical display.
+
+## Build 132 client-correction source checkpoint
+
+Date: 2026-08-06. Physical review rejected Build 131's phone-sized launcher on
+iPad and its gesture-driven suppression of all other touch artwork. Build 130
+remains the accepted baseline. Build 132 is a corrective source checkpoint, not
+yet a signed or physically accepted replacement.
+
+Integrated parent changes on `agent/build94-jak1-settings`:
+
+- `89ed3db3` — regular-width devices use their available launcher width and
+  height for three 2:3 covers with four flexible gutters; compact-width behavior
+  keeps the prior cap.
+- `da0ee5d3` — removes `GestureRose` and every raw face/crouch swipe-guide render
+  loop while preserving the invisible UIKit swipe reducer; all eligible ordinary
+  gameplay ornaments share one opacity and one 0.16-second transition after the
+  existing three-second engagement clock. No gameplay gesture hides the other
+  controls. It also removes the redundant top-right settings button, places a
+  `gear + ECO` pill in the Stats slot beside persistent Start/Resume only after
+  the initial title gate, and exposes exact Left/Right/Confirm commands for raw
+  Jak 1 quit screens 34 and 58.
+
+Root validation passed:
+
+```text
+Scripts/run-touch-controls-check.sh
+Scripts/run-game-menu-state-check.sh
+Scripts/run-game-progress-state-check.sh
+Scripts/run-portrait-library-check.sh
+xcrun swiftc -parse GOALPad/ContentView.swift GOALPad/Game/TouchControls.swift GOALPad/Game/TouchControlsView.swift GOALPad/Library/GameLibrary.swift GOALPad/Library/GameLibraryView.swift
+git diff --check
+```
+
+The touch suite passed all 388 checks, with only its pre-existing `idlePrompt`
+`var` warning. The nested OpenGOAL checkout remains unchanged and clean at
+`597270b0901a9ee19a675efb744e35133a5568d7`.
+
+The reported paused-menu audio pip remains `Investigating`. A separate clean
+audit found that the Apple pull callback overwrites or zeroes every requested
+frame and that a private 30-second native 989snd probe produced exact silence
+after explicit pause. The progress menu intentionally plays `select-menu`, but
+that sample ended at 0.890417 seconds and did not recur. No speculative audio
+change was integrated. The next justified step, only after an authorized
+physical reproduction, is a bounded callback diagnostic ring that distinguishes
+nonzero source samples from host-time gaps or graph rebuilds.
+
+Both Xcode configurations are assigned Build 132. A batched Xcode build,
+simulator smoke, signed artifact audit, and physical-device acceptance remain
+pending. Do not access `Z iPad Pro` without fresh current-request authorization.

@@ -443,9 +443,15 @@ Island with the boat correctly placed. Build 105 also showed a new iPad
 letterboxing/aspect regression. Preserve Build 93/90 presentation behavior
 until both failures have a separately validated replacement.
 
-Build 131 is the current signed client-polish candidate. It is installed in
-place on `Z iPad Pro` with data preserved, but it does not replace Build 130
-until the maintainer physically accepts it.
+Build 131 was physically rejected as a client-polish candidate. Its compact
+launcher remained phone-sized on iPad and its gesture-state artwork suppression
+made ordinary gameplay chrome flicker. Build 132 is the current source candidate:
+it expands the three-cover shelf on regular-width devices, never renders the raw
+face/crouch swipe-guide symbols, keeps invisible swipe mappings active without
+hiding other controls, gives all eligible gameplay chrome one three-second idle
+fade, places `gear + ECO` beside Start/Resume after the initial title gate, and
+adds truthful Left/Right/Confirm controls for Jak's quit confirmations. It must
+not replace Build 130 until build and physical validation pass.
 
 ### Live Jak 1 orchestration ledger
 
@@ -502,6 +508,21 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
   test route, expected results, and the Build 93 regression checks that matter.
 - [ ] Physically compare the next candidate against Build 93 on iPhone and iPad
   before calling it the replacement baseline.
+
+- `Build 132 client correction` — regular-width launcher sizing and the bounded
+  touch/pause correction are integrated on `agent/build94-jak1-settings`.
+  `GestureRose` and its render loop are removed completely; the raw UIKit swipe
+  reducer remains active and deterministic checks prove its input bytes without
+  letting swipe state suppress Zoom, Stats/SKIP, Pause, L, or R. All ordinary
+  gameplay ornaments share one opacity and one 0.16-second transition after the
+  existing three-second idle clock. The app-owned `gear + ECO` pill occupies the
+  Stats slot only in post-title native menus, paired with Start/Resume, while the
+  pre-first-Start gate remains a single centered Start. Quit screens 34 and 58
+  expose only Left, Right, and Confirm. Focused touch, menu, progress, launcher,
+  Swift parse, and diff checks pass. The reported paused audio pip remains
+  `Investigating`: an isolated 30-second native mixer probe produced exact
+  silence after pause, so no speculative mixer change was integrated. Build 132
+  has not yet received the batched Xcode build or physical validation.
 
 Active lanes:
 
