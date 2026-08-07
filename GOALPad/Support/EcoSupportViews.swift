@@ -1,62 +1,38 @@
 import StoreKit
 import SwiftUI
 
-struct EcoCreditsView: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        SupportPage(title: "Credits") {
-            VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Eco")
-                        .font(.largeTitle.bold())
-                    Text("Native OpenGOAL Runtime for Apple Platforms")
-                        .font(.headline)
-                        .foregroundStyle(DarkEcoTheme.accentGlow)
-                }
-
-                Text("Eco is an app by Zach Schwendiman, published by Zephyr Studios. Zach created the native Apple mobile port and its platform-runtime integration.")
-                Text("Made available free as a gift to fans of the Jak trilogy.")
-
-                Divider()
-
-                Text("Eco is built on the open-source OpenGOAL project and the work of its contributors.")
-                Link(destination: URL(string: "https://github.com/open-goal/jak-project")!) {
-                    Label("Want to support the OpenGOAL project directly? Visit their official project page.",
-                          systemImage: "arrow.up.right.square")
-                }
-
-                Text("Eco is an unofficial community project and is not affiliated with Sony Interactive Entertainment, Naughty Dog, or the OpenGOAL team.")
-                    .foregroundStyle(.secondary)
-                Text("Game data is not included. Players provide compatible data from copies they legally own.")
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Done") { dismiss() }
-            }
-        }
-    }
-}
-
-struct EcoSupportView: View {
+struct EcoAboutView: View {
     @Environment(\.dismiss) private var dismiss
     let tipStore: EcoTipStore
 
     var body: some View {
-        SupportPage(title: "Support") {
-            VStack(spacing: 12) {
+        SupportPage(title: "About") {
+            VStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Eco")
+                            .font(.largeTitle.bold())
+                        Text("Native OpenGOAL Runtime for Apple Platforms")
+                            .font(.headline)
+                            .foregroundStyle(DarkEcoTheme.accentGlow)
+                    }
+
+                    Text("Eco is an app by Zach Schwendiman, published by Zephyr Studios. Zach created the native Apple mobile port and its platform-runtime integration.")
+                    Text("Made available free as a gift to fans of the Jak trilogy.")
+
+                    Text("Eco is built on the open-source OpenGOAL project and the work of its contributors.")
+                        .foregroundStyle(.secondary)
+
+                    Text("Eco is an unofficial community project and is not affiliated with Sony Interactive Entertainment, Naughty Dog, or the OpenGOAL team.")
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
+
                 NavigationLink {
                     EcoContactView()
                 } label: {
                     SupportRow(title: "Contact", systemImage: "envelope")
-                }
-
-                NavigationLink {
-                    EcoAboutView()
-                } label: {
-                    SupportRow(title: "About", systemImage: "info.circle")
                 }
 
                 NavigationLink {
@@ -70,19 +46,6 @@ struct EcoSupportView: View {
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") { dismiss() }
-            }
-        }
-    }
-}
-
-private struct EcoAboutView: View {
-    var body: some View {
-        SupportPage(title: "About") {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Eco is a free native Apple mobile port built by Zach Schwendiman and published by Zephyr Studios.")
-                Text("It integrates the open-source OpenGOAL runtime with Apple platform rendering, input, audio, storage, and app lifecycle systems.")
-                Text("Eco includes no game data. It is made as an unofficial gift to fans of the Jak trilogy.")
-                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -118,10 +81,10 @@ private struct EcoDonateView: View {
                 Text("Optional one-time tips")
                     .font(.title2.bold())
 
-                ForEach(EcoTip.allCases) { tip in
-                    Button {
-                        Task { await tipStore.purchase(tip) }
-                    } label: {
+            ForEach(EcoTip.allCases) { tip in
+                Button {
+                    Task { await tipStore.purchase(tip) }
+                } label: {
                         HStack(spacing: 12) {
                             Text(tip.emoji)
                             Text(tip.title)
@@ -135,14 +98,28 @@ private struct EcoDonateView: View {
                             RoundedRectangle(cornerRadius: 12)
                                 .strokeBorder(DarkEcoTheme.accent.opacity(0.5), lineWidth: 1)
                         }
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(tipStore.product(for: tip) == nil
-                              || tipStore.purchasingProductID != nil)
                 }
+                .buttonStyle(.plain)
+                .disabled(tipStore.product(for: tip) == nil
+                              || tipStore.purchasingProductID != nil)
+            }
 
-                Text("The app is free. These are optional one-time tips that help fund development and maintenance. Thank you for your support.")
-                    .font(.footnote)
+            Link(destination: URL(string: "https://github.com/open-goal/jak-project")!) {
+                Label("Want to support the OpenGOAL project directly? Visit their official project page.",
+                      systemImage: "arrow.up.right.square")
+                    .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .background(DarkEcoTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(DarkEcoTheme.accent.opacity(0.5), lineWidth: 1)
+                    }
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.primary)
+
+            Text("The app is free. These are optional one-time tips that help fund development and maintenance. Thank you for your support.")
+                .font(.footnote)
                     .foregroundStyle(.secondary)
 
                 if let notice = tipStore.notice {

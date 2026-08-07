@@ -25,8 +25,7 @@ struct GameLibraryView: View {
     @State private var artworkTitle: GameLibraryTitle?
     @State private var isChoosingArtwork = false
     @State private var presentedAlert: GameLibraryAlert?
-    @State private var isShowingCredits = false
-    @State private var isShowingSupport = false
+    @State private var isShowingAbout = false
     @State private var tipStore = EcoTipStore()
 
     var body: some View {
@@ -75,11 +74,8 @@ struct GameLibraryView: View {
                         Button(action: openSettings) {
                             Label("Settings", systemImage: "gearshape")
                         }
-                        Button { isShowingCredits = true } label: {
-                            Label("Credits", systemImage: "person.3")
-                        }
-                        Button { isShowingSupport = true } label: {
-                            Label("Support", systemImage: "heart")
+                        Button { isShowingAbout = true } label: {
+                            Label("About", systemImage: "info.circle")
                         }
                     } label: {
                         Image(systemName: "line.3.horizontal")
@@ -90,16 +86,9 @@ struct GameLibraryView: View {
         }
         .preferredColorScheme(.dark)
         .tint(DarkEcoTheme.accent)
-        .sheet(isPresented: $isShowingCredits) {
+        .sheet(isPresented: $isShowingAbout) {
             NavigationStack {
-                EcoCreditsView()
-            }
-            .preferredColorScheme(.dark)
-            .tint(DarkEcoTheme.accent)
-        }
-        .sheet(isPresented: $isShowingSupport) {
-            NavigationStack {
-                EcoSupportView(tipStore: tipStore)
+                EcoAboutView(tipStore: tipStore)
             }
             .preferredColorScheme(.dark)
             .tint(DarkEcoTheme.accent)
