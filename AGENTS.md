@@ -443,6 +443,10 @@ Island with the boat correctly placed. Build 105 also showed a new iPad
 letterboxing/aspect regression. Preserve Build 93/90 presentation behavior
 until both failures have a separately validated replacement.
 
+Build 131 is the current signed client-polish candidate. It is installed in
+place on `Z iPad Pro` with data preserved, but it does not replace Build 130
+until the maintainer physically accepts it.
+
 ### Live Jak 1 orchestration ledger
 
 This checklist is a tracked execution ledger, not a promise that every item
@@ -1023,7 +1027,7 @@ Active lanes:
 
 #### Touch-friendly game and launcher interaction
 
-- [ ] Redesign the launcher as a fixed three-title cover shelf. Jak 1, Jak II,
+- [x] Redesign the launcher as a fixed three-title cover shelf. Jak 1, Jak II,
   and Jak 3 must all be fully visible at once on supported iPhone and iPad
   layouts without cropping or scrolling. Preserve each supplied cover's aspect
   ratio with scale-to-fit behavior; a missing-art fallback occupies the exact
@@ -1031,35 +1035,40 @@ Active lanes:
   installed user cover image to use as a sizing fixture, so inspect the
   maintainer's current device artwork only when that device access is explicitly
   authorized, or use an original synthetic portrait-cover fixture for
-  deterministic geometry tests.
-- [ ] Make unavailable title covers visibly dim but keep their full-card touch
+  deterministic geometry tests. Build 131 implements and simulator-validates
+  the fixed three-cover 2:3 shelf.
+- [x] Make unavailable title covers visibly dim but keep their full-card touch
   targets active. A tap begins a concise title-specific import offer only when
   that title has a real supported importer; never present Jak II or Jak 3 import
   as functional while they remain planned. The offer must state that the player
   supplies data from a title they legally own and list only formats the active
-  build actually accepts for that title.
-- [ ] Replace the current setup wall with one short import flow: choose a source,
+  build actually accepts for that title. Build 131 offers the supported Jak 1
+  import and reports Jak II/Jak 3 honestly as unsupported.
+- [x] Replace the current setup wall with one short import flow: choose a source,
   show one clear progress indicator and current phase, state truthfully whether
   the current phase can continue while Eco is backgrounded, and surface every
   cancellation or failure with a recovery action. Do not silently fail or imply
   that iCloud transfers game data. Keep the existing staged-candidate and
-  active-install safety guarantees behind the simpler presentation.
-- [ ] Reduce the launcher hamburger to `Settings` followed by `Credits`. Remove
+  active-install safety guarantees behind the simpler presentation. Build 131
+  exposes one phase/progress path with visible cancellation and recovery.
+- [x] Reduce the launcher hamburger to `Settings` followed by `Credits`. Remove
   `Import Game` from that menu and remove the separate toolbar Settings button;
   title-card activation owns import entry. Add a real Credits destination before
-  exposing that row.
-- [ ] Apply one accessible Dark Eco visual system across the app-owned launcher,
+  exposing that row. Implemented in Build 131.
+- [x] Apply one accessible Dark Eco visual system across the app-owned launcher,
   settings, import, progress, and credits surfaces: deep black/purple foundations
   with restrained luminous energy accents. Centralize the palette/material
   tokens, preserve readable contrast, Dynamic Type, Reduce Motion, and Reduce
   Transparency behavior, and do not restyle the rendered game or sacrifice
-  touch-state legibility for theme effects.
-- [ ] After the launcher/import work, explore a simpler app-icon replacement:
+  touch-state legibility for theme effects. Build 131 centralizes the app-owned
+  theme without restyling the rendered game.
+- [x] After the launcher/import work, explore a simpler app-icon replacement:
   a Dark Eco power-cell silhouette/energy mark with less visual complexity and
   less resemblance to the current vague `MAR`/earthquake motif. Keep the current
   icon until generated alternatives have been reviewed at every required icon
   size and physically accepted; this task is FIFO behind Build 128 and the
-  launcher/import slice.
+  launcher/import slice. Build 131 uses an original AI-assisted Dark Eco energy
+  mark and versioned icon assets; physical icon acceptance remains pending.
 
 - [x] Expose Jak 1's real `*master-mode*` as a read-only Apple-host state so
   pause-gated chrome and Pause/Resume labels do not rely on screenshots,
@@ -1120,8 +1129,11 @@ Active lanes:
   It distinguishes `target-title`, `target-title-play`, and `target-title-wait`
   from every other validated target state, directly activates already-loaded
   gameplay, and keeps first-touch R recovery in the existing UIKit touch owner.
-  The follow-on Build 131 may fade all button artwork together and suppress it
-  during swipes, but must preserve Build 130 input delivery and state truth.
+  Build 131 fades ordinary gameplay artwork together after three idle seconds,
+  suppresses it during raw swipes while preserving input delivery, labels the
+  movement stick `L`, and lets an authoritative contextual face prompt exclude
+  Zoom/Stats/Pause so those controls cannot steal dialogue input. Newly published
+  prompts wake the chrome even after idle. Physical acceptance remains pending.
 - [x] Expose one authoritative contextual face-button touch prompt wherever Jak
   currently requests Cross, Square, Triangle, or Circle. Draw only the requested
   button symbol, without inferring an action label, and emit that exact ordinary

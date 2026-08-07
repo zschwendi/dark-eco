@@ -15160,3 +15160,69 @@ fade all gameplay button artwork after idle, show no button artwork during an
 active swipe while preserving input, and complete the queued launcher/import
 cleanup plus app-wide Dark Eco presentation. Install Build 131 in place on the
 authorized iPad only after focused validation and a signed Release build.
+
+## Build 131 client-polish candidate signed and installed
+
+Date: 2026-08-06. Build 131 is implemented, pushed, signed, simulator-smoked,
+and update-installed in place on `Z iPad Pro`. It remains a candidate and does
+not replace the accepted Build 130 baseline until physical acceptance.
+
+Integrated parent commits on `agent/build94-jak1-settings`:
+
+- `6bd415cd` — concise, capability-derived Jak 1 import presentation.
+- `43a7bd49` — original AI-assisted Dark Eco app icon.
+- `8cafbcb0` — fixed three-cover launcher shelf, full-card actions, Settings and
+  Credits menu, and honest planned-title presentation.
+- `77c7a25f` — shared gameplay-chrome idle fade, swipe suppression with live
+  input, contextual-prompt ownership, and matching `L` stick glyph.
+- `82a4e42a` — make a newly published contextual prompt visible after idle.
+- `87ae2543` — bump both iOS configurations to Build 131.
+- `45964e98` — remove superseded unreferenced icon assets.
+
+The contextual face-prompt path uses the game's checked native snapshot. While
+a valid non-warp prompt owns Cross, Square, Triangle, or Circle, ordinary
+Zoom/Stats/Pause and right-side camera gestures are hidden and disabled, so Zoom
+cannot cancel dialogue and inert Stats cannot remain on screen. Movement stays
+available. Authored cutscene SKIP retains priority and the frozen warp-gate path
+is unchanged.
+
+Focused validation passed as one 14-script matrix covering touch, contextual
+face prompts, cutscene SKIP, warp, native menus, lifecycle, progress, launcher
+geometry, presentation settings/geometry, import presentation/source, install,
+and keyboard/mouse. Full output:
+`/private/tmp/GOALPad-build131-client-polish-matrix.log`. The prompt-wake review
+reran touch, face-prompt, cutscene-SKIP, and warp checks successfully at
+`/private/tmp/GOALPad-build131-contextual-prompt-review-fix.log`.
+
+The signed Release command passed with exit 0:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad -configuration Release -destination 'generic/platform=iOS' -derivedDataPath /private/tmp/GOALPad-build124-controller-chrome -jobs 4 -allowProvisioningUpdates GOALPAD_OPENGOAL_ROOT=/private/tmp/GP-build94-jak1-settings/OpenGOAL GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/private/tmp/GP-build94-jak1-settings/build/jak1-source-object-pack build
+```
+
+Full output is `/private/tmp/GOALPad-build131-client-polish.log`. The exact frozen
+artifact is `/private/tmp/GOALPad-build131-client-polish-signed/GOALPad.app`:
+
+- Eco `1.0 (131)`, `com.zephyrstudiosllc.eco`
+- arm64-only; strict code-sign verification passed
+- Team `V729QMY3V6`; CDHash `b14b4015d9171eb6130385f40ea3f4f4b6b9eb45`
+- Executable SHA-256
+  `dc74f26222b5b9fb9fe27ee728dda340db1c1aee6a71a200cb7d3b6cfd37f314`
+- Mach-O UUID `9A41291C-81D5-3C59-958D-FECE7C6FF47C`
+- iCloud and Game Center entitlements present; privacy manifest present
+- exactly 518 public source objects; audited retail-payload extension scan empty
+
+The approved M5 simulator smoke installed and launched Build 131 and captured
+`/private/tmp/GOALPad-build131-launcher.png`. All three uniform 2:3 covers fit at
+once without clipping; unavailable covers remain dim but visible, and the Dark
+Eco theme rendered correctly.
+
+At 18:51:50, `devicectl` update-installed this exact artifact on `Z iPad Pro`
+without uninstalling or clearing its container, then launched it with
+`--terminate-existing`. Physical acceptance should compare against Build 130:
+ordinary gameplay artwork fades together after three idle seconds; the first
+touch still executes and reveals it; raw swipes hide artwork without losing
+input; both sticks show matching `L`/`R`; Samos/Keira dialogue shows only the
+authoritative face action and cannot be cancelled by Zoom; repeat dialogue still
+offers working authored SKIP; warp behavior is unchanged; and the launcher/import
+polish is usable on the physical display.

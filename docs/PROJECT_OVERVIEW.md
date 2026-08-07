@@ -1,6 +1,6 @@
 # GOALPad — Project Overview
 
-> **Status:** Experimental playable Jak 1 port; Build 93 is the accepted baseline within its physically tested scope
+> **Status:** Experimental playable Jak 1 port; Build 130 is the accepted baseline within its physically tested scope
 > **Working name:** GOALPad
 > **Public product name:** Eco
 > **App Store subtitle:** Native OpenGOAL Runtime
@@ -111,12 +111,12 @@ Jak II begins only after Jak 1 has a stable platform foundation. Work that is na
 
 ### Current enhancement direction
 
-Build 93 is the unified regression baseline for subsequent Apple-device work.
-It retains Build 89's accepted **Classic Mode** behavior, Build 90's accepted
-**Graphics Modern** Fill Width presentation, and the corrected native/iCloud
-save behavior validated across the maintainer's iPhone and iPad. The maintainer
-accepted Build 93 as known-good for gameplay, performance, graphics, current
-touch behavior, settings persistence, and iCloud saves. That acceptance is
+Build 130 is the unified regression baseline for subsequent Apple-device work.
+It retains the accepted **Graphics Modern** Fit to Screen presentation, corrected
+native/iCloud save behavior, and the physically accepted single-owner gameplay
+touch path. The maintainer accepted Build 130 as known-good for gameplay,
+performance, graphics, current touch behavior, settings persistence, and iCloud
+saves. That acceptance is
 intentionally scoped: it is not yet a complete-playthrough, every-level,
 every-save, every-orientation, or every-controller certification.
 
@@ -136,18 +136,17 @@ disable iCloud saves.
 
 Enhancement work proceeds in this order:
 
-1. Preserve Build 93 as the unified known-good regression baseline.
-2. Restore and freeze the Build 96 gameplay-touch foundation while retaining
-   the explicitly accepted later touch additions and truthful native-menu
-   Start/Pause/Resume/Back layer.
-3. Repair background/foreground recovery and close only actual MVP shipping
-   blockers; do not expand the touch or settings feature surface.
+1. Preserve Build 130 as the unified known-good regression baseline.
+2. Validate Build 131's bounded client-polish candidate without changing Build
+   130's accepted input delivery or game behavior.
+3. Close only actual MVP shipping blockers; do not expand the touch or settings
+   feature surface.
 4. After the iPhone/iPad MVP contract is physically stable, prioritize true
    stereoscopic visionOS rendering with the conventional Comfort window kept as
    fallback.
 
 No enhancement may fork gameplay semantics, weaken user-owned asset separation,
-or replace the accepted Build 93 baseline before its replacement has been
+or replace the accepted Build 130 baseline before its replacement has been
 physically compared and accepted.
 
 ### Potential future scope
