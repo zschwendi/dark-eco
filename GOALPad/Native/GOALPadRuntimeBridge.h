@@ -109,6 +109,12 @@ typedef NS_ENUM(NSInteger, GOALPadLookAroundState) {
   GOALPadLookAroundStateFirstPerson,
 };
 
+typedef NS_ENUM(NSInteger, GOALPadSpeederState) {
+  GOALPadSpeederStateUnknown,
+  GOALPadSpeederStateNotRiding,
+  GOALPadSpeederStateRiding,
+};
+
 typedef NS_ENUM(NSInteger, GOALPadProgressScreen) {
   GOALPadProgressScreenUnknown = -2,
   GOALPadProgressScreenInvalid = -1,
@@ -239,6 +245,8 @@ typedef struct GOALPadFacePromptTouchSnapshot {
 @property(class, nonatomic, readonly) GOALPadTitleStartState titleStartState;
 /// Jak's live directional look-around state. Unavailable and other first-person modes are unknown.
 @property(class, nonatomic, readonly) GOALPadLookAroundState lookAroundState;
+/// Exact checked target-state classification; unresolved level-bundled racer states stay unknown.
+@property(class, nonatomic, readonly) GOALPadSpeederState speederState;
 /// A fail-closed read of Jak's live progress process; reading it never advances or mutates GOAL.
 @property(class, nonatomic, readonly) GOALPadProgressMenuSnapshot progressMenuSnapshot;
 /// GOAL-owned warp-gate touch semantics. Invalid and valid-unavailable snapshots are distinct.

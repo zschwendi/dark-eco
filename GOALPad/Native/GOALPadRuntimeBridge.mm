@@ -243,6 +243,17 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
   }
 }
 
++ (GOALPadSpeederState)speederState {
+  switch (goalpad::speeder_state()) {
+    case goalpad::SpeederState::Riding:
+      return GOALPadSpeederStateRiding;
+    case goalpad::SpeederState::NotRiding:
+      return GOALPadSpeederStateNotRiding;
+    case goalpad::SpeederState::Unknown:
+      return GOALPadSpeederStateUnknown;
+  }
+}
+
 + (GOALPadProgressMenuSnapshot)progressMenuSnapshot {
   const auto core = goalpad::progress_menu_snapshot();
   GOALPadProgressMenuSnapshot snapshot = {

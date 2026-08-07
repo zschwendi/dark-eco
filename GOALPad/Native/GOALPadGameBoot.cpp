@@ -73,6 +73,12 @@ std::uint32_t g_look_around_mode = 0;
 std::uint32_t g_target_title_wait_symbol = 0;
 std::uint32_t g_target_title_symbol = 0;
 std::uint32_t g_target_title_play_symbol = 0;
+constexpr std::array<const char*, 9> kSpeederStateNames = {
+    "target-racing",         "target-racing-bounce", "target-racing-death",
+    "target-racing-falling", "target-racing-grab",   "target-racing-hit",
+    "target-racing-jump",    "target-racing-smack",  "target-racing-start",
+};
+std::array<std::uint32_t, kSpeederStateNames.size()> g_speeder_state_symbols = {};
 int32_t* g_math_camera = nullptr;
 int32_t* g_camera_master = nullptr;
 int32_t* g_camera_combiner = nullptr;
@@ -770,6 +776,7 @@ void reset_game() noexcept {
   g_target_title_wait_symbol = 0;
   g_target_title_symbol = 0;
   g_target_title_play_symbol = 0;
+  g_speeder_state_symbols.fill(0);
   g_math_camera = nullptr;
   g_camera_master = nullptr;
   g_camera_combiner = nullptr;
@@ -832,6 +839,21 @@ LookAroundState look_around_state() noexcept {
               static_cast<const std::uint8_t*>(target) + kTargetCameraUserModeOffset,
               sizeof(camera_user_mode));
   return classify_look_around_state(true, state_flags, camera_user_mode, g_look_around_mode);
+}
+
+SpeederState speeder_state() noexcept {
+  if (!g_booted || !g_target || !g_target_type || !g_state_type || !g_ee_main_mem) {
+    return SpeederState::Unknown;
+  }
+  for (std::size_t index = 0; index < kSpeederStateNames.size(); ++index) {
+    if (!g_speeder_state_symbols[index]) {
+      g_speeder_state_symbols[index] = goal_game_find_symbol(kSpeederStateNames[index], nullptr);
+    }
+  }
+  const auto state_name = read_process_state_name(
+      g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT,
+      static_cast<std::uint32_t>(*g_target), g_target_type, g_state_type, true);
+  return classify_speeder_state(state_name, g_speeder_state_symbols);
 }
 
 ProgressMenuSnapshot progress_menu_snapshot() noexcept {
@@ -930,6 +952,10 @@ TitleStartState title_start_state() noexcept {
 
 LookAroundState look_around_state() noexcept {
   return LookAroundState::Unknown;
+}
+
+SpeederState speeder_state() noexcept {
+  return SpeederState::Unknown;
 }
 
 ProgressMenuSnapshot progress_menu_snapshot() noexcept {

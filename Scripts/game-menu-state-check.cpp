@@ -1,6 +1,7 @@
 #include "GOALPad/Native/GOALPadGameBoot.hpp"
 
 #include <cstdlib>
+#include <array>
 #include <cstdint>
 #include <cstring>
 #include <iostream>
@@ -88,5 +89,35 @@ int main() {
                                          kTitlePlay) ==
              goalpad::TitleStartState::Unknown,
          "missing title-flow symbols fail closed");
+
+  constexpr std::array<std::uint32_t, 9> kRidingStates = {
+      800, 804, 808, 812, 816, 820, 824, 828, 832,
+  };
+  write(memory, kTargetObject + goalpad::live_state_layout::kProcessNextStateOffset,
+        kStateObject);
+  for (const auto riding_state : kRidingStates) {
+    write(memory, kStateObject + goalpad::live_state_layout::kStateNameOffset, riding_state);
+    const auto state_name = goalpad::read_process_state_name(
+        memory.data(), memory.size(), 64, kTargetObject, kTargetType, kStateType, true);
+    expect(goalpad::classify_speeder_state(state_name, kRidingStates) ==
+               goalpad::SpeederState::Riding,
+           "each exact OpenGOAL racer state enables speeder controls");
+  }
+  write(memory, kStateObject + goalpad::live_state_layout::kStateNameOffset, kOtherState);
+  expect(goalpad::classify_speeder_state(
+             goalpad::read_process_state_name(memory.data(), memory.size(), 64, kTargetObject,
+                                              kTargetType, kStateType, true),
+             kRidingStates) == goalpad::SpeederState::NotRiding,
+         "a checked unrelated target state keeps ordinary on-foot controls");
+  auto incomplete_states = kRidingStates;
+  incomplete_states[4] = 0;
+  expect(goalpad::classify_speeder_state(kRidingStates[0], incomplete_states) ==
+             goalpad::SpeederState::Unknown,
+         "an incomplete level-bundled racer symbol set fails closed");
+  expect(goalpad::classify_speeder_state(
+             goalpad::read_process_state_name(memory.data(), memory.size(), 64, 0,
+                                              kTargetType, kStateType, true),
+             kRidingStates) == goalpad::SpeederState::Unknown,
+         "an invalid target pointer cannot invent speeder controls");
   std::cout << "game menu state checks passed\n";
 }

@@ -31,6 +31,12 @@ enum class LookAroundState : std::uint8_t {
   FirstPerson,
 };
 
+enum class SpeederState : std::uint8_t {
+  Unknown,
+  NotRiding,
+  Riding,
+};
+
 // Jak 1's original progress display states. PC-only states continue through 66; they remain valid
 // native snapshots but deliberately have no touch semantics until their responders are proven.
 enum class ProgressScreen : std::int32_t {
@@ -652,12 +658,64 @@ constexpr bool can_exit_with_start(std::int64_t screen,
 namespace live_state_layout {
 
 constexpr std::size_t kProcessStateOffset = 56 - 4;
+constexpr std::size_t kProcessNextStateOffset = 76 - 4;
 constexpr std::size_t kStateNameOffset = 4 - 4;
 constexpr std::size_t kProcessRequiredObjectBytes =
-    kProcessStateOffset + sizeof(std::uint32_t);
+    kProcessNextStateOffset + sizeof(std::uint32_t);
 constexpr std::size_t kStateRequiredObjectBytes = kStateNameOffset + sizeof(std::uint32_t);
 
 }  // namespace live_state_layout
+
+inline std::uint32_t read_process_state_name(const void* memory,
+                                             std::size_t memory_bytes,
+                                             std::size_t low_protect_bytes,
+                                             std::uint32_t process_offset,
+                                             std::uint32_t process_type,
+                                             std::uint32_t state_type,
+                                             bool read_next_state) noexcept {
+  const void* process = camera_correction_trace::checked_goal_object(
+      memory, memory_bytes, low_protect_bytes, process_offset, process_type,
+      live_state_layout::kProcessRequiredObjectBytes, nullptr);
+  if (!process) {
+    return 0;
+  }
+  const auto state_field_offset = read_next_state ? live_state_layout::kProcessNextStateOffset
+                                                  : live_state_layout::kProcessStateOffset;
+  std::uint32_t state_offset = 0;
+  std::memcpy(&state_offset, static_cast<const std::uint8_t*>(process) + state_field_offset,
+              sizeof(state_offset));
+  const void* state = camera_correction_trace::checked_goal_object(
+      memory, memory_bytes, low_protect_bytes, state_offset, state_type,
+      live_state_layout::kStateRequiredObjectBytes, nullptr);
+  if (!state) {
+    return 0;
+  }
+  std::uint32_t state_name = 0;
+  std::memcpy(&state_name,
+              static_cast<const std::uint8_t*>(state) + live_state_layout::kStateNameOffset,
+              sizeof(state_name));
+  return state_name;
+}
+
+template <std::size_t StateCount>
+constexpr SpeederState classify_speeder_state(
+    std::uint32_t state_name,
+    const std::array<std::uint32_t, StateCount>& riding_state_names) noexcept {
+  if (!state_name) {
+    return SpeederState::Unknown;
+  }
+  for (const auto candidate : riding_state_names) {
+    if (!candidate) {
+      return SpeederState::Unknown;
+    }
+  }
+  for (const auto candidate : riding_state_names) {
+    if (state_name == candidate) {
+      return SpeederState::Riding;
+    }
+  }
+  return SpeederState::NotRiding;
+}
 
 inline TitleStartState read_title_start_state(const void* memory,
                                               std::size_t memory_bytes,
@@ -671,26 +729,11 @@ inline TitleStartState read_title_start_state(const void* memory,
   if (!target_title_wait_symbol || !target_title_symbol || !target_title_play_symbol) {
     return TitleStartState::Unknown;
   }
-  const void* target = camera_correction_trace::checked_goal_object(
-      memory, memory_bytes, low_protect_bytes, target_offset, target_type,
-      live_state_layout::kProcessRequiredObjectBytes, nullptr);
-  if (!target) {
+  const auto state_name = read_process_state_name(
+      memory, memory_bytes, low_protect_bytes, target_offset, target_type, state_type, false);
+  if (!state_name) {
     return TitleStartState::Unknown;
   }
-  std::uint32_t state_offset = 0;
-  std::memcpy(&state_offset,
-              static_cast<const std::uint8_t*>(target) + live_state_layout::kProcessStateOffset,
-              sizeof(state_offset));
-  const void* state = camera_correction_trace::checked_goal_object(
-      memory, memory_bytes, low_protect_bytes, state_offset, state_type,
-      live_state_layout::kStateRequiredObjectBytes, nullptr);
-  if (!state) {
-    return TitleStartState::Unknown;
-  }
-  std::uint32_t state_name = 0;
-  std::memcpy(&state_name,
-              static_cast<const std::uint8_t*>(state) + live_state_layout::kStateNameOffset,
-              sizeof(state_name));
   if (state_name == target_title_wait_symbol) {
     return TitleStartState::Awaiting;
   }
@@ -895,6 +938,8 @@ GameMode game_mode() noexcept;
 TitleStartState title_start_state() noexcept;
 /*! Jak's live target state; Billy and unavailable or inconsistent state remain unknown. */
 LookAroundState look_around_state() noexcept;
+/*! Whether Jak's checked next target state is one of OpenGOAL's driving states. */
+SpeederState speeder_state() noexcept;
 /*! Jak's live progress state. Malformed, absent, and internally inconsistent state is unavailable. */
 ProgressMenuSnapshot progress_menu_snapshot() noexcept;
 /*! GOAL-owned warp-gate touch semantics. Invalid publication and valid unavailable are distinct. */

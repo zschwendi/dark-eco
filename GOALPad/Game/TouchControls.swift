@@ -1207,6 +1207,7 @@ final class TouchControls {
     private(set) var warpGateTouchSnapshot: NativeWarpGateTouchSnapshot = .invalid
     private(set) var cutsceneSkipTouchSnapshot: NativeCutsceneSkipTouchSnapshot = .invalid
     private(set) var facePromptTouchSnapshot: NativeFacePromptTouchSnapshot = .invalid
+    private(set) var speederState: GOALPadSpeederState = .unknown
     @ObservationIgnored private var retainsWarpGateTouchCapture = false
 
     enum Role: Equatable {
@@ -1226,6 +1227,8 @@ final class TouchControls {
         var travelled: CGFloat = 0
         var swiped: TouchButton? = nil
         var crouchPeakY: CGFloat? = nil
+        var acceleratorPeakY: CGFloat? = nil
+        var speederBrakeTriggered = false
         var jumpTriggered = false
         var punchTriggered = false
         var stickHapticTriggered = false
@@ -1378,6 +1381,18 @@ final class TouchControls {
         if contextualFacePromptOwnsGameplayActions {
             cancelOrdinaryGameplayCommandInput()
             noteScreenInteraction()
+        }
+    }
+
+    /// The native target-state reader is authoritative. Leaving a racer state drops only the
+    /// contextual shoulder chord; the original upward Cross gesture remains held until lift.
+    func setSpeederState(_ state: GOALPadSpeederState) {
+        guard state != speederState else { return }
+        speederState = state
+        if state != .riding {
+            for id in touches.keys {
+                touches[id]?.speederBrakeTriggered = false
+            }
         }
     }
 
@@ -1566,6 +1581,9 @@ final class TouchControls {
             if button == .crouch {
                 touch.crouchPeakY = point.y
                 touchLog.debug("crouch")
+            } else if button == .cross {
+                touch.acceleratorPeakY = point.y
+                press(button)
             } else {
                 press(button)
             }
@@ -1584,6 +1602,15 @@ final class TouchControls {
                 press(.cross)
                 enqueueHaptic(.gesture(.cross))
                 touchLog.debug("roll jump")
+            }
+        } else if touch.role == .gesture, touch.swiped == .cross {
+            let peak = min(touch.acceleratorPeakY ?? point.y, point.y)
+            touch.acceleratorPeakY = peak
+            if speederState == .riding, !touch.speederBrakeTriggered,
+               point.y - peak >= Self.rollJumpDistance {
+                touch.speederBrakeTriggered = true
+                enqueueHaptic(.gesture(.crouch))
+                touchLog.debug("speeder brake")
             }
         }
         touches[id] = touch
@@ -1778,6 +1805,11 @@ final class TouchControls {
             facePromptPulses[button] = facePromptPulse
         }
         if isCrouching { state.buttons.insert(TouchButton.crouch.bit) }
+        if speederState == .riding,
+           gestures.contains(where: { $0.swiped == .cross && $0.speederBrakeTriggered }) {
+            state.buttons.formUnion([TouchButton.leftShoulder.bit,
+                                     TouchButton.rightShoulder.bit])
+        }
 
         (state.leftX, state.leftY) = Self.axes(movement)
         (state.rightX, state.rightY) = Self.axes(camera)

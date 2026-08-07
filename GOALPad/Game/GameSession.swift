@@ -43,6 +43,7 @@ final class GameSession {
     private(set) var cutsceneSkipTouchSnapshot: NativeCutsceneSkipTouchSnapshot = .invalid
     private(set) var facePromptTouchSnapshot: NativeFacePromptTouchSnapshot = .invalid
     private(set) var lookAroundState: GOALPadLookAroundState = .unknown
+    private(set) var speederState: GOALPadSpeederState = .unknown
     private(set) var framesRun: UInt64 = 0
     private(set) var framesPresented: UInt64 = 0
     private(set) var memoryWarnings = 0
@@ -202,6 +203,7 @@ final class GameSession {
         updateFacePromptTouchSnapshot(NativeFacePromptTouchSnapshot(
             GOALPadRuntimeBridge.facePromptTouchSnapshot))
         lookAroundState = GOALPadRuntimeBridge.lookAroundState
+        updateSpeederState(GOALPadRuntimeBridge.speederState)
         let active = lifecycle.activateWithoutPreparation()
         saveSync.setGameplayActive(active)
         audio.start()
@@ -230,6 +232,7 @@ final class GameSession {
         updateCutsceneSkipTouchSnapshot(.invalid)
         updateFacePromptTouchSnapshot(.invalid)
         lookAroundState = .unknown
+        updateSpeederState(.unknown)
         saveSync.setGameplayActive(false)
         touch.reset()
         framesRun = 0
@@ -292,6 +295,10 @@ final class GameSession {
             if currentLookAroundState != lookAroundState {
                 lookAroundState = currentLookAroundState
             }
+            let currentSpeederState = GOALPadRuntimeBridge.speederState
+            if currentSpeederState != speederState {
+                updateSpeederState(currentSpeederState)
+            }
             shouldLog = framesRun % 600 == 0
             saveSync.gameplayFrameCompleted()
         }
@@ -331,6 +338,11 @@ final class GameSession {
     private func updateFacePromptTouchSnapshot(_ snapshot: NativeFacePromptTouchSnapshot) {
         facePromptTouchSnapshot = snapshot
         touch.setFacePromptTouchSnapshot(snapshot)
+    }
+
+    private func updateSpeederState(_ state: GOALPadSpeederState) {
+        speederState = state
+        touch.setSpeederState(state)
     }
 
     /// The same numbers the on-screen readout shows, every ten seconds, so a run can be checked

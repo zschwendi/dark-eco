@@ -414,6 +414,58 @@ private func downwardSwipeCanPunchLeft() {
 }
 
 @MainActor
+private func speederAccelerationCanReverseIntoHeldBrakeAndDrift() {
+    print("a speeder-only upward acceleration gesture can reverse into held brake and drift")
+    let centre = CGPoint(x: 900, y: 360)
+
+    for inactiveState in [GOALPadSpeederState.unknown, .notRiding] {
+        var onFoot = Runner()
+        onFoot.controls.setSpeederState(inactiveState)
+        let finger = Finger()
+        onFoot.down(finger, centre)
+        onFoot.move(finger, CGPoint(x: centre.x,
+                                    y: centre.y - TouchControls.swipeDistance - 12))
+        onFoot.move(finger, CGPoint(x: centre.x,
+                                    y: centre.y + TouchControls.rollJumpDistance + 12))
+        let state = onFoot.frame()
+        check(state.buttons.contains(.cross)
+              && !state.buttons.contains(.L1) && !state.buttons.contains(.R1),
+              "\(inactiveState) keeps the reversed upward swipe Cross-only")
+        onFoot.up(finger)
+    }
+
+    var riding = Runner()
+    riding.controls.setSpeederState(.riding)
+    let accelerator = Finger()
+    riding.down(accelerator, centre)
+    let upwardPoint = CGPoint(x: centre.x,
+                              y: centre.y - TouchControls.swipeDistance - 12)
+    riding.move(accelerator, upwardPoint)
+    check(riding.frames(3).allSatisfy {
+        $0.buttons.contains(.cross)
+            && !$0.buttons.contains(.L1) && !$0.buttons.contains(.R1)
+    }, "the initial upward speeder swipe holds acceleration alone")
+
+    riding.move(accelerator, CGPoint(x: centre.x,
+                                     y: upwardPoint.y - TouchControls.rollJumpDistance))
+    riding.move(accelerator, CGPoint(x: centre.x,
+                                     y: upwardPoint.y + TouchControls.rollJumpDistance + 8))
+    check(riding.frames(10).allSatisfy {
+        $0.buttons.contains(.cross) && $0.buttons.contains(.L1) && $0.buttons.contains(.R1)
+    }, "reversing downward holds Cross with the L1+R1 brake/drift chord")
+
+    riding.controls.setSpeederState(.notRiding)
+    let dismounted = riding.frame()
+    check(dismounted.buttons.contains(.cross)
+          && !dismounted.buttons.contains(.L1) && !dismounted.buttons.contains(.R1),
+          "leaving the speeder state drops only the contextual shoulder chord")
+    riding.up(accelerator)
+    check(riding.frames(TouchControls.holdFrames + TouchControls.releaseFrames + 2).last!
+        .buttons.intersection([.cross, .L1, .R1]).isEmpty,
+          "lifting the acceleration finger releases the complete speeder gesture")
+}
+
+@MainActor
 private func controlsWorkTogether() {
     print("movement, look, and swipe roll-jump can share one frame")
     var run = Runner()
@@ -2808,6 +2860,7 @@ struct TouchControlsCheck {
         rightStickIsFullyAnalog()
         downwardSwipeCanRollJump()
         downwardSwipeCanPunchLeft()
+        speederAccelerationCanReverseIntoHeldBrakeAndDrift()
         controlsWorkTogether()
         movementAlsoStepsTheDpad()
         pillsRemainExplicitControls()
