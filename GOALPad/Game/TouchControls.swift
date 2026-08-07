@@ -487,6 +487,12 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         static let settingsTitle = 4
     }
 
+    /// Exact `progress-screen` values from Jak 1's checked PC enum.
+    private enum ShippingPCScreen {
+        static let quit = 34
+        static let quitTitle = 58
+    }
+
     var button: TouchButton {
         switch self {
         case .up: .up
@@ -611,6 +617,11 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         case 28:
             actions = commonOptions(for: snapshot,
                                     optionCount: ShippingPCOptionCount.settingsTitle)
+        case ShippingPCScreen.quit, ShippingPCScreen.quitTitle:
+            guard snapshot.optionIndex == 0 else { return [] }
+            // The one-row yes/no responder selects No with Right, then exits on Confirm.
+            // Jak's can-go-back responder excludes both quit screens, so Square would be inert.
+            return [.left, .right, .confirm]
         case 16, 17:
             actions = fileOptions(for: snapshot, optionCount: 5)
         case 18:
@@ -681,6 +692,27 @@ nonisolated struct NativeSessionControlPresentation: Equatable, Sendable {
             return nil
         @unknown default:
             return nil
+        }
+    }
+}
+
+/// App-owned settings appears only after the native session has crossed the initial title gate.
+nonisolated enum NativeEcoSettingsPresentation {
+    static func isVisible(
+        mode: GOALPadGameMode,
+        progress: NativeProgressMenuSnapshot,
+        runReadiness: GameplayRunReadiness
+    ) -> Bool {
+        guard runReadiness == .active || runReadiness == .titleMenu else { return false }
+        return switch mode {
+        case .pause, .menu:
+            true
+        case .progress:
+            progress.available && !progress.inTransition
+        case .unknown, .gameplay:
+            false
+        @unknown default:
+            false
         }
     }
 }
@@ -1800,11 +1832,10 @@ final class TouchControls {
         isAwaitingTitleStart: Bool,
         isEngaged: Bool,
         isSuppressed: Bool,
-        hasTouches: Bool,
-        hasActiveGameplayGesture: Bool
+        hasTouches: Bool
     ) -> Bool {
         mode == .gameplay && runReadiness == .active && !isAwaitingTitleStart
-            && isEngaged && !hasActiveGameplayGesture && (!isSuppressed || hasTouches)
+            && isEngaged && (!isSuppressed || hasTouches)
     }
 
     nonisolated static func titleStartChromeIsVisible(
@@ -1824,7 +1855,6 @@ final class TouchControls {
         isEngaged: Bool,
         isSuppressed: Bool,
         hasTouches: Bool,
-        hasActiveGameplayGesture: Bool,
         contextualFacePromptOwnsGameplayActions: Bool = false
     ) -> Bool {
         gameplayChromeIsVisible(
@@ -1833,8 +1863,7 @@ final class TouchControls {
             isAwaitingTitleStart: isAwaitingTitleStart,
             isEngaged: isEngaged,
             isSuppressed: isSuppressed,
-            hasTouches: hasTouches,
-            hasActiveGameplayGesture: hasActiveGameplayGesture)
+            hasTouches: hasTouches)
             && !cutsceneSkipAvailable && !contextualFacePromptOwnsGameplayActions
     }
 
