@@ -13126,3 +13126,81 @@ title is recognizable, launch `Scripts/run-jak2-eco-sim.sh play`, ask the
 maintainer to verify controller navigation and audible output, start a new
 game, and enter Stage 10. Cosmetic renderer debt remains telemetry. No physical
 device was accessed; later physical testing still requires fresh authorization.
+
+# Checkpoint 96: recognizable Jak II Eco title prompt
+
+Date: 2026-08-06. The isolated nested branch
+`agent/jak2-real-dma-draw-proof` advances to `7cbd59272`. The black simulator
+capture was legitimate GOAL-owned PMODE blackout, not a broken `CAMetalLayer`.
+Bounded title-state and STR failure telemetry traced the title coroutine to a
+retry loop loading `demo-screens` section 27. That chunk is exactly `0xd0000`
+bytes, while the title allocated exactly `0xd0000` with only 16-byte alignment;
+the external loader's 64-byte destination rounding left the request up to 48
+bytes short. The source allocation now uses `align-64`, and fresh runs reduce
+STR failures from 99 to zero and advance title control from `startup` to
+`wait`.
+
+The later title prompt was still invisible because Jak II writes it through
+bucket `PROGRESS`, which Metal had deliberately deferred. That reviewed bucket
+now uses the existing Direct renderer with the OpenGL reference batch size
+`0x1000`; policy counts, fingerprint, renderer naming, and the focused table
+test were updated together. A long fresh-save simulator run visibly renders
+`Press the Start Button` over the live city title. No forced alpha or injected
+input remains.
+
+## Validation
+
+```text
+GOALPAD_BUILD_JOBS=2 Scripts/generate-jak2-aot.sh \
+  /private/tmp/GOALPad-jak2-real-dma-host
+
+cmake --build /private/tmp/GOALPad-jak2-real-dma-host \
+  --target jak2-metal-bucket-table-test -j2
+/private/tmp/GOALPad-jak2-real-dma-host/game/jak2-metal-bucket-table-test
+
+ctest --test-dir /private/tmp/GOALPad-jak2-real-dma-host \
+  -R '^jak2-dgo-rpc-test$' --output-on-failure
+
+GOALPAD_JAK2_DATA_DIR=/Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  Scripts/run-jak2-eco-sim.sh build
+
+GOALPAD_JAK2_DATA_DIR=/Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  Scripts/run-jak2-eco-sim.sh check
+```
+
+AOT generation passed with 840 sources, 18,479 emitted functions, seven native
+functions, and zero failures. The focused bucket-table executable and STR/DGO
+CTest passed. The final incremental Release simulator build succeeded in 4.017
+seconds. The strict Eco check passed with 300/300 completed Metal chains, 300
+drawable acquisitions/submissions, zero renderer errors/misses/drops, 44 draws,
+245,722 triangles, active non-silent RemoteIO, and zero STR failures. Its log,
+screenshot, and fresh saves are:
+
+```text
+/private/tmp/goalpad-jak2-eco-check-20260806-215422-60254.log
+/private/tmp/goalpad-jak2-eco-check-20260806-215422-60254.png
+/private/tmp/goalpad-jak2-eco-check.Z9ZDWA
+```
+
+The later visible acceptance capture is
+`/private/tmp/goalpad-jak2-progress-menu-20260806.png`; title telemetry reported
+`title=wait`, `target=target-title`, and `str-failures=0`. The simulator app was
+terminated after capture. No physical device was accessed.
+
+## Acceptance boundary and next executable task
+
+The automated Stage 9 renderer/title milestone is ready for Eco integration,
+but maintainer interaction remains required. Run `Scripts/run-jak2-eco-sim.sh
+play`, verify Start/X and controller navigation plus audible output, exercise
+one background/foreground cycle, then start a new game and enter Stage 10
+immediately. The full Mac Stage 9 gate was not rerun after this patch; an
+attempted broad Mac product build was intentionally stopped when it expanded to
+an unnecessary 1,158-object dependency rebuild. Do not report that as a build
+failure.
+
+Bucket 318 `DEBUG_NO_ZBUF1` still discards the hybrid raw-image
+texture-animator/Direct packet used by the initial external-art splash. It needs
+a dedicated ordered upload-plus-Direct implementation, not a policy-only
+promotion, but it is not blocking the visible prompt or current navigation
+gate. Preserve it as explicit Stage 7 renderer debt unless Stage 10 proves it
+blocks gameplay.

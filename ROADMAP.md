@@ -1371,6 +1371,20 @@ to `CAMetalLayer` presentation/compositing. Fix that narrow surface path before
 any cosmetic renderer work; then request maintainer title/navigation acceptance
 and enter Stage 10. No physical device was accessed.
 
+Checkpoint 96 advances the isolated Jak II lane to nested `7cbd59272`. The
+black viewport was an intentional GOAL PMODE blackout caused by a repeatedly
+rejected exact-size title STR request: 64-byte destination rounding reduced a
+16-byte-aligned `0xd0000` allocation below the `0xd0000` chunk size. The title
+buffer is now source-aligned to 64 bytes, STR failures fall to zero, and title
+control reaches `wait`. Metal now renders the title's `PROGRESS` Direct bucket,
+so a fresh M5 simulator run visibly shows `Press the Start Button` over the
+live city scene. The 840-object AOT generation, focused policy/STR tests,
+incremental Release build, and strict Eco check pass; 300/300 chains complete
+with zero errors, misses, or drops and active audio. Maintainer Start/X,
+navigation, audible-output, lifecycle, and new-game acceptance are the remaining
+Stage 9 gate. Bucket 318 raw-image splash rendering remains non-blocking Stage 7
+debt. No physical device was accessed.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
@@ -1395,11 +1409,10 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Fix the Checkpoint 95 Jak II Eco `CAMetalLayer` black-presentation blocker,
-   rerun the strict M5 screenshot gate, and record maintainer visual, audio, and
-   input acceptance. Then start a new game and enter Stage 10 immediately,
-   without changing the shipping Jak 1 target or claiming physical-device
-   support.
+4. Integrate Checkpoint 96 into Eco, record maintainer Start/X, controller,
+   audible-output, and lifecycle acceptance, then start a new game and enter
+   Stage 10 immediately. Fix only renderer debt that blocks that path; do not
+   change the shipping Jak 1 target or claim physical-device support.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
