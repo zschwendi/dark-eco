@@ -145,8 +145,15 @@ nonisolated enum GameLibraryOfferCopy {
     }
 
     static func unsupportedMessage(for title: GameLibraryTitle) -> String {
-        "Import for \(title.shelfName) is not supported in this build. "
-            + "Eco currently supports Jak 1 game data only."
+        switch title {
+        case .jak2:
+            return "Jak II support is in active development and will be supported soon."
+        case .jak3:
+            return "Jak 3 support is planned after Jak II's development."
+        case .jak1:
+            return "Import for \(title.shelfName) is not supported in this build. "
+                + "Eco currently supports Jak 1 game data only."
+        }
     }
 }
 

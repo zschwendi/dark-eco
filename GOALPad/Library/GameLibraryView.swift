@@ -132,7 +132,7 @@ struct GameLibraryView: View {
                 )
             case .unsupported(let title):
                 Alert(
-                    title: Text("\(title.shelfName) Isn’t Supported Yet"),
+                    title: Text("\(title.shelfName) Isn't Supported Yet"),
                     message: Text(GameLibraryOfferCopy.unsupportedMessage(for: title)),
                     dismissButton: .default(Text("OK"))
                 )
@@ -310,7 +310,7 @@ private struct GameLibraryTile: View {
         case .preparing: "Preparing"
         case .ready: "Ready"
         case .needsAttention: "Needs Attention"
-        case .planned: "Not Supported"
+        case .planned: "Coming soon"
         }
     }
 
