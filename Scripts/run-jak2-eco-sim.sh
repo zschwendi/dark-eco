@@ -126,9 +126,15 @@ check() {
     fail "Apple audio callback telemetry is absent; see $log_path"
   rg "GOALPAD_JAK2_ECO_TITLE PASS.*completed=[1-9][0-9]* failed=0" "$log_path" \
     >/dev/null || fail "successful Metal completion telemetry is absent; see $log_path"
+  rg "GOALPAD_JAK2_ECO_TITLE PASS.*draws=[1-9][0-9]*.*non-black=[1-9][0-9]*" \
+    "$log_path" >/dev/null || fail "non-black title draw telemetry is absent; see $log_path"
   if rg -iq 'Terminating app due to uncaught exception|Exception Type:|Fatal error:|Assertion failed|SIGABRT|SIGSEGV|crash' "$log_path"; then
     fail "unified log contains an obvious runtime failure or crash; see $log_path"
   fi
+  command -v magick >/dev/null 2>&1 || fail "ImageMagick is required for the screenshot gate"
+  screenshot_visible=$(magick "$screenshot_path" -shave 80x180 -alpha off \
+    -format '%[fx:maxima>0.01]' info:)
+  [ "$screenshot_visible" = 1 ] || fail "the captured game viewport is black; see $screenshot_path"
 
   echo "Jak II Eco Pro simulator check passed."
 }
