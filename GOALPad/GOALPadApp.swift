@@ -40,6 +40,9 @@ struct GOALPadApp: App {
             }
             .task { await EcoTipTransactionObserver.run() }
             #endif
+            #if targetEnvironment(simulator)
+            .task { await SimulatorPreparedFolderImportSmoke.runIfRequested() }
+            #endif
         }
 
         #if os(visionOS)
