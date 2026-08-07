@@ -1536,28 +1536,33 @@ private func controllerSuppressionKeepsTouchRecovery() {
 }
 
 @MainActor
-private func build128ChromeStateMatrixAndRightStickRecovery() {
-    print("Build 128 keeps gameplay chrome persistent and idles only the R artwork")
-    check(TouchControls.rightStickFadeOutDelay == 3,
-          "the R-stick artwork uses the exact three-second idle delay")
+private func build131GameplayChromeFadeAndGestureSuppression() {
+    print("Build 131 fades all gameplay chrome and hides it during raw gestures")
+    check(TouchControls.gameplayChromeFadeOutDelay == 3,
+          "all gameplay artwork uses the exact three-second idle delay")
 
-    let persistentCases: [(GOALPadGameMode, GameplayRunReadiness, Bool, Bool, Bool, Bool)] = [
-        (.gameplay, .active, false, false, false, true),
-        (.gameplay, .preRun, false, false, false, false),
-        (.gameplay, .active, true, false, false, false),
-        (.pause, .active, false, false, false, false),
-        (.progress, .active, false, false, false, false),
-        (.gameplay, .active, false, true, false, false),
-        (.gameplay, .active, false, true, true, true),
+    let chromeCases: [(GOALPadGameMode, GameplayRunReadiness, Bool, Bool, Bool, Bool, Bool, Bool)] = [
+        (.gameplay, .active, false, true, false, false, false, true),
+        (.gameplay, .active, false, false, false, false, false, false),
+        (.gameplay, .preRun, false, true, false, false, false, false),
+        (.gameplay, .active, true, true, false, false, false, false),
+        (.pause, .active, false, true, false, false, false, false),
+        (.progress, .active, false, true, false, false, false, false),
+        (.gameplay, .active, false, true, true, false, false, false),
+        (.gameplay, .active, false, true, true, true, false, true),
+        (.gameplay, .active, false, true, false, true, true, false),
     ]
-    for (mode, readiness, awaiting, suppressed, hasTouches, expected) in persistentCases {
-        check(TouchControls.persistentGameplayChromeIsVisible(
+    for (mode, readiness, awaiting, engaged, suppressed, hasTouches, gesture, expected)
+        in chromeCases {
+        check(TouchControls.gameplayChromeIsVisible(
             mode: mode,
             runReadiness: readiness,
             isAwaitingTitleStart: awaiting,
+            isEngaged: engaged,
             isSuppressed: suppressed,
-            hasTouches: hasTouches) == expected,
-              "persistent chrome matrix rejects title/menu/controller states exactly")
+            hasTouches: hasTouches,
+            hasActiveGameplayGesture: gesture) == expected,
+              "gameplay chrome matrix applies readiness, idle, controller, and gesture gates")
     }
 
     check(TouchControls.titleStartChromeIsVisible(
@@ -1575,22 +1580,27 @@ private func build128ChromeStateMatrixAndRightStickRecovery() {
     check(TouchControls.rightStickArtworkIsVisible(
         mode: .gameplay, runReadiness: .active, isAwaitingTitleStart: false,
         cutsceneSkipAvailable: false, isEngaged: true,
-        isSuppressed: false, hasTouches: false),
+        isSuppressed: false, hasTouches: false, hasActiveGameplayGesture: false),
           "engaged active gameplay shows the fixed R-stick artwork")
     check(!TouchControls.rightStickArtworkIsVisible(
         mode: .gameplay, runReadiness: .active, isAwaitingTitleStart: false,
         cutsceneSkipAvailable: false, isEngaged: false,
-        isSuppressed: false, hasTouches: false),
-          "idle gameplay hides only the fixed R-stick artwork")
+        isSuppressed: false, hasTouches: false, hasActiveGameplayGesture: false),
+          "idle gameplay hides the fixed R-stick artwork with every gameplay button")
+    check(!TouchControls.rightStickArtworkIsVisible(
+        mode: .gameplay, runReadiness: .active, isAwaitingTitleStart: false,
+        cutsceneSkipAvailable: false, isEngaged: true,
+        isSuppressed: false, hasTouches: true, hasActiveGameplayGesture: true),
+          "a raw gameplay gesture hides the R-stick artwork despite current touch activity")
     check(!TouchControls.rightStickArtworkIsVisible(
         mode: .gameplay, runReadiness: .active, isAwaitingTitleStart: false,
         cutsceneSkipAvailable: true, isEngaged: true,
-        isSuppressed: false, hasTouches: false),
+        isSuppressed: false, hasTouches: false, hasActiveGameplayGesture: false),
           "authoritative SKIP ownership hides the conflicting camera chrome")
     check(!TouchControls.rightStickArtworkIsVisible(
         mode: .pause, runReadiness: .active, isAwaitingTitleStart: false,
         cutsceneSkipAvailable: false, isEngaged: true,
-        isSuppressed: false, hasTouches: false),
+        isSuppressed: false, hasTouches: false, hasActiveGameplayGesture: false),
           "captured pause hides the gameplay R-stick artwork")
 
     var hiddenStick = Runner()
@@ -1599,7 +1609,7 @@ private func build128ChromeStateMatrixAndRightStickRecovery() {
         runReadiness: .active)
     hiddenStick.controls.reset()
     check(!hiddenStick.controls.isEngaged,
-          "reset deterministically models fully idle R-stick artwork")
+          "reset deterministically models fully idle gameplay artwork")
     let camera = Finger()
     let cameraCentre = CGPoint(x: Runner.rightStick.midX, y: Runner.rightStick.midY)
     hiddenStick.down(camera, cameraCentre)
@@ -1636,8 +1646,31 @@ private func build128ChromeStateMatrixAndRightStickRecovery() {
           && TouchControls.rightStickArtworkIsVisible(
             mode: .gameplay, runReadiness: .active, isAwaitingTitleStart: false,
             cutsceneSkipAvailable: false, isEngaged: hiddenStick.controls.isEngaged,
-            isSuppressed: false, hasTouches: true),
-          "the first ordinary screen touch, including movement, immediately reveals R")
+            isSuppressed: false, hasTouches: true, hasActiveGameplayGesture: false),
+          "the first ordinary screen touch is delivered and immediately reveals gameplay chrome")
+
+    hiddenStick.up(movement)
+    hiddenStick.controls.reset()
+    let gesture = Finger()
+    let gestureCentre = CGPoint(x: 900, y: 360)
+    hiddenStick.down(gesture, gestureCentre)
+    check(hiddenStick.controls.hasActiveGameplayGesture
+          && !TouchControls.gameplayChromeIsVisible(
+            mode: .gameplay, runReadiness: .active, isAwaitingTitleStart: false,
+            isEngaged: hiddenStick.controls.isEngaged,
+            isSuppressed: false, hasTouches: true, hasActiveGameplayGesture: true),
+          "gesture touch-down wakes state but keeps all gameplay artwork suppressed")
+    hiddenStick.move(gesture, CGPoint(x: gestureCentre.x, y: gestureCentre.y - 60))
+    check(hiddenStick.frame().buttons.contains(.cross),
+          "the visually suppressed swipe still delivers its exact gameplay input")
+    hiddenStick.up(gesture)
+    check(!hiddenStick.controls.hasActiveGameplayGesture
+          && hiddenStick.controls.isEngaged
+          && TouchControls.gameplayChromeIsVisible(
+            mode: .gameplay, runReadiness: .active, isAwaitingTitleStart: false,
+            isEngaged: hiddenStick.controls.isEngaged,
+            isSuppressed: false, hasTouches: false, hasActiveGameplayGesture: false),
+          "gameplay chrome returns immediately after the swipe ends")
 }
 
 @MainActor
@@ -2404,6 +2437,90 @@ private func nativeFacePromptMappingOrderAndPriorityAreExact() {
 }
 
 @MainActor
+private func contextualFacePromptExcludesOrdinaryGameplayCommands() {
+    print("an authoritative contextual face prompt owns the gameplay command surface")
+    let circle = facePrompt(NativeFacePromptTouchSnapshot.circleMask, sequence: 170)
+    check(TouchControls.contextualFacePromptOwnsGameplayActions(
+        mode: .gameplay,
+        runReadiness: .active,
+        snapshot: circle,
+        warpGateControlsVisible: false,
+        warpGateCapturesInput: false,
+        cutsceneSkipAvailable: false),
+          "a valid active non-warp Circle prompt owns ordinary gameplay commands")
+    check(!TouchControls.contextualFacePromptOwnsGameplayActions(
+        mode: .gameplay,
+        runReadiness: .preRun,
+        snapshot: circle,
+        warpGateControlsVisible: false,
+        warpGateCapturesInput: false,
+        cutsceneSkipAvailable: false)
+          && !TouchControls.contextualFacePromptOwnsGameplayActions(
+            mode: .gameplay,
+            runReadiness: .active,
+            snapshot: circle,
+            warpGateControlsVisible: true,
+            warpGateCapturesInput: false,
+            cutsceneSkipAvailable: false),
+          "pre-run state and the frozen warp owner cannot invent prompt exclusivity")
+
+    let triangle = facePrompt(NativeFacePromptTouchSnapshot.triangleMask, sequence: 172)
+    check(!TouchControls.contextualFacePromptOwnsGameplayActions(
+        mode: .gameplay,
+        runReadiness: .active,
+        snapshot: triangle,
+        warpGateControlsVisible: false,
+        warpGateCapturesInput: false,
+        cutsceneSkipAvailable: true),
+          "authoritative SKIP remains the exact Triangle owner")
+
+    var run = Runner()
+    run.controls.setNativeMenuState(
+        .gameplay, progress: .unavailable, titleStartState: .notAwaiting,
+        runReadiness: .active)
+    let pendingPause = Finger()
+    run.down(pendingPause, CGPoint(x: Runner.start.midX, y: Runner.start.midY))
+    run.controls.setFacePromptTouchSnapshot(circle)
+    check(run.frame() == .neutral && run.controls.touches.isEmpty,
+          "prompt publication cancels a carried ordinary Pause before it reaches the game")
+    check(!run.controls.performZoomToggle(lookAroundState: .normal)
+          && run.frame() == .neutral && run.controls.consumeHapticEvents().isEmpty,
+          "Zoom cannot coexist with or cancel authoritative contextual dialogue")
+
+    let stats = Finger()
+    let camera = Finger()
+    let gesture = Finger()
+    run.down(stats, CGPoint(x: Runner.stats.midX, y: Runner.stats.midY))
+    run.down(camera, CGPoint(x: Runner.rightStick.midX, y: Runner.rightStick.midY))
+    run.move(camera, CGPoint(x: Runner.rightStick.midX + TouchControls.rightStickRadius,
+                             y: Runner.rightStick.midY))
+    let gestureCentre = CGPoint(x: 900, y: 360)
+    run.down(gesture, gestureCentre)
+    run.move(gesture, CGPoint(x: gestureCentre.x, y: gestureCentre.y - 60))
+    check(run.controls.touches.isEmpty && run.frame() == .neutral,
+          "Stats, Pause, R, and ordinary face gestures remain inert under prompt ownership")
+
+    run.controls.performFacePromptAction(.circle, for: circle)
+    check(run.frame().buttons == .circle
+          && run.controls.consumeHapticEvents() == [.button(.circle)],
+          "the requested contextual Circle remains the sole command action")
+
+    var movement = Runner()
+    movement.controls.setNativeMenuState(
+        .gameplay, progress: .unavailable, titleStartState: .notAwaiting,
+        runReadiness: .active)
+    movement.controls.setFacePromptTouchSnapshot(circle)
+    let movementFinger = Finger()
+    let movementCentre = CGPoint(x: 180, y: 650)
+    movement.down(movementFinger, movementCentre)
+    movement.move(movementFinger,
+                  CGPoint(x: movementCentre.x + TouchControls.movementRadius,
+                          y: movementCentre.y))
+    check(movement.frame().isLeftDeflected,
+          "prompt ownership keeps the raw movement owner mounted and byte-compatible")
+}
+
+@MainActor
 private func nativeFacePromptPulsesRejectStaleWorkAndCancelOnLoss() {
     print("face prompts emit exact pulses and cancel only prompt-owned stale work")
     for (index, action) in NativeFacePromptTouchAction.allCases.enumerated() {
@@ -2496,7 +2613,7 @@ struct TouchControlsCheck {
         semanticTitleStartBypassesArtworkGeometryAndSurvivesCadence()
         sessionControlStateMatrixIsExactAndFailClosed()
         controllerSuppressionKeepsTouchRecovery()
-        build128ChromeStateMatrixAndRightStickRecovery()
+        build131GameplayChromeFadeAndGestureSuppression()
         gameplayTouchBatchHasOneOrderedOwner()
         nativeMenuActionsAreTruthfullyGatedAndLabelled()
         nativeMenuActionsEmitOnlyExpectedInputBytes()
@@ -2510,6 +2627,7 @@ struct TouchControlsCheck {
         nativeWarpCaptureAndSuppressionAreFailClosed()
         nativeWarpTransientInvalidReadsRetainNeutralCapture()
         nativeFacePromptMappingOrderAndPriorityAreExact()
+        contextualFacePromptExcludesOrdinaryGameplayCommands()
         nativeFacePromptPulsesRejectStaleWorkAndCancelOnLoss()
 
         print(failures == 0 ? "\nall checks passed" : "\n\(failures) checks FAILED")
