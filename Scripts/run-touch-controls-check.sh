@@ -44,7 +44,7 @@ rg -Fq 'if window == nil { cancelAllTouches() }' \
 # and explicit semantic buttons retain their targets through controller/touch transitions.
 non_hit_test_artwork_count=$(rg -c '\.allowsHitTesting\(false\)' \
   "$root/GOALPad/Game/TouchControlsView.swift")
-if (( non_hit_test_artwork_count < 5 )); then
+if [ "$non_hit_test_artwork_count" -lt 5 ]; then
   echo "gameplay artwork can still intercept a touch target" >&2
   exit 1
 fi

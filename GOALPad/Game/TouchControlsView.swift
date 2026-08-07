@@ -988,7 +988,7 @@ private final class TouchSurfaceView: UIView {
     private static func isActive(_ phase: UITouch.Phase) -> Bool {
         switch phase {
         case .began, .moved, .stationary: true
-        case .ended, .cancelled: false
+        case .ended, .cancelled, .regionEntered, .regionMoved, .regionExited: false
         @unknown default: false
         }
     }
