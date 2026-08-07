@@ -24,7 +24,7 @@ bundle_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.pl
 device_name='iPad Pro 11-inch (M5)'
 udid=${GOALPAD_PREPARED_IMPORT_SMOKE_UDID:-}
 if [ -z "$udid" ]; then
-  udid=$(xcrun simctl list devices available | grep -F "$device_name" \
+  udid=$(xcrun simctl list devices available | rg -F "$device_name" \
     | sed -nE 's/.*\(([0-9A-Fa-f-]{36})\).*/\1/p' | head -n 1)
 fi
 [ -n "$udid" ] || {
@@ -32,8 +32,8 @@ fi
   exit 69
 }
 
-device_line=$(xcrun simctl list devices available | grep -F "$udid" | head -n 1 || true)
-echo "$device_line" | grep -F "$device_name" >/dev/null || {
+device_line=$(xcrun simctl list devices available | rg -F "$udid" | head -n 1 || true)
+echo "$device_line" | rg -F "$device_name" >/dev/null || {
   echo "prepared-folder import simulator smoke: $udid is not an available $device_name" >&2
   exit 69
 }
@@ -50,7 +50,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-if ! echo "$device_line" | grep -F '(Booted)' >/dev/null; then
+if ! echo "$device_line" | rg -F '(Booted)' >/dev/null; then
   xcrun simctl boot "$udid"
   booted_by_script=1
 fi
@@ -95,6 +95,12 @@ expected_files=$(plutil -extract expectedFileCount raw -o - "$artifact")
 copied_files=$(plutil -extract successFilesCopied raw -o - "$artifact")
 failure_code=$(plutil -extract failureCode raw -o - "$artifact")
 preserved_candidates=$(plutil -extract preservedCandidateCount raw -o - "$artifact")
+if [ "$copied_files" != "$expected_files" ] \
+  || [ "$failure_code" != 'activationFailed' ] \
+  || [ "$preserved_candidates" != '1' ]; then
+  echo "prepared-folder import simulator smoke: inconsistent PASS result: $artifact" >&2
+  exit 1
+fi
 
 echo "prepared-folder import simulator smoke passed"
 echo "device=$device_name udid=$udid"
