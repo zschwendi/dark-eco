@@ -13063,3 +13063,66 @@ II 840-object AOT/runtime/Metal host, keep Jak II saves local, and do not mutate
 the shipping Jak 1 target. No Eco target, simulator, or physical device was
 accessed in this checkpoint; physical-device testing still requires fresh
 maintainer authorization.
+
+# Checkpoint 95: Eco runtime proven; simulator presentation blocker isolated
+
+Date: 2026-08-06. The isolated nested branch
+`agent/jak2-real-dma-draw-proof` advances through `c229a595a`, `fcd179ceb`,
+`67c6e49e4`, `06cc50311`, and `3d228d9eb`. It reuses the Apple controller and
+lifecycle shell, runs the Jak II title loop in the existing separate Eco Pro
+development app, routes the 48 kHz mixer through public RemoteIO, and requires
+real draws plus nonblack GPU readback before declaring title-ready. The parent
+branch adds the M5-only `Scripts/run-jak2-eco-sim.sh` runner through `d5d93558`.
+It uses fresh saves, exact-process logs, and rejects a black captured viewport.
+The shipping Jak 1 lane remains untouched.
+
+The complete 840-object AOT pack generated once in
+`Generated/jak2-aot` (18,479 emitted functions, seven native functions, zero
+failures). The canonical Release simulator build at
+`/private/tmp/GOALPad-jak2-m5-xcode` succeeded; the later instrumentation-only
+incremental rebuild also succeeded in 2.419 seconds. The generated pack remains
+ignored and uncommitted by design.
+
+The strict M5 simulator check proves that the runtime, renderer, controller,
+and audio paths are healthy but correctly fails the visual gate. At tick 31,
+Metal reports 42 draws, 245,508 triangles, 31/31 completed chains, 31 drawable
+acquisitions and commits, and a 640x480 readback with all 307,200 pixels
+nonblack. At tick 300 it reports 300 drawable acquisitions, 300 submissions,
+zero misses, errors, failed chains, or drops. GOAL consumes the held L3 press
+and release on consecutive real reads. RemoteIO renders every requested frame
+with zero silence, underruns, or invalid pulls. Despite that, the captured
+simulator viewport is pure black. The remaining Stage 9 blocker is therefore
+the `CAMetalLayer` present/compositing path, not GOAL boot, DMA execution,
+renderer submission, input, or audio.
+
+## Validation
+
+```text
+GOALPAD_BUILD_JOBS=2 Scripts/generate-jak2-aot.sh \
+  /private/tmp/GOALPad-jak2-real-dma-host
+
+GOALPAD_JAK2_DATA_DIR=/Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  Scripts/run-jak2-eco-sim.sh build
+
+GOALPAD_JAK2_DATA_DIR=/Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 \
+  Scripts/run-jak2-eco-sim.sh check
+```
+
+The AOT/build logs are
+`/private/tmp/goalpad-jak2-eco-aot-checkpoint95.log`,
+`/private/tmp/goalpad-jak2-eco-build-checkpoint95.log`, and
+`/private/tmp/goalpad-jak2-eco-build-checkpoint95b.log`. The strict failing
+runtime evidence is
+`/private/tmp/goalpad-jak2-eco-check-20260806-194557-98920.log` with screenshot
+`/private/tmp/goalpad-jak2-eco-check-20260806-194557-98920.png` and fresh saves
+under `/private/tmp/goalpad-jak2-eco-check.HCdmza`.
+
+## Next executable task
+
+Compare the Jak II `CAMetalLayer` setup and present pass with the working Apple
+renderer host, apply only the smallest presentation fix, then rerun one
+incremental Release build and the strict screenshot gate. Once the captured
+title is recognizable, launch `Scripts/run-jak2-eco-sim.sh play`, ask the
+maintainer to verify controller navigation and audible output, start a new
+game, and enter Stage 10. Cosmetic renderer debt remains telemetry. No physical
+device was accessed; later physical testing still requires fresh authorization.

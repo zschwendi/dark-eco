@@ -1360,6 +1360,17 @@ window. After that acceptance, start a new game and move directly into Stage
 10; then seed the separate Jak II Eco/M5 simulator target without changing the
 shipping Jak 1 target.
 
+Checkpoint 95 advances the separate Jak II Eco/M5 lane through nested
+`c229a595a`, `fcd179ceb`, `67c6e49e4`, `06cc50311`, and `3d228d9eb`. A single
+840-object AOT generation and canonical Release simulator build pass. In the
+M5 simulator, the live runtime completes 300/300 Metal chains, submits 245k
+triangles into a fully nonblack 640x480 readback, consumes a real held/released
+L3 probe, and feeds RemoteIO without silence or underrun. The strict screenshot
+gate nevertheless rejects a pure-black viewport, isolating the Stage 9 blocker
+to `CAMetalLayer` presentation/compositing. Fix that narrow surface path before
+any cosmetic renderer work; then request maintainer title/navigation acceptance
+and enter Stage 10. No physical device was accessed.
+
 The Settings-only iCloud resolution design is **Implemented and deterministically
 validated** at parent `dca45a36`. It now has source-and-target compare-and-swap,
 a durable exact-phase pair journal with embedded source banks, offline and
@@ -1384,11 +1395,11 @@ The next actions are:
 3. Keep camera, Merc, importer, source-pack, and AOT gates green. Reuse the
    518-object pack only while its recorded writer and embedded graph remain
    unchanged, and keep the visual nested line separate from clean Jak II work.
-4. Run the Checkpoint 94 Jak II Mac play script and record maintainer visual and
-   input acceptance. Fix only visibility/navigation blockers, start a new game,
-   and enter Stage 10 immediately. Then reuse the proven controller/lifecycle
-   seams in a separate Jak II Eco/M5 simulator target without changing the
-   shipping Jak 1 target or claiming physical-device support.
+4. Fix the Checkpoint 95 Jak II Eco `CAMetalLayer` black-presentation blocker,
+   rerun the strict M5 screenshot gate, and record maintainer visual, audio, and
+   input acceptance. Then start a new game and enter Stage 10 immediately,
+   without changing the shipping Jak 1 target or claiming physical-device
+   support.
 5. Treat real raw/ZIP import as presentation/distribution follow-up. It is
    explicitly non-blocking and must not be conflated with gameplay readiness.
 
