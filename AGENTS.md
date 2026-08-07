@@ -426,17 +426,16 @@ When choosing between approaches, use this order:
 
 Until maintainers update this section, the priority is:
 
-> Preserve Build 93 as the known-good Jak 1 baseline while building the next
-> iPhone/iPad interaction and per-game settings layer in small, physically
-> testable checkpoints.
+> Preserve Build 130 as the known-good Jak 1 runtime baseline while finishing
+> the iPhone/iPad client polish in small, physically testable checkpoints.
 
-Build 93 is accepted by the maintainer as the known-good baseline for gameplay,
-performance, graphics, current touch behavior, settings persistence, and iCloud
-saves. Its source checkpoint is `9c87b0be7fd194bb13af8033be6bb5787b2aba77`
-and its preserved signed app is
-`/private/tmp/GOALPad-build93-cloud-save-ux-signed/GOALPad.app`. Do not rewrite,
-amend, or repurpose that branch. New work starts from Build 93 in a later build
-and must not replace it until the maintainer accepts the physical comparison.
+Build 130 is accepted by the maintainer as the best known-good baseline for the
+physically tested gameplay, performance, graphics, touch, settings, and iCloud
+scope. Its source checkpoint before the acceptance record is `58a8c01c` and its
+preserved signed app is
+`/private/tmp/GOALPad-build130-exact-title-state-signed/GOALPad.app`. Do not
+rewrite, amend, or repurpose that checkpoint. Build 93 remains the historical
+cloud-save baseline, but Build 130 supersedes it for current regression work.
 Build 105 is a rejected transition candidate, not the accepted baseline. Its
 physical Sandover-to-Misty boat sequence still rendered an unloaded void and
 allowed Jak to fall through; death/respawn then recovered to an intact Misty
@@ -460,6 +459,10 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
   within the physically exercised areas. It is not accepted for unvisited
   progression or level transitions; the Sandover-to-Misty boat transition is
   now a confirmed critical failure.
+- [x] Preserve physically accepted Build 130 as the current immutable runtime
+  baseline, with its signed artifact and exact parent/nested identities recorded
+  in `HANDOFF.md` and pushed annotated tags. Build 131 client polish must remain
+  a follow-on candidate until separately accepted.
 - [x] Create Build 94 integration branch `agent/build94-jak1-settings` from
   Build 93 in `/private/tmp/GP-build94-jak1-settings`.
 - [ ] Record every worker branch, worktree, commit, validation command, and
@@ -1086,7 +1089,7 @@ Active lanes:
   Confirm/Cross, Back/Square, and Resume/Start. Build 108 cancels carried
   gameplay gestures at these transitions, suppresses touch chrome while a
   physical controller is driving, and delivers menu haptics immediately.
-- [ ] Finish Build 127 touch-chrome acceptance as a narrow touch-chrome refinement;
+- [x] Finish Build 127 touch-chrome acceptance as a narrow touch-chrome refinement;
   Build 127 remains the foundation and its contextual-prompt work must not be
   reverted or discarded. Preserve truthful Start/Pause/Resume and explicit Back
   coverage for native pause/progress menus, plus this exact physical state matrix:
@@ -1112,11 +1115,13 @@ Active lanes:
   row hit-testing remains out of scope unless the maintainer changes direction.
   Builds 128 and 129 were physically rejected because a loaded save could remain
   classified as pre-run: Zoom, Stats, Pause, and R stayed hidden, and ordinary
-  screen touches could not reveal R. Build 130 is the current installed candidate.
+  screen touches could not reveal R. Build 130 is physically accepted as the new
+  baseline.
   It distinguishes `target-title`, `target-title-play`, and `target-title-wait`
   from every other validated target state, directly activates already-loaded
   gameplay, and keeps first-touch R recovery in the existing UIKit touch owner.
-  Keep this item open until the maintainer physically accepts that exact route.
+  The follow-on Build 131 may fade all button artwork together and suppress it
+  during swipes, but must preserve Build 130 input delivery and state truth.
 - [x] Expose one authoritative contextual face-button touch prompt wherever Jak
   currently requests Cross, Square, Triangle, or Circle. Draw only the requested
   button symbol, without inferring an action label, and emit that exact ordinary

@@ -15129,3 +15129,34 @@ Start only; loading an existing save immediately shows Zoom, Stats, Pause, and R
 R fades alone after idle and the first ordinary movement/dead-zone/camera touch
 restores it while delivering that touch; background/foreground recovery remains
 active; accepted warp behavior remains unchanged.
+
+## Build 130 accepted and locked as the current baseline
+
+Date: 2026-08-06. The maintainer physically tested Build 130, called it “the
+best build so far,” and explicitly directed that it be committed, pushed, and
+locked as the new baseline. This supersedes Build 93 as the current regression
+reference while preserving Build 93 as the historical cloud-save checkpoint.
+Acceptance remains bounded to the physically exercised scope; it is not a
+complete-playthrough or every-device certification.
+
+The locked identities are:
+
+- Parent source before this acceptance record:
+  `58a8c01c7a903e759f4d602ab4b9a2c137291e87`
+- Nested OpenGOAL source:
+  `597270b0901a9ee19a675efb744e35133a5568d7`
+- Signed app:
+  `/private/tmp/GOALPad-build130-exact-title-state-signed/GOALPad.app`
+- Product identity: Eco `1.0 (130)`, `com.zephyrstudiosllc.eco`
+- Executable SHA-256:
+  `34514e74a71c43e15d3c492042b5ce73b5c89f88f5b16ba4bbe9522b3acc0073`
+- Mach-O UUID: `A957B247-0049-34DD-9828-36E9533CCAA1`
+- CDHash: `23d04245a0bf9160f4eb9ee95b30ef35c56462e2`
+- Parent tag: `baseline-build-130`
+- Nested OpenGOAL tag: `baseline-build-130-opengoal`
+
+Build 130 is immutable. Build 131 is a client-polish candidate on top of it:
+fade all gameplay button artwork after idle, show no button artwork during an
+active swipe while preserving input, and complete the queued launcher/import
+cleanup plus app-wide Dark Eco presentation. Install Build 131 in place on the
+authorized iPad only after focused validation and a signed Release build.
