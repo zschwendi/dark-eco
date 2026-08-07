@@ -34,14 +34,17 @@ struct GOALPadApp: App {
                 }
             }
             .task { await EcoTipTransactionObserver.run() }
+            #if targetEnvironment(simulator)
+            .task { await SimulatorPreparedFolderImportSmoke.runIfRequested() }
+            #endif
             #else
             GameCenterRootView {
                 ContentView()
             }
             .task { await EcoTipTransactionObserver.run() }
-            #endif
             #if targetEnvironment(simulator)
             .task { await SimulatorPreparedFolderImportSmoke.runIfRequested() }
+            #endif
             #endif
         }
 
