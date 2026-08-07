@@ -41,15 +41,30 @@ do {
     let content = try source(at: root + "/GOALPad/ContentView.swift")
     let library = try source(at: root + "/GOALPad/Library/GameLibrary.swift")
     let libraryView = try source(at: root + "/GOALPad/Library/GameLibraryView.swift")
-    let layout = try declaration(in: content,
-                                 startingWith: "nonisolated enum GameplaySurfaceLayout",
-                                 endingWith: "\n\nstruct ContentView")
+    let gameplayLayout = try declaration(in: content,
+                                         startingWith: "nonisolated enum GameplaySurfaceLayout",
+                                         endingWith: "\n\nprivate enum SettingsSheetEntry")
     let gameplaySurface = try declaration(in: content,
                                           startingWith: "private struct GameplaySurface",
                                           endingWith: "\n\n/// The game's own startup")
+    let settingsSheet = try declaration(in: content,
+                                        startingWith: "private struct SettingsSheetView",
+                                        endingWith: "\n\nprivate struct SettingsTitleListView")
+    let shelfLayout = try declaration(in: library,
+                                      startingWith: "nonisolated struct GameLibraryShelfLayout",
+                                      endingWith: "\n\nnonisolated enum GameLibraryTitle")
     let titles = try declaration(in: library,
                                  startingWith: "nonisolated enum GameLibraryTitle",
                                  endingWith: "\n\nnonisolated enum GameLibraryState")
+    let libraryState = try declaration(in: library,
+                                       startingWith: "nonisolated enum GameLibraryState",
+                                       endingWith: "\n\nnonisolated enum GameLibraryCardAction")
+    let cardAction = try declaration(in: library,
+                                     startingWith: "nonisolated enum GameLibraryCardAction",
+                                     endingWith: "\n\nnonisolated enum GameLibraryOfferCopy")
+    let offerCopy = try declaration(in: library,
+                                    startingWith: "nonisolated enum GameLibraryOfferCopy",
+                                    endingWith: "\n\nnonisolated enum GameArtworkStorage")
     guard !titles.contains("jakX"), !titles.contains("Jak X") else {
         throw NSError(domain: "portrait-library-check", code: 1,
                       userInfo: [NSLocalizedDescriptionKey: "Jak X remains in GameLibraryTitle"])
@@ -57,6 +72,12 @@ do {
     let tile = try declaration(in: libraryView,
                                startingWith: "private struct GameLibraryTile",
                                endingWith: "\n\nprivate struct FallbackGameArtwork")
+    let libraryScreen = try declaration(in: libraryView,
+                                        startingWith: "struct GameLibraryView",
+                                        endingWith: "\n\nprivate struct CreditsView")
+    let credits = try declaration(in: libraryView,
+                                  startingWith: "private struct CreditsView",
+                                  endingWith: "\n\nprivate struct GameLibraryTile")
     guard let cardButton = tile.range(of: "Button(action: activate)"),
           let cardButtonStyle = tile.range(of: ".buttonStyle(.plain)",
                                            range: cardButton.upperBound..<tile.endIndex)
@@ -66,12 +87,17 @@ do {
                         "library tile lost its semantic launch button"])
     }
     let cardLabel = tile[cardButton.lowerBound..<cardButtonStyle.lowerBound]
-    guard cardLabel.contains(".padding(12)")
-            && cardLabel.contains(".frame(maxWidth: .infinity")
-            && cardLabel.contains(".background(.thinMaterial")
+    guard cardLabel.contains(".padding(GameLibraryShelfLayout.cardHorizontalInset)")
+            && cardLabel.contains(".frame(width: coverSize.width")
+            && cardLabel.contains(".background(DarkEcoTheme.surface")
             && cardLabel.contains(".contentShape(RoundedRectangle")
             && !cardLabel.contains("artworkMenu")
-            && tile.contains(".disabled(state == .planned)")
+            && !tile.contains(".disabled(state == .planned)")
+            && tile.contains(".opacity(state == .planned ? 0.48 : 1)")
+            && tile.contains("private func activate() {\n        open()")
+            && tile.contains(".scaledToFit()")
+            && !tile.contains(".scaledToFill()")
+            && tile.contains(".frame(width: coverSize.width, height: coverSize.height)")
             && !tile.contains(".accessibilityElement(children: .combine)")
             && tile.contains(".frame(minWidth: 44, minHeight: 44)")
             && tile.contains(".contentShape(Rectangle())")
@@ -81,7 +107,32 @@ do {
                       userInfo: [NSLocalizedDescriptionKey:
                         "full-card launch target or independent artwork menu regressed"])
     }
-    print("  ok   the full library card and artwork menu are independent semantic touch targets")
+    print("  ok   ready and unavailable cards remain full semantic targets beside artwork options")
+    guard let settingsMenuLabel = libraryScreen.range(
+              of: "Label(\"Settings\", systemImage: \"gearshape\")"),
+          let creditsMenuLabel = libraryScreen.range(
+              of: "Label(\"Credits\", systemImage: \"person.3\")"),
+          settingsMenuLabel.lowerBound < creditsMenuLabel.lowerBound,
+          libraryScreen.contains("GeometryReader { proxy in")
+            && libraryScreen.contains("HStack(alignment: .top, spacing: layout.spacing)")
+            && !libraryScreen.contains("LazyVGrid")
+            && !libraryScreen.contains("GridItem")
+            && !libraryScreen.contains("Import Game")
+            && !libraryScreen.contains("ToolbarItem(placement: .primaryAction)")
+            && libraryScreen.contains("CreditsView()")
+            && libraryScreen.contains(".tint(DarkEcoTheme.accent)")
+            && credits.contains(".navigationTitle(\"Credits\")")
+            && credits.contains(".tint(DarkEcoTheme.accent)")
+            && credits.contains("Built on the open-source OpenGOAL project")
+            && credits.contains("Button(\"Done\")")
+            && settingsSheet.contains(".tint(DarkEcoTheme.accent)")
+            && settingsSheet.contains(".background(DarkEcoTheme.background)")
+    else {
+        throw NSError(domain: "portrait-library-check", code: 3,
+                      userInfo: [NSLocalizedDescriptionKey:
+                        "launcher shelf, menu ordering, or Credits destination regressed"])
+    }
+    print("  ok   launcher menu is Settings then a real Credits destination")
     guard gameplaySurface.contains("if frame.origin == .zero, frame.size == proxy.size"),
           let fullSurfaceBranch = gameplaySurface.range(of: "if frame.origin == .zero, frame.size == proxy.size"),
           let portraitBranch = gameplaySurface.range(of: "} else {", range: fullSurfaceBranch.upperBound..<gameplaySurface.endIndex),
@@ -101,9 +152,17 @@ do {
     import Foundation
     import CoreGraphics
 
-    \(layout)
+    \(gameplayLayout)
+
+    \(shelfLayout)
 
     \(titles)
+
+    \(libraryState)
+
+    \(cardAction)
+
+    \(offerCopy)
 
     func check(_ condition: Bool, _ message: String) {
         if !condition {
@@ -130,6 +189,19 @@ do {
               "\\(name) keeps the renderer's Classic 4:3 host aspect")
     }
 
+    func checkShelf(_ size: CGSize, _ name: String) {
+        let shelf = GameLibraryShelfLayout(containerSize: size)
+        check(shelf.coverSize.width > 0 && shelf.coverSize.height > 0,
+              "\\(name) produces a visible cover frame")
+        check(approximatelyEqual(shelf.coverSize.width / shelf.coverSize.height,
+                                 GameLibraryShelfLayout.coverAspectRatio),
+              "\\(name) preserves the portrait cover aspect")
+        check(shelf.shelfWidth + shelf.outerPadding * 2 <= size.width + 0.001,
+              "\\(name) fits all three covers across without scrolling")
+        check(shelf.shelfHeight + shelf.outerPadding * 2 <= size.height + 0.001,
+              "\\(name) fits every complete cover vertically")
+    }
+
     let iphone = GameplaySurfaceLayout.frame(
         in: CGSize(width: 393, height: 852),
         safeAreaInsets: .init(top: 59, leading: 0, bottom: 34, trailing: 0)
@@ -146,8 +218,39 @@ do {
     check(landscape == CGRect(x: 0, y: 0, width: 1194, height: 834),
           "landscape keeps the full existing renderer surface")
 
+    checkShelf(CGSize(width: 320, height: 440), "compact portrait iPhone")
+    checkShelf(CGSize(width: 393, height: 700), "modern portrait iPhone")
+    checkShelf(CGSize(width: 852, height: 280), "landscape iPhone")
+    checkShelf(CGSize(width: 834, height: 1_000), "portrait iPad")
+    checkShelf(CGSize(width: 1_194, height: 650), "landscape iPad")
+
     check(GameLibraryTitle.allCases == [.jak1, .jak2, .jak3],
           "the deterministic launcher catalog contains only Jak 1, Jak II, and Jak 3")
+    check(GameLibraryCardAction.resolve(title: .jak1, state: .ready) == .start,
+          "installed Jak 1 starts from its full card")
+    check(GameLibraryCardAction.resolve(title: .jak1, state: .preparing(nil))
+          == .openJak1Setup,
+          "an active Jak 1 import reopens its existing progress flow")
+    check(GameLibraryCardAction.resolve(title: .jak1, state: .notImported)
+          == .offerJak1Import,
+          "missing Jak 1 data presents the supported import offer")
+    check(GameLibraryCardAction.resolve(title: .jak2, state: .ready)
+          == .showUnsupported(.jak2)
+          && GameLibraryCardAction.resolve(title: .jak3, state: .planned)
+          == .showUnsupported(.jak3),
+          "Jak II and Jak 3 fail closed even if a future state is misclassified")
+
+    let rawOffer = GameLibraryOfferCopy.jak1ImportMessage(canImportRawISO: true)
+    let preparedOffer = GameLibraryOfferCopy.jak1ImportMessage(canImportRawISO: false)
+    check(rawOffer.contains("legally own") && rawOffer.contains(".iso")
+          && rawOffer.contains(".zip") && rawOffer.contains("exactly one .iso"),
+          "Jak 1 raw-source offer states ownership and exact accepted formats")
+    check(preparedOffer.contains("legally own") && preparedOffer.contains("out/jak1")
+          && !preparedOffer.contains(".zip") && !preparedOffer.contains("supported .iso"),
+          "prepared-only Jak 1 offer does not advertise unavailable importers")
+    check(GameLibraryOfferCopy.unsupportedMessage(for: .jak2).contains("Jak II")
+          && GameLibraryOfferCopy.unsupportedMessage(for: .jak3).contains("Jak 3"),
+          "unsupported offers remain title-specific")
     print("portrait and library checks passed")
     """
 

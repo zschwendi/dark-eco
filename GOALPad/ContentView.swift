@@ -86,7 +86,7 @@ struct ContentView: View {
                     GameLibraryView(
                         session: session,
                         artworkStore: artworkStore,
-                        importGame: { launcherDestination = .gameSetup },
+                        openJak1Setup: { launcherDestination = .gameSetup },
                         openSettings: { presentSettings(.titles) }
                     )
                 case .gameSetup:
@@ -110,6 +110,7 @@ struct ContentView: View {
                             }
                     }
                     .preferredColorScheme(.dark)
+                    .tint(DarkEcoTheme.accent)
                 }
             }
 
@@ -200,6 +201,8 @@ private struct SettingsSheetView: View {
                     }
                 }
         }
+        .tint(DarkEcoTheme.accent)
+        .background(DarkEcoTheme.background)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") { dismiss() }
