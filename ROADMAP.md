@@ -842,6 +842,19 @@ checks and the signed generic-iOS Release build pass. App Store Connect product
 creation and sandbox/TestFlight purchase validation remain external gates, and
 Build 133 has not been installed on a physical device.
 
+Build 134 replaces the rejected Build 131 app icon with the maintainer-selected
+Precursor-first broken-relay mark. The versioned Apple asset catalog contains
+opaque 16-through-1024-pixel derivatives, and the focused icon check plus signed
+generic-iOS Release build pass. Build 134 makes no gameplay change. Its physical
+Home Screen/App Library appearance and the combined Build 132-134 client slice
+remain unaccepted, so Build 130 remains the immutable physical baseline.
+
+Room-play Jak is a deferred visionOS direction after true stereo and stationary
+room-scale rendering: Jak may leave the framed view and use a private,
+device-local room reconstruction as temporary level geometry while the existing
+simulation remains authoritative. The maintainer's proposed “RIP” base is
+recorded without guessing its exact dependency or API.
+
 The historical checkpoint record follows. Checkpoint 37 was an earlier
 sustained physical gameplay and visual-fidelity run. Its signed build
 booted the real Jak 1 kernel and user-local data, rendered 29,666 consecutive

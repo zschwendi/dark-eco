@@ -15342,3 +15342,53 @@ metadata, configure availability/tax/review screenshots, exercise all flows in
 StoreKit testing and sandbox/TestFlight, and submit the first consumables with a
 new app version. Product IDs are permanent after creation; verify them before
 saving the App Store Connect records.
+
+## Build 134 Precursor icon checkpoint
+
+Date: 2026-08-06. Parent `960ea637632cf22b83bd09dec863b48a28abc89f`
+promotes the maintainer-selected broken Precursor relay into the active Apple
+icon catalog, bumps both Xcode configurations to Build 134, records the later
+room-play visionOS direction, and is pushed to
+`origin/agent/build94-jak1-settings`. The two original ImageGen studies and the
+exact selected prompt are preserved by parent `47590fdf` in
+`docs/appstore/icon-concepts/`; no retail or project game assets were used.
+
+Focused validation passed:
+
+```text
+Scripts/run-app-icon-check.sh
+git diff --check
+```
+
+The signed generic-iOS Release command passed without accessing a physical
+device:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad -configuration Release -destination 'generic/platform=iOS' -derivedDataPath /private/tmp/GOALPad-build124-controller-chrome -jobs 4 -allowProvisioningUpdates GOALPAD_OPENGOAL_ROOT=/private/tmp/GP-build94-jak1-settings/OpenGOAL GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/private/tmp/GP-build94-jak1-settings/build/jak1-source-object-pack build
+```
+
+Full output is `/private/tmp/GOALPad-build134-precursor-icon.log`. The exact
+frozen artifact is
+`/private/tmp/GOALPad-build134-precursor-icon-signed/GOALPad.app`:
+
+- Eco `1.0 (134)`, `com.zephyrstudiosllc.eco`, 52 MB, thin ARM64
+- executable SHA-256
+  `d5d24b939d6bd0584ffea658b201da46c75bf6ae02a36a8e1917a4a7dc30c2f0`
+- Mach-O UUID `BA12FC5B-A09C-3A23-9611-122CC5DF8D50`
+- CDHash `216515acccdea2120a1e6b95868468cfe1fa7b8b`
+- strict signature verification passed under Zephyr team `V729QMY3V6`
+- iCloud and Game Center entitlements present; privacy manifest lints
+- exactly 518 public source objects; audited retail-payload extension scan empty
+
+Xcode emitted the repository's known Swift actor-isolation warnings and no
+build error. No physical device was installed, launched, logged, or captured.
+Build 130 therefore remains the immutable physically accepted baseline. Build
+134 still needs a maintainer-authorized physical review of the Home Screen icon
+and the accumulated Build 132-134 launcher/touch/StoreKit client slice.
+
+The room-play request is documented as deferred visionOS direction, not an
+implemented claim: after true stereo and stationary room-scale rendering, prove
+local room mesh access, anchoring/scale, collision, navigation, occlusion, safe
+spawning, relocalization/reset, and comfort while keeping room geometry private
+and ephemeral by default. “RIP” remains the maintainer's unresolved label until
+its exact project or API is identified.
