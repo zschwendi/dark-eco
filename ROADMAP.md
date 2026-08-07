@@ -68,7 +68,7 @@ as completing the overall goal.
 | User-owned Jak 1 import pipeline | Experimental; prepared folders remain supported, and Release builds can select a supported raw ISO or a standard ZIP32 archive containing exactly one ISO. The native composer, Objective-C++ bridge, recoverable staging/activation, ZIP extraction, and deterministic validation are implemented; a successful end-to-end simulator import and a real-device Files-provider import remain unrecorded |
 | Compiler-produced ARM64 GOAL execution | Implemented for the current Jak 1 AOT set; seven native routines remain |
 | OpenGOAL game frame or title screen | Implemented and physically verified |
-| Playable gameplay slice | Experimental; Build 130 is the physically accepted unified baseline, with Build 131 installed as an unaccepted client-polish candidate |
+| Playable gameplay slice | Experimental; Build 130 is the physically accepted unified baseline, with signed Build 135 awaiting physical touch/speeder/client acceptance |
 | Jak 1 completion track | Planned |
 
 The current application initializes the real OpenGOAL Jak 1 kernel, loads
@@ -83,8 +83,9 @@ is the authoritative artifact, physical-test, and limitation record.
 The active product sequence is now:
 
 1. Preserve Build 130 unchanged as the accepted runtime baseline.
-2. Physically validate Build 131's bounded touch-chrome, launcher, import, Dark
-   Eco theme, and app-icon polish against Build 130 before promoting it.
+2. Physically validate signed Build 135's accumulated bounded client slice,
+   touch-ownership recovery, and contextual speeder brake against Build 130
+   before promoting it.
 3. Keep Graphics Modern Fit to Screen and the accepted single-owner touch path
    unchanged while closing only actual MVP shipping blockers.
 4. After the iPhone/iPad MVP is stable, advance the conventional windowed
@@ -850,6 +851,27 @@ regular-width three-card library geometry. Build 134 makes no gameplay change.
 Its physical Home Screen/App Library appearance and the combined Build 132-134
 client slice remain unaccepted, so Build 130 remains the immutable physical
 baseline.
+
+Build 135 is the current signed candidate. It reconciles UIKit touch identifiers
+and raw-control ownership against every live touch after normal ends,
+cancellations, interruptions, window loss, and controller/touch transitions.
+Controller activity remains presentation-only: it may hide artwork but cannot
+disable touch targets. The same checkpoint adds a fail-closed Jak 1 speeder
+classifier and one-finger acceleration-to-brake gesture: Cross remains held after
+the existing up swipe, a 44-point downward reversal additionally holds L1+R1,
+and lift releases it; the same reversal remains Cross-only on foot. Independent
+reviews, focused touch/menu/controller/look/lifecycle checks, a signed generic
+iOS Release build, signature/privacy/entitlement audit, and exact 518-object
+source-pack audit pass. Frozen artifact:
+`/private/tmp/GOALPad-build135-touch-stall-signed/GOALPad.app`. No physical
+device was accessed, so Build 130 remains the accepted baseline.
+
+The docs-only visionOS manual at
+`docs/VISIONOS_PRESENTATION_MODES_IMPLEMENTATION_MANUAL.md` records the human
+implementation path for Comfort, true bounded windowed stereo, tabletop,
+stationary room-scale third-person, comfort-managed first-person VR, and the
+later room-as-level extension. It is planning and architecture evidence, not a
+playable spatial-mode claim.
 
 Room-play Jak is a deferred visionOS direction after true stereo and stationary
 room-scale rendering: Jak may leave the framed view and use a private,

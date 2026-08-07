@@ -452,8 +452,11 @@ face/crouch swipe-guide symbols, keeps invisible swipe mappings active without
 hiding other controls, gives all eligible gameplay chrome one three-second idle
 fade, places `gear + ECO` beside Start/Resume after the initial title gate, and
 adds truthful Left/Right/Confirm controls for Jak's quit confirmations. Build 133
-adds the bounded StoreKit Support/Credits slice on top and is the current signed
-candidate. Neither replaces Build 130 until physical validation passes.
+adds the bounded StoreKit Support/Credits slice, and Build 134 adds the selected
+Precursor icon. Build 135 is the current signed candidate: it clears stale UIKit
+touch ownership across controller/touch transitions and adds the contextual
+same-finger speeder acceleration-to-brake gesture. None replaces Build 130 until
+the combined client and gameplay slice passes physical validation.
 
 ### Live Jak 1 orchestration ledger
 
@@ -477,39 +480,52 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
   a follow-on candidate until separately accepted.
 - [x] Create Build 94 integration branch `agent/build94-jak1-settings` from
   Build 93 in `/private/tmp/GP-build94-jak1-settings`.
-- [ ] Record every worker branch, worktree, commit, validation command, and
+- **Standing rule:** Record every worker branch, worktree, commit, validation command, and
   physical gate in this ledger and `HANDOFF.md`.
-- [ ] Require every validated worker slice to end in a focused commit and push
+- **Standing rule:** Require every validated worker slice to end in a focused commit and push
   its dedicated branch before integration. Record the remote branch and exact
   pushed hash; never leave the only copy of completed worker work unpushed.
-- [ ] Keep one integration owner and one heavy-build owner; batch full AOT,
+- **Standing rule:** Keep one integration owner and one heavy-build owner; batch full AOT,
   Metal, and Xcode validation after focused worker checks.
-- [ ] Assign every integrated checkpoint the next global Xcode build number,
+- **Standing rule:** Assign every integrated checkpoint the next global Xcode build number,
   then commit and push it from the integration branch. Parallel workers must not
   edit `CURRENT_PROJECT_VERSION`; independent branch-local bumps collide and
   make artifact identity ambiguous.
-- [ ] When any lane approaches 30 percent context remaining, stop overlapping
+- **Standing rule:** When any lane approaches 30 percent context remaining, stop overlapping
   work, commit and push every verified slice, mark unverified work explicitly,
   update this ledger and `HANDOFF.md`, recheck parent/child status, then resume
   from a compact handoff instead of carrying the full transcript.
-- [ ] Agents must test every deterministic behavior they can themselves before
+- **Standing rule:** Agents must test every deterministic behavior they can themselves before
   involving the maintainer: focused unit/static checks, simulator interaction,
   affected host compilation, signed generic builds, and safe device automation
   in proportion to risk. Do not use the maintainer as a substitute for a test
   the agent can run.
-- [ ] Loop the maintainer in only for a material product/branding choice, a new
+- **Standing rule:** Loop the maintainer in only for a material product/branding choice, a new
   authority boundary, or physical visual, ergonomic, audio, haptic, thermal, or
   gameplay acceptance that automation cannot establish.
-- [ ] For this active Jak 1 interaction program, `Z iPad Pro` is authorized for
-  in-place Build 94-and-later candidate installation and launch whenever it is
-  unlocked and available; do not uninstall or clear its app data. This standing
-  authorization does not silently extend to destructive data changes or broad
-  screen/log capture unrelated to the active test.
-- [ ] Never present a physical candidate blind. Before asking the maintainer to
+- **Standing rule:** Access to `Z iPad Pro` is per current maintainer request.
+  Do not infer install, launch, logging, or capture authority from an earlier
+  build, an unlocked device, or a previous test. When authorized, update-install
+  in place and never uninstall or clear app data unless separately requested.
+- **Standing rule:** Never present a physical candidate blind. Before asking the maintainer to
   test, provide the exact build number, the changed behavior, a short numbered
-  test route, expected results, and the Build 93 regression checks that matter.
-- [ ] Physically compare the next candidate against Build 93 on iPhone and iPad
+  test route, expected results, and the Build 130 regression checks that matter.
+- **Standing rule:** Physically compare the next candidate against the accepted Build 130
+  baseline on iPhone and iPad
   before calling it the replacement baseline.
+
+- `Build 135 signed; physical touch/speeder acceptance pending` — dedicated
+  branch `agent/build135-touch-stall-fix` clears every ended, cancelled,
+  interrupted, transferred, or otherwise stale gameplay-touch owner while
+  keeping controller and touch additive. It also classifies the nine authored
+  Jak 1 speeder states fail-closed: the existing held up-swipe keeps Cross down,
+  and a 44-point downward reversal by that same finger additionally holds L1+R1
+  until lift. On foot, the reversal remains Cross-only. Independent reviews,
+  focused touch/menu/controller/look/lifecycle checks, the signed generic-iOS
+  Release build, signature/privacy/entitlement audit, and exact 518-object pack
+  verification pass. Frozen app:
+  `/private/tmp/GOALPad-build135-touch-stall-signed/GOALPad.app`. No physical
+  device was accessed; Build 130 remains the accepted baseline.
 
 - `Build 132 client correction` — regular-width launcher sizing and the bounded
   touch/pause correction are integrated on `agent/build94-jak1-settings`.
@@ -844,7 +860,7 @@ Active lanes:
 
 #### Critical Sandover-to-Misty transition blocker
 
-- [ ] `Physically reproduced; Build 105 is only a partial recovery` —
+- [x] `Observed on physical Build 105; only a partial recovery` —
   taking the Sandover Village boat toward Misty Island first presents a
   low-detail/untextured Sandover-like scene, then streamed world geometry
   remains absent during travel. Jak can jump out and fall through. After death,
@@ -852,7 +868,7 @@ Active lanes:
   its expected destination position. This proves the destination can become
   resident after recovery, but it does not validate the boat transition,
   cutscene world, or initial-arrival collision.
-- [ ] `First-trip relocation failure clarified after extended Misty play` —
+- [x] `Observed first-trip relocation failure after extended Misty play` —
   the boat does not authoritatively move to its destination on the first trip.
   It remains at the old location in a de-resolved state while Jak remains in
   the boat and can invoke `Take Boat` again. That second invocation begins from
@@ -860,13 +876,13 @@ Active lanes:
   death/respawn falls through the unloaded route. The fix must complete the
   boat and Jak relocation on the first trip, leave the source boat
   non-interactable, and must not treat death/respawn recovery as success.
-- [ ] The same recovered session displayed `MISTY ISLAND` only when the
+- [x] The same recovered session displayed `MISTY ISLAND` only when the
   maintainer later boarded the boat to leave Misty. Treat this as evidence that
   first-arrival completion/title state remained armed across death/respawn and
   fired on the next boat interaction. Acceptance requires the title on the
   completed first arrival, never on departure, without changing ordinary
   level-title boundaries elsewhere.
-- [ ] `Build 113 source fix rejected by the newer ownership trace` — the
+- [x] `Build 113 source fix rejected by the newer ownership trace` — the
   two-direction finalizer retries the authored clone/spool path, waits
   fail-closed for the destination to become active, and snaps boat and target
   to the authored dock, but it yields for current-level/title reevaluation
@@ -923,7 +939,7 @@ Active lanes:
   moves the camera across non-player display boundaries, while ambient/hint
   collection uses `ear-trans`; distinguish original behavior from leaked
   transition state before changing GOAL UI logic.
-- [ ] Any candidate fix must preserve Build 93 saves, accepted graphics,
+- [ ] Any candidate fix must preserve Build 130 saves, accepted graphics,
   performance, input, and iCloud behavior and requires this exact physical
   Sandover-to-Misty route before becoming a new gameplay baseline.
 
@@ -951,8 +967,11 @@ Active lanes:
   not already meaningfully covered by Jak's native options.
 - [x] Move Fill Width into the in-game Graphics settings, call the user-facing
   option `Fit to Screen`, and do not expose the implementation term `Hor+`.
-- [ ] Preserve Build 93's accepted Modern Graphics default and exact Classic
-  presentation while moving that option.
+- [x] Preserve Build 93's accepted Modern Graphics default and exact Classic
+  presentation while moving that option. `PresentationSettings` retains Modern
+  plus Fit to Screen as the fresh/reset default and keeps Classic on the
+  compatibility presentation; focused migration/reset checks and Build 130's
+  physical Graphics acceptance cover the current behavior.
 - [x] Remove the PC-only `Display` and `Display Mode` rows from Jak 1's native
   Graphics options on Apple devices. They cannot meaningfully control Eco's
   app-owned surface and must not persist incompatible presentation state.
@@ -961,10 +980,13 @@ Active lanes:
   Jak 1 kernel and neither changes Eco's Metal configuration. Do not confuse
   the renderer's required internal `syncv` callback with a wired player V-Sync
   option. Preserve ordinary desktop OpenGOAL's menu unchanged.
-- [ ] Repair the Build 105 physical presentation regression: Modern/Fit to
+- [x] Repair the Build 105 physical presentation regression: Modern/Fit to
   Screen must again fill the iPad Pro 11-inch as accepted in Build 90/93, with
   no top/bottom black bars or squashing. Include a safe migration/reset for a
-  native Aspect Ratio choice changed while compensating for Build 105.
+  native Aspect Ratio choice changed while compensating for Build 105. The
+  maintainer physically accepted Fit to Screen in the later Build 118/130 line,
+  and the presentation suite covers Modern reset/migration back to the app-owned
+  aspect contract.
 - [x] Combine the duplicate `iCloud Settings` and `iCloud Saves` sections into
   one `iCloud` block with independent `Sync Settings` and `Sync Saves` toggles.
 - [x] Give that block one combined progress/status, last-sync date, and
@@ -1202,14 +1224,23 @@ Active lanes:
 - [x] Add a bounded touch-device haptic proof for direct buttons, recognized
   gestures, and one meaningful stick-engagement edge. It emits only from touch
   callbacks, never from the frame loop; physical feel remains pending.
-- [ ] Preserve and extend connected-controller rumble through Game Controller;
+- [x] Preserve and extend connected-controller rumble through Game Controller;
   use supported left/right localities when the device exposes them and degrade
-  cleanly when it does not.
+  cleanly when it does not. `ControllerInput` reads the native large/small
+  request every frame, maps it to supported left/right handle localities, keeps
+  one continuous player per handle, and fails nil-safe when a locality or haptic
+  engine is unavailable.
+- [ ] Physically validate native large/small rumble and locality degradation on
+  at least one supported connected controller. Signed/source evidence cannot
+  establish feel or device-specific haptic support.
 - [x] Keep native Jak rumble fidelity separate from new app UI haptics so one
   source cannot mask or continuously restart the other.
-- [ ] Preserve a reachable Stats action during ordinary active gameplay. Change
+- [x] Preserve a reachable Stats action during ordinary active gameplay. Change
   that same touch slot to `SKIP` only while an authoritative authored cutscene
-  skip is available; document controller and keyboard defaults.
+  skip is available. Stats emits the native L2+R2 chord, while the checked
+  cutscene owner emits one Triangle pulse on release. Maintained user
+  documentation records the physical L2+R2 chord and keyboard Tab default
+  explicitly; GameController Menu/Options remain Start/Select.
 - [ ] Extend the existing `SKIP` touch control across the game's authored skip
   interactions by emitting the same context-appropriate native button or chord
   a controller player would use. This is input accessibility, not a generic
@@ -1307,14 +1338,22 @@ not the requested volumetric world.
 
 #### Background lifecycle and memory (newest FIFO item)
 
-- [ ] Reproduce and repair the report that after Eco/Jak remains open through a
+- [x] `Source repair implemented; physical same-run acceptance pending` — after Eco/Jak remains open through a
   phone lock or background interruption, the SwiftUI/touch shell resumes but
   native gameplay stays frozen. Build 118 additionally produced a black-screen
   loop with the theme song after leaving and resuming. Trace scene activation,
   display-link recreation, audio-session interruption, render-surface
   availability, and any in-flight frame ownership; preserve the active run and
   do not treat a responsive overlay or restarted theme as proof that native
-  frames resumed.
+  frames resumed. Build 120 and later stop the display link before surface
+  detach, close armed native frames, keep the kernel session, reset display
+  timing, and resume rendering/audio only after the current foreground save
+  generation succeeds. Deterministic reducer, routing, audio-policy, and clock
+  checks pass; they do not execute a real lock/app-switch cycle.
+- [ ] Physically validate repeated lock and app-switch recovery in the same run:
+  native frame/presentation counters must advance after every return, gameplay
+  and audio must continue from the same kernel, and no black-screen/theme loop
+  may appear.
 - [ ] Make suspended gameplay as background-friendly as iOS permits: stop active
   clocks/audio work, release only safely recreatable transient renderer/importer
   resources under lifecycle or memory pressure, keep user saves and the resumable

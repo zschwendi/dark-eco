@@ -137,8 +137,9 @@ disable iCloud saves.
 Enhancement work proceeds in this order:
 
 1. Preserve Build 130 as the unified known-good regression baseline.
-2. Validate Build 131's bounded client-polish candidate without changing Build
-   130's accepted input delivery or game behavior.
+2. Validate signed Build 135's accumulated bounded client polish,
+   touch-ownership recovery, and contextual speeder brake without changing
+   Build 130's accepted input delivery or game behavior.
 3. Close only actual MVP shipping blockers; do not expand the touch or settings
    feature surface.
 4. After the iPhone/iPad MVP contract is physically stable, prioritize true
@@ -162,7 +163,7 @@ These are allowed later but are not prerequisites for the first complete port:
 - Advanced mod management
 - On-device mod browsing
 - Custom-level workflows
-- iPhone support
+- Broader iPhone device and thermal coverage
 - tvOS support
 - Upstreamable Apple-platform abstractions
 
