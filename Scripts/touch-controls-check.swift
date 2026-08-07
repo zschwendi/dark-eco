@@ -2474,6 +2474,18 @@ private func contextualFacePromptExcludesOrdinaryGameplayCommands() {
         cutsceneSkipAvailable: true),
           "authoritative SKIP remains the exact Triangle owner")
 
+    var idlePrompt = Runner()
+    idlePrompt.controls.setNativeMenuState(
+        .gameplay, progress: .unavailable, titleStartState: .notAwaiting,
+        runReadiness: .active)
+    idlePrompt.controls.reset()
+    check(!idlePrompt.controls.isEngaged,
+          "the contextual-prompt regression begins from fully faded gameplay chrome")
+    idlePrompt.controls.setFacePromptTouchSnapshot(circle)
+    check(idlePrompt.controls.isEngaged
+          && idlePrompt.controls.contextualFacePromptOwnsGameplayActions,
+          "a newly published authoritative prompt wakes its visible command after idle")
+
     var run = Runner()
     run.controls.setNativeMenuState(
         .gameplay, progress: .unavailable, titleStartState: .notAwaiting,
