@@ -15495,3 +15495,91 @@ Apple-framework choices, privacy boundaries, performance evidence, physical
 validation ladder, and unresolved architecture decisions. This documentation
 change occurred after the signed Build 135 artifact and does not require a new
 binary build.
+
+## Build 135 completion-ledger reconciliation
+
+Date: 2026-08-06. Documentation commit
+`dde79efd529da31e28e5002c22d2c204daca0d63` is pushed on
+`agent/build135-touch-stall-fix`. It changes no application or OpenGOAL source
+and therefore does not change the frozen Build 135 binary.
+
+A Terra-high fallback agent was used because Luna is not exposed by the current
+model picker. Its read-only requirement audit classified every unchecked
+`AGENTS.md` row against current code, tests, signed artifacts, physical reports,
+and external decisions. Two Sol-xhigh read-only scouts independently checked the
+background lifecycle and the next visionOS renderer seam. No worker edited
+source or accessed a device.
+
+The ledger now distinguishes evergreen operating rules from tasks, marks the
+four Build 105/113 Misty observations as observed rather than unfinished work,
+and records already implemented Modern/Fit-to-Screen preservation,
+left/right-locality controller rumble, ordinary Stats/SKIP arbitration, and
+Build 120 lifecycle recovery. Each physical or external acceptance gate remains
+separately unchecked. `README.md`, `docs/BUILDING.md`,
+`docs/PROJECT_OVERVIEW.md`, and `ROADMAP.md` now describe Build 130 as the
+accepted baseline, signed Build 135 as the current candidate, the one shipped
+touch scheme, current title-scoped Settings, keyboard/mouse defaults, current
+AOT count, and the synthetic-versus-playable visionOS boundary.
+
+Validation passed:
+
+```text
+Scripts/run-presentation-settings-check.sh
+git diff --check
+```
+
+Log: `/private/tmp/GP-build135-doc-reconcile-presentation.log`. A targeted stale
+copy search found no remaining `Classic Mode touch`, controller-required macOS,
+never-connected DualSense, or Build 131/133 current-candidate claims in the
+maintained current-state documents.
+
+The earliest FIFO gate is not another source patch. It is an explicitly
+authorized physical Build 135 route that proves:
+
+1. the precise Sandover-to-Misty first trip, arrival title, grounded dock exit,
+   source non-interaction, and clean return;
+2. repeated controller to touch camera/movement/jump/Start transitions without
+   stale ownership;
+3. same-finger speeder acceleration plus brake/drift, with Cross-only behavior
+   on foot;
+4. repeated lock and app-switch recovery in the same kernel, with native frame
+   and presentation counters advancing and audio/gameplay continuing;
+5. Build 130 Graphics/Fit-to-Screen, saves, iCloud, launcher, icon, Support, and
+   contextual-prompt regression checks.
+
+No current request authorized physical-device access, so this route was not run.
+The first remaining source item after that gate is the bounded authored-SKIP
+inventory/extension. Data-only mod management remains blocked on maintainer
+authorization of the scoped app-sandbox transaction layer; the in-game title,
+Game Center friend presence/privacy model, and curated Modern mod pack remain
+maintainer decisions.
+
+The next visionOS proof is defined but deliberately not started ahead of the
+FIFO gate: add one validated external Metal game-pass color/depth target and
+array-slice descriptor in the pinned OpenGOAL renderer, render the existing
+synthetic DMA fixture to internal and external targets, and require pixel
+parity plus rejection coverage. It must not modify `GameSession`,
+`GameSurfaceView`, the product bridge/host, or any `GOALPad/Vision` source; it
+does not claim an external camera or stereo. The following separate milestone
+will supply per-view camera matrices bucket by bucket.
+
+Disk pressure was 2.4 GB free. Only exact obsolete reproducible module caches,
+superseded pre-observer StoreKit output, and old macOS/vision build products
+were removed; source worktrees, current DerivedData, signed baselines, game
+data, simulators, and Jak II lanes were preserved. The removed outputs were:
+
+```text
+/private/tmp/GOALPad-build111-swift-module-cache
+/private/tmp/GP-keyboard-mouse-xros-probe-cache
+/private/tmp/GP-keyboard-mouse-probe-cache
+/private/tmp/GP-build114-full-module-cache
+/private/tmp/GP-build114-data-only-mods-module-cache
+/private/tmp/GP-build114-semantic-module-cache
+/private/tmp/GOALPad-build133-storekit-superseded-pre-observer
+/private/tmp/GOALPad-build91-modern-vision
+/private/tmp/GOALPad-build84-mac-product
+/private/tmp/GOALPad-build90-modern-mac
+/private/tmp/GOALPad-build91-modern-mac
+```
+
+They are recoverable only by rebuilding. Free space afterward was 2.9 GB.
