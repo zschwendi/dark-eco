@@ -15484,3 +15484,14 @@ cancel mixed touches in different orders; then on the speeder hold the up swipe,
 reverse down with the same finger to confirm acceleration plus brake/drift, and
 lift to release. Repeat the reverse gesture on foot and confirm it remains
 Cross-only.
+
+The docs-only commit `749110c4b686aa1c7d547d163d4e5f7b48cbca51`
+adds `docs/VISIONOS_PRESENTATION_MODES_IMPLEMENTATION_MANUAL.md`. It is a
+maintainer-executable, no-agent workflow for Comfort, bounded windowed stereo,
+tabletop volume, stationary room-scale third-person, comfort-managed
+first-person VR, and the later room-as-level extension. It records the actual
+Build 134 renderer seams, simulation-once/multiview ownership contract,
+Apple-framework choices, privacy boundaries, performance evidence, physical
+validation ladder, and unresolved architecture decisions. This documentation
+change occurred after the signed Build 135 artifact and does not require a new
+binary build.
