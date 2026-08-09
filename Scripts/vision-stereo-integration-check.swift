@@ -264,11 +264,14 @@ check(ornament.contains("Text(\"No controller detected.\")")
         && ornament.contains("repeatForever")
         && ornament.contains(".allowsHitTesting(false)"),
       "the exact noninteractive purple controller message shimmers")
-check(content.contains("#if os(visionOS)\n        .toolbar {\n            ToolbarItem(placement: .cancellationAction)")
-        && content.contains("Label(\"Close\", systemImage: \"xmark\")")
-        && content.contains("#else\n        .toolbar {\n            ToolbarItem(placement: .confirmationAction)")
+check(content.contains("SettingsTitleListView(\n                openJak1:")
+        && content.contains("close: { dismiss() }")
+        && content.contains("#if os(visionOS)\n        .toolbar {\n            ToolbarItem(placement: .topBarLeading)")
+        && content.contains("Image(systemName: \"xmark\")")
+        && content.contains(".accessibilityLabel(\"Close Settings\")")
+        && content.contains("#if !os(visionOS)\n        .toolbar {\n            ToolbarItem(placement: .confirmationAction)")
         && content.contains("Button(\"Done\") { dismiss() }"),
-      "visionOS settings has an explicit Close action while iOS retains Done")
+      "the visible visionOS title picker owns a top-leading Close action while iOS retains Done")
 check(libraryUI.contains("#if os(visionOS)\n            .contentShape([.interaction, .hoverEffect],")
         && libraryUI.contains("RoundedRectangle(cornerRadius: 16, style: .continuous)")
         && libraryUI.contains(".hoverEffect(.highlight)"),

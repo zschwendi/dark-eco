@@ -299,8 +299,10 @@ check(content.contains("if session.isRunning && !isOpen { settingsPresentation =
       "leaving the native menu still dismisses an in-game Settings sheet")
 check(content.contains("@Environment(\\.dismiss) private var dismiss")
         && content.contains("ToolbarItem(placement: .confirmationAction)")
-        && content.contains("Button(\"Done\") { dismiss() }"),
-      "every Settings sheet level retains an explicit app-owned Done exit")
+        && content.contains("Button(\"Done\") { dismiss() }")
+        && content.contains("ToolbarItem(placement: .topBarLeading)")
+        && content.contains(".accessibilityLabel(\"Close Settings\")"),
+      "Settings retains an app-owned iOS Done exit and a visible visionOS title-picker Close")
 check(occursInOrder([
     "let presentationSettings = PresentationSettings()",
     "await GameSessionPreparation.run(",

@@ -239,7 +239,10 @@ private struct SettingsSheetView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            SettingsTitleListView(openJak1: { path.append(.jak1) })
+            SettingsTitleListView(
+                openJak1: { path.append(.jak1) },
+                close: { dismiss() }
+            )
                 .navigationDestination(for: Destination.self) { destination in
                     switch destination {
                     case .jak1:
@@ -253,17 +256,7 @@ private struct SettingsSheetView: View {
         }
         .tint(DarkEcoTheme.accent)
         .background(DarkEcoTheme.background)
-        #if os(visionOS)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button {
-                    dismiss()
-                } label: {
-                    Label("Close", systemImage: "xmark")
-                }
-            }
-        }
-        #else
+        #if !os(visionOS)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") { dismiss() }
@@ -275,6 +268,7 @@ private struct SettingsSheetView: View {
 
 private struct SettingsTitleListView: View {
     let openJak1: () -> Void
+    let close: () -> Void
 
     var body: some View {
         List {
@@ -290,6 +284,16 @@ private struct SettingsTitleListView: View {
             }
         }
         .navigationTitle("Settings")
+        #if os(visionOS)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(action: close) {
+                    Image(systemName: "xmark")
+                }
+                .accessibilityLabel("Close Settings")
+            }
+        }
+        #endif
     }
 }
 
