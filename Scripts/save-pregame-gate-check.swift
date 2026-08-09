@@ -80,11 +80,21 @@ check(occursInOrder([
 
 let start = section(session, from: "func start() async", to: "private func bootFinished")
 check(occursInOrder([
-    "guard await saveSync.syncBeforeGameplay() else",
+    "GameplayStartupReadiness.resolve(",
+    "syncBeforeGameplay: { await self.saveSync.syncBeforeGameplay() }",
+    "case .saveRecoveryFailed:",
     "startupError = Self.saveRecoveryMessage",
     "GOALPadRuntimeBridge.startKernel",
     "savesDirectory: SaveDataLayout.localSavesDirectory.path",
 ], in: start), "startup rejects unsafe saves before starting the native kernel")
+check(start.contains("currentForegroundPreparation: { self.foregroundPreparationTask }")
+        && start.contains("foregroundPreparationSucceeded: { self.lifecycle.frameLoopEnabled }")
+        && start.contains("case .sceneInactive:")
+        && start.contains("startupError = Self.inactiveStartupMessage"),
+      "startup retains foreground preparation and reports scene loss instead of dropping Play")
+check(start.contains("startupState.begin(")
+        && !start.contains("guard !isRunning, !isBooting, !isPreparingGameplay else { return }"),
+      "one startup owner coalesces duplicate Play requests without rejecting foreground work")
 check(session.contains("Open Settings and retry iCloud Saves before playing."),
       "startup exposes a concise Settings recovery action")
 

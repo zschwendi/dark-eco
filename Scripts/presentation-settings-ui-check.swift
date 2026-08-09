@@ -303,10 +303,11 @@ check(content.contains("@Environment(\\.dismiss) private var dismiss")
       "every Settings sheet level retains an explicit app-owned Done exit")
 check(occursInOrder([
     "let presentationSettings = PresentationSettings()",
-    "async let settingsPreparation: Void = presentationSettings.prepare()",
-    "await saveSync.prepare()",
-    "await settingsPreparation",
-], in: session), "settings preparation is independent of the existing save preparation")
+    "await GameSessionPreparation.run(",
+    "refreshDataReport: { await self.refreshDataReport() }",
+    "prepareSettings: { await self.presentationSettings.prepare() }",
+    "prepareSaves: { await self.saveSync.prepare() }",
+], in: session), "local data publishes before independent settings and save preparation")
 
 if failures == 0 {
     print("presentation settings UI checks passed")

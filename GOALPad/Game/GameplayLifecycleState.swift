@@ -79,6 +79,80 @@ nonisolated struct GameplayLifecycleState: Equatable, Sendable {
     }
 }
 
+nonisolated enum GameplayStartupPhase: Equatable, Sendable {
+    case idle
+    case waitingForForegroundPreparation
+    case checkingSaves
+    case booting
+
+    var isPreparing: Bool {
+        switch self {
+        case .waitingForForegroundPreparation, .checkingSaves: true
+        case .idle, .booting: false
+        }
+    }
+}
+
+nonisolated struct GameplayStartupState: Equatable, Sendable {
+    private(set) var phase: GameplayStartupPhase = .idle
+    private(set) var generation: UInt64 = 0
+
+    mutating func begin(hasForegroundPreparation: Bool) -> UInt64? {
+        guard phase == .idle else { return nil }
+        generation &+= 1
+        phase = hasForegroundPreparation ? .waitingForForegroundPreparation : .checkingSaves
+        return generation
+    }
+
+    func owns(generation: UInt64) -> Bool {
+        phase != .idle && self.generation == generation
+    }
+
+    mutating func move(to phase: GameplayStartupPhase, generation: UInt64) {
+        guard owns(generation: generation) else { return }
+        self.phase = phase
+    }
+
+    mutating func reset() {
+        generation &+= 1
+        phase = .idle
+    }
+}
+
+nonisolated enum GameplayStartupReadinessOutcome: Equatable, Sendable {
+    case ready
+    case saveRecoveryFailed
+    case sceneInactive
+}
+
+@MainActor
+enum GameplayStartupReadiness {
+    static func resolve(
+        currentForegroundPreparation: () -> Task<Void, Never>?,
+        foregroundPreparationSucceeded: () -> Bool,
+        isSceneActive: () -> Bool,
+        syncBeforeGameplay: () async -> Bool,
+        setPhase: (GameplayStartupPhase) -> Void
+    ) async -> GameplayStartupReadinessOutcome {
+        var waitedForForegroundPreparation = false
+        while let task = currentForegroundPreparation() {
+            waitedForForegroundPreparation = true
+            setPhase(.waitingForForegroundPreparation)
+            await task.value
+        }
+
+        guard isSceneActive() else { return .sceneInactive }
+        if waitedForForegroundPreparation {
+            return foregroundPreparationSucceeded() ? .ready : .saveRecoveryFailed
+        }
+
+        setPhase(.checkingSaves)
+        let savesReady = await syncBeforeGameplay()
+        guard isSceneActive() else { return .sceneInactive }
+        return savesReady ? .ready : .saveRecoveryFailed
+    }
+}
+
 nonisolated struct ControlsGuideSuspensionState: Equatable, Sendable {
     private(set) var blocksGameplay = false
 

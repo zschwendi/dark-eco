@@ -21,6 +21,8 @@ nonisolated private let sessionLog = Logger(subsystem: "com.zephyrstudiosllc.eco
 final class GameSession {
     private static let saveRecoveryMessage =
         "Save recovery needs attention. Open Settings and retry iCloud Saves before playing."
+    private static let inactiveStartupMessage =
+        "Eco became inactive before gameplay could start. Return to Eco and choose Play again."
 
     let input = ControllerInput()
     let touch = TouchControls()
@@ -73,10 +75,12 @@ final class GameSession {
     /// Only the latest active-scene generation may reopen the frame loop after its save gate.
     private var lifecycle = GameplayLifecycleState()
     private var currentScenePhase: ScenePhase = .active
-    private var isStartingGameplay = false
+    private var startupState = GameplayStartupState()
     private var foregroundPreparationTask: Task<Void, Never>?
     private var foregroundPreparationGeneration: UInt64?
     private var controlsGuideSuspension = ControlsGuideSuspensionState()
+    var startupPhase: GameplayStartupPhase { startupState.phase }
+    private var isStartingGameplay: Bool { startupPhase.isPreparing }
     private var isPreparingGameplay: Bool {
         isStartingGameplay || lifecycle.isPreparingForeground
     }
@@ -124,12 +128,13 @@ final class GameSession {
         observeSystem()
         input.startWatching()
         try? GameDataLayout.prepare()
-        async let settingsPreparation: Void = presentationSettings.prepare()
-        await saveSync.prepare()
-        await settingsPreparation
+        await GameSessionPreparation.run(
+            refreshDataReport: { await self.refreshDataReport() },
+            prepareSettings: { await self.presentationSettings.prepare() },
+            prepareSaves: { await self.saveSync.prepare() }
+        )
         input.setPrimarySource(presentationSettings.primaryInputSource)
         input.setBindings(presentationSettings.jak1InputBindings)
-        await refreshDataReport()
     }
 
     func refreshDataReport() async {
@@ -139,7 +144,7 @@ final class GameSession {
     /// Bring the session up. Refuses rather than half-starting when the data on disk cannot boot
     /// the game, or when this build has no ahead-of-time Jak 1 code to boot.
     func start() async {
-        guard !isRunning, !isBooting, !isPreparingGameplay else { return }
+        guard !isRunning, !isBooting else { return }
         guard GOALPadRuntimeBridge.isGameCodeLinked else {
             startupError = "This build has no ahead-of-time \(GameLibraryTitle.jak1.name) code. "
                 + "Run Scripts/generate-jak1-aot.sh and build again."
@@ -150,13 +155,37 @@ final class GameSession {
             return
         }
 
-        isStartingGameplay = true
-        defer { isStartingGameplay = false }
-        guard await saveSync.syncBeforeGameplay() else {
+        guard let startupGeneration = startupState.begin(
+            hasForegroundPreparation: foregroundPreparationTask != nil
+        ) else { return }
+        startupError = nil
+        defer {
+            if !isBooting, startupState.owns(generation: startupGeneration) {
+                startupState.reset()
+            }
+        }
+
+        let readiness = await GameplayStartupReadiness.resolve(
+            currentForegroundPreparation: { self.foregroundPreparationTask },
+            foregroundPreparationSucceeded: { self.lifecycle.frameLoopEnabled },
+            isSceneActive: { self.currentScenePhase == .active },
+            syncBeforeGameplay: { await self.saveSync.syncBeforeGameplay() },
+            setPhase: {
+                self.startupState.move(to: $0, generation: startupGeneration)
+            }
+        )
+        guard startupState.owns(generation: startupGeneration) else { return }
+        switch readiness {
+        case .ready:
+            break
+        case .saveRecoveryFailed:
             startupError = Self.saveRecoveryMessage
             return
+        case .sceneInactive:
+            startupError = Self.inactiveStartupMessage
+            return
         }
-        guard !isRunning, !isBooting, currentScenePhase == .active else { return }
+        guard !isRunning, !isBooting else { return }
         audio.resumeIfSuspended()
 
         let status = GOALPadRuntimeBridge.startKernel(
@@ -173,6 +202,7 @@ final class GameSession {
         settings.apply()
         runReadiness = .preRun
         isBooting = true
+        startupState.move(to: .booting, generation: startupGeneration)
         sessionLog.notice("Booting \(GameLibraryTitle.jak1.name, privacy: .public)")
         bootQueue.async {
             let boot = GOALPadRuntimeBridge.bootGame()
@@ -185,6 +215,7 @@ final class GameSession {
     private func bootFinished(_ status: GOALPadGameBootStatus) {
         boot = status
         isBooting = false
+        startupState.reset()
         guard status.isBooted else {
             startupError = status.message
             GOALPadRuntimeBridge.stopKernel()
@@ -217,11 +248,12 @@ final class GameSession {
     }
 
     func shutdown() {
-        guard isRunning || kernel != nil else { return }
+        guard isRunning || kernel != nil || startupPhase != .idle else { return }
         foregroundPreparationTask?.cancel()
         foregroundPreparationTask = nil
         foregroundPreparationGeneration = nil
         lifecycle.resetForStoppedSession()
+        startupState.reset()
         controlsGuideSuspension.reset()
         input.stopRumble()
         audio.stop()

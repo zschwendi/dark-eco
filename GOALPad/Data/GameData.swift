@@ -126,6 +126,20 @@ nonisolated enum GameDataRefreshPolicy {
     }
 }
 
+@MainActor
+enum GameSessionPreparation {
+    static func run(
+        refreshDataReport: @MainActor @Sendable () async -> Void,
+        prepareSettings: @MainActor @Sendable () async -> Void,
+        prepareSaves: @MainActor @Sendable () async -> Void
+    ) async {
+        await refreshDataReport()
+        async let settingsPreparation: Void = prepareSettings()
+        await prepareSaves()
+        await settingsPreparation
+    }
+}
+
 /// Reads the layout and reports on it. Off the main actor: it stats a few hundred files.
 nonisolated enum GameDataInspector {
     private static let log = Logger(subsystem: "com.zephyrstudiosllc.eco", category: "GameData")
