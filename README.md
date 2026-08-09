@@ -114,7 +114,9 @@ tests/native/            Deterministic signed-call boundary harnesses
 
 ## Build
 
-Initialize submodules, then follow [Building](docs/BUILDING.md).
+Initialize submodules, then follow the concise iOS flow in
+[iOS Build and Archive](docs/IOS_BUILD_AND_ARCHIVE.md).
+For the full historical/runbook-level detail, also see [Building](docs/BUILDING.md).
 
 ## Game data
 
