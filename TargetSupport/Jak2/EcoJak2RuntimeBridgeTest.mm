@@ -160,6 +160,23 @@ goal_jak2_runtime_status goal_jak2_runtime_tick(void) {
   g_metal.last_merc_degenerate_bone_matrices = 13;
   g_metal.last_merc_incoherent_bone_sources = 17;
   g_metal.last_merc_bad_bone_pointers = 19;
+  g_metal.last_skipped_bucket_count = 4;
+  g_metal.last_skipped_bucket_ids[0] = 127;
+  g_metal.last_skipped_bucket_ids[1] = 128;
+  g_metal.last_skipped_bucket_ids[2] = 252;
+  g_metal.last_skipped_bucket_ids[3] = 255;
+  g_metal.last_skipped_bucket_bytes[0] = 80;
+  g_metal.last_skipped_bucket_bytes[1] = 64;
+  g_metal.last_skipped_bucket_bytes[2] = 48;
+  g_metal.last_skipped_bucket_bytes[3] = 32;
+  g_metal.last_sprites_distort = 23;
+  g_metal.last_sprite_glow_parsed = 29;
+  g_metal.last_sprite_glow_accepted = 31;
+  g_metal.last_sprite_glow_rejected = 37;
+  g_metal.last_sprite_glow_force_visible_drawn = 41;
+  g_metal.last_sprite_glow_force_visible_draws = 43;
+  g_metal.last_sprite_glow_force_visible_triangles = 47;
+  g_metal.last_sprite_glow_force_visible_missing_textures = 53;
   g_metal.last_copied_bytes = 4096;
   return GOAL_JAK2_RUNTIME_OK;
 }

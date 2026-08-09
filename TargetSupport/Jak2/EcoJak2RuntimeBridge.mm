@@ -236,6 +236,31 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(metal.last_screen_filter_draws),
         static_cast<unsigned long long>(metal.skipped_bucket_bytes));
 
+  NSLog(@"GOALPAD_JAK2_DEFERRED_STATE tick=%llu deferred_count=%u "
+         "deferred_top=%u/%llu,%u/%llu,%u/%llu,%u/%llu "
+         "last_sprites_distort=%llu last_sprite_glow_parsed=%llu "
+         "last_sprite_glow_accepted=%llu last_sprite_glow_rejected=%llu "
+         "last_sprite_glow_force_visible_drawn=%llu last_sprite_glow_force_visible_draws=%llu "
+         "last_sprite_glow_force_visible_triangles=%llu "
+         "last_sprite_glow_force_visible_missing_textures=%llu",
+        static_cast<unsigned long long>(runtime.ticks), metal.last_skipped_bucket_count,
+        metal.last_skipped_bucket_ids[0],
+        static_cast<unsigned long long>(metal.last_skipped_bucket_bytes[0]),
+        metal.last_skipped_bucket_ids[1],
+        static_cast<unsigned long long>(metal.last_skipped_bucket_bytes[1]),
+        metal.last_skipped_bucket_ids[2],
+        static_cast<unsigned long long>(metal.last_skipped_bucket_bytes[2]),
+        metal.last_skipped_bucket_ids[3],
+        static_cast<unsigned long long>(metal.last_skipped_bucket_bytes[3]),
+        static_cast<unsigned long long>(metal.last_sprites_distort),
+        static_cast<unsigned long long>(metal.last_sprite_glow_parsed),
+        static_cast<unsigned long long>(metal.last_sprite_glow_accepted),
+        static_cast<unsigned long long>(metal.last_sprite_glow_rejected),
+        static_cast<unsigned long long>(metal.last_sprite_glow_force_visible_drawn),
+        static_cast<unsigned long long>(metal.last_sprite_glow_force_visible_draws),
+        static_cast<unsigned long long>(metal.last_sprite_glow_force_visible_triangles),
+        static_cast<unsigned long long>(metal.last_sprite_glow_force_visible_missing_textures));
+
   NSLog(@"GOALPAD_JAK2_PROGRESS_STATE tick=%llu available=%d screen=%d option=%d "
          "selected=%d transition=%d navigation=%d starting=%d exit-start=%d back=%d",
         static_cast<unsigned long long>(runtime.ticks), progress_menu.available,
