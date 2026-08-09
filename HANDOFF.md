@@ -15500,3 +15500,62 @@ sky paths retain mutable or raw-pointer state. The next safe proof after the
 external target is a synchronous versioned capture envelope plus resource leases
 and a poison-after-capture equivalence oracle. Production stays synchronous until
 that oracle proves the renderer no longer reads live mutable state after capture.
+
+### Local Build 142 integration checkpoint
+
+The external-target and gated end-credit SKIP nested changes are combined
+locally without conflict in:
+
+```text
+/Users/zach/Developer/OS_Projects/GOALPad/OG-build142-opengoal-integration
+agent/build142-opengoal-integration
+87045cf83141ae24d82b155008492e0123e30033
+```
+
+That head contains cherry-picked commits `8feb53bf9`, `59d67e14c`, and
+`87045cf83` on exact base `597270b0901a9ee19a675efb744e35133a5568d7`.
+`test_jak1_cutscene_skip_touch_contract.py` passes 6/6. The ccache ARM64 Release
+`metal-proof` build passes 1083/1083; the initial sandbox run failed only because
+SDL exposed no display, and the identical service-enabled run ended
+`METAL PROOF PASSED`, including external-target slice/pixel parity and internal
+readback identity/pixel/bookkeeping preservation.
+
+The matching parent branch is:
+
+```text
+/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration
+agent/build142-integration
+2ad3e6186efa20277937eb9f3ef372e7ee5392cf
+```
+
+Parent `039e4294` carries the reviewed revision-2 native/Swift SKIP bridge and
+points `OpenGOAL` at `87045cf83`; `2ad3e618` bumps both configurations from 141
+to 142. The native/bridge SKIP wrapper passes. The first touch-suite run was
+blocked by sandboxed Swift macro services; the identical service-enabled rerun
+passes. Both parent and nested worktrees are clean. Neither branch has been
+pushed, and main remains the clean pushed Build 141 checkpoint. Publishing the
+nested branch to `https://github.com/zschwendi/jak-pad.git` requires explicit
+maintainer authorization; do not push the parent first and leave a remote gitlink
+that other clones cannot resolve.
+
+A single heavy Build 142 validation lane is generating its ignored 518-object
+source pack and AOT output from the exact external nested worktree, then will run
+one generic-iOS Release archive. This does not authorize physical-device access
+or establish true stereo.
+
+### Memory-pressure reclaim audit
+
+`GameSession.handleMemoryWarning()` currently logs only. The smallest safe next
+patch is to share one reclaimer between `.background` and memory warning: cancel
+the already cancellation-safe foreground importer, wait any retained renderer
+command to complete, release only the lazily recreated offscreen Metal color and
+depth targets, and make readback fail cleanly until the next render recreates
+them. `.inactive` should not purge for short interruptions.
+
+Do not release or restart the kernel, EE/GOAL memory, memcards, save-sync state,
+texture pool, wanted/common level art, Merc or bucket resources, PSO/sampler
+caches, stream pages, distort snapshots, DMA copier cache, or runtime bridge.
+Required deterministic coverage is: render/read/purge/no-read/idempotent
+purge/re-render pixel parity in `metal-proof`; background and memory-warning
+route ownership without kernel teardown; and the existing importer cancellation
+fixture proving active install/candidate preservation and partial-only cleanup.
