@@ -15909,11 +15909,22 @@ records:
 Jak 2 water texture-upload plan rejected bucket 252 DMA
 ```
 
-GOAL continues to title `idle`, but the command/submission counters stop and the
-presented frame remains black. The later layer-backed submission-counter error is
-under separate review and may be fallout from this first rejection. Do not begin
-physical-device deployment until the bucket-252 fix is integrated and the
-Simulator reaches a rendered title/gameplay frame again.
+GOAL continued to title `idle`, but the command/submission counters stopped and
+the presented frame remained black. Source review proved that the water writer
+emits a three-transfer descriptor-only upload while the Metal planner incorrectly
+required a five-transfer normal-TFRAG Direct tail. Nested commit `8e538a815`
+implements the exact writer grammar and rejects the old mistaken form.
+
+The later layer-backed counter error was secondary recovery fallout: the host
+compared successful renderer submissions with all attempted chains, including
+pre-render rejections. Nested commit `76a4024bc` now gates exact per-dispatch
+renderer deltas while retaining the cumulative no-error frame gate and first
+failure. Its regression proves a malformed planner rejection followed by two
+valid presenting chains, including a texture-mutating chain.
+
+The combined post-fix Metal suite passes 13/13, adding the common-TFRAG capture
+test to the prior 12-test checkpoint. A fresh Simulator launch is still required
+before physical-device deployment.
 
 Evidence is under
 `/Users/zach/Developer/OS_Projects/GOALPad/.agent-builds/build146-jak2-regen-20260809`:
