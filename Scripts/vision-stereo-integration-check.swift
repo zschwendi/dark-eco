@@ -95,6 +95,18 @@ check(sharedTick.contains("#if os(iOS)")
         && controllerInput.contains("controllerOnly: true")
         && controllerInput.contains("keyboardMouseConnected: false"),
       "visionOS accepts only an ordinary gamepad while iOS retains its touch merge")
+let startWatching = section(controllerInput,
+                            from: "func startWatching()",
+                            to: "func stopWatching()")
+let stopWatching = section(controllerInput,
+                           from: "func stopWatching()",
+                           to: "/// Read the physical inputs")
+check(startWatching.contains(".GCControllerDidConnect")
+        && startWatching.contains(".GCControllerDidDisconnect")
+        && startWatching.contains("adoptController(Self.preferredController())")
+        && startWatching.contains("#if !os(visionOS)\n        GCController.startWirelessControllerDiscovery()\n        #endif")
+        && stopWatching.contains("#if !os(visionOS)\n        GCController.stopWirelessControllerDiscovery()\n        #endif"),
+      "visionOS observes system-connected gamepads without wireless discovery")
 let controlsSettings = section(settingsUI,
                                from: "private var controlsSection: some View",
                                to: "@ViewBuilder\n    private func profileSection")

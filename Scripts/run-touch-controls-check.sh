@@ -5,7 +5,14 @@ set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
 out=${TMPDIR:-/tmp}/goalpad-touch-controls-check
 module_cache=${TMPDIR:-/tmp}/goalpad-touch-controls-module-cache
+touch_view_source=${TMPDIR:-/tmp}/goalpad-touch-controls-view-check.swift
 mkdir -p "$module_cache"
+
+# The product source is intentionally absent outside iOS. Strip only that verified outer guard
+# from a temporary copy so this macOS-hosted deterministic test can keep exercising its helpers.
+test "$(sed -n '1p' "$root/GOALPad/Game/TouchControlsView.swift")" = '#if os(iOS)'
+test "$(tail -n 1 "$root/GOALPad/Game/TouchControlsView.swift")" = '#endif'
+sed '1d;$d' "$root/GOALPad/Game/TouchControlsView.swift" > "$touch_view_source"
 
 swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
   -module-cache-path "$module_cache" \
@@ -13,7 +20,7 @@ swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
   -swift-version 5 \
   "$root/GOALPad/Game/TouchLayoutSettings.swift" \
   "$root/GOALPad/Game/TouchControls.swift" \
-  "$root/GOALPad/Game/TouchControlsView.swift" \
+  "$touch_view_source" \
   "$root/Scripts/touch-controls-check.swift" \
   -o "$out"
 

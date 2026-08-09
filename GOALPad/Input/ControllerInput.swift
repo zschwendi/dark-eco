@@ -126,13 +126,17 @@ final class ControllerInput {
         adoptController(Self.preferredController())
         adoptKeyboard(GCKeyboard.coalesced)
         adoptMouse(GCMouse.current ?? GCMouse.mice().first)
+        #if !os(visionOS)
         GCController.startWirelessControllerDiscovery()
+        #endif
     }
 
     func stopWatching() {
         observers.forEach(NotificationCenter.default.removeObserver)
         observers.removeAll()
+        #if !os(visionOS)
         GCController.stopWirelessControllerDiscovery()
+        #endif
         releaseAll()
     }
 
