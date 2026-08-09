@@ -15722,6 +15722,24 @@ user-owned `GOALPad.xcodeproj/project.pbxproj` edit remains untouched. No curren
 request authorizes installing, launching, logging, or capturing a physical iPad
 or Vision Pro.
 
+## Save-overwrite touch checkpoint
+
+Parent commit `630995e07d178f8513c2b232e6a614a17ea03e4e` adds the missing
+touch actions for Jak 1's semantic `memcard-data-exists` progress screen (screen
+11). The valid one-row overwrite prompt now exposes Left, Right, and
+Confirm/Cross without matching localized display text or changing OpenGOAL,
+controller behavior, gameplay touch geometry, renderer behavior, or visionOS.
+
+Focused Swift parsing, the complete touch-control suite, the native progress
+state check, and `git diff --check` pass. A generic iOS Debug build also passes
+against the exact locked Build 145 OpenGOAL child
+`7719b997379da07b661b9b88b5b1e333eb915ee4`; its local product remains version
+145 because the broader Build 146 integration is not yet ready for a build-number
+bump. The first build attempt failed before compiling product code because this
+worktree's submodule directory had not been populated; initializing the exact
+recorded child restored the expected source layout. No simulator or physical
+device was accessed.
+
 ## visionOS stereoscopic Jak 1 acceptance contract
 
 The requested first visionOS product slice is deliberately narrower than the
