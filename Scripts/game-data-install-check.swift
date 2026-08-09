@@ -192,8 +192,8 @@ private func preparedFolder(
           "Jak II declares only the proven bootstrap contract")
     check(!GameDataProfile.jak2.supportsRawMediaPreparation,
           "Jak II cannot route raw ISO or ZIP input before a composer exists")
-    check(!GameDataProfile.jak2.supportsRuntimeLaunch,
-          "Jak II bootstrap readiness cannot enable gameplay")
+    check(GameDataProfile.jak2.supportsRuntimeLaunch,
+          "Jak II bootstrap readiness can enter the experimental native runtime")
 }
 
 @MainActor private func jak2BootstrapCandidateActivatesInItsOwnProfile() async throws {
@@ -210,9 +210,11 @@ private func preparedFolder(
     check(result.filesCopied == 3, "only KERNEL.CGO, GAME.CGO, and GAME.fr3 are required")
     check(report.status == .ready && report.profile == .jak2,
           "the candidate satisfies only the selected Jak II contract")
+    check(report.canLaunchRuntime, "the complete bootstrap contract can enter the native runtime")
     check(report.summary.contains("Bootstrap-ready only")
-          && report.summary.contains("gameplay is not available"),
-          "Jak II readiness is labeled as bootstrap-only")
+          && report.summary.contains("Experimental native launch is available")
+          && report.summary.contains("full-game data completeness"),
+          "Jak II readiness labels launch experimental without claiming complete game data")
     check(!FileManager.default.fileExists(
         atPath: fixture.root.appending(path: "Documents/Jak1").path),
           "a Jak II activation does not create or replace Documents/Jak1")

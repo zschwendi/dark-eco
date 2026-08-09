@@ -94,6 +94,24 @@ bool bridge_session_is_live(SessionState state) {
          state == SessionState::Running;
 }
 
+bool level_list_contains(const char* levels, const char* expected) {
+  if (!levels || !expected || !expected[0]) {
+    return false;
+  }
+  const size_t expected_length = std::strlen(expected);
+  for (const char* candidate = levels; candidate && candidate[0];) {
+    const char* separator = std::strchr(candidate, '+');
+    const size_t candidate_length =
+        separator ? static_cast<size_t>(separator - candidate) : std::strlen(candidate);
+    if (candidate_length == expected_length &&
+        std::strncmp(candidate, expected, expected_length) == 0) {
+      return true;
+    }
+    candidate = separator ? separator + 1 : nullptr;
+  }
+  return false;
+}
+
 bool copy_runtime_metrics_locked() {
   goal_jak2_runtime_metrics metrics = {};
   if (goal_jak2_runtime_get_metrics(&metrics) != GOAL_JAK2_RUNTIME_OK) {
@@ -439,6 +457,24 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
 }
 
 + (GOALPadTitleStartState)titleStartState {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  if (!copy_runtime_metrics_locked() || std::strcmp(g_runtime_metrics.master_mode, "game") != 0) {
+    return GOALPadTitleStartStateUnknown;
+  }
+  if ((g_runtime_metrics.host_desired_levels[0] ||
+       g_runtime_metrics.host_active_levels[0]) &&
+      !level_list_contains(g_runtime_metrics.host_desired_levels, "title") &&
+      !level_list_contains(g_runtime_metrics.host_active_levels, "title")) {
+    return GOALPadTitleStartStateNotAwaiting;
+  }
+  if (std::strcmp(g_runtime_metrics.title_control_state, "wait") == 0) {
+    return GOALPadTitleStartStateAwaiting;
+  }
+  if (std::strcmp(g_runtime_metrics.title_control_state, "startup") == 0 ||
+      std::strcmp(g_runtime_metrics.title_control_state, "idle") == 0 ||
+      std::strcmp(g_runtime_metrics.title_control_state, "scrap-book") == 0) {
+    return GOALPadTitleStartStateTitleSequence;
+  }
   return GOALPadTitleStartStateUnknown;
 }
 

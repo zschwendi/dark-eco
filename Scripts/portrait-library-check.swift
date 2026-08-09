@@ -297,6 +297,13 @@ do {
           "the selected Jak II shell reopens setup instead of launching gameplay")
     check(GameLibraryCardAction.resolve(
             title: .jak2,
+            state: .bootstrapReady,
+            activeTitle: .jak2,
+            supportsRuntimeLaunch: true
+          ) == .start,
+          "the runtime-enabled Jak II shell starts from its bootstrap-ready card")
+    check(GameLibraryCardAction.resolve(
+            title: .jak2,
             state: .ready,
             activeTitle: .jak2,
             supportsRuntimeLaunch: false
@@ -313,7 +320,7 @@ do {
           "prepared-only Jak 1 offer does not advertise unavailable importers")
     let jak2Offer = GameLibraryOfferCopy.importMessage(for: .jak2, canImportRawISO: true)
     check(jak2Offer.contains("out/jak2") && jak2Offer.contains("bootstrap")
-          && jak2Offer.contains("raw ISO/ZIP preparation are unavailable"),
+          && jak2Offer.contains("raw ISO/ZIP preparation remains unavailable"),
           "Jak II offers only prepared bootstrap data even if Jak 1 resources exist")
     check(GameLibraryOfferCopy.unsupportedMessage(for: .jak2).contains("Jak II")
           && GameLibraryOfferCopy.unsupportedMessage(for: .jak3).contains("Jak 3"),

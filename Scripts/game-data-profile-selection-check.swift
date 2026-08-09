@@ -61,8 +61,8 @@ private struct GameDataProfileSelectionCheck {
         if expected == .jak2 {
             check(expected.preparedFolderName == "out/jak2",
                   "the Jak II shell accepts the OpenGOAL prepared root")
-            check(!expected.supportsRawMediaPreparation && !expected.supportsRuntimeLaunch,
-                  "the Jak II shell keeps raw media and gameplay unavailable")
+            check(!expected.supportsRawMediaPreparation && expected.supportsRuntimeLaunch,
+                  "the Jak II shell enables native launch without claiming a raw-media composer")
             check(!expected.supportsManagedSaveSync,
                   "the Jak II shell keeps Jak 1 cloud merge unavailable")
             check(GameLibraryCardAction.resolve(
@@ -70,15 +70,16 @@ private struct GameDataProfileSelectionCheck {
                 state: .bootstrapReady,
                 activeTitle: activeTitle,
                 supportsRuntimeLaunch: expected.supportsRuntimeLaunch
-            ) == .openSetup,
-                  "the Jak II library opens setup rather than gameplay")
+            ) == .start,
+                  "the Jak II library routes bootstrap-ready data into the native runtime")
             let offer = GameLibraryOfferCopy.importMessage(
                 for: activeTitle,
                 canImportRawISO: true
             )
             check(offer.contains("out/jak2") && offer.contains("bootstrap")
-                  && offer.contains("raw ISO/ZIP preparation are unavailable"),
-                  "the Jak II library offer stays prepared-only")
+                  && offer.contains("Experimental native launch")
+                  && offer.contains("raw ISO/ZIP preparation remains unavailable"),
+                  "the Jak II library offer stays prepared-only and labels launch experimental")
         } else {
             check(expected.preparedFolderName == "out/jak1",
                   "the public build retains the Jak 1 prepared root")

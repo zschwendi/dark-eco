@@ -141,8 +141,8 @@ final class GameSession {
         }.value
     }
 
-    /// Bring the session up. Refuses rather than half-starting when the data on disk cannot boot
-    /// the game, or when this build has no ahead-of-time Jak 1 code to boot.
+    /// Bring the session up. Refuses rather than half-starting when the selected profile's data
+    /// contract is incomplete or when this build has no matching ahead-of-time game code.
     func start() async {
         guard !isRunning, !isBooting, !isPreparingGameplay else { return }
         guard importer.profile.supportsRuntimeLaunch else {
@@ -155,7 +155,7 @@ final class GameSession {
                 + "Run Scripts/generate-jak1-aot.sh and build again."
             return
         }
-        guard dataReport.canBoot else {
+        guard dataReport.canLaunchRuntime else {
             startupError = dataReport.summary
             return
         }

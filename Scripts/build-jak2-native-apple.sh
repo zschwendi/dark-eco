@@ -25,6 +25,16 @@ build_root="${GOALPAD_JAK2_NATIVE_BUILD_ROOT:-$DERIVED_FILE_DIR/Jak2Native/$PLAT
 configuration_directory="$build_root/$CONFIGURATION-$PLATFORM_NAME"
 zstd_configuration_directory="$build_root/third-party/zstd/$CONFIGURATION-$PLATFORM_NAME"
 jobs=${GOALPAD_BUILD_JOBS:-2}
+cmake_path=$(command -v cmake) || fail "cmake is unavailable"
+
+run_nested_build() {
+  env -i \
+    PATH="$PATH" \
+    DEVELOPER_DIR="$DEVELOPER_DIR" \
+    TMPDIR="${TMPDIR:-/tmp}" \
+    LANG="${LANG:-en_US.UTF-8}" \
+    "$@"
+}
 
 case "$jobs" in
   ''|*[!0-9]*) fail "GOALPAD_BUILD_JOBS must be a positive integer" ;;
@@ -36,7 +46,7 @@ esac
 [ -f "$aot_root/aot_boot_manifest.c" ] || \
   fail "missing generated Jak II AOT corpus at $aot_root"
 
-cmake -S "$source_root" -B "$build_root" -G Xcode \
+run_nested_build "$cmake_path" -S "$source_root" -B "$build_root" -G Xcode \
   -DCMAKE_SYSTEM_NAME=iOS \
   -DCMAKE_OSX_SYSROOT="$PLATFORM_NAME" \
   -DCMAKE_OSX_ARCHITECTURES=arm64 \
@@ -46,7 +56,7 @@ cmake -S "$source_root" -B "$build_root" -G Xcode \
   -DOPENGOAL_JAK2_AOT_DIR="$aot_root" \
   -DOPENGOAL_JAK2_IPHONEOS_DEVELOPMENT_TEAM=
 
-cmake --build "$build_root" \
+run_nested_build "$cmake_path" --build "$build_root" \
   --config "$CONFIGURATION" \
   --target jak2-iphoneos-runtime jak2-iphoneos-metal-host \
   --parallel "$jobs"

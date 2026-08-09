@@ -131,6 +131,7 @@ goal_jak2_runtime_status goal_jak2_runtime_start(const goal_jak2_runtime_config*
   g_runtime.sound_info_ee = 0x1234;
   g_runtime.host_last_active_level_count = 1;
   std::strcpy(g_runtime.master_mode, "game");
+  std::strcpy(g_runtime.title_control_state, "startup");
   std::strcpy(g_runtime.host_desired_levels, "title");
   std::strcpy(g_runtime.host_active_levels, "common+title");
   return GOAL_JAK2_RUNTIME_OK;
@@ -261,8 +262,18 @@ int main() {
 
     check(GOALPadRuntimeBridge.gameMode == GOALPadGameModeGameplay,
           "the shared game mode maps from Jak II metrics");
-    check(GOALPadRuntimeBridge.titleStartState == GOALPadTitleStartStateUnknown,
-          "Jak I title semantics remain unavailable");
+    check(GOALPadRuntimeBridge.titleStartState == GOALPadTitleStartStateTitleSequence,
+          "Jak II title startup keeps Start disabled");
+    std::strcpy(g_runtime.title_control_state, "wait");
+    check(GOALPadRuntimeBridge.titleStartState == GOALPadTitleStartStateAwaiting,
+          "Jak II title wait enables the shared Start control");
+    std::strcpy(g_runtime.host_desired_levels, "intro+city");
+    std::strcpy(g_runtime.host_active_levels, "common+intro+city");
+    check(GOALPadRuntimeBridge.titleStartState == GOALPadTitleStartStateNotAwaiting,
+          "leaving the title level enables ordinary gameplay controls");
+    std::strcpy(g_runtime.title_control_state, "startup");
+    std::strcpy(g_runtime.host_desired_levels, "title");
+    std::strcpy(g_runtime.host_active_levels, "common+title");
     check(!GOALPadRuntimeBridge.progressMenuSnapshot.available,
           "Jak I progress semantics remain unavailable");
     check(!GOALPadRuntimeBridge.warpGateTouchSnapshot.valid &&

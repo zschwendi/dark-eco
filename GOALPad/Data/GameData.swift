@@ -82,7 +82,7 @@ nonisolated struct GameDataProfile: Equatable, Sendable {
         manifest: .jak2Bootstrap,
         readiness: .bootstrapOnly,
         supportsRawMediaPreparation: false,
-        supportsRuntimeLaunch: false,
+        supportsRuntimeLaunch: true,
         supportsManagedSaveSync: false
     )
 
@@ -187,6 +187,13 @@ nonisolated struct GameDataReport: Sendable {
 
     var canBoot: Bool { missingBootArchives.isEmpty }
 
+    var canLaunchRuntime: Bool {
+        guard canBoot else { return false }
+        if profile.readiness == .gameplay { return true }
+        if case .ready = status { return true }
+        return false
+    }
+
     var summary: String {
         switch status {
         case .empty:
@@ -206,7 +213,8 @@ nonisolated struct GameDataReport: Sendable {
             return profile.readiness == .gameplay
                 ? "Complete: " + counts
                 : "Bootstrap-ready only: " + counts
-                    + " Native Jak II gameplay is not available in this build."
+                    + " Experimental native launch is available, but this check does not establish "
+                    + "full-game data completeness."
         }
     }
 }

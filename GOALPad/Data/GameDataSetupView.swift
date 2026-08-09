@@ -187,12 +187,12 @@ struct GameDataSetupView: View {
                 if profile.supportsRuntimeLaunch {
                     Button("Play \(profile.displayName)") { Task { await session.start() } }
                         .buttonStyle(.bordered)
-                        .disabled(!session.dataReport.canBoot)
+                        .disabled(!session.dataReport.canLaunchRuntime)
                 }
             }
 
             if profile.readiness == .bootstrapOnly {
-                Text("Bootstrap validation only. Native Jak II gameplay is not wired in this build.")
+                Text("Bootstrap manifest only. Experimental Jak II launch is available, but full-game data completeness and playability remain unverified.")
                     .font(.footnote)
                     .foregroundStyle(DarkEcoTheme.warning)
             }

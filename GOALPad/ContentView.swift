@@ -80,7 +80,7 @@ struct ContentView: View {
                         .padding()
                 }
             } else if session.isBooting {
-                BootingView()
+                BootingView(gameName: session.importer.profile.displayName)
             } else {
                 switch launcherDestination {
                 case .library:
@@ -257,15 +257,18 @@ private struct GameplaySurface: View {
                     .position(x: frame.midX, y: frame.midY)
             }
         }
+        .background(Color.black.ignoresSafeArea())
     }
 }
 
-/// The game's own startup: two DGO archives and `play`, which take seconds.
+/// The selected game's native startup, which can take several seconds.
 private struct BootingView: View {
+    let gameName: String
+
     var body: some View {
         VStack(spacing: 12) {
             ProgressView()
-            Text("Booting Jak 1")
+            Text("Booting \(gameName)")
                 .font(.system(.headline, design: .monospaced))
             Text("KERNEL.CGO, GAME.CGO, then the title level")
                 .font(.system(.footnote, design: .monospaced))

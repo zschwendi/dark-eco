@@ -7,8 +7,8 @@ nonisolated enum GameDataImportPresentation {
         rawISOAvailable: Bool
     ) -> String {
         if profile.readiness == .bootstrapOnly {
-            return "Prepared OpenGOAL \(profile.preparedFolderName) folder (bootstrap data only; "
-                + "not gameplay-ready)"
+            return "Prepared OpenGOAL \(profile.preparedFolderName) folder (bootstrap manifest; "
+                + "full-game completeness is not verified)"
         }
         if rawISOAvailable && profile.supportsRawMediaPreparation {
             return "Prepared OpenGOAL \(profile.preparedFolderName) folder, ISO disc image, "

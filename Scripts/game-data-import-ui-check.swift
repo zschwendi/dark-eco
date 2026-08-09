@@ -26,6 +26,7 @@ guard CommandLine.arguments.count == 2 else {
 
 let root = CommandLine.arguments[1]
 let view = source(at: root + "/GOALPad/Data/GameDataSetupView.swift")
+let content = source(at: root + "/GOALPad/ContentView.swift")
 let importer = source(at: root + "/GOALPad/Data/GameDataImporter.swift")
 let presentation = source(at: root + "/GOALPad/Data/GameDataImportPresentation.swift")
 let theme = source(at: root + "/GOALPad/UI/DarkEcoTheme.swift")
@@ -45,10 +46,16 @@ check(presentation.contains("standard ZIP with exactly one ISO")
 check(view.contains("Label(\"Import \\(profile.displayName)\"")
         && view.contains("Button(\"Choose \\(profile.displayName) data…\"")
         && view.contains("if profile.supportsRuntimeLaunch")
-        && view.contains("Bootstrap validation only")
-        && presentation.contains("bootstrap data only; ")
-        && presentation.contains("not gameplay-ready)"),
-      "the setup shell names its active profile and keeps Jak II bootstrap-only")
+        && view.contains("Bootstrap manifest only")
+        && view.contains("Experimental Jak II launch is available")
+        && presentation.contains("bootstrap manifest; ")
+        && presentation.contains("full-game completeness is not verified)"),
+      "the setup shell enables experimental Jak II launch without overstating its manifest")
+check(content.contains("BootingView(gameName: session.importer.profile.displayName)")
+        && content.contains("Text(\"Booting \\(gameName)\")")
+        && !content.contains("Text(\"Booting Jak 1\")")
+        && content.contains(".background(Color.black.ignoresSafeArea())"),
+      "the runtime shell names the selected game and keeps unused portrait space black")
 check(importer.contains("profile.supportsRawMediaPreparation && RawISOCandidateProducer.isAvailable()")
         && importer.contains("case .rawISO where canImportRawMedia:")
         && importer.contains("case .zippedISO where canImportRawMedia:")

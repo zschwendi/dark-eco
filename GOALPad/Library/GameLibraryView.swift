@@ -43,6 +43,7 @@ struct GameLibraryView: View {
                         GameLibraryTile(
                             title: title,
                             state: state(for: title),
+                            startsGame: action(for: title) == .start,
                             progress: progress(for: title),
                             coverSize: layout.coverSize,
                             artworkURL: artworkStore.artworkURL(for: title),
@@ -167,12 +168,7 @@ struct GameLibraryView: View {
     }
 
     private func open(_ title: GameLibraryTitle) {
-        switch GameLibraryCardAction.resolve(
-            title: title,
-            state: state(for: title),
-            activeTitle: activeTitle,
-            supportsRuntimeLaunch: activeProfile.supportsRuntimeLaunch
-        ) {
+        switch action(for: title) {
         case .start:
             Task { await session.start() }
         case .openSetup:
@@ -182,6 +178,15 @@ struct GameLibraryView: View {
         case .showUnsupported(let title):
             presentedAlert = .unsupported(title)
         }
+    }
+
+    private func action(for title: GameLibraryTitle) -> GameLibraryCardAction {
+        GameLibraryCardAction.resolve(
+            title: title,
+            state: state(for: title),
+            activeTitle: activeTitle,
+            supportsRuntimeLaunch: activeProfile.supportsRuntimeLaunch
+        )
     }
 
     private func chooseArtwork(for title: GameLibraryTitle) {
@@ -202,6 +207,7 @@ struct GameLibraryView: View {
 private struct GameLibraryTile: View {
     let title: GameLibraryTitle
     let state: GameLibraryState
+    let startsGame: Bool
     let progress: GameDataImporter.Progress?
     let coverSize: CGSize
     let artworkURL: URL?
@@ -327,7 +333,7 @@ private struct GameLibraryTile: View {
         case .notImported: "tray"
         case .preparing: "arrow.triangle.2.circlepath"
         case .ready: "play.fill"
-        case .bootstrapReady: "checkmark.circle"
+        case .bootstrapReady: startsGame ? "play.fill" : "checkmark.circle"
         case .needsAttention: "exclamationmark.triangle"
         case .planned: "hourglass"
         }
@@ -345,7 +351,8 @@ private struct GameLibraryTile: View {
     }
 
     private var accessibilityHint: String {
-        switch state {
+        if startsGame { return "Starts the experimental game runtime" }
+        return switch state {
         case .ready: "Starts the game"
         case .notImported, .preparing, .bootstrapReady, .needsAttention: "Opens game setup"
         case .planned: "Shows current support status"
