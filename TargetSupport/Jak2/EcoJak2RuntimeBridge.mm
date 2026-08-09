@@ -144,6 +144,8 @@ void log_jak2_diagnostics_locked() {
   const auto& metal = g_metal_metrics;
   goal_jak2_progress_menu_snapshot progress_menu = {};
   goal_jak2_runtime_get_progress_menu_snapshot(&progress_menu);
+  goal_jak2_progress_menu_diagnostics progress_detail = {};
+  goal_jak2_runtime_get_progress_menu_diagnostics(&progress_detail);
   NSLog(@"GOALPAD_JAK2_RUNTIME_STATE tick=%llu mode=%s title=%s scene=%s target=%s "
          "pmode=%.3f desired=%s active=%s dgo=%s/%s result=%d failures=%d "
          "dma=%d/%d/%d bytes=%u/%u chains=%llu/%llu/%llu cmd=%llu/%llu/%llu "
@@ -203,6 +205,18 @@ void log_jak2_diagnostics_locked() {
         progress_menu.in_transition, progress_menu.navigation_available,
         progress_menu.starting_screen, progress_menu.can_exit_with_start,
         progress_menu.can_go_back);
+
+  NSLog(@"GOALPAD_JAK2_PROGRESS_DETAIL tick=%llu rejection=%d progress=%08x "
+         "state=%08x/%08x scheduled=%08x options=%08x/%08x current=%08x/%08x "
+         "next=%08x/%08x starting=%08x option=%d selected=%08x transition=%.3f",
+        static_cast<unsigned long long>(runtime.ticks), progress_detail.rejection,
+        progress_detail.progress, progress_detail.process_state,
+        progress_detail.process_state_name, progress_detail.process_next_state,
+        progress_detail.current_options, progress_detail.expected_options,
+        progress_detail.current, progress_detail.expected_current, progress_detail.next,
+        progress_detail.expected_next, progress_detail.starting_state,
+        progress_detail.option_index, progress_detail.selected_option,
+        progress_detail.menu_transition);
 
   NSLog(@"GOALPAD_JAK2_SCENE_STATE tick=%llu display=%d/%lld blackout=%lld/%lld "
          "settings=%d bg=%.3f/%.3f movie=%08x spool=%08x scene=%d/%d index=%d/%d "

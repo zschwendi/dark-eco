@@ -21,6 +21,7 @@ namespace {
 goal_jak2_metal_host g_host = {1};
 goal_jak2_runtime_metrics g_runtime = {};
 goal_jak2_progress_menu_snapshot g_progress = {};
+goal_jak2_progress_menu_diagnostics g_progress_diagnostics = {};
 goal_jak2_metal_host_metrics g_metal = {};
 goal_pad_state g_pad = {};
 int g_pad_port = -1;
@@ -176,6 +177,15 @@ goal_jak2_runtime_status goal_jak2_runtime_get_progress_menu_snapshot(
     return GOAL_JAK2_RUNTIME_INVALID_ARGUMENT;
   }
   *out = g_progress;
+  return GOAL_JAK2_RUNTIME_OK;
+}
+
+goal_jak2_runtime_status goal_jak2_runtime_get_progress_menu_diagnostics(
+    goal_jak2_progress_menu_diagnostics* out) {
+  if (!out) {
+    return GOAL_JAK2_RUNTIME_INVALID_ARGUMENT;
+  }
+  *out = g_progress_diagnostics;
   return GOAL_JAK2_RUNTIME_OK;
 }
 
