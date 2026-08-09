@@ -140,6 +140,7 @@ struct ContentView: View {
         .onChange(of: session.runReadiness) { _, readiness in
             #if os(iOS)
             guard readiness == .active, touchControlsGuideVersion < 1 else { return }
+            session.presentTouchControlsGuide()
             isShowingTouchControlsGuide = true
             #endif
         }
@@ -155,6 +156,7 @@ struct ContentView: View {
         }
         .sheet(isPresented: $isShowingTouchControlsGuide, onDismiss: {
             touchControlsGuideVersion = 1
+            session.dismissTouchControlsGuide()
         }) {
             TouchControlsGuideSheet()
         }

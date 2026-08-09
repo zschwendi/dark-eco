@@ -121,6 +121,33 @@ private func bootActivationNeedsNoCompetingPreparation() {
     check(!state.activateWithoutPreparation(), "boot completion in background stays suspended")
 }
 
+private func stoppedSessionInvalidatesPreparation() {
+    print("stopping a session invalidates foreground work and permits a clean next boot")
+    var state = GameplayLifecycleState()
+    _ = state.transition(to: .inactive, prepareOnActivation: false)
+    let staleGeneration = generation(from:
+        state.transition(to: .active, prepareOnActivation: true))!
+    state.resetForStoppedSession()
+    check(!state.isPreparingForeground, "shutdown clears foreground preparation ownership")
+    check(state.completePreparation(generation: staleGeneration, succeeded: true) == .none,
+          "a cancelled foreground completion cannot resume a stopped session")
+    check(state.activateWithoutPreparation(), "the next active boot can claim the frame loop")
+}
+
+private func controlsGuideSuspendsIdempotently() {
+    print("the first-run controls guide owns a deterministic gameplay suspension")
+    var state = ControlsGuideSuspensionState()
+    check(state.present(), "presenting the guide acquires suspension")
+    check(state.blocksGameplay, "the guide blocks gameplay while visible")
+    check(!state.present(), "duplicate presentation cannot acquire twice")
+    check(state.dismiss(), "dismissal releases the guide suspension")
+    check(!state.blocksGameplay, "dismissal reopens gameplay eligibility")
+    check(!state.dismiss(), "duplicate dismissal cannot resume twice")
+    _ = state.present()
+    state.reset()
+    check(!state.blocksGameplay, "session shutdown clears a visible guide suspension")
+}
+
 private func audioLifecycleOwnership() {
     print("audio interruptions and routes cannot override lifecycle suspension")
     var policy = AudioPlaybackPolicy()
@@ -158,6 +185,8 @@ private enum GameLifecycleCheck {
         suspensionAndFailureAreRetryable()
         presentationOwnershipTransfersDeterministically()
         bootActivationNeedsNoCompetingPreparation()
+        stoppedSessionInvalidatesPreparation()
+        controlsGuideSuspendsIdempotently()
         audioLifecycleOwnership()
 
         if failures == 0 {

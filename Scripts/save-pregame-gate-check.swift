@@ -88,6 +88,26 @@ check(occursInOrder([
 check(session.contains("Open Settings and retry iCloud Saves before playing."),
       "startup exposes a concise Settings recovery action")
 
+let shutdown = section(session, from: "func shutdown()", to: "func presentTouchControlsGuide()")
+check(occursInOrder([
+    "foregroundPreparationTask?.cancel()",
+    "foregroundPreparationTask = nil",
+    "foregroundPreparationGeneration = nil",
+    "lifecycle.resetForStoppedSession()",
+    "GOALPadRuntimeBridge.stopKernel()",
+], in: shutdown), "shutdown invalidates foreground save work before stopping the kernel")
+
+let finishPreparation = section(session,
+                                from: "private func finishForegroundPreparation",
+                                to: "private func resetDisplayTiming")
+check(occursInOrder([
+    "guard foregroundPreparationGeneration == generation",
+    "foregroundPreparationTask = nil",
+    "foregroundPreparationGeneration = nil",
+    "lifecycle.completePreparation",
+], in: finishPreparation),
+      "a cancelled or superseded foreground task cannot mutate current session ownership")
+
 check(coreHeader.contains(
     "KernelStatus start_kernel(std::string data_directory, std::string saves_directory) noexcept;"),
       "the C++ startup contract requires an explicit saves directory")

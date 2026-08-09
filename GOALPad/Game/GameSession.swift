@@ -75,6 +75,8 @@ final class GameSession {
     private var currentScenePhase: ScenePhase = .active
     private var isStartingGameplay = false
     private var foregroundPreparationTask: Task<Void, Never>?
+    private var foregroundPreparationGeneration: UInt64?
+    private var controlsGuideSuspension = ControlsGuideSuspensionState()
     private var isPreparingGameplay: Bool {
         isStartingGameplay || lifecycle.isPreparingForeground
     }
@@ -216,6 +218,11 @@ final class GameSession {
 
     func shutdown() {
         guard isRunning || kernel != nil else { return }
+        foregroundPreparationTask?.cancel()
+        foregroundPreparationTask = nil
+        foregroundPreparationGeneration = nil
+        lifecycle.resetForStoppedSession()
+        controlsGuideSuspension.reset()
         input.stopRumble()
         audio.stop()
         #if os(iOS) || os(visionOS)
@@ -249,10 +256,28 @@ final class GameSession {
         sessionLog.notice("Session shut down")
     }
 
+    func presentTouchControlsGuide() {
+        guard isRunning, controlsGuideSuspension.present() else { return }
+        input.stopRumble()
+        touch.reset()
+        resetDisplayTiming()
+        audio.suspend()
+        sessionLog.notice("Touch controls guide suspended gameplay")
+    }
+
+    func dismissTouchControlsGuide() {
+        guard controlsGuideSuspension.dismiss() else { return }
+        guard isRunning, currentScenePhase == .active, lifecycle.frameLoopEnabled else { return }
+        touch.restoreGameplayChromeAfterInterruption()
+        audio.resumeIfSuspended()
+        sessionLog.notice("Touch controls guide resumed gameplay")
+    }
+
     // MARK: - The frame loop
 
     func tick(targetPresentationTime: CFTimeInterval) {
-        guard isRunning, lifecycle.frameLoopEnabled else { return }
+        guard isRunning, lifecycle.frameLoopEnabled,
+              !controlsGuideSuspension.blocksGameplay else { return }
         recordDisplayCallback()
         let surface = GOALPadRenderSurface.shared
         guard surface.beginFrame(at: targetPresentationTime) else { return }
@@ -1457,6 +1482,7 @@ final class GameSession {
     private func beginForegroundPreparation(generation: UInt64) {
         guard foregroundPreparationTask == nil else { return }
         sessionLog.notice("Preparing foreground generation \(generation)")
+        foregroundPreparationGeneration = generation
         foregroundPreparationTask = Task { [weak self] in
             guard let self else { return }
             let savesReady = await saveSync.syncBeforeGameplay()
@@ -1478,7 +1504,12 @@ final class GameSession {
     }
 
     private func finishForegroundPreparation(generation: UInt64, savesReady: Bool) {
+        guard foregroundPreparationGeneration == generation else {
+            sessionLog.notice("Ignored cancelled foreground generation \(generation)")
+            return
+        }
         foregroundPreparationTask = nil
+        foregroundPreparationGeneration = nil
         let action = lifecycle.completePreparation(generation: generation, succeeded: savesReady)
         switch action {
         case .prepareForeground(let nextGeneration):
@@ -1489,7 +1520,9 @@ final class GameSession {
                 startupError = nil
             }
             saveSync.setGameplayActive(kernel != nil)
-            audio.resumeIfSuspended()
+            if !controlsGuideSuspension.blocksGameplay {
+                audio.resumeIfSuspended()
+            }
             setIdleTimerDisabled(isRunning)
             sessionLog.notice("Foreground generation \(generation) resumed")
         case .failed:

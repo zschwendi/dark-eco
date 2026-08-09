@@ -55,6 +55,7 @@ check(occursInOrder([
         && view.contains("Progress since your last in-game save will be lost."),
       "running-game Settings begins with a confirmed, loss-aware return to the Library")
 check(view.contains("Label(\"Touch Controls Guide\", systemImage: \"hand.tap\")")
+        && view.contains("#if os(iOS)")
         && touchGuide.contains("struct TouchControlsGuideSheet")
         && touchGuide.contains("struct TouchControlsGuideView")
         && occursInOrder(["title: \"Move\"", "title: \"Camera\"",
@@ -65,8 +66,10 @@ check(view.contains("Label(\"Touch Controls Guide\", systemImage: \"hand.tap\")"
       "Controls begins with a reusable visual touch guide covering the shipped gesture contract")
 check(content.contains("@AppStorage(\"jak1TouchControlsGuideVersion\")")
         && content.contains("readiness == .active, touchControlsGuideVersion < 1")
+        && content.contains("session.presentTouchControlsGuide()")
         && content.contains("isShowingTouchControlsGuide = true")
         && content.contains("touchControlsGuideVersion = 1")
+        && content.contains("session.dismissTouchControlsGuide()")
         && content.contains("private func returnToLibrary()")
         && occursInOrder(["settingsPresentation = nil", "launcherDestination = .library",
                           "session.shutdown()"], in: content),

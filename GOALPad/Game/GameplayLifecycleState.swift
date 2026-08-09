@@ -66,9 +66,35 @@ nonisolated struct GameplayLifecycleState: Equatable, Sendable {
         return true
     }
 
+    mutating func resetForStoppedSession() {
+        generation &+= 1
+        preparationGeneration = nil
+        frameLoopEnabled = phase == .active
+    }
+
     private mutating func beginPreparationIfNeeded() -> Action {
         guard preparationGeneration == nil else { return .none }
         preparationGeneration = generation
         return .prepareForeground(generation: generation)
+    }
+}
+
+nonisolated struct ControlsGuideSuspensionState: Equatable, Sendable {
+    private(set) var blocksGameplay = false
+
+    mutating func present() -> Bool {
+        guard !blocksGameplay else { return false }
+        blocksGameplay = true
+        return true
+    }
+
+    mutating func dismiss() -> Bool {
+        guard blocksGameplay else { return false }
+        blocksGameplay = false
+        return true
+    }
+
+    mutating func reset() {
+        blocksGameplay = false
     }
 }

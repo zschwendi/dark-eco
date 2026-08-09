@@ -99,10 +99,26 @@ let tick = section(session,
                    to: "private func updateNativeMenuState")
 check(occursInOrder([
     "lifecycle.frameLoopEnabled",
+    "!controlsGuideSuspension.blocksGameplay",
     "surface.beginFrame(at: targetPresentationTime)",
     "GOALPadRuntimeBridge.runFrame(at: targetPresentationTime)",
     "surface.endFrame()",
 ], in: tick), "an eligible display tick keeps one begin-run-end frame contract")
+
+let controlsGuide = section(session,
+                            from: "func presentTouchControlsGuide()",
+                            to: "// MARK: - The frame loop")
+check(occursInOrder([
+    "controlsGuideSuspension.present()",
+    "input.stopRumble()",
+    "touch.reset()",
+    "audio.suspend()",
+    "controlsGuideSuspension.dismiss()",
+    "currentScenePhase == .active",
+    "lifecycle.frameLoopEnabled",
+    "audio.resumeIfSuspended()",
+], in: controlsGuide),
+      "the controls guide suspends frames, input, and audio until safe dismissal")
 
 let lifecycle = section(session,
                         from: "func scenePhaseChanged",

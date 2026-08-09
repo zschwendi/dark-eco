@@ -832,11 +832,13 @@ struct SaveSettingsView: View {
 
     private var controlsSection: some View {
         Section("Controls") {
+            #if os(iOS)
             NavigationLink {
                 TouchControlsGuideView()
             } label: {
                 Label("Touch Controls Guide", systemImage: "hand.tap")
             }
+            #endif
             Picker("Primary Controller", selection: Binding(
                 get: { settings.primaryInputSource },
                 set: {
