@@ -15733,9 +15733,9 @@ later tabletop, room-scale, and first-person ideas:
 - Preserve Comfort/monoscopic presentation as the fail-closed fallback until
   stereo is proven. Do not describe synthetic, side-by-side, or generic xros
   build evidence as playable physical stereo.
-- visionOS gameplay is controller-only. Support ordinary Apple Game Controller
-  framework gamepads and PS VR2 Sense controllers. Do not expose or require the
-  iOS gameplay-touch overlay on visionOS.
+- visionOS gameplay is controller-only. Support ordinary gamepads through Eco's
+  existing Apple Game Controller path. Do not expose or require the iOS
+  gameplay-touch overlay on visionOS.
 - When no supported controller is connected, show a top ornament whose exact
   text is `No controller detected.` The text should use the requested purple,
   shimmering treatment without harming readability or accessibility.
@@ -15743,12 +15743,10 @@ later tabletop, room-scale, and first-person ideas:
   returns promptly on disconnect. Controller presence changes presentation only;
   it must not invent input, stall the runtime, or change iOS controller/touch
   behavior.
-- Inspect the maintainer's Zephyr Flight Sim project for its gamepad and PS VR2
-  Sense connection/input conventions before implementing the visionOS input
-  gate. Record the exact reference project and source paths. The first local
-  search found `/Users/zach/Developer/Xcode Projects/zephyrvisionapp`, but did
-  not find controller symbols there, so that path is not yet confirmed as the
-  intended Flight Sim reference and must not be guessed.
+
+The maintainer explicitly removed Zephyr Flight Sim reference work, PS VR2
+Sense support, spatial-controller profiles, and accessory tracking from this
+slice. Do not spend time on those paths.
 
 The existing isolated stereo work remains in:
 
@@ -15762,7 +15760,7 @@ nested OpenGOAL 46b30e45e80747843634975ce3ed2fd5f5fe8199
 The active stereo worker owns the missing Objective-C++/Swift bridge for one
 simulation tick and one copied DMA chain rendered into two borrowed RealityKit
 color/depth targets, with completion before presentation and Comfort fallback.
-The expanded controller-only and ornament requirements were delivered to that
+The ordinary-gamepad-only and ornament requirements were delivered to that
 worker. It must run focused xros/Metal checks, preserve iOS/mono behavior, and
 commit its isolated work before root reviews or integrates it. No build bump,
 push, or physical install is authorized yet.
@@ -15794,6 +15792,6 @@ Next executable work after the context reset:
 3. Separately evaluate whether the face-prompt reader can safely expose its first
    structurally valid seqlock publication immediately; cover first owner, owner
    changes, stale generations, and heartbeat behavior deterministically.
-4. Review the stereo worker commit line by line, verify the exact Zephyr Flight
-   Sim reference, integrate only non-overlapping commits into this worktree, then
-   run the single serialized Build 146 validation matrix.
+4. Review the stereo worker commit line by line, integrate only non-overlapping
+   commits into this worktree, then run the single serialized Build 146
+   validation matrix.
