@@ -15706,3 +15706,94 @@ clock repair closed the transport-transition failure class represented by both
 vehicles. Build 145 is therefore the new locked physical baseline, superseding
 Build 130 for current gameplay acceptance. This remains route-specific
 maintainer evidence, not a complete-playthrough or every-transition claim.
+
+# Build 146 active integration contract
+
+Date: 2026-08-09. Root integration worktree:
+
+```text
+/Users/zach/Developer/OS_Projects/GOALPad/GP-build146-integration
+agent/build146-integration
+base 0a625cc3142d7b3883d46745ebf97f04990080f0
+```
+
+Build 145 and tag `baseline-build-145` remain immutable. Main's existing
+user-owned `GOALPad.xcodeproj/project.pbxproj` edit remains untouched. No current
+request authorizes installing, launching, logging, or capturing a physical iPad
+or Vision Pro.
+
+## visionOS stereoscopic Jak 1 acceptance contract
+
+The requested first visionOS product slice is deliberately narrower than the
+later tabletop, room-scale, and first-person ideas:
+
+- Launch Eco on Apple Vision Pro, load the user's already prepared Jak 1 data,
+  and provide the same Jak 1 gameplay experience as the accepted conventional
+  app, presented as true stereoscopic 3D in the game window.
+- Preserve Comfort/monoscopic presentation as the fail-closed fallback until
+  stereo is proven. Do not describe synthetic, side-by-side, or generic xros
+  build evidence as playable physical stereo.
+- visionOS gameplay is controller-only. Support ordinary Apple Game Controller
+  framework gamepads and PS VR2 Sense controllers. Do not expose or require the
+  iOS gameplay-touch overlay on visionOS.
+- When no supported controller is connected, show a top ornament whose exact
+  text is `No controller detected.` The text should use the requested purple,
+  shimmering treatment without harming readability or accessibility.
+- The ornament disappears promptly when a supported controller connects and
+  returns promptly on disconnect. Controller presence changes presentation only;
+  it must not invent input, stall the runtime, or change iOS controller/touch
+  behavior.
+- Inspect the maintainer's Zephyr Flight Sim project for its gamepad and PS VR2
+  Sense connection/input conventions before implementing the visionOS input
+  gate. Record the exact reference project and source paths. The first local
+  search found `/Users/zach/Developer/Xcode Projects/zephyrvisionapp`, but did
+  not find controller symbols there, so that path is not yet confirmed as the
+  intended Flight Sim reference and must not be guessed.
+
+The existing isolated stereo work remains in:
+
+```text
+/Users/zach/Developer/OS_Projects/GOALPad/GP-build144-vision-window-stereo
+agent/build144-vision-window-stereo
+parent a4728efaf4a1a27c20174224c4a9ccf3857cc173
+nested OpenGOAL 46b30e45e80747843634975ce3ed2fd5f5fe8199
+```
+
+The active stereo worker owns the missing Objective-C++/Swift bridge for one
+simulation tick and one copied DMA chain rendered into two borrowed RealityKit
+color/depth targets, with completion before presentation and Comfort fallback.
+The expanded controller-only and ornament requirements were delivered to that
+worker. It must run focused xros/Metal checks, preserve iOS/mono behavior, and
+commit its isolated work before root reviews or integrates it. No build bump,
+push, or physical install is authorized yet.
+
+## First-interaction presentation investigation
+
+The maintainer reported that an NPC interaction can show ordinary `STATS` and
+Zoom the first time but `SKIP`/`PAUSE` on a repeat, and separately questioned
+whether the Muse interaction's Circle prompt appeared. A read-only trace found
+two distinct native policies:
+
+- First-introduction versus repeat-reminder SKIP behavior is currently authored
+  GOAL policy. Common `play-anim!` entry resets `skippable`; several Sandover NPC
+  introduction/hint branches do not set it, while reminder branches do. The
+  cutscene bridge exposes the first valid SKIP publication immediately, so a
+  Swift retention workaround would be incorrect.
+- Face-prompt publication intentionally returns invalid for one frame when a new
+  owner/mask first appears, then accepts the same-owner heartbeat. This can omit
+  Circle for one deterministic frame but is separate from the authored SKIP
+  policy.
+
+Next executable work after the context reset:
+
+1. Review the presentation worker's focused evidence and reject any Swift patch
+   that overrides native SKIP truth.
+2. Decide and implement the narrowest authored policy that makes eligible first
+   NPC introductions skippable, with source-contract coverage, while leaving
+   non-skippable gameplay interactions truthful.
+3. Separately evaluate whether the face-prompt reader can safely expose its first
+   structurally valid seqlock publication immediately; cover first owner, owner
+   changes, stale generations, and heartbeat behavior deterministically.
+4. Review the stereo worker commit line by line, verify the exact Zephyr Flight
+   Sim reference, integrate only non-overlapping commits into this worktree, then
+   run the single serialized Build 146 validation matrix.
