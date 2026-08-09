@@ -15574,3 +15574,70 @@ M docs/BUILDING.md
 M docs/PROJECT_OVERVIEW.md
 ?? .agent-builds/
 ```
+
+### Jak II follow-up: no-save start and Merc alpha/water
+
+The same integration lane subsequently advanced to parent `0ca1f0b7` and
+clean detached OpenGOAL `22d7ca6d2`.
+
+- Parent `979e0d89` / nested `2972d47d0` removes the contradictory memory-card
+  preflight from only the **Continue Without Saving** option. Both shared and PC
+  responders now proceed through their existing direct normal/hero intro path.
+  The six asset-free source-contract tests pass. This GOAL change still requires
+  AOT regeneration and a refreshed recorded 840-object Jak II source-pack
+  identity before it can affect or be imported by a new app binary.
+- Parent `64943dde` / nested `d4513b878` promotes all six alpha Merc, all six
+  per-level water Merc, and common-water Merc buckets through the existing
+  source-compatible Jak II `MetalMerc2` path. Nested `942c3f326` strengthens the
+  public GPU proof so nearest/linear filtering, partial-alpha blending, alpha
+  depth writes, and per-level/common-water depth suppression are independently
+  observable. An independent renderer review approved the final pair with no
+  P1/P2 finding.
+
+The canonical ccache-backed focused build and tests passed:
+
+```text
+cmake --build \
+  /Users/zach/Developer/OS_Projects/GOALPad/.agent-builds/jak2-canonical-opengoal \
+  --target jak2-metal-bucket-table-test jak2-metal-merc-renderer-test -j2
+
+ctest --test-dir \
+  /Users/zach/Developer/OS_Projects/GOALPad/.agent-builds/jak2-canonical-opengoal \
+  --output-on-failure \
+  -R '^(jak2-metal-bucket-table-test|jak2-metal-merc-renderer-test)$'
+```
+
+Result: 2/2 passed. Only existing upstream/third-party warnings were emitted.
+Jak II GMerc alpha/water remains deferred because Metal Generic2 explicitly
+lacks a Jak II/3 DMA walker; common-water GMerc remains strict-empty, matching
+OpenGL ownership.
+
+The OCEAN architecture audit found a mandatory prerequisite rather than a safe
+bucket promotion. A normal sky-active `OCEAN_MID_FAR` chain begins with
+`ocean-method-89`: two 64-by-64 target phases, Direct sky drawing, additive
+haze, radial remapping, publication at VRAM `0xf80`, and render-state restore.
+Metal had no equivalent. Parent `0ca1f0b7` integrates the independently
+approved, deliberately non-promoted prerequisite from nested `f62338af4`,
+`67e26d57a`, and `22d7ca6d2`. Its public Metal proof validates the complete
+prefix, exact six-transfer stop boundary, `0xf80` publication, state restore,
+and the GL-equivalent radial sampler: linear minification, nearest
+magnification, no mipmapping, and repeat S/T. Both OCEAN buckets remain
+deferred until the subsequent 128-by-128 texture/mid/near walker port is
+complete.
+
+The canonical combined checkpoint passed:
+
+```text
+cmake --build \
+  /Users/zach/Developer/OS_Projects/GOALPad/.agent-builds/jak2-canonical-opengoal \
+  --target jak2-metal-bucket-table-test jak2-metal-merc-renderer-test \
+           jak2-metal-ocean-envmap-proof -j2
+
+ctest --test-dir \
+  /Users/zach/Developer/OS_Projects/GOALPad/.agent-builds/jak2-canonical-opengoal \
+  --output-on-failure \
+  -R '^(jak2-metal-bucket-table-test|jak2-metal-merc-renderer-test|jak2-metal-ocean-envmap-proof)$'
+```
+
+Result: 3/3 passed. This remains synthetic macOS Metal evidence, not a live
+Jak II visual acceptance.
