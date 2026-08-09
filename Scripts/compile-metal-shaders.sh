@@ -10,7 +10,8 @@
 
 set -eu
 
-shader_dir="$SRCROOT/OpenGOAL/game/graphics/pipelines/metal/shaders"
+opengoal_root=${GOALPAD_OPENGOAL_ROOT:-$SRCROOT/OpenGOAL}
+shader_dir="$opengoal_root/game/graphics/pipelines/metal/shaders"
 out_dir="$DERIVED_SOURCES_DIR/goalpad-metal"
 metallib="$out_dir/goalpad.metallib"
 header="$out_dir/goalpad_metallib_embed.h"

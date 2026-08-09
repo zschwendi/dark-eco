@@ -729,15 +729,15 @@
 			files = (
 			);
 			inputPaths = (
-				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/scaffold.metal",
-				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/direct.metal",
-				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/eye.metal",
-				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/generic.metal",
-				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/shadow.metal",
-				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/sprite.metal",
-				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/background.metal",
-				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/ocean.metal",
-				"$(SRCROOT)/OpenGOAL/game/graphics/pipelines/metal/shaders/merc2.metal",
+				"$(GOALPAD_OPENGOAL_ROOT)/game/graphics/pipelines/metal/shaders/scaffold.metal",
+				"$(GOALPAD_OPENGOAL_ROOT)/game/graphics/pipelines/metal/shaders/direct.metal",
+				"$(GOALPAD_OPENGOAL_ROOT)/game/graphics/pipelines/metal/shaders/eye.metal",
+				"$(GOALPAD_OPENGOAL_ROOT)/game/graphics/pipelines/metal/shaders/generic.metal",
+				"$(GOALPAD_OPENGOAL_ROOT)/game/graphics/pipelines/metal/shaders/shadow.metal",
+				"$(GOALPAD_OPENGOAL_ROOT)/game/graphics/pipelines/metal/shaders/sprite.metal",
+				"$(GOALPAD_OPENGOAL_ROOT)/game/graphics/pipelines/metal/shaders/background.metal",
+				"$(GOALPAD_OPENGOAL_ROOT)/game/graphics/pipelines/metal/shaders/ocean.metal",
+				"$(GOALPAD_OPENGOAL_ROOT)/game/graphics/pipelines/metal/shaders/merc2.metal",
 				"$(SRCROOT)/Scripts/compile-metal-shaders.sh",
 			);
 			name = "Compile Metal shaders";
