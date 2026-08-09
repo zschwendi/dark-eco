@@ -3,6 +3,11 @@
 
 set -eu
 
+# Finder-launched Xcode does not inherit the Homebrew paths from the user's shell.
+# Keep an existing PATH authoritative, then add the two standard Homebrew prefixes.
+PATH="${PATH:-/usr/bin:/bin}:/opt/homebrew/bin:/usr/local/bin"
+export PATH
+
 usage() {
   cat >&2 <<'EOF'
 Usage:
