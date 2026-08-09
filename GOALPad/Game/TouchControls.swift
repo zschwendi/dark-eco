@@ -233,13 +233,14 @@ struct NativeWarpGateTouchSnapshot: Equatable, Sendable {
     }
 }
 
-/// GOAL publishes this only while the central `process-taskable` spooled-animation Triangle
-/// query is both explicitly skippable and undecided. Native freshness validation makes a stopped
-/// heartbeat invalid without changing the stable owner/availability generation each frame.
+/// GOAL publishes this only while a source-audited Triangle skip is available: either the central
+/// `process-taskable` spooled-animation query or the gated end-credits loop. Native freshness
+/// validation makes a stopped heartbeat invalid without changing the stable owner/state generation.
 struct NativeCutsceneSkipTouchSnapshot: Equatable, Sendable {
     enum State: Equatable, Sendable {
         case unavailable
         case triangleQueryAvailable
+        case creditsTriangleAvailable
     }
 
     let valid: Bool
@@ -259,6 +260,7 @@ struct NativeCutsceneSkipTouchSnapshot: Equatable, Sendable {
         let mappedState: State? = switch snapshot.state {
         case .unavailable: .unavailable
         case .triangleQueryAvailable: .triangleQueryAvailable
+        case .creditsTriangleAvailable: .creditsTriangleAvailable
         @unknown default: nil
         }
         guard snapshot.valid.boolValue, let mappedState else {
@@ -270,6 +272,10 @@ struct NativeCutsceneSkipTouchSnapshot: Equatable, Sendable {
 
     static func triangleQueryAvailable(sequence: UInt32) -> Self {
         Self(valid: true, state: .triangleQueryAvailable, sequence: sequence)
+    }
+
+    static func creditsTriangleAvailable(sequence: UInt32) -> Self {
+        Self(valid: true, state: .creditsTriangleAvailable, sequence: sequence)
     }
 
     static func validUnavailable(sequence: UInt32) -> Self {
@@ -1359,7 +1365,7 @@ final class TouchControls {
         restoreGameplayChromeAfterInterruption()
     }
 
-    /// Owner/availability generation changes and stale native reads cancel a pending SKIP tap.
+    /// Owner/state generation changes and stale native reads cancel a pending SKIP tap.
     func setCutsceneSkipTouchSnapshot(_ snapshot: NativeCutsceneSkipTouchSnapshot) {
         guard snapshot != cutsceneSkipTouchSnapshot else { return }
         cutsceneSkipTouchSnapshot = snapshot
@@ -1918,8 +1924,11 @@ final class TouchControls {
         in mode: GOALPadGameMode,
         snapshot: NativeCutsceneSkipTouchSnapshot
     ) -> Bool {
-        mode == .gameplay && snapshot.isStructurallyValid
-            && snapshot.state == .triangleQueryAvailable
+        guard mode == .gameplay, snapshot.isStructurallyValid else { return false }
+        return switch snapshot.state {
+        case .triangleQueryAvailable, .creditsTriangleAvailable: true
+        case .unavailable: false
+        }
     }
 
     nonisolated static func contextualFacePromptOwnsGameplayActions(

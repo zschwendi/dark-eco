@@ -1277,13 +1277,15 @@ private func liveLayoutChangesCancelOwnedInput() {
 @MainActor
 private func cutsceneSkipIsContextualExactAndLifecycleSafe() {
     print("SKIP is a validated release-edge Triangle action with stale-work cancellation")
-    let available = NativeCutsceneSkipTouchSnapshot.triangleQueryAvailable(sequence: 10)
+    let queryAvailable = NativeCutsceneSkipTouchSnapshot.triangleQueryAvailable(sequence: 10)
+    let creditsAvailable = NativeCutsceneSkipTouchSnapshot.creditsTriangleAvailable(sequence: 12)
     let unavailable = NativeCutsceneSkipTouchSnapshot.validUnavailable(sequence: 12)
     let odd = NativeCutsceneSkipTouchSnapshot.triangleQueryAvailable(sequence: 11)
 
-    check(TouchControls.cutsceneSkipIsAvailable(in: .gameplay, snapshot: available),
-          "a valid even Triangle-query publication enables SKIP in gameplay")
-    check(!TouchControls.cutsceneSkipIsAvailable(in: .pause, snapshot: available)
+    check(TouchControls.cutsceneSkipIsAvailable(in: .gameplay, snapshot: queryAvailable)
+          && TouchControls.cutsceneSkipIsAvailable(in: .gameplay, snapshot: creditsAvailable),
+          "both audited even Triangle publications enable SKIP in gameplay")
+    check(!TouchControls.cutsceneSkipIsAvailable(in: .pause, snapshot: queryAvailable)
           && !TouchControls.cutsceneSkipIsAvailable(in: .gameplay, snapshot: unavailable)
           && !TouchControls.cutsceneSkipIsAvailable(in: .gameplay, snapshot: odd)
           && !TouchControls.cutsceneSkipIsAvailable(in: .gameplay, snapshot: .invalid),
@@ -1296,7 +1298,7 @@ private func cutsceneSkipIsContextualExactAndLifecycleSafe() {
 
     var accepted = Runner()
     accepted.controls.setNativeMenuMode(.gameplay)
-    accepted.controls.setCutsceneSkipTouchSnapshot(available)
+    accepted.controls.setCutsceneSkipTouchSnapshot(creditsAvailable)
     let acceptedFinger = Finger()
     accepted.down(acceptedFinger, CGPoint(x: Runner.stats.midX, y: Runner.stats.midY))
     check(accepted.controls.isPillDown(.stats) && accepted.frame() == .neutral
@@ -1324,7 +1326,7 @@ private func cutsceneSkipIsContextualExactAndLifecycleSafe() {
 
     var changedSequence = Runner()
     changedSequence.controls.setNativeMenuMode(.gameplay)
-    changedSequence.controls.setCutsceneSkipTouchSnapshot(available)
+    changedSequence.controls.setCutsceneSkipTouchSnapshot(queryAvailable)
     let sequenceFinger = Finger()
     changedSequence.down(sequenceFinger, CGPoint(x: Runner.stats.midX,
                                                   y: Runner.stats.midY))
@@ -1337,7 +1339,7 @@ private func cutsceneSkipIsContextualExactAndLifecycleSafe() {
 
     var stale = Runner()
     stale.controls.setNativeMenuMode(.gameplay)
-    stale.controls.setCutsceneSkipTouchSnapshot(available)
+    stale.controls.setCutsceneSkipTouchSnapshot(queryAvailable)
     let staleFinger = Finger()
     stale.down(staleFinger, CGPoint(x: Runner.stats.midX, y: Runner.stats.midY))
     stale.controls.setCutsceneSkipTouchSnapshot(.invalid)
@@ -1348,7 +1350,7 @@ private func cutsceneSkipIsContextualExactAndLifecycleSafe() {
 
     var changedMode = Runner()
     changedMode.controls.setNativeMenuMode(.gameplay)
-    changedMode.controls.setCutsceneSkipTouchSnapshot(available)
+    changedMode.controls.setCutsceneSkipTouchSnapshot(queryAvailable)
     let modeFinger = Finger()
     changedMode.down(modeFinger, CGPoint(x: Runner.stats.midX, y: Runner.stats.midY))
     changedMode.controls.setNativeMenuMode(.pause)

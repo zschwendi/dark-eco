@@ -188,12 +188,13 @@ typedef struct GOALPadWarpGateTouchSnapshot {
 typedef NS_ENUM(NSInteger, GOALPadCutsceneSkipTouchState) {
   GOALPadCutsceneSkipTouchStateUnavailable = 0,
   GOALPadCutsceneSkipTouchStateTriangleQueryAvailable = 1,
+  GOALPadCutsceneSkipTouchStateCreditsTriangleAvailable = 2,
 };
 
 typedef struct GOALPadCutsceneSkipTouchSnapshot {
   /// YES means the GOAL object, revision, seqlock, owner, state, and heartbeat are current.
   BOOL valid;
-  /// Stable even owner/availability generation. Heartbeats do not change this value.
+  /// Stable even owner/state generation. Heartbeats do not change this value.
   uint32_t sequence;
   GOALPadCutsceneSkipTouchState state;
 } GOALPadCutsceneSkipTouchSnapshot;

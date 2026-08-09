@@ -9,8 +9,9 @@ func inspect(_ snapshot: GOALPadCutsceneSkipTouchSnapshot) {
 let states: [GOALPadCutsceneSkipTouchState] = [
     .unavailable,
     .triangleQueryAvailable,
+    .creditsTriangleAvailable,
 ]
 let snapshot: GOALPadCutsceneSkipTouchSnapshot =
     GOALPadRuntimeBridge.cutsceneSkipTouchSnapshot
 inspect(snapshot)
-precondition(states.map(\.rawValue) == [0, 1])
+precondition(states.map(\.rawValue) == [0, 1, 2])

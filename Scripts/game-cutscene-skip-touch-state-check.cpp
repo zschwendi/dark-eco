@@ -42,7 +42,7 @@ struct Fixture {
   Fixture() {
     write(memory, kSnapshotObject - 4, kSnapshotType);
     write(memory, kSnapshotType + 8, kSnapshotAllocatedBytes);
-    set_revision(1);
+    set_revision(2);
     set_sequence(2);
     set_state(0);
     set_owner(0);
@@ -118,6 +118,16 @@ int main() {
   expect(available.read(200).valid && available.read(200).sequence == 6,
          "a new even owner generation starts fresh without exposing the handle");
 
+  Fixture credits;
+  credits.set_sequence(8);
+  credits.set_state(2);
+  credits.set_owner(0x3234000056780000ull);
+  credits.set_heartbeat(1);
+  const auto credits_snapshot = credits.read(300);
+  expect(credits_snapshot.valid && credits_snapshot.sequence == 8 &&
+             credits_snapshot.state == CutsceneSkipTouchState::CreditsTriangleAvailable,
+         "a current credits publication exposes the second audited Triangle state");
+
   Fixture wrong_type;
   write(wrong_type.memory, kSnapshotObject - 4, std::uint32_t{108});
   expect(!wrong_type.read_raw().valid, "a wrong GOAL object type fails closed");
@@ -138,7 +148,7 @@ int main() {
          "an unaligned direct basic pointer fails closed");
 
   Fixture revision;
-  revision.set_revision(2);
+  revision.set_revision(1);
   expect(!revision.read_raw().valid, "an unknown schema revision fails closed");
 
   Fixture odd;
@@ -152,7 +162,7 @@ int main() {
   Fixture unknown;
   unknown.set_state(-1);
   expect(!unknown.read_raw().valid, "a negative state fails closed");
-  unknown.set_state(2);
+  unknown.set_state(3);
   expect(!unknown.read_raw().valid, "an unknown positive state fails closed");
 
   Fixture missing_owner;

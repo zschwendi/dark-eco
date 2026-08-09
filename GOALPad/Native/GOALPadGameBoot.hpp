@@ -109,6 +109,7 @@ struct WarpGateTouchSnapshot {
 enum class CutsceneSkipTouchState : std::int32_t {
   Unavailable = 0,
   TriangleQueryAvailable = 1,
+  CreditsTriangleAvailable = 2,
 };
 
 struct CutsceneSkipTouchSnapshot {
@@ -126,7 +127,7 @@ constexpr std::size_t kStateOffset = 8;
 constexpr std::size_t kOwnerOffset = 12;
 constexpr std::size_t kHeartbeatOffset = 20;
 constexpr std::size_t kRequiredObjectBytes = 0x18;
-constexpr std::int32_t kRevision = 1;
+constexpr std::int32_t kRevision = 2;
 constexpr std::uint64_t kMaximumStaleFrames = 2;
 
 }  // namespace cutscene_skip_touch_layout
@@ -161,6 +162,7 @@ inline CutsceneSkipTouchRawSnapshot validate_cutscene_skip_touch_snapshot(
       }
       break;
     case CutsceneSkipTouchState::TriangleQueryAvailable:
+    case CutsceneSkipTouchState::CreditsTriangleAvailable:
       if (owner == 0) {
         return snapshot;
       }
