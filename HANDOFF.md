@@ -15454,22 +15454,45 @@ The release settings report Build 141, marketing version 1.0, automatic signing,
 team `V729QMY3V6`, bundle `com.zephyrstudiosllc.eco`, and build-script sandboxing
 off. A first attempted privacy-manifest helper command was not run because no
 `Scripts/run-privacy-manifest-check.sh` exists; privacy evidence comes from the
-retained archive inspection, not that nonexistent helper. A new Build 141 Xcode
-build/archive remains pending until the single active Metal proof build releases
-the heavy-build lane.
+retained archive inspection, not that nonexistent helper.
+
+The serialized Build 141 archive then passed at:
+
+```text
+/private/tmp/goalpad-build141-release/GOALPad.xcarchive
+```
+
+Full output is `/private/tmp/goalpad-build141-archive.log`. The artifact is Eco
+1.0 (141), arm64, and contains exactly 518 public source objects. Its privacy
+manifest lints; extracted entitlements contain iCloud Documents and Game Center;
+and the executable contains exactly the three intended StoreKit identifiers,
+including the corrected `top-supporter` ID. Executable SHA-256 is
+`d1d9321b7827a7fa285073bfc4eb7fff13b0dbac7e8abb82de9e02c9d83bbfe4`; Mach-O UUID
+is `E8EACCF2-E682-3CE6-A4D4-1F7AD6C6BDF5`; CDHash is
+`19387ffdea1f71f1efaa77789044073a0046371d`.
+
+This is still not an App Store artifact. It uses Apple Development signing and
+`get-task-allow = true`; strict `codesign --verify --deep --strict` fails with
+`CSSMERR_TP_NOT_TRUSTED`, matching the local keychain's zero valid code-signing
+identities. Xcode's Zephyr certificate manager has an `Apple Distribution`
+creation action available, but creating that persistent credential requires the
+maintainer's explicit confirmation. After that, Organizer must perform and
+retain a successful App Store validation/export or upload. No physical device
+was accessed.
 
 ### visionOS external-target prerequisite
 
-The isolated nested branch `agent/build136-external-render-target` at initial
-commit `c8592f89fb942fa3eb3d33f3867bada672a8a562` adds a borrowed color/depth
-slice render seam and deterministic Metal proof. It is not integrated or pushed.
-Independent review found one blocking ownership bug: external submissions
-updated the command tracked by `read_game_frame`, which would wait the external
-command and then return stale internal-target pixels. A dedicated Sol xhigh lane
-is separating stream-reuse submission tracking from internal readback tracking
-and adding regression coverage. Do not integrate this branch until that proof
-passes. Even after repair it is only the first true-stereo prerequisite, not a
-claim of stereo, render-many, tabletop, room-scale, or first-person gameplay.
+The isolated nested branch `agent/build136-external-render-target` at commits
+`c8592f89fb942fa3eb3d33f3867bada672a8a562` and
+`447472aef` adds a borrowed color/depth slice render seam and deterministic Metal
+proof. It is not integrated or pushed. Independent review found that the first
+commit let external submissions replace internal readback bookkeeping. The
+second commit separates stream-reuse synchronization from internal-target
+readback ownership, does not retain borrowed external textures beyond the
+submitted command, and adds identity/pixel/bookkeeping/reuse regressions. The
+focused build passed and the host proof ended `METAL PROOF PASSED`. Even after
+repair it is only the first true-stereo prerequisite, not a claim of stereo,
+render-many, tabletop, room-scale, or first-person gameplay.
 
 The snapshot audit also blocks an asynchronous render-many implementation from a
 DMA-vector copy alone: Merc, texture, level-registry, tfrag/TOD, eye, ocean, and

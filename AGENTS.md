@@ -540,10 +540,14 @@ Active lanes:
   `com.zephyrstudiosllc.eco`, and team Zephyr Studios LLC. The archive is
   development-signed and no Apple Distribution identity is currently present in
   this Mac's keychain, so App Store validation/export remains an external
-  signing gate. Build 141 source aligns the third consumable with the twice-
-  documented permanent ID `com.zephyrstudiosllc.eco.tip.top-supporter` and makes
-  the focused StoreKit check assert all three exact identifiers. No physical
-  device has been accessed for this checkpoint.
+  signing gate. Build 141 aligns the third consumable with the twice-documented
+  permanent ID `com.zephyrstudiosllc.eco.tip.top-supporter`, makes the focused
+  StoreKit check assert all three exact identifiers, and also passes a fresh
+  generic-iOS archive with all 518 objects. Its archive is development-signed,
+  but strict local verification reports `CSSMERR_TP_NOT_TRUSTED`; do not call it
+  distribution-ready until a valid Apple Distribution identity produces and
+  validates an App Store export. No physical device has been accessed for this
+  checkpoint.
 - `visionOS external render-target prerequisite under review; not integrated` —
   nested OpenGOAL branch `agent/build136-external-render-target` renders the
   existing synchronous DMA chain into a borrowed host-owned color/depth slice
