@@ -147,6 +147,7 @@ do {
             && libraryScreen.contains("return .preparing(nil)")
             && libraryScreen.contains(".onChange(of: session.startupError, initial: true)")
             && libraryScreen.contains("title: Text(\"Couldn't Start Game\")")
+            && libraryScreen.contains("action: session.clearStartupError")
     else {
         throw NSError(domain: "portrait-library-check", code: 3,
                       userInfo: [NSLocalizedDescriptionKey:

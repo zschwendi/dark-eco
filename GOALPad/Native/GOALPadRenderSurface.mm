@@ -746,10 +746,18 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
   return goalpad::metal_host_end_frame();
 }
 
-- (BOOL)endStereoFrame {
-  const BOOL completed = goalpad::metal_host_end_stereo_frame();
-  self.lastError = completed ? @"" : @"The stereoscopic frame did not complete.";
-  return completed;
+- (GOALPadStereoFrameCompletion)endStereoFrame {
+  switch (goalpad::metal_host_end_stereo_frame()) {
+    case goalpad::MetalHostStereoFrameCompletion::skipped:
+      self.lastError = @"";
+      return GOALPadStereoFrameCompletionSkipped;
+    case goalpad::MetalHostStereoFrameCompletion::completed:
+      self.lastError = @"";
+      return GOALPadStereoFrameCompletionCompleted;
+    case goalpad::MetalHostStereoFrameCompletion::failed:
+      self.lastError = @"The stereoscopic frame did not complete.";
+      return GOALPadStereoFrameCompletionFailed;
+  }
 }
 
 @end

@@ -90,8 +90,11 @@ check(occursInOrder([
     "GOALPadStereoRenderTarget(",
     "surface.beginStereoFrame(",
     "else { return .failed }",
+    "var completion = GOALPadStereoFrameCompletion.skipped",
     "runArmedTick(targetPresentationTime:",
-    "surface.endStereoFrame()",
+    "completion = surface.endStereoFrame()",
+    "return completion == .completed",
+    "if completion == .failed { return .failed }",
     "framePresented ? .rendered : .skipped",
 ], in: stereoTick), "one stereo callback arms, runs, waits, and ends one shared game tick")
 
@@ -155,6 +158,17 @@ check(host.contains("render_chain_frame_to_external_stereo_targets(")
             "g_host.stereo_right = {};",
         ], in: host),
       "native completion is awaited before borrowed stereo targets are released")
+check(occursInOrder([
+    "MetalHostStereoFrameCompletion metal_host_end_stereo_frame()",
+    "const bool rendered = g_host.frame_rendered;",
+    "const bool completed = close_frame(true);",
+    "MetalHostStereoFrameCompletion::skipped",
+    "MetalHostStereoFrameCompletion::completed",
+    "MetalHostStereoFrameCompletion::failed",
+], in: host)
+        && bridge.contains("GOALPadStereoFrameCompletion")
+        && renderSurface.contains("MetalHostStereoFrameCompletion::failed"),
+      "native frame close distinguishes an empty tick from completion failure")
 
 let drawFrame = section(surface,
                         from: "private func drawFrame",
@@ -173,12 +187,14 @@ check(occursInOrder([
     "let drawablePair = resources.nextDrawablePair()",
     "return .skipped",
     "let disposition = renderFrame(frame)",
-    "guard disposition == .rendered else { return disposition }",
+    "case .skipped:",
+    "case .rendered:",
     "drawablePair.left.presentOnSceneUpdate()",
     "drawablePair.right.presentOnSceneUpdate()",
-    "return .rendered",
+    "case .failed:",
+    "VisionWindowStereoDrawableQuarantine.shared.retain(drawablePair)",
 ], in: renderNextFrame),
-      "skipped frames release without presentation and only rendered frames present both eyes")
+      "failed frames quarantine borrowed targets while only rendered frames present both eyes")
 
 let deferredFailure = section(surface,
                               from: "private func deferStereoSurfaceFailure",
@@ -188,8 +204,10 @@ check(occursInOrder([
     "await Task.yield()",
     "coordinator.stereoSurfaceFailed(message)",
 ], in: deferredFailure)
+        && deferredFailure.contains("private final class VisionWindowStereoDrawableQuarantine")
+        && deferredFailure.contains("pairs.append(pair)")
         && surface.components(separatedBy: "deferStereoSurfaceFailure(").count - 1 == 3,
-      "render and asynchronous resource failures defer fail-closed coordinator mutation")
+      "render failures quarantine borrowed drawables before deferred fail-closed mutation")
 
 check(app.components(separatedBy: "WindowGroup").count - 1 == 1
         && app.contains(".environment(visionPresentation)")

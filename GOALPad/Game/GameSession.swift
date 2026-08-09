@@ -141,6 +141,10 @@ final class GameSession {
         dataReport = await Task.detached { GameDataInspector.inspect() }.value
     }
 
+    func clearStartupError() {
+        startupError = nil
+    }
+
     /// Bring the session up. Refuses rather than half-starting when the data on disk cannot boot
     /// the game, or when this build has no ahead-of-time Jak 1 code to boot.
     func start() async {
@@ -342,9 +346,12 @@ final class GameSession {
             right: right
         ) else { return .failed }
 
+        var completion = GOALPadStereoFrameCompletion.skipped
         let framePresented = runArmedTick(targetPresentationTime: frame.targetPresentationTime) {
-            surface.endStereoFrame()
+            completion = surface.endStereoFrame()
+            return completion == .completed
         }
+        if completion == .failed { return .failed }
         return framePresented ? .rendered : .skipped
     }
     #endif

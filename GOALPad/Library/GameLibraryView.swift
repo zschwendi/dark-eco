@@ -141,7 +141,7 @@ struct GameLibraryView: View {
                 Alert(
                     title: Text("Couldn't Start Game"),
                     message: Text(message),
-                    dismissButton: .default(Text("OK"))
+                    dismissButton: .default(Text("OK"), action: session.clearStartupError)
                 )
             }
         }

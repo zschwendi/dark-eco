@@ -153,10 +153,17 @@ private struct VisionWindowStereoRealitySurface: View {
         )
 
         let disposition = renderFrame(frame)
-        guard disposition == .rendered else { return disposition }
-        drawablePair.left.presentOnSceneUpdate()
-        drawablePair.right.presentOnSceneUpdate()
-        return .rendered
+        switch disposition {
+        case .skipped:
+            return .skipped
+        case .rendered:
+            drawablePair.left.presentOnSceneUpdate()
+            drawablePair.right.presentOnSceneUpdate()
+            return .rendered
+        case .failed:
+            VisionWindowStereoDrawableQuarantine.shared.retain(drawablePair)
+            return .failed
+        }
     }
 
     private func deferStereoSurfaceFailure(_ message: String) {
@@ -164,6 +171,20 @@ private struct VisionWindowStereoRealitySurface: View {
             await Task.yield()
             coordinator.stereoSurfaceFailed(message)
         }
+    }
+}
+
+/// A timed-out GPU submission may still reference its borrowed RealityKit textures. Retaining the
+/// exceptional pair until process exit prevents the drawable queue from recycling it underneath
+/// that work while the coordinator fails closed to Comfort mode.
+@MainActor
+private final class VisionWindowStereoDrawableQuarantine {
+    static let shared = VisionWindowStereoDrawableQuarantine()
+
+    private var pairs: [VisionWindowStereoResources.DrawablePair] = []
+
+    func retain(_ pair: VisionWindowStereoResources.DrawablePair) {
+        pairs.append(pair)
     }
 }
 

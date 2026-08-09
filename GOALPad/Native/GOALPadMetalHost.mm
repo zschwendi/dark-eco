@@ -1248,11 +1248,17 @@ bool metal_host_end_frame() {
   return close_frame(g_host.frame_is_stereo);
 }
 
-bool metal_host_end_stereo_frame() {
+MetalHostStereoFrameCompletion metal_host_end_stereo_frame() {
   if (!g_host.frame_open || !g_host.frame_is_stereo) {
-    return false;
+    return MetalHostStereoFrameCompletion::skipped;
   }
-  return close_frame(true);
+  const bool rendered = g_host.frame_rendered;
+  const bool completed = close_frame(true);
+  if (!rendered) {
+    return MetalHostStereoFrameCompletion::skipped;
+  }
+  return completed ? MetalHostStereoFrameCompletion::completed
+                   : MetalHostStereoFrameCompletion::failed;
 }
 
 #else  // GOALPAD_HAVE_GFX_SEAM
@@ -1304,8 +1310,8 @@ bool metal_host_end_frame() {
   return false;
 }
 
-bool metal_host_end_stereo_frame() {
-  return false;
+MetalHostStereoFrameCompletion metal_host_end_stereo_frame() {
+  return MetalHostStereoFrameCompletion::skipped;
 }
 
 #endif  // GOALPAD_HAVE_GFX_SEAM

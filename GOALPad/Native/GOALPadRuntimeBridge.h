@@ -17,6 +17,12 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
+typedef NS_ENUM(NSInteger, GOALPadStereoFrameCompletion) {
+  GOALPadStereoFrameCompletionSkipped = 0,
+  GOALPadStereoFrameCompletionCompleted = 1,
+  GOALPadStereoFrameCompletionFailed = 2,
+};
+
 /// A snapshot of the GOAL kernel session. Every `*Offset` is a GOAL pointer: a byte offset from
 /// `mainMemoryAddress`.
 @interface GOALPadKernelStatus : NSObject
@@ -931,8 +937,8 @@ typedef struct GOALPadRendererStats {
 
 /// Close the armed frame and report whether its DMA chain scheduled a drawable.
 - (BOOL)endFrame;
-/// Wait for both per-eye command buffers before releasing the borrowed targets.
-- (BOOL)endStereoFrame;
+/// Wait for both per-eye command buffers and distinguish an empty tick from a GPU failure.
+- (GOALPadStereoFrameCompletion)endStereoFrame;
 /// NO until the Metal renderer has been started, in which case frame arming draws nothing.
 @property(nonatomic, readonly, getter=isRendererLinked) BOOL rendererLinked;
 

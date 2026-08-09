@@ -574,6 +574,12 @@ struct MetalHostStereoView {
   std::array<float, 16> clip_from_game_clip = {};
 };
 
+enum class MetalHostStereoFrameCompletion {
+  skipped,
+  completed,
+  failed,
+};
+
 /*!
  * Arm one display-link tick with its presentation surface and geometry.
  *
@@ -606,8 +612,8 @@ bool metal_host_begin_stereo_frame(const MetalHostFrame& frame,
  */
 bool metal_host_end_frame();
 
-/*! Wait for both stereo submissions to complete, then close the armed tick. */
-bool metal_host_end_stereo_frame();
+/*! Wait for both stereo submissions, distinguishing an empty tick from a GPU failure. */
+MetalHostStereoFrameCompletion metal_host_end_stereo_frame();
 
 /*! Point the layer at the renderer's device. Safe before `metal_host_start`. */
 void metal_host_attach_layer(CAMetalLayer* layer);
