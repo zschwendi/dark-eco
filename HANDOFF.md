@@ -15940,3 +15940,79 @@ visual/build146-water-bucket252-failure.png
 The historical simulator app was terminated after capturing the failure so it
 does not consume resources while the renderer patch is prepared. No physical
 device operation has occurred at this checkpoint.
+
+## Jak II water renderer completion checkpoint
+
+The standalone Jak II integration lane is now clean at parent
+`f7053b6b226409638a414d9b13d3059dce4beef9` on
+`agent/jak2-ipad-playtest`, with nested OpenGOAL
+`f75dfb7955f03a805d822df451792731c83905b2` on
+`agent/jak2-ipad-playtest-native`. The protected Jak 1 parent remains
+unchanged at `0a625cc3142d7b3883d46745ebf97f04990080f0`. This is an isolated
+Jak II checkpoint, not a Jak 1 build-number successor; the Jak 1 integration
+owner will merge it later.
+
+The final source-exact water path handles all live envelopes observed in the
+title/city startup:
+
+- descriptor-only uploads;
+- descriptor plus the universal qwc-10 Direct reset;
+- descriptor plus opcode-30 security animation plus the Direct reset.
+
+The security animator prepares both outputs before host mutation and publishes
+them to Jak II animated texture slots 20 and 21. Its input ownership matches
+the extracted level contract: `common-white` comes from GAME/common, while the
+security environment/dot sources and destinations come from `ctywide`.
+Repeated same-name FR3 textures are accepted only when every copy has valid,
+identical dimensions and RGBA data; missing, malformed, or conflicting copies
+remain fail-closed. This matches the existing OpenGL fixed-animation behavior
+without accepting ambiguous data.
+
+The final focused Metal closure passed all 15 tests. The last duplicate-owner
+rerun passed the affected CPU, executor, and host tests 3/3. Logs are:
+
+```text
+.agent-builds/jak2-ipad-playtest-20260809/logs/water-owner-integrated-metal-ctest.log
+.agent-builds/jak2-ipad-playtest-20260809/logs/water-duplicate-integrated-focused-ctest.log
+```
+
+The approved iPad Pro 11-inch (M5) Simulator Release build succeeded. A clean
+runtime reached the Jak II title and, at tick 1200, reported
+`chains=1200/1200/0`, with water bucket 252 executing 1179 times, bucket 270
+executing 1174 times, and bucket 279 executing 1170 times. The app emitted no
+water-plan or security-preparation failure. Evidence is:
+
+```text
+.agent-builds/jak2-ipad-playtest-20260809/logs/water-duplicate-simulator-build.log
+.agent-builds/jak2-ipad-playtest-20260809/logs/water-duplicate-simulator-runtime.log
+.agent-builds/jak2-ipad-playtest-20260809/visual/water-live-success.png
+```
+
+The signed physical-device Release build also succeeded in 345.289 seconds:
+
+```text
+xcodebuild -project GOALPad.xcodeproj -scheme 'Eco Jak II Dev' \
+  -configuration Release \
+  -destination 'platform=iOS,arch=arm64,id=00008142-000A504C3CC2401C' \
+  -derivedDataPath /Users/zach/Developer/OS_Projects/GOALPad/.agent-builds/build146-xcode \
+  -jobs 2 ENABLE_PREVIEWS=NO COMPILER_INDEX_STORE_ENABLE=NO \
+  GOALPAD_BUILD_JOBS=2 build
+```
+
+The resulting `EcoJak2Dev.app` is a thin arm64 bundle, identifier
+`com.zephyrstudiosllc.eco.jak2dev`, version `1.0` build `1`, signed by the
+configured Apple Development identity and team `V729QMY3V6`. Its build log is
+`.agent-builds/jak2-ipad-playtest-20260809/logs/water-physical-device-build.log`.
+
+Physical installation remains pending. `Z iPad Pro` was listed as paired and
+available, but it was not present on USB and two authorized CoreDevice install
+attempts failed before transfer with `CoreDeviceError 4000` / `NWError 60`
+(`The tunnel was interrupted while establishing connectivity`). Stop retrying
+until USB is attached or the wireless CoreDevice tunnel is healthy. No app was
+installed or launched on the physical device in this checkpoint.
+
+The water execution gate is complete in Simulator, but this is not a claim that
+all Jak II rendering is visually complete. The retained title screenshot still
+shows unresolved red quadrilateral light artifacts and large black regions;
+those remain separate renderer follow-up work after the Jak 1 owner integrates
+this isolated branch.
