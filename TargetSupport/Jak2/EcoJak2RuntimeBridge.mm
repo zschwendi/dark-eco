@@ -134,6 +134,51 @@ bool copy_metal_metrics_locked() {
   return true;
 }
 
+bool should_log_jak2_diagnostics(uint64_t tick) {
+  return tick == 1 || tick == 10 || tick == 20 || tick == 30 || tick == 60 || tick == 120 ||
+         (tick > 0 && tick % 600 == 0);
+}
+
+void log_jak2_diagnostics_locked() {
+  const auto& runtime = g_runtime_metrics;
+  const auto& metal = g_metal_metrics;
+  NSLog(@"GOALPAD_JAK2_RUNTIME_STATE tick=%llu mode=%s title=%s scene=%s target=%s "
+         "pmode=%.3f desired=%s active=%s dgo=%s/%s result=%d failures=%d "
+         "dma=%d/%d/%d bytes=%u/%u chains=%llu/%llu/%llu cmd=%llu/%llu/%llu "
+         "cmd-last=%d/%lld drawable=%llu/%llu submit=%llu/%llu/%llu draws=%llu/%llu "
+         "progress=%llu/%llu/%llu/%llu map=%llu/%u/%u buckets=%llu skipped=%llu error=%s",
+        static_cast<unsigned long long>(runtime.ticks), runtime.master_mode,
+        runtime.title_control_state, runtime.scene_player_state, runtime.target_state,
+        runtime.host_last_pmode_alpha, runtime.host_desired_levels, runtime.host_active_levels,
+        runtime.current_dgo_name, runtime.last_dgo_name, runtime.dgo_last_result,
+        runtime.dgo_failures, runtime.dma_chains, runtime.dma_well_formed,
+        runtime.dma_malformed, runtime.dma_valid_payload_bytes, runtime.dma_valid_copied_bytes,
+        static_cast<unsigned long long>(metal.chains),
+        static_cast<unsigned long long>(metal.completed_chains),
+        static_cast<unsigned long long>(metal.failed_chains),
+        static_cast<unsigned long long>(metal.command_buffers_committed),
+        static_cast<unsigned long long>(metal.command_buffers_completed),
+        static_cast<unsigned long long>(metal.command_buffer_errors),
+        metal.last_command_buffer_status,
+        static_cast<long long>(metal.last_command_buffer_error_code),
+        static_cast<unsigned long long>(metal.drawables_acquired),
+        static_cast<unsigned long long>(metal.drawable_misses),
+        static_cast<unsigned long long>(metal.submissions),
+        static_cast<unsigned long long>(metal.presentations),
+        static_cast<unsigned long long>(metal.presentation_drops),
+        static_cast<unsigned long long>(metal.draws),
+        static_cast<unsigned long long>(metal.triangles),
+        static_cast<unsigned long long>(metal.last_progress_draws),
+        static_cast<unsigned long long>(metal.last_progress_triangles),
+        static_cast<unsigned long long>(metal.last_progress_textured_draws),
+        static_cast<unsigned long long>(metal.last_progress_missing_texture_draws),
+        static_cast<unsigned long long>(metal.map_texture_uploads),
+        metal.last_map_texture_upload.valid, metal.last_map_texture_upload.upload_count,
+        static_cast<unsigned long long>(metal.last_buckets_dispatched),
+        static_cast<unsigned long long>(metal.skipped_bucket_bytes),
+        g_metal_host ? goal_jak2_metal_host_last_error(g_metal_host) : "");
+}
+
 void clear_runtime_snapshots_locked() {
   g_runtime_metrics = {};
   g_metal_metrics = {};
@@ -407,6 +452,9 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
   const goal_jak2_runtime_status status = goal_jak2_runtime_tick();
   copy_runtime_metrics_locked();
   copy_metal_metrics_locked();
+  if (should_log_jak2_diagnostics(g_runtime_metrics.ticks)) {
+    log_jak2_diagnostics_locked();
+  }
   if (status == GOAL_JAK2_RUNTIME_EXITED) {
     g_state = SessionState::Exited;
     g_last_error = @"Jak II requested a clean runtime exit.";
