@@ -1,5 +1,5 @@
 #!/bin/sh
-# Source-level contract for the isolated Eco Jak II Dev import-composer phases and settings.
+# Source-level contract for the isolated Eco Jak II Dev import-composer phases, settings, and launch configuration.
 
 set -eu
 
@@ -13,6 +13,8 @@ root = pathlib.Path(sys.argv[1])
 project = (root / "GOALPad.xcodeproj/project.pbxproj").read_text(encoding="utf-8")
 debug = (root / "Configuration/Jak2Dev-Debug.xcconfig").read_text(encoding="utf-8")
 release = (root / "Configuration/Jak2Dev-Release.xcconfig").read_text(encoding="utf-8")
+scheme = (root / "GOALPad.xcodeproj/xcshareddata/xcschemes/Eco Jak II Dev.xcscheme").read_text(
+    encoding="utf-8")
 jak1_debug = (root / "Configuration/GOALPad-Importer-Debug.xcconfig").read_text(encoding="utf-8")
 jak1_release = (root / "Configuration/GOALPad-Importer-Release.xcconfig").read_text(encoding="utf-8")
 
@@ -90,6 +92,9 @@ for marker in (
     'OTHER_LDFLAGS[sdk=iphonesimulator*] = $(inherited) "$(GOALPAD_JAK2_IMPORT_ARCHIVE)"',
 ):
     require(marker in release, f"missing Jak II Release setting: {marker}")
+
+require(re.search(r'<LaunchAction\s+buildConfiguration = "Release"', scheme) is not None,
+        "Eco Jak II Dev LaunchAction must use Release so raw-media preparation is available")
 
 require("GOALPAD_HAS_JAK2_IMPORT_COMPOSER" not in jak1_debug
         and "GOALPAD_HAS_JAK2_IMPORT_COMPOSER" not in jak1_release,
