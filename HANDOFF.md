@@ -15870,20 +15870,22 @@ ctest --test-dir \
 Result: 3/3 passed. This remains synthetic macOS Metal evidence, not a live
 Jak II visual acceptance.
 
-## Build 146 Jak II checkpoint on locked Build 145
+## Jak II iPad playtest checkpoint on locked Build 145
 
 The protected Build 145 base remains unchanged at parent
-`0a625cc3142d7b3883d46745ebf97f04990080f0`. The active Build 146 integration
+`0a625cc3142d7b3883d46745ebf97f04990080f0`. The active Jak II playtest
 worktree is `/Users/zach/Developer/OS_Projects/GOALPad/GP-jak2-build145-integration`
-on `agent/jak2-build145-integration`; its nested integration worktree is
+on `agent/jak2-ipad-playtest`; its nested integration worktree is
 `/Users/zach/Developer/OS_Projects/GOALPad/OG-jak2-build145-integration` on
-`agent/jak2-build145-native`.
+`agent/jak2-ipad-playtest-native`.
 
-Verified source checkpoints before live validation:
+Verified source checkpoints before live validation are retained in the branch
+history. The Jak II target now has its own build sequence beginning at 1; it
+does not claim the next Jak 1 build number.
 
 ```text
-parent 2405d17a build(jak2): integrate Build 146 renderer checkpoint (AI-assisted)
-parent d530c6c9 build(jak2): prepare Build 146 candidate (AI-assisted)
+parent 2405d17a renderer integration checkpoint
+parent d530c6c9 initial iPad playtest candidate
 nested 43975cd64 test(metal): initialize sprite distortion viewport (AI-assisted)
 ```
 
@@ -15895,11 +15897,12 @@ Metal suite passes 12/12, including bucket policy, Generic2, BlitDisplay, Glow,
 Ocean grammar/envmap, dispatch, host bridge, Merc, TFRAG, TIE, and Sprite.
 
 The `Eco Jak II Dev` Release simulator build succeeded for the approved iPad Pro
-11-inch (M5) simulator. The installed app reports `CFBundleVersion` 146 and
-contains `Jak2SourceObjectPack` plus `Jak2ProjectResources`. It launches and
-enters the native Jak II runtime with the existing prepared title/gameplay data.
+11-inch (M5) simulator. The superseded local binary contained
+`Jak2SourceObjectPack` plus `Jak2ProjectResources` and launched the native Jak II
+runtime with the existing prepared title/gameplay data. The isolated Jak II
+target now uses its own bundle build sequence beginning at 1.
 
-Live validation then exposed the first Build 146 blocker. At tick 30 the host
+Live validation then exposed the first Jak II playtest blocker. At tick 30 the host
 records:
 
 ```text
@@ -15923,6 +15926,6 @@ visual/build146-simulator-launch.png
 visual/build146-water-bucket252-failure.png
 ```
 
-The Build 146 simulator app was terminated after capturing the failure so it
+The historical simulator app was terminated after capturing the failure so it
 does not consume resources while the renderer patch is prepared. No physical
 device operation has occurred at this checkpoint.
