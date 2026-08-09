@@ -20,16 +20,17 @@ rg -Fq 'Transaction.updates' "$store"
 rg -Fq '.task { await EcoTipTransactionObserver.run() }' "$app"
 rg -Fq 'Text(product.displayPrice)' "$views"
 rg -Fq 'Text("Unavailable")' "$views"
-rg -Fq 'Text("The app is free. These are optional one-time tips that help fund development and maintenance. Thank you for your support.")' "$views"
+rg -Fq 'Text("The app is free. These are optional tips that help fund development and maintenance. Thank you for your support.")' "$views"
 rg -Fq 'SupportRow(title: "Contact"' "$views"
-rg -Fq 'SupportRow(title: "About"' "$views"
 rg -Fq 'SupportRow(title: "Donate"' "$views"
+rg -Fq 'SupportPage(title: "About")' "$views"
+rg -Fq 'mailto:contact@zephyrstudios.dev?subject=Eco%20Support' "$views"
+rg -Fq 'Label("Contact support", systemImage: "envelope")' "$views"
+rg -Fq 'Want to support the OpenGOAL project directly? Visit their official project page.' "$views"
 
 contact_line=$(rg -n -F 'SupportRow(title: "Contact"' "$views" | cut -d: -f1)
-about_line=$(rg -n -F 'SupportRow(title: "About"' "$views" | cut -d: -f1)
 donate_line=$(rg -n -F 'SupportRow(title: "Donate"' "$views" | cut -d: -f1)
-test "$contact_line" -lt "$about_line"
-test "$about_line" -lt "$donate_line"
+test "$contact_line" -lt "$donate_line"
 
 if rg -qi 'restore purchase|restore purchases' "$store" "$views"; then
   echo "consumable tips must not offer a restore action" >&2
@@ -37,9 +38,11 @@ if rg -qi 'restore purchase|restore purchases' "$store" "$views"; then
 fi
 
 settings_line=$(rg -n -F 'Label("Settings", systemImage: "gearshape")' "$library" | cut -d: -f1)
-credits_line=$(rg -n -F 'Label("Credits", systemImage: "person.3")' "$library" | cut -d: -f1)
-support_line=$(rg -n -F 'Label("Support", systemImage: "heart")' "$library" | cut -d: -f1)
-test "$settings_line" -lt "$credits_line"
-test "$credits_line" -lt "$support_line"
+about_line=$(rg -n -F 'Label("About", systemImage: "info.circle")' "$library" | cut -d: -f1)
+test "$settings_line" -lt "$about_line"
+if rg -q 'Label\("Credits"|Label\("Support"' "$library"; then
+  echo "launcher must expose the merged About destination only" >&2
+  exit 1
+fi
 
 printf '%s\n' "support purchase checks passed"

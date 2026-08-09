@@ -9,6 +9,10 @@ struct ContentView: View {
     var body: some View { Color.clear }
 }
 
+nonisolated enum EcoTipTransactionObserver {
+    static func run() async {}
+}
+
 @MainActor
 struct GameCenterRootView<Content: View>: View {
     private let content: Content
