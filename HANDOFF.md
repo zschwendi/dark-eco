@@ -15658,13 +15658,16 @@ the retained Build 143 development-signing limitation. No physical device was
 installed, launched, logged, or captured. Both boat directions and both gondola
 directions remain physical acceptance gates.
 
-Separate queued polish: the maintainer accepts the Build 143 controls-guide
-direction but reports that its illustrated controller sticks are not
-proportional and the colors do not match the intended controller presentation.
-A reference screenshot was AirDropped to the Mac mini. A bounded subagent
-connected read-only through the `aigp-mac-mini` SSH alias, but macOS denied SSH
-access to both Desktop and Downloads and a narrow Spotlight image query returned
-no candidate. No guide change was guessed or made. Resume only after the image
-is attached here or copied to an SSH-readable location such as `/Users/Shared`;
-edit only guide artwork/layout, not gameplay input, touch geometry, or
-controller behavior.
+Build 145 integrates the guide-only commit
+`fb300feeb6f10844148e2dba9c039678beb49a5b` over the archived Build 144 travel
+candidate. The maintainer placed the reference at
+`/Users/zach/Desktop/IMG_0852.PNG`; it shows the live movement stick's 108-point
+ring and 66-point pale thumb disc beside the camera stick's smaller 76-point
+ring and 32-point brighter disc. The static guide now uses those same ratios,
+resting fills, outlines, and label treatment. Only
+`GOALPad/Game/TouchControlsGuideView.swift` changed for that correction; live
+gameplay input, touch geometry, controller routing, HUD behavior, renderer,
+settings, and OpenGOAL remain unchanged. Focused Swift parse, presentation UI,
+and diff checks passed. Both project configurations are bumped to Build 145;
+signed archive and authorized physical install/launch evidence follows after
+integration validation.

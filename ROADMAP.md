@@ -87,17 +87,17 @@ The active product sequence is now:
 
 1. Preserve main Build 141 and the prior Build 130 physical evidence while
    Build 143 remains isolated.
-2. Preserve Build 143's physical Snowy rejection. Build 144 now archives the
-   common boat/gondola spooled-animation clock repair with focused source/model,
-   native syntax, and signed generic-iOS build evidence. Physically validate
+2. Preserve Build 143's physical Snowy rejection. Build 144 archives the common
+   boat/gondola spooled-animation clock repair with focused source/model, native
+   syntax, and signed generic-iOS build evidence. Build 145 adds only the
+   screenshot-matched static controls-guide stick artwork. Physically validate
    both routes plus touch notice acknowledgement, first-person fire, the
    one-time controls guide, and Return to Library before promotion.
 3. Keep Graphics Modern Fit to Screen, controller behavior, and the accepted
    single-owner touch path unchanged while closing only actual MVP blockers.
-   Correct the Build 143 controls-guide illustration from the maintainer's
-   AirDropped reference without changing live input or touch layout. SSH could
-   not read the Mac mini's protected Desktop/Downloads, so wait for the reference
-   in an accessible location rather than guessing its proportions or palette.
+   The Build 145 guide correction now matches the maintainer's MacBook reference
+   and the authoritative live stick artwork without changing live input or touch
+   layout.
 4. Treat isolated Build 142 as a visionOS external-target prerequisite only.
    Advance the next synchronous two-view renderer proof after the iPhone/iPad
    MVP is stable; do not present it as playable stereoscopic rendering.
