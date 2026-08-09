@@ -21,6 +21,7 @@ namespace {
 goal_jak2_metal_host g_host = {1};
 goal_jak2_runtime_metrics g_runtime = {};
 goal_jak2_progress_menu_snapshot g_progress = {};
+goal_jak2_progress_menu_semantic_snapshot g_progress_semantic = {};
 goal_jak2_progress_menu_diagnostics g_progress_diagnostics = {};
 goal_jak2_metal_host_metrics g_metal = {};
 goal_pad_state g_pad = {};
@@ -180,6 +181,15 @@ goal_jak2_runtime_status goal_jak2_runtime_get_progress_menu_snapshot(
   return GOAL_JAK2_RUNTIME_OK;
 }
 
+goal_jak2_runtime_status goal_jak2_runtime_get_progress_menu_semantic_snapshot(
+    goal_jak2_progress_menu_semantic_snapshot* out) {
+  if (!out) {
+    return GOAL_JAK2_RUNTIME_INVALID_ARGUMENT;
+  }
+  *out = g_progress_semantic;
+  return GOAL_JAK2_RUNTIME_OK;
+}
+
 goal_jak2_runtime_status goal_jak2_runtime_get_progress_menu_diagnostics(
     goal_jak2_progress_menu_diagnostics* out) {
   if (!out) {
@@ -321,6 +331,56 @@ int main() {
     check(!GOALPadRuntimeBridge.progressMenuSnapshot.available,
           "the Objective-C bridge rejects an invalid native title option");
     g_progress = {};
+
+    const auto check_semantic = [](int32_t phase, int32_t option, uint32_t actions,
+                                   GOALPadJak2ProgressMenuPhase expected_phase,
+                                   const char* message) {
+      g_progress_semantic = {1, phase, option, actions};
+      const auto semantic = GOALPadRuntimeBridge.jak2ProgressMenuSemanticSnapshot;
+      check(semantic.available && semantic.phase == expected_phase &&
+                semantic.optionIndex == option && semantic.actionMask == actions,
+            message);
+    };
+    check_semantic(GOAL_JAK2_PROGRESS_MENU_PHASE_SELECT_SAVE_TITLE, 4,
+                   GOAL_JAK2_PROGRESS_MENU_ACTION_UP |
+                       GOAL_JAK2_PROGRESS_MENU_ACTION_DOWN |
+                       GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM,
+                   GOALPadJak2ProgressMenuPhaseSelectSaveTitle,
+                   "the bridge preserves exact five-row save selection semantics");
+    check_semantic(GOAL_JAK2_PROGRESS_MENU_PHASE_NO_MEMORY_CARD, 0,
+                   GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM,
+                   GOALPadJak2ProgressMenuPhaseNoMemoryCard,
+                   "the bridge preserves title-origin no-card Confirm");
+    check_semantic(GOAL_JAK2_PROGRESS_MENU_PHASE_CREATE_GAME, 0,
+                   GOAL_JAK2_PROGRESS_MENU_ACTION_LEFT |
+                       GOAL_JAK2_PROGRESS_MENU_ACTION_RIGHT |
+                       GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM,
+                   GOALPadJak2ProgressMenuPhaseCreateGame,
+                   "the bridge preserves create-game Left, Right, and Confirm");
+    check_semantic(GOAL_JAK2_PROGRESS_MENU_PHASE_CREATING, 0,
+                   GOAL_JAK2_PROGRESS_MENU_ACTION_NONE,
+                   GOALPadJak2ProgressMenuPhaseCreating,
+                   "the bridge preserves an inert creating phase");
+    check_semantic(GOAL_JAK2_PROGRESS_MENU_PHASE_SAVING, 0,
+                   GOAL_JAK2_PROGRESS_MENU_ACTION_NONE,
+                   GOALPadJak2ProgressMenuPhaseSaving,
+                   "the bridge preserves an inert saving phase");
+
+    g_progress_semantic = {1, GOAL_JAK2_PROGRESS_MENU_PHASE_SELECT_SAVE_TITLE, 5,
+                           GOAL_JAK2_PROGRESS_MENU_ACTION_UP |
+                               GOAL_JAK2_PROGRESS_MENU_ACTION_DOWN |
+                               GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM};
+    check(!GOALPadRuntimeBridge.jak2ProgressMenuSemanticSnapshot.available,
+          "the bridge rejects a sixth save row");
+    g_progress_semantic = {1, GOAL_JAK2_PROGRESS_MENU_PHASE_NO_MEMORY_CARD, 0,
+                           GOAL_JAK2_PROGRESS_MENU_ACTION_LEFT |
+                               GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM};
+    check(!GOALPadRuntimeBridge.jak2ProgressMenuSemanticSnapshot.available,
+          "the bridge rejects an action not proven for the phase");
+    g_progress_semantic = {1, 99, 0, GOAL_JAK2_PROGRESS_MENU_ACTION_NONE};
+    check(!GOALPadRuntimeBridge.jak2ProgressMenuSemanticSnapshot.available,
+          "the bridge rejects an unknown semantic phase");
+    g_progress_semantic = {};
     check(!GOALPadRuntimeBridge.warpGateTouchSnapshot.valid &&
               !GOALPadRuntimeBridge.cutsceneSkipTouchSnapshot.valid &&
               !GOALPadRuntimeBridge.facePromptTouchSnapshot.valid,

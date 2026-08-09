@@ -167,6 +167,32 @@ typedef struct GOALPadProgressMenuSnapshot {
   BOOL canGoBack;
 } GOALPadProgressMenuSnapshot;
 
+/// Jak II save-flow meanings whose symbols and responders are proven independently of Jak 1 IDs.
+typedef NS_ENUM(int32_t, GOALPadJak2ProgressMenuPhase) {
+  GOALPadJak2ProgressMenuPhaseUnavailable = 0,
+  GOALPadJak2ProgressMenuPhaseSelectSaveTitle = 1,
+  GOALPadJak2ProgressMenuPhaseNoMemoryCard = 2,
+  GOALPadJak2ProgressMenuPhaseCreateGame = 3,
+  GOALPadJak2ProgressMenuPhaseCreating = 4,
+  GOALPadJak2ProgressMenuPhaseSaving = 5,
+};
+
+typedef NS_OPTIONS(uint32_t, GOALPadJak2ProgressMenuAction) {
+  GOALPadJak2ProgressMenuActionNone = 0,
+  GOALPadJak2ProgressMenuActionUp = 1u << 0,
+  GOALPadJak2ProgressMenuActionDown = 1u << 1,
+  GOALPadJak2ProgressMenuActionLeft = 1u << 2,
+  GOALPadJak2ProgressMenuActionRight = 1u << 3,
+  GOALPadJak2ProgressMenuActionConfirm = 1u << 4,
+};
+
+typedef struct GOALPadJak2ProgressMenuSemanticSnapshot {
+  BOOL available;
+  GOALPadJak2ProgressMenuPhase phase;
+  int32_t optionIndex;
+  uint32_t actionMask;
+} GOALPadJak2ProgressMenuSemanticSnapshot;
+
 typedef NS_ENUM(NSInteger, GOALPadWarpGateTouchState) {
   GOALPadWarpGateTouchStateUnavailable = 0,
   GOALPadWarpGateTouchStateCircleUseAvailable = 1,
@@ -249,6 +275,9 @@ typedef struct GOALPadFacePromptTouchSnapshot {
 @property(class, nonatomic, readonly) GOALPadSpeederState speederState;
 /// A fail-closed read of Jak's live progress process; reading it never advances or mutates GOAL.
 @property(class, nonatomic, readonly) GOALPadProgressMenuSnapshot progressMenuSnapshot;
+/// A separate fail-closed Jak II semantic ABI; it never reuses Jak 1 progress screen numbers.
+@property(class, nonatomic, readonly)
+    GOALPadJak2ProgressMenuSemanticSnapshot jak2ProgressMenuSemanticSnapshot;
 /// GOAL-owned warp-gate touch semantics. Invalid and valid-unavailable snapshots are distinct.
 @property(class, nonatomic, readonly) GOALPadWarpGateTouchSnapshot warpGateTouchSnapshot;
 /// GOAL-owned, fail-closed Triangle-query availability for explicitly skippable animations only.

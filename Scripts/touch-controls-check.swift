@@ -1944,6 +1944,18 @@ private func progressSnapshot(screen: Int, option: Int = 0,
                                canGoBack: canGoBack)
 }
 
+private func jak2ProgressSnapshot(
+    phase: NativeJak2ProgressMenuSemanticSnapshot.Phase,
+    option: Int = 0,
+    actions: UInt32
+) -> NativeProgressMenuSnapshot {
+    NativeProgressMenuSnapshot(
+        available: false, screenRawValue: -2, optionIndex: -1,
+        selectedOption: false, inTransition: false,
+        jak2Semantic: NativeJak2ProgressMenuSemanticSnapshot(
+            available: true, phase: phase, optionIndex: option, actionMask: actions))
+}
+
 private func warpList(slot: Int32 = 0, mask: UInt32 = 0x1f,
                       moving: Bool = false,
                       sequence: UInt32 = 2) -> NativeWarpGateTouchSnapshot {
@@ -1967,6 +1979,50 @@ private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
           "debug menu exposes its exact D-pad, Square, and X actions without duplicate Resume")
     check(NativeMenuTouchAction.available(in: .progress).isEmpty,
           "progress fails closed without an authoritative internal snapshot")
+    let up = UInt32(1 << 0)
+    let down = UInt32(1 << 1)
+    let left = UInt32(1 << 2)
+    let right = UInt32(1 << 3)
+    let confirm = UInt32(1 << 4)
+    for option in 0...4 {
+        check(NativeMenuTouchAction.available(
+            in: .progress,
+            progress: jak2ProgressSnapshot(
+                phase: .selectSaveTitle, option: option,
+                actions: up | down | confirm)) == [.up, .down, .confirm],
+              "Jak II save row \(option) exposes only Up, Down, and Confirm")
+    }
+    check(NativeMenuTouchAction.available(
+        in: .progress,
+        progress: jak2ProgressSnapshot(phase: .noMemoryCard, actions: confirm))
+          == [.confirm],
+          "Jak II title-origin no-card exposes only Confirm")
+    check(NativeMenuTouchAction.available(
+        in: .progress,
+        progress: jak2ProgressSnapshot(
+            phase: .createGame, actions: left | right | confirm))
+          == [.left, .right, .confirm],
+          "Jak II create-game exposes only Left, Right, and Confirm")
+    check(NativeMenuTouchAction.available(
+        in: .progress,
+        progress: jak2ProgressSnapshot(phase: .creating, actions: 0)).isEmpty
+          && NativeMenuTouchAction.available(
+            in: .progress,
+            progress: jak2ProgressSnapshot(phase: .saving, actions: 0)).isEmpty,
+          "Jak II creating and saving remain observable but inert")
+    check(NativeMenuTouchAction.available(
+        in: .progress,
+        progress: jak2ProgressSnapshot(
+            phase: .selectSaveTitle, option: 5, actions: up | down | confirm)).isEmpty
+          && NativeMenuTouchAction.available(
+            in: .progress,
+            progress: jak2ProgressSnapshot(
+                phase: .noMemoryCard, actions: left | confirm)).isEmpty
+          && NativeMenuTouchAction.available(
+            in: .progress,
+            progress: jak2ProgressSnapshot(
+                phase: .unavailable, actions: 0)).isEmpty,
+          "Jak II semantic option, action, and phase mismatches fail closed")
     let stats = progressSnapshot(screen: 0)
     check(NativeMenuTouchAction.available(in: .progress, progress: stats)
           == [.up, .down, .left, .right,

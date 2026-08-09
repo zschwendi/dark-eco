@@ -32,6 +32,38 @@ static_assert((uint32_t)GOALPadButtonCross == (uint32_t)GOAL_PAD_X, "pad bit dri
 static_assert((uint32_t)GOALPadButtonSquare == (uint32_t)GOAL_PAD_SQUARE, "pad bit drift");
 static_assert(GOALPadAnalogNeutral == GOAL_PAD_ANALOG_NEUTRAL, "analog neutral drift");
 static_assert(GOALPadPortCount == GOAL_PAD_PORTS, "port count drift");
+static_assert(sizeof(goal_jak2_progress_menu_semantic_snapshot) == 16,
+              "Jak II progress semantic ABI drift");
+static_assert((int32_t)GOALPadJak2ProgressMenuPhaseSelectSaveTitle ==
+                  GOAL_JAK2_PROGRESS_MENU_PHASE_SELECT_SAVE_TITLE,
+              "Jak II progress phase drift");
+static_assert((int32_t)GOALPadJak2ProgressMenuPhaseNoMemoryCard ==
+                  GOAL_JAK2_PROGRESS_MENU_PHASE_NO_MEMORY_CARD,
+              "Jak II progress phase drift");
+static_assert((int32_t)GOALPadJak2ProgressMenuPhaseCreateGame ==
+                  GOAL_JAK2_PROGRESS_MENU_PHASE_CREATE_GAME,
+              "Jak II progress phase drift");
+static_assert((int32_t)GOALPadJak2ProgressMenuPhaseCreating ==
+                  GOAL_JAK2_PROGRESS_MENU_PHASE_CREATING,
+              "Jak II progress phase drift");
+static_assert((int32_t)GOALPadJak2ProgressMenuPhaseSaving ==
+                  GOAL_JAK2_PROGRESS_MENU_PHASE_SAVING,
+              "Jak II progress phase drift");
+static_assert((uint32_t)GOALPadJak2ProgressMenuActionUp ==
+                  GOAL_JAK2_PROGRESS_MENU_ACTION_UP,
+              "Jak II progress action drift");
+static_assert((uint32_t)GOALPadJak2ProgressMenuActionDown ==
+                  GOAL_JAK2_PROGRESS_MENU_ACTION_DOWN,
+              "Jak II progress action drift");
+static_assert((uint32_t)GOALPadJak2ProgressMenuActionLeft ==
+                  GOAL_JAK2_PROGRESS_MENU_ACTION_LEFT,
+              "Jak II progress action drift");
+static_assert((uint32_t)GOALPadJak2ProgressMenuActionRight ==
+                  GOAL_JAK2_PROGRESS_MENU_ACTION_RIGHT,
+              "Jak II progress action drift");
+static_assert((uint32_t)GOALPadJak2ProgressMenuActionConfirm ==
+                  GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM,
+              "Jak II progress action drift");
 
 namespace {
 
@@ -263,6 +295,41 @@ GOALPadProgressMenuSnapshot unavailable_progress_snapshot() {
   snapshot.optionIndex = -1;
   snapshot.startingScreen = GOALPadProgressScreenUnknown;
   return snapshot;
+}
+
+GOALPadJak2ProgressMenuSemanticSnapshot unavailable_progress_semantic_snapshot() {
+  GOALPadJak2ProgressMenuSemanticSnapshot snapshot = {};
+  snapshot.phase = GOALPadJak2ProgressMenuPhaseUnavailable;
+  snapshot.optionIndex = -1;
+  return snapshot;
+}
+
+bool valid_progress_semantic_snapshot(
+    const goal_jak2_progress_menu_semantic_snapshot& snapshot) {
+  if (snapshot.available != 1) {
+    return false;
+  }
+  switch (snapshot.phase) {
+    case GOAL_JAK2_PROGRESS_MENU_PHASE_SELECT_SAVE_TITLE:
+      return snapshot.option_index >= 0 && snapshot.option_index <= 4 &&
+             snapshot.action_mask == (GOAL_JAK2_PROGRESS_MENU_ACTION_UP |
+                                      GOAL_JAK2_PROGRESS_MENU_ACTION_DOWN |
+                                      GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM);
+    case GOAL_JAK2_PROGRESS_MENU_PHASE_NO_MEMORY_CARD:
+      return snapshot.option_index == 0 &&
+             snapshot.action_mask == GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM;
+    case GOAL_JAK2_PROGRESS_MENU_PHASE_CREATE_GAME:
+      return snapshot.option_index == 0 &&
+             snapshot.action_mask == (GOAL_JAK2_PROGRESS_MENU_ACTION_LEFT |
+                                      GOAL_JAK2_PROGRESS_MENU_ACTION_RIGHT |
+                                      GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM);
+    case GOAL_JAK2_PROGRESS_MENU_PHASE_CREATING:
+    case GOAL_JAK2_PROGRESS_MENU_PHASE_SAVING:
+      return snapshot.option_index == 0 &&
+             snapshot.action_mask == GOAL_JAK2_PROGRESS_MENU_ACTION_NONE;
+    default:
+      return false;
+  }
 }
 
 GOALPadWarpGateTouchSnapshot unavailable_warp_gate_snapshot() {
@@ -625,6 +692,23 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
   snapshot.inTransition = core.in_transition ? YES : NO;
   snapshot.navigationAvailable = core.navigation_available ? YES : NO;
   snapshot.startingScreen = GOALPadProgressScreenTitle;
+  return snapshot;
+}
+
++ (GOALPadJak2ProgressMenuSemanticSnapshot)jak2ProgressMenuSemanticSnapshot {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  goal_jak2_progress_menu_semantic_snapshot core = {};
+  if (goal_jak2_runtime_get_progress_menu_semantic_snapshot(&core) !=
+          GOAL_JAK2_RUNTIME_OK ||
+      !valid_progress_semantic_snapshot(core)) {
+    return unavailable_progress_semantic_snapshot();
+  }
+
+  GOALPadJak2ProgressMenuSemanticSnapshot snapshot = {};
+  snapshot.available = YES;
+  snapshot.phase = static_cast<GOALPadJak2ProgressMenuPhase>(core.phase);
+  snapshot.optionIndex = core.option_index;
+  snapshot.actionMask = core.action_mask;
   return snapshot;
 }
 

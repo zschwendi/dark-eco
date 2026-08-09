@@ -209,7 +209,9 @@ final class GameSession {
         isRunning = true
         updateNativeMenuState(mode: GOALPadRuntimeBridge.gameMode,
                               progress: NativeProgressMenuSnapshot(
-                                GOALPadRuntimeBridge.progressMenuSnapshot),
+                                GOALPadRuntimeBridge.progressMenuSnapshot,
+                                jak2Semantic: NativeJak2ProgressMenuSemanticSnapshot(
+                                    GOALPadRuntimeBridge.jak2ProgressMenuSemanticSnapshot)),
                               titleStartState: GOALPadRuntimeBridge.titleStartState)
         updateWarpGateTouchSnapshot(NativeWarpGateTouchSnapshot(
             GOALPadRuntimeBridge.warpGateTouchSnapshot))
@@ -284,7 +286,9 @@ final class GameSession {
             framesRun = GOALPadRuntimeBridge.framesRun
             let currentMode = GOALPadRuntimeBridge.gameMode
             let currentProgress = NativeProgressMenuSnapshot(
-                GOALPadRuntimeBridge.progressMenuSnapshot)
+                GOALPadRuntimeBridge.progressMenuSnapshot,
+                jak2Semantic: NativeJak2ProgressMenuSemanticSnapshot(
+                    GOALPadRuntimeBridge.jak2ProgressMenuSemanticSnapshot))
             let currentTitleStartState = GOALPadRuntimeBridge.titleStartState
             if currentMode != gameMode || currentProgress != progressMenuSnapshot
                 || currentTitleStartState != titleStartState {
