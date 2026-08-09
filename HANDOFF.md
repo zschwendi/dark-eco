@@ -16004,12 +16004,17 @@ The resulting `EcoJak2Dev.app` is a thin arm64 bundle, identifier
 configured Apple Development identity and team `V729QMY3V6`. Its build log is
 `.agent-builds/jak2-ipad-playtest-20260809/logs/water-physical-device-build.log`.
 
-Physical installation remains pending. `Z iPad Pro` was listed as paired and
-available, but it was not present on USB and two authorized CoreDevice install
-attempts failed before transfer with `CoreDeviceError 4000` / `NWError 60`
-(`The tunnel was interrupted while establishing connectivity`). Stop retrying
-until USB is attached or the wireless CoreDevice tunnel is healthy. No app was
-installed or launched on the physical device in this checkpoint.
+The first two authorized physical-install attempts failed before transfer with
+`CoreDeviceError 4000` / `NWError 60` while the iPad was locked. After the
+maintainer unlocked it, CoreDevice acquired the tunnel and installed the exact
+signed bundle successfully. `devicectl` then launched
+`com.zephyrstudiosllc.eco.jak2dev`; the 30-second console attachment timed out
+only because the long-running app did not terminate, and a subsequent process
+query confirmed `EcoJak2Dev` remained live as PID 25443. Installation and
+launch are therefore physically proven. Native Jak II water execution on the
+physical device still requires the maintainer to select Jak II in the on-device
+Library UI if the app did not restore that selection; no synthetic physical
+tap was injected.
 
 The water execution gate is complete in Simulator, but this is not a claim that
 all Jak II rendering is visually complete. The retained title screenshot still
