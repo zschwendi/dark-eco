@@ -151,9 +151,12 @@ nonisolated enum GameLibraryOfferCopy {
     ) -> String {
         let ownership = "Provide game data from a copy of \(title.shelfName) you legally own."
         if title == .jak2 {
-            return ownership + " This build accepts a prepared out/jak2 folder for its versioned "
-                + "title/gameplay launch contract. Experimental native launch is available; "
-                + "full-game completeness is not verified, and raw ISO/ZIP preparation remains unavailable."
+            let sources = canImportRawISO
+                ? "a prepared out/jak2 folder, a supported .iso, or a standard .zip containing exactly one .iso"
+                : "a prepared out/jak2 folder"
+            return ownership + " This build accepts \(sources) for its versioned title/gameplay "
+                + "launch contract. Experimental native launch is available; full-game completeness "
+                + "is not verified."
         }
         if canImportRawISO {
             return ownership + " This build accepts a prepared out/jak1 folder, a supported .iso, "

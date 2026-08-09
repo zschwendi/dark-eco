@@ -73,8 +73,8 @@ private struct GameDataProfileSelectionCheck {
         if expected == .jak2 {
             check(expected.preparedFolderName == "out/jak2",
                   "the Jak II shell accepts the OpenGOAL prepared root")
-            check(!expected.supportsRawMediaPreparation && expected.supportsRuntimeLaunch,
-                  "the Jak II shell enables native launch without claiming a raw-media composer")
+            check(expected.supportsRawMediaPreparation && expected.supportsRuntimeLaunch,
+                  "the Jak II shell enables its selected raw-media composer and native launch")
             check(!expected.supportsManagedSaveSync,
                   "the Jak II shell keeps Jak 1 cloud merge unavailable")
             check(GameLibraryCardAction.resolve(
@@ -90,8 +90,8 @@ private struct GameDataProfileSelectionCheck {
             )
             check(offer.contains("out/jak2") && offer.contains("title/gameplay launch contract")
                   && offer.contains("Experimental native launch")
-                  && offer.contains("raw ISO/ZIP preparation remains unavailable"),
-                  "the Jak II library offer stays prepared-only and labels launch experimental")
+                  && offer.contains("supported .iso") && offer.contains("exactly one .iso"),
+                  "the Jak II library offer names raw preparation and labels launch experimental")
         } else {
             check(expected.preparedFolderName == "out/jak1",
                   "the public build retains the Jak 1 prepared root")

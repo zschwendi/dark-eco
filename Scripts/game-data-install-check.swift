@@ -206,8 +206,8 @@ private func preparedFolder(
           ]
           && manifest.preparedDataContractVersion == 1,
           "Jak II declares the source-derived title and initial New Game contract v1")
-    check(!GameDataProfile.jak2.supportsRawMediaPreparation,
-          "Jak II cannot route raw ISO or ZIP input before a composer exists")
+    check(GameDataProfile.jak2.supportsRawMediaPreparation,
+          "Jak II routes raw ISO and ZIP input through its selected composer")
     check(GameDataProfile.jak2.supportsRuntimeLaunch,
           "Jak II contract readiness can enter the experimental native runtime")
 }

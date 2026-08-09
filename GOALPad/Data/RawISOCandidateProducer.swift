@@ -175,7 +175,7 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
                 message: message.isEmpty ? "This disc revision is not supported." : message,
                 candidatePreserved: preserved
             )
-        case .sourcePackFailed:
+        case .sourcePackFailed, .projectResourcesFailed:
             return GameDataImportFailure(
                 code: .appResourcesUnavailable,
                 message: message.isEmpty

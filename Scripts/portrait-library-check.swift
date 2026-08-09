@@ -320,8 +320,8 @@ do {
           "prepared-only Jak 1 offer does not advertise unavailable importers")
     let jak2Offer = GameLibraryOfferCopy.importMessage(for: .jak2, canImportRawISO: true)
     check(jak2Offer.contains("out/jak2") && jak2Offer.contains("title/gameplay launch contract")
-          && jak2Offer.contains("raw ISO/ZIP preparation remains unavailable"),
-          "Jak II offers only the prepared launch contract even if Jak 1 resources exist")
+          && jak2Offer.contains("supported .iso") && jak2Offer.contains("exactly one .iso"),
+          "Jak II offers raw preparation only when its composer resources are available")
     check(GameLibraryOfferCopy.unsupportedMessage(for: .jak2).contains("Jak II")
           && GameLibraryOfferCopy.unsupportedMessage(for: .jak3).contains("Jak 3"),
           "unsupported offers remain title-specific")

@@ -6,14 +6,17 @@ nonisolated enum GameDataImportPresentation {
         for profile: GameDataProfile = .active,
         rawISOAvailable: Bool
     ) -> String {
+        if rawISOAvailable && profile.supportsRawMediaPreparation {
+            let sources = "Prepared OpenGOAL \(profile.preparedFolderName) folder, ISO disc image, "
+                + "or ZIP archive with exactly one ISO"
+            guard profile.readiness == .experimentalTitleAndGameplay else { return sources }
+            return sources + " (\(profile.readinessContractLabel ?? "experimental launch contract"); "
+                + "full-game completeness is not verified)"
+        }
         if profile.readiness == .experimentalTitleAndGameplay {
             return "Prepared OpenGOAL \(profile.preparedFolderName) folder ("
                 + "\(profile.readinessContractLabel ?? "experimental launch contract"); "
                 + "full-game completeness is not verified)"
-        }
-        if rawISOAvailable && profile.supportsRawMediaPreparation {
-            return "Prepared OpenGOAL \(profile.preparedFolderName) folder, ISO disc image, "
-                + "or ZIP archive with exactly one ISO"
         }
         return "Prepared OpenGOAL \(profile.preparedFolderName) folder"
     }

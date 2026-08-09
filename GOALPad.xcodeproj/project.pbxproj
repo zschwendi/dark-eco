@@ -637,9 +637,11 @@
 			buildPhases = (
 				A74000000000000000000002 /* Verify Jak II AOT */,
 				A74000000000000000000003 /* Build Jak II native runtime */,
+				A74100000000000000000001 /* Build Jak II import composer */,
 				A74000000000000000000004 /* Sources */,
 				A74000000000000000000005 /* Frameworks */,
 				A74000000000000000000006 /* Resources */,
+				A74100000000000000000002 /* Stage Jak II importer resources */,
 			);
 			buildRules = (
 			);
@@ -785,6 +787,58 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"$SRCROOT/Scripts/build-jak2-native-apple.sh\"\n";
+		};
+		A74100000000000000000001 /* Build Jak II import composer */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/Scripts/build-jak2-import-composer-apple.sh",
+				"$(SRCROOT)/Scripts/build-jak1-import-composer-apple.sh",
+				"$(GOALPAD_OPENGOAL_PHASE_INPUT)",
+				"$(GOALPAD_OPENGOAL_GITFILE_PHASE_INPUT)",
+				"$(GOALPAD_OPENGOAL_GIT_METADATA_PHASE_INPUT)",
+				"$(GOALPAD_JAK2_SOURCE_OBJECT_PACK_PHASE_INPUT)",
+			);
+			name = "Build Jak II import composer";
+			outputPaths = (
+				"$(GOALPAD_JAK2_IMPORT_BUILD_ROOT)",
+				"$(GOALPAD_JAK2_IMPORT_ARCHIVE)",
+				"$(GOALPAD_JAK2_SOURCE_OBJECT_PACK_VERIFIER)",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"${GOALPAD_HAS_JAK2_IMPORT_COMPOSER:-0}\" != 1 ]; then\n  echo \"Skipping Jak II import composer for this configuration and architecture\"\n  exit 0\nfi\n\"$SRCROOT/Scripts/build-jak2-import-composer-apple.sh\"\n";
+		};
+		A74100000000000000000002 /* Stage Jak II importer resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/Scripts/stage-jak2-import-composer-resources.sh",
+				"$(SRCROOT)/Scripts/stage-jak1-import-composer-resources.sh",
+				"$(SRCROOT)/Scripts/stage-jak2-import-resources.sh",
+				"$(SRCROOT)/Scripts/stage-import-resources.sh",
+				"$(GOALPAD_OPENGOAL_PHASE_INPUT)",
+				"$(GOALPAD_OPENGOAL_GITFILE_PHASE_INPUT)",
+				"$(GOALPAD_OPENGOAL_GIT_METADATA_PHASE_INPUT)",
+				"$(GOALPAD_JAK2_SOURCE_OBJECT_PACK_PHASE_INPUT)",
+				"$(GOALPAD_JAK2_IMPORT_BUILD_ROOT_PHASE_INPUT)",
+				"$(GOALPAD_JAK2_IMPORT_ARCHIVE_PHASE_INPUT)",
+				"$(GOALPAD_JAK2_SOURCE_OBJECT_PACK_VERIFIER_PHASE_INPUT)",
+			);
+			name = "Stage Jak II importer resources";
+			outputPaths = (
+				"$(GOALPAD_JAK2_PROJECT_RESOURCES)",
+				"$(GOALPAD_JAK2_SOURCE_OBJECT_PACK_RESOURCES)",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"${GOALPAD_HAS_JAK2_IMPORT_COMPOSER:-0}\" != 1 ]; then\n  echo \"Skipping Jak II importer resources for this configuration and architecture\"\n  exit 0\nfi\n\"$SRCROOT/Scripts/stage-jak2-import-composer-resources.sh\"\n";
 		};
 		A73300000000000000000001 /* Build Jak 1 import composer */ = {
 			isa = PBXShellScriptBuildPhase;

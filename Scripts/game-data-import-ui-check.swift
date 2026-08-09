@@ -28,6 +28,7 @@ let root = CommandLine.arguments[1]
 let view = source(at: root + "/GOALPad/Data/GameDataSetupView.swift")
 let content = source(at: root + "/GOALPad/ContentView.swift")
 let importer = source(at: root + "/GOALPad/Data/GameDataImporter.swift")
+let rawProducer = source(at: root + "/GOALPad/Data/RawISOCandidateProducer.swift")
 let presentation = source(at: root + "/GOALPad/Data/GameDataImportPresentation.swift")
 let theme = source(at: root + "/GOALPad/UI/DarkEcoTheme.swift")
 
@@ -63,6 +64,9 @@ check(importer.contains("profile.supportsRawMediaPreparation && RawISOCandidateP
         && importer.contains("case .zippedISO where canImportRawMedia:")
         && importer.contains("prepared OpenGOAL \\(profile.preparedFolderName) folder"),
       "raw ISO and ZIP routing consults the selected profile's composer resources")
+check(rawProducer.contains("case .sourcePackFailed, .projectResourcesFailed:")
+        && rawProducer.contains("code: .appResourcesUnavailable"),
+      "source-pack and project-resource verification failures stay app-resource failures")
 check(view.contains("GameDataImportPresentation.backgroundGuidance(phaseLabel: progress.phase.label)")
         && view.contains("GameDataImportPresentation.cancellationGuidance(")
         && view.contains("if progress.phase != .activatingCandidate"),

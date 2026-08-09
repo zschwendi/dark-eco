@@ -1,0 +1,99 @@
+#!/bin/sh
+# Source-level contract for the isolated Eco Jak II Dev import-composer phases and settings.
+
+set -eu
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+python3 - "$root" <<'PY'
+import pathlib
+import re
+import sys
+
+root = pathlib.Path(sys.argv[1])
+project = (root / "GOALPad.xcodeproj/project.pbxproj").read_text(encoding="utf-8")
+debug = (root / "Configuration/Jak2Dev-Debug.xcconfig").read_text(encoding="utf-8")
+release = (root / "Configuration/Jak2Dev-Release.xcconfig").read_text(encoding="utf-8")
+jak1_debug = (root / "Configuration/GOALPad-Importer-Debug.xcconfig").read_text(encoding="utf-8")
+jak1_release = (root / "Configuration/GOALPad-Importer-Release.xcconfig").read_text(encoding="utf-8")
+
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise SystemExit(message)
+
+def target_block(identifier: str) -> str:
+    match = re.search(rf"\t\t{identifier} /\*.*?\n\t\t\}};", project, re.DOTALL)
+    require(match is not None, f"missing native target {identifier}")
+    return match.group(0)
+
+jak2_target = target_block("A74000000000000000000001")
+jak2_phase_names = re.findall(r"/\* ([^*]+) \*/", re.search(
+    r"buildPhases = \((.*?)\n\t\t\t\);", jak2_target, re.DOTALL
+).group(1))
+require(jak2_phase_names == [
+    "Verify Jak II AOT",
+    "Build Jak II native runtime",
+    "Build Jak II import composer",
+    "Sources",
+    "Frameworks",
+    "Resources",
+    "Stage Jak II importer resources",
+], f"unexpected Eco Jak II Dev phase order: {jak2_phase_names}")
+
+jak1_target = target_block("92C2B201301C0D2F0025E4D5")
+jak1_phase_names = re.findall(r"/\* ([^*]+) \*/", re.search(
+    r"buildPhases = \((.*?)\n\t\t\t\);", jak1_target, re.DOTALL
+).group(1))
+require(jak1_phase_names == [
+    "Verify release AOT",
+    "Compile Metal shaders",
+    "Build Jak 1 import composer",
+    "Sources",
+    "Frameworks",
+    "Resources",
+    "Stage Jak 1 importer resources",
+], f"the GOALPad/Jak 1 target phase block changed: {jak1_phase_names}")
+require("Jak II" not in jak1_target and "GOALPAD_JAK2" not in jak1_target,
+        "Jak II importer wiring entered the GOALPad/Jak 1 target")
+
+for marker in (
+    "A74100000000000000000001 /* Build Jak II import composer */ = {",
+    '"$(SRCROOT)/Scripts/build-jak2-import-composer-apple.sh"',
+    '"$(GOALPAD_JAK2_IMPORT_ARCHIVE)"',
+    '"$(GOALPAD_JAK2_SOURCE_OBJECT_PACK_VERIFIER)"',
+    "A74100000000000000000002 /* Stage Jak II importer resources */ = {",
+    '"$(SRCROOT)/Scripts/stage-jak2-import-composer-resources.sh"',
+    '"$(SRCROOT)/Scripts/stage-jak2-import-resources.sh"',
+    '"$(GOALPAD_JAK2_PROJECT_RESOURCES)"',
+    '"$(GOALPAD_JAK2_SOURCE_OBJECT_PACK_RESOURCES)"',
+):
+    require(marker in project, f"missing project contract: {marker}")
+
+for marker in (
+    "GOALPAD_HAS_JAK1_IMPORT_COMPOSER = 0",
+    "GOALPAD_HAS_JAK2_IMPORT_COMPOSER = 0",
+    "GOALPAD_JAK2_SOURCE_OBJECT_PACK_ROOT = $(SRCROOT)/build/jak2-source-object-pack",
+    "GOALPAD_JAK2_IMPORT_BUILD_ROOT = $(DERIVED_FILE_DIR)/Jak2ImportComposer",
+    "GOALPAD_JAK2_IMPORT_ARCHIVE = $(DERIVED_FILE_DIR)/Jak2ImportComposer/$(PLATFORM_NAME)/jak2-import-composer-apple/libjak2-import-composer-apple.a",
+    "GOALPAD_JAK2_PROJECT_RESOURCES = $(GOALPAD_APP_RESOURCE_DESTINATION)/Jak2ProjectResources",
+    "GOALPAD_JAK2_SOURCE_OBJECT_PACK_RESOURCES = $(GOALPAD_APP_RESOURCE_DESTINATION)/Jak2SourceObjectPack",
+    "GOALPAD_HAS_JAK1_IMPORT_COMPOSER=$(GOALPAD_HAS_JAK1_IMPORT_COMPOSER)",
+    "GOALPAD_HAS_JAK2_IMPORT_COMPOSER=$(GOALPAD_HAS_JAK2_IMPORT_COMPOSER)",
+):
+    require(marker in debug, f"missing Jak II Debug setting: {marker}")
+
+for marker in (
+    '#include "Jak2Dev-Debug.xcconfig"',
+    "GOALPAD_HAS_JAK2_IMPORT_COMPOSER = 0",
+    "GOALPAD_HAS_JAK2_IMPORT_COMPOSER[sdk=iphoneos*] = 1",
+    "GOALPAD_HAS_JAK2_IMPORT_COMPOSER[sdk=iphonesimulator*] = 1",
+    'OTHER_LDFLAGS[sdk=iphoneos*] = $(inherited) "$(GOALPAD_JAK2_IMPORT_ARCHIVE)"',
+    'OTHER_LDFLAGS[sdk=iphonesimulator*] = $(inherited) "$(GOALPAD_JAK2_IMPORT_ARCHIVE)"',
+):
+    require(marker in release, f"missing Jak II Release setting: {marker}")
+
+require("GOALPAD_HAS_JAK2_IMPORT_COMPOSER" not in jak1_debug
+        and "GOALPAD_HAS_JAK2_IMPORT_COMPOSER" not in jak1_release,
+        "the existing Jak 1 importer configurations were made Jak II-aware")
+
+print("Jak II import target/config source checks passed")
+PY

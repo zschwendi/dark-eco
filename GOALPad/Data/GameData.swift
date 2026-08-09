@@ -128,7 +128,7 @@ nonisolated struct GameDataProfile: Equatable, Sendable {
         projectResourceName: "Jak2ProjectResources",
         sourceObjectPackName: "Jak2SourceObjectPack",
         readiness: .experimentalTitleAndGameplay,
-        supportsRawMediaPreparation: false,
+        supportsRawMediaPreparation: true,
         supportsRuntimeLaunch: true,
         supportsManagedSaveSync: false
     )
