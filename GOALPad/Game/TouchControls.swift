@@ -495,6 +495,7 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
 
     /// Exact `progress-screen` values from Jak 1's checked PC enum.
     private enum ShippingPCScreen {
+        static let memoryCardDataExists = 11
         static let quit = 34
         static let quitTitle = 58
 
@@ -639,6 +640,11 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         case 28:
             actions = commonOptions(for: snapshot,
                                     optionCount: ShippingPCOptionCount.settingsTitle)
+        case ShippingPCScreen.memoryCardDataExists:
+            guard snapshot.optionIndex == 0, !snapshot.selectedOption else { return [] }
+            // The one-row yes/no responder selects Yes with Left, No with Right, then
+            // `respond-memcard` confirms the current choice with Cross.
+            return [.left, .right, .confirm]
         case ShippingPCScreen.quit, ShippingPCScreen.quitTitle:
             guard snapshot.optionIndex == 0 else { return [] }
             // The one-row yes/no responder selects No with Right, then exits on Confirm.

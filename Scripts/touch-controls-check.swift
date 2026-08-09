@@ -2043,6 +2043,21 @@ private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
         in: .progress, progress: progressSnapshot(screen: 3, option: 7))
           == [.up, .down, .confirm],
           "the eighth shipping main-settings row remains reachable")
+    let overwriteConfirmation = progressSnapshot(screen: 11)
+    check(NativeMenuTouchAction.available(
+        in: .progress, progress: overwriteConfirmation) == [.left, .right, .confirm]
+          && TouchControls.nativeMenuControlsAreVisible(
+            mode: .progress, progress: overwriteConfirmation),
+          "the initial save-overwrite confirmation exposes Left, Right, and Confirm")
+    check(NativeMenuTouchAction.available(
+        in: .progress, progress: progressSnapshot(screen: 11, option: 1)).isEmpty
+          && NativeMenuTouchAction.available(
+            in: .progress,
+            progress: progressSnapshot(screen: 11, selected: true)).isEmpty
+          && NativeMenuTouchAction.available(
+            in: .progress,
+            progress: progressSnapshot(screen: 11, transition: true)).isEmpty,
+          "save-overwrite confirmation fails closed for an invalid row or stale state")
     for (screen, label) in [(34, "gameplay quit"), (58, "title quit")] {
         let confirmation = progressSnapshot(screen: screen, option: 0)
         check(NativeMenuTouchAction.available(in: .progress, progress: confirmation)
@@ -2246,6 +2261,37 @@ private func nativeMenuActionsEmitOnlyExpectedInputBytes() {
               && quit.frame().buttons == [.left, .right, .cross],
               "quit screen \(screen) emits exact Left/Right and Confirm/Cross bytes")
     }
+
+    var overwrite = Runner()
+    overwrite.controls.setNativeMenuState(
+        .progress, progress: progressSnapshot(screen: 11))
+    overwrite.controls.performNativeMenuAction(.left)
+    check(overwrite.controls.consumeHapticEvents() == [.button(.left)]
+          && overwrite.frames(TouchControls.holdFrames).allSatisfy {
+            $0.buttons == .left && !$0.isLeftDeflected && !$0.isRightDeflected
+          }, "save-overwrite Left selects Yes with no gameplay-axis leakage")
+    check(overwrite.frames(TouchControls.releaseFrames).allSatisfy { $0 == .neutral },
+          "save-overwrite Left includes its deterministic release gap")
+
+    overwrite.controls.performNativeMenuAction(.right)
+    check(overwrite.controls.consumeHapticEvents() == [.button(.right)]
+          && overwrite.frames(TouchControls.holdFrames).allSatisfy {
+            $0.buttons == .right && !$0.isLeftDeflected && !$0.isRightDeflected
+          }, "save-overwrite Right selects No with no gameplay-axis leakage")
+    check(overwrite.frames(TouchControls.releaseFrames).allSatisfy { $0 == .neutral },
+          "save-overwrite Right includes its deterministic release gap")
+
+    overwrite.controls.performNativeMenuAction(.confirm)
+    check(overwrite.controls.consumeHapticEvents() == [.button(.cross)]
+          && overwrite.frame().buttons == .cross,
+          "save-overwrite Confirm emits the native responder's exact Cross byte")
+    overwrite.controls.setNativeMenuState(.gameplay, progress: .unavailable)
+    overwrite.controls.performNativeMenuAction(.left)
+    overwrite.controls.performNativeMenuAction(.right)
+    overwrite.controls.performNativeMenuAction(.confirm)
+    check(overwrite.frame() == .neutral
+          && overwrite.controls.consumeHapticEvents().isEmpty,
+          "dismissal cancels overwrite input and stale actions cannot leak into gameplay")
 
     var saveNotice = Runner()
     saveNotice.controls.setNativeMenuState(

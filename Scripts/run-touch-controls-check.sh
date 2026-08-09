@@ -156,6 +156,7 @@ fi
 rg -Fq 'openSettings: { presentSettings(.jak1) }' "$root/GOALPad/ContentView.swift"
 rg -Fq 'static let quit = 34' "$root/GOALPad/Game/TouchControls.swift"
 rg -Fq 'static let quitTitle = 58' "$root/GOALPad/Game/TouchControls.swift"
+rg -Fq 'static let memoryCardDataExists = 11' "$root/GOALPad/Game/TouchControls.swift"
 rg -Fq 'return [.left, .right, .confirm]' "$root/GOALPad/Game/TouchControls.swift"
 
 # The dynamic left movement artwork gains only an L label. Its accepted 66-point knob and

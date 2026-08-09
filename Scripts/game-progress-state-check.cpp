@@ -111,6 +111,16 @@ int main() {
   expect(ordinary.can_exit_with_start && ordinary.can_go_back,
          "gameplay-origin settings expose exact Start-exit and Back eligibility");
 
+  Fixture overwrite_confirmation;
+  overwrite_confirmation.set_screen(11);
+  overwrite_confirmation.set_option(0);
+  const auto overwrite_snapshot = overwrite_confirmation.read();
+  expect(overwrite_snapshot.available &&
+             overwrite_snapshot.screen == ProgressScreen::MemoryCardDataExists &&
+             overwrite_snapshot.option_index == 0 && !overwrite_snapshot.selected_option &&
+             !overwrite_snapshot.in_transition,
+         "the initial memory-card overwrite confirmation is surfaced semantically");
+
   Fixture selected;
   selected.set_screen(18);
   selected.set_option(5);
