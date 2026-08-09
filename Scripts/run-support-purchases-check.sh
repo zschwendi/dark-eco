@@ -9,7 +9,9 @@ app="$root/GOALPad/GOALPadApp.swift"
 
 xcrun swiftc -parse "$store" "$views" "$library" "$app"
 
-test "$(rg -c 'case .* = "com\.zephyrstudiosllc\.eco\.tip\.' "$store")" -eq 3
+rg -Fqx '    case coffee = "com.zephyrstudiosllc.eco.tip.coffee"' "$store"
+rg -Fqx '    case development = "com.zephyrstudiosllc.eco.tip.development"' "$store"
+rg -Fqx '    case topSupporter = "com.zephyrstudiosllc.eco.tip.top-supporter"' "$store"
 rg -Fq 'Product.products(for: EcoTip.allCases.map(\.rawValue))' "$store"
 rg -Fq 'case .verified(let transaction):' "$store"
 rg -Fq 'await transaction.finish()' "$store"

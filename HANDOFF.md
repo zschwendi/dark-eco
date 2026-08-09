@@ -15401,3 +15401,79 @@ local room mesh access, anchoring/scale, collision, navigation, occlusion, safe
 spawning, relocalization/reset, and comfort while keeping room geometry private
 and ephemeral by default. “RIP” remains the maintainer's unresolved label until
 its exact project or API is identified.
+
+## Build 140 archive recovery and Build 141 StoreKit contract
+
+Date: 2026-08-08. Main is now the integration branch. The maintainer's SwiftUI
+appendix through Build 140 remains intact; no OpenGOAL source change was needed
+to repair the Xcode phase failure.
+
+Main checkpoints:
+
+- `30f76540` — disable only the Xcode build-script sandbox in both importer
+  configurations and add the standard Homebrew prefixes to the Apple importer
+  script's `PATH`.
+- `4a64b39a` — align the Support and vision-scene source gates with the merged
+  Build 140 UI.
+- `0ee78c20` — restore the current five-mode visionOS implementation manual.
+- `024ee542` — align the third StoreKit consumable with the documented permanent
+  product ID `com.zephyrstudiosllc.eco.tip.top-supporter`.
+- `ec9e16f3` — bump both configurations to Build 141 for that shipped StoreKit
+  contract.
+- `3668bf47` — add the concise current iOS archive runbook and distinguish build,
+  archive, distribution signing, validation, and upload.
+
+The repaired signed Build 140 archive is:
+
+```text
+/private/tmp/goalpad-build140-archive.jgSzzt/GOALPad-fixed.xcarchive
+```
+
+`xcodebuild archive` ended `ARCHIVE SUCCEEDED`; the Release gates verified all
+518 AOT objects. Xcode Organizer recognizes Eco 1.0 (140), arm64,
+`com.zephyrstudiosllc.eco`, and Zephyr Studios LLC. The archive embeds the
+privacy manifest and the expected iCloud Documents and Game Center entitlements.
+It is development-signed (`get-task-allow = true`) and is build/archive evidence,
+not a successful App Store distribution. Xcode's Apple Accounts UI shows the
+Zephyr Studios LLC team but no Apple Distribution identity in this Mac's
+keychain. Creating that persistent signing credential, then validating/exporting
+or uploading through Organizer, needs maintainer confirmation and App Store
+Connect availability. No physical device was installed, launched, logged, or
+captured.
+
+Focused Build 141 source validation passed:
+
+```text
+Scripts/run-support-purchases-check.sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad -configuration Release \
+  -destination 'generic/platform=iOS' -showBuildSettings
+git diff --check
+```
+
+The release settings report Build 141, marketing version 1.0, automatic signing,
+team `V729QMY3V6`, bundle `com.zephyrstudiosllc.eco`, and build-script sandboxing
+off. A first attempted privacy-manifest helper command was not run because no
+`Scripts/run-privacy-manifest-check.sh` exists; privacy evidence comes from the
+retained archive inspection, not that nonexistent helper. A new Build 141 Xcode
+build/archive remains pending until the single active Metal proof build releases
+the heavy-build lane.
+
+### visionOS external-target prerequisite
+
+The isolated nested branch `agent/build136-external-render-target` at initial
+commit `c8592f89fb942fa3eb3d33f3867bada672a8a562` adds a borrowed color/depth
+slice render seam and deterministic Metal proof. It is not integrated or pushed.
+Independent review found one blocking ownership bug: external submissions
+updated the command tracked by `read_game_frame`, which would wait the external
+command and then return stale internal-target pixels. A dedicated Sol xhigh lane
+is separating stream-reuse submission tracking from internal readback tracking
+and adding regression coverage. Do not integrate this branch until that proof
+passes. Even after repair it is only the first true-stereo prerequisite, not a
+claim of stereo, render-many, tabletop, room-scale, or first-person gameplay.
+
+The snapshot audit also blocks an asynchronous render-many implementation from a
+DMA-vector copy alone: Merc, texture, level-registry, tfrag/TOD, eye, ocean, and
+sky paths retain mutable or raw-pointer state. The next safe proof after the
+external target is a synchronous versioned capture envelope plus resource leases
+and a poison-after-capture equivalence oracle. Production stays synchronous until
+that oracle proves the renderer no longer reads live mutable state after capture.

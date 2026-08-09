@@ -131,12 +131,12 @@ importer archive is added to the link, and both importer phases exit without
 touching their derived outputs. Release is deliberately ARM64-only and enables
 the composer for `macosx`, `iphoneos`, `iphonesimulator`, `xros`, and
 `xrsimulator`; this matches the native ARM64 port and the thin archive contract.
-The checked xcconfigs inherit the target's existing inline settings. Debug
-keeps Xcode user-script sandboxing enabled. Release disables only Xcode's build
-script sandbox because its literal directory inputs do not grant CMake access
-to the recursively discovered files below the pinned `OpenGOAL` source tree or
-the external source-object pack. This does not disable the built app's runtime
-sandbox or change its entitlements.
+The checked xcconfigs inherit the target's existing inline settings. Both
+importer configurations disable only Xcode's build-script sandbox. The custom
+Metal phase creates transitive module-cache files below the derived sources
+directory, and Release also needs CMake access to recursively discovered files
+below the pinned `OpenGOAL` source tree and external source-object pack. This
+does not disable the built app's runtime sandbox or change its entitlements.
 
 Set `GOALPAD_JAK1_IMPORT_DEPLOYMENT_TARGET` from
 `MACOSX_DEPLOYMENT_TARGET` for macOS and `IPHONEOS_DEPLOYMENT_TARGET` for
