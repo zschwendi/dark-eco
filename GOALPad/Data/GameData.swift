@@ -91,6 +91,8 @@ nonisolated struct GameDataProfile: Equatable, Sendable {
     let gameDirectoryName: String
     let preparedDirectoryName: String
     let manifest: GameDataManifest
+    let projectResourceName: String
+    let sourceObjectPackName: String
     let readiness: Readiness
     let supportsRawMediaPreparation: Bool
     let supportsRuntimeLaunch: Bool
@@ -109,6 +111,8 @@ nonisolated struct GameDataProfile: Equatable, Sendable {
         gameDirectoryName: "Jak1",
         preparedDirectoryName: "jak1",
         manifest: .jak1,
+        projectResourceName: "OpenGOALProjectResources",
+        sourceObjectPackName: "Jak1SourceObjectPack",
         readiness: .gameplay,
         supportsRawMediaPreparation: true,
         supportsRuntimeLaunch: true,
@@ -121,6 +125,8 @@ nonisolated struct GameDataProfile: Equatable, Sendable {
         gameDirectoryName: "Jak2",
         preparedDirectoryName: "jak2",
         manifest: .jak2TitleAndGameplayV1,
+        projectResourceName: "Jak2ProjectResources",
+        sourceObjectPackName: "Jak2SourceObjectPack",
         readiness: .experimentalTitleAndGameplay,
         supportsRawMediaPreparation: false,
         supportsRuntimeLaunch: true,

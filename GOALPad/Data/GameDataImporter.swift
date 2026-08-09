@@ -27,7 +27,7 @@ final class GameDataImporter {
     let profile: GameDataProfile
     private let worker: GameDataInstallWorker
     private let preparedFolderProducer = PreparedFolderCandidateProducer()
-    private let rawISOProducer = RawISOCandidateProducer()
+    private let rawISOProducer: RawISOCandidateProducer
     private let zippedISOProducer: ZIPISOCandidateProducer
     private var task: Task<Void, Never>?
 
@@ -37,6 +37,8 @@ final class GameDataImporter {
     ) {
         self.profile = profile
         self.worker = worker ?? GameDataInstallWorker(configuration: .app(for: profile))
+        let rawISOProducer = RawISOCandidateProducer(profile: profile)
+        self.rawISOProducer = rawISOProducer
         zippedISOProducer = ZIPISOCandidateProducer(downstream: rawISOProducer)
     }
 
@@ -48,7 +50,7 @@ final class GameDataImporter {
     }
 
     var canImportRawMedia: Bool {
-        profile.supportsRawMediaPreparation && RawISOCandidateProducer.isAvailable()
+        profile.supportsRawMediaPreparation && RawISOCandidateProducer.isAvailable(for: profile)
     }
 
     /// `source` may be a supported raw or ZIP-contained disc image, the directory holding `iso/`

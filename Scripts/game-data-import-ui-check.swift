@@ -57,11 +57,12 @@ check(content.contains("BootingView(gameName: session.importer.profile.displayNa
         && !content.contains("Text(\"Booting Jak 1\")")
         && content.contains(".background(Color.black.ignoresSafeArea())"),
       "the runtime shell names the selected game and keeps unused portrait space black")
-check(importer.contains("profile.supportsRawMediaPreparation && RawISOCandidateProducer.isAvailable()")
+check(importer.contains("profile.supportsRawMediaPreparation && RawISOCandidateProducer.isAvailable(for: profile)")
+        && !importer.contains("profile.supportsRawMediaPreparation && RawISOCandidateProducer.isAvailable()")
         && importer.contains("case .rawISO where canImportRawMedia:")
         && importer.contains("case .zippedISO where canImportRawMedia:")
         && importer.contains("prepared OpenGOAL \\(profile.preparedFolderName) folder"),
-      "raw ISO and ZIP routing is gated by both profile policy and composer availability")
+      "raw ISO and ZIP routing consults the selected profile's composer resources")
 check(view.contains("GameDataImportPresentation.backgroundGuidance(phaseLabel: progress.phase.label)")
         && view.contains("GameDataImportPresentation.cancellationGuidance(")
         && view.contains("if progress.phase != .activatingCandidate"),

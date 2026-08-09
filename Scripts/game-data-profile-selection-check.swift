@@ -28,6 +28,18 @@ private struct GameDataProfileSelectionCheck {
             gameDirectory: URL(fileURLWithPath: "/missing", isDirectory: true)
         ).profile == expected,
               "the default inspector follows the selected profile")
+        check(GameDataProfile.jak1.projectResourceName == "OpenGOALProjectResources",
+              "Jak 1 selects the exact OpenGOAL project-resource bundle")
+        check(GameDataProfile.jak1.sourceObjectPackName == "Jak1SourceObjectPack",
+              "Jak 1 selects the exact source-object pack bundle")
+        check(GameDataProfile.jak2.projectResourceName == "Jak2ProjectResources",
+              "Jak II selects its isolated project-resource bundle")
+        check(GameDataProfile.jak2.sourceObjectPackName == "Jak2SourceObjectPack",
+              "Jak II selects its isolated source-object pack bundle")
+        let nonActiveProfile: GameDataProfile = expected == .jak1 ? .jak2 : .jak1
+        check(nonActiveProfile.projectResourceName != expected.projectResourceName
+              && nonActiveProfile.sourceObjectPackName != expected.sourceObjectPackName,
+              "an explicit non-active profile does not reuse active resource names")
 
         let applicationSupport = URL(fileURLWithPath: "/app/Library/Application Support",
                                      isDirectory: true)
