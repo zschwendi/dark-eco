@@ -55,8 +55,10 @@ struct ContentView: View {
     @State private var launcherDestination = LauncherDestination.library
     @State private var settingsPresentation: SettingsSheetPresentation?
     @State private var nextSettingsPresentationID = 0
+    #if os(iOS)
     @State private var isShowingTouchControlsGuide = false
     @AppStorage("jak1TouchControlsGuideVersion") private var touchControlsGuideVersion = 0
+    #endif
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -78,12 +80,14 @@ struct ContentView: View {
                                   openSettings: { presentSettings(.jak1) })
                 #endif
 
+                #if !os(visionOS)
                 if session.isNativeMenuOpen
                     && session.presentationSettings.developerLogsEnabled {
                     DiagnosticsOverlay(session: session)
                         .frame(maxWidth: 620, alignment: .leading)
                         .padding()
                 }
+                #endif
             } else if session.isBooting {
                 BootingView()
             } else {
@@ -148,13 +152,23 @@ struct ContentView: View {
         .onChange(of: session.isNativeMenuOpen) { _, isOpen in
             if session.isRunning && !isOpen { settingsPresentation = nil }
         }
+        #if os(visionOS)
+        .ornament(
+            visibility: session.input.isConnected ? .hidden : .visible,
+            attachmentAnchor: .scene(.top),
+            contentAlignment: .bottom
+        ) {
+            VisionControllerStatusOrnament()
+                .padding(.bottom, 12)
+        }
+        #endif
+        #if os(iOS)
         .onChange(of: session.runReadiness) { _, readiness in
-            #if os(iOS)
             guard readiness == .active, touchControlsGuideVersion < 1 else { return }
             session.presentTouchControlsGuide()
             isShowingTouchControlsGuide = true
-            #endif
         }
+        #endif
         .sheet(item: $settingsPresentation) { presentation in
             SettingsSheetView(initialEntry: presentation.entry,
                               sync: session.saveSync,
@@ -165,12 +179,14 @@ struct ContentView: View {
                 .id(presentation.id)
                 .frame(minWidth: 360, minHeight: 360)
         }
+        #if os(iOS)
         .sheet(isPresented: $isShowingTouchControlsGuide, onDismiss: {
             touchControlsGuideVersion = 1
             session.dismissTouchControlsGuide()
         }) {
             TouchControlsGuideSheet()
         }
+        #endif
     }
 
     private func presentSettings(_ entry: SettingsSheetEntry) {
@@ -294,14 +310,26 @@ private struct GameplaySurface: View {
                 // Preserve Build 93's exact edge-to-edge surface in landscape. Constraining an
                 // ignoresSafeArea view to the GeometryReader's safe-area proposal reintroduced
                 // thin bars even though the calculated frame itself covered the proposal.
-                GameSurfaceView { session.tick(targetPresentationTime: $0) }
+                gameSurface
             } else {
-                GameSurfaceView { session.tick(targetPresentationTime: $0) }
+                gameSurface
                     .frame(width: frame.width, height: frame.height)
                     .clipped()
                     .position(x: frame.midX, y: frame.midY)
             }
         }
+    }
+
+    @ViewBuilder
+    private var gameSurface: some View {
+        #if os(visionOS)
+        GameSurfaceView(
+            onFrame: { session.tick(targetPresentationTime: $0) },
+            onStereoFrame: { session.tickStereo(frame: $0) }
+        )
+        #else
+        GameSurfaceView(onFrame: { session.tick(targetPresentationTime: $0) })
+        #endif
     }
 }
 
@@ -322,6 +350,7 @@ private struct BootingView: View {
 
 /// The live state of every piece of the shell. This is a readout, not a fixture: every number is
 /// read back out of the running kernel, the surface, the controller, or the audio device.
+#if !os(visionOS)
 private struct DiagnosticsOverlay: View {
     @Bindable var session: GameSession
 
@@ -623,3 +652,4 @@ private struct DiagnosticsOverlay: View {
         return held.isEmpty ? "-" : held.joined(separator: " ")
     }
 }
+#endif

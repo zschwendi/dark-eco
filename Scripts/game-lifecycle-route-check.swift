@@ -96,14 +96,23 @@ check(occursInOrder([
 
 let tick = section(session,
                    from: "func tick(targetPresentationTime",
-                   to: "private func updateNativeMenuState")
+                   to: "#if os(visionOS)\n    func tickStereo")
 check(occursInOrder([
     "lifecycle.frameLoopEnabled",
     "!controlsGuideSuspension.blocksGameplay",
     "surface.beginFrame(at: targetPresentationTime)",
-    "GOALPadRuntimeBridge.runFrame(at: targetPresentationTime)",
+    "runArmedTick(targetPresentationTime: targetPresentationTime)",
     "surface.endFrame()",
-], in: tick), "an eligible display tick keeps one begin-run-end frame contract")
+], in: tick), "an eligible conventional display tick arms and delegates one frame")
+
+let armedTick = section(session,
+                        from: "private func runArmedTick",
+                        to: "private func updateNativeMenuState")
+check(occursInOrder([
+    "input.pushFrame",
+    "GOALPadRuntimeBridge.runFrame(at: targetPresentationTime)",
+    "let framePresented = endFrame()",
+], in: armedTick), "the shared frame body pushes input, runs once, then ends presentation")
 
 let controlsGuide = section(session,
                             from: "func presentTouchControlsGuide()",

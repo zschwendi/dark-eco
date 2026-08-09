@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 
 struct TouchControlsGuideSheet: View {
@@ -162,3 +163,4 @@ private struct TouchControlsInfographic: View {
             .overlay(Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1))
     }
 }
+#endif

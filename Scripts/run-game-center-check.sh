@@ -39,14 +39,10 @@ do
     -module-name GOALPadGameCenterCheck \
     -swift-version 5 \
     -warnings-as-errors \
-    "$root/GOALPad/Input/KeyboardMouseInput.swift" \
-    "$root/GOALPad/Game/PresentationSettings.swift" \
     "$root/GOALPad/GameCenter/GameCenterAuthenticationState.swift" \
     "$root/GOALPad/GameCenter/GameCenterService.swift" \
     "$root/GOALPad/GOALPadApp.swift" \
     "$root/GOALPad/Vision/VisionPresentationMode.swift" \
-    "$root/GOALPad/Vision/VisionPresentationScenes.swift" \
-    "$root/GOALPad/Vision/VisionStereoCompositorProofRenderer.swift" \
     "$root/Scripts/game-center-root-check.swift"
 done
 

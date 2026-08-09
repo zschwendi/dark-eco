@@ -3,85 +3,68 @@ import simd
 @main
 struct VisionWindowStereoClipPlanCheck {
     static func main() {
-        checkNominalEyes()
-        checkHeadLeanChangesBothViews()
+        checkFixedGameCameraPair()
+        checkDeterministicPlan()
         checkInvalidInputsFailClosed()
         print("vision window stereo clip-plan checks passed")
     }
 
-    private static func checkNominalEyes() {
-        guard let plan = VisionWindowStereoClipPlanner.makePlan(
-            windowSizeMeters: SIMD2(0.6, 0.45),
-            windowFromHead: translation(x: 0, y: 0, z: -0.6)
-        ) else {
-            fail("nominal head pose did not produce a plan")
+    private static func checkFixedGameCameraPair() {
+        guard let plan = VisionWindowStereoClipPlanner.makePlan() else {
+            fail("the fixed game-camera pair did not produce a plan")
         }
 
         check(plan.left.viewID != 0, "left view ID must be nonzero")
         check(plan.right.viewID != 0, "right view ID must be nonzero")
         check(plan.left.viewID != plan.right.viewID, "view IDs must be distinct")
         check(plan.left.clipFromGameClip.columns.2.x < 0,
-              "left eye did not produce left parallax")
+              "the left game-camera view did not produce left parallax")
         check(plan.right.clipFromGameClip.columns.2.x > 0,
-              "right eye did not produce right parallax")
+              "the right game-camera view did not produce right parallax")
+        check(plan.left.clipFromGameClip.columns.2.x
+                == -plan.right.clipFromGameClip.columns.2.x,
+              "the fixed stereo pair is not symmetric")
+        check(plan.left.clipFromGameClip.columns.2.y == 0
+                && plan.right.clipFromGameClip.columns.2.y == 0,
+              "the fixed pair introduced unrequested vertical parallax")
+
+        let convergencePoint = SIMD4<Float>(0.2, -0.3, 0, 1)
+        check(plan.left.clipFromGameClip * convergencePoint
+                == plan.right.clipFromGameClip * convergencePoint,
+              "the game camera's Metal depth-zero plane is not the convergence plane")
     }
 
-    private static func checkHeadLeanChangesBothViews() {
-        let centered = VisionWindowStereoClipPlanner.makePlan(
-            windowSizeMeters: SIMD2(0.6, 0.45),
-            windowFromHead: translation(x: 0, y: 0, z: -0.6)
-        )
-        let leaned = VisionWindowStereoClipPlanner.makePlan(
-            windowSizeMeters: SIMD2(0.6, 0.45),
-            windowFromHead: translation(x: 0.1, y: 0.05, z: -0.6)
-        )
-        guard let centered, let leaned else { fail("valid lean pose failed") }
-
-        check(leaned.left.clipFromGameClip.columns.2.x
-                > centered.left.clipFromGameClip.columns.2.x,
-              "lateral lean did not move the left-eye view")
-        check(leaned.right.clipFromGameClip.columns.2.x
-                > centered.right.clipFromGameClip.columns.2.x,
-              "lateral lean did not move the right-eye view")
-        check(leaned.left.clipFromGameClip.columns.2.y
-                > centered.left.clipFromGameClip.columns.2.y,
-              "vertical lean did not move the left-eye view")
-        check(leaned.right.clipFromGameClip.columns.2.y
-                > centered.right.clipFromGameClip.columns.2.y,
-              "vertical lean did not move the right-eye view")
+    private static func checkDeterministicPlan() {
+        guard let first = VisionWindowStereoClipPlanner.makePlan(),
+              let second = VisionWindowStereoClipPlanner.makePlan() else {
+            fail("repeated fixed plans failed")
+        }
+        check(matrixEqual(first.left.clipFromGameClip, second.left.clipFromGameClip)
+                && matrixEqual(first.right.clipFromGameClip, second.right.clipFromGameClip),
+              "the stereo pair changed without a game-camera change")
     }
 
     private static func checkInvalidInputsFailClosed() {
         check(VisionWindowStereoClipPlanner.makePlan(
-            windowSizeMeters: SIMD2(0, 0.45),
-            windowFromHead: matrix_identity_float4x4
-        ) == nil, "zero-width window was accepted")
-
-        var nonfinite = matrix_identity_float4x4
-        nonfinite.columns.0.x = .nan
+            normalizedFarPlaneSeparation: 0
+        ) == nil, "zero separation was accepted")
         check(VisionWindowStereoClipPlanner.makePlan(
-            windowSizeMeters: SIMD2(0.6, 0.45),
-            windowFromHead: nonfinite
-        ) == nil, "non-finite head pose was accepted")
-
-        let coincidentEyes = [
-            translation(x: 0, y: 0, z: -0.034),
-            translation(x: 0, y: 0, z: -0.034),
-        ]
+            normalizedFarPlaneSeparation: -.infinity
+        ) == nil, "non-finite separation was accepted")
         check(VisionWindowStereoClipPlanner.makePlan(
-            windowSizeMeters: SIMD2(0.6, 0.45),
-            windowFromHead: translation(x: 0, y: 0, z: -0.6),
-            headFromEyes: coincidentEyes
-        ) == nil, "coincident eye transforms were accepted")
+            normalizedFarPlaneSeparation:
+                VisionWindowStereoClipPlanner.maximumNormalizedFarPlaneSeparation.nextUp
+        ) == nil, "an excessive separation was accepted")
     }
 
-    private static func translation(x: Float, y: Float, z: Float) -> simd_float4x4 {
-        simd_float4x4(columns: (
-            SIMD4<Float>(1, 0, 0, 0),
-            SIMD4<Float>(0, 1, 0, 0),
-            SIMD4<Float>(0, 0, 1, 0),
-            SIMD4<Float>(x, y, z, 1)
-        ))
+    private static func matrixEqual(_ lhs: simd_float4x4,
+                                    _ rhs: simd_float4x4) -> Bool {
+        for column in 0..<4 {
+            for row in 0..<4 where lhs[column][row] != rhs[column][row] {
+                return false
+            }
+        }
+        return true
     }
 
     private static func check(_ condition: @autoclosure () -> Bool,

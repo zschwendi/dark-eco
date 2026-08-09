@@ -37,13 +37,10 @@ struct GameCenterRootView<Content: View>: View {
 @MainActor
 private func exerciseVisionPresentationFoundation() {
     let modes = VisionPresentationMode.allCases
-    precondition(modes.count == 5)
+    precondition(modes.count == 2)
     precondition(modes.map(\.title) == [
         "Comfort / Normal",
         "Stereoscopic 3D",
-        "Tabletop / Volume",
-        "Room-scale World",
-        "First-person VR",
     ])
 
     let modern = VisionPresentationCoordinator(graphicsProfile: .modern)
@@ -58,38 +55,31 @@ private func exerciseVisionPresentationFoundation() {
         stereoscopic3DEnabled: true,
         rendererAvailable: true
     )
-    precondition(modern.sessionState == .openingHeadTracking)
-    guard let openRequest = modern.sceneRequest else {
-        preconditionFailure("Modern stereo should request its head-tracking support space")
-    }
-    precondition(openRequest.action == .openHeadTracking)
-    modern.sceneRequestFinished(openRequest, opened: true)
     precondition(modern.activeGameMode == .stereoscopic3D)
     precondition(modern.sessionState == .stereoscopicWindow)
 
-    modern.stereoProofSubmitted(viewCount: 2)
-    precondition(modern.diagnosticProofState == .submitted(viewCount: 2))
-    precondition(modern.activeGameMode == .stereoscopic3D)
+    modern.stereoSurfaceFailed("fixed-pair renderer failed")
+    precondition(modern.activeGameMode == .comfortNormal)
+    precondition(modern.sessionState == .failed("fixed-pair renderer failed"))
 
     modern.configure(graphicsProfile: .modern, stereoscopic3DEnabled: false)
     precondition(modern.activeGameMode == .comfortNormal)
-    precondition(modern.sessionState == .closingHeadTracking)
-    guard let dismissRequest = modern.sceneRequest else {
-        preconditionFailure("Comfort should dismiss its head-tracking support space")
-    }
-    precondition(dismissRequest.action == .dismissHeadTracking)
-    modern.sceneRequestFinished(dismissRequest, opened: false)
     precondition(modern.sessionState == .conventionalWindow)
 
-    let toggledDuringOpen = VisionPresentationCoordinator(graphicsProfile: .modern)
-    toggledDuringOpen.setStereoRendererAvailable(true)
-    guard let pendingOpen = toggledDuringOpen.sceneRequest else {
-        preconditionFailure("renderer readiness should request tracking")
-    }
-    toggledDuringOpen.configure(graphicsProfile: .modern, stereoscopic3DEnabled: false)
-    precondition(toggledDuringOpen.sceneRequest == pendingOpen)
-    toggledDuringOpen.sceneRequestFinished(pendingOpen, opened: true)
-    precondition(toggledDuringOpen.sceneRequest?.action == .dismissHeadTracking)
+    modern.configure(
+        graphicsProfile: .modern,
+        stereoscopic3DEnabled: true,
+        rendererAvailable: true
+    )
+    precondition(modern.activeGameMode == .stereoscopic3D)
+    precondition(modern.sessionState == .stereoscopicWindow)
+
+    modern.setStereoRendererAvailable(false)
+    precondition(modern.activeGameMode == .comfortNormal)
+    precondition(modern.sessionState == .unavailable(
+        mode: .stereoscopic3D,
+        reason: "The native two-view game renderer is unavailable."
+    ))
 
     let classic = VisionPresentationCoordinator(graphicsProfile: .classic)
     precondition(classic.selectedMode == .comfortNormal)

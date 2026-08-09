@@ -77,7 +77,6 @@ private struct VisionWindowStereoRealitySurface: View {
 
     @Environment(VisionPresentationCoordinator.self) private var coordinator
     @State private var resources: VisionWindowStereoResources?
-    @State private var headTracker: VisionWindowStereoHeadTracker?
 
     var body: some View {
         ZStack {
@@ -104,32 +103,14 @@ private struct VisionWindowStereoRealitySurface: View {
                 drawFrame(at: presentationTime)
             }
         }
-        .task {
-            guard headTracker == nil else { return }
-            let tracker = VisionWindowStereoHeadTracker { message in
-                coordinator.stereoSurfaceFailed(message)
-            }
-            headTracker = tracker
-            tracker.start()
-        }
         .onDisappear {
-            headTracker?.stop()
-            headTracker = nil
             resources = nil
         }
     }
 
     private func drawFrame(at presentationTime: CFTimeInterval) {
         guard let resources,
-              let headTracker,
-              let windowFromHead = headTracker.windowFromHead(
-                surfaceEntity: resources.surfaceEntity,
-                targetPresentationTime: presentationTime
-              ),
-              let clipPlan = VisionWindowStereoClipPlanner.makePlan(
-                windowSizeMeters: SIMD2(configuration.widthMeters, configuration.heightMeters),
-                windowFromHead: windowFromHead
-              ),
+              let clipPlan = VisionWindowStereoClipPlanner.makePlan(),
               let drawablePair = resources.nextDrawablePair() else {
             return
         }

@@ -40,5 +40,6 @@ as part of migration testing.
 ## Platform presentation
 
 The iPadOS, macOS, and visionOS builds share one runtime target. visionOS uses a
-standard SwiftUI window. Volumetric and immersive presentation are not part of
-the current App Store-facing product.
+standard Shared Space SwiftUI window with Comfort presentation and an
+experimental bounded stereoscopic game surface. Volumetric, tracked, and
+immersive presentation are not part of the current App Store-facing product.

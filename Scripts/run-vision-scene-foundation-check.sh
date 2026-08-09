@@ -14,39 +14,52 @@ case "$requested_sdk" in
 esac
 
 mode_source="$root/GOALPad/Vision/VisionPresentationMode.swift"
-scene_source="$root/GOALPad/Vision/VisionPresentationScenes.swift"
-proof_source="$root/GOALPad/Vision/VisionStereoCompositorProofRenderer.swift"
-plan_source="$root/GOALPad/Vision/VisionStereoFramePlan.swift"
-plan_check="$root/Scripts/vision-stereo-frame-plan-check.swift"
-proof_shader="$root/GOALPad/Vision/VisionStereoProof.metal"
 window_plan_source="$root/GOALPad/Vision/VisionWindowStereoClipPlan.swift"
 window_plan_check="$root/Scripts/vision-window-stereo-clip-plan-check.swift"
-window_tracker_source="$root/GOALPad/Vision/VisionWindowStereoHeadTracker.swift"
 window_surface_source="$root/GOALPad/Vision/VisionWindowStereoSurface.swift"
+controller_ornament_source="$root/GOALPad/Vision/VisionControllerStatusOrnament.swift"
+touch_view_source="$root/GOALPad/Game/TouchControlsView.swift"
+touch_guide_source="$root/GOALPad/Game/TouchControlsGuideView.swift"
 window_material="$root/GOALPad/Vision/VisionStereoWindow.rkassets/VisionStereoWindowMaterial.usda"
+app_source="$root/GOALPad/GOALPadApp.swift"
+content_source="$root/GOALPad/ContentView.swift"
 
 mode_count=$(sed -n '/enum VisionPresentationMode:/,/var id:/p' "$mode_source" \
   | rg -c '^    case ')
-test "$mode_count" -eq 5
+test "$mode_count" -eq 2
 
 for title in \
   "Comfort / Normal" \
-  "Stereoscopic 3D" \
-  "Tabletop / Volume" \
-  "Room-scale World" \
-  "First-person VR"
+  "Stereoscopic 3D"
 do
   rg -Fq "\"$title\"" "$mode_source"
 done
 
 rg -Fq 'graphicsProfile == .modern && stereoscopic3DEnabled' "$mode_source"
 rg -Fq 'readiness: .stereoscopicWindow' "$mode_source"
-rg -Fq 'readiness: .unavailable' "$mode_source"
-test "$(rg -c '^        ImmersiveSpace\(' "$scene_source")" -eq 1
-rg -Fq 'case .openHeadTracking:' "$scene_source"
-rg -Fq 'EmptyView()' "$scene_source"
-if rg -q 'VisionStereoCompositorProofContent\(coordinator:' "$scene_source"; then
-  echo "Synthetic compositor proof must not be declared as a product scene" >&2
+test "$(rg -c '^        WindowGroup' "$app_source")" -eq 1
+rg -Fq '.environment(visionPresentation)' "$app_source"
+
+for forbidden in \
+  'ImmersiveSpace' \
+  'openImmersiveSpace' \
+  'dismissImmersiveSpace' \
+  'import ARKit' \
+  'ARKitSession' \
+  'WorldTrackingProvider' \
+  'queryDeviceAnchor' \
+  'HeadTracker' \
+  'head tracking' \
+  'head-relative' \
+  'CompositorLayer'
+do
+  if rg -Fq "$forbidden" "$root/GOALPad"; then
+    echo "Shared Space stereo must not contain $forbidden" >&2
+    exit 1
+  fi
+done
+if rg -q 'GOALPadVisionSpatialScenes|VisionPresentationSessionBridge|CompositorLayer' "$app_source"; then
+  echo "The product App must declare only its bounded WindowGroup" >&2
   exit 1
 fi
 test "$(rg -c 'TextureResource.DrawableQueue\(descriptor\)' "$window_surface_source")" -eq 1
@@ -56,8 +69,12 @@ rg -Fq 'pixelFormat: .bgra8Unorm' "$window_surface_source"
 rg -Fq 'pixelFormat: .depth32Float_stencil8' "$window_surface_source"
 rg -Fq 'from: "VisionStereoWindowMaterial"' "$window_surface_source"
 test "$(rg -c 'presentOnSceneUpdate()' "$window_surface_source")" -eq 2
-rg -Fq 'queryDeviceAnchor(atTimestamp:' "$window_tracker_source"
-rg -Fq 'relativeTo: .immersiveSpace' "$window_tracker_source"
+rg -Fq 'VisionWindowStereoClipPlanner.makePlan()' "$window_surface_source"
+if rg -q 'windowFromHead|headFromEyes|surfaceEntity.transformMatrix' "$window_surface_source" \
+  "$window_plan_source"; then
+  echo "The bounded stereo pair must be independent of viewer and window pose" >&2
+  exit 1
+fi
 rg -Fq 'ND_realitykit_geometry_switch_cameraindex_color3' "$window_material"
 rg -Fq 'inputs:leftEye' "$window_material"
 rg -Fq 'inputs:rightEye' "$window_material"
@@ -66,30 +83,25 @@ if rg -q 'copied_chain_data|OpenGOAL/' "$window_surface_source"; then
   exit 1
 fi
 
-# The old compositor stays buildable as a deterministic diagnostic, but no product scene opens it.
-rg -Fq 'CompositorLayer(configuration: self)' "$scene_source"
-rg -Fq 'configuration.layout = supportedLayouts.contains(.dedicated)' "$scene_source"
-rg -Fq 'worldTracking.queryDeviceAnchor' "$proof_source"
-rg -Fq 'drawable.computeProjection' "$proof_source"
-rg -Fq 'sliceIndex: mapping.sliceIndex' "$proof_source"
-rg -Fq 'VisionStereoFramePlanner.makePlan' "$proof_source"
-rg -Fq 'nonisolated final class VisionStereoCompositorProofRenderer' "$proof_source"
-rg -Fq 'drawable.encodePresent(commandBuffer: commandBuffer)' "$proof_source"
-if rg -q 'GameSurfaceView|CAMetalLayer' "$proof_source"; then
-  echo "Synthetic compositor proof must remain isolated from the game framebuffer" >&2
+if ! sed -n '/if session.isRunning {/,/} else if session.isBooting/p' "$content_source" \
+  | rg -Uq '(?s)#if !os\(visionOS\).*DiagnosticsOverlay'; then
+  echo "visionOS gameplay must compile out DiagnosticsOverlay" >&2
   exit 1
 fi
+if ! rg -Uq '(?s)#if os\(iOS\).*TouchControlsView' "$content_source"; then
+  echo "gameplay touch UI must remain iOS-only" >&2
+  exit 1
+fi
+if ! rg -Uq '(?s)#if os\(iOS\).*TouchControlsGuideSheet' "$content_source"; then
+  echo "the touch guide must remain iOS-only" >&2
+  exit 1
+fi
+test "$(sed -n '1p' "$touch_view_source")" = '#if os(iOS)'
+test "$(tail -n 1 "$touch_view_source")" = '#endif'
+test "$(sed -n '1p' "$touch_guide_source")" = '#if os(iOS)'
+test "$(tail -n 1 "$touch_guide_source")" = '#endif'
 
 host_sdk_path=$(xcrun --sdk macosx --show-sdk-path)
-swiftc -parse-as-library \
-  -sdk "$host_sdk_path" \
-  -target arm64-apple-macosx26.5 \
-  -module-cache-path "$temporary/plan-module-cache" \
-  -warnings-as-errors \
-  "$plan_source" \
-  "$plan_check" \
-  -o "$temporary/vision-stereo-frame-plan-check"
-"$temporary/vision-stereo-frame-plan-check"
 
 swiftc -parse-as-library \
   -sdk "$host_sdk_path" \
@@ -127,16 +139,13 @@ do
     -enable-upcoming-feature InferSendableFromCaptures \
     -enable-upcoming-feature NonisolatedNonsendingByDefault \
     -warnings-as-errors \
-    "$root/GOALPad/GOALPadApp.swift" \
+    "$app_source" \
     "$root/GOALPad/Game/PresentationOwnershipState.swift" \
     "$root/GOALPad/Game/GameSurfaceView.swift" \
     "$mode_source" \
-    "$scene_source" \
-    "$plan_source" \
-    "$proof_source" \
     "$window_plan_source" \
-    "$window_tracker_source" \
     "$window_surface_source" \
+    "$controller_ornament_source" \
     "$root/Scripts/vision-scene-foundation-check.swift"
 done
 
@@ -148,15 +157,6 @@ if test "$requested_sdk" = all || test "$requested_sdk" = xros; then
     --use-metal auto \
     "$root/GOALPad/Vision/VisionStereoWindow.rkassets"
   echo "visionOS camera-index ShaderGraph material check passed"
-
-  mkdir -p "$temporary/metal-module-cache"
-  xcrun -sdk xros metal \
-    -Wall \
-    -Werror \
-    -fmodules-cache-path="$temporary/metal-module-cache" \
-    -o "$temporary/vision-stereo-proof.metallib" \
-    "$proof_shader"
-  echo "visionOS diagnostic synthetic geometry shader check passed"
 fi
 
-echo "visionOS bounded-window stereo, diagnostic proof, and selected Apple SDK checks passed"
+echo "visionOS bounded Shared Space stereo and selected Apple SDK checks passed"

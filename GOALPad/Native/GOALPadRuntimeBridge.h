@@ -1,5 +1,7 @@
 #import <Foundation/Foundation.h>
+#import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
+#import <simd/simd.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -365,6 +367,23 @@ typedef struct GOALPadSurfaceGeometry {
   int32_t drawRegionWidth;
   int32_t drawRegionHeight;
 } GOALPadSurfaceGeometry;
+
+/// One borrowed RealityKit-owned view target for the synchronous visionOS stereo tick.
+@interface GOALPadStereoRenderTarget : NSObject
+
+- (instancetype)initWithViewID:(uint64_t)viewID
+                  colorTexture:(id<MTLTexture>)colorTexture
+                  depthTexture:(id<MTLTexture>)depthTexture
+              clipFromGameClip:(simd_float4x4)clipFromGameClip
+    NS_SWIFT_NAME(init(viewID:colorTexture:depthTexture:clipFromGameClip:));
+
+@property(nonatomic, readonly) uint64_t viewID;
+@property(nonatomic, readonly) id<MTLTexture> colorTexture;
+@property(nonatomic, readonly) id<MTLTexture> depthTexture;
+/// Column-major transform from the game's final Metal clip coordinates into this view.
+@property(nonatomic, readonly) simd_float4x4 clipFromGameClip;
+
+@end
 
 /// Numeric evidence retained for one consecutive-frame eichar-lod0 transform discontinuity.
 /// Issue bits identify: 0 uniform-scale jump, 1 per-axis shape jump, 2 input-root A/B/A,
@@ -903,8 +922,17 @@ typedef struct GOALPadRendererStats {
 /// Arm the surface immediately before the GOAL frame so its DMA send can render synchronously.
 - (BOOL)beginFrameAtTime:(CFTimeInterval)presentationTime NS_SWIFT_NAME(beginFrame(at:));
 
+/// Arm one synchronous game tick against two distinct borrowed RealityKit targets.
+- (BOOL)beginStereoFrameAtTime:(CFTimeInterval)presentationTime
+                          size:(CGSize)size
+                          left:(GOALPadStereoRenderTarget *)left
+                         right:(GOALPadStereoRenderTarget *)right
+    NS_SWIFT_NAME(beginStereoFrame(at:size:left:right:));
+
 /// Close the armed frame and report whether its DMA chain scheduled a drawable.
 - (BOOL)endFrame;
+/// Wait for both per-eye command buffers before releasing the borrowed targets.
+- (BOOL)endStereoFrame;
 /// NO until the Metal renderer has been started, in which case frame arming draws nothing.
 @property(nonatomic, readonly, getter=isRendererLinked) BOOL rendererLinked;
 

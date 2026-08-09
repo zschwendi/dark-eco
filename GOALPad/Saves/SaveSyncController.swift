@@ -839,6 +839,7 @@ struct SaveSettingsView: View {
                 Label("Touch Controls Guide", systemImage: "hand.tap")
             }
             #endif
+            #if !os(visionOS)
             Picker("Primary Controller", selection: Binding(
                 get: { settings.primaryInputSource },
                 set: {
@@ -856,17 +857,20 @@ struct SaveSettingsView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
+            #endif
             NavigationLink {
                 ControllerBindingsSettingsView(settings: settings, input: input)
             } label: {
                 LabeledContent("Controller Bindings", value: controllerBindingStatus)
             }
+            #if !os(visionOS)
             NavigationLink {
                 KeyboardMouseBindingsSettingsView(settings: settings, input: input)
             } label: {
                 LabeledContent("Mouse & Keyboard Bindings",
                                value: keyboardMouseBindingStatus)
             }
+            #endif
             Button("Restore Controls Defaults") {
                 settings.restoreDefaults(for: .controls)
                 input.setPrimarySource(settings.primaryInputSource)
@@ -902,8 +906,8 @@ struct SaveSettingsView: View {
                     get: { settings.graphicsStereo3D },
                     set: { settings.setGraphicsStereo3D($0) }
                 ))
-                Text("Renders a separate head-relative view for each eye inside the normal game "
-                    + "window. Turn it off to use Comfort mode.")
+                Text("Renders a fixed left/right pair from Jak's existing game camera inside the "
+                    + "normal game window. Turn it off to use Comfort mode.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 #endif

@@ -28,11 +28,10 @@ struct GOALPadApp: App {
     var body: some Scene {
         WindowGroup {
             #if os(visionOS)
-            VisionPresentationSessionBridge(coordinator: visionPresentation) {
-                GameCenterRootView {
-                    ContentView()
-                }
+            GameCenterRootView {
+                ContentView()
             }
+            .environment(visionPresentation)
             .task { await EcoTipTransactionObserver.run() }
             #else
             GameCenterRootView {
@@ -41,9 +40,5 @@ struct GOALPadApp: App {
             .task { await EcoTipTransactionObserver.run() }
             #endif
         }
-
-        #if os(visionOS)
-        GOALPadVisionSpatialScenes(coordinator: visionPresentation)
-        #endif
     }
 }

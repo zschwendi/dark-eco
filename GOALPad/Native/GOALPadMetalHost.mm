@@ -10,6 +10,7 @@
 #if GOALPAD_HAVE_GFX_SEAM
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
 #include <thread>
 #include <vector>
@@ -71,6 +72,9 @@ struct MetalHost {
   // Retained for one CADisplayLink tick. send_chain consumes each submitted chain synchronously
   // while its out-of-chain Merc bone pointers still name this frame's live EE data.
   CAMetalLayer* frame_layer = nil;
+  MetalExternalRenderTargetDescriptor stereo_left;
+  MetalExternalRenderTargetDescriptor stereo_right;
+  bool frame_is_stereo = false;
   goalpad::MetalHostFrame frame;
   std::thread::id frame_thread;
   bool frame_open = false;
@@ -573,9 +577,13 @@ void render_chain() {
                                         opts.chain_ordinal);
 
   const auto& chain = g_host.copier->get_last_result();
-  const bool drawable_acquired = g_host.renderer->render_chain_frame(
-      opts, g_host.frame_layer, chain.data.data(), chain.start_offset);
-  g_host.frame_rendered = drawable_acquired || g_host.frame_rendered;
+  const bool rendered = g_host.frame_is_stereo
+                            ? g_host.renderer->render_chain_frame_to_external_stereo_targets(
+                                  opts, g_host.stereo_left, g_host.stereo_right, chain.data.data(),
+                                  chain.start_offset)
+                            : g_host.renderer->render_chain_frame(
+                                  opts, g_host.frame_layer, chain.data.data(), chain.start_offset);
+  g_host.frame_rendered = rendered || g_host.frame_rendered;
 
   const auto stats = g_host.renderer->chain_stats();
   const auto& background = g_host.renderer->background_state();
@@ -888,7 +896,7 @@ void host_send_chain(const void* ee_base, uint32_t chain_offset) {
     return;
   }
   g_host.stats.chains_sent++;
-  if (!g_host.frame_open || g_host.frame_layer == nil) {
+  if (!g_host.frame_open || (!g_host.frame_is_stereo && g_host.frame_layer == nil)) {
     // Boot can send display chains before the first CADisplayLink tick. They cannot safely be
     // deferred because their live Merc bones will be gone, so there is deliberately no pending
     // chain outside an armed gameplay frame.
@@ -1113,12 +1121,7 @@ bool metal_host_begin_frame(CAMetalLayer* layer, const MetalHostFrame& frame) {
 
   if (g_host.frame_open) {
     os_log_error(gfx_log(), "Beginning a Metal frame before the previous frame was closed.");
-    g_host.frame_layer = nil;
-    g_host.frame_thread = std::thread::id();
-    g_host.frame_open = false;
-    g_host.frame_rendered = false;
-    g_host.weighted_skin_evidence.end_frame();
-    g_host.post_flag_gate.end_frame();
+    metal_host_end_frame();
   }
 
   // Normally loading happens where the game asks, in `host_set_levels`. At this safe frame
@@ -1128,6 +1131,9 @@ bool metal_host_begin_frame(CAMetalLayer* layer, const MetalHostFrame& frame) {
   service_level_requests(released_stale_art);
 
   g_host.frame_layer = layer;
+  g_host.stereo_left = {};
+  g_host.stereo_right = {};
+  g_host.frame_is_stereo = false;
   g_host.frame = frame;
   g_host.frame_thread = std::this_thread::get_id();
   g_host.frame_open = true;
@@ -1141,8 +1147,80 @@ bool metal_host_begin_frame(CAMetalLayer* layer, const MetalHostFrame& frame) {
   return true;
 }
 
-bool metal_host_end_frame() {
+bool metal_host_begin_stereo_frame(const MetalHostFrame& frame,
+                                   const MetalHostStereoView& left,
+                                   const MetalHostStereoView& right) {
+  const auto valid_view = [&](const MetalHostStereoView& view) {
+    if (view.view_id == 0 || view.color_texture == nil || view.depth_texture == nil ||
+        view.color_texture.device != g_host.renderer->device() ||
+        view.depth_texture.device != g_host.renderer->device() ||
+        view.color_texture.textureType != MTLTextureType2D ||
+        view.depth_texture.textureType != MTLTextureType2D ||
+        view.color_texture.pixelFormat != MTLPixelFormatBGRA8Unorm ||
+        view.depth_texture.pixelFormat != MTLPixelFormatDepth32Float_Stencil8 ||
+        view.color_texture.sampleCount != 1 || view.depth_texture.sampleCount != 1 ||
+        view.color_texture.width != static_cast<NSUInteger>(frame.game_res_w) ||
+        view.color_texture.height != static_cast<NSUInteger>(frame.game_res_h) ||
+        view.depth_texture.width != view.color_texture.width ||
+        view.depth_texture.height != view.color_texture.height ||
+        view.color_texture.framebufferOnly ||
+        !(view.color_texture.usage & MTLTextureUsageRenderTarget) ||
+        !(view.depth_texture.usage & MTLTextureUsageRenderTarget)) {
+      return false;
+    }
+    return std::all_of(view.clip_from_game_clip.begin(), view.clip_from_game_clip.end(),
+                       [](float value) { return std::isfinite(value); });
+  };
+  if (!g_host.running || !g_host.renderer || frame.game_res_w < 1 || frame.game_res_h < 1 ||
+      !std::isfinite(frame.presentation_time) || !valid_view(left) || !valid_view(right) ||
+      left.view_id == right.view_id || left.color_texture == right.color_texture ||
+      left.depth_texture == right.depth_texture ||
+      left.clip_from_game_clip == right.clip_from_game_clip) {
+    return false;
+  }
+
+  if (g_host.frame_open) {
+    os_log_error(gfx_log(), "Beginning a stereo Metal frame before the previous frame was closed.");
+    metal_host_end_frame();
+  }
+
+  const bool released_stale_art = evict_unwanted_level_art();
+  service_level_requests(released_stale_art);
+
+  auto make_target = [&](const MetalHostStereoView& view) {
+    MetalExternalRenderTargetDescriptor target;
+    target.view_id = view.view_id;
+    target.color_texture = view.color_texture;
+    target.depth_texture = view.depth_texture;
+    target.viewport = MTLViewport{0.0, 0.0, static_cast<double>(frame.game_res_w),
+                                  static_cast<double>(frame.game_res_h), 0.0, 1.0};
+    target.clear_depth = 0.0;
+    target.view_transform.clip_from_game_clip = view.clip_from_game_clip;
+    return target;
+  };
+
+  g_host.frame_layer = nil;
+  g_host.stereo_left = make_target(left);
+  g_host.stereo_right = make_target(right);
+  g_host.frame_is_stereo = true;
+  g_host.frame = frame;
+  g_host.frame_thread = std::this_thread::get_id();
+  g_host.frame_open = true;
+  g_host.frame_rendered = false;
+  g_host.weighted_skin_evidence.begin_frame();
+  g_host.chains_in_frame = 0;
+  g_host.stats.frames_armed++;
+  const auto post_flag = jak1_bones_provenance_trace::registry().latest_post_flag();
+  g_host.post_flag_gate.begin_frame(post_flag ? post_flag->serial : 0);
+  update_post_flag_counters();
+  return true;
+}
+
+bool close_frame(bool wait_for_stereo) {
   const bool rendered = g_host.frame_open && g_host.frame_rendered;
+  const bool completed = !wait_for_stereo ||
+                         (rendered && g_host.renderer &&
+                          g_host.renderer->wait_for_last_chain_frame(1.0));
   if (g_host.frame_open) {
     if (g_host.chains_in_frame == 0) {
       g_host.stats.frames_without_chain++;
@@ -1154,13 +1232,27 @@ bool metal_host_end_frame() {
         std::max(g_host.stats.max_chains_per_frame, g_host.chains_in_frame);
   }
   g_host.frame_layer = nil;
+  g_host.stereo_left = {};
+  g_host.stereo_right = {};
+  g_host.frame_is_stereo = false;
   g_host.frame_thread = std::thread::id();
   g_host.frame_open = false;
   g_host.frame_rendered = false;
   g_host.weighted_skin_evidence.end_frame();
   g_host.chains_in_frame = 0;
   g_host.post_flag_gate.end_frame();
-  return rendered;
+  return rendered && completed;
+}
+
+bool metal_host_end_frame() {
+  return close_frame(g_host.frame_is_stereo);
+}
+
+bool metal_host_end_stereo_frame() {
+  if (!g_host.frame_open || !g_host.frame_is_stereo) {
+    return false;
+  }
+  return close_frame(true);
 }
 
 #else  // GOALPAD_HAVE_GFX_SEAM
@@ -1202,7 +1294,17 @@ bool metal_host_begin_frame(CAMetalLayer*, const MetalHostFrame&) {
   return false;
 }
 
+bool metal_host_begin_stereo_frame(const MetalHostFrame&,
+                                   const MetalHostStereoView&,
+                                   const MetalHostStereoView&) {
+  return false;
+}
+
 bool metal_host_end_frame() {
+  return false;
+}
+
+bool metal_host_end_stereo_frame() {
   return false;
 }
 

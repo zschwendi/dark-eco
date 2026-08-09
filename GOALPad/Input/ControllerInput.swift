@@ -142,6 +142,12 @@ final class ControllerInput {
         pushFrame(merging: nil)
     }
 
+    /// Push only an ordinary extended gamepad. The bounded visionOS game window deliberately does
+    /// not expose touch, keyboard, mouse, or spatial-controller gameplay paths.
+    func pushControllerFrame() {
+        pushFrame(merging: nil, controllerOnly: true)
+    }
+
     /// Read the physical inputs, merge the on-screen controls into them, and hand the engine this
     /// frame's pad state. Call before the frame runs.
     ///
@@ -152,10 +158,17 @@ final class ControllerInput {
         pushFrame(merging: Optional(touch))
     }
 
-    private func pushFrame(merging touch: TouchPadState?) {
+    private func pushFrame(merging touch: TouchPadState?, controllerOnly: Bool = false) {
         var state = Self.neutralState()
         let now = CACurrentMediaTime()
-        let policy = sourcePolicy
+        let policy = controllerOnly
+            ? InputSourcePolicy(
+                preference: .controller,
+                touchAvailable: false,
+                controllerConnected: controller != nil,
+                keyboardMouseConnected: false
+            )
+            : sourcePolicy
         if policy.allowsController, let gamepad = controller?.extendedGamepad {
             let controllerFrame = bindings.controllerFrame(
                 pressed: Self.pressedControls(of: gamepad),
@@ -177,28 +190,30 @@ final class ControllerInput {
             if Self.isActive(state) { activity.noteController(at: now) }
         }
 
-        let keyboardMouse = keyboardMouseState.consumeFrame(bindings: bindings)
-        if keyboardMouse.hasKeyboardInput { activity.noteKeyboard(at: now) }
-        if keyboardMouse.hasMouseInput { activity.noteMouse(at: now) }
         var preferred = (x: state.leftX, y: state.leftY)
-        if policy.allowsKeyboardMouse {
-            state.buttons.formUnion(keyboardMouse.buttons)
-            preferred = PadStickMerge.preferred(
-                primaryX: state.leftX,
-                primaryY: state.leftY,
-                fallbackX: keyboardMouse.leftX,
-                fallbackY: keyboardMouse.leftY,
-                fallbackActive: PadStickMerge.isDeflected(x: keyboardMouse.leftX,
-                                                          y: keyboardMouse.leftY))
-            state.leftX = preferred.x
-            state.leftY = preferred.y
-            preferred = PadStickMerge.preferred(primaryX: state.rightX,
-                                                primaryY: state.rightY,
-                                                fallbackX: keyboardMouse.rightX,
-                                                fallbackY: keyboardMouse.rightY,
-                                                fallbackActive: keyboardMouse.hasMouseInput)
-            state.rightX = preferred.x
-            state.rightY = preferred.y
+        if !controllerOnly {
+            let keyboardMouse = keyboardMouseState.consumeFrame(bindings: bindings)
+            if keyboardMouse.hasKeyboardInput { activity.noteKeyboard(at: now) }
+            if keyboardMouse.hasMouseInput { activity.noteMouse(at: now) }
+            if policy.allowsKeyboardMouse {
+                state.buttons.formUnion(keyboardMouse.buttons)
+                preferred = PadStickMerge.preferred(
+                    primaryX: state.leftX,
+                    primaryY: state.leftY,
+                    fallbackX: keyboardMouse.leftX,
+                    fallbackY: keyboardMouse.leftY,
+                    fallbackActive: PadStickMerge.isDeflected(x: keyboardMouse.leftX,
+                                                              y: keyboardMouse.leftY))
+                state.leftX = preferred.x
+                state.leftY = preferred.y
+                preferred = PadStickMerge.preferred(primaryX: state.rightX,
+                                                    primaryY: state.rightY,
+                                                    fallbackX: keyboardMouse.rightX,
+                                                    fallbackY: keyboardMouse.rightY,
+                                                    fallbackActive: keyboardMouse.hasMouseInput)
+                state.rightX = preferred.x
+                state.rightY = preferred.y
+            }
         }
         noteDriving(at: now)
 

@@ -22,11 +22,13 @@
  * Threading: one thread does everything. See `metal_host_begin_frame`.
  */
 
+#include <array>
 #include <cstdint>
 #include <string>
 
 #ifdef __OBJC__
 @class CAMetalLayer;
+@protocol MTLTexture;
 #endif
 
 namespace goalpad {
@@ -565,6 +567,13 @@ MetalHostTargetControlTelemetry metal_host_target_control_telemetry();
 
 #ifdef __OBJC__
 
+struct MetalHostStereoView {
+  std::uint64_t view_id = 0;
+  id<MTLTexture> color_texture = nullptr;
+  id<MTLTexture> depth_texture = nullptr;
+  std::array<float, 16> clip_from_game_clip = {};
+};
+
 /*!
  * Arm one display-link tick with its presentation surface and geometry.
  *
@@ -584,6 +593,11 @@ MetalHostTargetControlTelemetry metal_host_target_control_telemetry();
  */
 bool metal_host_begin_frame(CAMetalLayer* layer, const MetalHostFrame& frame);
 
+/*! Arm one tick for a fixed pair of borrowed host-owned color/depth targets. */
+bool metal_host_begin_stereo_frame(const MetalHostFrame& frame,
+                                   const MetalHostStereoView& left,
+                                   const MetalHostStereoView& right);
+
 /*!
  * Close the armed display-link tick and report whether its chain scheduled a drawable.
  *
@@ -591,6 +605,9 @@ bool metal_host_begin_frame(CAMetalLayer* layer, const MetalHostFrame& frame);
  * and lets the app update its scheduled-drawable count.
  */
 bool metal_host_end_frame();
+
+/*! Wait for both stereo submissions to complete, then close the armed tick. */
+bool metal_host_end_stereo_frame();
 
 /*! Point the layer at the renderer's device. Safe before `metal_host_start`. */
 void metal_host_attach_layer(CAMetalLayer* layer);

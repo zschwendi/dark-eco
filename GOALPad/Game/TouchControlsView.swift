@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 
 #if canImport(UIKit)
@@ -1027,4 +1028,5 @@ private final class TouchHapticDriver {
     }
 }
 
+#endif
 #endif

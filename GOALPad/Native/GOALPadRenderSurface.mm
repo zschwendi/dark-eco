@@ -7,6 +7,9 @@
 #import <Metal/Metal.h>
 
 #include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <limits>
 
 /*!
  * @file GOALPadRenderSurface.mm
@@ -24,6 +27,31 @@
  */
 
 static const int32_t kMaxInternalScale = 4;
+
+@interface GOALPadStereoRenderTarget ()
+@property(nonatomic, readwrite) uint64_t viewID;
+@property(nonatomic, readwrite) id<MTLTexture> colorTexture;
+@property(nonatomic, readwrite) id<MTLTexture> depthTexture;
+@property(nonatomic, readwrite) simd_float4x4 clipFromGameClip;
+@end
+
+@implementation GOALPadStereoRenderTarget
+
+- (instancetype)initWithViewID:(uint64_t)viewID
+                  colorTexture:(id<MTLTexture>)colorTexture
+                  depthTexture:(id<MTLTexture>)depthTexture
+              clipFromGameClip:(simd_float4x4)clipFromGameClip {
+  self = [super init];
+  if (self) {
+    _viewID = viewID;
+    _colorTexture = colorTexture;
+    _depthTexture = depthTexture;
+    _clipFromGameClip = clipFromGameClip;
+  }
+  return self;
+}
+
+@end
 
 static GOALPadMercTransformEvent makeMercTransformEvent(
     const goalpad::MetalHostMercTransformEvent &core) {
@@ -677,8 +705,51 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
   return goalpad::metal_host_begin_frame(_layer, frame);
 }
 
+- (BOOL)beginStereoFrameAtTime:(CFTimeInterval)presentationTime
+                          size:(CGSize)size
+                          left:(GOALPadStereoRenderTarget *)left
+                         right:(GOALPadStereoRenderTarget *)right {
+  if (size.width < 1 || size.height < 1 || !std::isfinite(size.width) ||
+      !std::isfinite(size.height) || size.width > std::numeric_limits<int>::max() ||
+      size.height > std::numeric_limits<int>::max()) {
+    self.lastError = @"The stereoscopic render size is invalid.";
+    return NO;
+  }
+
+  goalpad::MetalHostFrame frame;
+  frame.game_res_w = (int)size.width;
+  frame.game_res_h = (int)size.height;
+  frame.draw_region_w = frame.game_res_w;
+  frame.draw_region_h = frame.game_res_h;
+  frame.presentation_time = presentationTime;
+
+  goalpad::MetalHostStereoView leftView;
+  leftView.view_id = left.viewID;
+  leftView.color_texture = left.colorTexture;
+  leftView.depth_texture = left.depthTexture;
+  const simd_float4x4 leftTransform = left.clipFromGameClip;
+  memcpy(leftView.clip_from_game_clip.data(), &leftTransform, sizeof(leftTransform));
+
+  goalpad::MetalHostStereoView rightView;
+  rightView.view_id = right.viewID;
+  rightView.color_texture = right.colorTexture;
+  rightView.depth_texture = right.depthTexture;
+  const simd_float4x4 rightTransform = right.clipFromGameClip;
+  memcpy(rightView.clip_from_game_clip.data(), &rightTransform, sizeof(rightTransform));
+
+  const BOOL began = goalpad::metal_host_begin_stereo_frame(frame, leftView, rightView);
+  self.lastError = began ? @"" : @"The stereoscopic render targets were rejected.";
+  return began;
+}
+
 - (BOOL)endFrame {
   return goalpad::metal_host_end_frame();
+}
+
+- (BOOL)endStereoFrame {
+  const BOOL completed = goalpad::metal_host_end_stereo_frame();
+  self.lastError = completed ? @"" : @"The stereoscopic frame did not complete.";
+  return completed;
 }
 
 @end

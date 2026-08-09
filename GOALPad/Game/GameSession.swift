@@ -278,11 +278,51 @@ final class GameSession {
     func tick(targetPresentationTime: CFTimeInterval) {
         guard isRunning, lifecycle.frameLoopEnabled,
               !controlsGuideSuspension.blocksGameplay else { return }
-        recordDisplayCallback()
         let surface = GOALPadRenderSurface.shared
         guard surface.beginFrame(at: targetPresentationTime) else { return }
+        _ = runArmedTick(targetPresentationTime: targetPresentationTime) {
+            surface.endFrame()
+        }
+    }
+
+    #if os(visionOS)
+    func tickStereo(frame: VisionWindowStereoRenderFrame) -> Bool {
+        guard isRunning, lifecycle.frameLoopEnabled,
+              !controlsGuideSuspension.blocksGameplay else { return false }
+
+        let left = GOALPadStereoRenderTarget(
+            viewID: frame.left.viewID,
+            colorTexture: frame.left.colorTexture,
+            depthTexture: frame.left.depthTexture,
+            clipFromGameClip: frame.left.clipFromGameClip
+        )
+        let right = GOALPadStereoRenderTarget(
+            viewID: frame.right.viewID,
+            colorTexture: frame.right.colorTexture,
+            depthTexture: frame.right.depthTexture,
+            clipFromGameClip: frame.right.clipFromGameClip
+        )
+        let surface = GOALPadRenderSurface.shared
+        guard surface.beginStereoFrame(
+            at: frame.targetPresentationTime,
+            size: CGSize(width: CGFloat(frame.width), height: CGFloat(frame.height)),
+            left: left,
+            right: right
+        ) else { return false }
+
+        return runArmedTick(targetPresentationTime: frame.targetPresentationTime) {
+            surface.endStereoFrame()
+        }
+    }
+    #endif
+
+    private func runArmedTick(targetPresentationTime: CFTimeInterval,
+                              endFrame: () -> Bool) -> Bool {
+        recordDisplayCallback()
         #if os(iOS)
         input.pushFrame(merging: touch.frameState())
+        #elseif os(visionOS)
+        input.pushControllerFrame()
         #else
         input.pushFrame()
         #endif
@@ -328,14 +368,16 @@ final class GameSession {
             saveSync.gameplayFrameCompleted()
         }
 
-        if surface.endFrame() {
+        let framePresented = endFrame()
+        if framePresented {
             framesPresented += 1
         }
-        let renderer = surface.stats
+        let renderer = GOALPadRenderSurface.shared.stats
         // File snapshots remain available at startup and lifecycle boundaries, never in this
         // display callback.
         if shouldLog { logRunningState(renderer: renderer) }
         input.applyRumble()
+        return framePresented
     }
 
     private func updateNativeMenuState(mode: GOALPadGameMode,

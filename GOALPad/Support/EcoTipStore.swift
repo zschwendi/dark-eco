@@ -81,6 +81,10 @@ final class EcoTipStore {
     }
 
     func purchase(_ tip: EcoTip) async {
+        #if os(visionOS)
+        notice = "Tips aren’t available on visionOS."
+        return
+        #else
         guard purchasingProductID == nil else { return }
         guard let product = product(for: tip) else {
             notice = "That tip isn’t available from the App Store right now."
@@ -111,6 +115,7 @@ final class EcoTipStore {
         } catch {
             notice = "The purchase couldn’t be completed. Please try again."
         }
+        #endif
     }
 
 }
