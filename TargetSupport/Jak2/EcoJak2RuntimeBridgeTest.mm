@@ -357,6 +357,12 @@ int main() {
                        GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM,
                    GOALPadJak2ProgressMenuPhaseCreateGame,
                    "the bridge preserves create-game Left, Right, and Confirm");
+    check_semantic(GOAL_JAK2_PROGRESS_MENU_PHASE_ALREADY_EXISTS, 0,
+                   GOAL_JAK2_PROGRESS_MENU_ACTION_LEFT |
+                       GOAL_JAK2_PROGRESS_MENU_ACTION_RIGHT |
+                       GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM,
+                   GOALPadJak2ProgressMenuPhaseExistingSaveOverwrite,
+                   "the bridge preserves overwrite Left, Right, and Confirm");
     check_semantic(GOAL_JAK2_PROGRESS_MENU_PHASE_CREATING, 0,
                    GOAL_JAK2_PROGRESS_MENU_ACTION_NONE,
                    GOALPadJak2ProgressMenuPhaseCreating,
