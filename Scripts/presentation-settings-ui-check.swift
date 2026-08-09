@@ -142,6 +142,14 @@ check(store.contains("var graphicsModernFillWidthOverride: Bool?")
         && store.contains("var graphicsProfile: SettingsProfile = .modern")
         && store.contains("return graphicsModernFillWidthOverride ?? true"),
       "Graphics and Fill Width default to Modern while preserving a user override")
+check(view.contains("#if os(visionOS)")
+        && view.contains("Toggle(\"Stereoscopic 3D\"")
+        && view.contains("settings.setGraphicsStereo3D")
+        && store.contains("var graphicsModernStereo3DOverride: Bool?")
+        && store.contains("graphicsModernStereo3DOverride ?? true")
+        && content.contains("session.presentationSettings.graphicsStereo3D")
+        && content.contains("synchronizeVisionPresentation()"),
+      "visionOS Modern graphics defaults to persisted bounded-window stereo with an opt-out")
 check(occursInOrder(["case modern", "case classic"], in: store)
         && store.contains("enum SettingsProfile: String, CaseIterable, Codable"),
       "CaseIterable ordering changes without changing string-backed document compatibility")

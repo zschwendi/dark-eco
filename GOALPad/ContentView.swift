@@ -47,6 +47,9 @@ struct ContentView: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var gameCenter: GameCenterService
+    #if os(visionOS)
+    @Environment(VisionPresentationCoordinator.self) private var visionPresentation
+    #endif
     @State private var session = GameSession()
     @State private var artworkStore = GameArtworkStore()
     @State private var launcherDestination = LauncherDestination.library
@@ -126,6 +129,14 @@ struct ContentView: View {
             _, enabled in
             session.settings.horizontalPlusEnabled = enabled
         }
+        #if os(visionOS)
+        .onChange(of: session.presentationSettings.graphicsProfile, initial: true) { _, _ in
+            synchronizeVisionPresentation()
+        }
+        .onChange(of: session.presentationSettings.graphicsStereo3D, initial: true) { _, _ in
+            synchronizeVisionPresentation()
+        }
+        #endif
         .onChange(of: session.presentationSettings.primaryInputSource, initial: true) {
             _, source in
             session.input.setPrimarySource(source)
@@ -172,6 +183,15 @@ struct ContentView: View {
         launcherDestination = .library
         session.shutdown()
     }
+
+    #if os(visionOS)
+    private func synchronizeVisionPresentation() {
+        visionPresentation.configure(
+            graphicsProfile: session.presentationSettings.graphicsProfile,
+            stereoscopic3DEnabled: session.presentationSettings.graphicsStereo3D
+        )
+    }
+    #endif
 }
 
 private struct SettingsSheetView: View {

@@ -896,6 +896,17 @@ struct SaveSettingsView: View {
                 Text("Keeps the vertical view and widens the game horizontally to fill the display.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+
+                #if os(visionOS)
+                Toggle("Stereoscopic 3D", isOn: Binding(
+                    get: { settings.graphicsStereo3D },
+                    set: { settings.setGraphicsStereo3D($0) }
+                ))
+                Text("Renders a separate head-relative view for each eye inside the normal game "
+                    + "window. Turn it off to use Comfort mode.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                #endif
             }
 
             Button("Restore \(section.title) Defaults") {

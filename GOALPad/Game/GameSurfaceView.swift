@@ -17,7 +17,40 @@ struct GameSurfaceView: View {
     /// Called once per display refresh, on the main thread.
     let onFrame: (CFTimeInterval) -> Void
 
+    #if os(visionOS)
+    @Environment(VisionPresentationCoordinator.self) private var visionPresentation
+    let onStereoFrame: VisionWindowStereoFrameHandler?
+
+    init(onFrame: @escaping (CFTimeInterval) -> Void,
+         onStereoFrame: VisionWindowStereoFrameHandler? = nil) {
+        self.onFrame = onFrame
+        self.onStereoFrame = onStereoFrame
+    }
+    #endif
+
     var body: some View {
+        #if os(visionOS)
+        Group {
+            if visionPresentation.isStereoWindowActive, onStereoFrame != nil {
+                VisionWindowStereoSurfaceView { frame in
+                    onStereoFrame?(frame) ?? false
+                }
+            } else {
+                conventionalSurface
+            }
+        }
+        .onAppear {
+            visionPresentation.setStereoRendererAvailable(onStereoFrame != nil)
+        }
+        .onDisappear {
+            visionPresentation.setStereoRendererAvailable(false)
+        }
+        #else
+        conventionalSurface
+        #endif
+    }
+
+    private var conventionalSurface: some View {
         SurfaceRepresentable(onFrame: onFrame)
             .ignoresSafeArea()
             .background(.black)

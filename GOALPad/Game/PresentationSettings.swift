@@ -32,9 +32,12 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
     var audioProfile: SettingsProfile = .classic
     var interfaceProfile: SettingsProfile = .classic
 
-    /// `nil` means the selected profile's default. The only current graphics option belongs to
-    /// Modern, whose default is enabled; Classic always uses the preserved compatibility view.
+    /// `nil` means the selected profile's default. This option belongs to Modern, whose default is
+    /// enabled; Classic always uses the preserved compatibility view.
     var graphicsModernFillWidthOverride: Bool?
+    /// Optional so existing same-schema documents decode unchanged. Modern uses stereoscopic
+    /// window rendering by default on visionOS; Classic and an explicit opt-out use Comfort.
+    var graphicsModernStereo3DOverride: Bool?
     /// Optional so Build 93 settings documents decode without a migration. Developer logs are
     /// hidden by default and belong to this title's synced settings document.
     var developerLogsEnabledOverride: Bool?
@@ -81,6 +84,11 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         return graphicsModernFillWidthOverride ?? true
     }
 
+    var graphicsStereo3D: Bool {
+        guard graphicsProfile == .modern else { return false }
+        return graphicsModernStereo3DOverride ?? true
+    }
+
     var developerLogsEnabled: Bool {
         developerLogsEnabledOverride ?? false
     }
@@ -97,6 +105,7 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         switch section {
         case .graphics:
             graphicsModernFillWidthOverride = nil
+            graphicsModernStereo3DOverride = nil
         case .controls:
             primaryInputSourceOverride = nil
             jak1InputBindingsOverride = nil
@@ -111,6 +120,7 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         audioProfile = .classic
         interfaceProfile = .classic
         graphicsModernFillWidthOverride = nil
+        graphicsModernStereo3DOverride = nil
         developerLogsEnabledOverride = nil
         primaryInputSourceOverride = nil
         jak1InputBindingsOverride = nil
@@ -518,7 +528,11 @@ final class PresentationSettings {
 
     var globalProfile: SettingsProfile? { document.globalProfile }
 
+    var graphicsProfile: SettingsProfile { document.graphicsProfile }
+
     var graphicsFillWidth: Bool { document.graphicsFillWidth }
+
+    var graphicsStereo3D: Bool { document.graphicsStereo3D }
 
     var developerLogsEnabled: Bool { document.developerLogsEnabled }
 
@@ -561,6 +575,10 @@ final class PresentationSettings {
 
     func setGraphicsFillWidth(_ enabled: Bool) {
         change { $0.graphicsModernFillWidthOverride = enabled }
+    }
+
+    func setGraphicsStereo3D(_ enabled: Bool) {
+        change { $0.graphicsModernStereo3DOverride = enabled }
     }
 
     func setDeveloperLogsEnabled(_ enabled: Bool) {

@@ -1,0 +1,55 @@
+#usda 1.0
+(
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Material "Material"
+    {
+        asset inputs:leftEye
+        asset inputs:rightEye
+        token outputs:mtlx:surface.connect = </Root/Material/Unlit.outputs:out>
+        token outputs:realitykit:vertex
+
+        def Shader "Unlit"
+        {
+            uniform token info:id = "ND_realitykit_unlit_surfaceshader"
+            bool inputs:applyPostProcessToneMap = 0
+            color3f inputs:color.connect = </Root/Material/EyeSwitch.outputs:out>
+            bool inputs:hasPremultipliedAlpha = 0
+            float inputs:opacity = 1
+            float inputs:opacityThreshold = 0
+            token outputs:out
+        }
+
+        def Shader "LeftTexture"
+        {
+            uniform token info:id = "ND_UsdUVTexture"
+            asset inputs:file.connect = </Root/Material.inputs:leftEye>
+            string inputs:wrapS = "clamp"
+            string inputs:wrapT = "clamp"
+            color3f outputs:rgb
+        }
+
+        def Shader "RightTexture"
+        {
+            uniform token info:id = "ND_UsdUVTexture"
+            asset inputs:file.connect = </Root/Material.inputs:rightEye>
+            string inputs:wrapS = "clamp"
+            string inputs:wrapT = "clamp"
+            color3f outputs:rgb
+        }
+
+        def Shader "EyeSwitch"
+        {
+            uniform token info:id = "ND_realitykit_geometry_switch_cameraindex_color3"
+            color3f inputs:left.connect = </Root/Material/LeftTexture.outputs:rgb>
+            color3f inputs:mono.connect = </Root/Material/LeftTexture.outputs:rgb>
+            color3f inputs:right.connect = </Root/Material/RightTexture.outputs:rgb>
+            color3f outputs:out
+        }
+    }
+}

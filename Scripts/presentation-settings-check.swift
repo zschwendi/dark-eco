@@ -597,8 +597,11 @@ private func defaultsUseModernGraphics() async throws {
     check(value.profile(for: .audio) == .classic, "Audio begins in Classic")
     check(value.profile(for: .interface) == .classic, "UI begins in Classic")
     check(value.graphicsFillWidth, "Modern Graphics begins with Fill Width enabled")
+    check(value.graphicsStereo3D, "Modern Graphics begins with Stereoscopic 3D enabled")
     check(value.document.graphicsModernFillWidthOverride == nil,
           "the default uses the Modern option value instead of a stored override")
+    check(value.document.graphicsModernStereo3DOverride == nil,
+          "the stereo default does not require a stored override")
     check(value.cloudSyncEnabled, "settings cloud sync defaults on independently of saves")
 }
 
@@ -615,19 +618,22 @@ private func savedChoicesSurviveNewDefaults() async throws {
     let restoredClassic = settings(classicFixture, writerID: "device-new")
     check(restoredClassic.profile(for: .controls) == .modern
           && restoredClassic.profile(for: .graphics) == .classic
-          && !restoredClassic.graphicsFillWidth,
+          && !restoredClassic.graphicsFillWidth
+          && !restoredClassic.graphicsStereo3D,
           "a saved Classic Graphics selection loads unchanged")
 
     let modernFixture = try Fixture(name: "saved-modern-override")
     var modern = PresentationSettingsDocument(writerID: "device-old")
     modern.graphicsModernFillWidthOverride = false
+    modern.graphicsModernStereo3DOverride = false
     try FileManager.default.createDirectory(at: modernFixture.local.deletingLastPathComponent(),
                                             withIntermediateDirectories: true)
     try JSONEncoder().encode(modern).write(to: modernFixture.local, options: .atomic)
     let restoredModern = settings(modernFixture, writerID: "device-new")
     check(restoredModern.profile(for: .graphics) == .modern
-          && !restoredModern.graphicsFillWidth,
-          "a saved Modern Fill Width override loads unchanged")
+          && !restoredModern.graphicsFillWidth
+          && !restoredModern.graphicsStereo3D,
+          "saved Modern graphics overrides load unchanged")
 }
 
 @MainActor
@@ -637,15 +643,19 @@ private func profilesCanBeMixedWithoutLosingOptions() async throws {
     let value = settings(fixture, writerID: "device-a", cloudAvailable: false)
     value.setProfile(.modern, for: .graphics)
     check(value.graphicsFillWidth, "Modern graphics defaults Fill Width on")
+    check(value.graphicsStereo3D, "Modern graphics defaults Stereoscopic 3D on")
     value.setGraphicsFillWidth(false)
+    value.setGraphicsStereo3D(false)
     value.setProfile(.classic, for: .graphics)
     value.setProfile(.modern, for: .audio)
     check(value.globalProfile == nil, "different section profiles report Mixed")
     value.setProfile(.modern, for: .graphics)
-    check(!value.graphicsFillWidth, "switching profiles preserves a customized Fill Width value")
+    check(!value.graphicsFillWidth && !value.graphicsStereo3D,
+          "switching profiles preserves customized Modern graphics values")
 
     value.restoreDefaults(for: .graphics)
-    check(value.graphicsFillWidth, "graphics Restore Defaults returns Modern Fill Width to on")
+    check(value.graphicsFillWidth && value.graphicsStereo3D,
+          "graphics Restore Defaults returns Modern graphics options to on")
     value.applyPreset(.classic)
     check(value.globalProfile == .classic, "global Classic applies to every section")
     check(value.document.graphicsModernFillWidthOverride == nil,
@@ -657,7 +667,9 @@ private func profilesCanBeMixedWithoutLosingOptions() async throws {
           && value.profile(for: .audio) == .classic
           && value.profile(for: .interface) == .classic
           && value.graphicsFillWidth
-          && value.document.graphicsModernFillWidthOverride == nil,
+          && value.graphicsStereo3D
+          && value.document.graphicsModernFillWidthOverride == nil
+          && value.document.graphicsModernStereo3DOverride == nil,
           "Reset All restores the default Modern Graphics mix")
 }
 
@@ -698,6 +710,7 @@ private func cloudSettingsAndTouchLayoutConverge() async throws {
     first.setProfile(.modern, for: .graphics)
     first.setProfile(.modern, for: .audio)
     first.setGraphicsFillWidth(false)
+    first.setGraphicsStereo3D(false)
     first.setControllerAction(.square, for: .buttonA)
     first.setKeyboardMouseAction(.stats, for: .spacebar)
     first.setKeyboardMouseAction(.moveForward, for: .returnOrEnter)
@@ -718,7 +731,8 @@ private func cloudSettingsAndTouchLayoutConverge() async throws {
     await second.prepare()
     check(second.profile(for: .graphics) == .modern && second.profile(for: .audio) == .modern,
           "a second device receives every changed section profile together")
-    check(!second.graphicsFillWidth, "the second device receives the customized Modern option")
+    check(!second.graphicsFillWidth && !second.graphicsStereo3D,
+          "the second device receives the customized Modern options")
     check(second.jak1InputBindings.action(for: .buttonA) == .square
           && second.jak1InputBindings.action(for: .buttonX) == .cross
           && second.jak1InputBindings.action(for: .spacebar) == .stats

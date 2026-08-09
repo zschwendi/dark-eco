@@ -21,7 +21,7 @@ struct VisionPresentationSessionBridge<Content: View>: View {
             .task(id: coordinator.sceneRequest?.id) {
                 guard let request = coordinator.sceneRequest else { return }
                 switch request.action {
-                case .openStereoProof:
+                case .openHeadTracking:
                     let result = await openImmersiveSpace(
                         id: VisionPresentationMode.stereoscopic3D.sceneID
                     )
@@ -34,7 +34,7 @@ struct VisionPresentationSessionBridge<Content: View>: View {
                         coordinator.sceneRequestFinished(
                             request,
                             opened: false,
-                            error: "visionOS could not open the synthetic stereo compositor proof."
+                            error: "visionOS could not open the head-tracking support space."
                         )
                     @unknown default:
                         coordinator.sceneRequestFinished(
@@ -43,7 +43,7 @@ struct VisionPresentationSessionBridge<Content: View>: View {
                             error: "visionOS returned an unknown immersive-space result."
                         )
                     }
-                case .dismissStereoProof:
+                case .dismissHeadTracking:
                     await dismissImmersiveSpace()
                     coordinator.sceneRequestFinished(request, opened: false)
                 }
@@ -55,54 +55,17 @@ struct GOALPadVisionSpatialScenes: Scene {
     let coordinator: VisionPresentationCoordinator
 
     var body: some Scene {
-        WindowGroup(id: VisionPresentationMode.tabletopVolume.sceneID) {
-            VisionUnavailablePresentationView(mode: .tabletopVolume)
-                .environment(coordinator)
-        }
-        .windowStyle(.volumetric)
-
+        // The mixed space exists only so the bounded window can query head pose relative to the
+        // window. It never hosts game geometry or replaces the app's ordinary WindowGroup.
         ImmersiveSpace(id: VisionPresentationMode.stereoscopic3D.sceneID) {
-            VisionStereoCompositorProofContent(coordinator: coordinator)
+            EmptyView()
         }
         .immersionStyle(selection: .constant(.mixed), in: .mixed)
-
-        ImmersiveSpace(id: VisionPresentationMode.roomScaleWorld.sceneID) {
-            VisionUnavailablePresentationView(mode: .roomScaleWorld)
-                .environment(coordinator)
-        }
-        .immersionStyle(selection: .constant(.progressive), in: .progressive)
-
-        ImmersiveSpace(id: VisionPresentationMode.firstPersonVR.sceneID) {
-            VisionUnavailablePresentationView(mode: .firstPersonVR)
-                .environment(coordinator)
-        }
-        .immersionStyle(selection: .constant(.full), in: .full)
     }
 }
 
-private struct VisionUnavailablePresentationView: View {
-    let mode: VisionPresentationMode
-
-    private var capability: VisionPresentationCapability {
-        VisionPresentationCapabilities.capability(for: mode)
-    }
-
-    var body: some View {
-        VStack(spacing: 12) {
-            Text(mode.title)
-                .font(.title2.weight(.semibold))
-            Text("Unavailable")
-                .font(.headline)
-            Text(capability.explanation)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(28)
-        .frame(maxWidth: 520)
-        .glassBackgroundEffect()
-    }
-}
-
+// Retained for deterministic renderer diagnostics only. GOALPadVisionSpatialScenes never declares
+// this content, so the product cannot replace its bounded window with the synthetic compositor.
 struct VisionStereoCompositorProofContent: CompositorContent {
     let coordinator: VisionPresentationCoordinator
 
