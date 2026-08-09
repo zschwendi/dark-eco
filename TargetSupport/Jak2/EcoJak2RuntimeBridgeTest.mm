@@ -20,6 +20,7 @@ namespace {
 
 goal_jak2_metal_host g_host = {1};
 goal_jak2_runtime_metrics g_runtime = {};
+goal_jak2_progress_menu_snapshot g_progress = {};
 goal_jak2_metal_host_metrics g_metal = {};
 goal_pad_state g_pad = {};
 int g_pad_port = -1;
@@ -169,6 +170,15 @@ goal_jak2_runtime_status goal_jak2_runtime_get_metrics(goal_jak2_runtime_metrics
   return GOAL_JAK2_RUNTIME_OK;
 }
 
+goal_jak2_runtime_status goal_jak2_runtime_get_progress_menu_snapshot(
+    goal_jak2_progress_menu_snapshot* out) {
+  if (!out) {
+    return GOAL_JAK2_RUNTIME_INVALID_ARGUMENT;
+  }
+  *out = g_progress;
+  return GOAL_JAK2_RUNTIME_OK;
+}
+
 int goal_jak2_runtime_is_running(void) {
   return g_runtime_running;
 }
@@ -274,12 +284,33 @@ int main() {
     std::strcpy(g_runtime.title_control_state, "startup");
     std::strcpy(g_runtime.host_desired_levels, "title");
     std::strcpy(g_runtime.host_active_levels, "common+title");
+    std::strcpy(g_runtime.master_mode, "progress");
+    g_progress = {1, GOAL_JAK2_PROGRESS_SCREEN_TITLE, 0, 0, 0, 1,
+                  GOAL_JAK2_PROGRESS_SCREEN_TITLE, 0, 0};
+    GOALPadProgressMenuSnapshot progress = GOALPadRuntimeBridge.progressMenuSnapshot;
+    check(progress.available && progress.screen == GOALPadProgressScreenTitle &&
+              progress.startingScreen == GOALPadProgressScreenTitle && progress.optionIndex == 0 &&
+              !progress.selectedOption && !progress.inTransition && progress.navigationAvailable &&
+              !progress.canExitWithStart && !progress.canGoBack,
+          "Jak II stable title snapshot enables the shared progress controls");
+    g_progress.option_index = 3;
+    g_progress.selected_option = 1;
+    progress = GOALPadRuntimeBridge.progressMenuSnapshot;
+    check(progress.available && progress.optionIndex == 3 && progress.selectedOption,
+          "Jak II title selection maps through the shared snapshot ABI");
+    g_progress.in_transition = 1;
+    g_progress.navigation_available = 0;
+    progress = GOALPadRuntimeBridge.progressMenuSnapshot;
+    check(progress.available && progress.inTransition && !progress.navigationAvailable,
+          "Jak II title transitions remain visible but navigation-disabled");
+    g_progress.option_index = 4;
     check(!GOALPadRuntimeBridge.progressMenuSnapshot.available,
-          "Jak I progress semantics remain unavailable");
+          "the Objective-C bridge rejects an invalid native title option");
+    g_progress = {};
     check(!GOALPadRuntimeBridge.warpGateTouchSnapshot.valid &&
               !GOALPadRuntimeBridge.cutsceneSkipTouchSnapshot.valid &&
               !GOALPadRuntimeBridge.facePromptTouchSnapshot.valid,
-          "Jak I touch diagnostics fail closed");
+          "unsupported Jak II touch diagnostics fail closed");
 
     GOALPadControllerState controller = {};
     controller.buttons = GOALPadButtonCross | GOALPadButtonL2;

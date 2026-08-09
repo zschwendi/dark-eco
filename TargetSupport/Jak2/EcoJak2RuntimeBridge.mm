@@ -220,6 +220,7 @@ void clear_runtime_snapshots_locked() {
 GOALPadProgressMenuSnapshot unavailable_progress_snapshot() {
   GOALPadProgressMenuSnapshot snapshot = {};
   snapshot.screen = GOALPadProgressScreenUnknown;
+  snapshot.optionIndex = -1;
   snapshot.startingScreen = GOALPadProgressScreenUnknown;
   return snapshot;
 }
@@ -560,7 +561,31 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
 }
 
 + (GOALPadProgressMenuSnapshot)progressMenuSnapshot {
-  return unavailable_progress_snapshot();
+  std::lock_guard<std::mutex> lock(g_mutex);
+  goal_jak2_progress_menu_snapshot core = {};
+  if (goal_jak2_runtime_get_progress_menu_snapshot(&core) != GOAL_JAK2_RUNTIME_OK ||
+      !core.available) {
+    return unavailable_progress_snapshot();
+  }
+  const auto is_bool = [](int32_t value) { return value == 0 || value == 1; };
+  if (core.available != 1 || core.screen != GOAL_JAK2_PROGRESS_SCREEN_TITLE ||
+      core.starting_screen != GOAL_JAK2_PROGRESS_SCREEN_TITLE || core.option_index < 0 ||
+      core.option_index > 3 || !is_bool(core.selected_option) || !is_bool(core.in_transition) ||
+      !is_bool(core.navigation_available) || !is_bool(core.can_exit_with_start) ||
+      !is_bool(core.can_go_back) || core.can_exit_with_start || core.can_go_back ||
+      core.navigation_available == core.in_transition) {
+    return unavailable_progress_snapshot();
+  }
+
+  GOALPadProgressMenuSnapshot snapshot = {};
+  snapshot.available = YES;
+  snapshot.screen = GOALPadProgressScreenTitle;
+  snapshot.optionIndex = core.option_index;
+  snapshot.selectedOption = core.selected_option ? YES : NO;
+  snapshot.inTransition = core.in_transition ? YES : NO;
+  snapshot.navigationAvailable = core.navigation_available ? YES : NO;
+  snapshot.startingScreen = GOALPadProgressScreenTitle;
+  return snapshot;
 }
 
 + (GOALPadWarpGateTouchSnapshot)warpGateTouchSnapshot {
