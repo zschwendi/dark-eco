@@ -67,7 +67,7 @@ static GOALPadGameDataPreparationPhase GOALPadPreparationPhase(
 #endif
     case Phase::extracting_iso:
       return GOALPadGameDataPreparationPhaseExtractingISO;
-#if GOALPAD_HAS_JAK1_IMPORT_COMPOSER
+#if GOALPAD_HAS_JAK1_IMPORT_COMPOSER || GOALPAD_HAS_JAK2_IMPORT_COMPOSER
     case Phase::cataloging_retail:
       return GOALPadGameDataPreparationPhaseCatalogingRetail;
 #endif
@@ -109,7 +109,7 @@ static GOALPadGameDataPreparationErrorCode GOALPadPreparationErrorCode(
       return GOALPadGameDataPreparationErrorUnsupportedRevision;
     case ErrorCode::graph_failed:
       return GOALPadGameDataPreparationErrorGraphFailed;
-#if GOALPAD_HAS_JAK1_IMPORT_COMPOSER
+#if GOALPAD_HAS_JAK1_IMPORT_COMPOSER || GOALPAD_HAS_JAK2_IMPORT_COMPOSER
     case ErrorCode::retail_catalog_failed:
       return GOALPadGameDataPreparationErrorRetailCatalogFailed;
 #endif
