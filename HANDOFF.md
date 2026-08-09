@@ -15733,6 +15733,15 @@ later tabletop, room-scale, and first-person ideas:
 - Preserve Comfort/monoscopic presentation as the fail-closed fallback until
   stereo is proven. Do not describe synthetic, side-by-side, or generic xros
   build evidence as playable physical stereo.
+- The stereoscopic mode must remain entirely in visionOS Shared Space as an
+  ordinary bounded spatial window: conceptually a floating 3D television. Do
+  not open an `ImmersiveSpace`, start ARKit/world tracking, query headset pose,
+  drive Jak's camera from head motion, or take over the user's surroundings.
+- Produce the stereoscopic pair only from Jak's existing third-person game
+  camera and present the appropriate image to each eye on the RealityKit window
+  surface, like a 3D movie or other fixed-camera flat-to-stereo game. Other apps
+  and windows must remain available. A future volume, tabletop, room-scale, or
+  immersive mode is separate work and must not leak into this slice.
 - visionOS gameplay is controller-only. Support ordinary gamepads through Eco's
   existing Apple Game Controller path. Disable the gameplay-touch system
   entirely on visionOS: do not create or expose sticks, Pause/Stats/Zoom pills,
@@ -15763,6 +15772,15 @@ parent a4728efaf4a1a27c20174224c4a9ccf3857cc173
 nested OpenGOAL 46b30e45e80747843634975ce3ed2fd5f5fe8199
 ```
 
+That worktree now also contains isolated parent commit
+`52d1c31488de4bdfc99263dfa365f500359cf767`. It is not integration-ready under
+the clarified product contract: its window surface currently opens an empty
+mixed `ImmersiveSpace` and starts a head tracker to derive per-eye projection.
+Do not integrate that commit unchanged. Remove the immersive-space scene/request
+and all head/world-tracking dependencies while retaining the bounded RealityKit
+stereo window, fixed game-camera stereo pair, fail-closed Comfort path, ordinary
+controller input, no-touch visionOS policy, and controller-missing ornament.
+
 The active stereo worker owns the missing Objective-C++/Swift bridge for one
 simulation tick and one copied DMA chain rendered into two borrowed RealityKit
 color/depth targets, with completion before presentation and Comfort fallback.
@@ -15770,6 +15788,10 @@ The ordinary-gamepad-only and ornament requirements were delivered to that
 worker. It must run focused xros/Metal checks, preserve iOS/mono behavior, and
 commit its isolated work before root reviews or integrates it. No build bump,
 push, or physical install is authorized yet.
+
+The maintainer asked to be notified only after this exact Shared Space version
+builds successfully. A build that still requests an immersive space or head
+tracking does not satisfy that gate.
 
 ## First-interaction presentation investigation
 
