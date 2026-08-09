@@ -15869,3 +15869,60 @@ ctest --test-dir \
 
 Result: 3/3 passed. This remains synthetic macOS Metal evidence, not a live
 Jak II visual acceptance.
+
+## Build 146 Jak II checkpoint on locked Build 145
+
+The protected Build 145 base remains unchanged at parent
+`0a625cc3142d7b3883d46745ebf97f04990080f0`. The active Build 146 integration
+worktree is `/Users/zach/Developer/OS_Projects/GOALPad/GP-jak2-build145-integration`
+on `agent/jak2-build145-integration`; its nested integration worktree is
+`/Users/zach/Developer/OS_Projects/GOALPad/OG-jak2-build145-integration` on
+`agent/jak2-build145-native`.
+
+Verified source checkpoints before live validation:
+
+```text
+parent 2405d17a build(jak2): integrate Build 146 renderer checkpoint (AI-assisted)
+parent d530c6c9 build(jak2): prepare Build 146 candidate (AI-assisted)
+nested 43975cd64 test(metal): initialize sprite distortion viewport (AI-assisted)
+```
+
+The generated Jak II AOT set contains 840 objects and reports 18,479 of 18,486
+functions emitted, seven native functions, and zero failed files. The refreshed
+840-object source pack is 21,203,077 bytes with recorded aggregate
+`8568d70061609617`; its verifier and focused CTest pass. The combined integrated
+Metal suite passes 12/12, including bucket policy, Generic2, BlitDisplay, Glow,
+Ocean grammar/envmap, dispatch, host bridge, Merc, TFRAG, TIE, and Sprite.
+
+The `Eco Jak II Dev` Release simulator build succeeded for the approved iPad Pro
+11-inch (M5) simulator. The installed app reports `CFBundleVersion` 146 and
+contains `Jak2SourceObjectPack` plus `Jak2ProjectResources`. It launches and
+enters the native Jak II runtime with the existing prepared title/gameplay data.
+
+Live validation then exposed the first Build 146 blocker. At tick 30 the host
+records:
+
+```text
+Jak 2 water texture-upload plan rejected bucket 252 DMA
+```
+
+GOAL continues to title `idle`, but the command/submission counters stop and the
+presented frame remains black. The later layer-backed submission-counter error is
+under separate review and may be fallout from this first rejection. Do not begin
+physical-device deployment until the bucket-252 fix is integrated and the
+Simulator reaches a rendered title/gameplay frame again.
+
+Evidence is under
+`/Users/zach/Developer/OS_Projects/GOALPad/.agent-builds/build146-jak2-regen-20260809`:
+
+```text
+logs/xcode-simulator-build.log
+logs/simulator-build146-runtime-current.log
+logs/integrated-metal-ctest-final.log
+visual/build146-simulator-launch.png
+visual/build146-water-bucket252-failure.png
+```
+
+The Build 146 simulator app was terminated after capturing the failure so it
+does not consume resources while the renderer patch is prepared. No physical
+device operation has occurred at this checkpoint.
