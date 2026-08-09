@@ -154,8 +154,8 @@ struct GameLibraryView: View {
         case .incomplete:
             return .needsAttention
         case .ready:
-            if activeProfile.readiness == .bootstrapOnly {
-                return .bootstrapReady
+            if activeProfile.readiness == .experimentalTitleAndGameplay {
+                return .experimentalReady
             }
             return GOALPadRuntimeBridge.isGameCodeLinked ? .ready : .needsAttention
         }
@@ -322,7 +322,7 @@ private struct GameLibraryTile: View {
         case .notImported: "Not Imported"
         case .preparing: "Preparing"
         case .ready: "Ready"
-        case .bootstrapReady: "Bootstrap Ready"
+        case .experimentalReady: "Experimental Ready"
         case .needsAttention: "Needs Attention"
         case .planned: "Coming soon"
         }
@@ -333,7 +333,7 @@ private struct GameLibraryTile: View {
         case .notImported: "tray"
         case .preparing: "arrow.triangle.2.circlepath"
         case .ready: "play.fill"
-        case .bootstrapReady: startsGame ? "play.fill" : "checkmark.circle"
+        case .experimentalReady: startsGame ? "play.fill" : "checkmark.circle"
         case .needsAttention: "exclamationmark.triangle"
         case .planned: "hourglass"
         }
@@ -345,7 +345,7 @@ private struct GameLibraryTile: View {
         case .planned: DarkEcoTheme.accent
         case .preparing: DarkEcoTheme.accentGlow
         case .ready: DarkEcoTheme.success
-        case .bootstrapReady: DarkEcoTheme.warning
+        case .experimentalReady: DarkEcoTheme.warning
         case .needsAttention: DarkEcoTheme.warning
         }
     }
@@ -354,7 +354,7 @@ private struct GameLibraryTile: View {
         if startsGame { return "Starts the experimental game runtime" }
         return switch state {
         case .ready: "Starts the game"
-        case .notImported, .preparing, .bootstrapReady, .needsAttention: "Opens game setup"
+        case .notImported, .preparing, .experimentalReady, .needsAttention: "Opens game setup"
         case .planned: "Shows current support status"
         }
     }

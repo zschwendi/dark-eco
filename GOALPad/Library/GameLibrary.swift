@@ -109,7 +109,7 @@ nonisolated enum GameLibraryState: Equatable {
     case notImported
     case preparing(Double?)
     case ready
-    case bootstrapReady
+    case experimentalReady
     case needsAttention
     case planned
 }
@@ -128,7 +128,7 @@ nonisolated enum GameLibraryCardAction: Equatable {
     ) -> Self {
         guard title == activeTitle else { return .showUnsupported(title) }
         switch state {
-        case .ready, .bootstrapReady:
+        case .ready, .experimentalReady:
             return supportsRuntimeLaunch ? .start : .openSetup
         case .preparing:
             return .openSetup
@@ -151,9 +151,9 @@ nonisolated enum GameLibraryOfferCopy {
     ) -> String {
         let ownership = "Provide game data from a copy of \(title.shelfName) you legally own."
         if title == .jak2 {
-            return ownership + " This build accepts a prepared out/jak2 folder for bootstrap "
-                + "validation. Experimental native launch is available; full-game completeness "
-                + "is not verified, and raw ISO/ZIP preparation remains unavailable."
+            return ownership + " This build accepts a prepared out/jak2 folder for its versioned "
+                + "title/gameplay launch contract. Experimental native launch is available; "
+                + "full-game completeness is not verified, and raw ISO/ZIP preparation remains unavailable."
         }
         if canImportRawISO {
             return ownership + " This build accepts a prepared out/jak1 folder, a supported .iso, "

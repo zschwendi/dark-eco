@@ -191,8 +191,8 @@ struct GameDataSetupView: View {
                 }
             }
 
-            if profile.readiness == .bootstrapOnly {
-                Text("Bootstrap manifest only. Experimental Jak II launch is available, but full-game data completeness and playability remain unverified.")
+            if profile.readiness == .experimentalTitleAndGameplay {
+                Text("\(profile.readinessContractLabel ?? "Experimental launch contract") checks only the source-derived direct load set for the title and initial New Game path. Full-game data completeness and playability remain unverified.")
                     .font(.footnote)
                     .foregroundStyle(DarkEcoTheme.warning)
             }

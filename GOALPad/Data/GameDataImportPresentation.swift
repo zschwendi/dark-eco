@@ -6,8 +6,9 @@ nonisolated enum GameDataImportPresentation {
         for profile: GameDataProfile = .active,
         rawISOAvailable: Bool
     ) -> String {
-        if profile.readiness == .bootstrapOnly {
-            return "Prepared OpenGOAL \(profile.preparedFolderName) folder (bootstrap manifest; "
+        if profile.readiness == .experimentalTitleAndGameplay {
+            return "Prepared OpenGOAL \(profile.preparedFolderName) folder ("
+                + "\(profile.readinessContractLabel ?? "experimental launch contract"); "
                 + "full-game completeness is not verified)"
         }
         if rawISOAvailable && profile.supportsRawMediaPreparation {

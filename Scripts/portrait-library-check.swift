@@ -290,18 +290,18 @@ do {
           "Jak II and Jak 3 fail closed even if a future state is misclassified")
     check(GameLibraryCardAction.resolve(
             title: .jak2,
-            state: .bootstrapReady,
+            state: .experimentalReady,
             activeTitle: .jak2,
             supportsRuntimeLaunch: false
           ) == .openSetup,
           "the selected Jak II shell reopens setup instead of launching gameplay")
     check(GameLibraryCardAction.resolve(
             title: .jak2,
-            state: .bootstrapReady,
+            state: .experimentalReady,
             activeTitle: .jak2,
             supportsRuntimeLaunch: true
           ) == .start,
-          "the runtime-enabled Jak II shell starts from its bootstrap-ready card")
+          "the runtime-enabled Jak II shell starts from its experimental-ready card")
     check(GameLibraryCardAction.resolve(
             title: .jak2,
             state: .ready,
@@ -319,9 +319,9 @@ do {
           && !preparedOffer.contains(".zip") && !preparedOffer.contains("supported .iso"),
           "prepared-only Jak 1 offer does not advertise unavailable importers")
     let jak2Offer = GameLibraryOfferCopy.importMessage(for: .jak2, canImportRawISO: true)
-    check(jak2Offer.contains("out/jak2") && jak2Offer.contains("bootstrap")
+    check(jak2Offer.contains("out/jak2") && jak2Offer.contains("title/gameplay launch contract")
           && jak2Offer.contains("raw ISO/ZIP preparation remains unavailable"),
-          "Jak II offers only prepared bootstrap data even if Jak 1 resources exist")
+          "Jak II offers only the prepared launch contract even if Jak 1 resources exist")
     check(GameLibraryOfferCopy.unsupportedMessage(for: .jak2).contains("Jak II")
           && GameLibraryOfferCopy.unsupportedMessage(for: .jak3).contains("Jak 3"),
           "unsupported offers remain title-specific")

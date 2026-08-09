@@ -108,7 +108,7 @@ private func writeCompletePreparedData(
     let manifest = profile.manifest
     let iso = prepared.appending(path: GameDataLayout.isoDirectoryName, directoryHint: .isDirectory)
     let fr3 = prepared.appending(path: GameDataLayout.fr3DirectoryName, directoryHint: .isDirectory)
-    for name in Set(manifest.bootArchives + manifest.levelArchives) {
+    for name in Set(manifest.requiredISOFiles) {
         try write(payload, to: iso.appending(path: name))
     }
     for name in manifest.levelGeometry {
@@ -166,8 +166,7 @@ private func preparedFolder(
     let report = GameDataInspector.inspect(gameDirectory: fixture.active)
     check(report.status == .ready, "the activated install satisfies the existing manifest")
     let manifest = GameDataProfile.jak1.manifest
-    check(result.filesCopied == manifest.bootArchives.count
-        + manifest.levelArchives.count + manifest.levelGeometry.count,
+    check(result.filesCopied == manifest.requiredFileCount,
           "the result reports every prepared source file")
     check(fixture.candidates.isEmpty, "the activated candidate no longer occupies staging")
     check(!manifest.levelArchives.contains("TSZ.DGO"),
@@ -175,7 +174,7 @@ private func preparedFolder(
 }
 
 @MainActor private func profilesKeepDefaultAndJak2StorageIsolated() {
-    print("the public default and Jak II bootstrap profile remain isolated")
+    print("the public default and Jak II prepared-data contract remain isolated")
     let documents = URL(fileURLWithPath: "/synthetic/Documents", isDirectory: true)
     let jak1 = GameDataLayout.gameDirectory(for: .jak1, in: documents)
     let jak2 = GameDataLayout.gameDirectory(for: .jak2, in: documents)
@@ -184,20 +183,37 @@ private func preparedFolder(
     check(jak1.path.hasSuffix("/Documents/Jak1"), "Jak 1 keeps Documents/Jak1")
     check(jak2.path.hasSuffix("/Documents/Jak2"), "Jak II uses Documents/Jak2")
     check(jak1 != jak2, "the two active-install directories cannot overlap")
+    let jak1Manifest = GameDataProfile.jak1.manifest
+    check(jak1Manifest.requiredSupportFiles.isEmpty
+          && jak1Manifest.preparedDataContractVersion == nil
+          && jak1Manifest.requiredFileCount == jak1Manifest.bootArchives.count
+              + jak1Manifest.levelArchives.count + jak1Manifest.levelGeometry.count,
+          "Jak 1 keeps its exact existing readiness manifest")
     check(GameDataProfile.jak2.preparedFolderName == "out/jak2",
           "Jak II accepts the desktop-compatible out/jak2 root")
-    check(GameDataProfile.jak2.manifest.bootArchives == ["KERNEL.CGO", "GAME.CGO"]
-          && GameDataProfile.jak2.manifest.levelArchives.isEmpty
-          && GameDataProfile.jak2.manifest.levelGeometry == ["GAME.fr3"],
-          "Jak II declares only the proven bootstrap contract")
+    let manifest = GameDataProfile.jak2.manifest
+    check(manifest.bootArchives == ["KERNEL.CGO", "GAME.CGO"]
+          && manifest.levelArchives == [
+              "TITLE.DGO", "CWI.DGO", "CTA.DGO", "PRI.DGO", "FEA.DGO", "INTROCST.DGO",
+              "LDJAKBRN.DGO",
+          ]
+          && manifest.levelGeometry == [
+              "GAME.fr3", "title.fr3", "ctywide.fr3", "ctysluma.fr3", "prison.fr3",
+              "forexita.fr3", "introcst.fr3", "ldjakbrn.fr3",
+          ]
+          && manifest.requiredSupportFiles == [
+              "DEMO1.SBK", "CTYWIDE1.SBK", "FOREXIT1.SBK", "FOREXIT2.SBK",
+          ]
+          && manifest.preparedDataContractVersion == 1,
+          "Jak II declares the source-derived title and initial New Game contract v1")
     check(!GameDataProfile.jak2.supportsRawMediaPreparation,
           "Jak II cannot route raw ISO or ZIP input before a composer exists")
     check(GameDataProfile.jak2.supportsRuntimeLaunch,
-          "Jak II bootstrap readiness can enter the experimental native runtime")
+          "Jak II contract readiness can enter the experimental native runtime")
 }
 
-@MainActor private func jak2BootstrapCandidateActivatesInItsOwnProfile() async throws {
-    print("a prepared out/jak2 candidate reaches bootstrap readiness without a gameplay claim")
+@MainActor private func jak2TitleAndGameplayCandidateActivatesInItsOwnProfile() async throws {
+    print("a prepared out/jak2 candidate reaches launch-contract readiness without a completeness claim")
     let fixture = try Fixture(profile: .jak2)
     let source = try preparedFolder(under: fixture.root, profile: .jak2)
     let result = try await fixture.worker.install(
@@ -207,17 +223,41 @@ private func preparedFolder(
 
     let report = GameDataInspector.inspect(gameDirectory: fixture.active, profile: .jak2)
     check(source.path.hasSuffix("/out/jak2"), "the prepared Jak II root keeps OpenGOAL naming")
-    check(result.filesCopied == 3, "only KERNEL.CGO, GAME.CGO, and GAME.fr3 are required")
+    check(result.filesCopied == GameDataProfile.jak2.manifest.requiredFileCount,
+          "the candidate contains every title and initial New Game contract file")
     check(report.status == .ready && report.profile == .jak2,
           "the candidate satisfies only the selected Jak II contract")
-    check(report.canLaunchRuntime, "the complete bootstrap contract can enter the native runtime")
-    check(report.summary.contains("Bootstrap-ready only")
-          && report.summary.contains("Experimental native launch is available")
-          && report.summary.contains("full-game data completeness"),
-          "Jak II readiness labels launch experimental without claiming complete game data")
+    check(report.canLaunchRuntime, "the versioned launch contract can enter the native runtime")
+    check(report.summary.contains("Jak II title/gameplay launch contract v1 ready")
+          && report.summary.contains("initial New Game path")
+          && report.summary.contains("full-game data completeness or playability"),
+          "Jak II readiness names its bounded contract without claiming complete game data")
     check(!FileManager.default.fileExists(
         atPath: fixture.root.appending(path: "Documents/Jak1").path),
           "a Jak II activation does not create or replace Documents/Jak1")
+}
+
+@MainActor private func jak2ThreeFileBootstrapCannotLaunch() throws {
+    print("the former three-file Jak II bootstrap cannot satisfy launch readiness")
+    let fixture = try Fixture(profile: .jak2)
+    try write("fixture", to: fixture.active.appending(path: "iso/KERNEL.CGO"))
+    try write("fixture", to: fixture.active.appending(path: "iso/GAME.CGO"))
+    try write("fixture", to: fixture.active.appending(path: "fr3/GAME.fr3"))
+
+    let report = GameDataInspector.inspect(gameDirectory: fixture.active, profile: .jak2)
+    check(report.canBoot, "the kernel archives remain distinguishable from launch readiness")
+    check(report.status == .incomplete && !report.canLaunchRuntime,
+          "three bootstrap files cannot be reported ready or launchable")
+    check(report.missingLevelArchives.contains("TITLE.DGO")
+          && report.missingLevelArchives.contains("PRI.DGO")
+          && report.missingLevelGeometry.contains("title.fr3")
+          && report.missingLevelGeometry.contains("prison.fr3")
+          && report.missingSupportFiles.contains("DEMO1.SBK")
+          && report.missingSupportFiles.contains("FOREXIT1.SBK"),
+          "the report identifies title, initial gameplay, geometry, and support-file gaps")
+    check(report.summary.contains("Jak II title/gameplay launch contract v1")
+          && !report.summary.localizedCaseInsensitiveContains("complete"),
+          "the incomplete report names the versioned contract without calling it complete")
 }
 
 @MainActor private func jak2RecoveryAndSymlinkRulesRemainFailClosed() async throws {
@@ -232,7 +272,7 @@ private func preparedFolder(
             from: partial.deletingLastPathComponent(),
             using: PreparedFolderCandidateProducer()
         ) { _ in }
-        check(false, "the incomplete Jak II bootstrap candidate is rejected")
+        check(false, "the incomplete Jak II launch candidate is rejected")
     } catch let failure as GameDataImportFailure {
         check(failure.code == .candidateIncomplete && failure.candidatePreserved,
               "the incomplete Jak II candidate remains recoverable")
@@ -545,7 +585,8 @@ private struct GameDataInstallCheck {
             foregroundRefreshPolicyIsGuarded()
             try await completeCandidateActivates()
             profilesKeepDefaultAndJak2StorageIsolated()
-            try await jak2BootstrapCandidateActivatesInItsOwnProfile()
+            try await jak2TitleAndGameplayCandidateActivatesInItsOwnProfile()
+            try jak2ThreeFileBootstrapCannotLaunch()
             try await jak2RecoveryAndSymlinkRulesRemainFailClosed()
             try await incompleteCandidateIsRecoverable()
             try await sourceFilesAreNotCopiedFromActiveFirst()

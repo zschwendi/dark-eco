@@ -7,6 +7,32 @@ nonisolated struct GameDataManifest: Equatable, Sendable {
     let levelArchives: [String]
     let levelGeometry: [String]
     let audioExtensions: [String]
+    let requiredSupportFiles: [String]
+    let preparedDataContractVersion: Int?
+
+    init(
+        bootArchives: [String],
+        levelArchives: [String],
+        levelGeometry: [String],
+        audioExtensions: [String],
+        requiredSupportFiles: [String] = [],
+        preparedDataContractVersion: Int? = nil
+    ) {
+        self.bootArchives = bootArchives
+        self.levelArchives = levelArchives
+        self.levelGeometry = levelGeometry
+        self.audioExtensions = audioExtensions
+        self.requiredSupportFiles = requiredSupportFiles
+        self.preparedDataContractVersion = preparedDataContractVersion
+    }
+
+    var requiredISOFiles: [String] {
+        bootArchives + levelArchives + requiredSupportFiles
+    }
+
+    var requiredFileCount: Int {
+        requiredISOFiles.count + levelGeometry.count
+    }
 
     /// The no-dialogue base-retail Jak 1 install consumed by the playable Eco target.
     static let jak1 = GameDataManifest(
@@ -27,13 +53,23 @@ nonisolated struct GameDataManifest: Equatable, Sendable {
         audioExtensions: ["SBK", "MUS"]
     )
 
-    /// Only the files proven necessary for the existing Jak II kernel/GAME bootstrap frontier.
-    /// This is deliberately not a full retail-data or gameplay-ready manifest.
-    static let jak2Bootstrap = GameDataManifest(
+    /// The bounded prepared-data contract for the title and initial New Game path at the pinned
+    /// OpenGOAL revision. `title-start` directly wants title, ctywide, and ctysluma plus demo1;
+    /// `game-start` directly wants prison and forexita plus its three sound banks; the first prison
+    /// scene uses introcst and borrows ldjakbrn. This is not a full-game completeness manifest.
+    static let jak2TitleAndGameplayV1 = GameDataManifest(
         bootArchives: ["KERNEL.CGO", "GAME.CGO"],
-        levelArchives: [],
-        levelGeometry: ["GAME.fr3"],
-        audioExtensions: ["SBK", "MUS"]
+        levelArchives: [
+            "TITLE.DGO", "CWI.DGO", "CTA.DGO", "PRI.DGO", "FEA.DGO", "INTROCST.DGO",
+            "LDJAKBRN.DGO",
+        ],
+        levelGeometry: [
+            "GAME.fr3", "title.fr3", "ctywide.fr3", "ctysluma.fr3", "prison.fr3",
+            "forexita.fr3", "introcst.fr3", "ldjakbrn.fr3",
+        ],
+        audioExtensions: ["SBK", "MUS"],
+        requiredSupportFiles: ["DEMO1.SBK", "CTYWIDE1.SBK", "FOREXIT1.SBK", "FOREXIT2.SBK"],
+        preparedDataContractVersion: 1
     )
 }
 
@@ -47,7 +83,7 @@ nonisolated struct GameDataProfile: Equatable, Sendable {
 
     nonisolated enum Readiness: Sendable {
         case gameplay
-        case bootstrapOnly
+        case experimentalTitleAndGameplay
     }
 
     let identifier: Identifier
@@ -61,6 +97,11 @@ nonisolated struct GameDataProfile: Equatable, Sendable {
     let supportsManagedSaveSync: Bool
 
     var preparedFolderName: String { "out/\(preparedDirectoryName)" }
+
+    var readinessContractLabel: String? {
+        guard let version = manifest.preparedDataContractVersion else { return nil }
+        return "\(displayName) title/gameplay launch contract v\(version)"
+    }
 
     static let jak1 = GameDataProfile(
         identifier: .jak1,
@@ -79,8 +120,8 @@ nonisolated struct GameDataProfile: Equatable, Sendable {
         displayName: "Jak II",
         gameDirectoryName: "Jak2",
         preparedDirectoryName: "jak2",
-        manifest: .jak2Bootstrap,
-        readiness: .bootstrapOnly,
+        manifest: .jak2TitleAndGameplayV1,
+        readiness: .experimentalTitleAndGameplay,
         supportsRawMediaPreparation: false,
         supportsRuntimeLaunch: true,
         supportsManagedSaveSync: false
@@ -166,8 +207,7 @@ nonisolated struct GameDataReport: Sendable {
         case empty
         /// Something is there, but the game cannot boot from it.
         case incomplete
-        /// Everything the selected profile manifest names is present. For Jak II this means only
-        /// the explicitly labeled bootstrap contract, not a gameplay-ready installation.
+        /// Everything the selected profile's bounded manifest names is present.
         case ready
     }
 
@@ -176,6 +216,7 @@ nonisolated struct GameDataReport: Sendable {
     var missingBootArchives: [String] = []
     var missingLevelArchives: [String] = []
     var missingLevelGeometry: [String] = []
+    var missingSupportFiles: [String] = []
     var isoFileCount = 0
     var fr3FileCount = 0
     var audioBankCount = 0
@@ -199,22 +240,25 @@ nonisolated struct GameDataReport: Sendable {
         case .empty:
             return profile.readiness == .gameplay
                 ? "No game data yet."
-                : "No Jak II bootstrap data yet."
+                : "No Jak II prepared data yet."
         case .incomplete where !canBoot:
             return "Cannot boot: \(missingBootArchives.joined(separator: ", ")) missing from iso/."
         case .incomplete:
             let missing = missingLevelArchives.count + missingLevelGeometry.count
+                + missingSupportFiles.count
             return profile.readiness == .gameplay
                 ? "Boot data is present, but \(missing) level file(s) are missing."
-                : "Boot archives are present, but \(missing) required bootstrap file(s) are missing."
+                : "Boot archives are present, but \(missing) file(s) required by "
+                    + "\(profile.readinessContractLabel ?? "the experimental launch contract") are missing."
         case .ready:
             let counts = "\(isoFileCount) files in iso/, \(fr3FileCount) in fr3/, "
                 + ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file) + "."
             return profile.readiness == .gameplay
                 ? "Complete: " + counts
-                : "Bootstrap-ready only: " + counts
-                    + " Experimental native launch is available, but this check does not establish "
-                    + "full-game data completeness."
+                : "\(profile.readinessContractLabel ?? "Experimental launch contract") ready: "
+                    + counts + " This source-derived check covers only the direct load set for the "
+                    + "title and initial New Game path; it does not establish full-game data "
+                    + "completeness or playability."
         }
     }
 }
@@ -266,11 +310,12 @@ nonisolated enum GameDataInspector {
         report.missingBootArchives = manifest.bootArchives.filter { !iso.contains($0) }
         report.missingLevelArchives = manifest.levelArchives.filter { !iso.contains($0) }
         report.missingLevelGeometry = manifest.levelGeometry.filter { !fr3.contains($0) }
+        report.missingSupportFiles = manifest.requiredSupportFiles.filter { !iso.contains($0) }
 
         if iso.isEmpty && fr3.isEmpty {
             report.status = .empty
         } else if report.missingBootArchives.isEmpty && report.missingLevelArchives.isEmpty
-            && report.missingLevelGeometry.isEmpty
+            && report.missingLevelGeometry.isEmpty && report.missingSupportFiles.isEmpty
         {
             report.status = .ready
         } else {

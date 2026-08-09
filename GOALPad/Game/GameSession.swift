@@ -147,7 +147,7 @@ final class GameSession {
         guard !isRunning, !isBooting, !isPreparingGameplay else { return }
         guard importer.profile.supportsRuntimeLaunch else {
             startupError = "Native \(importer.profile.displayName) gameplay is not wired in this build. "
-                + "The current data contract validates bootstrap files only."
+                + "The current prepared-data contract cannot launch a matching runtime."
             return
         }
         guard GOALPadRuntimeBridge.isGameCodeLinked else {

@@ -67,16 +67,16 @@ private struct GameDataProfileSelectionCheck {
                   "the Jak II shell keeps Jak 1 cloud merge unavailable")
             check(GameLibraryCardAction.resolve(
                 title: activeTitle,
-                state: .bootstrapReady,
+                state: .experimentalReady,
                 activeTitle: activeTitle,
                 supportsRuntimeLaunch: expected.supportsRuntimeLaunch
             ) == .start,
-                  "the Jak II library routes bootstrap-ready data into the native runtime")
+                  "the Jak II library routes launch-contract-ready data into the native runtime")
             let offer = GameLibraryOfferCopy.importMessage(
                 for: activeTitle,
                 canImportRawISO: true
             )
-            check(offer.contains("out/jak2") && offer.contains("bootstrap")
+            check(offer.contains("out/jak2") && offer.contains("title/gameplay launch contract")
                   && offer.contains("Experimental native launch")
                   && offer.contains("raw ISO/ZIP preparation remains unavailable"),
                   "the Jak II library offer stays prepared-only and labels launch experimental")

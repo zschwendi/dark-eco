@@ -25,8 +25,8 @@ private struct GameDataImportPresentationCheck {
         let jak2Sources = GameDataImportPresentation.acceptedSources(
             for: .jak2, rawISOAvailable: true)
         check(jak2Sources
-                == "Prepared OpenGOAL out/jak2 folder (bootstrap manifest; full-game completeness is not verified)",
-              "Jak II advertises only its prepared bootstrap manifest even if Jak 1 resources exist")
+                == "Prepared OpenGOAL out/jak2 folder (Jak II title/gameplay launch contract v1; full-game completeness is not verified)",
+              "Jak II advertises its versioned prepared-data contract even if Jak 1 resources exist")
         check(GameDataImportPresentation.backgroundGuidance(phaseLabel: "Validating candidate")
                 == "Keep Eco open and in the foreground. Validating candidate is not safe to continue while Eco is backgrounded.",
               "every active phase names itself and truthfully requires foreground execution")
