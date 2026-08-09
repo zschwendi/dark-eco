@@ -301,6 +301,52 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(metal.last_sprite_glow_force_visible_triangles),
         static_cast<unsigned long long>(metal.last_sprite_glow_force_visible_missing_textures));
 
+  NSMutableString* water_upload_state = [NSMutableString string];
+  for (const auto& water : metal.water_texture_uploads) {
+    [water_upload_state
+        appendFormat:@"%@b%u cap=%llu present=%llu exec=%llu "
+                     "class=m%llu/a%llu/o%llu/n%llu/oa%llu/e%llu/g%llu "
+                     "xfer=%llu bytes=%llu inert=%llu ordinary=%llu direct=%llu gs=%llu "
+                     "anim=%llu/%llu/%llu op=%llu/%llu/%llu/%llu eye=%llu other=%llu malformed=%llu "
+                     "last=t%u/q%u/b%llu/v0k%u/v0i%u/v1k%u/v1i%u",
+                     water_upload_state.length ? @" " : @"", water.bucket_id,
+                     static_cast<unsigned long long>(water.captures),
+                     static_cast<unsigned long long>(water.present_captures),
+                     static_cast<unsigned long long>(water.executions),
+                     static_cast<unsigned long long>(water.classifications[0]),
+                     static_cast<unsigned long long>(water.classifications[1]),
+                     static_cast<unsigned long long>(water.classifications[2]),
+                     static_cast<unsigned long long>(water.classifications[3]),
+                     static_cast<unsigned long long>(water.classifications[4]),
+                     static_cast<unsigned long long>(water.classifications[5]),
+                     static_cast<unsigned long long>(water.classifications[6]),
+                     static_cast<unsigned long long>(water.transfers),
+                     static_cast<unsigned long long>(water.payload_bytes),
+                     static_cast<unsigned long long>(water.inert_transfers),
+                     static_cast<unsigned long long>(water.ordinary_descriptors),
+                     static_cast<unsigned long long>(water.direct_setup_transfers),
+                     static_cast<unsigned long long>(water.gs_setup_transfers),
+                     static_cast<unsigned long long>(water.animator_arrays),
+                     static_cast<unsigned long long>(water.animator_body_transfers),
+                     static_cast<unsigned long long>(water.animator_payload_bytes),
+                     static_cast<unsigned long long>(water.opcode_counts[12]),
+                     static_cast<unsigned long long>(water.opcode_counts[13]),
+                     static_cast<unsigned long long>(water.opcode_counts[27]),
+                     static_cast<unsigned long long>(water.opcode_counts[30]),
+                     static_cast<unsigned long long>(water.eye_markers),
+                     static_cast<unsigned long long>(water.other_transfers),
+                     static_cast<unsigned long long>(water.malformed_transfers),
+                     static_cast<unsigned>(water.last_nonordinary_tag_kind),
+                     static_cast<unsigned>(water.last_nonordinary_qwc),
+                     static_cast<unsigned long long>(water.last_nonordinary_payload_bytes),
+                     static_cast<unsigned>(water.last_nonordinary_vif0_kind),
+                     static_cast<unsigned>(water.last_nonordinary_vif0_immediate),
+                     static_cast<unsigned>(water.last_nonordinary_vif1_kind),
+                     static_cast<unsigned>(water.last_nonordinary_vif1_immediate)];
+  }
+  NSLog(@"GOALPAD_JAK2_WATER_UPLOAD_STATE tick=%llu %@",
+        static_cast<unsigned long long>(runtime.ticks), water_upload_state);
+
   NSLog(@"GOALPAD_JAK2_PROGRESS_STATE tick=%llu available=%d screen=%d option=%d "
          "selected=%d transition=%d navigation=%d starting=%d exit-start=%d back=%d",
         static_cast<unsigned long long>(runtime.ticks), progress_menu.available,
