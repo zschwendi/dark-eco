@@ -231,8 +231,8 @@ struct GameDataSetupView: View {
             return "Choose game data from a Jak and Daxter copy you own. Eco includes no game data "
                 + "and never downloads it."
         }
-        return "Choose prepared game data from a \(profile.displayName) copy you own. Eco includes "
-            + "no game data and never downloads it."
+        return "Choose game data from a \(profile.displayName) copy you own. Eco includes no game "
+            + "data and never downloads it."
     }
 
     private var rawMediaUnavailableCopy: String {

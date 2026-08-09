@@ -153,8 +153,11 @@ final class GameSession {
             return
         }
         guard GOALPadRuntimeBridge.isGameCodeLinked else {
-            startupError = "This build has no ahead-of-time \(GameLibraryTitle.jak1.name) code. "
-                + "Run Scripts/generate-jak1-aot.sh and build again."
+            let generator = importer.profile.identifier == .jak2
+                ? "Scripts/generate-jak2-aot.sh"
+                : "Scripts/generate-jak1-aot.sh"
+            startupError = "This build has no ahead-of-time \(importer.profile.displayName) code. "
+                + "Run \(generator) and build again."
             return
         }
         guard dataReport.canLaunchRuntime else {
