@@ -101,9 +101,10 @@ The sole app-owned gameplay overlay is a noninteractive top ornament with the ex
 No controller detected.
 ```
 
-It uses a readable purple shimmer, hides when a supported gamepad connects, and returns when the
-gamepad disconnects. Developer diagnostics must not appear over visionOS gameplay. Jak-authored HUD
-and menus are game content, not app-owned overlays.
+It uses one readable full-label purple gradient with a moving highlight. Reduce Motion keeps the
+full label static purple. It hides when a supported gamepad connects and returns when the gamepad
+disconnects. Developer diagnostics must not appear over visionOS gameplay. Jak-authored HUD and
+menus are game content, not app-owned overlays.
 
 ## Shared Space surface
 

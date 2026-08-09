@@ -259,11 +259,23 @@ check(gameplayOverlay.contains("#if !os(visionOS)")
 check(content.contains("visibility: session.input.isConnected ? .hidden : .visible")
         && content.contains("attachmentAnchor: .scene(.top)"),
       "the controller ornament follows supported gamepad connection state at the window top")
-check(ornament.contains("Text(\"No controller detected.\")")
-        && ornament.contains(".foregroundStyle(.purple)")
-        && ornament.contains("repeatForever")
-        && ornament.contains(".allowsHitTesting(false)"),
-      "the exact noninteractive purple controller message shimmers")
+let controllerMessageOccurrences = ornament.components(separatedBy: "Text(\"No controller detected.\")").count - 1
+check(controllerMessageOccurrences == 1
+        && ornament.contains(".foregroundStyle(labelForegroundStyle)")
+        && ornament.contains("LinearGradient(")
+        && ornament.contains("@State private var highlightLocation: CGFloat = -1")
+        && ornament.contains("startPoint: UnitPoint(x: highlightLocation - 1, y: 0.5)")
+        && ornament.contains("endPoint: UnitPoint(x: highlightLocation + 1, y: 0.5)")
+        && ornament.contains("withAnimation(.linear(duration: 1.6).repeatForever(autoreverses: false))")
+        && ornament.contains("highlightLocation = 1")
+        && ornament.contains("guard !reduceMotion else")
+        && ornament.contains("colors: [.purple, .purple]")
+        && !ornament.contains(".overlay")
+        && !ornament.contains(".mask")
+        && !ornament.contains(".frame(width:")
+        && ornament.contains(".allowsHitTesting(false)")
+        && ornament.contains(".accessibilityLabel(\"No controller detected.\")"),
+      "the full noninteractive purple controller message shimmers without a duplicate or masked label")
 check(content.contains("SettingsTitleListView(\n                openJak1:")
         && content.contains("close: { dismiss() }")
         && content.contains("#if os(visionOS)\n        .toolbar {\n            ToolbarItem(placement: .topBarLeading)")
