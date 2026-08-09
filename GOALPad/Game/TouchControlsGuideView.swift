@@ -79,7 +79,8 @@ private struct TouchControlsInfographic: View {
     var body: some View {
         GeometryReader { proxy in
             let width = proxy.size.width
-            let stickDiameter = min(96, width * 0.22)
+            let movementDiameter = min(108, width * 0.25)
+            let cameraDiameter = movementDiameter * 76 / 108
 
             ZStack {
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
@@ -91,9 +92,13 @@ private struct TouchControlsInfographic: View {
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
                     .strokeBorder(DarkEcoTheme.accent.opacity(0.55), lineWidth: 1)
 
-                controlStick(label: "L", diameter: stickDiameter)
-                    .position(x: stickDiameter * 0.75,
-                              y: proxy.size.height - stickDiameter * 0.72)
+                controlStick(label: "L", diameter: movementDiameter,
+                             knobDiameter: movementDiameter * 66 / 108,
+                             outerFillOpacity: 0.22, outerStrokeOpacity: 0.32,
+                             outerLineWidth: 2, knobFillOpacity: 0.56,
+                             knobStrokeOpacity: 0.86, knobLineWidth: 1.5)
+                    .position(x: movementDiameter * 0.75,
+                              y: proxy.size.height - movementDiameter * 0.72)
 
                 VStack(spacing: 6) {
                     Text("↑")
@@ -107,9 +112,13 @@ private struct TouchControlsInfographic: View {
                 .foregroundStyle(.white.opacity(0.82))
                 .position(x: width * 0.73, y: proxy.size.height * 0.36)
 
-                controlStick(label: "R", diameter: stickDiameter)
-                    .position(x: width - stickDiameter * 0.75,
-                              y: proxy.size.height - stickDiameter * 0.72)
+                controlStick(label: "R", diameter: cameraDiameter,
+                             knobDiameter: cameraDiameter * 32 / 76,
+                             outerFillOpacity: 0.42, outerStrokeOpacity: 0.35,
+                             outerLineWidth: 1, knobFillOpacity: 0.8,
+                             knobStrokeOpacity: 0.7, knobLineWidth: 1)
+                    .position(x: width - cameraDiameter * 0.75,
+                              y: proxy.size.height - cameraDiameter * 0.72)
 
                 HStack(spacing: 12) {
                     capsule("STATS")
@@ -122,13 +131,23 @@ private struct TouchControlsInfographic: View {
         .accessibilityHidden(true)
     }
 
-    private func controlStick(label: String, diameter: CGFloat) -> some View {
+    private func controlStick(label: String, diameter: CGFloat, knobDiameter: CGFloat,
+                              outerFillOpacity: Double, outerStrokeOpacity: Double,
+                              outerLineWidth: CGFloat, knobFillOpacity: Double,
+                              knobStrokeOpacity: Double, knobLineWidth: CGFloat) -> some View {
         ZStack {
-            Circle().fill(.black.opacity(0.5))
-            Circle().strokeBorder(.white.opacity(0.42), lineWidth: 2)
-            Text(label)
-                .font(.system(size: 18, weight: .bold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.85))
+            Circle().fill(.black.opacity(outerFillOpacity))
+            Circle().strokeBorder(.white.opacity(outerStrokeOpacity), lineWidth: outerLineWidth)
+            Circle()
+                .fill(.white.opacity(knobFillOpacity))
+                .overlay(Circle().strokeBorder(.white.opacity(knobStrokeOpacity),
+                                                lineWidth: knobLineWidth))
+                .frame(width: knobDiameter, height: knobDiameter)
+                .overlay {
+                    Text(label)
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(.black.opacity(label == "L" ? 0.82 : 0.68))
+                }
         }
         .frame(width: diameter, height: diameter)
     }
