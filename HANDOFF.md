@@ -15668,6 +15668,34 @@ resting fills, outlines, and label treatment. Only
 `GOALPad/Game/TouchControlsGuideView.swift` changed for that correction; live
 gameplay input, touch geometry, controller routing, HUD behavior, renderer,
 settings, and OpenGOAL remain unchanged. Focused Swift parse, presentation UI,
-and diff checks passed. Both project configurations are bumped to Build 145;
-signed archive and authorized physical install/launch evidence follows after
-integration validation.
+full presentation-settings, full touch-controls, and diff checks passed. Both
+project configurations are bumped to Build 145.
+
+The nested travel branch was repaired from a retained complete local history,
+passed `git fsck --connectivity-only --no-dangling --no-reflogs`, and was pushed
+first to `zschwendi/jak-pad` as `agent/build144-travel-transition` at exact SHA
+`7719b997379da07b661b9b88b5b1e333eb915ee4`. Only after GitHub resolved that
+exact child SHA was the parent `agent/build145-travel-guide-integration` pushed
+to `zschwendi/GOALPad`.
+
+The serialized generic iOS Release archive completed successfully at:
+
+```text
+/private/tmp/goalpad-build145-travel-guide-release/GOALPad.xcarchive
+/private/tmp/goalpad-build145-travel-guide-archive.log
+```
+
+Artifact audit reports Eco 1.0 (145), bundle `com.zephyrstudiosllc.eco`, thin
+arm64, exactly 518 public source objects, executable SHA-256
+`61df13bd39ba9a2b08c91ae8f75a46b36120f762523862f4e465b519b00723e9`,
+Mach-O UUID `74ED8ECD-E256-3F5B-A3A1-DDD836497DA3`, and CDHash
+`af81b3c1dad29090d6d604b56bcbf294083ff277`. The privacy manifest lints and
+the signature exposes the expected iCloud Documents and Game Center entitlement
+set with development `get-task-allow = true`; standalone strict verification
+retains the known `CSSMERR_TP_NOT_TRUSTED` development-certificate limitation.
+
+On 2026-08-09 the maintainer explicitly authorized physical installation and
+launch. This exact archived app installed successfully on Z iPad Pro and a
+fresh launch with `--terminate-existing` succeeded. No logs or screen capture
+were attached. Boat/gondola travel and the corrected guide remain maintainer
+visual/gameplay acceptance gates rather than claimed physical passes.

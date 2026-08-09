@@ -90,9 +90,11 @@ The active product sequence is now:
 2. Preserve Build 143's physical Snowy rejection. Build 144 archives the common
    boat/gondola spooled-animation clock repair with focused source/model, native
    syntax, and signed generic-iOS build evidence. Build 145 adds only the
-   screenshot-matched static controls-guide stick artwork. Physically validate
-   both routes plus touch notice acknowledgement, first-person fire, the
-   one-time controls guide, and Return to Library before promotion.
+   screenshot-matched static controls-guide stick artwork; its child and parent
+   branches are pushed, its signed generic-iOS archive passed, and that exact
+   bundle installed and launched on Z iPad Pro. Physically validate both routes
+   plus touch notice acknowledgement, first-person fire, the one-time controls
+   guide, and Return to Library before promotion.
 3. Keep Graphics Modern Fit to Screen, controller behavior, and the accepted
    single-owner touch path unchanged while closing only actual MVP blockers.
    The Build 145 guide correction now matches the maintainer's MacBook reference
