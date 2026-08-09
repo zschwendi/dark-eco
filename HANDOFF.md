@@ -15603,9 +15603,68 @@ the archive, but standalone strict verification reports
 code-signing identities, matching Build 141's known distribution gate. It is
 not App Store validation or upload evidence.
 
-No physical device was installed, launched, logged, or captured. Before
-promotion, an authorized physical test must cover: first-run guide suspension
-and resume; Geyser Rock save notice acknowledgement; zoomed tap-to-fire; Misty
-boat in both directions on the first attempt; the first Snowy gondola trip;
-Return to Library and restart; and regression checks for touch, controller,
-audio, Fit to Screen, and saves.
+At archive time no physical device had been installed, launched, logged, or
+captured. On 2026-08-09 the maintainer explicitly authorized installing and
+launching this exact archived Build 143 on Z iPad Pro. Installation and launch
+succeeded; no logs or screen capture were attached.
+
+The physical Snowy Mountain gondola test rejected Build 143 as a travel fix.
+After Circle starts the ride, the gondola and riders remain frozen while the
+cutscene interval elapses. Destination state can still advance -- including
+Snowy effects while the player remains in the lava area -- and the return trip
+can leave the player in invalid in-between geometry. Death then respawns the
+player at the intended destination. The maintainer reasonably expects the
+previously reported Misty Island boat failure to share the same unresolved
+path.
+
+This falsifies level-art residency pressure as a complete explanation. The
+Build 143 eviction change remains a valid capacity repair, but it did not make
+the transport animation and relocation run. Source comparison confirmed a
+shared spooled-animation failure: both rides wait on `current-str-pos`, upstream
+advances a silent fallback clock when the requested VAG stream is unavailable,
+and Eco's native sound path previously neither started nor advanced that clock.
+
+Nested commit `7719b997379da07b661b9b88b5b1e333eb915ee4` restores that upstream
+fallback in the portable Jak 1 sound runtime without editing either transport's
+GOAL state machine. Missing or unreadable streams now receive a 1024 Hz timeline
+advanced at Eco's fixed 60 Hz game rate, with matching pause, continue, stop,
+priority, and stream-id behavior; real VAG streams retain their sample clock.
+The new source/model contract passed 4/4, the existing fisherman-boat relocation
+contract passed 6/6, both changed C++ files passed the focused C++20 syntax
+compile, and the nested commit passed `git diff --check`. This is deterministic
+source and compile evidence.
+
+The parent candidate bumps both configurations to Build 144. Its serialized
+generic iOS Release archive completed successfully at:
+
+```text
+/private/tmp/goalpad-build144-travel-release-rerun/GOALPad.xcarchive
+/private/tmp/goalpad-build144-travel-archive-rerun.log
+```
+
+The first archive attempt correctly failed closed before app compilation because
+it was given the obsolete Build 94 source-object pack; its first useful failure
+was `wrong_identity`. The successful rerun used the exact verified pack retained
+from Build 143/Build 142 integration and reports 518 objects, aggregate identity
+`17cba47afc30fdfc`, and 10,747,094 bytes. Artifact audit reports Eco 1.0 (144),
+bundle `com.zephyrstudiosllc.eco`, thin arm64, executable SHA-256
+`47e142b9b069bfe8cc97bc02132015f3172159ae63123d913b4376eb1acb13be`,
+Mach-O UUID `5B3D52C4-AA3A-3595-9D93-3E4064722AD9`, and CDHash
+`53fc24b1a8d433138e098bd71139e21b0e2973cd`. The privacy manifest lints.
+The signature exposes the same development entitlement set as Build 143,
+including Game Center and iCloud Documents, and retains `get-task-allow = true`.
+Standalone strict verification still reports `CSSMERR_TP_NOT_TRUSTED`, matching
+the retained Build 143 development-signing limitation. No physical device was
+installed, launched, logged, or captured. Both boat directions and both gondola
+directions remain physical acceptance gates.
+
+Separate queued polish: the maintainer accepts the Build 143 controls-guide
+direction but reports that its illustrated controller sticks are not
+proportional and the colors do not match the intended controller presentation.
+A reference screenshot was AirDropped to the Mac mini. A bounded subagent
+connected read-only through the `aigp-mac-mini` SSH alias, but macOS denied SSH
+access to both Desktop and Downloads and a narrow Spotlight image query returned
+no candidate. No guide change was guessed or made. Resume only after the image
+is attached here or copied to an SSH-readable location such as `/Users/Shared`;
+edit only guide artwork/layout, not gameplay input, touch geometry, or
+controller behavior.

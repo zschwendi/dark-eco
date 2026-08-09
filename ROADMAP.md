@@ -68,7 +68,7 @@ as completing the overall goal.
 | User-owned Jak 1 import pipeline | Experimental; prepared folders remain supported, and Release builds can select a supported raw ISO or a standard ZIP32 archive containing exactly one ISO. The native composer, Objective-C++ bridge, recoverable staging/activation, ZIP extraction, and deterministic validation are implemented; a successful end-to-end simulator import and a real-device Files-provider import remain unrecorded |
 | Compiler-produced ARM64 GOAL execution | Implemented for the current Jak 1 AOT set; seven native routines remain |
 | OpenGOAL game frame or title screen | Implemented and physically verified |
-| Playable gameplay slice | Experimental; Build 130 remains the last explicitly locked physical gameplay baseline. Build 141 is the current main MVP archive checkpoint, and isolated Build 143 is a signed candidate awaiting physical validation of its touch prompts, travel repair, guide, and library return. |
+| Playable gameplay slice | Experimental; Build 130 remains the last explicitly locked physical gameplay baseline. Build 141 is the current main MVP archive checkpoint. Isolated Build 143 archived, installed, and launched, but physical testing rejected its Snowy gondola travel repair; it is not a promotable candidate. |
 | Jak 1 completion track | Planned |
 
 The current application initializes the real OpenGOAL Jak 1 kernel, loads
@@ -77,8 +77,9 @@ pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Build 130 is
 the last explicitly locked physical gameplay baseline; Build 141 is the current
 main MVP archive checkpoint. Isolated Build 143 adds narrowly scoped launch-bug
-repairs and player-facing presentation changes but is not promoted until its
-Misty Island, Snowy Mountain, touch-notice, and lifecycle paths pass authorized
+repairs and player-facing presentation changes, but its physical Snowy gondola
+test failed and it is not promotable. Misty Island remains suspect until the
+shared transport transition is repaired and both routes pass authorized
 physical testing. This is not a complete-playthrough claim. `HANDOFF.md` is the
 authoritative artifact, physical-test, and limitation record.
 
@@ -86,11 +87,17 @@ The active product sequence is now:
 
 1. Preserve main Build 141 and the prior Build 130 physical evidence while
    Build 143 remains isolated.
-2. Physically validate Build 143's touch notice acknowledgement, first-person
-   fire, Misty Island boat, Snowy Mountain gondola, one-time controls guide, and
-   Return to Library paths before promotion.
+2. Preserve Build 143's physical Snowy rejection. Build 144 now archives the
+   common boat/gondola spooled-animation clock repair with focused source/model,
+   native syntax, and signed generic-iOS build evidence. Physically validate
+   both routes plus touch notice acknowledgement, first-person fire, the
+   one-time controls guide, and Return to Library before promotion.
 3. Keep Graphics Modern Fit to Screen, controller behavior, and the accepted
    single-owner touch path unchanged while closing only actual MVP blockers.
+   Correct the Build 143 controls-guide illustration from the maintainer's
+   AirDropped reference without changing live input or touch layout. SSH could
+   not read the Mac mini's protected Desktop/Downloads, so wait for the reference
+   in an accessible location rather than guessing its proportions or palette.
 4. Treat isolated Build 142 as a visionOS external-target prerequisite only.
    Advance the next synchronous two-view renderer proof after the iPhone/iPad
    MVP is stable; do not present it as playable stereoscopic rendering.
