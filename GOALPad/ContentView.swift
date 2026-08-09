@@ -169,7 +169,10 @@ private struct SettingsSheetView: View {
         self.sync = sync
         self.settings = settings
         self.input = input
-        _path = State(initialValue: initialEntry == .jak1 ? [.jak1] : [])
+        let initialPath: [Destination] = initialEntry == .jak1 ? [.jak1] : []
+        _path = State(initialValue: GameDataProfile.active.supportsManagedSaveSync
+            ? initialPath
+            : [])
     }
 
     var body: some View {
@@ -198,8 +201,13 @@ private struct SettingsTitleListView: View {
     var body: some View {
         List {
             Section("Available") {
-                Button(action: openJak1) {
-                    LabeledContent("Jak 1 Settings", value: "Available")
+                if GameDataProfile.active.supportsManagedSaveSync {
+                    Button(action: openJak1) {
+                        LabeledContent("Jak 1 Settings", value: "Available")
+                    }
+                } else {
+                    LabeledContent("Jak II Saves", value: "Local Only")
+                        .foregroundStyle(.secondary)
                 }
             }
 

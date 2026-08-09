@@ -13,6 +13,7 @@ xcrun clang \
   -o "$input_stubs"
 
 swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
+  -disable-sandbox \
   -module-cache-path "$module_cache" \
   -import-objc-header "$root/GOALPad/Native/GOALPadRuntimeBridge.h" \
   -swift-version 5 \
@@ -20,7 +21,9 @@ swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
   "$root/GOALPad/Game/TouchLayoutSettings.swift" \
   "$root/GOALPad/Game/TouchControls.swift" \
   "$root/GOALPad/Input/ControllerInput.swift" \
+  "$root/GOALPad/Data/GameData.swift" \
   "$root/GOALPad/Saves/SaveSyncEngine.swift" \
+  "$root/GOALPad/Saves/SaveDataLayout.swift" \
   "$root/GOALPad/Game/PresentationSettings.swift" \
   "$root/GOALPad/Saves/SaveSyncController.swift" \
   "$root/Scripts/save-sync-check.swift" \

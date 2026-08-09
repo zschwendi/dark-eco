@@ -2292,6 +2292,42 @@ private func replacementFrameCheckKeepsTaskOwnershipAndCancelsQuietly() async th
     check(becameIdle, "the replacement check clears its own busy and task state on completion")
 }
 
+@MainActor
+private func jak2ProfileNeverEntersJak1SaveManagement() async throws {
+    print("Jak II save profile stays local and bypasses the Jak 1 merge engine")
+    let fixture = try Fixture()
+    try FileManager.default.createDirectory(
+        at: fixture.state.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try Data("not save state".utf8).write(to: fixture.state)
+    let defaultsSuite = "goalpad-jak2-save-controller-\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: defaultsSuite)!
+    defaults.removePersistentDomain(forName: defaultsSuite)
+    let controller = SaveSyncController(
+        defaults: defaults,
+        engine: fixture.engine,
+        profile: .jak2
+    )
+
+    check(!controller.supportsManagedSaveSync && !controller.isEnabled,
+          "Jak II starts with managed save sync unavailable and disabled")
+    check(defaults.object(forKey: "iCloudSavesEnabled") == nil,
+          "constructing the Jak II controller does not read back or write Jak 1 sync preference")
+    controller.isEnabled = true
+    check(!controller.isEnabled && defaults.object(forKey: "iCloudSavesEnabled") == nil,
+          "Jak II cannot enable or mutate the Jak 1 iCloud save preference")
+
+    await controller.prepare()
+    await controller.syncNow()
+    let ready = await controller.syncBeforeGameplay()
+    await controller.refreshArchivedSaves()
+    controller.setGameplayActive(true)
+    check(ready && !controller.isBusy && !controller.isGameplayActive,
+          "Jak II lifecycle calls return locally without reading Jak 1 state or archives")
+    let stateAfterBypass = try Data(contentsOf: fixture.state)
+    check(stateAfterBypass == Data("not save state".utf8),
+          "the bypass leaves profile-local recovery state untouched")
+}
+
 @main
 private struct SaveSyncCheck {
     static func main() async {
@@ -2345,6 +2381,7 @@ private struct SaveSyncCheck {
             try await controllerCoalescesSyncIntentAndPreservesLastSuccess()
             try await combinedCloudPresentationCoordinatesEnabledDomains()
             try await replacementFrameCheckKeepsTaskOwnershipAndCancelsQuietly()
+            try await jak2ProfileNeverEntersJak1SaveManagement()
         } catch {
             print("  FAIL unexpected error: \(error)")
             failures += 1

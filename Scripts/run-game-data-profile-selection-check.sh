@@ -25,7 +25,11 @@ for profile in jak1 jak2; do
     $condition \
     "$root/GOALPad/Data/GameData.swift" \
     "$root/GOALPad/Library/GameLibrary.swift" \
+    "$root/GOALPad/Saves/SaveSyncEngine.swift" \
+    "$root/GOALPad/Saves/SaveDataLayout.swift" \
     "$root/Scripts/game-data-profile-selection-check.swift" \
     -o "$output"
   "$output"
 done
+
+swift "$root/Scripts/save-profile-ui-check.swift" "$root"

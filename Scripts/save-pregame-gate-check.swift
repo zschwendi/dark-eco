@@ -57,6 +57,8 @@ let bridge = source(at: root + "/GOALPad/Native/GOALPadRuntimeBridge.mm")
 let gate = section(controller,
                    from: "func syncBeforeGameplay() async -> Bool",
                    to: "func gameplayFrameCompleted()")
+check(gate.contains("guard supportsManagedSaveSync else { return true }"),
+      "a local-only game profile never enters the Jak 1 recovery or cloud merge engine")
 check(occursInOrder([
     "setGameplayActive(false)",
     "if isEnabled",
@@ -73,7 +75,7 @@ check(!gate.contains("case .unavailable") && !gate.contains("status == .unavaila
 
 let syncNow = section(controller, from: "func syncNow", to: "func syncBeforeGameplay")
 check(occursInOrder([
-    "guard isEnabled else { return }",
+    "guard supportsManagedSaveSync, isEnabled else { return }",
     "defer { gameplayReadinessDidChange?() }",
     "await drainPendingSync()",
 ], in: syncNow), "a completed Settings sync attempt publishes save-readiness changes")

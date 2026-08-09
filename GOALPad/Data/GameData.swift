@@ -58,6 +58,7 @@ nonisolated struct GameDataProfile: Equatable, Sendable {
     let readiness: Readiness
     let supportsRawMediaPreparation: Bool
     let supportsRuntimeLaunch: Bool
+    let supportsManagedSaveSync: Bool
 
     var preparedFolderName: String { "out/\(preparedDirectoryName)" }
 
@@ -69,7 +70,8 @@ nonisolated struct GameDataProfile: Equatable, Sendable {
         manifest: .jak1,
         readiness: .gameplay,
         supportsRawMediaPreparation: true,
-        supportsRuntimeLaunch: true
+        supportsRuntimeLaunch: true,
+        supportsManagedSaveSync: true
     )
 
     static let jak2 = GameDataProfile(
@@ -80,7 +82,8 @@ nonisolated struct GameDataProfile: Equatable, Sendable {
         manifest: .jak2Bootstrap,
         readiness: .bootstrapOnly,
         supportsRawMediaPreparation: false,
-        supportsRuntimeLaunch: false
+        supportsRuntimeLaunch: false,
+        supportsManagedSaveSync: false
     )
 
     #if GOALPAD_JAK2

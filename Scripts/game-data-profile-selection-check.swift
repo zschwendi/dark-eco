@@ -29,6 +29,33 @@ private struct GameDataProfileSelectionCheck {
         ).profile == expected,
               "the default inspector follows the selected profile")
 
+        let applicationSupport = URL(fileURLWithPath: "/app/Library/Application Support",
+                                     isDirectory: true)
+        check(SaveDataLayout.localSavesDirectory(
+            for: .jak1, in: applicationSupport
+        ).path == "/app/Library/Application Support/OpenGOAL/jak1/saves",
+              "the Jak 1 native save directory remains exact")
+        check(SaveDataLayout.localSavesDirectory(
+            for: .jak2, in: applicationSupport
+        ).path == "/app/Library/Application Support/OpenGOAL/jak2/saves",
+              "Jak II uses its own OpenGOAL native save namespace")
+        check(SaveDataLayout.localConflictsDirectory(
+            for: .jak1, in: applicationSupport
+        ).path == "/app/Library/Application Support/GOALPad/SaveConflicts",
+              "the Jak 1 local conflict archive remains exact")
+        check(SaveDataLayout.stateFile(
+            for: .jak1, in: applicationSupport
+        ).path == "/app/Library/Application Support/GOALPad/SaveSync/state-v1.json",
+              "the Jak 1 save state path remains exact")
+        check(SaveDataLayout.localConflictsDirectory(
+            for: .jak2, in: applicationSupport
+        ).path == "/app/Library/Application Support/GOALPad/Jak2/SaveConflicts",
+              "Jak II conflict recovery cannot enter the Jak 1 archive")
+        check(SaveDataLayout.stateFile(
+            for: .jak2, in: applicationSupport
+        ).path == "/app/Library/Application Support/GOALPad/Jak2/SaveSync/state-v1.json",
+              "Jak II save state cannot reuse Jak 1 sync state")
+
         let activeTitle: GameLibraryTitle = expected.identifier == .jak1 ? .jak1 : .jak2
 
         if expected == .jak2 {
@@ -36,6 +63,8 @@ private struct GameDataProfileSelectionCheck {
                   "the Jak II shell accepts the OpenGOAL prepared root")
             check(!expected.supportsRawMediaPreparation && !expected.supportsRuntimeLaunch,
                   "the Jak II shell keeps raw media and gameplay unavailable")
+            check(!expected.supportsManagedSaveSync,
+                  "the Jak II shell keeps Jak 1 cloud merge unavailable")
             check(GameLibraryCardAction.resolve(
                 title: activeTitle,
                 state: .bootstrapReady,
@@ -55,6 +84,8 @@ private struct GameDataProfileSelectionCheck {
                   "the public build retains the Jak 1 prepared root")
             check(expected.supportsRawMediaPreparation && expected.supportsRuntimeLaunch,
                   "the public build retains Jak 1 capabilities")
+            check(expected.supportsManagedSaveSync,
+                  "the public build retains Jak 1 save synchronization")
             check(GameLibraryCardAction.resolve(
                 title: activeTitle,
                 state: .ready,
