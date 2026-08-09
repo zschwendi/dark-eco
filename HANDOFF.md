@@ -15876,3 +15876,156 @@ Next executable work after the context reset:
    changes, stale generations, and heartbeat behavior deterministically.
 4. After explicit authorization, create a signed Build 146 artifact and run the
    bounded physical Vision Pro acceptance route recorded above.
+
+# Build 147 visionOS physical-rejection repair candidate
+
+Date: 2026-08-09. Build 145 remains the locked iOS/iPad gameplay baseline.
+Build 146 was installed and launched on the maintainer's Vision Pro under
+explicit authorization, then physically rejected as a releasable visionOS
+candidate. The maintainer reported:
+
+- no visible app icon;
+- no way to close Settings from its initial title picker;
+- an immediate crash whenever stereoscopic 3D was enabled and Play was chosen;
+- a successful ISO import that was not initially reflected in the launcher;
+  Recheck found it, but Play then appeared to do nothing; and
+- a narrow pill-shaped hover target inside each rectangular game card rather
+  than one hover/activation target covering the complete card.
+
+No crash log or device capture was authorized, so the physical crash root cause
+is an evidence-backed source inference rather than a symbolicated diagnosis.
+The deterministic defects were unsafe stereo activation during native boot and
+reentrant fallback while RealityKit drawables were still borrowed. A later
+integration review also found that the native Boolean completion result had
+conflated a harmless no-chain tick with a GPU timeout. The final Build 147
+candidate now:
+
+- keeps the conventional `CAMetalLayer` active through launcher and native boot,
+  and advertises stereo only after `GameSession.isRunning`;
+- distinguishes skipped, rendered, and failed stereo ticks across C++,
+  Objective-C++, and Swift;
+- presents both eyes only after successful GPU completion, quarantines any
+  exceptional failed drawable pair so RealityKit cannot recycle it under
+  outstanding GPU work, and defers the fail-closed Comfort transition until the
+  borrowed-drawable scope has returned;
+- packages the approved Build 134 Eco art as a valid layered visionOS
+  `AppIcon.solidimagestack`;
+- gives the visionOS Settings root an explicit Close action;
+- assigns interaction and hover to the complete rounded game card;
+- publishes the local data inspection before independent iCloud settings/save
+  preparation, so a completed local import can appear immediately;
+- retains one Play request through foreground save preparation, reuses that
+  existing save gate, coalesces duplicate taps, and reports scene/save failures;
+- shows Preparing/Checking Saves progress instead of a silent Play no-op and
+  clears a startup alert when the user dismisses it.
+
+The parent worktree remains:
+
+```text
+/Users/zach/Developer/OS_Projects/GOALPad/GP-build146-integration
+branch agent/build147-integration
+nested OpenGOAL edd5edb0a96b0b22a58ed9bfddf12065fc602051
+```
+
+Integrated parent commits, in order:
+
+```text
+a4943c8d  fix(visionos): repair shell icon and card hover (AI-assisted)
+332bc639  Stabilize visionOS stereo activation (AI-assisted)
+9127c00f  fix: retain Play through foreground preparation (AI-assisted)
+807b7ece  fix: expose gameplay startup state (AI-assisted)
+6edd04ab  fix(visionos): fail closed on stereo completion errors (AI-assisted)
+3f88c746  build: bump Eco to 147 (AI-assisted)
+```
+
+The primary agent reviewed every integrated source change. An independent
+combined review found the completion-status and stale-alert defects above; its
+re-review accepted `6edd04ab` after both were corrected. Focused checks passed:
+
+```text
+Scripts/run-session-startup-readiness-check.sh
+Scripts/run-game-lifecycle-check.sh
+swift Scripts/save-pregame-gate-check.swift "$PWD"
+Scripts/run-game-data-install-check.sh
+swift Scripts/game-data-import-ui-check.swift "$PWD"
+Scripts/run-presentation-settings-check.sh
+Scripts/run-app-icon-check.sh
+Scripts/run-portrait-library-check.sh
+Scripts/run-vision-stereo-integration-check.sh
+GOALPAD_VISION_SDK=xros Scripts/run-vision-scene-foundation-check.sh
+git diff --check
+```
+
+The final builds were serialized and reused the exact verified 518-object pack
+at `GP-build142-integration/build/jak1-source-object-pack`:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=visionOS' \
+  -derivedDataPath /private/tmp/GOALPad-build146-shared-space -jobs 4 \
+  -allowProvisioningUpdates \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack \
+  build
+
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build146-shared-space -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack \
+  build
+```
+
+Both commands exited 0. Logs:
+
+```text
+/private/tmp/GOALPad-build147-final-signed-visionos.log
+/private/tmp/GOALPad-build147-final-ios.log
+```
+
+Final products:
+
+```text
+/private/tmp/GOALPad-build146-shared-space/Build/Products/Release-xros/GOALPad.app
+  Eco 1.0 (147), arm64
+  executable SHA-256 39382b906db5f1ed55904095a745acad664253eff9f93800d8509cac1b3e664d
+  Mach-O UUID 90AB6D8D-3F80-35EE-9DD7-8D748004451D
+  development CDHash a986f17631483f96020a69b631cc7920896d0d4e
+  VisionStereoWindow.reality 8845 bytes
+  CFBundlePrimaryIcon AppIcon; compiled 1024x1024 layered vision rendition
+
+/private/tmp/GOALPad-build146-shared-space/Build/Products/Release-iphoneos/GOALPad.app
+  Eco 1.0 (147), arm64
+  executable SHA-256 97447ab96e8af1831b41609b725f1810aa16f16ba7a80daa94ab7160d348d501
+  Mach-O UUID 94FE7838-98D5-3B14-8930-6CA103CC7F85
+```
+
+The visionOS app is signed by `Apple Development: Zachary Schwendiman
+(ZYH7XXHJVZ)` for team `V729QMY3V6`; strict on-disk verification passes. Its
+embedded entitlements include iCloud Documents, Game Center, and development
+`get-task-allow`. The iOS product is an unsigned generic regression build.
+Build 145's gameplay renderer, touch controls, native runtime, and the nested
+renderer commit are unchanged; the startup-readiness repair applies to both
+Apple launcher paths.
+
+This is phase 4 of 5 for the bounded Build 147 repair: implementation, focused
+validation, review, and signed packaging are complete; physical Vision Pro
+acceptance is the remaining phase. No device, controller, log, screen capture,
+install, or launch was accessed while producing Build 147. Do not physically
+access the Vision Pro until the maintainer explicitly authorizes this exact
+candidate.
+
+The shortest physical route after authorization is:
+
+1. Confirm the Eco icon appears in the visionOS launcher.
+2. Gaze and tap near each edge of the complete Jak card; its whole rounded card
+   should hover and activate.
+3. Open Settings at the initial title picker and close it with Close.
+4. Confirm the imported Jak title appears without Recheck. Tap Play once; if
+   iCloud work is pending, confirm visible Preparing/Checking Saves feedback.
+5. Boot once in Comfort mode.
+6. Enable Stereoscopic 3D and boot again; confirm no crash, stable left/right
+   eye assignment, comfortable depth, stable HUD, audio, and controller input.
+7. Disconnect and reconnect the controller to verify only the
+   `No controller detected.` ornament changes and no touch UI appears.
