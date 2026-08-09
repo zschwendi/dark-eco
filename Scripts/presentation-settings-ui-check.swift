@@ -110,7 +110,7 @@ check(view.components(separatedBy: "Section(\"iCloud\")").count - 1 == 1
 check(view.contains("if let message = cloudState.progressMessage")
         && view.contains(".disabled(!cloudState.isActionEnabled)"),
       "combined cloud progress disables its single conflicting action")
-check(view.contains("ordinary four Jak save slots")
+check(view.contains("the four \\(GameLibraryTitle.jak1.name) save slots")
         && !view.contains("resolution.relativePath")
         && !view.contains("Section(\"Automatic Resolution\")")
         && !view.contains("BASCUS-"),

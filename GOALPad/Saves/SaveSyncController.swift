@@ -677,7 +677,7 @@ struct SaveSettingsView: View {
                     Label("Export Saves", systemImage: "square.and.arrow.up")
                 }
                 .disabled(sync.isBusy)
-                Text("Eco imports and exports the ordinary four Jak save slots. When copies "
+                Text("Eco imports and exports the four \(GameLibraryTitle.jak1.name) save slots. When copies "
                      + "differ, the older copy is preserved automatically.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -719,7 +719,7 @@ struct SaveSettingsView: View {
                     Label("Refresh Preserved Saves", systemImage: "arrow.clockwise")
                 }
                 .disabled(sync.isBusy)
-                Text("Choose Make Active to restore a preserved native Jak save. Eco preserves "
+                Text("Choose Make Active to restore a preserved native \(GameLibraryTitle.jak1.name) save. Eco preserves "
                      + "the current active copy before replacing it.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -730,7 +730,7 @@ struct SaveSettingsView: View {
                     get: { settings.developerLogsEnabled },
                     set: { settings.setDeveloperLogsEnabled($0) }
                 ))
-                Text("Shows the live engine readout only while Jak's pause or progress menu is open.")
+                Text("Shows the live engine readout only while the game's pause or progress menu is open.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

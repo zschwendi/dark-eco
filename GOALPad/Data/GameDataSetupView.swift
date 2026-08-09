@@ -51,7 +51,7 @@ struct GameDataSetupView: View {
             Label("Import \(GameLibraryTitle.jak1.name)", systemImage: "bolt.fill")
                 .font(.title2.weight(.bold))
                 .foregroundStyle(DarkEcoTheme.accentGlow)
-            Text("Choose game data from a Jak and Daxter copy you own. Eco includes no game data and never downloads it.")
+            Text("Choose game data from a copy of \(GameLibraryTitle.jak1.name) that you own. Eco includes no game data and never downloads it.")
                 .font(.body)
                 .foregroundStyle(.white.opacity(0.84))
         }
