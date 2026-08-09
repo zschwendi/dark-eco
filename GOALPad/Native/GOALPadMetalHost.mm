@@ -2,6 +2,7 @@
 
 #include "GOALPadEngineSeams.h"
 #include "GOALPadGameBoot.hpp"
+#include "GOALPadLevelArtResidency.hpp"
 #include "GOALPadMercDiagnosticEvidence.hpp"
 
 #include <os/log.h>
@@ -53,11 +54,7 @@ constexpr bool kJak1TieEnvmapSecondPassEnabled = true;
 // and VU work, separating the reported self-shadow from material/depth state.
 constexpr bool kJak1ShadowOutputEnabled = false;
 
-struct LoadedLevelArt {
-  std::string name;
-  bool ok = false;              // failed loads stay listed so they are not retried
-  int frames_since_wanted = 0;  // 0 while __pc-set-levels names the level
-};
+using LoadedLevelArt = goalpad::level_art_residency::Entry;
 
 /*!
  * Everything the renderer owns, in one place, all of it touched from one thread at a time - the
@@ -168,8 +165,9 @@ bool load_level_art(const std::string& name, bool is_common) {
  * finished, so the load has to happen when it is asked for. Nothing is drawing either way, which
  * is what makes both safe.
  *
- * Eviction is deliberately separate and runs once at the next frame boundary. Loading must remain
- * synchronous here so texture relocation cannot observe a wanted level before its art exists.
+ * Age-based eviction runs at the next frame boundary. A wanted-set change may first release only
+ * enough unwanted art to stay within the resident-level limit. Loading remains synchronous so
+ * texture relocation cannot observe a wanted level before its art exists.
  */
 void service_level_requests(bool retry_failed) {
   if (g_host.art_directory.empty()) {
@@ -220,6 +218,34 @@ void service_level_requests(bool retry_failed) {
   }
 }
 
+bool release_level_art(const std::string& victim) {
+  const bool background_released = metal_level_data::unload(*g_host.texture_pool, victim);
+  const bool merc_released = metal_merc_models().remove_level(victim);
+  return background_released || merc_released;
+}
+
+// A transition can request a destination while three older levels are still resident. Reclaim the
+// oldest unwanted cache entries before the first destination allocation; otherwise one failed
+// over-capacity attempt is memoized until a later eviction or continue-point reset retries it.
+bool evict_unwanted_level_art_for_pressure() {
+  const auto victims = goalpad::level_art_residency::pressure_evictions(
+      g_host.loaded, g_host.wanted, kMaxResidentLevels);
+  bool released = false;
+  for (const auto& victim : victims) {
+    g_host.loaded.erase(
+        std::remove_if(g_host.loaded.begin(), g_host.loaded.end(),
+                       [&](const auto& entry) { return entry.name == victim; }),
+        g_host.loaded.end());
+    released = release_level_art(victim) || released;
+    os_log(gfx_log(), "Evicted level art %{public}s before loading newly wanted art.",
+           victim.c_str());
+  }
+  if (!victims.empty()) {
+    g_host.stats.levels_loaded_names = join_plus(g_host.loaded);
+  }
+  return released;
+}
+
 /*!
  * Age loaded art once per host frame and evict at most one old level, mirroring the desktop Metal
  * loader. This is called before GOAL starts the frame, so no CPU-side encoder can still be reading
@@ -257,11 +283,10 @@ bool evict_unwanted_level_art() {
   g_host.loaded.erase(oldest);
   g_host.stats.levels_loaded_names = join_plus(g_host.loaded);
 
-  const bool background_released = metal_level_data::unload(*g_host.texture_pool, victim);
-  const bool merc_released = metal_merc_models().remove_level(victim);
+  const bool released = release_level_art(victim);
   os_log(gfx_log(), "Evicted level art %{public}s after %d frames unwanted.", victim.c_str(),
          victim_age);
-  return background_released || merc_released;
+  return released;
 }
 
 goalpad::MetalHostMercTransformEvent retain_merc_transform_event(
@@ -935,7 +960,8 @@ void host_set_levels(const char* const* names, int count) {
       g_host.loaded.end());
   g_host.wanted_changed = true;
   g_host.stats.levels_wanted = join_plus(g_host.wanted);
-  service_level_requests(false);
+  const bool released_stale_art = evict_unwanted_level_art_for_pressure();
+  service_level_requests(released_stale_art);
 }
 
 void host_set_pmode_alp(float alp) {
