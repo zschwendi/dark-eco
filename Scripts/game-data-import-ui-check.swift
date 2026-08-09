@@ -54,6 +54,11 @@ check(view.contains("DarkEcoPanel") && view.contains("DarkEcoTheme.background")
         && theme.contains("accessibilityReduceTransparency")
         && !theme.contains(".animation("),
       "the import uses centralized Dark Eco surfaces without motion effects")
+check(view.contains("Preparing saves before gameplay…")
+        && view.contains("Checking saves before gameplay…")
+        && view.contains("ProgressView()")
+        && view.contains("!session.dataReport.canBoot || session.startupPhase.isPreparing"),
+      "Play exposes save preparation and disables duplicate launch requests")
 check(theme.contains("static let background") && theme.contains("static let accent")
         && theme.contains("static let warning") && theme.contains("struct DarkEcoPanel"),
       "the reusable theme exposes surface, accent, warning, and panel seams")

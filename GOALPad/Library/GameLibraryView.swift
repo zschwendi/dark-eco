@@ -5,12 +5,14 @@ private enum GameLibraryAlert: Identifiable {
     case importJak1
     case unsupported(GameLibraryTitle)
     case artwork(String)
+    case startup(String)
 
     var id: String {
         switch self {
         case .importJak1: "import-jak1"
         case .unsupported(let title): "unsupported-\(title.id)"
         case .artwork: "artwork"
+        case .startup: "startup"
         }
     }
 }
@@ -109,6 +111,10 @@ struct GameLibraryView: View {
             presentedAlert = .artwork(message)
             artworkStore.errorMessage = nil
         }
+        .onChange(of: session.startupError, initial: true) { _, message in
+            guard let message else { return }
+            presentedAlert = .startup(message)
+        }
         .alert(item: $presentedAlert) { alert in
             switch alert {
             case .importJak1:
@@ -131,12 +137,21 @@ struct GameLibraryView: View {
                     message: Text(message),
                     dismissButton: .default(Text("OK"))
                 )
+            case .startup(let message):
+                Alert(
+                    title: Text("Couldn't Start Game"),
+                    message: Text(message),
+                    dismissButton: .default(Text("OK"))
+                )
             }
         }
     }
 
     private func state(for title: GameLibraryTitle) -> GameLibraryState {
         guard title == .jak1 else { return .planned }
+        if session.startupPhase.isPreparing {
+            return .preparing(nil)
+        }
         switch session.importer.state {
         case .scanning:
             return .preparing(nil)

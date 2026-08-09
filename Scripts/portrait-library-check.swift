@@ -143,6 +143,16 @@ do {
                         "launcher shelf, adaptive gutters, menu ordering, or About destination regressed"])
     }
     print("  ok   launcher menu is Settings then a unified About destination")
+    guard libraryScreen.contains("if session.startupPhase.isPreparing")
+            && libraryScreen.contains("return .preparing(nil)")
+            && libraryScreen.contains(".onChange(of: session.startupError, initial: true)")
+            && libraryScreen.contains("title: Text(\"Couldn't Start Game\")")
+    else {
+        throw NSError(domain: "portrait-library-check", code: 3,
+                      userInfo: [NSLocalizedDescriptionKey:
+                        "launcher startup progress or visible failure reporting regressed"])
+    }
+    print("  ok   launcher exposes startup preparation and failures")
     guard gameplaySurface.contains("if frame.origin == .zero, frame.size == proxy.size"),
           let fullSurfaceBranch = gameplaySurface.range(of: "if frame.origin == .zero, frame.size == proxy.size"),
           let portraitBranch = gameplaySurface.range(of: "} else {", range: fullSurfaceBranch.upperBound..<gameplaySurface.endIndex),

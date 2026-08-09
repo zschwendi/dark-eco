@@ -167,6 +167,18 @@ struct GameDataSetupView: View {
 
     private var actions: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if let startupMessage {
+                HStack(spacing: 10) {
+                    ProgressView()
+                        .tint(DarkEcoTheme.accent)
+                    Text(startupMessage)
+                        .font(.callout)
+                        .foregroundStyle(.white.opacity(0.84))
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(startupMessage)
+            }
+
             Button("Choose \(GameLibraryTitle.jak1.name) data…") {
                 selectionError = nil
                 isChoosingSource = true
@@ -182,8 +194,19 @@ struct GameDataSetupView: View {
 
                 Button("Play \(GameLibraryTitle.jak1.name)") { Task { await session.start() } }
                     .buttonStyle(.bordered)
-                    .disabled(!session.dataReport.canBoot)
+                    .disabled(!session.dataReport.canBoot || session.startupPhase.isPreparing)
             }
+        }
+    }
+
+    private var startupMessage: String? {
+        switch session.startupPhase {
+        case .waitingForForegroundPreparation:
+            "Preparing saves before gameplay…"
+        case .checkingSaves:
+            "Checking saves before gameplay…"
+        case .idle, .booting:
+            nil
         }
     }
 
