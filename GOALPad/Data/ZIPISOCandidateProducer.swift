@@ -90,13 +90,14 @@ nonisolated struct ZIPISOStagingCleaner: Sendable {
     }
 }
 
-/// Minimal ZIP32 reader for local, bounded ISO extraction. It intentionally rejects ZIP features
-/// that are unnecessary for the supported import path instead of trying to repair or guess them.
+/// Minimal ZIP32/ZIP64 reader for local, bounded ISO extraction. It intentionally rejects ZIP
+/// features that are unnecessary for the supported import path instead of repairing or guessing.
 nonisolated struct ZIPISOExtractor: Sendable {
     nonisolated struct Limits: Sendable {
         var maximumEntries = 100_000
         var maximumCentralDirectoryBytes: UInt64 = 64 * 1_024 * 1_024
-        var maximumISOBytes: UInt64 = UInt64(UInt32.max)
+        var maximumISOBytes: UInt64 = 4_410_671_104
+        var maximumCompressionOverheadBytes: UInt64 = 64 * 1_024 * 1_024
         var maximumCompressionRatio: UInt64 = 1_000
         var minimumFreeSpaceAfterExtraction: UInt64 = 256 * 1_024 * 1_024
         var chunkBytes = 1 * 1_024 * 1_024
@@ -105,7 +106,24 @@ nonisolated struct ZIPISOExtractor: Sendable {
     private struct EndOfCentralDirectory: Sendable {
         let entryCount: Int
         let centralDirectoryOffset: UInt64
-        let recordOffset: UInt64
+        let centralDirectoryEnd: UInt64
+        let usesZIP64: Bool
+    }
+
+    private struct LegacyEndOfCentralDirectory: Sendable {
+        let diskNumber: UInt16
+        let directoryDisk: UInt16
+        let entriesOnDisk: UInt16
+        let totalEntries: UInt16
+        let directorySize: UInt32
+        let directoryOffset: UInt32
+    }
+
+    private struct CentralZIP64Values: Sendable {
+        let compressedSize: UInt64
+        let uncompressedSize: UInt64
+        let localHeaderOffset: UInt64
+        let diskStart: UInt32
     }
 
     private struct Entry: Sendable {
@@ -171,7 +189,8 @@ nonisolated struct ZIPISOExtractor: Sendable {
         let dataOffset = try validateLocalHeader(
             archive: archive,
             entry: entry,
-            centralDirectoryOffset: directory.centralDirectoryOffset
+            centralDirectoryOffset: directory.centralDirectoryOffset,
+            archiveUsesZIP64: directory.usesZIP64
         )
 
         let manager = FileManager.default
@@ -279,43 +298,62 @@ nonisolated struct ZIPISOExtractor: Sendable {
             throw Self.failure(.invalidDiscImage, "The ZIP end-of-directory record is missing.")
         }
 
-        if recordIndex >= 20,
-           Self.uint32(tail, at: recordIndex - 20) == 0x0706_4b50
-        {
-            throw Self.failure(
-                .unsupportedArchive,
-                "ZIP64 archives are not supported. Create a standard ZIP containing one ISO."
+        guard let recordOffset = Self.adding(tailOffset, UInt64(recordIndex)) else {
+            throw Self.failure(.invalidDiscImage, "The ZIP end-of-directory offset overflowed.")
+        }
+        let legacy = LegacyEndOfCentralDirectory(
+            diskNumber: Self.uint16(tail, at: recordIndex + 4),
+            directoryDisk: Self.uint16(tail, at: recordIndex + 6),
+            entriesOnDisk: Self.uint16(tail, at: recordIndex + 8),
+            totalEntries: Self.uint16(tail, at: recordIndex + 10),
+            directorySize: Self.uint32(tail, at: recordIndex + 12),
+            directoryOffset: Self.uint32(tail, at: recordIndex + 16)
+        )
+
+        let locatorOffset: UInt64? = recordOffset >= 20 ? recordOffset - 20 : nil
+        let locator: Data?
+        if let locatorOffset {
+            let candidate = try Self.readExactly(archive, offset: locatorOffset, count: 20)
+            locator = Self.uint32(candidate, at: 0) == 0x0706_4b50 ? candidate : nil
+        } else {
+            locator = nil
+        }
+
+        if let locator, let locatorOffset {
+            return try parseZIP64End(
+                archive: archive,
+                archiveSize: archiveSize,
+                legacy: legacy,
+                locator: locator,
+                locatorOffset: locatorOffset
             )
         }
 
-        let diskNumber = Self.uint16(tail, at: recordIndex + 4)
-        let directoryDisk = Self.uint16(tail, at: recordIndex + 6)
-        let entriesOnDisk = Self.uint16(tail, at: recordIndex + 8)
-        let totalEntries = Self.uint16(tail, at: recordIndex + 10)
-        let directorySize32 = Self.uint32(tail, at: recordIndex + 12)
-        let directoryOffset32 = Self.uint32(tail, at: recordIndex + 16)
-
-        if entriesOnDisk == UInt16.max || totalEntries == UInt16.max
-            || directorySize32 == UInt32.max || directoryOffset32 == UInt32.max
-        {
+        let hasSentinel = legacy.diskNumber == UInt16.max
+            || legacy.directoryDisk == UInt16.max
+            || legacy.entriesOnDisk == UInt16.max
+            || legacy.totalEntries == UInt16.max
+            || legacy.directorySize == UInt32.max
+            || legacy.directoryOffset == UInt32.max
+        guard !hasSentinel else {
             throw Self.failure(
-                .unsupportedArchive,
-                "ZIP64 archives are not supported. Create a standard ZIP containing one ISO."
+                .invalidDiscImage,
+                "The ZIP64 end records required by the directory are missing."
             )
         }
-        guard diskNumber == 0, directoryDisk == 0, entriesOnDisk == totalEntries else {
+        guard legacy.diskNumber == 0,
+              legacy.directoryDisk == 0,
+              legacy.entriesOnDisk == legacy.totalEntries
+        else {
             throw Self.failure(
                 .unsupportedArchive,
                 "Multi-disk ZIP archives are not supported. Choose one ordinary ZIP file."
             )
         }
-        guard Int(totalEntries) <= limits.maximumEntries else {
-            throw Self.failure(.unsupportedArchive, "The ZIP contains an unreasonable number of entries.")
-        }
+        let entryCount = try validateEntryCount(UInt64(legacy.totalEntries))
 
-        let directorySize = UInt64(directorySize32)
-        let directoryOffset = UInt64(directoryOffset32)
-        let recordOffset = tailOffset + UInt64(recordIndex)
+        let directorySize = UInt64(legacy.directorySize)
+        let directoryOffset = UInt64(legacy.directoryOffset)
         guard directorySize <= limits.maximumCentralDirectoryBytes else {
             throw Self.failure(.unsupportedArchive, "The ZIP directory is unreasonably large.")
         }
@@ -329,10 +367,107 @@ nonisolated struct ZIPISOExtractor: Sendable {
         }
 
         return EndOfCentralDirectory(
-            entryCount: Int(totalEntries),
+            entryCount: entryCount,
             centralDirectoryOffset: directoryOffset,
-            recordOffset: recordOffset
+            centralDirectoryEnd: recordOffset,
+            usesZIP64: false
         )
+    }
+
+    private func parseZIP64End(
+        archive: FileHandle,
+        archiveSize: UInt64,
+        legacy: LegacyEndOfCentralDirectory,
+        locator: Data,
+        locatorOffset: UInt64
+    ) throws -> EndOfCentralDirectory {
+        let locatorDisk = Self.uint32(locator, at: 4)
+        let zip64RecordOffset = Self.uint64(locator, at: 8)
+        let totalDisks = Self.uint32(locator, at: 16)
+        guard locatorDisk == 0, totalDisks == 1 else {
+            throw Self.failure(
+                .unsupportedArchive,
+                "Multi-disk ZIP64 archives are not supported. Choose one ordinary ZIP file."
+            )
+        }
+        guard zip64RecordOffset < locatorOffset,
+              let minimumEnd = Self.adding(zip64RecordOffset, 56),
+              minimumEnd <= locatorOffset,
+              minimumEnd <= archiveSize
+        else {
+            throw Self.failure(.invalidDiscImage, "The ZIP64 end record has invalid bounds.")
+        }
+
+        let fixed = try Self.readExactly(archive, offset: zip64RecordOffset, count: 56)
+        guard Self.uint32(fixed, at: 0) == 0x0606_4b50 else {
+            throw Self.failure(.invalidDiscImage, "The ZIP64 end record is missing or malformed.")
+        }
+        let recordSize = Self.uint64(fixed, at: 4)
+        guard recordSize >= 44,
+              recordSize <= limits.maximumCentralDirectoryBytes,
+              let completeSize = Self.adding(recordSize, 12),
+              let recordEnd = Self.adding(zip64RecordOffset, completeSize),
+              recordEnd == locatorOffset
+        else {
+            throw Self.failure(.invalidDiscImage, "The ZIP64 end record has invalid bounds.")
+        }
+
+        let versionNeeded = Self.uint16(fixed, at: 14)
+        let diskNumber = Self.uint32(fixed, at: 16)
+        let directoryDisk = Self.uint32(fixed, at: 20)
+        let entriesOnDisk = Self.uint64(fixed, at: 24)
+        let totalEntries = Self.uint64(fixed, at: 32)
+        let directorySize = Self.uint64(fixed, at: 40)
+        let directoryOffset = Self.uint64(fixed, at: 48)
+
+        guard versionNeeded >= 45 else {
+            throw Self.failure(.invalidDiscImage, "The ZIP64 end record has an invalid version.")
+        }
+        guard diskNumber == 0, directoryDisk == 0, entriesOnDisk == totalEntries else {
+            throw Self.failure(
+                .unsupportedArchive,
+                "Multi-disk ZIP64 archives are not supported. Choose one ordinary ZIP file."
+            )
+        }
+        guard Self.matches(legacy.diskNumber, sentinel: UInt16.max, zip64: UInt64(diskNumber)),
+              Self.matches(legacy.directoryDisk, sentinel: UInt16.max, zip64: UInt64(directoryDisk)),
+              Self.matches(legacy.entriesOnDisk, sentinel: UInt16.max, zip64: entriesOnDisk),
+              Self.matches(legacy.totalEntries, sentinel: UInt16.max, zip64: totalEntries),
+              Self.matches(legacy.directorySize, sentinel: UInt32.max, zip64: directorySize),
+              Self.matches(legacy.directoryOffset, sentinel: UInt32.max, zip64: directoryOffset)
+        else {
+            throw Self.failure(.invalidDiscImage, "The ZIP32 and ZIP64 end records disagree.")
+        }
+
+        let entryCount = try validateEntryCount(totalEntries)
+        guard directorySize <= limits.maximumCentralDirectoryBytes else {
+            throw Self.failure(.unsupportedArchive, "The ZIP directory is unreasonably large.")
+        }
+        guard let directoryEnd = Self.adding(directoryOffset, directorySize),
+              directoryEnd == zip64RecordOffset
+        else {
+            throw Self.failure(.invalidDiscImage, "The ZIP64 central directory has invalid bounds.")
+        }
+
+        return EndOfCentralDirectory(
+            entryCount: entryCount,
+            centralDirectoryOffset: directoryOffset,
+            centralDirectoryEnd: zip64RecordOffset,
+            usesZIP64: true
+        )
+    }
+
+    private func validateEntryCount(_ count: UInt64) throws -> Int {
+        guard limits.maximumEntries >= 0,
+              count <= UInt64(limits.maximumEntries),
+              count <= UInt64(Int.max)
+        else {
+            throw Self.failure(
+                .unsupportedArchive,
+                "The ZIP contains an unreasonable number of entries."
+            )
+        }
+        return Int(count)
     }
 
     private func findISOEntry(
@@ -340,7 +475,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
         directory: EndOfCentralDirectory
     ) async throws -> Entry {
         var cursor = directory.centralDirectoryOffset
-        let directoryEnd = directory.recordOffset
+        let directoryEnd = directory.centralDirectoryEnd
         var selected: Entry?
 
         for entryIndex in 0..<directory.entryCount {
@@ -356,6 +491,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
             }
 
             let creatorSystem = UInt8(truncatingIfNeeded: Self.uint16(fixed, at: 4) >> 8)
+            let versionNeeded = Self.uint16(fixed, at: 6)
             let flags = Self.uint16(fixed, at: 8)
             try Self.validateFlags(flags)
             let method = Self.uint16(fixed, at: 10)
@@ -369,21 +505,6 @@ nonisolated struct ZIPISOExtractor: Sendable {
             let externalAttributes = Self.uint32(fixed, at: 38)
             let localHeaderOffset32 = Self.uint32(fixed, at: 42)
 
-            if compressedSize32 == UInt32.max || uncompressedSize32 == UInt32.max
-                || localHeaderOffset32 == UInt32.max
-            {
-                throw Self.failure(
-                    .unsupportedArchive,
-                    "ZIP64 archives are not supported. Create a standard ZIP containing one ISO."
-                )
-            }
-            guard diskStart == 0 else {
-                throw Self.failure(
-                    .unsupportedArchive,
-                    "Multi-disk ZIP archives are not supported. Choose one ordinary ZIP file."
-                )
-            }
-
             let variableLength = nameLength + extraLength + commentLength
             guard let nextCursor = Self.adding(cursor, UInt64(46 + variableLength)),
                   nextCursor <= directoryEnd
@@ -392,12 +513,42 @@ nonisolated struct ZIPISOExtractor: Sendable {
             }
             let nameAndExtra = try Self.readExactly(
                 archive,
-                offset: cursor + 46,
+                offset: fixedEnd,
                 count: nameLength + extraLength
             )
             let nameBytes = nameAndExtra.prefix(nameLength)
             let extra = nameAndExtra.dropFirst(nameLength)
-            try Self.validateExtra(Data(extra))
+            let zip64Payload = try Self.uniqueZIP64Payload(in: Data(extra))
+            let zip64Values = try Self.resolveCentralZIP64(
+                compressedSize32: compressedSize32,
+                uncompressedSize32: uncompressedSize32,
+                localHeaderOffset32: localHeaderOffset32,
+                diskStart16: diskStart,
+                payload: zip64Payload
+            )
+            let entryUsesZIP64 = zip64Payload != nil
+                || compressedSize32 == UInt32.max
+                || uncompressedSize32 == UInt32.max
+                || localHeaderOffset32 == UInt32.max
+                || diskStart == UInt16.max
+            guard !entryUsesZIP64 || directory.usesZIP64 else {
+                throw Self.failure(
+                    .invalidDiscImage,
+                    "A ZIP64 directory entry is missing the required ZIP64 end records."
+                )
+            }
+            if entryUsesZIP64, versionNeeded < 45 {
+                throw Self.failure(
+                    .invalidDiscImage,
+                    "A ZIP64 directory entry has an invalid extraction version."
+                )
+            }
+            guard zip64Values.diskStart == 0 else {
+                throw Self.failure(
+                    .unsupportedArchive,
+                    "Multi-disk ZIP archives are not supported. Choose one ordinary ZIP file."
+                )
+            }
 
             let name = try Self.decodeName(Data(nameBytes), flags: flags)
             try Self.validatePath(name)
@@ -432,9 +583,9 @@ nonisolated struct ZIPISOExtractor: Sendable {
                     flags: flags,
                     method: method,
                     checksum: checksum,
-                    compressedSize: UInt64(compressedSize32),
-                    uncompressedSize: UInt64(uncompressedSize32),
-                    localHeaderOffset: UInt64(localHeaderOffset32)
+                    compressedSize: zip64Values.compressedSize,
+                    uncompressedSize: zip64Values.uncompressedSize,
+                    localHeaderOffset: zip64Values.localHeaderOffset
                 )
             }
             cursor = nextCursor
@@ -455,6 +606,12 @@ nonisolated struct ZIPISOExtractor: Sendable {
     private func validateExpansion(_ entry: Entry, destinationURL: URL) throws {
         guard entry.uncompressedSize <= limits.maximumISOBytes else {
             throw Self.failure(.insufficientStorage, "The archived ISO is too large to prepare safely.")
+        }
+        guard let maximumCompressedSize = Self.adding(
+            entry.uncompressedSize,
+            limits.maximumCompressionOverheadBytes
+        ), entry.compressedSize <= maximumCompressedSize else {
+            throw Self.failure(.unsupportedArchive, "The archived ISO member is unreasonably large.")
         }
         if entry.uncompressedSize > 0 {
             let (maximumExpandedBytes, ratioOverflow) = entry.compressedSize
@@ -496,7 +653,8 @@ nonisolated struct ZIPISOExtractor: Sendable {
     private func validateLocalHeader(
         archive: FileHandle,
         entry: Entry,
-        centralDirectoryOffset: UInt64
+        centralDirectoryOffset: UInt64,
+        archiveUsesZIP64: Bool
     ) throws -> UInt64 {
         guard let fixedEnd = Self.adding(entry.localHeaderOffset, 30),
               fixedEnd <= centralDirectoryOffset
@@ -527,20 +685,54 @@ nonisolated struct ZIPISOExtractor: Sendable {
 
         let nameAndExtra = try Self.readExactly(
             archive,
-            offset: entry.localHeaderOffset + 30,
+            offset: fixedEnd,
             count: nameLength + extraLength
         )
         guard Data(nameAndExtra.prefix(nameLength)) == entry.nameBytes else {
             throw Self.failure(.invalidDiscImage, "The ZIP member name does not match its directory entry.")
         }
-        try Self.validateExtra(Data(nameAndExtra.dropFirst(nameLength)))
+        let localCompressedSize32 = Self.uint32(fixed, at: 18)
+        let localUncompressedSize32 = Self.uint32(fixed, at: 22)
+        let zip64Payload = try Self.uniqueZIP64Payload(
+            in: Data(nameAndExtra.dropFirst(nameLength))
+        )
+        let localUsesZIP64 = zip64Payload != nil
+            || localCompressedSize32 == UInt32.max
+            || localUncompressedSize32 == UInt32.max
+        guard !localUsesZIP64 || archiveUsesZIP64 else {
+            throw Self.failure(
+                .invalidDiscImage,
+                "The ZIP local header is missing the required ZIP64 end records."
+            )
+        }
+        if localUsesZIP64, Self.uint16(fixed, at: 4) < 45 {
+            throw Self.failure(
+                .invalidDiscImage,
+                "The ZIP local ZIP64 header has an invalid extraction version."
+            )
+        }
+        let localSizes = try Self.resolveLocalZIP64(
+            compressedSize32: localCompressedSize32,
+            uncompressedSize32: localUncompressedSize32,
+            payload: zip64Payload
+        )
 
         if flags & 0x0008 == 0 {
             guard Self.uint32(fixed, at: 14) == entry.checksum,
-                  UInt64(Self.uint32(fixed, at: 18)) == entry.compressedSize,
-                  UInt64(Self.uint32(fixed, at: 22)) == entry.uncompressedSize
+                  localSizes.compressedSize == entry.compressedSize,
+                  localSizes.uncompressedSize == entry.uncompressedSize
             else {
                 throw Self.failure(.invalidDiscImage, "The ZIP local file sizes or checksum disagree.")
+            }
+        } else if localUsesZIP64 {
+            let localChecksum = Self.uint32(fixed, at: 14)
+            guard localChecksum == 0 || localChecksum == entry.checksum,
+                  localSizes.compressedSize == 0
+                    || localSizes.compressedSize == entry.compressedSize,
+                  localSizes.uncompressedSize == 0
+                    || localSizes.uncompressedSize == entry.uncompressedSize
+            else {
+                throw Self.failure(.invalidDiscImage, "The ZIP local ZIP64 sizes disagree.")
             }
         }
         return dataOffset
@@ -725,6 +917,9 @@ nonisolated struct ZIPISOExtractor: Sendable {
         offset: UInt64,
         count: Int
     ) throws -> Data {
+        guard count >= 0, adding(offset, UInt64(count)) != nil else {
+            throw failure(.invalidDiscImage, "A ZIP record offset overflowed.")
+        }
         do {
             try handle.seek(toOffset: offset)
             guard let data = try handle.read(upToCount: count), data.count == count else {
@@ -815,8 +1010,9 @@ nonisolated struct ZIPISOExtractor: Sendable {
         return unixType == 0 || unixType == 0x8000
     }
 
-    private static func validateExtra(_ extra: Data) throws {
+    private static func uniqueZIP64Payload(in extra: Data) throws -> Data? {
         var offset = 0
+        var zip64Payload: Data?
         while offset < extra.count {
             guard offset + 4 <= extra.count else {
                 throw failure(.invalidDiscImage, "A ZIP extra field is malformed.")
@@ -827,13 +1023,124 @@ nonisolated struct ZIPISOExtractor: Sendable {
                 throw failure(.invalidDiscImage, "A ZIP extra field is truncated.")
             }
             if identifier == 0x0001 {
-                throw failure(
-                    .unsupportedArchive,
-                    "ZIP64 archives are not supported. Create a standard ZIP containing one ISO."
-                )
+                guard zip64Payload == nil else {
+                    throw failure(.invalidDiscImage, "A ZIP record has duplicate ZIP64 extra fields.")
+                }
+                zip64Payload = extra.subdata(in: (offset + 4)..<(offset + 4 + length))
             }
             offset += 4 + length
         }
+        return zip64Payload
+    }
+
+    private static func resolveCentralZIP64(
+        compressedSize32: UInt32,
+        uncompressedSize32: UInt32,
+        localHeaderOffset32: UInt32,
+        diskStart16: UInt16,
+        payload: Data?
+    ) throws -> CentralZIP64Values {
+        let needsUncompressedSize = uncompressedSize32 == UInt32.max
+        let needsCompressedSize = compressedSize32 == UInt32.max
+        let needsLocalHeaderOffset = localHeaderOffset32 == UInt32.max
+        let needsDiskStart = diskStart16 == UInt16.max
+        let needsZIP64 = needsUncompressedSize || needsCompressedSize
+            || needsLocalHeaderOffset || needsDiskStart
+
+        if !needsZIP64, let payload, !payload.isEmpty {
+            throw failure(
+                .invalidDiscImage,
+                "A ZIP64 extra field contains values not requested by its directory entry."
+            )
+        }
+        guard !needsZIP64 || payload != nil else {
+            throw failure(.invalidDiscImage, "A ZIP64 directory entry is missing its extra field.")
+        }
+
+        let payload = payload ?? Data()
+        var cursor = 0
+        let uncompressedSize = needsUncompressedSize
+            ? try consumeUInt64(payload, cursor: &cursor, field: "uncompressed size")
+            : UInt64(uncompressedSize32)
+        let compressedSize = needsCompressedSize
+            ? try consumeUInt64(payload, cursor: &cursor, field: "compressed size")
+            : UInt64(compressedSize32)
+        let localHeaderOffset = needsLocalHeaderOffset
+            ? try consumeUInt64(payload, cursor: &cursor, field: "local-header offset")
+            : UInt64(localHeaderOffset32)
+        let diskStart = needsDiskStart
+            ? try consumeUInt32(payload, cursor: &cursor, field: "disk start")
+            : UInt32(diskStart16)
+        guard cursor == payload.count else {
+            throw failure(.invalidDiscImage, "A ZIP64 directory extra field has invalid length.")
+        }
+        return CentralZIP64Values(
+            compressedSize: compressedSize,
+            uncompressedSize: uncompressedSize,
+            localHeaderOffset: localHeaderOffset,
+            diskStart: diskStart
+        )
+    }
+
+    private static func resolveLocalZIP64(
+        compressedSize32: UInt32,
+        uncompressedSize32: UInt32,
+        payload: Data?
+    ) throws -> (compressedSize: UInt64, uncompressedSize: UInt64) {
+        let compressedSentinel = compressedSize32 == UInt32.max
+        let uncompressedSentinel = uncompressedSize32 == UInt32.max
+        let needsZIP64 = compressedSentinel || uncompressedSentinel
+        guard !needsZIP64 || (compressedSentinel && uncompressedSentinel) else {
+            throw failure(
+                .invalidDiscImage,
+                "The ZIP local header has inconsistent ZIP64 size sentinels."
+            )
+        }
+        if !needsZIP64, let payload, !payload.isEmpty {
+            throw failure(
+                .invalidDiscImage,
+                "A local ZIP64 extra field contains sizes not requested by its header."
+            )
+        }
+        guard !needsZIP64 || payload != nil else {
+            throw failure(.invalidDiscImage, "The ZIP local header is missing its ZIP64 extra field.")
+        }
+        guard needsZIP64 else {
+            return (UInt64(compressedSize32), UInt64(uncompressedSize32))
+        }
+
+        let payload = payload ?? Data()
+        guard payload.count == 16 else {
+            throw failure(.invalidDiscImage, "The ZIP local ZIP64 extra field has invalid length.")
+        }
+        return (
+            compressedSize: uint64(payload, at: 8),
+            uncompressedSize: uint64(payload, at: 0)
+        )
+    }
+
+    private static func consumeUInt64(
+        _ data: Data,
+        cursor: inout Int,
+        field: String
+    ) throws -> UInt64 {
+        guard cursor + 8 <= data.count else {
+            throw failure(.invalidDiscImage, "The ZIP64 extra field is missing its \(field).")
+        }
+        defer { cursor += 8 }
+        return uint64(data, at: cursor)
+    }
+
+    private static func consumeUInt32(
+        _ data: Data,
+        cursor: inout Int,
+        field: String
+    ) throws -> UInt32 {
+        guard cursor + 4 <= data.count else {
+            throw failure(.invalidDiscImage, "The ZIP64 extra field is missing its \(field).")
+        }
+        defer { cursor += 4 }
+        return uint32(data, at: cursor)
     }
 
     private static func uint16(_ data: Data, at offset: Int) -> UInt16 {
@@ -847,6 +1154,27 @@ nonisolated struct ZIPISOExtractor: Sendable {
             | UInt32(data[start + 1]) << 8
             | UInt32(data[start + 2]) << 16
             | UInt32(data[start + 3]) << 24
+    }
+
+    private static func uint64(_ data: Data, at offset: Int) -> UInt64 {
+        UInt64(uint32(data, at: offset))
+            | UInt64(uint32(data, at: offset + 4)) << 32
+    }
+
+    private static func matches(
+        _ legacy: UInt16,
+        sentinel: UInt16,
+        zip64: UInt64
+    ) -> Bool {
+        legacy == sentinel || UInt64(legacy) == zip64
+    }
+
+    private static func matches(
+        _ legacy: UInt32,
+        sentinel: UInt32,
+        zip64: UInt64
+    ) -> Bool {
+        legacy == sentinel || UInt64(legacy) == zip64
     }
 
     private static func adding(_ left: UInt64, _ right: UInt64) -> UInt64? {

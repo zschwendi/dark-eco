@@ -82,14 +82,14 @@ struct ContentView: View {
                         .padding()
                 }
             } else if session.isBooting {
-                BootingView()
+                BootingView(gameName: session.importer.profile.displayName)
             } else {
                 switch launcherDestination {
                 case .library:
                     GameLibraryView(
                         session: session,
                         artworkStore: artworkStore,
-                        openJak1Setup: { launcherDestination = .gameSetup },
+                        openGameSetup: { launcherDestination = .gameSetup },
                         openSettings: { presentSettings(.titles) }
                     )
                 case .gameSetup:
@@ -198,7 +198,10 @@ private struct SettingsSheetView: View {
         self.input = input
         self.isGameRunning = isGameRunning
         self.returnToLibrary = returnToLibrary
-        _path = State(initialValue: initialEntry == .jak1 ? [.jak1] : [])
+        let initialPath: [Destination] = initialEntry == .jak1 ? [.jak1] : []
+        _path = State(initialValue: GameDataProfile.active.supportsManagedSaveSync
+            ? initialPath
+            : [])
     }
 
     var body: some View {
@@ -231,8 +234,13 @@ private struct SettingsTitleListView: View {
     var body: some View {
         List {
             Section("Available") {
-                Button(action: openJak1) {
-                    LabeledContent("\(GameLibraryTitle.jak1.name) Settings", value: "Available")
+                if GameDataProfile.active.supportsManagedSaveSync {
+                    Button(action: openJak1) {
+                        LabeledContent("\(GameLibraryTitle.jak1.name) Settings", value: "Available")
+                    }
+                } else {
+                    LabeledContent("Jak II Saves", value: "Local Only")
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -282,15 +290,18 @@ private struct GameplaySurface: View {
                     .position(x: frame.midX, y: frame.midY)
             }
         }
+        .background(Color.black.ignoresSafeArea())
     }
 }
 
-/// The game's own startup: two DGO archives and `play`, which take seconds.
+/// The selected game's native startup, which can take several seconds.
 private struct BootingView: View {
+    let gameName: String
+
     var body: some View {
         VStack(spacing: 12) {
             ProgressView()
-            Text("Booting \(GameLibraryTitle.jak1.name)")
+            Text("Booting \(gameName)")
                 .font(.system(.headline, design: .monospaced))
             Text("KERNEL.CGO, GAME.CGO, then the title level")
                 .font(.system(.footnote, design: .monospaced))

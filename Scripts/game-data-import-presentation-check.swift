@@ -14,12 +14,23 @@ import Foundation
 @main
 private struct GameDataImportPresentationCheck {
     @MainActor static func main() {
-        check(GameDataImportPresentation.acceptedSources(rawISOAvailable: false)
+        check(GameDataImportPresentation.acceptedSources(
+                for: .jak1, rawISOAvailable: false)
                 == "Prepared OpenGOAL out/jak1 folder",
               "prepared-folder-only builds do not advertise raw media")
-        check(GameDataImportPresentation.acceptedSources(rawISOAvailable: true)
-                == "Prepared OpenGOAL out/jak1 folder, ISO disc image, or standard ZIP with exactly one ISO",
+        check(GameDataImportPresentation.acceptedSources(
+                for: .jak1, rawISOAvailable: true)
+                == "Prepared OpenGOAL out/jak1 folder, ISO disc image, or ZIP archive with exactly one ISO",
               "raw-media-capable builds advertise only the ISO and one-ISO ZIP paths")
+        let jak2Sources = GameDataImportPresentation.acceptedSources(
+            for: .jak2, rawISOAvailable: true)
+        check(jak2Sources
+                == "Prepared OpenGOAL out/jak2 folder, ISO disc image, or ZIP archive with exactly one ISO (Jak II title/gameplay launch contract v1; full-game completeness is not verified)",
+              "Jak II advertises raw media only with its selected composer resources")
+        check(GameDataImportPresentation.acceptedSources(
+                for: .jak2, rawISOAvailable: false)
+                == "Prepared OpenGOAL out/jak2 folder (Jak II title/gameplay launch contract v1; full-game completeness is not verified)",
+              "Jak II remains prepared-folder-only when its composer resources are unavailable")
         check(GameDataImportPresentation.backgroundGuidance(phaseLabel: "Validating candidate")
                 == "Keep Eco open and in the foreground. Validating candidate is not safe to continue while Eco is backgrounded.",
               "every active phase names itself and truthfully requires foreground execution")

@@ -158,6 +158,21 @@ rg -Fq 'static let quit = 34' "$root/GOALPad/Game/TouchControls.swift"
 rg -Fq 'static let quitTitle = 58' "$root/GOALPad/Game/TouchControls.swift"
 rg -Fq 'return [.left, .right, .confirm]' "$root/GOALPad/Game/TouchControls.swift"
 
+# Jak II save flow uses its additive semantic phase/action ABI. It must never infer a Jak II
+# meaning from the unrelated Jak 1 raw screen number table.
+jak2_progress_reducer=$(sed -n \
+  '/private static func jak2ProgressActions(/,/private static func commonOptions(/p' \
+  "$root/GOALPad/Game/TouchControls.swift")
+printf '%s\n' "$jak2_progress_reducer" | rg -Fq 'case .selectSaveTitle:'
+printf '%s\n' "$jak2_progress_reducer" | rg -Fq 'case .noMemoryCard:'
+printf '%s\n' "$jak2_progress_reducer" | rg -Fq 'case .createGame:'
+printf '%s\n' "$jak2_progress_reducer" | rg -Fq 'case .creating, .saving:'
+printf '%s\n' "$jak2_progress_reducer" | rg -Fq 'snapshot.actionMask'
+if printf '%s\n' "$jak2_progress_reducer" | rg -Fq 'screenRawValue'; then
+  echo "Jak II semantic reducer reuses an unproven raw progress screen number" >&2
+  exit 1
+fi
+
 # The dynamic left movement artwork gains only an L label. Its accepted 66-point knob and
 # movement-radius geometry remain the same as the deterministic byte checks above.
 movement_stick_view=$(sed -n \

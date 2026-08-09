@@ -123,7 +123,7 @@ final class GameSession {
             """)
         observeSystem()
         input.startWatching()
-        try? GameDataLayout.prepare()
+        try? GameDataLayout.prepare(profile: importer.profile)
         async let settingsPreparation: Void = presentationSettings.prepare()
         await saveSync.prepare()
         await settingsPreparation
@@ -133,19 +133,31 @@ final class GameSession {
     }
 
     func refreshDataReport() async {
-        dataReport = await Task.detached { GameDataInspector.inspect() }.value
+        let profile = importer.profile
+        let gameDirectory = GameDataLayout.gameDirectory(
+            for: profile,
+            in: GameDataLayout.documentsDirectory
+        )
+        dataReport = await Task.detached {
+            GameDataInspector.inspect(gameDirectory: gameDirectory, profile: profile)
+        }.value
     }
 
-    /// Bring the session up. Refuses rather than half-starting when the data on disk cannot boot
-    /// the game, or when this build has no ahead-of-time Jak 1 code to boot.
+    /// Bring the session up. Refuses rather than half-starting when the selected profile's data
+    /// contract is incomplete or when this build has no matching ahead-of-time game code.
     func start() async {
         guard !isRunning, !isBooting, !isPreparingGameplay else { return }
+        guard importer.profile.supportsRuntimeLaunch else {
+            startupError = "Native \(importer.profile.displayName) gameplay is not wired in this build. "
+                + "The current prepared-data contract cannot launch a matching runtime."
+            return
+        }
         guard GOALPadRuntimeBridge.isGameCodeLinked else {
             startupError = "This build has no ahead-of-time \(GameLibraryTitle.jak1.name) code. "
                 + "Run Scripts/generate-jak1-aot.sh and build again."
             return
         }
-        guard dataReport.canBoot else {
+        guard dataReport.canLaunchRuntime else {
             startupError = dataReport.summary
             return
         }
@@ -160,7 +172,10 @@ final class GameSession {
         audio.resumeIfSuspended()
 
         let status = GOALPadRuntimeBridge.startKernel(
-            withDataDirectory: GameDataLayout.gameDirectory.path,
+            withDataDirectory: GameDataLayout.gameDirectory(
+                for: importer.profile,
+                in: GameDataLayout.documentsDirectory
+            ).path,
             savesDirectory: SaveDataLayout.localSavesDirectory.path)
         kernel = status
         guard status.isRunning else {
@@ -173,7 +188,7 @@ final class GameSession {
         settings.apply()
         runReadiness = .preRun
         isBooting = true
-        sessionLog.notice("Booting \(GameLibraryTitle.jak1.name, privacy: .public)")
+        sessionLog.notice("Booting \(self.importer.profile.displayName, privacy: .public)")
         bootQueue.async {
             let boot = GOALPadRuntimeBridge.bootGame()
             DispatchQueue.main.async {
@@ -196,7 +211,9 @@ final class GameSession {
         isRunning = true
         updateNativeMenuState(mode: GOALPadRuntimeBridge.gameMode,
                               progress: NativeProgressMenuSnapshot(
-                                GOALPadRuntimeBridge.progressMenuSnapshot),
+                                GOALPadRuntimeBridge.progressMenuSnapshot,
+                                jak2Semantic: NativeJak2ProgressMenuSemanticSnapshot(
+                                    GOALPadRuntimeBridge.jak2ProgressMenuSemanticSnapshot)),
                               titleStartState: GOALPadRuntimeBridge.titleStartState)
         updateWarpGateTouchSnapshot(NativeWarpGateTouchSnapshot(
             GOALPadRuntimeBridge.warpGateTouchSnapshot))
@@ -294,7 +311,9 @@ final class GameSession {
             framesRun = GOALPadRuntimeBridge.framesRun
             let currentMode = GOALPadRuntimeBridge.gameMode
             let currentProgress = NativeProgressMenuSnapshot(
-                GOALPadRuntimeBridge.progressMenuSnapshot)
+                GOALPadRuntimeBridge.progressMenuSnapshot,
+                jak2Semantic: NativeJak2ProgressMenuSemanticSnapshot(
+                    GOALPadRuntimeBridge.jak2ProgressMenuSemanticSnapshot))
             let currentTitleStartState = GOALPadRuntimeBridge.titleStartState
             if currentMode != gameMode || currentProgress != progressMenuSnapshot
                 || currentTitleStartState != titleStartState {

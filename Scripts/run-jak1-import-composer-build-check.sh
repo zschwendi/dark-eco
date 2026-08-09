@@ -4,16 +4,55 @@
 set -eu
 
 script_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-builder=$script_directory/build-jak1-import-composer-apple.sh
-resource_phase=$script_directory/stage-jak1-import-composer-resources.sh
+game=${GOALPAD_IMPORT_COMPOSER_CHECK_GAME:-jak1}
+case "$game" in
+  jak1)
+    display_name="Jak 1"
+    builder=$script_directory/build-jak1-import-composer-apple.sh
+    resource_phase=$script_directory/stage-jak1-import-composer-resources.sh
+    verifier_target=jak1-source-object-pack-verify
+    composer_target=jak1-import-composer-apple-archive
+    composer_directory=jak1-import-composer-apple
+    composer_archive=libjak1-import-composer-apple.a
+    source_pack_env_name=GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT
+    build_root_env_name=GOALPAD_JAK1_IMPORT_BUILD_ROOT
+    deployment_env_name=GOALPAD_JAK1_IMPORT_DEPLOYMENT_TARGET
+    source_pack_only_option=OPENGOAL_BUILD_JAK1_SOURCE_OBJECT_PACK_ONLY
+    composer_only_option=OPENGOAL_BUILD_JAK1_IMPORT_COMPOSER_ONLY
+    contract_archive_name=GOALPAD_JAK1_IMPORT_ARCHIVE
+    project_resource_name=OpenGOALProjectResources
+    source_pack_resource_name=Jak1SourceObjectPack
+    ;;
+  jak2)
+    display_name="Jak II"
+    builder=$script_directory/build-jak2-import-composer-apple.sh
+    resource_phase=$script_directory/stage-jak2-import-composer-resources.sh
+    verifier_target=jak2-source-object-pack-verify
+    composer_target=jak2-import-composer-apple-archive
+    composer_directory=jak2-import-composer-apple
+    composer_archive=libjak2-import-composer-apple.a
+    source_pack_env_name=GOALPAD_JAK2_SOURCE_OBJECT_PACK_ROOT
+    build_root_env_name=GOALPAD_JAK2_IMPORT_BUILD_ROOT
+    deployment_env_name=GOALPAD_JAK2_IMPORT_DEPLOYMENT_TARGET
+    source_pack_only_option=OPENGOAL_BUILD_JAK2_SOURCE_OBJECT_PACK_ONLY
+    composer_only_option=OPENGOAL_BUILD_JAK2_IMPORT_COMPOSER_ONLY
+    contract_archive_name=GOALPAD_JAK2_IMPORT_ARCHIVE
+    project_resource_name=Jak2ProjectResources
+    source_pack_resource_name=Jak2SourceObjectPack
+    ;;
+  *)
+    echo "select an importer build check profile through its wrapper" >&2
+    exit 2
+    ;;
+esac
 temporary_base=${TMPDIR:-/tmp}
 temporary_base=${temporary_base%/}
-temporary_root=$(mktemp -d "$temporary_base/goalpad-composer-build-check.XXXXXX")
+temporary_root=$(mktemp -d "$temporary_base/goalpad-$game-composer-build-check.XXXXXX")
 temporary_root=$(CDPATH= cd -- "$temporary_root" && pwd -P)
 trap 'rm -rf "$temporary_root"' EXIT HUP INT TERM
 
 fail() {
-  echo "Jak 1 composer build synthetic check failed: $*" >&2
+  echo "$display_name composer build synthetic check failed: $*" >&2
   exit 1
 }
 
@@ -68,9 +107,9 @@ if [ "${1:-}" = --build ]; then
     shift
   done
   case "$target" in
-    jak1-source-object-pack-verify)
+    "$FAKE_VERIFIER_TARGET")
       mkdir -p "$build_root"
-      cat >"$build_root/jak1-source-object-pack-verify" <<'VERIFY'
+      cat >"$build_root/$FAKE_VERIFIER_TARGET" <<'VERIFY'
 #!/bin/sh
 set -eu
 root=$1
@@ -80,12 +119,12 @@ actual=$(find "$root" -mindepth 1 -maxdepth 1 -type f -print | sed 's#.*/##' | s
 [ "$(cat "$root/object_pack_manifest.tsv")" = "recorded identity" ] || exit 1
 echo "Verified synthetic source pack."
 VERIFY
-      chmod +x "$build_root/jak1-source-object-pack-verify"
+      chmod +x "$build_root/$FAKE_VERIFIER_TARGET"
       ;;
-    jak1-import-composer-apple-archive)
-      mkdir -p "$build_root/jak1-import-composer-apple"
+    "$FAKE_COMPOSER_TARGET")
+      mkdir -p "$build_root/$FAKE_COMPOSER_DIRECTORY"
       printf 'synthetic archive\n' \
-        >"$build_root/jak1-import-composer-apple/libjak1-import-composer-apple.a"
+        >"$build_root/$FAKE_COMPOSER_DIRECTORY/$FAKE_COMPOSER_ARCHIVE"
       ;;
     *) exit 1 ;;
   esac
@@ -149,16 +188,18 @@ expect_failure "derived build root may not be inside the repository source tree"
 run_build() {
   platform=$1
   derived_root=$fixture_root/build-$platform
-  FAKE_CMAKE_LOG=$cmake_log GOALPAD_CMAKE_EXECUTABLE=$fake_cmake \
+  FAKE_CMAKE_LOG=$cmake_log FAKE_VERIFIER_TARGET=$verifier_target \
+    FAKE_COMPOSER_TARGET=$composer_target FAKE_COMPOSER_DIRECTORY=$composer_directory \
+    FAKE_COMPOSER_ARCHIVE=$composer_archive GOALPAD_CMAKE_EXECUTABLE=$fake_cmake \
     GOALPAD_CMAKE_GENERATOR=Ninja GOALPAD_CCACHE=off GOALPAD_BUILD_JOBS=1 \
     "$builder" --opengoal-root "$opengoal_root" --source-pack "$source_pack" \
     --derived-root "$derived_root" --platform "$platform" --deployment-target 17.0
-  [ -s "$derived_root/$platform/jak1-import-composer-apple/libjak1-import-composer-apple.a" ] || \
+  [ -s "$derived_root/$platform/$composer_directory/$composer_archive" ] || \
     fail "$platform archive was not produced"
   if [ "$platform" = macosx ]; then
-    verifier=$derived_root/macosx/jak1-source-object-pack-verify
+    verifier=$derived_root/macosx/$verifier_target
   else
-    verifier=$derived_root/macosx-host/jak1-source-object-pack-verify
+    verifier=$derived_root/macosx-host/$verifier_target
   fi
   [ -x "$verifier" ] || fail "$platform host verifier was not produced"
 }
@@ -177,6 +218,8 @@ grep -F -- '<-DCMAKE_OSX_SYSROOT=xrsimulator>' "$cmake_log" >/dev/null
 grep -F -- '<-DCMAKE_SYSTEM_NAME=iOS>' "$cmake_log" >/dev/null
 grep -F -- '<-DCMAKE_SYSTEM_NAME=visionOS>' "$cmake_log" >/dev/null
 grep -F -- '<-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY>' "$cmake_log" >/dev/null
+grep -F -- "<-D$source_pack_only_option=ON>" "$cmake_log" >/dev/null
+grep -F -- "<-D$composer_only_option=ON>" "$cmake_log" >/dev/null
 for platform in macosx iphoneos iphonesimulator xros xrsimulator; do
   awk -v build="/build-$platform/$platform>" '
     index($0, build) && index($0, "<-DCMAKE_OSX_DEPLOYMENT_TARGET=17.0>") { found = 1 }
@@ -191,18 +234,22 @@ if awk '
 fi
 
 environment_build_root=$fixture_root/build-environment
-FAKE_CMAKE_LOG=$cmake_log GOALPAD_CMAKE_EXECUTABLE=$fake_cmake \
+env \
+  "FAKE_CMAKE_LOG=$cmake_log" "FAKE_VERIFIER_TARGET=$verifier_target" \
+  "FAKE_COMPOSER_TARGET=$composer_target" "FAKE_COMPOSER_DIRECTORY=$composer_directory" \
+  "FAKE_COMPOSER_ARCHIVE=$composer_archive" "GOALPAD_CMAKE_EXECUTABLE=$fake_cmake" \
   GOALPAD_CMAKE_GENERATOR=Ninja GOALPAD_CCACHE=off GOALPAD_BUILD_JOBS=1 \
-  GOALPAD_OPENGOAL_ROOT=$opengoal_root \
-  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=$source_pack \
-  GOALPAD_JAK1_IMPORT_BUILD_ROOT=$environment_build_root \
-  PLATFORM_NAME=iphoneos GOALPAD_JAK1_IMPORT_DEPLOYMENT_TARGET=17.0 "$builder"
-[ -s "$environment_build_root/iphoneos/jak1-import-composer-apple/libjak1-import-composer-apple.a" ] || \
+  "GOALPAD_OPENGOAL_ROOT=$opengoal_root" "$source_pack_env_name=$source_pack" \
+  "$build_root_env_name=$environment_build_root" PLATFORM_NAME=iphoneos \
+  "$deployment_env_name=17.0" "$builder"
+[ -s "$environment_build_root/iphoneos/$composer_directory/$composer_archive" ] || \
   fail "build-setting arguments did not produce the archive"
 
 : >"$cmake_log"
 host_environment_build_root=$fixture_root/build-host-environment
-FAKE_CMAKE_LOG=$cmake_log GOALPAD_CMAKE_EXECUTABLE=$fake_cmake \
+FAKE_CMAKE_LOG=$cmake_log FAKE_VERIFIER_TARGET=$verifier_target \
+  FAKE_COMPOSER_TARGET=$composer_target FAKE_COMPOSER_DIRECTORY=$composer_directory \
+  FAKE_COMPOSER_ARCHIVE=$composer_archive GOALPAD_CMAKE_EXECUTABLE=$fake_cmake \
   GOALPAD_CMAKE_GENERATOR=Ninja GOALPAD_CCACHE=/usr/bin/true GOALPAD_BUILD_JOBS=1 \
   IPHONEOS_DEPLOYMENT_TARGET=99.1 XROS_DEPLOYMENT_TARGET=99.2 \
   SDKROOT=/synthetic/target-sdk PLATFORM_NAME=synthetic-target \
@@ -233,32 +280,36 @@ grep -F "CMAKE_CXX_COMPILER_LAUNCHER=/usr/bin/true" "$cmake_log" >/dev/null || \
 mkdir "$fixture_root/physical-derived-parent"
 ln -s "$fixture_root/physical-derived-parent" "$fixture_root/reported-derived-parent"
 reported_build_root=$fixture_root/reported-derived-parent/build
-reported_output=$(FAKE_CMAKE_LOG=$cmake_log GOALPAD_CMAKE_EXECUTABLE=$fake_cmake \
+reported_output=$(FAKE_CMAKE_LOG=$cmake_log FAKE_VERIFIER_TARGET=$verifier_target \
+  FAKE_COMPOSER_TARGET=$composer_target FAKE_COMPOSER_DIRECTORY=$composer_directory \
+  FAKE_COMPOSER_ARCHIVE=$composer_archive GOALPAD_CMAKE_EXECUTABLE=$fake_cmake \
   GOALPAD_CMAKE_GENERATOR=Ninja GOALPAD_CCACHE=off GOALPAD_BUILD_JOBS=1 \
   "$builder" --opengoal-root "$opengoal_root" --source-pack "$source_pack" \
   --derived-root "$reported_build_root" --platform iphoneos --deployment-target 17.0)
 printf '%s\n' "$reported_output" | \
-  grep -F "GOALPAD_JAK1_IMPORT_ARCHIVE=$reported_build_root/iphoneos/jak1-import-composer-apple/libjak1-import-composer-apple.a" \
+  grep -F "$contract_archive_name=$reported_build_root/iphoneos/$composer_directory/$composer_archive" \
   >/dev/null || fail "reported derived path did not remain the linker output contract"
-[ -s "$fixture_root/physical-derived-parent/build/iphoneos/jak1-import-composer-apple/libjak1-import-composer-apple.a" ] || \
+[ -s "$fixture_root/physical-derived-parent/build/iphoneos/$composer_directory/$composer_archive" ] || \
   fail "physically resolved derived parent did not receive the archive"
 
 printf 'unexpected\n' >"$source_pack/stale.o"
-expect_failure "Jak 1 Apple importer build failed" env \
+expect_failure "$display_name Apple importer build failed" env \
   FAKE_CMAKE_LOG="$cmake_log" GOALPAD_CMAKE_EXECUTABLE="$fake_cmake" \
+  FAKE_VERIFIER_TARGET="$verifier_target" FAKE_COMPOSER_TARGET="$composer_target" \
+  FAKE_COMPOSER_DIRECTORY="$composer_directory" FAKE_COMPOSER_ARCHIVE="$composer_archive" \
   GOALPAD_CCACHE=off "$builder" --opengoal-root "$opengoal_root" \
   --source-pack "$source_pack" --derived-root "$fixture_root/mismatch" --platform iphoneos
 rm "$source_pack/stale.o"
 
-mkdir -p "$resources/OpenGOALProjectResources" "$resources/Jak1SourceObjectPack"
-printf 'stale\n' >"$resources/OpenGOALProjectResources/stale"
-printf 'stale\n' >"$resources/Jak1SourceObjectPack/stale"
+mkdir -p "$resources/$project_resource_name" "$resources/$source_pack_resource_name"
+printf 'stale\n' >"$resources/$project_resource_name/stale"
+printf 'stale\n' >"$resources/$source_pack_resource_name/stale"
 GOALPAD_FR3_BUNDLE_BUILDER=$fake_builder "$resource_phase" \
   --opengoal-root "$opengoal_root" --source-pack "$source_pack" \
   --derived-root "$fixture_root/build-iphoneos" --platform iphoneos \
   --resources-destination "$resources"
-[ ! -e "$resources/OpenGOALProjectResources/stale" ]
-[ ! -e "$resources/Jak1SourceObjectPack/stale" ]
+[ ! -e "$resources/$project_resource_name/stale" ]
+[ ! -e "$resources/$source_pack_resource_name/stale" ]
 
 reported_resources=$fixture_root/reported-resources
 mkdir "$reported_resources"
@@ -266,8 +317,8 @@ GOALPAD_FR3_BUNDLE_BUILDER=$fake_builder "$resource_phase" \
   --opengoal-root "$opengoal_root" --source-pack "$source_pack" \
   --derived-root "$reported_build_root" --platform iphoneos \
   --resources-destination "$reported_resources"
-[ -d "$reported_resources/OpenGOALProjectResources" ]
-[ -d "$reported_resources/Jak1SourceObjectPack" ]
+[ -d "$reported_resources/$project_resource_name" ]
+[ -d "$reported_resources/$source_pack_resource_name" ]
 
 physical_resources_parent=$fixture_root/physical-resources-parent
 reported_resources_parent=$fixture_root/reported-resources-parent
@@ -277,8 +328,8 @@ GOALPAD_FR3_BUNDLE_BUILDER=$fake_builder "$resource_phase" \
   --opengoal-root "$opengoal_root" --source-pack "$source_pack" \
   --derived-root "$fixture_root/build-iphoneos" --platform iphoneos \
   --resources-destination "$reported_resources_parent/ResourceRoot"
-[ -d "$physical_resources_parent/ResourceRoot/OpenGOALProjectResources" ]
-[ -d "$physical_resources_parent/ResourceRoot/Jak1SourceObjectPack" ]
+[ -d "$physical_resources_parent/ResourceRoot/$project_resource_name" ]
+[ -d "$physical_resources_parent/ResourceRoot/$source_pack_resource_name" ]
 ln -s "$physical_resources_parent/ResourceRoot" "$fixture_root/resources-leaf-link"
 expect_failure "app resource destination may not be a symbolic link" env \
   GOALPAD_FR3_BUNDLE_BUILDER="$fake_builder" "$resource_phase" \
@@ -304,7 +355,7 @@ GOALPAD_FR3_BUNDLE_BUILDER=$fake_builder "$resource_phase" \
   --opengoal-root "$opengoal_root" --source-pack "$source_pack" \
   --derived-root "$fixture_root/build-xrsimulator" --platform xrsimulator \
   --resources-destination "$vision_resources"
-[ -d "$vision_resources/OpenGOALProjectResources" ]
-[ -d "$vision_resources/Jak1SourceObjectPack" ]
+[ -d "$vision_resources/$project_resource_name" ]
+[ -d "$vision_resources/$source_pack_resource_name" ]
 
-echo "Jak 1 importer Xcode build plumbing synthetic check passed."
+echo "$display_name importer Xcode build plumbing synthetic check passed."

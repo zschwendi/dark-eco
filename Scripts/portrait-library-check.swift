@@ -283,16 +283,37 @@ do {
     check(GameLibraryCardAction.resolve(title: .jak1, state: .ready) == .start,
           "installed Jak 1 starts from its full card")
     check(GameLibraryCardAction.resolve(title: .jak1, state: .preparing(nil))
-          == .openJak1Setup,
+          == .openSetup,
           "an active Jak 1 import reopens its existing progress flow")
     check(GameLibraryCardAction.resolve(title: .jak1, state: .notImported)
-          == .offerJak1Import,
+          == .offerImport,
           "missing Jak 1 data presents the supported import offer")
     check(GameLibraryCardAction.resolve(title: .jak2, state: .ready)
           == .showUnsupported(.jak2)
           && GameLibraryCardAction.resolve(title: .jak3, state: .planned)
           == .showUnsupported(.jak3),
           "Jak II and Jak 3 fail closed even if a future state is misclassified")
+    check(GameLibraryCardAction.resolve(
+            title: .jak2,
+            state: .experimentalReady,
+            activeTitle: .jak2,
+            supportsRuntimeLaunch: false
+          ) == .openSetup,
+          "the selected Jak II shell reopens setup instead of launching gameplay")
+    check(GameLibraryCardAction.resolve(
+            title: .jak2,
+            state: .experimentalReady,
+            activeTitle: .jak2,
+            supportsRuntimeLaunch: true
+          ) == .start,
+          "the runtime-enabled Jak II shell starts from its experimental-ready card")
+    check(GameLibraryCardAction.resolve(
+            title: .jak2,
+            state: .ready,
+            activeTitle: .jak2,
+            supportsRuntimeLaunch: false
+          ) == .openSetup,
+          "a misclassified Jak II ready state still cannot launch the runtime")
 
     let rawOffer = GameLibraryOfferCopy.jak1ImportMessage(canImportRawISO: true)
     let preparedOffer = GameLibraryOfferCopy.jak1ImportMessage(canImportRawISO: false)
@@ -302,6 +323,10 @@ do {
     check(preparedOffer.contains("legally own") && preparedOffer.contains("out/jak1")
           && !preparedOffer.contains(".zip") && !preparedOffer.contains("supported .iso"),
           "prepared-only Jak 1 offer does not advertise unavailable importers")
+    let jak2Offer = GameLibraryOfferCopy.importMessage(for: .jak2, canImportRawISO: true)
+    check(jak2Offer.contains("out/jak2") && jak2Offer.contains("title/gameplay launch contract")
+          && jak2Offer.contains("supported .iso") && jak2Offer.contains("exactly one .iso"),
+          "Jak II offers raw preparation only when its composer resources are available")
     check(GameLibraryOfferCopy.unsupportedMessage(for: .jak2).contains("Jak II")
           && GameLibraryOfferCopy.unsupportedMessage(for: .jak3).contains("Jak 3"),
           "unsupported offers remain title-specific")

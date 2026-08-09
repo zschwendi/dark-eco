@@ -2,13 +2,13 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 private enum GameLibraryAlert: Identifiable {
-    case importJak1
+    case importGame(GameLibraryTitle)
     case unsupported(GameLibraryTitle)
     case artwork(String)
 
     var id: String {
         switch self {
-        case .importJak1: "import-jak1"
+        case .importGame(let title): "import-\(title.id)"
         case .unsupported(let title): "unsupported-\(title.id)"
         case .artwork: "artwork"
         }
@@ -19,7 +19,7 @@ struct GameLibraryView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Bindable var session: GameSession
     @Bindable var artworkStore: GameArtworkStore
-    let openJak1Setup: () -> Void
+    let openGameSetup: () -> Void
     let openSettings: () -> Void
 
     @State private var artworkTitle: GameLibraryTitle?
@@ -43,6 +43,7 @@ struct GameLibraryView: View {
                         GameLibraryTile(
                             title: title,
                             state: state(for: title),
+                            startsGame: action(for: title) == .start,
                             progress: progress(for: title),
                             coverSize: layout.coverSize,
                             artworkURL: artworkStore.artworkURL(for: title),
@@ -111,12 +112,13 @@ struct GameLibraryView: View {
         }
         .alert(item: $presentedAlert) { alert in
             switch alert {
-            case .importJak1:
+            case .importGame(let title):
                 Alert(
-                    title: Text("Set Up \(GameLibraryTitle.jak1.name)"),
-                    message: Text(GameLibraryOfferCopy.jak1ImportMessage(
-                        canImportRawISO: RawISOCandidateProducer.isAvailable())),
-                    primaryButton: .default(Text("Continue"), action: openJak1Setup),
+                    title: Text("Set Up \(title.shelfName)"),
+                    message: Text(GameLibraryOfferCopy.importMessage(
+                        for: title,
+                        canImportRawISO: session.importer.canImportRawMedia)),
+                    primaryButton: .default(Text("Continue"), action: openGameSetup),
                     secondaryButton: .cancel()
                 )
             case .unsupported(let title):
@@ -136,7 +138,7 @@ struct GameLibraryView: View {
     }
 
     private func state(for title: GameLibraryTitle) -> GameLibraryState {
-        guard title == .jak1 else { return .planned }
+        guard title == activeTitle else { return .planned }
         switch session.importer.state {
         case .scanning:
             return .preparing(nil)
@@ -152,38 +154,60 @@ struct GameLibraryView: View {
         case .incomplete:
             return .needsAttention
         case .ready:
+            if activeProfile.readiness == .experimentalTitleAndGameplay {
+                return .experimentalReady
+            }
             return GOALPadRuntimeBridge.isGameCodeLinked ? .ready : .needsAttention
         }
     }
 
     private func progress(for title: GameLibraryTitle) -> GameDataImporter.Progress? {
-        guard title == .jak1,
+        guard title == activeTitle,
               case .copying(let progress) = session.importer.state else { return nil }
         return progress
     }
 
     private func open(_ title: GameLibraryTitle) {
-        switch GameLibraryCardAction.resolve(title: title, state: state(for: title)) {
+        switch action(for: title) {
         case .start:
             Task { await session.start() }
-        case .openJak1Setup:
-            openJak1Setup()
-        case .offerJak1Import:
-            presentedAlert = .importJak1
+        case .openSetup:
+            openGameSetup()
+        case .offerImport:
+            presentedAlert = .importGame(title)
         case .showUnsupported(let title):
             presentedAlert = .unsupported(title)
         }
+    }
+
+    private func action(for title: GameLibraryTitle) -> GameLibraryCardAction {
+        GameLibraryCardAction.resolve(
+            title: title,
+            state: state(for: title),
+            activeTitle: activeTitle,
+            supportsRuntimeLaunch: activeProfile.supportsRuntimeLaunch
+        )
     }
 
     private func chooseArtwork(for title: GameLibraryTitle) {
         artworkTitle = title
         isChoosingArtwork = true
     }
+
+    private var activeProfile: GameDataProfile { session.importer.profile }
+
+    private var activeTitle: GameLibraryTitle {
+        switch activeProfile.identifier {
+        case .jak1: .jak1
+        case .jak2: .jak2
+        }
+    }
 }
 
 private struct GameLibraryTile: View {
     let title: GameLibraryTitle
     let state: GameLibraryState
+    let startsGame: Bool
     let progress: GameDataImporter.Progress?
     let coverSize: CGSize
     let artworkURL: URL?
@@ -300,6 +324,7 @@ private struct GameLibraryTile: View {
         case .notImported: "Not Imported"
         case .preparing: "Preparing"
         case .ready: "Ready"
+        case .experimentalReady: "Experimental Ready"
         case .needsAttention: "Needs Attention"
         case .planned: "Coming soon"
         }
@@ -310,6 +335,7 @@ private struct GameLibraryTile: View {
         case .notImported: "tray"
         case .preparing: "arrow.triangle.2.circlepath"
         case .ready: "play.fill"
+        case .experimentalReady: startsGame ? "play.fill" : "checkmark.circle"
         case .needsAttention: "exclamationmark.triangle"
         case .planned: "hourglass"
         }
@@ -321,14 +347,16 @@ private struct GameLibraryTile: View {
         case .planned: DarkEcoTheme.accent
         case .preparing: DarkEcoTheme.accentGlow
         case .ready: DarkEcoTheme.success
+        case .experimentalReady: DarkEcoTheme.warning
         case .needsAttention: DarkEcoTheme.warning
         }
     }
 
     private var accessibilityHint: String {
-        switch state {
+        if startsGame { return "Starts the experimental game runtime" }
+        return switch state {
         case .ready: "Starts the game"
-        case .notImported, .preparing, .needsAttention: "Opens game setup"
+        case .notImported, .preparing, .experimentalReady, .needsAttention: "Opens game setup"
         case .planned: "Shows current support status"
         }
     }

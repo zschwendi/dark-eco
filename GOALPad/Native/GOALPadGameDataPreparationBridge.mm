@@ -11,22 +11,34 @@
 #define GOALPAD_HAS_JAK1_IMPORT_COMPOSER 0
 #endif
 
+#ifndef GOALPAD_HAS_JAK2_IMPORT_COMPOSER
+#define GOALPAD_HAS_JAK2_IMPORT_COMPOSER 0
+#endif
+
+#if GOALPAD_HAS_JAK1_IMPORT_COMPOSER && GOALPAD_HAS_JAK2_IMPORT_COMPOSER
+#error "GOALPad must select exactly one import composer"
+#endif
+
 #if GOALPAD_HAS_JAK1_IMPORT_COMPOSER
 #include "decompiler/extractor/jak1_import_composer.h"
+namespace GOALPadImportComposer = jak1_import_composer;
+#elif GOALPAD_HAS_JAK2_IMPORT_COMPOSER
+#include "decompiler/extractor/jak2_import_composer.h"
+namespace GOALPadImportComposer = jak2_import_composer;
 #endif
 
 NSErrorDomain const GOALPadGameDataPreparationErrorDomain =
     @"com.zephyrstudiosllc.eco.GameDataPreparation";
 
 BOOL GOALPadGameDataPreparationIsAvailable(void) {
-#if GOALPAD_HAS_JAK1_IMPORT_COMPOSER
+#if GOALPAD_HAS_JAK1_IMPORT_COMPOSER || GOALPAD_HAS_JAK2_IMPORT_COMPOSER
   return YES;
 #else
   return NO;
 #endif
 }
 
-#if GOALPAD_HAS_JAK1_IMPORT_COMPOSER
+#if GOALPAD_HAS_JAK1_IMPORT_COMPOSER || GOALPAD_HAS_JAK2_IMPORT_COMPOSER
 static NSString *GOALPadPreparationString(const std::string &value, NSString *fallback) {
   NSString *string = [[NSString alloc] initWithBytes:value.data()
                                              length:value.size()
@@ -42,17 +54,23 @@ static NSError *GOALPadPreparationError(GOALPadGameDataPreparationErrorCode code
                          userInfo:@{NSLocalizedDescriptionKey : message}];
 }
 
-#if GOALPAD_HAS_JAK1_IMPORT_COMPOSER
+#if GOALPAD_HAS_JAK1_IMPORT_COMPOSER || GOALPAD_HAS_JAK2_IMPORT_COMPOSER
 static GOALPadGameDataPreparationPhase GOALPadPreparationPhase(
-    jak1_import_composer::Phase phase) {
-  using Phase = jak1_import_composer::Phase;
+    GOALPadImportComposer::Phase phase) {
+  using Phase = GOALPadImportComposer::Phase;
   switch (phase) {
     case Phase::validating_source_pack:
       return GOALPadGameDataPreparationPhaseValidatingSourcePack;
+#if GOALPAD_HAS_JAK2_IMPORT_COMPOSER
+    case Phase::validating_project_resources:
+      return GOALPadGameDataPreparationPhaseValidatingProjectResources;
+#endif
     case Phase::extracting_iso:
       return GOALPadGameDataPreparationPhaseExtractingISO;
+#if GOALPAD_HAS_JAK1_IMPORT_COMPOSER || GOALPAD_HAS_JAK2_IMPORT_COMPOSER
     case Phase::cataloging_retail:
       return GOALPadGameDataPreparationPhaseCatalogingRetail;
+#endif
     case Phase::generating_data:
       return GOALPadGameDataPreparationPhaseGeneratingData;
     case Phase::preparing_fr3:
@@ -68,8 +86,8 @@ static GOALPadGameDataPreparationPhase GOALPadPreparationPhase(
 }
 
 static GOALPadGameDataPreparationErrorCode GOALPadPreparationErrorCode(
-    jak1_import_composer::ErrorCode code) {
-  using ErrorCode = jak1_import_composer::ErrorCode;
+    GOALPadImportComposer::ErrorCode code) {
+  using ErrorCode = GOALPadImportComposer::ErrorCode;
   switch (code) {
     case ErrorCode::invalid_argument:
       return GOALPadGameDataPreparationErrorInvalidArgument;
@@ -79,6 +97,10 @@ static GOALPadGameDataPreparationErrorCode GOALPadPreparationErrorCode(
       return GOALPadGameDataPreparationErrorCallbackFailed;
     case ErrorCode::source_pack_failed:
       return GOALPadGameDataPreparationErrorSourcePackFailed;
+#if GOALPAD_HAS_JAK2_IMPORT_COMPOSER
+    case ErrorCode::project_resources_failed:
+      return GOALPadGameDataPreparationErrorProjectResourcesFailed;
+#endif
     case ErrorCode::iso_open_failed:
       return GOALPadGameDataPreparationErrorISOOpenFailed;
     case ErrorCode::iso_validation_failed:
@@ -87,8 +109,10 @@ static GOALPadGameDataPreparationErrorCode GOALPadPreparationErrorCode(
       return GOALPadGameDataPreparationErrorUnsupportedRevision;
     case ErrorCode::graph_failed:
       return GOALPadGameDataPreparationErrorGraphFailed;
+#if GOALPAD_HAS_JAK1_IMPORT_COMPOSER || GOALPAD_HAS_JAK2_IMPORT_COMPOSER
     case ErrorCode::retail_catalog_failed:
       return GOALPadGameDataPreparationErrorRetailCatalogFailed;
+#endif
     case ErrorCode::generated_data_failed:
       return GOALPadGameDataPreparationErrorGeneratedDataFailed;
     case ErrorCode::fr3_failed:
@@ -120,6 +144,8 @@ static NSString *GOALPadPreparationPhaseLabel(GOALPadGameDataPreparationPhase ph
   switch (phase) {
     case GOALPadGameDataPreparationPhaseValidatingSourcePack:
       return @"Verifying preparation resources";
+    case GOALPadGameDataPreparationPhaseValidatingProjectResources:
+      return @"Verifying project resources";
     case GOALPadGameDataPreparationPhaseExtractingISO:
       return @"Reading disc image";
     case GOALPadGameDataPreparationPhaseCatalogingRetail:
@@ -286,19 +312,19 @@ static NSString *GOALPadPreparationPhaseLabel(GOALPadGameDataPreparationPhase ph
     }
   }
 
-#if GOALPAD_HAS_JAK1_IMPORT_COMPOSER
+#if GOALPAD_HAS_JAK1_IMPORT_COMPOSER || GOALPAD_HAS_JAK2_IMPORT_COMPOSER
   try {
-    const jak1_import_composer::Request request{
+    const GOALPadImportComposer::Request request{
         std::filesystem::path(_sourceURL.fileSystemRepresentation),
         std::filesystem::path(_sourceObjectPackURL.fileSystemRepresentation),
         std::filesystem::path(_projectResourceURL.fileSystemRepresentation),
         std::filesystem::path(_candidateURL.fileSystemRepresentation),
     };
-    jak1_import_composer::Options options;
+    GOALPadImportComposer::Options options;
     options.should_cancel = [self]() {
       return self->_cancelRequested.load(std::memory_order_relaxed);
     };
-    options.on_progress = [progressHandler](const jak1_import_composer::Progress &progress) {
+    options.on_progress = [progressHandler](const GOALPadImportComposer::Progress &progress) {
       @autoreleasepool {
         const GOALPadGameDataPreparationPhase phase = GOALPadPreparationPhase(progress.phase);
         NSString *currentItem = GOALPadPreparationString(progress.current_item, @"");
@@ -312,7 +338,7 @@ static NSString *GOALPadPreparationPhaseLabel(GOALPadGameDataPreparationPhase ph
       }
     };
 
-    auto result = jak1_import_composer::compose(request, options);
+    auto result = GOALPadImportComposer::compose(request, options);
     if (!result) {
       const auto &error = result.error();
       NSString *message = GOALPadPreparationString(error.message,

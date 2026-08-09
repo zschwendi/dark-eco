@@ -76,6 +76,51 @@ extension TouchLayoutAction {
     }
 }
 
+/// Jak II's separate source-proven save-flow meaning, independent of Jak 1 screen numbers.
+struct NativeJak2ProgressMenuSemanticSnapshot: Equatable {
+    enum Phase: Equatable {
+        case unavailable
+        case selectSaveTitle
+        case noMemoryCard
+        case createGame
+        case creating
+        case saving
+        case existingSaveOverwrite
+        case saveIconInformation
+    }
+
+    let available: Bool
+    let phase: Phase
+    let optionIndex: Int
+    let actionMask: UInt32
+
+    static let unavailable = NativeJak2ProgressMenuSemanticSnapshot(
+        available: false, phase: .unavailable, optionIndex: -1, actionMask: 0)
+
+    init(available: Bool, phase: Phase, optionIndex: Int, actionMask: UInt32) {
+        self.available = available
+        self.phase = phase
+        self.optionIndex = optionIndex
+        self.actionMask = actionMask
+    }
+
+    init(_ snapshot: GOALPadJak2ProgressMenuSemanticSnapshot) {
+        let semanticPhase: Phase = switch snapshot.phase {
+        case .selectSaveTitle: .selectSaveTitle
+        case .noMemoryCard: .noMemoryCard
+        case .createGame: .createGame
+        case .creating: .creating
+        case .saving: .saving
+        case .existingSaveOverwrite: .existingSaveOverwrite
+        case .saveIconInformation: .saveIconInformation
+        case .unavailable: .unavailable
+        @unknown default: .unavailable
+        }
+        self.init(available: snapshot.available.boolValue, phase: semanticPhase,
+                  optionIndex: Int(snapshot.optionIndex), actionMask: snapshot.actionMask)
+    }
+}
+
 /// The read-only progress state that Swift uses to expose only screen-proven touch semantics.
 struct NativeProgressMenuSnapshot: Equatable {
     let available: Bool
@@ -87,16 +132,19 @@ struct NativeProgressMenuSnapshot: Equatable {
     let startingScreenRawValue: Int
     let canExitWithStart: Bool
     let canGoBack: Bool
+    let jak2Semantic: NativeJak2ProgressMenuSemanticSnapshot
 
     static let unavailable = NativeProgressMenuSnapshot(
         available: false, screenRawValue: -2, optionIndex: -1,
         selectedOption: false, inTransition: false, navigationAvailable: false,
-        startingScreenRawValue: -2, canExitWithStart: false, canGoBack: false)
+        startingScreenRawValue: -2, canExitWithStart: false, canGoBack: false,
+        jak2Semantic: .unavailable)
 
     init(available: Bool, screenRawValue: Int, optionIndex: Int,
          selectedOption: Bool, inTransition: Bool,
          navigationAvailable: Bool = false, startingScreenRawValue: Int = -2,
-         canExitWithStart: Bool = false, canGoBack: Bool = false) {
+         canExitWithStart: Bool = false, canGoBack: Bool = false,
+         jak2Semantic: NativeJak2ProgressMenuSemanticSnapshot = .unavailable) {
         self.available = available
         self.screenRawValue = screenRawValue
         self.optionIndex = optionIndex
@@ -106,9 +154,11 @@ struct NativeProgressMenuSnapshot: Equatable {
         self.startingScreenRawValue = startingScreenRawValue
         self.canExitWithStart = canExitWithStart
         self.canGoBack = canGoBack
+        self.jak2Semantic = jak2Semantic
     }
 
-    init(_ snapshot: GOALPadProgressMenuSnapshot) {
+    init(_ snapshot: GOALPadProgressMenuSnapshot,
+         jak2Semantic: NativeJak2ProgressMenuSemanticSnapshot = .unavailable) {
         available = snapshot.available.boolValue
         screenRawValue = snapshot.screen.rawValue
         optionIndex = Int(snapshot.optionIndex)
@@ -118,6 +168,7 @@ struct NativeProgressMenuSnapshot: Equatable {
         startingScreenRawValue = snapshot.startingScreen.rawValue
         canExitWithStart = snapshot.canExitWithStart.boolValue
         canGoBack = snapshot.canGoBack.boolValue
+        self.jak2Semantic = jak2Semantic
     }
 }
 
@@ -603,6 +654,9 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
     nonisolated private static func progressActions(
         for snapshot: NativeProgressMenuSnapshot
     ) -> [Self] {
+        if snapshot.jak2Semantic.available {
+            return jak2ProgressActions(for: snapshot.jak2Semantic)
+        }
         guard snapshot.available, !snapshot.inTransition else { return [] }
 
         if ShippingPCScreen.isConfirmOnlyNotice(snapshot.screenRawValue) {
@@ -657,6 +711,44 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
             actions.insert(.back, at: max(0, actions.count - 1))
         }
         return actions
+    }
+
+    nonisolated private static func jak2ProgressActions(
+        for snapshot: NativeJak2ProgressMenuSemanticSnapshot
+    ) -> [Self] {
+        let up = UInt32(1 << 0)
+        let down = UInt32(1 << 1)
+        let left = UInt32(1 << 2)
+        let right = UInt32(1 << 3)
+        let confirm = UInt32(1 << 4)
+
+        switch snapshot.phase {
+        case .selectSaveTitle:
+            guard (0...4).contains(snapshot.optionIndex),
+                  snapshot.actionMask == (up | down | confirm) else { return [] }
+            return [.up, .down, .confirm]
+        case .noMemoryCard:
+            guard snapshot.optionIndex == 0,
+                  snapshot.actionMask == confirm else { return [] }
+            return [.confirm]
+        case .createGame:
+            guard snapshot.optionIndex == 0,
+                  snapshot.actionMask == (left | right | confirm) else { return [] }
+            return [.left, .right, .confirm]
+        case .existingSaveOverwrite:
+            guard snapshot.optionIndex == 0,
+                  snapshot.actionMask == (left | right | confirm) else { return [] }
+            return [.left, .right, .confirm]
+        case .saveIconInformation:
+            guard snapshot.optionIndex == 0,
+                  snapshot.actionMask == confirm else { return [] }
+            return [.confirm]
+        case .creating, .saving:
+            guard snapshot.optionIndex == 0, snapshot.actionMask == 0 else { return [] }
+            return []
+        case .unavailable:
+            return []
+        }
     }
 
     nonisolated private static func commonOptions(

@@ -127,8 +127,7 @@ verifier=$build_root/goalc/jak2-source-object-pack-verify
 [ -x "$verifier" ] || fail "host source-pack verifier was not built: $verifier"
 
 verify_source_pack() {
-  "$verifier" "$1" --project-path "$opengoal_root" \
-    --expected-aggregate "$expected_aggregate"
+  "$verifier" "$1" --expected-aggregate "$expected_aggregate"
 }
 
 write_aggregate_record() {

@@ -2,49 +2,6 @@ import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
 
-nonisolated enum SaveDataLayout {
-    static var applicationSupportDirectory: URL {
-        (try? FileManager.default.url(for: .applicationSupportDirectory,
-                                      in: .userDomainMask, appropriateFor: nil, create: true))
-            ?? URL(fileURLWithPath: NSHomeDirectory())
-                .appending(path: "Library/Application Support", directoryHint: .isDirectory)
-    }
-
-    /// OpenGOAL's existing desktop-compatible memcard directory. The kernel keeps using this
-    /// exact local path; iCloud is never passed to native gameplay code.
-    static var localSavesDirectory: URL {
-        applicationSupportDirectory
-            .appending(path: "OpenGOAL/jak1/saves", directoryHint: .isDirectory)
-    }
-
-    static var localConflictsDirectory: URL {
-        applicationSupportDirectory
-            .appending(path: "GOALPad/SaveConflicts", directoryHint: .isDirectory)
-    }
-
-    static var stateFile: URL {
-        applicationSupportDirectory
-            .appending(path: "GOALPad/SaveSync/state-v1.json", directoryHint: .notDirectory)
-    }
-
-    static func cloudLocations() -> CloudSaveLocations? {
-        let manager = FileManager.default
-        guard let identityToken = manager.ubiquityIdentityToken,
-              let accountIdentifier = try? NSKeyedArchiver.archivedData(
-                  withRootObject: identityToken, requiringSecureCoding: false),
-              let container = manager.url(forUbiquityContainerIdentifier: nil) else {
-            return nil
-        }
-        let documents = container.appending(path: "Documents", directoryHint: .isDirectory)
-        return CloudSaveLocations(
-            savesRoot: documents.appending(path: "OpenGOAL/jak1/saves",
-                                            directoryHint: .isDirectory),
-            conflictsRoot: documents.appending(path: "GOALPad/SaveConflicts",
-                                                directoryHint: .isDirectory),
-            accountIdentifier: accountIdentifier)
-    }
-}
-
 @MainActor
 @Observable
 final class SaveSyncController {
@@ -69,8 +26,14 @@ final class SaveSyncController {
     private static let enabledDefaultsKey = "iCloudSavesEnabled"
     private static let lastResolutionsDefaultsKey = "lastSaveAutoResolutions"
 
+    let supportsManagedSaveSync: Bool
+
     var isEnabled: Bool {
         didSet {
+            guard supportsManagedSaveSync else {
+                if isEnabled { isEnabled = false }
+                return
+            }
             defaults.set(isEnabled, forKey: Self.enabledDefaultsKey)
             if isEnabled {
                 status = .waiting
@@ -98,17 +61,25 @@ final class SaveSyncController {
     private var pendingSyncMode: SaveSyncMode?
     private var gameplayReadinessDidChange: (() -> Void)?
 
-    init(defaults: UserDefaults = .standard, engine: SaveSyncEngine? = nil) {
+    init(
+        defaults: UserDefaults = .standard,
+        engine: SaveSyncEngine? = nil,
+        profile: GameDataProfile = .active
+    ) {
         self.defaults = defaults
+        supportsManagedSaveSync = profile.supportsManagedSaveSync
         let enabled: Bool
-        if defaults.object(forKey: Self.enabledDefaultsKey) == nil {
+        if !profile.supportsManagedSaveSync {
+            enabled = false
+        } else if defaults.object(forKey: Self.enabledDefaultsKey) == nil {
             enabled = true
         } else {
             enabled = defaults.bool(forKey: Self.enabledDefaultsKey)
         }
         isEnabled = enabled
         status = enabled ? .waiting : .disabled
-        if let data = defaults.data(forKey: Self.lastResolutionsDefaultsKey),
+        if profile.supportsManagedSaveSync,
+           let data = defaults.data(forKey: Self.lastResolutionsDefaultsKey),
            let stored = try? JSONDecoder().decode([SaveResolution].self, from: data) {
             recentResolutions = stored
         } else {
@@ -116,10 +87,13 @@ final class SaveSyncController {
         }
         lastSuccessfulSyncDate = nil
         self.engine = engine ?? SaveSyncEngine(configuration: .init(
-            localRoot: SaveDataLayout.localSavesDirectory,
-            localConflictsRoot: SaveDataLayout.localConflictsDirectory,
-            stateFile: SaveDataLayout.stateFile,
-            cloudLocations: { SaveDataLayout.cloudLocations() },
+            localRoot: SaveDataLayout.localSavesDirectory(
+                for: profile, in: SaveDataLayout.applicationSupportDirectory),
+            localConflictsRoot: SaveDataLayout.localConflictsDirectory(
+                for: profile, in: SaveDataLayout.applicationSupportDirectory),
+            stateFile: SaveDataLayout.stateFile(
+                for: profile, in: SaveDataLayout.applicationSupportDirectory),
+            cloudLocations: { SaveDataLayout.cloudLocations(for: profile) },
             coordinateCloudAccess: true))
     }
 
@@ -149,7 +123,7 @@ final class SaveSyncController {
     }
 
     func refreshArchivedSaves() async {
-        guard !isBusy else { return }
+        guard supportsManagedSaveSync, !isBusy else { return }
         activeOperation = .loadingArchives
         do {
             archivedSaves = try await engine.archivedSaveCandidates()
@@ -160,7 +134,7 @@ final class SaveSyncController {
     }
 
     func promoteArchivedSave(_ candidate: ArchivedSaveCandidate) async {
-        guard !isBusy else { return }
+        guard supportsManagedSaveSync, !isBusy else { return }
         guard !isGameplayActive else {
             transferMessage = "Pause gameplay before changing the active save."
             return
@@ -183,12 +157,12 @@ final class SaveSyncController {
     }
 
     func prepare() async {
-        guard isEnabled else { return }
+        guard supportsManagedSaveSync, isEnabled else { return }
         await syncNow()
     }
 
     func syncNow(mode requestedMode: SaveSyncMode? = nil) async {
-        guard isEnabled else { return }
+        guard supportsManagedSaveSync, isEnabled else { return }
         defer { gameplayReadinessDidChange?() }
         let mode = requestedMode ?? (isGameplayActive ? .uploadOnly : .bidirectional)
         enqueueSync(mode)
@@ -196,6 +170,7 @@ final class SaveSyncController {
     }
 
     func syncBeforeGameplay() async -> Bool {
+        guard supportsManagedSaveSync else { return true }
         setGameplayActive(false)
         while isBusy || frameCheckTask != nil || pendingSyncMode != nil {
             do {
@@ -268,7 +243,7 @@ final class SaveSyncController {
     }
 
     func importSaves(from source: URL) async {
-        guard !isBusy else { return }
+        guard supportsManagedSaveSync, !isBusy else { return }
         guard !isGameplayActive else {
             transferMessage = "Pause gameplay before importing saves."
             return
@@ -293,7 +268,7 @@ final class SaveSyncController {
     }
 
     func exportSaves(to destination: URL) async {
-        guard !isBusy else { return }
+        guard supportsManagedSaveSync, !isBusy else { return }
         activeOperation = .exporting
         transferMessage = "Exporting saves…"
         let accessed = destination.startAccessingSecurityScopedResource()
@@ -322,11 +297,13 @@ final class SaveSyncController {
     }
 
     func acknowledgeRecentResolutions() {
+        guard supportsManagedSaveSync else { return }
         recentResolutions = []
         defaults.removeObject(forKey: Self.lastResolutionsDefaultsKey)
     }
 
     func setGameplayActive(_ active: Bool) {
+        guard supportsManagedSaveSync else { return }
         isGameplayActive = active
         if !active {
             cancelPendingFrameCheck()

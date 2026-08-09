@@ -2,11 +2,23 @@ import Foundation
 
 /// Player-facing import wording derived only from the importer capabilities and published phases.
 nonisolated enum GameDataImportPresentation {
-    static func acceptedSources(rawISOAvailable: Bool) -> String {
-        if rawISOAvailable {
-            return "Prepared OpenGOAL out/jak1 folder, ISO disc image, or standard ZIP with exactly one ISO"
+    static func acceptedSources(
+        for profile: GameDataProfile = .active,
+        rawISOAvailable: Bool
+    ) -> String {
+        if rawISOAvailable && profile.supportsRawMediaPreparation {
+            let sources = "Prepared OpenGOAL \(profile.preparedFolderName) folder, ISO disc image, "
+                + "or ZIP archive with exactly one ISO"
+            guard profile.readiness == .experimentalTitleAndGameplay else { return sources }
+            return sources + " (\(profile.readinessContractLabel ?? "experimental launch contract"); "
+                + "full-game completeness is not verified)"
         }
-        return "Prepared OpenGOAL out/jak1 folder"
+        if profile.readiness == .experimentalTitleAndGameplay {
+            return "Prepared OpenGOAL \(profile.preparedFolderName) folder ("
+                + "\(profile.readinessContractLabel ?? "experimental launch contract"); "
+                + "full-game completeness is not verified)"
+        }
+        return "Prepared OpenGOAL \(profile.preparedFolderName) folder"
     }
 
     static func backgroundGuidance(phaseLabel: String) -> String {

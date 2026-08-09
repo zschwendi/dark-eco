@@ -152,6 +152,57 @@ stager scripts and writes
 unlocalized resource directory. Let both phases run each build; their CMake and
 atomic staging operations are incremental and revalidate mutable external input.
 
+### Jak II importer-resource prerequisites
+
+**Experimental:** The checked Jak II resource closure and final host raw-ISO
+composer are available as host-only prerequisites; Jak II Eco app bridge/target
+wiring remains pending. Build and test them without enabling Jak II import in
+Eco:
+
+```sh
+cmake -S OpenGOAL -B build/jak2-source-object-pack-tools -G Ninja \
+  -DOPENGOAL_BUILD_JAK2_SOURCE_OBJECT_PACK_ONLY=ON \
+  -DBUILD_TESTING=ON
+cmake --build build/jak2-source-object-pack-tools \
+  --target jak2-source-object-pack-verify jak2-source-object-pack-link-proof
+ctest --test-dir build/jak2-source-object-pack-tools --output-on-failure \
+  -R 'jak2-source-object-pack|fr3-project-bundle'
+Scripts/run-stage-jak2-import-resources-check.sh
+```
+
+The lightweight verifier accepts only the recorded 840-object public source
+pack. `build-jak2-fr3-project-bundle.py` stages exactly the 16 tracked FR3
+inputs used by `jak2_fr3` for the supported NTSC-U v2 disc revision and its
+`ntsc_v1` decompiler profile. Together with the 13 checked generated inputs,
+these form one 29-file public resource closure. The manifest and builder reject
+hash drift, symlinks, untracked conventional texture-merge inputs, extra files,
+unsafe paths, and retail/generated extensions. The generic stager publishes
+those checked inputs as `Jak2ProjectResources` and `Jak2SourceObjectPack`; the
+existing Jak 1 wrapper continues to publish byte-identical
+`OpenGOALProjectResources` and `Jak1SourceObjectPack`.
+
+Build the final composer and its host synthetic/link proofs with:
+
+```sh
+cmake -S OpenGOAL -B build/jak2-import-composer -G Ninja \
+  -DOPENGOAL_BUILD_JAK2_IMPORT_COMPOSER_ONLY=ON \
+  -DBUILD_TESTING=ON
+cmake --build build/jak2-import-composer \
+  --target jak2-import-composer-test jak2-import-composer-link-proof
+./build/jak2-import-composer/jak2-import-composer-link-proof
+ctest --test-dir build/jak2-import-composer --output-on-failure \
+  -R 'jak2-import-composer-test'
+```
+
+The final contract materializes 150 archives, 408 copied flat files, and 9
+generated flat files (567 direct `iso/` files) plus FR3 output. It deliberately
+omits `TSZ.DGO` and the optional community localization ranges
+`8COMMON.DGO`–`22COMMON.DGO` and `1SUBTI2.DGO`–`22SUBTI2.DGO`. The host synthetic
+and link proofs pass. These commands do not wire the composer into Eco or read
+retail data. An optional real-ISO oracle currently reaches FR3 preparation but
+fails on trailing padding in `LWIDEB.DGO` under an active fix; real ISO import
+has not succeeded or been validated.
+
 ## Initialize OpenGOAL
 
 ```sh

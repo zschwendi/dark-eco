@@ -26,18 +26,47 @@ guard CommandLine.arguments.count == 2 else {
 
 let root = CommandLine.arguments[1]
 let view = source(at: root + "/GOALPad/Data/GameDataSetupView.swift")
+let content = source(at: root + "/GOALPad/ContentView.swift")
+let importer = source(at: root + "/GOALPad/Data/GameDataImporter.swift")
+let rawProducer = source(at: root + "/GOALPad/Data/RawISOCandidateProducer.swift")
 let presentation = source(at: root + "/GOALPad/Data/GameDataImportPresentation.swift")
 let theme = source(at: root + "/GOALPad/UI/DarkEcoTheme.swift")
 
-check(view.contains("GameDataImportPresentation.acceptedSources(rawISOAvailable: canImportRawISO)")
+check(view.contains("GameDataImportPresentation.acceptedSources(")
+        && view.contains("for: profile,")
+        && view.contains("session.importer.canImportRawMedia")
         && view.contains("return [.folder, rawISOType, .zip]")
         && view.contains("return [.folder]"),
-      "the import copy and picker both follow the actual raw-ISO capability gate")
-check(presentation.contains("standard ZIP with exactly one ISO")
+      "the import copy and picker both follow the selected profile's raw-ISO capability gate")
+check(presentation.contains("ZIP archive with exactly one ISO")
         && !presentation.contains("ZIP64")
         && view.contains("if canImportRawISO {")
-        && view.contains("This build cannot prepare raw ISO or ZIP sources"),
+        && view.contains("Raw ISO and ZIP sources are unavailable for")
+        && view.contains("profile.preparedFolderName"),
       "the concise ZIP note appears only when raw-media preparation is available")
+check(view.contains("Label(\"Import \\(profile.displayName)\"")
+        && view.contains("Button(\"Choose \\(profile.displayName) data…\"")
+        && view.contains("if profile.supportsRuntimeLaunch")
+        && view.contains("initial New Game path")
+        && view.contains("Full-game data completeness and playability remain unverified")
+        && presentation.contains("profile.readinessContractLabel")
+        && presentation.contains("experimental launch contract")
+        && presentation.contains("full-game completeness is not verified)"),
+      "the setup shell names the bounded Jak II launch contract without overstating completeness")
+check(content.contains("BootingView(gameName: session.importer.profile.displayName)")
+        && content.contains("Text(\"Booting \\(gameName)\")")
+        && !content.contains("Text(\"Booting Jak 1\")")
+        && content.contains(".background(Color.black.ignoresSafeArea())"),
+      "the runtime shell names the selected game and keeps unused portrait space black")
+check(importer.contains("profile.supportsRawMediaPreparation && RawISOCandidateProducer.isAvailable(for: profile)")
+        && !importer.contains("profile.supportsRawMediaPreparation && RawISOCandidateProducer.isAvailable()")
+        && importer.contains("case .rawISO where canImportRawMedia:")
+        && importer.contains("case .zippedISO where canImportRawMedia:")
+        && importer.contains("prepared OpenGOAL \\(profile.preparedFolderName) folder"),
+      "raw ISO and ZIP routing consults the selected profile's composer resources")
+check(rawProducer.contains("case .sourcePackFailed, .projectResourcesFailed:")
+        && rawProducer.contains("code: .appResourcesUnavailable"),
+      "source-pack and project-resource verification failures stay app-resource failures")
 check(view.contains("GameDataImportPresentation.backgroundGuidance(phaseLabel: progress.phase.label)")
         && view.contains("GameDataImportPresentation.cancellationGuidance(")
         && view.contains("if progress.phase != .activatingCandidate"),

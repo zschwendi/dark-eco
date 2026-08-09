@@ -29,6 +29,55 @@ private struct ArchiveEntry {
     var localMethodOverride: UInt16?
 }
 
+private struct CentralZIP64Fields: OptionSet {
+    let rawValue: UInt8
+
+    static let uncompressedSize = Self(rawValue: 1 << 0)
+    static let compressedSize = Self(rawValue: 1 << 1)
+    static let localHeaderOffset = Self(rawValue: 1 << 2)
+    static let diskStart = Self(rawValue: 1 << 3)
+    static let all: Self = [
+        .uncompressedSize,
+        .compressedSize,
+        .localHeaderOffset,
+        .diskStart,
+    ]
+}
+
+private struct ZIP64ArchiveEntry {
+    let entry: ArchiveEntry
+    var centralFields: CentralZIP64Fields = .all
+    var localZIP64Sizes = true
+    var diskStartValue: UInt32 = 0
+    var centralExtraOverride: Data?
+    var localExtraOverride: Data?
+}
+
+private struct ZIP64EndSentinels: OptionSet {
+    let rawValue: UInt8
+
+    static let diskNumber = Self(rawValue: 1 << 0)
+    static let directoryDisk = Self(rawValue: 1 << 1)
+    static let entriesOnDisk = Self(rawValue: 1 << 2)
+    static let totalEntries = Self(rawValue: 1 << 3)
+    static let directorySize = Self(rawValue: 1 << 4)
+    static let directoryOffset = Self(rawValue: 1 << 5)
+}
+
+private struct ZIP64EndOptions {
+    var legacySentinels: ZIP64EndSentinels = [.directoryOffset]
+    var locatorDisk: UInt32 = 0
+    var locatorRecordOffsetOverride: UInt64?
+    var totalDisks: UInt32 = 1
+    var recordSizeOverride: UInt64?
+    var diskNumber: UInt32 = 0
+    var directoryDisk: UInt32 = 0
+    var entriesOnDiskOverride: UInt64?
+    var totalEntriesOverride: UInt64?
+    var directorySizeOverride: UInt64?
+    var directoryOffsetOverride: UInt64?
+}
+
 private extension Data {
     mutating func appendLE16(_ value: UInt16) {
         append(UInt8(truncatingIfNeeded: value))
@@ -40,6 +89,11 @@ private extension Data {
         append(UInt8(truncatingIfNeeded: value >> 8))
         append(UInt8(truncatingIfNeeded: value >> 16))
         append(UInt8(truncatingIfNeeded: value >> 24))
+    }
+
+    mutating func appendLE64(_ value: UInt64) {
+        appendLE32(UInt32(truncatingIfNeeded: value))
+        appendLE32(UInt32(truncatingIfNeeded: value >> 32))
     }
 }
 
@@ -175,6 +229,166 @@ private func makeArchive(
     archive.appendLE16(count)
     archive.appendLE32(directorySize)
     archive.appendLE32(directoryOffset)
+    archive.appendLE16(0)
+    return archive
+}
+
+private func zip64Extra(_ payload: Data) -> Data {
+    var extra = Data()
+    extra.appendLE16(0x0001)
+    extra.appendLE16(UInt16(payload.count))
+    extra.append(payload)
+    return extra
+}
+
+private func makeZIP64Archive(
+    _ entries: [ZIP64ArchiveEntry],
+    end: ZIP64EndOptions = ZIP64EndOptions()
+) throws -> Data {
+    struct DirectoryRecord {
+        let fixture: ZIP64ArchiveEntry
+        let name: Data
+        let payload: Data
+        let checksum: UInt32
+        let uncompressedSize: UInt64
+        let localOffset: UInt64
+    }
+
+    var archive = Data()
+    var records: [DirectoryRecord] = []
+    for fixture in entries {
+        let entry = fixture.entry
+        let name = Data(entry.name.utf8)
+        let payload = entry.method == 8 ? try rawDeflate(entry.contents) : entry.contents
+        let crc = entry.checksumOverride ?? checksum(entry.contents)
+        let uncompressedSize = UInt64(entry.declaredSizeOverride ?? UInt32(entry.contents.count))
+        let compressedSize = UInt64(payload.count)
+        let localOffset = UInt64(archive.count)
+
+        var localZIP64Payload = Data()
+        localZIP64Payload.appendLE64(uncompressedSize)
+        localZIP64Payload.appendLE64(compressedSize)
+        let localExtra = fixture.localExtraOverride
+            ?? (fixture.localZIP64Sizes ? zip64Extra(localZIP64Payload) : Data())
+
+        archive.appendLE32(0x0403_4b50)
+        archive.appendLE16(fixture.localZIP64Sizes || !localExtra.isEmpty ? 45 : 20)
+        archive.appendLE16(entry.flags)
+        archive.appendLE16(entry.localMethodOverride ?? entry.method)
+        archive.appendLE16(0)
+        archive.appendLE16(0)
+        let usesDescriptor = entry.flags & 0x0008 != 0
+        archive.appendLE32(usesDescriptor ? 0 : crc)
+        if fixture.localZIP64Sizes {
+            archive.appendLE32(UInt32.max)
+            archive.appendLE32(UInt32.max)
+        } else {
+            archive.appendLE32(usesDescriptor ? 0 : UInt32(payload.count))
+            archive.appendLE32(usesDescriptor ? 0 : UInt32(uncompressedSize))
+        }
+        archive.appendLE16(UInt16(name.count))
+        archive.appendLE16(UInt16(localExtra.count))
+        archive.append(name)
+        archive.append(localExtra)
+        archive.append(payload)
+        if usesDescriptor {
+            archive.appendLE32(0x0807_4b50)
+            archive.appendLE32(crc)
+            if fixture.localZIP64Sizes {
+                archive.appendLE64(compressedSize)
+                archive.appendLE64(uncompressedSize)
+            } else {
+                archive.appendLE32(UInt32(compressedSize))
+                archive.appendLE32(UInt32(uncompressedSize))
+            }
+        }
+
+        records.append(DirectoryRecord(
+            fixture: fixture,
+            name: name,
+            payload: payload,
+            checksum: crc,
+            uncompressedSize: uncompressedSize,
+            localOffset: localOffset
+        ))
+    }
+
+    let directoryOffset = UInt64(archive.count)
+    for record in records {
+        let fields = record.fixture.centralFields
+        var payload = Data()
+        if fields.contains(.uncompressedSize) {
+            payload.appendLE64(record.uncompressedSize)
+        }
+        if fields.contains(.compressedSize) {
+            payload.appendLE64(UInt64(record.payload.count))
+        }
+        if fields.contains(.localHeaderOffset) {
+            payload.appendLE64(record.localOffset)
+        }
+        if fields.contains(.diskStart) {
+            payload.appendLE32(record.fixture.diskStartValue)
+        }
+        let centralExtra = record.fixture.centralExtraOverride
+            ?? (fields.isEmpty ? Data() : zip64Extra(payload))
+
+        archive.appendLE32(0x0201_4b50)
+        archive.appendLE16(45)
+        archive.appendLE16(fields.isEmpty && centralExtra.isEmpty ? 20 : 45)
+        archive.appendLE16(record.fixture.entry.flags)
+        archive.appendLE16(record.fixture.entry.method)
+        archive.appendLE16(0)
+        archive.appendLE16(0)
+        archive.appendLE32(record.checksum)
+        archive.appendLE32(fields.contains(.compressedSize)
+            ? UInt32.max : UInt32(record.payload.count))
+        archive.appendLE32(fields.contains(.uncompressedSize)
+            ? UInt32.max : UInt32(record.uncompressedSize))
+        archive.appendLE16(UInt16(record.name.count))
+        archive.appendLE16(UInt16(centralExtra.count))
+        archive.appendLE16(0)
+        archive.appendLE16(fields.contains(.diskStart) ? UInt16.max : 0)
+        archive.appendLE16(0)
+        archive.appendLE32(0)
+        archive.appendLE32(fields.contains(.localHeaderOffset)
+            ? UInt32.max : UInt32(record.localOffset))
+        archive.append(record.name)
+        archive.append(centralExtra)
+    }
+    let directorySize = UInt64(archive.count) - directoryOffset
+    let zip64RecordOffset = UInt64(archive.count)
+    let entriesOnDisk = end.entriesOnDiskOverride ?? UInt64(records.count)
+    let totalEntries = end.totalEntriesOverride ?? UInt64(records.count)
+    let recordedDirectorySize = end.directorySizeOverride ?? directorySize
+    let recordedDirectoryOffset = end.directoryOffsetOverride ?? directoryOffset
+
+    archive.appendLE32(0x0606_4b50)
+    archive.appendLE64(end.recordSizeOverride ?? 44)
+    archive.appendLE16(45)
+    archive.appendLE16(45)
+    archive.appendLE32(end.diskNumber)
+    archive.appendLE32(end.directoryDisk)
+    archive.appendLE64(entriesOnDisk)
+    archive.appendLE64(totalEntries)
+    archive.appendLE64(recordedDirectorySize)
+    archive.appendLE64(recordedDirectoryOffset)
+
+    archive.appendLE32(0x0706_4b50)
+    archive.appendLE32(end.locatorDisk)
+    archive.appendLE64(end.locatorRecordOffsetOverride ?? zip64RecordOffset)
+    archive.appendLE32(end.totalDisks)
+
+    archive.appendLE32(0x0605_4b50)
+    archive.appendLE16(end.legacySentinels.contains(.diskNumber) ? UInt16.max : 0)
+    archive.appendLE16(end.legacySentinels.contains(.directoryDisk) ? UInt16.max : 0)
+    archive.appendLE16(end.legacySentinels.contains(.entriesOnDisk)
+        ? UInt16.max : UInt16(entriesOnDisk))
+    archive.appendLE16(end.legacySentinels.contains(.totalEntries)
+        ? UInt16.max : UInt16(totalEntries))
+    archive.appendLE32(end.legacySentinels.contains(.directorySize)
+        ? UInt32.max : UInt32(recordedDirectorySize))
+    archive.appendLE32(end.legacySentinels.contains(.directoryOffset)
+        ? UInt32.max : UInt32(recordedDirectoryOffset))
     archive.appendLE16(0)
     return archive
 }
@@ -325,8 +539,9 @@ private struct SyntheticComposerProducer: GameDataCandidateProducing {
 }
 
 private var preparedFileCount: Int {
-    Set(GameDataManifest.bootArchives + GameDataManifest.levelArchives).count
-        + GameDataManifest.levelGeometry.count
+    let manifest = GameDataProfile.jak1.manifest
+    return Set(manifest.bootArchives + manifest.levelArchives).count
+        + manifest.levelGeometry.count
 }
 
 private func writeCompleteCandidate(at root: URL, payload: Data) throws {
@@ -334,10 +549,11 @@ private func writeCompleteCandidate(at root: URL, payload: Data) throws {
     let fr3 = root.appending(path: GameDataLayout.fr3DirectoryName, directoryHint: .isDirectory)
     try FileManager.default.createDirectory(at: iso, withIntermediateDirectories: true)
     try FileManager.default.createDirectory(at: fr3, withIntermediateDirectories: true)
-    for name in Set(GameDataManifest.bootArchives + GameDataManifest.levelArchives) {
+    let manifest = GameDataProfile.jak1.manifest
+    for name in Set(manifest.bootArchives + manifest.levelArchives) {
         try payload.write(to: iso.appending(path: name), options: .atomic)
     }
-    for name in GameDataManifest.levelGeometry {
+    for name in manifest.levelGeometry {
         try payload.write(to: fr3.appending(path: name), options: .atomic)
     }
 }
@@ -436,6 +652,100 @@ private func writeCompleteCandidate(at root: URL, payload: Data) throws {
         let extracted = try Data(contentsOf: fixture.output)
         check(extracted == contents,
               "method \(method), flags \(flags) reproduces the complete ISO bytes")
+    }
+}
+
+@MainActor private func zip64StoredAndDeflatedMembersExtract() async throws {
+    print("ZIP64 stored and raw-DEFLATE ISO members stream and verify")
+    for (method, flags): (UInt16, UInt16) in [(0, 0), (8, 0), (8, 0x0008)] {
+        let fixture = try Fixture()
+        let contents = Data((0..<(96 * 1_024)).map { UInt8(truncatingIfNeeded: $0) })
+        try fixture.writeArchive(try makeZIP64Archive([
+            ZIP64ArchiveEntry(entry: ArchiveEntry(
+                name: "disc/game.iso",
+                contents: contents,
+                method: method,
+                flags: flags
+            )),
+        ]))
+        var limits = ZIPISOExtractor.Limits()
+        limits.chunkBytes = 4 * 1_024
+        limits.minimumFreeSpaceAfterExtraction = 0
+        try await ZIPISOExtractor(limits: limits).extractISO(
+            from: fixture.archive,
+            to: fixture.output
+        ) { _ in }
+
+        let extracted = try Data(contentsOf: fixture.output)
+        check(extracted == contents,
+              "ZIP64 method \(method), flags \(flags) reproduces the complete ISO bytes")
+    }
+    do {
+        let fixture = try Fixture()
+        let contents = Data(repeating: 0x6a, count: 48 * 1_024)
+        var entry = ZIP64ArchiveEntry(entry: ArchiveEntry(
+            name: "game.iso",
+            contents: contents,
+            method: 8,
+            flags: 0x0008
+        ))
+        entry.localZIP64Sizes = false
+        try fixture.writeArchive(try makeZIP64Archive([entry]))
+        var limits = ZIPISOExtractor.Limits()
+        limits.minimumFreeSpaceAfterExtraction = 0
+        try await ZIPISOExtractor(limits: limits).extractISO(
+            from: fixture.archive,
+            to: fixture.output
+        ) { _ in }
+        let extracted = try Data(contentsOf: fixture.output)
+        check(extracted == contents,
+              "a ZIP64 data descriptor can use zeroed local size fields")
+    }
+    check(ZIPISOExtractor.Limits().maximumISOBytes == 4_410_671_104,
+          "the default ISO ceiling is exactly the supported Jak II image size")
+}
+
+@MainActor private func mixedZIP32AndZIP64RecordsExtract() async throws {
+    print("mixed ZIP32 and ZIP64 metadata resolves only marked fields")
+    let contents = Data("mixed ZIP metadata fixture".utf8)
+
+    do {
+        let fixture = try Fixture()
+        var entry = ZIP64ArchiveEntry(
+            entry: ArchiveEntry(name: "game.iso", contents: contents, method: 8)
+        )
+        entry.centralFields = [.uncompressedSize]
+        try fixture.writeArchive(try makeZIP64Archive([entry]))
+        var limits = ZIPISOExtractor.Limits()
+        limits.minimumFreeSpaceAfterExtraction = 0
+        try await ZIPISOExtractor(limits: limits).extractISO(
+            from: fixture.archive,
+            to: fixture.output
+        ) { _ in }
+        let extracted = try Data(contentsOf: fixture.output)
+        check(extracted == contents,
+              "a selective central ZIP64 field preserves ZIP32 compressed size and offset")
+    }
+
+    do {
+        let fixture = try Fixture()
+        var entry = ZIP64ArchiveEntry(
+            entry: ArchiveEntry(name: "game.iso", contents: contents)
+        )
+        entry.centralFields = []
+        entry.localZIP64Sizes = false
+        var end = ZIP64EndOptions()
+        end.legacySentinels = []
+        try fixture.writeArchive(try makeZIP64Archive([entry], end: end))
+        var limits = ZIPISOExtractor.Limits()
+        limits.minimumFreeSpaceAfterExtraction = 0
+        try await ZIPISOExtractor(limits: limits).extractISO(
+            from: fixture.archive,
+            to: fixture.output
+        ) { _ in }
+        let extracted = try Data(contentsOf: fixture.output)
+        check(extracted == contents,
+              "a ZIP64 container can retain an entirely ZIP32 ISO entry")
     }
 }
 
@@ -620,12 +930,28 @@ private func writeCompleteCandidate(at root: URL, payload: Data) throws {
     forceZIP64Marker: Bool = false,
     configure: (inout ZIPISOExtractor.Limits) -> Void = { _ in }
 ) async throws {
+    try await expectArchiveFailure(
+        label,
+        archive: try makeArchive(
+            entries,
+            diskNumber: diskNumber,
+            forceZIP64Marker: forceZIP64Marker
+        ),
+        expectedCode: expectedCode,
+        messageContains: messageContains,
+        configure: configure
+    )
+}
+
+@MainActor private func expectArchiveFailure(
+    _ label: String,
+    archive archiveData: Data,
+    expectedCode: GameDataImportFailure.Code,
+    messageContains: String,
+    configure: (inout ZIPISOExtractor.Limits) -> Void = { _ in }
+) async throws {
     let fixture = try Fixture()
-    try fixture.writeArchive(try makeArchive(
-        entries,
-        diskNumber: diskNumber,
-        forceZIP64Marker: forceZIP64Marker
-    ))
+    try fixture.writeArchive(archiveData)
     var limits = ZIPISOExtractor.Limits()
     limits.minimumFreeSpaceAfterExtraction = 0
     configure(&limits)
@@ -702,12 +1028,246 @@ private func writeCompleteCandidate(at root: URL, payload: Data) throws {
         diskNumber: 1
     )
     try await expectFailure(
-        "ZIP64 archive",
+        "ZIP64 sentinel without end records",
         entries: [ArchiveEntry(name: "game.iso", contents: bytes)],
-        expectedCode: .unsupportedArchive,
+        expectedCode: .invalidDiscImage,
         messageContains: "ZIP64",
         forceZIP64Marker: true
     )
+}
+
+@MainActor private func corruptZIP64MetadataFailsClosed() async throws {
+    print("corrupt, overflowing, duplicate, and multi-disk ZIP64 metadata fails closed")
+    let bytes = Data("ZIP64 fixture payload long enough to compress".utf8)
+    let base = ArchiveEntry(name: "game.iso", contents: bytes)
+
+    do {
+        var entry = ZIP64ArchiveEntry(entry: base)
+        entry.centralExtraOverride = Data()
+        try await expectArchiveFailure(
+            "missing central ZIP64 extra",
+            archive: try makeZIP64Archive([entry]),
+            expectedCode: .invalidDiscImage,
+            messageContains: "missing its extra"
+        )
+    }
+
+    do {
+        var shortPayload = Data()
+        shortPayload.appendLE64(UInt64(bytes.count))
+        var entry = ZIP64ArchiveEntry(entry: base)
+        entry.centralExtraOverride = zip64Extra(shortPayload)
+        try await expectArchiveFailure(
+            "missing central ZIP64 field",
+            archive: try makeZIP64Archive([entry]),
+            expectedCode: .invalidDiscImage,
+            messageContains: "missing its compressed size"
+        )
+    }
+
+    do {
+        var malformedExtra = Data()
+        malformedExtra.appendLE16(0x0001)
+        malformedExtra.appendLE16(16)
+        malformedExtra.appendLE64(UInt64(bytes.count))
+        var entry = ZIP64ArchiveEntry(entry: base)
+        entry.centralExtraOverride = malformedExtra
+        try await expectArchiveFailure(
+            "malformed central ZIP64 extra",
+            archive: try makeZIP64Archive([entry]),
+            expectedCode: .invalidDiscImage,
+            messageContains: "extra field is truncated"
+        )
+    }
+
+    do {
+        var payload = Data()
+        payload.appendLE64(UInt64(bytes.count))
+        var entry = ZIP64ArchiveEntry(entry: base)
+        entry.centralFields = []
+        entry.localZIP64Sizes = false
+        entry.centralExtraOverride = zip64Extra(payload)
+        try await expectArchiveFailure(
+            "unrequested central ZIP64 field",
+            archive: try makeZIP64Archive([entry]),
+            expectedCode: .invalidDiscImage,
+            messageContains: "not requested"
+        )
+    }
+
+    do {
+        var payload = Data()
+        payload.appendLE64(UInt64(bytes.count))
+        payload.appendLE64(UInt64(bytes.count))
+        payload.appendLE64(0)
+        let extra = zip64Extra(payload)
+        var entry = ZIP64ArchiveEntry(entry: base)
+        entry.centralExtraOverride = extra + extra
+        try await expectArchiveFailure(
+            "duplicate central ZIP64 extra",
+            archive: try makeZIP64Archive([entry]),
+            expectedCode: .invalidDiscImage,
+            messageContains: "duplicate ZIP64"
+        )
+    }
+
+    do {
+        var entry = ZIP64ArchiveEntry(entry: base)
+        entry.localExtraOverride = Data()
+        try await expectArchiveFailure(
+            "missing local ZIP64 extra",
+            archive: try makeZIP64Archive([entry]),
+            expectedCode: .invalidDiscImage,
+            messageContains: "missing its ZIP64"
+        )
+    }
+
+    do {
+        var payload = Data()
+        payload.appendLE64(UInt64(bytes.count))
+        payload.appendLE64(UInt64(bytes.count))
+        var entry = ZIP64ArchiveEntry(entry: base)
+        entry.localZIP64Sizes = false
+        entry.localExtraOverride = zip64Extra(payload)
+        try await expectArchiveFailure(
+            "unrequested local ZIP64 sizes",
+            archive: try makeZIP64Archive([entry]),
+            expectedCode: .invalidDiscImage,
+            messageContains: "not requested"
+        )
+    }
+
+    do {
+        var payload = Data()
+        payload.appendLE64(UInt64(bytes.count))
+        payload.appendLE64(UInt64(bytes.count))
+        let extra = zip64Extra(payload)
+        var entry = ZIP64ArchiveEntry(entry: base)
+        entry.localExtraOverride = extra + extra
+        try await expectArchiveFailure(
+            "duplicate local ZIP64 extra",
+            archive: try makeZIP64Archive([entry]),
+            expectedCode: .invalidDiscImage,
+            messageContains: "duplicate ZIP64"
+        )
+    }
+
+    do {
+        var payload = Data()
+        payload.appendLE64(UInt64(bytes.count + 1))
+        payload.appendLE64(UInt64(bytes.count))
+        var entry = ZIP64ArchiveEntry(entry: base)
+        entry.localExtraOverride = zip64Extra(payload)
+        try await expectArchiveFailure(
+            "mismatched local ZIP64 sizes",
+            archive: try makeZIP64Archive([entry]),
+            expectedCode: .invalidDiscImage,
+            messageContains: "sizes or checksum disagree"
+        )
+    }
+
+    do {
+        let descriptorEntry = ArchiveEntry(
+            name: "game.iso",
+            contents: bytes,
+            method: 8,
+            flags: 0x0008
+        )
+        var payload = Data()
+        payload.appendLE64(UInt64(bytes.count + 1))
+        payload.appendLE64(UInt64(try rawDeflate(bytes).count))
+        var entry = ZIP64ArchiveEntry(entry: descriptorEntry)
+        entry.localExtraOverride = zip64Extra(payload)
+        try await expectArchiveFailure(
+            "mismatched descriptor local ZIP64 sizes",
+            archive: try makeZIP64Archive([entry]),
+            expectedCode: .invalidDiscImage,
+            messageContains: "local ZIP64 sizes disagree"
+        )
+    }
+
+    do {
+        var entry = ZIP64ArchiveEntry(entry: base)
+        entry.diskStartValue = 1
+        try await expectArchiveFailure(
+            "multi-disk ZIP64 entry",
+            archive: try makeZIP64Archive([entry]),
+            expectedCode: .unsupportedArchive,
+            messageContains: "Multi-disk ZIP archives"
+        )
+    }
+
+    do {
+        var end = ZIP64EndOptions()
+        end.locatorRecordOffsetOverride = UInt64.max
+        try await expectArchiveFailure(
+            "overflowing ZIP64 locator offset",
+            archive: try makeZIP64Archive([ZIP64ArchiveEntry(entry: base)], end: end),
+            expectedCode: .invalidDiscImage,
+            messageContains: "invalid bounds"
+        )
+    }
+
+    do {
+        var end = ZIP64EndOptions()
+        end.recordSizeOverride = UInt64.max
+        try await expectArchiveFailure(
+            "overflowing ZIP64 end-record size",
+            archive: try makeZIP64Archive([ZIP64ArchiveEntry(entry: base)], end: end),
+            expectedCode: .invalidDiscImage,
+            messageContains: "invalid bounds"
+        )
+    }
+
+    do {
+        var end = ZIP64EndOptions()
+        end.directoryOffsetOverride = UInt64.max
+        end.directorySizeOverride = 1
+        try await expectArchiveFailure(
+            "overflowing ZIP64 directory bounds",
+            archive: try makeZIP64Archive([ZIP64ArchiveEntry(entry: base)], end: end),
+            expectedCode: .invalidDiscImage,
+            messageContains: "central directory has invalid bounds"
+        )
+    }
+
+    do {
+        var end = ZIP64EndOptions()
+        end.totalDisks = 2
+        try await expectArchiveFailure(
+            "multi-disk ZIP64 locator",
+            archive: try makeZIP64Archive([ZIP64ArchiveEntry(entry: base)], end: end),
+            expectedCode: .unsupportedArchive,
+            messageContains: "Multi-disk ZIP64"
+        )
+    }
+
+    do {
+        var end = ZIP64EndOptions()
+        end.legacySentinels = [.entriesOnDisk, .totalEntries, .directoryOffset]
+        end.entriesOnDiskOverride = 2
+        end.totalEntriesOverride = 2
+        try await expectArchiveFailure(
+            "unreasonable ZIP64 entry count",
+            archive: try makeZIP64Archive([ZIP64ArchiveEntry(entry: base)], end: end),
+            expectedCode: .unsupportedArchive,
+            messageContains: "unreasonable number of entries"
+        ) { limits in
+            limits.maximumEntries = 1
+        }
+    }
+
+    do {
+        var end = ZIP64EndOptions()
+        end.legacySentinels = [.directorySize, .directoryOffset]
+        end.directorySizeOverride = 65 * 1_024 * 1_024
+        try await expectArchiveFailure(
+            "unreasonable ZIP64 directory size",
+            archive: try makeZIP64Archive([ZIP64ArchiveEntry(entry: base)], end: end),
+            expectedCode: .unsupportedArchive,
+            messageContains: "directory is unreasonably large"
+        )
+    }
 }
 
 @MainActor private func corruptAndUnreasonableMembersFailClosed() async throws {
@@ -752,6 +1312,19 @@ private func writeCompleteCandidate(at root: URL, payload: Data) throws {
         limits.maximumISOBytes = UInt64(bytes.count - 1)
     }
     try await expectFailure(
+        "oversized compressed member",
+        entries: [ArchiveEntry(
+            name: "game.iso",
+            contents: bytes,
+            declaredSizeOverride: UInt32(bytes.count - 1)
+        )],
+        expectedCode: .unsupportedArchive,
+        messageContains: "member is unreasonably large"
+    ) { limits in
+        limits.maximumCompressionOverheadBytes = 0
+        limits.maximumISOBytes = UInt64(bytes.count + 1)
+    }
+    try await expectFailure(
         "insufficient extraction space",
         entries: [ArchiveEntry(name: "game.iso", contents: bytes)],
         expectedCode: .insufficientStorage,
@@ -766,12 +1339,15 @@ private struct ZIPISOImportCheck {
     @MainActor static func main() async {
         do {
             try await storedAndDeflatedMembersExtract()
+            try await zip64StoredAndDeflatedMembersExtract()
+            try await mixedZIP32AndZIP64RecordsExtract()
             try await exactOutputBufferBoundaryExtracts()
             try await producerUsesSiblingAndCleansUp()
             try staleOwnedCleanupIsBounded()
             try await cancellationRemovesPartialOutput()
             try await deflateFinalChunkCancellationRemovesOutput()
             try await unsafeAndUnsupportedArchivesFailClosed()
+            try await corruptZIP64MetadataFailsClosed()
             try await corruptAndUnreasonableMembersFailClosed()
             try await rawAndZippedSourcesReachAtomicActivation()
         } catch {

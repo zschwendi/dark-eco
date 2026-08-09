@@ -272,6 +272,13 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
   return snapshot;
 }
 
++ (GOALPadJak2ProgressMenuSemanticSnapshot)jak2ProgressMenuSemanticSnapshot {
+  GOALPadJak2ProgressMenuSemanticSnapshot snapshot = {};
+  snapshot.phase = GOALPadJak2ProgressMenuPhaseUnavailable;
+  snapshot.optionIndex = -1;
+  return snapshot;
+}
+
 + (GOALPadWarpGateTouchSnapshot)warpGateTouchSnapshot {
   const auto core = goalpad::warp_gate_touch_snapshot();
   GOALPadWarpGateTouchSnapshot snapshot = {

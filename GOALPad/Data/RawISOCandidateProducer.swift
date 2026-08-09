@@ -1,28 +1,36 @@
 import Foundation
 
-/// Produces a complete desktop-compatible candidate from one supported Jak 1 disc image.
+/// Produces a complete desktop-compatible candidate from one supported profile disc image.
 nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
-    private static let projectResourceName = "OpenGOALProjectResources"
-    private static let sourceObjectPackName = "Jak1SourceObjectPack"
-
     private let projectResourceURL: URL?
     private let sourceObjectPackURL: URL?
 
-    static func isAvailable(in bundle: Bundle = .main) -> Bool {
+    static func isAvailable(
+        for profile: GameDataProfile = .active,
+        in bundle: Bundle = .main
+    ) -> Bool {
         GOALPadGameDataPreparationIsAvailable()
-            && bundle.url(forResource: projectResourceName, withExtension: nil) != nil
-            && bundle.url(forResource: sourceObjectPackName, withExtension: nil) != nil
+            && bundle.url(forResource: profile.projectResourceName, withExtension: nil) != nil
+            && bundle.url(forResource: profile.sourceObjectPackName, withExtension: nil) != nil
     }
 
-    init(bundle: Bundle = .main) {
+    static func isAvailable(in bundle: Bundle) -> Bool {
+        isAvailable(for: .active, in: bundle)
+    }
+
+    init(profile: GameDataProfile = .active, bundle: Bundle = .main) {
         projectResourceURL = bundle.url(
-            forResource: Self.projectResourceName,
+            forResource: profile.projectResourceName,
             withExtension: nil
         )
         sourceObjectPackURL = bundle.url(
-            forResource: Self.sourceObjectPackName,
+            forResource: profile.sourceObjectPackName,
             withExtension: nil
         )
+    }
+
+    init(bundle: Bundle) {
+        self.init(profile: .active, bundle: bundle)
     }
 
     func prepareCandidate(
@@ -167,7 +175,7 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
                 message: message.isEmpty ? "This disc revision is not supported." : message,
                 candidatePreserved: preserved
             )
-        case .sourcePackFailed:
+        case .sourcePackFailed, .projectResourcesFailed:
             return GameDataImportFailure(
                 code: .appResourcesUnavailable,
                 message: message.isEmpty

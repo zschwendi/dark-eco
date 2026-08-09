@@ -92,8 +92,13 @@ actor GameDataInstallWorker {
     nonisolated struct Configuration: Sendable {
         let activeDirectory: URL
         let stagingRoot: URL
+        let profile: GameDataProfile
 
         nonisolated static var app: Configuration {
+            app(for: .active)
+        }
+
+        nonisolated static func app(for profile: GameDataProfile) -> Configuration {
             let support = (try? FileManager.default.url(
                 for: .applicationSupportDirectory,
                 in: .userDomainMask,
@@ -102,10 +107,23 @@ actor GameDataInstallWorker {
             )) ?? URL(fileURLWithPath: NSHomeDirectory())
                 .appending(path: "Library/Application Support", directoryHint: .isDirectory)
             return Configuration(
-                activeDirectory: GameDataLayout.gameDirectory,
+                activeDirectory: GameDataLayout.gameDirectory(
+                    for: profile, in: GameDataLayout.documentsDirectory),
                 stagingRoot: support.appending(
-                    path: "GOALPad/GameDataImport/Jak1", directoryHint: .isDirectory)
+                    path: "GOALPad/GameDataImport/\(profile.gameDirectoryName)",
+                    directoryHint: .isDirectory),
+                profile: profile
             )
+        }
+
+        init(
+            activeDirectory: URL,
+            stagingRoot: URL,
+            profile: GameDataProfile = .active
+        ) {
+            self.activeDirectory = activeDirectory
+            self.stagingRoot = stagingRoot
+            self.profile = profile
         }
     }
 
@@ -164,7 +182,10 @@ actor GameDataInstallWorker {
             try Task.checkCancellation()
             await report(GameDataImportProgress(phase: .validatingCandidate))
             try Task.checkCancellation()
-            let candidateReport = GameDataInspector.inspect(gameDirectory: candidate)
+            let candidateReport = GameDataInspector.inspect(
+                gameDirectory: candidate,
+                profile: configuration.profile
+            )
             guard candidateReport.status == .ready else {
                 throw GameDataImportFailure(
                     code: .candidateIncomplete,
@@ -178,7 +199,7 @@ actor GameDataInstallWorker {
             try Task.checkCancellation()
             try activate(candidate: candidate)
 
-            installLog.notice("Activated validated Jak 1 candidate")
+            installLog.notice("Activated validated \(self.configuration.profile.displayName, privacy: .public) candidate")
             return result
         } catch is CancellationError {
             throw CancellationError()
