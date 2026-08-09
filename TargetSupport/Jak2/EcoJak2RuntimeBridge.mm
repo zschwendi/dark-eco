@@ -236,8 +236,14 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(metal.last_screen_filter_draws),
         static_cast<unsigned long long>(metal.skipped_bucket_bytes));
 
+  const auto& water252 = metal.water_texture_uploads[0];
   NSLog(@"GOALPAD_JAK2_DEFERRED_STATE tick=%llu deferred_count=%u "
          "deferred_top=%u/%llu,%u/%llu,%u/%llu,%u/%llu "
+         "water252=%u cap=%llu present=%llu exec=%llu "
+         "class=m%llu/a%llu/o%llu/n%llu/oa%llu/e%llu/g%llu "
+         "xfer=%llu bytes=%llu inert=%llu ordinary=%llu direct=%llu gs=%llu "
+         "anim=%llu/%llu/%llu op=%llu/%llu/%llu/%llu eye=%llu other=%llu malformed=%llu "
+         "last=t%u/q%u/b%llu/v0k%u/v0i%u/v1k%u/v1i%u "
          "last_sprites_distort=%llu last_sprite_glow_parsed=%llu "
          "last_sprite_glow_accepted=%llu last_sprite_glow_rejected=%llu "
          "last_sprite_glow_force_visible_drawn=%llu last_sprite_glow_force_visible_draws=%llu "
@@ -252,6 +258,40 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(metal.last_skipped_bucket_bytes[2]),
         metal.last_skipped_bucket_ids[3],
         static_cast<unsigned long long>(metal.last_skipped_bucket_bytes[3]),
+        water252.bucket_id,
+        static_cast<unsigned long long>(water252.captures),
+        static_cast<unsigned long long>(water252.present_captures),
+        static_cast<unsigned long long>(water252.executions),
+        static_cast<unsigned long long>(water252.classifications[0]),
+        static_cast<unsigned long long>(water252.classifications[1]),
+        static_cast<unsigned long long>(water252.classifications[2]),
+        static_cast<unsigned long long>(water252.classifications[3]),
+        static_cast<unsigned long long>(water252.classifications[4]),
+        static_cast<unsigned long long>(water252.classifications[5]),
+        static_cast<unsigned long long>(water252.classifications[6]),
+        static_cast<unsigned long long>(water252.transfers),
+        static_cast<unsigned long long>(water252.payload_bytes),
+        static_cast<unsigned long long>(water252.inert_transfers),
+        static_cast<unsigned long long>(water252.ordinary_descriptors),
+        static_cast<unsigned long long>(water252.direct_setup_transfers),
+        static_cast<unsigned long long>(water252.gs_setup_transfers),
+        static_cast<unsigned long long>(water252.animator_arrays),
+        static_cast<unsigned long long>(water252.animator_body_transfers),
+        static_cast<unsigned long long>(water252.animator_payload_bytes),
+        static_cast<unsigned long long>(water252.opcode_counts[12]),
+        static_cast<unsigned long long>(water252.opcode_counts[13]),
+        static_cast<unsigned long long>(water252.opcode_counts[27]),
+        static_cast<unsigned long long>(water252.opcode_counts[30]),
+        static_cast<unsigned long long>(water252.eye_markers),
+        static_cast<unsigned long long>(water252.other_transfers),
+        static_cast<unsigned long long>(water252.malformed_transfers),
+        static_cast<unsigned>(water252.last_nonordinary_tag_kind),
+        static_cast<unsigned>(water252.last_nonordinary_qwc),
+        static_cast<unsigned long long>(water252.last_nonordinary_payload_bytes),
+        static_cast<unsigned>(water252.last_nonordinary_vif0_kind),
+        static_cast<unsigned>(water252.last_nonordinary_vif0_immediate),
+        static_cast<unsigned>(water252.last_nonordinary_vif1_kind),
+        static_cast<unsigned>(water252.last_nonordinary_vif1_immediate),
         static_cast<unsigned long long>(metal.last_sprites_distort),
         static_cast<unsigned long long>(metal.last_sprite_glow_parsed),
         static_cast<unsigned long long>(metal.last_sprite_glow_accepted),
