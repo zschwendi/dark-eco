@@ -68,28 +68,32 @@ as completing the overall goal.
 | User-owned Jak 1 import pipeline | Experimental; prepared folders remain supported, and Release builds can select a supported raw ISO or a standard ZIP32 archive containing exactly one ISO. The native composer, Objective-C++ bridge, recoverable staging/activation, ZIP extraction, and deterministic validation are implemented; a successful end-to-end simulator import and a real-device Files-provider import remain unrecorded |
 | Compiler-produced ARM64 GOAL execution | Implemented for the current Jak 1 AOT set; seven native routines remain |
 | OpenGOAL game frame or title screen | Implemented and physically verified |
-| Playable gameplay slice | Experimental; Build 130 is the physically accepted unified baseline, with Build 131 installed as an unaccepted client-polish candidate |
+| Playable gameplay slice | Experimental; Build 130 remains the last explicitly locked physical gameplay baseline. Build 141 is the current main MVP archive checkpoint, and isolated Build 143 is a signed candidate awaiting physical validation of its touch prompts, travel repair, guide, and library return. |
 | Jak 1 completion track | Planned |
 
 The current application initializes the real OpenGOAL Jak 1 kernel, loads
 user-local game data, runs linked AOT/native game code without executable arena
 pages, renders through the Metal backend, accepts controller/touch input, and
 plays audio. Signed physical-iPad runs reach sustained gameplay. Build 130 is
-the unified regression baseline after physical acceptance of its gameplay-touch,
-presentation, settings, saves, and runtime behavior within the exercised scope.
-This is not a complete-playthrough claim. The Build 130 section in `HANDOFF.md`
-is the authoritative artifact, physical-test, and limitation record.
+the last explicitly locked physical gameplay baseline; Build 141 is the current
+main MVP archive checkpoint. Isolated Build 143 adds narrowly scoped launch-bug
+repairs and player-facing presentation changes but is not promoted until its
+Misty Island, Snowy Mountain, touch-notice, and lifecycle paths pass authorized
+physical testing. This is not a complete-playthrough claim. `HANDOFF.md` is the
+authoritative artifact, physical-test, and limitation record.
 
 The active product sequence is now:
 
-1. Preserve Build 130 unchanged as the accepted runtime baseline.
-2. Physically validate Build 131's bounded touch-chrome, launcher, import, Dark
-   Eco theme, and app-icon polish against Build 130 before promoting it.
-3. Keep Graphics Modern Fit to Screen and the accepted single-owner touch path
-   unchanged while closing only actual MVP shipping blockers.
-4. After the iPhone/iPad MVP is stable, advance the conventional windowed
-   visionOS application toward Apple Vision Pro physical validation without
-   assuming immersive or stereo rendering.
+1. Preserve main Build 141 and the prior Build 130 physical evidence while
+   Build 143 remains isolated.
+2. Physically validate Build 143's touch notice acknowledgement, first-person
+   fire, Misty Island boat, Snowy Mountain gondola, one-time controls guide, and
+   Return to Library paths before promotion.
+3. Keep Graphics Modern Fit to Screen, controller behavior, and the accepted
+   single-owner touch path unchanged while closing only actual MVP blockers.
+4. Treat isolated Build 142 as a visionOS external-target prerequisite only.
+   Advance the next synchronous two-view renderer proof after the iPhone/iPad
+   MVP is stable; do not present it as playable stereoscopic rendering.
 
 ## Required code and data pipelines
 

@@ -15500,3 +15500,112 @@ sky paths retain mutable or raw-pointer state. The next safe proof after the
 external target is a synchronous versioned capture envelope plus resource leases
 and a poison-after-capture equivalence oracle. Production stays synchronous until
 that oracle proves the renderer no longer reads live mutable state after capture.
+
+# Build 142 prerequisite and Build 143 launch-bug candidate
+
+Date: 2026-08-08. Main and `origin/main` remain at Build 141 commit
+`4e873105c85edf7f9e574057ccdfcd3d76f0afd8`. The isolated integration work did
+not change main. Main's Xcode-reserialized `GOALPad.xcodeproj/project.pbxproj`
+working-tree change remains user-owned and untouched.
+
+## Build 142 visionOS prerequisite
+
+Build 142 is preserved in parent worktree
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration`, branch
+`agent/build142-integration`, parent `8c275a9596395c391bfc04866b90f4e2e8545bb9`,
+with nested OpenGOAL `e30adb8b6a5ebd6ad77b4dae3bbb7e9c17a7ad58`.
+Its generic iOS archive passed at:
+
+```text
+/private/tmp/goalpad-build142-release/GOALPad.xcarchive
+```
+
+The archive contains 518 public source objects: 10,631 emitted and seven
+native, aggregate identity `17cba47afc30fdfc`, 10,747,094 bytes. It is an
+external Metal target prerequisite only. It does not implement playable stereo.
+
+The next bounded vision slice is one synchronous fixed two-view batch over one
+copied DMA chain and one engine frame. It must validate both external slices
+before mutation, apply distinct post-clip transforms to background and Merc as
+the first real-3D proof, keep frame-global uploads/callbacks single-shot, retain
+Comfort's one-view/readback behavior, and pass identity, distinct-eye, slice
+sentinel, invalid-descriptor, side-effect-count, poison-after-encode, Metal
+proof, and real local replay gates. Swift compositor, product mode readiness,
+Direct/HUD/effects policy, and physical Vision Pro testing remain later work.
+
+## Build 143 isolated integration
+
+Worktree:
+
+```text
+/Users/zach/Developer/OS_Projects/GOALPad/GP-build143-integration
+```
+
+Branch `agent/build143-integration` contains:
+
+- `99538c43` — reclaim stale resident level art before synchronous destination
+  loads, preserving wanted art and the normal grace cache when capacity exists.
+- `0118ec7a` — expose touch Confirm for audited single-row notice screens and
+  make an ordinary right-side tap fire while first-person zoom is active.
+- `dc1dfca3` — add the one-time touch controls guide, reusable Controls entry,
+  confirmed Return to Library action, and canonical player-facing title.
+- `f87bebfc` — bump both configurations to Build 143 and finish residual
+  player-facing canonical copy.
+- `7324fe7c` — suspend gameplay/audio/touch while the guide is presented and
+  invalidate foreground preparation so a late completion cannot resurrect a
+  stopped session.
+
+The full canonical title, `Jak and Daxter: The Precursor Legacy`, is used only
+for player-facing presentation. Internal `jak1` identifiers, data paths,
+scripts, filenames, and compatibility contracts remain unchanged.
+
+The travel repair addresses the source-level failure mode shared by the Misty
+Island boat and Snowy Mountain gondola reports: a destination art load could be
+attempted before stale resident art was reclaimed, then remain memoized as
+failed until death/reset rebuilt state. This is strongly evidenced and covered
+by deterministic residency checks, but the actual two travel routes remain a
+physical acceptance gate.
+
+Focused validation passed:
+
+```text
+Scripts/run-level-art-residency-check.sh                    # 8/8
+Scripts/run-touch-controls-check.sh                         # full suite
+Scripts/run-presentation-settings-check.sh                  # core and UI suites
+Scripts/run-portrait-library-check.sh
+Scripts/run-game-cutscene-skip-touch-state-check.sh
+python3 OpenGOAL/test/goalc/test_jak1_fishermans_boat_relocation_contract.py  # 6/6
+Scripts/run-compile-metal-shaders-check.sh
+Scripts/run-game-lifecycle-check.sh
+swift Scripts/save-pregame-gate-check.swift "$PWD"
+Scripts/verify-generated-aot.sh Generated/jak1-aot 518
+git diff --check
+```
+
+The final generic iOS Release archive passed in 339.825 seconds:
+
+```text
+/private/tmp/goalpad-build143-release/GOALPad.xcarchive
+/private/tmp/goalpad-build143-archive-final.log
+```
+
+Artifact audit: Eco 1.0 (143), bundle `com.zephyrstudiosllc.eco`, thin arm64;
+executable SHA-256
+`932ca95071610b9341a9f81f82f874a9ae0dc8ee3183063010c67cab8d2e6674`, Mach-O
+UUID `E3F49CFD-9283-34F2-B124-CCF859936B04`, CDHash
+`6c2f49d5bd847e4ab2ec90ddad13c96a719af9d9`. The privacy manifest lints, the
+expected iCloud Documents and Game Center entitlements are embedded, and the
+three tip identifiers are present.
+
+This remains development-signed with `get-task-allow = true`. Xcode completed
+the archive, but standalone strict verification reports
+`CSSMERR_TP_NOT_TRUSTED` because the current shell keychain reports zero valid
+code-signing identities, matching Build 141's known distribution gate. It is
+not App Store validation or upload evidence.
+
+No physical device was installed, launched, logged, or captured. Before
+promotion, an authorized physical test must cover: first-run guide suspension
+and resume; Geyser Rock save notice acknowledgement; zoomed tap-to-fire; Misty
+boat in both directions on the first attempt; the first Snowy gondola trip;
+Return to Library and restart; and regression checks for touch, controller,
+audio, Fit to Screen, and saves.
