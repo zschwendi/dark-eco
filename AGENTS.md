@@ -452,8 +452,10 @@ face/crouch swipe-guide symbols, keeps invisible swipe mappings active without
 hiding other controls, gives all eligible gameplay chrome one three-second idle
 fade, places `gear + ECO` beside Start/Resume after the initial title gate, and
 adds truthful Left/Right/Confirm controls for Jak's quit confirmations. Build 133
-adds the bounded StoreKit Support/Credits slice on top and is the current signed
-candidate. Neither replaces Build 130 until physical validation passes.
+adds the bounded StoreKit Support/Credits slice on top. Build 140 is the current
+merged and archived client candidate; Build 141 corrects the final StoreKit
+product identifier before App Store Connect records are created. Neither
+replaces Build 130 until physical validation passes.
 
 ### Live Jak 1 orchestration ledger
 
@@ -527,6 +529,29 @@ concurrently. Use these states in notes where a checkbox alone is ambiguous:
   has not yet received the batched Xcode build or physical validation.
 
 Active lanes:
+
+- `Build 140 archive repair validated; Build 141 StoreKit contract source
+  checkpoint` — main `30f76540` disables only the Xcode build-script sandbox in
+  both importer configurations and supplies Finder-launched Xcode with the
+  standard Homebrew executable paths. A signed generic-iOS archive then passed
+  with all 518 AOT objects at
+  `/private/tmp/goalpad-build140-archive.jgSzzt/GOALPad-fixed.xcarchive`.
+  Organizer recognizes Eco 1.0 (140), arm64, bundle
+  `com.zephyrstudiosllc.eco`, and team Zephyr Studios LLC. The archive is
+  development-signed and no Apple Distribution identity is currently present in
+  this Mac's keychain, so App Store validation/export remains an external
+  signing gate. Build 141 source aligns the third consumable with the twice-
+  documented permanent ID `com.zephyrstudiosllc.eco.tip.top-supporter` and makes
+  the focused StoreKit check assert all three exact identifiers. No physical
+  device has been accessed for this checkpoint.
+- `visionOS external render-target prerequisite under review; not integrated` —
+  nested OpenGOAL branch `agent/build136-external-render-target` renders the
+  existing synchronous DMA chain into a borrowed host-owned color/depth slice
+  without a drawable or present. Metal proof coverage passes, but independent
+  review found that the first commit incorrectly treated the external command
+  buffer as the internal readback frame. The branch remains isolated while that
+  bookkeeping is corrected and retested. It is only a prerequisite: it is not
+  true stereo, render-many, tabletop, room-scale, or first-person gameplay.
 
 - `Build 126 simplified native-menu checkpoint ready; interaction inventory next` —
   Build 118's physical run exposed
