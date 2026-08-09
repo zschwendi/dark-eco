@@ -38,7 +38,7 @@ struct GameDataSetupView: View {
                 }
                 selectionError = nil
                 session.importer.start(from: source) {
-                    Task { await session.refreshDataReport() }
+                    await session.refreshDataReport()
                 }
             case .failure(let error):
                 selectionError = "Eco could not open that source: \(error.localizedDescription) Try again."
@@ -102,6 +102,20 @@ struct GameDataSetupView: View {
             importProgress(GameDataImportProgress(phase: .scanning))
         case .copying(let progress):
             importProgress(progress)
+        case .cancelling:
+            DarkEcoPanel {
+                HStack(spacing: 10) {
+                    ProgressView()
+                        .tint(DarkEcoTheme.accent)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Cancelling import…")
+                            .font(.headline)
+                        Text("Eco is waiting for preparation to stop safely. Retry will be available when cancellation finishes.")
+                            .font(.footnote)
+                            .foregroundStyle(.white.opacity(0.72))
+                    }
+                }
+            }
         case .failed(let failure):
             VStack(alignment: .leading, spacing: 12) {
                 messagePanel("Import failed", message: failure.recoveryMessage, color: DarkEcoTheme.danger)
@@ -185,16 +199,27 @@ struct GameDataSetupView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(DarkEcoTheme.accent)
+            .disabled(!session.importer.canStart || session.isRefreshingDataReport)
 
             HStack(spacing: 12) {
-                Button("Recheck") {
+                Button {
                     Task { await session.refreshDataReport() }
+                } label: {
+                    if session.isRefreshingDataReport {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Rechecking…")
+                    } else {
+                        Text("Recheck")
+                    }
                 }
                 .buttonStyle(.bordered)
+                .disabled(session.isRefreshingDataReport)
 
                 Button("Play \(GameLibraryTitle.jak1.name)") { Task { await session.start() } }
                     .buttonStyle(.bordered)
-                    .disabled(!session.dataReport.canBoot || session.startupPhase.isPreparing)
+                    .disabled(!session.dataReport.canBoot || session.isRefreshingDataReport
+                        || session.startupPhase.isPreparing)
             }
         }
     }

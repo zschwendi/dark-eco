@@ -18,3 +18,5 @@ swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
   -o "$out"
 
 "$out"
+
+"$root/Scripts/run-game-data-import-lifecycle-check.sh"

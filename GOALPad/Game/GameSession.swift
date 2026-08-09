@@ -50,6 +50,7 @@ final class GameSession {
     private(set) var framesPresented: UInt64 = 0
     private(set) var memoryWarnings = 0
     private(set) var startupError: String?
+    private(set) var isRefreshingDataReport = false
     private(set) var displayMeanMilliseconds = 0.0
     private(set) var displayP95Milliseconds = 0.0
     private(set) var displayMaxMilliseconds = 0.0
@@ -76,6 +77,7 @@ final class GameSession {
     private var lifecycle = GameplayLifecycleState()
     private var currentScenePhase: ScenePhase = .active
     private var startupState = GameplayStartupState()
+    private var dataReportRefreshGeneration: UInt64 = 0
     private var foregroundPreparationTask: Task<Void, Never>?
     private var foregroundPreparationGeneration: UInt64?
     private var controlsGuideSuspension = ControlsGuideSuspensionState()
@@ -138,7 +140,13 @@ final class GameSession {
     }
 
     func refreshDataReport() async {
-        dataReport = await Task.detached { GameDataInspector.inspect() }.value
+        dataReportRefreshGeneration &+= 1
+        let generation = dataReportRefreshGeneration
+        isRefreshingDataReport = true
+        let report = await Task.detached { GameDataInspector.inspect() }.value
+        guard generation == dataReportRefreshGeneration else { return }
+        dataReport = report
+        isRefreshingDataReport = false
     }
 
     func clearStartupError() {
@@ -1671,9 +1679,7 @@ final class GameSession {
     }
 
     private func setIdleTimerDisabled(_ disabled: Bool) {
-        #if canImport(UIKit)
-        UIApplication.shared.isIdleTimerDisabled = disabled
-        #endif
+        DeviceIdleTimerAssertions.shared.setDisabled(disabled, for: .gameplay)
     }
 }
 

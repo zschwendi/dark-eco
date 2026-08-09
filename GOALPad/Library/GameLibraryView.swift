@@ -149,11 +149,14 @@ struct GameLibraryView: View {
 
     private func state(for title: GameLibraryTitle) -> GameLibraryState {
         guard title == .jak1 else { return .planned }
+        if session.isRefreshingDataReport {
+            return .preparing(nil)
+        }
         if session.startupPhase.isPreparing {
             return .preparing(nil)
         }
         switch session.importer.state {
-        case .scanning:
+        case .scanning, .cancelling:
             return .preparing(nil)
         case .copying(let progress):
             return .preparing(progress.fraction)

@@ -59,13 +59,21 @@ let gate = section(controller,
                    to: "func gameplayFrameCompleted()")
 check(occursInOrder([
     "setGameplayActive(false)",
-    "if isEnabled",
-    "await syncNow(mode: .bidirectional)",
+    "while isBusy || frameCheckTask != nil",
+    "if activeOperation == .syncing, activeSyncMode == .bidirectional",
+    "if isEnabled, !completedBidirectionalSync || pendingSyncMode != nil",
+    "enqueueSync(.bidirectional)",
+    "await drainPendingSync()",
     "engine.hasUnsafePendingLocalMutation()",
     "guard !hasUnsafeLocalMutation",
     "return false",
     "return true",
-], in: gate), "pregame syncs when enabled, then gates only unsafe local recovery")
+], in: gate), "pregame drains or reuses sync work, then gates only unsafe local recovery")
+check(!gate.contains("frameCheckTask != nil || pendingSyncMode != nil"),
+      "pregame never waits for an unowned queued sync instead of draining it")
+check(controller.contains("activeSyncMode = mode")
+        && controller.contains("activeSyncMode = nil"),
+      "pregame reuses only a bidirectional sync that preserves cloud and local authority")
 check(gate.components(separatedBy: "return false").count - 1 >= 2,
       "pregame rejects both an unsafe journal and an unreadable recovery state")
 check(!gate.contains("case .unavailable") && !gate.contains("status == .unavailable"),

@@ -96,6 +96,7 @@ final class SaveSyncController {
     private var frameCheckTask: Task<Void, Never>?
     private var frameCheckGeneration = 0
     private var pendingSyncMode: SaveSyncMode?
+    private var activeSyncMode: SaveSyncMode?
     private var gameplayReadinessDidChange: (() -> Void)?
 
     init(defaults: UserDefaults = .standard, engine: SaveSyncEngine? = nil) {
@@ -197,15 +198,20 @@ final class SaveSyncController {
 
     func syncBeforeGameplay() async -> Bool {
         setGameplayActive(false)
-        while isBusy || frameCheckTask != nil || pendingSyncMode != nil {
+        var completedBidirectionalSync = false
+        while isBusy || frameCheckTask != nil {
+            if activeOperation == .syncing, activeSyncMode == .bidirectional {
+                completedBidirectionalSync = true
+            }
             do {
                 try await Task.sleep(for: .milliseconds(10))
             } catch {
                 return false
             }
         }
-        if isEnabled {
-            await syncNow(mode: .bidirectional)
+        if isEnabled, !completedBidirectionalSync || pendingSyncMode != nil {
+            enqueueSync(.bidirectional)
+            await drainPendingSync()
         }
         activeOperation = .checking
         do {
@@ -365,11 +371,13 @@ final class SaveSyncController {
         while isEnabled, let mode = pendingSyncMode {
             pendingSyncMode = nil
             activeOperation = .syncing
+            activeSyncMode = mode
             status = .syncing
             do {
                 let outcome = try await engine.sync(mode: mode)
                 guard isEnabled else {
                     activeOperation = nil
+                    activeSyncMode = nil
                     status = .disabled
                     pendingSyncMode = nil
                     return
@@ -381,6 +389,7 @@ final class SaveSyncController {
                 status = isEnabled ? .failed(error.localizedDescription) : .disabled
             }
             activeOperation = nil
+            activeSyncMode = nil
             if Task.isCancelled {
                 if pendingSyncMode != nil {
                     Task { [weak self] in await self?.drainPendingSync() }
