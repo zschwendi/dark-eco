@@ -15731,14 +15731,9 @@ Confirm/Cross without matching localized display text or changing OpenGOAL,
 controller behavior, gameplay touch geometry, renderer behavior, or visionOS.
 
 Focused Swift parsing, the complete touch-control suite, the native progress
-state check, and `git diff --check` pass. A generic iOS Debug build also passes
-against the exact locked Build 145 OpenGOAL child
-`7719b997379da07b661b9b88b5b1e333eb915ee4`; its local product remains version
-145 because the broader Build 146 integration is not yet ready for a build-number
-bump. The first build attempt failed before compiling product code because this
-worktree's submodule directory had not been populated; initializing the exact
-recorded child restored the expected source layout. No simulator or physical
-device was accessed.
+state check, and `git diff --check` pass. The change is retained in the complete
+Build 146 iOS and visionOS Release products described below. No simulator or
+physical device was accessed.
 
 ## visionOS stereoscopic Jak 1 acceptance contract
 
@@ -15781,35 +15776,69 @@ The maintainer explicitly removed Zephyr Flight Sim reference work, PS VR2
 Sense support, spatial-controller profiles, and accessory tracking from this
 slice. Do not spend time on those paths.
 
-The existing isolated stereo work remains in:
+The corrected parent implementation was replayed onto the current Build 146
+integration line as:
 
 ```text
-/Users/zach/Developer/OS_Projects/GOALPad/GP-build144-vision-window-stereo
-agent/build144-vision-window-stereo
-parent a4728efaf4a1a27c20174224c4a9ccf3857cc173
-nested OpenGOAL 46b30e45e80747843634975ce3ed2fd5f5fe8199
+faba4b96  visionOS: add bounded window stereo surface
+5b15abba  visionOS: connect bounded Shared Space stereo
+bd260b44  fix(visionos): avoid wireless controller discovery
+929e9fb7  feat(visionos): complete stereo projection paths
 ```
 
-That worktree now also contains isolated parent commit
-`52d1c31488de4bdfc99263dfa365f500359cf767`. It is not integration-ready under
-the clarified product contract: its window surface currently opens an empty
-mixed `ImmersiveSpace` and starts a head tracker to derive per-eye projection.
-Do not integrate that commit unchanged. Remove the immersive-space scene/request
-and all head/world-tracking dependencies while retaining the bounded RealityKit
-stereo window, fixed game-camera stereo pair, fail-closed Comfort path, ordinary
-controller input, no-touch visionOS policy, and controller-missing ornament.
+Nested OpenGOAL commit `f11360ab5` replays the initial two-view Metal batch on
+top of the locked Build 145 travel child `7719b9973`. Nested commit `edd5edb0a`
+then completes the audited projection policy: background, Merc, 3D sprites,
+sky, ocean, non-HUD generic geometry, and shadow volumes receive the fixed
+per-eye transform; subtitles/debug Direct content, 2D/HUD/distortion sprites,
+generic HUD, and the fullscreen shadow overlay remain identical per eye. The
+primary render remains the sole owner of uploads, callbacks, diagnostics, and
+frame-global preparation.
 
-The active stereo worker owns the missing Objective-C++/Swift bridge for one
-simulation tick and one copied DMA chain rendered into two borrowed RealityKit
-color/depth targets, with completion before presentation and Comfort fallback.
-The ordinary-gamepad-only and ornament requirements were delivered to that
-worker. It must run focused xros/Metal checks, preserve iOS/mono behavior, and
-commit its isolated work before root reviews or integrates it. No build bump,
-push, or physical install is authorized yet.
+The product now declares one ordinary Shared Space `WindowGroup`; there is no
+`ImmersiveSpace`, ARKit/world tracking, head pose, or compositor scene. One
+game tick and copied DMA chain render synchronously into two borrowed
+RealityKit color/depth targets. The packaged ShaderGraph material selects the
+left or right dynamic texture by RealityKit camera index. Comfort mode remains
+the fail-closed fallback.
 
-The maintainer asked to be notified only after this exact Shared Space version
-builds successfully. A build that still requests an immersive space or head
-tracking does not satisfy that gate.
+visionOS compiles out touch views, their guide, hit regions, and gameplay
+diagnostics. Runtime input uses only the ordinary extended-gamepad path. Eco
+observes gamepads already paired by the system but does not start or stop
+wireless-controller discovery on visionOS. The exact noninteractive top
+ornament `No controller detected.` remains the only app-owned gameplay overlay.
+
+Focused validation passed: all-source xros Swift typecheck, strict xros
+Objective-C++ syntax, the complete Shared Space/eye-material contract, the
+stereo-space C++ test, changed macOS/xros Metal compilation, presentation
+settings, touch, keyboard/mouse, lifecycle, Game Center, StoreKit guards, AOT
+verification, and `git diff --check`.
+
+The first root visionOS build failed before product compilation because the
+retained DerivedData CMake cache named the isolated worker source directory.
+Only that generated CMake subdirectory was removed; the rerun and versioned
+incremental build both passed. The final unsigned generic Release products are:
+
+```text
+/private/tmp/GOALPad-build146-shared-space/Build/Products/Release-xros/GOALPad.app
+  Eco 1.0 (146), arm64
+  executable SHA-256 e470e27e93dc5065a6338b625c9596d6653842985c8f7e674a06532fc937f2f2
+  Mach-O UUID B95B8E29-AFDA-36FE-9F1F-048E44407648
+  VisionStereoWindow.reality 8845 bytes
+
+/private/tmp/GOALPad-build146-shared-space/Build/Products/Release-iphoneos/GOALPad.app
+  Eco 1.0 (146), arm64
+  executable SHA-256 d682f3fbb88507af72c61e44854312659eb867d768dd72276bd8b23d207ffcc7
+  Mach-O UUID E29EAEF4-2AEE-3DAB-80F8-4AF0DAD0746A
+```
+
+Build logs are `/private/tmp/GOALPad-build146-final-versioned-visionos.log` and
+`/private/tmp/GOALPad-build146-final-ios.log`. These are compilation/link and
+resource-packaging evidence only: `CODE_SIGNING_ALLOWED=NO` was used. No app was
+launched, no controller discovery ran, and no simulator, iPad, or Vision Pro was
+accessed. Physical eye assignment, perceived depth/comfort, HUD stability,
+controller gameplay, audio, performance, and fallback behavior remain the next
+explicitly authorized Vision Pro acceptance gate.
 
 ## First-interaction presentation investigation
 
@@ -15838,6 +15867,5 @@ Next executable work after the context reset:
 3. Separately evaluate whether the face-prompt reader can safely expose its first
    structurally valid seqlock publication immediately; cover first owner, owner
    changes, stale generations, and heartbeat behavior deterministically.
-4. Review the stereo worker commit line by line, integrate only non-overlapping
-   commits into this worktree, then run the single serialized Build 146
-   validation matrix.
+4. After explicit authorization, create a signed Build 146 artifact and run the
+   bounded physical Vision Pro acceptance route recorded above.
