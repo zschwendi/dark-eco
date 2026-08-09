@@ -68,33 +68,29 @@ as completing the overall goal.
 | User-owned Jak 1 import pipeline | Experimental; prepared folders remain supported, and Release builds can select a supported raw ISO or a standard ZIP32 archive containing exactly one ISO. The native composer, Objective-C++ bridge, recoverable staging/activation, ZIP extraction, and deterministic validation are implemented; a successful end-to-end simulator import and a real-device Files-provider import remain unrecorded |
 | Compiler-produced ARM64 GOAL execution | Implemented for the current Jak 1 AOT set; seven native routines remain |
 | OpenGOAL game frame or title screen | Implemented and physically verified |
-| Playable gameplay slice | Experimental; Build 130 remains the last explicitly locked physical gameplay baseline. Build 141 is the current main MVP archive checkpoint. Isolated Build 143 archived, installed, and launched, but physical testing rejected its Snowy gondola travel repair; it is not a promotable candidate. |
+| Playable gameplay slice | Experimental; Build 145 is the locked physical gameplay baseline. Its corrected controls guide, Snowy Mountain gondola, and Misty Island travel were physically accepted by the maintainer. This is not a complete-playthrough claim. |
 | Jak 1 completion track | Planned |
 
 The current application initializes the real OpenGOAL Jak 1 kernel, loads
 user-local game data, runs linked AOT/native game code without executable arena
 pages, renders through the Metal backend, accepts controller/touch input, and
-plays audio. Signed physical-iPad runs reach sustained gameplay. Build 130 is
-the last explicitly locked physical gameplay baseline; Build 141 is the current
-main MVP archive checkpoint. Isolated Build 143 adds narrowly scoped launch-bug
-repairs and player-facing presentation changes, but its physical Snowy gondola
-test failed and it is not promotable. Misty Island remains suspect until the
-shared transport transition is repaired and both routes pass authorized
-physical testing. This is not a complete-playthrough claim. `HANDOFF.md` is the
-authoritative artifact, physical-test, and limitation record.
+plays audio. Signed physical-iPad runs reach sustained gameplay. Build 145 is
+the current locked physical baseline: the maintainer accepted its corrected
+controls guide, working Snowy Mountain gondola, and working Misty Island travel.
+The shared silent spooled-animation clock repair therefore closes the vehicle
+transition failure class represented by those two routes. This is not a
+complete-playthrough or every-transition claim. `HANDOFF.md` is the authoritative
+artifact, physical-test, and limitation record.
 
 The active product sequence is now:
 
-1. Preserve main Build 141 and the prior Build 130 physical evidence while
-   Build 143 remains isolated.
-2. Preserve Build 143's physical Snowy rejection. Build 144 archives the common
-   boat/gondola spooled-animation clock repair with focused source/model, native
-   syntax, and signed generic-iOS build evidence. Build 145 adds only the
-   screenshot-matched static controls-guide stick artwork; its child and parent
-   branches are pushed, its signed generic-iOS archive passed, and that exact
-   bundle installed and launched on Z iPad Pro. Physically validate both routes
-   plus touch notice acknowledgement, first-person fire, the one-time controls
-   guide, and Return to Library before promotion.
+1. Preserve Build 145 as the locked physical baseline, while retaining Build
+   143's Snowy rejection and Build 130's earlier acceptance as historical
+   comparison evidence.
+2. Treat the corrected guide plus working gondola and Misty Island travel as
+   physically accepted. Keep touch notice acknowledgement, first-person fire,
+   Return to Library, and later-game routes as separate remaining acceptance
+   gates rather than widening this baseline claim.
 3. Keep Graphics Modern Fit to Screen, controller behavior, and the accepted
    single-owner touch path unchanged while closing only actual MVP blockers.
    The Build 145 guide correction now matches the maintainer's MacBook reference

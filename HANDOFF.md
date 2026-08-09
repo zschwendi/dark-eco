@@ -15697,5 +15697,12 @@ retains the known `CSSMERR_TP_NOT_TRUSTED` development-certificate limitation.
 On 2026-08-09 the maintainer explicitly authorized physical installation and
 launch. This exact archived app installed successfully on Z iPad Pro and a
 fresh launch with `--terminate-existing` succeeded. No logs or screen capture
-were attached. Boat/gondola travel and the corrected guide remain maintainer
-visual/gameplay acceptance gates rather than claimed physical passes.
+were attached.
+
+The maintainer then physically accepted Build 145: the touch-controls diagram
+looks accurate, the Snowy Mountain gondola now works correctly, and Misty Island
+travel now works correctly. This confirms the shared silent spooled-animation
+clock repair closed the transport-transition failure class represented by both
+vehicles. Build 145 is therefore the new locked physical baseline, superseding
+Build 130 for current gameplay acceptance. This remains route-specific
+maintainer evidence, not a complete-playthrough or every-transition claim.
