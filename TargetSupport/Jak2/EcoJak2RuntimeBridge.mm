@@ -254,6 +254,7 @@ void log_jak2_diagnostics_locked() {
          "settings=%d bg=%.3f/%.3f movie=%08x spool=%08x scene=%d/%d index=%d/%d "
          "identity=%s|%s|%s ptrs=%08x/%08x/%08x/%08x time=%lld/%lld "
          "skel=%d/%04x/%u anim=%d/%08x/%.3f/%.3f "
+         "wait=%d/%d entry=%08x/%d art=%s/%08x gui=%08x/%d/%d/%d "
          "sound=%u/%u/%u/%u/%u/%u/%u/%u",
         static_cast<unsigned long long>(runtime.ticks), runtime.display_timing_valid,
         static_cast<long long>(runtime.display_base_frame_counter),
@@ -270,7 +271,13 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned>(runtime.skeleton_status),
         static_cast<unsigned>(runtime.skeleton_active_channels),
         runtime.animation_diagnostics_valid, runtime.animation_frame_group,
-        runtime.animation_frame, runtime.animation_aframe, runtime.sound_player_batches,
+        runtime.animation_frame, runtime.animation_aframe,
+        runtime.scene_wait_diagnostics_valid, runtime.scene_wait_gate,
+        runtime.scene_wait_entry_gui_id, runtime.scene_wait_entry_gui_status,
+        runtime.scene_wait_art_file_status_name, runtime.scene_wait_art_file_status,
+        runtime.scene_wait_art_gui_id, runtime.scene_wait_art_gui_channel,
+        runtime.scene_wait_art_gui_action, runtime.scene_wait_art_gui_status,
+        runtime.sound_player_batches,
         runtime.sound_player_commands, runtime.sound_play_requests, runtime.sound_sounds_started,
         runtime.sound_updates, runtime.sound_str_requests, runtime.sound_str_reads,
         runtime.sound_str_bytes);
