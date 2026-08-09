@@ -2011,6 +2011,12 @@ private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
           "Jak II existing-save overwrite exposes only Left, Right, and Confirm")
     check(NativeMenuTouchAction.available(
         in: .progress,
+        progress: jak2ProgressSnapshot(
+            phase: .saveIconInformation, actions: confirm))
+          == [.confirm],
+          "Jak II save-icon information exposes only Confirm")
+    check(NativeMenuTouchAction.available(
+        in: .progress,
         progress: jak2ProgressSnapshot(phase: .creating, actions: 0)).isEmpty
           && NativeMenuTouchAction.available(
             in: .progress,

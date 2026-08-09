@@ -176,6 +176,7 @@ typedef NS_ENUM(int32_t, GOALPadJak2ProgressMenuPhase) {
   GOALPadJak2ProgressMenuPhaseCreating = 4,
   GOALPadJak2ProgressMenuPhaseSaving = 5,
   GOALPadJak2ProgressMenuPhaseExistingSaveOverwrite = 6,
+  GOALPadJak2ProgressMenuPhaseSaveIconInformation = 7,
 };
 
 typedef NS_OPTIONS(uint32_t, GOALPadJak2ProgressMenuAction) {

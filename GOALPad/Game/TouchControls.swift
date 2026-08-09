@@ -86,6 +86,7 @@ struct NativeJak2ProgressMenuSemanticSnapshot: Equatable {
         case creating
         case saving
         case existingSaveOverwrite
+        case saveIconInformation
     }
 
     let available: Bool
@@ -111,6 +112,7 @@ struct NativeJak2ProgressMenuSemanticSnapshot: Equatable {
         case .creating: .creating
         case .saving: .saving
         case .existingSaveOverwrite: .existingSaveOverwrite
+        case .saveIconInformation: .saveIconInformation
         case .unavailable: .unavailable
         @unknown default: .unavailable
         }
@@ -715,6 +717,10 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
             guard snapshot.optionIndex == 0,
                   snapshot.actionMask == (left | right | confirm) else { return [] }
             return [.left, .right, .confirm]
+        case .saveIconInformation:
+            guard snapshot.optionIndex == 0,
+                  snapshot.actionMask == confirm else { return [] }
+            return [.confirm]
         case .creating, .saving:
             guard snapshot.optionIndex == 0, snapshot.actionMask == 0 else { return [] }
             return []

@@ -52,6 +52,9 @@ static_assert((int32_t)GOALPadJak2ProgressMenuPhaseSaving ==
 static_assert((int32_t)GOALPadJak2ProgressMenuPhaseExistingSaveOverwrite ==
                   GOAL_JAK2_PROGRESS_MENU_PHASE_ALREADY_EXISTS,
               "Jak II progress phase drift");
+static_assert((int32_t)GOALPadJak2ProgressMenuPhaseSaveIconInformation ==
+                  GOAL_JAK2_PROGRESS_MENU_PHASE_ICON_INFO,
+              "Jak II progress phase drift");
 static_assert((uint32_t)GOALPadJak2ProgressMenuActionUp ==
                   GOAL_JAK2_PROGRESS_MENU_ACTION_UP,
               "Jak II progress action drift");
@@ -338,6 +341,9 @@ bool valid_progress_semantic_snapshot(
              snapshot.action_mask == (GOAL_JAK2_PROGRESS_MENU_ACTION_LEFT |
                                       GOAL_JAK2_PROGRESS_MENU_ACTION_RIGHT |
                                       GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM);
+    case GOAL_JAK2_PROGRESS_MENU_PHASE_ICON_INFO:
+      return snapshot.option_index == 0 &&
+             snapshot.action_mask == GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM;
     case GOAL_JAK2_PROGRESS_MENU_PHASE_CREATING:
     case GOAL_JAK2_PROGRESS_MENU_PHASE_SAVING:
       return snapshot.option_index == 0 &&
