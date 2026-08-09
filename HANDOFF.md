@@ -15734,8 +15734,10 @@ later tabletop, room-scale, and first-person ideas:
   stereo is proven. Do not describe synthetic, side-by-side, or generic xros
   build evidence as playable physical stereo.
 - visionOS gameplay is controller-only. Support ordinary gamepads through Eco's
-  existing Apple Game Controller path. Do not expose or require the iOS
-  gameplay-touch overlay on visionOS.
+  existing Apple Game Controller path. Disable the gameplay-touch system
+  entirely on visionOS: do not create or expose sticks, Pause/Stats/Zoom pills,
+  face buttons, swipe hints, contextual touch prompts, or invisible touch hit
+  regions. Preserve the accepted iOS touch path exactly.
 - When no supported controller is connected, show a top ornament whose exact
   text is `No controller detected.` The text should use the requested purple,
   shimmering treatment without harming readability or accessibility.
@@ -15743,6 +15745,10 @@ later tabletop, room-scale, and first-person ideas:
   returns promptly on disconnect. Controller presence changes presentation only;
   it must not invent input, stall the runtime, or change iOS controller/touch
   behavior.
+
+The no-controller ornament is the sole app-owned gameplay overlay exception on
+visionOS. With a controller connected, the game presentation must be visually
+clean; native content rendered by Jak itself is unaffected.
 
 The maintainer explicitly removed Zephyr Flight Sim reference work, PS VR2
 Sense support, spatial-controller profiles, and accessory tracking from this
