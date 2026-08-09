@@ -37,7 +37,7 @@ check(view.contains("GameDataImportPresentation.acceptedSources(")
         && view.contains("return [.folder, rawISOType, .zip]")
         && view.contains("return [.folder]"),
       "the import copy and picker both follow the selected profile's raw-ISO capability gate")
-check(presentation.contains("standard ZIP with exactly one ISO")
+check(presentation.contains("ZIP archive with exactly one ISO")
         && !presentation.contains("ZIP64")
         && view.contains("if canImportRawISO {")
         && view.contains("Raw ISO and ZIP sources are unavailable for")

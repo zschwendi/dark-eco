@@ -87,7 +87,7 @@ struct GameDataSetupView: View {
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.84))
                 if canImportRawISO {
-                    Text("A standard ZIP must contain exactly one ISO. Other archive formats are not accepted.")
+                    Text("A ZIP archive must contain exactly one ISO. Other archive formats are not accepted.")
                         .font(.footnote)
                         .foregroundStyle(DarkEcoTheme.warning)
                 } else {

@@ -20,7 +20,7 @@ private struct GameDataImportPresentationCheck {
               "prepared-folder-only builds do not advertise raw media")
         check(GameDataImportPresentation.acceptedSources(
                 for: .jak1, rawISOAvailable: true)
-                == "Prepared OpenGOAL out/jak1 folder, ISO disc image, or standard ZIP with exactly one ISO",
+                == "Prepared OpenGOAL out/jak1 folder, ISO disc image, or ZIP archive with exactly one ISO",
               "raw-media-capable builds advertise only the ISO and one-ISO ZIP paths")
         let jak2Sources = GameDataImportPresentation.acceptedSources(
             for: .jak2, rawISOAvailable: true)

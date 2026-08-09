@@ -13,7 +13,7 @@ nonisolated enum GameDataImportPresentation {
         }
         if rawISOAvailable && profile.supportsRawMediaPreparation {
             return "Prepared OpenGOAL \(profile.preparedFolderName) folder, ISO disc image, "
-                + "or standard ZIP with exactly one ISO"
+                + "or ZIP archive with exactly one ISO"
         }
         return "Prepared OpenGOAL \(profile.preparedFolderName) folder"
     }
