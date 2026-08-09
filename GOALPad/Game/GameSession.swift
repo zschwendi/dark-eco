@@ -286,9 +286,9 @@ final class GameSession {
     }
 
     #if os(visionOS)
-    func tickStereo(frame: VisionWindowStereoRenderFrame) -> Bool {
+    func tickStereo(frame: VisionWindowStereoRenderFrame) -> VisionWindowStereoFrameDisposition {
         guard isRunning, lifecycle.frameLoopEnabled,
-              !controlsGuideSuspension.blocksGameplay else { return false }
+              !controlsGuideSuspension.blocksGameplay else { return .skipped }
 
         let left = GOALPadStereoRenderTarget(
             viewID: frame.left.viewID,
@@ -308,11 +308,12 @@ final class GameSession {
             size: CGSize(width: CGFloat(frame.width), height: CGFloat(frame.height)),
             left: left,
             right: right
-        ) else { return false }
+        ) else { return .failed }
 
-        return runArmedTick(targetPresentationTime: frame.targetPresentationTime) {
+        let framePresented = runArmedTick(targetPresentationTime: frame.targetPresentationTime) {
             surface.endStereoFrame()
         }
+        return framePresented ? .rendered : .skipped
     }
     #endif
 

@@ -19,11 +19,14 @@ struct GameSurfaceView: View {
 
     #if os(visionOS)
     @Environment(VisionPresentationCoordinator.self) private var visionPresentation
+    let isStereoRendererReady: Bool
     let onStereoFrame: VisionWindowStereoFrameHandler?
 
     init(onFrame: @escaping (CFTimeInterval) -> Void,
+         isStereoRendererReady: Bool = false,
          onStereoFrame: VisionWindowStereoFrameHandler? = nil) {
         self.onFrame = onFrame
+        self.isStereoRendererReady = isStereoRendererReady
         self.onStereoFrame = onStereoFrame
     }
     #endif
@@ -33,14 +36,14 @@ struct GameSurfaceView: View {
         Group {
             if visionPresentation.isStereoWindowActive, onStereoFrame != nil {
                 VisionWindowStereoSurfaceView { frame in
-                    onStereoFrame?(frame) ?? false
+                    onStereoFrame?(frame) ?? .skipped
                 }
             } else {
                 conventionalSurface
             }
         }
-        .onAppear {
-            visionPresentation.setStereoRendererAvailable(onStereoFrame != nil)
+        .onChange(of: isStereoRendererReady, initial: true) { _, isReady in
+            visionPresentation.setStereoRendererAvailable(isReady && onStereoFrame != nil)
         }
         .onDisappear {
             visionPresentation.setStereoRendererAvailable(false)

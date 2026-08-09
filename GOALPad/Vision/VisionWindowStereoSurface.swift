@@ -23,10 +23,19 @@ struct VisionWindowStereoRenderFrame {
     let right: VisionWindowStereoRenderTarget
 }
 
-/// The handler owns one synchronous game tick and its fixed two-view render. A successful return
-/// means both renderer command buffers have completed and the borrowed textures are ready for the
-/// paired RealityKit presentation; Swift never retains or copies the native DMA chain.
-typealias VisionWindowStereoFrameHandler = @Sendable @MainActor (VisionWindowStereoRenderFrame) -> Bool
+/// The handler owns one synchronous game tick and its fixed two-view render. Only `rendered` means
+/// both renderer command buffers completed and the borrowed textures are ready for paired
+/// RealityKit presentation. A skipped tick is expected while the game is not ready or produces no
+/// render chain; Swift never retains or copies the native DMA chain.
+nonisolated enum VisionWindowStereoFrameDisposition: Equatable, Sendable {
+    case skipped
+    case rendered
+    case failed
+}
+
+typealias VisionWindowStereoFrameHandler = @Sendable @MainActor (
+    VisionWindowStereoRenderFrame
+) -> VisionWindowStereoFrameDisposition
 
 @MainActor
 struct VisionWindowStereoSurfaceView: View {
@@ -91,7 +100,7 @@ private struct VisionWindowStereoRealitySurface: View {
                     content.add(resources.surfaceEntity)
                     self.resources = resources
                 } catch {
-                    coordinator.stereoSurfaceFailed(
+                    deferStereoSurfaceFailure(
                         "The stereoscopic window could not start, so Eco returned to Comfort "
                             + "mode: \(error.localizedDescription)"
                     )
@@ -109,10 +118,20 @@ private struct VisionWindowStereoRealitySurface: View {
     }
 
     private func drawFrame(at presentationTime: CFTimeInterval) {
+        let disposition = renderNextFrame(at: presentationTime)
+        guard disposition == .failed else { return }
+        deferStereoSurfaceFailure(
+            "The native two-view renderer stopped, so Eco returned to Comfort mode."
+        )
+    }
+
+    private func renderNextFrame(
+        at presentationTime: CFTimeInterval
+    ) -> VisionWindowStereoFrameDisposition {
         guard let resources,
               let clipPlan = VisionWindowStereoClipPlanner.makePlan(),
               let drawablePair = resources.nextDrawablePair() else {
-            return
+            return .skipped
         }
 
         let frame = VisionWindowStereoRenderFrame(
@@ -133,14 +152,18 @@ private struct VisionWindowStereoRealitySurface: View {
             )
         )
 
-        guard renderFrame(frame) else {
-            coordinator.stereoSurfaceFailed(
-                "The native two-view renderer stopped, so Eco returned to Comfort mode."
-            )
-            return
-        }
+        let disposition = renderFrame(frame)
+        guard disposition == .rendered else { return disposition }
         drawablePair.left.presentOnSceneUpdate()
         drawablePair.right.presentOnSceneUpdate()
+        return .rendered
+    }
+
+    private func deferStereoSurfaceFailure(_ message: String) {
+        Task { @MainActor in
+            await Task.yield()
+            coordinator.stereoSurfaceFailed(message)
+        }
     }
 }
 

@@ -337,6 +337,7 @@ private struct GameplaySurface: View {
         #if os(visionOS)
         GameSurfaceView(
             onFrame: { session.tick(targetPresentationTime: $0) },
+            isStereoRendererReady: session.isRunning,
             onStereoFrame: { session.tickStereo(frame: $0) }
         )
         #else

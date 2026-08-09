@@ -50,6 +50,7 @@ let root = CommandLine.arguments[1]
 let app = source(root, "GOALPad/GOALPadApp.swift")
 let content = source(root, "GOALPad/ContentView.swift")
 let session = source(root, "GOALPad/Game/GameSession.swift")
+let gameSurfaceView = source(root, "GOALPad/Game/GameSurfaceView.swift")
 let controllerInput = source(root, "GOALPad/Input/ControllerInput.swift")
 let touchView = source(root, "GOALPad/Game/TouchControlsView.swift")
 let touchGuide = source(root, "GOALPad/Game/TouchControlsGuideView.swift")
@@ -68,18 +69,30 @@ let gameplaySurface = section(content,
 check(gameplaySurface.components(separatedBy: "gameSurface").count - 1 == 3,
       "both GameplaySurface layouts use the shared mono/stereo surface")
 check(gameplaySurface.contains("onFrame: { session.tick(targetPresentationTime: $0) }")
+        && gameplaySurface.contains("isStereoRendererReady: session.isRunning")
         && gameplaySurface.contains("onStereoFrame: { session.tickStereo(frame: $0) }"),
       "the shared surface wires ordinary and stereo frame callbacks")
+check(gameSurfaceView.contains(".onChange(of: isStereoRendererReady, initial: true)")
+        && gameSurfaceView.contains(
+            "setStereoRendererAvailable(isReady && onStereoFrame != nil)"
+        )
+        && !gameSurfaceView.contains(
+            "setStereoRendererAvailable(onStereoFrame != nil)"
+        ),
+      "stereo remains unavailable through boot and follows running-session readiness changes")
 
 let stereoTick = section(session,
                          from: "func tickStereo(frame:",
                          to: "private func runArmedTick")
 check(occursInOrder([
+    "else { return .skipped }",
     "GOALPadStereoRenderTarget(",
     "GOALPadStereoRenderTarget(",
     "surface.beginStereoFrame(",
+    "else { return .failed }",
     "runArmedTick(targetPresentationTime:",
     "surface.endStereoFrame()",
+    "framePresented ? .rendered : .skipped",
 ], in: stereoTick), "one stereo callback arms, runs, waits, and ends one shared game tick")
 
 let sharedTick = section(session,
@@ -145,14 +158,38 @@ check(host.contains("render_chain_frame_to_external_stereo_targets(")
 
 let drawFrame = section(surface,
                         from: "private func drawFrame",
-                        to: "@MainActor\nprivate final class VisionWindowStereoResources")
+                        to: "private func renderNextFrame")
 check(occursInOrder([
-    "guard renderFrame(frame) else",
-    "coordinator.stereoSurfaceFailed(",
-    "return",
+    "let disposition = renderNextFrame(at: presentationTime)",
+    "guard disposition == .failed else { return }",
+    "deferStereoSurfaceFailure(",
+], in: drawFrame) && !drawFrame.contains("drawablePair"),
+      "only a true render failure schedules fallback after the drawable scope returns")
+
+let renderNextFrame = section(surface,
+                              from: "private func renderNextFrame",
+                              to: "private func deferStereoSurfaceFailure")
+check(occursInOrder([
+    "let drawablePair = resources.nextDrawablePair()",
+    "return .skipped",
+    "let disposition = renderFrame(frame)",
+    "guard disposition == .rendered else { return disposition }",
     "drawablePair.left.presentOnSceneUpdate()",
     "drawablePair.right.presentOnSceneUpdate()",
-], in: drawFrame), "failed native stereo frames return to Comfort before either eye presents")
+    "return .rendered",
+], in: renderNextFrame),
+      "skipped frames release without presentation and only rendered frames present both eyes")
+
+let deferredFailure = section(surface,
+                              from: "private func deferStereoSurfaceFailure",
+                              to: "@MainActor\nprivate final class VisionWindowStereoResources")
+check(occursInOrder([
+    "Task { @MainActor in",
+    "await Task.yield()",
+    "coordinator.stereoSurfaceFailed(message)",
+], in: deferredFailure)
+        && surface.components(separatedBy: "deferStereoSurfaceFailure(").count - 1 == 3,
+      "render and asynchronous resource failures defer fail-closed coordinator mutation")
 
 check(app.components(separatedBy: "WindowGroup").count - 1 == 1
         && app.contains(".environment(visionPresentation)")

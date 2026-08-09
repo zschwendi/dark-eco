@@ -50,6 +50,12 @@ private func exerciseVisionPresentationFoundation() {
     precondition(modern.selectedCapability.readiness.isPlayable)
     precondition(modern.sessionState == .conventionalWindow)
 
+    // GameSession advertises the renderer only after boot completes.
+    modern.setStereoRendererAvailable(false)
+    precondition(modern.activeGameMode == .comfortNormal)
+    precondition(modern.sessionState != .stereoscopicWindow)
+
+    // The observed readiness transition activates stereo without recreating the view.
     modern.configure(
         graphicsProfile: .modern,
         stereoscopic3DEnabled: true,
