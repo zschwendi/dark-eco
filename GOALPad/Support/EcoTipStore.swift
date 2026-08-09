@@ -4,7 +4,7 @@ import StoreKit
 nonisolated enum EcoTip: String, CaseIterable, Identifiable, Sendable {
     case coffee = "com.zephyrstudiosllc.eco.tip.coffee"
     case development = "com.zephyrstudiosllc.eco.tip.development"
-    case topSupporter = "com.zephyrstudiosllc.eco.tip.topsupporter"
+    case topSupporter = "com.zephyrstudiosllc.eco.tip.top-supporter"
 
     var id: String { rawValue }
 
