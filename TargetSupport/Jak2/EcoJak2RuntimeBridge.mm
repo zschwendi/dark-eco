@@ -148,16 +148,7 @@ void log_jak2_diagnostics_locked() {
          "pmode=%.3f desired=%s active=%s dgo=%s/%s result=%d failures=%d "
          "dma=%d/%d/%d bytes=%u/%u chains=%llu/%llu/%llu cmd=%llu/%llu/%llu "
          "cmd-last=%d/%lld drawable=%llu/%llu submit=%llu/%llu/%llu draws=%llu/%llu "
-         "progress=%llu/%llu/%llu/%llu map=%llu/%u/%u buckets=%llu skipped=%llu "
-         "raw_image_publications=%llu raw_image_texture=%llu raw_image_pixels=%llu "
-         "last_progress_draws=%llu last_progress_textured_draws=%llu "
-         "last_progress_missing_texture_draws=%llu last_debug_no_zbuf1_draws=%llu "
-         "last_debug_no_zbuf1_textured_draws=%llu "
-         "last_debug_no_zbuf1_missing_texture_draws=%llu last_screen_filter_draws=%llu "
-         "skipped_bucket_bytes=%llu progress_available=%d progress_screen=%d "
-         "progress_option_index=%d progress_selected_option=%d progress_in_transition=%d "
-         "progress_navigation_available=%d progress_starting_screen=%d "
-         "progress_can_exit_with_start=%d progress_can_go_back=%d error=%s",
+         "progress=%llu/%llu/%llu/%llu map=%llu/%u/%u buckets=%llu skipped=%llu error=%s",
         static_cast<unsigned long long>(runtime.ticks), runtime.master_mode,
         runtime.title_control_state, runtime.scene_player_state, runtime.target_state,
         runtime.host_last_pmode_alpha, runtime.host_desired_levels, runtime.host_active_levels,
@@ -187,6 +178,12 @@ void log_jak2_diagnostics_locked() {
         metal.last_map_texture_upload.valid, metal.last_map_texture_upload.upload_count,
         static_cast<unsigned long long>(metal.last_buckets_dispatched),
         static_cast<unsigned long long>(metal.skipped_bucket_bytes),
+        g_metal_host ? goal_jak2_metal_host_last_error(g_metal_host) : "");
+
+  NSLog(@"GOALPAD_JAK2_VISUAL_STATE tick=%llu raw=%llu/%llu/%llu "
+         "progress=%llu/%llu/%llu debug-no-zbuf1=%llu/%llu/%llu "
+         "screen-filter=%llu skipped=%llu",
+        static_cast<unsigned long long>(runtime.ticks),
         static_cast<unsigned long long>(metal.raw_image_publications),
         static_cast<unsigned long long>(metal.raw_image_texture),
         static_cast<unsigned long long>(metal.raw_image_pixels),
@@ -197,12 +194,15 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(metal.last_debug_no_zbuf1_textured_draws),
         static_cast<unsigned long long>(metal.last_debug_no_zbuf1_missing_texture_draws),
         static_cast<unsigned long long>(metal.last_screen_filter_draws),
-        static_cast<unsigned long long>(metal.skipped_bucket_bytes), progress_menu.available,
+        static_cast<unsigned long long>(metal.skipped_bucket_bytes));
+
+  NSLog(@"GOALPAD_JAK2_PROGRESS_STATE tick=%llu available=%d screen=%d option=%d "
+         "selected=%d transition=%d navigation=%d starting=%d exit-start=%d back=%d",
+        static_cast<unsigned long long>(runtime.ticks), progress_menu.available,
         progress_menu.screen, progress_menu.option_index, progress_menu.selected_option,
         progress_menu.in_transition, progress_menu.navigation_available,
         progress_menu.starting_screen, progress_menu.can_exit_with_start,
-        progress_menu.can_go_back,
-        g_metal_host ? goal_jak2_metal_host_last_error(g_metal_host) : "");
+        progress_menu.can_go_back);
 
   NSLog(@"GOALPAD_JAK2_SCENE_STATE tick=%llu display=%d/%lld blackout=%lld/%lld "
          "settings=%d bg=%.3f/%.3f movie=%08x spool=%08x scene=%d/%d index=%d/%d "
