@@ -304,6 +304,10 @@ int main() {
     check(progress.available && progress.inTransition && !progress.navigationAvailable,
           "Jak II title transitions remain visible but navigation-disabled");
     g_progress.option_index = 4;
+    progress = GOALPadRuntimeBridge.progressMenuSnapshot;
+    check(progress.available && progress.optionIndex == 4,
+          "Jak II preserves the shipping PC title menu's visible Quit index");
+    g_progress.option_index = 5;
     check(!GOALPadRuntimeBridge.progressMenuSnapshot.available,
           "the Objective-C bridge rejects an invalid native title option");
     g_progress = {};

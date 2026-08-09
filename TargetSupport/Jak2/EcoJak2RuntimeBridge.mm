@@ -596,7 +596,7 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
   const auto is_bool = [](int32_t value) { return value == 0 || value == 1; };
   if (core.available != 1 || core.screen != GOAL_JAK2_PROGRESS_SCREEN_TITLE ||
       core.starting_screen != GOAL_JAK2_PROGRESS_SCREEN_TITLE || core.option_index < 0 ||
-      core.option_index > 3 || !is_bool(core.selected_option) || !is_bool(core.in_transition) ||
+      core.option_index > 4 || !is_bool(core.selected_option) || !is_bool(core.in_transition) ||
       !is_bool(core.navigation_available) || !is_bool(core.can_exit_with_start) ||
       !is_bool(core.can_go_back) || core.can_exit_with_start || core.can_go_back ||
       core.navigation_available == core.in_transition) {
