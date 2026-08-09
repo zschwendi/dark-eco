@@ -113,7 +113,7 @@ struct GameLibraryView: View {
             switch alert {
             case .importJak1:
                 Alert(
-                    title: Text("Set Up Jak 1"),
+                    title: Text("Set Up \(GameLibraryTitle.jak1.name)"),
                     message: Text(GameLibraryOfferCopy.jak1ImportMessage(
                         canImportRawISO: RawISOCandidateProducer.isAvailable())),
                     primaryButton: .default(Text("Continue"), action: openJak1Setup),
@@ -202,7 +202,8 @@ private struct GameLibraryTile: View {
                         Text(title.shelfName)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.primary)
-                            .lineLimit(1)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.86)
                         Label(stateLabel, systemImage: stateSymbol)
                             .font(.caption.weight(.medium))
                             .foregroundStyle(stateColor)

@@ -139,7 +139,7 @@ final class GameSession {
     func start() async {
         guard !isRunning, !isBooting, !isPreparingGameplay else { return }
         guard GOALPadRuntimeBridge.isGameCodeLinked else {
-            startupError = "This build has no ahead-of-time Jak 1 code. "
+            startupError = "This build has no ahead-of-time \(GameLibraryTitle.jak1.name) code. "
                 + "Run Scripts/generate-jak1-aot.sh and build again."
             return
         }
@@ -171,7 +171,7 @@ final class GameSession {
         settings.apply()
         runReadiness = .preRun
         isBooting = true
-        sessionLog.notice("Booting Jak 1")
+        sessionLog.notice("Booting \(GameLibraryTitle.jak1.name, privacy: .public)")
         bootQueue.async {
             let boot = GOALPadRuntimeBridge.bootGame()
             DispatchQueue.main.async {

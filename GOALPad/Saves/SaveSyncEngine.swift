@@ -32,9 +32,10 @@ nonisolated private enum SaveSyncError: LocalizedError {
         case .invalidPairMutationState(let path):
             return "An interrupted save merge has an unexpected state at \(path). Try syncing again."
         case .noSavesFound(let path):
-            return "No OpenGOAL Jak 1 saves were found in \(path)."
+            return "No OpenGOAL saves for \(GameLibraryTitle.jak1.name) were found in \(path)."
         case .unsafeImportSelection(let path):
-            return "Select the exact OpenGOAL/jak1/saves folder or its Jak 1 slot folder, not \(path)."
+            return "Select the exact OpenGOAL/jak1/saves folder or its "
+                + "\(GameLibraryTitle.jak1.name) slot folder, not \(path)."
         case .archivedSaveUnavailable:
             return "That preserved save is no longer available. Refresh the list and try again."
         }

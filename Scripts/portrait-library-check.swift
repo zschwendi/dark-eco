@@ -76,9 +76,9 @@ do {
     let libraryScreen = try declaration(in: libraryView,
                                         startingWith: "struct GameLibraryView",
                                         endingWith: "\n\nprivate struct GameLibraryTile")
-    let credits = try declaration(in: supportViews,
-                                  startingWith: "struct EcoCreditsView",
-                                  endingWith: "\n\nstruct EcoSupportView")
+    let about = try declaration(in: supportViews,
+                                startingWith: "struct EcoAboutView",
+                                endingWith: "\n\nprivate struct EcoContactView")
     guard let cardButton = tile.range(of: "Button(action: activate)"),
           let cardButtonStyle = tile.range(of: ".buttonStyle(.plain)",
                                            range: cardButton.upperBound..<tile.endIndex)
@@ -99,6 +99,9 @@ do {
             && tile.contains(".scaledToFit()")
             && !tile.contains(".scaledToFill()")
             && tile.contains(".frame(width: coverSize.width, height: coverSize.height)")
+            && tile.contains("Text(title.shelfName)")
+            && tile.contains(".lineLimit(2)")
+            && tile.contains(".minimumScaleFactor(0.86)")
             && !tile.contains(".accessibilityElement(children: .combine)")
             && tile.contains(".frame(minWidth: 44, minHeight: 44)")
             && tile.contains(".contentShape(Rectangle())")
@@ -111,12 +114,9 @@ do {
     print("  ok   ready and unavailable cards remain full semantic targets beside artwork options")
     guard let settingsMenuLabel = libraryScreen.range(
               of: "Label(\"Settings\", systemImage: \"gearshape\")"),
-          let creditsMenuLabel = libraryScreen.range(
-              of: "Label(\"Credits\", systemImage: \"person.3\")"),
-          let supportMenuLabel = libraryScreen.range(
-              of: "Label(\"Support\", systemImage: \"heart\")"),
-          settingsMenuLabel.lowerBound < creditsMenuLabel.lowerBound,
-          creditsMenuLabel.lowerBound < supportMenuLabel.lowerBound,
+          let aboutMenuLabel = libraryScreen.range(
+              of: "Label(\"About\", systemImage: \"info.circle\")"),
+          settingsMenuLabel.lowerBound < aboutMenuLabel.lowerBound,
           libraryScreen.contains("GeometryReader { proxy in")
             && libraryScreen.contains("usesRegularWidth: (horizontalSizeClass ?? .regular) == .regular")
             && libraryScreen.contains("HStack(alignment: .top, spacing: layout.spacing)")
@@ -126,21 +126,22 @@ do {
             && !libraryScreen.contains("GridItem")
             && !libraryScreen.contains("Import Game")
             && !libraryScreen.contains("ToolbarItem(placement: .primaryAction)")
-            && libraryScreen.contains("EcoCreditsView()")
-            && libraryScreen.contains("EcoSupportView(tipStore: tipStore)")
+            && libraryScreen.contains("EcoAboutView(tipStore: tipStore)")
             && libraryScreen.contains(".tint(DarkEcoTheme.accent)")
-            && credits.contains("SupportPage(title: \"Credits\")")
+            && about.contains("SupportPage(title: \"About\")")
             && supportViews.contains(".tint(DarkEcoTheme.accent)")
-            && credits.contains("Eco is built on the open-source OpenGOAL project")
-            && credits.contains("Button(\"Done\")")
+            && about.contains("Eco is built on the open-source OpenGOAL project")
+            && about.contains("SupportRow(title: \"Contact\"")
+            && about.contains("SupportRow(title: \"Donate\"")
+            && about.contains("Button(\"Done\")")
             && settingsSheet.contains(".tint(DarkEcoTheme.accent)")
             && settingsSheet.contains(".background(DarkEcoTheme.background)")
     else {
         throw NSError(domain: "portrait-library-check", code: 3,
                       userInfo: [NSLocalizedDescriptionKey:
-                        "launcher shelf, adaptive gutters, menu ordering, or Credits destination regressed"])
+                        "launcher shelf, adaptive gutters, menu ordering, or About destination regressed"])
     }
-    print("  ok   launcher menu is Settings, Credits, then a real Support destination")
+    print("  ok   launcher menu is Settings then a unified About destination")
     guard gameplaySurface.contains("if frame.origin == .zero, frame.size == proxy.size"),
           let fullSurfaceBranch = gameplaySurface.range(of: "if frame.origin == .zero, frame.size == proxy.size"),
           let portraitBranch = gameplaySurface.range(of: "} else {", range: fullSurfaceBranch.upperBound..<gameplaySurface.endIndex),
@@ -275,6 +276,9 @@ do {
 
     check(GameLibraryTitle.allCases == [.jak1, .jak2, .jak3],
           "the deterministic launcher catalog contains only Jak 1, Jak II, and Jak 3")
+    check(GameLibraryTitle.jak1.shelfName == "Jak and Daxter: The Precursor Legacy"
+          && GameLibraryTitle.jak1.shelfName == GameLibraryTitle.jak1.name,
+          "the first game uses its full canonical title instead of numbered shorthand")
     check(GameLibraryCardAction.resolve(title: .jak1, state: .ready) == .start,
           "installed Jak 1 starts from its full card")
     check(GameLibraryCardAction.resolve(title: .jak1, state: .preparing(nil))

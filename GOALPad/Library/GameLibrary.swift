@@ -12,7 +12,7 @@ nonisolated struct GameLibraryShelfLayout: Equatable, Sendable {
     static let regularVerticalPadding: CGFloat = 24
     static let regularMinimumGutter: CGFloat = 24
     static let cardHorizontalInset: CGFloat = 6
-    static let cardFooterHeight: CGFloat = 88
+    static let cardFooterHeight: CGFloat = 108
 
     let coverSize: CGSize
     let spacing: CGFloat
@@ -89,11 +89,7 @@ nonisolated enum GameLibraryTitle: String, CaseIterable, Equatable, Identifiable
     }
 
     var shelfName: String {
-        switch self {
-        case .jak1: "Jak 1"
-        case .jak2: "Jak II"
-        case .jak3: "Jak 3"
-        }
+        name
     }
 
     var fallbackMark: String {
@@ -136,7 +132,7 @@ nonisolated enum GameLibraryCardAction: Equatable {
 
 nonisolated enum GameLibraryOfferCopy {
     static func jak1ImportMessage(canImportRawISO: Bool) -> String {
-        let ownership = "Provide game data from a copy of Jak 1 you legally own."
+        let ownership = "Provide game data from a copy of \(GameLibraryTitle.jak1.name) you legally own."
         if canImportRawISO {
             return ownership + " This build accepts a prepared out/jak1 folder, a supported .iso, "
                 + "or a standard .zip containing exactly one .iso."
@@ -152,7 +148,7 @@ nonisolated enum GameLibraryOfferCopy {
             return "Jak 3 support is planned after Jak II's development."
         case .jak1:
             return "Import for \(title.shelfName) is not supported in this build. "
-                + "Eco currently supports Jak 1 game data only."
+                + "Eco currently supports \(GameLibraryTitle.jak1.name) game data only."
         }
     }
 }

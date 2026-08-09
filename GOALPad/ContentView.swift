@@ -52,6 +52,8 @@ struct ContentView: View {
     @State private var launcherDestination = LauncherDestination.library
     @State private var settingsPresentation: SettingsSheetPresentation?
     @State private var nextSettingsPresentationID = 0
+    @State private var isShowingTouchControlsGuide = false
+    @AppStorage("jak1TouchControlsGuideVersion") private var touchControlsGuideVersion = 0
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -135,19 +137,38 @@ struct ContentView: View {
         .onChange(of: session.isNativeMenuOpen) { _, isOpen in
             if session.isRunning && !isOpen { settingsPresentation = nil }
         }
+        .onChange(of: session.runReadiness) { _, readiness in
+            #if os(iOS)
+            guard readiness == .active, touchControlsGuideVersion < 1 else { return }
+            isShowingTouchControlsGuide = true
+            #endif
+        }
         .sheet(item: $settingsPresentation) { presentation in
             SettingsSheetView(initialEntry: presentation.entry,
                               sync: session.saveSync,
                               settings: session.presentationSettings,
-                              input: session.input)
+                              input: session.input,
+                              isGameRunning: session.isRunning,
+                              returnToLibrary: returnToLibrary)
                 .id(presentation.id)
                 .frame(minWidth: 360, minHeight: 360)
+        }
+        .sheet(isPresented: $isShowingTouchControlsGuide, onDismiss: {
+            touchControlsGuideVersion = 1
+        }) {
+            TouchControlsGuideSheet()
         }
     }
 
     private func presentSettings(_ entry: SettingsSheetEntry) {
         nextSettingsPresentationID += 1
         settingsPresentation = SettingsSheetPresentation(id: nextSettingsPresentationID, entry: entry)
+    }
+
+    private func returnToLibrary() {
+        settingsPresentation = nil
+        launcherDestination = .library
+        session.shutdown()
     }
 }
 
@@ -160,15 +181,21 @@ private struct SettingsSheetView: View {
     @Bindable var sync: SaveSyncController
     @Bindable var settings: PresentationSettings
     @Bindable var input: ControllerInput
+    let isGameRunning: Bool
+    let returnToLibrary: () -> Void
     @State private var path: [Destination]
 
     init(initialEntry: SettingsSheetEntry,
          sync: SaveSyncController,
          settings: PresentationSettings,
-         input: ControllerInput) {
+         input: ControllerInput,
+         isGameRunning: Bool,
+         returnToLibrary: @escaping () -> Void) {
         self.sync = sync
         self.settings = settings
         self.input = input
+        self.isGameRunning = isGameRunning
+        self.returnToLibrary = returnToLibrary
         _path = State(initialValue: initialEntry == .jak1 ? [.jak1] : [])
     }
 
@@ -178,7 +205,11 @@ private struct SettingsSheetView: View {
                 .navigationDestination(for: Destination.self) { destination in
                     switch destination {
                     case .jak1:
-                        SaveSettingsView(sync: sync, settings: settings, input: input)
+                        SaveSettingsView(sync: sync,
+                                         settings: settings,
+                                         input: input,
+                                         isGameRunning: isGameRunning,
+                                         returnToLibrary: returnToLibrary)
                     }
                 }
         }
@@ -199,7 +230,7 @@ private struct SettingsTitleListView: View {
         List {
             Section("Available") {
                 Button(action: openJak1) {
-                    LabeledContent("Jak 1 Settings", value: "Available")
+                    LabeledContent("\(GameLibraryTitle.jak1.name) Settings", value: "Available")
                 }
             }
 
@@ -257,7 +288,7 @@ private struct BootingView: View {
     var body: some View {
         VStack(spacing: 12) {
             ProgressView()
-            Text("Booting Jak 1")
+            Text("Booting \(GameLibraryTitle.jak1.name)")
                 .font(.system(.headline, design: .monospaced))
             Text("KERNEL.CGO, GAME.CGO, then the title level")
                 .font(.system(.footnote, design: .monospaced))
@@ -306,7 +337,8 @@ private struct DiagnosticsOverlay: View {
             ("game data", flag(GOALPadRuntimeBridge.isDataSeamLinked)),
             ("controller", flag(GOALPadRuntimeBridge.isInputSeamLinked)),
             ("audio", flag(GOALPadRuntimeBridge.isAudioSeamLinked)),
-            ("Jak 1 GOAL code", flag(GOALPadRuntimeBridge.isGameCodeLinked)),
+                ("\(GameLibraryTitle.jak1.name) GOAL code",
+                 flag(GOALPadRuntimeBridge.isGameCodeLinked)),
             ("renderer", flag(GOALPadRenderSurface.shared.isRendererLinked)),
         ])
     }
@@ -316,7 +348,7 @@ private struct DiagnosticsOverlay: View {
     private var game: some View {
         if let boot = session.boot {
             let chain = session.frameChain
-            section("Jak 1", [
+            section(GameLibraryTitle.jak1.name, [
                 ("KERNEL.CGO", "\(boot.kernelObjects) objects"),
                 ("GAME.CGO", "\(boot.gameObjects) objects: \(boot.codeObjects) code, "
                     + "\(boot.dataObjects) data"),

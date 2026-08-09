@@ -32,7 +32,8 @@ struct GameDataSetupView: View {
             switch result {
             case .success(let urls):
                 guard let source = urls.first else {
-                    selectionError = "No source was selected. Choose one Jak 1 source and try again."
+                    selectionError = "No source was selected. Choose one source for "
+                        + "\(GameLibraryTitle.jak1.name) and try again."
                     return
                 }
                 selectionError = nil
@@ -47,7 +48,7 @@ struct GameDataSetupView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Import Jak 1", systemImage: "bolt.fill")
+            Label("Import \(GameLibraryTitle.jak1.name)", systemImage: "bolt.fill")
                 .font(.title2.weight(.bold))
                 .foregroundStyle(DarkEcoTheme.accentGlow)
             Text("Choose game data from a Jak and Daxter copy you own. Eco includes no game data and never downloads it.")
@@ -137,7 +138,7 @@ struct GameDataSetupView: View {
                     }
                 }
                 .tint(DarkEcoTheme.accent)
-                .accessibilityLabel("Jak 1 import progress")
+                .accessibilityLabel("\(GameLibraryTitle.jak1.name) import progress")
                 .accessibilityValue(progress.phase.label)
 
                 if progress.filesTotal > 0 {
@@ -166,7 +167,7 @@ struct GameDataSetupView: View {
 
     private var actions: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Button("Choose Jak 1 data…") {
+            Button("Choose \(GameLibraryTitle.jak1.name) data…") {
                 selectionError = nil
                 isChoosingSource = true
             }
@@ -179,7 +180,7 @@ struct GameDataSetupView: View {
                 }
                 .buttonStyle(.bordered)
 
-                Button("Play Jak 1") { Task { await session.start() } }
+                Button("Play \(GameLibraryTitle.jak1.name)") { Task { await session.start() } }
                     .buttonStyle(.bordered)
                     .disabled(!session.dataReport.canBoot)
             }

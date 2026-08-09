@@ -43,6 +43,34 @@ let session = source(at: root + "/GOALPad/Game/GameSession.swift")
 let content = source(at: root + "/GOALPad/ContentView.swift")
 let renderer = source(at: root + "/GOALPad/Game/RenderSettings.swift")
 let touchLayout = source(at: root + "/GOALPad/Game/TouchLayoutSettings.swift")
+let touchGuide = source(at: root + "/GOALPad/Game/TouchControlsGuideView.swift")
+let touchControlsView = source(at: root + "/GOALPad/Game/TouchControlsView.swift")
+
+check(occursInOrder([
+    "if isGameRunning",
+    "Label(\"Return to Library\"",
+    "controlsSection",
+], in: view)
+        && view.contains(".confirmationDialog(\"Return to Library?\"")
+        && view.contains("Progress since your last in-game save will be lost."),
+      "running-game Settings begins with a confirmed, loss-aware return to the Library")
+check(view.contains("Label(\"Touch Controls Guide\", systemImage: \"hand.tap\")")
+        && touchGuide.contains("struct TouchControlsGuideSheet")
+        && touchGuide.contains("struct TouchControlsGuideView")
+        && occursInOrder(["title: \"Move\"", "title: \"Camera\"",
+                          "title: \"Zoom and Fire\"", "title: \"Jump or Accelerate\"",
+                          "title: \"Punch\"",
+                          "title: \"Spin or Interact\"", "title: \"Crouch\"",
+                          "title: \"Contextual Actions\""], in: touchGuide),
+      "Controls begins with a reusable visual touch guide covering the shipped gesture contract")
+check(content.contains("@AppStorage(\"jak1TouchControlsGuideVersion\")")
+        && content.contains("readiness == .active, touchControlsGuideVersion < 1")
+        && content.contains("isShowingTouchControlsGuide = true")
+        && content.contains("touchControlsGuideVersion = 1")
+        && content.contains("private func returnToLibrary()")
+        && occursInOrder(["settingsPresentation = nil", "launcherDestination = .library",
+                          "session.shutdown()"], in: content),
+      "the first playable iOS session presents the guide once and confirmed exit tears down into Library")
 
 check(occursInOrder([
     "controlsSection",
@@ -51,8 +79,8 @@ check(occursInOrder([
     "Toggle(\"Sync Settings\"",
     "Toggle(\"Sync Saves\"",
     "Button(cloudState.actionTitle)",
-    "Button(\"Reset Jak 1 Settings\"",
-], in: view), "Jak 1 Settings presents plain Controls, a Graphics profile, and one iCloud block")
+    "Button(\"Reset \\(GameLibraryTitle.jak1.name) Settings\"",
+], in: view), "canonical-title Settings presents plain Controls, a Graphics profile, and one iCloud block")
 check(view.contains("Section(\"Controls\")")
         && !view.contains("Section(\"Preset\")")
         && !view.contains("Use Modern Everywhere")
@@ -228,14 +256,17 @@ check(content.contains("session.presentationSettings.jak1InputBindings")
         && content.contains("session.input.setBindings(bindings)")
         && view.contains("settings.setControllerStickRoles(roles)"),
       "synced and in-view stick-role changes reach the live physical-input seam")
-check(content.contains("session.isRunning && session.isNativeMenuOpen")
-        && content.contains("Text(\"Eco\")")
-        && content.contains("Image(systemName: \"gearshape\")")
-        && content.contains(".frame(minHeight: 44)")
+check(content.contains("if session.isRunning")
+        && content.contains("session.isNativeMenuOpen")
         && content.contains("session.presentationSettings.developerLogsEnabled")
         && !content.contains("showDiagnostics")
-        && !content.contains("line.3.horizontal"),
-      "native menu truth gates a 44-point white Eco Settings control and optional logs")
+        && touchControlsView.contains("NativeEcoSettingsPresentation.isVisible")
+        && touchControlsView.contains("Button { openSettings() }")
+        && touchControlsView.contains("Image(systemName: \"gearshape\")")
+        && touchControlsView.contains("Text(\"ECO\")")
+        && touchControlsView.contains(".foregroundStyle(.white.opacity(0.8))")
+        && touchControlsView.contains(".frame(width: Self.pillWidth, height: 42)"),
+      "native menu truth gates the white Eco Settings pill and optional logs")
 check(content.contains("@State private var settingsPresentation: SettingsSheetPresentation?")
         && content.contains(".sheet(item: $settingsPresentation)")
         && content.contains(".id(presentation.id)")
@@ -247,12 +278,12 @@ check(content.contains("presentSettings(.titles)")
         && content.contains("initialEntry == .jak1 ? [.jak1] : []")
         && content.contains("NavigationStack(path: $path)"),
       "launcher enters the title list while a paused Jak 1 session opens Jak 1 directly")
-check(content.contains("LabeledContent(\"Jak 1 Settings\", value: \"Available\")")
+check(content.contains("LabeledContent(\"\\(GameLibraryTitle.jak1.name) Settings\", value: \"Available\")")
         && content.contains("SettingsTitleStatusRow(title: \"Jak II\")")
         && content.contains("SettingsTitleStatusRow(title: \"Jak 3\")")
         && content.contains("LabeledContent(title, value: \"Planned\")")
-        && view.contains(".navigationTitle(\"Jak 1 Settings\")"),
-      "only Jak 1 settings are functional and its navigation title is title-scoped")
+        && view.contains(".navigationTitle(\"\\(GameLibraryTitle.jak1.name) Settings\")"),
+      "only the first game's settings are functional and use its canonical title")
 check(content.contains("if session.isRunning && !isOpen { settingsPresentation = nil }"),
       "leaving the native menu still dismisses an in-game Settings sheet")
 check(content.contains("@Environment(\\.dismiss) private var dismiss")

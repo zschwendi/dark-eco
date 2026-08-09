@@ -609,11 +609,27 @@ struct SaveSettingsView: View {
     @Bindable var sync: SaveSyncController
     @Bindable var settings: PresentationSettings
     @Bindable var input: ControllerInput
+    let isGameRunning: Bool
+    let returnToLibrary: () -> Void
     @State private var saveTransferPicker: SaveTransferPicker?
     @State private var archivedSaveToPromote: ArchivedSaveCandidate?
+    @State private var isConfirmingReturnToLibrary = false
 
     var body: some View {
         Form {
+            if isGameRunning {
+                Section {
+                    Button(role: .destructive) {
+                        isConfirmingReturnToLibrary = true
+                    } label: {
+                        Label("Return to Library",
+                              systemImage: "rectangle.portrait.and.arrow.right")
+                    }
+                } footer: {
+                    Text("Closes the running game. Progress since your last in-game save will be lost.")
+                }
+            }
+
             controlsSection
             profileSection(.graphics)
 
@@ -720,14 +736,14 @@ struct SaveSettingsView: View {
             }
 
             Section {
-                Button("Reset Jak 1 Settings", role: .destructive) {
+                Button("Reset \(GameLibraryTitle.jak1.name) Settings", role: .destructive) {
                     settings.resetAll()
                     input.setPrimarySource(settings.primaryInputSource)
                     input.setBindings(settings.jak1InputBindings)
                 }
             }
         }
-        .navigationTitle("Jak 1 Settings")
+        .navigationTitle("\(GameLibraryTitle.jak1.name) Settings")
         .fileImporter(isPresented: Binding(
             get: { saveTransferPicker != nil },
             set: { if !$0 { saveTransferPicker = nil } }
@@ -753,6 +769,14 @@ struct SaveSettingsView: View {
         } message: { candidate in
             Text(archiveSummary(candidate)
                  + ". The current active copy will be preserved before replacement.")
+        }
+        .confirmationDialog("Return to Library?",
+                            isPresented: $isConfirmingReturnToLibrary,
+                            titleVisibility: .visible) {
+            Button("Return to Library", role: .destructive) { returnToLibrary() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Eco will close the running game. Progress since your last in-game save will be lost.")
         }
         .task { await sync.refreshArchivedSaves() }
     }
@@ -808,6 +832,11 @@ struct SaveSettingsView: View {
 
     private var controlsSection: some View {
         Section("Controls") {
+            NavigationLink {
+                TouchControlsGuideView()
+            } label: {
+                Label("Touch Controls Guide", systemImage: "hand.tap")
+            }
             Picker("Primary Controller", selection: Binding(
                 get: { settings.primaryInputSource },
                 set: {
