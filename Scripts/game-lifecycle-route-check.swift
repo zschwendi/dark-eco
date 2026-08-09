@@ -128,6 +128,9 @@ check(!lifecycle.contains("GOALPadRuntimeBridge.stopKernel")
       "background recovery preserves the active native run instead of faking a restart")
 check(lifecycle.contains("touch.restoreGameplayChromeAfterInterruption()"),
       "foreground recovery restores discoverable active-gameplay touch chrome")
+check(lifecycle.contains("defer { reconcileIdleTimer() }")
+        && lifecycle.contains("importer.appDidEnterBackground()"),
+      "scene transitions reconcile the import wake lease and cancel unsafe background work")
 
 if failures == 0 {
     print("game lifecycle route checks passed")

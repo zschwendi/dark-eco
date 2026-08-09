@@ -106,6 +106,19 @@ struct GameDataSetupView: View {
             importProgress(GameDataImportProgress(phase: .scanning))
         case .copying(let progress):
             importProgress(progress)
+        case .cancelling:
+            DarkEcoPanel {
+                VStack(alignment: .leading, spacing: 12) {
+                    Label("Cancelling import…", systemImage: "xmark.circle.fill")
+                        .font(.headline)
+                        .foregroundStyle(DarkEcoTheme.warning)
+                    ProgressView()
+                        .tint(DarkEcoTheme.accent)
+                    Text("Waiting for native preparation to stop safely. You can retry when cleanup finishes.")
+                        .font(.footnote)
+                        .foregroundStyle(.white.opacity(0.78))
+                }
+            }
         case .failed(let failure):
             VStack(alignment: .leading, spacing: 12) {
                 messagePanel("Import failed", message: failure.recoveryMessage, color: DarkEcoTheme.danger)
@@ -177,6 +190,7 @@ struct GameDataSetupView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(DarkEcoTheme.accent)
+            .disabled(!session.importer.canChooseSource)
 
             HStack(spacing: 12) {
                 Button("Recheck") {

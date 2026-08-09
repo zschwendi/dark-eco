@@ -22,7 +22,8 @@ nonisolated enum GameDataImportPresentation {
     }
 
     static func backgroundGuidance(phaseLabel: String) -> String {
-        "Keep Eco open and in the foreground. \(phaseLabel) is not safe to continue while Eco is backgrounded."
+        "Keep Eco open and in the foreground. The screen stays awake during \(phaseLabel); "
+            + "backgrounding cancels the import safely."
     }
 
     static func cancellationGuidance(isActivating: Bool) -> String {
@@ -31,5 +32,5 @@ nonisolated enum GameDataImportPresentation {
             : "You can cancel now. Your active game data will not be replaced."
     }
 
-    static let cancelledRecovery = "Import cancelled. Your active game data was not replaced. Choose a source again. If staging had begun, its candidate remains available for recovery."
+    static let cancelledRecovery = "Import cancelled after native cleanup. Your active game data was not replaced. Choose a source again to restart."
 }

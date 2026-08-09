@@ -275,9 +275,10 @@ nonisolated enum GameDataRefreshPolicy {
     nonisolated static func shouldRefreshOnActivation(
         isRunning: Bool,
         isBooting: Bool,
-        isPreparingGameplay: Bool
+        isPreparingGameplay: Bool,
+        isImporting: Bool
     ) -> Bool {
-        !isRunning && !isBooting && !isPreparingGameplay
+        !isRunning && !isBooting && !isPreparingGameplay && !isImporting
     }
 }
 

@@ -141,17 +141,20 @@ private func preparedFolder(
 @MainActor private func foregroundRefreshPolicyIsGuarded() {
     print("foreground data refresh runs only outside a live startup or session")
     check(GameDataRefreshPolicy.shouldRefreshOnActivation(
-        isRunning: false, isBooting: false, isPreparingGameplay: false
+        isRunning: false, isBooting: false, isPreparingGameplay: false, isImporting: false
     ), "an idle launcher refreshes after returning to the foreground")
     check(!GameDataRefreshPolicy.shouldRefreshOnActivation(
-        isRunning: true, isBooting: false, isPreparingGameplay: false
+        isRunning: true, isBooting: false, isPreparingGameplay: false, isImporting: false
     ), "a running game does not rescan data")
     check(!GameDataRefreshPolicy.shouldRefreshOnActivation(
-        isRunning: false, isBooting: true, isPreparingGameplay: false
+        isRunning: false, isBooting: true, isPreparingGameplay: false, isImporting: false
     ), "a booting game does not rescan data")
     check(!GameDataRefreshPolicy.shouldRefreshOnActivation(
-        isRunning: false, isBooting: false, isPreparingGameplay: true
+        isRunning: false, isBooting: false, isPreparingGameplay: true, isImporting: false
     ), "an in-flight startup does not rescan data")
+    check(!GameDataRefreshPolicy.shouldRefreshOnActivation(
+        isRunning: false, isBooting: false, isPreparingGameplay: false, isImporting: true
+    ), "an active import does not race a foreground data scan")
 }
 
 @MainActor private func completeCandidateActivates() async throws {
@@ -261,7 +264,7 @@ private func preparedFolder(
 }
 
 @MainActor private func jak2RecoveryAndSymlinkRulesRemainFailClosed() async throws {
-    print("Jak II keeps candidate recovery and symbolic-link rejection")
+    print("Jak II replaces abandoned staging without weakening symbolic-link rejection")
     let recovery = try Fixture(profile: .jak2)
     let partial = recovery.root.appending(
         path: "partial/out/jak2/iso", directoryHint: .isDirectory)
@@ -289,8 +292,8 @@ private func preparedFolder(
     ) { _ in }
     check(GameDataInspector.inspect(gameDirectory: recovery.active, profile: .jak2).status == .ready,
           "a later complete Jak II attempt activates independently")
-    check(preserved.map { recovery.candidates.contains($0) } == true,
-          "the earlier recoverable candidate is not mixed into the later attempt")
+    check(preserved.map { !recovery.candidates.contains($0) } == true,
+          "starting a replacement attempt removes earlier abandoned staging")
 
     let unsafe = try Fixture(profile: .jak2)
     let source = unsafe.root.appending(
@@ -351,8 +354,8 @@ private func preparedFolder(
           "a later folder import completes in a new candidate and activates")
     check(read(fixture.active.appending(path: "iso/ACTIVE.DAT")) == "active",
           "the new attempt seeds the unchanged active install")
-    check(incompleteCandidate.map { fixture.candidates.contains($0) } == true,
-          "the failed candidate was not mixed into or deleted by the later selection")
+    check(incompleteCandidate.map { !fixture.candidates.contains($0) } == true,
+          "the explicit later selection discards the prior abandoned candidate")
 }
 
 @MainActor private func sourceFilesAreNotCopiedFromActiveFirst() async throws {
@@ -386,7 +389,7 @@ private func preparedFolder(
 }
 
 @MainActor private func cancellationKeepsActiveInstall() async throws {
-    print("cancellation preserves both the active install and recoverable staging")
+    print("cancellation preserves the active install and removes partial staging")
     let fixture = try Fixture()
     let activeSource = try preparedFolder(under: fixture.root, payload: "active")
     _ = try await fixture.worker.install(
@@ -420,14 +423,8 @@ private func preparedFolder(
 
     check(read(fixture.active.appending(path: "iso/GAME.CGO")) == "active",
           "the previous install remains active after cancellation")
-    let cancelledCandidate = fixture.candidates.first
-    check(cancelledCandidate != nil, "the cancelled candidate remains available for recovery")
-    let partials = (try? FileManager.default.contentsOfDirectory(
-        at: cancelledCandidate?.appending(path: "iso", directoryHint: .isDirectory)
-            ?? fixture.staging,
-        includingPropertiesForKeys: nil
-    ))?.filter { $0.lastPathComponent.hasSuffix(".partial") } ?? []
-    check(partials.isEmpty, "cancelled per-file temporary output is removed")
+    check(fixture.candidates.isEmpty,
+          "the cancelled candidate and per-file temporary output are removed after native cleanup")
 }
 
 @MainActor private func concurrentAttemptIsRejected() async throws {
@@ -492,7 +489,8 @@ private func preparedFolder(
     }
     check(read(fixture.active.appending(path: "iso/GAME.CGO")) == "active",
           "the atomic switch did not run after cancellation")
-    check(fixture.candidates.count == 1, "the fully validated candidate remains recoverable")
+    check(fixture.candidates.isEmpty,
+          "the cancelled validated candidate is removed only after the worker settles")
 }
 
 @MainActor private func unsafeSourceIsRejectedBeforeStaging() async throws {

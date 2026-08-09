@@ -45,7 +45,7 @@ nonisolated struct GameDataImportProgress: Sendable {
     }
 }
 
-/// A recoverable failure. The active install is unchanged for every failure reported here.
+/// A typed failure. The active install is unchanged for every failure reported here.
 nonisolated struct GameDataImportFailure: Error, Sendable {
     nonisolated enum Code: String, Sendable {
         case busy
@@ -67,7 +67,8 @@ nonisolated struct GameDataImportFailure: Error, Sendable {
     let candidatePreserved: Bool
 
     var recoveryMessage: String {
-        candidatePreserved ? message + " The staged candidate was kept for recovery."
+        candidatePreserved ? message
+            + " The staged candidate was preserved; choosing a new source will discard it."
             : message
     }
 }
@@ -159,6 +160,7 @@ actor GameDataInstallWorker {
             try manager.createDirectory(at: attempts,
                                         withIntermediateDirectories: true)
             try excludeFromBackup(configuration.stagingRoot)
+            try removeAbandonedCandidates(in: attempts)
         } catch {
             throw GameDataImportFailure(
                 code: .stagingFailed,
@@ -202,6 +204,18 @@ actor GameDataInstallWorker {
             installLog.notice("Activated validated \(self.configuration.profile.displayName, privacy: .public) candidate")
             return result
         } catch is CancellationError {
+            do {
+                if manager.fileExists(atPath: candidate.path) {
+                    try manager.removeItem(at: candidate)
+                }
+            } catch {
+                throw GameDataImportFailure(
+                    code: .stagingFailed,
+                    message: "Import stopped, but its private partial candidate could not be removed: "
+                        + error.localizedDescription,
+                    candidatePreserved: manager.fileExists(atPath: candidate.path)
+                )
+            }
             throw CancellationError()
         } catch let failure as GameDataImportFailure {
             throw failure
@@ -211,6 +225,23 @@ actor GameDataInstallWorker {
                 message: error.localizedDescription,
                 candidatePreserved: manager.fileExists(atPath: candidate.path)
             )
+        }
+    }
+
+    private func removeAbandonedCandidates(in attempts: URL) throws {
+        let manager = FileManager.default
+        let children = try manager.contentsOfDirectory(
+            at: attempts,
+            includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
+            options: [.skipsHiddenFiles]
+        )
+        for child in children {
+            guard child.pathExtension == "candidate",
+                  UUID(uuidString: child.deletingPathExtension().lastPathComponent) != nil
+            else { continue }
+            let values = try child.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+            guard values.isDirectory == true, values.isSymbolicLink != true else { continue }
+            try manager.removeItem(at: child)
         }
     }
 

@@ -1441,6 +1441,7 @@ final class GameSession {
     // MARK: - App lifecycle
 
     func scenePhaseChanged(to phase: ScenePhase) {
+        defer { reconcileIdleTimer() }
         let wasPreparingGameplay = isPreparingGameplay
         currentScenePhase = phase
         let lifecyclePhase = GameplayLifecycleState.Phase(phase)
@@ -1459,7 +1460,8 @@ final class GameSession {
             if GameDataRefreshPolicy.shouldRefreshOnActivation(
                 isRunning: isRunning,
                 isBooting: isBooting,
-                isPreparingGameplay: wasPreparingGameplay
+                isPreparingGameplay: wasPreparingGameplay,
+                isImporting: importer.isTaskActive
             ) {
                 Task { [weak self] in await self?.refreshDataReport() }
             }
@@ -1487,6 +1489,7 @@ final class GameSession {
             audio.suspend()
             input.stopRumble()
         case .background:
+            importer.appDidEnterBackground()
             if !isBooting { saveSync.setGameplayActive(false) }
             #if os(iOS) || os(visionOS)
             persistCameraDiagnosticsForLifecycleEvent()
@@ -1499,6 +1502,10 @@ final class GameSession {
         @unknown default:
             break
         }
+    }
+
+    func importActivityChanged() {
+        reconcileIdleTimer()
     }
 
     private func beginForegroundPreparation(generation: UInt64) {
@@ -1614,6 +1621,25 @@ final class GameSession {
         #if canImport(UIKit)
         UIApplication.shared.isIdleTimerDisabled = disabled
         #endif
+    }
+
+    private func reconcileIdleTimer() {
+        setIdleTimerDisabled(GameDataImportLifecyclePolicy.shouldKeepDeviceAwake(
+            scene: .init(currentScenePhase),
+            gameplayRunning: isRunning,
+            importTaskActive: importer.isTaskActive
+        ))
+    }
+}
+
+private extension GameDataImportLifecyclePolicy.SceneActivity {
+    init(_ phase: ScenePhase) {
+        switch phase {
+        case .active: self = .active
+        case .inactive: self = .inactive
+        case .background: self = .background
+        @unknown default: self = .inactive
+        }
     }
 }
 

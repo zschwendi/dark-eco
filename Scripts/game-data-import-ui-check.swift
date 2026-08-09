@@ -77,6 +77,14 @@ check(view.contains("case .failed(let failure)")
         && view.contains("GameDataImportPresentation.cancelledRecovery")
         && view.contains("case .failure(let error):"),
       "importer, picker, cancellation, and recovery failures remain visible")
+check(importer.contains("case cancelling")
+        && importer.contains("var isTaskActive: Bool { task != nil }")
+        && importer.contains("private func requestCancellation()")
+        && importer.contains("guard task != nil, !isActivatingCandidate else { return }")
+        && view.contains("case .cancelling:")
+        && view.contains("Cancelling import…")
+        && view.contains(".disabled(!session.importer.canChooseSource)"),
+      "cancellation stays visibly busy until native cleanup relinquishes retry ownership")
 check(!view.contains("setupInstructions") && !view.contains("missingList("),
       "the prior long setup wall and archive inventory are removed")
 check(view.contains("DarkEcoPanel") && view.contains("DarkEcoTheme.background")

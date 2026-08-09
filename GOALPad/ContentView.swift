@@ -119,6 +119,9 @@ struct ContentView: View {
         }
         .task { await session.prepare() }
         .onChange(of: scenePhase) { _, phase in session.scenePhaseChanged(to: phase) }
+        .onChange(of: session.importer.isTaskActive, initial: true) { _, _ in
+            session.importActivityChanged()
+        }
         .onChange(of: session.isRunning, initial: true) { _, isRunning in
             gameCenter.setGameplayActive(isRunning)
         }

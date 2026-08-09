@@ -18,6 +18,7 @@ final class GameDataImporter {
         case idle
         case scanning
         case copying(Progress)
+        case cancelling
         case finished(filesCopied: Int, filesSkipped: Int)
         case cancelled
         case failed(GameDataImportFailure)
@@ -44,9 +45,18 @@ final class GameDataImporter {
 
     var isRunning: Bool {
         switch state {
-        case .scanning, .copying: return true
+        case .scanning, .copying, .cancelling: return true
         default: return false
         }
+    }
+
+    var isTaskActive: Bool { task != nil }
+
+    var canChooseSource: Bool { task == nil }
+
+    private var isActivatingCandidate: Bool {
+        guard case .copying(let progress) = state else { return false }
+        return progress.phase == .activatingCandidate
     }
 
     var canImportRawMedia: Bool {
@@ -93,6 +103,8 @@ final class GameDataImporter {
 
         state = .scanning
         task = Task { [self, producer] in
+            let finalState: State
+            var shouldNotifyFinish = false
             do {
                 let result = try await worker.install(
                     from: source,
@@ -100,36 +112,48 @@ final class GameDataImporter {
                 ) { progress in
                     guard !Task.isCancelled else { return }
                     await MainActor.run {
+                        if case .cancelling = self.state { return }
                         self.state = progress.phase == .scanning ? .scanning : .copying(progress)
                     }
                 }
-                state = .finished(
+                finalState = .finished(
                     filesCopied: result.filesCopied,
                     filesSkipped: result.filesSkipped
                 )
+                shouldNotifyFinish = true
                 importLog.notice("Activated compatible game data with \(result.filesCopied) prepared file(s)")
-                onFinish()
             } catch is CancellationError {
-                state = .cancelled
+                finalState = .cancelled
             } catch let failure as GameDataImportFailure {
-                state = .failed(failure)
-                onFinish()
+                finalState = .failed(failure)
+                shouldNotifyFinish = true
             } catch {
-                state = .failed(GameDataImportFailure(
+                finalState = .failed(GameDataImportFailure(
                     code: .stagingFailed,
                     message: error.localizedDescription,
                     candidatePreserved: true
                 ))
-                onFinish()
+                shouldNotifyFinish = true
             }
             task = nil
+            state = finalState
+            if shouldNotifyFinish { onFinish() }
         }
     }
 
     func cancel() {
-        guard isRunning else { return }
+        requestCancellation()
+    }
+
+    func appDidEnterBackground() {
+        requestCancellation()
+    }
+
+    private func requestCancellation() {
+        guard task != nil, !isActivatingCandidate else { return }
+        if case .cancelling = state { return }
+        state = .cancelling
         task?.cancel()
-        state = .cancelled
     }
 
     func reset() {

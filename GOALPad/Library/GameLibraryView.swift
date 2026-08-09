@@ -140,7 +140,7 @@ struct GameLibraryView: View {
     private func state(for title: GameLibraryTitle) -> GameLibraryState {
         guard title == activeTitle else { return .planned }
         switch session.importer.state {
-        case .scanning:
+        case .scanning, .cancelling:
             return .preparing(nil)
         case .copying(let progress):
             return .preparing(progress.fraction)

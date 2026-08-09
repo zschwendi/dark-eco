@@ -32,8 +32,8 @@ private struct GameDataImportPresentationCheck {
                 == "Prepared OpenGOAL out/jak2 folder (Jak II title/gameplay launch contract v1; full-game completeness is not verified)",
               "Jak II remains prepared-folder-only when its composer resources are unavailable")
         check(GameDataImportPresentation.backgroundGuidance(phaseLabel: "Validating candidate")
-                == "Keep Eco open and in the foreground. Validating candidate is not safe to continue while Eco is backgrounded.",
-              "every active phase names itself and truthfully requires foreground execution")
+                == "Keep Eco open and in the foreground. The screen stays awake during Validating candidate; backgrounding cancels the import safely.",
+              "every active phase names its wake and background-cancellation contract")
         check(GameDataImportPresentation.cancellationGuidance(isActivating: false)
                 == "You can cancel now. Your active game data will not be replaced.",
               "pre-activation cancellation preserves the active install")
@@ -41,8 +41,9 @@ private struct GameDataImportPresentationCheck {
                 == "Final activation is in progress and can no longer be cancelled.",
               "activation does not promise a cancellation that the worker cannot honor")
         check(GameDataImportPresentation.cancelledRecovery.contains("was not replaced")
-                && GameDataImportPresentation.cancelledRecovery.contains("candidate remains available for recovery"),
-              "cancellation stays visible with bounded recovery guidance")
+                && GameDataImportPresentation.cancelledRecovery.contains("native cleanup")
+                && GameDataImportPresentation.cancelledRecovery.contains("restart"),
+              "cancellation stays visible with truthful cleanup and restart guidance")
 
         if failures == 0 {
             print("game data import presentation checks passed")
