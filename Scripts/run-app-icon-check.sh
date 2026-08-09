@@ -4,8 +4,20 @@ set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 icon_dir="$root/GOALPad/Assets.xcassets/AppIcon.appiconset"
 contents="$icon_dir/Contents.json"
+vision_dir="$root/GOALPad/Assets.xcassets/AppIcon.solidimagestack"
+vision_contents="$vision_dir/Contents.json"
+vision_layer="$vision_dir/Back.solidimagestacklayer"
+vision_image_dir="$vision_layer/Content.imageset"
+vision_image="AppIcon-build134-visionOS-1024.png"
+vision_front_image_dir="$vision_dir/Front.solidimagestacklayer/Content.imageset"
+vision_front_image="AppIcon-build134-visionOS-front-transparent-1024.png"
 
 jq empty "$contents"
+jq empty "$vision_contents"
+jq empty "$vision_layer/Contents.json"
+jq empty "$vision_image_dir/Contents.json"
+jq empty "$vision_dir/Front.solidimagestacklayer/Contents.json"
+jq empty "$vision_front_image_dir/Contents.json"
 test "$(rg -o 'AppIcon-build134-[^"]+\.png' "$contents" | wc -l | tr -d ' ')" = 11
 if rg -Fq 'AppIcon-build131-' "$contents"; then
   echo "the asset catalog still references the rejected Build 131 icon" >&2
@@ -15,8 +27,12 @@ fi
 check_icon() {
   file=$1
   expected=$2
-  test -f "$icon_dir/$file"
-  properties=$(sips -g pixelWidth -g pixelHeight -g hasAlpha "$icon_dir/$file")
+  case "$file" in
+    /*) path=$file ;;
+    *) path="$icon_dir/$file" ;;
+  esac
+  test -f "$path"
+  properties=$(sips -g pixelWidth -g pixelHeight -g hasAlpha "$path")
   width=$(printf '%s\n' "$properties" | awk '/pixelWidth:/{print $2}')
   height=$(printf '%s\n' "$properties" | awk '/pixelHeight:/{print $2}')
   alpha=$(printf '%s\n' "$properties" | awk '/hasAlpha:/{print $2}')
@@ -36,5 +52,26 @@ check_icon AppIcon-build134-mac-256.png 256
 check_icon AppIcon-build134-mac-256@2x.png 512
 check_icon AppIcon-build134-mac-512.png 512
 check_icon AppIcon-build134-mac-512@2x.png 1024
+
+test "$(jq -r '.layers | length' "$vision_contents")" = 2
+test "$(jq -r '.layers[0].filename' "$vision_contents")" = "Front.solidimagestacklayer"
+test "$(jq -r '.layers[1].filename' "$vision_contents")" = "Back.solidimagestacklayer"
+test "$(jq -r '.images[0].idiom' "$vision_image_dir/Contents.json")" = vision
+test "$(jq -r '.images[0].filename' "$vision_image_dir/Contents.json")" = "$vision_image"
+test "$(jq -r '.images[0].scale' "$vision_image_dir/Contents.json")" = 2x
+check_icon "$vision_dir/Back.solidimagestacklayer/Content.imageset/$vision_image" 1024
+cmp -s "$icon_dir/AppIcon-build134-iOS-1024.png" \
+       "$vision_image_dir/$vision_image"
+test "$(jq -r '.images[0].idiom' "$vision_front_image_dir/Contents.json")" = vision
+test "$(jq -r '.images[0].filename' "$vision_front_image_dir/Contents.json")" = "$vision_front_image"
+test "$(jq -r '.images[0].scale' "$vision_front_image_dir/Contents.json")" = 2x
+test -f "$vision_front_image_dir/$vision_front_image"
+front_properties=$(sips -g pixelWidth -g pixelHeight -g hasAlpha "$vision_front_image_dir/$vision_front_image")
+front_width=$(printf '%s\n' "$front_properties" | awk '/pixelWidth:/{print $2}')
+front_height=$(printf '%s\n' "$front_properties" | awk '/pixelHeight:/{print $2}')
+front_alpha=$(printf '%s\n' "$front_properties" | awk '/hasAlpha:/{print $2}')
+test "$front_width" = 1024
+test "$front_height" = 1024
+test "$front_alpha" = yes
 
 printf '%s\n' "Build 134 app icon checks passed"

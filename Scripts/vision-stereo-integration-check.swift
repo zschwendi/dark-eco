@@ -54,6 +54,7 @@ let controllerInput = source(root, "GOALPad/Input/ControllerInput.swift")
 let touchView = source(root, "GOALPad/Game/TouchControlsView.swift")
 let touchGuide = source(root, "GOALPad/Game/TouchControlsGuideView.swift")
 let settingsUI = source(root, "GOALPad/Saves/SaveSyncController.swift")
+let libraryUI = source(root, "GOALPad/Library/GameLibraryView.swift")
 let surface = source(root, "GOALPad/Vision/VisionWindowStereoSurface.swift")
 let clipPlan = source(root, "GOALPad/Vision/VisionWindowStereoClipPlan.swift")
 let host = source(root, "GOALPad/Native/GOALPadMetalHost.mm")
@@ -208,6 +209,15 @@ check(ornament.contains("Text(\"No controller detected.\")")
         && ornament.contains("repeatForever")
         && ornament.contains(".allowsHitTesting(false)"),
       "the exact noninteractive purple controller message shimmers")
+check(content.contains("#if os(visionOS)\n        .toolbar {\n            ToolbarItem(placement: .cancellationAction)")
+        && content.contains("Label(\"Close\", systemImage: \"xmark\")")
+        && content.contains("#else\n        .toolbar {\n            ToolbarItem(placement: .confirmationAction)")
+        && content.contains("Button(\"Done\") { dismiss() }"),
+      "visionOS settings has an explicit Close action while iOS retains Done")
+check(libraryUI.contains("#if os(visionOS)\n            .contentShape([.interaction, .hoverEffect],")
+        && libraryUI.contains("RoundedRectangle(cornerRadius: 16, style: .continuous)")
+        && libraryUI.contains(".hoverEffect(.highlight)"),
+      "visionOS library cards use their full rounded-card shape for interaction and hover")
 
 if failures == 0 {
     print("visionOS stereo integration checks passed")

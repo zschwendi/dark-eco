@@ -253,11 +253,23 @@ private struct SettingsSheetView: View {
         }
         .tint(DarkEcoTheme.accent)
         .background(DarkEcoTheme.background)
+        #if os(visionOS)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button {
+                    dismiss()
+                } label: {
+                    Label("Close", systemImage: "xmark")
+                }
+            }
+        }
+        #else
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") { dismiss() }
             }
         }
+        #endif
     }
 }
 

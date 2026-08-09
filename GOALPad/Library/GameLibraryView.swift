@@ -233,6 +233,11 @@ private struct GameLibraryTile: View {
                 .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
             .buttonStyle(.plain)
+            #if os(visionOS)
+            .contentShape([.interaction, .hoverEffect],
+                          RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .hoverEffect(.highlight)
+            #endif
             .opacity(state == .planned ? 0.48 : 1)
             .accessibilityLabel("\(title.name), \(stateLabel)")
             .accessibilityHint(accessibilityHint)
