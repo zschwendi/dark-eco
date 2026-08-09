@@ -382,15 +382,18 @@ The Apple app should:
 
 ### On-device preparation status
 
-**Experimental:** The Apple-device importer accepts a user-selected raw `.iso`,
-a standard ZIP32 archive containing exactly one `.iso`, or an already prepared
-`out/jak1` folder. ZIP extraction is local and streaming: the app writes the ISO
-to private Application Support staging, verifies its size and CRC-32, passes it
-to the same raw-disc preparation pipeline, and removes the temporary image.
-Stored and raw-DEFLATE ZIP members are supported. ZIP64, encrypted, multi-disk,
+**Experimental:** The current raw-media importer accepts a user-selected raw
+`.iso`, a bounded single-disk ZIP32 or ZIP64 archive containing exactly one
+`.iso`, or an already prepared `out/jak1` folder. ZIP extraction is local and
+streaming: the app writes the ISO to private Application Support staging,
+verifies its size and CRC-32, passes it to the same raw-disc preparation
+pipeline, and removes the temporary image. Stored and raw-DEFLATE ZIP members,
+including data-descriptor entries, are supported. CRC, cooperative
+cancellation, and atomic-activation checks pass. Encrypted, multi-disk,
 ambiguous, and unsafe archives are rejected with no change to active game data.
 Member names must use ASCII or UTF-8; legacy CP437 names are deliberately
-rejected rather than guessed.
+rejected rather than guessed. No successful end-to-end simulator or physical
+real-media import is recorded.
 
 On-device preparation is more than extracting an archive: the pipeline parses
 and verifies the disc image, generates the prepared level data, and rebuilds
@@ -401,6 +404,22 @@ must use normal signed code, bounded concurrency, recoverable errors, progress
 and cancellation, an internal staging directory, and an atomic final install.
 It must preserve the existing prepared-folder path and desktop-compatible
 output rather than introducing a GOALPad-only data format.
+
+### Jak II native composer status
+
+**Experimental:** The nested OpenGOAL host pipeline now contains the checked
+Jak II base-retail/full-gameplay composer for the supported NTSC-U v2 revision.
+It uses the recorded 840-object public source pack and one 29-file public
+resource closure (16 FR3 inputs plus 13 generated inputs). The materializer
+contract writes 150 archives, 408 copied flat files, and 9 generated flat
+files—567 direct `iso/` files—plus its FR3 output. `TSZ.DGO` and the optional
+community localization ranges `8COMMON.DGO` through `22COMMON.DGO` and
+`1SUBTI2.DGO` through `22SUBTI2.DGO` are deliberately excluded.
+
+Host synthetic and link tests pass, but Jak II Eco app bridge/target wiring is
+still pending. The current real-ISO oracle reaches FR3 preparation and then
+fails on trailing padding in `LWIDEB.DGO` under an active fix, so real ISO
+import is not successful or validated.
 
 ### Save storage and synchronization
 
