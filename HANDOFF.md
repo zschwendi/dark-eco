@@ -16029,3 +16029,138 @@ The shortest physical route after authorization is:
    eye assignment, comfortable depth, stable HUD, audio, and controller input.
 7. Disconnect and reconnect the controller to verify only the
    `No controller detected.` ornament changes and no touch UI appears.
+
+## 2026-08-09 Build 149/150 context-reset checkpoint
+
+The active parent worktree is:
+
+```text
+/Users/zach/Developer/OS_Projects/GOALPad/GP-build146-integration
+branch agent/build149-vision-aot-suspend-fix
+committed HEAD d75da9d79c51a3c714bb8c75effac3eebabd1fc8
+nested OpenGOAL edd5edb0a96b0b22a58ed9bfddf12065fc602051 (clean)
+```
+
+The parent has uncommitted diagnostic-only changes in:
+
+```text
+GOALPad.xcodeproj/project.pbxproj       Build 148 -> 149
+GOALPad/Native/GOALPadGameBoot.cpp      staged vision AOT suspend-hook probe
+GOALPad/Native/GOALPadMetalHost.mm      deeper copier/renderer probe, not yet run
+```
+
+Ignored generated AOT files `Generated/jak1-aot/main.c` and
+`Generated/jak1-aot/drawable.c` also contain temporary `GOAL_FN` integrity
+instrumentation. Never commit those generated edits. Remove all diagnostic
+instrumentation before the production fix is committed.
+
+Physical Build 149 is installed on the Vision Pro. It is diagnostic, not an
+accepted baseline. The exact physical probe result is preserved at:
+
+```text
+/private/tmp/goalpad-aot-integrity-build149.txt
+```
+
+It proves the suspend entry is corrupted inside `__send-gfx-dma-chain`:
+
+```text
+integrity valid after Generated/jak1-aot/drawable.c:9536
+integrity invalid before Generated/jak1-aot/drawable.c:9546
+thread-suspend object #x1d64b4 contains #x0
+```
+
+`drawable.c:9536` is `__send-gfx-dma-chain`; `drawable.c:9546` is
+`determine-pause-mode`. Earlier probes proved the entry is valid through boot,
+play, initial `display-sync`, and `display-frame-finish`. The crash is not the
+stereo scene coordinator and occurs in Comfort mode too. The next probe already
+added to `GOALPadMetalHost.mm` checks before/after `FixedChunkDmaCopier` and
+after `render_chain()`. A visionOS-simulator build of that probe was stopped for
+the context reset. Its first attempt failed only because disk space was full;
+4.4 GB was then reclaimed by deleting nine verified obsolete Xcode DerivedData
+directories under `/private/tmp`. No source worktree, runtime, simulator, game
+data, or current build artifact was removed. The Vision simulator was returned
+to Shutdown.
+
+The broken `No controller detected.` shimmer is fixed in a clean isolated
+branch without removing the effect:
+
+```text
+worktree /Users/zach/Developer/OS_Projects/GOALPad/GP-build150-remove-controller-shimmer
+branch agent/build150-remove-controller-shimmer
+commit 03267b0fdc661d3091759791c1cca45f1112a0b8
+```
+
+The fix renders one full-label animated purple foreground gradient. There is no
+duplicate masked/truncated `No con...` text. `git diff --check` and
+`swift Scripts/vision-stereo-integration-check.swift .` passed. Review and
+cherry-pick this commit only after the native crash fix is stable.
+
+The separate vision launcher/readiness repair is in progress and intentionally
+uncommitted:
+
+```text
+worktree /Users/zach/Developer/OS_Projects/GOALPad/GP-build150-vision-launcher-pregame-fix
+branch agent/build150-vision-launcher-pregame-fix
+dirty files:
+  GOALPad/Data/GameDataImporter.swift
+  GOALPad/Data/GameDataSetupView.swift
+  GOALPad/Game/GameSession.swift
+  GOALPad/Library/GameLibraryView.swift
+  GOALPad/Saves/SaveSyncController.swift
+  Scripts/game-data-import-ui-check.swift
+  Scripts/save-pregame-gate-check.swift
+```
+
+Its target bugs are: an existing completed Jak 1 import looks unavailable or
+asks to reinstall, Recheck appears ineffective, and Play can remain stuck at
+`Checking saves before gameplay...`. The worker was interrupted only for this
+context reset. Review its diff before resuming or committing. Preserve all app
+data and iCloud save authority.
+
+The Jak II candidate is separate from the active Vision branch. The user
+clarified that the unexpected iPad launcher/artwork state came from the other
+Jak II agent's physical build, not from this worktree. Do not treat that as an
+effect of Build 149.
+
+The requested Jak II integration is to remain an identifiable merge. Candidate
+state:
+
+```text
+parent candidate /Users/zach/Developer/OS_Projects/GOALPad/GP-jak2-build145-integration
+branch agent/jak2-ipad-playtest
+tip 16995a6141bec67a6c9a3770b117e41e5c9c3bad
+
+nested candidate /Users/zach/Developer/OS_Projects/GOALPad/OG-jak2-build145-integration
+branch agent/jak2-ipad-playtest-native
+tip f75dfb7955f03a805d822df451792731c83905b2
+```
+
+Both candidate tips were clean but local-only. The nested merge worktree is:
+
+```text
+/Users/zach/Developer/OS_Projects/GOALPad/OG-build150-jak2-native-merge
+branch agent/build150-jak2-native-merge
+base edd5edb0a96b0b22a58ed9bfddf12065fc602051
+```
+
+It is currently mid-merge and must not be reset or discarded. Ten unresolved
+conflicts remain: `game/CMakeLists.txt` plus nine shared Metal renderer files
+(`metal_bucket_renderer.h/.mm`, `metal_direct_renderer.mm`, `metal_merc.mm`,
+`metal_ocean_renderer.mm`, `metal_pipeline.mm`, `metal_renderer.mm`,
+`metal_sprite_renderer.mm`, `metal_tie.mm`). Resume the same worker or resolve
+them deliberately, commit the nested merge, push it, then create a separate
+parent merge worktree from the committed Vision parent. Parent conflicts are
+expected in `GameDataSetupView.swift`, `GameSession.swift`,
+`GameLibraryView.swift`, `HANDOFF.md`, and the OpenGOAL gitlink. Do not accept
+either gitlink wholesale.
+
+Important scope truth: the current Jak II candidate adds a compile-time
+`Eco Jak II Dev` target with bundle ID `com.zephyrstudiosllc.eco.jak2dev`; it
+does not yet make one Eco binary runtime-selectable between Jak 1 and Jak II.
+Merge it as requested, but do not describe one-binary multi-game behavior as
+implemented until that subsequent integration exists and builds.
+
+No new build was installed after physical Build 149. Do not access the Vision
+Pro again until the combined candidate is ready and the maintainer explicitly
+puts the headset back on. Build 145 remains the accepted iOS/Jak 1 gameplay
+baseline.
