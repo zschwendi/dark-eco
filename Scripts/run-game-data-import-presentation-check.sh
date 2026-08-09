@@ -12,6 +12,7 @@ swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
   -swift-version 6 \
   -strict-concurrency=complete \
   -warnings-as-errors \
+  "$root/GOALPad/Data/GameData.swift" \
   "$root/GOALPad/Data/GameDataImportPresentation.swift" \
   "$root/Scripts/game-data-import-presentation-check.swift" \
   -o "$out"

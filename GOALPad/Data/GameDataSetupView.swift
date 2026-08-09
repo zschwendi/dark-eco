@@ -1,7 +1,8 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Imports player-supplied Jak 1 data without bundling or downloading game content.
+/// Imports player-supplied data for the app's selected single-game profile without bundling or
+/// downloading game content.
 struct GameDataSetupView: View {
     private static let rawISOType = UTType(filenameExtension: "iso", conformingTo: .data)
 
@@ -32,7 +33,8 @@ struct GameDataSetupView: View {
             switch result {
             case .success(let urls):
                 guard let source = urls.first else {
-                    selectionError = "No source was selected. Choose one Jak 1 source and try again."
+                    selectionError = "No source was selected. Choose one \(profile.displayName) "
+                        + "source and try again."
                     return
                 }
                 selectionError = nil
@@ -47,10 +49,10 @@ struct GameDataSetupView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Import Jak 1", systemImage: "bolt.fill")
+            Label("Import \(profile.displayName)", systemImage: "bolt.fill")
                 .font(.title2.weight(.bold))
                 .foregroundStyle(DarkEcoTheme.accentGlow)
-            Text("Choose game data from a Jak and Daxter copy you own. Eco includes no game data and never downloads it.")
+            Text(ownershipCopy)
                 .font(.body)
                 .foregroundStyle(.white.opacity(0.84))
         }
@@ -75,7 +77,10 @@ struct GameDataSetupView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("1. Choose your source")
                     .font(.headline)
-                Text(GameDataImportPresentation.acceptedSources(rawISOAvailable: canImportRawISO))
+                Text(GameDataImportPresentation.acceptedSources(
+                    for: profile,
+                    rawISOAvailable: canImportRawISO
+                ))
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.84))
                 Text("2. Eco prepares and validates a private candidate before it replaces any active data.")
@@ -86,7 +91,7 @@ struct GameDataSetupView: View {
                         .font(.footnote)
                         .foregroundStyle(DarkEcoTheme.warning)
                 } else {
-                    Text("This build cannot prepare raw ISO or ZIP sources. Choose a prepared folder.")
+                    Text(rawMediaUnavailableCopy)
                         .font(.footnote)
                         .foregroundStyle(DarkEcoTheme.warning)
                 }
@@ -137,7 +142,7 @@ struct GameDataSetupView: View {
                     }
                 }
                 .tint(DarkEcoTheme.accent)
-                .accessibilityLabel("Jak 1 import progress")
+                .accessibilityLabel("\(profile.displayName) import progress")
                 .accessibilityValue(progress.phase.label)
 
                 if progress.filesTotal > 0 {
@@ -166,7 +171,7 @@ struct GameDataSetupView: View {
 
     private var actions: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Button("Choose Jak 1 data…") {
+            Button("Choose \(profile.displayName) data…") {
                 selectionError = nil
                 isChoosingSource = true
             }
@@ -179,9 +184,17 @@ struct GameDataSetupView: View {
                 }
                 .buttonStyle(.bordered)
 
-                Button("Play Jak 1") { Task { await session.start() } }
-                    .buttonStyle(.bordered)
-                    .disabled(!session.dataReport.canBoot)
+                if profile.supportsRuntimeLaunch {
+                    Button("Play \(profile.displayName)") { Task { await session.start() } }
+                        .buttonStyle(.bordered)
+                        .disabled(!session.dataReport.canBoot)
+                }
+            }
+
+            if profile.readiness == .bootstrapOnly {
+                Text("Bootstrap validation only. Native Jak II gameplay is not wired in this build.")
+                    .font(.footnote)
+                    .foregroundStyle(DarkEcoTheme.warning)
             }
         }
     }
@@ -208,7 +221,26 @@ struct GameDataSetupView: View {
     }
 
     private var canImportRawISO: Bool {
-        RawISOCandidateProducer.isAvailable()
+        session.importer.canImportRawMedia
+    }
+
+    private var profile: GameDataProfile { session.importer.profile }
+
+    private var ownershipCopy: String {
+        if profile.identifier == .jak1 {
+            return "Choose game data from a Jak and Daxter copy you own. Eco includes no game data "
+                + "and never downloads it."
+        }
+        return "Choose prepared game data from a \(profile.displayName) copy you own. Eco includes "
+            + "no game data and never downloads it."
+    }
+
+    private var rawMediaUnavailableCopy: String {
+        if profile.identifier == .jak1 {
+            return "This build cannot prepare raw ISO or ZIP sources. Choose a prepared folder."
+        }
+        return "Raw ISO and ZIP sources are unavailable for \(profile.displayName) until its "
+            + "preparation composer exists. Choose a prepared \(profile.preparedFolderName) folder."
     }
 
     private var statusIcon: String {

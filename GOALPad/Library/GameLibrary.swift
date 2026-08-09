@@ -109,25 +109,31 @@ nonisolated enum GameLibraryState: Equatable {
     case notImported
     case preparing(Double?)
     case ready
+    case bootstrapReady
     case needsAttention
     case planned
 }
 
 nonisolated enum GameLibraryCardAction: Equatable {
     case start
-    case openJak1Setup
-    case offerJak1Import
+    case openSetup
+    case offerImport
     case showUnsupported(GameLibraryTitle)
 
-    static func resolve(title: GameLibraryTitle, state: GameLibraryState) -> Self {
-        guard title == .jak1 else { return .showUnsupported(title) }
+    static func resolve(
+        title: GameLibraryTitle,
+        state: GameLibraryState,
+        activeTitle: GameLibraryTitle = .jak1,
+        supportsRuntimeLaunch: Bool = true
+    ) -> Self {
+        guard title == activeTitle else { return .showUnsupported(title) }
         switch state {
-        case .ready:
+        case .ready where supportsRuntimeLaunch:
             return .start
-        case .preparing:
-            return .openJak1Setup
+        case .ready, .bootstrapReady, .preparing:
+            return .openSetup
         case .notImported, .needsAttention:
-            return .offerJak1Import
+            return .offerImport
         case .planned:
             return .showUnsupported(title)
         }
@@ -136,7 +142,18 @@ nonisolated enum GameLibraryCardAction: Equatable {
 
 nonisolated enum GameLibraryOfferCopy {
     static func jak1ImportMessage(canImportRawISO: Bool) -> String {
-        let ownership = "Provide game data from a copy of Jak 1 you legally own."
+        importMessage(for: .jak1, canImportRawISO: canImportRawISO)
+    }
+
+    static func importMessage(
+        for title: GameLibraryTitle,
+        canImportRawISO: Bool
+    ) -> String {
+        let ownership = "Provide game data from a copy of \(title.shelfName) you legally own."
+        if title == .jak2 {
+            return ownership + " This build accepts a prepared out/jak2 folder for bootstrap "
+                + "validation only. Native gameplay and raw ISO/ZIP preparation are unavailable."
+        }
         if canImportRawISO {
             return ownership + " This build accepts a prepared out/jak1 folder, a supported .iso, "
                 + "or a standard .zip containing exactly one .iso."

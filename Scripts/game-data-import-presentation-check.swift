@@ -14,12 +14,19 @@ import Foundation
 @main
 private struct GameDataImportPresentationCheck {
     @MainActor static func main() {
-        check(GameDataImportPresentation.acceptedSources(rawISOAvailable: false)
+        check(GameDataImportPresentation.acceptedSources(
+                for: .jak1, rawISOAvailable: false)
                 == "Prepared OpenGOAL out/jak1 folder",
               "prepared-folder-only builds do not advertise raw media")
-        check(GameDataImportPresentation.acceptedSources(rawISOAvailable: true)
+        check(GameDataImportPresentation.acceptedSources(
+                for: .jak1, rawISOAvailable: true)
                 == "Prepared OpenGOAL out/jak1 folder, ISO disc image, or standard ZIP with exactly one ISO",
               "raw-media-capable builds advertise only the ISO and one-ISO ZIP paths")
+        let jak2Sources = GameDataImportPresentation.acceptedSources(
+            for: .jak2, rawISOAvailable: true)
+        check(jak2Sources
+                == "Prepared OpenGOAL out/jak2 folder (bootstrap data only; not gameplay-ready)",
+              "Jak II advertises only prepared bootstrap data even if Jak 1 resources exist")
         check(GameDataImportPresentation.backgroundGuidance(phaseLabel: "Validating candidate")
                 == "Keep Eco open and in the foreground. Validating candidate is not safe to continue while Eco is backgrounded.",
               "every active phase names itself and truthfully requires foreground execution")

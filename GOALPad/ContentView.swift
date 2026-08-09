@@ -87,7 +87,7 @@ struct ContentView: View {
                     GameLibraryView(
                         session: session,
                         artworkStore: artworkStore,
-                        openJak1Setup: { launcherDestination = .gameSetup },
+                        openGameSetup: { launcherDestination = .gameSetup },
                         openSettings: { presentSettings(.titles) }
                     )
                 case .gameSetup:

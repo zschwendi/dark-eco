@@ -121,7 +121,7 @@ final class GameSession {
             """)
         observeSystem()
         input.startWatching()
-        try? GameDataLayout.prepare()
+        try? GameDataLayout.prepare(profile: importer.profile)
         async let settingsPreparation: Void = presentationSettings.prepare()
         await saveSync.prepare()
         await settingsPreparation
@@ -131,13 +131,25 @@ final class GameSession {
     }
 
     func refreshDataReport() async {
-        dataReport = await Task.detached { GameDataInspector.inspect() }.value
+        let profile = importer.profile
+        let gameDirectory = GameDataLayout.gameDirectory(
+            for: profile,
+            in: GameDataLayout.documentsDirectory
+        )
+        dataReport = await Task.detached {
+            GameDataInspector.inspect(gameDirectory: gameDirectory, profile: profile)
+        }.value
     }
 
     /// Bring the session up. Refuses rather than half-starting when the data on disk cannot boot
     /// the game, or when this build has no ahead-of-time Jak 1 code to boot.
     func start() async {
         guard !isRunning, !isBooting, !isPreparingGameplay else { return }
+        guard importer.profile.supportsRuntimeLaunch else {
+            startupError = "Native \(importer.profile.displayName) gameplay is not wired in this build. "
+                + "The current data contract validates bootstrap files only."
+            return
+        }
         guard GOALPadRuntimeBridge.isGameCodeLinked else {
             startupError = "This build has no ahead-of-time Jak 1 code. "
                 + "Run Scripts/generate-jak1-aot.sh and build again."
@@ -158,7 +170,10 @@ final class GameSession {
         audio.resumeIfSuspended()
 
         let status = GOALPadRuntimeBridge.startKernel(
-            withDataDirectory: GameDataLayout.gameDirectory.path,
+            withDataDirectory: GameDataLayout.gameDirectory(
+                for: importer.profile,
+                in: GameDataLayout.documentsDirectory
+            ).path,
             savesDirectory: SaveDataLayout.localSavesDirectory.path)
         kernel = status
         guard status.isRunning else {
@@ -171,7 +186,7 @@ final class GameSession {
         settings.apply()
         runReadiness = .preRun
         isBooting = true
-        sessionLog.notice("Booting Jak 1")
+        sessionLog.notice("Booting \(self.importer.profile.displayName, privacy: .public)")
         bootQueue.async {
             let boot = GOALPadRuntimeBridge.bootGame()
             DispatchQueue.main.async {

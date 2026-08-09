@@ -2,11 +2,19 @@ import Foundation
 
 /// Player-facing import wording derived only from the importer capabilities and published phases.
 nonisolated enum GameDataImportPresentation {
-    static func acceptedSources(rawISOAvailable: Bool) -> String {
-        if rawISOAvailable {
-            return "Prepared OpenGOAL out/jak1 folder, ISO disc image, or standard ZIP with exactly one ISO"
+    static func acceptedSources(
+        for profile: GameDataProfile = .active,
+        rawISOAvailable: Bool
+    ) -> String {
+        if profile.readiness == .bootstrapOnly {
+            return "Prepared OpenGOAL \(profile.preparedFolderName) folder (bootstrap data only; "
+                + "not gameplay-ready)"
         }
-        return "Prepared OpenGOAL out/jak1 folder"
+        if rawISOAvailable && profile.supportsRawMediaPreparation {
+            return "Prepared OpenGOAL \(profile.preparedFolderName) folder, ISO disc image, "
+                + "or standard ZIP with exactly one ISO"
+        }
+        return "Prepared OpenGOAL \(profile.preparedFolderName) folder"
     }
 
     static func backgroundGuidance(phaseLabel: String) -> String {

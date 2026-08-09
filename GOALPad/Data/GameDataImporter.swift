@@ -7,7 +7,8 @@ nonisolated private let importLog = Logger(subsystem: "com.zephyrstudiosllc.eco"
 /// Main-actor state for compatible game-data selection.
 ///
 /// File work is serialized by `GameDataInstallWorker`: it writes a recoverable candidate in
-/// Application Support, validates that candidate, and only then switches `Documents/Jak1`.
+/// Application Support, validates that candidate, and only then switches the selected profile's
+/// Documents directory.
 @MainActor
 @Observable
 final class GameDataImporter {
@@ -23,14 +24,19 @@ final class GameDataImporter {
     }
 
     private(set) var state: State = .idle
+    let profile: GameDataProfile
     private let worker: GameDataInstallWorker
     private let preparedFolderProducer = PreparedFolderCandidateProducer()
     private let rawISOProducer = RawISOCandidateProducer()
     private let zippedISOProducer: ZIPISOCandidateProducer
     private var task: Task<Void, Never>?
 
-    init(worker: GameDataInstallWorker = GameDataInstallWorker()) {
-        self.worker = worker
+    init(
+        profile: GameDataProfile = .active,
+        worker: GameDataInstallWorker? = nil
+    ) {
+        self.profile = profile
+        self.worker = worker ?? GameDataInstallWorker(configuration: .app(for: profile))
         zippedISOProducer = ZIPISOCandidateProducer(downstream: rawISOProducer)
     }
 
@@ -41,6 +47,10 @@ final class GameDataImporter {
         }
     }
 
+    var canImportRawMedia: Bool {
+        profile.supportsRawMediaPreparation && RawISOCandidateProducer.isAvailable()
+    }
+
     /// `source` may be a supported raw or ZIP-contained disc image, the directory holding `iso/`
     /// and `fr3/`, or either of those two prepared directories on its own.
     func start(from source: URL, onFinish: @escaping @MainActor () -> Void) {
@@ -49,15 +59,14 @@ final class GameDataImporter {
         switch GameDataImportSource(url: source) {
         case .preparedFolder:
             producer = preparedFolderProducer
-        case .rawISO where RawISOCandidateProducer.isAvailable():
+        case .rawISO where canImportRawMedia:
             producer = rawISOProducer
-        case .zippedISO where RawISOCandidateProducer.isAvailable():
+        case .zippedISO where canImportRawMedia:
             producer = zippedISOProducer
         case .rawISO:
             state = .failed(GameDataImportFailure(
                 code: .appResourcesUnavailable,
-                message: "Raw .iso preparation is not available in this build. "
-                    + "Choose a prepared game-data folder instead.",
+                message: rawISOUnavailableMessage,
                 candidatePreserved: false
             ))
             onFinish()
@@ -65,8 +74,7 @@ final class GameDataImporter {
         case .zippedISO:
             state = .failed(GameDataImportFailure(
                 code: .appResourcesUnavailable,
-                message: "ZIP-to-ISO preparation is not available in this build. "
-                    + "Choose a prepared game-data folder instead.",
+                message: zippedISOUnavailableMessage,
                 candidatePreserved: false
             ))
             onFinish()
@@ -74,8 +82,7 @@ final class GameDataImporter {
         case .unsupportedArchive:
             state = .failed(GameDataImportFailure(
                 code: .unsupportedArchive,
-                message: "This archive format is not supported. Choose a standard .zip "
-                    + "containing one .iso, a raw .iso, or prepared game data.",
+                message: unsupportedArchiveMessage,
                 candidatePreserved: false
             ))
             onFinish()
@@ -126,5 +133,32 @@ final class GameDataImporter {
     func reset() {
         guard task == nil else { return }
         state = .idle
+    }
+
+    private var rawISOUnavailableMessage: String {
+        guard profile.supportsRawMediaPreparation else {
+            return "Raw .iso preparation is not available for \(profile.displayName) in this build. "
+                + "Choose a prepared OpenGOAL \(profile.preparedFolderName) folder instead."
+        }
+        return "Raw .iso preparation is not available in this build. "
+            + "Choose a prepared game-data folder instead."
+    }
+
+    private var zippedISOUnavailableMessage: String {
+        guard profile.supportsRawMediaPreparation else {
+            return "ZIP-to-ISO preparation is not available for \(profile.displayName) in this build. "
+                + "Choose a prepared OpenGOAL \(profile.preparedFolderName) folder instead."
+        }
+        return "ZIP-to-ISO preparation is not available in this build. "
+            + "Choose a prepared game-data folder instead."
+    }
+
+    private var unsupportedArchiveMessage: String {
+        guard profile.supportsRawMediaPreparation else {
+            return "This archive format is not supported for \(profile.displayName). Choose a prepared "
+                + "OpenGOAL \(profile.preparedFolderName) folder."
+        }
+        return "This archive format is not supported. Choose a standard .zip containing one .iso, "
+            + "a raw .iso, or prepared game data."
     }
 }

@@ -325,8 +325,9 @@ private struct SyntheticComposerProducer: GameDataCandidateProducing {
 }
 
 private var preparedFileCount: Int {
-    Set(GameDataManifest.bootArchives + GameDataManifest.levelArchives).count
-        + GameDataManifest.levelGeometry.count
+    let manifest = GameDataProfile.jak1.manifest
+    return Set(manifest.bootArchives + manifest.levelArchives).count
+        + manifest.levelGeometry.count
 }
 
 private func writeCompleteCandidate(at root: URL, payload: Data) throws {
@@ -334,10 +335,11 @@ private func writeCompleteCandidate(at root: URL, payload: Data) throws {
     let fr3 = root.appending(path: GameDataLayout.fr3DirectoryName, directoryHint: .isDirectory)
     try FileManager.default.createDirectory(at: iso, withIntermediateDirectories: true)
     try FileManager.default.createDirectory(at: fr3, withIntermediateDirectories: true)
-    for name in Set(GameDataManifest.bootArchives + GameDataManifest.levelArchives) {
+    let manifest = GameDataProfile.jak1.manifest
+    for name in Set(manifest.bootArchives + manifest.levelArchives) {
         try payload.write(to: iso.appending(path: name), options: .atomic)
     }
-    for name in GameDataManifest.levelGeometry {
+    for name in manifest.levelGeometry {
         try payload.write(to: fr3.appending(path: name), options: .atomic)
     }
 }
