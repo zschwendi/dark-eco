@@ -15817,13 +15817,14 @@ verification, and `git diff --check`.
 The first root visionOS build failed before product compilation because the
 retained DerivedData CMake cache named the isolated worker source directory.
 Only that generated CMake subdirectory was removed; the rerun and versioned
-incremental build both passed. The final unsigned generic Release products are:
+incremental build both passed. The final generic Release products are:
 
 ```text
 /private/tmp/GOALPad-build146-shared-space/Build/Products/Release-xros/GOALPad.app
   Eco 1.0 (146), arm64
-  executable SHA-256 e470e27e93dc5065a6338b625c9596d6653842985c8f7e674a06532fc937f2f2
+  executable SHA-256 4f86f067f870dbf5cde4627315a31652b4e0e0c6c12ca54bcf76658ae27bdb10
   Mach-O UUID B95B8E29-AFDA-36FE-9F1F-048E44407648
+  development CDHash eef08d9d9b8dcf369361eac685e4da40f3496f60
   VisionStereoWindow.reality 8845 bytes
 
 /private/tmp/GOALPad-build146-shared-space/Build/Products/Release-iphoneos/GOALPad.app
@@ -15832,9 +15833,15 @@ incremental build both passed. The final unsigned generic Release products are:
   Mach-O UUID E29EAEF4-2AEE-3DAB-80F8-4AF0DAD0746A
 ```
 
-Build logs are `/private/tmp/GOALPad-build146-final-versioned-visionos.log` and
-`/private/tmp/GOALPad-build146-final-ios.log`. These are compilation/link and
-resource-packaging evidence only: `CODE_SIGNING_ALLOWED=NO` was used. No app was
+Build logs are `/private/tmp/GOALPad-build146-final-versioned-visionos.log`,
+`/private/tmp/GOALPad-build146-final-signed-visionos.log`, and
+`/private/tmp/GOALPad-build146-final-ios.log`. The final visionOS app is signed
+by `Apple Development: Zachary Schwendiman (ZYH7XXHJVZ)` for team
+`V729QMY3V6`; strict on-disk verification passes and the expected Game Center,
+iCloud Documents, and development `get-task-allow` entitlements are embedded.
+The iOS regression product used `CODE_SIGNING_ALLOWED=NO`.
+
+This remains build, signing, and resource-packaging evidence only. No app was
 launched, no controller discovery ran, and no simulator, iPad, or Vision Pro was
 accessed. Physical eye assignment, perceived depth/comfort, HUD stability,
 controller gameplay, audio, performance, and fallback behavior remain the next
