@@ -15477,3 +15477,100 @@ sky paths retain mutable or raw-pointer state. The next safe proof after the
 external target is a synchronous versioned capture envelope plus resource leases
 and a poison-after-capture equivalence oracle. Production stays synchronous until
 that oracle proves the renderer no longer reads live mutable state after capture.
+
+## Jak II renderer checkpoint: Glow, alpha, and water
+
+Date: 2026-08-09.
+
+The active isolated Jak II integration worktree is
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-jak2-eco-shell` on
+`agent/jak2-eco-shell`. Parent commit `57c60eac` points to clean detached
+OpenGOAL commit `9361a8456`. Do not move these changes into the Jak 1 `main`
+worktree implicitly.
+
+This checkpoint source-validates three reported renderer failures:
+
+- Jak II Glow now implements the OpenGL depth-visibility model instead of
+  drawing every accepted glow as an unobstructed quadrilateral. The Metal path
+  builds the 20-by-20 probe grid, performs the four per-cell downsample passes,
+  resumes the stored game pass with load actions, visibility-modulates flare
+  RGB, and applies the source `60 / target_fps` scaling above 60 Hz.
+- All six Jak II alpha background texture/TFRAG/TIE/ETIE families are dispatched
+  through the existing shared Metal background renderers. The deterministic
+  fixture covers the real AREF `0x7e` alpha-fail-only behavior, blending, depth
+  preservation, and exact draw/triangle accounting.
+- All six Jak II water background texture/TFRAG/TIE/ETIE families are likewise
+  dispatched through the shared renderers. The final proof uses the extractor's
+  padded eight-color palette and source-exact water modes, and demonstrates
+  effective depth-write suppression even though the raw source bit is set.
+
+The current parent history is:
+
+```text
+57c60eac feat(jak2): render water background families (AI-assisted)
+09ff0749 feat(jak2): restore glow and alpha rendering (AI-assisted)
+a74774b1 diag(jak2): log deferred bucket heartbeat (AI-assisted)
+32e46b37 feat(jak2): add save information confirm control (AI-assisted)
+8a03464d feat(jak2): add overwrite prompt touch controls (AI-assisted)
+```
+
+The relevant nested history is:
+
+```text
+9361a8456 test(jak2): prove effective water depth suppression (AI-assisted)
+a1cf49359 test(jak2): prove source-exact water background modes (AI-assisted)
+838c9a7e3 feat(jak2): render water background buckets (AI-assisted)
+20dcbbe45 fix(jak2): count alpha-fail TFRAG draws (AI-assisted)
+039c602e0 feat(jak2): render alpha background buckets (AI-assisted)
+1583affa0 fix(metal): match Jak 2 glow rate scaling
+8ae7776a6 fix(metal): restore Jak 2 glow visibility
+8c30f952e test(metal): cover off-center Jak 2 distortion sampling
+fb0cc02b8 diag(jak2): report largest deferred buckets (AI-assisted)
+```
+
+Focused worker validation passed the Glow/Sprite Metal readbacks, the alpha
+bucket/texture/TFRAG/TIE/host/dispatch suite, and the water
+bucket/texture/TFRAG/TIE/host/dispatch suite. The integration owner additionally
+compiled the canonical combined `metal_jak2_host_bridge.mm`,
+`metal_renderer.mm`, `metal_tfrag.mm`, and `metal_tie.mm` with the existing
+ccache-backed CMake-emitted flags using `-fsyntax-only`; all passed. The renderer
+compile retained six known third-party/OpenGL header warnings. The parent bridge
+and fake-host source also passed:
+
+```text
+xcrun --sdk macosx clang++ -std=c++17 -Wall -Wextra -Werror -fobjc-arc \
+  -fsyntax-only -IGOALPad/Native -IOpenGOAL \
+  TargetSupport/Jak2/EcoJak2RuntimeBridge.mm \
+  TargetSupport/Jak2/EcoJak2RuntimeBridgeTest.mm
+```
+
+`git diff --check` passed in both parent and nested repositories. No Xcode app
+build, Simulator launch, UI automation, input/controller event, remote/SSH
+operation, or physical-device operation was performed for this checkpoint.
+The maintainer explicitly prohibited remote access and controller interaction;
+continue to treat Simulator/UI/input access as disallowed until the maintainer
+authorizes it again.
+
+Live visual acceptance is therefore pending. The code must not be described as
+physically or visually accepted from deterministic Metal tests alone. The
+existing `GOALPAD_JAK2_DEFERRED_STATE` heartbeat is ready for a
+maintainer-provided run/log and reports the top four deferred buckets plus
+Sprite3 and Glow activity without requiring a renderer change.
+
+Known remaining renderer gaps are Jak II OCEAN and alpha/water Merc/GMerc.
+OCEAN remains deliberately deferred because both Metal ocean renderers still
+call Jak-1-only walkers and texture helpers; there is no source-complete Jak II
+DMA grammar in this checkpoint. Do not promote those buckets speculatively.
+The next executable task is a source-only OCEAN/Merc architecture slice with a
+bounded synthetic proof, followed by maintainer-operated visual acceptance of
+Glow, alpha floor, and swamp water. Jak 3 work remains after Jak II reaches that
+acceptance gate.
+
+Unrelated user-owned parent changes remain intentionally untouched:
+
+```text
+M GOALPad/Data/GameData.swift
+M docs/BUILDING.md
+M docs/PROJECT_OVERVIEW.md
+?? .agent-builds/
+```
