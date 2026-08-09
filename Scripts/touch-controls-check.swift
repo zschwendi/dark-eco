@@ -75,8 +75,9 @@ private struct Runner {
         controls.moved(ObjectIdentifier(finger), to: point)
     }
 
-    func up(_ finger: Finger) {
-        controls.ended(ObjectIdentifier(finger), at: clock)
+    func up(_ finger: Finger, lookAroundState: GOALPadLookAroundState = .unknown) {
+        controls.ended(ObjectIdentifier(finger), at: clock,
+                       lookAroundState: lookAroundState)
     }
 
     func cancel(_ finger: Finger) {
@@ -265,7 +266,7 @@ private func freeCameraSwipeIsGone() {
 
 @MainActor
 private func faceButtonGesturesAndNoTap() {
-    print("open-screen gestures retain three face buttons while taps do nothing")
+    print("open-screen gestures retain three face buttons while ordinary taps do nothing")
     for (dx, dy, expected, name) in [(CGFloat(0), CGFloat(-70), GOALPadButton.cross, "up"),
                                      (-70, 0, .square, "left"),
                                      (70, 0, .circle, "right")] {
@@ -290,6 +291,54 @@ private func faceButtonGesturesAndNoTap() {
     tapRun.up(tap)
     check(tapRun.frames(TouchControls.holdFrames).allSatisfy { $0.buttons.isEmpty },
           "a tap does not repeat Cross or any previous swipe")
+}
+
+@MainActor
+private func firstPersonTapFiresWithoutReplacingLeftSwipe() {
+    print("first-person taps and left swipes emit the exact Jak 1 fire button")
+
+    var tapRun = Runner()
+    let tap = Finger()
+    tapRun.down(tap, CGPoint(x: 900, y: 360))
+    tapRun.up(tap, lookAroundState: .firstPerson)
+    check(tapRun.controls.consumeHapticEvents() == [.gesture(.square)],
+          "a first-person tap emits one Square gesture haptic")
+    let tapFrames = tapRun.frames(TouchControls.holdFrames + TouchControls.releaseFrames)
+    check(tapFrames.prefix(TouchControls.holdFrames).allSatisfy {
+        $0.buttons == .square
+    } && tapFrames.suffix(TouchControls.releaseFrames).allSatisfy {
+        $0 == .neutral
+    }, "a first-person tap emits one complete Square fire pulse")
+
+    var normalRun = Runner()
+    let normalTap = Finger()
+    normalRun.down(normalTap, CGPoint(x: 900, y: 360))
+    normalRun.up(normalTap, lookAroundState: .normal)
+    check(normalRun.frames(TouchControls.holdFrames).allSatisfy { $0 == .neutral }
+          && normalRun.controls.consumeHapticEvents().isEmpty,
+          "the same ordinary-camera tap remains inert")
+
+    var draggedRun = Runner()
+    let shortDrag = Finger()
+    draggedRun.down(shortDrag, CGPoint(x: 900, y: 360))
+    draggedRun.move(shortDrag,
+                    CGPoint(x: 900 - TouchControls.tapDistance - 1, y: 360))
+    draggedRun.up(shortDrag, lookAroundState: .firstPerson)
+    check(draggedRun.frames(TouchControls.holdFrames).allSatisfy { $0 == .neutral }
+          && draggedRun.controls.consumeHapticEvents().isEmpty,
+          "a sub-swipe drag beyond tap slop does not become an accidental shot")
+
+    var swipeRun = Runner()
+    let leftSwipe = Finger()
+    swipeRun.down(leftSwipe, CGPoint(x: 900, y: 360))
+    swipeRun.move(leftSwipe,
+                  CGPoint(x: 900 - TouchControls.swipeDistance - 1, y: 360))
+    swipeRun.up(leftSwipe, lookAroundState: .firstPerson)
+    check(swipeRun.controls.consumeHapticEvents() == [.gesture(.square)],
+          "the existing first-person left swipe still emits one Square haptic")
+    check(swipeRun.frames(TouchControls.holdFrames).allSatisfy {
+        $0.buttons == .square
+    }, "the existing first-person left swipe still holds Square without a duplicate tap pulse")
 }
 
 @MainActor
@@ -2034,12 +2083,25 @@ private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
               "the first invalid \(list.label) row fails closed")
     }
     check(NativeMenuTouchAction.available(
-        in: .progress, progress: progressSnapshot(screen: 29)).isEmpty
-          && NativeMenuTouchAction.available(
-            in: .progress, progress: progressSnapshot(screen: 3, transition: true)).isEmpty
+        in: .progress, progress: progressSnapshot(screen: 3, transition: true)).isEmpty
           && NativeMenuTouchAction.available(
             in: .progress, progress: progressSnapshot(screen: 35)).isEmpty,
-          "auto-save, transition, and unclassified PC progress states remain inert")
+          "transition and unclassified PC progress states remain inert")
+
+    let confirmOnlyNotices = [7, 8, 9, 19, 20, 21, 22, 24, 25, 26, 29, 32, 33, 61]
+    check(confirmOnlyNotices.allSatisfy {
+        NativeMenuTouchAction.available(
+            in: .progress, progress: progressSnapshot(screen: $0)) == [.confirm]
+    }, "every source-proven one-row OK notice exposes exact Confirm/Cross")
+    check(NativeMenuTouchAction.available(
+        in: .progress, progress: progressSnapshot(screen: 29, option: 1)).isEmpty
+          && NativeMenuTouchAction.available(
+            in: .progress,
+            progress: progressSnapshot(screen: 29, selected: true)).isEmpty
+          && NativeMenuTouchAction.available(
+            in: .progress,
+            progress: progressSnapshot(screen: 29, transition: true)).isEmpty,
+          "the Geyser auto-save notice fails closed for a wrong row, selection, or transition")
     check(NativeMenuTouchAction.available(in: .gameplay).isEmpty
           && NativeMenuTouchAction.available(in: .unknown).isEmpty,
           "gameplay and unknown modes expose no native-menu actions")
@@ -2184,6 +2246,14 @@ private func nativeMenuActionsEmitOnlyExpectedInputBytes() {
               && quit.frame().buttons == [.left, .right, .cross],
               "quit screen \(screen) emits exact Left/Right and Confirm/Cross bytes")
     }
+
+    var saveNotice = Runner()
+    saveNotice.controls.setNativeMenuState(
+        .progress, progress: progressSnapshot(screen: 29))
+    saveNotice.controls.performNativeMenuAction(.confirm)
+    check(saveNotice.controls.consumeHapticEvents() == [.button(.cross)]
+          && saveNotice.frame().buttons == .cross,
+          "the Geyser auto-save notice emits one exact ordinary Cross pulse")
 }
 
 @MainActor
@@ -2859,6 +2929,7 @@ struct TouchControlsCheck {
         movementOriginFollowsFirstTouch()
         freeCameraSwipeIsGone()
         faceButtonGesturesAndNoTap()
+        firstPersonTapFiresWithoutReplacingLeftSwipe()
         rightStickIsFullyAnalog()
         downwardSwipeCanRollJump()
         downwardSwipeCanPunchLeft()

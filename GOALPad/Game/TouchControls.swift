@@ -497,6 +497,17 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
     private enum ShippingPCScreen {
         static let quit = 34
         static let quitTitle = 58
+
+        /// Screens mapped to OpenGOAL's one-row `*ok-options*` array and handled by
+        /// `respond-memcard` with the ordinary Cross button.
+        static func isConfirmOnlyNotice(_ screen: Int) -> Bool {
+            switch screen {
+            case 7, 8, 9, 19, 20, 21, 22, 24, 25, 26, 29, 32, 33, 61:
+                true
+            default:
+                false
+            }
+        }
     }
 
     var button: TouchButton {
@@ -593,6 +604,11 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         for snapshot: NativeProgressMenuSnapshot
     ) -> [Self] {
         guard snapshot.available, !snapshot.inTransition else { return [] }
+
+        if ShippingPCScreen.isConfirmOnlyNotice(snapshot.screenRawValue) {
+            guard snapshot.optionIndex == 0, !snapshot.selectedOption else { return [] }
+            return [.confirm]
+        }
 
         var actions: [Self]
         switch snapshot.screenRawValue {
@@ -1189,6 +1205,7 @@ final class TouchControls {
     nonisolated static let rightStickDeadzone: CGFloat = 12
     nonisolated static let rollJumpDistance: CGFloat = 44
     nonisolated static let swipeDistance: CGFloat = 44
+    nonisolated static let tapDistance: CGFloat = 12
     nonisolated static let nativeMenuSwipeDistance: CGFloat = 44
     nonisolated static let nativeWarpSwipeDistance: CGFloat = 44
 
@@ -1622,10 +1639,17 @@ final class TouchControls {
         touches[id] = touch
     }
 
-    func ended(_ id: ObjectIdentifier, at _: TimeInterval) {
+    func ended(_ id: ObjectIdentifier, at _: TimeInterval,
+               lookAroundState: GOALPadLookAroundState = .unknown) {
         guard let touch = touches.removeValue(forKey: id) else { return }
         if case .skip(let expectedSnapshot) = touch.role {
             performCutsceneSkip(for: expectedSnapshot)
+        } else if touch.role == .gesture, touch.swiped == nil,
+                  touch.travelled <= Self.tapDistance,
+                  lookAroundState == .firstPerson {
+            press(.square)
+            enqueueHaptic(.gesture(.square))
+            touchLog.debug("first-person fire")
         }
         fadeWhenIdle()
     }

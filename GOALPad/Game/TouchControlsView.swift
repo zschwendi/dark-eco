@@ -149,6 +149,7 @@ struct TouchControlsView: View {
                 if !capturesNativeMenuInput && !capturesWarpGateTouchInput {
                     #if canImport(UIKit)
                     TouchSurface(controls: controls,
+                                 lookAroundState: lookAroundState,
                                  isSuppressed: isSuppressed,
                                  reclaimTouchInput: reclaimTouchInput)
                     #endif
@@ -866,6 +867,7 @@ private struct RightStickControl: View {
 /// The one view that sees raw multitouch and hands each finger to the state machine by identity.
 private struct TouchSurface: UIViewRepresentable {
     let controls: TouchControls
+    let lookAroundState: GOALPadLookAroundState
     let isSuppressed: Bool
     let reclaimTouchInput: () -> Bool
 
@@ -874,6 +876,7 @@ private struct TouchSurface: UIViewRepresentable {
         view.isMultipleTouchEnabled = true
         view.backgroundColor = .clear
         view.setControls(controls)
+        view.lookAroundState = lookAroundState
         view.isSuppressed = isSuppressed
         view.reclaimTouchInput = reclaimTouchInput
         return view
@@ -881,6 +884,7 @@ private struct TouchSurface: UIViewRepresentable {
 
     func updateUIView(_ view: TouchSurfaceView, context: Context) {
         view.setControls(controls)
+        view.lookAroundState = lookAroundState
         view.isSuppressed = isSuppressed
         view.reclaimTouchInput = reclaimTouchInput
     }
@@ -892,6 +896,7 @@ private struct TouchSurface: UIViewRepresentable {
 
 private final class TouchSurfaceView: UIView {
     private(set) var controls: TouchControls?
+    var lookAroundState: GOALPadLookAroundState = .unknown
     var isSuppressed = false
     var reclaimTouchInput: (() -> Bool)?
     private let haptics = TouchHapticDriver()
@@ -945,7 +950,8 @@ private final class TouchSurfaceView: UIView {
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
-            controls?.ended(ObjectIdentifier(touch), at: touch.timestamp)
+            controls?.ended(ObjectIdentifier(touch), at: touch.timestamp,
+                            lookAroundState: lookAroundState)
         }
         reconcileTouchOwnership(with: event, updating: touches)
         flushHaptics()

@@ -56,6 +56,8 @@ if rg -Fq 'UIPinchGestureRecognizer' "$root/GOALPad/Game/TouchControlsView.swift
   exit 1
 fi
 rg -Fq 'Button { performZoomToggle() }' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'lookAroundState: lookAroundState' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'lookAroundState == .firstPerson' "$root/GOALPad/Game/TouchControls.swift"
 rg -Fq 'arrow.up.left.and.arrow.down.right' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'arrow.down.right.and.arrow.up.left' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'ModernTouchChromeLayout' "$root/GOALPad/Game/TouchControlsView.swift"
