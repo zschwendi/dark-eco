@@ -129,15 +129,10 @@ placement, radii, two-pill layout, and base face gestures match Build 96. Later
 bounded additions remain: crouch-left punch, semantic zoom, contextual SKIP,
 touch haptics, truthful native-menu controls, and validated warp-gate capture.
 Graphics retains its independent **Modern / Classic** presentation choice,
-including Modern Fit to Screen. That existing selector is the graphics master:
-Modern V1 enables its six individually configurable presentation effects by
-default, while Classic supplies an exact zero-effect mask without erasing the
-saved Modern choices. The maintainer physically rejected Build 160 because its
-effects were effectively imperceptible; Build 161 is the stronger replacement
-candidate and still requires physical visual and performance acceptance. Custom
-texture packs and advanced multi-pass effects remain planned work in
-`ROADMAP.md`. Old Controls
-profile and touch-layout documents must stay
+including Modern Fit to Screen. Builds 160 and 161's post-processing experiment
+was physically rejected and removed; the accepted conventional-2D presentation
+is frozen, and visual-improvement work is deferred until the maintainer
+explicitly reopens it. Old Controls profile and touch-layout documents must stay
 decodable, but they no longer control gameplay or appear as player-facing touch
 configuration. Pinch input is not part of the frozen touch contract; camera zoom
 uses one explicit semantic toggle. A device-local settings-sync opt-out does not
@@ -146,11 +141,9 @@ disable iCloud saves.
 Enhancement work proceeds in this order:
 
 1. Preserve Build 154 as the accepted conventional-2D regression baseline.
-2. Physically compare Build 161's Modern V1 candidate against Classic without
-   changing the accepted input delivery or game behavior.
-3. Close only actual MVP shipping blockers; do not expand unrelated touch or
-   settings surfaces.
-4. Ship Jak 1 in conventional 2D across iOS/iPadOS and visionOS. Keep the
+2. Close only actual MVP shipping blockers; do not expand unrelated touch,
+   settings, or graphics surfaces.
+3. Ship Jak 1 in conventional 2D across iOS/iPadOS and visionOS. Keep the
    physically accepted visionOS Comfort window on the normal launch path,
    defer stereoscopic presentation until a later, separately gated project,
    and keep macOS compilation healthy while its release remains deferred.

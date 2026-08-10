@@ -409,7 +409,6 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
   CGSize _drawableSize;
   int32_t _internalScale;
   BOOL _horizontalPlusEnabled;
-  uint32_t _modernEffects;
 }
 
 + (GOALPadRenderSurface *)shared {
@@ -427,7 +426,6 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
     _drawableSize = CGSizeZero;
     _internalScale = 2;
     _horizontalPlusEnabled = NO;
-    _modernEffects = 0;
     self.lastError = @"";
   }
   return self;
@@ -467,10 +465,6 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
 - (void)setHorizontalPlusEnabled:(BOOL)enabled {
   _horizontalPlusEnabled = enabled;
   [self updatePortableDisplaySize];
-}
-
-- (void)setModernEffects:(uint32_t)modernEffects {
-  _modernEffects = modernEffects;
 }
 
 - (void)updatePortableDisplaySize {
@@ -707,7 +701,6 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
   frame.game_res_h = geometry.internalHeight;
   frame.draw_region_w = geometry.drawRegionWidth;
   frame.draw_region_h = geometry.drawRegionHeight;
-  frame.modern_effects = _modernEffects;
   frame.presentation_time = presentationTime;
   return goalpad::metal_host_begin_frame(_layer, frame);
 }
@@ -743,7 +736,6 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
   frame.game_res_h = (int)size.height;
   frame.draw_region_w = frame.game_res_w;
   frame.draw_region_h = frame.game_res_h;
-  frame.modern_effects = _modernEffects;
   frame.presentation_time = presentationTime;
 
   goalpad::MetalHostStereoView leftView;

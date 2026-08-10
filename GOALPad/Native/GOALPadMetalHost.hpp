@@ -68,7 +68,6 @@ struct MetalHostFrame {
   int game_res_h = 480;
   int draw_region_w = 0;
   int draw_region_h = 0;
-  std::uint32_t modern_effects = 0;
   double presentation_time = 0.0;
 };
 

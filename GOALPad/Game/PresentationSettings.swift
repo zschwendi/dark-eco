@@ -7,28 +7,6 @@ nonisolated enum SettingsProfile: String, CaseIterable, Codable, Sendable {
     var title: String { rawValue.capitalized }
 }
 
-nonisolated enum ModernGraphicsEffect: UInt32, CaseIterable, Sendable {
-    case filmicColor = 1
-    case edgeSmoothing = 2
-    case clarity = 4
-    case softHighlights = 8
-    case vignette = 16
-    case filmGrain = 32
-
-    static let allMask = allCases.reduce(UInt32(0)) { $0 | $1.rawValue }
-
-    var title: String {
-        switch self {
-        case .filmicColor: "Filmic Color"
-        case .edgeSmoothing: "Edge Smoothing"
-        case .clarity: "Clarity/Sharpening"
-        case .softHighlights: "Soft Highlights"
-        case .vignette: "Vignette"
-        case .filmGrain: "Film Grain"
-        }
-    }
-}
-
 nonisolated enum SettingsSection: CaseIterable, Codable, Sendable {
     case controls
     case graphics
@@ -60,9 +38,6 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
     /// Optional so existing same-schema documents decode unchanged. Modern uses stereoscopic
     /// window rendering by default on visionOS; Classic and an explicit opt-out use Comfort.
     var graphicsModernStereo3DOverride: Bool?
-    /// Optional so existing schema-v1 documents decode with every Modern V1 effect enabled.
-    /// Classic suppresses the effective mask without discarding these individual preferences.
-    var graphicsModernEffectsOverride: UInt32?
     /// Optional so Build 93 settings documents decode without a migration. Developer logs are
     /// hidden by default and belong to this title's synced settings document.
     var developerLogsEnabledOverride: Bool?
@@ -114,30 +89,6 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         return graphicsModernStereo3DOverride ?? true
     }
 
-    var graphicsModernEffects: UInt32 {
-        guard graphicsProfile == .modern else { return 0 }
-        return graphicsModernEffectsPreferenceMask
-    }
-
-    var graphicsModernEffectsPreferenceMask: UInt32 {
-        (graphicsModernEffectsOverride ?? ModernGraphicsEffect.allMask)
-            & ModernGraphicsEffect.allMask
-    }
-
-    func isGraphicsModernEffectEnabled(_ effect: ModernGraphicsEffect) -> Bool {
-        graphicsModernEffectsPreferenceMask & effect.rawValue != 0
-    }
-
-    mutating func setGraphicsModernEffect(_ effect: ModernGraphicsEffect, enabled: Bool) {
-        var mask = graphicsModernEffectsPreferenceMask
-        if enabled {
-            mask |= effect.rawValue
-        } else {
-            mask &= ~effect.rawValue
-        }
-        graphicsModernEffectsOverride = mask == ModernGraphicsEffect.allMask ? nil : mask
-    }
-
     var developerLogsEnabled: Bool {
         developerLogsEnabledOverride ?? false
     }
@@ -155,7 +106,6 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         case .graphics:
             graphicsModernFillWidthOverride = nil
             graphicsModernStereo3DOverride = nil
-            graphicsModernEffectsOverride = nil
         case .controls:
             primaryInputSourceOverride = nil
             jak1InputBindingsOverride = nil
@@ -171,7 +121,6 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         interfaceProfile = .classic
         graphicsModernFillWidthOverride = nil
         graphicsModernStereo3DOverride = nil
-        graphicsModernEffectsOverride = nil
         developerLogsEnabledOverride = nil
         primaryInputSourceOverride = nil
         jak1InputBindingsOverride = nil
@@ -585,8 +534,6 @@ final class PresentationSettings {
 
     var graphicsStereo3D: Bool { document.graphicsStereo3D }
 
-    var graphicsModernEffects: UInt32 { document.graphicsModernEffects }
-
     var developerLogsEnabled: Bool { document.developerLogsEnabled }
 
     var primaryInputSource: PrimaryInputSource { document.primaryInputSource }
@@ -632,14 +579,6 @@ final class PresentationSettings {
 
     func setGraphicsStereo3D(_ enabled: Bool) {
         change { $0.graphicsModernStereo3DOverride = enabled }
-    }
-
-    func isGraphicsModernEffectEnabled(_ effect: ModernGraphicsEffect) -> Bool {
-        document.isGraphicsModernEffectEnabled(effect)
-    }
-
-    func setGraphicsModernEffect(_ effect: ModernGraphicsEffect, enabled: Bool) {
-        change { $0.setGraphicsModernEffect(effect, enabled: enabled) }
     }
 
     func setDeveloperLogsEnabled(_ enabled: Bool) {

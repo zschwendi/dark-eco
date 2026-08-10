@@ -929,9 +929,6 @@ typedef struct GOALPadRendererStats {
 /// Disabled is the exact 4:3 Classic presentation path.
 - (void)setHorizontalPlusEnabled:(BOOL)enabled;
 
-/// The enabled Modern V1 effects. Classic supplies zero without erasing the saved Modern choices.
-- (void)setModernEffects:(uint32_t)modernEffects;
-
 - (GOALPadSurfaceGeometry)geometry;
 
 /// Arm the surface immediately before the GOAL frame so its DMA send can render synchronously.

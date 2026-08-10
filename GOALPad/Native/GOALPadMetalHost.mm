@@ -625,7 +625,6 @@ void render_chain() {
   opts.draw_region_w = g_host.frame.draw_region_w;
   opts.draw_region_h = g_host.frame.draw_region_h;
   opts.pmode_alp = g_host.pmode_alp;
-  opts.modern_effects = g_host.frame.modern_effects;
   opts.presentation_time = g_host.frame.presentation_time;
   opts.host_tick_id = g_host.stats.frames_armed;
   opts.chain_ordinal = g_host.chains_in_frame;

@@ -602,59 +602,7 @@ private func defaultsUseModernGraphics() async throws {
           "the default uses the Modern option value instead of a stored override")
     check(value.document.graphicsModernStereo3DOverride == nil,
           "the stereo default does not require a stored override")
-    check(value.graphicsModernEffects == ModernGraphicsEffect.allMask
-          && ModernGraphicsEffect.allCases.allSatisfy {
-              value.isGraphicsModernEffectEnabled($0)
-          },
-          "Modern Graphics begins with every Modern V1 effect enabled")
-    check(value.document.graphicsModernEffectsOverride == nil,
-          "the Modern V1 defaults do not require a stored override")
     check(value.cloudSyncEnabled, "settings cloud sync defaults on independently of saves")
-}
-
-@MainActor
-private func modernV1EffectsUseStableBitsAndSurviveClassic() async throws {
-    print("Modern V1 effects use one stable mask and survive a temporary Classic selection")
-    check(ModernGraphicsEffect.allCases.map(\.rawValue) == [1, 2, 4, 8, 16, 32]
-          && ModernGraphicsEffect.allMask == 0x3f,
-          "the Swift settings mask matches the renderer's six locked bit assignments")
-    check(ModernGraphicsEffect.allCases.map(\.title) == [
-        "Filmic Color", "Edge Smoothing", "Clarity/Sharpening",
-        "Soft Highlights", "Vignette", "Film Grain",
-    ], "the individual Modern V1 controls keep their declared order and labels")
-
-    let fixture = try Fixture(name: "modern-v1-effects")
-    let value = settings(fixture, writerID: "device-a", cloudAvailable: false)
-    value.setGraphicsModernEffect(.edgeSmoothing, enabled: false)
-    value.setGraphicsModernEffect(.vignette, enabled: false)
-    let customizedMask = ModernGraphicsEffect.allMask
-        & ~ModernGraphicsEffect.edgeSmoothing.rawValue
-        & ~ModernGraphicsEffect.vignette.rawValue
-    check(value.graphicsModernEffects == customizedMask
-          && value.document.graphicsModernEffectsOverride == customizedMask,
-          "individual Modern choices persist in one UInt32 override mask")
-
-    value.setProfile(.classic, for: .graphics)
-    check(value.graphicsModernEffects == 0
-          && value.document.graphicsModernEffectsOverride == customizedMask,
-          "Classic emits no Modern effects without erasing the customized mask")
-
-    let restored = settings(fixture, writerID: "device-b", cloudAvailable: false)
-    check(restored.profile(for: .graphics) == .classic
-          && restored.graphicsModernEffects == 0
-          && restored.document.graphicsModernEffectsOverride == customizedMask,
-          "Classic and the dormant Modern preferences both persist locally")
-    restored.setProfile(.modern, for: .graphics)
-    check(restored.graphicsModernEffects == customizedMask
-          && !restored.isGraphicsModernEffectEnabled(.edgeSmoothing)
-          && !restored.isGraphicsModernEffectEnabled(.vignette)
-          && restored.isGraphicsModernEffectEnabled(.filmicColor),
-          "returning to Modern restores each saved individual choice")
-
-    restored.restoreDefaults(for: .graphics)
-    check(restored.graphicsModernEffects == ModernGraphicsEffect.allMask
-          && restored.document.graphicsModernEffectsOverride == nil,
-          "Restore Graphics Defaults enables all Modern V1 effects without a stored override")
 }
 
 @MainActor
@@ -1173,7 +1121,6 @@ private struct PresentationSettingsCheck {
             try await legacyTouchLayoutSidecarPersistsAcrossPresentationResets()
             try await explicitFreshResetBeatsOlderRemoteTouchLayout()
             try await defaultsUseModernGraphics()
-            try await modernV1EffectsUseStableBitsAndSurviveClassic()
             try await savedChoicesSurviveNewDefaults()
             try await profilesCanBeMixedWithoutLosingOptions()
             try await localOptOutDoesNotTouchCloud()
