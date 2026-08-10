@@ -161,6 +161,15 @@ struct ContentView: View {
             VisionControllerStatusOrnament()
                 .padding(.bottom, 12)
         }
+        .ornament(
+            visibility: visionEcoSettingsVisible ? .visible : .hidden,
+            attachmentAnchor: .scene(.topLeading),
+            contentAlignment: .bottomTrailing
+        ) {
+            VisionPausedEcoOrnament { presentSettings(.jak1) }
+                .padding(.leading, 20)
+                .padding(.bottom, 12)
+        }
         #endif
         #if os(iOS)
         .onChange(of: session.runReadiness) { _, readiness in
@@ -201,6 +210,14 @@ struct ContentView: View {
     }
 
     #if os(visionOS)
+    private var visionEcoSettingsVisible: Bool {
+        session.isRunning && NativeEcoSettingsPresentation.isVisible(
+            mode: session.gameMode,
+            progress: session.progressMenuSnapshot,
+            runReadiness: session.runReadiness
+        )
+    }
+
     private func synchronizeVisionPresentation() {
         visionPresentation.configure(
             graphicsProfile: session.presentationSettings.graphicsProfile,

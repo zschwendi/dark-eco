@@ -62,6 +62,7 @@ let host = source(root, "GOALPad/Native/GOALPadMetalHost.mm")
 let renderSurface = source(root, "GOALPad/Native/GOALPadRenderSurface.mm")
 let bridge = source(root, "GOALPad/Native/GOALPadRuntimeBridge.h")
 let ornament = source(root, "GOALPad/Vision/VisionControllerStatusOrnament.swift")
+let pausedEcoOrnament = source(root, "GOALPad/Vision/VisionPausedEcoOrnament.swift")
 
 let gameplaySurface = section(content,
                               from: "private struct GameplaySurface: View",
@@ -271,6 +272,20 @@ check(gameplayOverlay.contains("#if !os(visionOS)")
 check(content.contains("visibility: session.input.isConnected ? .hidden : .visible")
         && content.contains("attachmentAnchor: .scene(.top)"),
       "the controller ornament follows supported gamepad connection state at the window top")
+check(content.contains("visibility: visionEcoSettingsVisible ? .visible : .hidden")
+        && content.contains("attachmentAnchor: .scene(.topLeading)")
+        && content.contains("VisionPausedEcoOrnament { presentSettings(.jak1) }")
+        && content.contains("session.isRunning && NativeEcoSettingsPresentation.isVisible(")
+        && content.contains("mode: session.gameMode")
+        && content.contains("progress: session.progressMenuSnapshot")
+        && content.contains("runReadiness: session.runReadiness"),
+      "the top-leading Eco ornament reuses the paused iPad settings gate and opens Jak 1 settings")
+check(pausedEcoOrnament.contains("Button(action: openSettings)")
+        && pausedEcoOrnament.contains("Image(systemName: \"gearshape\")")
+        && pausedEcoOrnament.contains("Text(\"ECO\")")
+        && pausedEcoOrnament.contains(".glassBackgroundEffect(in: Capsule())")
+        && pausedEcoOrnament.contains(".accessibilityLabel(\"Eco Settings\")"),
+      "the paused Eco ornament is a compact accessible glass settings control")
 let controllerMessageOccurrences = ornament.components(separatedBy: "Text(\"No controller detected.\")").count - 1
 check(controllerMessageOccurrences == 1
         && ornament.contains(".foregroundStyle(labelForegroundStyle)")
