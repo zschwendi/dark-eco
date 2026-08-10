@@ -158,8 +158,13 @@ struct GameDataSetupView: View {
                 .accessibilityLabel("\(profile.displayName) import progress")
                 .accessibilityValue(progress.phase.label)
 
-                if progress.filesTotal > 0 {
-                    Text("\(progress.filesCopied) of \(progress.filesTotal) · \(progress.currentFile)")
+                if let detail = GameDataImportPresentation.workDetail(
+                    filesCopied: progress.filesCopied,
+                    filesTotal: progress.filesTotal,
+                    bytesProcessed: progress.bytesCopied,
+                    currentFile: progress.currentFile
+                ) {
+                    Text(detail)
                         .font(.footnote.monospaced())
                         .foregroundStyle(.white.opacity(0.78))
                         .lineLimit(2)

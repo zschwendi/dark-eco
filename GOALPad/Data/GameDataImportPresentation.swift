@@ -35,5 +35,25 @@ nonisolated enum GameDataImportPresentation {
             : "You can cancel now. Your active game data will not be replaced."
     }
 
+    static func workDetail(
+        filesCopied: Int,
+        filesTotal: Int,
+        bytesProcessed: Int64,
+        currentFile: String
+    ) -> String? {
+        guard filesTotal > 0 else { return nil }
+        var detail = "\(filesCopied) of \(filesTotal)"
+        if bytesProcessed > 0 {
+            detail += " · " + ByteCountFormatter.string(
+                fromByteCount: bytesProcessed,
+                countStyle: .file
+            ) + " processed"
+        }
+        if !currentFile.isEmpty {
+            detail += " · \(currentFile)"
+        }
+        return detail
+    }
+
     static let cancelledRecovery = "Import cancelled after native cleanup. Your active game data was not replaced. Choose a source again to restart."
 }

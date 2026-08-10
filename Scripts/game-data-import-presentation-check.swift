@@ -45,6 +45,22 @@ private struct GameDataImportPresentationCheck {
         check(GameDataImportPresentation.cancellationGuidance(isActivating: true)
                 == "Final activation is in progress and can no longer be cancelled.",
               "activation does not promise a cancellation that the worker cannot honor")
+        let longFileDetail = GameDataImportPresentation.workDetail(
+            filesCopied: 584,
+            filesTotal: 605,
+            bytesProcessed: 268_435_456,
+            currentFile: "VAG/VAGWAD.FRE"
+        )
+        check(longFileDetail?.contains("584 of 605") == true
+                && longFileDetail?.contains("processed") == true
+                && longFileDetail?.contains("VAG/VAGWAD.FRE") == true,
+              "long native copies expose changing byte work without inventing an ETA")
+        check(GameDataImportPresentation.workDetail(
+                filesCopied: 0,
+                filesTotal: 0,
+                bytesProcessed: 0,
+                currentFile: "") == nil,
+              "phases without a file inventory keep the indeterminate presentation")
         check(GameDataImportPresentation.cancelledRecovery.contains("was not replaced")
                 && GameDataImportPresentation.cancelledRecovery.contains("native cleanup")
                 && GameDataImportPresentation.cancelledRecovery.contains("restart"),
