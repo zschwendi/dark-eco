@@ -37,6 +37,7 @@ guard CommandLine.arguments.count == 2 else {
 }
 
 let root = CommandLine.arguments[1]
+let experimentalStereoGate = "#if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO"
 let view = source(at: root + "/GOALPad/Saves/SaveSyncController.swift")
 let store = source(at: root + "/GOALPad/Game/PresentationSettings.swift")
 let session = source(at: root + "/GOALPad/Game/GameSession.swift")
@@ -142,14 +143,15 @@ check(store.contains("var graphicsModernFillWidthOverride: Bool?")
         && store.contains("var graphicsProfile: SettingsProfile = .modern")
         && store.contains("return graphicsModernFillWidthOverride ?? true"),
       "Graphics and Fill Width default to Modern while preserving a user override")
-check(view.contains("#if os(visionOS)")
+check(view.contains(experimentalStereoGate)
         && view.contains("Toggle(\"Stereoscopic 3D\"")
         && view.contains("settings.setGraphicsStereo3D")
         && store.contains("var graphicsModernStereo3DOverride: Bool?")
         && store.contains("graphicsModernStereo3DOverride ?? true")
         && content.contains("session.presentationSettings.graphicsStereo3D")
-        && content.contains("synchronizeVisionPresentation()"),
-      "visionOS Modern graphics defaults to persisted bounded-window stereo with an opt-out")
+        && content.contains("synchronizeVisionPresentation()")
+        && content.contains(experimentalStereoGate),
+      "shipping UI hides stereo while its compatible setting and opt-in wiring remain dormant")
 check(occursInOrder(["case modern", "case classic"], in: store)
         && store.contains("enum SettingsProfile: String, CaseIterable, Codable"),
       "CaseIterable ordering changes without changing string-backed document compatibility")

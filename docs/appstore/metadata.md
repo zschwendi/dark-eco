@@ -40,6 +40,7 @@ as part of migration testing.
 ## Platform presentation
 
 The iPadOS, macOS, and visionOS builds share one runtime target. visionOS uses a
-standard Shared Space SwiftUI window with Comfort presentation and an
-experimental bounded stereoscopic game surface. Volumetric, tracked, and
-immersive presentation are not part of the current App Store-facing product.
+standard Shared Space SwiftUI window with the conventional Comfort/2D
+presentation. The dormant bounded-stereo implementation, volumetric and tracked
+presentation, and immersive presentation are not part of the current
+App Store-facing product.

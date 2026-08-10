@@ -910,7 +910,7 @@ struct SaveSettingsView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
 
-                #if os(visionOS)
+                #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
                 Toggle("Stereoscopic 3D", isOn: Binding(
                     get: { settings.graphicsStereo3D },
                     set: { settings.setGraphicsStereo3D($0) }

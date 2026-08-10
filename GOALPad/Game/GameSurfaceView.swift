@@ -21,7 +21,7 @@ struct GameSurfaceView: View {
     /// Called once per display refresh, on the main thread.
     let onFrame: (CFTimeInterval) -> Void
 
-    #if os(visionOS)
+    #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
     @Environment(VisionPresentationCoordinator.self) private var visionPresentation
     let isStereoRendererReady: Bool
     let onStereoFrame: VisionWindowStereoFrameHandler?
@@ -36,7 +36,7 @@ struct GameSurfaceView: View {
     #endif
 
     var body: some View {
-        #if os(visionOS)
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
         Group {
             if visionPresentation.isStereoWindowActive, onStereoFrame != nil {
                 VisionWindowStereoSurfaceView { frame in
@@ -54,6 +54,9 @@ struct GameSurfaceView: View {
         .onDisappear {
             visionPresentation.setStereoRendererAvailable(false)
         }
+        #elseif os(visionOS)
+        conventionalSurface
+            .handlesGameControllerEvents(matching: .gamepad)
         #else
         conventionalSurface
         #endif

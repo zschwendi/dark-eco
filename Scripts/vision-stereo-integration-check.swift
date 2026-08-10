@@ -47,6 +47,8 @@ guard CommandLine.arguments.count == 2 else {
 }
 
 let root = CommandLine.arguments[1]
+let experimentalStereoGate = "#if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO"
+let project = source(root, "GOALPad.xcodeproj/project.pbxproj")
 let app = source(root, "GOALPad/GOALPadApp.swift")
 let content = source(root, "GOALPad/ContentView.swift")
 let session = source(root, "GOALPad/Game/GameSession.swift")
@@ -74,13 +76,14 @@ let gameplaySurface = section(content,
                               from: "private struct GameplaySurface: View",
                               to: "/// The game's own startup")
 check(gameplaySurface.components(separatedBy: "gameSurface").count - 1 == 3,
-      "both GameplaySurface layouts use the shared mono/stereo surface")
+      "both GameplaySurface layouts use the shared presentation surface")
 check(gameplaySurface.contains("onFrame: { session.tick(targetPresentationTime: $0) }")
+        && gameplaySurface.contains(experimentalStereoGate)
         && gameplaySurface.contains("isStereoRendererReady: session.isRunning")
         && gameplaySurface.contains("onStereoFrame: { session.tickStereo(request: $0) }")
         && !gameplaySurface.contains("stereoMaximumWidthPixels")
         && !gameplaySurface.contains("stereoMaximumHeightPixels"),
-      "the shared surface wires both callbacks without the rejected per-eye render-budget cap")
+      "only the opt-in branch wires stereo while the shared 2D callback remains available")
 check(gameSurfaceView.contains(".onChange(of: isStereoRendererReady, initial: true)")
         && gameSurfaceView.contains(
             "setStereoRendererAvailable(isReady && onStereoFrame != nil)"
@@ -92,18 +95,40 @@ check(gameSurfaceView.contains(".onChange(of: isStereoRendererReady, initial: tr
 check(gameSurfaceView.contains("import GameController")
         && gameSurfaceView.components(
             separatedBy: ".handlesGameControllerEvents(matching: .gamepad)"
-        ).count - 1 == 2
+        ).count - 1 == 3
         && occursInOrder([
+            experimentalStereoGate,
             "VisionWindowStereoSurfaceView { frame in",
             ".handlesGameControllerEvents(matching: .gamepad)",
             "} else {",
+            "conventionalSurface",
+            ".handlesGameControllerEvents(matching: .gamepad)",
+            "#elseif os(visionOS)",
             "conventionalSurface",
             ".handlesGameControllerEvents(matching: .gamepad)",
         ], in: gameSurfaceView)
         && !gameSurfaceView.contains("VisionGamepadEventRoutingAnchor")
         && !gameSurfaceView.contains("GCEventInteraction()")
         && !gameSurfaceView.contains("addInteraction("),
-      "both active gameplay surfaces route gamepad events through their SwiftUI hierarchy")
+      "the shipping 2D root and both dormant stereo roots route gamepad events directly")
+let shippingVisionSurface = section(gameSurfaceView,
+                                    from: "#elseif os(visionOS)",
+                                    to: "#else")
+check(shippingVisionSurface.contains("conventionalSurface")
+        && shippingVisionSurface.contains(
+            ".handlesGameControllerEvents(matching: .gamepad)"
+        )
+        && !shippingVisionSurface.contains("Stereo")
+        && !shippingVisionSurface.contains("Reality"),
+      "normal visionOS builds structurally select only the conventional game surface")
+check(app.contains(experimentalStereoGate + "\n    @State private var visionPresentation")
+        && app.contains(experimentalStereoGate + "\n            GameCenterRootView")
+        && content.contains(experimentalStereoGate
+            + "\n    @Environment(VisionPresentationCoordinator.self)")
+        && settingsUI.contains(experimentalStereoGate
+            + "\n                Toggle(\"Stereoscopic 3D\"")
+        && !project.contains("GOALPAD_EXPERIMENTAL_VISION_STEREO"),
+      "stereo is source-gated and no normal Xcode configuration opts into it")
 
 let stereoTick = section(session,
                          from: "func tickStereo(request:",
@@ -290,10 +315,11 @@ check(rendererSubmit.components(separatedBy: "[command_buffer commit]").count - 
       "the paired command buffer commits once and reports completion asynchronously")
 
 check(app.components(separatedBy: "WindowGroup").count - 1 == 1
+        && app.contains(experimentalStereoGate)
         && app.contains(".environment(visionPresentation)")
         && !app.contains("GOALPadVisionSpatialScenes")
         && !app.contains("VisionPresentationSessionBridge"),
-      "the product declares one bounded Shared Space WindowGroup")
+      "the product declares one Shared Space WindowGroup and gates its stereo environment")
 check(surface.contains("VisionWindowStereoClipPlanner.makePlan()")
         && clipPlan.contains("defaultNormalizedDepthDisparitySlope")
         && clipPlan.contains("defaultConvergenceDepth")
@@ -348,22 +374,30 @@ check(gameplayOverlay.contains("#if !os(visionOS)")
 check(content.contains("visibility: session.input.isConnected ? .hidden : .visible")
         && content.contains("attachmentAnchor: .scene(.top)"),
       "the controller ornament follows supported gamepad connection state at the window top")
-check(content.contains("visibility: visionEcoSettingsVisible ? .visible : .hidden")
+check(content.contains(
+            "visibility: visionEcoSettingsUsesCenteredPlacement ? .hidden : .visible"
+        )
+        && content.contains(
+            "visibility: visionEcoSettingsUsesCenteredPlacement ? .visible : .hidden"
+        )
+        && content.contains("attachmentAnchor: .scene(.topLeading)")
+        && content.contains("contentAlignment: .bottomTrailing")
         && content.contains("attachmentAnchor: .scene(.top)")
-        && content.contains("contentAlignment: .bottom")
-        && !content.contains("attachmentAnchor: .scene(.topLeading)")
-        && content.contains("VisionPausedEcoOrnament { presentSettings(.jak1) }")
-        && content.contains("session.isRunning && NativeEcoSettingsPresentation.isVisible(")
+        && content.components(
+            separatedBy: "VisionPausedEcoOrnament { presentSettings(.jak1) }"
+        ).count - 1 == 2
+        && content.contains("session.input.isConnected && session.isRunning")
+        && content.contains("&& NativeEcoSettingsPresentation.isVisible(")
         && content.contains("mode: session.gameMode")
         && content.contains("progress: session.progressMenuSnapshot")
         && content.contains("runReadiness: session.runReadiness"),
-      "the top-center Dark Eco ornament reuses the paused iPad settings gate and opens Jak 1 settings")
+      "exactly one Dark Eco Settings ornament stays visible and centers only for connected native menu state")
 check(pausedEcoOrnament.contains("Button(action: openSettings)")
         && pausedEcoOrnament.contains("Image(systemName: \"gearshape\")")
         && pausedEcoOrnament.contains("Text(\"DARK ECO\")")
         && pausedEcoOrnament.contains(".glassBackgroundEffect(in: Capsule())")
         && pausedEcoOrnament.contains(".accessibilityLabel(\"Dark Eco Settings\")"),
-      "the paused Dark Eco ornament is a compact accessible glass settings control")
+      "the always-available Dark Eco ornament is a compact accessible glass settings control")
 let controllerMessageOccurrences = ornament.components(separatedBy: "Text(\"No controller detected.\")").count - 1
 check(controllerMessageOccurrences == 1
         && ornament.contains(".foregroundStyle(labelForegroundStyle)")

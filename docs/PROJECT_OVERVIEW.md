@@ -141,9 +141,9 @@ Enhancement work proceeds in this order:
    130's accepted input delivery or game behavior.
 3. Close only actual MVP shipping blockers; do not expand the touch or settings
    feature surface.
-4. After the iPhone/iPad MVP contract is physically stable, prioritize true
-   stereoscopic visionOS rendering with the conventional Comfort window kept as
-   fallback.
+4. Ship Jak 1 in conventional 2D across iPadOS, macOS, and visionOS. Keep the
+   physically accepted visionOS Comfort window on the normal launch path and
+   defer stereoscopic presentation until a later, separately gated project.
 
 No enhancement may fork gameplay semantics, weaken user-owned asset separation,
 or replace the accepted Build 130 baseline before its replacement has been

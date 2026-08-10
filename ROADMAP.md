@@ -96,12 +96,11 @@ The active product sequence is now:
    The Build 145 guide correction now matches the maintainer's MacBook reference
    and the authoritative live stick artwork without changing live input or touch
    layout.
-4. Build 147 is the current signed visionOS repair candidate after Build 146's
-   physical shell/startup rejection. It retains the synchronous fixed two-view
-   renderer, fixes stereo activation and fail-closed drawable lifetime, and
-   repairs the icon, Settings exit, full-card hover, local import recognition,
-   and visible Play readiness. Physical stereo gameplay acceptance remains
-   pending; do not present generic xros build evidence as playable stereo.
+4. Ship Jak 1 in conventional 2D on iPadOS, macOS, and visionOS. Vision Pro uses
+   the physically accepted Comfort window on its sole normal gameplay path.
+   The physically rejected stereo experiment remains dormant behind an
+   explicit development-only compilation condition and has no shipping UI.
+   Resume it only as a separately planned project after the Jak 1 launch path.
 
 ## Required code and data pipelines
 
@@ -863,11 +862,11 @@ Its physical Home Screen/App Library appearance and the combined Build 132-134
 client slice remain unaccepted, so Build 130 remains the immutable physical
 baseline.
 
-Room-play Jak is a deferred visionOS direction after true stereo and stationary
-room-scale rendering: Jak may leave the framed view and use a private,
-device-local room reconstruction as temporary level geometry while the existing
-simulation remains authoritative. The maintainer's proposed “RIP” base is
-recorded without guessing its exact dependency or API.
+Room-play Jak is a deferred visionOS direction after stereo work is explicitly
+resumed and stationary room-scale rendering exists: Jak may leave the framed
+view and use a private, device-local room reconstruction as temporary level
+geometry while the existing simulation remains authoritative. The maintainer's
+proposed “RIP” base is recorded without guessing its exact dependency or API.
 
 The historical checkpoint record follows. Checkpoint 37 was an earlier
 sustained physical gameplay and visual-fidelity run. Its signed build

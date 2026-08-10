@@ -21,13 +21,13 @@ enum GOALPadBuildIdentity {
 
 @main
 struct GOALPadApp: App {
-    #if os(visionOS)
+    #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
     @State private var visionPresentation = VisionPresentationCoordinator(graphicsProfile: .modern)
     #endif
 
     var body: some Scene {
         WindowGroup {
-            #if os(visionOS)
+            #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
             GameCenterRootView {
                 ContentView()
             }

@@ -47,7 +47,7 @@ struct ContentView: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var gameCenter: GameCenterService
-    #if os(visionOS)
+    #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
     @Environment(VisionPresentationCoordinator.self) private var visionPresentation
     #endif
     @State private var session = GameSession()
@@ -133,7 +133,7 @@ struct ContentView: View {
             _, enabled in
             session.settings.horizontalPlusEnabled = enabled
         }
-        #if os(visionOS)
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
         .onChange(of: session.presentationSettings.graphicsProfile, initial: true) { _, _ in
             synchronizeVisionPresentation()
         }
@@ -162,7 +162,16 @@ struct ContentView: View {
                 .padding(.bottom, 12)
         }
         .ornament(
-            visibility: visionEcoSettingsVisible ? .visible : .hidden,
+            visibility: visionEcoSettingsUsesCenteredPlacement ? .hidden : .visible,
+            attachmentAnchor: .scene(.topLeading),
+            contentAlignment: .bottomTrailing
+        ) {
+            VisionPausedEcoOrnament { presentSettings(.jak1) }
+                .padding(.leading, 20)
+                .padding(.bottom, 12)
+        }
+        .ornament(
+            visibility: visionEcoSettingsUsesCenteredPlacement ? .visible : .hidden,
             attachmentAnchor: .scene(.top),
             contentAlignment: .bottom
         ) {
@@ -209,14 +218,17 @@ struct ContentView: View {
     }
 
     #if os(visionOS)
-    private var visionEcoSettingsVisible: Bool {
-        session.isRunning && NativeEcoSettingsPresentation.isVisible(
-            mode: session.gameMode,
-            progress: session.progressMenuSnapshot,
-            runReadiness: session.runReadiness
-        )
+    private var visionEcoSettingsUsesCenteredPlacement: Bool {
+        session.input.isConnected && session.isRunning
+            && NativeEcoSettingsPresentation.isVisible(
+                mode: session.gameMode,
+                progress: session.progressMenuSnapshot,
+                runReadiness: session.runReadiness
+            )
     }
+    #endif
 
+    #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
     private func synchronizeVisionPresentation() {
         visionPresentation.configure(
             graphicsProfile: session.presentationSettings.graphicsProfile,
@@ -354,7 +366,7 @@ private struct GameplaySurface: View {
 
     @ViewBuilder
     private var gameSurface: some View {
-        #if os(visionOS)
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
         GameSurfaceView(
             onFrame: { session.tick(targetPresentationTime: $0) },
             isStereoRendererReady: session.isRunning,

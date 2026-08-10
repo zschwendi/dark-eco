@@ -34,7 +34,7 @@ struct GameCenterRootView<Content: View>: View {
     var body: some View { content }
 }
 
-#if os(visionOS)
+#if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
 @MainActor
 private func exerciseVisionPresentationFoundation() {
     let modes = VisionPresentationMode.allCases

@@ -19,6 +19,7 @@ window_plan_check="$root/Scripts/vision-window-stereo-clip-plan-check.swift"
 window_surface_source="$root/GOALPad/Vision/VisionWindowStereoSurface.swift"
 submission_watchdog_source="$root/GOALPad/Vision/VisionStereoSubmissionWatchdog.swift"
 controller_ornament_source="$root/GOALPad/Vision/VisionControllerStatusOrnament.swift"
+settings_ornament_source="$root/GOALPad/Vision/VisionPausedEcoOrnament.swift"
 touch_view_source="$root/GOALPad/Game/TouchControlsView.swift"
 touch_guide_source="$root/GOALPad/Game/TouchControlsGuideView.swift"
 window_material="$root/GOALPad/Vision/VisionStereoWindow.rkassets/VisionStereoWindowMaterial.usda"
@@ -40,6 +41,12 @@ rg -Fq 'graphicsProfile == .modern && stereoscopic3DEnabled' "$mode_source"
 rg -Fq 'readiness: .stereoscopicWindow' "$mode_source"
 test "$(rg -c '^        WindowGroup' "$app_source")" -eq 1
 rg -Fq '.environment(visionPresentation)' "$app_source"
+rg -Fq '#if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO' "$app_source"
+rg -Fq '#elseif os(visionOS)' "$root/GOALPad/Game/GameSurfaceView.swift"
+if rg -Fq 'GOALPAD_EXPERIMENTAL_VISION_STEREO' "$root/GOALPad.xcodeproj/project.pbxproj"; then
+  echo "Normal Xcode configurations must not enable experimental vision stereo" >&2
+  exit 1
+fi
 
 for forbidden in \
   'ImmersiveSpace' \
@@ -162,10 +169,38 @@ do
     "$submission_watchdog_source" \
     "$window_surface_source" \
     "$controller_ornament_source" \
+    "$settings_ornament_source" \
     "$root/Scripts/vision-scene-foundation-check.swift"
 done
 
 if test "$requested_sdk" = all || test "$requested_sdk" = xros; then
+  xros_sdk_path=$(xcrun --sdk xros --show-sdk-path)
+  swiftc -typecheck \
+    -sdk "$xros_sdk_path" \
+    -target arm64-apple-xros26.5 \
+    -module-cache-path "${GOALPAD_VISION_MODULE_CACHE:-$temporary/xros-opt-in-module-cache}" \
+    -module-name GOALPadVisionStereoOptInCheck \
+    -swift-version 5 \
+    -default-isolation MainActor \
+    -enable-upcoming-feature DisableOutwardActorInference \
+    -enable-upcoming-feature GlobalActorIsolatedTypesUsability \
+    -enable-upcoming-feature InferIsolatedConformances \
+    -enable-upcoming-feature InferSendableFromCaptures \
+    -enable-upcoming-feature NonisolatedNonsendingByDefault \
+    -warnings-as-errors \
+    -D GOALPAD_EXPERIMENTAL_VISION_STEREO \
+    "$app_source" \
+    "$root/GOALPad/Game/PresentationOwnershipState.swift" \
+    "$root/GOALPad/Game/GameSurfaceView.swift" \
+    "$mode_source" \
+    "$window_plan_source" \
+    "$submission_watchdog_source" \
+    "$window_surface_source" \
+    "$controller_ornament_source" \
+    "$settings_ornament_source" \
+    "$root/Scripts/vision-scene-foundation-check.swift"
+  echo "visionOS dormant stereo opt-in typecheck passed"
+
   xcrun realitytool compile \
     --output-reality "$temporary/VisionStereoWindowMaterial.reality" \
     --platform xros \
@@ -175,4 +210,4 @@ if test "$requested_sdk" = all || test "$requested_sdk" = xros; then
   echo "visionOS camera-index ShaderGraph material check passed"
 fi
 
-echo "visionOS bounded Shared Space stereo and selected Apple SDK checks passed"
+echo "visionOS shipping 2D and dormant Shared Space stereo Apple SDK checks passed"

@@ -63,11 +63,11 @@ no private entitlement anywhere in the build.
   Build 90 preserves it, adds the settings shell, and is now the unified
   baseline after the maintainer accepted its Hor+ presentation on an 11-inch
   iPad Pro. This does not certify unvisited levels or completion.
-- **Experimental — visionOS.** The shared Apple target retains its conventional
-  Comfort window and includes a bounded RealityKit stereoscopic game surface in
-  Shared Space. Its fixed left/right pair comes only from Jak's existing game
-  camera; no immersive, world-tracking, or viewer-pose path is included.
-  Physical-headset gameplay remains unvalidated.
+- **Experimental — visionOS.** Jak 1 uses the conventional Comfort/2D window in
+  Shared Space; that path has been physically accepted on Vision Pro. The
+  rejected bounded-stereo experiment remains in source behind an explicit
+  development-only compilation condition, with no shipping setting or runtime
+  activation. No immersive, world-tracking, or viewer-pose path is included.
 - **Experimental — macOS launcher.** The shared SwiftUI library, import flow,
   Metal surface, AOT runtime, and audio host build for Apple Silicon. A Release
   build imported prepared Jak 1 data and reached the title screen through the
