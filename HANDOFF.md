@@ -16021,3 +16021,35 @@ all Jak II rendering is visually complete. The retained title screenshot still
 shows unresolved red quadrilateral light artifacts and large black regions;
 those remain separate renderer follow-up work after the Jak 1 owner integrates
 this isolated branch.
+
+## Jak II interrupted-import recovery checkpoint
+
+The standalone Jak II product code is clean through `3c469b30` on
+`agent/jak2-ipad-playtest`; this handoff follows it, and nested OpenGOAL remains clean at `f75dfb7955f0`.
+The protected Jak 1 parent was not changed. Import recovery consists of two
+parent commits after the physical water checkpoint:
+
+- `9af44632` keeps an active foreground import awake, requests cooperative
+  cancellation on backgrounding, keeps the UI in `Cancelling` until native
+  cleanup actually relinquishes the task, blocks silent retry during cleanup,
+  and suppresses foreground data scans while importing.
+- `3c469b30` adds process-wide active/staging and idle-timer leases, truthful
+  activation-phase wording, and bounded reconciliation of interrupted atomic
+  activation siblings. A sole validated survivor replaces only the app's exact
+  empty `iso/` + `fr3/` layout; ready active data remains authoritative; unsafe,
+  nonempty incomplete, and ambiguous states are preserved and rejected.
+
+Focused import lifecycle, presentation/UI, install, source routing, ZIP/ZIP64,
+and gameplay lifecycle checks all pass. The signed Release device build of exact
+`3c469b30` passed and verified the recorded 840-object Jak II source pack
+(`8568d70061609617`, 21,203,077 bytes). Build log:
+
+```text
+.agent-builds/jak2-import-recovery-device-build.log
+```
+
+The exact bundle was installed on `Z iPad Pro` and launched successfully as
+`com.zephyrstudiosllc.eco.jak2dev`, PID 25549. This physical evidence proves
+installation and launch only. The maintainer must select the user-owned source
+again to exercise cleanup/recovery and complete the long import; the app does
+not resume partial composer work.
