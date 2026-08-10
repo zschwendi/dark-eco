@@ -17097,14 +17097,16 @@ team `V729QMY3V6` and bundle ID `com.zephyrstudiosllc.eco`. The builds retain
 the known actor-isolation, upstream C++, generated AOT, and always-run script
 warnings and produced no errors.
 
-No Build 156 app was installed or launched. No physical iPhone, iPad, Vision
-Pro, controller, device log, screen capture, app container, save, or imported
-game data was accessed. The next physical gate is an in-place Build 156 install
-on the maintainer-selected iPhone/iPad, preserving app data. Test portrait
-active gameplay first: Stats/Start must remain the bottom row, L and R must be
-separate above it, right-side swipes must begin above the sticks, the resting L
-must remain visible until the shared fade, and landscape gameplay/input must
-retain the accepted Build 155 behavior.
+At 01:53 on August 10, the signed iOS product was installed in place on
+`Z iPhone Air`; no uninstall or app-data clear occurred. `devicectl device info
+apps` verified Dark Eco `1.0 (156)`, and the app launched successfully at 01:54
+with `--terminate-existing`. No device logs, screen capture, app container,
+save, or imported game data was accessed. No Build 156 app was installed on the
+iPad or Vision Pro. The maintainer's physical verdict remains pending. Test
+portrait active gameplay first: Stats/Start must remain the bottom row, L and R
+must be separate above it, right-side swipes must begin above the sticks, the
+resting L must remain visible until the shared fade, and landscape
+gameplay/input must retain the accepted Build 155 behavior.
 
 The pre-existing broad `project.pbxproj` ordering rewrite remains preserved.
 Only the two Build 156 version lines belong in this checkpoint. Nested OpenGOAL
