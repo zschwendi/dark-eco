@@ -87,6 +87,9 @@ struct NativeJak2ProgressMenuSemanticSnapshot: Equatable {
         case saving
         case existingSaveOverwrite
         case saveIconInformation
+        case selectLoad
+        case selectSave
+        case loading
     }
 
     let available: Bool
@@ -113,6 +116,9 @@ struct NativeJak2ProgressMenuSemanticSnapshot: Equatable {
         case .saving: .saving
         case .existingSaveOverwrite: .existingSaveOverwrite
         case .saveIconInformation: .saveIconInformation
+        case .selectLoad: .selectLoad
+        case .selectSave: .selectSave
+        case .loading: .loading
         case .unavailable: .unavailable
         @unknown default: .unavailable
         }
@@ -530,7 +536,7 @@ enum NativeFacePromptTouchAction: CaseIterable, Hashable, Sendable {
 /// Touch-friendly actions whose meanings are authoritative for the current native game state.
 enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
     case up, down, left, right
-    case confirm, back, cancel, start, pause, resume
+    case confirm, back, cancel, jak2Back, start, pause, resume
     case fuelCells, precursorOrbs, scoutFlies, settings
 
     /// Boxed-array lengths installed by Jak 1's shipping PC `init-game-options` override.
@@ -570,6 +576,7 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         case .confirm: .cross
         case .back: .square
         case .cancel: .square
+        case .jak2Back: .triangle
         case .start, .pause, .resume: .start
         case .fuelCells: .square
         case .precursorOrbs: .cross
@@ -587,6 +594,7 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         case .confirm: "Confirm"
         case .back: "Back"
         case .cancel: "Cancel"
+        case .jak2Back: "Back"
         case .start: "Start"
         case .pause: "Pause"
         case .resume: "Resume"
@@ -605,6 +613,7 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         case .right: "chevron.right"
         case .confirm: "xmark"
         case .back, .cancel: "circle"
+        case .jak2Back: "triangle"
         case .start: "play.fill"
         case .pause: "pause.fill"
         case .resume: "play.fill"
@@ -721,29 +730,34 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         let left = UInt32(1 << 2)
         let right = UInt32(1 << 3)
         let confirm = UInt32(1 << 4)
+        let back = UInt32(1 << 5)
 
         switch snapshot.phase {
         case .selectSaveTitle:
             guard (0...4).contains(snapshot.optionIndex),
-                  snapshot.actionMask == (up | down | confirm) else { return [] }
-            return [.up, .down, .confirm]
+                  snapshot.actionMask == (up | down | confirm | back) else { return [] }
+            return [.up, .down, .jak2Back, .confirm]
+        case .selectLoad, .selectSave:
+            guard (0...3).contains(snapshot.optionIndex),
+                  snapshot.actionMask == (up | down | confirm | back) else { return [] }
+            return [.up, .down, .jak2Back, .confirm]
         case .noMemoryCard:
             guard snapshot.optionIndex == 0,
                   snapshot.actionMask == confirm else { return [] }
             return [.confirm]
         case .createGame:
             guard snapshot.optionIndex == 0,
-                  snapshot.actionMask == (left | right | confirm) else { return [] }
-            return [.left, .right, .confirm]
+                  snapshot.actionMask == (left | right | confirm | back) else { return [] }
+            return [.left, .right, .jak2Back, .confirm]
         case .existingSaveOverwrite:
             guard snapshot.optionIndex == 0,
-                  snapshot.actionMask == (left | right | confirm) else { return [] }
-            return [.left, .right, .confirm]
+                  snapshot.actionMask == (left | right | confirm | back) else { return [] }
+            return [.left, .right, .jak2Back, .confirm]
         case .saveIconInformation:
             guard snapshot.optionIndex == 0,
                   snapshot.actionMask == confirm else { return [] }
             return [.confirm]
-        case .creating, .saving:
+        case .creating, .saving, .loading:
             guard snapshot.optionIndex == 0, snapshot.actionMask == 0 else { return [] }
             return []
         case .unavailable:

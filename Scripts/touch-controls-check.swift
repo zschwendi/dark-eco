@@ -2035,13 +2035,28 @@ private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
     let left = UInt32(1 << 2)
     let right = UInt32(1 << 3)
     let confirm = UInt32(1 << 4)
+    let back = UInt32(1 << 5)
     for option in 0...4 {
         check(NativeMenuTouchAction.available(
             in: .progress,
             progress: jak2ProgressSnapshot(
                 phase: .selectSaveTitle, option: option,
-                actions: up | down | confirm)) == [.up, .down, .confirm],
-              "Jak II save row \(option) exposes only Up, Down, and Confirm")
+                actions: up | down | confirm | back)) == [.up, .down, .jak2Back, .confirm],
+              "Jak II title-save row \(option) exposes Up, Down, Triangle Back, and Confirm")
+    }
+    for option in 0...3 {
+        check(NativeMenuTouchAction.available(
+            in: .progress,
+            progress: jak2ProgressSnapshot(
+                phase: .selectLoad, option: option,
+                actions: up | down | confirm | back)) == [.up, .down, .jak2Back, .confirm],
+              "Jak II load row \(option) exposes Up, Down, Triangle Back, and Confirm")
+        check(NativeMenuTouchAction.available(
+            in: .progress,
+            progress: jak2ProgressSnapshot(
+                phase: .selectSave, option: option,
+                actions: up | down | confirm | back)) == [.up, .down, .jak2Back, .confirm],
+              "Jak II existing-save row \(option) exposes Up, Down, Triangle Back, and Confirm")
     }
     check(NativeMenuTouchAction.available(
         in: .progress,
@@ -2049,17 +2064,17 @@ private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
           == [.confirm],
           "Jak II title-origin no-card exposes only Confirm")
     check(NativeMenuTouchAction.available(
-        in: .progress,
-        progress: jak2ProgressSnapshot(
-            phase: .createGame, actions: left | right | confirm))
-          == [.left, .right, .confirm],
-          "Jak II create-game exposes only Left, Right, and Confirm")
+            in: .progress,
+            progress: jak2ProgressSnapshot(
+                phase: .createGame, actions: left | right | confirm | back))
+          == [.left, .right, .jak2Back, .confirm],
+          "Jak II create-game exposes Left, Right, Triangle Back, and Confirm")
     check(NativeMenuTouchAction.available(
-        in: .progress,
-        progress: jak2ProgressSnapshot(
-            phase: .existingSaveOverwrite, actions: left | right | confirm))
-          == [.left, .right, .confirm],
-          "Jak II existing-save overwrite exposes only Left, Right, and Confirm")
+            in: .progress,
+            progress: jak2ProgressSnapshot(
+                phase: .existingSaveOverwrite, actions: left | right | confirm | back))
+          == [.left, .right, .jak2Back, .confirm],
+          "Jak II existing-save overwrite exposes Left, Right, Triangle Back, and Confirm")
     check(NativeMenuTouchAction.available(
         in: .progress,
         progress: jak2ProgressSnapshot(
@@ -2067,16 +2082,22 @@ private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
           == [.confirm],
           "Jak II save-icon information exposes only Confirm")
     check(NativeMenuTouchAction.available(
-        in: .progress,
-        progress: jak2ProgressSnapshot(phase: .creating, actions: 0)).isEmpty
+            in: .progress,
+            progress: jak2ProgressSnapshot(phase: .creating, actions: 0)).isEmpty
           && NativeMenuTouchAction.available(
             in: .progress,
             progress: jak2ProgressSnapshot(phase: .saving, actions: 0)).isEmpty,
           "Jak II creating and saving remain observable but inert")
     check(NativeMenuTouchAction.available(
         in: .progress,
-        progress: jak2ProgressSnapshot(
-            phase: .selectSaveTitle, option: 5, actions: up | down | confirm)).isEmpty
+        progress: jak2ProgressSnapshot(phase: .loading, actions: 0)).isEmpty,
+          "Jak II loading remains observable but inert")
+    check(NativeMenuTouchAction.jak2Back.button == .triangle,
+          "Jak II source-proven Back and Cancel drive Triangle, not Jak I's Square action")
+    check(NativeMenuTouchAction.available(
+        in: .progress,
+            progress: jak2ProgressSnapshot(
+                phase: .selectSaveTitle, option: 5, actions: up | down | confirm | back)).isEmpty
           && NativeMenuTouchAction.available(
             in: .progress,
             progress: jak2ProgressSnapshot(

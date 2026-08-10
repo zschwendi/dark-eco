@@ -399,9 +399,24 @@ int main() {
     check_semantic(GOAL_JAK2_PROGRESS_MENU_PHASE_SELECT_SAVE_TITLE, 4,
                    GOAL_JAK2_PROGRESS_MENU_ACTION_UP |
                        GOAL_JAK2_PROGRESS_MENU_ACTION_DOWN |
-                       GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM,
+                       GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM |
+                       GOAL_JAK2_PROGRESS_MENU_ACTION_BACK,
                    GOALPadJak2ProgressMenuPhaseSelectSaveTitle,
-                   "the bridge preserves exact five-row save selection semantics");
+                   "the bridge preserves five-row save selection and Triangle back semantics");
+    check_semantic(GOAL_JAK2_PROGRESS_MENU_PHASE_SELECT_LOAD, 3,
+                   GOAL_JAK2_PROGRESS_MENU_ACTION_UP |
+                       GOAL_JAK2_PROGRESS_MENU_ACTION_DOWN |
+                       GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM |
+                       GOAL_JAK2_PROGRESS_MENU_ACTION_BACK,
+                   GOALPadJak2ProgressMenuPhaseSelectLoad,
+                   "the bridge preserves four-row load selection and Triangle back semantics");
+    check_semantic(GOAL_JAK2_PROGRESS_MENU_PHASE_SELECT_SAVE, 3,
+                   GOAL_JAK2_PROGRESS_MENU_ACTION_UP |
+                       GOAL_JAK2_PROGRESS_MENU_ACTION_DOWN |
+                       GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM |
+                       GOAL_JAK2_PROGRESS_MENU_ACTION_BACK,
+                   GOALPadJak2ProgressMenuPhaseSelectSave,
+                   "the bridge preserves existing-save selection and Triangle back semantics");
     check_semantic(GOAL_JAK2_PROGRESS_MENU_PHASE_NO_MEMORY_CARD, 0,
                    GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM,
                    GOALPadJak2ProgressMenuPhaseNoMemoryCard,
@@ -409,15 +424,17 @@ int main() {
     check_semantic(GOAL_JAK2_PROGRESS_MENU_PHASE_CREATE_GAME, 0,
                    GOAL_JAK2_PROGRESS_MENU_ACTION_LEFT |
                        GOAL_JAK2_PROGRESS_MENU_ACTION_RIGHT |
-                       GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM,
+                       GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM |
+                       GOAL_JAK2_PROGRESS_MENU_ACTION_BACK,
                    GOALPadJak2ProgressMenuPhaseCreateGame,
-                   "the bridge preserves create-game Left, Right, and Confirm");
+                   "the bridge preserves create-game Left, Right, Confirm, and Triangle back");
     check_semantic(GOAL_JAK2_PROGRESS_MENU_PHASE_ALREADY_EXISTS, 0,
                    GOAL_JAK2_PROGRESS_MENU_ACTION_LEFT |
                        GOAL_JAK2_PROGRESS_MENU_ACTION_RIGHT |
-                       GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM,
+                       GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM |
+                       GOAL_JAK2_PROGRESS_MENU_ACTION_BACK,
                    GOALPadJak2ProgressMenuPhaseExistingSaveOverwrite,
-                   "the bridge preserves overwrite Left, Right, and Confirm");
+                   "the bridge preserves overwrite Left, Right, Confirm, and Triangle back");
     check_semantic(GOAL_JAK2_PROGRESS_MENU_PHASE_ICON_INFO, 0,
                    GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM,
                    GOALPadJak2ProgressMenuPhaseSaveIconInformation,
@@ -430,11 +447,16 @@ int main() {
                    GOAL_JAK2_PROGRESS_MENU_ACTION_NONE,
                    GOALPadJak2ProgressMenuPhaseSaving,
                    "the bridge preserves an inert saving phase");
+    check_semantic(GOAL_JAK2_PROGRESS_MENU_PHASE_LOADING, 0,
+                   GOAL_JAK2_PROGRESS_MENU_ACTION_NONE,
+                   GOALPadJak2ProgressMenuPhaseLoading,
+                   "the bridge preserves an inert loading transition phase");
 
     g_progress_semantic = {1, GOAL_JAK2_PROGRESS_MENU_PHASE_SELECT_SAVE_TITLE, 5,
                            GOAL_JAK2_PROGRESS_MENU_ACTION_UP |
                                GOAL_JAK2_PROGRESS_MENU_ACTION_DOWN |
-                               GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM};
+                               GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM |
+                               GOAL_JAK2_PROGRESS_MENU_ACTION_BACK};
     check(!GOALPadRuntimeBridge.jak2ProgressMenuSemanticSnapshot.available,
           "the bridge rejects a sixth save row");
     g_progress_semantic = {1, GOAL_JAK2_PROGRESS_MENU_PHASE_NO_MEMORY_CARD, 0,
@@ -442,6 +464,13 @@ int main() {
                                GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM};
     check(!GOALPadRuntimeBridge.jak2ProgressMenuSemanticSnapshot.available,
           "the bridge rejects an action not proven for the phase");
+    g_progress_semantic = {1, GOAL_JAK2_PROGRESS_MENU_PHASE_SELECT_LOAD, 4,
+                           GOAL_JAK2_PROGRESS_MENU_ACTION_UP |
+                               GOAL_JAK2_PROGRESS_MENU_ACTION_DOWN |
+                               GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM |
+                               GOAL_JAK2_PROGRESS_MENU_ACTION_BACK};
+    check(!GOALPadRuntimeBridge.jak2ProgressMenuSemanticSnapshot.available,
+          "the bridge rejects a fifth load row");
     g_progress_semantic = {1, 99, 0, GOAL_JAK2_PROGRESS_MENU_ACTION_NONE};
     check(!GOALPadRuntimeBridge.jak2ProgressMenuSemanticSnapshot.available,
           "the bridge rejects an unknown semantic phase");

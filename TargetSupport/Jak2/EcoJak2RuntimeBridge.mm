@@ -55,6 +55,15 @@ static_assert((int32_t)GOALPadJak2ProgressMenuPhaseExistingSaveOverwrite ==
 static_assert((int32_t)GOALPadJak2ProgressMenuPhaseSaveIconInformation ==
                   GOAL_JAK2_PROGRESS_MENU_PHASE_ICON_INFO,
               "Jak II progress phase drift");
+static_assert((int32_t)GOALPadJak2ProgressMenuPhaseSelectLoad ==
+                  GOAL_JAK2_PROGRESS_MENU_PHASE_SELECT_LOAD,
+              "Jak II progress phase drift");
+static_assert((int32_t)GOALPadJak2ProgressMenuPhaseSelectSave ==
+                  GOAL_JAK2_PROGRESS_MENU_PHASE_SELECT_SAVE,
+              "Jak II progress phase drift");
+static_assert((int32_t)GOALPadJak2ProgressMenuPhaseLoading ==
+                  GOAL_JAK2_PROGRESS_MENU_PHASE_LOADING,
+              "Jak II progress phase drift");
 static_assert((uint32_t)GOALPadJak2ProgressMenuActionUp ==
                   GOAL_JAK2_PROGRESS_MENU_ACTION_UP,
               "Jak II progress action drift");
@@ -69,6 +78,9 @@ static_assert((uint32_t)GOALPadJak2ProgressMenuActionRight ==
               "Jak II progress action drift");
 static_assert((uint32_t)GOALPadJak2ProgressMenuActionConfirm ==
                   GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM,
+              "Jak II progress action drift");
+static_assert((uint32_t)GOALPadJak2ProgressMenuActionBack ==
+                  GOAL_JAK2_PROGRESS_MENU_ACTION_BACK,
               "Jak II progress action drift");
 
 namespace {
@@ -438,7 +450,15 @@ bool valid_progress_semantic_snapshot(
       return snapshot.option_index >= 0 && snapshot.option_index <= 4 &&
              snapshot.action_mask == (GOAL_JAK2_PROGRESS_MENU_ACTION_UP |
                                       GOAL_JAK2_PROGRESS_MENU_ACTION_DOWN |
-                                      GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM);
+                                      GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM |
+                                      GOAL_JAK2_PROGRESS_MENU_ACTION_BACK);
+    case GOAL_JAK2_PROGRESS_MENU_PHASE_SELECT_LOAD:
+    case GOAL_JAK2_PROGRESS_MENU_PHASE_SELECT_SAVE:
+      return snapshot.option_index >= 0 && snapshot.option_index <= 3 &&
+             snapshot.action_mask == (GOAL_JAK2_PROGRESS_MENU_ACTION_UP |
+                                      GOAL_JAK2_PROGRESS_MENU_ACTION_DOWN |
+                                      GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM |
+                                      GOAL_JAK2_PROGRESS_MENU_ACTION_BACK);
     case GOAL_JAK2_PROGRESS_MENU_PHASE_NO_MEMORY_CARD:
       return snapshot.option_index == 0 &&
              snapshot.action_mask == GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM;
@@ -446,17 +466,20 @@ bool valid_progress_semantic_snapshot(
       return snapshot.option_index == 0 &&
              snapshot.action_mask == (GOAL_JAK2_PROGRESS_MENU_ACTION_LEFT |
                                       GOAL_JAK2_PROGRESS_MENU_ACTION_RIGHT |
-                                      GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM);
+                                      GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM |
+                                      GOAL_JAK2_PROGRESS_MENU_ACTION_BACK);
     case GOAL_JAK2_PROGRESS_MENU_PHASE_ALREADY_EXISTS:
       return snapshot.option_index == 0 &&
              snapshot.action_mask == (GOAL_JAK2_PROGRESS_MENU_ACTION_LEFT |
                                       GOAL_JAK2_PROGRESS_MENU_ACTION_RIGHT |
-                                      GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM);
+                                      GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM |
+                                      GOAL_JAK2_PROGRESS_MENU_ACTION_BACK);
     case GOAL_JAK2_PROGRESS_MENU_PHASE_ICON_INFO:
       return snapshot.option_index == 0 &&
              snapshot.action_mask == GOAL_JAK2_PROGRESS_MENU_ACTION_CONFIRM;
     case GOAL_JAK2_PROGRESS_MENU_PHASE_CREATING:
     case GOAL_JAK2_PROGRESS_MENU_PHASE_SAVING:
+    case GOAL_JAK2_PROGRESS_MENU_PHASE_LOADING:
       return snapshot.option_index == 0 &&
              snapshot.action_mask == GOAL_JAK2_PROGRESS_MENU_ACTION_NONE;
     default:

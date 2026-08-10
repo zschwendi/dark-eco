@@ -164,9 +164,11 @@ jak2_progress_reducer=$(sed -n \
   '/private static func jak2ProgressActions(/,/private static func commonOptions(/p' \
   "$root/GOALPad/Game/TouchControls.swift")
 printf '%s\n' "$jak2_progress_reducer" | rg -Fq 'case .selectSaveTitle:'
+printf '%s\n' "$jak2_progress_reducer" | rg -Fq 'case .selectLoad, .selectSave:'
 printf '%s\n' "$jak2_progress_reducer" | rg -Fq 'case .noMemoryCard:'
 printf '%s\n' "$jak2_progress_reducer" | rg -Fq 'case .createGame:'
-printf '%s\n' "$jak2_progress_reducer" | rg -Fq 'case .creating, .saving:'
+printf '%s\n' "$jak2_progress_reducer" | rg -Fq 'case .creating, .saving, .loading:'
+printf '%s\n' "$jak2_progress_reducer" | rg -Fq '.jak2Back'
 printf '%s\n' "$jak2_progress_reducer" | rg -Fq 'snapshot.actionMask'
 if printf '%s\n' "$jak2_progress_reducer" | rg -Fq 'screenRawValue'; then
   echo "Jak II semantic reducer reuses an unproven raw progress screen number" >&2

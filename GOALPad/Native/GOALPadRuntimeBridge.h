@@ -177,6 +177,9 @@ typedef NS_ENUM(int32_t, GOALPadJak2ProgressMenuPhase) {
   GOALPadJak2ProgressMenuPhaseSaving = 5,
   GOALPadJak2ProgressMenuPhaseExistingSaveOverwrite = 6,
   GOALPadJak2ProgressMenuPhaseSaveIconInformation = 7,
+  GOALPadJak2ProgressMenuPhaseSelectLoad = 8,
+  GOALPadJak2ProgressMenuPhaseSelectSave = 9,
+  GOALPadJak2ProgressMenuPhaseLoading = 10,
 };
 
 typedef NS_OPTIONS(uint32_t, GOALPadJak2ProgressMenuAction) {
@@ -186,6 +189,8 @@ typedef NS_OPTIONS(uint32_t, GOALPadJak2ProgressMenuAction) {
   GOALPadJak2ProgressMenuActionLeft = 1u << 2,
   GOALPadJak2ProgressMenuActionRight = 1u << 3,
   GOALPadJak2ProgressMenuActionConfirm = 1u << 4,
+  /// Triangle: source-proven stable pop-state action and selected-option cancellation in Jak II.
+  GOALPadJak2ProgressMenuActionBack = 1u << 5,
 };
 
 typedef struct GOALPadJak2ProgressMenuSemanticSnapshot {
