@@ -42,8 +42,10 @@ struct GameSurfaceView: View {
                 VisionWindowStereoSurfaceView { frame in
                     onStereoFrame?(frame) ?? .skipped
                 }
+                .handlesGameControllerEvents(matching: .gamepad)
             } else {
                 conventionalSurface
+                    .handlesGameControllerEvents(matching: .gamepad)
             }
         }
         .onChange(of: isStereoRendererReady, initial: true) { _, isReady in
@@ -51,12 +53,6 @@ struct GameSurfaceView: View {
         }
         .onDisappear {
             visionPresentation.setStereoRendererAvailable(false)
-        }
-        .overlay(alignment: .topLeading) {
-            VisionGamepadEventRoutingAnchorView()
-                .frame(width: 0, height: 0)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
         }
         #else
         conventionalSurface
@@ -69,61 +65,6 @@ struct GameSurfaceView: View {
             .background(.black)
     }
 }
-
-#if os(visionOS)
-
-/// visionOS otherwise turns gamepad actions into gaze-and-pinch UI events. Route the gameplay
-/// window through Game Controller without adding a visible or interactive gameplay view.
-private final class VisionGamepadEventRoutingAnchor: UIView {
-    private let gamepadInteraction: GCEventInteraction = {
-        let interaction = GCEventInteraction()
-        interaction.handledEventTypes = .gamepad
-        return interaction
-    }()
-    private weak var interactionHost: UIView?
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        isUserInteractionEnabled = false
-        isAccessibilityElement = false
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) is unavailable")
-    }
-
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        routeGamepadEvents(through: window)
-    }
-
-    func detach() {
-        routeGamepadEvents(through: nil)
-    }
-
-    private func routeGamepadEvents(through host: UIView?) {
-        guard interactionHost !== host else { return }
-        interactionHost?.removeInteraction(gamepadInteraction)
-        interactionHost = host
-        host?.addInteraction(gamepadInteraction)
-    }
-}
-
-private struct VisionGamepadEventRoutingAnchorView: UIViewRepresentable {
-    func makeUIView(context: Context) -> VisionGamepadEventRoutingAnchor {
-        VisionGamepadEventRoutingAnchor(frame: .zero)
-    }
-
-    func updateUIView(_ view: VisionGamepadEventRoutingAnchor, context: Context) {}
-
-    static func dismantleUIView(_ view: VisionGamepadEventRoutingAnchor,
-                                coordinator: Void) {
-        view.detach()
-    }
-}
-
-#endif
 
 /// Xcode's generated iPad scene manifest supports multiple windows, while the native renderer has
 /// one process-wide surface. Keep that surface assigned to exactly one active host view. Other
