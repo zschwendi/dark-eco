@@ -16164,3 +16164,94 @@ No new build was installed after physical Build 149. Do not access the Vision
 Pro again until the combined candidate is ready and the maintainer explicitly
 puts the headset back on. Build 145 remains the accepted iOS/Jak 1 gameplay
 baseline.
+
+## 2026-08-09 Build 150 Vision crash, launcher, and save checkpoint
+
+Build 150 is integrated and validated on branch
+`agent/build149-vision-aot-suspend-fix` in
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-build146-integration`.
+The nested OpenGOAL branch is `agent/build146-vision-renderer-integration`.
+
+Committed parent checkpoints:
+
+```text
+990cf4f0 fix(arm64): isolate Metal rendering from GOAL stack (AI-assisted)
+391d149a fix(visionos): fix controller ornament shimmer (AI-assisted)
+af565fc1 fix: make import and pregame readiness deterministic (AI-assisted)
+ecd44080 test: align vision and save harness inputs (AI-assisted)
+b1ddc58d build: bump Eco to 150 (AI-assisted)
+```
+
+Committed nested checkpoint:
+
+```text
+2bff79c91 fix(jak1): preserve persistent sky registers (AI-assisted)
+```
+
+The old Build 149 crash at `GOALPadGameBoot.cpp:480` was a deliberate AOT
+integrity abort after Metal rendering corrupted the small cooperative GOAL
+stack. ARM64 Metal rendering now switches to a guarded 2 MiB native host stack
+while remaining on the same pthread. A second sky GIF failure was traced to
+fresh mips2c contexts wiping persistent sky VFs; the three sky register mutators
+now load persistent VFs before modifying and storing them. No GIF parser
+workaround or temporary integrity/autostart diagnostic remains in source.
+
+The instrumented visionOS Simulator run reached Village1 and the live Jak 1
+title screen without an AOT integrity abort, unsupported GIF assertion, or host
+stack invariant failure. Evidence:
+
+```text
+runtime log /private/tmp/goalpad-sky-state-runtime.log
+screenshot  /private/tmp/goalpad-sky-state-village1.png
+```
+
+The production AOT set was regenerated fresh after rejecting a stale CMake
+cache and verified as 518 objects, 10,631 emitted functions, 7 native
+functions, and 0 failed files. Successful command:
+
+```text
+Scripts/generate-jak1-aot.sh /private/tmp/GOALPad-build149-aot-host-clean
+Scripts/verify-generated-aot.sh Generated/jak1-aot 518
+```
+
+Focused checks passed:
+
+```text
+Scripts/run-game-data-import-lifecycle-check.sh
+Scripts/run-game-data-install-check.sh
+Scripts/run-game-data-import-presentation-check.sh
+Scripts/run-game-data-import-source-check.sh
+swift Scripts/save-pregame-gate-check.swift "$PWD"
+Scripts/run-save-sync-check.sh
+Scripts/run-vision-stereo-integration-check.sh
+git diff --check
+git -C OpenGOAL diff --check
+```
+
+Build 150 Release builds passed serially with no signing, installation, or
+physical-device access:
+
+```text
+visionOS Simulator log /private/tmp/GOALPad-build150-vision-final.log
+generic iOS log       /private/tmp/GOALPad-build150-ios-generic.log
+ARM64 macOS log       /private/tmp/GOALPad-build150-macos-arm64.log
+```
+
+The builds retain existing Swift actor-isolation and generated/native compiler
+warnings. They produced no errors. The Vision simulator proof is not physical
+device compatibility evidence. The physical device `Z iPad Pro` was not
+accessed.
+
+The parent worktree intentionally remains dirty only in
+`GOALPad.xcodeproj/project.pbxproj`. An unrelated 1,423-line project-file
+reordering appeared during the checkpoint and was preserved unstaged. The
+Build 150 commit contains only the two intended `CURRENT_PROJECT_VERSION`
+changes. Do not reset, stage, or discard the remaining project-file rewrite
+without first identifying its owner.
+
+Do not merge the isolated Jak II lane yet. Another agent is still responsible
+for its physical iPad verdict in tmux session 5. Do not touch that session or
+the device. Freeze and record the exact tested parent and nested hashes before
+resolving the existing isolated nested merge conflicts. Build 145 remains the
+accepted physical Jak 1 baseline until new maintainer-authorized physical
+evidence supersedes it.
