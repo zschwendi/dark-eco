@@ -16421,3 +16421,80 @@ physical interactions work from build/install/process evidence alone.
 The pre-existing unrelated 1,423-line project-file rewrite remains unstaged
 and preserved. Nested OpenGOAL remains clean at `2bff79c91`. The physical iPad,
 Jak II worktrees, and tmux sessions were not accessed.
+
+## 2026-08-09 Build 152 centered ornament and stereo scene-update A/B
+
+The maintainer physically accepted these Build 151 behaviors on Vision Pro:
+
+```text
+Cloud saves work.
+Load Game and the face-button path work.
+Jak 1 Comfort / 2D gameplay works.
+The Eco settings ornament is visible.
+```
+
+Stereo remained rejected. The maintainer reported an even more aggressive
+checkerboard pattern with the Build 151 per-eye resolution cap. The requested
+screen capture was not present in the Mac's locally synced Photos originals,
+and the current tool session had no supported Photos UI-control backend; obtain
+the capture as a direct attachment before making image-specific conclusions.
+
+The following Build 152 commits are pushed on
+`agent/build149-vision-aot-suspend-fix`:
+
+```text
+1944894e fix(visionos): center paused Eco settings ornament
+b56c8523 fix(visionos): publish stereo pairs on scene updates
+29d611a9 build: bump Eco to 152
+```
+
+The Eco gear + `ECO` ornament now uses the top-center scene anchor while
+retaining the existing pause/title/menu/startup visibility gate and Jak 1
+settings action. The stereo A/B removes the rejected Build 151 resolution cap,
+retains at most one completed left/right drawable pair from the existing 60 Hz
+producer, and publishes both eyes only from one RealityKit rendering-system
+update. Comfort, OpenGOAL, native Metal rendering, per-eye clip transforms, and
+the camera-index ShaderGraph material are unchanged. This is a physical A/B
+candidate, not a confirmed stereo fix. If the checkerboard persists, do not try
+`.present()` as another queue-timing tweak; move to Apple's paired
+`LowLevelTexture` plus same-command-buffer windowed-stereo pattern.
+
+Focused integration validation passed:
+
+```text
+Scripts/run-vision-stereo-integration-check.sh
+GOALPAD_VISION_SDK=xros Scripts/run-vision-scene-foundation-check.sh
+git diff --check
+git -C OpenGOAL diff --check
+```
+
+The signed physical-device Release build passed with the pre-existing Swift
+actor-isolation warnings and no errors:
+
+```text
+build log /private/tmp/GOALPad-build152-vision-device.log
+app       /private/tmp/GOALPad-build150-vision-device/Build/Products/Release-xros/GOALPad.app
+bundle    com.zephyrstudiosllc.eco 1.0 (152)
+arch      arm64 xros
+team      V729QMY3V6
+CDHash    1e5e35232c44a1d017ef8b9a95d87ec0dfc3348b
+```
+
+`codesign --verify --deep --strict` passed. Under the maintainer's current
+Vision Pro installation authorization, Build 152 was installed in place and
+launched:
+
+```text
+install JSON /private/tmp/GOALPad-build152-vision-install.json
+install URL  file:///private/var/containers/Bundle/Application/C51D8105-7621-4AAC-9321-CC7A1E847E38/GOALPad.app/
+launch JSON  /private/tmp/GOALPad-build152-vision-launch.json
+launched PID 907
+```
+
+PID 907 remained live after ten seconds. Physical acceptance of the centered
+ornament, protected Comfort mode, and the scene-update Stereo A/B is pending
+the maintainer's headset report.
+
+The pre-existing unrelated 1,423-line `project.pbxproj` rewrite remains the
+only dirty parent file and is preserved unstaged. Its working copy contains the
+same Build 152 values as HEAD. Nested OpenGOAL remains clean at `2bff79c91`.
