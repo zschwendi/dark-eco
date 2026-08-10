@@ -87,6 +87,21 @@ check(gameSurfaceView.contains(".onChange(of: isStereoRendererReady, initial: tr
             "setStereoRendererAvailable(onStereoFrame != nil)"
         ),
       "stereo remains unavailable through boot and follows running-session readiness changes")
+let gamepadRouting = section(gameSurfaceView,
+                             from: "private final class VisionGamepadEventRoutingAnchor",
+                             to: "/// Xcode's generated iPad scene manifest")
+check(gameSurfaceView.contains("import GameController")
+        && gameSurfaceView.contains("VisionGamepadEventRoutingAnchorView()")
+        && gameSurfaceView.contains(".frame(width: 0, height: 0)")
+        && gameSurfaceView.contains(".allowsHitTesting(false)")
+        && gameSurfaceView.contains(".accessibilityHidden(true)")
+        && gamepadRouting.contains("GCEventInteraction()")
+        && gamepadRouting.contains("interaction.handledEventTypes = .gamepad")
+        && gamepadRouting.contains("host?.addInteraction(gamepadInteraction)")
+        && gamepadRouting.contains("interactionHost?.removeInteraction(gamepadInteraction)")
+        && gamepadRouting.contains("isUserInteractionEnabled = false")
+        && !gamepadRouting.contains("receivesEventsInView = true"),
+      "the gameplay window routes face-button events exclusively through Game Controller without a touch target")
 
 let stereoTick = section(session,
                          from: "func tickStereo(frame:",
