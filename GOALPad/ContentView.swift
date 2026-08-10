@@ -134,6 +134,10 @@ struct ContentView: View {
             _, enabled in
             session.settings.horizontalPlusEnabled = enabled
         }
+        .onChange(of: session.presentationSettings.graphicsModernEffects, initial: true) {
+            _, effects in
+            session.settings.modernEffects = effects
+        }
         #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
         .onChange(of: session.presentationSettings.graphicsProfile, initial: true) { _, _ in
             synchronizeVisionPresentation()

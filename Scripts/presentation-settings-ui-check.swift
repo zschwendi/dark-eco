@@ -43,6 +43,9 @@ let store = source(at: root + "/GOALPad/Game/PresentationSettings.swift")
 let session = source(at: root + "/GOALPad/Game/GameSession.swift")
 let content = source(at: root + "/GOALPad/ContentView.swift")
 let renderer = source(at: root + "/GOALPad/Game/RenderSettings.swift")
+let bridge = source(at: root + "/GOALPad/Native/GOALPadRuntimeBridge.h")
+let renderSurface = source(at: root + "/GOALPad/Native/GOALPadRenderSurface.mm")
+let metalHost = source(at: root + "/GOALPad/Native/GOALPadMetalHost.hpp")
 let touchLayout = source(at: root + "/GOALPad/Game/TouchLayoutSettings.swift")
 let touchGuide = source(at: root + "/GOALPad/Game/TouchControlsGuideView.swift")
 let touchControlsView = source(at: root + "/GOALPad/Game/TouchControlsView.swift")
@@ -146,6 +149,28 @@ check(store.contains("var graphicsModernFillWidthOverride: Bool?")
         && store.contains("var graphicsProfile: SettingsProfile = .modern")
         && store.contains("return graphicsModernFillWidthOverride ?? true"),
       "Graphics and Fill Width default to Modern while preserving a user override")
+check(occursInOrder([
+    "case filmicColor = 1",
+    "case edgeSmoothing = 2",
+    "case clarity = 4",
+    "case softHighlights = 8",
+    "case vignette = 16",
+    "case filmGrain = 32",
+], in: store)
+        && occursInOrder([
+            "Filmic Color", "Edge Smoothing", "Clarity/Sharpening",
+            "Soft Highlights", "Vignette", "Film Grain",
+        ], in: store)
+        && view.contains("ForEach(ModernGraphicsEffect.allCases")
+        && view.contains("settings.isGraphicsModernEffectEnabled(effect)")
+        && view.contains("settings.setGraphicsModernEffect(effect, enabled: $0)"),
+      "the existing Modern Graphics section exposes all six Modern V1 toggles in bit order")
+check(store.contains("var graphicsModernEffectsOverride: UInt32?")
+        && store.contains("guard graphicsProfile == .modern else { return 0 }")
+        && store.contains("graphicsModernEffectsOverride ?? ModernGraphicsEffect.allMask")
+        && store.contains("graphicsModernEffectsOverride = mask == ModernGraphicsEffect.allMask")
+        && store.contains("graphicsModernEffectsOverride = nil"),
+      "one compatible optional mask defaults Modern on, suppresses Classic, and resets cleanly")
 check(view.contains(experimentalStereoGate)
         && view.contains("Toggle(\"Stereoscopic 3D\"")
         && view.contains("settings.setGraphicsStereo3D")
@@ -169,6 +194,15 @@ check(content.contains("session.presentationSettings.graphicsFillWidth")
         && content.contains("session.settings.horizontalPlusEnabled = enabled")
         && renderer.contains("surface.setHorizontalPlusEnabled(horizontalPlusEnabled)"),
       "the effective Graphics setting reaches only the opt-in Hor+ renderer seam")
+check(content.contains("session.presentationSettings.graphicsModernEffects")
+        && content.contains("session.settings.modernEffects = effects")
+        && renderer.contains("var modernEffects: UInt32 = 0")
+        && renderer.contains("surface.setModernEffects(modernEffects)")
+        && bridge.contains("- (void)setModernEffects:(uint32_t)modernEffects;")
+        && renderSurface.contains("frame.modern_effects = _modernEffects;")
+        && renderSurface.components(separatedBy: "frame.modern_effects = _modernEffects;").count - 1 == 2
+        && metalHost.contains("std::uint32_t modern_effects = 0;"),
+      "one UInt32 mask reaches ordinary and stereo GOALPadMetalHost frame options")
 check(!content.contains("session.presentationSettings.profile(for: .controls)")
         && !content.contains("session.touch.setStyle(")
         && !content.contains("session.presentationSettings.jak1TouchLayout")

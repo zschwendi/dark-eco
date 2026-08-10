@@ -1161,6 +1161,13 @@ struct SaveSettingsView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 #endif
+
+                ForEach(ModernGraphicsEffect.allCases, id: \.self) { effect in
+                    Toggle(effect.title, isOn: Binding(
+                        get: { settings.isGraphicsModernEffectEnabled(effect) },
+                        set: { settings.setGraphicsModernEffect(effect, enabled: $0) }
+                    ))
+                }
             }
 
             Button("Restore \(section.title) Defaults") {

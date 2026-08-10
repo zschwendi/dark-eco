@@ -23,6 +23,10 @@ final class RenderSettings {
         didSet { apply() }
     }
 
+    var modernEffects: UInt32 = 0 {
+        didSet { apply() }
+    }
+
     var internalResolutionScale: Int {
         didSet {
             let clamped = min(max(internalResolutionScale, 1), Self.availableScales.count)
@@ -48,6 +52,7 @@ final class RenderSettings {
         let surface = GOALPadRenderSurface.shared
         surface.setInternalResolutionScale(Int32(internalResolutionScale))
         surface.setHorizontalPlusEnabled(horizontalPlusEnabled)
+        surface.setModernEffects(modernEffects)
     }
 
     func label(for scale: Int) -> String {

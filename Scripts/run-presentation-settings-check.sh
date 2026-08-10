@@ -19,3 +19,12 @@ swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
 
 "$out"
 swift "$root/Scripts/presentation-settings-ui-check.swift" "$root"
+
+for source in \
+  "$root/GOALPad/Game/PresentationSettings.swift" \
+  "$root/GOALPad/Game/RenderSettings.swift" \
+  "$root/GOALPad/ContentView.swift" \
+  "$root/GOALPad/Saves/SaveSyncController.swift"
+do
+  swiftc -frontend -parse "$source"
+done
