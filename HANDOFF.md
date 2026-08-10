@@ -17194,12 +17194,15 @@ Strict signature verification passed for iOS and visionOS. All three products
 are ARM64 and report Build 157. The known actor-isolation, upstream C++, AOT,
 and always-run script warnings remain; the builds produced no errors.
 
-No Build 157 app was installed or launched on any device or simulator. No
-physical device, controller, device log, screen capture, app container, save,
-or imported data was accessed for this checkpoint. Physical testing should
-first compare portrait gameplay R spacing, then initial Start, main menu,
-pause, and one directional progress screen. Verify that the D-pad/commands stay
-above the bottom session row and that landscape remains unchanged.
+At 02:17 on August 10, the signed iOS product was installed in place on
+`Z iPhone Air`; no uninstall or app-data clear occurred. `devicectl device info
+apps` verified Dark Eco `1.0 (157)`, and the app launched successfully with
+`--terminate-existing`. No device logs, screen capture, app container, save, or
+imported data was accessed. No Build 157 app was installed on the iPad or
+Vision Pro. The maintainer's physical verdict remains pending. First compare
+portrait gameplay R spacing, then initial Start, main menu, pause, and one
+directional progress screen. Verify that the D-pad/commands stay above the
+bottom session row and that landscape remains unchanged.
 
 The pre-existing broad `project.pbxproj` ordering rewrite remains preserved.
 Only the two Build 157 version lines belong in this checkpoint. Nested OpenGOAL
