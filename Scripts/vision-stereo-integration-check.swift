@@ -71,14 +71,10 @@ check(gameplaySurface.components(separatedBy: "gameSurface").count - 1 == 3,
       "both GameplaySurface layouts use the shared mono/stereo surface")
 check(gameplaySurface.contains("onFrame: { session.tick(targetPresentationTime: $0) }")
         && gameplaySurface.contains("isStereoRendererReady: session.isRunning")
-        && gameplaySurface.contains(
-            "stereoMaximumWidthPixels: session.settings.internalWidth"
-        )
-        && gameplaySurface.contains(
-            "stereoMaximumHeightPixels: session.settings.internalHeight"
-        )
-        && gameplaySurface.contains("onStereoFrame: { session.tickStereo(frame: $0) }"),
-      "the shared surface wires callbacks and caps stereo to the selected 2D render budget")
+        && gameplaySurface.contains("onStereoFrame: { session.tickStereo(frame: $0) }")
+        && !gameplaySurface.contains("stereoMaximumWidthPixels")
+        && !gameplaySurface.contains("stereoMaximumHeightPixels"),
+      "the shared surface wires both callbacks without the rejected per-eye render-budget cap")
 check(gameSurfaceView.contains(".onChange(of: isStereoRendererReady, initial: true)")
         && gameSurfaceView.contains(
             "setStereoRendererAvailable(isReady && onStereoFrame != nil)"
@@ -211,12 +207,42 @@ check(occursInOrder([
     "let disposition = renderFrame(frame)",
     "case .skipped:",
     "case .rendered:",
-    "drawablePair.left.presentOnSceneUpdate()",
-    "drawablePair.right.presentOnSceneUpdate()",
+    "resources.retainForSceneUpdate(drawablePair)",
     "case .failed:",
     "VisionWindowStereoDrawableQuarantine.shared.retain(drawablePair)",
-], in: renderNextFrame),
-      "failed frames quarantine borrowed targets while only rendered frames present both eyes")
+], in: renderNextFrame) && !renderNextFrame.contains("presentOnSceneUpdate()"),
+      "the producer retains one completed pair while failed frames remain quarantined")
+
+let presentationSystem = section(
+    surface,
+    from: "private final class VisionWindowStereoPresentationSystem",
+    to: "/// A timed-out GPU submission"
+)
+let resourcePresentation = section(
+    surface,
+    from: "func nextDrawablePair()",
+    to: "private static func makeQueue"
+)
+check(surface.contains("VisionWindowStereoPresentationSystem.registerSystem()")
+        && surface.contains("content.add(resources.presentationEntity)")
+        && presentationSystem.contains("updatingSystemWhen: .rendering")
+        && presentationSystem.contains("presentPendingPair()"),
+      "paired publication is driven only by RealityKit rendering scene updates")
+check(occursInOrder([
+    "guard pendingPresentation == nil",
+    "return DrawablePair(left: left, right: right)",
+    "func retainForSceneUpdate(_ pair: DrawablePair)",
+    "precondition(pendingPresentation == nil)",
+    "pendingPresentation = pair",
+    "func presentPendingPair()",
+    "guard let pair = pendingPresentation else { return }",
+    "pair.left.presentOnSceneUpdate()",
+    "pair.right.presentOnSceneUpdate()",
+    "pendingPresentation = nil",
+], in: resourcePresentation)
+        && surface.components(separatedBy: "presentOnSceneUpdate()").count - 1 == 2
+        && !surface.contains(".present()"),
+      "exactly one completed pair is retained and both eyes publish in the same scene update")
 
 let deferredFailure = section(surface,
                               from: "private func deferStereoSurfaceFailure",
@@ -242,12 +268,14 @@ check(surface.contains("VisionWindowStereoClipPlanner.makePlan()")
         && !surface.contains("windowFromHead")
         && !clipPlan.contains("headFromEyes"),
       "the fixed pair derives only from Jak's existing game-camera clip projection")
-check(gameSurfaceView.contains("maximumWidthPixels: stereoMaximumWidthPixels")
-        && gameSurfaceView.contains("maximumHeightPixels: stereoMaximumHeightPixels")
-        && surface.contains("private func fittedPixelDimensions")
-        && surface.contains("Double(widthLimit) / Double(nativeWidth)")
-        && surface.contains("Double(heightLimit) / Double(nativeHeight)"),
-      "stereo preserves the window aspect while staying within the proven 2D pixel limits")
+check(surface.contains("private func pixelDimension(_ points: CGFloat)")
+        && surface.contains(
+            "min(max(Int((points * displayScale).rounded(.up)), 1), 4_096)"
+        )
+        && !surface.contains("private func fittedPixelDimensions")
+        && !gameSurfaceView.contains("stereoMaximumWidthPixels")
+        && !gameSurfaceView.contains("stereoMaximumHeightPixels"),
+      "stereo restores the native window pixel size while retaining the 4096 safety bound")
 
 let visionDirectory = root + "/GOALPad/Vision"
 let visionFiles = FileManager.default.enumerator(atPath: visionDirectory)?.compactMap {

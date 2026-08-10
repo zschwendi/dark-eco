@@ -49,19 +49,13 @@ struct VisionWindowStereoSurfaceView: View {
     @Environment(\.displayScale) private var displayScale
     @Environment(\.physicalMetrics) private var physicalMetrics
 
-    let maximumWidthPixels: Int
-    let maximumHeightPixels: Int
     let renderFrame: VisionWindowStereoFrameHandler
 
     var body: some View {
         GeometryReader3D { proxy in
-            let pixelDimensions = fittedPixelDimensions(
-                widthPoints: proxy.size.width,
-                heightPoints: proxy.size.height
-            )
             let configuration = Configuration(
-                widthPixels: pixelDimensions.width,
-                heightPixels: pixelDimensions.height,
+                widthPixels: pixelDimension(proxy.size.width),
+                heightPixels: pixelDimension(proxy.size.height),
                 widthMeters: meterDimension(proxy.size.width),
                 heightMeters: meterDimension(proxy.size.height)
             )
@@ -76,23 +70,8 @@ struct VisionWindowStereoSurfaceView: View {
         .background(.black)
     }
 
-    private func fittedPixelDimensions(widthPoints: CGFloat,
-                                       heightPoints: CGFloat) -> (width: Int, height: Int) {
-        let nativeWidth = min(max(Int((widthPoints * displayScale).rounded(.up)), 1), 4_096)
-        let nativeHeight = min(max(Int((heightPoints * displayScale).rounded(.up)), 1), 4_096)
-        let widthLimit = min(max(maximumWidthPixels, 1), 4_096)
-        let heightLimit = min(max(maximumHeightPixels, 1), 4_096)
-        let scale = min(
-            1,
-            min(
-                Double(widthLimit) / Double(nativeWidth),
-                Double(heightLimit) / Double(nativeHeight)
-            )
-        )
-        return (
-            width: max(Int((Double(nativeWidth) * scale).rounded(.down)), 1),
-            height: max(Int((Double(nativeHeight) * scale).rounded(.down)), 1)
-        )
+    private func pixelDimension(_ points: CGFloat) -> Int {
+        min(max(Int((points * displayScale).rounded(.up)), 1), 4_096)
     }
 
     private func meterDimension(_ points: CGFloat) -> Float {
@@ -112,13 +91,14 @@ private struct VisionWindowStereoRealitySurface: View {
         ZStack {
             RealityView { content in
                 do {
+                    VisionWindowStereoPresentationSystem.registerSystem()
                     let resources = try await VisionWindowStereoResources.make(
                         widthPixels: configuration.widthPixels,
                         heightPixels: configuration.heightPixels,
                         widthMeters: configuration.widthMeters,
                         heightMeters: configuration.heightMeters
                     )
-                    content.add(resources.surfaceEntity)
+                    content.add(resources.presentationEntity)
                     self.resources = resources
                 } catch {
                     deferStereoSurfaceFailure(
@@ -178,8 +158,7 @@ private struct VisionWindowStereoRealitySurface: View {
         case .skipped:
             return .skipped
         case .rendered:
-            drawablePair.left.presentOnSceneUpdate()
-            drawablePair.right.presentOnSceneUpdate()
+            resources.retainForSceneUpdate(drawablePair)
             return .rendered
         case .failed:
             VisionWindowStereoDrawableQuarantine.shared.retain(drawablePair)
@@ -191,6 +170,39 @@ private struct VisionWindowStereoRealitySurface: View {
         Task { @MainActor in
             await Task.yield()
             coordinator.stereoSurfaceFailed(message)
+        }
+    }
+}
+
+private struct VisionWindowStereoPresentationComponent: TransientComponent {}
+
+@MainActor
+private final class VisionWindowStereoPresentationEntity: Entity {
+    weak var resources: VisionWindowStereoResources?
+
+    required init() {
+        super.init()
+        components.set(VisionWindowStereoPresentationComponent())
+    }
+
+    func presentPendingPair() {
+        resources?.presentPendingPair()
+    }
+}
+
+private final class VisionWindowStereoPresentationSystem: System {
+    private static let presentations = EntityQuery(
+        where: .has(VisionWindowStereoPresentationComponent.self)
+    )
+
+    required init(scene: RealityKit.Scene) {}
+
+    func update(context: SceneUpdateContext) {
+        for entity in context.entities(
+            matching: Self.presentations,
+            updatingSystemWhen: .rendering
+        ) {
+            (entity as? VisionWindowStereoPresentationEntity)?.presentPendingPair()
         }
     }
 }
@@ -216,7 +228,7 @@ private final class VisionWindowStereoResources {
         let right: TextureResource.Drawable
     }
 
-    let surfaceEntity: ModelEntity
+    let presentationEntity: VisionWindowStereoPresentationEntity
     let leftDepth: any MTLTexture
     let rightDepth: any MTLTexture
 
@@ -225,14 +237,16 @@ private final class VisionWindowStereoResources {
     private let leftResource: TextureResource
     private let rightResource: TextureResource
 
-    private init(surfaceEntity: ModelEntity,
+    private var pendingPresentation: DrawablePair?
+
+    private init(presentationEntity: VisionWindowStereoPresentationEntity,
                  leftDepth: any MTLTexture,
                  rightDepth: any MTLTexture,
                  leftQueue: TextureResource.DrawableQueue,
                  rightQueue: TextureResource.DrawableQueue,
                  leftResource: TextureResource,
                  rightResource: TextureResource) {
-        self.surfaceEntity = surfaceEntity
+        self.presentationEntity = presentationEntity
         self.leftDepth = leftDepth
         self.rightDepth = rightDepth
         self.leftQueue = leftQueue
@@ -294,8 +308,10 @@ private final class VisionWindowStereoResources {
             throw VisionWindowStereoSurfaceError.depthTextureCreationFailed
         }
 
-        return VisionWindowStereoResources(
-            surfaceEntity: surface,
+        let presentationEntity = VisionWindowStereoPresentationEntity()
+        presentationEntity.addChild(surface)
+        let resources = VisionWindowStereoResources(
+            presentationEntity: presentationEntity,
             leftDepth: leftDepth,
             rightDepth: rightDepth,
             leftQueue: leftQueue,
@@ -303,14 +319,29 @@ private final class VisionWindowStereoResources {
             leftResource: leftResource,
             rightResource: rightResource
         )
+        presentationEntity.resources = resources
+        return resources
     }
 
     func nextDrawablePair() -> DrawablePair? {
-        guard let left = try? leftQueue.nextDrawable(),
+        guard pendingPresentation == nil,
+              let left = try? leftQueue.nextDrawable(),
               let right = try? rightQueue.nextDrawable() else {
             return nil
         }
         return DrawablePair(left: left, right: right)
+    }
+
+    func retainForSceneUpdate(_ pair: DrawablePair) {
+        precondition(pendingPresentation == nil)
+        pendingPresentation = pair
+    }
+
+    func presentPendingPair() {
+        guard let pair = pendingPresentation else { return }
+        pair.left.presentOnSceneUpdate()
+        pair.right.presentOnSceneUpdate()
+        pendingPresentation = nil
     }
 
     private static func makeQueue(width: Int,

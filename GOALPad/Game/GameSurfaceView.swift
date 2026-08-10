@@ -24,19 +24,13 @@ struct GameSurfaceView: View {
     #if os(visionOS)
     @Environment(VisionPresentationCoordinator.self) private var visionPresentation
     let isStereoRendererReady: Bool
-    let stereoMaximumWidthPixels: Int
-    let stereoMaximumHeightPixels: Int
     let onStereoFrame: VisionWindowStereoFrameHandler?
 
     init(onFrame: @escaping (CFTimeInterval) -> Void,
          isStereoRendererReady: Bool = false,
-         stereoMaximumWidthPixels: Int,
-         stereoMaximumHeightPixels: Int,
          onStereoFrame: VisionWindowStereoFrameHandler? = nil) {
         self.onFrame = onFrame
         self.isStereoRendererReady = isStereoRendererReady
-        self.stereoMaximumWidthPixels = stereoMaximumWidthPixels
-        self.stereoMaximumHeightPixels = stereoMaximumHeightPixels
         self.onStereoFrame = onStereoFrame
     }
     #endif
@@ -45,10 +39,7 @@ struct GameSurfaceView: View {
         #if os(visionOS)
         Group {
             if visionPresentation.isStereoWindowActive, onStereoFrame != nil {
-                VisionWindowStereoSurfaceView(
-                    maximumWidthPixels: stereoMaximumWidthPixels,
-                    maximumHeightPixels: stereoMaximumHeightPixels
-                ) { frame in
+                VisionWindowStereoSurfaceView { frame in
                     onStereoFrame?(frame) ?? .skipped
                 }
             } else {
