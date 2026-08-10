@@ -152,10 +152,18 @@ private func modernLayoutIsCompactAndSafe() {
             check(movementAndRight.isNull || movementAndRight.width <= 0.001
                   || movementAndRight.height <= 0.001,
                   "\(entry.name) keeps the two stick visuals and hit frames disjoint")
-            let lowestStickEdge = min(layout.movementArtworkFrame.minY,
-                                      layout.rightStickHitFrame.minY)
-            check(layout.actionGestureFrame.maxY + 8 <= lowestStickEdge,
-                  "\(entry.name) stacks the bounded swipe zone above the sticks")
+            check(layout.actionGestureFrame.maxY + ModernTouchLayout.portraitStackGap
+                  <= layout.rightStickHitFrame.minY,
+                  "\(entry.name) ends the bounded swipe zone immediately above R")
+            let swipeAndMovement = layout.actionGestureFrame.intersection(
+                layout.movementArtworkFrame)
+            check(swipeAndMovement.isNull || swipeAndMovement.width <= 0.001
+                  || swipeAndMovement.height <= 0.001,
+                  "\(entry.name) keeps the right swipe zone horizontally clear of L")
+            let pillHitTop = pillHits.map(\.minY).min()!
+            check(layout.rightStickHitFrame.maxY + ModernTouchLayout.portraitStackGap
+                  <= pillHitTop,
+                  "\(entry.name) keeps only a tight hit-safe gap between R and Start")
         }
     }
 
@@ -164,6 +172,35 @@ private func modernLayoutIsCompactAndSafe() {
     check(portraitPhone.statsPillFrame.size == renderedChrome.statsFrame.size
           && portraitPhone.startPillFrame.size == renderedChrome.startFrame.size,
           "portrait collision geometry uses the rendered 118-point pills")
+    let portraitPillHits = [portraitPhone.selectPillFrame,
+                            portraitPhone.statsPillFrame,
+                            portraitPhone.startPillFrame].map {
+        $0.insetBy(dx: -10, dy: -12)
+    }
+    let portraitPillHitTop = portraitPillHits.map(\.minY).min()!
+    let portraitMenuBottom = 852 - portraitPhone.menuControlsBottomInset
+    check(close(portraitPillHitTop - portraitMenuBottom,
+                ModernTouchLayout.portraitStackGap),
+          "portrait menu arrows end immediately above the safe session-pill row")
+    let portraitDPadFrame = CGRect(x: 20,
+                                   y: portraitMenuBottom
+                                      - NativeMenuCommandLayout.directionPadHeight,
+                                   width: NativeMenuCommandLayout.height * 3
+                                      + NativeMenuCommandLayout.directionSpacing * 2,
+                                   height: NativeMenuCommandLayout.directionPadHeight)
+    check(portraitPillHits.allSatisfy {
+        let intersection = $0.intersection(portraitDPadFrame)
+        return intersection.isNull || intersection.width <= 0.001
+            || intersection.height <= 0.001
+    }, "portrait main-menu D-pad cannot overlap Start, Resume, or Dark Eco")
+    let portraitWarpButton = CGRect(x: 225,
+                                    y: 852 - portraitPhone.warpPromptBottomInset
+                                       - NativeMenuCommandLayout.height,
+                                    width: NativeMenuCommandLayout.width,
+                                    height: NativeMenuCommandLayout.height)
+    check(portraitWarpButton.maxY + ModernTouchLayout.portraitStackGap
+          <= portraitPhone.rightStickHitFrame.minY,
+          "portrait transient commands end immediately above the gameplay R target")
 
     var portraitInput = Runner(style: .modern,
                                size: CGSize(width: 393, height: 852),
@@ -181,7 +218,7 @@ private func modernLayoutIsCompactAndSafe() {
     portraitInput.up(swipe)
     _ = portraitInput.frames(TouchControls.holdFrames + TouchControls.releaseFrames)
     let deadBand = Finger()
-    let belowSwipeZone = CGPoint(x: 393 * 0.75,
+    let belowSwipeZone = CGPoint(x: portraitPhone.safeBounds.maxX - 4,
                                  y: portraitPhone.actionGestureFrame.maxY + 20)
     portraitInput.down(deadBand, belowSwipeZone)
     portraitInput.move(deadBand, CGPoint(x: belowSwipeZone.x,

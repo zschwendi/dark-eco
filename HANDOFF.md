@@ -17111,3 +17111,96 @@ gameplay/input must retain the accepted Build 155 behavior.
 The pre-existing broad `project.pbxproj` ordering rewrite remains preserved.
 Only the two Build 156 version lines belong in this checkpoint. Nested OpenGOAL
 remains clean at `1c2eae29a3359404c4d94d6960301594540afbe3`.
+
+# 2026-08-10 Build 157 native-menu portrait-stack correction
+
+The maintainer physically accepted Build 156's ordinary gameplay stack but
+rejected its remaining portrait menu composition on `Z iPhone Air`. Main-menu
+and actionable progress states still combined a separately bottom-anchored
+native D-pad/command layer with the independently bottom-anchored app session
+row, so Start/Resume/Dark Eco could overlap arrows and command buttons. The
+maintainer also rejected the visibly empty 40-point vertical band between R and
+Start and asked for the same stacking contract in the main menu and pause
+scenes. The exact installed Build 156 iOS product is preserved at
+`/private/tmp/Dark-Eco-Build156-iOS.app`.
+
+Build 157 keeps the physically accepted gameplay composition and completes the
+shared safe-area layout contract:
+
+- Portrait R moves down 40 points on the 393x852 Air geometry. Its expanded hit
+  frame ends four points above the expanded Start/session-pill hit row.
+- The bounded right-side swipe zone now ends four points above R's expanded hit
+  frame, removing the unused gesture gap without overlapping L.
+- Initial title Start artwork and its semantic hit target use the same safe
+  centered session frame.
+- Pause, main menu, and progress Settings/Start/Resume use the same safe bottom
+  row as gameplay.
+- Portrait native command buttons stack above the D-pad; the D-pad ends four
+  points above the captured session row. Landscape retains its prior horizontal
+  D-pad/command composition.
+- A noncapturing warp prompt ends four points above R instead of sharing the
+  gameplay Start row. Capturing warp and contextual face ownership remain
+  unchanged.
+
+No native action mapping, visibility predicate, controller byte, ordinary SKIP
+ownership, movement radius, R radius/deadzone, or landscape gesture role was
+changed. Two independent read-only post-patch reviews reproduced the 393x852
+geometry and found no remaining concrete overlap or state-owner blocker.
+
+Primary-agent focused validation passed:
+
+```text
+Scripts/run-touch-controls-check.sh
+Scripts/run-portrait-library-check.sh
+Scripts/run-game-progress-state-check.sh
+xcrun swiftc -frontend -parse GOALPad/Game/TouchControls.swift \
+  GOALPad/Game/TouchControlsView.swift
+sh -n Scripts/run-touch-controls-check.sh
+git diff --check
+```
+
+The focused touch suite now asserts the four-point swipe-to-R,
+R-to-session-row, native-menu-to-session-row, and transient-command-to-R gaps
+on the Air portrait geometry. It also retains iPad portrait and iPhone/iPad
+landscape coverage, raw swipe classification, and unchanged R output bytes.
+Focused logs are:
+
+```text
+/private/tmp/GP-build157-root-touch-controls.log
+/private/tmp/GP-build157-root-portrait-library.log
+/private/tmp/GP-build157-root-progress-state.log
+```
+
+The same serialized Release matrix passed with the existing verified
+518-object public source pack. Commands are identical to Build 156 above except
+for their Build 157 source/version and log destinations.
+
+```text
+iOS log /private/tmp/GOALPad-build157-ios.log
+iOS app /private/tmp/GOALPad-build154-ios-generic/Build/Products/Release-iphoneos/Dark Eco.app
+  Dark Eco 1.0 (157), arm64, signed, CDHash 52167118aac3d066b504bc8d6be0ca53d1feaa43
+  executable SHA-256 fb75d5cabd0d0d00a9d76ec3e4c5afbdb28cd564076924ec358db9cd77ed7b80
+visionOS log /private/tmp/GOALPad-build157-visionos.log
+visionOS app /private/tmp/GOALPad-build150-vision-device/Build/Products/Release-xros/Dark Eco.app
+  Dark Eco 1.0 (157), arm64, signed, CDHash c5338bcfc09f6c3ba7f22df77b0a269357400b50
+  executable SHA-256 ced57dd25ab7809ac58f6e3769882f943a2ca40329ab3bc4abcf375096438c0d
+macOS log /private/tmp/GOALPad-build157-macos.log
+macOS app /private/tmp/GOALPad-build154-macos-arm64/Build/Products/Release/Dark Eco.app
+  Dark Eco 1.0 (157), arm64, unsigned
+  executable SHA-256 a290c0544b397575d84f49e846a170b42b23de43169dfd3062bf90424e71e93d
+```
+
+Strict signature verification passed for iOS and visionOS. All three products
+are ARM64 and report Build 157. The known actor-isolation, upstream C++, AOT,
+and always-run script warnings remain; the builds produced no errors.
+
+No Build 157 app was installed or launched on any device or simulator. No
+physical device, controller, device log, screen capture, app container, save,
+or imported data was accessed for this checkpoint. Physical testing should
+first compare portrait gameplay R spacing, then initial Start, main menu,
+pause, and one directional progress screen. Verify that the D-pad/commands stay
+above the bottom session row and that landscape remains unchanged.
+
+The pre-existing broad `project.pbxproj` ordering rewrite remains preserved.
+Only the two Build 157 version lines belong in this checkpoint. Nested OpenGOAL
+remains clean at `1c2eae29a3359404c4d94d6960301594540afbe3`.

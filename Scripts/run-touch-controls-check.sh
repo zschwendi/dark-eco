@@ -77,9 +77,12 @@ rg -Fq 'lookAroundState: lookAroundState' "$root/GOALPad/Game/TouchControlsView.
 rg -Fq 'lookAroundState == .firstPerson' "$root/GOALPad/Game/TouchControls.swift"
 rg -Fq 'arrow.up.left.and.arrow.down.right' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'arrow.down.right.and.arrow.up.left' "$root/GOALPad/Game/TouchControlsView.swift"
-rg -Fq 'ModernTouchChromeLayout' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'ModernTouchLayout' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'pill(.stats)' "$root/GOALPad/Game/TouchControlsView.swift"
-rg -Fq 'chrome.centeredSessionFrame.midX' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'titleStartArtwork(frame: layout.selectPillFrame)' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'titleStartTouchTarget(frame: layout.selectPillFrame)' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'if isAwaitingTitleStart {' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq '.allowsHitTesting(zoomIsAvailable)' \
   "$root/GOALPad/Game/TouchControlsView.swift"
@@ -118,7 +121,7 @@ if test "$(rg -F -c 'value: ordinaryGameplayChromeIsVisible' \
   exit 1
 fi
 ordinary_layer=$(sed -n \
-  '/private func ordinaryGameplayChrome(in proxy: GeometryProxy)/,/private func pill(/p' \
+  '/private func ordinaryGameplayChrome(layout: ModernTouchLayout)/,/private func pill(/p' \
   "$root/GOALPad/Game/TouchControlsView.swift")
 if printf '%s\n' "$ordinary_layer" | rg -Fq '.animation('; then
   echo "an ordinary gameplay child still owns a staggered animation" >&2
@@ -150,14 +153,19 @@ rg -Fq 'showsChrome: warpGateTouchControlsAreVisible' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq '.allowsHitTesting(isInteractive)' "$root/GOALPad/Game/TouchControlsView.swift"
 
-# App-owned Dark Eco Settings occupies the ordinary Stats slot only after the exact initial title gate.
-# Resume/Start keeps the paired session slot; the former top-right duplicate is gone.
+# App-owned Dark Eco Settings and Resume/Start use the same safe session row as gameplay.
+# Portrait native-menu commands stack above that row rather than sharing its bottom edge.
 rg -Fq 'NativeEcoSettingsPresentation.isVisible(' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'Button { openSettings() }' "$root/GOALPad/Game/TouchControlsView.swift"
-rg -Fq '.position(x: chrome.statsFrame.midX, y: chrome.statsFrame.midY)' \
+rg -Fq '.position(x: layout.statsPillFrame.midX, y: layout.statsPillFrame.midY)' \
   "$root/GOALPad/Game/TouchControlsView.swift"
-rg -Fq 'ecoSettingsIsVisible ? chrome.startFrame.midX' \
+rg -Fq 'ecoSettingsIsVisible ? layout.startPillFrame.midX' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'layout.menuControlsBottomInset' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'layout.warpPromptBottomInset' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'if isPortrait {' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq '.frame(maxWidth: .infinity, alignment: .leading)' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 eco_pill=$(sed -n \
   '/private var ecoSettingsPillLabel: some View {/,/^    }/p' \

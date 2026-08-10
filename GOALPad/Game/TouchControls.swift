@@ -749,9 +749,13 @@ nonisolated enum NativeEcoSettingsPresentation {
 nonisolated struct NativeMenuCommandLayout: Equatable, Sendable {
     static let width: CGFloat = 148
     static let height: CGFloat = 60
+    static let directionSpacing: CGFloat = 8
+    static let portraitGroupSpacing: CGFloat = 12
     static let horizontalInset: CGFloat = 16
     static let iconColumnWidth: CGFloat = 20
     static let iconTextSpacing: CGFloat = 10
+
+    static let directionPadHeight = height * 2 + directionSpacing
 }
 
 /// A discrete, app-owned touch action that may receive device feedback.
@@ -807,6 +811,7 @@ struct ModernTouchLayout: Sendable {
     static let movementVisualRadius = TouchControls.movementRadius
     static let rightStickHitSlop: CGFloat = 16
     static let rightStickSpacerCap: CGFloat = 200
+    static let portraitStackGap: CGFloat = 4
 
     private static let pillHitInsets = CGSize(width: 10, height: 12)
     private static let controlGap: CGFloat = 8
@@ -823,6 +828,8 @@ struct ModernTouchLayout: Sendable {
     let statsPillFrame: CGRect
     let startPillFrame: CGRect
     let zoomFrame: CGRect
+    let menuControlsBottomInset: CGFloat
+    let warpPromptBottomInset: CGFloat
 
     init(size: CGSize, safeAreaInsets: TouchSafeAreaInsets = .zero,
          customization: TouchLayoutCustomization = .standard) {
@@ -863,6 +870,10 @@ struct ModernTouchLayout: Sendable {
         let pillHitFrames = [selectPillFrame, statsPillFrame, startPillFrame].map {
             $0.insetBy(dx: -Self.pillHitInsets.width, dy: -Self.pillHitInsets.height)
         }
+        let pillHitTop = pillHitFrames.map(\.minY).min() ?? safe.maxY
+        menuControlsBottomInset = isPortrait
+            ? max(0, bounds.maxY - (pillHitTop - Self.portraitStackGap))
+            : max(20, bottom)
         let portraitStickCentreY = pillHitFrames.map(\.minY).min()
             .map { $0 - Self.controlGap - Self.movementVisualRadius }
             ?? safe.maxY - Self.movementVisualRadius
@@ -883,19 +894,6 @@ struct ModernTouchLayout: Sendable {
             movementHitFrame = nil
         }
 
-        let defaultGestureFrame = isPortrait
-            ? CGRect(x: safe.midX,
-                     y: safe.minY,
-                     width: safe.maxX - safe.midX,
-                     height: max(0, defaultMovementFrame.minY - Self.controlGap - safe.minY))
-            : Self.frame(centre: CGPoint(x: safe.minX + safe.width * 0.75, y: safe.midY),
-                         diameter: 176)
-        actionGestureFrame = Self.resolvedFrame(defaultGestureFrame, id: .modernActions,
-                                                customization: customization, safeBounds: safe)
-        actionGestureHitFrame = customization.position(for: .modernActions) == nil
-            ? nil
-            : TouchLayoutGeometry.minimumHitFrame(for: actionGestureFrame, in: safe)
-
         let radius = TouchControls.rightStickRadius
         let renderedRightEdge = isPortrait ? safe.maxX : bounds.maxX
         let candidateCentreX = renderedRightEdge - radius - rightStickSpacer
@@ -907,7 +905,7 @@ struct ModernTouchLayout: Sendable {
                               isPortrait ? max(candidateCentreX, portraitMinimumCentreX)
                                          : candidateCentreX))
         let lowestCentreY = isPortrait
-            ? movementCentre.y
+            ? pillHitTop - Self.portraitStackGap - rightHitRadius
             : bounds.maxY - radius - legacyEdge
         let candidateHitFrame = Self.frame(centre: CGPoint(x: centreX, y: lowestCentreY),
                                            diameter: radius * 2)
@@ -918,8 +916,10 @@ struct ModernTouchLayout: Sendable {
         let clearCentreY = pillHitFrames.map(\.minY).min()
             .map { $0 - radius - Self.rightStickHitSlop - Self.controlGap }
             ?? lowestCentreY
-        let centreY = max(safe.minY + radius,
-                          overlapsPillHorizontally ? min(lowestCentreY, clearCentreY) : lowestCentreY)
+        let centreY = isPortrait
+            ? max(safe.minY + rightHitRadius, lowestCentreY)
+            : max(safe.minY + radius,
+                  overlapsPillHorizontally ? min(lowestCentreY, clearCentreY) : lowestCentreY)
         let defaultRightStickFrame = Self.frame(centre: CGPoint(x: centreX, y: centreY),
                                                 diameter: radius * 2)
         rightStickArtworkFrame = Self.resolvedFrame(defaultRightStickFrame, id: .modernCamera,
@@ -928,6 +928,23 @@ struct ModernTouchLayout: Sendable {
             ? TouchLayoutGeometry.minimumHitFrame(for: rightStickArtworkFrame, in: safe)
             : rightStickArtworkFrame.insetBy(dx: -Self.rightStickHitSlop,
                                               dy: -Self.rightStickHitSlop)
+
+        let defaultGestureFrame = isPortrait
+            ? CGRect(x: safe.midX,
+                     y: safe.minY,
+                     width: safe.maxX - safe.midX,
+                     height: max(0, rightStickHitFrame.minY
+                                    - Self.portraitStackGap - safe.minY))
+            : Self.frame(centre: CGPoint(x: safe.minX + safe.width * 0.75, y: safe.midY),
+                         diameter: 176)
+        actionGestureFrame = Self.resolvedFrame(defaultGestureFrame, id: .modernActions,
+                                                customization: customization, safeBounds: safe)
+        actionGestureHitFrame = customization.position(for: .modernActions) == nil
+            ? nil
+            : TouchLayoutGeometry.minimumHitFrame(for: actionGestureFrame, in: safe)
+        warpPromptBottomInset = isPortrait
+            ? max(0, bounds.maxY - actionGestureFrame.maxY)
+            : max(20, bottom)
 
         let defaultZoomFrame = chrome.zoomFrame.offsetBy(dx: chromeOffset.x, dy: chromeOffset.y)
         if isPortrait, defaultZoomFrame.minX < safe.minX {

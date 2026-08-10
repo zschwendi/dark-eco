@@ -146,32 +146,37 @@ struct TouchControlsView: View {
 
     var body: some View {
         GeometryReader { proxy in
+            let safeAreaInsets = TouchSafeAreaInsets(
+                top: proxy.safeAreaInsets.top,
+                leading: proxy.safeAreaInsets.leading,
+                bottom: proxy.safeAreaInsets.bottom,
+                trailing: proxy.safeAreaInsets.trailing)
+            let layout = ModernTouchLayout(size: proxy.size,
+                                           safeAreaInsets: safeAreaInsets)
+            let reservesCapturedSessionRow = ecoSettingsIsVisible || sessionControl != nil
+
             ZStack {
                 if !capturesNativeMenuInput && !capturesWarpGateTouchInput {
                     #if canImport(UIKit)
                     TouchSurface(controls: controls,
                                  lookAroundState: lookAroundState,
                                  isSuppressed: isSuppressed,
-                                 safeAreaInsets: TouchSafeAreaInsets(
-                                    top: proxy.safeAreaInsets.top,
-                                    leading: proxy.safeAreaInsets.leading,
-                                    bottom: proxy.safeAreaInsets.bottom,
-                                    trailing: proxy.safeAreaInsets.trailing),
+                                 safeAreaInsets: safeAreaInsets,
                                  reclaimTouchInput: reclaimTouchInput)
                     #endif
 
                     if isAwaitingTitleStart {
-                        titleStartArtwork(in: proxy)
+                        titleStartArtwork(frame: layout.selectPillFrame)
                             .allowsHitTesting(false)
                     }
 
-                    ordinaryGameplayChrome(in: proxy)
+                    ordinaryGameplayChrome(layout: layout)
                         .opacity(ordinaryGameplayChromeIsVisible ? 1 : 0)
                         .animation(.easeOut(duration: 0.16),
                                    value: ordinaryGameplayChromeIsVisible)
 
                     if titleStartTouchTargetIsVisible {
-                        titleStartTouchTarget
+                        titleStartTouchTarget(frame: layout.selectPillFrame)
                     }
                 }
 
@@ -181,11 +186,14 @@ struct TouchControlsView: View {
                                             isInteractive: nativeMenuControlsAreVisible,
                                             showsChrome: nativeMenuControlsAreVisible
                                                 && !isSuppressed,
+                                            isPortrait: proxy.size.height > proxy.size.width,
                                             reclaimTouchInput: reclaimTouchInput)
                         .padding(.horizontal, 20)
-                        .padding(.bottom, max(20, proxy.safeAreaInsets.bottom))
+                        .padding(.bottom, reservesCapturedSessionRow
+                            ? layout.menuControlsBottomInset
+                            : max(20, proxy.safeAreaInsets.bottom))
 
-                    capturedMenuChrome(in: proxy)
+                    capturedMenuChrome(in: proxy, layout: layout)
                 }
 
                 if !capturesNativeMenuInput
@@ -199,7 +207,9 @@ struct TouchControlsView: View {
                                                     && !isSuppressed,
                                                 reclaimTouchInput: reclaimTouchInput)
                         .padding(.horizontal, 20)
-                        .padding(.bottom, max(20, proxy.safeAreaInsets.bottom))
+                        .padding(.bottom, capturesWarpGateTouchInput
+                            ? max(20, proxy.safeAreaInsets.bottom)
+                            : layout.warpPromptBottomInset)
                 }
 
                 if !facePromptActions.isEmpty {
@@ -220,8 +230,7 @@ struct TouchControlsView: View {
         .ignoresSafeArea()
     }
 
-    private func titleStartArtwork(in proxy: GeometryProxy) -> some View {
-        let frame = ModernTouchChromeLayout(size: proxy.size).centeredSessionFrame
+    private func titleStartArtwork(frame: CGRect) -> some View {
         return pill(.start)
             .position(x: frame.midX, y: frame.midY)
             .opacity(titleStartChromeIsVisible ? 1 : 0)
@@ -229,13 +238,7 @@ struct TouchControlsView: View {
     }
 
     /// Every eligible gameplay ornament shares this one idle-opacity transition.
-    private func ordinaryGameplayChrome(in proxy: GeometryProxy) -> some View {
-        let safeAreaInsets = TouchSafeAreaInsets(top: proxy.safeAreaInsets.top,
-                                                 leading: proxy.safeAreaInsets.leading,
-                                                 bottom: proxy.safeAreaInsets.bottom,
-                                                 trailing: proxy.safeAreaInsets.trailing)
-        let layout = ModernTouchLayout(size: proxy.size, safeAreaInsets: safeAreaInsets)
-
+    private func ordinaryGameplayChrome(layout: ModernTouchLayout) -> some View {
         return ZStack {
             MovementStickArtwork(touch: controls.stick,
                                  restingOrigin: CGPoint(x: layout.movementArtworkFrame.midX,
@@ -307,15 +310,15 @@ struct TouchControlsView: View {
         .accessibilityLabel(zoomAccessibilityLabel)
     }
 
-    private func capturedMenuChrome(in proxy: GeometryProxy) -> some View {
-        let chrome = ModernTouchChromeLayout(size: proxy.size)
+    private func capturedMenuChrome(in proxy: GeometryProxy,
+                                    layout: ModernTouchLayout) -> some View {
         return ZStack {
             if ecoSettingsIsVisible {
                 Button { openSettings() } label: {
                     ecoSettingsPillLabel
                 }
                 .buttonStyle(.plain)
-                .position(x: chrome.statsFrame.midX, y: chrome.statsFrame.midY)
+                .position(x: layout.statsPillFrame.midX, y: layout.statsPillFrame.midY)
                 .accessibilityLabel("Dark Eco Settings")
             }
 
@@ -326,9 +329,9 @@ struct TouchControlsView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(!sessionControl.isEnabled)
-                .position(x: ecoSettingsIsVisible ? chrome.startFrame.midX
-                                                  : chrome.centeredSessionFrame.midX,
-                          y: chrome.startFrame.midY)
+                .position(x: ecoSettingsIsVisible ? layout.startPillFrame.midX
+                                                  : layout.selectPillFrame.midX,
+                          y: layout.startPillFrame.midY)
                 .accessibilityLabel(sessionControl.action.label)
             }
         }
@@ -370,7 +373,7 @@ struct TouchControlsView: View {
             action: .start, isEnabled: true)
     }
 
-    private var titleStartTouchTarget: some View {
+    private func titleStartTouchTarget(frame: CGRect) -> some View {
         Button { performTitleStart() } label: {
             Color.clear
                 .frame(width: Self.pillWidth + 20, height: 66)
@@ -379,8 +382,7 @@ struct TouchControlsView: View {
         .buttonStyle(.plain)
         .contentShape(Capsule())
         .accessibilityLabel("Start")
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-        .padding(.bottom, 18)
+        .position(x: frame.midX, y: frame.midY)
     }
 
     private func performTitleStart() {
@@ -589,6 +591,7 @@ private struct NativeMenuTouchControls: View {
     let actions: [NativeMenuTouchAction]
     let isInteractive: Bool
     let showsChrome: Bool
+    let isPortrait: Bool
     let reclaimTouchInput: () -> Bool
 
     #if canImport(UIKit)
@@ -606,17 +609,20 @@ private struct NativeMenuTouchControls: View {
     }
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 24) {
-            if !availableDirectionalActions.isEmpty {
-                directionPad
-            }
-
-            Spacer(minLength: 0)
-
-            VStack(alignment: .trailing, spacing: 12) {
-                ForEach(commandActions, id: \.self) { action in
-                    menuButton(action, width: NativeMenuCommandLayout.width)
+        Group {
+            if isPortrait {
+                VStack(alignment: .trailing,
+                       spacing: NativeMenuCommandLayout.portraitGroupSpacing) {
+                    if !commandActions.isEmpty {
+                        commandStack
+                    }
+                    if !availableDirectionalActions.isEmpty {
+                        directionPad
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
+            } else {
+                landscapeControls
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
@@ -631,10 +637,29 @@ private struct NativeMenuTouchControls: View {
         )
     }
 
+    private var landscapeControls: some View {
+        HStack(alignment: .bottom, spacing: 24) {
+            if !availableDirectionalActions.isEmpty {
+                directionPad
+            }
+
+            Spacer(minLength: 0)
+            commandStack
+        }
+    }
+
+    private var commandStack: some View {
+        VStack(alignment: .trailing, spacing: 12) {
+            ForEach(commandActions, id: \.self) { action in
+                menuButton(action, width: NativeMenuCommandLayout.width)
+            }
+        }
+    }
+
     private var directionPad: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: NativeMenuCommandLayout.directionSpacing) {
             menuButton(.up)
-            HStack(spacing: 8) {
+            HStack(spacing: NativeMenuCommandLayout.directionSpacing) {
                 menuButton(.left)
                 menuButton(.down)
                 menuButton(.right)
