@@ -16320,6 +16320,33 @@ worktrees to make room. Continue read-only auditing from the exact integration
 checkout until a recorded, reproducible build artifact can be safely retired,
 then create only the one implementation worktree currently needed.
 
+The inventory identified three obsolete, reproducible build-output directories
+and verified that none contained a `.git` tree. The primary agent deleted only
+these exact paths, recovering approximately 3 GiB and leaving the successful
+import logs, source worktrees, user data, simulators, and ccache untouched:
+
+```text
+.agent-builds/build146-xcode
+.agent-builds/build146-jak2-regen-20260809
+.agent-builds/jak2-catalog-progress
+```
+
+Free space increased from approximately 1.8 GiB to 4.8 GiB. Keep one focused
+implementation/build lane at a time; do not recreate parallel heavy builds.
+
+The first read-only water audit is source-conclusive but not yet
+implementation-complete. Exact `b6a568f70` actively renders the six per-level
+TFRAG/TIE/ETIE water families plus Merc/GMerc water, but deliberately marks
+both `OCEAN_MID_FAR` and `OCEAN_NEAR` as `DeferredSkip` even though Jak II GOAL
+writes those chains and OpenGL binds `OceanMidAndFar`/`OceanNear`. This explains
+missing large ocean/world-water surfaces. A prior promotion was intentionally
+rolled back because its public proof did not produce actual mid/near mesh
+draws. Do not simply flip the bucket policy: first add source-shaped mid and
+near packets with non-clear Metal readback, exact next-bucket consumption, zero
+missing textures, and expected draw counts. `TEX_LCOM_WATER` is a secondary
+deferred mismatch affecting common-water textures, not the primary ocean
+surface, and must remain a separate proof.
+
 Workers may run only patch-local focused checks. The primary agent must review
 each result, integrate only source-proven non-overlapping commits, and then run
 one batched native/Metal build plus the approved iPad Pro 11-inch (M5)
