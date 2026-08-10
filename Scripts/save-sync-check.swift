@@ -2255,6 +2255,122 @@ private func fastStartupSyncIsNotRepeatedBeforePlay() async throws {
 }
 
 @MainActor
+private func launcherAppearanceCoalescesAutomaticReconciliation() async throws {
+    print("launcher appearance starts one automatic bidirectional save reconcile")
+    let gate = OperationGate()
+    let entries = OperationLog()
+    let fixture = try Fixture(operationAwaitHook: {
+        await entries.append("sync")
+        await gate.pauseFirstEntry()
+    })
+    let defaults = UserDefaults(suiteName: "goalpad-launcher-save-sync-\(UUID().uuidString)")!
+    let controller = SaveSyncController(defaults: defaults, engine: fixture.engine)
+
+    controller.launcherDidAppear()
+    controller.launcherDidAppear()
+    await gate.waitUntilEntered()
+    check(controller.activeOperation == .syncing && controller.status == .syncing,
+          "the launcher immediately exposes its automatic save reconciliation")
+    let activeEntries = await entries.entries()
+    check(activeEntries.count == 1,
+          "repeated appearance callbacks share the active bidirectional reconcile")
+
+    await gate.release()
+    let becameIdle = await waitForController { !controller.isBusy }
+    let completedEntries = await entries.entries()
+    check(becameIdle && completedEntries.count == 1,
+          "one launcher appearance cycle completes exactly one save operation")
+}
+
+@MainActor
+private func completedNativeSaveAutomaticallyUploads() async throws {
+    print("a completed native save automatically uploads without blocking its frame")
+    let fixture = try Fixture()
+    let defaults = UserDefaults(suiteName: "goalpad-native-save-upload-\(UUID().uuidString)")!
+    let controller = SaveSyncController(defaults: defaults, engine: fixture.engine)
+    let baselineDate = Date(timeIntervalSince1970: 1_700_000_000)
+    let savedDate = baselineDate.addingTimeInterval(60)
+    try writeBank(progress: 60, saveCount: 5, marker: 1,
+                  to: bankFilePath(0), under: fixture.local,
+                  modificationDate: baselineDate)
+    try writeBank(progress: 50, saveCount: 4, marker: 2,
+                  to: bankFilePath(1), under: fixture.local,
+                  modificationDate: baselineDate)
+    await controller.syncNow(mode: .bidirectional)
+
+    try writeBank(progress: 70, saveCount: 7, marker: 3,
+                  to: bankFilePath(0), under: fixture.local,
+                  modificationDate: savedDate)
+    try writeBank(progress: 65, saveCount: 6, marker: 4,
+                  to: bankFilePath(1), under: fixture.local,
+                  modificationDate: savedDate)
+    let savedEven = data(bankFilePath(0), under: fixture.local)
+    let savedOdd = data(bankFilePath(1), under: fixture.local)
+
+    controller.setGameplayActive(true)
+    controller.gameplayFrameCompleted()
+    check(controller.hasPendingFrameCheck && !controller.isBusy,
+          "the completed frame only schedules save work and does not synchronously enter cloud I/O")
+    let becameIdle = await waitForController {
+        !controller.isBusy && !controller.hasPendingFrameCheck
+    }
+    check(becameIdle, "the automatic completed-save check drains without a manual Sync action")
+    check(data(bankFilePath(0), under: fixture.cloud) == savedEven
+            && data(bankFilePath(1), under: fixture.cloud) == savedOdd,
+          "the newly completed native generation is mirrored to iCloud automatically")
+}
+
+@MainActor
+private func completedNativeSaveDefersNewerRemoteWinner() async throws {
+    print("automatic native-save upload defers a deterministically newer iCloud generation")
+    let fixture = try Fixture()
+    let defaults = UserDefaults(suiteName: "goalpad-native-save-defer-\(UUID().uuidString)")!
+    let controller = SaveSyncController(defaults: defaults, engine: fixture.engine)
+    let baselineDate = Date(timeIntervalSince1970: 1_700_000_000)
+    try writeBank(progress: 60, saveCount: 5, marker: 1,
+                  to: bankFilePath(0), under: fixture.local,
+                  modificationDate: baselineDate)
+    try writeBank(progress: 50, saveCount: 4, marker: 2,
+                  to: bankFilePath(1), under: fixture.local,
+                  modificationDate: baselineDate)
+    await controller.syncNow(mode: .bidirectional)
+
+    let localDate = baselineDate.addingTimeInterval(60)
+    try writeBank(progress: 70, saveCount: 7, marker: 3,
+                  to: bankFilePath(0), under: fixture.local,
+                  modificationDate: localDate)
+    try writeBank(progress: 65, saveCount: 6, marker: 4,
+                  to: bankFilePath(1), under: fixture.local,
+                  modificationDate: localDate)
+    let remoteDate = baselineDate.addingTimeInterval(120)
+    try writeBank(progress: 90, saveCount: 9, marker: 5,
+                  to: bankFilePath(0), under: fixture.cloud,
+                  modificationDate: remoteDate)
+    try writeBank(progress: 85, saveCount: 8, marker: 6,
+                  to: bankFilePath(1), under: fixture.cloud,
+                  modificationDate: remoteDate)
+    let localEven = data(bankFilePath(0), under: fixture.local)
+    let localOdd = data(bankFilePath(1), under: fixture.local)
+    let remoteEven = data(bankFilePath(0), under: fixture.cloud)
+    let remoteOdd = data(bankFilePath(1), under: fixture.cloud)
+
+    controller.setGameplayActive(true)
+    controller.gameplayFrameCompleted()
+    let becameIdle = await waitForController {
+        !controller.isBusy && !controller.hasPendingFrameCheck
+    }
+    check(becameIdle, "the automatic upload-only comparison completes without a manual action")
+    check(data(bankFilePath(0), under: fixture.local) == localEven
+            && data(bankFilePath(1), under: fixture.local) == localOdd,
+          "active gameplay keeps its local generation untouched")
+    check(data(bankFilePath(0), under: fixture.cloud) == remoteEven
+            && data(bankFilePath(1), under: fixture.cloud) == remoteOdd,
+          "automatic upload does not overwrite the deterministically newer iCloud generation")
+    check(controller.summary.contains("Newer iCloud saves are waiting"),
+          "the deferred remote winner remains visible for the next Library reconciliation")
+}
+
+@MainActor
 private func identityChangesReevaluateUnavailableCloudSaves() async throws {
     print("iCloud identity changes trigger a visible save availability retry")
     let entries = OperationLog()
@@ -2605,6 +2721,9 @@ private struct SaveSyncCheck {
             try await startupSyncIsObservableAndCannotIndefinitelyGatePlay()
             try await enablingSyncUsesTheSameCancelableAutomaticOwner()
             try await fastStartupSyncIsNotRepeatedBeforePlay()
+            try await launcherAppearanceCoalescesAutomaticReconciliation()
+            try await completedNativeSaveAutomaticallyUploads()
+            try await completedNativeSaveDefersNewerRemoteWinner()
             try await identityChangesReevaluateUnavailableCloudSaves()
             try await controllerCoalescesSyncIntentAndPreservesLastSuccess()
             try await combinedCloudPresentationCoordinatesEnabledDomains()

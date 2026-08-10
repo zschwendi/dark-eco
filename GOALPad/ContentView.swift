@@ -99,6 +99,7 @@ struct ContentView: View {
                         openJak1Setup: { launcherDestination = .gameSetup },
                         openSettings: { presentSettings(.titles) }
                     )
+                    .onAppear { session.saveSync.launcherDidAppear() }
                 case .gameSetup:
                     NavigationStack {
                         GameDataSetupView(session: session)

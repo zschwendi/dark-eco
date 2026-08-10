@@ -239,7 +239,14 @@ final class SaveSyncController {
     }
 
     func prepare() async {
-        guard isEnabled else { return }
+        launcherDidAppear()
+    }
+
+    /// Reconciles saves as soon as the Library is visible, before a title starts gameplay.
+    /// Repeated appearance callbacks share an already queued or active bidirectional sync.
+    func launcherDidAppear() {
+        guard isEnabled, !isGameplayActive else { return }
+        guard activeSyncMode != .bidirectional, pendingSyncMode != .bidirectional else { return }
         scheduleAutomaticSync(.bidirectional, announceWaiting: true)
     }
 

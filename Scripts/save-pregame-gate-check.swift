@@ -50,6 +50,7 @@ let root = CommandLine.arguments[1]
 let controller = source(at: root + "/GOALPad/Saves/SaveSyncController.swift")
 let engine = source(at: root + "/GOALPad/Saves/SaveSyncEngine.swift")
 let session = source(at: root + "/GOALPad/Game/GameSession.swift")
+let content = source(at: root + "/GOALPad/ContentView.swift")
 let coreHeader = source(at: root + "/GOALPad/Native/GOALPadRuntimeCore.hpp")
 let core = source(at: root + "/GOALPad/Native/GOALPadRuntimeCore.cpp")
 let bridgeHeader = source(at: root + "/GOALPad/Native/GOALPadRuntimeBridge.h")
@@ -98,9 +99,15 @@ check(engine.contains("NSMetadataQueryUbiquitousDocumentsScope")
       "cloud absence is accepted only after one bounded authoritative metadata gather")
 
 let prepare = section(controller, from: "func prepare() async", to: "func syncNow")
-check(prepare.contains("scheduleAutomaticSync(.bidirectional, announceWaiting: true)")
+check(prepare.contains("launcherDidAppear()")
+        && prepare.contains("guard isEnabled, !isGameplayActive else { return }")
+        && prepare.contains("activeSyncMode != .bidirectional")
+        && prepare.contains("pendingSyncMode != .bidirectional")
+        && prepare.contains("scheduleAutomaticSync(.bidirectional, announceWaiting: true)")
         && !prepare.contains("await syncNow"),
-      "initial cloud reconciliation is observable without blocking launcher preparation")
+      "launcher appearance starts one observable reconcile without blocking preparation")
+check(content.contains(".onAppear { session.saveSync.launcherDidAppear() }"),
+      "the visible Library immediately starts or retriggers automatic reconciliation")
 
 let syncNow = section(controller, from: "func syncNow", to: "func syncBeforeGameplay")
 check(occursInOrder([

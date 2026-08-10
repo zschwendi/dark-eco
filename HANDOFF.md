@@ -17310,3 +17310,103 @@ not full sync.
 The pre-existing broad `project.pbxproj` ordering rewrite remains preserved.
 Only the two Build 158 version lines belong in this checkpoint. Nested OpenGOAL
 remains clean at `1c2eae29a3359404c4d94d6960301594540afbe3`.
+
+# 2026-08-10 Build 159 automatic launcher/save-sync checkpoint
+
+The maintainer clarified that iCloud save freshness is an app responsibility,
+not a title-selection or manual-Settings workflow: reconciliation should begin
+when Dark Eco opens to the Library, and every completed native save should be
+uploaded automatically. Manual Sync remains available as an explicit retry,
+but it is not the normal path.
+
+Build 159 makes the Library lifecycle explicit. `GameLibraryView` calls
+`SaveSyncController.launcherDidAppear()` when it becomes visible. Initial app
+preparation delegates to the same idempotent entry point, and repeated SwiftUI
+appearance callbacks share an already queued or active bidirectional operation
+instead of producing concurrent or duplicate reconciliation. Returning from a
+game or Game Setup to the Library therefore starts the same full reconciliation
+before the player chooses a title.
+
+The existing completed-frame detector remains the native-save hook. OpenGOAL's
+memcard write is synchronous; after a successful game frame, Dark Eco schedules
+a 250 ms coalesced stamp check off the display callback. A changed complete
+bank pair enters upload-only reconciliation automatically. The frame never
+waits for hashing, provider discovery, or iCloud I/O. Multiple writes within
+the coalescing window converge on the newest closed generation.
+
+New deterministic coverage proves the two automatic paths rather than relying
+on source inspection:
+
+- repeated Library appearances run exactly one active bidirectional operation;
+- a completed local native generation uploads without any manual Sync action;
+- scheduling the save check does not synchronously enter cloud I/O from the
+  game frame;
+- a deterministically newer iCloud generation remains untouched and visibly
+  deferred for the next Library reconciliation.
+
+Build 158's authoritative metadata discovery, upload-pending reporting,
+pair-journal/CAS recovery, conflict preservation, and no-download-during-gameplay
+contract remain unchanged. If the provider is still working when Play is tapped,
+the existing bounded pregame safety gate may still finish that already-started
+operation rather than risk booting an older local save; the operation now starts
+at Library appearance instead of after title selection.
+
+Primary-agent focused validation passed:
+
+```text
+Scripts/run-save-sync-check.sh
+swift Scripts/save-pregame-gate-check.swift "$PWD"
+Scripts/run-session-startup-readiness-check.sh
+Scripts/run-game-lifecycle-check.sh
+Scripts/run-presentation-settings-check.sh
+Scripts/run-portrait-library-check.sh
+xcrun swiftc -frontend -parse GOALPad/Saves/SaveSyncController.swift \
+  GOALPad/ContentView.swift Scripts/save-sync-check.swift
+git diff --check -- GOALPad/ContentView.swift \
+  GOALPad/Saves/SaveSyncController.swift Scripts/save-sync-check.swift \
+  Scripts/save-pregame-gate-check.swift
+```
+
+Focused logs are:
+
+```text
+/private/tmp/GP-build159-root-save-sync.log
+/private/tmp/GP-build159-root-pregame.log
+/private/tmp/GP-build159-root-startup-readiness.log
+/private/tmp/GP-build159-root-lifecycle.log
+/private/tmp/GP-build159-root-presentation-settings.log
+/private/tmp/GP-build159-root-portrait-library.log
+```
+
+The serialized Release compile matrix passed with the existing verified
+518-object public source pack. iOS and visionOS are signed products; macOS was
+compiled unsigned only to keep shared-source build integrity and is not a
+release candidate.
+
+```text
+iOS log /private/tmp/GP-build159-ios.log
+iOS app /private/tmp/GOALPad-build154-ios-generic/Build/Products/Release-iphoneos/Dark Eco.app
+  Dark Eco 1.0 (159), arm64, signed, CDHash dc506c2ae6660669365881782a97b9c8019a775b
+  executable SHA-256 a89c8bbb0c47016334e97da9ccab03c113b39e36c726b283a97b8dcd729b6147
+visionOS log /private/tmp/GP-build159-visionos.log
+visionOS app /private/tmp/GOALPad-build150-vision-device/Build/Products/Release-xros/Dark Eco.app
+  Dark Eco 1.0 (159), arm64, signed, CDHash 67d16cabda4d977f280421dfbc7ee3fe058040ef
+  executable SHA-256 7eedb4a379b2a2127a0492e41d5dea78a5318f336fde02803c9130ae1bd595a4
+macOS compile log /private/tmp/GP-build159-macos-compile.log
+macOS compile product /private/tmp/GOALPad-build154-macos-arm64/Build/Products/Release/Dark Eco.app
+  Dark Eco 1.0 (159), arm64, unsigned compile evidence only
+  executable SHA-256 5350ab732a5f47608c6d55e44573442519285a50e06d3d3e254495d80422d7cb
+```
+
+Strict signature verification passed for iOS and visionOS. Both use team
+`V729QMY3V6` and bundle ID `com.zephyrstudiosllc.eco`; all three compile logs
+contain zero `error:` diagnostics.
+
+The maintainer explicitly deferred the macOS release and cancelled the proposed
+native macOS keyboard/mouse feature. That investigation produced no source
+changes. No Build 159 app was installed or launched on any physical device or
+Mac, and no device data, save, imported game data, log, or screen was accessed.
+
+The pre-existing broad `project.pbxproj` ordering rewrite remains preserved.
+Only the two Build 159 version lines belong in this checkpoint. Nested OpenGOAL
+remains clean at `1c2eae29a3359404c4d94d6960301594540afbe3`.
