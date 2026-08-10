@@ -631,7 +631,11 @@ Exit gate:
 ## Modern Graphics
 
 **Modern V1 status: Implemented and deterministically validated; physical
-acceptance pending.** The existing **Modern / Classic** selector remains the
+acceptance pending.** Build 160 was physically rejected because its effect
+strength was effectively imperceptible. Build 161 replaces its byte-level
+nonidentity gate with minimum output-magnitude checks at native and scaled
+presentation sizes and removes the rejected uniform midtone dimming. The
+existing **Modern / Classic** selector remains the
 graphics master. Modern defaults Filmic Color, Edge Smoothing,
 Clarity/Sharpening, Soft Highlights, Vignette, and Film Grain on and exposes an
 individual toggle for each. Classic sends an exact zero-effect mask through the

@@ -17539,3 +17539,99 @@ The pre-existing 713-line/714-line `project.pbxproj` ordering rewrite remains
 unstaged and preserved. Only the two Build 160 version lines were committed
 from that file. Nested OpenGOAL is clean at
 `c43824257663738fd135326bf15718df41309374`.
+
+# 2026-08-10 Build 161 stronger Modern V1 candidate
+
+The maintainer physically tested Build 160 on Z iPad Pro and rejected its
+Modern presentation: switching effects was effectively indistinguishable from
+Classic except for slight dimming. This is a failed physical acceptance result,
+not user uncertainty. The Build 160 proof only required at least one output
+pixel to change by one byte and therefore established implementation wiring,
+not useful perceptual separation.
+
+Build 161 replaces that candidate with a stronger bounded presentation pass.
+Filmic Color now uses a midpoint-preserving contrast curve and luma-relative
+saturation instead of uniformly dimming nonwhite pixels. Edge Smoothing is
+directional and edge-aware, Clarity uses thresholded local detail, Soft
+Highlights has a meaningful bright-pass lift, and Vignette and Film Grain have
+intentional but bounded strengths. All six still share the existing settings
+bits and remain enabled by default under the existing **Modern / Classic**
+master selector. No UI or persistence format changed. Classic still returns
+the original shader expression before any Modern sampling or math.
+
+The proof now measures changed content pixels, mean final-byte RGB delta, and
+maximum channel delta per effect. It also checks that Filmic preserves neutral
+midtone brightness and that the all-on defaults retain material separation at
+1.5x output. The first stronger proof run failed five deliberately raised
+thresholds, exposing fixture-local expectations and an insufficient highlight
+pass. After narrowing local-effect coverage gates and strengthening the
+bright-pass, the final full proof passed:
+
+```text
+zero-mask Classic: exact byte-for-byte match
+Filmic: 39,936 pixels, mean changed-channel delta 7.44, max 11
+Edge Smoothing: 272 edge pixels, mean 29.06, max 48
+Clarity: 3,020 detail pixels, mean 5.65, max 19
+Soft Highlights: 133,266 pixels, mean 1.20, max 24
+Vignette: 84,827 pixels, mean 4.54, max 28
+Film Grain: 191,767 pixels, mean 1.57, max 3
+all-on at 1.5x: 473,940 pixels, mean 4.19, max 32
+METAL PROOF PASSED
+```
+
+Nested OpenGOAL commit:
+
+```text
+cb1cc689eee9571d658d6f2815e73e2a35ef65eb Strengthen Modern graphics separation (AI-assisted)
+```
+
+Parent integration commit before this handoff update:
+
+```text
+d2655ac2 Ship stronger Modern graphics as Build 161 (AI-assisted)
+```
+
+Validation passed:
+
+```text
+xcrun -sdk macosx metal -Wall -Werror -c \
+  game/graphics/pipelines/metal/shaders/scaffold.metal \
+  -o /private/tmp/GP-build161-scaffold.air
+cmake --build OpenGOAL/build/Release/bin --target metal-proof -j 4
+OpenGOAL/build/Release/bin/game/metal-proof
+git diff --check
+git -C OpenGOAL diff --check
+```
+
+The serialized Release matrix used the same exact commands and existing
+518-object source pack recorded for Build 160, with Build 161 log paths below.
+iOS and visionOS are signed; macOS is unsigned shared-source compile evidence
+only. All three logs contain zero `error:` and zero `warning:` diagnostics.
+
+```text
+iOS log /private/tmp/GP-build161-ios.log
+iOS app /private/tmp/GOALPad-build154-ios-generic/Build/Products/Release-iphoneos/Dark Eco.app
+  Dark Eco 1.0 (161), arm64, signed, CDHash 522c5b89155ad0ff11e2427a9ed71946e21a1143
+  executable SHA-256 8cb73cde86e01f11140b5c40edfff3b277372475cfa62f6dfc4d5a199b836acf
+visionOS log /private/tmp/GP-build161-visionos.log
+visionOS app /private/tmp/GOALPad-build150-vision-device/Build/Products/Release-xros/Dark Eco.app
+  Dark Eco 1.0 (161), arm64, signed, CDHash 302c15e0b5651b824e8b3a254fdc29f1e4e2e075
+  executable SHA-256 dc1bf8a16664276fa4c2bdb94e650b17a4b97a2604e99a2a4edcf9964158763f
+macOS compile log /private/tmp/GP-build161-macos-compile.log
+macOS compile product /private/tmp/GOALPad-build154-macos-arm64/Build/Products/Release/Dark Eco.app
+  Dark Eco 1.0 (161), arm64, unsigned compile evidence only
+  executable SHA-256 6a5c62ab12e5fce005d6c2f6244cd8dcb493c6ce547683bbee3b736580a1f175
+Metal proof /private/tmp/GP-build161-metal-proof-final.log
+```
+
+The proof and signed products do not establish visual acceptance. Build 161
+has not been installed or launched and no physical device was accessed while
+creating it. The next gate is one normal-gameplay physical iPad A/B: Modern
+all-on must be immediately distinguishable from Classic without looking like a
+blanket brightness change, while input, frame pacing, and stability remain
+unchanged. If it is still not plainly visible, stop tuning this single-pass
+architecture and move the next attempt to the planned multi-pass/texture work.
+
+The pre-existing broad `project.pbxproj` ordering rewrite remains unstaged and
+preserved; its two working version lines now read Build 161. Nested OpenGOAL is
+clean at `cb1cc689eee9571d658d6f2815e73e2a35ef65eb`.
