@@ -163,11 +163,10 @@ struct ContentView: View {
         }
         .ornament(
             visibility: visionEcoSettingsVisible ? .visible : .hidden,
-            attachmentAnchor: .scene(.topLeading),
-            contentAlignment: .bottomTrailing
+            attachmentAnchor: .scene(.top),
+            contentAlignment: .bottom
         ) {
             VisionPausedEcoOrnament { presentSettings(.jak1) }
-                .padding(.leading, 20)
                 .padding(.bottom, 12)
         }
         #endif

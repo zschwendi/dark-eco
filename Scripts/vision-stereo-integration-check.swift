@@ -288,13 +288,15 @@ check(content.contains("visibility: session.input.isConnected ? .hidden : .visib
         && content.contains("attachmentAnchor: .scene(.top)"),
       "the controller ornament follows supported gamepad connection state at the window top")
 check(content.contains("visibility: visionEcoSettingsVisible ? .visible : .hidden")
-        && content.contains("attachmentAnchor: .scene(.topLeading)")
+        && content.contains("attachmentAnchor: .scene(.top)")
+        && content.contains("contentAlignment: .bottom")
+        && !content.contains("attachmentAnchor: .scene(.topLeading)")
         && content.contains("VisionPausedEcoOrnament { presentSettings(.jak1) }")
         && content.contains("session.isRunning && NativeEcoSettingsPresentation.isVisible(")
         && content.contains("mode: session.gameMode")
         && content.contains("progress: session.progressMenuSnapshot")
         && content.contains("runReadiness: session.runReadiness"),
-      "the top-leading Eco ornament reuses the paused iPad settings gate and opens Jak 1 settings")
+      "the top-center Eco ornament reuses the paused iPad settings gate and opens Jak 1 settings")
 check(pausedEcoOrnament.contains("Button(action: openSettings)")
         && pausedEcoOrnament.contains("Image(systemName: \"gearshape\")")
         && pausedEcoOrnament.contains("Text(\"ECO\")")
