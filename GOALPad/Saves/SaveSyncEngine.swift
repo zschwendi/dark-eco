@@ -9,6 +9,23 @@ nonisolated struct CloudSaveLocations: Sendable {
     let accountIdentifier: Data
 }
 
+nonisolated enum CloudSaveUnavailableReason: Sendable, Equatable {
+    case accountUnavailable
+    case containerUnavailable
+    case unknown
+
+    var recoveryMessage: String {
+        switch self {
+        case .accountUnavailable:
+            return "Sign in to iCloud and enable iCloud Drive, then retry."
+        case .containerUnavailable:
+            return "iCloud Drive is not ready for saves on this device. Check iCloud Drive, then retry."
+        case .unknown:
+            return "iCloud saves are not available on this device right now. Try again later."
+        }
+    }
+}
+
 nonisolated private enum SaveSyncError: LocalizedError {
     case cloudDownloadTimedOut(String)
     case fileChangedDuringRead(String)
@@ -107,10 +124,23 @@ nonisolated struct SaveSyncOutcome: Sendable, Equatable {
     let downloaded: Int
     let resolutions: [SaveResolution]
     let completedAt: Date
+    let unavailableReason: CloudSaveUnavailableReason?
 
-    static func unavailable(at date: Date = Date()) -> SaveSyncOutcome {
+    init(availability: Availability, uploaded: Int, downloaded: Int,
+         resolutions: [SaveResolution], completedAt: Date,
+         unavailableReason: CloudSaveUnavailableReason? = nil) {
+        self.availability = availability
+        self.uploaded = uploaded
+        self.downloaded = downloaded
+        self.resolutions = resolutions
+        self.completedAt = completedAt
+        self.unavailableReason = unavailableReason
+    }
+
+    static func unavailable(reason: CloudSaveUnavailableReason = .unknown,
+                            at date: Date = Date()) -> SaveSyncOutcome {
         SaveSyncOutcome(availability: .unavailable, uploaded: 0, downloaded: 0,
-                        resolutions: [], completedAt: date)
+                        resolutions: [], completedAt: date, unavailableReason: reason)
     }
 }
 
@@ -124,6 +154,7 @@ actor SaveSyncEngine {
         let localConflictsRoot: URL
         let stateFile: URL
         let cloudLocations: CloudLocationsProvider
+        let cloudUnavailableReason: @Sendable () -> CloudSaveUnavailableReason
         let coordinateCloudAccess: Bool
         let fileSettleDelay: Duration
         let downloadPollInterval: Duration
@@ -143,7 +174,9 @@ actor SaveSyncEngine {
              cloudLocations: @escaping CloudLocationsProvider, coordinateCloudAccess: Bool,
              fileSettleDelay: Duration = .milliseconds(100),
              downloadPollInterval: Duration = .milliseconds(100),
-             downloadPollAttempts: Int = 600,
+             downloadPollAttempts: Int = 50,
+             cloudUnavailableReason:
+                @escaping @Sendable () -> CloudSaveUnavailableReason = { .unknown },
              mutationHook: @escaping @Sendable (SaveMutationPoint) throws -> Void = { _ in },
              beforeLocalReplacement: @escaping @Sendable () throws -> Void = {},
              beforeCloudReplacement: @escaping @Sendable () throws -> Void = {},
@@ -159,6 +192,7 @@ actor SaveSyncEngine {
             self.localConflictsRoot = localConflictsRoot
             self.stateFile = stateFile
             self.cloudLocations = cloudLocations
+            self.cloudUnavailableReason = cloudUnavailableReason
             self.coordinateCloudAccess = coordinateCloudAccess
             self.fileSettleDelay = fileSettleDelay
             self.downloadPollInterval = downloadPollInterval
@@ -325,7 +359,8 @@ actor SaveSyncEngine {
         var state = try loadState()
 
         guard let cloud = configuration.cloudLocations() else {
-            return try await syncWithoutCloud(mode: mode, state: &state)
+            return try await syncWithoutCloud(
+                mode: mode, state: &state, reason: configuration.cloudUnavailableReason())
         }
 
         try createDirectory(at: cloud.savesRoot,
@@ -537,7 +572,8 @@ actor SaveSyncEngine {
                                resolutions: resolutions, completedAt: Date())
     }
 
-    private func syncWithoutCloud(mode: SaveSyncMode, state: inout State) async throws
+    private func syncWithoutCloud(mode: SaveSyncMode, state: inout State,
+                                  reason: CloudSaveUnavailableReason = .unknown) async throws
         -> SaveSyncOutcome {
         let localFiles = try await files(in: configuration.localRoot, coordinated: false)
         var processedLocalStamps = localFiles.mapValues {
@@ -570,7 +606,7 @@ actor SaveSyncEngine {
         lastLocalStamps = processedLocalStamps
         return SaveSyncOutcome(availability: .unavailable, uploaded: 0,
                                downloaded: downloaded, resolutions: resolutions,
-                               completedAt: Date())
+                               completedAt: Date(), unavailableReason: reason)
     }
 
     /// Cheaply checks the local save directory after a completed game frame. A full hash-based

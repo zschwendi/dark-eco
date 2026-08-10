@@ -48,6 +48,7 @@ guard CommandLine.arguments.count == 2 else {
 
 let root = CommandLine.arguments[1]
 let controller = source(at: root + "/GOALPad/Saves/SaveSyncController.swift")
+let engine = source(at: root + "/GOALPad/Saves/SaveSyncEngine.swift")
 let session = source(at: root + "/GOALPad/Game/GameSession.swift")
 let coreHeader = source(at: root + "/GOALPad/Native/GOALPadRuntimeCore.hpp")
 let core = source(at: root + "/GOALPad/Native/GOALPadRuntimeCore.cpp")
@@ -59,25 +60,43 @@ let gate = section(controller,
                    to: "func gameplayFrameCompleted()")
 check(occursInOrder([
     "setGameplayActive(false)",
-    "while isBusy || frameCheckTask != nil",
-    "if activeOperation == .syncing, activeSyncMode == .bidirectional",
-    "if isEnabled, !completedBidirectionalSync || pendingSyncMode != nil",
-    "enqueueSync(.bidirectional)",
-    "await drainPendingSync()",
+    "while hasPregameSaveWork",
+    "finishTimedOutPregameSync()",
+    "if isEnabled, needsBidirectionalSyncBeforeGameplay",
+    "scheduleAutomaticSync(.bidirectional)",
+    "return await checkLocalGameplaySafety()",
     "engine.hasUnsafePendingLocalMutation()",
     "guard !hasUnsafeLocalMutation",
     "return false",
     "return true",
-], in: gate), "pregame drains or reuses sync work, then gates only unsafe local recovery")
-check(!gate.contains("frameCheckTask != nil || pendingSyncMode != nil"),
-      "pregame never waits for an unowned queued sync instead of draining it")
-check(controller.contains("activeSyncMode = mode")
-        && controller.contains("activeSyncMode = nil"),
-      "pregame reuses only a bidirectional sync that preserves cloud and local authority")
+], in: gate), "pregame bounds automatic cloud work, then gates only unsafe local recovery")
+check(controller.contains("needsBidirectionalSyncBeforeGameplay = true")
+        && controller.contains("if mode == .bidirectional, !wasCancelled")
+        && controller.contains("needsBidirectionalSyncBeforeGameplay = false"),
+      "pregame freshness is explicit instead of sampled between controller polls")
 check(gate.components(separatedBy: "return false").count - 1 >= 2,
       "pregame rejects both an unsafe journal and an unreadable recovery state")
 check(!gate.contains("case .unavailable") && !gate.contains("status == .unavailable"),
       "ordinary iCloud unavailability is not a gameplay rejection")
+
+let timeout = section(controller,
+                      from: "private func finishTimedOutPregameSync() async -> Bool",
+                      to: "private func ubiquityIdentityDidChange()")
+check(occursInOrder([
+    "automaticSyncTask?.cancel()",
+    "while isBusy || frameCheckTask != nil || automaticSyncTask != nil",
+    "return false",
+    "Using local saves",
+    "return await checkLocalGameplaySafety()",
+], in: timeout),
+      "timed-out cloud work must release its owned lease before local gameplay can continue")
+check(engine.contains("downloadPollAttempts: Int = 50"),
+      "one iCloud placeholder has a bounded five-second provider wait")
+
+let prepare = section(controller, from: "func prepare() async", to: "func syncNow")
+check(prepare.contains("scheduleAutomaticSync(.bidirectional, announceWaiting: true)")
+        && !prepare.contains("await syncNow"),
+      "initial cloud reconciliation is observable without blocking launcher preparation")
 
 let syncNow = section(controller, from: "func syncNow", to: "func syncBeforeGameplay")
 check(occursInOrder([
@@ -85,6 +104,10 @@ check(occursInOrder([
     "defer { gameplayReadinessDidChange?() }",
     "await drainPendingSync()",
 ], in: syncNow), "a completed Settings sync attempt publishes save-readiness changes")
+check(controller.contains(".NSUbiquityIdentityDidChange")
+        && controller.contains("ubiquityIdentityDidChange()")
+        && controller.contains("scheduleAutomaticSync(isGameplayActive ? .uploadOnly : .bidirectional)"),
+      "iCloud account changes automatically re-evaluate save availability without downloading during play")
 
 let start = section(session, from: "func start() async", to: "private func bootFinished")
 check(occursInOrder([

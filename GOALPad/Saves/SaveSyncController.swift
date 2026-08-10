@@ -43,6 +43,15 @@ nonisolated enum SaveDataLayout {
                                                 directoryHint: .isDirectory),
             accountIdentifier: accountIdentifier)
     }
+
+    static func cloudUnavailableReason() -> CloudSaveUnavailableReason {
+        let manager = FileManager.default
+        guard manager.ubiquityIdentityToken != nil else { return .accountUnavailable }
+        guard manager.url(forUbiquityContainerIdentifier: nil) != nil else {
+            return .containerUnavailable
+        }
+        return .unknown
+    }
 }
 
 @MainActor
@@ -73,11 +82,16 @@ final class SaveSyncController {
         didSet {
             defaults.set(isEnabled, forKey: Self.enabledDefaultsKey)
             if isEnabled {
+                needsBidirectionalSyncBeforeGameplay = true
                 status = .waiting
-                Task { await syncNow() }
+                scheduleAutomaticSync(.bidirectional, announceWaiting: true)
             } else {
                 cancelPendingFrameCheck()
                 pendingSyncMode = nil
+                automaticSyncGeneration += 1
+                automaticSyncTask?.cancel()
+                automaticSyncTask = nil
+                cloudUnavailableMessage = nil
                 status = .disabled
                 gameplayReadinessDidChange?()
             }
@@ -97,10 +111,31 @@ final class SaveSyncController {
     private var frameCheckGeneration = 0
     private var pendingSyncMode: SaveSyncMode?
     private var activeSyncMode: SaveSyncMode?
+    private var needsBidirectionalSyncBeforeGameplay = true
     private var gameplayReadinessDidChange: (() -> Void)?
+    private var automaticSyncTask: Task<Void, Never>?
+    private var automaticSyncGeneration = 0
+    @ObservationIgnored
+    nonisolated(unsafe) private var ubiquityIdentityObserver: NSObjectProtocol?
+    private(set) var cloudUnavailableMessage: String?
 
-    init(defaults: UserDefaults = .standard, engine: SaveSyncEngine? = nil) {
+    private let notificationCenter: NotificationCenter
+    private let pregameWaitInterval: Duration
+    private let pregameWaitAttempts: Int
+    private let pregameCancellationWaitAttempts: Int
+
+    init(defaults: UserDefaults = .standard, engine: SaveSyncEngine? = nil,
+         notificationCenter: NotificationCenter = .default,
+         ubiquityIdentityDidChangeNotification: Notification.Name =
+            .NSUbiquityIdentityDidChange,
+         pregameWaitInterval: Duration = .milliseconds(50),
+         pregameWaitAttempts: Int = 160,
+         pregameCancellationWaitAttempts: Int = 20) {
         self.defaults = defaults
+        self.notificationCenter = notificationCenter
+        self.pregameWaitInterval = pregameWaitInterval
+        self.pregameWaitAttempts = pregameWaitAttempts
+        self.pregameCancellationWaitAttempts = pregameCancellationWaitAttempts
         let enabled: Bool
         if defaults.object(forKey: Self.enabledDefaultsKey) == nil {
             enabled = true
@@ -116,12 +151,27 @@ final class SaveSyncController {
             recentResolutions = []
         }
         lastSuccessfulSyncDate = nil
+        cloudUnavailableMessage = nil
         self.engine = engine ?? SaveSyncEngine(configuration: .init(
             localRoot: SaveDataLayout.localSavesDirectory,
             localConflictsRoot: SaveDataLayout.localConflictsDirectory,
             stateFile: SaveDataLayout.stateFile,
             cloudLocations: { SaveDataLayout.cloudLocations() },
-            coordinateCloudAccess: true))
+            coordinateCloudAccess: true,
+            cloudUnavailableReason: { SaveDataLayout.cloudUnavailableReason() }))
+        ubiquityIdentityObserver = notificationCenter.addObserver(
+            forName: ubiquityIdentityDidChangeNotification, object: nil, queue: nil
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.ubiquityIdentityDidChange()
+            }
+        }
+    }
+
+    deinit {
+        if let ubiquityIdentityObserver {
+            notificationCenter.removeObserver(ubiquityIdentityObserver)
+        }
     }
 
     var isBusy: Bool { activeOperation != nil }
@@ -185,7 +235,7 @@ final class SaveSyncController {
 
     func prepare() async {
         guard isEnabled else { return }
-        await syncNow()
+        scheduleAutomaticSync(.bidirectional, announceWaiting: true)
     }
 
     func syncNow(mode requestedMode: SaveSyncMode? = nil) async {
@@ -198,21 +248,36 @@ final class SaveSyncController {
 
     func syncBeforeGameplay() async -> Bool {
         setGameplayActive(false)
-        var completedBidirectionalSync = false
-        while isBusy || frameCheckTask != nil {
-            if activeOperation == .syncing, activeSyncMode == .bidirectional {
-                completedBidirectionalSync = true
+        var waitAttempts = 0
+        while hasPregameSaveWork {
+            guard waitAttempts < pregameWaitAttempts else {
+                return await finishTimedOutPregameSync()
             }
+            waitAttempts += 1
             do {
-                try await Task.sleep(for: .milliseconds(10))
+                try await Task.sleep(for: pregameWaitInterval)
             } catch {
                 return false
             }
         }
-        if isEnabled, !completedBidirectionalSync || pendingSyncMode != nil {
-            enqueueSync(.bidirectional)
-            await drainPendingSync()
+        if isEnabled, needsBidirectionalSyncBeforeGameplay {
+            scheduleAutomaticSync(.bidirectional)
+            while hasPregameSaveWork {
+                guard waitAttempts < pregameWaitAttempts else {
+                    return await finishTimedOutPregameSync()
+                }
+                waitAttempts += 1
+                do {
+                    try await Task.sleep(for: pregameWaitInterval)
+                } catch {
+                    return false
+                }
+            }
         }
+        return await checkLocalGameplaySafety()
+    }
+
+    private func checkLocalGameplaySafety() async -> Bool {
         activeOperation = .checking
         do {
             let hasUnsafeLocalMutation = try await engine.hasUnsafePendingLocalMutation()
@@ -333,9 +398,13 @@ final class SaveSyncController {
     }
 
     func setGameplayActive(_ active: Bool) {
+        let wasActive = isGameplayActive
         isGameplayActive = active
         if !active {
             cancelPendingFrameCheck()
+        }
+        if wasActive, !active {
+            needsBidirectionalSyncBeforeGameplay = true
         }
     }
 
@@ -344,7 +413,10 @@ final class SaveSyncController {
         case .disabled: return "Off — saves stay on this device"
         case .waiting: return "Waiting to sync"
         case .syncing: return "Syncing…"
-        case .unavailable: return "iCloud unavailable — using local saves"
+        case .unavailable:
+            let localSummary = "iCloud unavailable — using local saves"
+            guard let cloudUnavailableMessage else { return localSummary }
+            return localSummary + ". " + cloudUnavailableMessage
         case .synced(_, let uploaded, let downloaded, let resolutions):
             if !resolutions.isEmpty { return resolutionNotice(for: resolutions) }
             if uploaded == 0 && downloaded == 0 { return "Up to date" }
@@ -366,6 +438,79 @@ final class SaveSyncController {
         }
     }
 
+    private var hasPregameSaveWork: Bool {
+        isBusy || frameCheckTask != nil || pendingSyncMode != nil || automaticSyncTask != nil
+    }
+
+    private func scheduleAutomaticSync(_ mode: SaveSyncMode,
+                                       announceWaiting: Bool = false) {
+        enqueueSync(mode)
+        if announceWaiting, activeOperation == nil {
+            status = .waiting
+        }
+        guard automaticSyncTask == nil else { return }
+        automaticSyncGeneration += 1
+        let generation = automaticSyncGeneration
+        automaticSyncTask = Task { [weak self] in
+            guard let self else { return }
+            while self.activeOperation != nil {
+                do {
+                    try await Task.sleep(for: .milliseconds(10))
+                } catch {
+                    self.finishAutomaticSync(generation: generation)
+                    return
+                }
+            }
+            await self.drainPendingSync()
+            self.finishAutomaticSync(generation: generation)
+        }
+    }
+
+    private func finishAutomaticSync(generation: Int) {
+        guard automaticSyncGeneration == generation else { return }
+        automaticSyncTask = nil
+        gameplayReadinessDidChange?()
+    }
+
+    private func finishTimedOutPregameSync() async -> Bool {
+        let timedOutDuringCloudSync = activeOperation == .syncing
+            || activeSyncMode != nil || pendingSyncMode != nil || automaticSyncTask != nil
+        if timedOutDuringCloudSync {
+            pendingSyncMode = nil
+            automaticSyncTask?.cancel()
+        }
+
+        var cancellationAttempts = 0
+        while isBusy || frameCheckTask != nil || automaticSyncTask != nil {
+            guard cancellationAttempts < pregameCancellationWaitAttempts else {
+                status = .failed("Save preparation is still finishing. Wait a moment and try Play again.")
+                gameplayReadinessDidChange?()
+                return false
+            }
+            cancellationAttempts += 1
+            do {
+                try await Task.sleep(for: pregameWaitInterval)
+            } catch {
+                return false
+            }
+        }
+
+        if timedOutDuringCloudSync {
+            status = .failed("iCloud saves did not respond in time. Using local saves; use Sync in Settings to retry.")
+        }
+        return await checkLocalGameplaySafety()
+    }
+
+    private func ubiquityIdentityDidChange() {
+        guard isEnabled else { return }
+        needsBidirectionalSyncBeforeGameplay = true
+        cloudUnavailableMessage = nil
+        if activeOperation == nil {
+            status = .waiting
+        }
+        scheduleAutomaticSync(isGameplayActive ? .uploadOnly : .bidirectional)
+    }
+
     private func drainPendingSync() async {
         guard activeOperation == nil else { return }
         while isEnabled, let mode = pendingSyncMode {
@@ -373,6 +518,7 @@ final class SaveSyncController {
             activeOperation = .syncing
             activeSyncMode = mode
             status = .syncing
+            var wasCancelled = false
             do {
                 let outcome = try await engine.sync(mode: mode)
                 guard isEnabled else {
@@ -384,9 +530,13 @@ final class SaveSyncController {
                 }
                 apply(outcome)
             } catch is CancellationError {
+                wasCancelled = true
                 if isEnabled { status = .waiting }
             } catch {
                 status = isEnabled ? .failed(error.localizedDescription) : .disabled
+            }
+            if mode == .bidirectional, !wasCancelled {
+                needsBidirectionalSyncBeforeGameplay = false
             }
             activeOperation = nil
             activeSyncMode = nil
@@ -417,9 +567,11 @@ final class SaveSyncController {
 
     private func apply(_ outcome: SaveSyncOutcome) {
         guard outcome.availability == .available else {
+            cloudUnavailableMessage = outcome.unavailableReason?.recoveryMessage
             status = .unavailable
             return
         }
+        cloudUnavailableMessage = nil
         if !outcome.resolutions.isEmpty {
             recentResolutions = outcome.resolutions
             if let data = try? JSONEncoder().encode(recentResolutions) {
@@ -537,11 +689,13 @@ enum CloudSyncPresentation {
                             syncSettings: () async -> Void,
                             syncSaves: () async -> Void) async {
         guard !Task.isCancelled else { return }
-        if settingsEnabled {
+        if settingsEnabled, savesEnabled {
+            async let settingsSync: Void = syncSettings()
+            async let savesSync: Void = syncSaves()
+            _ = await (settingsSync, savesSync)
+        } else if settingsEnabled {
             await syncSettings()
-        }
-        guard !Task.isCancelled else { return }
-        if savesEnabled {
+        } else if savesEnabled {
             await syncSaves()
         }
     }
@@ -593,12 +747,15 @@ enum CloudSyncPresentation {
             return progressMessage ?? "Syncing…"
         case .unavailable:
             if settingsUnavailable && savesUnavailable {
-                return "iCloud unavailable — using local settings and saves"
+                let savesPrefix = "iCloud unavailable — using local saves"
+                let recovery = savesSummary.hasPrefix(savesPrefix)
+                    ? savesSummary.dropFirst(savesPrefix.count) : ""
+                return "iCloud unavailable — using local settings and saves" + recovery
             }
             if settingsUnavailable {
                 return "iCloud unavailable for settings — using local settings"
             }
-            return "iCloud unavailable for saves — using local saves"
+            return savesSummary
         case .waiting:
             return "Waiting to sync"
         case .synced:

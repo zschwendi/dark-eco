@@ -31,6 +31,7 @@ private final class Fixture {
 
     init(cloudAvailable: Bool = true, accountIdentifier: String = "account-a",
          fileSettleDelay: Duration = .milliseconds(1),
+         cloudUnavailableReason: CloudSaveUnavailableReason = .unknown,
          mutationHook: @escaping @Sendable (SaveMutationPoint) throws -> Void = { _ in },
          beforeLocalReplacement: @escaping @Sendable () throws -> Void = {},
          beforeCloudReplacement: @escaping @Sendable () throws -> Void = {},
@@ -65,6 +66,7 @@ private final class Fixture {
             cloudLocations: { cloudAvailable ? locations : nil },
             coordinateCloudAccess: false,
             fileSettleDelay: fileSettleDelay,
+            cloudUnavailableReason: { cloudUnavailableReason },
             mutationHook: mutationHook,
             beforeLocalReplacement: beforeLocalReplacement,
             beforeCloudReplacement: beforeCloudReplacement,
@@ -385,11 +387,14 @@ private func regularFiles(under root: URL) -> [URL] {
 
 private func unavailableKeepsLocalSaves() async throws {
     print("iCloud being unavailable is a local-only success")
-    let fixture = try Fixture(cloudAvailable: false)
+    let fixture = try Fixture(cloudAvailable: false,
+                              cloudUnavailableReason: .accountUnavailable)
     try write("local-save", to: ordinaryPath, under: fixture.local)
 
     let outcome = try await fixture.engine.sync()
     check(outcome.availability == .unavailable, "unavailable is reported without throwing")
+    check(outcome.unavailableReason == .accountUnavailable,
+          "unavailable reports a non-sensitive account and iCloud Drive recovery reason")
     check(read(ordinaryPath, under: fixture.local) == "local-save",
           "the gameplay save is untouched")
     check(!FileManager.default.fileExists(atPath: fixture.cloud.path),
@@ -2100,6 +2105,140 @@ private func waitForController(_ condition: () -> Bool) async -> Bool {
     return condition()
 }
 
+private func waitForOperationCount(_ count: Int, in log: OperationLog) async -> Bool {
+    for _ in 0..<200 {
+        if await log.entries().count >= count { return true }
+        try? await Task.sleep(for: .milliseconds(5))
+    }
+    return await log.entries().count >= count
+}
+
+@MainActor
+private func startupSyncIsObservableAndCannotIndefinitelyGatePlay() async throws {
+    print("startup cloud work is observable and falls back only after its lease stops")
+    let entries = OperationLog()
+    let fixture = try Fixture(operationAwaitHook: {
+        await entries.append("sync")
+        do {
+            try await Task.sleep(for: .seconds(10))
+        } catch {
+            // The controller's bounded pregame timeout owns cancellation of this automatic work.
+        }
+    })
+    let defaults = UserDefaults(suiteName: "goalpad-startup-save-sync-\(UUID().uuidString)")!
+    let controller = SaveSyncController(
+        defaults: defaults,
+        engine: fixture.engine,
+        pregameWaitInterval: .milliseconds(1),
+        pregameWaitAttempts: 3,
+        pregameCancellationWaitAttempts: 100)
+
+    await controller.prepare()
+    check(controller.status == .waiting,
+          "startup publishes a waiting outcome before its background task begins")
+    let started = await waitForOperationCount(1, in: entries)
+    check(started && controller.activeOperation == .syncing,
+          "startup returns while its real save reconcile exposes syncing progress")
+
+    let ready = await controller.syncBeforeGameplay()
+    check(ready, "Play continues from local saves after the timed-out cloud lease fully stops")
+    check(!controller.isBusy && !controller.hasPendingFrameCheck,
+          "Play never overlaps the canceled cloud operation or a pending save check")
+    check(controller.summary.contains("did not respond in time")
+            && controller.summary.contains("use Sync in Settings"),
+          "the local fallback leaves an explicit actionable cloud outcome")
+    check(regularFiles(under: fixture.local).isEmpty,
+          "timing out ordinary cloud work cannot invent or replace a local save")
+}
+
+@MainActor
+private func enablingSyncUsesTheSameCancelableAutomaticOwner() async throws {
+    print("enabling save sync uses the same bounded automatic owner as startup")
+    let entries = OperationLog()
+    let fixture = try Fixture(operationAwaitHook: {
+        await entries.append("sync")
+        do {
+            try await Task.sleep(for: .seconds(10))
+        } catch {}
+    })
+    let defaults = UserDefaults(suiteName: "goalpad-enable-save-sync-\(UUID().uuidString)")!
+    defaults.set(false, forKey: "iCloudSavesEnabled")
+    let controller = SaveSyncController(
+        defaults: defaults,
+        engine: fixture.engine,
+        pregameWaitInterval: .milliseconds(1),
+        pregameWaitAttempts: 3,
+        pregameCancellationWaitAttempts: 100)
+
+    controller.isEnabled = true
+    let started = await waitForOperationCount(1, in: entries)
+    check(started && controller.activeOperation == .syncing,
+          "enabling starts one visible bidirectional reconcile")
+    let ready = await controller.syncBeforeGameplay()
+    check(ready && !controller.isBusy,
+          "Play can cancel and fully drain enable-triggered cloud work before using local saves")
+}
+
+@MainActor
+private func fastStartupSyncIsNotRepeatedBeforePlay() async throws {
+    print("a fast startup sync clears the explicit pregame freshness requirement")
+    let entries = OperationLog()
+    let fixture = try Fixture(operationAwaitHook: { await entries.append("sync") })
+    let defaults = UserDefaults(suiteName: "goalpad-fast-startup-sync-\(UUID().uuidString)")!
+    let controller = SaveSyncController(defaults: defaults, engine: fixture.engine,
+                                        pregameWaitInterval: .milliseconds(20))
+
+    await controller.prepare()
+    let ready = await controller.syncBeforeGameplay()
+    check(ready, "the completed startup reconcile satisfies the pregame cloud attempt")
+    let completedEntries = await entries.entries()
+    check(completedEntries.count == 1,
+          "a sync that finishes between controller polls is not redundantly run again")
+}
+
+@MainActor
+private func identityChangesReevaluateUnavailableCloudSaves() async throws {
+    print("iCloud identity changes trigger a visible save availability retry")
+    let entries = OperationLog()
+    let fixture = try Fixture(
+        cloudAvailable: false,
+        cloudUnavailableReason: .accountUnavailable,
+        operationAwaitHook: {
+            await entries.append("sync")
+            if await entries.entries().count == 2 {
+                do {
+                    try await Task.sleep(for: .seconds(10))
+                } catch {}
+            }
+        })
+    let center = NotificationCenter()
+    let notification = Notification.Name("goalpad-save-identity-change")
+    let defaults = UserDefaults(suiteName: "goalpad-save-identity-\(UUID().uuidString)")!
+    let controller = SaveSyncController(
+        defaults: defaults,
+        engine: fixture.engine,
+        notificationCenter: center,
+        ubiquityIdentityDidChangeNotification: notification)
+
+    await controller.syncNow()
+    check(controller.status == .unavailable
+            && controller.summary.contains("Sign in to iCloud")
+            && controller.summary.contains("enable iCloud Drive"),
+          "an unavailable account reports a non-sensitive recovery action")
+
+    center.post(name: notification, object: nil)
+    let retried = await waitForOperationCount(2, in: entries)
+    check(retried && controller.status == .syncing,
+          "an identity notification performs a second real provider evaluation")
+    check(controller.cloudUnavailableMessage == nil,
+          "an identity retry clears the stale unavailable result while reevaluating")
+    controller.isEnabled = false
+    let settled = await waitForController { !controller.isBusy }
+    check(settled && controller.status == .disabled
+            && controller.cloudUnavailableMessage == nil,
+          "disabling cancels the retry and clears stale cloud recovery text")
+}
+
 @MainActor
 private func controllerCoalescesSyncIntentAndPreservesLastSuccess() async throws {
     print("controller exposes one busy operation and drains a coalesced retry")
@@ -2230,7 +2369,7 @@ private func combinedCloudPresentationCoordinatesEnabledDomains() async throws {
         savesEnabled: true,
         syncSettings: { actions.append("settings") },
         syncSaves: { actions.append("saves") })
-    check(actions == ["settings", "saves"],
+    check(actions.count == 2 && Set(actions) == Set(["settings", "saves"]),
           "the combined action coordinates both enabled domains exactly once")
 
     actions = []
@@ -2242,21 +2381,25 @@ private func combinedCloudPresentationCoordinatesEnabledDomains() async throws {
     check(actions == ["saves"],
           "the combined action respects the settings opt-out independently")
 
-    let cancellationLog = OperationLog()
-    let canceledAction = Task { @MainActor in
+    let concurrentLog = OperationLog()
+    let concurrentGate = OperationGate()
+    let combinedAction = Task { @MainActor in
         await CloudSyncPresentation.synchronize(
             settingsEnabled: true,
             savesEnabled: true,
             syncSettings: {
-                await cancellationLog.append("settings")
-                withUnsafeCurrentTask { $0?.cancel() }
+                await concurrentLog.append("settings")
+                await concurrentGate.pauseFirstEntry()
             },
-            syncSaves: { await cancellationLog.append("saves") })
+            syncSaves: { await concurrentLog.append("saves") })
     }
-    await canceledAction.value
-    let canceledEntries = await cancellationLog.entries()
-    check(canceledEntries == ["settings"],
-          "cancellation between domains leaves the unstarted domain for a safe Retry")
+    await concurrentGate.waitUntilEntered()
+    let bothStarted = await waitForOperationCount(2, in: concurrentLog)
+    let concurrentEntries = await concurrentLog.entries()
+    check(bothStarted && Set(concurrentEntries) == Set(["settings", "saves"]),
+          "one manual action starts both enabled domains before either can starve the other")
+    await concurrentGate.release()
+    await combinedAction.value
 }
 
 @MainActor
@@ -2342,6 +2485,10 @@ private struct SaveSyncCheck {
             try await interruptedManualImportRecoversFromJournal()
             try await broadAndNestedImportsAreRejected()
             try await importCountAndByteBoundsAreEnforced()
+            try await startupSyncIsObservableAndCannotIndefinitelyGatePlay()
+            try await enablingSyncUsesTheSameCancelableAutomaticOwner()
+            try await fastStartupSyncIsNotRepeatedBeforePlay()
+            try await identityChangesReevaluateUnavailableCloudSaves()
             try await controllerCoalescesSyncIntentAndPreservesLastSuccess()
             try await combinedCloudPresentationCoordinatesEnabledDomains()
             try await replacementFrameCheckKeepsTaskOwnershipAndCancelsQuietly()
