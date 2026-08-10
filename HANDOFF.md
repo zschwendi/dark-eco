@@ -16409,3 +16409,33 @@ post-integration Simulator gameplay run confirming that deferred bucket 192
 disappears, Merc models/draws become nonzero, and Jak/enemies are visibly
 restored without new malformed, missing-model, bone, or palette-health
 diagnostics.
+
+## Jak II common-shrub Merc physical install
+
+The maintainer explicitly authorized installation on physical `Z iPad Pro`
+(11-inch M5, CoreDevice `6A4111AB-1663-508A-98D9-F0C1A9EA7863`, physical
+destination `00008142-000A504C3CC2401C`). The installed app was built from
+clean parent `befcc9548f73a64c02c56b1b118c2d9da295a0e5` with nested OpenGOAL
+`b0f9abc067dd9e20766ad040622545de34fa9c26`.
+
+The `Eco Jak II Dev` Release build for that exact iPad destination succeeded in
+302.746 seconds. Its AOT preflight reported 840 objects, 18,479 emitted
+functions, and seven native functions. The resulting ARM64 app was signed with
+the Apple Development identity and provisioning profile, passed strict local
+code-signature verification, and has executable SHA-256
+`c9d0f2f12ef15336e0ebe1412a6765d2704de7cc100ea7c69d4dfee27e0935a2`.
+The complete build log is retained at:
+
+```text
+.agent-builds/merc-proof-logs/common-shrub-physical-build.log
+```
+
+Before installation, CoreDevice confirmed the existing app as bundle
+`com.zephyrstudiosllc.eco.jak2dev`, version `1.0 (1)`. The new artifact has the
+same bundle identifier. It was installed in place with
+`xcrun devicectl device install app`; no uninstall, app-container deletion,
+prepared-data mutation, or cleanup command was issued. CoreDevice then
+confirmed the replacement bundle and successfully launched that exact bundle
+identifier. Prepared game files and saves were not inspected. No physical
+device log attachment or screen capture was performed. Visual Merc acceptance
+remains with the maintainer's gameplay test.
