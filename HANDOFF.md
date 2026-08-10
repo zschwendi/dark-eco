@@ -16498,3 +16498,69 @@ the maintainer's headset report.
 The pre-existing unrelated 1,423-line `project.pbxproj` rewrite remains the
 only dirty parent file and is preserved unstaged. Its working copy contains the
 same Build 152 values as HEAD. Nested OpenGOAL remains clean at `2bff79c91`.
+
+## 2026-08-09 Build 152 physical rejection and proof-first stereo reset
+
+The maintainer's physical Vision Pro verdict rejects Build 152 Stereo:
+
+```text
+Checkerboarding was more aggressive.
+There was no noticeable 3D effect or binocular depth underneath it.
+The checkerboard disappeared while Stereo remained enabled.
+Turning Stereo off and back on then produced neither 3D nor checkerboarding.
+After repeated toggles, only the system Home and Pause/Menu buttons responded.
+```
+
+The Build 152 process remained live as PID 907 and no Build 152 crash report
+was exposed, so this was a running-state/presentation-lifecycle failure rather
+than a process crash. The full read-only device audit is at
+`/private/tmp/goalpad-build152-vision-audit-20260810T024640Z`.
+
+Do not install another speculative Vision timing candidate. Freeze the accepted
+Build 151 Comfort/2D behavior and require all of these gates before the next
+physical Vision build:
+
+1. A deterministic Metal proof shows nonidentity opposing view transforms
+   produce genuinely different left/right rendered pixels.
+2. The window surface follows Apple's paired `LowLevelTexture` pattern rather
+   than the rejected independent `DrawableQueue` publication path.
+3. A stalled/unavailable stereo surface fails closed to Comfort without
+   stopping the game tick or controller input.
+4. Gamepad routing remains attached to both actual gameplay roots across
+   repeated Comfort/Stereo and settings-sheet transitions.
+5. The one later physical candidate must show a stable image, obvious depth,
+   repeatable toggling, and uninterrupted input.
+
+The input-lifecycle repair is integrated locally as:
+
+```text
+bf1769d3 fix(visionos): retain gamepad routing across surfaces
+```
+
+It removes the window-level zero-size `GCEventInteraction` anchor and applies
+visionOS's `.handlesGameControllerEvents(matching: .gamepad)` directly to both
+the conventional CAMetal gameplay surface and the RealityKit Stereo surface.
+It adds no visible or touch control. The focused stereo integration check,
+xros warnings-as-errors source typecheck, camera-index material check, clip-plan
+check, and `git diff --check` all pass. This fix has not been installed on
+Vision Pro; it remains part of the later proof-gated candidate.
+
+Separately, at the maintainer's explicit request, the signed iOS Build 152 was
+built and installed in place on physical `Z iPhone Air`
+(`C0CAC382-DF64-5728-998E-A51F86A94E61`):
+
+```text
+build log    /private/tmp/GOALPad-build152-iphone-air.log
+app          /private/tmp/GOALPad-build150-ios-generic/Build/Products/Release-iphoneos/GOALPad.app
+bundle       com.zephyrstudiosllc.eco 1.0 (152)
+arch         arm64
+team         V729QMY3V6
+CDHash       05362149e55ab5d812dcb96c63d4eff56db00380
+install JSON /private/tmp/GOALPad-build152-iphone-air-install.json
+install URL  file:///private/var/containers/Bundle/Application/57761EFF-9299-431D-9541-B8A79507BAC6/GOALPad.app/
+```
+
+`codesign --verify --deep --strict` passed and the post-install app listing
+reported Eco `1.0 (152)`. The iPhone app was not launched. The build retained
+the known Swift actor-isolation and unassigned-old-icon warnings but no errors.
+No iPad access occurred.
