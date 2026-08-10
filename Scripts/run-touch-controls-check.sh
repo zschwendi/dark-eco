@@ -2,6 +2,16 @@
 # Compile and run the on-screen controls check on this Mac. See touch-controls-check.swift.
 set -eu
 
+if ! command -v rg >/dev/null 2>&1; then
+  rg() {
+    case "$1" in
+      *F*) grep "$@" ;;
+      -*) option=$1; shift; grep -E "$option" "$@" ;;
+      *) grep -E "$@" ;;
+    esac
+  }
+fi
+
 root=$(cd "$(dirname "$0")/.." && pwd)
 out=${TMPDIR:-/tmp}/goalpad-touch-controls-check
 module_cache=${TMPDIR:-/tmp}/goalpad-touch-controls-module-cache

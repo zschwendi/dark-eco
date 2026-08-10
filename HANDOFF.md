@@ -16980,3 +16980,132 @@ The pre-existing broad `project.pbxproj` ordering rewrite remains the only
 unstaged parent change and is preserved. Only the two Build 155 version lines
 were staged and committed. Nested OpenGOAL remains clean at
 `1c2eae29a3359404c4d94d6960301594540afbe3`.
+
+# 2026-08-10 Build 156 portrait touch-stack checkpoint
+
+The maintainer physically accepted Build 155's installed-data result on
+`Z iPhone Air`: the previously imported title appeared correctly and did not
+repeat the rejected reimport/preparing behavior. No agent accessed the device
+while recording that verdict. Build 155 remains preserved at commit
+`32383bf8b293ed56aef276200cd731f14bda8c60` and as the three app copies under
+`/private/tmp/Dark-Eco-Build155-{iOS,visionOS,macOS}.app`.
+
+Build 156 is a bounded iOS touch-layout correction above that accepted
+checkpoint. The former portrait defect had two independent geometry owners:
+`ModernTouchLayout` collision-solved a nominal 82-point pill layout, while
+SwiftUI rendered 118-point pills and independently bottom-anchored the R stick.
+On a 393x852 portrait surface with 59/34 top/bottom safe insets, the rendered R
+hit frame intersected Start.
+
+The shipping ordinary-gameplay chrome now uses one `ModernTouchLayout` for the
+rendered Stats/Start pills, R-stick artwork and registered raw hit frame, Zoom,
+and the resting L-stick origin. Portrait geometry is safe-area aware and ordered
+bottom to top: the two session pills, a disjoint stick row, an inert gap, and a
+bounded right-half face-swipe zone. The raw portrait gesture classifier uses
+that same zone and receives the same SwiftUI safe-area insets. Landscape keeps
+the existing full-right-half gesture mapping and reproduces its prior rendered
+R position.
+
+The L ring is now mounted at its canonical 180-point resting frame whenever the
+ordinary gameplay chrome is visible. During a movement touch it still relocates
+to the first left-side contact and uses the unchanged 90-point Build 96 input
+radius, deflection conversion, role priority, and output bytes. On release it
+returns to rest and then disappears with the same shared three-second gameplay
+chrome fade. It adds no hit target. `TouchControlsView` remains enclosed by
+`#if os(iOS)`, so visionOS still exposes no touch artwork or invisible touch
+region.
+
+`modernLayoutIsCompactAndSafe()` is now invoked by the focused suite instead of
+remaining dormant. Its shipping-standard cases cover 393x852 iPhone portrait
+with 59/34 insets, 834x1210 iPad portrait with 28/12/24/12 insets, 852x393
+iPhone landscape, and the existing roomy iPad landscape. Assertions cover
+actual 118-point pill sizing, safe bounds, disjoint pill/stick targets, the
+bounded portrait swipe zone, the inert gap, and unchanged R-stick output bytes.
+The runner now falls back to `grep` when `rg` is unavailable; its source guards
+are otherwise unchanged.
+
+Two independent read-only audits and a post-patch re-review found no remaining
+concrete blocker in the requested scope. Primary-agent focused validation
+passed:
+
+```text
+Scripts/run-touch-controls-check.sh
+Scripts/run-portrait-library-check.sh
+Scripts/run-vision-stereo-integration-check.sh
+xcrun swiftc -frontend -parse GOALPad/Game/TouchControls.swift \
+  GOALPad/Game/TouchControlsView.swift
+sh -n Scripts/run-touch-controls-check.sh
+git diff --check
+```
+
+Focused logs are:
+
+```text
+/private/tmp/GP-build156-root-touch-controls.log
+/private/tmp/GP-build156-root-portrait-library.log
+/private/tmp/GP-build156-root-vision-integration.log
+```
+
+Release builds passed serially with the existing verified 518-object public
+source pack:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build154-ios-generic -jobs 4 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack \
+  build
+
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=visionOS' \
+  -derivedDataPath /private/tmp/GOALPad-build150-vision-device -jobs 4 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack \
+  build
+
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-build154-macos-arm64 -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack \
+  build
+```
+
+Products and logs:
+
+```text
+iOS log /private/tmp/GOALPad-build156-ios.log
+iOS app /private/tmp/GOALPad-build154-ios-generic/Build/Products/Release-iphoneos/Dark Eco.app
+  Dark Eco 1.0 (156), arm64, signed, CDHash bb21d129ef96b00f7d9b0701e422bd0e39465d45
+  executable SHA-256 a05f6d752abe6fe524d9912cf445f1087c1d0b79944cc045c5ef07e7c873fadd
+visionOS log /private/tmp/GOALPad-build156-visionos.log
+visionOS app /private/tmp/GOALPad-build150-vision-device/Build/Products/Release-xros/Dark Eco.app
+  Dark Eco 1.0 (156), arm64, signed, CDHash 1b98db8862d3ca425b3e36be54d85a1462e8c53b
+  executable SHA-256 b3716ed2322cfce63eb72d6e73c04633791ceaf8adfd5eb9f0c5eb1b432a1d99
+macOS log /private/tmp/GOALPad-build156-macos.log
+macOS app /private/tmp/GOALPad-build154-macos-arm64/Build/Products/Release/Dark Eco.app
+  Dark Eco 1.0 (156), arm64, unsigned
+  executable SHA-256 bdac3731b5cbf6f479497fa487ce1344b8323a01fc2b3b71e30dc9b91d64ff53
+```
+
+Strict signature verification passed for iOS and visionOS. Both signed apps use
+team `V729QMY3V6` and bundle ID `com.zephyrstudiosllc.eco`. The builds retain
+the known actor-isolation, upstream C++, generated AOT, and always-run script
+warnings and produced no errors.
+
+No Build 156 app was installed or launched. No physical iPhone, iPad, Vision
+Pro, controller, device log, screen capture, app container, save, or imported
+game data was accessed. The next physical gate is an in-place Build 156 install
+on the maintainer-selected iPhone/iPad, preserving app data. Test portrait
+active gameplay first: Stats/Start must remain the bottom row, L and R must be
+separate above it, right-side swipes must begin above the sticks, the resting L
+must remain visible until the shared fade, and landscape gameplay/input must
+retain the accepted Build 155 behavior.
+
+The pre-existing broad `project.pbxproj` ordering rewrite remains preserved.
+Only the two Build 156 version lines belong in this checkpoint. Nested OpenGOAL
+remains clean at `1c2eae29a3359404c4d94d6960301594540afbe3`.

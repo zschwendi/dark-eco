@@ -97,8 +97,8 @@ private func modernLayoutIsCompactAndSafe() {
     print("Modern artwork geometry keeps input semantics and clears the centre controls")
     check(ModernTouchLayout.movementKnobSize == 66,
           "the Modern movement knob remains 66 points")
-    check(ModernTouchLayout.movementVisualRadius < TouchControls.movementRadius * 0.7,
-          "the Modern movement ring is substantially smaller than its input radius")
+    check(ModernTouchLayout.movementVisualRadius == TouchControls.movementRadius,
+          "the resting Modern movement ring matches the live Build 96 artwork")
     check(TouchControls.movementRadius == 90,
           "the Modern movement input radius remains byte-compatible")
 
@@ -108,27 +108,31 @@ private func modernLayoutIsCompactAndSafe() {
     check(roomyIPad.rightStickSpacer > ModernTouchLayout.legacyRightStickEdge(for: Runner.screen),
           "a roomy iPad moves the right stick inward from its former edge")
 
-    let layouts = [
-        roomyIPad,
-        ModernTouchLayout(size: CGSize(width: 834, height: 1210),
-                          safeAreaInsets: TouchSafeAreaInsets(top: 28, leading: 12,
-                                                              bottom: 24, trailing: 12)),
-        ModernTouchLayout(size: CGSize(width: 852, height: 393),
-                          safeAreaInsets: TouchSafeAreaInsets(top: 0, leading: 59,
-                                                              bottom: 21, trailing: 59)),
-        ModernTouchLayout(size: CGSize(width: 393, height: 852),
-                          safeAreaInsets: TouchSafeAreaInsets(top: 59, leading: 0,
-                                                              bottom: 34, trailing: 0)),
+    let layouts: [(name: String, layout: ModernTouchLayout, portrait: Bool)] = [
+        ("roomy landscape iPad", roomyIPad, false),
+        ("portrait iPad",
+         ModernTouchLayout(size: CGSize(width: 834, height: 1210),
+                           safeAreaInsets: TouchSafeAreaInsets(top: 28, leading: 12,
+                                                               bottom: 24, trailing: 12)), true),
+        ("landscape iPhone",
+         ModernTouchLayout(size: CGSize(width: 852, height: 393),
+                           safeAreaInsets: TouchSafeAreaInsets(top: 0, leading: 59,
+                                                               bottom: 21, trailing: 59)), false),
+        ("portrait iPhone Air",
+         ModernTouchLayout(size: CGSize(width: 393, height: 852),
+                           safeAreaInsets: TouchSafeAreaInsets(top: 59, leading: 0,
+                                                               bottom: 34, trailing: 0)), true),
     ]
-    for (index, layout) in layouts.enumerated() {
+    for entry in layouts {
+        let layout = entry.layout
         check(layout.safeBounds.contains(layout.rightStickArtworkFrame),
-              "Modern layout \(index + 1) keeps the R artwork inside the safe area")
+              "\(entry.name) keeps the R artwork inside the safe area")
         check(layout.rightStickArtworkFrame.width == TouchControls.rightStickRadius * 2
               && layout.rightStickArtworkFrame.height == TouchControls.rightStickRadius * 2,
-              "Modern layout \(index + 1) retains the R-stick visual radius")
+              "\(entry.name) retains the R-stick visual radius")
         check(layout.rightStickHitFrame == layout.rightStickArtworkFrame.insetBy(
             dx: -ModernTouchLayout.rightStickHitSlop, dy: -ModernTouchLayout.rightStickHitSlop),
-              "Modern layout \(index + 1) derives the raw R hit frame from its artwork")
+              "\(entry.name) derives the raw R hit frame from its artwork")
         let pillHits = [layout.selectPillFrame, layout.statsPillFrame,
                         layout.startPillFrame].map {
             $0.insetBy(dx: -10, dy: -12)
@@ -136,8 +140,54 @@ private func modernLayoutIsCompactAndSafe() {
         check(pillHits.allSatisfy {
             let intersection = $0.intersection(layout.rightStickHitFrame)
             return intersection.isNull || intersection.width <= 0.001 || intersection.height <= 0.001
-        }, "Modern layout \(index + 1) clears all three centre-pill hit targets")
+        }, "\(entry.name) clears all three centre-pill hit targets")
+        if entry.portrait {
+            check(layout.safeBounds.contains(layout.movementArtworkFrame)
+                  && layout.safeBounds.contains(layout.rightStickHitFrame)
+                  && layout.safeBounds.contains(layout.statsPillFrame)
+                  && layout.safeBounds.contains(layout.startPillFrame),
+                  "\(entry.name) keeps the bottom-to-top control stack in its safe area")
+            let movementAndRight = layout.movementArtworkFrame.intersection(
+                layout.rightStickHitFrame)
+            check(movementAndRight.isNull || movementAndRight.width <= 0.001
+                  || movementAndRight.height <= 0.001,
+                  "\(entry.name) keeps the two stick visuals and hit frames disjoint")
+            let lowestStickEdge = min(layout.movementArtworkFrame.minY,
+                                      layout.rightStickHitFrame.minY)
+            check(layout.actionGestureFrame.maxY + 8 <= lowestStickEdge,
+                  "\(entry.name) stacks the bounded swipe zone above the sticks")
+        }
     }
+
+    let portraitPhone = layouts.last!.layout
+    let renderedChrome = ModernTouchChromeLayout(size: CGSize(width: 393, height: 852))
+    check(portraitPhone.statsPillFrame.size == renderedChrome.statsFrame.size
+          && portraitPhone.startPillFrame.size == renderedChrome.startFrame.size,
+          "portrait collision geometry uses the rendered 118-point pills")
+
+    var portraitInput = Runner(style: .modern,
+                               size: CGSize(width: 393, height: 852),
+                               safeAreaInsets: TouchSafeAreaInsets(top: 59, leading: 0,
+                                                                   bottom: 34, trailing: 0),
+                               rightStickFrame: portraitPhone.rightStickHitFrame)
+    let swipe = Finger()
+    let swipeOrigin = CGPoint(x: portraitPhone.actionGestureFrame.midX,
+                              y: portraitPhone.actionGestureFrame.midY)
+    portraitInput.down(swipe, swipeOrigin)
+    portraitInput.move(swipe, CGPoint(x: swipeOrigin.x,
+                                     y: swipeOrigin.y - TouchControls.swipeDistance - 4))
+    check(portraitInput.frame().buttons.contains(.cross),
+          "portrait raw input maps the bounded swipe zone to face gestures")
+    portraitInput.up(swipe)
+    _ = portraitInput.frames(TouchControls.holdFrames + TouchControls.releaseFrames)
+    let deadBand = Finger()
+    let belowSwipeZone = CGPoint(x: 393 * 0.75,
+                                 y: portraitPhone.actionGestureFrame.maxY + 20)
+    portraitInput.down(deadBand, belowSwipeZone)
+    portraitInput.move(deadBand, CGPoint(x: belowSwipeZone.x,
+                                        y: belowSwipeZone.y - TouchControls.swipeDistance - 4))
+    check(portraitInput.frame() == .neutral,
+          "portrait raw input leaves the reserved gap above the stick row inert")
 
     var former = Runner()
     var moved = Runner(rightStickFrame: roomyIPad.rightStickHitFrame)
@@ -2994,6 +3044,7 @@ struct TouchControlsCheck {
         sessionControlStateMatrixIsExactAndFailClosed()
         controllerSuppressionKeepsTouchRecovery()
         gameplayChromeUsesOneIdleStateWithoutGestureSuppression()
+        modernLayoutIsCompactAndSafe()
         gameplayTouchBatchHasOneOrderedOwner()
         controllerTouchTransitionsNeverRetainGameplayOwnership()
         nativeMenuActionsAreTruthfullyGatedAndLabelled()

@@ -152,6 +152,11 @@ struct TouchControlsView: View {
                     TouchSurface(controls: controls,
                                  lookAroundState: lookAroundState,
                                  isSuppressed: isSuppressed,
+                                 safeAreaInsets: TouchSafeAreaInsets(
+                                    top: proxy.safeAreaInsets.top,
+                                    leading: proxy.safeAreaInsets.leading,
+                                    bottom: proxy.safeAreaInsets.bottom,
+                                    trailing: proxy.safeAreaInsets.trailing),
                                  reclaimTouchInput: reclaimTouchInput)
                     #endif
 
@@ -230,32 +235,29 @@ struct TouchControlsView: View {
                                                  bottom: proxy.safeAreaInsets.bottom,
                                                  trailing: proxy.safeAreaInsets.trailing)
         let layout = ModernTouchLayout(size: proxy.size, safeAreaInsets: safeAreaInsets)
-        let chrome = ModernTouchChromeLayout(size: proxy.size)
-        let bottomInset = ModernTouchLayout.legacyRightStickEdge(for: proxy.size)
 
         return ZStack {
-            if let stick = controls.stick {
-                MovementStickArtwork(touch: stick)
-                    .allowsHitTesting(false)
-            }
+            MovementStickArtwork(touch: controls.stick,
+                                 restingOrigin: CGPoint(x: layout.movementArtworkFrame.midX,
+                                                        y: layout.movementArtworkFrame.midY))
+                .allowsHitTesting(false)
 
             if activeGameplayChromeIsAvailable {
                 pill(.stats)
-                    .position(x: chrome.statsFrame.midX, y: chrome.statsFrame.midY)
+                    .position(x: layout.statsPillFrame.midX, y: layout.statsPillFrame.midY)
                     .allowsHitTesting(false)
                 pill(.start)
-                    .position(x: chrome.startFrame.midX, y: chrome.startFrame.midY)
+                    .position(x: layout.startPillFrame.midX, y: layout.startPillFrame.midY)
                     .allowsHitTesting(false)
             }
 
             RightStickControl(controls: controls)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                .padding(.trailing, layout.rightStickSpacer)
-                .padding(.bottom, bottomInset)
+                .position(x: layout.rightStickArtworkFrame.midX,
+                          y: layout.rightStickArtworkFrame.midY)
                 .opacity(rightStickArtworkIsAvailable ? 1 : 0)
                 .allowsHitTesting(false)
 
-            zoomButton(in: proxy)
+            zoomButton(frame: layout.zoomFrame)
                 .opacity(zoomIsAvailable ? 1 : 0)
                 .allowsHitTesting(zoomIsAvailable)
         }
@@ -289,8 +291,7 @@ struct TouchControlsView: View {
         lookAroundState == .firstPerson ? "Zoom Out" : "Zoom In"
     }
 
-    private func zoomButton(in proxy: GeometryProxy) -> some View {
-        let frame = ModernTouchChromeLayout(size: proxy.size).zoomFrame
+    private func zoomButton(frame: CGRect) -> some View {
         return Button { performZoomToggle() } label: {
             Image(systemName: zoomSystemImage)
                 .font(.system(size: 17, weight: .semibold))
@@ -792,7 +793,8 @@ private struct ClassicStickControl: View {
 
 /// The movement ring appears under the first finger that lands on the left half.
 private struct MovementStickArtwork: View {
-    let touch: TouchControls.Tracked
+    let touch: TouchControls.Tracked?
+    let restingOrigin: CGPoint
     private let knobSize: CGFloat = 66
 
     var body: some View {
@@ -813,10 +815,11 @@ private struct MovementStickArtwork: View {
         }
         .frame(width: TouchControls.movementRadius * 2,
                height: TouchControls.movementRadius * 2)
-        .position(touch.origin)
+        .position(touch?.origin ?? restingOrigin)
     }
 
     private var knobOffset: CGSize {
+        guard let touch else { return .zero }
         let push = TouchControls.movementDeflection(from: touch.origin, to: touch.point)
         let travel = TouchControls.movementRadius - knobSize / 2
         return CGSize(width: push.x * travel, height: push.y * travel)
@@ -870,6 +873,7 @@ private struct TouchSurface: UIViewRepresentable {
     let controls: TouchControls
     let lookAroundState: GOALPadLookAroundState
     let isSuppressed: Bool
+    let safeAreaInsets: TouchSafeAreaInsets
     let reclaimTouchInput: () -> Bool
 
     func makeUIView(context: Context) -> TouchSurfaceView {
@@ -879,6 +883,7 @@ private struct TouchSurface: UIViewRepresentable {
         view.setControls(controls)
         view.lookAroundState = lookAroundState
         view.isSuppressed = isSuppressed
+        view.surfaceSafeAreaInsets = safeAreaInsets
         view.reclaimTouchInput = reclaimTouchInput
         return view
     }
@@ -887,6 +892,7 @@ private struct TouchSurface: UIViewRepresentable {
         view.setControls(controls)
         view.lookAroundState = lookAroundState
         view.isSuppressed = isSuppressed
+        view.surfaceSafeAreaInsets = safeAreaInsets
         view.reclaimTouchInput = reclaimTouchInput
     }
 
@@ -899,6 +905,7 @@ private final class TouchSurfaceView: UIView {
     private(set) var controls: TouchControls?
     var lookAroundState: GOALPadLookAroundState = .unknown
     var isSuppressed = false
+    var surfaceSafeAreaInsets = TouchSafeAreaInsets.zero
     var reclaimTouchInput: (() -> Bool)?
     private let haptics = TouchHapticDriver()
     private var activeTouchIdentifiers: Set<ObjectIdentifier> = []
@@ -936,7 +943,8 @@ private final class TouchSurfaceView: UIView {
             Array(touches), isSuppressed: isSuppressed,
             reclaim: { reclaimTouchInput?() ?? false }) { touch in
             controls?.began(ObjectIdentifier(touch), at: touch.location(in: self),
-                            in: bounds.size, at: touch.timestamp)
+                            in: bounds.size, safeAreaInsets: surfaceSafeAreaInsets,
+                            at: touch.timestamp)
         }
         flushHaptics()
     }

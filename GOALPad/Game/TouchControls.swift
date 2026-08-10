@@ -804,12 +804,10 @@ struct ModernTouchLayout: Sendable {
         }
     }
     static let movementKnobSize: CGFloat = 66
-    static let movementVisualRadius: CGFloat = 54
+    static let movementVisualRadius = TouchControls.movementRadius
     static let rightStickHitSlop: CGFloat = 16
     static let rightStickSpacerCap: CGFloat = 200
 
-    private static let pillSize = CGSize(width: 82, height: 42)
-    private static let pillSpacing: CGFloat = 10
     private static let pillHitInsets = CGSize(width: 10, height: 12)
     private static let controlGap: CGFloat = 8
 
@@ -824,6 +822,7 @@ struct ModernTouchLayout: Sendable {
     let selectPillFrame: CGRect
     let statsPillFrame: CGRect
     let startPillFrame: CGRect
+    let zoomFrame: CGRect
 
     init(size: CGSize, safeAreaInsets: TouchSafeAreaInsets = .zero,
          customization: TouchLayoutCustomization = .standard) {
@@ -844,14 +843,16 @@ struct ModernTouchLayout: Sendable {
         rightStickSpacer = min(targetSpacer,
                                 max(0, safe.width - TouchControls.rightStickRadius * 2))
 
-        let pillOffset = Self.pillSize.width + Self.pillSpacing
-        let pillY = bounds.maxY - 30 - Self.pillSize.height / 2
-        let defaultSelectPillFrame = Self.frame(
-            centre: CGPoint(x: bounds.midX - pillOffset, y: pillY), size: Self.pillSize)
-        let defaultStatsPillFrame = Self.frame(
-            centre: CGPoint(x: bounds.midX, y: pillY), size: Self.pillSize)
-        let defaultStartPillFrame = Self.frame(
-            centre: CGPoint(x: bounds.midX + pillOffset, y: pillY), size: Self.pillSize)
+        let isPortrait = bounds.height > bounds.width
+        let chromeBounds = isPortrait ? safe : bounds
+        let chrome = ModernTouchChromeLayout(size: chromeBounds.size)
+        let chromeOffset = chromeBounds.origin
+        let defaultSelectPillFrame = chrome.centeredSessionFrame.offsetBy(
+            dx: chromeOffset.x, dy: chromeOffset.y)
+        let defaultStatsPillFrame = chrome.statsFrame.offsetBy(
+            dx: chromeOffset.x, dy: chromeOffset.y)
+        let defaultStartPillFrame = chrome.startFrame.offsetBy(
+            dx: chromeOffset.x, dy: chromeOffset.y)
         selectPillFrame = Self.resolvedFrame(defaultSelectPillFrame, id: .modernSelect,
                                              customization: customization, safeBounds: safe)
         statsPillFrame = Self.resolvedFrame(defaultStatsPillFrame, id: .modernStats,
@@ -859,8 +860,15 @@ struct ModernTouchLayout: Sendable {
         startPillFrame = Self.resolvedFrame(defaultStartPillFrame, id: .modernStart,
                                             customization: customization, safeBounds: safe)
 
-        let movementCentre = CGPoint(x: safe.minX + Self.movementVisualRadius,
-                                     y: safe.maxY - Self.movementVisualRadius)
+        let pillHitFrames = [selectPillFrame, statsPillFrame, startPillFrame].map {
+            $0.insetBy(dx: -Self.pillHitInsets.width, dy: -Self.pillHitInsets.height)
+        }
+        let portraitStickCentreY = pillHitFrames.map(\.minY).min()
+            .map { $0 - Self.controlGap - Self.movementVisualRadius }
+            ?? safe.maxY - Self.movementVisualRadius
+        let movementCentre = CGPoint(
+            x: safe.minX + Self.movementVisualRadius,
+            y: isPortrait ? portraitStickCentreY : safe.maxY - Self.movementVisualRadius)
         let defaultMovementFrame = Self.frame(centre: movementCentre,
                                               diameter: Self.movementVisualRadius * 2)
         movementArtworkFrame = Self.resolvedFrame(defaultMovementFrame, id: .modernMovement,
@@ -875,9 +883,13 @@ struct ModernTouchLayout: Sendable {
             movementHitFrame = nil
         }
 
-        let defaultGestureFrame = Self.frame(
-            centre: CGPoint(x: safe.minX + safe.width * 0.75, y: safe.midY),
-            diameter: 176)
+        let defaultGestureFrame = isPortrait
+            ? CGRect(x: safe.midX,
+                     y: safe.minY,
+                     width: safe.maxX - safe.midX,
+                     height: max(0, defaultMovementFrame.minY - Self.controlGap - safe.minY))
+            : Self.frame(centre: CGPoint(x: safe.minX + safe.width * 0.75, y: safe.midY),
+                         diameter: 176)
         actionGestureFrame = Self.resolvedFrame(defaultGestureFrame, id: .modernActions,
                                                 customization: customization, safeBounds: safe)
         actionGestureHitFrame = customization.position(for: .modernActions) == nil
@@ -885,14 +897,21 @@ struct ModernTouchLayout: Sendable {
             : TouchLayoutGeometry.minimumHitFrame(for: actionGestureFrame, in: safe)
 
         let radius = TouchControls.rightStickRadius
-        let centreX = max(safe.minX + radius, safe.maxX - radius - rightStickSpacer)
-        let lowestCentreY = safe.maxY - radius - legacyEdge
+        let renderedRightEdge = isPortrait ? safe.maxX : bounds.maxX
+        let candidateCentreX = renderedRightEdge - radius - rightStickSpacer
+        let rightHitRadius = radius + Self.rightStickHitSlop
+        let portraitMinimumCentreX = defaultMovementFrame.maxX
+            + Self.controlGap + rightHitRadius
+        let centreX = min(safe.maxX - rightHitRadius,
+                          max(safe.minX + rightHitRadius,
+                              isPortrait ? max(candidateCentreX, portraitMinimumCentreX)
+                                         : candidateCentreX))
+        let lowestCentreY = isPortrait
+            ? movementCentre.y
+            : bounds.maxY - radius - legacyEdge
         let candidateHitFrame = Self.frame(centre: CGPoint(x: centreX, y: lowestCentreY),
                                            diameter: radius * 2)
             .insetBy(dx: -Self.rightStickHitSlop, dy: -Self.rightStickHitSlop)
-        let pillHitFrames = [selectPillFrame, statsPillFrame, startPillFrame].map {
-            $0.insetBy(dx: -Self.pillHitInsets.width, dy: -Self.pillHitInsets.height)
-        }
         let overlapsPillHorizontally = pillHitFrames.contains {
             $0.minX < candidateHitFrame.maxX && candidateHitFrame.minX < $0.maxX
         }
@@ -909,6 +928,18 @@ struct ModernTouchLayout: Sendable {
             ? TouchLayoutGeometry.minimumHitFrame(for: rightStickArtworkFrame, in: safe)
             : rightStickArtworkFrame.insetBy(dx: -Self.rightStickHitSlop,
                                               dy: -Self.rightStickHitSlop)
+
+        let defaultZoomFrame = chrome.zoomFrame.offsetBy(dx: chromeOffset.x, dy: chromeOffset.y)
+        if isPortrait, defaultZoomFrame.minX < safe.minX {
+            zoomFrame = Self.frame(
+                centre: CGPoint(x: safe.minX + ModernTouchChromeLayout.zoomDiameter / 2,
+                                y: defaultMovementFrame.minY
+                                    - Self.controlGap
+                                    - ModernTouchChromeLayout.zoomDiameter / 2),
+                diameter: ModernTouchChromeLayout.zoomDiameter)
+        } else {
+            zoomFrame = defaultZoomFrame
+        }
     }
 
     static func legacyRightStickEdge(for size: CGSize) -> CGFloat {
@@ -1535,7 +1566,8 @@ final class TouchControls {
     }
 
     /// Build 96 owns ordinary gameplay hit testing independently from compatibility settings.
-    private func build96Role(for point: CGPoint, in size: CGSize) -> Role? {
+    private func build96Role(for point: CGPoint, in size: CGSize,
+                             safeAreaInsets: TouchSafeAreaInsets) -> Role? {
         for (button, frame) in pillFrames where frame.contains(point) {
             if !contextualFacePromptOwnsGameplayActions { return pillRole(for: button) }
         }
@@ -1543,6 +1575,10 @@ final class TouchControls {
            rightStick == nil, rightStickFrame.contains(point) { return .rightStick }
         if stick == nil, point.x < size.width / 2 { return .movement }
         if !contextualFacePromptOwnsGameplayActions, point.x >= size.width / 2 {
+            if size.height > size.width {
+                let layout = ModernTouchLayout(size: size, safeAreaInsets: safeAreaInsets)
+                guard layout.actionGestureFrame.contains(point) else { return nil }
+            }
             return .gesture
         }
         return nil
@@ -1553,8 +1589,8 @@ final class TouchControls {
     func began(_ id: ObjectIdentifier, at point: CGPoint, in size: CGSize,
                safeAreaInsets: TouchSafeAreaInsets = .zero, at _: TimeInterval) {
         guard !capturesNativeTouchInput else { return }
-        _ = safeAreaInsets
-        guard let role = build96Role(for: point, in: size) else { return }
+        guard let role = build96Role(for: point, in: size,
+                                     safeAreaInsets: safeAreaInsets) else { return }
         let origin: CGPoint
         let radius: CGFloat
         let deadzone: CGFloat
