@@ -17410,3 +17410,132 @@ Mac, and no device data, save, imported game data, log, or screen was accessed.
 The pre-existing broad `project.pbxproj` ordering rewrite remains preserved.
 Only the two Build 159 version lines belong in this checkpoint. Nested OpenGOAL
 remains clean at `1c2eae29a3359404c4d94d6960301594540afbe3`.
+
+# 2026-08-10 Build 160 Modern V1 checkpoint
+
+Build 160 adds the first bounded Modern graphics pass without adding another
+profile selector. The existing Graphics **Modern / Classic** selector remains
+the master. Modern exposes Filmic Color, Edge Smoothing, Clarity/Sharpening,
+Soft Highlights, Vignette, and Film Grain as individual toggles, all enabled by
+default. Classic sends an exact zero effect mask through the original Metal
+present path while retaining the player's saved Modern choices. Restore
+Defaults returns all six Modern effects to enabled.
+
+The six-bit mask is persisted in the existing title settings document, flows
+through Swift, Objective-C++, and the ordinary Metal host frame, and is applied
+in the final present shader. The current work is deliberately a lightweight
+single-pass presentation treatment. It does not claim replacement textures,
+new geometry, multi-pass bloom, SSAO, LUT grading, or corrected stereo. Custom
+texture import/selection and advanced Metal work are recorded as Planned in
+`ROADMAP.md`, including validation, provenance, rollback, resource limits, and
+physical acceptance gates.
+
+Nested OpenGOAL commits:
+
+```text
+02320cabe217b0b577e6571daea701c617d6f172 Add Metal Modern V1 present effects (AI-assisted)
+c43824257663738fd135326bf15718df41309374 Fix Modern soft highlights quantization (AI-assisted)
+```
+
+Parent integration commits before this handoff update:
+
+```text
+5a2d2e6d Docs: plan future Modern Graphics (AI-assisted)
+d715993c Add Modern V1 graphics settings bridge
+8d38b082 Pin Metal Modern V1 renderer core (AI-assisted)
+1fb431c3 Wire Modern V1 effects into Metal frames
+c027c798 Bump Dark Eco to Build 160
+e7e9c2b0 Pin verified Modern V1 highlight fix (AI-assisted)
+```
+
+Focused validation passed:
+
+```text
+Scripts/run-presentation-settings-check.sh
+Scripts/run-presentation-geometry-check.sh
+Scripts/run-vision-stereo-integration-check.sh
+Scripts/run-compile-metal-shaders-check.sh
+git diff --check
+git -C OpenGOAL diff --check
+```
+
+The full Metal proof was rebuilt from a fresh Release CMake configuration with
+`ccache`. Its first run correctly rejected the initial Soft Highlights formula
+because it changed zero rasterized pixels. The proof was not weakened: the
+shader was corrected and the rerun passed. Exact-zero Classic matched its
+reference, each of the six individual effect bits changed pixels, and every
+case preserved letterbox pixels. The final output ends in `METAL PROOF PASSED`.
+
+```text
+/private/tmp/GP-build160-root-presentation-settings.log
+/private/tmp/GP-build160-root-presentation-geometry.log
+/private/tmp/GP-build160-root-vision-integration.log
+/private/tmp/GP-build160-compile-metal-shaders.log
+/private/tmp/GP-build160-metal-configure.log
+/private/tmp/GP-build160-metal-build.log
+/private/tmp/GP-build160-metal-proof-final.log
+```
+
+The serialized Release build matrix passed using the existing verified
+518-object public source pack. iOS and visionOS are signed products; macOS was
+compiled unsigned only for shared-source integrity and is not a release
+candidate.
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build154-ios-generic -jobs 4 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack build
+
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=visionOS' \
+  -derivedDataPath /private/tmp/GOALPad-build150-vision-device -jobs 4 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack build
+
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-build154-macos-arm64 -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack build
+```
+
+Products:
+
+```text
+iOS log /private/tmp/GP-build160-ios.log
+iOS app /private/tmp/GOALPad-build154-ios-generic/Build/Products/Release-iphoneos/Dark Eco.app
+  Dark Eco 1.0 (160), arm64, signed, CDHash cd2844c63c4156c9ce73bd777a0064d773605d24
+  executable SHA-256 504212c1e5d3a7f1ba3bfdcb587d3f921f4a461443d1ee4626671782be535bf0
+visionOS log /private/tmp/GP-build160-visionos.log
+visionOS app /private/tmp/GOALPad-build150-vision-device/Build/Products/Release-xros/Dark Eco.app
+  Dark Eco 1.0 (160), arm64, signed, CDHash 692411e6c8d535f6fce98b5ce5c46d30cb5714bd
+  executable SHA-256 e8f5e0532f8fdab7c02688d8d78d3f485c911d059d03e573262ee40a84804849
+macOS compile log /private/tmp/GP-build160-macos-compile.log
+macOS compile product /private/tmp/GOALPad-build154-macos-arm64/Build/Products/Release/Dark Eco.app
+  Dark Eco 1.0 (160), arm64, unsigned compile evidence only
+  executable SHA-256 075b014d94fa060160b6e466652ad6d24f8532cae600f47c27d837865ef38aa4
+```
+
+Strict signature verification passed for iOS and visionOS. Both use team
+`V729QMY3V6` and bundle ID `com.zephyrstudiosllc.eco`; all three build logs
+contain zero `error:` diagnostics. Existing Swift concurrency and native
+conversion/override warnings remain visible in the logs; this checkpoint did
+not suppress them.
+
+No app was installed or launched, and no physical iPhone, iPad, Vision Pro,
+controller, device log, screen capture, app container, save, imported game
+data, or Photos library was accessed. Physical acceptance must compare Modern
+with all six defaults against Classic, toggle each effect independently, verify
+that returning to Modern restores its choices, and check gameplay frame pacing
+and thermal behavior. Stereo remains deferred and is not part of this
+acceptance pass.
+
+The pre-existing 713-line/714-line `project.pbxproj` ordering rewrite remains
+unstaged and preserved. Only the two Build 160 version lines were committed
+from that file. Nested OpenGOAL is clean at
+`c43824257663738fd135326bf15718df41309374`.

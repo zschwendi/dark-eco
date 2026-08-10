@@ -628,11 +628,20 @@ Exit gate:
 - Frame presentation works on the physical iPad.
 - GPU errors, memory use, and frame timing are observable.
 
-## Future Modern Graphics
+## Modern Graphics
 
-**Status: Planned.** This is a future, opt-in graphics and asset path; it does
-not change the accepted base-game presentation, current importer, or shipping
-renderer contract.
+**Modern V1 status: Implemented and deterministically validated; physical
+acceptance pending.** The existing **Modern / Classic** selector remains the
+graphics master. Modern defaults Filmic Color, Edge Smoothing,
+Clarity/Sharpening, Soft Highlights, Vignette, and Film Grain on and exposes an
+individual toggle for each. Classic sends an exact zero-effect mask through the
+same renderer and preserves the saved Modern choices. The first pass is a
+bounded single-pass Metal presentation treatment; it does not claim multi-pass
+bloom, SSAO, replacement textures, new geometry, or stereo correctness.
+
+The remaining graphics and custom-asset work below is **Planned**. It does not
+change the accepted base-game presentation, current importer, or shipping
+renderer contract until its own physical acceptance gates pass.
 
 ### Custom texture packs
 

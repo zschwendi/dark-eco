@@ -1,6 +1,6 @@
 # GOALPad — Project Overview
 
-> **Status:** Experimental playable Jak 1 port; Build 130 is the accepted baseline within its physically tested scope
+> **Status:** Experimental playable Jak 1 port; Build 154 is the accepted conventional-2D baseline within its physically tested scope
 > **Working name:** GOALPad
 > **Public product name:** Dark Eco
 > **App Store subtitle:** Native OpenGOAL Runtime
@@ -111,12 +111,13 @@ Jak II begins only after Jak 1 has a stable platform foundation. Work that is na
 
 ### Current enhancement direction
 
-Build 130 is the unified regression baseline for subsequent Apple-device work.
-It retains the accepted **Graphics Modern** Fit to Screen presentation, corrected
-native/iCloud save behavior, and the physically accepted single-owner gameplay
-touch path. The maintainer accepted Build 130 as known-good for gameplay,
-performance, graphics, current touch behavior, settings persistence, and iCloud
-saves. That acceptance is
+Build 154 is the accepted conventional-2D regression baseline for subsequent
+Apple-device work. It retains **Graphics Modern** Fit to Screen presentation,
+the physically accepted single-owner gameplay touch path, and the working Jak 1
+runtime. Subsequent builds continue the bounded save-sync and touch-layout work
+without replacing that accepted renderer baseline. The maintainer accepted
+Build 154 within the gameplay and presentation scope exercised on physical
+hardware. That acceptance is
 intentionally scoped: it is not yet a complete-playthrough, every-level,
 every-save, every-orientation, or every-controller certification.
 
@@ -127,8 +128,14 @@ concept and touch editor in favor of one gameplay-touch scheme whose stick
 placement, radii, two-pill layout, and base face gestures match Build 96. Later
 bounded additions remain: crouch-left punch, semantic zoom, contextual SKIP,
 touch haptics, truthful native-menu controls, and validated warp-gate capture.
-Graphics retains its independent Modern/Classic presentation choice, including
-Modern Fit to Screen. Old Controls profile and touch-layout documents must stay
+Graphics retains its independent **Modern / Classic** presentation choice,
+including Modern Fit to Screen. That existing selector is the graphics master:
+Modern V1 enables its six individually configurable presentation effects by
+default, while Classic supplies an exact zero-effect mask without erasing the
+saved Modern choices. Build 160 is the first compiled Modern V1 candidate and
+still requires physical visual and performance acceptance. Custom texture packs
+and advanced multi-pass effects remain planned work in `ROADMAP.md`. Old Controls
+profile and touch-layout documents must stay
 decodable, but they no longer control gameplay or appear as player-facing touch
 configuration. Pinch input is not part of the frozen touch contract; camera zoom
 uses one explicit semantic toggle. A device-local settings-sync opt-out does not
@@ -136,17 +143,18 @@ disable iCloud saves.
 
 Enhancement work proceeds in this order:
 
-1. Preserve Build 130 as the unified known-good regression baseline.
-2. Validate Build 131's bounded client-polish candidate without changing Build
-   130's accepted input delivery or game behavior.
-3. Close only actual MVP shipping blockers; do not expand the touch or settings
-   feature surface.
-4. Ship Jak 1 in conventional 2D across iPadOS, macOS, and visionOS. Keep the
-   physically accepted visionOS Comfort window on the normal launch path and
-   defer stereoscopic presentation until a later, separately gated project.
+1. Preserve Build 154 as the accepted conventional-2D regression baseline.
+2. Physically compare Build 160's Modern V1 candidate against Classic without
+   changing the accepted input delivery or game behavior.
+3. Close only actual MVP shipping blockers; do not expand unrelated touch or
+   settings surfaces.
+4. Ship Jak 1 in conventional 2D across iOS/iPadOS and visionOS. Keep the
+   physically accepted visionOS Comfort window on the normal launch path,
+   defer stereoscopic presentation until a later, separately gated project,
+   and keep macOS compilation healthy while its release remains deferred.
 
 No enhancement may fork gameplay semantics, weaken user-owned asset separation,
-or replace the accepted Build 130 baseline before its replacement has been
+or replace the accepted Build 154 baseline before its replacement has been
 physically compared and accepted.
 
 ### Potential future scope
