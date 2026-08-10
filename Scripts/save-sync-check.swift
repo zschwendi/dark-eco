@@ -99,7 +99,10 @@ private func engine(for fixture: Fixture,
                     afterPairFileMutationBeforePhaseSave:
                         @escaping @Sendable (SaveMutationPoint) throws -> Void = { _ in },
                     beforeStateWrite: @escaping @Sendable (String?) throws -> Void = { _ in },
-                    operationAwaitHook: @escaping @Sendable () async -> Void = {})
+                    operationAwaitHook: @escaping @Sendable () async -> Void = {},
+                    coordinateCloudAccess: Bool = false,
+                    discoverCloudFiles:
+                        @escaping @Sendable (URL, Duration) async throws -> [URL] = { _, _ in [] })
     -> SaveSyncEngine {
     let locations = CloudSaveLocations(
         savesRoot: fixture.cloud,
@@ -110,8 +113,9 @@ private func engine(for fixture: Fixture,
         localConflictsRoot: fixture.localConflicts,
         stateFile: fixture.state,
         cloudLocations: { cloudAvailable ? locations : nil },
-        coordinateCloudAccess: false,
+        coordinateCloudAccess: coordinateCloudAccess,
         fileSettleDelay: .milliseconds(1),
+        discoverCloudFiles: discoverCloudFiles,
         mutationHook: mutationHook,
         beforeLocalReplacement: beforeLocalReplacement,
         beforeCloudReplacement: beforeCloudReplacement,
@@ -399,6 +403,42 @@ private func unavailableKeepsLocalSaves() async throws {
           "the gameplay save is untouched")
     check(!FileManager.default.fileExists(atPath: fixture.cloud.path),
           "no cloud directory is required")
+}
+
+private func incompleteCloudDiscoveryFailsClosedBeforeUpload() async throws {
+    print("an incomplete cloud inventory cannot authorize an upload")
+    let blockedFixture = try Fixture()
+    try writeBank(progress: 85, saveCount: 5, marker: 1,
+                  to: bankFilePath(0), under: blockedFixture.local,
+                  modificationDate: Date(timeIntervalSince1970: 1_700_000_000))
+    let blockedEngine = engine(
+        for: blockedFixture,
+        coordinateCloudAccess: true,
+        discoverCloudFiles: { _, _ in throw CocoaError(.fileReadUnknown) })
+    var discoveryFailed = false
+    do {
+        _ = try await blockedEngine.sync()
+    } catch {
+        discoveryFailed = true
+    }
+    check(discoveryFailed, "provider discovery failure is visible to the caller")
+    check(data(bankFilePath(0), under: blockedFixture.cloud) == nil,
+          "unknown remote state never lets a local save overwrite iCloud")
+
+    let emptyFixture = try Fixture()
+    try writeBank(progress: 20, saveCount: 1, marker: 2,
+                  to: bankFilePath(0), under: emptyFixture.local,
+                  modificationDate: Date(timeIntervalSince1970: 1_700_000_000))
+    let emptyCloudEngine = engine(
+        for: emptyFixture,
+        coordinateCloudAccess: true,
+        discoverCloudFiles: { _, _ in [] })
+    let uploaded = try await emptyCloudEngine.sync()
+    check(uploaded.uploaded == 1,
+          "a completed metadata gather may authoritatively establish an empty cloud root")
+    check(data(bankFilePath(0), under: emptyFixture.cloud)
+            == data(bankFilePath(0), under: emptyFixture.local),
+          "a proven first upload preserves the native save bytes")
 }
 
 private func localOnlyUploadsDesktopLayout() async throws {
@@ -809,7 +849,7 @@ private func newerSaveDuringCloudWorkGetsANextSync() async throws {
 }
 
 private func uploadOnlyKeepsActiveLocalAuthority() async throws {
-    print("active gameplay uploads without replacing the local slot")
+    print("active gameplay defers newer cloud saves and uploads only proven local changes")
     let fixture = try Fixture()
     let date = Date(timeIntervalSince1970: 1_700_000_000)
     try writeBank(progress: 80, saveCount: 6, marker: 1,
@@ -829,32 +869,50 @@ private func uploadOnlyKeepsActiveLocalAuthority() async throws {
 
     let outcome = try await fixture.engine.sync(mode: .uploadOnly)
     check(outcome.downloaded == 0, "active runtime never downloads into gameplay storage")
-    check(outcome.uploaded == 2,
-          "replacing both pair members reports two logical files, not three mutations")
-    check(outcome.resolutions == [SaveResolution(relativePath: bankFilePath(0), winner: .local,
-                                                  basis: .activeGameplayAuthority)],
-          "the non-blocking result records active gameplay authority for Settings")
+    check(outcome.uploaded == 0 && outcome.requiresBidirectionalSync,
+          "a newer cloud pair waits for a safe bidirectional sync instead of being overwritten")
+    check(outcome.resolutions.isEmpty,
+          "deferring a cloud winner does not claim that active gameplay resolved it")
     check(data(bankFilePath(0), under: fixture.local) == localEven
             && data(bankFilePath(1), under: fixture.local) == localOdd,
           "the local pair is untouched while frames may run")
-    check(data(bankFilePath(0), under: fixture.cloud) == localEven
-            && data(bankFilePath(1), under: fixture.cloud) == localOdd,
-          "the cloud mirror receives the active local pair")
+    check(data(bankFilePath(0), under: fixture.cloud) == cloudEven
+            && data(bankFilePath(1), under: fixture.cloud) == cloudOdd,
+          "the newer cloud pair remains canonical until gameplay releases local saves")
     let localArchiveData = Set(regularFiles(under: fixture.localConflicts)
         .compactMap { try? Data(contentsOf: $0) })
     let cloudArchiveData = Set(regularFiles(under: fixture.cloudConflicts)
         .compactMap { try? Data(contentsOf: $0) })
-    check(localArchiveData == Set([cloudEven, cloudOdd].compactMap { $0 }),
-          "both divergent cloud members are archived locally before upload")
-    check(cloudArchiveData == Set([cloudEven, cloudOdd].compactMap { $0 }),
-          "both divergent cloud members are archived in iCloud before upload")
+    check(localArchiveData.isEmpty && cloudArchiveData.isEmpty,
+          "a deferred pair needs no archive because neither canonical copy changed")
 
     let persisted = try JSONEncoder().encode(outcome.resolutions)
     let restored = try JSONDecoder().decode([SaveResolution].self, from: persisted)
     check(restored == outcome.resolutions,
           "the last automatic resolution is persistable until Settings replaces or dismisses it")
 
-    let identical = try await fixture.engine.sync(mode: .uploadOnly)
+    let uploadFixture = try Fixture()
+    try writeBank(progress: 70, saveCount: 5, marker: 5,
+                  to: bankFilePath(0), under: uploadFixture.local, modificationDate: date)
+    try writeBank(progress: 60, saveCount: 4, marker: 6,
+                  to: bankFilePath(1), under: uploadFixture.local, modificationDate: date)
+    _ = try await uploadFixture.engine.sync()
+    try writeBank(progress: 85, saveCount: 7, marker: 7,
+                  to: bankFilePath(0), under: uploadFixture.local,
+                  modificationDate: date.addingTimeInterval(120))
+    try writeBank(progress: 80, saveCount: 6, marker: 8,
+                  to: bankFilePath(1), under: uploadFixture.local,
+                  modificationDate: date.addingTimeInterval(120))
+    let changedLocalEven = data(bankFilePath(0), under: uploadFixture.local)
+    let changedLocalOdd = data(bankFilePath(1), under: uploadFixture.local)
+    let upload = try await uploadFixture.engine.sync(mode: .uploadOnly)
+    check(upload.uploaded == 2 && !upload.requiresBidirectionalSync,
+          "a local generation changed from the shared baseline uploads during gameplay")
+    check(data(bankFilePath(0), under: uploadFixture.cloud) == changedLocalEven
+            && data(bankFilePath(1), under: uploadFixture.cloud) == changedLocalOdd,
+          "the proven local-only change advances the cloud mirror")
+
+    let identical = try await uploadFixture.engine.sync(mode: .uploadOnly)
     check(identical.uploaded == 0 && identical.downloaded == 0,
           "an identical active-runtime pair causes no file changes")
     check(identical.resolutions.isEmpty,
@@ -1006,8 +1064,8 @@ private func ordinarySourceCASRejectsRacesInBothDirections() async throws {
     let path = "metadata/session.dat"
 
     let localFixture = try Fixture()
-    try write("local-snapshot", to: path, under: localFixture.local)
     try write("cloud-target", to: path, under: localFixture.cloud)
+    try write("local-snapshot", to: path, under: localFixture.local)
     let localRace = OrdinaryFileRace(root: localFixture.local, relativePath: path,
                                      replacement: "local-next-generation")
     let localSourceEngine = engine(
@@ -2244,6 +2302,9 @@ private func controllerCoalescesSyncIntentAndPreservesLastSuccess() async throws
     print("controller exposes one busy operation and drains a coalesced retry")
     let gate = OperationGate()
     let fixture = try Fixture(operationAwaitHook: { await gate.pauseFirstEntry() })
+    try writeBank(progress: 40, saveCount: 2, marker: 1,
+                  to: bankFilePath(0), under: fixture.local,
+                  modificationDate: Date(timeIntervalSince1970: 1_700_000_000))
     let defaults = UserDefaults(suiteName: "goalpad-save-controller-\(UUID().uuidString)")!
     let controller = SaveSyncController(defaults: defaults, engine: fixture.engine)
 
@@ -2293,6 +2354,29 @@ private func combinedCloudPresentationCoordinatesEnabledDomains() async throws {
           "two healthy enabled domains expose one Sync action")
     check(healthy.lastSyncDate == savesDate,
           "the combined date is the newest independent successful sync")
+    check(healthy.settingsLastSyncDate == settingsDate
+          && healthy.savesLastSyncDate == savesDate,
+          "settings and save success dates remain independently presentable")
+
+    let activeGameplay = CloudSyncPresentation.state(
+        settingsEnabled: true,
+        settingsStatus: .synced(settingsDate),
+        settingsSummary: "Up to date",
+        settingsLastSyncDate: settingsDate,
+        savesEnabled: true,
+        savesStatus: .synced(savesDate, uploaded: 0, downloaded: 0, resolutions: []),
+        savesSummary: "Up to date",
+        savesLastSyncDate: savesDate,
+        savesIsBusy: false,
+        savesIsSyncing: false,
+        savesProgressMessage: nil,
+        savesGameplayActive: true)
+    check(activeGameplay.phase == .uploadOnly
+          && activeGameplay.savesAreUploadOnly
+          && activeGameplay.actionTitle == "Sync Settings & Upload Saves",
+          "an active game never presents its safe upload-only operation as two-way Sync")
+    check(activeGameplay.savesSummary == "Gameplay active — saves upload only",
+          "the save row explains that downloads wait until gameplay releases local saves")
 
     let failedWhileSavesRun = CloudSyncPresentation.state(
         settingsEnabled: true,
@@ -2403,6 +2487,38 @@ private func combinedCloudPresentationCoordinatesEnabledDomains() async throws {
 }
 
 @MainActor
+private func controllerReportsObservedSaveStateTruthfully() async throws {
+    print("controller does not call an empty or deferred inventory up to date")
+    let emptyFixture = try Fixture()
+    let emptyDefaults = UserDefaults(suiteName: "goalpad-empty-controller-\(UUID().uuidString)")!
+    let emptyController = SaveSyncController(defaults: emptyDefaults, engine: emptyFixture.engine)
+    await emptyController.syncNow(mode: .bidirectional)
+    check(emptyController.summary == "No saves found on this device or in iCloud",
+          "a successful zero-file inventory reports no saves instead of up to date")
+    check(emptyController.lastSyncDate == nil,
+          "an empty inventory does not create a misleading last save sync date")
+
+    let deferredFixture = try Fixture()
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    try writeBank(progress: 85, saveCount: 5, marker: 1,
+                  to: bankFilePath(0), under: deferredFixture.local,
+                  modificationDate: date)
+    try writeBank(progress: 87, saveCount: 6, marker: 2,
+                  to: bankFilePath(0), under: deferredFixture.cloud,
+                  modificationDate: date.addingTimeInterval(60))
+    let deferredDefaults = UserDefaults(
+        suiteName: "goalpad-deferred-controller-\(UUID().uuidString)")!
+    let deferredController = SaveSyncController(defaults: deferredDefaults,
+                                                engine: deferredFixture.engine)
+    deferredController.setGameplayActive(true)
+    await deferredController.syncNow()
+    check(deferredController.summary.contains("Newer iCloud saves are waiting"),
+          "active gameplay surfaces a deferred newer cloud save")
+    check(deferredController.lastSyncDate == nil,
+          "a deferred merge cannot publish a successful save-sync timestamp")
+}
+
+@MainActor
 private func replacementFrameCheckKeepsTaskOwnershipAndCancelsQuietly() async throws {
     print("replacement frame checks retain ownership after an older debounce is cancelled")
     let gate = OperationGate()
@@ -2440,6 +2556,7 @@ private struct SaveSyncCheck {
     static func main() async {
         do {
             try await unavailableKeepsLocalSaves()
+            try await incompleteCloudDiscoveryFailsClosedBeforeUpload()
             try await localOnlyUploadsDesktopLayout()
             try await cloudOnlyDownloadsBeforeGameplay()
             try await changedSideWinsAgainstBaseline()
@@ -2491,6 +2608,7 @@ private struct SaveSyncCheck {
             try await identityChangesReevaluateUnavailableCloudSaves()
             try await controllerCoalescesSyncIntentAndPreservesLastSuccess()
             try await combinedCloudPresentationCoordinatesEnabledDomains()
+            try await controllerReportsObservedSaveStateTruthfully()
             try await replacementFrameCheckKeepsTaskOwnershipAndCancelsQuietly()
         } catch {
             print("  FAIL unexpected error: \(error)")

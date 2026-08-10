@@ -71,8 +71,8 @@ check(occursInOrder([
     "return true",
 ], in: gate), "pregame bounds automatic cloud work, then gates only unsafe local recovery")
 check(controller.contains("needsBidirectionalSyncBeforeGameplay = true")
-        && controller.contains("if mode == .bidirectional, !wasCancelled")
-        && controller.contains("needsBidirectionalSyncBeforeGameplay = false"),
+        && controller.contains("completedBidirectionalReconciliation = outcome.availability == .available")
+        && controller.contains("needsBidirectionalSyncBeforeGameplay = !completedBidirectionalReconciliation"),
       "pregame freshness is explicit instead of sampled between controller polls")
 check(gate.components(separatedBy: "return false").count - 1 >= 2,
       "pregame rejects both an unsafe journal and an unreadable recovery state")
@@ -92,6 +92,10 @@ check(occursInOrder([
       "timed-out cloud work must release its owned lease before local gameplay can continue")
 check(engine.contains("downloadPollAttempts: Int = 50"),
       "one iCloud placeholder has a bounded five-second provider wait")
+check(engine.contains("NSMetadataQueryUbiquitousDocumentsScope")
+        && engine.contains("NSMetadataQueryDidFinishGathering")
+        && engine.contains("cloudDiscoveryTimeout: Duration = .seconds(5)"),
+      "cloud absence is accepted only after one bounded authoritative metadata gather")
 
 let prepare = section(controller, from: "func prepare() async", to: "func syncNow")
 check(prepare.contains("scheduleAutomaticSync(.bidirectional, announceWaiting: true)")

@@ -28,6 +28,8 @@ nonisolated enum CloudSaveUnavailableReason: Sendable, Equatable {
 
 nonisolated private enum SaveSyncError: LocalizedError {
     case cloudDownloadTimedOut(String)
+    case cloudDiscoveryFailed
+    case cloudDiscoveryTimedOut
     case fileChangedDuringRead(String)
     case localChangedDuringMerge(String)
     case cloudChangedDuringMerge(String)
@@ -40,6 +42,10 @@ nonisolated private enum SaveSyncError: LocalizedError {
         switch self {
         case .cloudDownloadTimedOut(let path):
             return "iCloud did not finish downloading \(path). Try syncing again."
+        case .cloudDiscoveryFailed:
+            return "iCloud did not start checking for saves. Try syncing again."
+        case .cloudDiscoveryTimedOut:
+            return "iCloud did not finish checking for saves. Try syncing again."
         case .fileChangedDuringRead(let path):
             return "A save was still changing while syncing: \(path). Try syncing again."
         case .localChangedDuringMerge(let path):
@@ -56,6 +62,99 @@ nonisolated private enum SaveSyncError: LocalizedError {
         case .archivedSaveUnavailable:
             return "That preserved save is no longer available. Refresh the list and try again."
         }
+    }
+}
+
+/// Performs one bounded initial metadata gather for a private iCloud Documents subtree. Apple
+/// documents `NSMetadataQuery` as the authoritative iOS document-discovery mechanism; ordinary
+/// directory enumeration can otherwise mistake an incomplete local FileProvider view for an empty
+/// cloud directory.
+@MainActor
+private final class CloudSaveMetadataQuery {
+    private let root: URL
+    private let query = NSMetadataQuery()
+    private let notificationCenter: NotificationCenter
+    private var continuation: CheckedContinuation<[URL], Error>?
+    private var observer: NSObjectProtocol?
+    private var isFinished = false
+
+    init(root: URL, notificationCenter: NotificationCenter = .default) {
+        self.root = root.standardizedFileURL
+        self.notificationCenter = notificationCenter
+        query.operationQueue = .main
+        query.searchScopes = [NSMetadataQueryUbiquitousDocumentsScope]
+        query.predicate = NSPredicate(value: true)
+    }
+
+    func gather() async throws -> [URL] {
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                start(with: continuation)
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                self?.finish(.failure(CancellationError()))
+            }
+        }
+    }
+
+    private func start(with newContinuation: CheckedContinuation<[URL], Error>) {
+        guard !isFinished else {
+            newContinuation.resume(throwing: CancellationError())
+            return
+        }
+        continuation = newContinuation
+
+        let newObserver = notificationCenter.addObserver(
+            forName: .NSMetadataQueryDidFinishGathering,
+            object: query,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.gatheringFinished() }
+        }
+
+        if isFinished {
+            notificationCenter.removeObserver(newObserver)
+            return
+        }
+        observer = newObserver
+
+        guard query.start() else {
+            finish(.failure(SaveSyncError.cloudDiscoveryFailed))
+            return
+        }
+    }
+
+    private func gatheringFinished() {
+        query.disableUpdates()
+        let rootPrefix = root.path.hasSuffix("/") ? root.path : root.path + "/"
+        let urls = query.results.compactMap { result -> URL? in
+            guard let item = result as? NSMetadataItem,
+                  let url = item.value(forAttribute: NSMetadataItemURLKey) as? URL else {
+                return nil
+            }
+            if item.value(forAttribute: NSMetadataItemContentTypeKey) as? String
+                == "public.folder" {
+                return nil
+            }
+            let standardized = url.standardizedFileURL
+            guard standardized.path.hasPrefix(rootPrefix) else { return nil }
+            return standardized
+        }
+        finish(.success(urls.sorted { $0.path < $1.path }))
+    }
+
+    private func finish(_ result: Result<[URL], Error>) {
+        guard !isFinished else { return }
+        isFinished = true
+        let continuation = continuation
+        self.continuation = nil
+        let observer = observer
+        self.observer = nil
+
+        query.stop()
+        if let observer { notificationCenter.removeObserver(observer) }
+        continuation?.resume(with: result)
     }
 }
 
@@ -125,16 +224,28 @@ nonisolated struct SaveSyncOutcome: Sendable, Equatable {
     let resolutions: [SaveResolution]
     let completedAt: Date
     let unavailableReason: CloudSaveUnavailableReason?
+    let requiresBidirectionalSync: Bool
+    let cloudUploadPending: Bool
+    let observedLocalFileCount: Int
+    let observedCloudFileCount: Int
 
     init(availability: Availability, uploaded: Int, downloaded: Int,
          resolutions: [SaveResolution], completedAt: Date,
-         unavailableReason: CloudSaveUnavailableReason? = nil) {
+         unavailableReason: CloudSaveUnavailableReason? = nil,
+         requiresBidirectionalSync: Bool = false,
+         cloudUploadPending: Bool = false,
+         observedLocalFileCount: Int = 0,
+         observedCloudFileCount: Int = 0) {
         self.availability = availability
         self.uploaded = uploaded
         self.downloaded = downloaded
         self.resolutions = resolutions
         self.completedAt = completedAt
         self.unavailableReason = unavailableReason
+        self.requiresBidirectionalSync = requiresBidirectionalSync
+        self.cloudUploadPending = cloudUploadPending
+        self.observedLocalFileCount = observedLocalFileCount
+        self.observedCloudFileCount = observedCloudFileCount
     }
 
     static func unavailable(reason: CloudSaveUnavailableReason = .unknown,
@@ -150,6 +261,8 @@ actor SaveSyncEngine {
     typealias CloudLocationsProvider = @Sendable () -> CloudSaveLocations?
 
     nonisolated struct Configuration: Sendable {
+        typealias CloudFileDiscovery = @Sendable (URL, Duration) async throws -> [URL]
+
         let localRoot: URL
         let localConflictsRoot: URL
         let stateFile: URL
@@ -159,6 +272,8 @@ actor SaveSyncEngine {
         let fileSettleDelay: Duration
         let downloadPollInterval: Duration
         let downloadPollAttempts: Int
+        let cloudDiscoveryTimeout: Duration
+        let discoverCloudFiles: CloudFileDiscovery
         let mutationHook: @Sendable (SaveMutationPoint) throws -> Void
         let beforeLocalReplacement: @Sendable () throws -> Void
         let beforeCloudReplacement: @Sendable () throws -> Void
@@ -175,6 +290,11 @@ actor SaveSyncEngine {
              fileSettleDelay: Duration = .milliseconds(100),
              downloadPollInterval: Duration = .milliseconds(100),
              downloadPollAttempts: Int = 50,
+             cloudDiscoveryTimeout: Duration = .seconds(5),
+             discoverCloudFiles: @escaping CloudFileDiscovery = {
+                root, timeout in
+                try await SaveSyncEngine.discoverCloudFiles(in: root, timeout: timeout)
+             },
              cloudUnavailableReason:
                 @escaping @Sendable () -> CloudSaveUnavailableReason = { .unknown },
              mutationHook: @escaping @Sendable (SaveMutationPoint) throws -> Void = { _ in },
@@ -197,6 +317,8 @@ actor SaveSyncEngine {
             self.fileSettleDelay = fileSettleDelay
             self.downloadPollInterval = downloadPollInterval
             self.downloadPollAttempts = downloadPollAttempts
+            self.cloudDiscoveryTimeout = cloudDiscoveryTimeout
+            self.discoverCloudFiles = discoverCloudFiles
             self.mutationHook = mutationHook
             self.beforeLocalReplacement = beforeLocalReplacement
             self.beforeCloudReplacement = beforeCloudReplacement
@@ -371,6 +493,7 @@ actor SaveSyncEngine {
         var resolutions: [SaveResolution] = []
         var uploaded = 0
         var downloaded = 0
+        var requiresBidirectionalSync = false
         if let intent = state.pairMutationIntent {
             try validatePairMutationIntent(intent)
             if intent.phase == .prepared, intent.sourceKind == .imported {
@@ -392,7 +515,9 @@ actor SaveSyncEngine {
                     }
                     return SaveSyncOutcome(availability: .available, uploaded: 0,
                                            downloaded: 0, resolutions: [],
-                                           completedAt: Date())
+                                           completedAt: Date(),
+                                           requiresBidirectionalSync: true,
+                                           observedLocalFileCount: localFiles.count)
                 } else {
                     let localFiles = try await files(in: configuration.localRoot,
                                                      coordinated: false)
@@ -442,11 +567,16 @@ actor SaveSyncEngine {
                                            resolutions: &resolutions)
             uploaded += result.uploaded
             downloaded += result.downloaded
+            requiresBidirectionalSync = requiresBidirectionalSync
+                || result.requiresBidirectionalSync
             if state.pairMutationIntent != nil {
                 lastLocalStamps = processedLocalStamps
                 return SaveSyncOutcome(availability: .available, uploaded: uploaded,
                                        downloaded: downloaded, resolutions: resolutions,
-                                       completedAt: Date())
+                                       completedAt: Date(),
+                                       requiresBidirectionalSync: true,
+                                       observedLocalFileCount: localFiles.count,
+                                       observedCloudFileCount: cloudFiles.count)
             }
         }
 
@@ -457,6 +587,14 @@ actor SaveSyncEngine {
             if mode == .uploadOnly {
                 switch (local, remote) {
                 case let (local?, remote?) where local.hash != remote.hash:
+                    let baseline = state.baselineHashes[relativePath]
+                    if baseline == local.hash && baseline != remote.hash
+                        || baseline != local.hash && baseline != remote.hash
+                            && resolveDivergence(relativePath: relativePath,
+                                                 local: local, remote: remote).winner == .iCloud {
+                        requiresBidirectionalSync = true
+                        continue
+                    }
                     try archiveOriginal(remote, relativePath: relativePath,
                                         source: .iCloud, cloud: cloud)
                     try assertLocalSourceFile(relativePath: relativePath, matches: local)
@@ -479,6 +617,7 @@ actor SaveSyncEngine {
                     state.baselineHashes[relativePath] = local.hash
                 case let (nil, remote?):
                     state.baselineHashes[relativePath] = remote.hash
+                    requiresBidirectionalSync = true
                 default:
                     break
                 }
@@ -567,9 +706,15 @@ actor SaveSyncEngine {
         // save while cloud work was still running, the next frame sees that newer stamp and syncs
         // it instead of accidentally treating it as already mirrored.
         lastLocalStamps = processedLocalStamps
+        let cloudUploadPending = try cloudUploadsArePending(
+            relativePaths: allPaths, root: cloud.savesRoot)
         return SaveSyncOutcome(availability: .available, uploaded: uploaded,
                                downloaded: downloaded,
-                               resolutions: resolutions, completedAt: Date())
+                               resolutions: resolutions, completedAt: Date(),
+                               requiresBidirectionalSync: requiresBidirectionalSync,
+                               cloudUploadPending: cloudUploadPending,
+                               observedLocalFileCount: localFiles.count,
+                               observedCloudFileCount: cloudFiles.count)
     }
 
     private func syncWithoutCloud(mode: SaveSyncMode, state: inout State,
@@ -606,7 +751,8 @@ actor SaveSyncEngine {
         lastLocalStamps = processedLocalStamps
         return SaveSyncOutcome(availability: .unavailable, uploaded: 0,
                                downloaded: downloaded, resolutions: resolutions,
-                               completedAt: Date(), unavailableReason: reason)
+                               completedAt: Date(), unavailableReason: reason,
+                               observedLocalFileCount: localFiles.count)
     }
 
     /// Cheaply checks the local save directory after a completed game frame. A full hash-based
@@ -882,7 +1028,7 @@ actor SaveSyncEngine {
         state: inout State,
         processedLocalStamps: inout [String: FileStamp],
         resolutions: inout [SaveResolution]
-    ) throws -> (uploaded: Int, downloaded: Int) {
+    ) throws -> (uploaded: Int, downloaded: Int, requiresBidirectionalSync: Bool) {
         var local = jak1SlotSnapshot(evenPath: evenPath, files: localFiles)
         var remote = jak1SlotSnapshot(evenPath: evenPath, files: cloudFiles)
         var recoveredUploaded = 0
@@ -907,19 +1053,29 @@ actor SaveSyncEngine {
                     remote = committedSource
                 }
             } else {
-                return (recovered.uploaded, recovered.downloaded)
+                return (recovered.uploaded, recovered.downloaded,
+                        recovered.intent.targetCopy == .local)
             }
         }
 
         if local.identity == remote.identity {
             state.slotBaselineHashes[evenPath] = local.identity
-            return (recoveredUploaded, recoveredDownloaded)
+            return (recoveredUploaded, recoveredDownloaded, false)
         }
 
         if mode == .uploadOnly {
             guard local.hasFiles else {
                 if remote.hasFiles { state.slotBaselineHashes[evenPath] = remote.identity }
-                return (recoveredUploaded, recoveredDownloaded)
+                return (recoveredUploaded, recoveredDownloaded, remote.hasFiles)
+            }
+
+            let baseline = state.slotBaselineHashes[evenPath]
+                ?? legacyPairBaseline(local: local, remote: remote, state: state)
+            if remote.hasFiles,
+               (baseline == local.identity && baseline != remote.identity
+                || baseline != remote.identity && baseline != local.identity
+                    && resolveSlotDivergence(local: local, remote: remote).winner == .iCloud) {
+                return (recoveredUploaded, recoveredDownloaded, true)
             }
             if remote.hasFiles {
                 try preserveCloudSlotDivergence(remote: remote, against: local, cloud: cloud)
@@ -935,7 +1091,7 @@ actor SaveSyncEngine {
                                                         state: &state,
                                                         resolution: resolution)
             state.slotBaselineHashes[evenPath] = local.identity
-            return (recoveredUploaded + changed, recoveredDownloaded)
+            return (recoveredUploaded + changed, recoveredDownloaded, false)
         }
 
         if local.hasFiles, !remote.hasFiles {
@@ -943,7 +1099,7 @@ actor SaveSyncEngine {
                                                         targetCopy: .iCloud, cloud: cloud,
                                                         state: &state)
             state.slotBaselineHashes[evenPath] = local.identity
-            return (recoveredUploaded + changed, recoveredDownloaded)
+            return (recoveredUploaded + changed, recoveredDownloaded, false)
         }
         if !local.hasFiles, remote.hasFiles {
             let changed = try replaceJak1SlotDuringSync(remote, replacing: local,
@@ -951,7 +1107,7 @@ actor SaveSyncEngine {
                                                         state: &state)
             updateLocalStamps(for: remote, in: &processedLocalStamps)
             state.slotBaselineHashes[evenPath] = remote.identity
-            return (recoveredUploaded, recoveredDownloaded + changed)
+            return (recoveredUploaded, recoveredDownloaded + changed, false)
         }
 
         let baseline = state.slotBaselineHashes[evenPath]
@@ -965,7 +1121,7 @@ actor SaveSyncEngine {
                                                         state: &state)
             updateLocalStamps(for: remote, in: &processedLocalStamps)
             state.slotBaselineHashes[evenPath] = remote.identity
-            return (recoveredUploaded, recoveredDownloaded + changed)
+            return (recoveredUploaded, recoveredDownloaded + changed, false)
         }
         if !presenceDiffers, baseline == remote.identity, baseline != local.identity {
             try preserveSlotDivergence(local: local, remote: remote, cloud: cloud)
@@ -973,7 +1129,7 @@ actor SaveSyncEngine {
                                                         targetCopy: .iCloud, cloud: cloud,
                                                         state: &state)
             state.slotBaselineHashes[evenPath] = local.identity
-            return (recoveredUploaded + changed, recoveredDownloaded)
+            return (recoveredUploaded + changed, recoveredDownloaded, false)
         }
 
         try preserveSlotDivergence(local: local, remote: remote, cloud: cloud)
@@ -986,7 +1142,7 @@ actor SaveSyncEngine {
                                                         state: &state,
                                                         resolution: resolution)
             state.slotBaselineHashes[evenPath] = local.identity
-            return (recoveredUploaded + changed, recoveredDownloaded)
+            return (recoveredUploaded + changed, recoveredDownloaded, false)
         case .iCloud:
             let changed = try replaceJak1SlotDuringSync(remote, replacing: local,
                                                         targetCopy: .local, cloud: cloud,
@@ -994,7 +1150,7 @@ actor SaveSyncEngine {
                                                         resolution: resolution)
             updateLocalStamps(for: remote, in: &processedLocalStamps)
             state.slotBaselineHashes[evenPath] = remote.identity
-            return (recoveredUploaded, recoveredDownloaded + changed)
+            return (recoveredUploaded, recoveredDownloaded + changed, false)
         }
     }
 
@@ -1808,16 +1964,45 @@ actor SaveSyncEngine {
     }
 
     private func files(in root: URL, coordinated: Bool) async throws -> [String: SaveFile] {
-        let urls = try fileURLs(in: root, coordinated: coordinated)
+        let urls: [URL]
+        if coordinated {
+            let discovered = try await configuration.discoverCloudFiles(
+                root, configuration.cloudDiscoveryTimeout)
+            let locallyVisible = try uncoordinatedFileURLs(in: root)
+            urls = Dictionary((discovered + locallyVisible).map {
+                ($0.standardizedFileURL.path, $0.standardizedFileURL)
+            }, uniquingKeysWith: { first, _ in first }).values.sorted { $0.path < $1.path }
+        } else {
+            urls = try uncoordinatedFileURLs(in: root)
+        }
         var result: [String: SaveFile] = [:]
         for url in urls {
             if coordinated {
                 try await ensureCloudFileIsCurrent(at: url, relativeTo: root)
             }
+            let values = try url.resourceValues(forKeys: [.isRegularFileKey])
+            guard values.isRegularFile == true else { continue }
             result[relativePath(of: url, under: root)] = try await stableFile(
                 at: url, coordinated: coordinated, relativeTo: root)
         }
         return result
+    }
+
+    private nonisolated static func discoverCloudFiles(in root: URL, timeout: Duration) async throws
+        -> [URL] {
+        let query = await CloudSaveMetadataQuery(root: root)
+        return try await withThrowingTaskGroup(of: [URL].self) { group in
+            group.addTask { try await query.gather() }
+            group.addTask {
+                try await Task.sleep(for: timeout)
+                throw SaveSyncError.cloudDiscoveryTimedOut
+            }
+            defer { group.cancelAll() }
+            guard let result = try await group.next() else {
+                throw SaveSyncError.cloudDiscoveryFailed
+            }
+            return result
+        }
     }
 
     private func fileURLs(in root: URL, coordinated: Bool) throws -> [URL] {
@@ -2034,6 +2219,27 @@ actor SaveSyncEngine {
             }
         }
         throw SaveSyncError.cloudDownloadTimedOut(relativePath(of: url, under: root))
+    }
+
+    /// A coordinated write only updates the local ubiquity container. Read the provider's
+    /// asynchronous upload state after coordination has ended so callers never label a pending
+    /// transfer as a completed cross-device sync.
+    private func cloudUploadsArePending(relativePaths: Set<String>, root: URL) throws -> Bool {
+        guard configuration.coordinateCloudAccess else { return false }
+        let keys: Set<URLResourceKey> = [.isUbiquitousItemKey,
+                                         .ubiquitousItemIsUploadedKey,
+                                         .ubiquitousItemUploadingErrorKey]
+        var hasPendingUpload = false
+        for relativePath in relativePaths {
+            let url = root.appending(path: relativePath, directoryHint: .notDirectory)
+            guard manager.fileExists(atPath: url.path) else { continue }
+            let values = try url.resourceValues(forKeys: keys)
+            if let error = values.ubiquitousItemUploadingError { throw error }
+            if values.isUbiquitousItem == true, values.ubiquitousItemIsUploaded != true {
+                hasPendingUpload = true
+            }
+        }
+        return hasPendingUpload
     }
 
     private func write(_ file: SaveFile, relativePath: String, to root: URL,

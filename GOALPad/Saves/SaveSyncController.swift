@@ -115,6 +115,9 @@ final class SaveSyncController {
     private var gameplayReadinessDidChange: (() -> Void)?
     private var automaticSyncTask: Task<Void, Never>?
     private var automaticSyncGeneration = 0
+    private var observedSaveFileCount: Int?
+    private var cloudDownloadDeferred = false
+    private var cloudUploadPending = false
     @ObservationIgnored
     nonisolated(unsafe) private var ubiquityIdentityObserver: NSObjectProtocol?
     private(set) var cloudUnavailableMessage: String?
@@ -152,6 +155,7 @@ final class SaveSyncController {
         }
         lastSuccessfulSyncDate = nil
         cloudUnavailableMessage = nil
+        observedSaveFileCount = nil
         self.engine = engine ?? SaveSyncEngine(configuration: .init(
             localRoot: SaveDataLayout.localSavesDirectory,
             localConflictsRoot: SaveDataLayout.localConflictsDirectory,
@@ -189,7 +193,8 @@ final class SaveSyncController {
 
     var progressMessage: String? {
         switch activeOperation {
-        case .syncing: "Syncing saves…"
+        case .syncing:
+            activeSyncMode == .uploadOnly ? "Uploading saves…" : "Syncing saves…"
         case .checking: "Checking saves…"
         case .importing: "Importing saves…"
         case .exporting: "Exporting saves…"
@@ -321,7 +326,7 @@ final class SaveSyncController {
                         activeOperation = nil
                         return
                     }
-                    apply(outcome)
+                    apply(outcome, mode: .uploadOnly)
                 }
             } catch is CancellationError {
                 // Cancellation during the debounce is expected; active save work is not cancelled.
@@ -418,6 +423,15 @@ final class SaveSyncController {
             guard let cloudUnavailableMessage else { return localSummary }
             return localSummary + ". " + cloudUnavailableMessage
         case .synced(_, let uploaded, let downloaded, let resolutions):
+            if cloudDownloadDeferred {
+                return "Newer iCloud saves are waiting — return to the Library to download them"
+            }
+            if cloudUploadPending {
+                return "Waiting for iCloud to finish uploading saves"
+            }
+            if observedSaveFileCount == 0 {
+                return "No saves found on this device or in iCloud"
+            }
             if !resolutions.isEmpty { return resolutionNotice(for: resolutions) }
             if uploaded == 0 && downloaded == 0 { return "Up to date" }
             return "Synced: \(uploaded) uploaded, \(downloaded) downloaded"
@@ -518,7 +532,7 @@ final class SaveSyncController {
             activeOperation = .syncing
             activeSyncMode = mode
             status = .syncing
-            var wasCancelled = false
+            var completedBidirectionalReconciliation = false
             do {
                 let outcome = try await engine.sync(mode: mode)
                 guard isEnabled else {
@@ -528,15 +542,16 @@ final class SaveSyncController {
                     pendingSyncMode = nil
                     return
                 }
-                apply(outcome)
+                apply(outcome, mode: mode)
+                completedBidirectionalReconciliation = outcome.availability == .available
+                    && !outcome.requiresBidirectionalSync && !outcome.cloudUploadPending
             } catch is CancellationError {
-                wasCancelled = true
                 if isEnabled { status = .waiting }
             } catch {
                 status = isEnabled ? .failed(error.localizedDescription) : .disabled
             }
-            if mode == .bidirectional, !wasCancelled {
-                needsBidirectionalSyncBeforeGameplay = false
+            if mode == .bidirectional {
+                needsBidirectionalSyncBeforeGameplay = !completedBidirectionalReconciliation
             }
             activeOperation = nil
             activeSyncMode = nil
@@ -565,20 +580,30 @@ final class SaveSyncController {
         frameCheckTask = nil
     }
 
-    private func apply(_ outcome: SaveSyncOutcome) {
+    private func apply(_ outcome: SaveSyncOutcome, mode: SaveSyncMode) {
         guard outcome.availability == .available else {
             cloudUnavailableMessage = outcome.unavailableReason?.recoveryMessage
             status = .unavailable
             return
         }
         cloudUnavailableMessage = nil
+        observedSaveFileCount = outcome.observedLocalFileCount
+            + outcome.observedCloudFileCount
+        cloudDownloadDeferred = outcome.requiresBidirectionalSync
+        cloudUploadPending = outcome.cloudUploadPending
+        if cloudDownloadDeferred || cloudUploadPending {
+            needsBidirectionalSyncBeforeGameplay = true
+        }
         if !outcome.resolutions.isEmpty {
             recentResolutions = outcome.resolutions
             if let data = try? JSONEncoder().encode(recentResolutions) {
                 defaults.set(data, forKey: Self.lastResolutionsDefaultsKey)
             }
         }
-        lastSuccessfulSyncDate = outcome.completedAt
+        if !cloudDownloadDeferred, !cloudUploadPending,
+           (observedSaveFileCount ?? 0) > 0, mode == .bidirectional {
+            lastSuccessfulSyncDate = outcome.completedAt
+        }
         status = .synced(outcome.completedAt, uploaded: outcome.uploaded,
                          downloaded: outcome.downloaded, resolutions: outcome.resolutions)
     }
@@ -593,6 +618,7 @@ nonisolated struct CloudSyncPresentationState: Equatable, Sendable {
         case disabled
         case waiting
         case syncing
+        case uploadOnly
         case unavailable
         case synced
         case failed
@@ -601,9 +627,19 @@ nonisolated struct CloudSyncPresentationState: Equatable, Sendable {
     let phase: Phase
     let summary: String
     let progressMessage: String?
-    let lastSyncDate: Date?
+    let settingsEnabled: Bool
+    let settingsSummary: String
+    let settingsLastSyncDate: Date?
+    let savesEnabled: Bool
+    let savesSummary: String
+    let savesLastSyncDate: Date?
+    let savesAreUploadOnly: Bool
     let actionTitle: String
     let isActionEnabled: Bool
+
+    var lastSyncDate: Date? {
+        [settingsLastSyncDate, savesLastSyncDate].compactMap { $0 }.max()
+    }
 }
 
 @MainActor
@@ -621,7 +657,8 @@ enum CloudSyncPresentation {
               savesIsBusy: saves.isBusy,
               savesIsSyncing: saves.activeOperation == .syncing
                   || saves.activeOperation == .checking,
-              savesProgressMessage: saves.progressMessage)
+              savesProgressMessage: saves.progressMessage,
+              savesGameplayActive: saves.isGameplayActive)
     }
 
     static func state(settingsEnabled: Bool,
@@ -634,7 +671,8 @@ enum CloudSyncPresentation {
                       savesLastSyncDate: Date?,
                       savesIsBusy: Bool,
                       savesIsSyncing: Bool,
-                      savesProgressMessage: String?) -> CloudSyncPresentationState {
+                      savesProgressMessage: String?,
+                      savesGameplayActive: Bool = false) -> CloudSyncPresentationState {
         let settingsFailure = settingsEnabled ? failureMessage(for: settingsStatus) : nil
         let savesFailure = savesEnabled ? failureMessage(for: savesStatus) : nil
         let settingsUnavailable = settingsEnabled && settingsStatus == .unavailable
@@ -653,6 +691,8 @@ enum CloudSyncPresentation {
         } else if isWaiting(settingsEnabled: settingsEnabled, status: settingsStatus)
                     || isWaiting(savesEnabled: savesEnabled, status: savesStatus) {
             phase = .waiting
+        } else if savesEnabled && savesGameplayActive {
+            phase = .uploadOnly
         } else {
             phase = anyEnabled ? .synced : .disabled
         }
@@ -665,6 +705,22 @@ enum CloudSyncPresentation {
         case (false, false): progressMessage = nil
         }
 
+        let savesAreUploadOnly = savesEnabled && savesGameplayActive
+        let canUseUploadOnlySummary = savesSummary == "Up to date"
+            || savesSummary.hasPrefix("Synced:")
+        let displayedSavesSummary = savesAreUploadOnly && savesFailure == nil
+            && !savesUnavailable && canUseUploadOnlySummary
+            ? "Gameplay active — saves upload only"
+            : savesSummary
+        let actionTitle: String
+        if phase == .failed || phase == .unavailable {
+            actionTitle = "Retry"
+        } else if savesAreUploadOnly {
+            actionTitle = settingsEnabled ? "Sync Settings & Upload Saves" : "Upload Saves"
+        } else {
+            actionTitle = "Sync"
+        }
+
         return CloudSyncPresentationState(
             phase: phase,
             summary: summary(phase: phase,
@@ -673,13 +729,19 @@ enum CloudSyncPresentation {
                              settingsFailure: settingsFailure,
                              settingsUnavailable: settingsUnavailable,
                              savesEnabled: savesEnabled,
-                             savesSummary: savesSummary,
+                             savesSummary: displayedSavesSummary,
                              savesFailure: savesFailure,
                              savesUnavailable: savesUnavailable,
                              progressMessage: progressMessage),
             progressMessage: progressMessage,
-            lastSyncDate: [settingsLastSyncDate, savesLastSyncDate].compactMap { $0 }.max(),
-            actionTitle: phase == .failed || phase == .unavailable ? "Retry" : "Sync",
+            settingsEnabled: settingsEnabled,
+            settingsSummary: settingsSummary,
+            settingsLastSyncDate: settingsLastSyncDate,
+            savesEnabled: savesEnabled,
+            savesSummary: displayedSavesSummary,
+            savesLastSyncDate: savesLastSyncDate,
+            savesAreUploadOnly: savesAreUploadOnly,
+            actionTitle: actionTitle,
             isActionEnabled: anyEnabled && !settingsSyncing && !savesSyncing
                 && !(savesEnabled && savesIsBusy))
     }
@@ -758,6 +820,11 @@ enum CloudSyncPresentation {
             return savesSummary
         case .waiting:
             return "Waiting to sync"
+        case .uploadOnly:
+            if settingsEnabled {
+                return "Settings: \(settingsSummary) — saves upload only while playing"
+            }
+            return savesSummary
         case .synced:
             if settingsEnabled && !savesEnabled { return settingsSummary }
             if savesEnabled && !settingsEnabled { return savesSummary }
@@ -809,9 +876,20 @@ struct SaveSettingsView: View {
                 if let message = cloudState.progressMessage {
                     ProgressView(message)
                 }
-                if let date = cloudState.lastSyncDate {
-                    LabeledContent("Last sync", value: date.formatted(date: .abbreviated,
-                                                                      time: .shortened))
+                if cloudState.settingsEnabled {
+                    LabeledContent("Settings", value: cloudState.settingsSummary)
+                    if let date = cloudState.settingsLastSyncDate {
+                        LabeledContent("Last settings sync", value: date.formatted(
+                            date: .abbreviated, time: .shortened))
+                    }
+                }
+                if cloudState.savesEnabled {
+                    LabeledContent("Saves", value: cloudState.savesSummary)
+                    if let date = cloudState.savesLastSyncDate {
+                        LabeledContent("Last saves sync",
+                                       value: date.formatted(date: .abbreviated,
+                                                             time: .shortened))
+                    }
                 }
                 Button(cloudState.actionTitle) {
                     Task {
@@ -944,7 +1022,6 @@ struct SaveSettingsView: View {
         } message: {
             Text("Dark Eco will close the running game. Progress since your last in-game save will be lost.")
         }
-        .task { await sync.refreshArchivedSaves() }
     }
 
     private func handleSavePickerResult(_ result: Result<[URL], Error>) {
@@ -982,7 +1059,7 @@ struct SaveSettingsView: View {
     private var cloudStatusSymbol: String {
         switch cloudState.phase {
         case .disabled: "icloud.slash"
-        case .waiting, .syncing: "arrow.triangle.2.circlepath.icloud"
+        case .waiting, .syncing, .uploadOnly: "arrow.triangle.2.circlepath.icloud"
         case .unavailable, .failed: "exclamationmark.icloud"
         case .synced: "checkmark.icloud"
         }

@@ -17207,3 +17207,106 @@ bottom session row and that landscape remains unchanged.
 The pre-existing broad `project.pbxproj` ordering rewrite remains preserved.
 Only the two Build 157 version lines belong in this checkpoint. Nested OpenGOAL
 remains clean at `1c2eae29a3359404c4d94d6960301594540afbe3`.
+
+# 2026-08-10 Build 158 truthful cross-device save-sync checkpoint
+
+The maintainer reported that iPad and iPhone could each claim `Up to date` with
+recent-looking timestamps while the iPhone still exposed an older Jak 1 save
+(85 percent instead of 87 percent). The same iPhone had completed one earlier
+cross-device sync, so this checkpoint treats the failure as intermittent cloud
+inventory/reconciliation rather than a permanent account or entitlement
+failure. Build 157's accepted touch and launcher behavior is otherwise
+unchanged.
+
+Build 158 closes four false-success paths:
+
+- A bounded `NSMetadataQuery` initial gather now establishes the iCloud
+  Documents inventory before reconciliation. The engine unions those results
+  with locally visible files instead of treating a temporarily incomplete
+  directory enumeration as an empty cloud store. Discovery failure or timeout
+  fails visibly before a local save can be presented as synchronized.
+- Active gameplay remains upload-only, but it will not overwrite a remotely
+  changed or deterministically newer slot. It defers that cloud winner and
+  requires a later bidirectional Library sync. A locally advanced slot still
+  uploads during gameplay.
+- A coordinated iCloud write is no longer sufficient for a success claim. The
+  engine reads the provider's asynchronous upload state after coordination and
+  reports `Waiting for iCloud to finish uploading saves` while any written
+  ubiquitous item remains pending.
+- Settings and saves retain separate summaries and `Last settings sync` / `Last
+  saves sync` dates. An empty authoritative inventory says `No saves found on
+  this device or in iCloud`, and deferred/pending work cannot publish a new save
+  success date. While a game is active the action is explicitly `Upload Saves`
+  or `Sync Settings & Upload Saves`; opening Settings no longer launches the
+  unrelated preserved-save scan that could invisibly disable the sync action.
+
+The existing pair journal, compare-and-swap checks, conflict preservation,
+import/export behavior, and cloud-unavailable local authority remain in place.
+Apple does not expose a global cross-device strong-consistency barrier, so this
+checkpoint makes incomplete provider state visible and retryable; physical
+multi-device acceptance is still required.
+
+Primary-agent focused validation passed:
+
+```text
+Scripts/run-save-sync-check.sh
+swift Scripts/save-pregame-gate-check.swift "$PWD"
+Scripts/run-presentation-settings-check.sh
+Scripts/run-session-startup-readiness-check.sh
+Scripts/run-portrait-library-check.sh
+xcrun swiftc -frontend -parse GOALPad/Saves/SaveSyncEngine.swift \
+  GOALPad/Saves/SaveSyncController.swift Scripts/save-sync-check.swift
+xcrun swiftc -frontend -parse Scripts/save-pregame-gate-check.swift
+git diff --check -- GOALPad/Saves/SaveSyncEngine.swift \
+  GOALPad/Saves/SaveSyncController.swift Scripts/save-sync-check.swift \
+  Scripts/save-pregame-gate-check.swift Scripts/presentation-settings-ui-check.swift
+```
+
+The deterministic save suite specifically proves failed-closed provider
+discovery, a completed empty-inventory first upload, deferred cloud 87/local 85
+gameplay reconciliation, continued upload of a locally advanced generation,
+truthful empty/pending summaries, independent settings/save dates, explicit
+upload-only actions, and the existing journal/conflict invariants. Focused logs
+are:
+
+```text
+/private/tmp/GP-build158-root-save-sync.log
+/private/tmp/GP-build158-root-pregame.log
+/private/tmp/GP-build158-root-presentation-settings.log
+/private/tmp/GP-build158-root-startup-readiness.log
+/private/tmp/GP-build158-root-portrait-library.log
+```
+
+The same serialized Release commands documented for Build 156 passed with the
+existing verified 518-object public source pack. Products and logs:
+
+```text
+iOS log /private/tmp/GP-build158-ios.log
+iOS app /private/tmp/GOALPad-build154-ios-generic/Build/Products/Release-iphoneos/Dark Eco.app
+  Dark Eco 1.0 (158), arm64, signed, CDHash 65af77d03e8ca0b5cac9468d14937393e0ac39ea
+  executable SHA-256 b784743a18d3c984d3f76edc0507b53d67b0c8e865f806e28a3866803a79d12e
+visionOS log /private/tmp/GP-build158-visionos.log
+visionOS app /private/tmp/GOALPad-build150-vision-device/Build/Products/Release-xros/Dark Eco.app
+  Dark Eco 1.0 (158), arm64, signed, CDHash df48fe189092616f8b506926ffee8a20b6d957e7
+  executable SHA-256 0ba366af38604c416cce93b701264de94d9aeed3db36abef09a9e570047b0caa
+macOS log /private/tmp/GP-build158-macos.log
+macOS app /private/tmp/GOALPad-build154-macos-arm64/Build/Products/Release/Dark Eco.app
+  Dark Eco 1.0 (158), arm64, unsigned
+  executable SHA-256 3ca63c54ea45f8a4dea0da45b0969fde933ebe1d687e58ff7ad89b6eb7b4a78d
+```
+
+Strict signature verification passed for iOS and visionOS. Both use team
+`V729QMY3V6` and bundle ID `com.zephyrstudiosllc.eco`; all three products are
+ARM64 and all three build logs contain zero `error:` diagnostics.
+
+No app was installed or launched, and no physical iPhone, iPad, Vision Pro,
+controller, device log, screen capture, app container, save, or imported game
+data was accessed. Physical acceptance should use an iPad save that is visibly
+newer than the iPhone's, then launch/sync the iPhone from the Library and verify
+the exact slot/progress before starting gameplay. Also verify that Settings and
+Saves dates remain independent and that an in-game manual action says upload,
+not full sync.
+
+The pre-existing broad `project.pbxproj` ordering rewrite remains preserved.
+Only the two Build 158 version lines belong in this checkpoint. Nested OpenGOAL
+remains clean at `1c2eae29a3359404c4d94d6960301594540afbe3`.

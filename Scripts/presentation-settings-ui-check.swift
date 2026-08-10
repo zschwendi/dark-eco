@@ -108,9 +108,12 @@ check(view.components(separatedBy: "Section(\"iCloud\")").count - 1 == 1
         && !view.contains("Section(\"iCloud Settings\")")
         && !view.contains("Section(\"iCloud Saves\")")
         && view.contains("Label(cloudState.summary")
-        && view.contains("cloudState.lastSyncDate")
+        && view.contains("cloudState.settingsLastSyncDate")
+        && view.contains("LabeledContent(\"Last settings sync\"")
+        && view.contains("cloudState.savesLastSyncDate")
+        && view.contains("LabeledContent(\"Last saves sync\"")
         && view.contains("CloudSyncPresentation.synchronize"),
-      "one iCloud status, date, and action coordinate both independent domains")
+      "one iCloud status and action preserve independent domain dates")
 check(view.contains("if let message = cloudState.progressMessage")
         && view.contains(".disabled(!cloudState.isActionEnabled)"),
       "combined cloud progress disables its single conflicting action")
