@@ -20,6 +20,7 @@ swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
   "$root/GOALPad/Game/TouchLayoutSettings.swift" \
   "$root/GOALPad/Game/TouchControls.swift" \
   "$root/GOALPad/Input/ControllerInput.swift" \
+  "$root/GOALPad/Library/GameLibrary.swift" \
   "$root/GOALPad/Saves/SaveSyncEngine.swift" \
   "$root/GOALPad/Game/PresentationSettings.swift" \
   "$root/GOALPad/Saves/SaveSyncController.swift" \

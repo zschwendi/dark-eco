@@ -149,7 +149,7 @@ check(occursInOrder([
 
 let sendChain = section(host, from: "void host_send_chain", to: "uint32_t host_vsync")
 check(sendChain.components(separatedBy: "set_input_data").count - 1 == 1
-        && sendChain.components(separatedBy: "render_chain();").count - 1 == 1,
+        && sendChain.components(separatedBy: "render_chain_without_goal_stack();").count - 1 == 1,
       "one submitted game chain is copied once before the two-view renderer runs")
 check(host.contains("render_chain_frame_to_external_stereo_targets(")
         && occursInOrder([
