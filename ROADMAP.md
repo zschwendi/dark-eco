@@ -628,6 +628,58 @@ Exit gate:
 - Frame presentation works on the physical iPad.
 - GPU errors, memory use, and frame timing are observable.
 
+## Future Modern Graphics
+
+**Status: Planned.** This is a future, opt-in graphics and asset path; it does
+not change the accepted base-game presentation, current importer, or shipping
+renderer contract.
+
+### Custom texture packs
+
+- Accept only user-imported, data-only custom texture packs through a dedicated
+  local import flow. The Graphics settings UI must let the player enable,
+  disable, and select one validated pack, with a clear return to the base-game
+  textures.
+- Require a per-pack manifest with stable identity/version, target game and
+  OpenGOAL/data compatibility, texture mappings and formats, declared size and
+  resource requirements, author/license/attribution metadata, and content
+  provenance. Validation must fail closed before a pack is visible or active.
+- Never bundle, download, recommend, or silently accept retail-derived,
+  upscaled, cleaned, or otherwise unproven game textures. Keep packs and their
+  source metadata user-local, separate from user game data, saves, and iCloud
+  synchronization; record provenance and redistribution permissions for
+  maintainer review without making a legal conclusion.
+- Install into a staged user-local location, validate a bounded immutable input,
+  deterministically rebuild any derived texture cache, then atomically activate
+  it with rollback to the previous known-good pack. Define limits for pack
+  count, file count, dimensions, compressed and decoded bytes, GPU residency,
+  upload time, and per-frame streaming work before implementation.
+
+### Native Metal presentation
+
+- Add real multi-pass bloom, depth-aware SSAO, and LUT color grading only as
+  separately measured native Metal work, with explicit render-target lifetime,
+  depth convention, quality tiers, and memory/frame-time budgets. These are not
+  placeholders for a postprocess applied to an already completed frame.
+- Add per-eye stereo postprocess only after true stereo rendering exists: each
+  eye must retain its own color, depth, and any history inputs. A duplicated
+  monoscopic framebuffer is not stereo; the conventional Comfort path remains
+  the fallback until this work is accepted.
+
+### Physical acceptance gates
+
+- Validate import, activation, disable, restart, rollback, and deterministic
+  rebuild on physical iPad with user-supplied test content, without changing or
+  corrupting base-game data, saves, or the accepted graphics baseline.
+- Measure worst-case texture residency, loading/streaming stalls, GPU errors,
+  frame pacing, thermal behavior, and memory pressure on physical hardware;
+  reject a pack or quality tier that exceeds its declared limits or regresses
+  the base-game path.
+- For Metal effects, compare enabled and disabled captures/traces through
+  representative gameplay. For stereo postprocess, prove independent per-eye
+  presentation and comfort on physical Vision Pro before exposing it as a
+  player-facing option.
+
 ## Stage 8 — Create the bring-your-own-game importer
 
 Outcome: The maintainer can prepare supported Jak 1 data locally and import it
