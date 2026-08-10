@@ -16053,3 +16053,42 @@ The exact bundle was installed on `Z iPad Pro` and launched successfully as
 installation and launch only. The maintainer must select the user-owned source
 again to exercise cleanup/recovery and complete the long import; the app does
 not resume partial composer work.
+
+## Jak II fast-import checkpoint
+
+The standalone Jak II branch is clean through parent `062fd8d0` on
+`agent/jak2-ipad-playtest`, pinned to nested OpenGOAL `4cc66a48a`. This remains
+an isolated Jak II product line and is not named or numbered as a Jak 1 build.
+
+Parent commit `a95a6598` makes long materializer work truthful in the import UI:
+the current filename, completed-file count, and live byte count update while a
+large file is processed. Nested commits `839565646` and `4cc66a48a` remove an
+immediate redundant output reread, use guarded APFS copy-on-write clones for
+validated flat/FR3 inputs with strict streaming fallback, preserve one
+callback-free final stage hash before atomic install, and normalize cloned
+metadata before acceptance. The clone path remains fail-closed on identity,
+hash, ownership, link, mode, flags, xattr, and ACL mismatches.
+
+Focused host validation passed the Jak 1/Jak II materializer tests and Jak II
+composer test 3/3, plus host and flattened Apple composer link proofs. Parent
+import lifecycle, install, source, ZIP, and presentation/UI checks also pass.
+Logs are under:
+
+```text
+.agent-builds/jak2-fast-import/logs/
+```
+
+The exact signed Release bundle was built successfully in 14.580 seconds at:
+
+```text
+.agent-builds/jak2-fast-import-device/Build/Products/Release-iphoneos/EcoJak2Dev.app
+```
+
+It is a valid thin arm64 bundle, identifier
+`com.zephyrstudiosllc.eco.jak2dev`, version `1.0`, build `1`. Physical install
+is still pending: the first in-place update acquired a tunnel but the remote
+installation connection was interrupted; the immediate retry timed out while
+establishing the CoreDevice tunnel. Nothing was uninstalled or cleared. Retry
+the same `devicectl device install app` command after the maintainer has Z iPad
+Pro unlocked and awake. Do not launch or clear the app unless separately
+requested.
