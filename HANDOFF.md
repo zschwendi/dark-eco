@@ -16277,3 +16277,57 @@ It is not yet visual, controller, gameplay, stereoscopic-depth, comfort, or
 extended stability acceptance; the maintainer must report what is visible and
 whether binocular depth appears correct from inside the headset. The physical
 iPad and Jak II lane were not accessed.
+
+## 2026-08-09 paused Vision Pro stereo-flicker checkpoint
+
+The maintainer's physical Build 150 verdict supersedes the launch-only proof:
+
+```text
+Comfort / 2D: loads, looks great, and is the best build so far.
+Stereo / 3D: unacceptable full-display checkerboard-like flicker; Mercs flicker
+especially badly; binocular depth could not be judged through the instability.
+```
+
+Treat Build 150 Comfort as the protected 2D baseline. Do not claim stereo works.
+No physical device was accessed after this feedback.
+
+The paused local stereo-only checkpoint is committed on
+`agent/build149-vision-aot-suspend-fix`:
+
+```text
+87e86b68 checkpoint(visionos): cap stereo render budget (AI-assisted)
+```
+
+It leaves Comfort rendering unchanged. Stereo now fits each eye within the
+selected 2D internal render budget (`RenderSettings.internalWidth` and
+`internalHeight`) while preserving the window aspect, instead of rendering two
+full-window dense targets up to 4096 pixels per dimension. At the default 2x
+setting this bounds a 16:9 eye target to at most 1280x720.
+
+This is a leading performance/cadence hypothesis, not a validated fix. The
+scoped review found one game tick per stereo pair, constant eye transforms,
+serialized left/right Metal passes, a synchronous native completion wait on the
+main actor, and a fixed 60 Hz `CADisplayLink` producer outside RealityKit's
+render-update cadence. The durable fallback, if the bounded-resolution A/B
+still flickers, is Apple's windowed-stereo pattern: a RealityKit rendering
+system updating both per-eye `LowLevelTexture` resources in one scene update.
+
+Focused validation completed before the pause:
+
+```text
+git diff --check
+swift Scripts/vision-stereo-integration-check.swift "$PWD"
+Scripts/run-vision-scene-foundation-check.sh
+```
+
+All passed. No Xcode build, simulator run, signed device build, installation,
+launch, or physical visual A/B was performed for `87e86b68`. Resume by running
+one generic visionOS build with the existing canonical DerivedData. Only after
+that succeeds, and only with new explicit maintainer authorization, bump the
+build and install a physical AVP A/B candidate.
+
+The pre-existing unrelated 1,423-line
+`GOALPad.xcodeproj/project.pbxproj` rewrite remains unstaged and must not be
+reset, staged, reformatted, or discarded. Nested OpenGOAL remains clean at
+`2bff79c91` on `agent/build146-vision-renderer-integration`. The Jak II merge
+lane and physical iPad/tmux session remain out of scope and untouched.
