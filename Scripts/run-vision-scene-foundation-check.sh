@@ -17,6 +17,7 @@ mode_source="$root/GOALPad/Vision/VisionPresentationMode.swift"
 window_plan_source="$root/GOALPad/Vision/VisionWindowStereoClipPlan.swift"
 window_plan_check="$root/Scripts/vision-window-stereo-clip-plan-check.swift"
 window_surface_source="$root/GOALPad/Vision/VisionWindowStereoSurface.swift"
+submission_watchdog_source="$root/GOALPad/Vision/VisionStereoSubmissionWatchdog.swift"
 controller_ornament_source="$root/GOALPad/Vision/VisionControllerStatusOrnament.swift"
 touch_view_source="$root/GOALPad/Game/TouchControlsView.swift"
 touch_guide_source="$root/GOALPad/Game/TouchControlsGuideView.swift"
@@ -62,13 +63,27 @@ if rg -q 'GOALPadVisionSpatialScenes|VisionPresentationSessionBridge|CompositorL
   echo "The product App must declare only its bounded WindowGroup" >&2
   exit 1
 fi
-test "$(rg -c 'TextureResource.DrawableQueue\(descriptor\)' "$window_surface_source")" -eq 1
-rg -Fq 'let leftQueue = try makeQueue(' "$window_surface_source"
-rg -Fq 'let rightQueue = try makeQueue(' "$window_surface_source"
+for forbidden in \
+  'TextureResource.DrawableQueue' \
+  'nextDrawable()' \
+  'presentOnSceneUpdate()' \
+  'pendingPresentation' \
+  'VisionWindowStereoDrawableQuarantine' \
+  'CADisplayLink'
+do
+  if rg -Fq "$forbidden" "$window_surface_source"; then
+    echo "The LowLevelTexture stereo surface must not contain $forbidden" >&2
+    exit 1
+  fi
+done
+test "$(rg -c 'LowLevelTexture\(descriptor: descriptor\)' "$window_surface_source")" -eq 2
+test "$(rg -c 'TextureResource\(from:' "$window_surface_source")" -eq 2
+test "$(rg -c 'replace\(using: commandBuffer\)' "$window_surface_source")" -eq 2
+rg -Fq 'VisionWindowStereoRenderSystem.registerSystem()' "$window_surface_source"
+rg -Fq 'updatingSystemWhen: .rendering' "$window_surface_source"
 rg -Fq 'pixelFormat: .bgra8Unorm' "$window_surface_source"
 rg -Fq 'pixelFormat: .depth32Float_stencil8' "$window_surface_source"
 rg -Fq 'from: "VisionStereoWindowMaterial"' "$window_surface_source"
-test "$(rg -c 'presentOnSceneUpdate()' "$window_surface_source")" -eq 2
 rg -Fq 'VisionWindowStereoClipPlanner.makePlan()' "$window_surface_source"
 if rg -q 'windowFromHead|headFromEyes|surfaceEntity.transformMatrix' "$window_surface_source" \
   "$window_plan_source"; then
@@ -144,6 +159,7 @@ do
     "$root/GOALPad/Game/GameSurfaceView.swift" \
     "$mode_source" \
     "$window_plan_source" \
+    "$submission_watchdog_source" \
     "$window_surface_source" \
     "$controller_ornament_source" \
     "$root/Scripts/vision-scene-foundation-check.swift"

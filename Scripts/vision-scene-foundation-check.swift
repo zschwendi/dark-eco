@@ -12,6 +12,7 @@ final class GOALPadRenderSurface {
 
     func attach(_ layer: CAMetalLayer?) {}
     func setDrawableSize(_ size: CGSize) {}
+    func prepareStereoFallback() {}
 }
 
 struct ContentView: View {

@@ -358,7 +358,7 @@ private struct GameplaySurface: View {
         GameSurfaceView(
             onFrame: { session.tick(targetPresentationTime: $0) },
             isStereoRendererReady: session.isRunning,
-            onStereoFrame: { session.tickStereo(frame: $0) }
+            onStereoFrame: { session.tickStereo(request: $0) }
         )
         #else
         GameSurfaceView(onFrame: { session.tick(targetPresentationTime: $0) })

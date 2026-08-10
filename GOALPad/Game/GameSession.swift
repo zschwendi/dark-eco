@@ -330,9 +330,29 @@ final class GameSession {
     }
 
     #if os(visionOS)
-    func tickStereo(frame: VisionWindowStereoRenderFrame) -> VisionWindowStereoFrameDisposition {
+    func tickStereo(request: VisionWindowStereoRenderRequest) -> VisionStereoSubmissionDisposition {
         guard isRunning, lifecycle.frameLoopEnabled,
               !controlsGuideSuspension.blocksGameplay else { return .skipped }
+
+        let surface = GOALPadRenderSurface.shared
+        switch surface.reserveStereoFrame() {
+        case .busy:
+            return .busy
+        case .failed:
+            return .failed
+        case .reserved:
+            break
+        @unknown default:
+            return .failed
+        }
+
+        var reservationNeedsCancellation = true
+        defer {
+            if reservationNeedsCancellation {
+                surface.cancelReservedStereoFrame()
+            }
+        }
+        guard let frame = request.makeFrame() else { return .failed }
 
         let left = GOALPadStereoRenderTarget(
             viewID: frame.left.viewID,
@@ -346,21 +366,33 @@ final class GameSession {
             depthTexture: frame.right.depthTexture,
             clipFromGameClip: frame.right.clipFromGameClip
         )
-        let surface = GOALPadRenderSurface.shared
-        guard surface.beginStereoFrame(
+        guard surface.beginReservedStereoFrame(
             at: frame.targetPresentationTime,
             size: CGSize(width: CGFloat(frame.width), height: CGFloat(frame.height)),
+            commandBuffer: frame.commandBuffer,
             left: left,
             right: right
-        ) else { return .failed }
+        ) else {
+            frame.commandBuffer.commit()
+            return .failed
+        }
+        reservationNeedsCancellation = false
 
         var completion = GOALPadStereoFrameCompletion.skipped
-        let framePresented = runArmedTick(targetPresentationTime: frame.targetPresentationTime) {
+        let frameSubmitted = runArmedTick(targetPresentationTime: frame.targetPresentationTime) {
             completion = surface.endStereoFrame()
-            return completion == .completed
+            return completion == .submitted
         }
-        if completion == .failed { return .failed }
-        return framePresented ? .rendered : .skipped
+        switch completion {
+        case .submitted:
+            return frameSubmitted ? .submitted : .failed
+        case .skipped:
+            return .skipped
+        case .failed:
+            return .failed
+        @unknown default:
+            return .failed
+        }
     }
     #endif
 

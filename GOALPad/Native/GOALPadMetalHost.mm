@@ -97,6 +97,9 @@ struct MetalHost {
   CAMetalLayer* frame_layer = nil;
   MetalExternalRenderTargetDescriptor stereo_left;
   MetalExternalRenderTargetDescriptor stereo_right;
+  id<MTLCommandBuffer> stereo_command_buffer = nil;
+  bool stereo_stream_reserved = false;
+  bool stereo_submission_failed = false;
   bool frame_is_stereo = false;
   goalpad::MetalHostFrame frame;
   std::thread::id frame_thread;
@@ -642,10 +645,17 @@ void render_chain() {
   const auto& chain = g_host.copier->get_last_result();
   const bool rendered = g_host.frame_is_stereo
                             ? g_host.renderer->render_chain_frame_to_external_stereo_targets(
-                                  opts, g_host.stereo_left, g_host.stereo_right, chain.data.data(),
-                                  chain.start_offset)
+                                  opts, g_host.stereo_left, g_host.stereo_right,
+                                  g_host.stereo_command_buffer, chain.data.data(), chain.start_offset)
                             : g_host.renderer->render_chain_frame(
                                   opts, g_host.frame_layer, chain.data.data(), chain.start_offset);
+  if (g_host.frame_is_stereo && !rendered && g_host.stereo_stream_reserved) {
+    // Both LowLevelTexture replacements already contain the paired black initialization pass.
+    // Commit it once so a failed DMA encode cannot strand an acquired replacement.
+    (void)g_host.renderer->submit_external_stereo_frame(g_host.stereo_command_buffer);
+    g_host.stereo_stream_reserved = false;
+    g_host.stereo_submission_failed = true;
+  }
   g_host.frame_rendered = rendered || g_host.frame_rendered;
 
   const auto stats = g_host.renderer->chain_stats();
@@ -1257,9 +1267,39 @@ bool metal_host_begin_frame(CAMetalLayer* layer, const MetalHostFrame& frame) {
   return true;
 }
 
-bool metal_host_begin_stereo_frame(const MetalHostFrame& frame,
-                                   const MetalHostStereoView& left,
-                                   const MetalHostStereoView& right) {
+MetalHostStereoFrameReservation metal_host_reserve_stereo_frame() {
+  if (!g_host.running || !g_host.renderer || g_host.frame_open || g_host.stereo_stream_reserved) {
+    return MetalHostStereoFrameReservation::failed;
+  }
+  switch (g_host.renderer->reserve_external_stereo_frame()) {
+    case MetalExternalFrameReservation::reserved:
+      g_host.stereo_stream_reserved = true;
+      return MetalHostStereoFrameReservation::reserved;
+    case MetalExternalFrameReservation::busy:
+      return MetalHostStereoFrameReservation::busy;
+    case MetalExternalFrameReservation::failed:
+      return MetalHostStereoFrameReservation::failed;
+  }
+}
+
+void metal_host_cancel_reserved_stereo_frame() {
+  if (g_host.stereo_stream_reserved && g_host.renderer) {
+    g_host.renderer->cancel_external_stereo_frame();
+  }
+  g_host.stereo_stream_reserved = false;
+  g_host.stereo_command_buffer = nil;
+}
+
+void metal_host_prepare_stereo_fallback() {
+  if (g_host.renderer) {
+    g_host.renderer->prepare_external_stereo_fallback();
+  }
+}
+
+bool metal_host_begin_reserved_stereo_frame(const MetalHostFrame& frame,
+                                            id<MTLCommandBuffer> command_buffer,
+                                            const MetalHostStereoView& left,
+                                            const MetalHostStereoView& right) {
   const auto valid_view = [&](const MetalHostStereoView& view) {
     if (view.view_id == 0 || view.color_texture == nil || view.depth_texture == nil ||
         view.color_texture.device != g_host.renderer->device() ||
@@ -1281,8 +1321,11 @@ bool metal_host_begin_stereo_frame(const MetalHostFrame& frame,
     return std::all_of(view.clip_from_game_clip.begin(), view.clip_from_game_clip.end(),
                        [](float value) { return std::isfinite(value); });
   };
-  if (!g_host.running || !g_host.renderer || frame.game_res_w < 1 || frame.game_res_h < 1 ||
-      !std::isfinite(frame.presentation_time) || !valid_view(left) || !valid_view(right) ||
+  if (!g_host.running || !g_host.renderer || !g_host.stereo_stream_reserved ||
+      command_buffer == nil || command_buffer.device != g_host.renderer->device() ||
+      command_buffer.status != MTLCommandBufferStatusNotEnqueued || frame.game_res_w < 1 ||
+      frame.game_res_h < 1 || !std::isfinite(frame.presentation_time) || !valid_view(left) ||
+      !valid_view(right) ||
       left.view_id == right.view_id || left.color_texture == right.color_texture ||
       left.depth_texture == right.depth_texture ||
       left.clip_from_game_clip == right.clip_from_game_clip) {
@@ -1310,6 +1353,8 @@ bool metal_host_begin_stereo_frame(const MetalHostFrame& frame,
   };
 
   g_host.frame_layer = nil;
+  g_host.stereo_command_buffer = command_buffer;
+  g_host.stereo_submission_failed = false;
   g_host.stereo_left = make_target(left);
   g_host.stereo_right = make_target(right);
   g_host.frame_is_stereo = true;
@@ -1326,11 +1371,22 @@ bool metal_host_begin_stereo_frame(const MetalHostFrame& frame,
   return true;
 }
 
-bool close_frame(bool wait_for_stereo) {
+bool close_frame(bool submit_stereo, bool* stereo_submission_succeeded = nullptr) {
   const bool rendered = g_host.frame_open && g_host.frame_rendered;
-  const bool completed = !wait_for_stereo ||
-                         (rendered && g_host.renderer &&
-                          g_host.renderer->wait_for_last_chain_frame(1.0));
+  bool completed = true;
+  if (submit_stereo) {
+    completed = !g_host.stereo_submission_failed && g_host.renderer &&
+                g_host.stereo_stream_reserved &&
+                g_host.renderer->submit_external_stereo_frame(g_host.stereo_command_buffer);
+    if (!completed && g_host.stereo_stream_reserved) {
+      metal_host_cancel_reserved_stereo_frame();
+    } else {
+      g_host.stereo_stream_reserved = false;
+    }
+  }
+  if (stereo_submission_succeeded) {
+    *stereo_submission_succeeded = !submit_stereo || completed;
+  }
   if (g_host.frame_open) {
     if (g_host.chains_in_frame == 0) {
       g_host.stats.frames_without_chain++;
@@ -1344,6 +1400,8 @@ bool close_frame(bool wait_for_stereo) {
   g_host.frame_layer = nil;
   g_host.stereo_left = {};
   g_host.stereo_right = {};
+  g_host.stereo_command_buffer = nil;
+  g_host.stereo_submission_failed = false;
   g_host.frame_is_stereo = false;
   g_host.frame_thread = std::thread::id();
   g_host.frame_open = false;
@@ -1363,12 +1421,15 @@ MetalHostStereoFrameCompletion metal_host_end_stereo_frame() {
     return MetalHostStereoFrameCompletion::skipped;
   }
   const bool rendered = g_host.frame_rendered;
-  const bool completed = close_frame(true);
+  bool submitted = false;
+  (void)close_frame(true, &submitted);
+  if (!submitted) {
+    return MetalHostStereoFrameCompletion::failed;
+  }
   if (!rendered) {
     return MetalHostStereoFrameCompletion::skipped;
   }
-  return completed ? MetalHostStereoFrameCompletion::completed
-                   : MetalHostStereoFrameCompletion::failed;
+  return MetalHostStereoFrameCompletion::submitted;
 }
 
 #else  // GOALPAD_HAVE_GFX_SEAM
@@ -1410,9 +1471,18 @@ bool metal_host_begin_frame(CAMetalLayer*, const MetalHostFrame&) {
   return false;
 }
 
-bool metal_host_begin_stereo_frame(const MetalHostFrame&,
-                                   const MetalHostStereoView&,
-                                   const MetalHostStereoView&) {
+MetalHostStereoFrameReservation metal_host_reserve_stereo_frame() {
+  return MetalHostStereoFrameReservation::failed;
+}
+
+void metal_host_cancel_reserved_stereo_frame() {}
+
+void metal_host_prepare_stereo_fallback() {}
+
+bool metal_host_begin_reserved_stereo_frame(const MetalHostFrame&,
+                                            id<MTLCommandBuffer>,
+                                            const MetalHostStereoView&,
+                                            const MetalHostStereoView&) {
   return false;
 }
 

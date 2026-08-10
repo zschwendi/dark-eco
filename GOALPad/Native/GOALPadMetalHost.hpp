@@ -28,6 +28,7 @@
 
 #ifdef __OBJC__
 @class CAMetalLayer;
+@protocol MTLCommandBuffer;
 @protocol MTLTexture;
 #endif
 
@@ -576,7 +577,13 @@ struct MetalHostStereoView {
 
 enum class MetalHostStereoFrameCompletion {
   skipped,
-  completed,
+  submitted,
+  failed,
+};
+
+enum class MetalHostStereoFrameReservation {
+  reserved,
+  busy,
   failed,
 };
 
@@ -599,10 +606,20 @@ enum class MetalHostStereoFrameCompletion {
  */
 bool metal_host_begin_frame(CAMetalLayer* layer, const MetalHostFrame& frame);
 
-/*! Arm one tick for a fixed pair of borrowed host-owned color/depth targets. */
-bool metal_host_begin_stereo_frame(const MetalHostFrame& frame,
-                                   const MetalHostStereoView& left,
-                                   const MetalHostStereoView& right);
+/*! Reserve the shared stream allocator without waiting for an in-flight submission. */
+MetalHostStereoFrameReservation metal_host_reserve_stereo_frame();
+
+/*! Arm one tick after the host lazily acquires both LowLevelTexture replacements. */
+bool metal_host_begin_reserved_stereo_frame(const MetalHostFrame& frame,
+                                            id<MTLCommandBuffer> command_buffer,
+                                            const MetalHostStereoView& left,
+                                            const MetalHostStereoView& right);
+
+/*! Release a reservation that did not reach a submitted DMA chain. */
+void metal_host_cancel_reserved_stereo_frame();
+
+/*! Keep Comfort mode nonblocking if the last external stereo submission stopped completing. */
+void metal_host_prepare_stereo_fallback();
 
 /*!
  * Close the armed display-link tick and report whether its chain scheduled a drawable.
@@ -612,7 +629,7 @@ bool metal_host_begin_stereo_frame(const MetalHostFrame& frame,
  */
 bool metal_host_end_frame();
 
-/*! Wait for both stereo submissions, distinguishing an empty tick from a GPU failure. */
+/*! Commit the paired stereo command buffer once without waiting. */
 MetalHostStereoFrameCompletion metal_host_end_stereo_frame();
 
 /*! Point the layer at the renderer's device. Safe before `metal_host_start`. */

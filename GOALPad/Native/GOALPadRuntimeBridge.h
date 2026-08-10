@@ -19,8 +19,14 @@ NS_ASSUME_NONNULL_BEGIN
 
 typedef NS_ENUM(NSInteger, GOALPadStereoFrameCompletion) {
   GOALPadStereoFrameCompletionSkipped = 0,
-  GOALPadStereoFrameCompletionCompleted = 1,
+  GOALPadStereoFrameCompletionSubmitted = 1,
   GOALPadStereoFrameCompletionFailed = 2,
+};
+
+typedef NS_ENUM(NSInteger, GOALPadStereoFrameReservation) {
+  GOALPadStereoFrameReservationReserved = 0,
+  GOALPadStereoFrameReservationBusy = 1,
+  GOALPadStereoFrameReservationFailed = 2,
 };
 
 /// A snapshot of the GOAL kernel session. Every `*Offset` is a GOAL pointer: a byte offset from
@@ -928,16 +934,26 @@ typedef struct GOALPadRendererStats {
 /// Arm the surface immediately before the GOAL frame so its DMA send can render synchronously.
 - (BOOL)beginFrameAtTime:(CFTimeInterval)presentationTime NS_SWIFT_NAME(beginFrame(at:));
 
-/// Arm one synchronous game tick against two distinct borrowed RealityKit targets.
-- (BOOL)beginStereoFrameAtTime:(CFTimeInterval)presentationTime
-                          size:(CGSize)size
-                          left:(GOALPadStereoRenderTarget *)left
-                         right:(GOALPadStereoRenderTarget *)right
-    NS_SWIFT_NAME(beginStereoFrame(at:size:left:right:));
+/// Reserve the native stream allocator without waiting. Busy leaves the caller's textures alone.
+- (GOALPadStereoFrameReservation)reserveStereoFrame;
+
+/// Arm one synchronous game tick after reservation and lazy LowLevelTexture replacement.
+- (BOOL)beginReservedStereoFrameAtTime:(CFTimeInterval)presentationTime
+                                  size:(CGSize)size
+                         commandBuffer:(id<MTLCommandBuffer>)commandBuffer
+                                  left:(GOALPadStereoRenderTarget *)left
+                                 right:(GOALPadStereoRenderTarget *)right
+    NS_SWIFT_NAME(beginReservedStereoFrame(at:size:commandBuffer:left:right:));
+
+/// Release a reservation that did not reach command-buffer submission.
+- (void)cancelReservedStereoFrame;
+
+/// Ensure the ordinary Comfort renderer cannot inherit a wait on a stalled stereo submission.
+- (void)prepareStereoFallback;
 
 /// Close the armed frame and report whether its DMA chain scheduled a drawable.
 - (BOOL)endFrame;
-/// Wait for both per-eye command buffers and distinguish an empty tick from a GPU failure.
+/// Commit the one paired command buffer without waiting and report whether it was submitted.
 - (GOALPadStereoFrameCompletion)endStereoFrame;
 /// NO until the Metal renderer has been started, in which case frame arming draws nothing.
 @property(nonatomic, readonly, getter=isRendererLinked) BOOL rendererLinked;

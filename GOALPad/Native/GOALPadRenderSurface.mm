@@ -705,10 +705,25 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
   return goalpad::metal_host_begin_frame(_layer, frame);
 }
 
-- (BOOL)beginStereoFrameAtTime:(CFTimeInterval)presentationTime
-                          size:(CGSize)size
-                          left:(GOALPadStereoRenderTarget *)left
-                         right:(GOALPadStereoRenderTarget *)right {
+- (GOALPadStereoFrameReservation)reserveStereoFrame {
+  switch (goalpad::metal_host_reserve_stereo_frame()) {
+    case goalpad::MetalHostStereoFrameReservation::reserved:
+      self.lastError = @"";
+      return GOALPadStereoFrameReservationReserved;
+    case goalpad::MetalHostStereoFrameReservation::busy:
+      self.lastError = @"";
+      return GOALPadStereoFrameReservationBusy;
+    case goalpad::MetalHostStereoFrameReservation::failed:
+      self.lastError = @"The stereoscopic renderer could not reserve its stream storage.";
+      return GOALPadStereoFrameReservationFailed;
+  }
+}
+
+- (BOOL)beginReservedStereoFrameAtTime:(CFTimeInterval)presentationTime
+                                  size:(CGSize)size
+                         commandBuffer:(id<MTLCommandBuffer>)commandBuffer
+                                  left:(GOALPadStereoRenderTarget *)left
+                                 right:(GOALPadStereoRenderTarget *)right {
   if (size.width < 1 || size.height < 1 || !std::isfinite(size.width) ||
       !std::isfinite(size.height) || size.width > std::numeric_limits<int>::max() ||
       size.height > std::numeric_limits<int>::max()) {
@@ -737,9 +752,18 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
   const simd_float4x4 rightTransform = right.clipFromGameClip;
   memcpy(rightView.clip_from_game_clip.data(), &rightTransform, sizeof(rightTransform));
 
-  const BOOL began = goalpad::metal_host_begin_stereo_frame(frame, leftView, rightView);
+  const BOOL began = goalpad::metal_host_begin_reserved_stereo_frame(
+      frame, commandBuffer, leftView, rightView);
   self.lastError = began ? @"" : @"The stereoscopic render targets were rejected.";
   return began;
+}
+
+- (void)cancelReservedStereoFrame {
+  goalpad::metal_host_cancel_reserved_stereo_frame();
+}
+
+- (void)prepareStereoFallback {
+  goalpad::metal_host_prepare_stereo_fallback();
 }
 
 - (BOOL)endFrame {
@@ -751,9 +775,9 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
     case goalpad::MetalHostStereoFrameCompletion::skipped:
       self.lastError = @"";
       return GOALPadStereoFrameCompletionSkipped;
-    case goalpad::MetalHostStereoFrameCompletion::completed:
+    case goalpad::MetalHostStereoFrameCompletion::submitted:
       self.lastError = @"";
-      return GOALPadStereoFrameCompletionCompleted;
+      return GOALPadStereoFrameCompletionSubmitted;
     case goalpad::MetalHostStereoFrameCompletion::failed:
       self.lastError = @"The stereoscopic frame did not complete.";
       return GOALPadStereoFrameCompletionFailed;

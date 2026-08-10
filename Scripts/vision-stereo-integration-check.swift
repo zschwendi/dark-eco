@@ -57,12 +57,14 @@ let touchGuide = source(root, "GOALPad/Game/TouchControlsGuideView.swift")
 let settingsUI = source(root, "GOALPad/Saves/SaveSyncController.swift")
 let libraryUI = source(root, "GOALPad/Library/GameLibraryView.swift")
 let surface = source(root, "GOALPad/Vision/VisionWindowStereoSurface.swift")
+let submissionWatchdog = source(root, "GOALPad/Vision/VisionStereoSubmissionWatchdog.swift")
 let clipPlan = source(root, "GOALPad/Vision/VisionWindowStereoClipPlan.swift")
 let host = source(root, "GOALPad/Native/GOALPadMetalHost.mm")
 let renderSurface = source(root, "GOALPad/Native/GOALPadRenderSurface.mm")
 let bridge = source(root, "GOALPad/Native/GOALPadRuntimeBridge.h")
 let ornament = source(root, "GOALPad/Vision/VisionControllerStatusOrnament.swift")
 let pausedEcoOrnament = source(root, "GOALPad/Vision/VisionPausedEcoOrnament.swift")
+let metalRenderer = source(root, "OpenGOAL/game/graphics/pipelines/metal/metal_renderer.mm")
 
 let gameplaySurface = section(content,
                               from: "private struct GameplaySurface: View",
@@ -71,7 +73,7 @@ check(gameplaySurface.components(separatedBy: "gameSurface").count - 1 == 3,
       "both GameplaySurface layouts use the shared mono/stereo surface")
 check(gameplaySurface.contains("onFrame: { session.tick(targetPresentationTime: $0) }")
         && gameplaySurface.contains("isStereoRendererReady: session.isRunning")
-        && gameplaySurface.contains("onStereoFrame: { session.tickStereo(frame: $0) }")
+        && gameplaySurface.contains("onStereoFrame: { session.tickStereo(request: $0) }")
         && !gameplaySurface.contains("stereoMaximumWidthPixels")
         && !gameplaySurface.contains("stereoMaximumHeightPixels"),
       "the shared surface wires both callbacks without the rejected per-eye render-budget cap")
@@ -100,21 +102,35 @@ check(gameSurfaceView.contains("import GameController")
       "both active gameplay surfaces route gamepad events through their SwiftUI hierarchy")
 
 let stereoTick = section(session,
-                         from: "func tickStereo(frame:",
+                         from: "func tickStereo(request:",
                          to: "private func runArmedTick")
 check(occursInOrder([
     "else { return .skipped }",
+    "switch surface.reserveStereoFrame()",
+    "case .busy:",
+    "return .busy",
+    "var reservationNeedsCancellation = true",
+    "guard let frame = request.makeFrame()",
     "GOALPadStereoRenderTarget(",
     "GOALPadStereoRenderTarget(",
-    "surface.beginStereoFrame(",
-    "else { return .failed }",
+    "surface.beginReservedStereoFrame(",
+    "commandBuffer: frame.commandBuffer",
+    "frame.commandBuffer.commit()",
+    "reservationNeedsCancellation = false",
     "var completion = GOALPadStereoFrameCompletion.skipped",
     "runArmedTick(targetPresentationTime:",
     "completion = surface.endStereoFrame()",
-    "return completion == .completed",
-    "if completion == .failed { return .failed }",
-    "framePresented ? .rendered : .skipped",
-], in: stereoTick), "one stereo callback arms, runs, waits, and ends one shared game tick")
+    "return completion == .submitted",
+    "case .submitted:",
+    "case .skipped:",
+    "return .skipped",
+    "case .failed:",
+], in: stereoTick)
+        && stereoTick.range(of: "return .busy")!.upperBound
+            < stereoTick.range(of: "request.makeFrame()")!.lowerBound
+        && stereoTick.range(of: "request.makeFrame()")!.upperBound
+            < stereoTick.range(of: "runArmedTick")!.lowerBound,
+      "busy exits before LowLevelTexture replacement and one reserved pair owns one game tick")
 
 let sharedTick = section(session,
                          from: "private func runArmedTick",
@@ -152,9 +168,11 @@ check(controlsSettings.contains("ControllerBindingsSettingsView")
 
 check(bridge.contains("GOALPadStereoRenderTarget")
         && bridge.contains("simd_float4x4 clipFromGameClip")
-        && bridge.contains("beginStereoFrameAtTime")
+        && bridge.contains("reserveStereoFrame")
+        && bridge.contains("beginReservedStereoFrameAtTime")
+        && bridge.contains("cancelReservedStereoFrame")
         && bridge.contains("endStereoFrame"),
-      "the Objective-C bridge carries borrowed textures and column-major per-eye matrices")
+      "the Objective-C bridge exposes reserve, lazy arm, cancel, and async submission")
 check(renderSurface.contains("memcpy(leftView.clip_from_game_clip.data(), &leftTransform")
         && renderSurface.contains("memcpy(rightView.clip_from_game_clip.data(), &rightTransform"),
       "Objective-C++ copies both Swift matrices into native column-major storage")
@@ -170,92 +188,78 @@ check(sendChain.components(separatedBy: "set_input_data").count - 1 == 1
         && sendChain.components(separatedBy: "render_chain_without_goal_stack();").count - 1 == 1,
       "one submitted game chain is copied once before the two-view renderer runs")
 check(host.contains("render_chain_frame_to_external_stereo_targets(")
-        && occursInOrder([
-            "wait_for_last_chain_frame(1.0)",
-            "g_host.stereo_left = {};",
-            "g_host.stereo_right = {};",
-        ], in: host),
-      "native completion is awaited before borrowed stereo targets are released")
+        && host.contains("g_host.stereo_command_buffer")
+        && !host.contains("wait_for_last_chain_frame(1.0)"),
+      "both native eye encodes borrow one command buffer without a synchronous GPU wait")
 check(occursInOrder([
     "MetalHostStereoFrameCompletion metal_host_end_stereo_frame()",
     "const bool rendered = g_host.frame_rendered;",
-    "const bool completed = close_frame(true);",
+    "(void)close_frame(true, &submitted);",
+    "if (!submitted)",
     "MetalHostStereoFrameCompletion::skipped",
-    "MetalHostStereoFrameCompletion::completed",
-    "MetalHostStereoFrameCompletion::failed",
+    "MetalHostStereoFrameCompletion::submitted",
 ], in: host)
         && bridge.contains("GOALPadStereoFrameCompletion")
         && renderSurface.contains("MetalHostStereoFrameCompletion::failed"),
-      "native frame close distinguishes an empty tick from completion failure")
+      "native close distinguishes a submitted empty tick from encode or submit failure")
 
-let drawFrame = section(surface,
-                        from: "private func drawFrame",
-                        to: "private func renderNextFrame")
+let rejectedSurfaceAPIs = [
+    "TextureResource.DrawableQueue", "nextDrawable()", "presentOnSceneUpdate()",
+    "pendingPresentation", "VisionWindowStereoDrawableQuarantine", "CADisplayLink",
+]
+check(rejectedSurfaceAPIs.allSatisfy { !surface.contains($0) }
+        && surface.components(separatedBy: "LowLevelTexture(descriptor: descriptor)").count - 1 == 2
+        && surface.components(separatedBy: "TextureResource(from:").count - 1 == 2,
+      "the product surface owns two stable LowLevelTextures and none of the rejected APIs")
 check(occursInOrder([
-    "let disposition = renderNextFrame(at: presentationTime)",
-    "guard disposition == .failed else { return }",
-    "deferStereoSurfaceFailure(",
-], in: drawFrame) && !drawFrame.contains("drawablePair"),
-      "only a true render failure schedules fallback after the drawable scope returns")
-
-let renderNextFrame = section(surface,
-                              from: "private func renderNextFrame",
-                              to: "private func deferStereoSurfaceFailure")
+    "VisionWindowStereoRenderSystem.registerSystem()",
+    "content.add(resources.presentationEntity)",
+    "updatingSystemWhen: .rendering",
+], in: surface)
+        && surface.contains("cadence.scheduledTime(for: updateTime)")
+        && surface.contains("let disposition = renderFrame(request)"),
+      "RealityKit rendering updates are the sole producer behind the 60 Hz cadence gate")
 check(occursInOrder([
-    "let drawablePair = resources.nextDrawablePair()",
-    "return .skipped",
-    "let disposition = renderFrame(frame)",
-    "case .skipped:",
-    "case .rendered:",
-    "resources.retainForSceneUpdate(drawablePair)",
-    "case .failed:",
-    "VisionWindowStereoDrawableQuarantine.shared.retain(drawablePair)",
-], in: renderNextFrame) && !renderNextFrame.contains("presentOnSceneUpdate()"),
-      "the producer retains one completed pair while failed frames remain quarantined")
+    "let leftReplacement = leftTexture.replace(using: commandBuffer)",
+    "let rightReplacement = rightTexture.replace(using: commandBuffer)",
+    "Self.encodePairedClear(",
+    "commandBuffer: commandBuffer",
+], in: surface),
+      "one caller-owned command buffer acquires and initializes both LowLevelTexture replacements")
+check(surface.contains("watchdog.observe(disposition) == .failClosed")
+        && submissionWatchdog.contains("defaultMaximumConsecutiveBusyUpdates = 6")
+        && submissionWatchdog.contains("struct VisionStereoCadenceGate")
+        && submissionWatchdog.contains("struct VisionStereoLivenessWatchdog")
+        && surface.contains("liveness.heartbeat(at: updateTime)")
+        && surface.contains("Task.sleep(for: .milliseconds(50))")
+        && surface.contains("liveness.hasTimedOut(at: CACurrentMediaTime())")
+        && surface.contains("resources?.setSceneActive(phase == .active)"),
+      "busy/error and missing-update watchdogs fail closed behind the deterministic cadence")
+check(surface.components(separatedBy: "prepareStereoFallback()").count - 1 == 1
+        && bridge.contains("prepareStereoFallback")
+        && renderSurface.contains("metal_host_prepare_stereo_fallback()")
+        && metalRenderer.contains("m_stream.quarantine_in_flight_pages()")
+        && metalRenderer.contains("m_external_stereo_disabled = true")
+        && metalRenderer.contains("m_last_stream_submission = 0"),
+      "fallback quarantines stalled stream pages and removes the Comfort renderer wait")
 
-let presentationSystem = section(
-    surface,
-    from: "private final class VisionWindowStereoPresentationSystem",
-    to: "/// A timed-out GPU submission"
+let rendererStereo = section(
+    metalRenderer,
+    from: "bool MetalRenderer::render_chain_frame_to_external_stereo_targets(",
+    to: "bool MetalRenderer::submit_external_stereo_frame"
 )
-let resourcePresentation = section(
-    surface,
-    from: "func nextDrawablePair()",
-    to: "private static func makeQueue"
+let rendererSubmit = section(
+    metalRenderer,
+    from: "bool MetalRenderer::submit_external_stereo_frame",
+    to: "bool MetalRenderer::render_chain_frame_impl"
 )
-check(surface.contains("VisionWindowStereoPresentationSystem.registerSystem()")
-        && surface.contains("content.add(resources.presentationEntity)")
-        && presentationSystem.contains("updatingSystemWhen: .rendering")
-        && presentationSystem.contains("presentPendingPair()"),
-      "paired publication is driven only by RealityKit rendering scene updates")
-check(occursInOrder([
-    "guard pendingPresentation == nil",
-    "return DrawablePair(left: left, right: right)",
-    "func retainForSceneUpdate(_ pair: DrawablePair)",
-    "precondition(pendingPresentation == nil)",
-    "pendingPresentation = pair",
-    "func presentPendingPair()",
-    "guard let pair = pendingPresentation else { return }",
-    "pair.left.presentOnSceneUpdate()",
-    "pair.right.presentOnSceneUpdate()",
-    "pendingPresentation = nil",
-], in: resourcePresentation)
-        && surface.components(separatedBy: "presentOnSceneUpdate()").count - 1 == 2
-        && !surface.contains(".present()"),
-      "exactly one completed pair is retained and both eyes publish in the same scene update")
-
-let deferredFailure = section(surface,
-                              from: "private func deferStereoSurfaceFailure",
-                              to: "@MainActor\nprivate final class VisionWindowStereoResources")
-check(occursInOrder([
-    "Task { @MainActor in",
-    "await Task.yield()",
-    "coordinator.stereoSurfaceFailed(message)",
-], in: deferredFailure)
-        && deferredFailure.contains("private final class VisionWindowStereoDrawableQuarantine")
-        && deferredFailure.contains("pairs.append(pair)")
-        && surface.components(separatedBy: "deferStereoSurfaceFailure(").count - 1 == 3,
-      "render failures quarantine borrowed drawables before deferred fail-closed mutation")
+check(rendererStereo.components(separatedBy: "command_buffer, chain_data").count - 1 == 2
+        && rendererStereo.contains("m_chain_stats.last_views_rendered = 2"),
+      "both eye passes append to the same borrowed command buffer")
+check(rendererSubmit.components(separatedBy: "[command_buffer commit]").count - 1 == 1
+        && rendererSubmit.contains("addCompletedHandler")
+        && !rendererSubmit.contains("waitUntilCompleted"),
+      "the paired command buffer commits once and reports completion asynchronously")
 
 check(app.components(separatedBy: "WindowGroup").count - 1 == 1
         && app.contains(".environment(visionPresentation)")
