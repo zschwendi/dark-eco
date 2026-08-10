@@ -169,7 +169,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		92C2B202301C0D2F0025E4D5 /* GOALPad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GOALPad.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		92C2B202301C0D2F0025E4D5 /* Dark Eco.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Dark Eco.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A73000000000000000010000 /* common/cross_os_debug/xdbg.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = xdbg.cpp; path = common/cross_os_debug/xdbg.cpp; sourceTree = "<group>"; };
 		A73000000000000000010001 /* common/log/log.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = log.cpp; path = common/log/log.cpp; sourceTree = "<group>"; };
 		A73000000000000000010002 /* common/util/Assert.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Assert.cpp; path = common/util/Assert.cpp; sourceTree = "<group>"; };
@@ -386,7 +386,7 @@
 		92C2B203301C0D2F0025E4D5 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				92C2B202301C0D2F0025E4D5 /* GOALPad.app */,
+				92C2B202301C0D2F0025E4D5 /* Dark Eco.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -602,7 +602,7 @@
 			packageProductDependencies = (
 			);
 			productName = GOALPad;
-			productReference = 92C2B202301C0D2F0025E4D5 /* GOALPad.app */;
+			productReference = 92C2B202301C0D2F0025E4D5 /* Dark Eco.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -1088,7 +1088,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.5;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zephyrstudiosllc.eco;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "Dark Eco";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -1158,7 +1158,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.5;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zephyrstudiosllc.eco;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "Dark Eco";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;

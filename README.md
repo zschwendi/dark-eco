@@ -89,7 +89,7 @@ game/kernel/core/          portable runtime: no SDL, no windowing, no input,
     + Metal renderer       behind OpenGOAL's GfxRendererModule seam
           |
           +-- goalpad-play     SDL window, SDL gamepad, CoreAudio    -> macOS
-          +-- GOALPad.app      SwiftUI, CAMetalLayer, GameController,
+          +-- Dark Eco.app     SwiftUI, CAMetalLayer, GameController,
                                AVAudioEngine                          -> macOS
                                + touch controls                       -> iPadOS
                                                                    -> visionOS window

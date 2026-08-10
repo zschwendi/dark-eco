@@ -111,8 +111,8 @@ environment failures.
 - `Generated/jak1-aot/` (`aot_boot_manifest.c`, `*.c`, `*.h`, `coverage.tsv`)
 - On archive:
   - `GOALPad.xcarchive`
-  - `GOALPad.xcarchive/Products/Applications/GOALPad.app`
-  - `GOALPad.xcarchive/dSYMs/GOALPad.app.dSYM`
+  - `GOALPad.xcarchive/Products/Applications/Dark Eco.app`
+  - `GOALPad.xcarchive/dSYMs/Dark Eco.app.dSYM`
 - Xcode will also produce generated import/shader artifacts in DerivedData during build.
 
 ## Troubleshooting fast checks

@@ -12,7 +12,7 @@ entitlements="$root/GOALPad/GOALPad.entitlements"
 test "$(rg -Fc 'INFOPLIST_KEY_CFBundleDisplayName = "Dark Eco";' "$project")" -eq 2
 test "$(rg -Fc 'INFOPLIST_KEY_CFBundleName = "Dark Eco";' "$project")" -eq 2
 test "$(rg -Fc 'PRODUCT_BUNDLE_IDENTIFIER = com.zephyrstudiosllc.eco;' "$project")" -eq 2
-test "$(rg -Fc 'PRODUCT_NAME = "$(TARGET_NAME)";' "$project")" -eq 2
+test "$(rg -Fc 'PRODUCT_NAME = "Dark Eco";' "$project")" -eq 2
 test "$(rg -Fc 'iCloud.com.zephyrstudiosllc.eco' "$entitlements")" -eq 2
 
 rg -Fq 'fallback: "Dark Eco"' "$app"
