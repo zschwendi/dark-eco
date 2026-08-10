@@ -16085,10 +16085,14 @@ The exact signed Release bundle was built successfully in 14.580 seconds at:
 ```
 
 It is a valid thin arm64 bundle, identifier
-`com.zephyrstudiosllc.eco.jak2dev`, version `1.0`, build `1`. Physical install
-is still pending: the first in-place update acquired a tunnel but the remote
-installation connection was interrupted; the immediate retry timed out while
-establishing the CoreDevice tunnel. Nothing was uninstalled or cleared. Retry
-the same `devicectl device install app` command after the maintainer has Z iPad
-Pro unlocked and awake. Do not launch or clear the app unless separately
-requested.
+`com.zephyrstudiosllc.eco.jak2dev`, version `1.0`, build `1`. The first in-place
+update acquired a tunnel but the remote installation connection was
+interrupted; the immediate retry timed out while establishing CoreDevice. Once
+the maintainer unlocked and woke Z iPad Pro, the same in-place update succeeded.
+`devicectl device info apps` confirms `Eco Jak II Dev`, version `1.0`, build `1`
+is installed. Nothing was uninstalled or cleared, and the app was not launched.
+The successful install log is:
+
+```text
+.agent-builds/jak2-fast-import/logs/device-install-awake.log
+```
