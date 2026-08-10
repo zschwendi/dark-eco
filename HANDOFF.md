@@ -16564,3 +16564,113 @@ install URL  file:///private/var/containers/Bundle/Application/57761EFF-9299-431
 reported Eco `1.0 (152)`. The iPhone app was not launched. The build retained
 the known Swift actor-isolation and unassigned-old-icon warnings but no errors.
 No iPad access occurred.
+
+## 2026-08-09 Build 153 proof-gated stereo candidate
+
+Build 153 is compiled and signed but has not been installed or launched on
+Vision Pro. The accepted Build 151 Comfort/2D behavior remains the fallback and
+the Build 152 physical stereo rejection remains the baseline.
+
+The proof-first reset produced these local integration commits:
+
+```text
+OpenGOAL 220447711 test(metal): diagnose reversed-Z stereo disparity (AI-assisted)
+parent   06bf98ae test(visionos): diagnose reversed-Z stereo disparity (AI-assisted)
+OpenGOAL 4ff596845 fix(metal): submit stereo pair on one command buffer
+parent   abc0e382 fix(visionos): drive stereo with paired LowLevelTextures
+OpenGOAL 1058dc944 test(metal): add stereo physical candidate markers (AI-assisted)
+parent   4deed2a0 test(visionos): stage stereo physical candidate (AI-assisted)
+OpenGOAL 1c2eae29a test(metal): account for rasterized stereo coverage
+parent   28fcbcf5 build: stage Eco 153 stereo proof candidate
+```
+
+The product stereo surface now binds two stable `LowLevelTexture` resources to
+the existing CameraIndex ShaderGraph once. A RealityKit rendering system is the
+sole producer. Each scheduled 60 Hz game tick reserves native stream storage
+without waiting, lazily acquires both texture replacements, encodes both eye
+passes onto one caller-owned Metal command buffer, and commits once without a
+CPU/GPU completion wait. Six consecutive busy updates, the first native error,
+or 250 ms without a RealityKit rendering heartbeat fails closed to Comfort.
+Stalled external stream pages are quarantined before Comfort resumes so stereo
+cannot leave the ordinary renderer waiting on them. Normal Stereo/Comfort
+toggles do not permanently disable later stereo activation.
+
+The reversed-Z transform is now explicit:
+
+```text
+x' = x + eyeSlope * (z - convergenceDepth * w)
+delta NDC = S * (d - c)
+delta pixels = S * (d - c) * width / 2
+```
+
+Build 152 used `S = 0.025`, `c = 0`, which yielded only about 0.4 px of
+separation at five meters in a 640-pixel eye image. Build 153 deliberately uses
+the existing bounded maximum `S = 0.05` and `c = 0.05`, approximately the Jak 1
+five-meter reversed-Z depth. At one meter this is 3.196 mathematical pixels at
+640 width; the hard-edged GPU fixture deterministically rasterizes it to 4 px.
+This is a physical diagnostic candidate, not a comfort calibration.
+
+The Build 153 artifact also enables temporary per-eye routing markers inside
+the completed eye textures, after both game encodes and before the same command
+buffer commit. The left texture has a magenta 3x16 vertical tick and the right
+texture a cyan 16x3 horizontal tick, both inset 14 px. The code defaults off and
+was enabled only for this artifact with:
+
+```text
+OTHER_CPLUSPLUSFLAGS='$(inherited) -DGOALPAD_VISION_STEREO_EYE_MARKERS=1'
+```
+
+Focused and compiler validation passed:
+
+```text
+Scripts/run-vision-stereo-integration-check.sh
+GOALPAD_VISION_SDK=xros Scripts/run-vision-scene-foundation-check.sh
+cmake --build /private/tmp/OG-build153-reversedz-stereo-math/build/Release/bin \
+  --target metal-view-transform-test metal-stereo-eye-marker-test metal-proof -j2
+/private/tmp/OG-build153-reversedz-stereo-math/build/Release/bin/game/metal-view-transform-test
+/private/tmp/OG-build153-reversedz-stereo-math/build/Release/bin/game/metal-stereo-eye-marker-test
+MTL_DEBUG_LAYER=1 \
+  /private/tmp/OG-build153-reversedz-stereo-math/build/Release/bin/game/metal-proof \
+  --stereo-pixels-only
+```
+
+The final Metal result was `METAL STEREO PIXEL PROOF PASSED`: world-space
+Sprite3d pixels differed between eyes at the expected candidate displacement;
+screen-space Sprite2d and HUD pixels remained identical. The first candidate
+run correctly exposed that the 3.196 px transform oracle becomes exactly 4 px
+under this solid-edged fixture's per-eye raster coverage. The proof was refined
+to assert both facts separately, rebuilt, and passed. Logs:
+
+```text
+/private/tmp/goalpad-build153-candidate-stereo-check.log
+/private/tmp/goalpad-build153-candidate-scene-check.log
+/private/tmp/goalpad-build153-candidate-metal-build.log
+/private/tmp/goalpad-build153-candidate-view-transform-test.log
+/private/tmp/goalpad-build153-candidate-eye-marker-test.log
+/private/tmp/goalpad-build153-candidate-metal-pixel-proof-final.log
+```
+
+The signed generic visionOS Release build exited 0 with the existing asset
+catalog, Swift actor-isolation, and upstream C++ warnings but no errors:
+
+```text
+build log /private/tmp/GOALPad-build153-vision-device.log
+app       /private/tmp/GOALPad-build150-vision-device/Build/Products/Release-xros/GOALPad.app
+bundle    com.zephyrstudiosllc.eco 1.0 (153)
+arch      arm64 xros
+team      V729QMY3V6
+CDHash    94adb8eadc8b2702845a5c0a350233818c98011e
+```
+
+`codesign --verify --deep --strict` passed. Binary string inspection confirmed
+the marker-enabled native path is present. No simulator or physical device was
+accessed for Build 153. Ask the maintainer before installing. For the one
+physical test: verify the magenta vertical tick with only the left eye and the
+cyan horizontal tick with only the right eye, then require a stable image,
+obvious depth, repeatable Stereo off/on behavior, and uninterrupted controller
+input. Any routing mismatch, checkerboarding, missing depth, toggle failure, or
+input stall rejects the candidate.
+
+The pre-existing project-file ordering rewrite remains the only unstaged parent
+change. Its working copy now carries the committed Build 153 values, while the
+ordering-only diff remains preserved. No physical iPad access occurred.
