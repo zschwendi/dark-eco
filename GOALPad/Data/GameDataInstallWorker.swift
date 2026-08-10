@@ -5,6 +5,34 @@ import OSLog
 nonisolated private let installLog = Logger(subsystem: "com.zephyrstudiosllc.eco",
                                             category: "GameDataInstall")
 
+nonisolated private final class GameDataImportProcessLease: @unchecked Sendable {
+    static let shared = GameDataImportProcessLease()
+
+    private let lock = NSLock()
+    private var activeRoots: Set<String> = []
+    private var activeDirectories: Set<String> = []
+
+    func acquire(activeDirectory: URL, stagingRoot: URL) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        let activePath = activeDirectory.standardizedFileURL.path
+        let stagingPath = stagingRoot.standardizedFileURL.path
+        guard !activeDirectories.contains(activePath), !activeRoots.contains(stagingPath) else {
+            return false
+        }
+        activeDirectories.insert(activePath)
+        activeRoots.insert(stagingPath)
+        return true
+    }
+
+    func release(activeDirectory: URL, stagingRoot: URL) {
+        lock.lock()
+        activeDirectories.remove(activeDirectory.standardizedFileURL.path)
+        activeRoots.remove(stagingRoot.standardizedFileURL.path)
+        lock.unlock()
+    }
+}
+
 /// Progress shared by prepared-folder, raw-disc, and zipped-disc imports.
 nonisolated struct GameDataImportProgress: Sendable {
     nonisolated enum Phase: String, Sendable {
@@ -140,6 +168,23 @@ actor GameDataInstallWorker {
         using producer: any GameDataCandidateProducing,
         report: @escaping @Sendable (GameDataImportProgress) async -> Void
     ) async throws -> GameDataImportResult {
+        guard GameDataImportProcessLease.shared.acquire(
+            activeDirectory: configuration.activeDirectory,
+            stagingRoot: configuration.stagingRoot
+        )
+        else {
+            throw GameDataImportFailure(
+                code: .busy,
+                message: "Another game-data import is already running for this game.",
+                candidatePreserved: false
+            )
+        }
+        defer {
+            GameDataImportProcessLease.shared.release(
+                activeDirectory: configuration.activeDirectory,
+                stagingRoot: configuration.stagingRoot
+            )
+        }
         guard !isInstalling else {
             throw GameDataImportFailure(
                 code: .busy,
@@ -160,7 +205,10 @@ actor GameDataInstallWorker {
             try manager.createDirectory(at: attempts,
                                         withIntermediateDirectories: true)
             try excludeFromBackup(configuration.stagingRoot)
+            try reconcileAbandonedActivationItems()
             try removeAbandonedCandidates(in: attempts)
+        } catch let failure as GameDataImportFailure {
+            throw failure
         } catch {
             throw GameDataImportFailure(
                 code: .stagingFailed,
@@ -243,6 +291,153 @@ actor GameDataInstallWorker {
             guard values.isDirectory == true, values.isSymbolicLink != true else { continue }
             try manager.removeItem(at: child)
         }
+    }
+
+    private func reconcileAbandonedActivationItems() throws {
+        let manager = FileManager.default
+        let active = configuration.activeDirectory
+        let parent = active.deletingLastPathComponent()
+        var parentIsDirectory = ObjCBool(false)
+        guard manager.fileExists(atPath: parent.path, isDirectory: &parentIsDirectory),
+              parentIsDirectory.boolValue else { return }
+
+        let prefix = ".\(active.lastPathComponent)-"
+        let siblings = try manager.contentsOfDirectory(
+            at: parent,
+            includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
+            options: []
+        ).filter { url in
+            guard url.pathExtension == "candidate" else { return false }
+            let stem = url.deletingPathExtension().lastPathComponent
+            guard stem.hasPrefix(prefix) else { return false }
+            return UUID(uuidString: String(stem.dropFirst(prefix.count))) != nil
+        }
+        guard !siblings.isEmpty else { return }
+
+        for sibling in siblings {
+            let values = try sibling.resourceValues(
+                forKeys: [.isDirectoryKey, .isSymbolicLinkKey]
+            )
+            guard values.isDirectory == true, values.isSymbolicLink != true else {
+                throw GameDataImportFailure(
+                    code: .activationFailed,
+                    message: "Interrupted activation data has an unsafe filesystem type.",
+                    candidatePreserved: true
+                )
+            }
+        }
+
+        let activeType: FileAttributeType?
+        do {
+            activeType = try manager.attributesOfItem(atPath: active.path)[.type]
+                as? FileAttributeType
+        } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
+            activeType = nil
+        }
+
+        if activeType == .typeDirectory {
+            let activeReport = GameDataInspector.inspect(
+                gameDirectory: active,
+                profile: configuration.profile
+            )
+            if activeReport.status != .ready {
+                guard try isEmptyPreparedLayout(active), siblings.count == 1 else {
+                    throw GameDataImportFailure(
+                        code: .activationFailed,
+                        message: "Interrupted activation data cannot replace a nonempty incomplete install.",
+                        candidatePreserved: true
+                    )
+                }
+                let survivor = try validatedActivationSurvivor(siblings[0])
+                do {
+                    try renameGameDataItem(from: survivor, to: active, mode: .swap)
+                    do {
+                        try manager.removeItem(at: survivor)
+                    } catch {
+                        installLog.error("Could not remove recovered empty game-data layout: \(error.localizedDescription, privacy: .public)")
+                    }
+                    try? excludeFromBackup(active)
+                    installLog.notice("Recovered a validated activation over an empty app layout")
+                    return
+                } catch let failure as GameDataImportFailure {
+                    throw failure
+                } catch {
+                    throw GameDataImportFailure(
+                        code: .activationFailed,
+                        message: "Interrupted activation data could not replace the empty app layout: "
+                            + error.localizedDescription,
+                        candidatePreserved: manager.fileExists(atPath: survivor.path)
+                    )
+                }
+            }
+            for sibling in siblings {
+                try manager.removeItem(at: sibling)
+            }
+            installLog.notice("Removed \(siblings.count) abandoned activation item(s)")
+            return
+        }
+        if activeType != nil {
+            throw GameDataImportFailure(
+                code: .activationFailed,
+                message: "The active game-data path has an unsafe filesystem type.",
+                candidatePreserved: true
+            )
+        }
+
+        guard siblings.count == 1 else {
+            throw GameDataImportFailure(
+                code: .activationFailed,
+                message: "Multiple interrupted activation candidates need manual recovery.",
+                candidatePreserved: true
+            )
+        }
+        let survivor = try validatedActivationSurvivor(siblings[0])
+        do {
+            try renameGameDataItem(from: survivor, to: active, mode: .exclusive)
+            try? excludeFromBackup(active)
+            installLog.notice("Recovered a validated interrupted activation")
+        } catch {
+            throw GameDataImportFailure(
+                code: .activationFailed,
+                message: "Interrupted activation data could not be recovered: "
+                    + error.localizedDescription,
+                candidatePreserved: manager.fileExists(atPath: survivor.path)
+            )
+        }
+    }
+
+    private func validatedActivationSurvivor(_ survivor: URL) throws -> URL {
+        let report = GameDataInspector.inspect(
+            gameDirectory: survivor,
+            profile: configuration.profile
+        )
+        guard report.status == .ready else {
+            throw GameDataImportFailure(
+                code: .candidateIncomplete,
+                message: "Interrupted activation data is incomplete. \(report.summary)",
+                candidatePreserved: true
+            )
+        }
+        return survivor
+    }
+
+    private func isEmptyPreparedLayout(_ directory: URL) throws -> Bool {
+        let manager = FileManager.default
+        let children = try manager.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
+            options: []
+        )
+        let expected = Set([GameDataLayout.isoDirectoryName, GameDataLayout.fr3DirectoryName])
+        guard Set(children.map(\.lastPathComponent)) == expected else { return false }
+        for child in children {
+            let values = try child.resourceValues(
+                forKeys: [.isDirectoryKey, .isSymbolicLinkKey]
+            )
+            guard values.isDirectory == true, values.isSymbolicLink != true else { return false }
+            guard try manager.contentsOfDirectory(atPath: child.path).isEmpty else { return false }
+        }
+        return true
     }
 
     private func activate(candidate: URL) throws {

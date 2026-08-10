@@ -118,6 +118,7 @@ struct ContentView: View {
             }
         }
         .task { await session.prepare() }
+        .onDisappear { session.releaseIdleTimerOwnership() }
         .onChange(of: scenePhase) { _, phase in session.scenePhaseChanged(to: phase) }
         .onChange(of: session.importer.isTaskActive, initial: true) { _, _ in
             session.importActivityChanged()

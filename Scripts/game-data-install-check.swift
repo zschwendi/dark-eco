@@ -90,6 +90,21 @@ private actor ProgressRecorder {
     }
 }
 
+private struct FailingCandidateProducer: GameDataCandidateProducing {
+    func prepareCandidate(
+        from source: URL,
+        activeDirectory: URL,
+        candidateDirectory: URL,
+        report: @escaping @Sendable (GameDataImportProgress) async -> Void
+    ) async throws -> GameDataImportResult {
+        throw GameDataImportFailure(
+            code: .preparationFailed,
+            message: "synthetic stop after activation reconciliation",
+            candidatePreserved: false
+        )
+    }
+}
+
 private func write(_ text: String, to url: URL) throws {
     try FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
                                             withIntermediateDirectories: true)
@@ -425,10 +440,16 @@ private func preparedFolder(
           "the previous install remains active after cancellation")
     check(fixture.candidates.isEmpty,
           "the cancelled candidate and per-file temporary output are removed after native cleanup")
+    _ = try await fixture.worker.install(
+        from: replacement,
+        using: PreparedFolderCandidateProducer()
+    ) { _ in }
+    check(read(fixture.active.appending(path: "iso/GAME.CGO")) == "replacement",
+          "a fresh retry can acquire the process lease after cancellation cleanup")
 }
 
 @MainActor private func concurrentAttemptIsRejected() async throws {
-    print("a second request cannot interleave with an active import")
+    print("same-session and second-window requests cannot interleave with an active import")
     let fixture = try Fixture()
     let source = try preparedFolder(under: fixture.root)
     let gate = PauseGate()
@@ -453,10 +474,177 @@ private func preparedFolder(
     } catch let failure as GameDataImportFailure {
         check(failure.code == .busy, "the second request gets an explicit busy failure")
     }
+    let secondWindowWorker = GameDataInstallWorker(configuration: .init(
+        activeDirectory: fixture.active,
+        stagingRoot: fixture.staging,
+        profile: fixture.profile
+    ))
+    do {
+        _ = try await secondWindowWorker.install(
+            from: source,
+            using: PreparedFolderCandidateProducer()
+        ) { _ in }
+        check(false, "a second-window worker cannot remove or replace the active candidate")
+    } catch let failure as GameDataImportFailure {
+        check(failure.code == .busy,
+              "the process lease rejects a second-window worker for the same profile")
+    }
+    let equivalentStagingWorker = GameDataInstallWorker(configuration: .init(
+        activeDirectory: fixture.root.appending(path: "OtherActive", directoryHint: .isDirectory),
+        stagingRoot: fixture.staging.appending(path: "..")
+            .appending(path: fixture.staging.lastPathComponent, directoryHint: .isDirectory),
+        profile: fixture.profile
+    ))
+    do {
+        _ = try await equivalentStagingWorker.install(
+            from: source,
+            using: PreparedFolderCandidateProducer()
+        ) { _ in }
+        check(false, "an equivalent staging path cannot bypass the process lease")
+    } catch let failure as GameDataImportFailure {
+        check(failure.code == .busy,
+              "the process lease normalizes equivalent staging paths")
+    }
+    let alternateStagingWorker = GameDataInstallWorker(configuration: .init(
+        activeDirectory: fixture.active,
+        stagingRoot: fixture.root.appending(path: "OtherStaging", directoryHint: .isDirectory),
+        profile: fixture.profile
+    ))
+    do {
+        _ = try await alternateStagingWorker.install(
+            from: source,
+            using: PreparedFolderCandidateProducer()
+        ) { _ in }
+        check(false, "a second staging root cannot race the same active install")
+    } catch let failure as GameDataImportFailure {
+        check(failure.code == .busy,
+              "the process lease also owns the shared active-install destination")
+    }
     await gate.release()
     _ = try await first.value
     check(GameDataInspector.inspect(gameDirectory: fixture.active).status == .ready,
           "the original request completes without interleaved writes")
+    _ = try await secondWindowWorker.install(
+        from: source,
+        using: PreparedFolderCandidateProducer()
+    ) { _ in }
+    check(GameDataInspector.inspect(gameDirectory: fixture.active).status == .ready,
+          "the process lease is released after the original request completes")
+}
+
+@MainActor private func interruptedActivationIsReconciled() async throws {
+    print("interrupted activation survivors are recovered without weakening filesystem safety")
+
+    let recovery = try Fixture()
+    let recoveryParent = recovery.active.deletingLastPathComponent()
+    try FileManager.default.createDirectory(
+        at: recovery.active.appending(path: "iso", directoryHint: .isDirectory),
+        withIntermediateDirectories: true
+    )
+    try FileManager.default.createDirectory(
+        at: recovery.active.appending(path: "fr3", directoryHint: .isDirectory),
+        withIntermediateDirectories: true
+    )
+    let recoverable = recoveryParent.appending(
+        path: ".\(recovery.active.lastPathComponent)-\(UUID().uuidString).candidate",
+        directoryHint: .isDirectory
+    )
+    try writeCompletePreparedData(at: recoverable, profile: recovery.profile, payload: "recovered")
+    do {
+        _ = try await recovery.worker.install(
+            from: recovery.root,
+            using: FailingCandidateProducer()
+        ) { _ in }
+        check(false, "the synthetic producer still fails after recovery")
+    } catch let failure as GameDataImportFailure {
+        check(failure.code == .preparationFailed,
+              "a sole validated activation survivor is recovered before new preparation")
+    }
+    check(read(recovery.active.appending(path: "iso/GAME.CGO")) == "recovered",
+          "recovery atomically replaces the normal empty app layout with the validated survivor")
+    check(!FileManager.default.fileExists(atPath: recoverable.path),
+          "the recovered survivor no longer occupies a hidden sibling")
+
+    let cleanup = try Fixture()
+    try writeCompletePreparedData(at: cleanup.active, profile: cleanup.profile, payload: "active")
+    let cleanupParent = cleanup.active.deletingLastPathComponent()
+    for payload in ["pre-switch", "post-swap"] {
+        let sibling = cleanupParent.appending(
+            path: ".\(cleanup.active.lastPathComponent)-\(UUID().uuidString).candidate",
+            directoryHint: .isDirectory
+        )
+        try writeCompletePreparedData(at: sibling, profile: cleanup.profile, payload: payload)
+    }
+    do {
+        _ = try await cleanup.worker.install(
+            from: cleanup.root,
+            using: FailingCandidateProducer()
+        ) { _ in }
+        check(false, "the synthetic producer still fails after cleanup")
+    } catch let failure as GameDataImportFailure {
+        check(failure.code == .preparationFailed,
+              "existing active data remains authoritative during survivor cleanup")
+    }
+    let remainingHidden = try FileManager.default.contentsOfDirectory(
+        at: cleanupParent,
+        includingPropertiesForKeys: nil,
+        options: []
+    ).filter { $0.lastPathComponent.hasPrefix(".\(cleanup.active.lastPathComponent)-") }
+    check(remainingHidden.isEmpty,
+          "pre-switch and post-swap activation survivors are removed when active data exists")
+    check(read(cleanup.active.appending(path: "iso/GAME.CGO")) == "active",
+          "survivor cleanup never replaces the authoritative active install")
+
+    let unsafe = try Fixture()
+    try FileManager.default.createDirectory(
+        at: unsafe.active.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+    )
+    let external = unsafe.root.appending(path: "external", directoryHint: .isDirectory)
+    let externalMarker = external.appending(path: "keep.txt")
+    try write("keep", to: externalMarker)
+    let unsafeSibling = unsafe.active.deletingLastPathComponent().appending(
+        path: ".\(unsafe.active.lastPathComponent)-\(UUID().uuidString).candidate",
+        directoryHint: .isDirectory
+    )
+    try FileManager.default.createSymbolicLink(at: unsafeSibling, withDestinationURL: external)
+    do {
+        _ = try await unsafe.worker.install(
+            from: unsafe.root,
+            using: FailingCandidateProducer()
+        ) { _ in }
+        check(false, "an activation symlink cannot be adopted or cleaned")
+    } catch let failure as GameDataImportFailure {
+        check(failure.code == .activationFailed && failure.candidatePreserved,
+              "an activation symlink is rejected as preserved unsafe state")
+    }
+    check(read(externalMarker) == "keep",
+          "activation reconciliation does not follow or delete a symbolic-link target")
+
+    let incomplete = try Fixture()
+    try write("keep", to: incomplete.active.appending(path: "iso/USER.DAT"))
+    let validSibling = incomplete.active.deletingLastPathComponent().appending(
+        path: ".\(incomplete.active.lastPathComponent)-\(UUID().uuidString).candidate",
+        directoryHint: .isDirectory
+    )
+    try writeCompletePreparedData(
+        at: validSibling,
+        profile: incomplete.profile,
+        payload: "valid-survivor"
+    )
+    do {
+        _ = try await incomplete.worker.install(
+            from: incomplete.root,
+            using: FailingCandidateProducer()
+        ) { _ in }
+        check(false, "a survivor cannot replace nonempty incomplete active data")
+    } catch let failure as GameDataImportFailure {
+        check(failure.code == .activationFailed && failure.candidatePreserved,
+              "nonempty incomplete active data requires explicit recovery")
+    }
+    check(read(incomplete.active.appending(path: "iso/USER.DAT")) == "keep"
+            && FileManager.default.fileExists(atPath: validSibling.path),
+          "ambiguous active and survivor data are both preserved")
 }
 
 @MainActor private func cancellationAtActivationBoundaryDoesNotSwap() async throws {
@@ -590,6 +778,7 @@ private struct GameDataInstallCheck {
             try await sourceFilesAreNotCopiedFromActiveFirst()
             try await cancellationKeepsActiveInstall()
             try await concurrentAttemptIsRejected()
+            try await interruptedActivationIsReconciled()
             try await cancellationAtActivationBoundaryDoesNotSwap()
             try await unsafeSourceIsRejectedBeforeStaging()
             try await activationFailurePreservesCandidate()

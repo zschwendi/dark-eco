@@ -165,7 +165,10 @@ struct GameDataSetupView: View {
                         .lineLimit(2)
                 }
 
-                Text(GameDataImportPresentation.backgroundGuidance(phaseLabel: progress.phase.label))
+                Text(GameDataImportPresentation.backgroundGuidance(
+                    phaseLabel: progress.phase.label,
+                    isActivating: progress.phase == .activatingCandidate
+                ))
                     .font(.footnote)
                     .foregroundStyle(DarkEcoTheme.warning)
                 Text(GameDataImportPresentation.cancellationGuidance(

@@ -48,6 +48,7 @@ guard CommandLine.arguments.count == 2 else {
 
 let root = CommandLine.arguments[1]
 let session = source(at: root + "/GOALPad/Game/GameSession.swift")
+let content = source(at: root + "/GOALPad/ContentView.swift")
 let surfaceView = source(at: root + "/GOALPad/Game/GameSurfaceView.swift")
 let renderSurface = source(at: root + "/GOALPad/Native/GOALPadRenderSurface.mm")
 
@@ -131,6 +132,9 @@ check(lifecycle.contains("touch.restoreGameplayChromeAfterInterruption()"),
 check(lifecycle.contains("defer { reconcileIdleTimer() }")
         && lifecycle.contains("importer.appDidEnterBackground()"),
       "scene transitions reconcile the import wake lease and cancel unsafe background work")
+check(session.contains("ApplicationIdleTimerCoordinator.shared.setActive")
+        && content.contains(".onDisappear { session.releaseIdleTimerOwnership() }"),
+      "idle-timer ownership is process-wide and released when a window closes")
 
 if failures == 0 {
     print("game lifecycle route checks passed")

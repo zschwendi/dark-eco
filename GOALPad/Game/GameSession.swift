@@ -10,6 +10,20 @@ import UIKit
 nonisolated private let sessionLog = Logger(subsystem: "com.zephyrstudiosllc.eco",
                                             category: "Session")
 
+@MainActor
+private final class ApplicationIdleTimerCoordinator {
+    static let shared = ApplicationIdleTimerCoordinator()
+
+    private var leases = GameDataIdleTimerLeaseState()
+
+    func setActive(_ active: Bool, for owner: UUID) {
+        leases.setActive(active, for: owner)
+        #if canImport(UIKit)
+        UIApplication.shared.isIdleTimerDisabled = leases.shouldDisableIdleTimer
+        #endif
+    }
+}
+
 /// Owns everything with a lifetime: the GOAL kernel session, controller and touch input, the audio
 /// device, and the frame loop that ties them together.
 ///
@@ -73,6 +87,7 @@ final class GameSession {
     /// Only the latest active-scene generation may reopen the frame loop after its save gate.
     private var lifecycle = GameplayLifecycleState()
     private var currentScenePhase: ScenePhase = .active
+    private let idleTimerOwner = UUID()
     private var isStartingGameplay = false
     private var foregroundPreparationTask: Task<Void, Never>?
     private var foregroundPreparationGeneration: UInt64?
@@ -1508,6 +1523,10 @@ final class GameSession {
         reconcileIdleTimer()
     }
 
+    func releaseIdleTimerOwnership() {
+        ApplicationIdleTimerCoordinator.shared.setActive(false, for: idleTimerOwner)
+    }
+
     private func beginForegroundPreparation(generation: UInt64) {
         guard foregroundPreparationTask == nil else { return }
         sessionLog.notice("Preparing foreground generation \(generation)")
@@ -1618,9 +1637,7 @@ final class GameSession {
     }
 
     private func setIdleTimerDisabled(_ disabled: Bool) {
-        #if canImport(UIKit)
-        UIApplication.shared.isIdleTimerDisabled = disabled
-        #endif
+        ApplicationIdleTimerCoordinator.shared.setActive(disabled, for: idleTimerOwner)
     }
 
     private func reconcileIdleTimer() {

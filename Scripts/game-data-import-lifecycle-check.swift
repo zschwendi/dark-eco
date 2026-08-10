@@ -37,6 +37,20 @@ private struct GameDataImportLifecycleCheck {
         check(!keepsAwake(.background, gameplay: true, importing: true),
               "background always releases the idle-timer assertion")
 
+        var leases = GameDataIdleTimerLeaseState()
+        let importingWindow = UUID()
+        let secondImportingWindow = UUID()
+        leases.setActive(true, for: importingWindow)
+        leases.setActive(true, for: importingWindow)
+        leases.setActive(true, for: secondImportingWindow)
+        leases.setActive(false, for: importingWindow)
+        check(leases.shouldDisableIdleTimer,
+              "closing one importing window cannot clear another window's wake lease")
+        leases.setActive(false, for: secondImportingWindow)
+        leases.setActive(false, for: secondImportingWindow)
+        check(!leases.shouldDisableIdleTimer,
+              "the final idempotent release restores the idle timer")
+
         if failures == 0 {
             print("game data import lifecycle checks passed")
         } else {

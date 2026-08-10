@@ -21,8 +21,11 @@ nonisolated enum GameDataImportPresentation {
         return "Prepared OpenGOAL \(profile.preparedFolderName) folder"
     }
 
-    static func backgroundGuidance(phaseLabel: String) -> String {
-        "Keep Eco open and in the foreground. The screen stays awake during \(phaseLabel); "
+    static func backgroundGuidance(phaseLabel: String, isActivating: Bool) -> String {
+        if isActivating {
+            return "Keep Eco open and in the foreground. Final activation cannot be cancelled."
+        }
+        return "Keep Eco open and in the foreground. The screen stays awake during \(phaseLabel); "
             + "backgrounding cancels the import safely."
     }
 

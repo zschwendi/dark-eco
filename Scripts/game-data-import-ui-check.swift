@@ -67,7 +67,9 @@ check(importer.contains("profile.supportsRawMediaPreparation && RawISOCandidateP
 check(rawProducer.contains("case .sourcePackFailed, .projectResourcesFailed:")
         && rawProducer.contains("code: .appResourcesUnavailable"),
       "source-pack and project-resource verification failures stay app-resource failures")
-check(view.contains("GameDataImportPresentation.backgroundGuidance(phaseLabel: progress.phase.label)")
+check(view.contains("GameDataImportPresentation.backgroundGuidance(")
+        && view.contains("phaseLabel: progress.phase.label,")
+        && view.contains("isActivating: progress.phase == .activatingCandidate")
         && view.contains("GameDataImportPresentation.cancellationGuidance(")
         && view.contains("if progress.phase != .activatingCandidate"),
       "one import component names each active phase, foreground safety, and cancellation boundary")
