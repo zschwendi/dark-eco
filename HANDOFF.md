@@ -16210,3 +16210,36 @@ next import under this binary is the performance measurement gate. Two full
 prepared-output rereads and cross-stage archive decoding remain known larger
 follow-ups; they were intentionally not folded into this checkpoint because
 they require an ownership/lifetime redesign rather than another local removal.
+
+## Jak II iOS clone ACL retry checkpoint
+
+The first optimized physical retry reached materialization at the expected
+faster rate, then failed with `Could not clear cloned output extended ACL
+metadata.` The source clone and retail data were not the failure. The shared
+materializer unconditionally called `acl_set_fd_np` with an empty ACL even when
+iPadOS reported that the clone already had no extended ACL.
+
+Nested commit `b6a568f70` adds tri-state ACL inspection. Absent, empty, and
+unsupported ACL states skip the unnecessary setter; a genuinely present ACL is
+cleared and re-inspected; inspection errors and retained ACLs remain failures.
+Host regressions prove that an absent ACL never invokes an injected failing
+setter and a present ACL invokes exactly one successful clear. Canonical Jak 1
+and Jak II materializer tests passed 2/2. The strict iPhoneOS arm64 materializer
+build and final signed Eco Jak II Dev Release build passed; final build time was
+14.084 seconds.
+
+Parent commit `0e04f6c8` pins the ACL fix. After terminating the old app PID
+25766, the exact bundle was installed in place on `Z iPad Pro`. No data was
+uninstalled or cleared, and the app was not launched. CoreDevice inventory
+confirms `Eco Jak II Dev 1.0 (1)`. Evidence:
+
+```text
+.agent-builds/jak2-fast-import/logs/acl-fix-device-build.log
+.agent-builds/jak2-fast-import/logs/acl-fix-process-terminate.log
+.agent-builds/jak2-fast-import/logs/acl-fix-device-install.log
+.agent-builds/jak2-fast-import/logs/acl-fix-device-inventory.log
+```
+
+The preserved failed candidate is not resumable; the maintainer must retry the
+import under the installed binary. The next gate is completion of
+materialization without the ACL error.
