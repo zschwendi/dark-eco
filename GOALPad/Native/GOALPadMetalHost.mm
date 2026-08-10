@@ -5,7 +5,24 @@
 #include "GOALPadLevelArtResidency.hpp"
 #include "GOALPadMercDiagnosticEvidence.hpp"
 
+#include <TargetConditionals.h>
+#include <exception>
 #include <os/log.h>
+#if defined(__aarch64__)
+#include <sys/mman.h>
+#include <unistd.h>
+#endif
+
+#if defined(__aarch64__)
+extern "C" std::uint64_t goal_call_on_stack_arm64(void* new_sp,
+                                                   void* function,
+                                                   std::uint64_t a0,
+                                                   std::uint64_t a1,
+                                                   std::uint64_t a2,
+                                                   std::uint64_t a3,
+                                                   std::uint64_t a4,
+                                                   std::uint64_t a5);
+#endif
 
 #if GOALPAD_HAVE_GFX_SEAM
 
@@ -66,6 +83,12 @@ struct MetalHost {
   MetalRenderer* renderer = nullptr;
   std::shared_ptr<TexturePool> texture_pool;
   std::unique_ptr<FixedChunkDmaCopier> copier;
+#if defined(__aarch64__)
+  void* render_stack_mapping = nullptr;
+  std::size_t render_stack_mapping_size = 0;
+  void* render_stack_top = nullptr;
+  bool render_stack_active = false;
+#endif
 
   float pmode_alp = 1.f;
 
@@ -97,6 +120,46 @@ struct MetalHost {
   goalpad::PostFlagFrameGate post_flag_gate;
 };
 MetalHost g_host;
+
+#if defined(__aarch64__)
+constexpr std::size_t kHostRenderStackBytes = 2 * 1024 * 1024;
+
+bool allocate_host_render_stack(std::string* error) {
+  const long page_size_value = sysconf(_SC_PAGESIZE);
+  if (page_size_value <= 0) {
+    *error = "The host render stack page size is unavailable.";
+    return false;
+  }
+  const auto page_size = static_cast<std::size_t>(page_size_value);
+  const auto usable_size =
+      (kHostRenderStackBytes + page_size - 1) / page_size * page_size;
+  const auto mapping_size = page_size + usable_size;
+  void* mapping = mmap(nullptr, mapping_size, PROT_READ | PROT_WRITE,
+                       MAP_PRIVATE | MAP_ANON, -1, 0);
+  if (mapping == MAP_FAILED) {
+    *error = "The host render stack could not be allocated.";
+    return false;
+  }
+  if (mprotect(mapping, page_size, PROT_NONE) != 0) {
+    munmap(mapping, mapping_size);
+    *error = "The host render stack guard page could not be installed.";
+    return false;
+  }
+  g_host.render_stack_mapping = mapping;
+  g_host.render_stack_mapping_size = mapping_size;
+  g_host.render_stack_top = static_cast<std::uint8_t*>(mapping) + mapping_size;
+  return true;
+}
+
+void release_host_render_stack() {
+  if (g_host.render_stack_mapping) {
+    munmap(g_host.render_stack_mapping, g_host.render_stack_mapping_size);
+  }
+  g_host.render_stack_mapping = nullptr;
+  g_host.render_stack_mapping_size = 0;
+  g_host.render_stack_top = nullptr;
+}
+#endif
 
 std::string join_plus(const std::vector<std::string>& names) {
   std::string out;
@@ -887,6 +950,39 @@ void render_chain() {
   g_host.stats.packet_camera_mismatches = stats.packet_camera_mismatches;
 }
 
+#if defined(__aarch64__)
+std::uint64_t render_chain_on_host_stack(std::uint64_t,
+                                         std::uint64_t,
+                                         std::uint64_t,
+                                         std::uint64_t,
+                                         std::uint64_t,
+                                         std::uint64_t) noexcept {
+  try {
+    render_chain();
+  } catch (...) {
+    os_log_fault(gfx_log(), "Metal renderer threw across the host render-stack boundary.");
+    std::terminate();
+  }
+  return 0;
+}
+#endif
+
+void render_chain_without_goal_stack() {
+#if defined(__aarch64__)
+  if (!g_host.render_stack_top || g_host.render_stack_active) {
+    os_log_fault(gfx_log(), "Metal host render-stack invariant failed.");
+    std::terminate();
+  }
+  g_host.render_stack_active = true;
+  goal_call_on_stack_arm64(g_host.render_stack_top,
+                           reinterpret_cast<void*>(&render_chain_on_host_stack),
+                           0, 0, 0, 0, 0, 0);
+  g_host.render_stack_active = false;
+#else
+  render_chain();
+#endif
+}
+
 // ---------------------------------------------------------------------------------------------
 // the seam: the C hooks in game/kernel/core/gfx_host.h, answered by the renderer above
 // ---------------------------------------------------------------------------------------------
@@ -914,7 +1010,7 @@ void host_send_chain(const void* ee_base, uint32_t chain_offset) {
   }
   g_host.chains_in_frame++;
   g_host.copier->set_input_data(ee_base, chain_offset, /*run*/ true);
-  render_chain();
+  render_chain_without_goal_stack();
 }
 
 /*!
@@ -1018,6 +1114,17 @@ bool metal_host_start(std::string* error) {
   }
   renderer->init_bucket_renderers(g_host.texture_pool.get(), GameVersion::Jak1);
   g_host.copier = std::make_unique<FixedChunkDmaCopier>(EE_MAIN_MEM_SIZE);
+#if defined(__aarch64__)
+  if (!allocate_host_render_stack(error)) {
+    metal_merc_models().shutdown();
+    metal_texture_release(g_host.texture_pool->get_placeholder_texture());
+    g_host.texture_pool.reset();
+    g_host.copier.reset();
+    delete renderer;
+    g_host.renderer = nullptr;
+    return false;
+  }
+#endif
   g_host.stats.jak1_tie_envmap_second_pass_enabled =
       kJak1TieEnvmapSecondPassEnabled;
   g_host.stats.jak1_shadow_output_enabled = kJak1ShadowOutputEnabled;
@@ -1037,6 +1144,9 @@ void metal_host_stop() {
   g_host.texture_pool.reset();
   g_host.copier.reset();
   delete g_host.renderer;
+#if defined(__aarch64__)
+  release_host_render_stack();
+#endif
   g_host = MetalHost();
 }
 
