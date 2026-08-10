@@ -16439,3 +16439,30 @@ confirmed the replacement bundle and successfully launched that exact bundle
 identifier. Prepared game files and saves were not inspected. No physical
 device log attachment or screen capture was performed. Visual Merc acceptance
 remains with the maintainer's gameplay test.
+
+## Physical rejection of the common-shrub checkpoint
+
+The maintainer rejected the physical `befcc954` / `b0f9abc06` build after
+testing it on `Z iPad Pro`. The promoted `TEX_LCOM_SHRUB` / `MERC_LCOM_SHRUB`
+pair did not produce a visible title Merc, Jak, or enemies. Treat the
+common-shrub hypothesis as a failed visual acceptance gate, not as a completed
+Merc fix, even though its isolated synthetic GPU proof remains valid.
+
+The same physical session reconfirmed the broader playability blockers:
+
+1. World/ocean water is still absent.
+2. Title, cinematic, dialogue, music, and ambient audio are absent. Pressing
+   Start produces one sound effect and only a small subset of menu effects is
+   audible, proving the device audio output itself is not wholly dead.
+3. The existing-save selection screen exposes no touch Confirm or Back
+   controls. Existing Jak II save-flow semantics cover only a subset of native
+   states, so all title/save/load screens require a systematic action audit.
+4. Lights remain blinking hard squares; any improvement was too small or
+   inconsistent for the maintainer to distinguish.
+
+Do not install another single-subsystem hypothesis for acceptance. Run bounded
+workers for Merc/GMerc, water, cinematics/audio, glow/overlay blending, and
+save/menu touch navigation; review and integrate their proven changes; run one
+combined Metal/AOT/application validation; then install one in-place physical
+checkpoint for the maintainer to test all five areas together. Preserve the
+known-good import tag and do not uninstall or clear the device app container.
