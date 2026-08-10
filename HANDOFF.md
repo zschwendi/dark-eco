@@ -16243,3 +16243,31 @@ confirms `Eco Jak II Dev 1.0 (1)`. Evidence:
 The preserved failed candidate is not resumable; the maintainer must retry the
 import under the installed binary. The next gate is completion of
 materialization without the ACL error.
+
+## Jak II known-good import boundary
+
+The maintainer retried with the installed ACL-fix artifact and reported
+`IMPORT COMPLETE` on physical `Z iPad Pro`. This closes the end-to-end Jak II
+import gate for the isolated development line. The accepted implementation is
+parent `0e04f6c8` with nested OpenGOAL `b6a568f70`; subsequent parent commits in
+this worktree are documentation-only and do not change the installed binary.
+
+This is now the **known-good Jak II development baseline**. Preserve it as the
+starting point for remaining Jak II gameplay and renderer work. The acceptance
+scope is exact: supported user-owned data imports completely, the candidate is
+atomically installed, and the resulting Eco Jak II Dev data is available to the
+runtime on a physical iPad. The completion result was reported by the
+maintainer; the agent did not launch or instrument the successful retry.
+
+This checkpoint is explicitly **not main-ready or release-ready**. It does not
+claim playable Jak II gameplay, complete rendering, complete audio, a full
+playthrough, or release quality. Do not merge it into the protected main Jak
+branch yet and do not publish it as an end-user release. Keep `Eco Jak II Dev`
+and `agent/jak2-ipad-playtest` isolated while closing the remaining Jak II
+playability blockers.
+
+The future integration gate is a maintainer-accepted physical build in which
+Jak II is playable. Once that gate is met, the Jak 1 integration owner may merge
+this isolated line into the main Jak branch and run the combined Jak 1/Jak II
+regression matrix. The annotated parent tag
+`jak2-known-good-import-20260809` identifies this scoped baseline.

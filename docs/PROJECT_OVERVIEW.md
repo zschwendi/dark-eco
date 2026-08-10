@@ -1,6 +1,6 @@
 # GOALPad — Project Overview
 
-> **Status:** Experimental playable Jak 1 port; Build 130 is the accepted baseline within its physically tested scope
+> **Status:** Experimental playable Jak 1 port; Build 145 is the accepted Jak 1 baseline within its physically tested scope. An isolated Jak II development line now has a physically completed import baseline, but is not gameplay-ready or release-ready.
 > **Working name:** GOALPad
 > **Public product name:** Eco
 > **App Store subtitle:** Native OpenGOAL Runtime
@@ -407,7 +407,7 @@ output rather than introducing a GOALPad-only data format.
 
 ### Jak II native composer status
 
-**Experimental:** The nested OpenGOAL host pipeline now contains the checked
+**Experimental, known-good import baseline:** The nested OpenGOAL host pipeline contains the checked
 Jak II base-retail/full-gameplay composer for the supported NTSC-U v2 revision.
 It uses the recorded 840-object public source pack and one 29-file public
 resource closure (16 FR3 inputs plus 13 generated inputs). The materializer
@@ -416,10 +416,15 @@ files—567 direct `iso/` files—plus its FR3 output. `TSZ.DGO` and the optiona
 community localization ranges `8COMMON.DGO` through `22COMMON.DGO` and
 `1SUBTI2.DGO` through `22SUBTI2.DGO` are deliberately excluded.
 
-Host synthetic and link tests pass, but Jak II Eco app bridge/target wiring is
-still pending. The current real-ISO oracle reaches FR3 preparation and then
-fails on trailing padding in `LWIDEB.DGO` under an active fix, so real ISO
-import is not successful or validated.
+The isolated `Eco Jak II Dev` line now builds, installs, and completes a full
+user-owned Jak II import on physical `Z iPad Pro`. That physically completed
+import is the known-good baseline for continued Jak II development. Its scope
+is deliberately narrow: it proves the importer and atomic installation path,
+not playable gameplay, renderer completeness, release quality, or suitability
+for the main Jak branch. Keep Jak II work isolated until the maintainer
+physically accepts Jak II as playable. Only then should the Jak 1 integration
+owner evaluate merging this line into the main Jak branch. It must not be
+published or presented as a main/release checkpoint before that gate.
 
 ### Save storage and synchronization
 

@@ -70,6 +70,7 @@ as completing the overall goal.
 | OpenGOAL game frame or title screen | Implemented and physically verified |
 | Playable gameplay slice | Experimental; Build 145 is the locked physical gameplay baseline. Its corrected controls guide, Snowy Mountain gondola, and Misty Island travel were physically accepted by the maintainer. This is not a complete-playthrough claim. |
 | Jak 1 completion track | Planned |
+| User-owned Jak II import pipeline | Experimental; the isolated Eco Jak II Dev line completes a full physical-device import and is the known-good Jak II development baseline. Jak II gameplay and release readiness remain open. |
 
 The current application initializes the real OpenGOAL Jak 1 kernel, loads
 user-local game data, runs linked AOT/native game code without executable arena
@@ -81,6 +82,22 @@ The shared silent spooled-animation clock repair therefore closes the vehicle
 transition failure class represented by those two routes. This is not a
 complete-playthrough or every-transition claim. `HANDOFF.md` is the authoritative
 artifact, physical-test, and limitation record.
+
+### Jak II integration boundary
+
+The maintainer physically completed the full Jak II import with the isolated
+`agent/jak2-ipad-playtest` line on `Z iPad Pro`. Preserve that exact line as the
+known-good Jak II development baseline. This acceptance is scoped to import
+completion and the installed development product; it is not evidence that Jak
+II is playable, renderer-complete, main-ready, or release-ready.
+
+Do not merge this line into the main Jak branch yet. Continue Jak II work from
+the recorded known-good checkpoint while keeping the protected Jak 1 baseline
+unchanged. The integration gate is a maintainer-accepted, physically playable
+Jak II build. Once that gate is met, the Jak 1 integration owner may merge the
+isolated Jak II line into the main Jak branch and run the combined regression
+matrix. Until then, `Eco Jak II Dev` remains a separate development product and
+must not be presented as a public release candidate.
 
 The active product sequence is now:
 
