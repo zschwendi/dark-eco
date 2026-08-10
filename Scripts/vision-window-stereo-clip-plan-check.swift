@@ -30,15 +30,19 @@ struct VisionWindowStereoClipPlanCheck {
                 && plan.right.clipFromGameClip.columns.2.y == 0,
               "the fixed pair introduced unrequested vertical parallax")
 
-        checkDisparity(plan: plan, depth: 0, expected: 0,
-                       "the default reversed-Z far plane did not converge")
+        checkDisparity(plan: plan, depth: 0,
+                       expected: -VisionWindowStereoClipPlanner
+                           .defaultNormalizedDepthDisparitySlope
+                           * VisionWindowStereoClipPlanner.defaultConvergenceDepth,
+                       "the default reversed-Z far plane disparity is incorrect")
         checkDisparity(plan: plan,
                        depth: VisionWindowStereoClipPlanner.defaultConvergenceDepth,
                        expected: 0,
                        "the default convergence depth did not converge")
         checkDisparity(plan: plan, depth: 1,
                        expected: VisionWindowStereoClipPlanner
-                           .defaultNormalizedDepthDisparitySlope,
+                           .defaultNormalizedDepthDisparitySlope
+                           * (1 - VisionWindowStereoClipPlanner.defaultConvergenceDepth),
                        "the default reversed-Z near plane disparity is incorrect")
     }
 
@@ -81,8 +85,10 @@ struct VisionWindowStereoClipPlanCheck {
         check(close(oneMeterDepth, 0.2497386),
               "the one-meter Jak projection depth oracle drifted")
         let pixelDisparity = VisionWindowStereoClipPlanner
-            .defaultNormalizedDepthDisparitySlope * oneMeterDepth * 640 / 2
-        check(close(pixelDisparity, 1.9979088),
+            .defaultNormalizedDepthDisparitySlope
+            * (oneMeterDepth - VisionWindowStereoClipPlanner.defaultConvergenceDepth)
+            * 640 / 2
+        check(close(pixelDisparity, 3.1958177),
               "the 640-pixel default disparity diagnostic drifted")
     }
 

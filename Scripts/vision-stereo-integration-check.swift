@@ -65,6 +65,10 @@ let bridge = source(root, "GOALPad/Native/GOALPadRuntimeBridge.h")
 let ornament = source(root, "GOALPad/Vision/VisionControllerStatusOrnament.swift")
 let pausedEcoOrnament = source(root, "GOALPad/Vision/VisionPausedEcoOrnament.swift")
 let metalRenderer = source(root, "OpenGOAL/game/graphics/pipelines/metal/metal_renderer.mm")
+let eyeMarker = source(
+    root,
+    "OpenGOAL/game/graphics/pipelines/metal/metal_stereo_eye_marker.h"
+)
 
 let gameplaySurface = section(content,
                               from: "private struct GameplaySurface: View",
@@ -253,9 +257,33 @@ let rendererSubmit = section(
     from: "bool MetalRenderer::submit_external_stereo_frame",
     to: "bool MetalRenderer::render_chain_frame_impl"
 )
+let rendererEyeMarker = section(
+    metalRenderer,
+    from: "void MetalRenderer::encode_stereo_eye_markers",
+    to: "bool MetalRenderer::submit_external_stereo_frame"
+)
 check(rendererStereo.components(separatedBy: "command_buffer, chain_data").count - 1 == 2
         && rendererStereo.contains("m_chain_stats.last_views_rendered = 2"),
       "both eye passes append to the same borrowed command buffer")
+check(eyeMarker.contains("#define GOALPAD_VISION_STEREO_EYE_MARKERS 0")
+        && eyeMarker.contains("kStereoEyeMarkerInset = 14")
+        && eyeMarker.contains("kStereoEyeMarkerLength = 16")
+        && metalRenderer.contains("#if GOALPAD_VISION_STEREO_EYE_MARKERS")
+        && metalRenderer.contains("encode_stereo_eye_markers(command_buffer, left, right)")
+        && metalRenderer.contains("MTLPixelFormatBGRA8Unorm_sRGB")
+        && metalRenderer.contains("MTLStorageModeMemoryless")
+        && metalRenderer.contains("copyFromBuffer:source")
+        && metalRenderer.contains("std::array<u8, 4>{255, 0, 255, 255}")
+        && metalRenderer.contains("std::array<u8, 4>{255, 255, 0, 255}")
+        && occursInOrder([
+            "const bool right_rendered",
+            "if (right_rendered)",
+            "encode_stereo_eye_markers(command_buffer, left, right)",
+            "return right_rendered",
+        ], in: rendererStereo)
+        && !rendererEyeMarker.contains("waitUntilCompleted")
+        && !rendererEyeMarker.contains("wait_for_last_chain_frame"),
+      "the opt-in native marker stamps completed eye textures without a frame-loop wait")
 check(rendererSubmit.components(separatedBy: "[command_buffer commit]").count - 1 == 1
         && rendererSubmit.contains("addCompletedHandler")
         && !rendererSubmit.contains("waitUntilCompleted"),

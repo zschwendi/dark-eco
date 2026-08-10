@@ -12,14 +12,14 @@ nonisolated struct VisionWindowStereoClipPlan: Sendable {
 
 /// Builds a fixed stereo pair from the one clip-space projection authored by Jak's existing
 /// third-person camera. The transform is an explicit post-projection off-axis shift:
-/// `x' = x + eyeSlope * (z - convergenceDepth * w)`. The product retains depth zero as its
-/// convergence plane until a physically calibrated strength and convergence distance exist.
+/// `x' = x + eyeSlope * (z - convergenceDepth * w)`. The defaults are the bounded physical
+/// candidate; physical comfort and depth ordering still require acceptance on Vision Pro.
 nonisolated enum VisionWindowStereoClipPlanner {
     static let leftViewID: UInt64 = 1
     static let rightViewID: UInt64 = 2
-    static let defaultNormalizedDepthDisparitySlope: Float = 0.025
+    static let defaultNormalizedDepthDisparitySlope: Float = 0.05
     static let maximumNormalizedDepthDisparitySlope: Float = 0.05
-    static let defaultConvergenceDepth: Float = 0
+    static let defaultConvergenceDepth: Float = 0.05
 
     static func makePlan(
         normalizedDepthDisparitySlope: Float = defaultNormalizedDepthDisparitySlope,
