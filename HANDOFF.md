@@ -16255,3 +16255,25 @@ the device. Freeze and record the exact tested parent and nested hashes before
 resolving the existing isolated nested merge conflicts. Build 145 remains the
 accepted physical Jak 1 baseline until new maintainer-authorized physical
 evidence supersedes it.
+
+### Physical Vision Pro deployment
+
+After explicit maintainer authorization, Build 150 was built, signed, installed,
+and launched on the paired physical `Zachary's Apple Vision Pro`
+(`7C8DED98-3B86-55CE-B49D-C514E47F745A`). The app is an arm64 visionOS Release
+binary with bundle ID `com.zephyrstudiosllc.eco`, version `1.0 (150)`, team
+`V729QMY3V6`, and CDHash `da7e209da5b03a1d1b3782f7195a61af0b4f6f28`.
+
+```text
+build log /private/tmp/GOALPad-build150-vision-device.log
+app       /private/tmp/GOALPad-build150-vision-device/Build/Products/Release-xros/GOALPad.app
+device installation URL file:///private/var/containers/Bundle/Application/FEB6E6CE-FEB9-475C-9054-FA35D1330226/GOALPad.app/
+launched PID 704
+```
+
+The process remained alive on a second check ten seconds after launch. This is
+signed build, installation, launch, and immediate process-survival evidence.
+It is not yet visual, controller, gameplay, stereoscopic-depth, comfort, or
+extended stability acceptance; the maintainer must report what is visible and
+whether binocular depth appears correct from inside the headset. The physical
+iPad and Jak II lane were not accessed.
