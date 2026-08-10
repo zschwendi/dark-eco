@@ -16331,3 +16331,93 @@ The pre-existing unrelated 1,423-line
 reset, staged, reformatted, or discarded. Nested OpenGOAL remains clean at
 `2bff79c91` on `agent/build146-vision-renderer-integration`. The Jak II merge
 lane and physical iPad/tmux session remain out of scope and untouched.
+
+## 2026-08-09 Build 151 Vision input, ornament, and icon checkpoint
+
+Build 151 is committed and pushed on `agent/build149-vision-aot-suspend-fix`:
+
+```text
+5ffea8cb visionOS: add paused Eco settings ornament
+6e557b42 fix(visionos): route gameplay controller events
+dde3171a feat: install Build 151 Eco app icon
+7d6afa48 build: bump Eco to 151
+```
+
+The paused visionOS surface now exposes one compact top-leading gear + `ECO`
+ornament using the same exact native pause/title-menu visibility gate as the
+iPad settings action. It opens existing Jak 1 settings and adds no gameplay
+touch control or invisible hit region.
+
+The New Game/Load Game face-button failure was traced to the missing
+`GCEventInteraction` required by visionOS. Without it, visionOS converts
+gamepad actions into gaze/pinch UIKit events before the ordinary
+`GCController` path receives them. The gameplay window now exclusively routes
+`.gamepad` events through Game Controller using a zero-size, non-hit-test,
+accessibility-hidden anchor in both Comfort and Stereo. The ordinary Jak pad
+mapping and OpenGOAL bridge are unchanged.
+
+The exact user-supplied icon came from
+`/Users/zach/Documents/ZS Dev/Media/Eco/icon.png` (source SHA-256
+`29a976f5cb568204a2e367fcf292ec73fe424a85c9b0607ca57e1d3df8006bc7`).
+The opaque 1254-square source was tagged sRGB and deterministically resized for
+the complete current iOS/macOS catalog. visionOS keeps the existing two-plane
+solid image stack: the new 1024 icon is the Back plane and the Front remains
+fully transparent, so the layered catalog renders identically to the supplied
+flat artwork. The generated iOS 1024 and visionOS Back are byte-identical.
+
+Focused validation passed:
+
+```text
+Scripts/run-app-icon-check.sh
+Scripts/run-vision-stereo-integration-check.sh
+GOALPAD_VISION_SDK=xros Scripts/run-vision-scene-foundation-check.sh
+Scripts/run-save-sync-check.sh
+Scripts/run-session-startup-readiness-check.sh
+swift Scripts/save-pregame-gate-check.swift "$PWD"
+Scripts/run-touch-controls-check.sh
+git diff --check
+git -C OpenGOAL diff --check
+```
+
+The touch check retains one pre-existing unused-variable warning. The signed
+physical-device Release build succeeded with existing asset-catalog and Swift
+actor-isolation warnings but no errors:
+
+```text
+build log /private/tmp/GOALPad-build151-vision-device.log
+app       /private/tmp/GOALPad-build150-vision-device/Build/Products/Release-xros/GOALPad.app
+bundle    com.zephyrstudiosllc.eco 1.0 (151)
+arch      arm64 xros
+team      V729QMY3V6
+CDHash    824c8cd7b3c7325fbbc34d7a2f96721cc4a23ca5
+```
+
+`codesign --verify --deep --strict` passed. `Assets.car` contains the 1024
+AppIcon plus Front/Back solid-stack renditions. After explicit maintainer
+authorization, the same-bundle install updated Build 150 in place to Build 151
+without uninstalling or replacing the data container:
+
+```text
+install JSON /private/tmp/GOALPad-build151-vision-install.json
+install URL  file:///private/var/containers/Bundle/Application/A14AA194-7500-45C1-A944-011BBE6455F0/GOALPad.app/
+launch JSON  /private/tmp/GOALPad-build151-vision-launch.json
+launched PID 885
+```
+
+The process was still live ten seconds after launch. A post-install read-only
+listing confirmed the same seven native save banks remain in the canonical
+container. Full bank parsing before installation proved valid effective data
+for all four native slots: bank pairs 0/1, 2/3, 4/(missing 5), and 6/7. The
+missing odd peer for slot 3 is valid native state, not data loss. No save was
+synced, promoted, imported, deleted, or mutated during investigation. The
+reported `4295`-like value is not present in the active bank generations; its
+exact UI meaning still requires a photo of the screen where it appears.
+
+Physical acceptance is pending the maintainer's current headset A/B: new icon,
+New Game and Load Game face actions, four native save positions, paused Eco
+ornament, protected Comfort behavior, and Stereo flicker. Do not claim those
+physical interactions work from build/install/process evidence alone.
+
+The pre-existing unrelated 1,423-line project-file rewrite remains unstaged
+and preserved. Nested OpenGOAL remains clean at `2bff79c91`. The physical iPad,
+Jak II worktrees, and tmux sessions were not accessed.
