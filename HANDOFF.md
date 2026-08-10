@@ -16608,3 +16608,82 @@ streams.
 The nested checkout is clean. The parent has no uncommitted source changes; its
 only untracked entry is `.agent-builds/`, which intentionally retains the
 combined validation/build/device logs and the reproducible host build tree.
+
+## Physical rejection of the combined Jak II checkpoint
+
+On 2026-08-10 the maintainer physically tested the installed combined build
+documented above. The exact tested parent checkpoint was `b45e8a12`, with
+OpenGOAL nested HEAD `d5a5d3bf6`. The installed app was
+`com.zephyrstudiosllc.eco.jak2dev`, executable SHA-256
+`de5af40d58a93c5bb9a3fd09b2b4a28ed6073df9fb6f6a37a7ef57acdeaf6b1a`,
+CDHash `19366084ec1297a85eedaa6936913639420031b9`, and installation UUID
+`353E2833-87B9-4573-8357-253B2BF6B4D7`.
+
+This checkpoint is a hard physical rejection despite the successful host,
+Metal-proof, signed-build, install, and launch evidence:
+
+- The Jak II theme song is now audible. This is a real but partial audio
+  improvement.
+- Save/load interaction worked. This is the only newly accepted interaction
+  result; the maintainer could reach the new/load-game flow after repeated
+  Start presses and use the save-related UI.
+- The title Merc, Jak, and enemies are still absent.
+- The intro scene is black.
+- Loading into the prison produces another black screen rather than a visible
+  gameplay frame.
+- No other visual acceptance is possible from this build because the rendered
+  scene is black. Water, glow/light appearance, pause backdrop, title visuals,
+  cinematic visuals, and in-world rendering are therefore not accepted.
+- Audio beyond the audible theme song is not accepted from this run. In
+  particular, black cinematic/gameplay output prevented useful end-to-end
+  cinematic acceptance.
+
+The strongest physical A/B boundary is now explicit: the earlier physical
+`b0f9abc06` checkpoint retained visible title/world backgrounds while lacking
+Mercs, water, and ordinary audio; this combined checkpoint restores at least
+the title BGM but regresses title, intro, and prison/world rendering to black.
+Do not describe this combined build as a visual improvement or as a playable
+checkpoint.
+
+No single cause is proven. The product-renderer changes between the earlier
+physical checkpoint and this build that require a narrow A/B are:
+
+- `18e3b9988`: broad Jak II Merc/GMerc routing.
+- `64a845383`: guarded Jak II ocean routes.
+- `d2729f39d`: unresolved final-glow fail-soft texture.
+
+`545561a0c` and `70957f39a` are test-only changes and are not plausible runtime
+causes. `e5eee6428` is physically supported only for restoring the audible
+theme/BGM path; preserve that improvement independently while isolating the
+visual regression. `766c28f6a` is physically supported by the working
+save/load interaction. Do not blindly revert the audio or touch checkpoints as
+part of a renderer bisect.
+
+Next fresh-context task:
+
+1. Reread `AGENTS.md`, `docs/PROJECT_OVERVIEW.md`, this `HANDOFF.md`, and
+   `ROADMAP.md`; inspect both parent and nested Git/worktree state before edits.
+2. Preserve the known-good import tag and clean OpenGOAL baseline
+   `b6a568f70`. Do not cross into or disturb the active Jak 1 lanes.
+3. Do not send another combined build to the physical iPad until a visible
+   title/background and a visible prison frame are demonstrated by a bounded
+   validation checkpoint. Do not uninstall or clear the existing app container.
+4. Use independent agents for the black-screen render chain, Merc routing, and
+   retention of the working audio/save paths, with one integration/build owner.
+5. First seek a deterministic reproduction on the approved iPad Pro 11-inch
+   (M5) simulator if the required navigation/input seam is available. Otherwise
+   add or use bounded host telemetry/readback that distinguishes frame
+   submission, bucket routing, render-target contents, and final presentation.
+6. Narrowly A/B the three product-renderer commits above. Prefer policy gates
+   or exact bucket/host metrics over speculative renderer edits. The first
+   required result is identification of the earliest point where a previously
+   non-black background becomes black.
+7. Retain the working BGM and save/load interaction while bisecting. Require a
+   visible title/background plus visible prison frame before another physical
+   install; only then resume Merc, water, glow, and cinematic acceptance.
+
+The physical app/process was deliberately left untouched after the maintainer
+report. No uninstall, container clearing, save mutation, log attachment,
+screenshot capture, or additional device action was performed. At this
+handoff, nested OpenGOAL is clean; the parent has no uncommitted source changes
+and retains only the intentional untracked `.agent-builds/` artifacts.
