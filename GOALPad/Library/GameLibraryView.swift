@@ -149,22 +149,30 @@ struct GameLibraryView: View {
 
     private func state(for title: GameLibraryTitle) -> GameLibraryState {
         guard title == .jak1 else { return .planned }
-        if session.isRefreshingDataReport {
-            return .preparing(nil)
-        }
-        if session.startupPhase.isPreparing {
-            return .preparing(nil)
-        }
         switch session.importer.state {
-        case .scanning, .cancelling:
-            return .preparing(nil)
+        case .scanning:
+            return .preparing(.importing(nil))
         case .copying(let progress):
-            return .preparing(progress.fraction)
+            return .preparing(.importing(progress.fraction))
+        case .cancelling:
+            return .preparing(.cancellingImport)
         case .idle, .finished, .failed, .cancelled:
             break
         }
-
+        if session.isRefreshingDataReport || session.dataReport.status == .checking {
+            return .preparing(.checkingLocalData)
+        }
+        switch session.startupPhase {
+        case .waitingForForegroundPreparation:
+            return .preparing(.finishingSaveCheck)
+        case .checkingSaves:
+            return .preparing(.checkingSaves)
+        case .idle, .booting:
+            break
+        }
         switch session.dataReport.status {
+        case .checking:
+            return .preparing(.checkingLocalData)
         case .empty:
             return .notImported
         case .incomplete:
@@ -186,8 +194,15 @@ struct GameLibraryView: View {
             Task { await session.start() }
         case .openJak1Setup:
             openJak1Setup()
-        case .offerJak1Import:
-            presentedAlert = .importJak1
+        case .verifyJak1Data:
+            Task {
+                let report = await session.refreshDataReport()
+                if report.status == .ready {
+                    await session.start()
+                } else {
+                    presentedAlert = .importJak1
+                }
+            }
         case .showUnsupported(let title):
             presentedAlert = .unsupported(title)
         }
@@ -226,7 +241,8 @@ private struct GameLibraryTile: View {
                         Label(stateLabel, systemImage: stateSymbol)
                             .font(.caption.weight(.medium))
                             .foregroundStyle(stateColor)
-                        if case .preparing(let fraction) = state, let fraction {
+                        if case .preparing(let preparation) = state,
+                           let fraction = preparation.fraction {
                             ProgressView(value: fraction)
                                 .tint(DarkEcoTheme.accent)
                         }
@@ -321,7 +337,7 @@ private struct GameLibraryTile: View {
     private var stateLabel: String {
         switch state {
         case .notImported: "Not Imported"
-        case .preparing: "Preparing"
+        case .preparing(let preparation): preparation.label
         case .ready: "Ready"
         case .needsAttention: "Needs Attention"
         case .planned: "Coming soon"
@@ -351,7 +367,13 @@ private struct GameLibraryTile: View {
     private var accessibilityHint: String {
         switch state {
         case .ready: "Starts the game"
-        case .notImported, .preparing, .needsAttention: "Opens game setup"
+        case .preparing(.importing): "Opens game setup and import progress"
+        case .preparing(.cancellingImport): "Opens game setup and cancellation status"
+        case .preparing(.checkingLocalData):
+            "Finishes checking this device before starting or showing setup"
+        case .preparing(.finishingSaveCheck), .preparing(.checkingSaves):
+            "Game will start after the save check"
+        case .notImported, .needsAttention: "Checks again before offering game setup"
         case .planned: "Shows current support status"
         }
     }

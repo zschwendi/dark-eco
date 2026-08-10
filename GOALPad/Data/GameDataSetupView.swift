@@ -26,6 +26,7 @@ struct GameDataSetupView: View {
         .safeAreaPadding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(DarkEcoTheme.background)
+        .task { _ = await session.refreshDataReport() }
         .fileImporter(isPresented: $isChoosingSource,
                       allowedContentTypes: importContentTypes,
                       allowsMultipleSelection: false) { result in
@@ -227,7 +228,7 @@ struct GameDataSetupView: View {
     private var startupMessage: String? {
         switch session.startupPhase {
         case .waitingForForegroundPreparation:
-            "Preparing saves before gameplay…"
+            "Finishing the current save check before gameplay…"
         case .checkingSaves:
             "Checking saves before gameplay…"
         case .idle, .booting:
@@ -262,6 +263,7 @@ struct GameDataSetupView: View {
 
     private var statusIcon: String {
         switch session.dataReport.status {
+        case .checking: "arrow.triangle.2.circlepath"
         case .empty: "tray"
         case .incomplete: "exclamationmark.triangle"
         case .ready: "checkmark.circle"
@@ -270,6 +272,7 @@ struct GameDataSetupView: View {
 
     private var statusColor: Color {
         switch session.dataReport.status {
+        case .checking: return DarkEcoTheme.accentGlow
         case .empty: return .white.opacity(0.72)
         case .incomplete: return DarkEcoTheme.warning
         case .ready: return DarkEcoTheme.success

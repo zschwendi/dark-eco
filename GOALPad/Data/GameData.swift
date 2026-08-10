@@ -78,7 +78,9 @@ nonisolated enum GameDataManifest {
 /// The result of looking at what is actually on disk. Nothing here guesses: every count and every
 /// name comes from the file system.
 nonisolated struct GameDataReport: Sendable {
-    nonisolated enum Status: Sendable {
+    nonisolated enum Status: Equatable, Sendable {
+        /// The app has not finished its first inspection of the local install yet.
+        case checking
         /// Neither `iso/` nor `fr3/` has anything in it.
         case empty
         /// Something is there, but the game cannot boot from it.
@@ -87,7 +89,7 @@ nonisolated struct GameDataReport: Sendable {
         case ready
     }
 
-    var status: Status = .empty
+    var status: Status = .checking
     var missingBootArchives: [String] = []
     var missingLevelArchives: [String] = []
     var missingLevelGeometry: [String] = []
@@ -96,10 +98,19 @@ nonisolated struct GameDataReport: Sendable {
     var audioBankCount = 0
     var totalBytes: Int64 = 0
 
-    var canBoot: Bool { missingBootArchives.isEmpty }
+    var canBoot: Bool {
+        switch status {
+        case .checking, .empty:
+            false
+        case .incomplete, .ready:
+            missingBootArchives.isEmpty
+        }
+    }
 
     var summary: String {
         switch status {
+        case .checking:
+            return "Checking local game data."
         case .empty:
             return "No game data yet."
         case .incomplete where !canBoot:

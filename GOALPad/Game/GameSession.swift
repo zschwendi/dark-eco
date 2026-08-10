@@ -78,6 +78,7 @@ final class GameSession {
     private var currentScenePhase: ScenePhase = .active
     private var startupState = GameplayStartupState()
     private var dataReportRefreshGeneration: UInt64 = 0
+    private var dataReportRefreshTask: Task<GameDataReport, Never>?
     private var foregroundPreparationTask: Task<Void, Never>?
     private var foregroundPreparationGeneration: UInt64?
     private var controlsGuideSuspension = ControlsGuideSuspensionState()
@@ -139,14 +140,28 @@ final class GameSession {
         input.setBindings(presentationSettings.jak1InputBindings)
     }
 
-    func refreshDataReport() async {
+    @discardableResult
+    func refreshDataReport() async -> GameDataReport {
         dataReportRefreshGeneration &+= 1
-        let generation = dataReportRefreshGeneration
+        var generation = dataReportRefreshGeneration
         isRefreshingDataReport = true
-        let report = await Task.detached { GameDataInspector.inspect() }.value
-        guard generation == dataReportRefreshGeneration else { return }
-        dataReport = report
-        isRefreshingDataReport = false
+        var refreshTask = Task.detached { GameDataInspector.inspect() }
+        dataReportRefreshTask = refreshTask
+
+        while true {
+            let report = await refreshTask.value
+            if generation == dataReportRefreshGeneration {
+                dataReport = report
+                dataReportRefreshTask = nil
+                isRefreshingDataReport = false
+                return report
+            }
+            guard let latestRefreshTask = dataReportRefreshTask else {
+                return dataReport
+            }
+            generation = dataReportRefreshGeneration
+            refreshTask = latestRefreshTask
+        }
     }
 
     func clearStartupError() {

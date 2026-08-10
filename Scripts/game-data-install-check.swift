@@ -114,6 +114,12 @@ private func preparedFolder(under root: URL, payload: String = "fixture") throws
 
 @MainActor private func preexistingActiveInstallIsRecognized() throws {
     print("a complete preexisting active install is recognized without importing")
+    let uncheckedReport = GameDataReport()
+    check(uncheckedReport.status == .checking,
+          "an unchecked install is not misreported as empty")
+    check(!uncheckedReport.canBoot,
+          "an unchecked install cannot enable Play before local inspection")
+
     let fixture = try Fixture()
     try writeCompletePreparedData(at: fixture.active)
 

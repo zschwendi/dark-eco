@@ -103,16 +103,39 @@ nonisolated enum GameLibraryTitle: String, CaseIterable, Equatable, Identifiable
 
 nonisolated enum GameLibraryState: Equatable {
     case notImported
-    case preparing(Double?)
+    case preparing(GameLibraryPreparation)
     case ready
     case needsAttention
     case planned
 }
 
+nonisolated enum GameLibraryPreparation: Equatable {
+    case checkingLocalData
+    case importing(Double?)
+    case cancellingImport
+    case finishingSaveCheck
+    case checkingSaves
+
+    var label: String {
+        switch self {
+        case .checkingLocalData: "Checking Local Data"
+        case .importing: "Importing Data"
+        case .cancellingImport: "Cancelling Import"
+        case .finishingSaveCheck: "Finishing Save Check"
+        case .checkingSaves: "Checking Saves"
+        }
+    }
+
+    var fraction: Double? {
+        guard case .importing(let fraction) = self else { return nil }
+        return fraction
+    }
+}
+
 nonisolated enum GameLibraryCardAction: Equatable {
     case start
     case openJak1Setup
-    case offerJak1Import
+    case verifyJak1Data
     case showUnsupported(GameLibraryTitle)
 
     static func resolve(title: GameLibraryTitle, state: GameLibraryState) -> Self {
@@ -120,10 +143,14 @@ nonisolated enum GameLibraryCardAction: Equatable {
         switch state {
         case .ready:
             return .start
-        case .preparing:
+        case .preparing(.importing), .preparing(.cancellingImport):
             return .openJak1Setup
+        case .preparing(.finishingSaveCheck), .preparing(.checkingSaves):
+            return .start
+        case .preparing(.checkingLocalData):
+            return .verifyJak1Data
         case .notImported, .needsAttention:
-            return .offerJak1Import
+            return .verifyJak1Data
         case .planned:
             return .showUnsupported(title)
         }

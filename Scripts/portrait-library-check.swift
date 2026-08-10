@@ -143,8 +143,10 @@ do {
                         "launcher shelf, adaptive gutters, menu ordering, or About destination regressed"])
     }
     print("  ok   launcher menu is Settings then a unified About destination")
-    guard libraryScreen.contains("if session.startupPhase.isPreparing")
-            && libraryScreen.contains("return .preparing(nil)")
+    guard libraryScreen.contains("case .waitingForForegroundPreparation:")
+            && libraryScreen.contains("return .preparing(.finishingSaveCheck)")
+            && libraryScreen.contains("case .checkingSaves:")
+            && libraryScreen.contains("return .preparing(.checkingSaves)")
             && libraryScreen.contains(".onChange(of: session.startupError, initial: true)")
             && libraryScreen.contains("title: Text(\"Couldn't Start Game\")")
             && libraryScreen.contains("action: session.clearStartupError")
@@ -293,12 +295,20 @@ do {
           "the first game uses its full canonical title instead of numbered shorthand")
     check(GameLibraryCardAction.resolve(title: .jak1, state: .ready) == .start,
           "installed Jak 1 starts from its full card")
-    check(GameLibraryCardAction.resolve(title: .jak1, state: .preparing(nil))
+    check(GameLibraryCardAction.resolve(title: .jak1, state: .preparing(.importing(nil)))
           == .openJak1Setup,
           "an active Jak 1 import reopens its existing progress flow")
+    check(GameLibraryCardAction.resolve(
+            title: .jak1, state: .preparing(.finishingSaveCheck)) == .start
+          && GameLibraryCardAction.resolve(
+            title: .jak1, state: .preparing(.checkingSaves)) == .start,
+          "save preparation remains a coalesced Play request instead of opening import")
+    check(GameLibraryCardAction.resolve(
+            title: .jak1, state: .preparing(.checkingLocalData)) == .verifyJak1Data,
+          "a tap during the local-data check retains verification instead of offering reimport")
     check(GameLibraryCardAction.resolve(title: .jak1, state: .notImported)
-          == .offerJak1Import,
-          "missing Jak 1 data presents the supported import offer")
+          == .verifyJak1Data,
+          "apparently missing Jak 1 data is rechecked before the supported import offer")
     check(GameLibraryCardAction.resolve(title: .jak2, state: .ready)
           == .showUnsupported(.jak2)
           && GameLibraryCardAction.resolve(title: .jak3, state: .planned)
