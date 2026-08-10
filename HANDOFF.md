@@ -16353,3 +16353,59 @@ one batched native/Metal build plus the approved iPad Pro 11-inch (M5)
 Simulator validation. Do not access physical `Z iPad Pro` without new explicit
 maintainer authorization in the active request. Do not commit or inspect retail
 asset content as part of these renderer/runtime fixes.
+
+## Jak II common-shrub Merc checkpoint
+
+The invisible-character lane is source-proven through nested OpenGOAL commit
+`b0f9abc06` on `agent/jak2-merc-invisible`, based directly on the known-good
+`b6a568f70` import baseline. The parent integration checkout now pins that
+nested commit; the annotated known-good import tag remains unchanged.
+
+The retained pre-patch Simulator runtime log provides the causal live seam:
+at title idle its largest deferred payload was bucket 192 with 6,032 bytes,
+immediately preceded by bucket 191 with 192 bytes. Those are exactly OpenGL's
+`MERC_LCOM_SHRUB` and `TEX_LCOM_SHRUB` bindings. Metal continued rendering the
+separate Sprite3 particle bucket, matching the maintainer's report that dust
+and simulation remained live while bodies were absent.
+
+The nested change promotes only that observed pair. Bucket 191 enters the
+existing fail-closed normal/common SHRUB planner, which accepts its exact
+five-transfer, 192-byte Direct-only inert setup and performs no texture-pool
+mutation. Bucket 192 now uses the shared normal `MetalMerc2` renderer. The
+other 45 OpenGL-bound Merc/GMerc foreground omissions remain deferred until
+live evidence and their own bounded proofs justify them.
+
+The asset-free GPU proof now sends a source-shaped Merc chain through bucket
+192 and requires one model, one draw, two triangles, non-black color readback,
+and the normal depth contract. An independent source review found no P1/P2
+issue. Focused policy, setup-parser, host-dispatch, and Merc GPU tests passed
+4/4. The canonical combined Metal matrix passed 15/15, and the complete arm64
+macOS `jak2-metal-runtime-proof` executable compiled and linked successfully.
+Logs are retained under:
+
+```text
+.agent-builds/merc-proof-logs/common-shrub-focused-ctest-final.log
+.agent-builds/merc-proof-logs/common-shrub-integrated-metal-ctest-final.log
+.agent-builds/merc-proof-logs/common-shrub-runtime-proof-build.log
+.agent-builds/merc-proof-logs/common-shrub-simulator-build.log
+.agent-builds/merc-proof-logs/common-shrub-simulator-runtime.log
+```
+
+The complete `Eco Jak II Dev` Release build for the approved iPad Pro 11-inch
+(M5) Simulator also succeeded in 310.366 seconds, including the public
+840-object source-pack verification, Jak II AOT verification, import composer,
+native Metal runtime, application link, and local signing. That exact app was
+installed in place without clearing its existing 5.25 GB prepared-data
+container. It launched successfully and revalidated the 605-file `iso/` and
+148-file `fr3/` title/gameplay contract, but remained at the Library because no
+approved programmatic UI-input seam is available. The post-patch gameplay run
+therefore still requires one manual tap on the `Jak II - Experimental Ready`
+card. The Simulator is currently booted with the app open and console capture
+attached; shut it down after that validation. No physical device was accessed.
+
+This remains deterministic host-GPU, full host-link, and Simulator build/launch
+evidence, not live Merc visual acceptance. The next gate is the fresh
+post-integration Simulator gameplay run confirming that deferred bucket 192
+disappears, Merc models/draws become nonzero, and Jak/enemies are visibly
+restored without new malformed, missing-model, bone, or palette-health
+diagnostics.
