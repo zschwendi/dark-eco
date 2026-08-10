@@ -16147,8 +16147,8 @@ The private raw-ISO APFS clone checkpoint remains separate at parent commit
 
 ## Jak II callback-scan removal checkpoint
 
-The standalone Jak II parent is clean through `432667e1` on
-`agent/jak2-ipad-playtest`, pinned to detached OpenGOAL `66caaa587`. This is not
+The standalone Jak II parent is clean through `bb3154ef` on
+`agent/jak2-ipad-playtest`, pinned to detached OpenGOAL `393ffa2dc`. This is not
 a Jak 1 build-number successor. Nested commit `c7c45c31a` removes Jak II's
 redundant full staged-content verification rereads while retaining exact
 descriptor/tree finalization. Nested commit `66caaa587` removes the recursive
@@ -16156,7 +16156,10 @@ work-tree manifest capture that previously ran before and after every progress
 and cancellation callback, while retaining callback exception typing and
 stage-boundary ownership/cleanup checks. Cataloging now reports each of the 149
 archives before work begins and emits bounded numeric object milestones during
-long archives.
+long archives. Nested commit `393ffa2dc` makes materialization decode each
+source retail archive once, then indexes the retained checked archive instead
+of hashing, decompressing, parsing, and copying every object a second time.
+Jak 1 and Jak II catalog paths share the same bounded indexing implementation.
 
 Focused integration validation passed:
 
@@ -16178,10 +16181,32 @@ build `1`. Build log:
 .agent-builds/jak2-fast-import/logs/catalog-fast-device-build.log
 ```
 
-Installation is intentionally pending. A read-only CoreDevice process check
-found the existing Eco Jak II Dev process still running as PID 25732, so the
-ready in-place update was withheld rather than risk terminating the maintainer's
-long-running import. Install the exact bundle from
-`.agent-builds/jak2-fast-import-device/Build/Products/Release-iphoneos/EcoJak2Dev.app`
-only after the maintainer confirms the current app has been fully closed. Do not
-uninstall, clear data, launch, or inject input during that update.
+The single-decode follow-up passed the catalog, Jak 1 materializer, Jak II
+materializer, and Jak II composer tests 4/4 in 2.47 seconds. An independent
+read-only review approved the final shared error mapping and catalog parity for
+Jak 1, Jak II, and aligned compressed archives. The first device-specific
+rebuild attempt failed before compilation because the locked iPad destination
+was unavailable. The generic signed iOS Release rebuild then succeeded in
+21.753 seconds. This was an environment failure, not a source failure. Log:
+
+```text
+.agent-builds/jak2-fast-import/logs/single-decode-generic-device-build.log
+```
+
+After the maintainer confirmed the app was closed, the old suspended PID 25732
+was terminated and the exact bundle was installed in place. Nothing was
+uninstalled or cleared, and the app was not launched. CoreDevice inventory
+confirms `Eco Jak II Dev 1.0 (1)`, identifier
+`com.zephyrstudiosllc.eco.jak2dev`, on `Z iPad Pro`. Evidence:
+
+```text
+.agent-builds/jak2-fast-import/logs/single-decode-process-terminate.log
+.agent-builds/jak2-fast-import/logs/single-decode-device-install.log
+.agent-builds/jak2-fast-import/logs/single-decode-device-inventory.log
+```
+
+This proves build and installation, not the new on-device import duration. The
+next import under this binary is the performance measurement gate. Two full
+prepared-output rereads and cross-stage archive decoding remain known larger
+follow-ups; they were intentionally not folded into this checkpoint because
+they require an ownership/lifetime redesign rather than another local removal.
