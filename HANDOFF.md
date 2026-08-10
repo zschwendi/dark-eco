@@ -16835,3 +16835,148 @@ The pre-existing project-file ordering rewrite remains the only unstaged parent
 change. Its working copy carries the committed Dark Eco and Build 154 values;
 the broad ordering diff remains preserved. Nested OpenGOAL is clean and already
 matches its remote at `1c2eae29a3359404c4d94d6960301594540afbe3`.
+
+# 2026-08-09 Build 155 installed-data and cloud-save UX checkpoint
+
+Build 154 remains the protected accepted 2D baseline. The maintainer reported
+that Build 154 otherwise looks good, but rejected its launcher and cloud-save
+behavior: a previously imported and played Jak 1 install could appear as
+`Preparing` or request another import until Recheck; save preparation had no
+specific launcher explanation; iPhone cloud saves did not behave like the same
+build on iPad and Vision Pro; and the combined Sync action appeared inert.
+
+Build 155 is a focused Swift launcher/save correction above that checkpoint:
+
+```text
+f8b9d2b5 fix: make installed game readiness deterministic (AI-assisted)
+63bf4a62 fix(saves): bound cloud preparation and retry identity changes
+3e04a160 build: stage Dark Eco 155 launcher and cloud fixes
+```
+
+The launcher now starts with `Checking Local Data` instead of treating an
+unchecked install as empty. Active imports alone open the import/setup flow.
+Local inspection and pregame save phases have distinct labels, overlapping
+inspections publish and return only the newest report, and apparently missing
+data is re-inspected before any import offer. A valid installed title therefore
+cannot be routed to reimport merely because saves are preparing.
+
+Save startup, save-sync enable, and iCloud identity changes now share one
+controller-owned automatic task. A completed launch-time bidirectional sync
+satisfies the next Play request instead of being repeated. Play bounds ordinary
+cloud preparation to eight seconds, cancels owned cloud work on timeout, allows
+one second for its exclusive engine lease to release, and checks the durable
+local recovery journal before using native local saves. If the lease does not
+release or the journal is unsafe, Play fails visibly rather than overlapping a
+cloud replacement with gameplay. One placeholder download poll is bounded to
+five seconds. Active gameplay remains upload-only.
+
+Manual combined Sync starts enabled settings and save domains concurrently, so
+settings-cloud latency cannot starve save sync. Save unavailability distinguishes
+an unavailable account/iCloud Drive from a container that is not ready, gives a
+non-sensitive recovery action, and retries when
+`NSUbiquityIdentityDidChange` fires. The signed Build 154 iOS and visionOS
+artifacts and known-good Build 92 iPad artifact were audited before this change:
+all use team `V729QMY3V6`, bundle ID `com.zephyrstudiosllc.eco`, CloudDocuments,
+and `iCloud.com.zephyrstudiosllc.eco`. No entitlement, profile, bundle-ID, or
+platform-conditional defect was found, so Build 155 does not churn capabilities.
+
+Primary-agent focused validation passed:
+
+```text
+Scripts/run-save-sync-check.sh
+swift Scripts/save-pregame-gate-check.swift "$PWD"
+Scripts/run-game-data-install-check.sh
+Scripts/run-game-data-import-lifecycle-check.sh
+Scripts/run-game-data-import-presentation-check.sh
+Scripts/run-game-data-import-source-check.sh
+swift Scripts/game-data-import-ui-check.swift "$PWD"
+Scripts/run-presentation-settings-check.sh
+Scripts/run-session-startup-readiness-check.sh
+Scripts/run-portrait-library-check.sh
+xcrun swiftc -frontend -parse GOALPad/Data/GameData.swift \
+  GOALPad/Data/GameDataSetupView.swift GOALPad/Game/GameSession.swift \
+  GOALPad/Library/GameLibrary.swift GOALPad/Library/GameLibraryView.swift \
+  GOALPad/Saves/SaveSyncController.swift GOALPad/Saves/SaveSyncEngine.swift
+git diff --check
+```
+
+Focused logs are:
+
+```text
+/private/tmp/GP-build155-root-save-sync.log
+/private/tmp/GP-build155-root-import.log
+/private/tmp/GP-build155-root-ui.log
+```
+
+Release builds passed serially with the existing verified 518-object public
+source pack:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build154-ios-generic -jobs 4 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack \
+  build
+
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=visionOS' \
+  -derivedDataPath /private/tmp/GOALPad-build150-vision-device -jobs 4 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack \
+  build
+
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-build154-macos-arm64 -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack \
+  build
+```
+
+Products and logs:
+
+```text
+iOS log /private/tmp/GOALPad-build155-ios.log
+iOS app /private/tmp/GOALPad-build154-ios-generic/Build/Products/Release-iphoneos/Dark Eco.app
+  Dark Eco 1.0 (155), arm64, signed, CDHash 709ac68bccb661b4d76d904cfacf149c823fd8b5
+  executable SHA-256 c6f5505d12999f3aa42e7164a07a4f8b0c0d549302a1968bd9d90c63cdf62d4b
+visionOS log /private/tmp/GOALPad-build155-visionos.log
+visionOS app /private/tmp/GOALPad-build150-vision-device/Build/Products/Release-xros/Dark Eco.app
+  Dark Eco 1.0 (155), arm64, signed, CDHash 88a6a3ecb98454185eaacf9b6bdedaac761322ee
+  executable SHA-256 4dc7b23089b9b5682d811e7afabddf442a8ed7df2d5b67b0c3574dc6ced20123
+macOS log /private/tmp/GOALPad-build155-macos.log
+macOS app /private/tmp/GOALPad-build154-macos-arm64/Build/Products/Release/Dark Eco.app
+  Dark Eco 1.0 (155), arm64, unsigned
+  executable SHA-256 e3785478dbe1413d3950224f69df9d29553d92cf8d0729c805f10ff0d1d39baf
+```
+
+Strict codesign verification passed for iOS and visionOS. Both signed products
+retain the same team, application identifier, iCloud container, and ubiquity
+container. All three builds retained the known actor-isolation, upstream C++,
+generated AOT, and always-run script warnings and produced no errors.
+
+Before reusing the incremental build caches, the exact Build 154 products were
+preserved at:
+
+```text
+/private/tmp/Dark-Eco-Build154-iOS.app
+/private/tmp/Dark-Eco-Build154-visionOS.app
+/private/tmp/Dark-Eco-Build154-macOS.app
+```
+
+No app was installed or launched, and no physical iPhone, iPad, Vision Pro,
+controller, device logs, screen capture, app container, save, or imported game
+data was accessed. Physical multi-device acceptance remains required. Test a
+previously imported title without Recheck, Play during an initial sync, manual
+Sync in Settings, and the same save across iPhone, iPad, and Vision Pro. A real
+FileProvider operation that ignores cancellation is expected to fail Play
+visibly instead of risking the native save authority.
+
+The pre-existing broad `project.pbxproj` ordering rewrite remains the only
+unstaged parent change and is preserved. Only the two Build 155 version lines
+were staged and committed. Nested OpenGOAL remains clean at
+`1c2eae29a3359404c4d94d6960301594540afbe3`.
