@@ -16096,3 +16096,51 @@ The successful install log is:
 ```text
 .agent-builds/jak2-fast-import/logs/device-install-awake.log
 ```
+
+## Jak II ISO I/O throughput checkpoint
+
+The requested first delivery split is installed on `Z iPad Pro`. The isolated
+parent is clean at `e7794370` on `agent/jak2-ipad-playtest`, pinned to clean
+detached OpenGOAL `aefbd1dc6`. Native commit `c70f784e4` raises the default
+sequential extraction read to 4 MiB, uses explicit-offset POSIX `pread`, and
+reports progress at file completion plus 8 MiB byte intervals. Native follow-up
+`aefbd1dc6` preserves reader-level cancellation after the final progress callback
+without changing the final descriptor-relative integrity gate or destructive
+path-replacement handling. Validation-pass consolidation is intentionally not
+part of this checkpoint.
+
+Focused validation passed:
+
+```text
+cmake --build .agent-builds/jak2-fast-import-materializer \
+  --target safe-iso-reader-test jak2-iso-validation-test -j4
+ctest --test-dir .agent-builds/jak2-fast-import-materializer \
+  --output-on-failure \
+  -R '^(safe-iso-reader-test|jak2-iso-validation-test)$'
+```
+
+Result: 2/2 passed. The first integration run caught and fixed reader-error
+provenance for cancellation after a throttled tiny-file completion callback;
+the final run also preserves the existing last-callback mutation and
+path-replacement cleanup tests. Logs are:
+
+```text
+.agent-builds/jak2-fast-import/logs/iso-io-focused-build-final3.log
+.agent-builds/jak2-fast-import/logs/iso-io-focused-ctest-final3.log
+```
+
+The signed physical Release build succeeded in 16.647 seconds and verified as a
+thin arm64 bundle `com.zephyrstudiosllc.eco.jak2dev`, version `1.0`, build `1`.
+The in-place CoreDevice install succeeded; the existing app data was not
+uninstalled or cleared, and the app was not launched. Device inventory confirms
+`Eco Jak II Dev 1.0 (1)` is installed. Logs are:
+
+```text
+.agent-builds/jak2-fast-import/logs/iso-io-device-build.log
+.agent-builds/jak2-fast-import/logs/iso-io-device-install.log
+```
+
+This is build/install evidence, not an on-device throughput measurement. The
+next import must be restarted under the new binary to measure the improvement.
+The private raw-ISO APFS clone checkpoint remains separate at parent commit
+`af1a35e4`; it was not integrated into or installed with this delivery.
