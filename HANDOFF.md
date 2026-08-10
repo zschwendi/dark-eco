@@ -16271,3 +16271,58 @@ Jak II is playable. Once that gate is met, the Jak 1 integration owner may merge
 this isolated line into the main Jak branch and run the combined Jak 1/Jak II
 regression matrix. The annotated parent tag
 `jak2-known-good-import-20260809` identifies this scoped baseline.
+
+## Active Jak II playability-blocker checkpoint
+
+The first maintainer gameplay session from the known-good import baseline
+confirmed that Jak II imports, boots, and reaches controllable gameplay, but it
+also exposed four independent release blockers. This work is active and must
+remain isolated from the protected Jak 1 line:
+
+1. World water is absent.
+2. Blinking lamps and other light sources draw hard squares/quadrilaterals
+   instead of smooth, blended radiant light.
+3. The opening/recap, save-confirm follow-up, and Jak torture cinematics are
+   silent and advance as only a few janky frames rather than playing normally.
+4. Jak and enemies are invisible while their simulation remains live: dust,
+   footsteps/audio, camera tracking, and gameplay continue. This is a shared
+   Merc-character rendering failure, not merely a missing Jak entity.
+
+The maintainer also reported that the brown pause-menu backdrop, which should
+be a low-alpha overlay over the live scene, renders fully opaque and blocks the
+scene. Treat that as an alpha/blend correctness defect, not intended UI.
+
+All implementation lanes start from exact clean nested OpenGOAL
+`b6a568f70e2932cae8ef5d393afacd817f0851c1`. The parent integration owner is
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-jak2-build145-integration` on
+`agent/jak2-ipad-playtest`; the known-good import tag must not move.
+
+Active isolated ownership:
+
+- Water: agent task `jak2_water_runtime`; it owns the Jak II water-family
+  source audit and deterministic Metal proof.
+- Light quads and pause-overlay alpha: agent task `jak2_glow_runtime`; it owns
+  Sprite3/glow visibility and the relevant alpha/blend semantics.
+- Cinematics/audio: agent task `jak2_cutscene_audio`; it owns STR/VAG
+  streaming, scene timing, and spooled-animation behavior.
+- Invisible Jak/enemies: primary integration owner on branch
+  `agent/jak2-merc-invisible`, exact base `b6a568f70`. Current source inspection
+  confirms the Metal host already exposes detailed Merc model/draw,
+  missing-bone, and palette-health telemetry; diagnosis must use those counters
+  or a deterministic proof before changing renderer behavior.
+
+The data volume reached 100 percent while creating the new isolated checkouts.
+The primary agent removed only its newly created clean
+`OG-jak2-merc-invisible` worktree, preserving its branch at exact base. The glow
+worker's branch `agent/jak2-build145-glow-runtime` also exists at exact base but
+its worktree could not be created. Do not delete user data or existing source
+worktrees to make room. Continue read-only auditing from the exact integration
+checkout until a recorded, reproducible build artifact can be safely retired,
+then create only the one implementation worktree currently needed.
+
+Workers may run only patch-local focused checks. The primary agent must review
+each result, integrate only source-proven non-overlapping commits, and then run
+one batched native/Metal build plus the approved iPad Pro 11-inch (M5)
+Simulator validation. Do not access physical `Z iPad Pro` without new explicit
+maintainer authorization in the active request. Do not commit or inspect retail
+asset content as part of these renderer/runtime fixes.
