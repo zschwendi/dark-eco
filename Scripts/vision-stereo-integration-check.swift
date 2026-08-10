@@ -263,8 +263,9 @@ check(app.components(separatedBy: "WindowGroup").count - 1 == 1
         && !app.contains("VisionPresentationSessionBridge"),
       "the product declares one bounded Shared Space WindowGroup")
 check(surface.contains("VisionWindowStereoClipPlanner.makePlan()")
-        && clipPlan.contains("defaultNormalizedFarPlaneSeparation")
-        && clipPlan.contains("let halfSeparation")
+        && clipPlan.contains("defaultNormalizedDepthDisparitySlope")
+        && clipPlan.contains("defaultConvergenceDepth")
+        && clipPlan.contains("-eyeSlope * convergenceDepth")
         && !surface.contains("windowFromHead")
         && !clipPlan.contains("headFromEyes"),
       "the fixed pair derives only from Jak's existing game-camera clip projection")

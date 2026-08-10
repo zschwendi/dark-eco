@@ -10,27 +10,34 @@ nonisolated struct VisionWindowStereoClipPlan: Sendable {
     let right: View
 }
 
-/// Builds a conservative fixed stereo pair from the one clip-space projection authored by Jak's
-/// existing third-person camera. The Metal depth-zero plane remains the convergence plane, so the
-/// game camera is never replaced or driven by the device, window, or viewer pose.
+/// Builds a fixed stereo pair from the one clip-space projection authored by Jak's existing
+/// third-person camera. The transform is an explicit post-projection off-axis shift:
+/// `x' = x + eyeSlope * (z - convergenceDepth * w)`. The product retains depth zero as its
+/// convergence plane until a physically calibrated strength and convergence distance exist.
 nonisolated enum VisionWindowStereoClipPlanner {
     static let leftViewID: UInt64 = 1
     static let rightViewID: UInt64 = 2
-    static let defaultNormalizedFarPlaneSeparation: Float = 0.025
-    static let maximumNormalizedFarPlaneSeparation: Float = 0.05
+    static let defaultNormalizedDepthDisparitySlope: Float = 0.025
+    static let maximumNormalizedDepthDisparitySlope: Float = 0.05
+    static let defaultConvergenceDepth: Float = 0
 
     static func makePlan(
-        normalizedFarPlaneSeparation: Float = defaultNormalizedFarPlaneSeparation
+        normalizedDepthDisparitySlope: Float = defaultNormalizedDepthDisparitySlope,
+        convergenceDepth: Float = defaultConvergenceDepth
     ) -> VisionWindowStereoClipPlan? {
-        guard normalizedFarPlaneSeparation.isFinite,
-              normalizedFarPlaneSeparation > 0,
-              normalizedFarPlaneSeparation <= maximumNormalizedFarPlaneSeparation else {
+        guard normalizedDepthDisparitySlope.isFinite,
+              normalizedDepthDisparitySlope > 0,
+              normalizedDepthDisparitySlope <= maximumNormalizedDepthDisparitySlope,
+              convergenceDepth.isFinite,
+              (0...1).contains(convergenceDepth) else {
             return nil
         }
 
-        let halfSeparation = normalizedFarPlaneSeparation * 0.5
-        let leftTransform = clipTransform(horizontalParallax: -halfSeparation)
-        let rightTransform = clipTransform(horizontalParallax: halfSeparation)
+        let halfSlope = normalizedDepthDisparitySlope * 0.5
+        let leftTransform = clipTransform(eyeSlope: -halfSlope,
+                                          convergenceDepth: convergenceDepth)
+        let rightTransform = clipTransform(eyeSlope: halfSlope,
+                                           convergenceDepth: convergenceDepth)
 
         return VisionWindowStereoClipPlan(
             left: .init(viewID: leftViewID, clipFromGameClip: leftTransform),
@@ -38,9 +45,11 @@ nonisolated enum VisionWindowStereoClipPlanner {
         )
     }
 
-    private static func clipTransform(horizontalParallax: Float) -> simd_float4x4 {
+    private static func clipTransform(eyeSlope: Float,
+                                      convergenceDepth: Float) -> simd_float4x4 {
         var transform = matrix_identity_float4x4
-        transform.columns.2.x = horizontalParallax
+        transform.columns.2.x = eyeSlope
+        transform.columns.3.x = -eyeSlope * convergenceDepth
         return transform
     }
 }
