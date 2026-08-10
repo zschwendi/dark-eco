@@ -185,7 +185,7 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
             return GameDataImportFailure(
                 code: .stagingFailed,
                 message: message.isEmpty
-                    ? "Eco could not write the prepared game-data candidate." : message,
+                    ? "Dark Eco could not write the prepared game-data candidate." : message,
                 candidatePreserved: preserved
             )
         case .cancelled:

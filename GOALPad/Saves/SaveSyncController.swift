@@ -686,7 +686,7 @@ struct SaveSettingsView: View {
                     Label("Export Saves", systemImage: "square.and.arrow.up")
                 }
                 .disabled(sync.isBusy)
-                Text("Eco imports and exports the four \(GameLibraryTitle.jak1.name) save slots. When copies "
+                Text("Dark Eco imports and exports the four \(GameLibraryTitle.jak1.name) save slots. When copies "
                      + "differ, the older copy is preserved automatically.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -728,7 +728,7 @@ struct SaveSettingsView: View {
                     Label("Refresh Preserved Saves", systemImage: "arrow.clockwise")
                 }
                 .disabled(sync.isBusy)
-                Text("Choose Make Active to restore a preserved native \(GameLibraryTitle.jak1.name) save. Eco preserves "
+                Text("Choose Make Active to restore a preserved native \(GameLibraryTitle.jak1.name) save. Dark Eco preserves "
                      + "the current active copy before replacing it.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -785,7 +785,7 @@ struct SaveSettingsView: View {
             Button("Return to Library", role: .destructive) { returnToLibrary() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Eco will close the running game. Progress since your last in-game save will be lost.")
+            Text("Dark Eco will close the running game. Progress since your last in-game save will be lost.")
         }
         .task { await sync.refreshArchivedSaves() }
     }
@@ -862,7 +862,7 @@ struct SaveSettingsView: View {
             }
             if settings.primaryInputSource != .automatic,
                !input.isSourceAvailable(settings.primaryInputSource) {
-                Text("The selected source is not connected. Eco uses Automatic until it returns.")
+                Text("The selected source is not connected. Dark Eco uses Automatic until it returns.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

@@ -4,7 +4,7 @@ Status: **Implemented and signed in Build 127; physical interaction coverage pen
 Scope: authored Jak 1 on-screen face-button prompts outside native title/progress menus
 
 This inventory distinguishes an authored prompt from an ordinary gameplay control.
-Eco may add a semantic touch target only while the game itself owns and accepts that
+Dark Eco may add a semantic touch target only while the game itself owns and accepts that
 prompt. It must not infer a prompt from proximity, display ownership, a screenshot,
 or an unprompted controller read.
 

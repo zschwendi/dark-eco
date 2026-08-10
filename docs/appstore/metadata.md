@@ -5,7 +5,7 @@
 
 ## Product identity
 
-- **Title:** Eco
+- **Title:** Dark Eco
 - **Subtitle:** Native OpenGOAL Runtime
 - **Bundle identifier:** `com.zephyrstudiosllc.eco`
 - **iCloud container:** `iCloud.com.zephyrstudiosllc.eco`
@@ -21,7 +21,7 @@ separate App Store Connect privacy questionnaire.
 Build 133 adds three optional consumable StoreKit tips. The app displays Apple's
 localized prices and provides no feature, content, or entitlement in return.
 Product identifiers, intended US price points, test cases, and required App Store
-Connect setup are recorded in [Eco optional tips](STOREKIT_TIPS.md).
+Connect setup are recorded in [Dark Eco optional tips](STOREKIT_TIPS.md).
 
 `ITSAppUsesNonExemptEncryption` is `false`. The app implements no encryption;
 CryptoKit is used only for one-way save-file identity hashes, while iCloud and
@@ -30,11 +30,11 @@ technical configuration, not a legal or export-classification guarantee.
 
 ## Identity migration
 
-Eco intentionally uses a new paid-team application identity instead of the
+Dark Eco intentionally uses a new paid-team application identity instead of the
 earlier GOALPad development bundle identifier. Apple treats it as a separate
 app and sandbox, so local game data, settings, and saves from an existing
 GOALPad installation do not migrate automatically. Export or otherwise preserve
-local saves before moving a device to Eco; never uninstall the existing app
+local saves before moving a device to Dark Eco; never uninstall the existing app
 as part of migration testing.
 
 ## Platform presentation

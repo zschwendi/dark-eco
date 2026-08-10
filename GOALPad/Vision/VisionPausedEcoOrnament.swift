@@ -8,7 +8,7 @@ struct VisionPausedEcoOrnament: View {
         Button(action: openSettings) {
             HStack(spacing: 6) {
                 Image(systemName: "gearshape")
-                Text("ECO")
+                Text("DARK ECO")
             }
             .font(.system(size: 12, weight: .semibold, design: .rounded))
             .tracking(1.4)
@@ -19,7 +19,7 @@ struct VisionPausedEcoOrnament: View {
         }
         .buttonStyle(.plain)
         .glassBackgroundEffect(in: Capsule())
-        .accessibilityLabel("Eco Settings")
+        .accessibilityLabel("Dark Eco Settings")
     }
 }
 #endif

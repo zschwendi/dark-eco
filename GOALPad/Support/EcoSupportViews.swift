@@ -10,17 +10,17 @@ struct EcoAboutView: View {
             VStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Eco")
+                        Text("Dark Eco")
                             .font(.largeTitle.bold())
                     }
 
-                    Text("Eco is a native Apple runtime for OpenGOAL developed by Zach Schwendiman, published by Zephyr Studios.")
+                    Text("Dark Eco is a native Apple runtime for OpenGOAL developed by Zach Schwendiman, published by Zephyr Studios.")
           
 
-                    Text("Eco is built on the open-source OpenGOAL project and the work of its contributors.")
+                    Text("Dark Eco is built on the open-source OpenGOAL project and the work of its contributors.")
 
 
-                    Text("Eco is not affiliated with Sony Interactive Entertainment, Naughty Dog, or the OpenGOAL team.")
+                    Text("Dark Eco is not affiliated with Sony Interactive Entertainment, Naughty Dog, or the OpenGOAL team.")
                         .foregroundStyle(.secondary)
                 }
 
@@ -49,7 +49,7 @@ struct EcoAboutView: View {
 }
 
 private struct EcoContactView: View {
-    private let emailURL = URL(string: "mailto:contact@zephyrstudios.dev?subject=Eco%20Support")!
+    private let emailURL = URL(string: "mailto:contact@zephyrstudios.dev?subject=Dark%20Eco%20Support")!
 
     var body: some View {
         SupportPage(title: "Contact") {

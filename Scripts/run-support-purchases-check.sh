@@ -26,7 +26,7 @@ rg -Fq 'Text("The app is free. These are optional tips that help fund developmen
 rg -Fq 'SupportRow(title: "Contact"' "$views"
 rg -Fq 'SupportRow(title: "Donate"' "$views"
 rg -Fq 'SupportPage(title: "About")' "$views"
-rg -Fq 'mailto:contact@zephyrstudios.dev?subject=Eco%20Support' "$views"
+rg -Fq 'mailto:contact@zephyrstudios.dev?subject=Dark%20Eco%20Support' "$views"
 rg -Fq 'Label("Contact support", systemImage: "envelope")' "$views"
 rg -Fq 'Want to support the OpenGOAL project directly? Visit their official project page.' "$views"
 

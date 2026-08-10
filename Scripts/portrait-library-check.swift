@@ -131,7 +131,7 @@ do {
             && libraryScreen.contains(".tint(DarkEcoTheme.accent)")
             && about.contains("SupportPage(title: \"About\")")
             && supportViews.contains(".tint(DarkEcoTheme.accent)")
-            && about.contains("Eco is built on the open-source OpenGOAL project")
+            && about.contains("Dark Eco is built on the open-source OpenGOAL project")
             && about.contains("SupportRow(title: \"Contact\"")
             && about.contains("SupportRow(title: \"Donate\"")
             && about.contains("Button(\"Done\")")

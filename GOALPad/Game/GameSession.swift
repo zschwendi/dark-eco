@@ -22,7 +22,7 @@ final class GameSession {
     private static let saveRecoveryMessage =
         "Save recovery needs attention. Open Settings and retry iCloud Saves before playing."
     private static let inactiveStartupMessage =
-        "Eco became inactive before gameplay could start. Return to Eco and choose Play again."
+        "Dark Eco became inactive before gameplay could start. Return to Dark Eco and choose Play again."
 
     let input = ControllerInput()
     let touch = TouchControls()

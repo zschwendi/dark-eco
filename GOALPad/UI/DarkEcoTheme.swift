@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Shared presentation tokens for Eco-owned screens. The rendered game remains untouched.
+/// Shared presentation tokens for Dark Eco-owned screens. The rendered game remains untouched.
 enum DarkEcoTheme {
     static let background = Color(red: 0.035, green: 0.018, blue: 0.065)
     static let surface = Color(red: 0.105, green: 0.055, blue: 0.16)

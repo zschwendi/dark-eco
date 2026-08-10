@@ -1,11 +1,11 @@
 # visionOS Bounded Stereo Implementation Manual
 
-Maintainer guide for Eco's first playable visionOS presentation slice. This contract is narrower
+Maintainer guide for Dark Eco's first playable visionOS presentation slice. This contract is narrower
 than the earlier five-mode exploration and takes priority over those retired experiments.
 
 ## Product boundary
 
-Eco presents Jak 1 as a floating stereoscopic television inside the app's ordinary Shared Space
+Dark Eco presents Jak 1 as a floating stereoscopic television inside the app's ordinary Shared Space
 window. Other apps and windows remain available. The product declares one `WindowGroup`; it does
 not create an immersive scene, request world data, query viewer pose, or drive Jak's camera from
 device motion.
@@ -88,7 +88,7 @@ all effects have correct stereo depth.
 
 ## Input and app-owned UI
 
-visionOS gameplay accepts ordinary `GCExtendedGamepad` input through Eco's existing Game Controller
+visionOS gameplay accepts ordinary `GCExtendedGamepad` input through Dark Eco's existing Game Controller
 path. It does not merge touch, keyboard, mouse, spatial accessory, or tracked-controller state.
 
 Do not create touch sticks, swipe regions, Pause/Stats/Zoom pills, face buttons, touch-guide sheets,

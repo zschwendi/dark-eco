@@ -10,7 +10,7 @@ nonisolated enum GameDataImportPresentation {
     }
 
     static func backgroundGuidance(phaseLabel: String) -> String {
-        "Keep Eco open and in the foreground. \(phaseLabel) is not safe to continue while Eco is backgrounded."
+        "Keep Dark Eco open and in the foreground. \(phaseLabel) is not safe to continue while Dark Eco is backgrounded."
     }
 
     static func cancellationGuidance(isActivating: Bool) -> String {

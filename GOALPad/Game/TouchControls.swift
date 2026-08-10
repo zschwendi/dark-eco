@@ -762,9 +762,9 @@ enum TouchHapticEvent: Equatable {
     case stickEngaged
 }
 
-/// Preserves the accepted two-pill centres while adding an independent circular zoom control.
+/// Lays out the app-owned session pills and an independent circular zoom control.
 struct ModernTouchChromeLayout: Equatable, Sendable {
-    nonisolated static let pillSize = CGSize(width: 82, height: 42)
+    nonisolated static let pillSize = CGSize(width: 118, height: 42)
     nonisolated static let pillSpacing: CGFloat = 20
     nonisolated static let zoomDiameter: CGFloat = 42
     nonisolated static let zoomGap: CGFloat = pillSpacing

@@ -737,27 +737,27 @@ private func semanticZoomButtonIsExactAndFailClosed() {
 }
 
 @MainActor
-private func modernChromeAddsZoomWithoutMovingAcceptedPills() {
-    print("zoom keeps the accepted Stats and Start pill centres unchanged")
+private func modernChromeFitsDarkEcoSettingsLabel() {
+    print("the shared Chrome layout fits the Dark Eco Settings label")
     let chrome = ModernTouchChromeLayout(size: Runner.screen)
-    check(chrome.statsFrame == CGRect(x: 513, y: 762, width: 82, height: 42),
-          "Stats retains the accepted left pill frame")
-    check(chrome.startFrame == CGRect(x: 615, y: 762, width: 82, height: 42),
-          "Start retains the accepted right pill frame")
+    check(chrome.statsFrame == CGRect(x: 477, y: 762, width: 118, height: 42),
+          "Stats uses the widened left pill frame")
+    check(chrome.startFrame == CGRect(x: 615, y: 762, width: 118, height: 42),
+          "Start uses the widened right pill frame")
     check(chrome.centeredSessionFrame
-          == CGRect(x: 564, y: 762, width: 82, height: 42)
+          == CGRect(x: 546, y: 762, width: 118, height: 42)
           && chrome.centeredSessionFrame.midX == Runner.screen.width / 2,
           "a captured start or pause menu centers its sole session pill")
     check(ModernTouchChromeLayout.zoomGap == ModernTouchChromeLayout.pillSpacing,
           "Zoom-to-Stats and Stats-to-Start use the same spacing")
-    check(chrome.zoomFrame == CGRect(x: 451, y: 762, width: 42, height: 42),
+    check(chrome.zoomFrame == CGRect(x: 415, y: 762, width: 42, height: 42),
           "zoom is an independent 42-point circle immediately left of Stats")
     check(chrome.zoomFrame.maxX + ModernTouchChromeLayout.zoomGap
           == chrome.statsFrame.minX
           && chrome.statsFrame.minX - chrome.zoomFrame.maxX
           == chrome.startFrame.minX - chrome.statsFrame.maxX
           && chrome.zoomFrame.midY == chrome.statsFrame.midY,
-          "zoom is equally gap-separated and vertically centered without offsetting the pills")
+          "zoom is equally gap-separated and vertically centered beside the widened pills")
 }
 
 @MainActor
@@ -1505,10 +1505,10 @@ private func sessionControlStateMatrixIsExactAndFailClosed() {
 
     check(!NativeEcoSettingsPresentation.isVisible(
         mode: .gameplay, progress: .unavailable, runReadiness: .titlePrompt),
-          "the initial title sequence and Start gate never present Eco Settings")
+          "the initial title sequence and Start gate never present Dark Eco Settings")
     check(NativeEcoSettingsPresentation.isVisible(
         mode: .pause, progress: .unavailable, runReadiness: .active),
-          "native pause presents Eco Settings in the menu-only slot")
+          "native pause presents Dark Eco Settings in the menu-only slot")
 
     let gameplayProgress = progressSnapshot(screen: 3, startingScreen: 0,
                                             canExitWithStart: false, canGoBack: true)
@@ -1527,7 +1527,7 @@ private func sessionControlStateMatrixIsExactAndFailClosed() {
           "title-origin progress uses the physical Start label for Back/exit")
     check(NativeEcoSettingsPresentation.isVisible(
         mode: .progress, progress: titleProgress, runReadiness: .titleMenu),
-          "the post-initial native title menu presents Eco Settings beside Start")
+          "the post-initial native title menu presents Dark Eco Settings beside Start")
     check(!NativeEcoSettingsPresentation.isVisible(
         mode: .progress, progress: .unavailable, runReadiness: .titleMenu)
           && !NativeEcoSettingsPresentation.isVisible(
@@ -1536,7 +1536,7 @@ private func sessionControlStateMatrixIsExactAndFailClosed() {
             runReadiness: .titleMenu)
           && !NativeEcoSettingsPresentation.isVisible(
             mode: .gameplay, progress: .unavailable, runReadiness: .active),
-          "unknown, transitional, and gameplay states cannot invent Eco Settings")
+          "unknown, transitional, and gameplay states cannot invent Dark Eco Settings")
 
     let titleWait = GameplayRunReadiness.advance(
         .active, mode: .gameplay, titleStartState: .awaiting, progress: .unavailable)
@@ -2987,7 +2987,7 @@ struct TouchControlsCheck {
         resetClearsInterruptedInput()
         touchHapticsAreDiscreteAndRearmSafely()
         semanticZoomButtonIsExactAndFailClosed()
-        modernChromeAddsZoomWithoutMovingAcceptedPills()
+        modernChromeFitsDarkEcoSettingsLabel()
         cutsceneSkipIsContextualExactAndLifecycleSafe()
         pausePresentationFollowsNativeMenuState()
         semanticTitleStartBypassesArtworkGeometryAndSurvivesCadence()

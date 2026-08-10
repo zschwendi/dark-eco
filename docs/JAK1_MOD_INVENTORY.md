@@ -1,4 +1,4 @@
-# Jak 1 mod inventory for Eco Modern
+# Jak 1 mod inventory for Dark Eco Modern
 
 **Status: Investigating.** This is a source and distribution inventory, not an iPad compatibility list or a promise to support a mod. It is limited to primary project/mod sources available on 2026-08-06.
 
@@ -8,7 +8,7 @@ GOALPad's OpenGOAL submodule is pinned independently of the desktop launcher and
 
 ## Upstream settings are not mods
 
-The pinned Jak 1 source already contains upstream PC-setting paths for display fit/aspect, frame-rate choices, MSAA, level of detail, subtitles/text languages, camera options, accessibility options, speedrunner mode, and mirrored world. Describe these as **upstream-native settings** when and only when their iPad implementation is validated. Do not call existing presentation or quality controls "Eco Modern mods."
+The pinned Jak 1 source already contains upstream PC-setting paths for display fit/aspect, frame-rate choices, MSAA, level of detail, subtitles/text languages, camera options, accessibility options, speedrunner mode, and mirrored world. Describe these as **upstream-native settings** when and only when their iPad implementation is validated. Do not call existing presentation or quality controls "Dark Eco Modern mods."
 
 The official OpenGOAL launcher documentation says third-party mods are not vetted by the OpenGOAL team and can execute arbitrary code. It also says the project does not promote HD texture packs because scaled or cleaned original textures are derivative game assets. See [OpenGOAL FAQ](https://opengoal.dev/docs/faq/).
 

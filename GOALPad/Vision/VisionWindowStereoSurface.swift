@@ -123,7 +123,7 @@ private struct VisionWindowStereoRealitySurface: View {
                 self.resources = resources
             } catch {
                 failClosed(
-                    "The stereoscopic window could not start, so Eco returned to Comfort mode: "
+                    "The stereoscopic window could not start, so Dark Eco returned to Comfort mode: "
                         + error.localizedDescription
                 )
             }
@@ -356,12 +356,12 @@ private final class VisionWindowStereoResources {
         switch disposition {
         case .busy:
             scheduleFailure(
-                "The stereoscopic renderer stayed busy without submitting frames, so Eco "
+                "The stereoscopic renderer stayed busy without submitting frames, so Dark Eco "
                     + "returned to Comfort mode."
             )
         case .failed:
             scheduleFailure(
-                "The native two-view renderer stopped, so Eco returned to Comfort mode."
+                "The native two-view renderer stopped, so Dark Eco returned to Comfort mode."
             )
         case .skipped, .submitted:
             break
@@ -426,7 +426,7 @@ private final class VisionWindowStereoResources {
                 guard let self, self.isActive else { return }
                 if self.liveness.hasTimedOut(at: CACurrentMediaTime()) {
                     self.scheduleFailure(
-                        "The stereoscopic window stopped receiving rendering updates, so Eco "
+                        "The stereoscopic window stopped receiving rendering updates, so Dark Eco "
                             + "returned to Comfort mode."
                     )
                     return

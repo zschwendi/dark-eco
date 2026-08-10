@@ -392,9 +392,11 @@ private struct FallbackGameArtwork: View {
                     )
                     .minimumScaleFactor(0.5)
                     .shadow(color: DarkEcoTheme.accent.opacity(0.55), radius: 12)
-                Text("ECO")
+                Text("DARK ECO")
                     .font(.caption2.weight(.bold))
-                    .tracking(3)
+                    .tracking(1.2)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                     .foregroundStyle(.white.opacity(0.72))
             }
         }

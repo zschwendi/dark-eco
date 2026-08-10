@@ -8,7 +8,7 @@ GOALPad is a native ARM64 port of OpenGOAL for Apple platforms. The first
 supported game is *Jak and Daxter: The Precursor Legacy*, using game data
 supplied and prepared by the user.
 
-**Eco** is the public App Store-facing product name; GOALPad remains the
+**Dark Eco** is the public App Store-facing product name; GOALPad remains the
 repository, Xcode target, and internal runtime name.
 
 It is not a PS2 emulator, not a Swift rewrite of OpenGOAL, and not a source of
@@ -133,7 +133,7 @@ app.
 
 Gameplay uses OpenGOAL's desktop-compatible memcard files under Application
 Support. The optional iCloud Saves setting mirrors those files into the app's
-iCloud Documents container; the runtime never plays from iCloud paths. Eco
+iCloud Documents container; the runtime never plays from iCloud paths. Dark Eco
 treats OpenGOAL's alternating bank pairs as complete save slots, selects the
 generation OpenGOAL's loader would use, and compares its checksummed completion
 percentage. The farther valid slot wins as a unit, so banks from different
@@ -158,7 +158,7 @@ without presenting them over gameplay.
 
 Settings also provides **Import Saves** and **Export Saves**. These actions copy
 the unchanged desktop layout under `OpenGOAL/jak1/saves`, so transfers remain
-compatible with desktop OpenGOAL rather than introducing an Eco save format.
+compatible with desktop OpenGOAL rather than introducing a Dark Eco save format.
 Import accepts only the exact `OpenGOAL/jak1/saves` directory with its single
 `BASCUS-97124AYBABTU!` slot, or that exact slot directory itself. Banks must be
 direct children, use the raw `bank0.bin` through `bank7.bin` names and sizes, and
@@ -178,18 +178,18 @@ prepared packages are ignored by default.
 
 ## Credits
 
-Eco is an app by Zach Schwendiman, published by Zephyr Studios, and made
+Dark Eco is an app by Zach Schwendiman, published by Zephyr Studios, and made
 available free as a gift to fans of the Jak trilogy. Zach created the native
 Apple mobile port and its platform-runtime integration.
 
-Eco exists because of the [OpenGOAL](https://github.com/open-goal/jak-project)
+Dark Eco exists because of the [OpenGOAL](https://github.com/open-goal/jak-project)
 project, which reimplemented the GOAL language, compiler, and runtime that
 Naughty Dog built Jak and Daxter on. The compiler front end, GOAL source, object
 and level formats, 989snd sound implementation, and renderer this port translates
 are all their work. This fork adds an ARM64 ahead-of-time code path, a Metal
 renderer, and Apple platform hosts on top of it.
 
-Eco is an unofficial community project and is not affiliated with Sony
+Dark Eco is an unofficial community project and is not affiliated with Sony
 Interactive Entertainment, Naughty Dog, or the OpenGOAL team.
 
 ## Support
@@ -197,4 +197,4 @@ Interactive Entertainment, Naughty Dog, or the OpenGOAL team.
 The launcher Support screen provides project information, contact details, and
 three optional one-time StoreKit tips. Tips unlock no features or content. Their
 product identifiers and App Store Connect requirements are documented in
-[Eco optional tips](docs/appstore/STOREKIT_TIPS.md).
+[Dark Eco optional tips](docs/appstore/STOREKIT_TIPS.md).

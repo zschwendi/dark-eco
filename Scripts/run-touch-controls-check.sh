@@ -140,7 +140,7 @@ rg -Fq 'showsChrome: warpGateTouchControlsAreVisible' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq '.allowsHitTesting(isInteractive)' "$root/GOALPad/Game/TouchControlsView.swift"
 
-# App-owned Eco Settings occupies the ordinary Stats slot only after the exact initial title gate.
+# App-owned Dark Eco Settings occupies the ordinary Stats slot only after the exact initial title gate.
 # Resume/Start keeps the paired session slot; the former top-right duplicate is gone.
 rg -Fq 'NativeEcoSettingsPresentation.isVisible(' \
   "$root/GOALPad/Game/TouchControlsView.swift"
@@ -153,11 +153,11 @@ eco_pill=$(sed -n \
   '/private var ecoSettingsPillLabel: some View {/,/^    }/p' \
   "$root/GOALPad/Game/TouchControlsView.swift")
 printf '%s\n' "$eco_pill" | rg -Fq 'Image(systemName: "gearshape")'
-printf '%s\n' "$eco_pill" | rg -Fq 'Text("ECO")'
+printf '%s\n' "$eco_pill" | rg -Fq 'Text("DARK ECO")'
 printf '%s\n' "$eco_pill" | rg -Fq '.frame(width: Self.pillWidth, height: 42)'
 if rg -Fq 'session.isRunning && session.isNativeMenuOpen' \
     "$root/GOALPad/ContentView.swift"; then
-  echo "redundant top-right Eco Settings control is still mounted" >&2
+  echo "redundant top-right Dark Eco Settings control is still mounted" >&2
   exit 1
 fi
 rg -Fq 'openSettings: { presentSettings(.jak1) }' "$root/GOALPad/ContentView.swift"

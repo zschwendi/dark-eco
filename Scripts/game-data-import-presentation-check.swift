@@ -21,7 +21,7 @@ private struct GameDataImportPresentationCheck {
                 == "Prepared OpenGOAL out/jak1 folder, ISO disc image, or standard ZIP with exactly one ISO",
               "raw-media-capable builds advertise only the ISO and one-ISO ZIP paths")
         check(GameDataImportPresentation.backgroundGuidance(phaseLabel: "Validating candidate")
-                == "Keep Eco open and in the foreground. Validating candidate is not safe to continue while Eco is backgrounded.",
+                == "Keep Dark Eco open and in the foreground. Validating candidate is not safe to continue while Dark Eco is backgrounded.",
               "every active phase names itself and truthfully requires foreground execution")
         check(GameDataImportPresentation.cancellationGuidance(isActivating: false)
                 == "You can cancel now. Your active game data will not be replaced.",

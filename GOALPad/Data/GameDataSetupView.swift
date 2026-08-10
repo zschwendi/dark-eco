@@ -41,7 +41,7 @@ struct GameDataSetupView: View {
                     await session.refreshDataReport()
                 }
             case .failure(let error):
-                selectionError = "Eco could not open that source: \(error.localizedDescription) Try again."
+                selectionError = "Dark Eco could not open that source: \(error.localizedDescription) Try again."
             }
         }
     }
@@ -51,7 +51,7 @@ struct GameDataSetupView: View {
             Label("Import \(GameLibraryTitle.jak1.name)", systemImage: "bolt.fill")
                 .font(.title2.weight(.bold))
                 .foregroundStyle(DarkEcoTheme.accentGlow)
-            Text("Choose game data from a copy of \(GameLibraryTitle.jak1.name) that you own. Eco includes no game data and never downloads it.")
+            Text("Choose game data from a copy of \(GameLibraryTitle.jak1.name) that you own. Dark Eco includes no game data and never downloads it.")
                 .font(.body)
                 .foregroundStyle(.white.opacity(0.84))
         }
@@ -79,7 +79,7 @@ struct GameDataSetupView: View {
                 Text(GameDataImportPresentation.acceptedSources(rawISOAvailable: canImportRawISO))
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.84))
-                Text("2. Eco prepares and validates a private candidate before it replaces any active data.")
+                Text("2. Dark Eco prepares and validates a private candidate before it replaces any active data.")
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.84))
                 if canImportRawISO {
@@ -110,7 +110,7 @@ struct GameDataSetupView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Cancelling import…")
                             .font(.headline)
-                        Text("Eco is waiting for preparation to stop safely. Retry will be available when cancellation finishes.")
+                        Text("Dark Eco is waiting for preparation to stop safely. Retry will be available when cancellation finishes.")
                             .font(.footnote)
                             .foregroundStyle(.white.opacity(0.72))
                     }

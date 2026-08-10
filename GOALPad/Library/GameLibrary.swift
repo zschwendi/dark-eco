@@ -148,7 +148,7 @@ nonisolated enum GameLibraryOfferCopy {
             return "Jak 3 support is planned after Jak II's development."
         case .jak1:
             return "Import for \(title.shelfName) is not supported in this build. "
-                + "Eco currently supports \(GameLibraryTitle.jak1.name) game data only."
+                + "Dark Eco currently supports \(GameLibraryTitle.jak1.name) game data only."
         }
     }
 }
@@ -248,7 +248,7 @@ nonisolated enum ArtworkError: LocalizedError {
         case .fileTooLarge:
             "Artwork must be no larger than 25 MB."
         case .invalidImage:
-            "Eco could not read that image, or its dimensions are too large."
+            "Dark Eco could not read that image, or its dimensions are too large."
         }
     }
 }

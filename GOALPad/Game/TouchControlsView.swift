@@ -22,7 +22,7 @@ struct TouchControlsView: View {
     let openSettings: () -> Void
 
     fileprivate static let space = "GOALPadTouchControls"
-    private static let pillWidth: CGFloat = 82
+    private static let pillWidth: CGFloat = 118
 
     #if canImport(UIKit)
     @State private var chromeHaptics = TouchHapticDriver()
@@ -315,7 +315,7 @@ struct TouchControlsView: View {
                 }
                 .buttonStyle(.plain)
                 .position(x: chrome.statsFrame.midX, y: chrome.statsFrame.midY)
-                .accessibilityLabel("Eco Settings")
+                .accessibilityLabel("Dark Eco Settings")
             }
 
             if let sessionControl {
@@ -351,7 +351,7 @@ struct TouchControlsView: View {
     private var ecoSettingsPillLabel: some View {
         HStack(spacing: 6) {
             Image(systemName: "gearshape")
-            Text("ECO")
+            Text("DARK ECO")
         }
         .font(.system(size: 12, weight: .semibold, design: .rounded))
         .tracking(1.4)

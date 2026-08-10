@@ -357,13 +357,13 @@ check(content.contains("visibility: visionEcoSettingsVisible ? .visible : .hidde
         && content.contains("mode: session.gameMode")
         && content.contains("progress: session.progressMenuSnapshot")
         && content.contains("runReadiness: session.runReadiness"),
-      "the top-center Eco ornament reuses the paused iPad settings gate and opens Jak 1 settings")
+      "the top-center Dark Eco ornament reuses the paused iPad settings gate and opens Jak 1 settings")
 check(pausedEcoOrnament.contains("Button(action: openSettings)")
         && pausedEcoOrnament.contains("Image(systemName: \"gearshape\")")
-        && pausedEcoOrnament.contains("Text(\"ECO\")")
+        && pausedEcoOrnament.contains("Text(\"DARK ECO\")")
         && pausedEcoOrnament.contains(".glassBackgroundEffect(in: Capsule())")
-        && pausedEcoOrnament.contains(".accessibilityLabel(\"Eco Settings\")"),
-      "the paused Eco ornament is a compact accessible glass settings control")
+        && pausedEcoOrnament.contains(".accessibilityLabel(\"Dark Eco Settings\")"),
+      "the paused Dark Eco ornament is a compact accessible glass settings control")
 let controllerMessageOccurrences = ornament.components(separatedBy: "Text(\"No controller detected.\")").count - 1
 check(controllerMessageOccurrences == 1
         && ornament.contains(".foregroundStyle(labelForegroundStyle)")

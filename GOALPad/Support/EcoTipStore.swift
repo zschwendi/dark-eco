@@ -101,7 +101,7 @@ final class EcoTipStore {
                 switch result {
                 case .verified(let transaction):
                     await transaction.finish()
-                    notice = "Thank you for supporting Eco."
+                    notice = "Thank you for supporting Dark Eco."
                 case .unverified:
                     notice = "The App Store couldn’t verify this purchase. Contact support if it appears in your purchase history."
                 }
