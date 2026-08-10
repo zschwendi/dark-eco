@@ -16674,3 +16674,164 @@ input stall rejects the candidate.
 The pre-existing project-file ordering rewrite remains the only unstaged parent
 change. Its working copy now carries the committed Build 153 values, while the
 ordering-only diff remains preserved. No physical iPad access occurred.
+
+## 2026-08-09 Build 153 physical rejection and Build 154 2D shipping checkpoint
+
+After explicit maintainer authorization, the signed Build 153 visionOS artifact
+was installed in place and launched on `Zachary's Apple Vision Pro`
+(`7C8DED98-3B86-55CE-B49D-C514E47F745A`). The same-bundle update preserved the
+existing application container and saves.
+
+```text
+install JSON /private/tmp/GOALPad-build153-vision-install.json
+install URL  file:///private/var/containers/Bundle/Application/3D2028F7-22C0-4D92-AD00-0EC1F97E20C2/GOALPad.app/
+launch JSON  /private/tmp/GOALPad-build153-vision-launch.json
+launched PID 941
+```
+
+The maintainer saw the temporary eye ticks after entering the active Stereo
+path, but did not report a monocular left/right identity result. The paired
+`LowLevelTexture` architecture still produced checkerboarding/interpolation as
+bad as the prior build and no usable depth. This physically rejects Build 153
+as a shipping stereo path. Do not resume speculative stereo tuning on the main
+release lane.
+
+Build 154 therefore ships Jak 1 through the conventional 2D `CAMetalLayer`
+surface on iPadOS, macOS, and visionOS. Normal visionOS builds do not compile in
+or wire the Swift stereo coordinator. The retained implementation is available
+only to an explicitly opted-in development build using:
+
+```text
+OTHER_SWIFT_FLAGS='$(inherited) -DGOALPAD_EXPERIMENTAL_VISION_STEREO'
+```
+
+The Stereo setting is absent from normal shipping UI, while its persisted field
+and dormant implementation remain compatible for later work. The visionOS Dark
+Eco Settings ornament is always available: it is top-leading during gameplay
+or whenever no supported controller is connected, and top-center only when a
+controller is connected and the existing native menu/startup visibility gate is
+active. The visionOS target still compiles out gameplay touch views and hit
+regions.
+
+The deferred windowed-stereo calibration is recorded in
+`docs/VISIONOS_PRESENTATION_MODES_IMPLEMENTATION_MANUAL.md`. The next stereo
+lane should assume a 63 mm IPD, infer viewing distance from physical window
+width and clamp it to 1.0-1.5 m, converge at the window plane, use the verified
+reversed-Z sign, and derive strength dynamically (`S = 2B/W`, approximately
+0.63 for a 20 cm window). A true near-disparity cap must be a shared piecewise
+world-space/shader clamp no greater than one assumed IPD; it cannot be faked by
+the current single projection matrix. Windowed mode must not add app-level head
+tracking.
+
+Parent commits added after the Build 153 checkpoint:
+
+```text
+380b5417 brand: rename public product to Dark Eco
+f2dda45e build: set Dark Eco bundle display names
+dad1d2c9 visionOS: ship Jak 1 on the 2D surface
+01e1e70b build: stage Dark Eco 154 2D release
+5b9fb3cc brand: rename built app product to Dark Eco
+```
+
+The public app name, launcher copy, settings/support/import/save surfaces,
+`CFBundleDisplayName`, `CFBundleName`, product wrapper, and executable now use
+Dark Eco. The target/scheme name remains `GOALPad`, while bundle ID
+`com.zephyrstudiosllc.eco`, iCloud containers, StoreKit IDs, save locations,
+and compatibility folder names remain unchanged. Build-product inspection
+caught and corrected an initial source-only branding check that had left
+`PRODUCT_NAME` as `GOALPad`.
+
+Focused validation passed:
+
+```text
+Scripts/run-product-name-check.sh
+Scripts/run-vision-stereo-integration-check.sh
+GOALPAD_VISION_SDK=xros \
+  GOALPAD_VISION_MODULE_CACHE=/private/tmp/goalpad-lowlevel-product-xros-module-cache \
+  Scripts/run-vision-scene-foundation-check.sh
+swift Scripts/presentation-settings-ui-check.swift "$PWD"
+Scripts/run-game-data-import-presentation-check.sh
+swift Scripts/game-data-import-ui-check.swift "$PWD"
+Scripts/run-portrait-library-check.sh
+Scripts/run-support-purchases-check.sh
+Scripts/run-touch-controls-check.sh
+git diff --check
+```
+
+The vision scene check typechecked both the normal shipping xros path and the
+explicit dormant-stereo opt-in path. The focused checks retained one existing
+Swift script warning about `idlePrompt` never being mutated; no check failed.
+
+Build 154 Release builds passed serially with the verified 518-object public
+source pack at
+`GP-build142-integration/build/jak1-source-object-pack`:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=visionOS' \
+  -derivedDataPath /private/tmp/GOALPad-build150-vision-device -jobs 4 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack \
+  build
+
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build154-ios-generic -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack \
+  build
+
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath /private/tmp/GOALPad-build154-macos-arm64 -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack \
+  build
+```
+
+Logs and inspected products:
+
+```text
+visionOS log /private/tmp/GOALPad-build154-visionos.log
+visionOS app /private/tmp/GOALPad-build150-vision-device/Build/Products/Release-xros/Dark Eco.app
+  Dark Eco 1.0 (154), arm64, signed, CDHash 21b0cf465cb39c2e5ba657decdc06232e34627fe
+  executable SHA-256 40396c5e5979e539356dfac9d25e73b889b92f66b05744b2a83983e8cb94cb63
+iOS log /private/tmp/GOALPad-build154-ios-generic.log
+iOS app /private/tmp/GOALPad-build154-ios-generic/Build/Products/Release-iphoneos/Dark Eco.app
+  Dark Eco 1.0 (154), arm64, unsigned
+  executable SHA-256 32db096e79cb10c76d18131926562b70af5c9c23fae656d44f8a523aadbe5710
+macOS log /private/tmp/GOALPad-build154-macos-arm64.log
+macOS app /private/tmp/GOALPad-build154-macos-arm64/Build/Products/Release/Dark Eco.app
+  Dark Eco 1.0 (154), arm64, unsigned
+  executable SHA-256 dd2b962ad9da9263a12f8719055c66df70df543011779d270140b298c845886e
+```
+
+`codesign --verify --deep --strict` passed for the signed visionOS artifact.
+All three Info plists report `CFBundleDisplayName = Dark Eco`,
+`CFBundleName = Dark Eco`, and Build 154. The builds retain the existing asset
+catalog, Swift actor-isolation, upstream C++, and generated AOT warnings; they
+produced no errors. The first visionOS attempt stopped at
+`sdshim.d: No space left on device`; after removing only verified generated
+cache/DerivedData output, the exact build reran successfully.
+
+Storage recovery removed obsolete reproducible output only: the Build 149
+vision simulator DerivedData, old Build 150 generic-iOS and macOS DerivedData,
+five disposable Swift/xros module caches, and four temporary stereo Swift
+directories. These deletions are not recoverable but are fully regeneratable.
+No source checkout, Git worktree, app data, save data, or device content was
+removed. In particular, `/private/tmp/OG-build153-reversedz-stereo-math` was
+identified as a live OpenGOAL worktree and preserved.
+
+No Build 154 app was installed or launched on a physical device or simulator.
+The physical `Z iPad Pro` was not accessed. The currently installed Vision Pro
+build remains Build 153. Build 154 compile evidence does not replace physical
+runtime acceptance, but its shipping renderer is the protected conventional 2D
+path rather than the rejected Stereo path.
+
+The pre-existing project-file ordering rewrite remains the only unstaged parent
+change. Its working copy carries the committed Dark Eco and Build 154 values;
+the broad ordering diff remains preserved. Nested OpenGOAL is clean and already
+matches its remote at `1c2eae29a3359404c4d94d6960301594540afbe3`.
