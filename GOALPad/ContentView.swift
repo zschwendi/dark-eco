@@ -342,6 +342,8 @@ private struct GameplaySurface: View {
         GameSurfaceView(
             onFrame: { session.tick(targetPresentationTime: $0) },
             isStereoRendererReady: session.isRunning,
+            stereoMaximumWidthPixels: session.settings.internalWidth,
+            stereoMaximumHeightPixels: session.settings.internalHeight,
             onStereoFrame: { session.tickStereo(frame: $0) }
         )
         #else

@@ -70,8 +70,14 @@ check(gameplaySurface.components(separatedBy: "gameSurface").count - 1 == 3,
       "both GameplaySurface layouts use the shared mono/stereo surface")
 check(gameplaySurface.contains("onFrame: { session.tick(targetPresentationTime: $0) }")
         && gameplaySurface.contains("isStereoRendererReady: session.isRunning")
+        && gameplaySurface.contains(
+            "stereoMaximumWidthPixels: session.settings.internalWidth"
+        )
+        && gameplaySurface.contains(
+            "stereoMaximumHeightPixels: session.settings.internalHeight"
+        )
         && gameplaySurface.contains("onStereoFrame: { session.tickStereo(frame: $0) }"),
-      "the shared surface wires ordinary and stereo frame callbacks")
+      "the shared surface wires callbacks and caps stereo to the selected 2D render budget")
 check(gameSurfaceView.contains(".onChange(of: isStereoRendererReady, initial: true)")
         && gameSurfaceView.contains(
             "setStereoRendererAvailable(isReady && onStereoFrame != nil)"
@@ -220,6 +226,12 @@ check(surface.contains("VisionWindowStereoClipPlanner.makePlan()")
         && !surface.contains("windowFromHead")
         && !clipPlan.contains("headFromEyes"),
       "the fixed pair derives only from Jak's existing game-camera clip projection")
+check(gameSurfaceView.contains("maximumWidthPixels: stereoMaximumWidthPixels")
+        && gameSurfaceView.contains("maximumHeightPixels: stereoMaximumHeightPixels")
+        && surface.contains("private func fittedPixelDimensions")
+        && surface.contains("Double(widthLimit) / Double(nativeWidth)")
+        && surface.contains("Double(heightLimit) / Double(nativeHeight)"),
+      "stereo preserves the window aspect while staying within the proven 2D pixel limits")
 
 let visionDirectory = root + "/GOALPad/Vision"
 let visionFiles = FileManager.default.enumerator(atPath: visionDirectory)?.compactMap {

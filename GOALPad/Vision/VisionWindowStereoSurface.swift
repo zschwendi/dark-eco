@@ -49,13 +49,19 @@ struct VisionWindowStereoSurfaceView: View {
     @Environment(\.displayScale) private var displayScale
     @Environment(\.physicalMetrics) private var physicalMetrics
 
+    let maximumWidthPixels: Int
+    let maximumHeightPixels: Int
     let renderFrame: VisionWindowStereoFrameHandler
 
     var body: some View {
         GeometryReader3D { proxy in
+            let pixelDimensions = fittedPixelDimensions(
+                widthPoints: proxy.size.width,
+                heightPoints: proxy.size.height
+            )
             let configuration = Configuration(
-                widthPixels: pixelDimension(proxy.size.width),
-                heightPixels: pixelDimension(proxy.size.height),
+                widthPixels: pixelDimensions.width,
+                heightPixels: pixelDimensions.height,
                 widthMeters: meterDimension(proxy.size.width),
                 heightMeters: meterDimension(proxy.size.height)
             )
@@ -70,8 +76,23 @@ struct VisionWindowStereoSurfaceView: View {
         .background(.black)
     }
 
-    private func pixelDimension(_ points: CGFloat) -> Int {
-        min(max(Int((points * displayScale).rounded(.up)), 1), 4_096)
+    private func fittedPixelDimensions(widthPoints: CGFloat,
+                                       heightPoints: CGFloat) -> (width: Int, height: Int) {
+        let nativeWidth = min(max(Int((widthPoints * displayScale).rounded(.up)), 1), 4_096)
+        let nativeHeight = min(max(Int((heightPoints * displayScale).rounded(.up)), 1), 4_096)
+        let widthLimit = min(max(maximumWidthPixels, 1), 4_096)
+        let heightLimit = min(max(maximumHeightPixels, 1), 4_096)
+        let scale = min(
+            1,
+            min(
+                Double(widthLimit) / Double(nativeWidth),
+                Double(heightLimit) / Double(nativeHeight)
+            )
+        )
+        return (
+            width: max(Int((Double(nativeWidth) * scale).rounded(.down)), 1),
+            height: max(Int((Double(nativeHeight) * scale).rounded(.down)), 1)
+        )
     }
 
     private func meterDimension(_ points: CGFloat) -> Float {
