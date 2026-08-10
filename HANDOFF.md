@@ -16466,3 +16466,145 @@ save/menu touch navigation; review and integrate their proven changes; run one
 combined Metal/AOT/application validation; then install one in-place physical
 checkpoint for the maintainer to test all five areas together. Preserve the
 known-good import tag and do not uninstall or clear the device app container.
+
+## Jak II combined physical acceptance checkpoint
+
+Date: 2026-08-10.
+
+The rejected single-bucket build has been superseded by one combined checkpoint
+in the isolated integration worktree:
+
+```text
+parent worktree: /Users/zach/Developer/OS_Projects/GOALPad/GP-jak2-build145-integration
+parent branch:   agent/jak2-ipad-playtest
+parent commit:   1dedb502 fix(jak2): synchronize streamed audio state (AI-assisted)
+nested commit:   d5a5d3bf6 Synchronize raw audio voice state (AI-assisted)
+```
+
+The parent history integrates the broad Merc/GMerc parity patch, source-shaped
+ocean readback proof and guarded OCEAN routes, Jak II save/load touch semantics,
+continuous player/music/VAG audio, glow/overlay proofs, the MetalGlow-only soft
+missing-texture fallback, and the final raw-voice synchronization checkpoint.
+The known-good import tag and OpenGOAL import baseline `b6a568f70` remain
+untouched.
+
+The final audio checkpoint uses the existing recursive `Player::mTickLock` as
+the shared mixer/raw-voice synchronization domain. Raw voice registers, keying,
+SRAM copies, and voice submission are serialized against `Player::Tick`.
+Stereo register/key/refill/LSA sequences are atomic, but file reads, allocation,
+and close remain outside the audio lock. Its isolated worker build passed
+`jak2-sound-rpc-test` and `jak1-kernel-core-smoke-test` 2/2; retained log:
+
+```text
+/private/tmp/goalpad-jak2-audio-sync-final.log
+SHA-256 7b4dcd6799825b3dc3cdfff2fcd073ad38ee265d743595eff034ee78efb29c3a
+```
+
+The integration owner configured one fresh ccache-backed Release host tree at
+`.agent-builds/jak2-combined-host` and built/reran the combined matrix at `-j2`.
+All 13 selected CTest entries passed in 4.60 seconds:
+
+```text
+jak2-sound-rpc-test
+jak1-kernel-core-smoke-test
+jak2-metal-bucket-table-test
+jak2-metal-merc-dma-test
+jak2-metal-merc-renderer-test
+jak2-metal-generic2-renderer-test
+jak2-common-tfrag-texture-upload-capture-test
+jak2-metal-ocean-envmap-proof
+jak2-metal-dispatch-proof
+jak2-metal-host-bridge-test
+jak2-metal-glow-final-flare-proof
+jak2-metal-submit-readback-proof
+jak2-metal-blit-display-spatial-test
+```
+
+The integration owner also rebuilt and passed
+`jak2-progress-menu-reader-test`, ran the complete
+`Scripts/run-touch-controls-check.sh` suite, and compiled/ran the Objective-C++
+`EcoJak2RuntimeBridgeTest` executable. Retained integrated logs and SHA-256s:
+
+```text
+.agent-builds/jak2-combined-host/logs/build.log
+  aa552b3f2f906d2eaba1ffd5921203420a6402d59c04f6dd3d6a68ed4dacde21
+.agent-builds/jak2-combined-host/logs/ctest.log
+  d804e30fbe3c48f04578eb062a6007d3f70ce95be912565c2492e5fd0b7763c7
+.agent-builds/jak2-combined-host/logs/touch-progress-ctest.log
+  bc185400eecec8340c9daf3520dda7e1dcccae444eb41c50a4575e5e79816f2b
+.agent-builds/jak2-combined-host/logs/touch-controls-check.log
+  bf081adb264f2da9cd151d7c83bf1f784d47f41c2149471d91518fecad70ecd8
+.agent-builds/jak2-combined-host/logs/eco-jak2-runtime-bridge-test.log
+  6e86b9d12c15c7fa305fca6b02a686d2583b1334c7ffe28ae9162111cc8f1c04
+```
+
+The first physical-destination Xcode build used DerivedData inside the source
+worktree and failed only at the importer's explicit outside-source build-root
+guard. Its log is retained at
+`.agent-builds/jak2-combined-physical-logs/xcodebuild.log` with SHA-256
+`3bc0cbe07dcda9f98d647eac131cf0cb5e41f433bfeb5dafa561c6d0a39501a7`.
+After confirming that it contained only failed reproducible build products and
+no app product, the exact 201 MiB failed DerivedData directory was removed.
+
+The corrected build used outside-source DerivedData
+`/private/tmp/GOALPad-jak2-combined-physical-d5a5d3bf` and succeeded in 313.871
+seconds. It verified 840 public Jak II source objects with aggregate
+`8568d70061609617`, and its AOT preflight reported 840 objects, 18,479 emitted
+functions, and seven native functions. The signed product is:
+
+```text
+/private/tmp/GOALPad-jak2-combined-physical-d5a5d3bf/Build/Products/Release-iphoneos/EcoJak2Dev.app
+bundle:     com.zephyrstudiosllc.eco.jak2dev
+version:    1.0 (1)
+arch:       arm64
+executable SHA-256: de5af40d58a93c5bb9a3fd09b2b4a28ed6073df9fb6f6a37a7ef57acdeaf6b1a
+CDHash:     19366084ec1297a85eedaa6936913639420031b9
+```
+
+Strict local signature verification passed. The final Xcode log is
+`.agent-builds/jak2-combined-physical-logs/xcodebuild-rerun.log`, SHA-256
+`634b4f8792610a8b12a5f7a1eb027846e16bb1184fd6193b0f4856cdcf07f965`.
+
+Physical `Z iPad Pro` was available and paired. Pre-install inventory confirmed
+the existing `Eco Jak II Dev` app under the same bundle identifier and the
+process inventory confirmed it was not running. The combined app was installed
+in place with `xcrun devicectl device install app`; no uninstall, app-container
+deletion, reset, prepared-data operation, save operation, or retail-data
+inspection was performed. Post-install inventory retained the same bundle and
+version. CoreDevice then launched that exact bundle successfully; the live
+process path uses the newly returned installation UUID
+`353E2833-87B9-4573-8357-253B2BF6B4D7`. Retained device logs are under
+`.agent-builds/jak2-combined-physical-logs/`; install log SHA-256 is
+`bb420bec337ad9e29c26090b1766409549ed11eeb7ff0ce6b833506ee3a20b1e`
+and launch log SHA-256 is
+`4b6cf00e073e75e2abacdd128918c1427bd1bbdb27db61bfe5dbfb0670d04db0`.
+No physical logs or screenshots were attached.
+
+Maintainer acceptance is still required. Test the five rejected areas together:
+
+1. From the existing prepared Jak II card, reach title and confirm title Merc,
+   Jak, and normal enemies are visible rather than only particles/effects.
+2. Confirm title/menu music and effects continue beyond the Start sound, then
+   verify dialogue/cinematic audio and continuous animation without desync.
+3. On the existing-save selector, use touch Up/Down, Confirm, and Triangle Back;
+   also check create/overwrite choices expose their horizontal actions.
+4. Enter a water-bearing gameplay area and confirm the ocean/world water is
+   visible.
+5. Check lights: unresolved final-glow textures should now degrade to soft
+   radial lights, not hard squares. Pause once: the intended Jak II backdrop is
+   an opaque frozen sepia-tinted copy of the scene, so acceptance requires
+   recognizable frozen scene structure rather than translucency.
+
+These remain plausible source-mapped fixes, not physical visual/audio
+acceptance. The broad Merc/GMerc routes and renderers have deterministic GPU
+coverage, but physical asset/model lookup remains the discriminator. The ocean
+common renderer has a direct real-draw readback and guarded route, while actual
+game VU inputs remain the physical visual discriminator. The missing-glow
+fallback is an explicit diagnostic degradation path, not source-faithful texture
+restoration. The audio callback now shares a coarse recursive lock with streamed
+refills; physical testing should listen for underruns or corrupted long stereo
+streams.
+
+The nested checkout is clean. The parent has no uncommitted source changes; its
+only untracked entry is `.agent-builds/`, which intentionally retains the
+combined validation/build/device logs and the reproducible host build tree.
