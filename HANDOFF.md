@@ -16144,3 +16144,44 @@ This is build/install evidence, not an on-device throughput measurement. The
 next import must be restarted under the new binary to measure the improvement.
 The private raw-ISO APFS clone checkpoint remains separate at parent commit
 `af1a35e4`; it was not integrated into or installed with this delivery.
+
+## Jak II callback-scan removal checkpoint
+
+The standalone Jak II parent is clean through `432667e1` on
+`agent/jak2-ipad-playtest`, pinned to detached OpenGOAL `66caaa587`. This is not
+a Jak 1 build-number successor. Nested commit `c7c45c31a` removes Jak II's
+redundant full staged-content verification rereads while retaining exact
+descriptor/tree finalization. Nested commit `66caaa587` removes the recursive
+work-tree manifest capture that previously ran before and after every progress
+and cancellation callback, while retaining callback exception typing and
+stage-boundary ownership/cleanup checks. Cataloging now reports each of the 149
+archives before work begins and emits bounded numeric object milestones during
+long archives.
+
+Focused integration validation passed:
+
+```text
+cmake --build .agent-builds/jak2-fast-import-materializer \
+  --target safe-iso-reader-test jak2-iso-validation-test \
+  jak2-import-composer-test -j 4
+ctest --test-dir .agent-builds/jak2-fast-import-materializer \
+  --output-on-failure \
+  -R '^(safe-iso-reader-test|jak2-iso-validation-test|jak2-import-composer-test)$'
+```
+
+Result: 3/3 passed in 1.86 seconds. The signed physical-device Release build
+succeeded in 16.475 seconds and produced a verified thin arm64
+`EcoJak2Dev.app`, identifier `com.zephyrstudiosllc.eco.jak2dev`, version `1.0`,
+build `1`. Build log:
+
+```text
+.agent-builds/jak2-fast-import/logs/catalog-fast-device-build.log
+```
+
+Installation is intentionally pending. A read-only CoreDevice process check
+found the existing Eco Jak II Dev process still running as PID 25732, so the
+ready in-place update was withheld rather than risk terminating the maintainer's
+long-running import. Install the exact bundle from
+`.agent-builds/jak2-fast-import-device/Build/Products/Release-iphoneos/EcoJak2Dev.app`
+only after the maintainer confirms the current app has been fully closed. Do not
+uninstall, clear data, launch, or inject input during that update.
