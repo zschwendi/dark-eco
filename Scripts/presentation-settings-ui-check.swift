@@ -312,7 +312,7 @@ check(view.contains("private struct SettingsGamePicker")
         && view.contains("title: GameLibraryTitle.jak3.name")
         && view.contains("status: GameLibraryTitle.jak3.availabilityLabel")
         && view.contains(".disabled(!isSelected)")
-        && view.contains(".navigationTitle(\"\\(GameLibraryTitle.jak1.name) Settings\")"),
+        && view.contains(".navigationTitle(\"Settings\")"),
       "the adaptive persistent picker keeps Jak 1 selected and disables truthful future-title rows")
 check(occursInOrder(["Section(\"iCloud\")", "Label(cloudState.summary",
                      "DisclosureGroup(isExpanded: expansion(for: .iCloud))"], in: view)

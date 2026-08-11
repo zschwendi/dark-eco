@@ -1216,7 +1216,7 @@ struct SaveSettingsView: View {
                 }
             }
         }
-        .navigationTitle("\(GameLibraryTitle.jak1.name) Settings")
+        .navigationTitle("Settings")
         .fileImporter(isPresented: Binding(
             get: { saveTransferPicker != nil },
             set: { if !$0 { saveTransferPicker = nil } }
