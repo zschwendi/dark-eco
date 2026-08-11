@@ -17823,3 +17823,130 @@ The pre-existing broad `project.pbxproj` ordering rewrite remains unstaged and
 preserved; only its two working version lines were committed as Build 163.
 Nested OpenGOAL remains clean at
 `8117a8ad525b5d46351f4b3c04c164694065941d`.
+
+# 2026-08-10 Build 164 Eco launch-polish checkpoint
+
+The final launch-polish scope is integrated in the dedicated worktree
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-eco-final-integration` on branch
+`agent/eco-final-integration`. The implementation and release-input commit
+before this handoff is:
+
+```text
+93602666 Finalize Build 164 release media and checks (AI-assisted)
+```
+
+The integration commit chain after Build 163 is:
+
+```text
+c86a4b18 Refine title settings and library availability
+0915721b feat(onboarding): simplify import and controls guidance
+31ce686f release: remove Game Center and document store inputs (AI-assisted)
+585ba1b1 Prepare Build 164 release capture checkpoint (AI-assisted)
+eefc8e10 Polish the compact Settings title (AI-assisted)
+93602666 Finalize Build 164 release media and checks (AI-assisted)
+```
+
+Build 164 implements the requested release-facing decisions:
+
+- Jak 1 is consistently Available/Selected, Jak II is Coming Soon, and Jak 3
+  is Planned. Settings opens directly to the Jak 1 settings form with the two
+  future titles visibly disabled; the old title-settings interstitial is gone.
+- Controls, Graphics, iCloud, Saves, and Developer settings use compact
+  disclosure groups. The iPhone title is the non-truncating `Settings`.
+- visionOS library buttons use the whole rounded card for interaction and hover.
+  The app still has no visionOS touch controls or touch hit regions.
+- The touch guide now teaches movement, camera, actions, zoom/fire, speeder, and
+  game prompts in user order. The import screen removes developer-facing and
+  duplicate copy and exposes one weighted 0–100 percent total progress value.
+- Artwork remains limited to Change Artwork and Use Default for user-local
+  artwork. No external artwork-discovery link was added.
+- Game Center was cut from the release: its service/state code and checks are
+  removed, no GameKit access point is presented, and the entitlement is absent.
+- The three optional consumable tip identifiers retain their permanent IDs with
+  final non-coercive copy and intended US price inputs in
+  `docs/appstore/STOREKIT_TIPS.md`. They unlock no benefit.
+- `docs/appstore/RELEASE_MEDIA_PLAN.md` records the local Build 164 screenshot
+  result and the decision not to make an app preview for this candidate.
+
+The screenshot candidates are outside Git at:
+
+```text
+/Users/zach/Developer/OS_Projects/GOALPad/AppStoreAssets/DarkEco-1.0-164
+```
+
+That folder contains three opaque JPEG upload copies plus PNG masters for each
+of iPhone 6.9-inch (1320 x 2868), iPad 13-inch (2064 x 2752), and Apple Vision
+Pro (3840 x 2160). `CAPTURE_MANIFEST.md` records all nine SHA-256 values. A
+nine-frame contact sheet was visually checked; an initial blank iPhone Library
+frame was rejected and recaptured before the final hashes were recorded. The
+frames contain only empty-container app UI, with no retail data or user artwork.
+
+The screenshots came from Release simulator builds with the explicit
+capture-only `GOALPAD_APPSTORE_CAPTURE` Swift condition. Normal builds do not
+compile in its launch-state selection. The exact full build commands passed:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release \
+  -destination 'platform=iOS Simulator,id=AA34C5CA-C41D-4E02-838E-EF5A360D3E43' \
+  -derivedDataPath /private/tmp/GOALPad-build164-ios-library-recapture -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  'OTHER_SWIFT_FLAGS=$(inherited) -DGOALPAD_APPSTORE_CAPTURE' \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack \
+  build
+
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release \
+  -destination 'platform=visionOS Simulator,id=3D2BABE2-59B1-496C-9FFF-6D3EE1856E8D' \
+  -derivedDataPath /private/tmp/GOALPad-build164-vision-final-capture -jobs 4 \
+  CODE_SIGNING_ALLOWED=NO ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  'OTHER_SWIFT_FLAGS=$(inherited) -DGOALPAD_APPSTORE_CAPTURE' \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack \
+  build
+```
+
+Both products reported Dark Eco 1.0 (164) and the builds exited zero. Logs are
+`/private/tmp/goalpad-build164-ios-library-recapture.log` and
+`/private/tmp/goalpad-build164-vision-final.log`. There are no `error:`
+diagnostics. Existing generated-AOT, Swift actor-isolation, asset-catalog, and
+always-run script-phase warnings remain visible and were not suppressed.
+
+Focused validation passed, with one log per command under
+`/private/tmp/GP-build164-final-*.log`:
+
+```text
+Scripts/run-presentation-settings-check.sh
+Scripts/run-portrait-library-check.sh
+Scripts/run-touch-controls-check.sh
+Scripts/run-game-data-import-presentation-check.sh
+Scripts/run-game-data-install-check.sh
+Scripts/run-support-purchases-check.sh
+Scripts/run-vision-stereo-integration-check.sh
+Scripts/verify-generated-aot.sh Generated/jak1-aot 518
+git diff --check
+```
+
+Additional release-input checks passed: both external support links returned
+HTTP 200; the support `mailto:` URL is well formed in source; all nine manifest
+SHA-256 values match; each upload copy is an opaque JPEG of the recorded size;
+both Xcode configurations use build number 164; and `GOALPad.entitlements`
+contains only the existing iCloud keys. Product/project/script searches contain
+no Game Center or GameKit references outside the intentional negative vision
+test assertion.
+
+No physical device was installed, launched, logged, or captured. The iOS and
+visionOS simulator builds are unsigned capture evidence, not distribution
+archives. Physical iPad behavior and physical Vision Pro gaze/hover remain
+unvalidated. App Store Connect was not accessed, so screenshots are not
+uploaded, IAP products are not created or sandbox-tested, and the external App
+ID/provisioning-profile Game Center capability is not proven removed. The next
+release step is the authorized App Store Connect/signing pass: remove Game
+Center from the App ID/profile if enabled, create and test the three consumable
+tips (including Donate-page review screenshots), archive the unflagged signed
+candidate, and upload the nine JPEGs.
+
+The protected Build 163 line at
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-build146-integration` remains at
+`1adda831`; its pre-existing broad `project.pbxproj` diff is untouched. Its
+nested OpenGOAL and this worktree's nested OpenGOAL are both clean at
+`8117a8ad525b5d46351f4b3c04c164694065941d`.
