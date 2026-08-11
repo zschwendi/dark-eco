@@ -153,7 +153,7 @@ rg -Fq 'showsChrome: warpGateTouchControlsAreVisible' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq '.allowsHitTesting(isInteractive)' "$root/GOALPad/Game/TouchControlsView.swift"
 
-# App-owned Dark Eco Settings and Resume/Start use the same safe session row as gameplay.
+# App-owned Settings and Resume/Start use the same safe session row as gameplay.
 # Portrait native-menu commands stack above that row rather than sharing its bottom edge.
 rg -Fq 'NativeEcoSettingsPresentation.isVisible(' \
   "$root/GOALPad/Game/TouchControlsView.swift"
@@ -167,15 +167,18 @@ rg -Fq 'layout.warpPromptBottomInset' "$root/GOALPad/Game/TouchControlsView.swif
 rg -Fq 'if isPortrait {' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq '.frame(maxWidth: .infinity, alignment: .leading)' \
   "$root/GOALPad/Game/TouchControlsView.swift"
-eco_pill=$(sed -n \
-  '/private var ecoSettingsPillLabel: some View {/,/^    }/p' \
+settings_icon=$(sed -n \
+  '/private var settingsIconLabel: some View {/,/^    }/p' \
   "$root/GOALPad/Game/TouchControlsView.swift")
-printf '%s\n' "$eco_pill" | rg -Fq 'Image(systemName: "gearshape")'
-printf '%s\n' "$eco_pill" | rg -Fq 'Text("DARK ECO")'
-printf '%s\n' "$eco_pill" | rg -Fq '.frame(width: Self.pillWidth, height: 42)'
+printf '%s\n' "$settings_icon" | rg -Fq 'Image(systemName: "gearshape")'
+printf '%s\n' "$settings_icon" | rg -Fq '.frame(width: 42, height: 42)'
+if printf '%s\n' "$settings_icon" | rg -Fq 'Text("DARK ECO")'; then
+  echo "gameplay Settings control still includes the Dark Eco wordmark" >&2
+  exit 1
+fi
 if rg -Fq 'session.isRunning && session.isNativeMenuOpen' \
     "$root/GOALPad/ContentView.swift"; then
-  echo "redundant top-right Dark Eco Settings control is still mounted" >&2
+  echo "redundant top-right Settings control is still mounted" >&2
   exit 1
 fi
 if test "$(rg -F -c 'openSettings: presentSettings' \

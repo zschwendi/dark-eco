@@ -29,6 +29,9 @@ private struct Runner {
     static let start = CGRect(x: 610, y: 690, width: 102, height: 66)
     static let stats = CGRect(x: 720, y: 690, width: 102, height: 66)
     static let rightStick = CGRect(x: 1040, y: 668, width: 108, height: 108)
+    static let movementFrame = ModernTouchLayout(
+        size: screen, safeAreaInsets: safeAreaInsets).movementArtworkFrame
+    static let movementCentre = CGPoint(x: movementFrame.midX, y: movementFrame.midY)
 
     let screen: CGSize
     let safeAreaInsets: TouchSafeAreaInsets
@@ -99,10 +102,15 @@ private func modernLayoutIsCompactAndSafe() {
           "the Modern movement knob remains 66 points")
     check(ModernTouchLayout.movementVisualRadius == TouchControls.movementRadius,
           "the resting Modern movement ring matches the live Build 96 artwork")
-    check(TouchControls.movementRadius == 90,
-          "the Modern movement input radius remains byte-compatible")
+    check(TouchControls.movementRadius == 70,
+          "the Modern movement ring is a compact 140 points across")
 
     let roomyIPad = ModernTouchLayout(size: Runner.screen, safeAreaInsets: Runner.safeAreaInsets)
+    check(close(roomyIPad.movementArtworkFrame.minX - roomyIPad.safeBounds.minX,
+                ModernTouchLayout.movementEdgePadding)
+          && close(roomyIPad.safeBounds.maxY - roomyIPad.movementArtworkFrame.maxY,
+                   ModernTouchLayout.movementEdgePadding),
+          "the landscape L ring matches the screenshot's equal 50-point edge padding")
     check(roomyIPad.rightStickSpacer <= ModernTouchLayout.rightStickSpacerCap,
           "the right-stick spacer never exceeds 200 points")
     check(roomyIPad.rightStickSpacer > ModernTouchLayout.legacyRightStickEdge(for: Runner.screen),
@@ -258,7 +266,7 @@ private func defaultStylePreservesModern() {
     let explicitGesture = Finger()
     let implicitStart = Finger()
     let explicitStart = Finger()
-    let movementCentre = CGPoint(x: 180, y: 650)
+    let movementCentre = Runner.movementCentre
     let lookCentre = CGPoint(x: Runner.rightStick.midX, y: Runner.rightStick.midY)
     let gestureCentre = CGPoint(x: 900, y: 360)
     let startCentre = CGPoint(x: Runner.start.midX, y: Runner.start.midY)
@@ -294,15 +302,15 @@ private func defaultStylePreservesModern() {
 }
 
 @MainActor
-private func movementOriginFollowsFirstTouch() {
-    print("the movement stick appears where the first left-side finger lands")
+private func fixedMovementOriginAndDynamicOptInAreExact() {
+    print("the left stick is fixed by default and dynamic only when enabled")
     var run = Runner()
-    let centre = CGPoint(x: 180, y: 650)
+    let centre = Runner.movementCentre
     let thumb = Finger()
     run.down(thumb, centre)
 
-    check(run.controls.stick?.origin == centre, "the landing point becomes the stick centre")
-    check(run.frame().leftX == neutral, "a new dynamic stick starts neutral")
+    check(run.controls.stick?.origin == centre, "the fixed ring centre owns movement")
+    check(run.frame().leftX == neutral, "a fixed-centre touch starts neutral")
 
     run.move(thumb, CGPoint(x: centre.x + TouchControls.movementRadius, y: centre.y))
     var state = run.frame()
@@ -312,7 +320,8 @@ private func movementOriginFollowsFirstTouch() {
     for _ in 0..<10 { state = run.frame() }
     check(state.leftX == 254, "the held deflection does not recenter under the finger")
 
-    run.move(thumb, CGPoint(x: centre.x + 45, y: centre.y + 45))
+    run.move(thumb, CGPoint(x: centre.x + TouchControls.movementRadius / 2,
+                            y: centre.y + TouchControls.movementRadius / 2))
     state = run.frame()
     check(state.leftX == 191 && state.leftY == 191, "a half-radius diagonal stays analog")
 
@@ -322,24 +331,45 @@ private func movementOriginFollowsFirstTouch() {
     run.up(thumb)
     check(run.frame().leftX == neutral, "lifting immediately centres movement")
 
-    let newCentre = CGPoint(x: 360, y: 430)
+    let outside = Finger()
+    let outsidePoint = CGPoint(x: 360, y: 430)
+    run.down(outside, outsidePoint)
+    let outsideState = run.frame()
+    check(run.controls.stick == nil
+          && !outsideState.isLeftDeflected && !outsideState.isRightDeflected,
+          "a default touch outside the fixed ring is inert")
+
+    run.controls.setDynamicLeftStick(true)
+    let newCentre = outsidePoint
     let relocated = Finger()
     run.down(relocated, newCentre)
-    check(run.controls.stick?.origin == newCentre, "the next landing point relocates the base")
-    check(run.frame().leftX == neutral, "the relocated stick also starts neutral")
+    check(run.controls.stick?.origin == newCentre,
+          "Dynamic Left Stick unlocks the current landing-point origin")
+    check(run.frame().leftX == neutral, "the dynamic stick also starts neutral")
+    run.move(relocated, CGPoint(x: newCentre.x + TouchControls.movementRadius,
+                                y: newCentre.y))
+    check(run.frame().leftX == 254, "dynamic mode preserves the current movement bytes")
 }
 
 @MainActor
 private func freeCameraSwipeIsGone() {
-    print("the restored left-side movement zone never emits camera input")
+    print("fixed and dynamic left-stick zones never emit camera input")
     var run = Runner()
     let oldCameraArea = Finger()
     run.down(oldCameraArea, CGPoint(x: 220, y: 420))
     run.move(oldCameraArea, CGPoint(x: 500, y: 250))
     var state = run.frame()
+    check(run.controls.stick == nil && state == .neutral,
+          "the fixed default ignores left-side touches outside its ring")
+
+    run.controls.setDynamicLeftStick(true)
+    let dynamicMovement = Finger()
+    run.down(dynamicMovement, CGPoint(x: 220, y: 420))
+    run.move(dynamicMovement, CGPoint(x: 300, y: 420))
+    state = run.frame()
     check(run.controls.stick?.origin == CGPoint(x: 220, y: 420),
-          "a first touch anywhere on the left places movement there")
-    check(state.isLeftDeflected, "that drag drives movement")
+          "dynamic mode restores the left-half landing point")
+    check(state.isLeftDeflected, "the enabled dynamic drag drives movement")
     check(state.rightX == neutral && state.rightY == neutral,
           "a left-side drag leaves the right stick centred")
 
@@ -608,7 +638,7 @@ private func controlsWorkTogether() {
     let movement = Finger()
     let look = Finger()
     let action = Finger()
-    let movementCentre = CGPoint(x: 180, y: 650)
+    let movementCentre = Runner.movementCentre
     let lookCentre = CGPoint(x: Runner.rightStick.midX, y: Runner.rightStick.midY)
     let actionCentre = CGPoint(x: 900, y: 360)
 
@@ -633,7 +663,7 @@ private func movementAlsoStepsTheDpad() {
     print("strong movement still steps the D-pad for menus")
     var run = Runner()
     let thumb = Finger()
-    let centre = CGPoint(x: 180, y: 650)
+    let centre = Runner.movementCentre
     run.down(thumb, centre)
     run.move(thumb, CGPoint(x: centre.x + 0.6 * TouchControls.movementRadius, y: centre.y))
 
@@ -695,7 +725,7 @@ private func visibilityFollowsRecognisedTouch() {
     let run = Runner()
     check(!run.controls.isEngaged, "artwork starts hidden")
     let finger = Finger()
-    run.down(finger, CGPoint(x: 180, y: 650))
+    run.down(finger, Runner.movementCentre)
     check(run.controls.isEngaged, "touching a control shows the artwork")
 }
 
@@ -706,7 +736,7 @@ private func resetClearsInterruptedInput() {
     let movement = Finger()
     let look = Finger()
     let action = Finger()
-    let movementCentre = CGPoint(x: 180, y: 650)
+    let movementCentre = Runner.movementCentre
     let lookCentre = CGPoint(x: Runner.rightStick.midX, y: Runner.rightStick.midY)
     let actionCentre = CGPoint(x: 900, y: 360)
 
@@ -761,7 +791,7 @@ private func touchHapticsAreDiscreteAndRearmSafely() {
           "cancelling a gesture is silent")
 
     let stick = Finger()
-    let stickCentre = CGPoint(x: 180, y: 650)
+    let stickCentre = Runner.movementCentre
     modern.down(stick, stickCentre)
     modern.move(stick, CGPoint(x: stickCentre.x + 30, y: stickCentre.y))
     check(modern.controls.consumeHapticEvents().isEmpty,
@@ -824,8 +854,8 @@ private func semanticZoomButtonIsExactAndFailClosed() {
 }
 
 @MainActor
-private func modernChromeFitsDarkEcoSettingsLabel() {
-    print("the shared Chrome layout fits the Dark Eco Settings label")
+private func modernChromeFitsSettingsButton() {
+    print("the shared Chrome layout fits the icon-only Settings button")
     let chrome = ModernTouchChromeLayout(size: Runner.screen)
     check(chrome.statsFrame == CGRect(x: 477, y: 762, width: 118, height: 42),
           "Stats uses the widened left pill frame")
@@ -853,7 +883,7 @@ private func styleSwitchClearsInterruptedInput() {
     var run = Runner()
     let movement = Finger()
     let action = Finger()
-    let centre = CGPoint(x: 180, y: 650)
+    let centre = Runner.movementCentre
     run.down(movement, centre)
     run.move(movement, CGPoint(x: centre.x + TouchControls.movementRadius, y: centre.y))
     run.down(action, CGPoint(x: 900, y: 360))
@@ -1367,7 +1397,7 @@ private func liveLayoutChangesCancelOwnedInput() {
     let movement = Finger()
     let crouch = Finger()
     let start = Finger()
-    let movementCentre = CGPoint(x: 180, y: 650)
+    let movementCentre = Runner.movementCentre
     let gestureCentre = CGPoint(x: 900, y: 360)
     run.down(movement, movementCentre)
     run.move(movement, CGPoint(x: movementCentre.x + TouchControls.movementRadius,
@@ -1928,7 +1958,7 @@ private func controllerTouchTransitionsNeverRetainGameplayOwnership() {
     let cameraCentre = CGPoint(x: Runner.rightStick.midX, y: Runner.rightStick.midY)
     let cameraRight = CGPoint(x: cameraCentre.x + TouchControls.rightStickRadius,
                               y: cameraCentre.y)
-    let movementCentre = CGPoint(x: 180, y: 650)
+    let movementCentre = Runner.movementCentre
     let movementRight = CGPoint(x: movementCentre.x + TouchControls.movementRadius,
                                 y: movementCentre.y)
     let startCentre = CGPoint(x: Runner.start.midX, y: Runner.start.midY)
@@ -2440,7 +2470,7 @@ private func nativeMenuTransitionPreventsGameplayLeakage() {
     var run = Runner()
     let movement = Finger()
     let gesture = Finger()
-    let movementCentre = CGPoint(x: 180, y: 650)
+    let movementCentre = Runner.movementCentre
     let gestureCentre = CGPoint(x: 900, y: 360)
     run.down(movement, movementCentre)
     run.move(movement, CGPoint(x: movementCentre.x + TouchControls.movementRadius,
@@ -2593,7 +2623,7 @@ private func nativeWarpPromptCoexistsAndRejectsStaleActions() {
     run.controls.setWarpGateTouchSnapshot(prompt)
 
     let movement = Finger()
-    let centre = CGPoint(x: 180, y: 650)
+    let centre = Runner.movementCentre
     run.down(movement, centre)
     run.move(movement, CGPoint(x: centre.x + TouchControls.movementRadius * 0.4,
                                y: centre.y))
@@ -2751,7 +2781,7 @@ private func nativeWarpCaptureAndSuppressionAreFailClosed() {
     run.controls.setNativeMenuMode(.gameplay)
     run.controls.setWarpGateTouchSnapshot(list)
     let ignored = Finger()
-    let centre = CGPoint(x: 180, y: 650)
+    let centre = Runner.movementCentre
     run.down(ignored, centre)
     run.move(ignored, CGPoint(x: centre.x + TouchControls.movementRadius, y: centre.y))
     check(!run.controls.performZoomToggle(lookAroundState: .normal)
@@ -2976,7 +3006,7 @@ private func contextualFacePromptExcludesOrdinaryGameplayCommands() {
         runReadiness: .active)
     movement.controls.setFacePromptTouchSnapshot(circle)
     let movementFinger = Finger()
-    let movementCentre = CGPoint(x: 180, y: 650)
+    let movementCentre = Runner.movementCentre
     movement.down(movementFinger, movementCentre)
     movement.move(movementFinger,
                   CGPoint(x: movementCentre.x + TouchControls.movementRadius,
@@ -3023,7 +3053,7 @@ private func nativeFacePromptPulsesRejectStaleWorkAndCancelOnLoss() {
     let cross = facePrompt(NativeFacePromptTouchSnapshot.crossMask, sequence: 140)
     lost.controls.setFacePromptTouchSnapshot(cross)
     let movement = Finger()
-    let centre = CGPoint(x: 180, y: 650)
+    let centre = Runner.movementCentre
     lost.down(movement, centre)
     lost.move(movement, CGPoint(x: centre.x + TouchControls.movementRadius, y: centre.y))
     _ = lost.controls.consumeHapticEvents()
@@ -3059,7 +3089,7 @@ private func nativeFacePromptPulsesRejectStaleWorkAndCancelOnLoss() {
 @MainActor
 struct TouchControlsCheck {
     static func main() {
-        movementOriginFollowsFirstTouch()
+        fixedMovementOriginAndDynamicOptInAreExact()
         freeCameraSwipeIsGone()
         faceButtonGesturesAndNoTap()
         firstPersonTapFiresWithoutReplacingLeftSwipe()
@@ -3074,7 +3104,7 @@ struct TouchControlsCheck {
         resetClearsInterruptedInput()
         touchHapticsAreDiscreteAndRearmSafely()
         semanticZoomButtonIsExactAndFailClosed()
-        modernChromeFitsDarkEcoSettingsLabel()
+        modernChromeFitsSettingsButton()
         cutsceneSkipIsContextualExactAndLifecycleSafe()
         pausePresentationFollowsNativeMenuState()
         semanticTitleStartBypassesArtworkGeometryAndSurvivesCadence()

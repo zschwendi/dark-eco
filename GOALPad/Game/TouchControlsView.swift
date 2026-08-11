@@ -315,11 +315,11 @@ struct TouchControlsView: View {
         return ZStack {
             if ecoSettingsIsVisible {
                 Button { openSettings() } label: {
-                    ecoSettingsPillLabel
+                    settingsIconLabel
                 }
                 .buttonStyle(.plain)
                 .position(x: layout.statsPillFrame.midX, y: layout.statsPillFrame.midY)
-                .accessibilityLabel("Dark Eco Settings")
+                .accessibilityLabel("Settings")
             }
 
             if let sessionControl {
@@ -352,18 +352,14 @@ struct TouchControlsView: View {
             .contentShape(Capsule())
     }
 
-    private var ecoSettingsPillLabel: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "gearshape")
-            Text("DARK ECO")
-        }
-        .font(.system(size: 12, weight: .semibold, design: .rounded))
-        .tracking(1.4)
-        .foregroundStyle(.white.opacity(0.8))
-        .frame(width: Self.pillWidth, height: 42)
-        .background(Capsule().fill(.black.opacity(0.42)))
-        .overlay(Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1))
-        .contentShape(Capsule())
+    private var settingsIconLabel: some View {
+        Image(systemName: "gearshape")
+            .font(.system(size: 16, weight: .semibold))
+            .foregroundStyle(.white.opacity(0.8))
+            .frame(width: 42, height: 42)
+            .background(Circle().fill(.black.opacity(0.42)))
+            .overlay(Circle().strokeBorder(.white.opacity(0.35), lineWidth: 1))
+            .contentShape(Circle())
     }
 
     /// The title prompt is an app-owned semantic action. Keep its visible Build 96 pill, but do
@@ -816,7 +812,7 @@ private struct ClassicStickControl: View {
     }
 }
 
-/// The movement ring appears under the first finger that lands on the left half.
+/// The movement ring stays at its padded default unless Dynamic Left Stick is enabled.
 private struct MovementStickArtwork: View {
     let touch: TouchControls.Tracked?
     let restingOrigin: CGPoint

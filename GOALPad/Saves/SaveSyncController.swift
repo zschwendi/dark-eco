@@ -1318,6 +1318,10 @@ struct SaveSettingsView: View {
     @ViewBuilder
     private var controlsContent: some View {
             #if os(iOS)
+            Toggle("Dynamic Left Stick", isOn: Binding(
+                get: { settings.dynamicLeftStick },
+                set: { settings.setDynamicLeftStick($0) }
+            ))
             NavigationLink {
                 TouchControlsGuideView()
             } label: {

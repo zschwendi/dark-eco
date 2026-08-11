@@ -6,20 +6,15 @@ struct VisionPausedEcoOrnament: View {
 
     var body: some View {
         Button(action: openSettings) {
-            HStack(spacing: 6) {
-                Image(systemName: "gearshape")
-                Text("DARK ECO")
-            }
-            .font(.system(size: 12, weight: .semibold, design: .rounded))
-            .tracking(1.4)
-            .foregroundStyle(.primary)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .contentShape(Capsule())
+            Image(systemName: "gearshape")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.primary)
+                .frame(width: 42, height: 42)
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .glassBackgroundEffect(in: Capsule())
-        .accessibilityLabel("Dark Eco Settings")
+        .glassBackgroundEffect(in: Circle())
+        .accessibilityLabel("Settings")
     }
 }
 #endif

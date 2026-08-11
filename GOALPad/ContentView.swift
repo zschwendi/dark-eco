@@ -155,6 +155,12 @@ struct ContentView: View {
             _, bindings in
             session.input.setBindings(bindings)
         }
+        #if os(iOS)
+        .onChange(of: session.presentationSettings.dynamicLeftStick, initial: true) {
+            _, enabled in
+            session.touch.setDynamicLeftStick(enabled)
+        }
+        #endif
         .onChange(of: session.isNativeMenuOpen) { _, isOpen in
             if session.isRunning && !isOpen { settingsPresentation = nil }
         }

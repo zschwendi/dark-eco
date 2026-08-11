@@ -809,6 +809,7 @@ struct ModernTouchLayout: Sendable {
     }
     static let movementKnobSize: CGFloat = 66
     static let movementVisualRadius = TouchControls.movementRadius
+    static let movementEdgePadding: CGFloat = 50
     static let rightStickHitSlop: CGFloat = 16
     static let rightStickSpacerCap: CGFloat = 200
     static let portraitStackGap: CGFloat = 4
@@ -877,11 +878,19 @@ struct ModernTouchLayout: Sendable {
         let portraitStickCentreY = pillHitFrames.map(\.minY).min()
             .map { $0 - Self.controlGap - Self.movementVisualRadius }
             ?? safe.maxY - Self.movementVisualRadius
+        let movementDiameter = Self.movementVisualRadius * 2
+        let leadingPadding = isPortrait
+            ? 0
+            : min(Self.movementEdgePadding, max(0, safe.width - movementDiameter))
+        let bottomPadding = min(Self.movementEdgePadding,
+                                max(0, safe.height - movementDiameter))
         let movementCentre = CGPoint(
-            x: safe.minX + Self.movementVisualRadius,
-            y: isPortrait ? portraitStickCentreY : safe.maxY - Self.movementVisualRadius)
+            x: safe.minX + leadingPadding + Self.movementVisualRadius,
+            y: isPortrait
+                ? portraitStickCentreY
+                : safe.maxY - bottomPadding - Self.movementVisualRadius)
         let defaultMovementFrame = Self.frame(centre: movementCentre,
-                                              diameter: Self.movementVisualRadius * 2)
+                                              diameter: movementDiameter)
         movementArtworkFrame = Self.resolvedFrame(defaultMovementFrame, id: .modernMovement,
                                                   customization: customization, safeBounds: safe)
         if customization.position(for: .modernMovement) != nil {
@@ -1254,7 +1263,7 @@ struct TouchPadState: Equatable {
 @MainActor
 @Observable
 final class TouchControls {
-    nonisolated static let movementRadius: CGFloat = 90
+    nonisolated static let movementRadius: CGFloat = 70
     nonisolated static let rightStickRadius: CGFloat = 38
     nonisolated static let rightStickDeadzone: CGFloat = 12
     nonisolated static let rollJumpDistance: CGFloat = 44
@@ -1277,6 +1286,7 @@ final class TouchControls {
 
     private(set) var style: TouchControlStyle
     private(set) var layoutCustomization = TouchLayoutCustomization.standard
+    private(set) var dynamicLeftStick = false
     private(set) var nativeMenuMode: GOALPadGameMode = .unknown
     private(set) var progressMenuSnapshot: NativeProgressMenuSnapshot = .unavailable
     private(set) var titleStartState: GOALPadTitleStartState = .unknown
@@ -1385,6 +1395,12 @@ final class TouchControls {
         guard customization != layoutCustomization else { return }
         reset()
         layoutCustomization = customization
+    }
+
+    func setDynamicLeftStick(_ enabled: Bool) {
+        guard enabled != dynamicLeftStick else { return }
+        reset()
+        dynamicLeftStick = enabled
     }
 
     /// Compatibility entry point for callers that only have the master-mode classification.
@@ -1590,7 +1606,13 @@ final class TouchControls {
         }
         if !contextualFacePromptOwnsGameplayActions,
            rightStick == nil, rightStickFrame.contains(point) { return .rightStick }
-        if stick == nil, point.x < size.width / 2 { return .movement }
+        if stick == nil {
+            if dynamicLeftStick, point.x < size.width / 2 { return .movement }
+            if !dynamicLeftStick {
+                let layout = ModernTouchLayout(size: size, safeAreaInsets: safeAreaInsets)
+                if layout.movementArtworkFrame.contains(point) { return .movement }
+            }
+        }
         if !contextualFacePromptOwnsGameplayActions, point.x >= size.width / 2 {
             if size.height > size.width {
                 let layout = ModernTouchLayout(size: size, safeAreaInsets: safeAreaInsets)
@@ -1613,7 +1635,10 @@ final class TouchControls {
         let deadzone: CGFloat
         switch role {
         case .movement:
-            origin = point
+            origin = dynamicLeftStick
+                ? point
+                : ModernTouchLayout(size: size, safeAreaInsets: safeAreaInsets)
+                    .movementArtworkFrame.centre
             radius = Self.movementRadius
             deadzone = 0
         case .rightStick:

@@ -292,8 +292,10 @@ private func legacyDocumentAndPickerOrderingRemainCompatible() async throws {
           && value.document.jak1InputBindingsOverride == nil,
           "a document without remapping data decodes to exact established input defaults")
     check(value.jak1TouchLayout == .standard
-          && value.touchLayoutDocument.jak1TouchLayoutOverride == nil,
-          "a Build 93 document preserves the exact established touch layouts without migration")
+          && value.touchLayoutDocument.jak1TouchLayoutOverride == nil
+          && !value.dynamicLeftStick
+          && value.touchLayoutDocument.dynamicLeftStickOverride == nil,
+          "a Build 93 document preserves the fixed default stick and established touch layout")
 }
 
 @MainActor
@@ -464,9 +466,12 @@ private func legacyTouchLayoutSidecarPersistsAcrossPresentationResets() async th
     let fixture = try Fixture(name: "touch-layout")
     let value = settings(fixture, writerID: "device-a", cloudAvailable: false)
     check(value.jak1TouchLayout == .standard
-          && value.touchLayoutDocument.jak1TouchLayoutOverride == nil,
-          "a fresh title uses the existing geometry without storing an override")
+          && value.touchLayoutDocument.jak1TouchLayoutOverride == nil
+          && !value.dynamicLeftStick
+          && value.touchLayoutDocument.dynamicLeftStickOverride == nil,
+          "a fresh title uses the fixed stick and existing geometry without overrides")
 
+    value.setDynamicLeftStick(true)
     value.setTouchControlPosition(NormalizedTouchPosition(x: 0.18, y: 0.76),
                                   for: .modernMovement)
     value.setTouchControlAction(.cameraStick, for: .modernMovement)
@@ -491,13 +496,15 @@ private func legacyTouchLayoutSidecarPersistsAcrossPresentationResets() async th
           "touch-only writes never add Build 117 fields to the frozen presentation document")
     check(touchLayoutJSON.contains("jak1TouchLayoutOverride")
           && touchLayoutJSON.contains("modernMovement")
+          && touchLayoutJSON.contains("dynamicLeftStickOverride\":true")
           && !touchLayoutJSON.contains("opacityPercent\":100")
           && !touchLayoutJSON.contains("sizePercent\":100"),
-          "only customized touch fields occupy the versioned Jak 1 sidecar")
+          "only customized touch fields and the dynamic opt-in occupy the Jak 1 sidecar")
 
     let restored = settings(fixture, writerID: "device-b", cloudAvailable: false)
-    check(restored.jak1TouchLayout == value.jak1TouchLayout,
-          "the complete customized layout survives local relaunch decoding")
+    check(restored.jak1TouchLayout == value.jak1TouchLayout
+          && restored.dynamicLeftStick,
+          "the complete customized layout and dynamic opt-in survive local relaunch decoding")
     restored.resetTouchControl(.modernActions)
     check(restored.jak1TouchLayout.gestureAction(for: .up) == .cross
           && restored.jak1TouchLayout.opacity(for: .modernActions) == 1
@@ -506,23 +513,31 @@ private func legacyTouchLayoutSidecarPersistsAcrossPresentationResets() async th
     restored.resetTouchLayout()
     check(restored.jak1TouchLayout == .standard
           && restored.touchLayoutDocument.jak1TouchLayoutOverride == nil
+          && restored.dynamicLeftStick
           && readTouchLayoutDocument(at: fixture.localTouchLayout) != nil,
-          "Reset Layout persists a sidecar tombstone for all layout overrides")
+          "Reset Layout preserves the independent dynamic-stick preference")
     restored.setTouchControlPosition(NormalizedTouchPosition(x: 0.3, y: 0.7),
                                      for: .modernMovement)
     restored.setTouchControlSizePercent(125, for: .classicCross)
-    let sidecarBeforeControlsDefaults = restored.touchLayoutDocument
+    let layoutBeforeControlsDefaults = restored.jak1TouchLayout
     restored.restoreDefaults(for: .controls)
-    check(restored.touchLayoutDocument == sidecarBeforeControlsDefaults
-          && readTouchLayoutDocument(at: fixture.localTouchLayout) == sidecarBeforeControlsDefaults,
-          "Restore Controls Defaults preserves the legacy touch-layout sidecar unchanged")
+    check(restored.jak1TouchLayout == layoutBeforeControlsDefaults
+          && !restored.dynamicLeftStick
+          && restored.touchLayoutDocument.dynamicLeftStickOverride == nil
+          && readTouchLayoutDocument(at: fixture.localTouchLayout)?.jak1TouchLayout
+            == layoutBeforeControlsDefaults,
+          "Restore Controls Defaults resets Dynamic Left Stick without erasing legacy geometry")
 
     restored.setTouchControlSizePercent(145, for: .classicCamera)
-    let sidecarBeforeFullReset = restored.touchLayoutDocument
+    restored.setDynamicLeftStick(true)
+    let layoutBeforeFullReset = restored.jak1TouchLayout
     restored.resetAll()
-    check(restored.touchLayoutDocument == sidecarBeforeFullReset
-          && readTouchLayoutDocument(at: fixture.localTouchLayout) == sidecarBeforeFullReset,
-          "Reset Jak 1 Settings preserves the legacy touch-layout sidecar unchanged")
+    check(restored.jak1TouchLayout == layoutBeforeFullReset
+          && !restored.dynamicLeftStick
+          && restored.touchLayoutDocument.dynamicLeftStickOverride == nil
+          && readTouchLayoutDocument(at: fixture.localTouchLayout)?.jak1TouchLayout
+            == layoutBeforeFullReset,
+          "Reset Jak 1 Settings resets Dynamic Left Stick without erasing legacy geometry")
 }
 
 @MainActor
@@ -1083,6 +1098,7 @@ private func unresolvedTouchSidecarVersionParticipatesInConflictResolution() asy
     conflictLayout.setOpacityPercent(55, for: .classicStats)
     let conflict = Jak1TouchLayoutSettingsDocument(
         jak1TouchLayoutOverride: conflictLayout,
+        dynamicLeftStickOverride: true,
         modifiedAt: date,
         writerID: "device-z")
     try FileManager.default.createDirectory(at: fixture.cloud.deletingLastPathComponent(),
@@ -1102,7 +1118,7 @@ private func unresolvedTouchSidecarVersionParticipatesInConflictResolution() asy
                                      configuration: configuration,
                                      writerID: "device-local")
     await value.syncNow()
-    check(value.jak1TouchLayout == conflictLayout,
+    check(value.jak1TouchLayout == conflictLayout && value.dynamicLeftStick,
           "the highest-ranked unresolved touch sidecar becomes the live layout")
     check(readTouchLayoutDocument(at: fixture.cloudTouchLayout)?.writerID == "device-z",
           "the touch conflict winner replaces the current cloud sidecar")

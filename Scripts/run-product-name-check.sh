@@ -17,10 +17,14 @@ test "$(rg -Fc 'iCloud.com.zephyrstudiosllc.eco' "$entitlements")" -eq 2
 
 rg -Fq 'fallback: "Dark Eco"' "$app"
 rg -Fq 'Text("DARK ECO")' "$library"
-rg -Fq 'Text("DARK ECO")' "$touch"
-rg -Fq '.accessibilityLabel("Dark Eco Settings")' "$touch"
-rg -Fq 'Text("DARK ECO")' "$vision"
-rg -Fq '.accessibilityLabel("Dark Eco Settings")' "$vision"
+rg -Fq '.accessibilityLabel("Settings")' "$touch"
+rg -Fq '.accessibilityLabel("Settings")' "$vision"
+
+if rg -Fq 'Text("DARK ECO")' "$touch" "$vision" \
+    || rg -Fq '.accessibilityLabel("Dark Eco Settings")' "$touch" "$vision"; then
+  echo "an in-game Settings button still includes Dark Eco branding" >&2
+  exit 1
+fi
 
 if rg -Fq 'Text("ECO")' "$library" "$touch" "$vision"; then
   echo "a launcher or app-owned settings surface still uses the old ECO wordmark" >&2

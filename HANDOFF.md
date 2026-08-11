@@ -18015,3 +18015,55 @@ Required deterministic coverage is: render/read/purge/no-read/idempotent
 purge/re-render pixel parity in `metal-proof`; background and memory-warning
 route ownership without kernel teardown; and the existing importer cancellation
 fixture proving active install/candidate preservation and partial-only cleanup.
+
+# 2026-08-11 Build 165 fixed left-stick checkpoint
+
+Build 164 was promoted to `origin/main` at merge commit `597b04fe` after
+preserving main's unique documentation commit. Build 165 is implemented in:
+
+```text
+/Users/zach/Developer/OS_Projects/GOALPad/GP-build165-touch-controls
+agent/build165-touch-controls
+```
+
+Build 165 changes the iPad Modern left stick to a fixed 140-point ring by
+default. In landscape its artwork keeps 50 points of clearance from both the
+leading and bottom safe-area edges, matching the supplied placement reference
+while making the control and full-deflection travel smaller. The new Controls
+toggle `Dynamic Left Stick` restores the prior left-half landing-point origin;
+the opt-in is persisted in the existing Jak 1 touch-settings sidecar and is
+reset by both Controls defaults and the full Jak 1 settings reset.
+
+The gameplay/native-menu and visionOS settings controls are now icon-only
+42-point gear buttons with the accessibility label `Settings`. The Dark Eco
+brand remains on the Library product card and was removed only from settings
+buttons. Both project configurations report build 165.
+
+Focused validation passed:
+
+```text
+Scripts/run-touch-controls-check.sh
+Scripts/run-touch-layout-settings-check.sh
+Scripts/run-presentation-settings-check.sh
+Scripts/run-product-name-check.sh
+Scripts/run-vision-stereo-integration-check.sh
+Scripts/verify-generated-aot.sh Generated/jak1-aot 518
+git diff --check
+```
+
+The serialized unsigned Release simulator builds both passed and embedded
+Dark Eco 1.0 (165):
+
+```text
+/private/tmp/goalpad-build165-ios-sim.log
+/private/tmp/goalpad-build165-vision-sim.log
+```
+
+The signed generic-iOS Release build passed at
+`/private/tmp/goalpad-build165-ios-device.log`. Its product passed strict
+code-signature verification with bundle `com.zephyrstudiosllc.eco`, development
+team `V729QMY3V6`, version 1.0, and build 165. With explicit maintainer
+authorization in the Build 165 request, that exact product was installed and
+launched on physical `Z iPad Pro`; `devicectl device info apps` confirmed the
+installed version/build as 1.0 (165). Physical feel and visual placement remain
+for maintainer acceptance and outrank the deterministic geometry checks.

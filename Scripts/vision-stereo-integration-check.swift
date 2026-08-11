@@ -392,13 +392,14 @@ check(content.contains(
         && content.contains("mode: session.gameMode")
         && content.contains("progress: session.progressMenuSnapshot")
         && content.contains("runReadiness: session.runReadiness"),
-      "exactly one Dark Eco Settings ornament stays visible and centers only for connected native menu state")
+      "exactly one Settings ornament stays visible and centers only for connected native menu state")
 check(pausedEcoOrnament.contains("Button(action: openSettings)")
         && pausedEcoOrnament.contains("Image(systemName: \"gearshape\")")
-        && pausedEcoOrnament.contains("Text(\"DARK ECO\")")
-        && pausedEcoOrnament.contains(".glassBackgroundEffect(in: Capsule())")
-        && pausedEcoOrnament.contains(".accessibilityLabel(\"Dark Eco Settings\")"),
-      "the always-available Dark Eco ornament is a compact accessible glass settings control")
+        && !pausedEcoOrnament.contains("Text(\"DARK ECO\")")
+        && pausedEcoOrnament.contains(".frame(width: 42, height: 42)")
+        && pausedEcoOrnament.contains(".glassBackgroundEffect(in: Circle())")
+        && pausedEcoOrnament.contains(".accessibilityLabel(\"Settings\")"),
+      "the always-available ornament is an icon-only accessible glass Settings control")
 let controllerMessageOccurrences = ornament.components(separatedBy: "Text(\"No controller detected.\")").count - 1
 check(controllerMessageOccurrences == 1
         && ornament.contains(".foregroundStyle(labelForegroundStyle)")

@@ -133,18 +133,25 @@ nonisolated struct Jak1TouchLayoutSettingsDocument: Codable, Equatable, Sendable
 
     var schemaVersion = Self.schemaVersion
     var jak1TouchLayoutOverride: TouchLayoutCustomization?
+    var dynamicLeftStickOverride: Bool?
     var modifiedAt: Date
     var writerID: String
 
     init(jak1TouchLayoutOverride: TouchLayoutCustomization? = nil,
+         dynamicLeftStickOverride: Bool? = nil,
          modifiedAt: Date = Date(), writerID: String) {
         self.jak1TouchLayoutOverride = jak1TouchLayoutOverride
+        self.dynamicLeftStickOverride = dynamicLeftStickOverride
         self.modifiedAt = modifiedAt
         self.writerID = writerID
     }
 
     var jak1TouchLayout: TouchLayoutCustomization {
         jak1TouchLayoutOverride ?? .standard
+    }
+
+    var dynamicLeftStick: Bool {
+        dynamicLeftStickOverride ?? false
     }
 }
 
@@ -542,6 +549,8 @@ final class PresentationSettings {
 
     var jak1TouchLayout: TouchLayoutCustomization { touchLayoutDocument.jak1TouchLayout }
 
+    var dynamicLeftStick: Bool { touchLayoutDocument.dynamicLeftStick }
+
     var lastSyncDate: Date? {
         lastSuccessfulSyncDate
     }
@@ -694,12 +703,19 @@ final class PresentationSettings {
         changeTouchLayout { $0.jak1TouchLayoutOverride = nil }
     }
 
+    func setDynamicLeftStick(_ enabled: Bool) {
+        guard enabled != dynamicLeftStick else { return }
+        changeTouchLayout { $0.dynamicLeftStickOverride = enabled ? true : nil }
+    }
+
     func restoreDefaults(for section: SettingsSection) {
         change { $0.restoreDefaults(for: section) }
+        if section == .controls { setDynamicLeftStick(false) }
     }
 
     func resetAll() {
         change { $0.resetAll() }
+        setDynamicLeftStick(false)
     }
 
     func prepare() async {
