@@ -4,20 +4,20 @@ import Foundation
 nonisolated enum GameDataImportPresentation {
     static func acceptedSources(rawISOAvailable: Bool) -> String {
         if rawISOAvailable {
-            return "Prepared OpenGOAL out/jak1 folder, ISO disc image, or standard ZIP with exactly one ISO"
+            return "Prepared game-data folder, ISO disc image, or ZIP with exactly one ISO"
         }
-        return "Prepared OpenGOAL out/jak1 folder"
+        return "Prepared game-data folder"
     }
 
-    static func backgroundGuidance(phaseLabel: String) -> String {
-        "Keep Dark Eco open and in the foreground. \(phaseLabel) is not safe to continue while Dark Eco is backgrounded."
-    }
+    static let backgroundGuidance = "Keep Dark Eco open and in the foreground until setup finishes."
+
+    static let setupReassurance = "Dark Eco checks your selection before it uses it."
 
     static func cancellationGuidance(isActivating: Bool) -> String {
         isActivating
-            ? "Final activation is in progress and can no longer be cancelled."
-            : "You can cancel now. Your active game data will not be replaced."
+            ? "Finishing setup cannot be cancelled."
+            : "You can cancel. Your current game data will stay unchanged."
     }
 
-    static let cancelledRecovery = "Import cancelled. Your active game data was not replaced. Choose a source again. If staging had begun, its candidate remains available for recovery."
+    static let cancelledRecovery = "Import cancelled. Your current game data was not replaced. Choose a source and try again."
 }

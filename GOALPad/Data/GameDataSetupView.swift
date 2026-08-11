@@ -49,10 +49,10 @@ struct GameDataSetupView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Import \(GameLibraryTitle.jak1.name)", systemImage: "bolt.fill")
+            Label("Add game data", systemImage: "bolt.fill")
                 .font(.title2.weight(.bold))
                 .foregroundStyle(DarkEcoTheme.accentGlow)
-            Text("Choose game data from a copy of \(GameLibraryTitle.jak1.name) that you own. Dark Eco includes no game data and never downloads it.")
+            Text("Dark Eco includes no game data. Choose a compatible source from a copy you own.")
                 .font(.body)
                 .foregroundStyle(.white.opacity(0.84))
         }
@@ -75,20 +75,20 @@ struct GameDataSetupView: View {
     private var importFlow: some View {
         DarkEcoPanel {
             VStack(alignment: .leading, spacing: 10) {
-                Text("1. Choose your source")
+                Text("Supported sources")
                     .font(.headline)
                 Text(GameDataImportPresentation.acceptedSources(rawISOAvailable: canImportRawISO))
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.84))
-                Text("2. Dark Eco prepares and validates a private candidate before it replaces any active data.")
+                Text(GameDataImportPresentation.setupReassurance)
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.84))
                 if canImportRawISO {
-                    Text("A standard ZIP must contain exactly one ISO. Other archive formats are not accepted.")
+                    Text("A ZIP must contain exactly one ISO.")
                         .font(.footnote)
                         .foregroundStyle(DarkEcoTheme.warning)
                 } else {
-                    Text("This build cannot prepare raw ISO or ZIP sources. Choose a prepared folder.")
+                    Text("This build accepts prepared folders only.")
                         .font(.footnote)
                         .foregroundStyle(DarkEcoTheme.warning)
                 }
@@ -128,10 +128,22 @@ struct GameDataSetupView: View {
                              color: DarkEcoTheme.warning)
                 actions
             }
-        case .finished(let copied, let skipped):
+        case .finished:
             VStack(alignment: .leading, spacing: 12) {
-                messagePanel("Import complete", message: "Prepared \(copied) file(s); \(skipped) were already present.",
-                             color: DarkEcoTheme.success)
+                DarkEcoPanel {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Import complete")
+                            .font(.headline)
+                            .foregroundStyle(DarkEcoTheme.success)
+                        ProgressView(value: 1)
+                            .tint(DarkEcoTheme.success)
+                            .accessibilityLabel("\(GameLibraryTitle.jak1.name) import progress")
+                            .accessibilityValue("100% complete")
+                        Text("100% complete · Your game data is ready to play.")
+                            .font(.callout)
+                            .foregroundStyle(.white.opacity(0.84))
+                    }
+                }
                 actions
             }
         case .idle:
@@ -142,28 +154,18 @@ struct GameDataSetupView: View {
     private func importProgress(_ progress: GameDataImportProgress) -> some View {
         DarkEcoPanel {
             VStack(alignment: .leading, spacing: 12) {
-                Label(progress.phase.label, systemImage: "bolt.circle.fill")
+                Label(progress.phase.playerLabel, systemImage: "bolt.circle.fill")
                     .font(.headline)
                     .foregroundStyle(DarkEcoTheme.accentGlow)
-                Group {
-                    if let fraction = progress.fraction {
-                        ProgressView(value: fraction)
-                    } else {
-                        ProgressView()
-                    }
-                }
-                .tint(DarkEcoTheme.accent)
-                .accessibilityLabel("\(GameLibraryTitle.jak1.name) import progress")
-                .accessibilityValue(progress.phase.label)
+                ProgressView(value: progress.overallProgress)
+                    .tint(DarkEcoTheme.accent)
+                    .accessibilityLabel("\(GameLibraryTitle.jak1.name) import progress")
+                    .accessibilityValue("\(progress.overallPercent)% complete · \(progress.phase.playerLabel)")
+                Text("\(progress.overallPercent)% complete")
+                    .font(.footnote.monospacedDigit())
+                    .foregroundStyle(.white.opacity(0.78))
 
-                if progress.filesTotal > 0 {
-                    Text("\(progress.filesCopied) of \(progress.filesTotal) · \(progress.currentFile)")
-                        .font(.footnote.monospaced())
-                        .foregroundStyle(.white.opacity(0.78))
-                        .lineLimit(2)
-                }
-
-                Text(GameDataImportPresentation.backgroundGuidance(phaseLabel: progress.phase.label))
+                Text(GameDataImportPresentation.backgroundGuidance)
                     .font(.footnote)
                     .foregroundStyle(DarkEcoTheme.warning)
                 Text(GameDataImportPresentation.cancellationGuidance(
@@ -194,7 +196,7 @@ struct GameDataSetupView: View {
                 .accessibilityLabel(startupMessage)
             }
 
-            Button("Choose \(GameLibraryTitle.jak1.name) data…") {
+            Button("Choose game data…") {
                 selectionError = nil
                 isChoosingSource = true
             }

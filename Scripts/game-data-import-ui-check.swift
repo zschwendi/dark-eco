@@ -37,15 +37,22 @@ check(view.contains("GameDataImportPresentation.acceptedSources(rawISOAvailable:
         && view.contains("return [.folder, rawISOType, .zip]")
         && view.contains("return [.folder]"),
       "the import copy and picker both follow the actual raw-ISO capability gate")
-check(presentation.contains("standard ZIP with exactly one ISO")
+check(presentation.contains("ZIP with exactly one ISO")
         && !presentation.contains("ZIP64")
         && view.contains("if canImportRawISO {")
-        && view.contains("This build cannot prepare raw ISO or ZIP sources"),
+        && view.contains("This build accepts prepared folders only."),
       "the concise ZIP note appears only when raw-media preparation is available")
-check(view.contains("GameDataImportPresentation.backgroundGuidance(phaseLabel: progress.phase.label)")
+check(view.contains("ProgressView(value: progress.overallProgress)")
+        && view.contains("progress.overallPercent")
+        && view.contains("ProgressView(value: 1)")
+        && view.contains("100% complete")
+        && view.contains("progress.phase.playerLabel")
+        && !view.contains("progress.currentFile")
+        && !view.contains("progress.filesCopied")
+        && view.contains("GameDataImportPresentation.backgroundGuidance")
         && view.contains("GameDataImportPresentation.cancellationGuidance(")
         && view.contains("if progress.phase != .activatingCandidate"),
-      "one import component names each active phase, foreground safety, and cancellation boundary")
+      "one aggregate progress bar keeps player-facing status, foreground safety, and cancellation boundaries")
 check(view.contains("case .failed(let failure)")
         && view.contains("failure.recoveryMessage")
         && view.contains("case .cancelling:")
@@ -56,6 +63,13 @@ check(view.contains("case .failed(let failure)")
       "importer, picker, cancellation, and recovery failures remain visible")
 check(!view.contains("setupInstructions") && !view.contains("missingList("),
       "the prior long setup wall and archive inventory are removed")
+check(view.contains("Label(\"Add game data\"")
+        && view.contains("Supported sources")
+        && view.contains("GameDataImportPresentation.setupReassurance")
+        && view.contains("Choose game data…")
+        && !view.contains("private candidate")
+        && !view.contains("Prepared \\(copied) file(s)"),
+      "setup keeps source and ownership information without duplicate developer-facing copy")
 check(view.contains("DarkEcoPanel") && view.contains("DarkEcoTheme.background")
         && theme.contains("accessibilityReduceTransparency")
         && !theme.contains(".animation("),

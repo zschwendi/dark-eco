@@ -265,3 +265,14 @@ fi
 # on shutdown. The full runner can typecheck these properties after the native bridge lands.
 rg -Fq 'GOALPadRuntimeBridge.facePromptTouchSnapshot' "$root/GOALPad/Game/GameSession.swift"
 rg -Fq 'updateFacePromptTouchSnapshot(.invalid)' "$root/GOALPad/Game/GameSession.swift"
+
+# The guide is iOS-only: visionOS must not gain a touch surface, guide, or invisible target.
+# Its concise order follows the active Build 96 touch contract rather than obsolete button art.
+touch_guide="$root/GOALPad/Game/TouchControlsGuideView.swift"
+test "$(sed -n '1p' "$touch_guide")" = '#if os(iOS)'
+test "$(tail -n 1 "$touch_guide")" = '#endif'
+for guide_title in 'Move' 'Camera' 'Actions' 'Zoom and fire' 'Speeder' 'Game prompts'; do
+  rg -Fq "title: \"$guide_title\"" "$touch_guide"
+done
+rg -Fq 'In first-person, tap the open right side to fire.' "$touch_guide"
+rg -Fq 'Touch and a connected controller work together.' "$touch_guide"

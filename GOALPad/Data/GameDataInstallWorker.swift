@@ -23,6 +23,16 @@ nonisolated struct GameDataImportProgress: Sendable {
             case .activatingCandidate: return "Activating candidate"
             }
         }
+
+        var playerLabel: String {
+            switch self {
+            case .scanning: return "Getting started"
+            case .stagingCurrentInstall: return "Keeping your current data"
+            case .preparingCandidate: return "Preparing game data"
+            case .validatingCandidate: return "Checking game data"
+            case .activatingCandidate: return "Finishing setup"
+            }
+        }
     }
 
     var phase: Phase
@@ -42,6 +52,28 @@ nonisolated struct GameDataImportProgress: Sendable {
             }
             return filesTotal > 0 ? Double(filesCopied) / Double(filesTotal) : nil
         }
+    }
+
+    /// A conservative overall-progress floor. Measured copy work advances within its own
+    /// interval; phases without a measurable total advance only when that phase begins.
+    var overallProgress: Double {
+        let measuredFraction = min(1, max(0, fraction ?? 0))
+        return switch phase {
+        case .scanning:
+            0
+        case .stagingCurrentInstall:
+            measuredFraction * 0.15
+        case .preparingCandidate:
+            0.15 + measuredFraction * 0.70
+        case .validatingCandidate:
+            0.85
+        case .activatingCandidate:
+            0.95
+        }
+    }
+
+    var overallPercent: Int {
+        Int((overallProgress * 100).rounded())
     }
 }
 

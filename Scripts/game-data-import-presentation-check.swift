@@ -15,23 +15,26 @@ import Foundation
 private struct GameDataImportPresentationCheck {
     @MainActor static func main() {
         check(GameDataImportPresentation.acceptedSources(rawISOAvailable: false)
-                == "Prepared OpenGOAL out/jak1 folder",
+                == "Prepared game-data folder",
               "prepared-folder-only builds do not advertise raw media")
         check(GameDataImportPresentation.acceptedSources(rawISOAvailable: true)
-                == "Prepared OpenGOAL out/jak1 folder, ISO disc image, or standard ZIP with exactly one ISO",
+                == "Prepared game-data folder, ISO disc image, or ZIP with exactly one ISO",
               "raw-media-capable builds advertise only the ISO and one-ISO ZIP paths")
-        check(GameDataImportPresentation.backgroundGuidance(phaseLabel: "Validating candidate")
-                == "Keep Dark Eco open and in the foreground. Validating candidate is not safe to continue while Dark Eco is backgrounded.",
-              "every active phase names itself and truthfully requires foreground execution")
+        check(GameDataImportPresentation.backgroundGuidance
+                == "Keep Dark Eco open and in the foreground until setup finishes.",
+              "foreground guidance remains concise and safe")
+        check(GameDataImportPresentation.setupReassurance
+                == "Dark Eco checks your selection before it uses it.",
+              "setup explains validation without staging implementation detail")
         check(GameDataImportPresentation.cancellationGuidance(isActivating: false)
-                == "You can cancel now. Your active game data will not be replaced.",
+                == "You can cancel. Your current game data will stay unchanged.",
               "pre-activation cancellation preserves the active install")
         check(GameDataImportPresentation.cancellationGuidance(isActivating: true)
-                == "Final activation is in progress and can no longer be cancelled.",
+                == "Finishing setup cannot be cancelled.",
               "activation does not promise a cancellation that the worker cannot honor")
         check(GameDataImportPresentation.cancelledRecovery.contains("was not replaced")
-                && GameDataImportPresentation.cancelledRecovery.contains("candidate remains available for recovery"),
-              "cancellation stays visible with bounded recovery guidance")
+                && GameDataImportPresentation.cancelledRecovery.contains("try again"),
+              "cancellation stays visible with a recovery action")
 
         if failures == 0 {
             print("game data import presentation checks passed")

@@ -145,6 +145,38 @@ private func preparedFolder(under root: URL, payload: String = "fixture") throws
     ), "an in-flight startup does not rescan data")
 }
 
+@MainActor private func overallProgressUsesMeasuredWorkAndPhaseFloors() {
+    print("overall import progress uses measured copy work and conservative phase floors")
+    let scanning = GameDataImportProgress(phase: .scanning)
+    let stagingHalf = GameDataImportProgress(phase: .stagingCurrentInstall,
+                                              bytesCopied: 50, bytesTotal: 100)
+    let preparingStart = GameDataImportProgress(phase: .preparingCandidate,
+                                                bytesCopied: 0, bytesTotal: 100)
+    let preparingHalf = GameDataImportProgress(phase: .preparingCandidate,
+                                               bytesCopied: 50, bytesTotal: 100)
+    let preparingComplete = GameDataImportProgress(phase: .preparingCandidate,
+                                                   bytesCopied: 100, bytesTotal: 100)
+
+    check(scanning.overallProgress == 0,
+          "scanning starts the aggregate bar at zero")
+    check(stagingHalf.overallProgress == 0.075,
+          "staging advances only by its measured copy fraction")
+    check(preparingStart.overallProgress == 0.15
+            && preparingHalf.overallProgress == 0.50
+            && preparingComplete.overallProgress == 0.85,
+          "preparation maps its measured fraction into the stable overall range")
+    check(stagingHalf.overallPercent == 8
+            && preparingHalf.overallPercent == 50
+            && preparingComplete.overallPercent == 85,
+          "the aggregate bar exposes rounded whole-percent progress")
+    check(GameDataImportProgress(phase: .validatingCandidate).overallProgress == 0.85
+            && GameDataImportProgress(phase: .activatingCandidate).overallProgress == 0.95,
+          "unmeasured validation and activation use conservative phase floors")
+    check(GameDataImportProgress.Phase.preparingCandidate.playerLabel == "Preparing game data"
+            && GameDataImportProgress.Phase.activatingCandidate.playerLabel == "Finishing setup",
+          "the UI uses player-facing phase labels")
+}
+
 @MainActor private func completeCandidateActivates() async throws {
     print("a complete prepared folder activates only after validation")
     let fixture = try Fixture()
@@ -430,6 +462,7 @@ private struct GameDataInstallCheck {
         do {
             try preexistingActiveInstallIsRecognized()
             foregroundRefreshPolicyIsGuarded()
+            overallProgressUsesMeasuredWorkAndPhaseFloors()
             try await completeCandidateActivates()
             try await incompleteCandidateIsRecoverable()
             try await sourceFilesAreNotCopiedFromActiveFirst()

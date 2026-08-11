@@ -26,24 +26,20 @@ struct TouchControlsGuideView: View {
 
                 VStack(spacing: 14) {
                     guideRow(symbol: "L", title: "Move",
-                             detail: "Touch anywhere on the left side and drag.")
+                             detail: "Drag anywhere on the left side.")
                     guideRow(symbol: "R", title: "Camera",
                              detail: "Drag the right stick to look around.")
-                    guideRow(symbol: "⌕", title: "Zoom and Fire",
-                             detail: "Use the round Zoom button. While zoomed in, tap the open right side or swipe left to fire.")
-                    guideRow(symbol: "↑", title: "Jump or Accelerate",
-                             detail: "Swipe up on the right side. On a vehicle, pull back down while holding to brake or drift.")
-                    guideRow(symbol: "←", title: "Punch",
-                             detail: "Swipe left on the right side.")
-                    guideRow(symbol: "→", title: "Spin or Interact",
-                             detail: "Swipe right on the right side.")
-                    guideRow(symbol: "↓", title: "Crouch",
-                             detail: "Swipe down and hold. Continue up to jump or left to punch while crouched.")
-                    guideRow(symbol: "◇", title: "Contextual Actions",
-                             detail: "When the game asks for a specific face button, its touch target appears automatically.")
+                    guideRow(symbol: "↕", title: "Actions",
+                             detail: "On the open right side, swipe up to jump, left to punch, or right to spin or interact. Hold down to crouch; from crouch, drag up to jump or left to punch.")
+                    guideRow(symbol: "⌕", title: "Zoom and fire",
+                             detail: "Tap Zoom. In first-person, tap the open right side to fire.")
+                    guideRow(symbol: "↑", title: "Speeder",
+                             detail: "Swipe up to accelerate. While holding, drag down to brake.")
+                    guideRow(symbol: "◇", title: "Game prompts",
+                             detail: "When a prompt appears, tap its matching button.")
                 }
 
-                Text("The Zoom, Stats, Pause, and contextual controls appear when they are available. A connected controller and touch can be used together.")
+                Text("Use the visible Start, Pause, Stats, Zoom, and prompt controls when they appear. Touch and a connected controller work together.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
