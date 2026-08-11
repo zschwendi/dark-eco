@@ -60,6 +60,7 @@ presentation. The dormant bounded-stereo implementation, volumetric and tracked
 presentation, and immersive presentation are not part of the current
 App Store-facing product.
 
-Release screenshot and optional preview capture are planned in
-[Release media plan](RELEASE_MEDIA_PLAN.md). No release screenshots or previews
-are committed in this repository.
+Build 164 simulator screenshot candidates are recorded in
+[Release media plan](RELEASE_MEDIA_PLAN.md). They remain outside this Git
+repository and have not been uploaded or approved. No app preview is planned
+for this release candidate.

@@ -1,7 +1,9 @@
 # Dark Eco release media plan
 
-**Status:** Planned. This is a local capture recipe and metadata plan, not
-evidence that any App Store Connect media has been uploaded or approved.
+**Status:** Implemented locally for Dark Eco 1.0 (164). Nine simulator
+screenshot candidates and opaque JPEG upload copies have been captured and
+visually checked. This is not evidence that any App Store Connect media has
+been uploaded or approved.
 
 ## Existing inventory
 
@@ -12,8 +14,15 @@ evidence that any App Store Connect media has been uploaded or approved.
 - `docs/BUILDING.md` records historical simulator screenshot commands and
   evidence. Those captures are not release media and must not be reused without
   checking this plan.
-- No App Store screenshots, app previews, or capture automation are currently
-  committed.
+- The local, uncommitted capture set and its hashes are recorded in the
+  workspace artifact `AppStoreAssets/DarkEco-1.0-164/CAPTURE_MANIFEST.md`,
+  outside this Git repository.
+- `ContentView` has a compile-time-only `GOALPAD_APPSTORE_CAPTURE` seam for the
+  empty Library, Game Setup, and Settings states. It is absent from normal
+  builds unless that Swift condition is explicitly supplied.
+- No app preview was produced for Build 164. The preview is optional, and a
+  UI-only video does not add enough information to this release's three still
+  concepts.
 
 ## Content boundary
 
@@ -35,7 +44,7 @@ resolution. Do not resize a simulator capture to invent a required device size.
 
 | Order | State | Visible message | Data needed |
 | --- | --- | --- | --- |
-| 1 | Library, empty container | Truthful available, Coming Soon, and Planned library states; on visionOS, capture the normal full-card hover state after verifying it in the submitted build | None |
+| 1 | Library, empty container | Truthful available, Coming Soon, and Planned library states | None |
 | 2 | Game Setup | Streamlined local import/setup guidance that the app includes no game data | None |
 | 3 | Settings | The single input picker and compact settings categories | None |
 
@@ -57,31 +66,60 @@ App Store Connect accepts one to ten PNG/JPG/JPEG screenshots per supported
 platform. Keep all three frames in the same orientation per platform, use opaque
 RGB exports, and recheck Apple’s specification table immediately before upload.
 
-## Local capture recipe
+## Build 164 local capture result
+
+The screenshot candidates were captured from Release simulator builds at UI
+commit `eefc8e10` with build number 164. The capture-only builds supplied
+`-DGOALPAD_APPSTORE_CAPTURE`; the three launch states were Library (default),
+`-EcoCaptureGameSetup`, and `-EcoCaptureSettings`. They contained no game data
+or user artwork.
+
+| Platform folder | Simulator and runtime | JPEG dimensions | Frames |
+| --- | --- | --- | --- |
+| `iPhone-6.9` | iPhone 17 Pro Max, iOS 26.5 | 1320 × 2868 | Library, Game Setup, Settings |
+| `iPad-13` | iPad Pro 13-inch, iOS 26.5 | 2064 × 2752 | Library, Game Setup, Settings |
+| `Apple-Vision-Pro` | Apple Vision Pro, visionOS 26.5 | 3840 × 2160 | Library, Game Setup, Settings |
+
+All nine JPEGs were checked as `jpeg` with `hasAlpha: no`, and a nine-frame
+contact sheet was visually reviewed. PNG simulator masters remain beside the
+JPEGs. The manifest records dimensions and SHA-256 values for the upload
+copies.
+
+The Vision Pro screenshots show the conventional 2D window, not an artificial
+hover effect. The library card uses a full-card interaction and hover content
+shape in the app, but physical gaze/hover acceptance remains a separate device
+gate.
+
+## Re-capture recipe
 
 1. Build the exact release candidate using the documented simulator build path;
    never use a physical device for routine capture.
 2. Start with an empty simulator app container. Do not install any game-data
    package or user artwork.
-3. Navigate manually to each state above, wait for all app UI to settle, then
-   capture with Xcode or `xcrun simctl io <simulator-udid> screenshot <path>`.
-   For visionOS, use the simulator/Xcode capture that produces the required
-   3840 × 2160 Apple Vision Pro frame.
+3. For deterministic empty-state capture, add
+   `OTHER_SWIFT_FLAGS=$(inherited) -DGOALPAD_APPSTORE_CAPTURE` to the Release
+   simulator build. Launch without an argument for Library, with
+   `-EcoCaptureGameSetup` for Game Setup, or with `-EcoCaptureSettings` for
+   Settings. Wait for the UI to settle, then capture with Xcode or
+   `xcrun simctl io <simulator-udid> screenshot <path>`. For visionOS, use the
+   simulator/Xcode capture that produces the required 3840 × 2160 frame.
 4. Inspect every exported image with `sips -g pixelWidth -g pixelHeight -g
    format -g hasAlpha <path>` and confirm its state, dimensions, orientation,
    opaque pixels, and absence of retail/user artwork.
-5. Store candidate media outside the repository until the maintainer approves
-   the release input. Record the submitted build, device family, state, output
-   dimensions, and SHA-256 in the release checklist.
+5. Export opaque JPEG upload copies, store candidate media outside the
+   repository until the maintainer approves the release input, and record the
+   build, device family, state, dimensions, and SHA-256 in the capture manifest.
 
 `simctl` success proves only a simulator capture. It does not prove physical
 device rendering, App Store upload, or App Review acceptance.
 
-## Optional honest app preview
+## App preview decision
 
-Only make a preview if the submitted build can show the three UI states cleanly
-without retail content. A 15–30 second, landscape, UI-only sequence may show
-Library → Game Setup → Settings. No preview is required for this release.
+No app preview is planned for this release candidate. Apple permits screenshots
+without a preview, and the three still concepts already show the complete
+asset-free release story. Reconsider only if the submitted build can add useful
+motion or interaction without retail content. A future 15–30 second, UI-only
+sequence could show Library → Game Setup → Settings.
 
 Use H.264 or ProRes 422 (HQ only), no more than 30 fps, and a file no larger
 than 500 MB. Use 1920 × 886 for the iPhone preview, 1600 × 1200 for the iPad

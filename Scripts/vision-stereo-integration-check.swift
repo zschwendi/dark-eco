@@ -189,8 +189,8 @@ check(startWatching.contains(".GCControllerDidConnect")
         && stopWatching.contains("#if !os(visionOS)\n        GCController.stopWirelessControllerDiscovery()\n        #endif"),
       "visionOS observes system-connected gamepads without wireless discovery")
 let controlsSettings = section(settingsUI,
-                               from: "private var controlsSection: some View",
-                               to: "@ViewBuilder\n    private func profileSection")
+                               from: "private var controlsContent: some View",
+                               to: "@ViewBuilder\n    private var graphicsContent: some View")
 check(controlsSettings.contains("ControllerBindingsSettingsView")
         && controlsSettings.contains("#if !os(visionOS)\n            Picker(\"Primary Controller\"")
         && controlsSettings.contains("#if !os(visionOS)\n            NavigationLink {\n                KeyboardMouseBindingsSettingsView"),
@@ -385,7 +385,7 @@ check(content.contains(
         && content.contains("contentAlignment: .bottomTrailing")
         && content.contains("attachmentAnchor: .scene(.top)")
         && content.components(
-            separatedBy: "VisionPausedEcoOrnament { presentSettings(.jak1) }"
+            separatedBy: "VisionPausedEcoOrnament { presentSettings() }"
         ).count - 1 == 2
         && content.contains("session.input.isConnected && session.isRunning")
         && content.contains("&& NativeEcoSettingsPresentation.isVisible(")
@@ -416,14 +416,14 @@ check(controllerMessageOccurrences == 1
         && ornament.contains(".allowsHitTesting(false)")
         && ornament.contains(".accessibilityLabel(\"No controller detected.\")"),
       "the full noninteractive purple controller message shimmers without a duplicate or masked label")
-check(content.contains("SettingsTitleListView(\n                openJak1:")
-        && content.contains("close: { dismiss() }")
-        && content.contains("#if os(visionOS)\n        .toolbar {\n            ToolbarItem(placement: .topBarLeading)")
-        && content.contains("Image(systemName: \"xmark\")")
-        && content.contains(".accessibilityLabel(\"Close Settings\")")
+check(content.contains("NavigationStack {\n            SaveSettingsView(")
+        && !content.contains("SettingsTitleListView")
         && content.contains("#if !os(visionOS)\n        .toolbar {\n            ToolbarItem(placement: .confirmationAction)")
-        && content.contains("Button(\"Done\") { dismiss() }"),
-      "the visible visionOS title picker owns a top-leading Close action while iOS retains Done")
+        && content.contains("Button(\"Done\") { dismiss() }")
+        && content.contains("#else\n        .toolbar {\n            ToolbarItem(placement: .topBarLeading)")
+        && content.contains("Image(systemName: \"xmark\")")
+        && content.contains(".accessibilityLabel(\"Close Settings\")"),
+      "the direct visionOS Settings sheet owns a top-leading Close action while iOS retains Done")
 check(libraryUI.contains("#if os(visionOS)\n            .contentShape([.interaction, .hoverEffect],")
         && libraryUI.contains("RoundedRectangle(cornerRadius: 16, style: .continuous)")
         && libraryUI.contains(".hoverEffect(.highlight)"),

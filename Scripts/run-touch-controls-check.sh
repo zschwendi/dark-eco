@@ -178,7 +178,16 @@ if rg -Fq 'session.isRunning && session.isNativeMenuOpen' \
   echo "redundant top-right Dark Eco Settings control is still mounted" >&2
   exit 1
 fi
-rg -Fq 'openSettings: { presentSettings(.jak1) }' "$root/GOALPad/ContentView.swift"
+if test "$(rg -F -c 'openSettings: presentSettings' \
+    "$root/GOALPad/ContentView.swift")" -ne 2; then
+  echo "Library and gameplay do not share the direct Settings sheet route" >&2
+  exit 1
+fi
+rg -Fq 'private func presentSettings()' "$root/GOALPad/ContentView.swift"
+if rg -Fq 'SettingsSheetEntry' "$root/GOALPad/ContentView.swift"; then
+  echo "the removed title-settings interstitial is still routed" >&2
+  exit 1
+fi
 rg -Fq 'static let quit = 34' "$root/GOALPad/Game/TouchControls.swift"
 rg -Fq 'static let quitTitle = 58' "$root/GOALPad/Game/TouchControls.swift"
 rg -Fq 'static let memoryCardDataExists = 11' "$root/GOALPad/Game/TouchControls.swift"
