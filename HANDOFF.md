@@ -18067,3 +18067,27 @@ authorization in the Build 165 request, that exact product was installed and
 launched on physical `Z iPad Pro`; `devicectl device info apps` confirmed the
 installed version/build as 1.0 (165). Physical feel and visual placement remain
 for maintainer acceptance and outrank the deterministic geometry checks.
+
+# 2026-08-11 Build 166 left-stick padding refinement
+
+Physical Build 165 comparison captures established that the maintainer prefers
+`IMG_0879.PNG` over `IMG_0880.PNG`. Both are 2420 x 1668 (@2x). The 140-point
+ring in `IMG_0880.PNG` has exactly 50 points of left and bottom clearance. The
+preferred `IMG_0879.PNG` ring has approximately 87.5 points of left clearance
+and 84 points of bottom clearance. Build 166 therefore uses one deterministic
+85-point landscape safe-area inset on both edges while retaining the accepted
+140-point ring and fixed-by-default behavior.
+
+The refinement is on:
+
+```text
+/Users/zach/Developer/OS_Projects/GOALPad/GP-build165-touch-controls
+agent/build166-stick-padding
+```
+
+`Scripts/run-touch-controls-check.sh`, changed-file Swift parsing, and
+`git diff --check` pass. An incremental unsigned iPad Simulator Release build
+also passed and reports Dark Eco 1.0 (166); its log is
+`/private/tmp/goalpad-build166-ios-sim.log`. Build 166 has not been installed or
+launched on the physical iPad because the current refinement request did not
+authorize a new physical-device operation.

@@ -106,11 +106,12 @@ private func modernLayoutIsCompactAndSafe() {
           "the Modern movement ring is a compact 140 points across")
 
     let roomyIPad = ModernTouchLayout(size: Runner.screen, safeAreaInsets: Runner.safeAreaInsets)
-    check(close(roomyIPad.movementArtworkFrame.minX - roomyIPad.safeBounds.minX,
+    check(ModernTouchLayout.movementEdgePadding == 85
+          && close(roomyIPad.movementArtworkFrame.minX - roomyIPad.safeBounds.minX,
                 ModernTouchLayout.movementEdgePadding)
           && close(roomyIPad.safeBounds.maxY - roomyIPad.movementArtworkFrame.maxY,
                    ModernTouchLayout.movementEdgePadding),
-          "the landscape L ring matches the screenshot's equal 50-point edge padding")
+          "the landscape L ring matches the preferred screenshot's 85-point edge padding")
     check(roomyIPad.rightStickSpacer <= ModernTouchLayout.rightStickSpacerCap,
           "the right-stick spacer never exceeds 200 points")
     check(roomyIPad.rightStickSpacer > ModernTouchLayout.legacyRightStickEdge(for: Runner.screen),

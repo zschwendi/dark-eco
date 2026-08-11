@@ -809,7 +809,7 @@ struct ModernTouchLayout: Sendable {
     }
     static let movementKnobSize: CGFloat = 66
     static let movementVisualRadius = TouchControls.movementRadius
-    static let movementEdgePadding: CGFloat = 50
+    static let movementEdgePadding: CGFloat = 85
     static let rightStickHitSlop: CGFloat = 16
     static let rightStickSpacerCap: CGFloat = 200
     static let portraitStackGap: CGFloat = 4
