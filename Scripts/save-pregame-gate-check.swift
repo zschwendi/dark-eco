@@ -85,7 +85,8 @@ let timeout = section(controller,
                       to: "private func ubiquityIdentityDidChange()")
 check(occursInOrder([
     "automaticSyncTask?.cancel()",
-    "while isBusy || frameCheckTask != nil || automaticSyncTask != nil",
+    "while isBusy || frameCheckTask != nil || cloudContentChangeTask != nil",
+    "|| automaticSyncTask != nil",
     "return false",
     "Using local saves",
     "return await checkLocalGameplaySafety()",
@@ -97,10 +98,17 @@ check(engine.contains("NSMetadataQueryUbiquitousDocumentsScope")
         && engine.contains("NSMetadataQueryDidFinishGathering")
         && engine.contains("cloudDiscoveryTimeout: Duration = .seconds(5)"),
       "cloud absence is accepted only after one bounded authoritative metadata gather")
+check(controller.contains("NSMetadataQueryDidUpdate")
+        && controller.contains("NSMetadataItemPathKey")
+        && controller.contains("cloudContentDidChange()")
+        && controller.contains("cloudContentChangeDebounce"),
+      "late provider revisions remain observed and enter one debounced reconciliation")
 
 let prepare = section(controller, from: "func prepare() async", to: "func syncNow")
 check(prepare.contains("launcherDidAppear()")
-        && prepare.contains("guard isEnabled, !isGameplayActive else { return }")
+        && prepare.contains("guard isEnabled else { return }")
+        && prepare.contains("cloudMetadataMonitor?.start()")
+        && prepare.contains("guard !isGameplayActive else { return }")
         && prepare.contains("activeSyncMode != .bidirectional")
         && prepare.contains("pendingSyncMode != .bidirectional")
         && prepare.contains("scheduleAutomaticSync(.bidirectional, announceWaiting: true)")

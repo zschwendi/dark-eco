@@ -2,6 +2,66 @@ import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
 
+private extension Notification.Name {
+    nonisolated static let goalpadCloudSaveContentDidChange = Notification.Name(
+        "GOALPadCloudSaveContentDidChange")
+}
+
+/// Keeps observing the private save subtree after the engine's bounded initial discovery pass.
+/// FileProvider can expose a newer cross-device revision minutes after that first snapshot.
+@MainActor
+private final class CloudSaveMetadataMonitor {
+    private let notificationCenter: NotificationCenter
+    private let cloudRoot: () -> URL?
+    private let didChange: () -> Void
+    private var query: NSMetadataQuery?
+    private var updateObserver: NSObjectProtocol?
+
+    init(notificationCenter: NotificationCenter,
+         cloudRoot: @escaping () -> URL?,
+         didChange: @escaping () -> Void) {
+        self.notificationCenter = notificationCenter
+        self.cloudRoot = cloudRoot
+        self.didChange = didChange
+    }
+
+    func start() {
+        guard query == nil, let root = cloudRoot()?.standardizedFileURL else { return }
+        let query = NSMetadataQuery()
+        query.operationQueue = .main
+        query.searchScopes = [NSMetadataQueryUbiquitousDocumentsScope]
+        query.predicate = NSPredicate(format: "%K BEGINSWITH %@",
+                                      NSMetadataItemPathKey, root.path)
+        let observer = notificationCenter.addObserver(
+            forName: .NSMetadataQueryDidUpdate,
+            object: query,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.didChange() }
+        }
+        guard query.start() else {
+            notificationCenter.removeObserver(observer)
+            return
+        }
+        self.query = query
+        updateObserver = observer
+    }
+
+    func restart() {
+        stop()
+        start()
+    }
+
+    func stop() {
+        query?.stop()
+        query = nil
+        if let updateObserver {
+            notificationCenter.removeObserver(updateObserver)
+            self.updateObserver = nil
+        }
+    }
+}
+
 nonisolated enum SaveDataLayout {
     static var applicationSupportDirectory: URL {
         (try? FileManager.default.url(for: .applicationSupportDirectory,
@@ -82,10 +142,13 @@ final class SaveSyncController {
         didSet {
             defaults.set(isEnabled, forKey: Self.enabledDefaultsKey)
             if isEnabled {
+                cloudMetadataMonitor?.start()
                 needsBidirectionalSyncBeforeGameplay = true
                 status = .waiting
                 scheduleAutomaticSync(.bidirectional, announceWaiting: true)
             } else {
+                cloudMetadataMonitor?.stop()
+                cancelPendingCloudContentChange()
                 cancelPendingFrameCheck()
                 pendingSyncMode = nil
                 automaticSyncGeneration += 1
@@ -115,14 +178,21 @@ final class SaveSyncController {
     private var gameplayReadinessDidChange: (() -> Void)?
     private var automaticSyncTask: Task<Void, Never>?
     private var automaticSyncGeneration = 0
+    private var cloudContentChangeTask: Task<Void, Never>?
+    private var cloudContentChangeGeneration = 0
     private var observedSaveFileCount: Int?
     private var cloudDownloadDeferred = false
     private var cloudUploadPending = false
     @ObservationIgnored
     nonisolated(unsafe) private var ubiquityIdentityObserver: NSObjectProtocol?
+    @ObservationIgnored
+    nonisolated(unsafe) private var cloudContentChangeObserver: NSObjectProtocol?
+    @ObservationIgnored
+    private var cloudMetadataMonitor: CloudSaveMetadataMonitor?
     private(set) var cloudUnavailableMessage: String?
 
     private let notificationCenter: NotificationCenter
+    private let cloudContentChangeDebounce: Duration
     private let pregameWaitInterval: Duration
     private let pregameWaitAttempts: Int
     private let pregameCancellationWaitAttempts: Int
@@ -131,11 +201,15 @@ final class SaveSyncController {
          notificationCenter: NotificationCenter = .default,
          ubiquityIdentityDidChangeNotification: Notification.Name =
             .NSUbiquityIdentityDidChange,
+         cloudContentDidChangeNotification: Notification.Name =
+            .goalpadCloudSaveContentDidChange,
+         cloudContentChangeDebounce: Duration = .milliseconds(250),
          pregameWaitInterval: Duration = .milliseconds(50),
          pregameWaitAttempts: Int = 160,
          pregameCancellationWaitAttempts: Int = 20) {
         self.defaults = defaults
         self.notificationCenter = notificationCenter
+        self.cloudContentChangeDebounce = cloudContentChangeDebounce
         self.pregameWaitInterval = pregameWaitInterval
         self.pregameWaitAttempts = pregameWaitAttempts
         self.pregameCancellationWaitAttempts = pregameCancellationWaitAttempts
@@ -156,6 +230,8 @@ final class SaveSyncController {
         lastSuccessfulSyncDate = nil
         cloudUnavailableMessage = nil
         observedSaveFileCount = nil
+        cloudMetadataMonitor = nil
+        let usesProductionEngine = engine == nil
         self.engine = engine ?? SaveSyncEngine(configuration: .init(
             localRoot: SaveDataLayout.localSavesDirectory,
             localConflictsRoot: SaveDataLayout.localConflictsDirectory,
@@ -170,11 +246,32 @@ final class SaveSyncController {
                 self?.ubiquityIdentityDidChange()
             }
         }
+        cloudContentChangeObserver = notificationCenter.addObserver(
+            forName: cloudContentDidChangeNotification, object: nil, queue: nil
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.cloudContentDidChange()
+            }
+        }
+        if usesProductionEngine {
+            let monitor = CloudSaveMetadataMonitor(
+                notificationCenter: notificationCenter,
+                cloudRoot: { SaveDataLayout.cloudLocations()?.savesRoot },
+                didChange: {
+                    notificationCenter.post(name: cloudContentDidChangeNotification,
+                                            object: nil)
+                })
+            cloudMetadataMonitor = monitor
+            if enabled { monitor.start() }
+        }
     }
 
     deinit {
         if let ubiquityIdentityObserver {
             notificationCenter.removeObserver(ubiquityIdentityObserver)
+        }
+        if let cloudContentChangeObserver {
+            notificationCenter.removeObserver(cloudContentChangeObserver)
         }
     }
 
@@ -245,7 +342,9 @@ final class SaveSyncController {
     /// Reconciles saves as soon as the Library is visible, before a title starts gameplay.
     /// Repeated appearance callbacks share an already queued or active bidirectional sync.
     func launcherDidAppear() {
-        guard isEnabled, !isGameplayActive else { return }
+        guard isEnabled else { return }
+        cloudMetadataMonitor?.start()
+        guard !isGameplayActive else { return }
         guard activeSyncMode != .bidirectional, pendingSyncMode != .bidirectional else { return }
         scheduleAutomaticSync(.bidirectional, announceWaiting: true)
     }
@@ -440,7 +539,9 @@ final class SaveSyncController {
                 return "No saves found on this device or in iCloud"
             }
             if !resolutions.isEmpty { return resolutionNotice(for: resolutions) }
-            if uploaded == 0 && downloaded == 0 { return "Up to date" }
+            if uploaded == 0 && downloaded == 0 {
+                return "No differences found in currently available iCloud saves"
+            }
             return "Synced: \(uploaded) uploaded, \(downloaded) downloaded"
         case .failed(let message): return "Sync issue: \(message)"
         }
@@ -460,7 +561,8 @@ final class SaveSyncController {
     }
 
     private var hasPregameSaveWork: Bool {
-        isBusy || frameCheckTask != nil || pendingSyncMode != nil || automaticSyncTask != nil
+        isBusy || frameCheckTask != nil || cloudContentChangeTask != nil
+            || pendingSyncMode != nil || automaticSyncTask != nil
     }
 
     private func scheduleAutomaticSync(_ mode: SaveSyncMode,
@@ -496,13 +598,16 @@ final class SaveSyncController {
     private func finishTimedOutPregameSync() async -> Bool {
         let timedOutDuringCloudSync = activeOperation == .syncing
             || activeSyncMode != nil || pendingSyncMode != nil || automaticSyncTask != nil
+            || cloudContentChangeTask != nil
         if timedOutDuringCloudSync {
+            cancelPendingCloudContentChange()
             pendingSyncMode = nil
             automaticSyncTask?.cancel()
         }
 
         var cancellationAttempts = 0
-        while isBusy || frameCheckTask != nil || automaticSyncTask != nil {
+        while isBusy || frameCheckTask != nil || cloudContentChangeTask != nil
+                || automaticSyncTask != nil {
             guard cancellationAttempts < pregameCancellationWaitAttempts else {
                 status = .failed("Save preparation is still finishing. Wait a moment and try Play again.")
                 gameplayReadinessDidChange?()
@@ -524,12 +629,39 @@ final class SaveSyncController {
 
     private func ubiquityIdentityDidChange() {
         guard isEnabled else { return }
+        cloudMetadataMonitor?.restart()
         needsBidirectionalSyncBeforeGameplay = true
         cloudUnavailableMessage = nil
         if activeOperation == nil {
             status = .waiting
         }
         scheduleAutomaticSync(isGameplayActive ? .uploadOnly : .bidirectional)
+    }
+
+    private func cloudContentDidChange() {
+        guard isEnabled else { return }
+        needsBidirectionalSyncBeforeGameplay = true
+        cloudContentChangeGeneration += 1
+        let generation = cloudContentChangeGeneration
+        cloudContentChangeTask?.cancel()
+        cloudContentChangeTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await Task.sleep(for: cloudContentChangeDebounce)
+            } catch {
+                return
+            }
+            guard isEnabled, generation == cloudContentChangeGeneration else { return }
+            cloudContentChangeTask = nil
+            scheduleAutomaticSync(isGameplayActive ? .uploadOnly : .bidirectional)
+        }
+        gameplayReadinessDidChange?()
+    }
+
+    private func cancelPendingCloudContentChange() {
+        cloudContentChangeGeneration += 1
+        cloudContentChangeTask?.cancel()
+        cloudContentChangeTask = nil
     }
 
     private func drainPendingSync() async {
@@ -714,6 +846,7 @@ enum CloudSyncPresentation {
 
         let savesAreUploadOnly = savesEnabled && savesGameplayActive
         let canUseUploadOnlySummary = savesSummary == "Up to date"
+            || savesSummary.hasPrefix("No differences found")
             || savesSummary.hasPrefix("Synced:")
         let displayedSavesSummary = savesAreUploadOnly && savesFailure == nil
             && !savesUnavailable && canUseUploadOnlySummary

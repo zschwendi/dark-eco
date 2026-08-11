@@ -216,6 +216,38 @@ private actor OperationLog {
     }
 }
 
+private actor TargetOperationGate {
+    private let targetEntry: Int
+    private var entryCount = 0
+    private var targetWaiters: [CheckedContinuation<Void, Never>] = []
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+    private var isReleased = false
+
+    init(targetEntry: Int) {
+        self.targetEntry = targetEntry
+    }
+
+    func enter() async {
+        entryCount += 1
+        guard entryCount == targetEntry else { return }
+        targetWaiters.forEach { $0.resume() }
+        targetWaiters.removeAll()
+        guard !isReleased else { return }
+        await withCheckedContinuation { releaseContinuation = $0 }
+    }
+
+    func waitUntilTarget() async {
+        if entryCount >= targetEntry { return }
+        await withCheckedContinuation { targetWaiters.append($0) }
+    }
+
+    func release() {
+        isReleased = true
+        releaseContinuation?.resume()
+        releaseContinuation = nil
+    }
+}
+
 private final class LocalReplacementRace: @unchecked Sendable {
     let localRoot: URL
     private var hasFired = false
@@ -370,6 +402,15 @@ private func loaderSelectedCompletion(evenIndex: Int, under root: URL) -> Float?
         selected = even
     }
     return Float(bitPattern: uint32(in: selected, at: 0x400 + 32))
+}
+
+private func loaderSelectedGeneration(evenIndex: Int, under root: URL) -> UInt32? {
+    guard let even = data(bankFilePath(evenIndex), under: root) else { return nil }
+    let odd = data(bankFilePath(evenIndex + 1), under: root)
+    if let odd, uint32(in: even, at: 0) <= uint32(in: odd, at: 0) {
+        return uint32(in: odd, at: 0)
+    }
+    return uint32(in: even, at: 0)
 }
 
 private func read(_ relativePath: String = bankPath, under root: URL) -> String? {
@@ -2283,6 +2324,89 @@ private func launcherAppearanceCoalescesAutomaticReconciliation() async throws {
 }
 
 @MainActor
+private func delayedProviderUpdateReconcilesWithoutAnotherLaunch() async throws {
+    print("a delayed iCloud provider update reconciles without another launch or manual Sync")
+    let fixture = try Fixture()
+    let baselineDate = Date(timeIntervalSince1970: 1_700_000_000)
+    try writeBank(progress: 85, saveCount: 8, marker: 80,
+                  to: bankFilePath(0), under: fixture.local,
+                  modificationDate: baselineDate)
+    try writeBank(progress: 84, saveCount: 7, marker: 70,
+                  to: bankFilePath(1), under: fixture.local,
+                  modificationDate: baselineDate)
+    try writeBank(progress: 85, saveCount: 8, marker: 80,
+                  to: bankFilePath(0), under: fixture.cloud,
+                  modificationDate: baselineDate)
+    try writeBank(progress: 84, saveCount: 7, marker: 70,
+                  to: bankFilePath(1), under: fixture.cloud,
+                  modificationDate: baselineDate)
+    let gate = TargetOperationGate(targetEntry: 2)
+    let entries = OperationLog()
+    let monitoredEngine = engine(for: fixture, operationAwaitHook: {
+        await entries.append("sync")
+        await gate.enter()
+    })
+    let notifications = NotificationCenter()
+    let contentChanged = Notification.Name(
+        "goalpad-test-cloud-content-changed-\(UUID().uuidString)")
+    let defaults = UserDefaults(
+        suiteName: "goalpad-provider-update-save-sync-\(UUID().uuidString)")!
+    let controller = SaveSyncController(
+        defaults: defaults,
+        engine: monitoredEngine,
+        notificationCenter: notifications,
+        cloudContentDidChangeNotification: contentChanged,
+        cloudContentChangeDebounce: .milliseconds(1),
+        pregameWaitInterval: .milliseconds(1))
+
+    controller.launcherDidAppear()
+    let initialSyncStarted = await waitForOperationCount(1, in: entries)
+    let initialSyncFinished = await waitForController { !controller.isBusy }
+    check(initialSyncStarted && initialSyncFinished
+            && controller.summary.hasPrefix("No differences found"),
+          "the initial snapshot remains explicitly watched instead of claiming global freshness")
+
+    let delayedEven = jak1Bank(progress: 90, saveCount: 10, marker: 90)
+    let delayedOdd = jak1Bank(progress: 89, saveCount: 9, marker: 89)
+    try writeBank(progress: 90, saveCount: 10, marker: 90,
+                  to: bankFilePath(0), under: fixture.cloud,
+                  modificationDate: baselineDate)
+    try writeBank(progress: 89, saveCount: 9, marker: 89,
+                  to: bankFilePath(1), under: fixture.cloud,
+                  modificationDate: baselineDate)
+
+    notifications.post(name: contentChanged, object: nil)
+    notifications.post(name: contentChanged, object: nil)
+    notifications.post(name: contentChanged, object: nil)
+    await Task.yield()
+    let play = Task { @MainActor in
+        let ready = await controller.syncBeforeGameplay()
+        await entries.append("play-\(ready)")
+        return ready
+    }
+
+    await gate.waitUntilTarget()
+    let entriesWhilePaused = await entries.entries()
+    check(entriesWhilePaused == ["sync", "sync"],
+          "Play waits while the delayed provider revision is reconciling")
+    check(data(bankFilePath(0), under: fixture.local) != delayedEven,
+          "the stale local pair remains untouched until the bounded reconcile runs")
+
+    await gate.release()
+    let ready = await play.value
+    try? await Task.sleep(for: .milliseconds(30))
+    let finalEntries = await entries.entries()
+    check(ready && finalEntries == ["sync", "sync", "play-true"],
+          "duplicate provider events coalesce into exactly one follow-up reconcile")
+    check(data(bankFilePath(0), under: fixture.local) == delayedEven
+            && data(bankFilePath(1), under: fixture.local) == delayedOdd,
+          "the delayed same-filename iCloud pair replaces the stale local pair")
+    check(loaderSelectedGeneration(evenIndex: 0, under: fixture.local) == 10
+            && loaderSelectedCompletion(evenIndex: 0, under: fixture.local) == 90,
+          "OpenGOAL selects the delayed generation 10 save at 90 percent")
+}
+
+@MainActor
 private func completedNativeSaveAutomaticallyUploads() async throws {
     print("a completed native save automatically uploads without blocking its frame")
     let fixture = try Fixture()
@@ -2722,6 +2846,7 @@ private struct SaveSyncCheck {
             try await enablingSyncUsesTheSameCancelableAutomaticOwner()
             try await fastStartupSyncIsNotRepeatedBeforePlay()
             try await launcherAppearanceCoalescesAutomaticReconciliation()
+            try await delayedProviderUpdateReconcilesWithoutAnotherLaunch()
             try await completedNativeSaveAutomaticallyUploads()
             try await completedNativeSaveDefersNewerRemoteWinner()
             try await identityChangesReevaluateUnavailableCloudSaves()
