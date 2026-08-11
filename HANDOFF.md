@@ -17635,3 +17635,73 @@ architecture and move the next attempt to the planned multi-pass/texture work.
 The pre-existing broad `project.pbxproj` ordering rewrite remains unstaged and
 preserved; its two working version lines now read Build 161. Nested OpenGOAL is
 clean at `cb1cc689eee9571d658d6f2815e73e2a35ef65eb`.
+
+# 2026-08-10 Build 162 visual-experiment removal checkpoint
+
+The maintainer physically rejected Build 161 on Z iPad Pro and directed that
+all of the new graphics work be reverted and visual improvements be paused.
+Build 162 removes the experiment rather than merely disabling it. The six
+effect toggles, settings persistence field, Swift/Objective-C++ mask plumbing,
+host-frame field, Metal shader effects, and effect-specific proofs are gone.
+The Modern Graphics/custom-texture roadmap section is also removed. The
+existing **Modern / Classic** selector remains only for its pre-experiment
+Fit-to-Screen/Hor+ versus compatibility presentation behavior.
+
+No save-sync, importer, input, touch, launcher, 2D Comfort, or other gameplay
+work was reverted. Nested renderer files match their exact pre-experiment
+contents at `1c2eae29a` while the removal remains explicit in Git history.
+
+Nested OpenGOAL commit:
+
+```text
+8117a8ad5 Remove rejected Modern graphics experiment (AI-assisted)
+```
+
+Parent integration commit before this handoff update:
+
+```text
+491a3bc3 Remove rejected Modern graphics mode in Build 162 (AI-assisted)
+```
+
+Focused and renderer validation passed:
+
+```text
+Scripts/run-presentation-settings-check.sh
+Scripts/run-presentation-geometry-check.sh
+Scripts/run-vision-stereo-integration-check.sh
+Scripts/run-compile-metal-shaders-check.sh
+cmake --build OpenGOAL/build/Release/bin --target metal-proof -j 4
+OpenGOAL/build/Release/bin/game/metal-proof
+```
+
+The final renderer output ends in `METAL PROOF PASSED`. The serialized Release
+matrix passed using the same exact Xcode commands and verified 518-object source
+pack recorded for Build 160. iOS and visionOS are signed; macOS is unsigned
+shared-source compile evidence only. All three logs contain zero `error:`
+diagnostics. The 66 existing Swift concurrency and native conversion/override
+warnings remain visible in each full rebuild log and were not suppressed.
+
+```text
+iOS log /private/tmp/GP-build162-ios.log
+iOS app /private/tmp/GOALPad-build154-ios-generic/Build/Products/Release-iphoneos/Dark Eco.app
+  Dark Eco 1.0 (162), arm64, signed, CDHash e7334f6f20ab0261e918648f85d93c7a384606cc
+  executable SHA-256 b6104be2e0ab2b15a3309d6ef58ed1e9036d086816d425dfad2a35adc0b7bbdb
+visionOS log /private/tmp/GP-build162-visionos.log
+visionOS app /private/tmp/GOALPad-build150-vision-device/Build/Products/Release-xros/Dark Eco.app
+  Dark Eco 1.0 (162), arm64, signed, CDHash a6fdeba59cf7b1ce920dcff2627317719827b28f
+  executable SHA-256 d21bb606b3064207ea100c283b6bb82c8e702c9725be97f78a6136b585699923
+macOS compile log /private/tmp/GP-build162-macos-compile.log
+macOS compile product /private/tmp/GOALPad-build154-macos-arm64/Build/Products/Release/Dark Eco.app
+  Dark Eco 1.0 (162), arm64, unsigned compile evidence only
+  executable SHA-256 5350ab732a5f47608c6d55e44573442519285a50e06d3d3e254495d80422d7cb
+Metal proof /private/tmp/GP-build162-metal-proof.log
+```
+
+Build 162 has not been installed or launched and no physical device was
+accessed while producing the removal build. Visual-improvement work is frozen;
+the next product task should return to launcher/shipping work unless the
+maintainer explicitly reopens graphics later.
+
+The pre-existing broad `project.pbxproj` ordering rewrite remains unstaged and
+preserved; its two working version lines now read Build 162. Nested OpenGOAL is
+clean at `8117a8ad525b5d46351f4b3c04c164694065941d`.
