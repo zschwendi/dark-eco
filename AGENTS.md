@@ -548,14 +548,27 @@ Active lanes:
   distribution-ready until a valid Apple Distribution identity produces and
   validates an App Store export. No physical device has been accessed for this
   checkpoint.
-- `visionOS external render-target prerequisite under review; not integrated` —
-  nested OpenGOAL branch `agent/build136-external-render-target` renders the
-  existing synchronous DMA chain into a borrowed host-owned color/depth slice
-  without a drawable or present. Metal proof coverage passes, but independent
-  review found that the first commit incorrectly treated the external command
-  buffer as the internal readback frame. The branch remains isolated while that
-  bookkeeping is corrected and retested. It is only a prerequisite: it is not
-  true stereo, render-many, tabletop, room-scale, or first-person gameplay.
+- `Build 142 local integration; full Apple build and remote publication pending`
+  — nested branch `agent/build142-opengoal-integration` at `87045cf83` combines
+  the reviewed external Metal target/readback fix with the gated end-credit
+  Triangle/SKIP publication. Parent branch `agent/build142-integration` at
+  `2ad3e618` adds the revision-2 native/Swift bridge and bumps both
+  configurations. Six GOAL contract tests, the native/Swift touch suites, and
+  the full host Metal proof pass. Both branches are clean but deliberately
+  unpushed; explicit authorization is still required before publishing the
+  nested branch to `https://github.com/zschwendi/jak-pad.git`. The external
+  target is only a prerequisite: it is not true stereo, render-many, tabletop,
+  room-scale, or first-person gameplay. A serialized source-pack, AOT, and
+  generic-iOS archive checkpoint is in progress.
+- `Memory-pressure reclaim audited; implementation pending behind Build 142` —
+  the narrow safe patch cancels only foreground importer work and releases only
+  the lazily recreated offscreen Metal color/depth targets after GPU completion.
+  It must preserve the kernel, EE/GOAL memory, saves, texture pool, wanted/common
+  level art, Merc/bucket resources, PSO/sampler caches, stream pages, DMA copy,
+  and save-sync authority. Background and memory-warning routes should share the
+  reclaimer; `.inactive` remains the short-interruption path. Deterministic Metal,
+  lifecycle-route, and importer-cancellation coverage is specified before any
+  implementation begins.
 
 - `Build 126 simplified native-menu checkpoint ready; interaction inventory next` —
   Build 118's physical run exposed
