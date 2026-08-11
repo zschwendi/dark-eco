@@ -242,7 +242,8 @@ struct TouchControlsView: View {
         return ZStack {
             MovementStickArtwork(touch: controls.stick,
                                  restingOrigin: CGPoint(x: layout.movementArtworkFrame.midX,
-                                                        y: layout.movementArtworkFrame.midY))
+                                                        y: layout.movementArtworkFrame.midY),
+                                 followsTouchOrigin: controls.dynamicLeftStick)
                 .allowsHitTesting(false)
 
             if activeGameplayChromeIsAvailable {
@@ -816,7 +817,8 @@ private struct ClassicStickControl: View {
 private struct MovementStickArtwork: View {
     let touch: TouchControls.Tracked?
     let restingOrigin: CGPoint
-    private let knobSize: CGFloat = 66
+    let followsTouchOrigin: Bool
+    private let knobSize = ModernTouchLayout.movementKnobSize
 
     var body: some View {
         ZStack {
@@ -836,12 +838,15 @@ private struct MovementStickArtwork: View {
         }
         .frame(width: TouchControls.movementRadius * 2,
                height: TouchControls.movementRadius * 2)
-        .position(touch?.origin ?? restingOrigin)
+        .position(followsTouchOrigin ? touch?.origin ?? restingOrigin : restingOrigin)
     }
 
     private var knobOffset: CGSize {
         guard let touch else { return .zero }
-        let push = TouchControls.movementDeflection(from: touch.origin, to: touch.point)
+        let push = TouchControls.stickDeflection(from: touch.origin, to: touch.point,
+                                                 radius: touch.radius,
+                                                 deadzone: touch.deadzone,
+                                                 responseExponent: touch.responseExponent)
         let travel = TouchControls.movementRadius - knobSize / 2
         return CGSize(width: push.x * travel, height: push.y * travel)
     }

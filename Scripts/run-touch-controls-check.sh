@@ -196,17 +196,23 @@ rg -Fq 'static let quitTitle = 58' "$root/GOALPad/Game/TouchControls.swift"
 rg -Fq 'static let memoryCardDataExists = 11' "$root/GOALPad/Game/TouchControls.swift"
 rg -Fq 'return [.left, .right, .confirm]' "$root/GOALPad/Game/TouchControls.swift"
 
-# The dynamic left movement artwork gains only an L label. Its accepted 66-point knob and
-# movement-radius geometry remain the same as the deterministic byte checks above.
+# The compact L artwork stays at home for the bounded default and follows only explicit dynamic
+# mode. Its knob uses the exact tracked deadzone and response curve from the input reducer.
 movement_stick_view=$(sed -n \
   '/private struct MovementStickArtwork: View {/,/private struct RightStickControl: View {/p' \
   "$root/GOALPad/Game/TouchControlsView.swift")
-printf '%s\n' "$movement_stick_view" | rg -Fq 'private let knobSize: CGFloat = 66'
+printf '%s\n' "$movement_stick_view" \
+  | rg -Fq 'private let knobSize = ModernTouchLayout.movementKnobSize'
 printf '%s\n' "$movement_stick_view" | rg -Fq 'Text("L")'
 printf '%s\n' "$movement_stick_view" \
   | rg -Fq '.font(.system(size: 13, weight: .bold, design: .rounded))'
 printf '%s\n' "$movement_stick_view" | rg -Fq '.foregroundStyle(.black.opacity(0.82))'
 printf '%s\n' "$movement_stick_view" | rg -Fq '.offset(knobOffset)'
+printf '%s\n' "$movement_stick_view" \
+  | rg -Fq '.position(followsTouchOrigin ? touch?.origin ?? restingOrigin : restingOrigin)'
+printf '%s\n' "$movement_stick_view" | rg -Fq 'responseExponent: touch.responseExponent'
+rg -Fq 'followsTouchOrigin: controls.dynamicLeftStick' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
 
 # Every title/pause right-stack command uses one fixed left-aligned content grid. Directional
 # controls keep their existing centred D-pad geometry.

@@ -282,6 +282,8 @@ check(content.contains("session.presentationSettings.dynamicLeftStick")
         && content.contains("session.touch.setDynamicLeftStick(enabled)")
         && view.contains("Toggle(\"Dynamic Left Stick\"")
         && view.contains("settings.setDynamicLeftStick($0)")
+        && view.contains("Off keeps a fixed home ring with a forgiving nearby touch area.")
+        && view.contains("On lets the ring follow any new touch on the left side.")
         && store.contains("if section == .controls { setDynamicLeftStick(false) }")
         && store.contains("func resetAll()")
         && store.contains("setDynamicLeftStick(false)"),

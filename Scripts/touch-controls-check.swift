@@ -98,20 +98,28 @@ private func close(_ lhs: CGFloat, _ rhs: CGFloat, tolerance: CGFloat = 0.001) -
 @MainActor
 private func modernLayoutIsCompactAndSafe() {
     print("Modern artwork geometry keeps input semantics and clears the centre controls")
-    check(ModernTouchLayout.movementKnobSize == 66,
-          "the Modern movement knob remains 66 points")
+    check(ModernTouchLayout.movementKnobSize == 56,
+          "the Modern movement knob is a compact 56 points")
     check(ModernTouchLayout.movementVisualRadius == TouchControls.movementRadius,
           "the resting Modern movement ring matches the live Build 96 artwork")
-    check(TouchControls.movementRadius == 70,
-          "the Modern movement ring is a compact 140 points across")
+    check(TouchControls.movementRadius == 60,
+          "the Modern movement ring is a compact 120 points across")
+    check(TouchControls.movementDeadzone == 4
+          && TouchControls.movementResponseExponent == 1.25,
+          "the anchored stick filters resting motion and softens its low-end response")
 
     let roomyIPad = ModernTouchLayout(size: Runner.screen, safeAreaInsets: Runner.safeAreaInsets)
-    check(ModernTouchLayout.movementEdgePadding == 85
+    check(ModernTouchLayout.movementEdgePadding == 95
           && close(roomyIPad.movementArtworkFrame.minX - roomyIPad.safeBounds.minX,
                 ModernTouchLayout.movementEdgePadding)
           && close(roomyIPad.safeBounds.maxY - roomyIPad.movementArtworkFrame.maxY,
                    ModernTouchLayout.movementEdgePadding),
-          "the landscape L ring matches the preferred screenshot's 85-point edge padding")
+          "the smaller L ring preserves the preferred home centre with 95-point edge padding")
+    check(ModernTouchLayout.movementCaptureExtent == 300
+          && roomyIPad.movementCaptureFrame.size == CGSize(width: 300, height: 300)
+          && roomyIPad.movementCaptureFrame.contains(roomyIPad.movementArtworkFrame)
+          && roomyIPad.safeBounds.contains(roomyIPad.movementCaptureFrame),
+          "a bounded 300-point lower-left capture area surrounds the compact home ring")
     check(roomyIPad.rightStickSpacer <= ModernTouchLayout.rightStickSpacerCap,
           "the right-stick spacer never exceeds 200 points")
     check(roomyIPad.rightStickSpacer > ModernTouchLayout.legacyRightStickEdge(for: Runner.screen),
@@ -142,6 +150,9 @@ private func modernLayoutIsCompactAndSafe() {
         check(layout.rightStickHitFrame == layout.rightStickArtworkFrame.insetBy(
             dx: -ModernTouchLayout.rightStickHitSlop, dy: -ModernTouchLayout.rightStickHitSlop),
               "\(entry.name) derives the raw R hit frame from its artwork")
+        check(layout.safeBounds.contains(layout.movementCaptureFrame)
+              && layout.movementCaptureFrame.maxX <= layout.safeBounds.midX + 0.001,
+              "\(entry.name) keeps the forgiving L capture area bounded to the lower-left")
         let pillHits = [layout.selectPillFrame, layout.statsPillFrame,
                         layout.startPillFrame].map {
             $0.insetBy(dx: -10, dy: -12)
@@ -303,20 +314,33 @@ private func defaultStylePreservesModern() {
 }
 
 @MainActor
-private func fixedMovementOriginAndDynamicOptInAreExact() {
-    print("the left stick is fixed by default and dynamic only when enabled")
+private func forgivingAnchoredMovementAndDynamicOptInAreExact() {
+    print("the left stick is forgiving and anchored by default, unrestricted only when enabled")
     var run = Runner()
+    let layout = ModernTouchLayout(size: Runner.screen,
+                                   safeAreaInsets: Runner.safeAreaInsets)
     let centre = Runner.movementCentre
     let thumb = Finger()
     run.down(thumb, centre)
 
-    check(run.controls.stick?.origin == centre, "the fixed ring centre owns movement")
-    check(run.frame().leftX == neutral, "a fixed-centre touch starts neutral")
+    check(run.controls.stick?.origin == centre, "a touch at home owns movement")
+    check(run.controls.stick?.deadzone == TouchControls.movementDeadzone
+          && run.controls.stick?.responseExponent == TouchControls.movementResponseExponent,
+          "the anchored default owns the precision deadzone and response curve")
+    check(run.frame().leftX == neutral, "the anchored touch starts neutral")
+
+    run.move(thumb, CGPoint(x: centre.x + 3, y: centre.y))
+    check(run.frame().leftX == neutral,
+          "resting-finger travel inside four points cannot create movement")
+
+    run.move(thumb, CGPoint(x: centre.x + 12, y: centre.y))
+    check(run.frame().leftX == 138,
+          "a small correction produces a deliberately soft analog value")
 
     run.move(thumb, CGPoint(x: centre.x + TouchControls.movementRadius, y: centre.y))
     var state = run.frame()
     check(state.leftX == 254 && state.leftY == neutral, "one radius right is hard right")
-    check(run.controls.stick?.origin == centre, "dragging does not move the origin")
+    check(run.controls.stick?.origin == centre, "dragging never ratchets the contact origin")
 
     for _ in 0..<10 { state = run.frame() }
     check(state.leftX == 254, "the held deflection does not recenter under the finger")
@@ -324,7 +348,8 @@ private func fixedMovementOriginAndDynamicOptInAreExact() {
     run.move(thumb, CGPoint(x: centre.x + TouchControls.movementRadius / 2,
                             y: centre.y + TouchControls.movementRadius / 2))
     state = run.frame()
-    check(state.leftX == 191 && state.leftY == 191, "a half-radius diagonal stays analog")
+    check(state.leftX == 183 && state.leftY == 183,
+          "the eased half-radius diagonal preserves fine analog control")
 
     run.move(thumb, CGPoint(x: centre.x, y: centre.y - 300))
     check(run.frame().leftY == 0, "travel beyond the ring clamps to hard up")
@@ -332,20 +357,40 @@ private func fixedMovementOriginAndDynamicOptInAreExact() {
     run.up(thumb)
     check(run.frame().leftX == neutral, "lifting immediately centres movement")
 
+    let forgiving = Finger()
+    let forgivingPoint = CGPoint(x: layout.movementCaptureFrame.maxX - 8,
+                                 y: layout.movementCaptureFrame.minY + 8)
+    check(layout.movementCaptureFrame.contains(forgivingPoint)
+          && !layout.movementArtworkFrame.contains(forgivingPoint),
+          "the invisible acquisition area is substantially larger than the artwork")
+    run.down(forgiving, forgivingPoint)
+    check(run.controls.stick?.origin == forgivingPoint
+          && run.frame().leftX == neutral,
+          "an eyes-free landing anywhere in the bounded area starts neutral")
+    run.move(forgiving, CGPoint(x: forgivingPoint.x + TouchControls.movementRadius,
+                                y: forgivingPoint.y))
+    check(run.frame().leftX == 254,
+          "the forgiving landing still reaches full movement in one compact radius")
+    run.up(forgiving)
+
     let outside = Finger()
-    let outsidePoint = CGPoint(x: 360, y: 430)
+    let outsidePoint = CGPoint(x: layout.movementCaptureFrame.maxX + 20,
+                               y: layout.movementCaptureFrame.minY - 20)
     run.down(outside, outsidePoint)
     let outsideState = run.frame()
     check(run.controls.stick == nil
           && !outsideState.isLeftDeflected && !outsideState.isRightDeflected,
-          "a default touch outside the fixed ring is inert")
+          "the default cannot crawl beyond its bounded lower-left acquisition area")
 
     run.controls.setDynamicLeftStick(true)
     let newCentre = outsidePoint
     let relocated = Finger()
     run.down(relocated, newCentre)
     check(run.controls.stick?.origin == newCentre,
-          "Dynamic Left Stick unlocks the current landing-point origin")
+          "Dynamic Left Stick unlocks an unrestricted left-half landing point")
+    check(run.controls.stick?.deadzone == 0
+          && run.controls.stick?.responseExponent == 1,
+          "dynamic mode retains the direct linear response")
     check(run.frame().leftX == neutral, "the dynamic stick also starts neutral")
     run.move(relocated, CGPoint(x: newCentre.x + TouchControls.movementRadius,
                                 y: newCentre.y))
@@ -354,14 +399,14 @@ private func fixedMovementOriginAndDynamicOptInAreExact() {
 
 @MainActor
 private func freeCameraSwipeIsGone() {
-    print("fixed and dynamic left-stick zones never emit camera input")
+    print("anchored and dynamic left-stick zones never emit camera input")
     var run = Runner()
     let oldCameraArea = Finger()
     run.down(oldCameraArea, CGPoint(x: 220, y: 420))
     run.move(oldCameraArea, CGPoint(x: 500, y: 250))
     var state = run.frame()
     check(run.controls.stick == nil && state == .neutral,
-          "the fixed default ignores left-side touches outside its ring")
+          "the anchored default ignores touches beyond its bounded capture area")
 
     run.controls.setDynamicLeftStick(true)
     let dynamicMovement = Finger()
@@ -666,7 +711,7 @@ private func movementAlsoStepsTheDpad() {
     let thumb = Finger()
     let centre = Runner.movementCentre
     run.down(thumb, centre)
-    run.move(thumb, CGPoint(x: centre.x + 0.6 * TouchControls.movementRadius, y: centre.y))
+    run.move(thumb, CGPoint(x: centre.x + 0.7 * TouchControls.movementRadius, y: centre.y))
 
     let states = run.frames(48)
     let right = states.map { $0.buttons.contains(.right) }
@@ -3090,7 +3135,7 @@ private func nativeFacePromptPulsesRejectStaleWorkAndCancelOnLoss() {
 @MainActor
 struct TouchControlsCheck {
     static func main() {
-        fixedMovementOriginAndDynamicOptInAreExact()
+        forgivingAnchoredMovementAndDynamicOptInAreExact()
         freeCameraSwipeIsGone()
         faceButtonGesturesAndNoTap()
         firstPersonTapFiresWithoutReplacingLeftSwipe()

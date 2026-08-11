@@ -18091,3 +18091,55 @@ also passed and reports Dark Eco 1.0 (166); its log is
 `/private/tmp/goalpad-build166-ios-sim.log`. Build 166 has not been installed or
 launched on the physical iPad because the current refinement request did not
 authorize a new physical-device operation.
+
+# 2026-08-11 Build 167 adaptive left-stick checkpoint
+
+The maintainer clarified that the actual acceptance problem is eyes-free
+movement: unrestricted dynamic placement lets repeated contacts crawl upward,
+while a strict fixed hit target requires looking or exact muscle memory. Build
+167 therefore changes the default from strict fixed acquisition to a forgiving
+anchored control:
+
+- the visible ring is 120 points with a 56-point knob;
+- its preferred physical home centre is preserved by increasing the smaller
+  ring's landscape edge clearance to 95 points;
+- a bounded, invisible 300-point lower-left area accepts an eyes-free landing;
+- every accepted contact starts neutral under the thumb, while the artwork
+  remains at its stable home;
+- the first 4 points are a resting-finger deadzone and the remaining travel
+  uses a 1.25 response exponent for softer low-speed corrections;
+- full deflection takes 60 points; and
+- `Dynamic Left Stick` remains an opt-in, unrestricted left-half origin with
+  direct linear response and artwork that follows the contact.
+
+The checkpoint is on:
+
+```text
+/Users/zach/Developer/OS_Projects/GOALPad/GP-build165-touch-controls
+agent/build167-adaptive-left-stick
+```
+
+Focused validation passed:
+
+```text
+Scripts/run-touch-controls-check.sh
+Scripts/run-presentation-settings-check.sh
+Scripts/run-product-name-check.sh
+xcrun swift -frontend -parse GOALPad/Game/TouchControls.swift \
+  GOALPad/Game/TouchControlsView.swift GOALPad/Saves/SaveSyncController.swift
+git diff --check
+```
+
+The unsigned iPad Simulator Release build and signed generic-iOS Release build
+both passed and report Dark Eco 1.0 (167). Logs are:
+
+```text
+/private/tmp/goalpad-build167-ios-sim.log
+/private/tmp/goalpad-build167-ios-device.log
+```
+
+The signed product passed strict code-signature verification for bundle
+`com.zephyrstudiosllc.eco` and team `V729QMY3V6`. After explicit authorization,
+that exact product was installed and launched on physical `Z iPad Pro`;
+`devicectl device info apps` confirmed 1.0 (167). Physical eyes-free feel is the
+acceptance authority and remains for maintainer testing.

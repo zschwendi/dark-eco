@@ -807,9 +807,10 @@ struct ModernTouchLayout: Sendable {
         default: false
         }
     }
-    static let movementKnobSize: CGFloat = 66
+    static let movementKnobSize: CGFloat = 56
     static let movementVisualRadius = TouchControls.movementRadius
-    static let movementEdgePadding: CGFloat = 85
+    static let movementEdgePadding: CGFloat = 95
+    static let movementCaptureExtent: CGFloat = 300
     static let rightStickHitSlop: CGFloat = 16
     static let rightStickSpacerCap: CGFloat = 200
     static let portraitStackGap: CGFloat = 4
@@ -820,6 +821,7 @@ struct ModernTouchLayout: Sendable {
     let safeBounds: CGRect
     let rightStickSpacer: CGFloat
     let movementArtworkFrame: CGRect
+    let movementCaptureFrame: CGRect
     let movementHitFrame: CGRect?
     let actionGestureFrame: CGRect
     let actionGestureHitFrame: CGRect?
@@ -893,6 +895,14 @@ struct ModernTouchLayout: Sendable {
                                               diameter: movementDiameter)
         movementArtworkFrame = Self.resolvedFrame(defaultMovementFrame, id: .modernMovement,
                                                   customization: customization, safeBounds: safe)
+        let captureMaxX = min(safe.maxX, bounds.midX)
+        let captureWidth = min(Self.movementCaptureExtent,
+                               max(0, captureMaxX - safe.minX))
+        let captureHeight = min(Self.movementCaptureExtent, safe.height)
+        movementCaptureFrame = CGRect(x: safe.minX,
+                                      y: safe.maxY - captureHeight,
+                                      width: captureWidth,
+                                      height: captureHeight)
         if customization.position(for: .modernMovement) != nil {
             let diameter = min(safe.width, safe.height,
                                TouchControls.movementRadius * 2
@@ -1263,7 +1273,9 @@ struct TouchPadState: Equatable {
 @MainActor
 @Observable
 final class TouchControls {
-    nonisolated static let movementRadius: CGFloat = 70
+    nonisolated static let movementRadius: CGFloat = 60
+    nonisolated static let movementDeadzone: CGFloat = 4
+    nonisolated static let movementResponseExponent: CGFloat = 1.25
     nonisolated static let rightStickRadius: CGFloat = 38
     nonisolated static let rightStickDeadzone: CGFloat = 12
     nonisolated static let rollJumpDistance: CGFloat = 44
@@ -1308,7 +1320,7 @@ final class TouchControls {
     struct Tracked: Identifiable {
         let id: ObjectIdentifier
         let role: Role
-        /// A dynamic movement origin, fixed right-stick centre, or gesture/pill landing point.
+        /// A per-contact movement origin, fixed right-stick centre, or gesture/pill landing point.
         let origin: CGPoint
         var point: CGPoint
         var travelled: CGFloat = 0
@@ -1321,6 +1333,7 @@ final class TouchControls {
         var stickHapticTriggered = false
         let radius: CGFloat
         let deadzone: CGFloat
+        let responseExponent: CGFloat
     }
 
     private(set) var touches: [ObjectIdentifier: Tracked] = [:]
@@ -1610,7 +1623,7 @@ final class TouchControls {
             if dynamicLeftStick, point.x < size.width / 2 { return .movement }
             if !dynamicLeftStick {
                 let layout = ModernTouchLayout(size: size, safeAreaInsets: safeAreaInsets)
-                if layout.movementArtworkFrame.contains(point) { return .movement }
+                if layout.movementCaptureFrame.contains(point) { return .movement }
             }
         }
         if !contextualFacePromptOwnsGameplayActions, point.x >= size.width / 2 {
@@ -1633,29 +1646,32 @@ final class TouchControls {
         let origin: CGPoint
         let radius: CGFloat
         let deadzone: CGFloat
+        let responseExponent: CGFloat
         switch role {
         case .movement:
-            origin = dynamicLeftStick
-                ? point
-                : ModernTouchLayout(size: size, safeAreaInsets: safeAreaInsets)
-                    .movementArtworkFrame.centre
+            origin = point
             radius = Self.movementRadius
-            deadzone = 0
+            deadzone = dynamicLeftStick ? 0 : Self.movementDeadzone
+            responseExponent = dynamicLeftStick ? 1 : Self.movementResponseExponent
         case .rightStick:
             origin = rightStickFrame.centre
             radius = Self.rightStickRadius
             deadzone = Self.rightStickDeadzone
+            responseExponent = 1
         case .gesture:
             origin = point
             radius = 0
             deadzone = 0
+            responseExponent = 1
         case .pill, .skip:
             origin = point
             radius = 0
             deadzone = 0
+            responseExponent = 1
         }
         touches[id] = Tracked(id: id, role: role, origin: origin, point: point,
-                              radius: radius, deadzone: deadzone)
+                              radius: radius, deadzone: deadzone,
+                              responseExponent: responseExponent)
         if case .pill(let button) = role {
             press(button)
             enqueueHaptic(.button(button))
@@ -1671,7 +1687,9 @@ final class TouchControls {
            !touch.stickHapticTriggered,
            Self.distance(.zero, Self.radialDeflection(from: touch.origin, to: point,
                                                       radius: touch.radius,
-                                                      deadzone: touch.deadzone)) >= 0.5 {
+                                                      deadzone: touch.deadzone,
+                                                      responseExponent:
+                                                        touch.responseExponent)) >= 0.5 {
             touch.stickHapticTriggered = true
             enqueueHaptic(.stickEngaged)
         } else if touch.role == .gesture, touch.swiped == nil,
@@ -1901,7 +1919,8 @@ final class TouchControls {
 
         let movement = stick.map {
             Self.radialDeflection(from: $0.origin, to: $0.point,
-                                  radius: $0.radius, deadzone: $0.deadzone)
+                                  radius: $0.radius, deadzone: $0.deadzone,
+                                  responseExponent: $0.responseExponent)
         } ?? .zero
         let camera = rightStick.map {
             Self.radialDeflection(from: $0.origin, to: $0.point,
@@ -1943,7 +1962,9 @@ final class TouchControls {
     }
 
     nonisolated static func movementDeflection(from origin: CGPoint, to point: CGPoint) -> CGPoint {
-        radialDeflection(from: origin, to: point, radius: movementRadius)
+        radialDeflection(from: origin, to: point, radius: movementRadius,
+                         deadzone: movementDeadzone,
+                         responseExponent: movementResponseExponent)
     }
 
     /// Returns a continuous radial deflection after the small resting-finger deadzone.
@@ -1959,8 +1980,10 @@ final class TouchControls {
     }
 
     nonisolated static func stickDeflection(from origin: CGPoint, to point: CGPoint,
-                                            radius: CGFloat, deadzone: CGFloat) -> CGPoint {
-        radialDeflection(from: origin, to: point, radius: radius, deadzone: deadzone)
+                                            radius: CGFloat, deadzone: CGFloat,
+                                            responseExponent: CGFloat = 1) -> CGPoint {
+        radialDeflection(from: origin, to: point, radius: radius, deadzone: deadzone,
+                         responseExponent: responseExponent)
     }
 
     nonisolated static func gestureArtworkIsLit(button: TouchButton,
@@ -2097,12 +2120,15 @@ final class TouchControls {
     nonisolated private static func radialDeflection(from origin: CGPoint,
                                                      to point: CGPoint,
                                                      radius: CGFloat,
-                                                     deadzone: CGFloat = 0) -> CGPoint {
+                                                     deadzone: CGFloat = 0,
+                                                     responseExponent: CGFloat = 1) -> CGPoint {
         let dx = point.x - origin.x
         let dy = point.y - origin.y
         let length = (dx * dx + dy * dy).squareRoot()
         guard length > deadzone else { return .zero }
-        let scale = (min(length, radius) - deadzone) / (radius - deadzone) / length
+        let normalized = (min(length, radius) - deadzone) / (radius - deadzone)
+        let response = CGFloat(pow(Double(normalized), Double(responseExponent)))
+        let scale = response / length
         return CGPoint(x: dx * scale, y: dy * scale)
     }
 

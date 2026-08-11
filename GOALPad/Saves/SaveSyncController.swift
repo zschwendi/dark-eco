@@ -1322,6 +1322,9 @@ struct SaveSettingsView: View {
                 get: { settings.dynamicLeftStick },
                 set: { settings.setDynamicLeftStick($0) }
             ))
+            Text("Off keeps a fixed home ring with a forgiving nearby touch area. On lets the ring follow any new touch on the left side.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
             NavigationLink {
                 TouchControlsGuideView()
             } label: {
