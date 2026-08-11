@@ -92,6 +92,14 @@ nonisolated enum GameLibraryTitle: String, CaseIterable, Equatable, Identifiable
         name
     }
 
+    var availabilityLabel: String {
+        switch self {
+        case .jak1: "Available"
+        case .jak2: "Coming Soon"
+        case .jak3: "Planned"
+        }
+    }
+
     var fallbackMark: String {
         switch self {
         case .jak1: "I"
@@ -170,9 +178,9 @@ nonisolated enum GameLibraryOfferCopy {
     static func unsupportedMessage(for title: GameLibraryTitle) -> String {
         switch title {
         case .jak2:
-            return "Jak II support is in active development and will be supported soon."
+            return "Jak II — Coming Soon. It is not available in this build."
         case .jak3:
-            return "Jak 3 support is planned after Jak II's development."
+            return "Jak 3 — Planned. It is not available in this build."
         case .jak1:
             return "Import for \(title.shelfName) is not supported in this build. "
                 + "Dark Eco currently supports \(GameLibraryTitle.jak1.name) game data only."

@@ -973,10 +973,66 @@ enum CloudSyncPresentation {
     }
 }
 
+private struct SettingsGamePicker: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Game")
+                .font(.headline)
+            SettingsGamePickerRow(title: "Jak 1", status: "Selected", isSelected: true)
+            SettingsGamePickerRow(title: GameLibraryTitle.jak2.name,
+                                  status: GameLibraryTitle.jak2.availabilityLabel,
+                                  isSelected: false)
+            SettingsGamePickerRow(title: GameLibraryTitle.jak3.name,
+                                  status: GameLibraryTitle.jak3.availabilityLabel,
+                                  isSelected: false)
+        }
+        .accessibilityValue("Jak 1 selected")
+    }
+}
+
+private struct SettingsGamePickerRow: View {
+    let title: String
+    let status: String
+    let isSelected: Bool
+
+    var body: some View {
+        Button(action: {}) {
+            HStack(spacing: 10) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "hourglass")
+                    .foregroundStyle(isSelected ? DarkEcoTheme.accent : Color.secondary)
+                Text(title)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(status)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(isSelected ? DarkEcoTheme.accent : Color.secondary)
+            }
+            .padding(.horizontal, 12)
+            .frame(minHeight: 44)
+            .background(
+                isSelected ? DarkEcoTheme.accent.opacity(0.16) : Color.secondary.opacity(0.08),
+                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(!isSelected)
+        .opacity(isSelected ? 1 : 0.72)
+        .accessibilityLabel("\(title), \(status)")
+    }
+}
+
 struct SaveSettingsView: View {
     private enum SaveTransferPicker {
         case importSaves
         case exportSaves
+    }
+
+    private enum SettingsCategory: Hashable {
+        case controls
+        case graphics
+        case iCloud
+        case saves
+        case developer
     }
 
     @Bindable var sync: SaveSyncController
@@ -987,9 +1043,14 @@ struct SaveSettingsView: View {
     @State private var saveTransferPicker: SaveTransferPicker?
     @State private var archivedSaveToPromote: ArchivedSaveCandidate?
     @State private var isConfirmingReturnToLibrary = false
+    @State private var expandedCategories: Set<SettingsCategory> = []
 
     var body: some View {
         Form {
+            Section {
+                SettingsGamePicker()
+            }
+
             if isGameRunning {
                 Section {
                     Button(role: .destructive) {
@@ -1003,19 +1064,34 @@ struct SaveSettingsView: View {
                 }
             }
 
-            controlsSection
-            profileSection(.graphics)
+            Section {
+                DisclosureGroup(isExpanded: expansion(for: .controls)) {
+                    controlsContent
+                } label: {
+                    Label("Controls", systemImage: "gamecontroller")
+                }
+            }
+
+            Section {
+                DisclosureGroup(isExpanded: expansion(for: .graphics)) {
+                    graphicsContent
+                } label: {
+                    Label("Graphics", systemImage: "display")
+                }
+            }
 
             Section("iCloud") {
-                Toggle("Sync Settings", isOn: $settings.cloudSyncEnabled)
-                    .disabled(settings.syncStatus == .syncing)
-                Toggle("Sync Saves", isOn: $sync.isEnabled)
-                    .disabled(sync.isBusy)
                 Label(cloudState.summary, systemImage: cloudStatusSymbol)
                     .foregroundStyle(cloudStatusColor)
                 if let message = cloudState.progressMessage {
                     ProgressView(message)
                 }
+
+                DisclosureGroup(isExpanded: expansion(for: .iCloud)) {
+                Toggle("Sync Settings", isOn: $settings.cloudSyncEnabled)
+                    .disabled(settings.syncStatus == .syncing)
+                Toggle("Sync Saves", isOn: $sync.isEnabled)
+                    .disabled(sync.isBusy)
                 if cloudState.settingsEnabled {
                     LabeledContent("Settings", value: cloudState.settingsSummary)
                     if let date = cloudState.settingsLastSyncDate {
@@ -1044,9 +1120,25 @@ struct SaveSettingsView: View {
                 Text("Choose settings and save sync independently on this device.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                } label: {
+                    Label("Sync Options", systemImage: "icloud")
+                }
             }
 
-            Section("Save Files") {
+            Section("Saves") {
+                if sync.isTransferring, let message = sync.progressMessage {
+                    ProgressView(message)
+                }
+                if sync.isGameplayActive {
+                    Text("Pause gameplay before importing saves.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                if let message = sync.transferMessage {
+                    Text(message).font(.callout)
+                }
+
+                DisclosureGroup(isExpanded: expansion(for: .saves)) {
                 Button {
                     sync.clearTransferMessage()
                     saveTransferPicker = .importSaves
@@ -1065,20 +1157,10 @@ struct SaveSettingsView: View {
                      + "differ, the older copy is preserved automatically.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
-                if sync.isTransferring, let message = sync.progressMessage {
-                    ProgressView(message)
-                }
-                if sync.isGameplayActive {
-                    Text("Pause gameplay before importing saves.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-                if let message = sync.transferMessage {
-                    Text(message).font(.callout)
-                }
-            }
 
-            Section("Preserved Saves") {
+                Divider()
+                Text("Preserved Saves")
+                    .font(.headline)
                 if sync.archivedSaves.isEmpty {
                     Text("No preserved save copies are available.")
                         .foregroundStyle(.secondary)
@@ -1107,9 +1189,13 @@ struct SaveSettingsView: View {
                      + "the current active copy before replacing it.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                } label: {
+                    Label("Manage Save Files", systemImage: "externaldrive")
+                }
             }
 
-            Section("Developer") {
+            Section {
+                DisclosureGroup(isExpanded: expansion(for: .developer)) {
                 Toggle("Show Developer Logs", isOn: Binding(
                     get: { settings.developerLogsEnabled },
                     set: { settings.setDeveloperLogsEnabled($0) }
@@ -1117,6 +1203,9 @@ struct SaveSettingsView: View {
                 Text("Shows the live engine readout only while the game's pause or progress menu is open.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                } label: {
+                    Label("Developer", systemImage: "wrench.and.screwdriver")
+                }
             }
 
             Section {
@@ -1213,8 +1302,21 @@ struct SaveSettingsView: View {
         }
     }
 
-    private var controlsSection: some View {
-        Section("Controls") {
+    private func expansion(for category: SettingsCategory) -> Binding<Bool> {
+        Binding(
+            get: { expandedCategories.contains(category) },
+            set: { isExpanded in
+                if isExpanded {
+                    expandedCategories.insert(category)
+                } else {
+                    expandedCategories.remove(category)
+                }
+            }
+        )
+    }
+
+    @ViewBuilder
+    private var controlsContent: some View {
             #if os(iOS)
             NavigationLink {
                 TouchControlsGuideView()
@@ -1259,15 +1361,13 @@ struct SaveSettingsView: View {
                 input.setPrimarySource(settings.primaryInputSource)
                 input.setBindings(settings.jak1InputBindings)
             }
-        }
     }
 
     @ViewBuilder
-    private func profileSection(_ section: SettingsSection) -> some View {
-        Section(section.title) {
+    private var graphicsContent: some View {
             Picker("Profile", selection: Binding(
-                get: { settings.profile(for: section) },
-                set: { settings.setProfile($0, for: section) }
+                get: { settings.profile(for: .graphics) },
+                set: { settings.setProfile($0, for: .graphics) }
             )) {
                 ForEach(SettingsProfile.allCases, id: \.self) { profile in
                     Text(profile.title).tag(profile)
@@ -1275,7 +1375,7 @@ struct SaveSettingsView: View {
             }
             .pickerStyle(.segmented)
 
-            if section == .graphics, settings.profile(for: .graphics) == .modern {
+            if settings.profile(for: .graphics) == .modern {
                 Toggle("Fit to Screen", isOn: Binding(
                     get: { settings.graphicsFillWidth },
                     set: { settings.setGraphicsFillWidth($0) }
@@ -1296,10 +1396,9 @@ struct SaveSettingsView: View {
                 #endif
             }
 
-            Button("Restore \(section.title) Defaults") {
-                settings.restoreDefaults(for: section)
+            Button("Restore Graphics Defaults") {
+                settings.restoreDefaults(for: .graphics)
             }
-        }
     }
 
     private var primaryInputSourceChoices: [PrimaryInputSource] {

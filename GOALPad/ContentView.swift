@@ -29,14 +29,8 @@ nonisolated enum GameplaySurfaceLayout {
     }
 }
 
-private enum SettingsSheetEntry: Hashable {
-    case titles
-    case jak1
-}
-
 private struct SettingsSheetPresentation: Identifiable {
     let id: Int
-    let entry: SettingsSheetEntry
 }
 
 struct ContentView: View {
@@ -77,7 +71,7 @@ struct ContentView: View {
                                   cutsceneSkipTouchSnapshot: session.cutsceneSkipTouchSnapshot,
                                   facePromptTouchSnapshot: session.facePromptTouchSnapshot,
                                   reclaimTouchInput: session.input.reclaimTouchInput,
-                                  openSettings: { presentSettings(.jak1) })
+                                  openSettings: presentSettings)
                 #endif
 
                 #if !os(visionOS)
@@ -97,7 +91,7 @@ struct ContentView: View {
                         session: session,
                         artworkStore: artworkStore,
                         openJak1Setup: { launcherDestination = .gameSetup },
-                        openSettings: { presentSettings(.titles) }
+                        openSettings: presentSettings
                     )
                     .onAppear { session.saveSync.launcherDidAppear() }
                 case .gameSetup:
@@ -113,7 +107,7 @@ struct ContentView: View {
                                     }
                                 }
                                 ToolbarItem(placement: .primaryAction) {
-                                    Button { presentSettings(.titles) } label: {
+                                    Button(action: presentSettings) {
                                         Image(systemName: "gearshape")
                                     }
                                     .accessibilityLabel("Settings")
@@ -167,7 +161,7 @@ struct ContentView: View {
             attachmentAnchor: .scene(.topLeading),
             contentAlignment: .bottomTrailing
         ) {
-            VisionPausedEcoOrnament { presentSettings(.jak1) }
+            VisionPausedEcoOrnament { presentSettings() }
                 .padding(.leading, 20)
                 .padding(.bottom, 12)
         }
@@ -176,7 +170,7 @@ struct ContentView: View {
             attachmentAnchor: .scene(.top),
             contentAlignment: .bottom
         ) {
-            VisionPausedEcoOrnament { presentSettings(.jak1) }
+            VisionPausedEcoOrnament { presentSettings() }
                 .padding(.bottom, 12)
         }
         #endif
@@ -188,8 +182,7 @@ struct ContentView: View {
         }
         #endif
         .sheet(item: $settingsPresentation) { presentation in
-            SettingsSheetView(initialEntry: presentation.entry,
-                              sync: session.saveSync,
+            SettingsSheetView(sync: session.saveSync,
                               settings: session.presentationSettings,
                               input: session.input,
                               isGameRunning: session.isRunning,
@@ -207,9 +200,9 @@ struct ContentView: View {
         #endif
     }
 
-    private func presentSettings(_ entry: SettingsSheetEntry) {
+    private func presentSettings() {
         nextSettingsPresentationID += 1
-        settingsPresentation = SettingsSheetPresentation(id: nextSettingsPresentationID, entry: entry)
+        settingsPresentation = SettingsSheetPresentation(id: nextSettingsPresentationID)
     }
 
     private func returnToLibrary() {
@@ -240,20 +233,13 @@ struct ContentView: View {
 }
 
 private struct SettingsSheetView: View {
-    private enum Destination: Hashable {
-        case jak1
-    }
-
     @Environment(\.dismiss) private var dismiss
     @Bindable var sync: SaveSyncController
     @Bindable var settings: PresentationSettings
     @Bindable var input: ControllerInput
     let isGameRunning: Bool
     let returnToLibrary: () -> Void
-    @State private var path: [Destination]
-
-    init(initialEntry: SettingsSheetEntry,
-         sync: SaveSyncController,
+    init(sync: SaveSyncController,
          settings: PresentationSettings,
          input: ControllerInput,
          isGameRunning: Bool,
@@ -263,25 +249,15 @@ private struct SettingsSheetView: View {
         self.input = input
         self.isGameRunning = isGameRunning
         self.returnToLibrary = returnToLibrary
-        _path = State(initialValue: initialEntry == .jak1 ? [.jak1] : [])
     }
 
     var body: some View {
-        NavigationStack(path: $path) {
-            SettingsTitleListView(
-                openJak1: { path.append(.jak1) },
-                close: { dismiss() }
-            )
-                .navigationDestination(for: Destination.self) { destination in
-                    switch destination {
-                    case .jak1:
-                        SaveSettingsView(sync: sync,
-                                         settings: settings,
-                                         input: input,
-                                         isGameRunning: isGameRunning,
-                                         returnToLibrary: returnToLibrary)
-                    }
-                }
+        NavigationStack {
+            SaveSettingsView(sync: sync,
+                             settings: settings,
+                             input: input,
+                             isGameRunning: isGameRunning,
+                             returnToLibrary: returnToLibrary)
         }
         .tint(DarkEcoTheme.accent)
         .background(DarkEcoTheme.background)
@@ -291,48 +267,16 @@ private struct SettingsSheetView: View {
                 Button("Done") { dismiss() }
             }
         }
-        #endif
-    }
-}
-
-private struct SettingsTitleListView: View {
-    let openJak1: () -> Void
-    let close: () -> Void
-
-    var body: some View {
-        List {
-            Section("Available") {
-                Button(action: openJak1) {
-                    LabeledContent("\(GameLibraryTitle.jak1.name) Settings", value: "Available")
-                }
-            }
-
-            Section("Planned") {
-                SettingsTitleStatusRow(title: "Jak II")
-                SettingsTitleStatusRow(title: "Jak 3")
-            }
-        }
-        .navigationTitle("Settings")
-        #if os(visionOS)
+        #else
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button(action: close) {
+                Button { dismiss() } label: {
                     Image(systemName: "xmark")
                 }
                 .accessibilityLabel("Close Settings")
             }
         }
         #endif
-    }
-}
-
-private struct SettingsTitleStatusRow: View {
-    let title: String
-
-    var body: some View {
-        LabeledContent(title, value: "Planned")
-            .foregroundStyle(.secondary)
-            .accessibilityLabel("\(title) Settings, Planned")
     }
 }
 

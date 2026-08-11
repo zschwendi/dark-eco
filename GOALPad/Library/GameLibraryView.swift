@@ -270,6 +270,7 @@ private struct GameLibraryTile: View {
             #if os(visionOS)
             .contentShape([.interaction, .hoverEffect],
                           RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .focusable(true)
             .hoverEffect(.highlight)
             #endif
             .opacity(state == .planned ? 0.48 : 1)
@@ -340,7 +341,7 @@ private struct GameLibraryTile: View {
         case .preparing(let preparation): preparation.label
         case .ready: "Ready"
         case .needsAttention: "Needs Attention"
-        case .planned: "Coming soon"
+        case .planned: title.availabilityLabel
         }
     }
 

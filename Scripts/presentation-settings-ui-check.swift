@@ -48,13 +48,14 @@ let touchGuide = source(at: root + "/GOALPad/Game/TouchControlsGuideView.swift")
 let touchControlsView = source(at: root + "/GOALPad/Game/TouchControlsView.swift")
 
 check(occursInOrder([
+    "SettingsGamePicker()",
     "if isGameRunning",
     "Label(\"Return to Library\"",
-    "controlsSection",
+    "DisclosureGroup(isExpanded: expansion(for: .controls))",
 ], in: view)
         && view.contains(".confirmationDialog(\"Return to Library?\"")
         && view.contains("Progress since your last in-game save will be lost."),
-      "running-game Settings begins with a confirmed, loss-aware return to the Library")
+      "the persistent game picker precedes a confirmed, loss-aware return to the Library")
 check(view.contains("Label(\"Touch Controls Guide\", systemImage: \"hand.tap\")")
         && view.contains("#if os(iOS)")
         && touchGuide.contains("struct TouchControlsGuideSheet")
@@ -77,15 +78,20 @@ check(content.contains("@AppStorage(\"jak1TouchControlsGuideVersion\")")
       "the first playable iOS session presents the guide once and confirmed exit tears down into Library")
 
 check(occursInOrder([
-    "controlsSection",
-    "profileSection(.graphics)",
+    "DisclosureGroup(isExpanded: expansion(for: .controls))",
+    "DisclosureGroup(isExpanded: expansion(for: .graphics))",
     "Section(\"iCloud\")",
     "Toggle(\"Sync Settings\"",
     "Toggle(\"Sync Saves\"",
     "Button(cloudState.actionTitle)",
     "Button(\"Reset \\(GameLibraryTitle.jak1.name) Settings\"",
-], in: view), "canonical-title Settings presents plain Controls, a Graphics profile, and one iCloud block")
-check(view.contains("Section(\"Controls\")")
+], in: view), "Jak 1 Settings keeps compact Controls, Graphics, and iCloud categories in one form")
+check(view.contains("Label(\"Controls\", systemImage: \"gamecontroller\")")
+        && view.contains("DisclosureGroup(isExpanded: expansion(for: .controls))")
+        && view.contains("DisclosureGroup(isExpanded: expansion(for: .graphics))")
+        && view.contains("DisclosureGroup(isExpanded: expansion(for: .iCloud))")
+        && view.contains("DisclosureGroup(isExpanded: expansion(for: .saves))")
+        && view.contains("DisclosureGroup(isExpanded: expansion(for: .developer))")
         && !view.contains("Section(\"Preset\")")
         && !view.contains("Use Modern Everywhere")
         && !view.contains("Use Classic Everywhere")
@@ -93,7 +99,7 @@ check(view.contains("Section(\"Controls\")")
         && !view.contains("globalProfileTitle")
         && !view.contains("settings.globalProfile")
         && !view.contains("profileSection(.controls)"),
-      "Controls has no Classic or global-profile selector")
+      "the compact categories have no Classic or global-profile selector")
 check(!view.contains("profileSection(.audio)")
         && !view.contains("profileSection(.interface)")
         && store.contains("var audioProfile: SettingsProfile")
@@ -122,7 +128,7 @@ check(view.contains("the four \\(GameLibraryTitle.jak1.name) save slots")
         && !view.contains("Section(\"Automatic Resolution\")")
         && !view.contains("BASCUS-"),
       "save UI describes slots and automatic preservation without internal paths")
-check(view.contains("Section(\"Preserved Saves\")")
+check(view.contains("Text(\"Preserved Saves\")")
         && view.contains("Make Save Slot \\(candidate.slotNumber) Active")
         && view.contains("The current active copy will be preserved before replacement.")
         && view.contains("candidate.completionPercentage")
@@ -130,7 +136,7 @@ check(view.contains("Section(\"Preserved Saves\")")
         && view.contains("candidate.source.rawValue")
         && !view.contains("Text(candidate.id)"),
       "preserved native saves can become active using human metadata without exposing paths")
-check(view.contains("Section(\"Developer\")")
+check(view.contains("Label(\"Developer\", systemImage: \"wrench.and.screwdriver\")")
         && view.contains("Toggle(\"Show Developer Logs\"")
         && store.contains("var developerLogsEnabledOverride: Bool?")
         && store.contains("developerLogsEnabledOverride ?? false"),
@@ -288,18 +294,28 @@ check(content.contains("@State private var settingsPresentation: SettingsSheetPr
         && content.contains(".id(presentation.id)")
         && !content.contains("showSettings"),
       "one item-backed Settings presentation keeps a stable identity while it is open")
-check(content.contains("presentSettings(.titles)")
-        && content.contains("presentSettings(.jak1)")
-        && content.contains("@State private var path: [Destination]")
-        && content.contains("initialEntry == .jak1 ? [.jak1] : []")
-        && content.contains("NavigationStack(path: $path)"),
-      "launcher enters the title list while a paused Jak 1 session opens Jak 1 directly")
-check(content.contains("LabeledContent(\"\\(GameLibraryTitle.jak1.name) Settings\", value: \"Available\")")
-        && content.contains("SettingsTitleStatusRow(title: \"Jak II\")")
-        && content.contains("SettingsTitleStatusRow(title: \"Jak 3\")")
-        && content.contains("LabeledContent(title, value: \"Planned\")")
+check(content.contains("openSettings: presentSettings")
+        && content.contains("openSettings: presentSettings")
+        && content.contains("SettingsSheetView(sync: session.saveSync")
+        && !content.contains("SettingsSheetEntry")
+        && !content.contains("SettingsTitleListView")
+        && !content.contains("NavigationStack(path: $path)"),
+      "every entry opens the direct Settings form without a title-list interstitial")
+check(view.contains("private struct SettingsGamePicker")
+        && view.contains("SettingsGamePickerRow(title: \"Jak 1\", status: \"Selected\", isSelected: true)")
+        && view.contains("title: GameLibraryTitle.jak2.name")
+        && view.contains("status: GameLibraryTitle.jak2.availabilityLabel")
+        && view.contains("title: GameLibraryTitle.jak3.name")
+        && view.contains("status: GameLibraryTitle.jak3.availabilityLabel")
+        && view.contains(".disabled(!isSelected)")
         && view.contains(".navigationTitle(\"\\(GameLibraryTitle.jak1.name) Settings\")"),
-      "only the first game's settings are functional and use its canonical title")
+      "the adaptive persistent picker keeps Jak 1 selected and disables truthful future-title rows")
+check(occursInOrder(["Section(\"iCloud\")", "Label(cloudState.summary",
+                     "DisclosureGroup(isExpanded: expansion(for: .iCloud))"], in: view)
+        && occursInOrder(["Section(\"Saves\")", "if sync.isTransferring",
+                          "if let message = sync.transferMessage",
+                          "DisclosureGroup(isExpanded: expansion(for: .saves))"], in: view),
+      "cloud and save transfer status remain visible when their categories are collapsed")
 check(content.contains("if session.isRunning && !isOpen { settingsPresentation = nil }"),
       "leaving the native menu still dismisses an in-game Settings sheet")
 check(content.contains("@Environment(\\.dismiss) private var dismiss")
@@ -307,7 +323,7 @@ check(content.contains("@Environment(\\.dismiss) private var dismiss")
         && content.contains("Button(\"Done\") { dismiss() }")
         && content.contains("ToolbarItem(placement: .topBarLeading)")
         && content.contains(".accessibilityLabel(\"Close Settings\")"),
-      "Settings retains an app-owned iOS Done exit and a visible visionOS title-picker Close")
+      "Settings retains an app-owned iOS Done exit and a visible visionOS Close")
 check(occursInOrder([
     "let presentationSettings = PresentationSettings()",
     "await GameSessionPreparation.run(",

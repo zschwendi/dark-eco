@@ -44,13 +44,13 @@ do {
     let supportViews = try source(at: root + "/GOALPad/Support/EcoSupportViews.swift")
     let gameplayLayout = try declaration(in: content,
                                          startingWith: "nonisolated enum GameplaySurfaceLayout",
-                                         endingWith: "\n\nprivate enum SettingsSheetEntry")
+                                         endingWith: "\n\nprivate struct SettingsSheetPresentation")
     let gameplaySurface = try declaration(in: content,
                                           startingWith: "private struct GameplaySurface",
                                           endingWith: "\n\n/// The game's own startup")
     let settingsSheet = try declaration(in: content,
                                         startingWith: "private struct SettingsSheetView",
-                                        endingWith: "\n\nprivate struct SettingsTitleListView")
+                                        endingWith: "\n\nprivate struct GameplaySurface")
     let shelfLayout = try declaration(in: library,
                                       startingWith: "nonisolated struct GameLibraryShelfLayout",
                                       endingWith: "\n\nnonisolated enum GameLibraryTitle")
@@ -107,12 +107,15 @@ do {
             && tile.contains(".frame(minWidth: 44, minHeight: 44)")
             && tile.contains(".contentShape(Rectangle())")
             && tile[cardButtonStyle.upperBound...].contains("artworkMenu")
+            && tile.contains(".contentShape([.interaction, .hoverEffect]")
+            && tile.contains(".focusable(true)")
+            && tile.contains(".hoverEffect(.highlight)")
     else {
         throw NSError(domain: "portrait-library-check", code: 2,
                       userInfo: [NSLocalizedDescriptionKey:
                         "full-card launch target or independent artwork menu regressed"])
     }
-    print("  ok   ready and unavailable cards remain full semantic targets beside artwork options")
+    print("  ok   ready and unavailable cards remain full semantic hover and focus targets beside artwork options")
     guard let settingsMenuLabel = libraryScreen.range(
               of: "Label(\"Settings\", systemImage: \"gearshape\")"),
           let aboutMenuLabel = libraryScreen.range(
@@ -166,6 +169,13 @@ do {
                         "landscape no longer preserves the unconstrained edge-to-edge surface"])
     }
     print("  ok   landscape preserves the unconstrained edge-to-edge renderer surface")
+    guard content.contains("#if os(iOS)\n                TouchControlsView")
+            && !content.contains("#if os(visionOS)\n                TouchControlsView") else {
+        throw NSError(domain: "portrait-library-check", code: 3,
+                      userInfo: [NSLocalizedDescriptionKey:
+                        "visionOS gained a gameplay touch-control overlay behind library cards"])
+    }
+    print("  ok   visionOS has no gameplay touch-control overlay behind library cards")
     let directory = FileManager.default.temporaryDirectory
         .appending(path: "goalpad-portrait-library-\(UUID().uuidString)", directoryHint: .isDirectory)
     defer { try? FileManager.default.removeItem(at: directory) }
@@ -326,6 +336,11 @@ do {
     check(GameLibraryOfferCopy.unsupportedMessage(for: .jak2).contains("Jak II")
           && GameLibraryOfferCopy.unsupportedMessage(for: .jak3).contains("Jak 3"),
           "unsupported offers remain title-specific")
+    check(GameLibraryTitle.jak2.availabilityLabel == "Coming Soon"
+          && GameLibraryTitle.jak3.availabilityLabel == "Planned"
+          && GameLibraryOfferCopy.unsupportedMessage(for: .jak2).contains("Coming Soon")
+          && GameLibraryOfferCopy.unsupportedMessage(for: .jak3).contains("Planned"),
+          "follow-on title availability uses the same truthful copy everywhere")
     print("portrait and library checks passed")
     """
 
