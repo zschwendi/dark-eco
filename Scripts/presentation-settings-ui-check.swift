@@ -61,10 +61,10 @@ check(view.contains("Label(\"Touch Controls Guide\", systemImage: \"hand.tap\")"
         && touchGuide.contains("struct TouchControlsGuideSheet")
         && touchGuide.contains("struct TouchControlsGuideView")
         && occursInOrder(["title: \"Move\"", "title: \"Camera\"",
-                          "title: \"Zoom and Fire\"", "title: \"Jump or Accelerate\"",
-                          "title: \"Punch\"",
-                          "title: \"Spin or Interact\"", "title: \"Crouch\"",
-                          "title: \"Contextual Actions\""], in: touchGuide),
+                          "title: \"Actions\"", "title: \"Zoom and fire\"",
+                          "title: \"Speeder\"", "title: \"Game prompts\""], in: touchGuide)
+        && touchGuide.contains("In first-person, tap the open right side to fire.")
+        && touchGuide.contains("Touch and a connected controller work together."),
       "Controls begins with a reusable visual touch guide covering the shipped gesture contract")
 check(content.contains("@AppStorage(\"jak1TouchControlsGuideVersion\")")
         && content.contains("readiness == .active, touchControlsGuideVersion < 1")
@@ -294,6 +294,10 @@ check(content.contains("@State private var settingsPresentation: SettingsSheetPr
         && content.contains(".id(presentation.id)")
         && !content.contains("showSettings"),
       "one item-backed Settings presentation keeps a stable identity while it is open")
+check(content.contains("#if GOALPAD_APPSTORE_CAPTURE")
+        && content.contains("arguments.contains(\"-EcoCaptureGameSetup\")")
+        && content.contains("arguments.contains(\"-EcoCaptureSettings\")"),
+      "release-media builds can open the three truthful storefront states without retail data")
 check(content.contains("openSettings: presentSettings")
         && content.contains("openSettings: presentSettings")
         && content.contains("SettingsSheetView(sync: session.saveSync")

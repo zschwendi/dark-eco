@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 nonisolated enum GameplaySurfaceLayout {
@@ -40,7 +41,6 @@ struct ContentView: View {
     }
 
     @Environment(\.scenePhase) private var scenePhase
-    @EnvironmentObject private var gameCenter: GameCenterService
     #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
     @Environment(VisionPresentationCoordinator.self) private var visionPresentation
     #endif
@@ -53,6 +53,20 @@ struct ContentView: View {
     @State private var isShowingTouchControlsGuide = false
     @AppStorage("jak1TouchControlsGuideVersion") private var touchControlsGuideVersion = 0
     #endif
+
+    init() {
+        #if GOALPAD_APPSTORE_CAPTURE
+        let arguments = ProcessInfo.processInfo.arguments
+        let opensSettings = arguments.contains("-EcoCaptureSettings")
+        _launcherDestination = State(initialValue: arguments.contains("-EcoCaptureGameSetup")
+            ? .gameSetup
+            : .library)
+        _settingsPresentation = State(initialValue: opensSettings
+            ? SettingsSheetPresentation(id: 1)
+            : nil)
+        _nextSettingsPresentationID = State(initialValue: opensSettings ? 1 : 0)
+        #endif
+    }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -121,9 +135,6 @@ struct ContentView: View {
         }
         .task { await session.prepare() }
         .onChange(of: scenePhase) { _, phase in session.scenePhaseChanged(to: phase) }
-        .onChange(of: session.isRunning, initial: true) { _, isRunning in
-            gameCenter.setGameplayActive(isRunning)
-        }
         .onChange(of: session.presentationSettings.graphicsFillWidth, initial: true) {
             _, enabled in
             session.settings.horizontalPlusEnabled = enabled
