@@ -122,7 +122,8 @@ check(shippingVisionSurface.contains("conventionalSurface")
         && !shippingVisionSurface.contains("Reality"),
       "normal visionOS builds structurally select only the conventional game surface")
 check(app.contains(experimentalStereoGate + "\n    @State private var visionPresentation")
-        && app.contains(experimentalStereoGate + "\n            GameCenterRootView")
+        && app.contains(experimentalStereoGate + "\n            ContentView()")
+        && !app.contains("GameCenter")
         && content.contains(experimentalStereoGate
             + "\n    @Environment(VisionPresentationCoordinator.self)")
         && settingsUI.contains(experimentalStereoGate

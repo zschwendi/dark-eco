@@ -18,9 +18,9 @@ nonisolated enum EcoTip: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .coffee: "Buy me a coffee"
-        case .development: "Support development"
-        case .topSupporter: "Become a top supporter"
+        case .coffee: "Coffee tip"
+        case .development: "Development tip"
+        case .topSupporter: "Extra support tip"
         }
     }
 }

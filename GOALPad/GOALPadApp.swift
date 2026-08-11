@@ -28,16 +28,12 @@ struct GOALPadApp: App {
     var body: some Scene {
         WindowGroup {
             #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
-            GameCenterRootView {
-                ContentView()
-            }
-            .environment(visionPresentation)
-            .task { await EcoTipTransactionObserver.run() }
+            ContentView()
+                .environment(visionPresentation)
+                .task { await EcoTipTransactionObserver.run() }
             #else
-            GameCenterRootView {
-                ContentView()
-            }
-            .task { await EcoTipTransactionObserver.run() }
+            ContentView()
+                .task { await EcoTipTransactionObserver.run() }
             #endif
         }
     }

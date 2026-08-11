@@ -12,16 +12,31 @@
 
 ## Build disclosures
 
+### Release decisions
+
+**Game Center is excluded from this release.** The application no longer
+authenticates players, displays the Game Center access point, or declares the
+Game Center entitlement. The existing iCloud Documents entitlement and
+`iCloud.com.zephyrstudiosllc.eco` container remain unchanged.
+
+The registered App ID and any distribution provisioning profiles are external
+Apple-account state. Before a distribution archive is made, the Account Holder
+must remove the Game Center capability there (if enabled) and regenerate the
+profile; this repository change neither performs nor proves that account-side
+action.
+
 Build 92 includes `PrivacyInfo.xcprivacy` in the shared app target. It declares
 only required-reason API access: checking free space before local preparation,
 reading file metadata in app/iCloud containers and user-selected locations,
 and storing app-only preferences. These declarations do not replace the
 separate App Store Connect privacy questionnaire.
 
-Build 133 adds three optional consumable StoreKit tips. The app displays Apple's
-localized prices and provides no feature, content, or entitlement in return.
-Product identifiers, intended US price points, test cases, and required App Store
-Connect setup are recorded in [Dark Eco optional tips](STOREKIT_TIPS.md).
+Dark Eco offers three optional consumable StoreKit tips. The app displays
+Apple's localized prices and provides no feature, content, or entitlement in
+return. Product identifiers, customer-facing copy, intended US price points,
+test cases, and required App Store Connect setup are recorded in
+[Dark Eco optional tips](STOREKIT_TIPS.md). No App Store Connect product record
+has been created or verified by this repository.
 
 `ITSAppUsesNonExemptEncryption` is `false`. The app implements no encryption;
 CryptoKit is used only for one-way save-file identity hashes, while iCloud and
@@ -44,3 +59,7 @@ standard Shared Space SwiftUI window with the conventional Comfort/2D
 presentation. The dormant bounded-stereo implementation, volumetric and tracked
 presentation, and immersive presentation are not part of the current
 App Store-facing product.
+
+Release screenshot and optional preview capture are planned in
+[Release media plan](RELEASE_MEDIA_PLAN.md). No release screenshots or previews
+are committed in this repository.

@@ -115,7 +115,7 @@ private struct EcoDonateView: View {
             .buttonStyle(.plain)
             .foregroundStyle(.primary)
 
-            Text("The app is free. These are optional tips that help fund development and maintenance. Thank you for your support.")
+            Text("The app is free. Tips are optional and unlock no features or content.")
                 .font(.footnote)
                     .foregroundStyle(.secondary)
 

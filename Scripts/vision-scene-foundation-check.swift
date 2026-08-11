@@ -23,17 +23,6 @@ nonisolated enum EcoTipTransactionObserver {
     static func run() async {}
 }
 
-@MainActor
-struct GameCenterRootView<Content: View>: View {
-    private let content: Content
-
-    init(@ViewBuilder content: () -> Content) {
-        self.content = content()
-    }
-
-    var body: some View { content }
-}
-
 #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
 @MainActor
 private func exerciseVisionPresentationFoundation() {
