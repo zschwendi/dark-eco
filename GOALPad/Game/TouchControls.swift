@@ -770,6 +770,7 @@ enum TouchHapticEvent: Equatable {
 struct ModernTouchChromeLayout: Equatable, Sendable {
     nonisolated static let pillSize = CGSize(width: 118, height: 42)
     nonisolated static let pillSpacing: CGFloat = 20
+    nonisolated static let settingsDiameter: CGFloat = 42
     nonisolated static let zoomDiameter: CGFloat = 42
     nonisolated static let zoomGap: CGFloat = pillSpacing
     nonisolated static let bottomInset: CGFloat = 30
@@ -777,6 +778,7 @@ struct ModernTouchChromeLayout: Equatable, Sendable {
     let zoomFrame: CGRect
     let statsFrame: CGRect
     let startFrame: CGRect
+    let settingsFrame: CGRect
     let centeredSessionFrame: CGRect
 
     init(size: CGSize) {
@@ -788,6 +790,9 @@ struct ModernTouchChromeLayout: Equatable, Sendable {
                            width: Self.pillSize.width, height: Self.pillSize.height)
         statsFrame = stats
         startFrame = stats.offsetBy(dx: Self.pillSize.width + Self.pillSpacing, dy: 0)
+        settingsFrame = CGRect(x: startFrame.minX - Self.pillSpacing - Self.settingsDiameter,
+                               y: startFrame.midY - Self.settingsDiameter / 2,
+                               width: Self.settingsDiameter, height: Self.settingsDiameter)
         centeredSessionFrame = CGRect(x: (width - Self.pillSize.width) / 2,
                                       y: stats.minY,
                                       width: Self.pillSize.width,
@@ -830,6 +835,7 @@ struct ModernTouchLayout: Sendable {
     let selectPillFrame: CGRect
     let statsPillFrame: CGRect
     let startPillFrame: CGRect
+    let settingsButtonFrame: CGRect
     let zoomFrame: CGRect
     let menuControlsBottomInset: CGFloat
     let warpPromptBottomInset: CGFloat
@@ -869,6 +875,9 @@ struct ModernTouchLayout: Sendable {
                                             customization: customization, safeBounds: safe)
         startPillFrame = Self.resolvedFrame(defaultStartPillFrame, id: .modernStart,
                                             customization: customization, safeBounds: safe)
+        settingsButtonFrame = chrome.settingsFrame.offsetBy(
+            dx: chromeOffset.x + startPillFrame.minX - defaultStartPillFrame.minX,
+            dy: chromeOffset.y + startPillFrame.minY - defaultStartPillFrame.minY)
 
         let pillHitFrames = [selectPillFrame, statsPillFrame, startPillFrame].map {
             $0.insetBy(dx: -Self.pillHitInsets.width, dy: -Self.pillHitInsets.height)

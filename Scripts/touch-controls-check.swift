@@ -907,6 +907,12 @@ private func modernChromeFitsSettingsButton() {
           "Stats uses the widened left pill frame")
     check(chrome.startFrame == CGRect(x: 615, y: 762, width: 118, height: 42),
           "Start uses the widened right pill frame")
+    check(chrome.settingsFrame == CGRect(x: 553, y: 762, width: 42, height: 42),
+          "Settings sits immediately left of Start in its compact icon frame")
+    check(chrome.settingsFrame.maxX + ModernTouchChromeLayout.pillSpacing
+          == chrome.startFrame.minX
+          && chrome.settingsFrame.midY == chrome.startFrame.midY,
+          "Settings-to-Start uses the standard spacing and vertical alignment")
     check(chrome.centeredSessionFrame
           == CGRect(x: 546, y: 762, width: 118, height: 42)
           && chrome.centeredSessionFrame.midX == Runner.screen.width / 2,

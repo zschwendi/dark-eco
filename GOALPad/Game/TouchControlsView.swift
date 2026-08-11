@@ -319,7 +319,8 @@ struct TouchControlsView: View {
                     settingsIconLabel
                 }
                 .buttonStyle(.plain)
-                .position(x: layout.statsPillFrame.midX, y: layout.statsPillFrame.midY)
+                .position(x: layout.settingsButtonFrame.midX,
+                          y: layout.settingsButtonFrame.midY)
                 .accessibilityLabel("Settings")
             }
 
@@ -690,17 +691,16 @@ private struct NativeMenuTouchControls: View {
                 }
             }
             .font(.system(size: 17, weight: .semibold, design: .rounded))
-            .foregroundStyle(.white)
-            .background(.black.opacity(0.68), in: RoundedRectangle(cornerRadius: 16))
+            .foregroundStyle(.white.opacity(isEnabled ? 0.8 : 0.42))
+            .background(.black.opacity(0.42), in: RoundedRectangle(cornerRadius: 16))
             .overlay {
                 RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(.white.opacity(0.55), lineWidth: 1.5)
+                    .strokeBorder(.white.opacity(isEnabled ? 0.35 : 0.18), lineWidth: 1)
             }
             .contentShape(RoundedRectangle(cornerRadius: 16))
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
-        .opacity(isEnabled ? 1 : 0.55)
         .accessibilityLabel(action.label)
     }
 

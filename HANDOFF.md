@@ -18143,3 +18143,37 @@ The signed product passed strict code-signature verification for bundle
 that exact product was installed and launched on physical `Z iPad Pro`;
 `devicectl device info apps` confirmed 1.0 (167). Physical eyes-free feel is the
 acceptance authority and remains for maintainer testing.
+
+# 2026-08-11 Build 168 native-menu chrome checkpoint
+
+Build 168 tightens the captured Settings/Start row and normalizes native-menu
+button translucency. The 42-point Settings gear now sits exactly 20 points from
+the Start/Resume pill, using the same visible edge-to-edge spacing as the other
+session controls. Title and native main-menu commands now use the ordinary
+in-game Start/Select idle values: 0.8 foreground, 0.42 background, and 0.35
+border opacity. Disabled commands retain the corresponding Start/Resume values
+of 0.42 foreground and 0.18 border opacity without an extra blanket fade.
+
+The checkpoint is on:
+
+```text
+/Users/zach/Developer/OS_Projects/GOALPad/GP-build165-touch-controls
+agent/build168-menu-chrome
+```
+
+Validation passed:
+
+```text
+Scripts/run-touch-controls-check.sh
+Scripts/run-presentation-settings-check.sh
+Scripts/run-product-name-check.sh
+xcrun swift -frontend -parse GOALPad/Game/TouchControls.swift \
+  GOALPad/Game/TouchControlsView.swift
+git diff --check
+```
+
+The unsigned iPad Simulator Release build passed and its bundle reports Dark
+Eco 1.0 (168). The build log is
+`/private/tmp/goalpad-build168-ios-sim.log`. Build 168 has not been installed or
+launched on physical `Z iPad Pro` because this request did not authorize a new
+physical-device operation; physical visual acceptance remains pending.

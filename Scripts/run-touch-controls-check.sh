@@ -158,7 +158,7 @@ rg -Fq '.allowsHitTesting(isInteractive)' "$root/GOALPad/Game/TouchControlsView.
 rg -Fq 'NativeEcoSettingsPresentation.isVisible(' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'Button { openSettings() }' "$root/GOALPad/Game/TouchControlsView.swift"
-rg -Fq '.position(x: layout.statsPillFrame.midX, y: layout.statsPillFrame.midY)' \
+rg -Fq '.position(x: layout.settingsButtonFrame.midX,' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'ecoSettingsIsVisible ? layout.startPillFrame.midX' \
   "$root/GOALPad/Game/TouchControlsView.swift"
@@ -174,6 +174,19 @@ printf '%s\n' "$settings_icon" | rg -Fq 'Image(systemName: "gearshape")'
 printf '%s\n' "$settings_icon" | rg -Fq '.frame(width: 42, height: 42)'
 if printf '%s\n' "$settings_icon" | rg -Fq 'Text("DARK ECO")'; then
   echo "gameplay Settings control still includes the Dark Eco wordmark" >&2
+  exit 1
+fi
+native_menu_button=$(sed -n \
+  '/private func menuButton(_ action: NativeMenuTouchAction,/,/^    }/p' \
+  "$root/GOALPad/Game/TouchControlsView.swift")
+printf '%s\n' "$native_menu_button" | rg -Fq \
+  '.foregroundStyle(.white.opacity(isEnabled ? 0.8 : 0.42))'
+printf '%s\n' "$native_menu_button" | rg -Fq \
+  '.background(.black.opacity(0.42), in: RoundedRectangle(cornerRadius: 16))'
+printf '%s\n' "$native_menu_button" | rg -Fq \
+  '.strokeBorder(.white.opacity(isEnabled ? 0.35 : 0.18), lineWidth: 1)'
+if printf '%s\n' "$native_menu_button" | rg -Fq '.opacity(isEnabled ? 1 : 0.55)'; then
+  echo "native menu still applies opacity beyond the shared Start/Select styling" >&2
   exit 1
 fi
 if rg -Fq 'session.isRunning && session.isNativeMenuOpen' \
