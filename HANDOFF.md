@@ -17705,3 +17705,121 @@ maintainer explicitly reopens graphics later.
 The pre-existing broad `project.pbxproj` ordering rewrite remains unstaged and
 preserved; its two working version lines now read Build 162. Nested OpenGOAL is
 clean at `8117a8ad525b5d46351f4b3c04c164694065941d`.
+
+# 2026-08-10 Build 163 delayed iCloud save-convergence checkpoint
+
+The maintainer's Build 162 two-device test reproduced the remaining false-
+freshness path. Z iPhone Air initially exposed an older Jak 1 slot than Z iPad
+Pro despite launch-time reconciliation and an app close/restart. Read-only,
+explicitly authorized inspection of the two app-local save directories showed
+that the iPhone's stale pair exactly matched its persisted sync baseline, while
+the iPad's later pair and baseline matched each other. The iPhone later converged
+without the newly installed iPad build being launched; afterward all seven
+native banks and every pair baseline matched the iPad. No save bytes were added
+to the repository.
+
+This rules out corruption, a missing iPad upload, pair-journal failure, and save
+generation parsing for the observed incident. The engine's bounded initial
+metadata gather was correctly reconciling the provider inventory visible at
+that moment, but `SaveSyncController` had no trigger when FileProvider exposed a
+newer same-filename revision later. A launch or restart could therefore compare
+the stale provider copy to the identical local copy, persist that identity, and
+present `Up to date` before the provider caught up.
+
+Build 163 closes that exact gap:
+
+- One controller-owned `NSMetadataQuery` remains active for the private Jak 1
+  saves subtree while save sync is enabled. `NSMetadataQueryDidUpdate` events
+  feed the existing synchronization queue instead of replacing engine merge,
+  pair-journal, hashing, or compare-and-swap authority.
+- Provider events are debounced for 250 ms and duplicate events coalesce. Outside
+  gameplay they enqueue bidirectional reconciliation. During gameplay they use
+  the existing upload-only mode, so a provider event can never download into
+  native gameplay storage.
+- A pending provider-event debounce participates in the pregame gate. Play
+  therefore cannot pass an already-observed newer provider revision before its
+  reconciliation has completed or the existing bounded fallback has released
+  cloud work safely.
+- Disabling save sync stops the metadata monitor and cancels its pending event.
+  Re-enabling, Library appearance, and iCloud identity changes restart it when
+  the private container is available.
+- A zero-transfer pass now says `No differences found in currently available
+  iCloud saves` rather than making the globally unprovable claim `Up to date`.
+
+The deterministic regression starts with identical synthetic generation-8,
+85-percent local/cloud banks, finishes the first no-op reconcile, replaces the
+same two cloud filenames with generation 10 at 90 percent without changing
+their timestamps, and injects three provider-update notifications. Exactly one
+follow-up reconcile runs, Play waits while it is suspended, both native banks
+match the delayed cloud pair afterward, and the OpenGOAL loader selects
+generation 10 at 90 percent. This test does not require an iCloud account or
+retail data.
+
+Parent integration commit before this handoff update:
+
+```text
+d65ab3f8 Fix delayed iCloud save convergence in Build 163 (AI-assisted)
+```
+
+Focused validation passed:
+
+```text
+Scripts/run-save-sync-check.sh
+swift Scripts/save-pregame-gate-check.swift "$PWD"
+Scripts/run-session-startup-readiness-check.sh
+Scripts/run-game-lifecycle-check.sh
+Scripts/run-presentation-settings-check.sh
+xcrun swiftc -frontend -parse GOALPad/Saves/SaveSyncEngine.swift \
+  GOALPad/Saves/SaveSyncController.swift Scripts/save-sync-check.swift
+xcrun swift -frontend -parse Scripts/save-pregame-gate-check.swift
+git diff --check -- GOALPad/Saves/SaveSyncController.swift \
+  Scripts/save-sync-check.swift Scripts/save-pregame-gate-check.swift \
+  GOALPad.xcodeproj/project.pbxproj
+```
+
+Focused logs:
+
+```text
+/private/tmp/GP-build163-root-save-sync.log
+/private/tmp/GP-build163-root-pregame.log
+/private/tmp/GP-build163-root-startup-readiness.log
+/private/tmp/GP-build163-root-game-lifecycle.log
+/private/tmp/GP-build163-root-presentation-settings.log
+```
+
+The serialized Release build matrix passed with the existing verified
+518-object public source pack. All three products are ARM64 and report Dark Eco
+1.0 (163). The iOS and visionOS products pass strict code-signature
+verification with team `V729QMY3V6` and bundle ID
+`com.zephyrstudiosllc.eco`; the macOS product is unsigned compile evidence only.
+All three logs contain zero `error:` diagnostics and no warning from the changed
+save-sync files. Existing unrelated Swift isolation and always-run build-phase
+warnings remain visible.
+
+```text
+iOS log /private/tmp/GP-build163-ios.log
+iOS app /private/tmp/GOALPad-build154-ios-generic/Build/Products/Release-iphoneos/Dark Eco.app
+  executable SHA-256 d85355e5f7ff7200beeba687f3f2fbcb48a042a50930bf5cbeed78a0dcbed27c
+  CDHash fbad685a4505536e8f243091c975c5e5449acac9
+visionOS log /private/tmp/GP-build163-visionos.log
+visionOS app /private/tmp/GOALPad-build150-vision-device/Build/Products/Release-xros/Dark Eco.app
+  executable SHA-256 67dfd4b99d8960c11f26592a97c9027c60a449a5526158d13aae177b3823b6c7
+  CDHash 78b6a2106058a124738b6fed484b32d2cfae9828
+macOS compile log /private/tmp/GP-build163-macos-compile.log
+macOS app /private/tmp/GOALPad-build154-macos-arm64/Build/Products/Release/Dark Eco.app
+  executable SHA-256 6936d73fa44916ed9076893fa7136c9975e8e26e26535361226672a70cb036ae
+```
+
+Build 163 has not been installed or launched on any physical device. Its
+physical gate is deliberately the reproduced failure mode: let one device
+publish a visibly newer save, allow the iPhone to complete an initially stale
+launch/restart pass if FileProvider still exposes the old generation, and keep
+Dark Eco open. Without another relaunch or manual Sync, the later provider
+revision must trigger one visible reconcile and update the selected local slot.
+Also verify that gameplay remains responsive and never downloads a remote save
+until returning to the Library.
+
+The pre-existing broad `project.pbxproj` ordering rewrite remains unstaged and
+preserved; only its two working version lines were committed as Build 163.
+Nested OpenGOAL remains clean at
+`8117a8ad525b5d46351f4b3c04c164694065941d`.
