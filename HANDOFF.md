@@ -18643,3 +18643,55 @@ uninstall occurred and no iPhone was accessed. Device inventory confirmed Dark
 Eco 1.0 (192). Maintainer acceptance of the exact Files-provider archive import
 remains pending at this checkpoint. Do not claim that physical archive import
 completed until that result is reported or captured.
+
+# 2026-08-12 Build 193 import completion and cancellation UI checkpoint
+
+The maintainer subsequently confirmed that the exact disguised-7z archive
+completed successfully in Build 192 on physical `Z iPad Pro`. That closes the
+physical archive-format acceptance gate described above.
+
+Build 193 makes cancellation authoritative across every import producer. If an
+extractor reports a typed error while a cancelled task is winding down, the
+importer now publishes `Import canceled` instead of exposing the late extractor
+detail. The cancelled UI is title-only and contains no recovery or archive
+diagnostic subtext; genuine non-cancellation failures retain their existing
+recovery detail.
+
+When installed game data is ready, Game Setup now reports `Import Complete
+(<localized size>)`, hides the source-selection, Supported Sources, Import
+Failed, Choose Game Data, and Recheck controls, and presents one centered
+accent-purple `Play Now` button at 88 points high. The existing storage guidance
+and genuine startup-error panel remain available.
+
+Focused validation passed:
+
+```text
+Scripts/run-game-data-import-lifecycle-check.sh
+Scripts/run-game-data-install-check.sh
+Scripts/run-game-data-import-presentation-check.sh
+xcrun swift -frontend -parse <each changed Swift source and check individually>
+plutil -lint GOALPad.xcodeproj/project.pbxproj
+git diff --check
+```
+
+The generic signed arm64 iOS Release build passed with:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build192-local-device-derived \
+  -jobs 4 -allowProvisioningUpdates \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack \
+  build
+```
+
+Log: `/private/tmp/goalpad-build193-signed-device-build.log`. Product:
+`/private/tmp/GOALPad-build192-local-device-derived/Build/Products/Release-iphoneos/Dark Eco.app`.
+The bundle reports version 193 and `codesign --verify --deep --strict` passed.
+Existing actor-isolation warnings and always-run script-phase notes remain; no
+build errors were reported.
+
+Build 193 was not installed or launched, because the current request did not
+authorize physical-device access. Physical cancellation and completed-screen UI
+acceptance remain pending. No iPhone was accessed.

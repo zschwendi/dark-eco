@@ -120,7 +120,7 @@ nonisolated struct GameDataReport: Sendable {
             return "Boot data is present, but \(missing) level file(s) are missing."
         case .ready:
             let size = ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)
-            return "Complete: Imported (\(size))"
+            return "Import Complete (\(size))"
         }
     }
 }

@@ -23,6 +23,4 @@ nonisolated enum GameDataImportPresentation {
             ? "Finishing setup cannot be cancelled."
             : "You can cancel. Your current game data will stay unchanged."
     }
-
-    static let cancelledRecovery = "Import cancelled. Your current game data was not replaced. Choose a source and try again."
 }

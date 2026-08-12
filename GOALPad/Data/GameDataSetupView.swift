@@ -13,10 +13,16 @@ struct GameDataSetupView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                header
+                if !isImportComplete {
+                    header
+                }
                 dataStatus
-                importFlow
-                importState
+                if isImportComplete {
+                    completionActions
+                } else {
+                    importFlow
+                    importState
+                }
                 if let error = selectionError ?? session.startupError {
                     messagePanel("Needs attention", message: error, color: DarkEcoTheme.danger)
                 }
@@ -119,28 +125,15 @@ struct GameDataSetupView: View {
             }
         case .cancelled:
             VStack(alignment: .leading, spacing: 12) {
-                messagePanel("Import cancelled", message: GameDataImportPresentation.cancelledRecovery,
-                             color: DarkEcoTheme.warning)
-                actions
-            }
-        case .finished:
-            VStack(alignment: .leading, spacing: 12) {
                 DarkEcoPanel {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Import complete")
-                            .font(.headline)
-                            .foregroundStyle(DarkEcoTheme.success)
-                        ProgressView(value: 1)
-                            .tint(DarkEcoTheme.success)
-                            .accessibilityLabel("\(GameLibraryTitle.jak1.name) import progress")
-                            .accessibilityValue("100% complete")
-                        Text("100% complete · Your game data is ready to play.")
-                            .font(.callout)
-                            .foregroundStyle(.white.opacity(0.84))
-                    }
+                    Text("Import canceled")
+                        .font(.headline)
+                        .foregroundStyle(DarkEcoTheme.warning)
                 }
                 actions
             }
+        case .finished:
+            actions
         case .idle:
             actions
         }
@@ -212,6 +205,36 @@ struct GameDataSetupView: View {
         }
     }
 
+    private var completionActions: some View {
+        VStack(spacing: 16) {
+            if let startupMessage {
+                HStack(spacing: 10) {
+                    ProgressView()
+                        .tint(DarkEcoTheme.accent)
+                    Text(startupMessage)
+                        .font(.callout)
+                        .foregroundStyle(.white.opacity(0.84))
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(startupMessage)
+            }
+
+            Button {
+                Task { await session.start() }
+            } label: {
+                Text("Play Now")
+                    .font(.title3.weight(.bold))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 88)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DarkEcoTheme.accent)
+            .frame(maxWidth: 360)
+            .disabled(session.isRefreshingDataReport || session.startupPhase.isPreparing)
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
     private var recheckButton: some View {
                 Button {
                     Task { await session.refreshDataReport() }
@@ -269,6 +292,10 @@ struct GameDataSetupView: View {
 
     private var canImportRawISO: Bool {
         RawISOCandidateProducer.isAvailable()
+    }
+
+    private var isImportComplete: Bool {
+        session.dataReport.status == .ready
     }
 
     private var statusIcon: String {

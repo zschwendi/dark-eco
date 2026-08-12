@@ -58,6 +58,42 @@ private actor ControlledCandidateProducer: GameDataCandidateProducing {
     }
 }
 
+private actor LateFailureCandidateProducer: GameDataCandidateProducing {
+    private var started = false
+    private var teardownContinuation: CheckedContinuation<Void, Never>?
+
+    func prepareCandidate(
+        from source: URL,
+        activeDirectory: URL,
+        candidateDirectory: URL,
+        report: @escaping @Sendable (GameDataImportProgress) async -> Void
+    ) async throws -> GameDataImportResult {
+        started = true
+        await report(GameDataImportProgress(phase: .preparingCandidate))
+        do {
+            try await Task.sleep(for: .seconds(60))
+            throw CancellationError()
+        } catch is CancellationError {
+            await withCheckedContinuation { continuation in
+                teardownContinuation = continuation
+            }
+            throw GameDataImportFailure(
+                code: .invalidDiscImage,
+                message: "A late extraction check failed after cancellation.",
+                candidatePreserved: false
+            )
+        }
+    }
+
+    func hasStarted() -> Bool { started }
+    func isWaitingForTeardown() -> Bool { teardownContinuation != nil }
+
+    func finishTeardown() {
+        teardownContinuation?.resume()
+        teardownContinuation = nil
+    }
+}
+
 @MainActor
 private final class IdleTimerRecorder {
     private(set) var values: [Bool] = []
@@ -91,6 +127,22 @@ private func waitForAttempts(
 }
 
 private func waitForTeardown(_ producer: ControlledCandidateProducer) async -> Bool {
+    for _ in 0..<200 {
+        if await producer.isWaitingForTeardown() { return true }
+        try? await Task.sleep(for: .milliseconds(5))
+    }
+    return await producer.isWaitingForTeardown()
+}
+
+private func waitForStart(_ producer: LateFailureCandidateProducer) async -> Bool {
+    for _ in 0..<200 {
+        if await producer.hasStarted() { return true }
+        try? await Task.sleep(for: .milliseconds(5))
+    }
+    return await producer.hasStarted()
+}
+
+private func waitForTeardown(_ producer: LateFailureCandidateProducer) async -> Bool {
     for _ in 0..<200 {
         if await producer.isWaitingForTeardown() { return true }
         try? await Task.sleep(for: .milliseconds(5))
@@ -175,6 +227,36 @@ private func importerCancellationWaitsForTeardown() async throws {
 }
 
 @MainActor
+private func cancellationDominatesLateProducerFailure() async throws {
+    print("import cancellation wins over a late producer failure")
+    let root = FileManager.default.temporaryDirectory.appending(
+        path: "goalpad-import-late-failure-\(UUID().uuidString)", directoryHint: .isDirectory)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let source = root.appending(path: "source", directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+
+    let worker = GameDataInstallWorker(configuration: .init(
+        activeDirectory: root.appending(path: "active", directoryHint: .isDirectory),
+        stagingRoot: root.appending(path: "staging", directoryHint: .isDirectory)))
+    let producer = LateFailureCandidateProducer()
+    let importer = GameDataImporter(worker: worker, preparedFolderProducer: producer)
+    var finishCalls = 0
+
+    importer.start(from: source) { finishCalls += 1 }
+    let started = await waitForStart(producer)
+    check(started, "the late-failure producer starts")
+    importer.cancel()
+    let teardownStarted = await waitForTeardown(producer)
+    check(teardownStarted, "the cancelled producer reaches late teardown")
+    await producer.finishTeardown()
+    let cancellationFinished = await waitForCancelled(importer)
+    check(cancellationFinished,
+          "a typed producer error after cancellation still publishes cancelled")
+    check(finishCalls == 0,
+          "a cancelled import does not publish late failure recovery text")
+}
+
+@MainActor
 private func idleTimerOwnersDoNotClobberEachOther() {
     print("idle-timer assertions preserve independent gameplay and import owners")
     let recorder = IdleTimerRecorder()
@@ -196,6 +278,7 @@ private struct GameDataImportLifecycleCheck {
     static func main() async {
         do {
             try await importerCancellationWaitsForTeardown()
+            try await cancellationDominatesLateProducerFailure()
             idleTimerOwnersDoNotClobberEachOther()
         } catch {
             print("  FAIL unexpected error: \(error)")

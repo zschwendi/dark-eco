@@ -33,10 +33,6 @@ private struct GameDataImportPresentationCheck {
         check(GameDataImportPresentation.cancellationGuidance(isActivating: true)
                 == "Finishing setup cannot be cancelled.",
               "activation does not promise a cancellation that the worker cannot honor")
-        check(GameDataImportPresentation.cancelledRecovery.contains("was not replaced")
-                && GameDataImportPresentation.cancelledRecovery.contains("try again"),
-              "cancellation stays visible with a recovery action")
-
         if failures == 0 {
             print("game data import presentation checks passed")
         } else {

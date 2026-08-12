@@ -152,24 +152,24 @@ final class GameDataImporter {
                     filesCopied: result.filesCopied,
                     filesSkipped: result.filesSkipped
                 )
-            } catch is CancellationError {
-                setImportWorkActive(false)
-                state = .cancelled
-            } catch let failure as GameDataImportFailure {
-                setImportWorkActive(false)
-                importLog.error(
-                    "Import failed with code \(failure.code.rawValue, privacy: .public): \(failure.message, privacy: .private)"
-                )
-                state = .failed(failure)
-                await onFinish()
             } catch {
                 setImportWorkActive(false)
-                state = .failed(GameDataImportFailure(
-                    code: .stagingFailed,
-                    message: error.localizedDescription,
-                    candidatePreserved: true
-                ))
-                await onFinish()
+                if Task.isCancelled || error is CancellationError {
+                    state = .cancelled
+                } else if let failure = error as? GameDataImportFailure {
+                    importLog.error(
+                        "Import failed with code \(failure.code.rawValue, privacy: .public): \(failure.message, privacy: .private)"
+                    )
+                    state = .failed(failure)
+                    await onFinish()
+                } else {
+                    state = .failed(GameDataImportFailure(
+                        code: .stagingFailed,
+                        message: error.localizedDescription,
+                        candidatePreserved: true
+                    ))
+                    await onFinish()
+                }
             }
             task = nil
         }
