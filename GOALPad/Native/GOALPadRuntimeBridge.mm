@@ -210,6 +210,23 @@ static GOALPadFacePromptTouchSnapshot GOALPadFacePromptTouchSnapshotFromCore(
   return snapshot;
 }
 
+static GOALPadGameFrameStateSnapshot GOALPadGameFrameStateSnapshotFromCore(
+    const goalpad::GameFrameStateSnapshot &core) {
+  GOALPadGameFrameStateSnapshot snapshot = {};
+  snapshot.exitToLibraryRequested = core.exit_to_library_requested ? YES : NO;
+  snapshot.framesRun = core.frames_run;
+  snapshot.successfulSaveGeneration = core.successful_save_generation;
+  snapshot.gameMode = GOALPadGameModeFromCore(core.game_mode);
+  snapshot.progressMenu = GOALPadProgressMenuSnapshotFromCore(core.progress_menu);
+  snapshot.titleStartState = GOALPadTitleStartStateFromCore(core.title_start_state);
+  snapshot.warpGateTouch = GOALPadWarpGateTouchSnapshotFromCore(core.warp_gate_touch);
+  snapshot.cutsceneSkipTouch = GOALPadCutsceneSkipTouchSnapshotFromCore(core.cutscene_skip_touch);
+  snapshot.facePromptTouch = GOALPadFacePromptTouchSnapshotFromCore(core.face_prompt_touch);
+  snapshot.lookAroundState = GOALPadLookAroundStateFromCore(core.look_around_state);
+  snapshot.speederState = GOALPadSpeederStateFromCore(core.speeder_state);
+  return snapshot;
+}
+
 @implementation GOALPadRuntimeBridge
 
 + (GOALPadKernelStatus *)startKernelWithDataDirectory:(NSString *)dataDirectory
@@ -301,6 +318,14 @@ static GOALPadFacePromptTouchSnapshot GOALPadFacePromptTouchSnapshotFromCore(
   return goalpad::run_frame(targetPresentationTime) ? YES : NO;
 }
 
++ (BOOL)runFrameAtPresentationTime:(CFTimeInterval)targetPresentationTime
+                     stateSnapshot:(GOALPadGameFrameStateSnapshot *)stateSnapshot {
+  goalpad::GameFrameStateSnapshot core;
+  const bool ran = goalpad::run_frame(targetPresentationTime, &core);
+  *stateSnapshot = GOALPadGameFrameStateSnapshotFromCore(core);
+  return ran ? YES : NO;
+}
+
 + (void)resetFrameTiming {
   goalpad::reset_frame_timing();
 }
@@ -350,20 +375,7 @@ static GOALPadFacePromptTouchSnapshot GOALPadFacePromptTouchSnapshotFromCore(
 }
 
 + (GOALPadGameFrameStateSnapshot)gameFrameStateSnapshot {
-  const auto core = goalpad::game_frame_state_snapshot();
-  GOALPadGameFrameStateSnapshot snapshot = {};
-  snapshot.exitToLibraryRequested = core.exit_to_library_requested ? YES : NO;
-  snapshot.framesRun = core.frames_run;
-  snapshot.successfulSaveGeneration = core.successful_save_generation;
-  snapshot.gameMode = GOALPadGameModeFromCore(core.game_mode);
-  snapshot.progressMenu = GOALPadProgressMenuSnapshotFromCore(core.progress_menu);
-  snapshot.titleStartState = GOALPadTitleStartStateFromCore(core.title_start_state);
-  snapshot.warpGateTouch = GOALPadWarpGateTouchSnapshotFromCore(core.warp_gate_touch);
-  snapshot.cutsceneSkipTouch = GOALPadCutsceneSkipTouchSnapshotFromCore(core.cutscene_skip_touch);
-  snapshot.facePromptTouch = GOALPadFacePromptTouchSnapshotFromCore(core.face_prompt_touch);
-  snapshot.lookAroundState = GOALPadLookAroundStateFromCore(core.look_around_state);
-  snapshot.speederState = GOALPadSpeederStateFromCore(core.speeder_state);
-  return snapshot;
+  return GOALPadGameFrameStateSnapshotFromCore(goalpad::game_frame_state_snapshot());
 }
 
 + (GOALPadFrameChainStats)frameChainStats {

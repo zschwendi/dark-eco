@@ -19,5 +19,6 @@ func inspectLayout() {
         of: \.successfulSaveGeneration)
 }
 
-let snapshot: GOALPadGameFrameStateSnapshot = GOALPadRuntimeBridge.gameFrameStateSnapshot
+var snapshot = GOALPadGameFrameStateSnapshot()
+let _: Bool = GOALPadRuntimeBridge.runFrame(at: 0, stateSnapshot: &snapshot)
 inspect(snapshot)

@@ -697,7 +697,11 @@ BootStatus boot_game() noexcept {
   return boot_game(60);
 }
 
-bool run_frame(double target_presentation_time) noexcept {
+bool run_frame(double target_presentation_time,
+               GameFrameStateSnapshot* state_snapshot) noexcept {
+  if (state_snapshot) {
+    *state_snapshot = {};
+  }
   if (!g_booted) {
     return false;
   }
@@ -733,7 +737,14 @@ bool run_frame(double target_presentation_time) noexcept {
   goal_sound_frame();
 #endif
   g_frames++;
+  if (state_snapshot) {
+    *state_snapshot = game_frame_state_snapshot();
+  }
   return true;
+}
+
+bool run_frame(double target_presentation_time) noexcept {
+  return run_frame(target_presentation_time, nullptr);
 }
 
 void reset_frame_timing() noexcept {
@@ -1063,9 +1074,17 @@ BootStatus boot_game() noexcept {
   return status;
 }
 
-bool run_frame(double target_presentation_time) noexcept {
+bool run_frame(double target_presentation_time,
+               GameFrameStateSnapshot* state_snapshot) noexcept {
   (void)target_presentation_time;
+  if (state_snapshot) {
+    *state_snapshot = {};
+  }
   return false;
+}
+
+bool run_frame(double target_presentation_time) noexcept {
+  return run_frame(target_presentation_time, nullptr);
 }
 
 void reset_frame_timing() noexcept {}

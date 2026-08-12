@@ -1022,6 +1022,13 @@ BootStatus boot_game() noexcept;
  */
 bool run_frame(double target_presentation_time) noexcept;
 
+/*!
+ * Run one frame and copy the aggregate state from that completed frame. The one-argument entry
+ * point remains the compatibility surface for hosts that do not consume the aggregate.
+ */
+bool run_frame(double target_presentation_time,
+               GameFrameStateSnapshot* state_snapshot) noexcept;
+
 /*! Drop display-link history so the first frame after a lifecycle pause starts at ratio 1. */
 void reset_frame_timing() noexcept;
 

@@ -162,8 +162,9 @@ check(armedTick.contains("if developerLogsEnabled, framesRun % 60 == 0")
 check(occursInOrder([
     "let developerLogsEnabled = presentationSettings.developerLogsEnabled",
     "input.pushFrame",
-    "GOALPadRuntimeBridge.runFrame(at: targetPresentationTime)",
-    "let nativeState = GOALPadRuntimeBridge.gameFrameStateSnapshot",
+    "var nativeState = GOALPadGameFrameStateSnapshot()",
+    "GOALPadRuntimeBridge.runFrame(at: targetPresentationTime,",
+    "stateSnapshot: &nativeState)",
     "gameplaySaveGeneration.observe(nativeState.successfulSaveGeneration)",
     "saveSync.gameplaySaveCompleted()",
     "nativeState.exitToLibraryRequested.boolValue",
@@ -180,7 +181,8 @@ check(occursInOrder([
     "let framePresented = endFrame()",
 ], in: armedTick),
       "the shared frame body preserves input, state-publication, and presentation ordering")
-check(occurrenceCount("GOALPadRuntimeBridge.gameFrameStateSnapshot", in: armedTick) == 1
+check(occurrenceCount("GOALPadRuntimeBridge.runFrame", in: armedTick) == 1
+        && !armedTick.contains("GOALPadRuntimeBridge.gameFrameStateSnapshot")
         && !armedTick.contains("GOALPadRuntimeBridge.exitToLibraryRequested")
         && !armedTick.contains("GOALPadRuntimeBridge.framesRun")
         && !armedTick.contains("GOALPadRuntimeBridge.gameMode")
@@ -193,7 +195,7 @@ check(occurrenceCount("GOALPadRuntimeBridge.gameFrameStateSnapshot", in: armedTi
         && !armedTick.contains("GOALPadRuntimeBridge.speederState")
         && !armedTick.contains("gameplayFrameCompleted")
         && occurrenceCount("saveSync.gameplaySaveCompleted()", in: armedTick) == 1,
-      "each successful frame crosses the Objective-C++ bridge for native state exactly once")
+      "each eligible frame uses one fused Objective-C++ tick and native-state crossing")
 check(gameplaySaveGeneration.contains("guard generation != observed else { return false }")
         && gameplaySaveGeneration.contains("observed = generation")
         && gameplaySaveGeneration.contains("observed = 0"),
@@ -225,6 +227,33 @@ check(occursInOrder([
         && occurrenceCount("capture_target_frame_state();", in: nativeFrameState) == 1,
       "the native aggregate preserves read order and reuses one mode and target capture")
 
+let fusedNativeFrame = section(
+    gameBoot,
+    from: "bool run_frame(double target_presentation_time,\n               GameFrameStateSnapshot* state_snapshot) noexcept",
+    to: "bool run_frame(double target_presentation_time) noexcept")
+check(occursInOrder([
+    "*state_snapshot = {};",
+    "if (!g_booted)",
+    "call_goal_on_stack",
+    "goal_sound_frame();",
+    "g_frames++;",
+    "*state_snapshot = game_frame_state_snapshot();",
+    "return true;",
+], in: fusedNativeFrame)
+        && gameBoot.contains("bool run_frame(double target_presentation_time) noexcept {\n  return run_frame(target_presentation_time, nullptr);\n}"),
+      "the fused native entry publishes only fail-closed or completed post-tick state")
+let unavailableNativeFrame = section(
+    gameBoot,
+    from: "#else  // GOALPAD_HAVE_GAME_BOOT",
+    to: "#endif  // GOALPAD_HAVE_GAME_BOOT")
+check(occursInOrder([
+    "bool run_frame(double target_presentation_time,",
+    "GameFrameStateSnapshot* state_snapshot) noexcept",
+    "*state_snapshot = {};",
+    "return false;",
+], in: unavailableNativeFrame),
+      "the unavailable native frame entry returns false with fail-closed output")
+
 let targetFrameCapture = section(gameBootHeader,
                                  from: "inline TargetFrameStateCapture read_target_frame_state_capture(",
                                  to: "template <std::size_t StateCount>")
@@ -234,11 +263,18 @@ check(occurrenceCount("camera_correction_trace::checked_goal_object(", in: targe
         && occurrenceCount("read_checked_state_name(", in: targetFrameCapture) == 2,
       "one checked target read preserves independent current, next, and look bounds")
 
-let frameStateMapping = section(bridgeImplementation,
-                                from: "+ (GOALPadGameFrameStateSnapshot)gameFrameStateSnapshot",
-                                to: "+ (GOALPadFrameChainStats)frameChainStats")
+let frameStateMapping = section(
+    bridgeImplementation,
+    from: "static GOALPadGameFrameStateSnapshot GOALPadGameFrameStateSnapshotFromCore",
+    to: "@implementation GOALPadRuntimeBridge")
+let fusedFrameBridge = section(
+    bridgeImplementation,
+    from: "+ (BOOL)runFrameAtPresentationTime:(CFTimeInterval)targetPresentationTime\n                     stateSnapshot:",
+    to: "+ (void)resetFrameTiming")
 check(bridge.contains("typedef struct GOALPadGameFrameStateSnapshot")
         && bridge.contains("uint64_t successfulSaveGeneration;")
+        && bridge.contains("NS_SWIFT_NAME(runFrame(at:));")
+        && bridge.contains("NS_SWIFT_NAME(runFrame(at:stateSnapshot:));")
         && bridge.contains("@property(class, nonatomic, readonly) GOALPadGameFrameStateSnapshot gameFrameStateSnapshot;")
         && occursInOrder([
             "snapshot.exitToLibraryRequested = core.exit_to_library_requested ? YES : NO;",
@@ -254,6 +290,15 @@ check(bridge.contains("typedef struct GOALPadGameFrameStateSnapshot")
             "snapshot.speederState = GOALPadSpeederStateFromCore(core.speeder_state);",
         ], in: frameStateMapping),
       "the fixed C bridge maps every native frame field without object ownership")
+check(occursInOrder([
+    "goalpad::GameFrameStateSnapshot core;",
+    "goalpad::run_frame(targetPresentationTime, &core);",
+    "*stateSnapshot = GOALPadGameFrameStateSnapshotFromCore(core);",
+    "return ran ? YES : NO;",
+], in: fusedFrameBridge)
+        && bridgeImplementation.contains("return goalpad::run_frame(targetPresentationTime) ? YES : NO;")
+        && bridgeImplementation.contains("return GOALPadGameFrameStateSnapshotFromCore(goalpad::game_frame_state_snapshot());"),
+      "the fused bridge returns one POD snapshot while preserving both compatibility entry points")
 
 let memcardInitialization = section(kmemcard,
                                     from: "void kmemcard_init_globals()",

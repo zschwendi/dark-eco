@@ -16,6 +16,18 @@ xcrun clang++ -std=c++17 -Wall -Wextra -Werror -I"$root" -I"$root/OpenGOAL" \
   -o "$temporary/game-frame-state-snapshot-check"
 "$temporary/game-frame-state-snapshot-check"
 
+# Compile without the generated AOT manifest so the unavailable native implementation is linked
+# and its out-parameter contract is exercised rather than only inspected.
+host_includes="-I$root -I$root/OpenGOAL -I$opengoal -I$opengoal/third-party/SDL/include -I$opengoal/third-party/fmt/include"
+xcrun clang++ -std=c++17 -Wall -Wextra -Werror -ffunction-sections -fdata-sections \
+  $host_includes -c "$root/GOALPad/Native/GOALPadGameBoot.cpp" \
+  -o "$temporary/GOALPadGameBoot-no-aot.o"
+xcrun clang++ -std=c++17 -Wall -Wextra -Werror $host_includes \
+  "$root/Scripts/game-frame-state-run-failure-check.cpp" \
+  "$temporary/GOALPadGameBoot-no-aot.o" -Wl,-dead_strip \
+  -o "$temporary/game-frame-state-run-failure-check"
+"$temporary/game-frame-state-run-failure-check"
+
 swiftc -warnings-as-errors \
   "$root/GOALPad/Game/GameplaySaveGenerationState.swift" \
   "$root/Scripts/gameplay-save-generation-check.swift" \

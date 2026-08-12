@@ -13,6 +13,12 @@ static_assert(std::is_standard_layout_v<goalpad::GameFrameStateSnapshot>);
 static_assert(std::is_trivially_copyable_v<goalpad::GameFrameStateSnapshot>);
 static_assert(std::is_standard_layout_v<goalpad::TargetFrameStateCapture>);
 static_assert(std::is_trivially_copyable_v<goalpad::TargetFrameStateCapture>);
+using FusedRunFrame = bool (*)(double, goalpad::GameFrameStateSnapshot*) noexcept;
+using LegacyRunFrame = bool (*)(double) noexcept;
+static_assert(std::is_same_v<
+              decltype(static_cast<FusedRunFrame>(&goalpad::run_frame)), FusedRunFrame>);
+static_assert(std::is_same_v<
+              decltype(static_cast<LegacyRunFrame>(&goalpad::run_frame)), LegacyRunFrame>);
 
 namespace {
 

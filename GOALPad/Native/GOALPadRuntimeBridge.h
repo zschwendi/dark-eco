@@ -267,6 +267,12 @@ typedef struct GOALPadGameFrameStateSnapshot {
 + (BOOL)runFrameAtPresentationTime:(CFTimeInterval)targetPresentationTime
     NS_SWIFT_NAME(runFrame(at:));
 
+/// Run one frame and return its post-tick aggregate through the required nonnull `stateSnapshot`.
+/// The snapshot is fail-closed when the game is not booted.
++ (BOOL)runFrameAtPresentationTime:(CFTimeInterval)targetPresentationTime
+                     stateSnapshot:(GOALPadGameFrameStateSnapshot *)stateSnapshot
+    NS_SWIFT_NAME(runFrame(at:stateSnapshot:));
+
 /// Forget display-link cadence across an app lifecycle pause.
 + (void)resetFrameTiming;
 
@@ -290,7 +296,7 @@ typedef struct GOALPadGameFrameStateSnapshot {
 @property(class, nonatomic, readonly) GOALPadCutsceneSkipTouchSnapshot cutsceneSkipTouchSnapshot;
 /// GOAL-owned contextual face-button requests; first, malformed, and stale reads fail closed.
 @property(class, nonatomic, readonly) GOALPadFacePromptTouchSnapshot facePromptTouchSnapshot;
-/// Read once immediately after `runFrame(at:)` succeeds.
+/// Compatibility accessor for hosts that do not use `runFrame(at:stateSnapshot:)`.
 @property(class, nonatomic, readonly) GOALPadGameFrameStateSnapshot gameFrameStateSnapshot;
 @property(class, nonatomic, readonly) GOALPadFrameChainStats frameChainStats;
 

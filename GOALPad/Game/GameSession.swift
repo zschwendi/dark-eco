@@ -453,8 +453,9 @@ final class GameSession {
         // The GOAL kernel's own frame: every process and state, then the overlord's vblank work.
         // Its DMA send renders synchronously while out-of-chain Merc bones still match the chain.
         var shouldLog = false
-        if GOALPadRuntimeBridge.runFrame(at: targetPresentationTime) {
-            let nativeState = GOALPadRuntimeBridge.gameFrameStateSnapshot
+        var nativeState = GOALPadGameFrameStateSnapshot()
+        if GOALPadRuntimeBridge.runFrame(at: targetPresentationTime,
+                                         stateSnapshot: &nativeState) {
             if gameplaySaveGeneration.observe(nativeState.successfulSaveGeneration) {
                 saveSync.gameplaySaveCompleted()
             }
