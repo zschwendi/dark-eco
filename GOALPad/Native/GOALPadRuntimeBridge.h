@@ -255,8 +255,6 @@ typedef struct GOALPadFacePromptTouchSnapshot {
 
 @property(class, nonatomic, readonly) uint64_t framesRun;
 @property(class, nonatomic, readonly, getter=isGameBooted) BOOL gameBooted;
-/// The process's current physical memory footprint, or zero when the OS does not report it.
-@property(class, nonatomic, readonly) uint64_t physicalMemoryFootprintBytes;
 /// Jak's title-menu Quit requested that the app close this session and show the Library.
 @property(class, nonatomic, readonly) BOOL exitToLibraryRequested;
 /// Jak's own `*master-mode*`; reading it never advances or mutates gameplay.
@@ -913,11 +911,6 @@ typedef struct GOALPadRendererStats {
   uint64_t lastMercEicharWeightedSkinHostTickID;
   uint64_t lastMercEicharWeightedSkinChainOrdinal;
   BOOL jak1ShadowOutputEnabled;
-  uint64_t gpuSamples;
-  double gpuTotalSeconds;
-  double lastGPUSeconds;
-  double maximumGPUSeconds;
-  double lastLevelLoadMilliseconds;
 } GOALPadRendererStats;
 
 /// The one presentation surface. The app's Metal view owns the layer and hands it here; the native

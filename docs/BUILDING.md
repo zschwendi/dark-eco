@@ -1050,16 +1050,19 @@ named M5 simulator launches. The harness does not directly cover
 `ControllerInput` merging, UIKit delivery, physical multitouch ergonomics, or
 physical-iPad latency.
 
-Rumble reads `goal_pad_get_rumble` each frame and drives two Core Haptics
-engines, `.leftHandle` for the on/off motor and `.rightHandle` for the analog
-one, through a continuous event whose intensity is updated in place. The
-DualSense's adaptive triggers are deliberately not driven: the PS2 pad had none,
-so nothing in the game asks for them.
+Rumble consumes the strongest motor request latched by `goal_pad_take_rumble`
+once per presented frame and drives finite Core Haptics players. On DualSense,
+`.leftHandle` receives the low on/off motor and `.rightHandle` receives the sharp
+analog motor at a twofold, clamped gain. A consumed zero lets the DualSense's
+finite 120 ms event finish; disabling rumble, suspending gameplay, or
+disconnecting still silences it immediately. Other controllers retain the
+original scale and default-locality fallback. The DualSense's adaptive triggers
+are deliberately not driven: the PS2 pad had none, so nothing in the game asks
+for them.
 
-**Not validated:** no physical controller. The simulator's virtual "Gamepad" was
-detected, adopted, and polled, which exercises discovery, adoption and the push
-path, but no real button mapping, stick range, or haptic output has been
-confirmed on hardware, and no DualSense has ever been connected.
+**Not validated:** Build 197's revised strength, pulse length, and left/right
+feel still require physical DualSense acceptance. The previous physical report
+was weak overall and perceptible only on the right side.
 
 ### Audio
 

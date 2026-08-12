@@ -283,7 +283,7 @@ final class ControllerInput {
 
     func stopRumble() {
         rumble = GOALPadRumble(large: 0, small: 0)
-        motors?.set(large: 0, small: 0)
+        motors?.silence()
         #if os(iOS)
         deviceRumbleHaptics.reset()
         #endif
@@ -471,7 +471,7 @@ final class ControllerInput {
                 }
             }
         }
-        motors = ControllerRumble(controller: candidate)
+        motors = ControllerRumble(controller: candidate, isDualSense: isDualSense)
         if motors == nil {
             inputLog.error("Controller haptics are unavailable for \(self.controllerName ?? "unnamed", privacy: .public)")
         } else {
@@ -734,24 +734,40 @@ private final class ControllerRumble {
     private var largeMotor: Motor?
     private var smallMotor: Motor?
     private var combinedMotor: Motor?
+    private let policy: ControllerRumblePolicy
 
-    init?(controller: GCController) {
+    init?(controller: GCController, isDualSense: Bool) {
         guard let haptics = controller.haptics else { return nil }
         if haptics.supportedLocalities.contains(.leftHandle),
            haptics.supportedLocalities.contains(.rightHandle),
-           let largeMotor = Motor(haptics: haptics, locality: .leftHandle),
-           let smallMotor = Motor(haptics: haptics, locality: .rightHandle) {
+           let largeMotor = Motor(
+                haptics: haptics,
+                locality: .leftHandle,
+                sharpness: isDualSense ? 0 : nil,
+                preservesFinitePulseTail: isDualSense
+           ),
+           let smallMotor = Motor(
+                haptics: haptics,
+                locality: .rightHandle,
+                sharpness: isDualSense ? 1 : nil,
+                preservesFinitePulseTail: isDualSense
+           ) {
+            policy = isDualSense ? .dualSenseHandles : .standard
             self.largeMotor = largeMotor
             self.smallMotor = smallMotor
         } else {
-            combinedMotor = Motor(haptics: haptics, locality: .default)
+            policy = .standard
+            combinedMotor = Motor(haptics: haptics,
+                                  locality: .default,
+                                  sharpness: nil,
+                                  preservesFinitePulseTail: false)
         }
         guard largeMotor != nil || smallMotor != nil || combinedMotor != nil else { return nil }
     }
 
     func set(large largeValue: UInt8, small smallValue: UInt8) {
-        let largeIntensity: Float = largeValue == 0 ? 0 : 1
-        let smallIntensity = Float(smallValue) / 255
+        let largeIntensity = policy.largeIntensity(largeValue)
+        let smallIntensity = policy.smallIntensity(smallValue)
         largeMotor?.set(intensity: largeIntensity)
         smallMotor?.set(intensity: smallIntensity)
         combinedMotor?.set(intensity: max(largeIntensity, smallIntensity))
@@ -764,6 +780,12 @@ private final class ControllerRumble {
         largeMotor = nil
         smallMotor = nil
         combinedMotor = nil
+    }
+
+    func silence() {
+        largeMotor?.silence()
+        smallMotor?.silence()
+        combinedMotor?.silence()
     }
 
     func confirmConnection() {
@@ -780,18 +802,25 @@ private final class ControllerRumble {
         private static let refreshInterval: TimeInterval = 0.08
 
         private let engine: CHHapticEngine
+        private let sharpness: Float?
+        private let preservesFinitePulseTail: Bool
         private var player: CHHapticPatternPlayer?
         private var connectionPlayer: CHHapticPatternPlayer?
         private var currentIntensity: Float = 0
         private var lastStartTime = -Double.infinity
 
-        init?(haptics: GCDeviceHaptics, locality: GCHapticsLocality) {
+        init?(haptics: GCDeviceHaptics,
+              locality: GCHapticsLocality,
+              sharpness: Float?,
+              preservesFinitePulseTail: Bool) {
             guard haptics.supportedLocalities.contains(locality),
                   let engine = haptics.createEngine(withLocality: locality)
             else {
                 return nil
             }
             self.engine = engine
+            self.sharpness = sharpness
+            self.preservesFinitePulseTail = preservesFinitePulseTail
             engine.isAutoShutdownEnabled = false
             engine.stoppedHandler = { [weak self] _ in
                 Task { @MainActor [weak self] in
@@ -821,9 +850,11 @@ private final class ControllerRumble {
             let intensity = min(1, max(0, intensity))
             do {
                 guard intensity > 0 else {
-                    try player?.stop(atTime: CHHapticTimeImmediate)
-                    player = nil
-                    currentIntensity = 0
+                    if preservesFinitePulseTail {
+                        currentIntensity = 0
+                    } else {
+                        silence()
+                    }
                     return
                 }
                 let now = CACurrentMediaTime()
@@ -848,12 +879,17 @@ private final class ControllerRumble {
             }
         }
 
-        func stop() {
+        func silence() {
             try? player?.stop(atTime: CHHapticTimeImmediate)
-            try? connectionPlayer?.stop(atTime: CHHapticTimeImmediate)
             player = nil
-            connectionPlayer = nil
             currentIntensity = 0
+            lastStartTime = -Double.infinity
+        }
+
+        func stop() {
+            silence()
+            try? connectionPlayer?.stop(atTime: CHHapticTimeImmediate)
+            connectionPlayer = nil
             engine.stop()
         }
 
@@ -868,10 +904,16 @@ private final class ControllerRumble {
             intensity: Float,
             duration: TimeInterval
         ) throws -> CHHapticPatternPlayer {
+            var parameters = [
+                CHHapticEventParameter(parameterID: .hapticIntensity, value: intensity)
+            ]
+            if let sharpness {
+                parameters.append(CHHapticEventParameter(parameterID: .hapticSharpness,
+                                                         value: sharpness))
+            }
             let event = CHHapticEvent(
                 eventType: .hapticContinuous,
-                parameters: [CHHapticEventParameter(parameterID: .hapticIntensity,
-                                                     value: intensity)],
+                parameters: parameters,
                 relativeTime: 0,
                 duration: duration)
             return try engine.makePlayer(with: CHHapticPattern(events: [event], parameters: []))
