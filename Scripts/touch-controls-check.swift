@@ -1655,14 +1655,12 @@ private func sessionControlStateMatrixIsExactAndFailClosed() {
     print("app-owned Start, Pause, and Resume follow exact native state")
     check(NativeSessionControlPresentation.reduce(
         mode: .gameplay, titleStartState: .notAwaiting, progress: .unavailable,
-        runReadiness: .preRun)
-          == NativeSessionControlPresentation(action: .start, isEnabled: false),
-          "boot and pre-run gameplay say Start without inventing an active save")
+        runReadiness: .preRun) == nil,
+          "boot and pre-run gameplay do not show an inert Start control")
     check(NativeSessionControlPresentation.reduce(
         mode: .gameplay, titleStartState: .titleSequence, progress: .unavailable,
-        runReadiness: .titlePrompt)
-          == NativeSessionControlPresentation(action: .start, isEnabled: false),
-          "the authored title animation cannot be mislabeled active gameplay")
+        runReadiness: .titlePrompt) == nil,
+          "the authored title animation hides Start until the prompt can accept it")
     check(NativeSessionControlPresentation.reduce(
         mode: .gameplay, titleStartState: .awaiting, progress: .unavailable,
         runReadiness: .preRun)
@@ -1792,14 +1790,13 @@ private func sessionControlStateMatrixIsExactAndFailClosed() {
 
     check(NativeSessionControlPresentation.reduce(
         mode: .gameplay, titleStartState: .unknown, progress: .unavailable,
-        runReadiness: .preRun)
-          == NativeSessionControlPresentation(action: .start, isEnabled: false)
+        runReadiness: .preRun) == nil
           && NativeSessionControlPresentation.reduce(
             mode: .progress, titleStartState: .unknown,
             progress: progressSnapshot(screen: 35)) == nil
           && NativeSessionControlPresentation.reduce(
             mode: .unknown, titleStartState: .awaiting, progress: titleProgress) == nil,
-          "unknown title stays disabled Start while invalid progress and master mode fail closed")
+          "unknown title and invalid progress/master states hide unavailable controls")
 }
 
 private func controllerSuppressionKeepsTouchRecovery() {

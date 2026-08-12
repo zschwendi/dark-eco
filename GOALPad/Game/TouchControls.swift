@@ -702,12 +702,14 @@ nonisolated struct NativeSessionControlPresentation: Equatable, Sendable {
         case .gameplay:
             switch titleStartState {
             case .awaiting: return Self(action: .start, isEnabled: true)
-            case .notAwaiting, .unknown, .titleSequence:
+            case .notAwaiting, .unknown:
                 return runReadiness == .active
                     ? Self(action: .pause, isEnabled: true)
-                    : Self(action: .start, isEnabled: false)
+                    : nil
+            case .titleSequence:
+                return nil
             @unknown default:
-                return Self(action: .start, isEnabled: false)
+                return nil
             }
         case .pause, .menu:
             return Self(action: .resume, isEnabled: true)

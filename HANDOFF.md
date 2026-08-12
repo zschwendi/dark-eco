@@ -18222,3 +18222,21 @@ apps` confirmed bundle version 170. Build log:
 ```text
 /private/tmp/goalpad-build170-ios-device.log
 ```
+
+# 2026-08-11 Build 171 title Start visibility checkpoint
+
+Build 171 hides the app-owned Start pill during Jak 1's noninteractive
+`target-title` and `target-title-play` opening states, plus unproven pre-run
+state. Start now appears only for the exact `target-title-wait` state where the
+game accepts it. Active gameplay still presents Pause and transient unknown
+reads retain proven active presentation.
+
+The checkpoint is on branch `agent/build171-title-start-visibility`. The signed
+generic iOS Release build passed and produced Dark Eco 1.0 (171). That exact
+product was installed and launched on physical `Z iPad Pro`; `devicectl device
+info apps` confirmed bundle version 171. Per maintainer direction, no additional
+test-suite run was performed. Build log:
+
+```text
+/private/tmp/goalpad-build171-ios-device.log
+```
