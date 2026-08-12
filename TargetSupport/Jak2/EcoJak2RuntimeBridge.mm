@@ -543,6 +543,24 @@ void log_jak2_diagnostics_locked() {
   NSLog(@"GOALPAD_JAK2_PRIS_DIAGNOSTIC_STATE tick=%llu %@",
         static_cast<unsigned long long>(runtime.ticks), pris_diagnostic_state);
 
+  const auto& effects315 = metal.effects_bucket315;
+  NSLog(@"GOALPAD_JAK2_EFFECTS315_STATE tick=%llu "
+         "captures=%llu valid=%llu malformed=%llu absent=%llu lightning=%llu other=%llu "
+         "payload-bytes=%llu last-transfers=%u last-fragments=%u last-vertices=%u "
+         "last-payload-bytes=%llu last-fingerprint=%016llx last-classification=%u",
+        static_cast<unsigned long long>(runtime.ticks),
+        static_cast<unsigned long long>(effects315.captures),
+        static_cast<unsigned long long>(effects315.valid_captures),
+        static_cast<unsigned long long>(effects315.malformed_captures),
+        static_cast<unsigned long long>(effects315.absent_captures),
+        static_cast<unsigned long long>(effects315.lightning_captures),
+        static_cast<unsigned long long>(effects315.other_captures),
+        static_cast<unsigned long long>(effects315.payload_bytes), effects315.last_transfer_count,
+        effects315.last_fragment_count, effects315.last_vertex_count,
+        static_cast<unsigned long long>(effects315.last_payload_bytes),
+        static_cast<unsigned long long>(effects315.last_semantic_fingerprint),
+        static_cast<unsigned>(effects315.last_classification));
+
   NSLog(@"GOALPAD_JAK2_MERC_ANIM_SLOT_STATE tick=%llu draws=%llu,%llu,%llu,%llu "
          "placeholders=%llu,%llu,%llu,%llu models=%016llx,%016llx,%016llx,%016llx",
         static_cast<unsigned long long>(runtime.ticks),

@@ -17477,3 +17477,38 @@ sandbox exposed no default Metal device. Bucket 229's passive texture-capture
 the exact capture counts, zero global Merc preflight/malformed/missing-model and
 missing-texture counters, and visibly correct high-resolution Samos. The nested
 commit is pushed and remote-backed. No simulator or physical device was accessed.
+
+## Jak II deferred-effects and sky-post diagnostic checkpoint
+
+Date: 2026-08-12.
+
+Nested commits `60572b6d1`, `48367d2e0`, and `a6467a320` add a passive,
+payload-free diagnostic for bucket 315 (`EFFECTS`). It walks bounded live DMA
+before validation, copying, rendering, or texture mutation; records raw VIF/tag
+semantics and payload fingerprints; classifies exact absent and source-derived
+Lightning envelopes; and appends numeric telemetry to the host ABI. Bucket 315
+remains `DeferredSkip`. Metal Generic2 currently implements only normal mode, so
+the diagnostic cannot authorize execution and no table promotion was made.
+Relocated observations match without treating tag offsets as semantics; the
+256-transfer diagnostic cap reports malformed instead of claiming full source
+coverage. The outer runtime now logs this as
+`GOALPAD_JAK2_EFFECTS315_STATE` without packet data, strings, paths, or pixels.
+
+Nested commit `6eb0342d4` adds an isolated typed plan for bucket 309
+(`TEX_LCOM_SKY_POST`). It accepts only exact absence or the predicted
+six-transfer/208-byte source envelope (TEXFLUSH, mode-minus-one ordinary page
+descriptor, standard reset), owns the 128-byte page header, and compares
+relocated live/copied semantics. It is not wired or promoted yet. Source audit
+indicates bucket 309 restores the sky-page mapping immediately before near-ocean
+rendering; a table-only flip would be a silent no-op because no host callback
+case currently exists.
+
+Validation: direct Effects plan/capture tests passed; canonical CMake portable
+Effects and bucket-table tests passed 2/2; the sky-post parser test passed; all
+changed Objective-C++ production/test translation units passed canonical-flag
+syntax checks; the C ABI header and iPhoneOS runtime bridge passed syntax checks.
+The attempted focused Metal target build stopped before linking because `xcrun
+metal` reports the optional Metal Toolchain component unavailable; retained
+binaries and metallib remain present, but no stale binary was reported as new
+runtime evidence. Simulator and physical device were not accessed. All nested
+commits through `880b4b891` are pushed and remote-backed.
