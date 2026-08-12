@@ -28,3 +28,14 @@ nonisolated struct ControllerRumblePolicy: Equatable, Sendable {
         min(1, Float(value) / 255 * smallMotorGain)
     }
 }
+
+nonisolated struct ControllerRumbleFrameDecision: Equatable, Sendable {
+    let publishesChange: Bool
+    let refreshesController: Bool
+
+    init(previousLarge: UInt8, previousSmall: UInt8,
+         nextLarge: UInt8, nextSmall: UInt8) {
+        publishesChange = previousLarge != nextLarge || previousSmall != nextSmall
+        refreshesController = publishesChange || nextLarge != 0 || nextSmall != 0
+    }
+}

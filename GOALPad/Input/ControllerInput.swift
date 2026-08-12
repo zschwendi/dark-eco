@@ -258,9 +258,13 @@ final class ControllerInput {
             state.buttons.formUnion(touch.buttons)
         }
 
-        buttons = state.buttons
-        leftStick = (state.leftX, state.leftY)
-        rightStick = (state.rightX, state.rightY)
+        if buttons != state.buttons { buttons = state.buttons }
+        if leftStick.x != state.leftX || leftStick.y != state.leftY {
+            leftStick = (state.leftX, state.leftY)
+        }
+        if rightStick.x != state.rightX || rightStick.y != state.rightY {
+            rightStick = (state.rightX, state.rightY)
+        }
         if policy.allowsController || policy.allowsKeyboardMouse
             || (touch != nil && policy.allowsTouch) {
             GOALPadInputSetState(Self.primaryPort, state)
@@ -272,11 +276,19 @@ final class ControllerInput {
     /// Read what GOAL asked the two motors to do and drive them.
     func applyRumble() {
         guard isRumbleEnabled else { return }
-        rumble = GOALPadInputRumble(Self.primaryPort)
-        motors?.set(large: rumble.large, small: rumble.small)
-        #if os(iOS)
-        deviceRumbleHaptics.update(rumble)
-        #endif
+        let next = GOALPadInputRumble(Self.primaryPort)
+        let decision = ControllerRumbleFrameDecision(
+            previousLarge: rumble.large, previousSmall: rumble.small,
+            nextLarge: next.large, nextSmall: next.small)
+        if decision.publishesChange {
+            rumble = next
+            #if os(iOS)
+            deviceRumbleHaptics.update(next)
+            #endif
+        }
+        if decision.refreshesController {
+            motors?.set(large: next.large, small: next.small)
+        }
     }
 
     func stopRumble() {

@@ -33,6 +33,26 @@ private struct ControllerRumbleCheck {
         check(dualSense.preservesFinitePulseTail && !standard.preservesFinitePulseTail,
               "finite-pulse tail preservation is scoped to DualSense handles")
 
+        func decision(_ previous: (UInt8, UInt8), _ next: (UInt8, UInt8))
+            -> ControllerRumbleFrameDecision {
+            ControllerRumbleFrameDecision(
+                previousLarge: previous.0, previousSmall: previous.1,
+                nextLarge: next.0, nextSmall: next.1)
+        }
+        check(decision((0, 0), (0, 0)) == .init(
+                previousLarge: 0, previousSmall: 0, nextLarge: 0, nextSmall: 0)
+                && !decision((0, 0), (0, 0)).publishesChange
+                && !decision((0, 0), (0, 0)).refreshesController,
+              "repeated silence performs no observable or haptic work")
+        check(decision((0, 0), (1, 127)).publishesChange
+                && decision((0, 0), (1, 127)).refreshesController
+                && !decision((1, 127), (1, 127)).publishesChange
+                && decision((1, 127), (1, 127)).refreshesController,
+              "rumble starts publish once while sustained finite pulses still refresh")
+        check(decision((1, 127), (0, 0)).publishesChange
+                && decision((1, 127), (0, 0)).refreshesController,
+              "the first zero transition still silences ordinary controllers")
+
         guard CommandLine.arguments.count == 2,
               let source = try? String(contentsOfFile: CommandLine.arguments[1], encoding: .utf8)
         else {
@@ -54,7 +74,9 @@ private struct ControllerRumbleCheck {
                 && source.contains("try player?.start(atTime: CHHapticTimeImmediate)"),
               "unchanged finite rumble refreshes reuse their standard haptic player")
         check(source.contains("func applyRumble() {\n        guard isRumbleEnabled else { return }")
-                && source.contains("rumble = GOALPadInputRumble(Self.primaryPort)"),
+                && source.contains("let next = GOALPadInputRumble(Self.primaryPort)")
+                && source.contains("if decision.publishesChange {")
+                && source.contains("if decision.refreshesController {"),
               "disabled rumble skips all per-frame native and haptic bookkeeping")
 
         if failures == 0 {
