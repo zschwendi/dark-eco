@@ -1036,6 +1036,13 @@ struct SaveSettingsView: View {
                 SettingsGamePicker()
             }
 
+            Section("Gameplay") {
+                Toggle("Rumble", isOn: Binding(
+                    get: { settings.rumbleEnabled },
+                    set: { settings.setRumbleEnabled($0) }
+                ))
+            }
+
             #if !os(iOS)
             if isGameRunning {
                 Section {

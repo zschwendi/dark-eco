@@ -138,6 +138,7 @@ final class GameSession {
         )
         input.setPrimarySource(presentationSettings.primaryInputSource)
         input.setBindings(presentationSettings.jak1InputBindings)
+        input.setRumbleEnabled(presentationSettings.rumbleEnabled)
     }
 
     @discardableResult

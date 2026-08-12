@@ -30,6 +30,7 @@ final class ControllerInput {
     private(set) var rightStick: (x: UInt8, y: UInt8) = (UInt8(GOALPadAnalogNeutral),
                                                          UInt8(GOALPadAnalogNeutral))
     private(set) var rumble = GOALPadRumble(large: 0, small: 0)
+    private(set) var isRumbleEnabled = true
     private(set) var primarySource: PrimaryInputSource = .automatic
     private(set) var bindings = Jak1InputBindings.standard
 
@@ -78,6 +79,12 @@ final class ControllerInput {
     func setBindings(_ bindings: Jak1InputBindings) {
         guard bindings != self.bindings else { return }
         self.bindings = bindings
+    }
+
+    func setRumbleEnabled(_ enabled: Bool) {
+        guard enabled != isRumbleEnabled else { return }
+        isRumbleEnabled = enabled
+        if !enabled { stopRumble() }
     }
 
     /// End recent physical-input suppression as soon as the player touches the screen.
@@ -260,7 +267,9 @@ final class ControllerInput {
 
     /// Read what GOAL asked the two motors to do and drive them.
     func applyRumble() {
-        rumble = GOALPadInputRumble(Self.primaryPort)
+        rumble = isRumbleEnabled
+            ? GOALPadInputRumble(Self.primaryPort)
+            : GOALPadRumble(large: 0, small: 0)
         motors?.set(large: rumble.large, small: rumble.small)
         #if os(iOS)
         deviceRumbleHaptics.update(rumble)
@@ -614,7 +623,8 @@ private final class DeviceRumbleHaptics {
     private var lastImpactTime = -Double.infinity
 
     func update(_ rumble: GOALPadRumble) {
-        let intensity = max(CGFloat(rumble.large), CGFloat(rumble.small)) / 255
+        let largeIntensity: CGFloat = rumble.large == 0 ? 0 : 1
+        let intensity = max(largeIntensity, CGFloat(rumble.small) / 255)
         let now = CACurrentMediaTime()
         let startsRumbling = previousIntensity == 0 && intensity > 0
         let largeMotorPulse = previousLarge == 0 && rumble.large > 0
@@ -645,24 +655,37 @@ private final class DeviceRumbleHaptics {
 private final class ControllerRumble {
     private var large: Motor?
     private var small: Motor?
+    private var combined: Motor?
 
     init?(controller: GCController) {
         guard let haptics = controller.haptics else { return nil }
-        large = Motor(haptics: haptics, locality: .leftHandle)
-        small = Motor(haptics: haptics, locality: .rightHandle)
-        if large == nil && small == nil { return nil }
+        if haptics.supportedLocalities.contains(.leftHandle),
+           haptics.supportedLocalities.contains(.rightHandle),
+           let large = Motor(haptics: haptics, locality: .leftHandle),
+           let small = Motor(haptics: haptics, locality: .rightHandle) {
+            self.large = large
+            self.small = small
+        } else {
+            combined = Motor(haptics: haptics, locality: .default)
+        }
+        if large == nil && small == nil && combined == nil { return nil }
     }
 
     func set(large largeValue: UInt8, small smallValue: UInt8) {
-        large?.set(intensity: Float(largeValue) / 255)
-        small?.set(intensity: Float(smallValue) / 255)
+        let largeIntensity: Float = largeValue == 0 ? 0 : 1
+        let smallIntensity = Float(smallValue) / 255
+        large?.set(intensity: largeIntensity)
+        small?.set(intensity: smallIntensity)
+        combined?.set(intensity: max(largeIntensity, smallIntensity))
     }
 
     func stop() {
         large?.stop()
         small?.stop()
+        combined?.stop()
         large = nil
         small = nil
+        combined = nil
     }
 
     /// One handle: a continuous haptic event whose intensity is updated in place, so a frame of
@@ -679,13 +702,13 @@ private final class ControllerRumble {
                 return nil
             }
             self.engine = engine
-            engine.isAutoShutdownEnabled = true
+            engine.isAutoShutdownEnabled = false
             do {
                 try engine.start()
                 let event = CHHapticEvent(
                     eventType: .hapticContinuous,
                     parameters: [
-                        CHHapticEventParameter(parameterID: .hapticIntensity, value: 0),
+                        CHHapticEventParameter(parameterID: .hapticIntensity, value: 1),
                         CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.5),
                     ],
                     relativeTime: 0,

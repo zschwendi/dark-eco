@@ -41,6 +41,8 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
     /// Optional so Build 93 settings documents decode without a migration. Developer logs are
     /// hidden by default and belong to this title's synced settings document.
     var developerLogsEnabledOverride: Bool?
+    /// Optional so existing documents inherit the default-on gameplay rumble behavior.
+    var rumbleEnabledOverride: Bool?
     /// Optional for compatibility with Build 93 documents. Automatic preserves the accepted
     /// activity-driven source selection while explicit choices follow the player across devices.
     var primaryInputSourceOverride: PrimaryInputSource?
@@ -93,6 +95,10 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         developerLogsEnabledOverride ?? false
     }
 
+    var rumbleEnabled: Bool {
+        rumbleEnabledOverride ?? true
+    }
+
     var primaryInputSource: PrimaryInputSource {
         primaryInputSourceOverride ?? .automatic
     }
@@ -122,6 +128,7 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         graphicsModernFillWidthOverride = nil
         graphicsModernStereo3DOverride = nil
         developerLogsEnabledOverride = nil
+        rumbleEnabledOverride = nil
         primaryInputSourceOverride = nil
         jak1InputBindingsOverride = nil
     }
@@ -543,6 +550,8 @@ final class PresentationSettings {
 
     var developerLogsEnabled: Bool { document.developerLogsEnabled }
 
+    var rumbleEnabled: Bool { document.rumbleEnabled }
+
     var primaryInputSource: PrimaryInputSource { document.primaryInputSource }
 
     var jak1InputBindings: Jak1InputBindings { document.jak1InputBindings }
@@ -592,6 +601,10 @@ final class PresentationSettings {
 
     func setDeveloperLogsEnabled(_ enabled: Bool) {
         change { $0.developerLogsEnabledOverride = enabled }
+    }
+
+    func setRumbleEnabled(_ enabled: Bool) {
+        change { $0.rumbleEnabledOverride = enabled ? nil : false }
     }
 
     func setPrimaryInputSource(_ source: PrimaryInputSource) {

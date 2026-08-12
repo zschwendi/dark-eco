@@ -159,6 +159,10 @@ struct ContentView: View {
             _, bindings in
             session.input.setBindings(bindings)
         }
+        .onChange(of: session.presentationSettings.rumbleEnabled, initial: true) {
+            _, enabled in
+            session.input.setRumbleEnabled(enabled)
+        }
         #if os(iOS)
         .onChange(of: session.presentationSettings.jak1TouchLayout, initial: true) {
             _, customization in
