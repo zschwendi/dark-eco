@@ -499,6 +499,7 @@ private func writeCompleteCandidate(at root: URL, payload: Data) throws {
 
     var limits = ZIPISOExtractor.Limits()
     limits.maximumTrailingBytes = 256 * 1_024
+    limits.initialEOCDSearchBytes = 64 * 1_024
     limits.minimumFreeSpaceAfterExtraction = 0
     try await ZIPISOExtractor(limits: limits).extractISO(
         from: fixture.archive,

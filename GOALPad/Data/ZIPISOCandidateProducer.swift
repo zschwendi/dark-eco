@@ -109,7 +109,8 @@ nonisolated struct ZIPISOExtractor: Sendable {
         var maximumEntries = 100_000
         var maximumCentralDirectoryBytes: UInt64 = 64 * 1_024 * 1_024
         var maximumArchiveBytes: UInt64 = UInt64(UInt32.max)
-        var maximumTrailingBytes: UInt64 = 64 * 1_024 * 1_024
+        var maximumTrailingBytes: UInt64 = UInt64(UInt32.max)
+        var initialEOCDSearchBytes: UInt64 = 64 * 1_024 * 1_024
         var maximumISOBytes: UInt64 = UInt64(UInt32.max)
         var maximumCompressionRatio: UInt64 = 1_000
         var minimumFreeSpaceAfterExtraction: UInt64 = 256 * 1_024 * 1_024
@@ -120,6 +121,12 @@ nonisolated struct ZIPISOExtractor: Sendable {
         let entryCount: Int
         let centralDirectoryOffset: UInt64
         let recordOffset: UInt64
+    }
+
+    private struct EndRecordCandidate {
+        let fixed: Data
+        let recordOffset: UInt64
+        let trailingBytes: UInt64
     }
 
     private struct Entry: Sendable {
@@ -320,76 +327,72 @@ nonisolated struct ZIPISOExtractor: Sendable {
         }
 
         let standardTailBytes = minimumRecordBytes + UInt64(UInt16.max)
-        let maximumTailBytes = Self.adding(standardTailBytes, limits.maximumTrailingBytes)
-            ?? UInt64.max
-        let tailSize = Int(min(archiveSize, maximumTailBytes))
+        let initialSearchBytes = min(limits.initialEOCDSearchBytes, limits.maximumTrailingBytes)
+        let initialTailBytes = Self.adding(standardTailBytes, initialSearchBytes) ?? UInt64.max
+        let tailSize = Int(min(archiveSize, initialTailBytes))
         let tailOffset = archiveSize - UInt64(tailSize)
         let tail = try readExactly(archive, offset: tailOffset, count: tailSize)
 
-        var recordIndex: Int?
-        var trailingBytes: UInt64 = 0
         var signatureCount = 0
         var nearestSignatureDistance = -1
-        var index = tail.count - Int(minimumRecordBytes)
-        while index >= 0 {
-            if Self.uint32(tail, at: index) == 0x0605_4b50 {
-                signatureCount += 1
-                if nearestSignatureDistance < 0 {
-                    nearestSignatureDistance = tail.count - index
-                }
-                let commentLength = Int(Self.uint16(tail, at: index + 20))
-                let recordEnd = index + Int(minimumRecordBytes) + commentLength
-                if recordEnd <= tail.count {
-                    let candidateTrailingBytes = UInt64(tail.count - recordEnd)
-                    let candidateRecordOffset = tailOffset + UInt64(index)
-                    let directorySize = UInt64(Self.uint32(tail, at: index + 12))
-                    let directoryOffset = UInt64(Self.uint32(tail, at: index + 16))
-                    let hasZIP32Sentinel = Self.uint16(tail, at: index + 8) == UInt16.max
-                        || Self.uint16(tail, at: index + 10) == UInt16.max
-                        || directorySize == UInt64(UInt32.max)
-                        || directoryOffset == UInt64(UInt32.max)
-                    let hasZIP64Locator = index >= 20
-                        && Self.uint32(tail, at: index - 20) == 0x0706_4b50
-                    let directoryEndsAtRecord = Self.adding(directoryOffset, directorySize)
-                        == candidateRecordOffset
-                    if candidateTrailingBytes <= limits.maximumTrailingBytes,
-                       directoryEndsAtRecord || (hasZIP32Sentinel && hasZIP64Locator)
-                    {
-                        recordIndex = index
-                        trailingBytes = candidateTrailingBytes
-                        break
-                    }
-                }
-            }
-            if index == 0 { break }
-            index -= 1
+        var candidate = try findEndRecord(
+            archive: archive,
+            archiveSize: archiveSize,
+            window: tail,
+            windowOffset: tailOffset,
+            maximumRecordOffset: archiveSize,
+            signatureCount: &signatureCount,
+            nearestSignatureDistance: &nearestSignatureDistance
+        )
+        if candidate == nil, tailOffset > 0 {
+            Self.recordDiagnostic(
+                "EOCD not in tail archiveBytes=\(archiveSize) tailBytes=\(tail.count) "
+                    + "signatures=\(signatureCount) nearestDistance=\(nearestSignatureDistance)"
+            )
+            candidate = try findEarlierEndRecord(
+                archive: archive,
+                archiveSize: archiveSize,
+                before: tailOffset,
+                signatureCount: &signatureCount,
+                nearestSignatureDistance: &nearestSignatureDistance
+            )
         }
-        guard let recordIndex else {
+        guard let candidate else {
             Self.recordDiagnostic(
                 "EOCD missing archiveBytes=\(archiveSize) tailBytes=\(tail.count) "
                     + "signatures=\(signatureCount) nearestDistance=\(nearestSignatureDistance)"
             )
             throw Self.failure(.invalidDiscImage, "The ZIP end-of-directory record is missing.")
         }
-        if trailingBytes > 0 {
-            Self.recordDiagnostic("accepted bounded ZIP trailer bytes=\(trailingBytes)")
+        if candidate.trailingBytes > 0 {
+            Self.recordDiagnostic("accepted bounded ZIP trailer bytes=\(candidate.trailingBytes)")
         }
 
-        if recordIndex >= 20,
-           Self.uint32(tail, at: recordIndex - 20) == 0x0706_4b50
-        {
+        let fixed = candidate.fixed
+        let hasZIP64Locator: Bool
+        if candidate.recordOffset >= 20 {
+            let locator = try readExactly(
+                archive,
+                offset: candidate.recordOffset - 20,
+                count: 20
+            )
+            hasZIP64Locator = Self.uint32(locator, at: 0) == 0x0706_4b50
+        } else {
+            hasZIP64Locator = false
+        }
+        if hasZIP64Locator {
             throw Self.failure(
                 .unsupportedArchive,
                 "ZIP64 archives are not supported. Create a standard ZIP containing one ISO."
             )
         }
 
-        let diskNumber = Self.uint16(tail, at: recordIndex + 4)
-        let directoryDisk = Self.uint16(tail, at: recordIndex + 6)
-        let entriesOnDisk = Self.uint16(tail, at: recordIndex + 8)
-        let totalEntries = Self.uint16(tail, at: recordIndex + 10)
-        let directorySize32 = Self.uint32(tail, at: recordIndex + 12)
-        let directoryOffset32 = Self.uint32(tail, at: recordIndex + 16)
+        let diskNumber = Self.uint16(fixed, at: 4)
+        let directoryDisk = Self.uint16(fixed, at: 6)
+        let entriesOnDisk = Self.uint16(fixed, at: 8)
+        let totalEntries = Self.uint16(fixed, at: 10)
+        let directorySize32 = Self.uint32(fixed, at: 12)
+        let directoryOffset32 = Self.uint32(fixed, at: 16)
 
         if entriesOnDisk == UInt16.max || totalEntries == UInt16.max
             || directorySize32 == UInt32.max || directoryOffset32 == UInt32.max
@@ -411,7 +414,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
 
         let directorySize = UInt64(directorySize32)
         let directoryOffset = UInt64(directoryOffset32)
-        let recordOffset = tailOffset + UInt64(recordIndex)
+        let recordOffset = candidate.recordOffset
         guard directorySize <= limits.maximumCentralDirectoryBytes else {
             throw Self.failure(.unsupportedArchive, "The ZIP directory is unreasonably large.")
         }
@@ -429,6 +432,110 @@ nonisolated struct ZIPISOExtractor: Sendable {
             centralDirectoryOffset: directoryOffset,
             recordOffset: recordOffset
         )
+    }
+
+    private func findEarlierEndRecord(
+        archive: FileHandle,
+        archiveSize: UInt64,
+        before initialEnd: UInt64,
+        signatureCount: inout Int,
+        nearestSignatureDistance: inout Int
+    ) throws -> EndRecordCandidate? {
+        Self.recordDiagnostic("extended EOCD scan started bytes=\(initialEnd)")
+        let chunkBytes: UInt64 = 4 * 1_024 * 1_024
+        var end = initialEnd
+        while end > 0 {
+            try Task.checkCancellation()
+            let start = end > chunkBytes ? end - chunkBytes : 0
+            let readEnd = min(archiveSize, Self.adding(end, 21) ?? archiveSize)
+            let window = try readExactly(
+                archive,
+                offset: start,
+                count: Int(readEnd - start)
+            )
+            if let candidate = try findEndRecord(
+                archive: archive,
+                archiveSize: archiveSize,
+                window: window,
+                windowOffset: start,
+                maximumRecordOffset: end,
+                signatureCount: &signatureCount,
+                nearestSignatureDistance: &nearestSignatureDistance
+            ) {
+                return candidate
+            }
+            end = start
+        }
+        return nil
+    }
+
+    private func findEndRecord(
+        archive: FileHandle,
+        archiveSize: UInt64,
+        window: Data,
+        windowOffset: UInt64,
+        maximumRecordOffset: UInt64,
+        signatureCount: inout Int,
+        nearestSignatureDistance: inout Int
+    ) throws -> EndRecordCandidate? {
+        let signature = Data([0x50, 0x4b, 0x05, 0x06])
+        var upperBound = window.endIndex
+        while upperBound - window.startIndex >= signature.count,
+              let range = window.range(
+                  of: signature,
+                  options: .backwards,
+                  in: window.startIndex..<upperBound
+              )
+        {
+            let index = range.lowerBound - window.startIndex
+            let recordOffset = windowOffset + UInt64(index)
+            upperBound = range.lowerBound
+            guard recordOffset < maximumRecordOffset,
+                  index + 22 <= window.count else {
+                continue
+            }
+
+            signatureCount += 1
+            let distance = archiveSize - recordOffset
+            if nearestSignatureDistance < 0 {
+                nearestSignatureDistance = distance > UInt64(Int.max)
+                    ? Int.max : Int(distance)
+            }
+
+            let fixed = window.subdata(in: index..<(index + 22))
+            let commentLength = UInt64(Self.uint16(fixed, at: 20))
+            guard let recordEnd = Self.adding(recordOffset, 22 + commentLength),
+                  recordEnd <= archiveSize else {
+                continue
+            }
+            let trailingBytes = archiveSize - recordEnd
+            guard trailingBytes <= limits.maximumTrailingBytes else { continue }
+
+            let directorySize = UInt64(Self.uint32(fixed, at: 12))
+            let directoryOffset = UInt64(Self.uint32(fixed, at: 16))
+            let hasZIP32Sentinel = Self.uint16(fixed, at: 8) == UInt16.max
+                || Self.uint16(fixed, at: 10) == UInt16.max
+                || directorySize == UInt64(UInt32.max)
+                || directoryOffset == UInt64(UInt32.max)
+            if hasZIP32Sentinel, recordOffset >= 20 {
+                let locator = try readExactly(archive, offset: recordOffset - 20, count: 20)
+                if Self.uint32(locator, at: 0) == 0x0706_4b50 {
+                    return EndRecordCandidate(
+                        fixed: fixed,
+                        recordOffset: recordOffset,
+                        trailingBytes: trailingBytes
+                    )
+                }
+            }
+            if Self.adding(directoryOffset, directorySize) == recordOffset {
+                return EndRecordCandidate(
+                    fixed: fixed,
+                    recordOffset: recordOffset,
+                    trailingBytes: trailingBytes
+                )
+            }
+        }
+        return nil
     }
 
     private func findISOEntry(

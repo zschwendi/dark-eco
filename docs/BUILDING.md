@@ -3304,11 +3304,11 @@ app-generated UUID suffix after an interrupted attempt. Privacy-safe diagnostics
 record only byte counts, normalized error codes, and ZIP-tail structure facts.
 A synthetic provider-placeholder fixture reproduces the reported
 `ZIP end-of-directory record is missing` failure and verifies the local-copy path.
-Build 190 adds a bounded compatibility scan for an otherwise valid ZIP32 central
-directory followed by at most 64 MiB of nonstandard trailing data. The directory
+Build 191 adds a bounded chunked compatibility scan for an otherwise valid ZIP32 central
+directory followed by nonstandard trailing data within the four-GiB ZIP32 archive limit. The directory
 must still end exactly at the discovered end record, and all existing member,
-path, compression, CRC, size, and expansion checks remain in force. Larger
-trailers and archives over the ZIP32 size boundary remain rejected.
+path, compression, CRC, size, and expansion checks remain in force. Archives
+over the ZIP32 size boundary remain rejected.
 
 Focused raw-source, install-worker, ZIP, resource-staging, and composer checks
 pass. A generic signed iOS Release build passed with the current 518-object AOT
