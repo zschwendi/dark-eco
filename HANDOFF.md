@@ -19162,3 +19162,84 @@ ProMotion cadence, sustained 8.33 ms CPU/GPU budget, A15 performance, frame
 pacing, power, or thermal behavior. Build 199 must remain off `main` until a
 separately authorized physical test. Remote `main` remains the physically tested
 Build 197 checkpoint `45e1eeb8`.
+
+# 2026-08-12 Build 200 iPhone library and dormant-diagnostics checkpoint
+
+Build 200 removes dormant developer diagnostics from the default gameplay path.
+When Developer Logs is off, the display callback no longer samples
+`CACurrentMediaTime`, grows and sorts a 600-interval array, requests the large
+renderer statistics snapshot for the ten-second log, or starts and persists
+camera-provenance files. The existing explicit developer-log behavior remains
+available when its compatibility preference is enabled. This is a deterministic
+overhead removal; no physical frame-time improvement has been measured.
+
+The iPhone Library replaces its hamburger label with a centered `Dark Eco`
+capsule. Its Eco-purple shimmer runs over 3.2 seconds, slower than the 1.6-second
+Vision no-controller ornament, and Reduce Motion disables the animation. The
+menu actions and `Main menu` accessibility label are unchanged. iPad and visionOS
+retain their existing hamburger label.
+
+Physical iPhone feedback proved two older responsive-library regressions. Compact
+portrait cards now receive an explicit full-width centered frame. Landscape
+iPhone routes by phone idiom rather than horizontal size class, because iPhone
+Air reports regular width in landscape. Its cards use artwork on the left and a
+readable details column on the right, with a 360-point minimum card width and
+horizontal scrolling when three readable cards cannot fit. The fallback artwork
+keeps the I/II/III numeral design and removes only the `DARK ECO` caption.
+
+Focused validation passed:
+
+```text
+Scripts/run-game-lifecycle-check.sh
+Scripts/run-portrait-library-check.sh
+Scripts/run-presentation-settings-check.sh
+Scripts/run-promotion-frame-rate-check.sh
+xcrun swift -frontend -parse <each changed Swift source/check individually>
+plutil -lint GOALPad.xcodeproj/project.pbxproj
+git diff --check 3b34dd3d..HEAD
+git -C OpenGOAL diff --check
+```
+
+The first full simulator compile caught three invalid instance references to the
+new layout's static constants; commit `788104a5` corrects them. The first
+landscape render then proved iPhone Air was still taking the regular-width shelf;
+the same commit routes all iPhones to the phone landscape layout while preserving
+compact iPad-window behavior. The final arm64 Release simulator build passed.
+Portrait and landscape captures are:
+
+```text
+/private/tmp/goalpad-build200-iphone-air-portrait.png
+/private/tmp/goalpad-build200-iphone-air-landscape.png
+```
+
+Visual inspection confirmed equal portrait card margins, the centered pill,
+numeral-only fallback artwork, and large artwork-left landscape cards with
+readable details and horizontal overflow. The disposable iPhone Air simulator
+created for this proof was shut down and deleted afterward. The pre-existing M5
+iPad simulator remains booted and otherwise untouched.
+
+The final signed generic arm64 iOS Release build passed with the canonical
+`8e8019d6c74ed9fc` 518-object source pack. Log:
+`/private/tmp/goalpad-build200-final-signed-device-build.log`. Product:
+`/private/tmp/GOALPad-build194-derived/Build/Products/Release-iphoneos/Dark Eco.app`.
+It is Dark Eco 1.0 (200), identifier `com.zephyrstudiosllc.eco`, team
+`V729QMY3V6`; strict deep codesign verification passed.
+
+After explicit maintainer requests to update the phone, Build 197 first replaced
+Build 184 on physical `Z iPhone Air`, then the final Build 200 replaced Build 197
+in place. Device inventory confirms Dark Eco 1.0 (200). Evidence:
+
+```text
+/private/tmp/goalpad-build200-iphone-air-install.json
+/private/tmp/goalpad-build200-iphone-air-inventory.json
+```
+
+The automatic Build 200 launch was denied only because the phone was locked;
+installation succeeded and no uninstall occurred. No app container, imported
+game data, saves, user artwork, or archive was inspected. Physical Library
+acceptance remains with the maintainer after unlocking and opening the app.
+Build 200 gameplay, 120 Hz cadence, performance, power, and thermals were not
+physically validated. The High Frame Rate setting remains default-off. Remote
+`main` remains the physically tested pre-120 Build 197 checkpoint `45e1eeb8`;
+Build 200 remains isolated and unpushed on
+`agent/build181-input-settings-polish`. Nested OpenGOAL remains `8c0c48b1c`.
