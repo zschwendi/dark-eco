@@ -33,7 +33,6 @@ extern "C" std::uint64_t goal_call_on_stack_arm64(void* new_sp,
 #include <thread>
 #include <vector>
 
-#include "common/dma/dma_copy.h"
 #include "common/goal_constants.h"
 #include "common/util/Timer.h"
 #include "common/versions/versions.h"
@@ -84,7 +83,6 @@ struct MetalHost {
   bool detailed_frame_stats_enabled = false;
   MetalRenderer* renderer = nullptr;
   std::shared_ptr<TexturePool> texture_pool;
-  std::unique_ptr<FixedChunkDmaCopier> copier;
 #if defined(__aarch64__)
   void* render_stack_mapping = nullptr;
   std::size_t render_stack_mapping_size = 0;
@@ -111,6 +109,7 @@ struct MetalHost {
   bool has_retained_weighted_skin_snapshot = false;
   std::uint64_t chains_in_frame = 0;
   bool reported_wrong_frame_thread = false;
+  bool reported_invalid_chain = false;
 
   // the level art the game asked for, and what has been read off disk because of it
   std::string art_directory;
@@ -620,7 +619,7 @@ void retain_current_frame_target_post_flag(std::uint64_t engine_frame_id,
   telemetry.last_post_flag_sample = retained;
 }
 
-void render_chain() {
+void render_chain(const void* ee_base, std::uint32_t chain_offset) {
   MetalRenderOptions opts;
   opts.game_res_w = g_host.frame.game_res_w;
   opts.game_res_h = g_host.frame.game_res_h;
@@ -649,13 +648,13 @@ void render_chain() {
     opts.engine_frame_id = goalpad::frames_run() + 1;
   }
 
-  const auto& chain = g_host.copier->get_last_result();
+  const auto* chain_data = static_cast<const std::uint8_t*>(ee_base);
   const bool rendered = g_host.frame_is_stereo
                             ? g_host.renderer->render_chain_frame_to_external_stereo_targets(
                                   opts, g_host.stereo_left, g_host.stereo_right,
-                                  g_host.stereo_command_buffer, chain.data.data(), chain.start_offset)
+                                  g_host.stereo_command_buffer, chain_data, chain_offset)
                             : g_host.renderer->render_chain_frame(
-                                  opts, g_host.frame_layer, chain.data.data(), chain.start_offset);
+                                  opts, g_host.frame_layer, chain_data, chain_offset);
   if (g_host.frame_is_stereo && !rendered && g_host.stereo_stream_reserved) {
     // Both LowLevelTexture replacements already contain the paired black initialization pass.
     // Commit it once so a failed DMA encode cannot strand an acquired replacement.
@@ -971,14 +970,15 @@ void render_chain() {
 }
 
 #if defined(__aarch64__)
-std::uint64_t render_chain_on_host_stack(std::uint64_t,
-                                         std::uint64_t,
+std::uint64_t render_chain_on_host_stack(std::uint64_t ee_base,
+                                         std::uint64_t chain_offset,
                                          std::uint64_t,
                                          std::uint64_t,
                                          std::uint64_t,
                                          std::uint64_t) noexcept {
   try {
-    render_chain();
+    render_chain(reinterpret_cast<const void*>(ee_base),
+                 static_cast<std::uint32_t>(chain_offset));
   } catch (...) {
     os_log_fault(gfx_log(), "Metal renderer threw across the host render-stack boundary.");
     std::terminate();
@@ -987,7 +987,7 @@ std::uint64_t render_chain_on_host_stack(std::uint64_t,
 }
 #endif
 
-void render_chain_without_goal_stack() {
+void render_chain_without_goal_stack(const void* ee_base, std::uint32_t chain_offset) {
 #if defined(__aarch64__)
   if (!g_host.render_stack_top || g_host.render_stack_active) {
     os_log_fault(gfx_log(), "Metal host render-stack invariant failed.");
@@ -996,11 +996,20 @@ void render_chain_without_goal_stack() {
   g_host.render_stack_active = true;
   goal_call_on_stack_arm64(g_host.render_stack_top,
                            reinterpret_cast<void*>(&render_chain_on_host_stack),
-                           0, 0, 0, 0, 0, 0);
+                           reinterpret_cast<std::uint64_t>(ee_base),
+                           chain_offset, 0, 0, 0, 0);
   g_host.render_stack_active = false;
 #else
-  render_chain();
+  render_chain(ee_base, chain_offset);
 #endif
+}
+
+bool valid_live_chain(const void* ee_base, std::uint32_t chain_offset) {
+  constexpr std::uint32_t kDmaTagBytes = 16;
+  return ee_base != nullptr && ee_base == g_ee_main_mem &&
+         chain_offset >= static_cast<std::uint32_t>(EE_MAIN_MEM_LOW_PROTECT) &&
+         chain_offset <= static_cast<std::uint32_t>(EE_MAIN_MEM_SIZE) - kDmaTagBytes &&
+         (chain_offset & (kDmaTagBytes - 1)) == 0;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1008,7 +1017,7 @@ void render_chain_without_goal_stack() {
 // ---------------------------------------------------------------------------------------------
 
 void host_send_chain(const void* ee_base, uint32_t chain_offset) {
-  if (!g_host.copier) {
+  if (!g_host.renderer) {
     return;
   }
   g_host.stats.chains_sent++;
@@ -1028,9 +1037,18 @@ void host_send_chain(const void* ee_base, uint32_t chain_offset) {
     }
     return;
   }
+  if (!valid_live_chain(ee_base, chain_offset)) {
+    g_host.stats.chains_dropped++;
+    if (!g_host.reported_invalid_chain) {
+      os_log_error(gfx_log(), "Dropping a DMA chain outside live EE main memory.");
+      g_host.reported_invalid_chain = true;
+    }
+    return;
+  }
   g_host.chains_in_frame++;
-  g_host.copier->set_input_data(ee_base, chain_offset, /*run*/ true);
-  render_chain_without_goal_stack();
+  // The display-link host and GOAL frame share this thread. Bucket dispatch consumes the live
+  // chain before this call returns; no chain pointer is retained between submissions.
+  render_chain_without_goal_stack(ee_base, chain_offset);
 }
 
 /*!
@@ -1045,8 +1063,8 @@ uint32_t host_vsync(void) {
 
 /*!
  * `sync-path`: the game asking whether the renderer is done with the chain it sent. During a
- * display-link tick `host_send_chain` renders before returning, so both the copied DMA chain and
- * its live Merc bone matrices have been consumed and EE memory is free to be reused.
+ * display-link tick `host_send_chain` renders before returning, so both the live DMA chain and its
+ * out-of-chain Merc bone matrices have been consumed and EE memory is free to be reused.
  */
 uint32_t host_sync_path(void) {
   return 0;
@@ -1134,13 +1152,11 @@ bool metal_host_start(std::string* error) {
     return false;
   }
   renderer->init_bucket_renderers(g_host.texture_pool.get(), GameVersion::Jak1);
-  g_host.copier = std::make_unique<FixedChunkDmaCopier>(EE_MAIN_MEM_SIZE);
 #if defined(__aarch64__)
   if (!allocate_host_render_stack(error)) {
     metal_merc_models().shutdown();
     metal_texture_release(g_host.texture_pool->get_placeholder_texture());
     g_host.texture_pool.reset();
-    g_host.copier.reset();
     delete renderer;
     g_host.renderer = nullptr;
     return false;
@@ -1163,7 +1179,6 @@ void metal_host_stop() {
   metal_merc_models().shutdown();
   metal_texture_release(g_host.texture_pool->get_placeholder_texture());
   g_host.texture_pool.reset();
-  g_host.copier.reset();
   delete g_host.renderer;
 #if defined(__aarch64__)
   release_host_render_stack();

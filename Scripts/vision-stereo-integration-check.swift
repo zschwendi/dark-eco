@@ -214,9 +214,44 @@ check(occursInOrder([
 ], in: host), "both borrowed target descriptors are rejected before native frame mutation")
 
 let sendChain = section(host, from: "void host_send_chain", to: "uint32_t host_vsync")
-check(sendChain.components(separatedBy: "set_input_data").count - 1 == 1
-        && sendChain.components(separatedBy: "render_chain_without_goal_stack();").count - 1 == 1,
-      "one submitted game chain is copied once before the two-view renderer runs")
+let liveChainValidation = section(host,
+                                  from: "bool valid_live_chain",
+                                  to: "// ---------------------------------------------------------------------------------------------\n// the seam")
+let renderChain = section(host,
+                          from: "void render_chain(const void* ee_base",
+                          to: "#if defined(__aarch64__)")
+let hostStackForwarding = section(host,
+                                  from: "std::uint64_t render_chain_on_host_stack",
+                                  to: "// ---------------------------------------------------------------------------------------------\n// the seam")
+check(!host.contains("FixedChunkDmaCopier") && !host.contains("set_input_data")
+        && sendChain.components(
+            separatedBy: "render_chain_without_goal_stack(ee_base, chain_offset);"
+        ).count - 1 == 1,
+      "one submitted game chain is rendered synchronously from live EE memory without a frame copy")
+check(liveChainValidation.contains("ee_base != nullptr && ee_base == g_ee_main_mem")
+        && liveChainValidation.contains("chain_offset >= static_cast<std::uint32_t>(EE_MAIN_MEM_LOW_PROTECT)")
+        && liveChainValidation.contains("chain_offset <= static_cast<std::uint32_t>(EE_MAIN_MEM_SIZE) - kDmaTagBytes")
+        && liveChainValidation.contains("(chain_offset & (kDmaTagBytes - 1)) == 0")
+        && occursInOrder([
+            "if (!valid_live_chain(ee_base, chain_offset))",
+            "g_host.stats.chains_dropped++",
+            "return;",
+            "g_host.chains_in_frame++",
+            "render_chain_without_goal_stack(ee_base, chain_offset);",
+        ], in: sendChain),
+      "live DMA rendering fails closed on base, readable range, and tag alignment before dispatch")
+check(renderChain.contains("const auto* chain_data = static_cast<const std::uint8_t*>(ee_base);")
+        && renderChain.contains("g_host.stereo_command_buffer, chain_data, chain_offset")
+        && renderChain.contains("opts, g_host.frame_layer, chain_data, chain_offset")
+        && hostStackForwarding.contains("render_chain(reinterpret_cast<const void*>(ee_base)")
+        && hostStackForwarding.contains("reinterpret_cast<std::uint64_t>(ee_base),")
+        && hostStackForwarding.contains("chain_offset, 0, 0, 0, 0)")
+        && hostStackForwarding.contains("render_chain(ee_base, chain_offset);")
+        && host.components(
+            separatedBy: "chain_data = static_cast<const std::uint8_t*>(ee_base);"
+        ).count - 1 == 1
+        && !host.contains("get_last_result()"),
+      "ordinary, stereo, and alternate-stack paths forward the same call-scoped live chain")
 check(host.contains("render_chain_frame_to_external_stereo_targets(")
         && host.contains("g_host.stereo_command_buffer")
         && !host.contains("wait_for_last_chain_frame(1.0)"),
