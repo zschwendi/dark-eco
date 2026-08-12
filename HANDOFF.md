@@ -17752,3 +17752,24 @@ into the playtest branch. The isolated branch is pushed for backup. The retained
 3,808-byte live EFFECTS frame remains liveness evidence only; do not promote
 bucket 315 until this exact GPU proof passes and a live envelope is separately
 matched.
+
+## Jak II passive shadow bucket 195 capture checkpoint
+
+Date: 2026-08-12.
+
+Nested integration commit `bfbb68f3c` adds a bounded, metadata-only observer for
+Jak II `SHADOW` bucket 195. It records ordered tag/VIF roles, scalar payload and
+UNPACK counts, bounded trailing `MSCALF` markers, terminal shape, and a
+relocation-independent numeric fingerprint. It never retains or fingerprints
+vertex/index payload bytes. The four outcomes are `Absent`, `Observed`,
+`Malformed`, and `LimitExceeded`; `Observed` deliberately does not authorize
+rendering. In particular, the source-reachable top-only `MSCALF 6` sequence is
+reported safely without assuming a bottom buffer.
+
+This checkpoint contains no host ABI, iOS log, renderer, bucket-table change,
+execution plan, or bucket-314 behavior. The strict portable compile and direct
+fixture passed on the integration head, including exact absence, source-shaped
+ordered metadata, relocation identity, top-only `MSCALF 6`, malformed chains,
+cycles, and transfer/payload/UNPACK limits. The isolated worker also passed the
+same fixtures under ASan/UBSan. No simulator, physical device, retail data,
+heavy build, or gameplay execution was used.
