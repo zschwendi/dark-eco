@@ -20397,3 +20397,94 @@ build was running. It was 670 MiB of reproducible cache and is not recoverable
 as that cache; the signed build log, canonical 518-object source pack, source
 worktrees, installed iPad app, user data, saves, and device containers remain.
 Approximately 1.0 GiB was free afterward. No physical device was accessed.
+
+### Build 208 live ProMotion and Settings checkpoint
+
+Outer commit `2b2ebed1` (`Ship live ProMotion settings in Build 208
+(AI-assisted)`) advances the iOS bundle to Build 208 without changing the
+nested OpenGOAL checkout or the canonical Build 207 source pack. The public
+setting is now simply **ProMotion**, with no explanatory row. The duplicate
+Gameplay section is removed, and Rumble is inside Controls immediately after
+the Touch Controls Guide. Restore Controls Defaults now restores Rumble too.
+No shipping frame-counter overlay was added; the retained xctrace analyzer is
+the non-perturbing cadence authority.
+
+ProMotion now applies to an already-running iOS game. `ContentView` observes the
+persisted choice, `GameSession` asks the narrow Objective-C++ bridge to switch
+the native timing domain between frames, and only after that succeeds does it
+publish the new display-link target. The native switch updates the managed
+GOAL frame-rate authority through the existing
+`goalpad-set-target-frame-rate`, clears its fractional timing remainders, and
+resets the display and 60 Hz sound clocks. A failed/unavailable switch leaves
+the Swift display request unchanged and restores the previous native host
+state. A setting changed during asynchronous boot is reconciled immediately
+after boot, before the first gameplay frame.
+
+Focused validation passed:
+
+```text
+Scripts/run-presentation-settings-check.sh
+Scripts/run-camera-timing-check.sh
+Scripts/run-promotion-frame-rate-check.sh
+Scripts/run-game-lifecycle-check.sh
+Scripts/run-controller-rumble-check.sh
+GOALPAD_OPENGOAL_SOURCE="$PWD/OpenGOAL" \
+  Scripts/run-game-frame-state-snapshot-check.sh
+Scripts/run-ios-game-performance-analysis-check.sh
+Scripts/run-ios-game-performance-comparison-check.sh
+git diff --check
+```
+
+The no-AOT native fixture now proves a live timing request fails closed when no
+game exists. Timing coverage explicitly exercises 120 -> 60 -> 120 sound-clock
+resets. The production iOS Objective-C++ and C++ syntax checks passed through
+the frame-state suite.
+
+The complete Release iOS Simulator build passed from a fresh DerivedData using
+the unchanged canonical 518-object source pack:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS Simulator' \
+  -derivedDataPath /private/tmp/GOALPad-build208-derived -jobs 2 \
+  ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT="$PWD/build/jak1-source-object-pack-build207" \
+  build
+```
+
+Log: `/private/tmp/goalpad-build208-simulator-build.log`. It was installed and
+launched through the already-approved iPad Pro 11-inch (M5) simulator. The
+normal Release UI visually showed Version 1.0 (208), no Gameplay section,
+Rumble inside Controls, and the bare ProMotion switch inside Graphics. Evidence:
+`/private/tmp/goalpad-build208-m5-settings.png`. The simulator was shut down
+afterward because this checkpoint booted it.
+
+The generic signed arm64 iOS Release build passed, then passed again
+incrementally after final fail-closed hardening:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build208-derived -jobs 2 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT="$PWD/build/jak1-source-object-pack-build207" \
+  build
+```
+
+Final log: `/private/tmp/goalpad-build208-signed-device-build-final.log`.
+Product:
+`/private/tmp/GOALPad-build208-derived/Build/Products/Release-iphoneos/Dark Eco.app`.
+It is arm64 Dark Eco 1.0 (208), contains
+`CADisableMinimumFrameDurationOnPhone=true`, and passes
+`codesign --verify --deep --strict`. The known stale secondary Xcode-account
+credential warning did not fail signing or the build.
+
+No physical device, app container, prepared game data, save, or user file was
+accessed. Build 207 remains installed on `Z iPad Pro`; Build 208 is built and
+ready but not installed. The next physical step requires a new explicit
+maintainer authorization: install and launch Build 208, verify live ProMotion
+toggle behavior, then run the counterbalanced analyzer capture. The capture
+helper and examples now name Build 208. Physical iPhone 13 Pro-class acceptance
+also remains pending.
