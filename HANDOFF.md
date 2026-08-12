@@ -18861,3 +18861,16 @@ visibility, mixed external audio, menu copy, and UI spacing. The next separate
 checkpoint should add low-overhead CPU-frame, presentation-gap, GPU-time,
 memory, and thermal telemetry before a controlled physical M5 iPad profile;
 do not infer device authorization from this handoff.
+
+The first successful Build 195 compile above used the older Build 142 external
+source-object pack. A release audit correctly caught that its `progress-pc.o`
+did not include the managed-display menu change. The current pack was then
+regenerated from nested commit `4a167ad68`, which records identity
+`44f9fbb492ed188a`: 518 objects and 10,747,925 bytes. Its `progress-pc.o` is
+193,001 bytes with hash `7d0a4fcdbca35d41`. The same Release command was rerun
+with `GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT="$PWD/build/jak1-source-object-pack"`;
+the host verifier, iPhoneOS importer archive, staged app resources, signing, and
+strict codesign verification passed. Final release-consistent log:
+`/private/tmp/goalpad-build195-current-source-pack-build.log`. The app's staged
+manifest reports the same `44f9fbb492ed188a` identity. This later build is the
+Build 195 product to use; the earlier Build 142-pack artifact is superseded.
