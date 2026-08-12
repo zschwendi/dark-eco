@@ -599,6 +599,37 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(warp316.last_payload_bytes),
         static_cast<unsigned long long>(warp316.last_semantic_fingerprint));
 
+  const auto& subtitle322 = metal.subtitle_capture;
+  NSLog(@"GOALPAD_JAK2_SUBTITLE322_STATE tick=%llu bucket=%u captures=%llu present=%llu "
+         "class=m%llu/a%llu/o%llu/n%llu/oa%llu/e%llu/g%llu transfers=%llu bytes=%llu "
+         "ordinary=%llu direct=%llu gs=%llu anim=%llu/%llu/%llu op12=%llu op13=%llu "
+         "op22=%llu eye=%llu other=%llu malformed=%llu executions=%llu",
+        static_cast<unsigned long long>(runtime.ticks), subtitle322.bucket_id,
+        static_cast<unsigned long long>(subtitle322.captures),
+        static_cast<unsigned long long>(subtitle322.present_captures),
+        static_cast<unsigned long long>(subtitle322.classifications[0]),
+        static_cast<unsigned long long>(subtitle322.classifications[1]),
+        static_cast<unsigned long long>(subtitle322.classifications[2]),
+        static_cast<unsigned long long>(subtitle322.classifications[3]),
+        static_cast<unsigned long long>(subtitle322.classifications[4]),
+        static_cast<unsigned long long>(subtitle322.classifications[5]),
+        static_cast<unsigned long long>(subtitle322.classifications[6]),
+        static_cast<unsigned long long>(subtitle322.transfers),
+        static_cast<unsigned long long>(subtitle322.payload_bytes),
+        static_cast<unsigned long long>(subtitle322.ordinary_descriptors),
+        static_cast<unsigned long long>(subtitle322.direct_setup_transfers),
+        static_cast<unsigned long long>(subtitle322.gs_setup_transfers),
+        static_cast<unsigned long long>(subtitle322.animator_arrays),
+        static_cast<unsigned long long>(subtitle322.animator_body_transfers),
+        static_cast<unsigned long long>(subtitle322.animator_payload_bytes),
+        static_cast<unsigned long long>(subtitle322.opcode_counts[12]),
+        static_cast<unsigned long long>(subtitle322.opcode_counts[13]),
+        static_cast<unsigned long long>(subtitle322.opcode_counts[22]),
+        static_cast<unsigned long long>(subtitle322.eye_markers),
+        static_cast<unsigned long long>(subtitle322.other_transfers),
+        static_cast<unsigned long long>(subtitle322.malformed_transfers),
+        static_cast<unsigned long long>(subtitle322.executions));
+
   NSLog(@"GOALPAD_JAK2_SKY_POST_STATE tick=%llu executions=%llu",
         static_cast<unsigned long long>(runtime.ticks),
         static_cast<unsigned long long>(metal.sky_post_texture_upload_executions));

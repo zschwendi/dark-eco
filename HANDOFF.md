@@ -17706,3 +17706,26 @@ b306 and b316 assertions. The initial worker and integration sandbox runs
 failed only because no default Metal device was exposed. The outer bridge
 passed focused Objective-C++ syntax checks. No simulator, physical device,
 retail data, fresh heavy build directory, or gameplay execution was used.
+
+## Jak II passive subtitle bucket 322 capture checkpoint
+
+Date: 2026-08-12.
+
+Nested commit `0598264bf` admits only numeric bucket 322 (`SUBTITLE`) to the
+existing bounded, payload-free texture-upload metadata inspector. The host
+observes live DMA before validation, copying, or mutation and appends the
+result to the ABI tail as `subtitle_capture`. Bucket 322 remains
+`DeferredSkip`; no Direct renderer, animator executor, texture upload, callback,
+or executable typed plan was added. The outer runtime emits numeric-only
+`GOALPAD_JAK2_SUBTITLE322_STATE` telemetry. The retained 464-byte post-prison
+hit is treated only as liveness evidence, not an inferred packet grammar.
+
+Synthetic coverage includes exact absence, mixed upload/animator/Direct-like
+metadata, Direct-only unclassified metadata, and malformed metadata. All four
+chains complete without executing bucket 322, uploading a texture, or changing
+the live texture registry. The portable capture test passed; the three changed
+host objects compiled with canonical commands, the existing host archive/test
+relinked, and the host-access Metal test passed the complete combined b306,
+b316, and b322 suite. The initial worker sandbox run failed only because it
+could not see a default Metal device. No simulator, physical device, retail
+data, or fresh heavy build directory was used.
