@@ -488,7 +488,7 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         static let settingsWithoutSecrets = 8
         static let settingsWithSecrets = 9
         static let gameSettings = 10
-        static let graphicSettings = 5
+        static let graphicSettings = 4
         static let soundSettings = 4
         static let title = 6
         static let settingsTitle = 4

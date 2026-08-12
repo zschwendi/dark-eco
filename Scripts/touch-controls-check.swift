@@ -2260,7 +2260,7 @@ private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
     let shippingPCLists = [
         (label: "settings with secrets", screen: 3, optionCount: 9),
         (label: "game settings", screen: 4, optionCount: 10),
-        (label: "graphic settings", screen: 5, optionCount: 5),
+        (label: "graphic settings", screen: 5, optionCount: 4),
         (label: "sound settings", screen: 6, optionCount: 4),
         (label: "title", screen: 27, optionCount: 6),
         (label: "title settings", screen: 28, optionCount: 4),

@@ -104,6 +104,53 @@ std::array<int, 5> age_relative_pad_history(std::array<int, 5> history,
   return history;
 }
 
+struct PromotionSecondTrace {
+  std::vector<float> display_ratios;
+  int scaled_ticks = 0;
+  int integral_target_units = 0;
+  int sound_frames = 0;
+  double callback_units = 0.0;
+  int maximum_pad_steps = 0;
+  std::array<int, 5> first_pad_history = {};
+  std::array<int, 5> final_pad_history = {};
+  bool duplicated_one_shot = false;
+};
+
+PromotionSecondTrace promotion_second_trace(int callbacks_per_second) {
+  goalpad::DisplayClock display_clock;
+  goalpad::SoundFrameClock sound_clock;
+  FractionalFrameCounters counters;
+  PromotionSecondTrace trace;
+  trace.display_ratios.reserve(callbacks_per_second);
+
+  double target = 100.0;
+  assert(display_clock.advance(target, 120) == 1.0f);
+  std::array<int, 5> pad_history = {};
+  for (int callback = 0; callback < callbacks_per_second; ++callback) {
+    target += 1.0 / static_cast<double>(callbacks_per_second);
+    const float ratio = display_clock.advance(target, 120);
+    trace.display_ratios.push_back(ratio);
+    trace.callback_units += 0.5 * static_cast<double>(ratio);
+    trace.sound_frames += sound_clock.advance(ratio, 120);
+
+    const int previous_integral = counters.integral;
+    counters.advance(ratio, 2.5);
+    const int pad_steps = counters.integral - previous_integral;
+    trace.maximum_pad_steps = std::max(trace.maximum_pad_steps, pad_steps);
+    pad_history = age_relative_pad_history(pad_history, callback == 0 ? 1 : 0, pad_steps);
+    if (callback == 0) {
+      trace.first_pad_history = pad_history;
+    }
+    trace.duplicated_one_shot |=
+        std::count(pad_history.begin(), pad_history.end(), 1) > 1;
+  }
+
+  trace.scaled_ticks = counters.scaled;
+  trace.integral_target_units = counters.integral;
+  trace.final_pad_history = pad_history;
+  return trace;
+}
+
 int eye_timer_decrement(bool host_managed, int real_integral_delta) {
   return host_managed ? real_integral_delta : 1;
 }
@@ -180,36 +227,39 @@ int main() {
   assert(rate_transition.advance(20.0 + 1.0 / 120.0, 120) == 1.0f);
   assert(rate_transition.advance(30.0, 60) == 1.0f);
 
-  FractionalFrameCounters steady_120;
-  for (int frame = 0; frame < 120; ++frame) {
-    steady_120.advance(1.0, 2.5);
-  }
-  assert(steady_120.scaled == 300);
-  assert(steady_120.integral == 120);
-
-  FractionalFrameCounters dynamic_80;
-  for (int frame = 0; frame < 80; ++frame) {
-    dynamic_80.advance(1.5, 2.5);
-  }
-  assert(dynamic_80.scaled == 300);
-  assert(dynamic_80.integral == 120);
-
   struct RefreshFactor {
     int callbacks_per_second;
-    double host_time_ratio;
+    float display_ratio;
+    double callback_factor;
+    int maximum_pad_steps;
+    std::array<int, 5> first_pad_history;
   };
-  for (const auto factor : {RefreshFactor{120, 1.0}, RefreshFactor{80, 1.5},
-                            RefreshFactor{60, 2.0}, RefreshFactor{40, 3.0},
-                            RefreshFactor{30, 4.0}}) {
-    const double callback_ratio = 0.5 * factor.host_time_ratio;
-    assert(near(factor.callbacks_per_second * callback_ratio, 60.0));
+  for (const auto factor : {
+           RefreshFactor{120, 1.0f, 0.5, 1, {1, 0, 0, 0, 0}},
+           RefreshFactor{80, 1.5f, 0.75, 2, {1, 0, 0, 0, 0}},
+           RefreshFactor{60, 2.0f, 1.0, 2, {0, 1, 0, 0, 0}},
+           RefreshFactor{40, 3.0f, 1.5, 3, {0, 0, 1, 0, 0}},
+           RefreshFactor{30, 4.0f, 2.0, 4, {0, 0, 0, 1, 0}},
+       }) {
+    const auto trace = promotion_second_trace(factor.callbacks_per_second);
+    assert(std::all_of(trace.display_ratios.begin(), trace.display_ratios.end(),
+                       [&](float ratio) { return ratio == factor.display_ratio; }));
+    assert(near(0.5 * trace.display_ratios.front(), factor.callback_factor));
+    assert(near(trace.callback_units, 60.0));
+    assert(trace.scaled_ticks == 300);
+    assert(trace.integral_target_units == 120);
+    assert(trace.sound_frames == 60);
+    assert(trace.maximum_pad_steps == factor.maximum_pad_steps);
+    assert(trace.first_pad_history == factor.first_pad_history);
+    assert(!trace.duplicated_one_shot);
+    assert((trace.final_pad_history == std::array<int, 5>{}));
 
-    double integral_remainder = 0.0;
     int eye_target_frames_remaining = 120;
-    for (int callback = 0; callback < factor.callbacks_per_second; ++callback) {
-      const double integral_value = factor.host_time_ratio + integral_remainder;
-      const int integral_frames = static_cast<int>(integral_value);
-      integral_remainder = integral_value - integral_frames;
+    FractionalFrameCounters eye_counter;
+    for (const float ratio : trace.display_ratios) {
+      const int previous_integral = eye_counter.integral;
+      eye_counter.advance(ratio, 2.5);
+      const int integral_frames = eye_counter.integral - previous_integral;
       eye_target_frames_remaining =
           std::max(0, eye_target_frames_remaining - eye_timer_decrement(true, integral_frames));
     }
@@ -241,31 +291,42 @@ int main() {
   assert(sound_60.advance(2.0f, 60) == 1);
   assert(sound_60.advance(3.0f, 60) == 1);
 
-  goalpad::SoundFrameClock sound_120;
   goalpad::DisplayClock promotion_lifecycle;
+  goalpad::SoundFrameClock sound_120;
   sound_frames = 0;
-  for (int frame = 0; frame < 119; ++frame) {
-    sound_frames += sound_120.advance(1.0f, 120);
+  double lifecycle_target = 500.0;
+  float lifecycle_ratio = promotion_lifecycle.advance(lifecycle_target, 120);
+  sound_frames += sound_120.advance(lifecycle_ratio, 120);
+  for (int frame = 1; frame < 119; ++frame) {
+    lifecycle_target += 1.0 / 120.0;
+    lifecycle_ratio = promotion_lifecycle.advance(lifecycle_target, 120);
+    sound_frames += sound_120.advance(lifecycle_ratio, 120);
   }
-  // A lifecycle display-clock reset must retain the half-vblank sound debt accumulated before it.
-  // The next callback then completes that vblank instead of dropping sound time at every pause.
+  assert(sound_frames == 59);
+  // Suspension drops timestamp history but retains the half-vblank sound debt already earned by
+  // active callbacks. Resumption neither imports wall-clock pause time nor drops that debt.
   promotion_lifecycle.reset();
-  sound_frames += sound_120.advance(1.0f, 120);
+  lifecycle_target += 600.0;
+  lifecycle_ratio = promotion_lifecycle.advance(lifecycle_target, 120);
+  const int resumed_sound_frame = sound_120.advance(lifecycle_ratio, 120);
+  sound_frames += resumed_sound_frame;
   assert(sound_frames == 60);
+  lifecycle_target += 1.0 / 120.0;
+  lifecycle_ratio = promotion_lifecycle.advance(lifecycle_target, 120);
+  const int following_sound_frame = sound_120.advance(lifecycle_ratio, 120);
+  expect_trace("suspend/resume retained debt", {resumed_sound_frame, following_sound_frame},
+               {1, 0});
 
-  goalpad::SoundFrameClock sound_80;
-  sound_frames = 0;
-  for (int frame = 0; frame < 80; ++frame) {
-    sound_frames += sound_80.advance(1.5f, 120);
-  }
-  assert(sound_frames == 60);
-
-  goalpad::SoundFrameClock sound_60_fallback;
-  sound_frames = 0;
-  for (int frame = 0; frame < 60; ++frame) {
-    sound_frames += sound_60_fallback.advance(2.0f, 120);
-  }
-  assert(sound_frames == 60);
+  // A full session reset clears both clocks. The new session starts a fresh half-vblank pair.
+  promotion_lifecycle.reset();
+  sound_120.reset();
+  lifecycle_target += 600.0;
+  lifecycle_ratio = promotion_lifecycle.advance(lifecycle_target, 120);
+  const int reset_first_sound_frame = sound_120.advance(lifecycle_ratio, 120);
+  lifecycle_target += 1.0 / 120.0;
+  lifecycle_ratio = promotion_lifecycle.advance(lifecycle_target, 120);
+  const int reset_second_sound_frame = sound_120.advance(lifecycle_ratio, 120);
+  expect_trace("full timing reset", {reset_first_sound_frame, reset_second_sound_frame}, {0, 1});
 
   goalpad::DisplayClock lifecycle;
   assert(lifecycle.advance(200.0) == 1);
