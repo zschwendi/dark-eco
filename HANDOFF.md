@@ -19535,3 +19535,112 @@ and iPhone 13 Pro-class acceptance remain pending. The ocean wait removal does
 not by itself explain the Spider Cave report, which contains no ocean generator.
 Remote `main` remains the stable pre-120 Build 197 checkpoint; Build 203 is
 isolated and unpushed on `agent/build181-input-settings-polish`.
+
+# 2026-08-12 Build 204 performance checkpoint
+
+Build 204 adds five bounded hot-path reductions on Build 203. It is signed and
+simulator-launched, but remains unmeasured on physical hardware and does not
+claim the adaptive 120 Hz goal is physically accepted.
+
+Outer commits:
+
+```text
+3b2ba5b8 Integrate renderer lookup hot paths (AI-assisted)
+ca432e2d Reduce Swift frame and input callback overhead (AI-assisted)
+cc093621 Render GOALPad DMA directly from live memory (AI-assisted)
+3f6975a3 Refresh vision settings source check (AI-assisted)
+```
+
+Nested OpenGOAL commits:
+
+```text
+3a0fa1b83 Reuse Generic2 draw bucket lookup storage (AI-assisted)
+b27af0c30 Cache immutable Metal level texture objects (AI-assisted)
+```
+
+The GOALPad graphics host no longer scans the full DMA chain and copies every
+referenced 128 KiB memory chunk before each synchronous render. The validated
+live EE base and aligned root offset now remain call-scoped through ordinary,
+stereo, direct, and ARM64 alternate-stack paths. The game and renderer still
+share the same frame thread; DMA decoding completes before `host_send_chain`
+returns, and boot/drop/thread/range guards remain fail-closed.
+
+Generic2 reuses a fixed open-addressed draw-bucket lookup instead of allocating
+an `unordered_map` for every active bucket. Static tfrag/tie/shrub level
+textures are resolved once at load and cached beside their ownership handles,
+removing a global registry mutex and hash lookup from normal background draws.
+The missing-texture placeholder and handle-based unload paths remain intact.
+
+The audio real-time callback now measures its exact peak while performing the
+required stereo deinterleave instead of scanning the PCM a second time.
+`framesRun` and `framesPresented` no longer invalidate Swift Observation every
+frame; the opt-in diagnostics overlay receives a bounded revision every 60
+successful game frames. GameController, keyboard, and mouse devices explicitly
+deliver on their public main `handlerQueue`, so their callbacks update the
+MainActor directly instead of enqueuing a redundant second main-queue block.
+
+Focused and combined validation passed:
+
+```text
+Scripts/run-keyboard-mouse-input-check.sh
+Scripts/run-controller-rumble-check.sh
+Scripts/run-game-menu-state-check.sh
+Scripts/run-game-look-around-state-check.sh
+GOALPAD_OPENGOAL_SOURCE="$PWD/OpenGOAL" Scripts/run-game-frame-state-snapshot-check.sh
+Scripts/run-game-lifecycle-check.sh
+Scripts/run-promotion-frame-rate-check.sh
+Scripts/run-touch-controls-check.sh
+Scripts/run-portrait-library-check.sh
+Scripts/run-vision-stereo-integration-check.sh
+xcrun swift -frontend -parse GOALPad/Input/ControllerInput.swift
+xcrun swift -frontend -parse Scripts/vision-stereo-integration-check.swift
+cmake --build OpenGOAL/build/Release/bin --target metal-proof -j2
+OpenGOAL/build/Release/bin/game/metal-proof
+OpenGOAL/build/Release/bin/game/metal-proof --stereo-pixels-only
+git diff --check
+git -C OpenGOAL diff --check
+```
+
+The first vision source-check run exposed one stale checker pattern for the
+already-shipping iOS/vision Settings toolbar conditional; the product code was
+correct. Commit `3f6975a3` refreshed only that assertion, and the canonical
+vision check then passed. Logs include
+`/private/tmp/goalpad-build204-keyboard-mouse.log`,
+`/private/tmp/goalpad-build204-lifecycle.log`,
+`/private/tmp/goalpad-build204-vision-stereo.log`,
+`/private/tmp/goalpad-build204-metal-build.log`,
+`/private/tmp/goalpad-build204-metal-proof.log`, and
+`/private/tmp/goalpad-build204-metal-proof-stereo.log`. The full Metal proof
+reported `METAL PROOF PASSED`; stereo reported
+`METAL STEREO PIXEL PROOF PASSED`.
+
+The signed generic arm64 iOS Release build passed with:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build194-derived -jobs 4 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT="$PWD/build/jak1-source-object-pack" \
+  build
+```
+
+Log: `/private/tmp/goalpad-build204-signed-device-build.log`. Product:
+`/private/tmp/GOALPad-build194-derived/Build/Products/Release-iphoneos/Dark Eco.app`.
+It is Dark Eco 1.0 (204), arm64, and strict deep codesign verification passed.
+Existing Swift isolation and native precision warnings remain; no build error
+was reported.
+
+The Release iOS Simulator build passed in
+`/private/tmp/GOALPad-build202-simulator-derived`, then installed and launched
+on the already-booted approved iPad Pro 11-inch (M5) simulator as PID 18541.
+Screenshot: `/private/tmp/goalpad-build204-m5-ipad-launch.png`; it visibly shows
+Version 1.0 (204). The simulator still has no imported Jak 1 game data, so it
+cannot exercise gameplay, Spider Cave, DMA rendering, or adaptive frame pacing.
+
+No physical device was accessed. Physical Spider Cave pacing, adaptive 120 Hz
+cadence, direct-live-DMA correctness, DualSense behavior, battery/power,
+thermals, and iPhone 13 Pro-class acceptance remain pending. Remote `main`
+remains the stable pre-120 Build 197 checkpoint; Build 204 is isolated and
+unpushed on `agent/build181-input-settings-polish`.
