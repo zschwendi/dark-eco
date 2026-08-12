@@ -250,8 +250,11 @@ void log_jak2_diagnostics_locked() {
 
   NSLog(@"GOALPAD_JAK2_FOREGROUND_STATE tick=%llu "
          "merc=%llu/%llu/%llu malformed=%llu reject-reason=%u missing-models=%llu "
+         "merc-eyes=%llu/%llu/%llu/%llu merc-missing-textures=%llu "
          "bones=%llu/%llu/%llu/%llu "
          "generic=%llu/%llu/%llu missing-textures=%llu unexpected-dma=%llu "
+         "eyes=%llu/%llu/%llu missing=%llu unexpected=%llu duplicate=%llu "
+         "eye-cmd=%llu/%llu/%llu pris=%llu/%llu/%llu "
          "sprite-placeholder=%llu/%llu first-valid=%u first-tbp=0x%08x first-mode=0x%08x",
         static_cast<unsigned long long>(runtime.ticks),
         static_cast<unsigned long long>(metal.last_merc_models),
@@ -260,6 +263,11 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(metal.last_merc_malformed_dma),
         metal.last_merc_preflight_rejection_reason,
         static_cast<unsigned long long>(metal.last_merc_missing_models),
+        static_cast<unsigned long long>(metal.last_merc_eye_draws),
+        static_cast<unsigned long long>(metal.last_merc_eye_renderer_missing),
+        static_cast<unsigned long long>(metal.last_merc_eye_lookup_failed),
+        static_cast<unsigned long long>(metal.last_merc_eye_placeholder_draws),
+        static_cast<unsigned long long>(metal.last_merc_missing_textures),
         static_cast<unsigned long long>(metal.last_merc_bad_bone_pointers),
         static_cast<unsigned long long>(metal.last_merc_missing_bone_slots),
         static_cast<unsigned long long>(metal.last_merc_nonfinite_bone_matrices),
@@ -269,6 +277,18 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(metal.last_generic_triangles),
         static_cast<unsigned long long>(metal.last_generic_missing_textures),
         static_cast<unsigned long long>(metal.last_generic_unexpected_dma),
+        static_cast<unsigned long long>(metal.last_eye_composed),
+        static_cast<unsigned long long>(metal.last_eye_draws),
+        static_cast<unsigned long long>(metal.last_eye_triangles),
+        static_cast<unsigned long long>(metal.last_eye_missing_textures),
+        static_cast<unsigned long long>(metal.last_eye_unexpected_dma),
+        static_cast<unsigned long long>(metal.last_eye_duplicate_slot_writes),
+        static_cast<unsigned long long>(metal.last_eye_command_buffers_committed),
+        static_cast<unsigned long long>(metal.last_eye_command_buffers_completed),
+        static_cast<unsigned long long>(metal.last_eye_command_buffer_errors),
+        static_cast<unsigned long long>(metal.last_pris_eye_dispatches),
+        static_cast<unsigned long long>(metal.last_pris_eye_present_dispatches),
+        static_cast<unsigned long long>(metal.last_pris_eye_chunks),
         static_cast<unsigned long long>(metal.last_sprite_placeholder_batches),
         static_cast<unsigned long long>(metal.last_sprite_placeholder_sprites),
         metal.last_sprite_first_placeholder_valid,
