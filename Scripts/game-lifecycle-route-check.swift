@@ -71,6 +71,14 @@ check(audioSession.contains("setCategory(.playback, mode: .default, options: [.m
       "game audio mixes with external media without ducking or interrupting speech")
 check(audio.contains("setActive(false, options: .notifyOthersOnDeactivation)"),
       "audio shutdown still notifies other active media sessions")
+let audioPull = section(audio,
+                        from: "func render(frameCount: AVAudioFrameCount",
+                        to: "return noErr\n    }\n}")
+check(audioPull.contains("let leftSample = scratch[frame * 2]")
+        && audioPull.contains("let rightSample = scratch[frame * 2 + 1]")
+        && audioPull.contains("loudest = max(loudest, max(abs(Int(leftSample)), abs(Int(rightSample))))")
+        && !audioPull.contains("for sample in 0..<(written * 2)"),
+      "the real-time audio callback measures peak amplitude during mandatory deinterleaving")
 
 let uiLifecycle = section(surfaceView,
                           from: "private final class MetalHostView: UIView",
@@ -140,6 +148,13 @@ check(occursInOrder([
 let armedTick = section(session,
                         from: "private func runArmedTick",
                         to: "private func updateNativeMenuState")
+check(session.contains("@ObservationIgnored private(set) var framesRun: UInt64 = 0")
+        && session.contains("@ObservationIgnored private(set) var framesPresented: UInt64 = 0"),
+      "per-frame diagnostic counters do not publish Swift Observation invalidations")
+check(armedTick.contains("if developerLogsEnabled, framesRun % 60 == 0")
+        && armedTick.contains("diagnosticsRevision &+= 1")
+        && content.contains("let _ = session.diagnosticsRevision"),
+      "the opt-in diagnostics overlay refreshes at a bounded cadence")
 check(occursInOrder([
     "let developerLogsEnabled = presentationSettings.developerLogsEnabled",
     "input.pushFrame",

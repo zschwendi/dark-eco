@@ -262,24 +262,26 @@ nonisolated private final class EnginePull: Sendable {
             return noErr
         }
 
-        var loudest = peak.load(ordering: .relaxed)
-        for sample in 0..<(written * 2) {
-            loudest = max(loudest, abs(Int(scratch[sample])))
-        }
-        peak.store(loudest, ordering: .relaxed)
-
         // The seam hands back interleaved stereo; the source node's standard format is two
         // deinterleaved float channels.
-        for (channel, buffer) in list.enumerated() {
-            guard let raw = buffer.mData else { continue }
-            let out = raw.assumingMemoryBound(to: Float.self)
-            let offset = min(channel, 1)
-            for frame in 0..<Int(frameCount) {
-                out[frame] = frame < written
-                    ? Float(scratch[frame * 2 + offset]) / 32768
-                    : 0
+        var loudest = peak.load(ordering: .relaxed)
+        let left = list.indices.contains(0)
+            ? list[0].mData?.assumingMemoryBound(to: Float.self) : nil
+        let right = list.indices.contains(1)
+            ? list[1].mData?.assumingMemoryBound(to: Float.self) : nil
+        for frame in 0..<Int(frameCount) {
+            if frame < written {
+                let leftSample = scratch[frame * 2]
+                let rightSample = scratch[frame * 2 + 1]
+                loudest = max(loudest, max(abs(Int(leftSample)), abs(Int(rightSample))))
+                left?[frame] = Float(leftSample) / 32768
+                right?[frame] = Float(rightSample) / 32768
+            } else {
+                left?[frame] = 0
+                right?[frame] = 0
             }
         }
+        peak.store(loudest, ordering: .relaxed)
         return noErr
     }
 }

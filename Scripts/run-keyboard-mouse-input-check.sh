@@ -33,6 +33,16 @@ rg -Fq 'guard Self.capturesRapidButtonEdge(from: element, on: pad) else { return
   "$root/GOALPad/Input/ControllerInput.swift"
 rg -Fq 'element is GCControllerButtonInput' "$root/GOALPad/Input/ControllerInput.swift"
 rg -Fq 'element === pad.dpad' "$root/GOALPad/Input/ControllerInput.swift"
+test "$(rg -Fc 'candidate.handlerQueue = .main' \
+  "$root/GOALPad/Input/ControllerInput.swift")" = 3
+test "$(rg -Fc 'MainActor.assumeIsolated {' \
+  "$root/GOALPad/Input/ControllerInput.swift")" = 4
+! sed -n '/private func adoptController/,/private func dropController/p' \
+  "$root/GOALPad/Input/ControllerInput.swift" | rg -Fq 'DispatchQueue.main.async'
+! sed -n '/private func adoptKeyboard/,/private func dropKeyboard/p' \
+  "$root/GOALPad/Input/ControllerInput.swift" | rg -Fq 'DispatchQueue.main.async'
+! sed -n '/private func adoptMouse/,/private func dropMouse/p' \
+  "$root/GOALPad/Input/ControllerInput.swift" | rg -Fq 'DispatchQueue.main.async'
 
 # Polling and rapid-edge callbacks share one fixed snapshot. Collection compatibility remains in
 # the pure bindings layer, but the Apple hot path must not reconstruct it each display frame.

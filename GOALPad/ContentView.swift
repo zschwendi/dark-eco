@@ -406,6 +406,7 @@ private struct DiagnosticsOverlay: View {
     @Bindable var session: GameSession
 
     var body: some View {
+        let _ = session.diagnosticsRevision
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 header

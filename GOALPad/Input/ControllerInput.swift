@@ -448,22 +448,19 @@ final class ControllerInput {
         guard controller !== candidate else { return }
 
         releaseController()
+        candidate.handlerQueue = .main
         controller = candidate
         controllerName = candidate.vendorName ?? candidate.productCategory
         isDualSense = candidate.extendedGamepad is GCDualSenseGamepad
         resetControllerButtonSnapshots()
         candidate.extendedGamepad?.valueChangedHandler = {
             [weak self, weak candidate] pad, element in
-            guard Self.capturesRapidButtonEdge(from: element, on: pad) else { return }
-            let snapshot = Self.controllerSnapshot(of: pad)
-            let touchpadPressed = Self.touchpadIsPressed(on: pad)
-            DispatchQueue.main.async { [weak self, weak candidate] in
-                MainActor.assumeIsolated {
-                    self?.recordControllerButtonSnapshot(
-                        snapshot: snapshot,
-                        touchpadPressed: touchpadPressed,
-                        from: candidate)
-                }
+            MainActor.assumeIsolated {
+                guard Self.capturesRapidButtonEdge(from: element, on: pad) else { return }
+                self?.recordControllerButtonSnapshot(
+                    snapshot: Self.controllerSnapshot(of: pad),
+                    touchpadPressed: Self.touchpadIsPressed(on: pad),
+                    from: candidate)
             }
         }
         motors = ControllerRumble(controller: candidate, isDualSense: isDualSense)
@@ -555,11 +552,12 @@ final class ControllerInput {
         guard keyboard !== candidate else { return }
 
         releaseKeyboard()
+        candidate.handlerQueue = .main
         keyboard = candidate
         input.keyChangedHandler = { [weak self, weak candidate] _, _, code, pressed in
-            guard let key = Self.keyboardKey(for: code) else { return }
-            DispatchQueue.main.async { [weak self, weak candidate] in
+            MainActor.assumeIsolated {
                 guard let self, self.keyboard === candidate else { return }
+                guard let key = Self.keyboardKey(for: code) else { return }
                 let changed: Bool
                 if key == .shift {
                     if pressed {
@@ -620,9 +618,10 @@ final class ControllerInput {
         guard mouse !== candidate else { return }
 
         releaseMouse()
+        candidate.handlerQueue = .main
         mouse = candidate
         input.mouseMovedHandler = { [weak self, weak candidate] _, deltaX, deltaY in
-            DispatchQueue.main.async { [weak self, weak candidate] in
+            MainActor.assumeIsolated {
                 guard let self, self.mouse === candidate else { return }
                 if self.keyboardMouseState.addMouseMovement(
                     deltaX: deltaX,
@@ -644,7 +643,7 @@ final class ControllerInput {
                                     from candidate: GCMouse) {
         guard let button else { return }
         button.pressedChangedHandler = { [weak self, weak candidate] _, _, pressed in
-            DispatchQueue.main.async { [weak self, weak candidate] in
+            MainActor.assumeIsolated {
                 guard let self, self.mouse === candidate else { return }
                 if self.keyboardMouseState.setControl(control, pressed: pressed) {
                     if self.bindings.action(for: control) != nil {

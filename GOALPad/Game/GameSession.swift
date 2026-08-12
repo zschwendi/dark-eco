@@ -47,8 +47,9 @@ final class GameSession {
     private(set) var facePromptTouchSnapshot: NativeFacePromptTouchSnapshot = .invalid
     private(set) var lookAroundState: GOALPadLookAroundState = .unknown
     private(set) var speederState: GOALPadSpeederState = .unknown
-    private(set) var framesRun: UInt64 = 0
-    private(set) var framesPresented: UInt64 = 0
+    @ObservationIgnored private(set) var framesRun: UInt64 = 0
+    @ObservationIgnored private(set) var framesPresented: UInt64 = 0
+    private(set) var diagnosticsRevision: UInt64 = 0
     private(set) var memoryWarnings = 0
     private(set) var startupError: String?
     private(set) var returnToLibraryRequestID: UInt64 = 0
@@ -455,6 +456,9 @@ final class GameSession {
                 returnToLibraryRequestID &+= 1
             }
             framesRun = nativeState.framesRun
+            if developerLogsEnabled, framesRun % 60 == 0 {
+                diagnosticsRevision &+= 1
+            }
             let currentMode = nativeState.gameMode
             let currentProgress = NativeProgressMenuSnapshot(nativeState.progressMenu)
             let currentTitleStartState = nativeState.titleStartState
