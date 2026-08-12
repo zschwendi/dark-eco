@@ -18522,3 +18522,62 @@ No physical device, installed app, user ZIP, app container, save, or imported
 game data was accessed. Do not delete the currently installed app to retest this
 checkpoint. A controlled Files-provider retry and gameplay-rumble acceptance
 remain physical gates, and no iPhone access is authorized.
+
+# 2026-08-11 Build 187 installation and Build 188 imported-size checkpoint
+
+After explicit maintainer authorization, the signed Build 187 product was
+installed in place on physical `Z iPad Pro` with `devicectl`; no uninstall was
+performed. Device inventory confirmed Dark Eco 1.0 (187), bundle
+`com.zephyrstudiosllc.eco`. The app was not launched and its container, saves,
+and imported data were not accessed. Installation evidence is recorded in:
+
+```text
+/private/tmp/goalpad-build187-install.json
+/private/tmp/goalpad-build187-inventory.json
+```
+
+Build 188 replaces the ready Game Setup file-count summary with the installed
+size, for example `Complete: Imported (1.62 GB)`. `ByteCountFormatter`'s file
+style supplies the localized decimal file-size value and unit. Ordinary body
+copy beneath it now says: `Game data is stored in the Dark Eco folder on this
+device. Keep that copy. After setup completes, you can delete the original ISO,
+ZIP, or prepared folder.` This is accurate for every supported import route:
+prepared-folder input is copied into candidate staging, raw ISO input is
+composed there, ZIP input is extracted and then composed, and only the validated
+candidate is atomically activated under `Documents/Jak1`.
+
+Build 188 implementation commit:
+
+```text
+69f56c9a Show imported game data size in Build 188
+```
+
+Focused validation passed:
+
+```text
+Scripts/run-game-data-install-check.sh
+Scripts/run-game-data-import-presentation-check.sh
+xcrun swift -frontend -parse <each changed Swift source and check individually>
+git diff --check
+```
+
+The serialized signed generic-iOS Release build passed with:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build169-ios-device -jobs 4 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack \
+  build
+```
+
+Log: `/private/tmp/goalpad-build188-ios-device.log`. The resulting product at
+`/private/tmp/GOALPad-build169-ios-device/Build/Products/Release-iphoneos/Dark Eco.app`
+is a signed ARM64 Dark Eco 1.0 (188) bundle, identifier
+`com.zephyrstudiosllc.eco`, team `V729QMY3V6`. Existing actor-isolation,
+generated-AOT, precision-conversion, and always-run script-phase warnings remain
+visible; there are no build errors.
+
+Build 188 was not installed or launched. Physical imported-size presentation and
+gameplay rumble remain maintainer acceptance gates. No iPhone was accessed.
