@@ -303,9 +303,9 @@ check(surface.contains("watchdog.observe(disposition) == .failClosed")
 check(surface.components(separatedBy: "prepareStereoFallback()").count - 1 == 1
         && bridge.contains("prepareStereoFallback")
         && renderSurface.contains("metal_host_prepare_stereo_fallback()")
-        && metalRenderer.contains("m_stream.quarantine_in_flight_pages()")
+        && metalRenderer.contains("m_external_stream.quarantine_in_flight_pages()")
         && metalRenderer.contains("m_external_stereo_disabled = true")
-        && metalRenderer.contains("m_last_stream_submission = 0"),
+        && metalRenderer.contains("m_external_stream_submission = 0"),
       "fallback quarantines stalled stream pages and removes the Comfort renderer wait")
 
 let rendererStereo = section(

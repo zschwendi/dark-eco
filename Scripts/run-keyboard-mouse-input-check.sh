@@ -36,7 +36,7 @@ rg -Fq 'element === pad.dpad' "$root/GOALPad/Input/ControllerInput.swift"
 test "$(rg -Fc 'candidate.handlerQueue = .main' \
   "$root/GOALPad/Input/ControllerInput.swift")" = 3
 test "$(rg -Fc 'MainActor.assumeIsolated {' \
-  "$root/GOALPad/Input/ControllerInput.swift")" = 4
+  "$root/GOALPad/Input/ControllerInput.swift")" = 12
 ! sed -n '/private func adoptController/,/private func dropController/p' \
   "$root/GOALPad/Input/ControllerInput.swift" | rg -Fq 'DispatchQueue.main.async'
 ! sed -n '/private func adoptKeyboard/,/private func dropKeyboard/p' \
@@ -48,7 +48,7 @@ test "$(rg -Fc 'MainActor.assumeIsolated {' \
 # the pure bindings layer, but the Apple hot path must not reconstruct it each display frame.
 rg -Fq 'let controllerSnapshot = Self.controllerSnapshot(of: gamepad)' \
   "$root/GOALPad/Input/ControllerInput.swift"
-rg -Fq 'let snapshot = Self.controllerSnapshot(of: pad)' \
+rg -Fq 'snapshot: Self.controllerSnapshot(of: pad)' \
   "$root/GOALPad/Input/ControllerInput.swift"
 rg -Fq 'if touchpadPressed { buttons.insert(.select) }' \
   "$root/GOALPad/Input/ControllerInput.swift"
