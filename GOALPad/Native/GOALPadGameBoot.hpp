@@ -22,6 +22,7 @@ enum class TitleStartState : std::uint8_t {
   Unknown,
   NotAwaiting,
   Awaiting,
+  TitleOpening,
   TitleSequence,
 };
 
@@ -739,7 +740,10 @@ inline TitleStartState read_title_start_state(const void* memory,
   if (state_name == target_title_wait_symbol) {
     return TitleStartState::Awaiting;
   }
-  if (state_name == target_title_symbol || state_name == target_title_play_symbol) {
+  if (state_name == target_title_symbol) {
+    return TitleStartState::TitleOpening;
+  }
+  if (state_name == target_title_play_symbol) {
     return TitleStartState::TitleSequence;
   }
   return TitleStartState::NotAwaiting;

@@ -223,6 +223,8 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
   switch (goalpad::title_start_state()) {
     case goalpad::TitleStartState::Awaiting:
       return GOALPadTitleStartStateAwaiting;
+    case goalpad::TitleStartState::TitleOpening:
+      return GOALPadTitleStartStateTitleOpening;
     case goalpad::TitleStartState::TitleSequence:
       return GOALPadTitleStartStateTitleSequence;
     case goalpad::TitleStartState::NotAwaiting:

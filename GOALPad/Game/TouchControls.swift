@@ -135,6 +135,7 @@ nonisolated enum GameplayRunReadiness: Equatable, Sendable {
         progress: NativeProgressMenuSnapshot
     ) -> Self {
         if mode == .gameplay, titleStartState == .awaiting { return .titlePrompt }
+        if mode == .gameplay, titleStartState == .titleOpening { return .titlePrompt }
         if mode == .gameplay, titleStartState == .titleSequence { return .titlePrompt }
         if mode == .gameplay, titleStartState == .notAwaiting { return .active }
         if current == .titlePrompt, mode == .progress { return .titleMenu }
@@ -702,6 +703,7 @@ nonisolated struct NativeSessionControlPresentation: Equatable, Sendable {
         case .gameplay:
             switch titleStartState {
             case .awaiting: return Self(action: .start, isEnabled: true)
+            case .titleOpening: return Self(action: .start, isEnabled: false)
             case .notAwaiting, .unknown:
                 return runReadiness == .active
                     ? Self(action: .pause, isEnabled: true)

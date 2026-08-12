@@ -66,8 +66,8 @@ int main() {
   expect(goalpad::read_title_start_state(memory.data(), memory.size(), 64, kTargetObject,
                                          kTargetType, kStateType, kTitleWait, kTitle,
                                          kTitlePlay) ==
-             goalpad::TitleStartState::TitleSequence,
-         "target-title remains in the non-interactive title sequence");
+             goalpad::TitleStartState::TitleOpening,
+         "target-title is the visible Start opening before the title sequence");
   write(memory, kStateObject + goalpad::live_state_layout::kStateNameOffset, kTitlePlay);
   expect(goalpad::read_title_start_state(memory.data(), memory.size(), 64, kTargetObject,
                                          kTargetType, kStateType, kTitleWait, kTitle,

@@ -114,6 +114,7 @@ typedef NS_ENUM(NSInteger, GOALPadTitleStartState) {
   GOALPadTitleStartStateUnknown,
   GOALPadTitleStartStateNotAwaiting,
   GOALPadTitleStartStateAwaiting,
+  GOALPadTitleStartStateTitleOpening,
   GOALPadTitleStartStateTitleSequence,
 };
 

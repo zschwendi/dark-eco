@@ -1658,6 +1658,11 @@ private func sessionControlStateMatrixIsExactAndFailClosed() {
         runReadiness: .preRun) == nil,
           "boot and pre-run gameplay do not show an inert Start control")
     check(NativeSessionControlPresentation.reduce(
+        mode: .gameplay, titleStartState: .titleOpening, progress: .unavailable,
+        runReadiness: .titlePrompt)
+          == NativeSessionControlPresentation(action: .start, isEnabled: false),
+          "the Daxter opening keeps visible but noninteractive Start artwork")
+    check(NativeSessionControlPresentation.reduce(
         mode: .gameplay, titleStartState: .titleSequence, progress: .unavailable,
         runReadiness: .titlePrompt) == nil,
           "the authored title animation hides Start until the prompt can accept it")

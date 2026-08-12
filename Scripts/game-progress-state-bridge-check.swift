@@ -16,6 +16,6 @@ let snapshot: GOALPadProgressMenuSnapshot = GOALPadRuntimeBridge.progressMenuSna
 inspect(snapshot)
 let _: GOALPadTitleStartState = GOALPadRuntimeBridge.titleStartState
 let titleStates: [GOALPadTitleStartState] = [
-    .unknown, .notAwaiting, .awaiting, .titleSequence,
+    .unknown, .notAwaiting, .awaiting, .titleOpening, .titleSequence,
 ]
-precondition(titleStates.count == 4)
+precondition(titleStates.count == 5)

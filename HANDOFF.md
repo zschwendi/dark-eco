@@ -18276,3 +18276,18 @@ generic iOS Release build passed, was installed and launched on physical
 ```text
 /private/tmp/goalpad-build173-ios-device.log
 ```
+
+# 2026-08-11 Build 174 exact title-opening Start checkpoint
+
+Build 174 separates live `target-title` from `target-title-play`. The app-owned
+Start pill is visible but inert during the Daxter/Naughty Dog opening, hidden
+during the later noninteractive Jak & Daxter title animation, and enabled only
+when `target-title-wait` displays and accepts PRESS START.
+
+The checkpoint is on branch `agent/build174-title-opening-start`. The signed
+generic iOS Release build passed, was installed and launched on physical
+`Z iPad Pro`, and device inventory confirmed Dark Eco 1.0 (174). Build log:
+
+```text
+/private/tmp/goalpad-build174-ios-device.log
+```
