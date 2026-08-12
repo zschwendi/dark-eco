@@ -1167,7 +1167,7 @@ evidence alone. Its final gate is a physical iPhone 13 Pro-class or newer
 ProMotion device containing the player's own prepared Jak 1 data. Physical
 access still requires explicit maintainer authorization for that request.
 
-Use the signed Build 208 app and the same warmed Spider Cave route for every
+Use the signed Build 209 app and the same warmed Spider Cave route for every
 run. Developer Logs must be off so display sampling, detailed renderer
 statistics, camera/Merc diagnostics, and presentation handlers do not perturb
 the shipping path. Keep the graphics profile, internal resolution, save, input
@@ -1185,12 +1185,12 @@ an explicit device and never installs or launches the app:
 Scripts/capture-ios-game-performance.sh \
   --device <authorized-device-name-or-UDID> \
   --mode 60 --kind overview \
-  --output /private/tmp/dark-eco-build208-60-a-overview
+  --output /private/tmp/dark-eco-build209-60-a-overview
 
 Scripts/capture-ios-game-performance.sh \
   --device <authorized-device-name-or-UDID> \
   --mode hfr --kind overview \
-  --output /private/tmp/dark-eco-build208-hfr-a-overview
+  --output /private/tmp/dark-eco-build209-hfr-a-overview
 ```
 
 Repeat the route with `--kind metal` and `--kind cpu` to collect a Metal System
@@ -1230,15 +1230,15 @@ nominal start thermal state, and state `low_power_mode` and `developer_logs` as
   "low_power_mode": false,
   "developer_logs": false,
   "nominal_start_thermal_state": "Nominal",
-  "installed_build_artifact": "Dark Eco 208, independently verified bundle/build and SHA-256"
+  "installed_build_artifact": "Dark Eco 209, independently verified bundle/build and SHA-256"
 }
 ```
 
 ```sh
 Scripts/analyze-ios-game-performance.py \
-  --input /private/tmp/dark-eco-build208-hfr-a-overview \
-  --output /private/tmp/dark-eco-build208-hfr-a-analysis \
-  --comparison-context /private/tmp/dark-eco-build208-hfr-a-context.json \
+  --input /private/tmp/dark-eco-build209-hfr-a-overview \
+  --output /private/tmp/dark-eco-build209-hfr-a-analysis \
+  --comparison-context /private/tmp/dark-eco-build209-hfr-a-context.json \
   --export-missing \
   --presentation-metric '<observed presentation interval name or label>' \
   --cpu-metric '<observed CPU frame metric name or label>' \
@@ -1265,11 +1265,11 @@ counterbalanced pairs, 60-A/HFR-A and HFR-B/60-B.
 
 ```sh
 Scripts/compare-ios-game-performance.py \
-  --60-a  /private/tmp/dark-eco-build208-60-a-analysis/report.json \
-  --hfr-a /private/tmp/dark-eco-build208-hfr-a-analysis/report.json \
-  --hfr-b /private/tmp/dark-eco-build208-hfr-b-analysis/report.json \
-  --60-b  /private/tmp/dark-eco-build208-60-b-analysis/report.json \
-  --output /private/tmp/dark-eco-build208-comparison
+  --60-a  /private/tmp/dark-eco-build209-60-a-analysis/report.json \
+  --hfr-a /private/tmp/dark-eco-build209-hfr-a-analysis/report.json \
+  --hfr-b /private/tmp/dark-eco-build209-hfr-b-analysis/report.json \
+  --60-b  /private/tmp/dark-eco-build209-60-b-analysis/report.json \
+  --output /private/tmp/dark-eco-build209-comparison
 ```
 
 HFR evidence is any observed cadence above 60 Hz in both HFR replicates; it

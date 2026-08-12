@@ -1428,8 +1428,13 @@ struct SaveSettingsView: View {
             #endif
 
             if settings.profile(for: .graphics) == .modern {
-                // Fit to Screen is the only additional Modern option today and duplicates the
-                // profile switch. Restore its explicit toggle once Modern has a settings group.
+                Toggle("Fit to Screen", isOn: Binding(
+                    get: { settings.graphicsFillWidth },
+                    set: { settings.setGraphicsFillWidth($0) }
+                ))
+                Text("Keeps the vertical view and widens the game horizontally to fill the display.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
 
                 #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
                 Toggle("Stereoscopic 3D", isOn: Binding(

@@ -622,6 +622,7 @@ private func defaultsUseModernGraphics() async throws {
     check(value.profile(for: .interface) == .classic, "UI begins in Classic")
     check(value.graphicsFillWidth, "Modern Graphics begins with Fill Width enabled")
     check(value.graphicsStereo3D, "Modern Graphics begins with Stereoscopic 3D enabled")
+    check(value.graphicsHighFrameRate, "Modern Graphics begins with ProMotion enabled")
     check(value.document.graphicsModernFillWidthOverride == nil,
           "the default uses the Modern option value instead of a stored override")
     check(value.document.graphicsModernStereo3DOverride == nil,
@@ -631,35 +632,48 @@ private func defaultsUseModernGraphics() async throws {
 
 @MainActor
 private func highFrameRatePersistsAndResets() async throws {
-    print("ProMotion is an opt-in presentation preference with a safe default")
+    print("ProMotion follows the graphics profile and preserves explicit overrides")
     let fixture = try Fixture(name: "high-frame-rate")
     let value = settings(fixture, writerID: "device-a", cloudAvailable: false)
+    check(value.graphicsHighFrameRate
+          && value.document.graphicsHighFrameRateOverride == nil,
+          "Modern enables ProMotion without storing an override")
+
+    value.setProfile(.classic, for: .graphics)
     check(!value.graphicsHighFrameRate
           && value.document.graphicsHighFrameRateOverride == nil,
-          "ProMotion begins off without a stored override")
+          "Classic disables ProMotion without storing an override")
 
     value.setGraphicsHighFrameRate(true)
     check(value.graphicsHighFrameRate
           && value.document.graphicsHighFrameRateOverride == true
           && readDocument(at: fixture.local)?.graphicsHighFrameRateOverride == true,
-          "enabling ProMotion persists the explicit presentation preference")
+          "Classic can persist an explicit ProMotion opt-in")
 
     let restored = settings(fixture, writerID: "device-b", cloudAvailable: false)
-    check(restored.graphicsHighFrameRate,
-          "the ProMotion preference survives local relaunch decoding")
-    restored.setProfile(.classic, for: .graphics)
-    check(restored.graphicsHighFrameRate,
-          "the launcher preference remains independent of the graphics profile")
+    check(restored.profile(for: .graphics) == .classic && restored.graphicsHighFrameRate,
+          "the Classic opt-in survives local relaunch decoding")
+
+    restored.setGraphicsHighFrameRate(false)
+    check(!restored.graphicsHighFrameRate
+          && restored.document.graphicsHighFrameRateOverride == nil,
+          "returning Classic to its off default clears the override")
+    restored.setProfile(.modern, for: .graphics)
+    restored.setGraphicsHighFrameRate(false)
+    check(!restored.graphicsHighFrameRate
+          && restored.document.graphicsHighFrameRateOverride == false
+          && readDocument(at: fixture.local)?.graphicsHighFrameRateOverride == false,
+          "Modern can persist an explicit ProMotion opt-out")
 
     restored.restoreDefaults(for: .graphics)
-    check(!restored.graphicsHighFrameRate
+    check(restored.graphicsHighFrameRate
           && restored.document.graphicsHighFrameRateOverride == nil,
-          "Restore Graphics Defaults clears ProMotion")
-    restored.setGraphicsHighFrameRate(true)
+          "Restore Graphics Defaults returns Modern ProMotion to on")
+    restored.setGraphicsHighFrameRate(false)
     restored.resetAll()
-    check(!restored.graphicsHighFrameRate
+    check(restored.graphicsHighFrameRate
           && restored.document.graphicsHighFrameRateOverride == nil,
-          "Reset All to Defaults clears ProMotion")
+          "Reset All to Defaults restores Modern ProMotion")
 }
 
 @MainActor
@@ -676,7 +690,8 @@ private func savedChoicesSurviveNewDefaults() async throws {
     check(restoredClassic.profile(for: .controls) == .modern
           && restoredClassic.profile(for: .graphics) == .classic
           && !restoredClassic.graphicsFillWidth
-          && !restoredClassic.graphicsStereo3D,
+          && !restoredClassic.graphicsStereo3D
+          && !restoredClassic.graphicsHighFrameRate,
           "a saved Classic Graphics selection loads unchanged")
 
     let modernFixture = try Fixture(name: "saved-modern-override")
@@ -701,6 +716,7 @@ private func profilesCanBeMixedWithoutLosingOptions() async throws {
     value.setProfile(.modern, for: .graphics)
     check(value.graphicsFillWidth, "Modern graphics defaults Fill Width on")
     check(value.graphicsStereo3D, "Modern graphics defaults Stereoscopic 3D on")
+    check(value.graphicsHighFrameRate, "Modern graphics defaults ProMotion on")
     value.setGraphicsFillWidth(false)
     value.setGraphicsStereo3D(false)
     value.setProfile(.classic, for: .graphics)
@@ -725,6 +741,7 @@ private func profilesCanBeMixedWithoutLosingOptions() async throws {
           && value.profile(for: .interface) == .classic
           && value.graphicsFillWidth
           && value.graphicsStereo3D
+          && value.graphicsHighFrameRate
           && value.document.graphicsModernFillWidthOverride == nil
           && value.document.graphicsModernStereo3DOverride == nil,
           "Reset All restores the default Modern Graphics mix")
@@ -768,7 +785,7 @@ private func cloudSettingsAndTouchLayoutConverge() async throws {
     first.setProfile(.modern, for: .audio)
     first.setGraphicsFillWidth(false)
     first.setGraphicsStereo3D(false)
-    first.setGraphicsHighFrameRate(true)
+    first.setGraphicsHighFrameRate(false)
     first.setControllerAction(.square, for: .buttonA)
     first.setKeyboardMouseAction(.stats, for: .spacebar)
     first.setKeyboardMouseAction(.moveForward, for: .returnOrEnter)
@@ -791,8 +808,9 @@ private func cloudSettingsAndTouchLayoutConverge() async throws {
           "a second device receives every changed section profile together")
     check(!second.graphicsFillWidth && !second.graphicsStereo3D,
           "the second device receives the customized Modern options")
-    check(second.graphicsHighFrameRate,
-          "the second device receives the persisted ProMotion preference")
+    check(!second.graphicsHighFrameRate
+          && second.document.graphicsHighFrameRateOverride == false,
+          "the second device receives the persisted Modern ProMotion opt-out")
     check(second.jak1InputBindings.action(for: .buttonA) == .square
           && second.jak1InputBindings.action(for: .buttonX) == .cross
           && second.jak1InputBindings.action(for: .spacebar) == .stats
