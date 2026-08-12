@@ -12,7 +12,7 @@ struct GameDataSetupView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: isImportComplete ? 32 : 18) {
                 if !isImportComplete {
                     header
                 }
@@ -28,6 +28,7 @@ struct GameDataSetupView: View {
                 }
             }
             .padding(24)
+            .padding(.top, isImportComplete ? 16 : 0)
             .frame(maxWidth: 680, alignment: .leading)
         }
         .safeAreaPadding()
@@ -46,6 +47,7 @@ struct GameDataSetupView: View {
                 }
                 selectionError = nil
                 session.importer.start(from: source) {
+                    session.saveSync.gameDataImportDidFinish()
                     await session.refreshDataReport()
                 }
             case .failure(let error):
@@ -162,11 +164,6 @@ struct GameDataSetupView: View {
                 Text(GameDataImportPresentation.backgroundGuidance)
                     .font(.footnote)
                     .foregroundStyle(DarkEcoTheme.warning)
-                Text(GameDataImportPresentation.cancellationGuidance(
-                    isActivating: progress.phase == .activatingCandidate
-                ))
-                    .font(.footnote)
-                    .foregroundStyle(.white.opacity(0.72))
 
                 if progress.phase != .activatingCandidate {
                     Button("Cancel import", role: .destructive) { session.importer.cancel() }

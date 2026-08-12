@@ -112,7 +112,7 @@ final class AudioOutput {
     private func activateSession() throws {
         #if os(iOS) || os(visionOS)
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playback, mode: .default)
+        try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
         try session.setPreferredSampleRate(Double(sampleRate))
         try session.setPreferredIOBufferDuration(0.01)
         try session.setActive(true)

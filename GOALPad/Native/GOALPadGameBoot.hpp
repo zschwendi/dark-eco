@@ -939,6 +939,8 @@ CameraFrameIdentity current_camera_frame_identity() noexcept;
 
 std::uint64_t frames_run() noexcept;
 bool game_is_booted() noexcept;
+/*! True after Jak's title-menu Quit asks the app host to close the running session. */
+bool exit_to_library_requested() noexcept;
 /*! Jak's own `*master-mode*`, read without advancing or mutating the game. */
 GameMode game_mode() noexcept;
 TitleStartState title_start_state() noexcept;

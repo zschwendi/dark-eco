@@ -170,6 +170,10 @@ struct ContentView: View {
         .onChange(of: session.isNativeMenuOpen) { _, isOpen in
             if session.isRunning && !isOpen { settingsPresentation = nil }
         }
+        .onChange(of: session.returnToLibraryRequestID) { oldRequest, newRequest in
+            guard newRequest != oldRequest else { return }
+            returnToLibrary()
+        }
         #if os(visionOS)
         .ornament(
             visibility: session.input.isConnected ? .hidden : .visible,

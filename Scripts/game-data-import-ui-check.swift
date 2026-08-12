@@ -19,6 +19,17 @@ private func source(at path: String) -> String {
     return source
 }
 
+private func occursInOrder(_ needles: [String], in source: String) -> Bool {
+    var lower = source.startIndex
+    for needle in needles {
+        guard let match = source.range(of: needle, range: lower..<source.endIndex) else {
+            return false
+        }
+        lower = match.upperBound
+    }
+    return true
+}
+
 guard CommandLine.arguments.count == 2 else {
     print("usage: swift Scripts/game-data-import-ui-check.swift <repository-root>")
     Foundation.exit(2)
@@ -53,9 +64,10 @@ check(view.contains("ProgressView(value: progress.overallProgress)")
         && !view.contains("progress.currentFile")
         && !view.contains("progress.filesCopied")
         && view.contains("GameDataImportPresentation.backgroundGuidance")
-        && view.contains("GameDataImportPresentation.cancellationGuidance(")
+        && !view.contains("cancellationGuidance")
+        && !presentation.contains("cancellationGuidance")
         && view.contains("if progress.phase != .activatingCandidate"),
-      "one aggregate progress bar keeps player-facing status, foreground safety, and cancellation boundaries")
+      "import progress keeps foreground safety and the activation cancellation boundary without redundant guidance")
 check(view.contains("case .failed(let failure)")
         && view.contains("failure.recoveryMessage")
         && view.contains("case .cancelling:")
@@ -91,9 +103,11 @@ check(view.contains("if !isImportComplete")
         && view.contains(".frame(height: 88)")
         && view.contains(".tint(DarkEcoTheme.accent)")
         && view.contains(".frame(maxWidth: .infinity, alignment: .center)")
+        && view.contains("VStack(alignment: .leading, spacing: isImportComplete ? 32 : 18)")
+        && view.contains(".padding(.top, isImportComplete ? 16 : 0)")
         && !view.contains("ProgressView(value: 1)")
         && !view.contains("100% complete"),
-      "completed setup collapses to the imported size and centered double-height Play Now action")
+      "completed setup adds deliberate title and Play Now spacing around the imported-size card")
 check(library.contains("title: Text(\"Set Up \\(GameLibraryTitle.jak1.name)\")")
         && libraryModel.contains("Provide game data from a copy of")
         && !libraryModel.contains("This build accepts"),
@@ -131,7 +145,11 @@ check(library.contains(".preparing(.checkingLocalData)")
         && session.contains("refreshTask = latestRefreshTask")
         && view.contains(".task { _ = await session.refreshDataReport() }"),
       "launcher uses one inline purple spinner for indeterminate local and save work")
-check(view.contains("session.importer.start(from: source) {\n                    await session.refreshDataReport()")
+check(view.contains("session.importer.start(from: source)")
+        && occursInOrder([
+            "session.saveSync.gameDataImportDidFinish()",
+            "await session.refreshDataReport()",
+        ], in: view)
         && importer.contains("onFinish: @escaping @MainActor () async -> Void")
         && importer.contains("await onFinish()\n                state = .finished")
         && importer.contains("state = .cancelling\n        task?.cancel()")
@@ -144,7 +162,7 @@ check(view.contains("session.importer.start(from: source) {\n                   
         && view.contains(".disabled(session.isRefreshingDataReport)")
         && view.contains(".disabled(!session.importer.canStart || session.isRefreshingDataReport)")
         && view.contains("!session.dataReport.canBoot || session.isRefreshingDataReport"),
-      "import completion awaits launcher readiness and Recheck exposes its active work")
+      "import completion invalidates stale save snapshots before refreshing launcher readiness")
 check(theme.contains("static let background") && theme.contains("static let accent")
         && theme.contains("static let warning") && theme.contains("struct DarkEcoPanel"),
       "the reusable theme exposes surface, accent, warning, and panel seams")

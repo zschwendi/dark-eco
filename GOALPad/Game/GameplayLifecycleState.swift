@@ -142,8 +142,8 @@ enum GameplayStartupReadiness {
         }
 
         guard isSceneActive() else { return .sceneInactive }
-        if waitedForForegroundPreparation {
-            return foregroundPreparationSucceeded() ? .ready : .saveRecoveryFailed
+        if waitedForForegroundPreparation, !foregroundPreparationSucceeded() {
+            return .saveRecoveryFailed
         }
 
         setPhase(.checkingSaves)

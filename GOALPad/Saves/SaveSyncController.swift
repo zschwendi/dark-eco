@@ -143,7 +143,7 @@ final class SaveSyncController {
             defaults.set(isEnabled, forKey: Self.enabledDefaultsKey)
             if isEnabled {
                 cloudMetadataMonitor?.start()
-                needsBidirectionalSyncBeforeGameplay = true
+                markBidirectionalSyncRequired()
                 status = .waiting
                 scheduleAutomaticSync(.bidirectional, announceWaiting: true)
             } else {
@@ -176,6 +176,7 @@ final class SaveSyncController {
     private var pendingSyncMode: SaveSyncMode?
     private var activeSyncMode: SaveSyncMode?
     private var needsBidirectionalSyncBeforeGameplay = true
+    private var bidirectionalSyncRequirementGeneration: UInt64 = 0
     private var gameplayReadinessDidChange: (() -> Void)?
     private var automaticSyncTask: Task<Void, Never>?
     private var automaticSyncGeneration = 0
@@ -393,6 +394,14 @@ final class SaveSyncController {
         return await checkLocalGameplaySafety()
     }
 
+    /// Importing can outlive the launcher's first provider snapshot. Require one final cloud
+    /// reconciliation before the newly imported game is allowed to boot.
+    func gameDataImportDidFinish() {
+        guard isEnabled else { return }
+        markBidirectionalSyncRequired()
+        gameplayReadinessDidChange?()
+    }
+
     private func checkLocalGameplaySafety() async -> Bool {
         activeOperation = .checking
         do {
@@ -514,7 +523,7 @@ final class SaveSyncController {
             cancelPendingFrameCheck()
         }
         if wasActive, !active {
-            needsBidirectionalSyncBeforeGameplay = true
+            markBidirectionalSyncRequired()
         }
     }
 
@@ -629,7 +638,7 @@ final class SaveSyncController {
     private func ubiquityIdentityDidChange() {
         guard isEnabled else { return }
         cloudMetadataMonitor?.restart()
-        needsBidirectionalSyncBeforeGameplay = true
+        markBidirectionalSyncRequired()
         cloudUnavailableMessage = nil
         if activeOperation == nil {
             status = .waiting
@@ -639,7 +648,7 @@ final class SaveSyncController {
 
     private func cloudContentDidChange() {
         guard isEnabled else { return }
-        needsBidirectionalSyncBeforeGameplay = true
+        markBidirectionalSyncRequired()
         cloudContentChangeGeneration += 1
         let generation = cloudContentChangeGeneration
         cloudContentChangeTask?.cancel()
@@ -663,6 +672,11 @@ final class SaveSyncController {
         cloudContentChangeTask = nil
     }
 
+    private func markBidirectionalSyncRequired() {
+        bidirectionalSyncRequirementGeneration &+= 1
+        needsBidirectionalSyncBeforeGameplay = true
+    }
+
     private func drainPendingSync() async {
         guard !hasActiveSaveWork else { return }
         while isEnabled, let mode = pendingSyncMode {
@@ -670,6 +684,7 @@ final class SaveSyncController {
             activeOperation = .syncing
             activeSyncMode = mode
             status = .syncing
+            let requirementGenerationAtStart = bidirectionalSyncRequirementGeneration
             var completedBidirectionalReconciliation = false
             do {
                 let outcome = try await engine.sync(mode: mode)
@@ -690,6 +705,7 @@ final class SaveSyncController {
             }
             if mode == .bidirectional {
                 needsBidirectionalSyncBeforeGameplay = !completedBidirectionalReconciliation
+                    || requirementGenerationAtStart != bidirectionalSyncRequirementGeneration
             }
             activeOperation = nil
             activeSyncMode = nil

@@ -25,11 +25,11 @@ struct TouchControlsGuideView: View {
                 TouchControlsInfographic()
 
                 VStack(spacing: 14) {
-                    guideRow(symbol: "↕", title: "Swipe Actions",
-                             detail: "Swipe anywhere on the right side:\n• Up: Jump\n• Down: Crouch\n• Left: Punch\n• Right: Spin Kick")
-                    guideRow(symbol: "L", title: "Movement")
-                    guideRow(symbol: "R", title: "Camera")
-                    guideRow(symbol: "↑", title: "Speeder controls",
+                    guideRow(symbol: .systemImage("hand.tap.fill"), title: "Swipe Actions",
+                             detail: "Swipe anywhere on the right side\n- Up: Jump\n- Down: Crouch\n- Left: Punch\n- Right: Spin Kick")
+                    guideRow(symbol: .text("L"), title: "Movement")
+                    guideRow(symbol: .text("R"), title: "Camera")
+                    guideRow(symbol: .systemImage("rocket.fill"), title: "Speeder controls",
                              detail: "Swipe up and hold to accelerate. Swipe down to hop brake.")
                 }
 
@@ -45,9 +45,22 @@ struct TouchControlsGuideView: View {
         .navigationTitle("Touch Controls")
     }
 
-    private func guideRow(symbol: String, title: String, detail: String? = nil) -> some View {
+    private enum GuideSymbol {
+        case text(String)
+        case systemImage(String)
+    }
+
+    private func guideRow(symbol: GuideSymbol, title: String, detail: String? = nil) -> some View {
         HStack(alignment: .top, spacing: 14) {
-            Text(symbol)
+            Group {
+                switch symbol {
+                case .text(let text):
+                    Text(text)
+                case .systemImage(let name):
+                    Image(systemName: name)
+                        .accessibilityHidden(true)
+                }
+            }
                 .font(.system(size: 17, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .frame(width: 42, height: 42)

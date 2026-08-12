@@ -255,6 +255,8 @@ typedef struct GOALPadFacePromptTouchSnapshot {
 
 @property(class, nonatomic, readonly) uint64_t framesRun;
 @property(class, nonatomic, readonly, getter=isGameBooted) BOOL gameBooted;
+/// Jak's title-menu Quit requested that the app close this session and show the Library.
+@property(class, nonatomic, readonly) BOOL exitToLibraryRequested;
 /// Jak's own `*master-mode*`; reading it never advances or mutates gameplay.
 @property(class, nonatomic, readonly) GOALPadGameMode gameMode;
 /// Exact read of whether Jak's live target is waiting at, traversing, or outside the title flow.

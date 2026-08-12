@@ -204,6 +204,10 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
   return goalpad::game_is_booted() ? YES : NO;
 }
 
++ (BOOL)exitToLibraryRequested {
+  return goalpad::exit_to_library_requested() ? YES : NO;
+}
+
 + (GOALPadGameMode)gameMode {
   switch (goalpad::game_mode()) {
     case goalpad::GameMode::Gameplay:

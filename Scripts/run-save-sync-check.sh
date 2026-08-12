@@ -24,6 +24,7 @@ swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
   "$root/GOALPad/Saves/SaveSyncEngine.swift" \
   "$root/GOALPad/Game/PresentationSettings.swift" \
   "$root/GOALPad/Saves/SaveSyncController.swift" \
+  "$root/Scripts/save-sync-ui-test-stubs.swift" \
   "$root/Scripts/save-sync-check.swift" \
   "$input_stubs" \
   -o "$out"

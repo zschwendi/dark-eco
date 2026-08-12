@@ -50,6 +50,7 @@ final class GameSession {
     private(set) var framesPresented: UInt64 = 0
     private(set) var memoryWarnings = 0
     private(set) var startupError: String?
+    private(set) var returnToLibraryRequestID: UInt64 = 0
     private(set) var isRefreshingDataReport = false
     private(set) var displayMeanMilliseconds = 0.0
     private(set) var displayP95Milliseconds = 0.0
@@ -82,6 +83,7 @@ final class GameSession {
     private var foregroundPreparationTask: Task<Void, Never>?
     private var foregroundPreparationGeneration: UInt64?
     private var controlsGuideSuspension = ControlsGuideSuspensionState()
+    private var handledNativeExitToLibraryRequest = false
     var startupPhase: GameplayStartupPhase { startupState.phase }
     private var isStartingGameplay: Bool { startupPhase.isPreparing }
     private var isPreparingGameplay: Bool {
@@ -226,6 +228,7 @@ final class GameSession {
         }
 
         saveSync.setGameplayActive(true)
+        handledNativeExitToLibraryRequest = false
         startupError = nil
         settings.apply()
         runReadiness = .preRun
@@ -289,6 +292,7 @@ final class GameSession {
         persistCameraDiagnosticsForLifecycleEvent()
         #endif
         GOALPadRuntimeBridge.stopKernel()
+        handledNativeExitToLibraryRequest = false
         kernel = nil
         boot = nil
         isRunning = false
@@ -427,6 +431,11 @@ final class GameSession {
         // Its DMA send renders synchronously while out-of-chain Merc bones still match the chain.
         var shouldLog = false
         if GOALPadRuntimeBridge.runFrame(at: targetPresentationTime) {
+            if GOALPadRuntimeBridge.exitToLibraryRequested,
+               !handledNativeExitToLibraryRequest {
+                handledNativeExitToLibraryRequest = true
+                returnToLibraryRequestID &+= 1
+            }
             framesRun = GOALPadRuntimeBridge.framesRun
             let currentMode = GOALPadRuntimeBridge.gameMode
             let currentProgress = NativeProgressMenuSnapshot(

@@ -48,8 +48,24 @@ guard CommandLine.arguments.count == 2 else {
 
 let root = CommandLine.arguments[1]
 let session = source(at: root + "/GOALPad/Game/GameSession.swift")
+let content = source(at: root + "/GOALPad/ContentView.swift")
+let audio = source(at: root + "/GOALPad/Audio/AudioOutput.swift")
+let gameBoot = source(at: root + "/GOALPad/Native/GOALPadGameBoot.cpp")
+let gameBootHeader = source(at: root + "/GOALPad/Native/GOALPadGameBoot.hpp")
+let bridge = source(at: root + "/GOALPad/Native/GOALPadRuntimeBridge.h")
+let bridgeImplementation = source(at: root + "/GOALPad/Native/GOALPadRuntimeBridge.mm")
 let surfaceView = source(at: root + "/GOALPad/Game/GameSurfaceView.swift")
 let renderSurface = source(at: root + "/GOALPad/Native/GOALPadRenderSurface.mm")
+
+let audioSession = section(audio,
+                           from: "private func activateSession() throws",
+                           to: "private func deactivateSession()")
+check(audioSession.contains("setCategory(.playback, mode: .default, options: [.mixWithOthers])")
+        && !audioSession.contains(".duckOthers")
+        && !audioSession.contains(".interruptSpokenAudioAndMixWithOthers"),
+      "game audio mixes with external media without ducking or interrupting speech")
+check(audio.contains("setActive(false, options: .notifyOthersOnDeactivation)"),
+      "audio shutdown still notifies other active media sessions")
 
 let uiLifecycle = section(surfaceView,
                           from: "private final class MetalHostView: UIView",
@@ -111,8 +127,32 @@ let armedTick = section(session,
 check(occursInOrder([
     "input.pushFrame",
     "GOALPadRuntimeBridge.runFrame(at: targetPresentationTime)",
+    "GOALPadRuntimeBridge.exitToLibraryRequested",
+    "returnToLibraryRequestID &+= 1",
     "let framePresented = endFrame()",
 ], in: armedTick), "the shared frame body pushes input, runs once, then ends presentation")
+
+let nativeMachineOverrides = section(gameBoot,
+                                     from: "void install_app_machine_functions()",
+                                     to: "goalpad::BootStatus failure")
+check(gameBoot.contains("u64 app_kernel_shutdown()")
+        && nativeMachineOverrides.contains("make_function_symbol_from_c(\"kernel-shutdown\"")
+        && gameBoot.contains("g_exit_to_library_requested = true;")
+        && gameBoot.contains("MasterExit = RuntimeExitStatus::EXIT;")
+        && gameBoot.contains("g_exit_to_library_requested = false;")
+        && gameBootHeader.contains("bool exit_to_library_requested() noexcept;")
+        && bridge.contains("exitToLibraryRequested")
+        && bridgeImplementation.contains("goalpad::exit_to_library_requested()"),
+      "title Quit preserves kernel exit semantics and publishes one host navigation request")
+
+let nativeReturnRoute = section(content,
+                                from: ".onChange(of: session.returnToLibraryRequestID)",
+                                to: "#if os(visionOS)")
+check(nativeReturnRoute.contains("newRequest != oldRequest")
+        && nativeReturnRoute.contains("returnToLibrary()")
+        && content.contains("launcherDestination = .library")
+        && content.contains("session.shutdown()"),
+      "a native title Quit closes the session through the existing Library route")
 
 let controlsGuide = section(session,
                             from: "func presentTouchControlsGuide()",

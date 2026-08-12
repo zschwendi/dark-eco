@@ -118,8 +118,8 @@ private func queuedStartSucceedsExactlyOnce() async {
     await first.value
     check(harness.lastOutcome == .ready && harness.bootStarts == 1,
           "successful foreground preparation continues to one boot")
-    check(harness.saveSyncCalls == 0,
-          "the completed foreground save gate is reused instead of running twice")
+    check(harness.saveSyncCalls == 1,
+          "Play performs one final freshness check after foreground save preparation")
 }
 
 @MainActor

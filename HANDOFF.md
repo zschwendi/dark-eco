@@ -18770,3 +18770,94 @@ inspected. Device inventory reports Dark Eco 1.0 (194), bundle identifier
 
 The command-level launch succeeded. Visual acceptance of the spinner colors and
 touch-guide copy/layout remains with the maintainer. No iPhone was accessed.
+
+# 2026-08-12 Build 195 setup, saves, audio, and title-menu checkpoint
+
+Build 195 is implemented in
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-build165-touch-controls` on
+`agent/build181-input-settings-polish`. The nested OpenGOAL checkpoint is
+`8e6042595` (`Hide unsupported menu rows on managed displays`) on
+`agent/build183-rumble-gate`.
+
+Game Setup removes the import cancellation footnote, gives the completed state
+more deliberate vertical spacing, and keeps the previously accepted centered
+Play Now presentation. The Touch Controls guide uses a hand-tap symbol for
+Swipe Actions, a rocket for Speeder controls, dash-prefixed directions, and no
+punctuation after `Swipe anywhere on the right side`.
+
+Completing a game-data import now invalidates any earlier empty iCloud save
+snapshot. Play performs one final coalesced bidirectional freshness check before
+boot, including when foreground preparation already completed. A generation
+latch prevents provider or import invalidations that arrive during an active
+sync from being cleared by that older sync.
+
+Title-screen Quit now overrides the reporting-only `kernel-shutdown` stub,
+sets the portable kernel `MasterExit` state, and publishes a one-shot request
+through the native bridge. `ContentView` consumes that request through the
+existing session teardown and Library route. Gameplay Quit remains Jak's
+existing return-to-title action. The iOS audio session remains `.playback` but
+uses `.mixWithOthers`, without ducking or spoken-audio interruption options.
+
+Managed-display title and pause menus omit the PC-only Secrets and Disable Auto
+Save rows whose custom text IDs are unavailable in the current retail text
+pack. Desktop OpenGOAL retains its extended menus. The changed GOAL graph was
+compiled into a fresh 518-object AOT corpus: 10,631 emitted functions, seven
+native functions, and zero source failures.
+
+Focused validation passed:
+
+```text
+Scripts/run-game-data-import-presentation-check.sh
+Scripts/run-session-startup-readiness-check.sh
+Scripts/run-game-lifecycle-check.sh
+Scripts/run-mobile-menu-copy-check.sh
+Scripts/run-save-sync-check.sh
+Scripts/verify-generated-aot.sh Generated/jak1-aot 518
+xcrun swift -frontend -parse <each changed Swift source/check individually>
+sh -n <each changed shell runner>
+plutil -lint GOALPad.xcodeproj/project.pbxproj
+git diff --check
+```
+
+The complete save-sync suite includes the regression where a cloud save appears
+after the launcher's initial empty provider snapshot but before Play. Repairing
+its stale macOS harness also exposed and corrected one old assertion that had
+incorrectly expected a lightweight frame check to publish a visible operation.
+
+Two broader baseline runners remain non-green outside this checkpoint. The
+presentation UI runner has seven unrelated stale settings/cloud/layout
+assertions, while its changed touch-guide assertion passes. The touch runner's
+macOS-hosted view compile still cannot resolve the existing iOS-only `UIDevice`
+expression after its source assertions pass.
+
+The first signed build attempt caught a missing declaration for the desktop
+shutdown helper. After adding that header, the link correctly showed the
+desktop implementation is not part of the iPad target. The final narrow code
+uses the linked portable `MasterExit = RuntimeExitStatus::EXIT` operation; the
+rerun passed. Final command:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build194-derived -jobs 4 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack \
+  build
+```
+
+Final log: `/private/tmp/goalpad-build195-signed-device-build-final.log`.
+Product:
+`/private/tmp/GOALPad-build194-derived/Build/Products/Release-iphoneos/Dark Eco.app`.
+It is a signed arm64 Dark Eco 1.0 (195) app, identifier
+`com.zephyrstudiosllc.eco`, team `V729QMY3V6`; strict deep codesign verification
+passed. Existing actor-isolation, generated-AOT, conversion, and always-run
+script warnings remain.
+
+Build 195 was not installed, launched, or attached to Instruments. No physical
+device, app container, save, imported game data, or user archive was accessed.
+Physical acceptance remains required for title Quit, post-import cloud-save
+visibility, mixed external audio, menu copy, and UI spacing. The next separate
+checkpoint should add low-overhead CPU-frame, presentation-gap, GPU-time,
+memory, and thermal telemetry before a controlled physical M5 iPad profile;
+do not infer device authorization from this handoff.

@@ -18,6 +18,7 @@
 #include "common/symbols.h"
 
 #include "game/kernel/common/kernel_types.h"
+#include "game/kernel/common/kboot.h"
 #include "game/kernel/common/klink.h"
 #include "game/kernel/common/kprint.h"
 #include "game/kernel/common/kscheme.h"
@@ -47,6 +48,7 @@ os_log_t boot_log() {
 
 bool g_booted = false;
 std::uint64_t g_frames = 0;
+bool g_exit_to_library_requested = false;
 Ptr<jak1::Symbol> g_dispatcher;
 int32_t* g_master_mode = nullptr;
 std::uint32_t g_gameplay_mode = 0;
@@ -257,6 +259,12 @@ s32 app_file_stream_write(u64 fs, u64 buffer, s32 size) {
   return -1;
 }
 
+u64 app_kernel_shutdown() {
+  g_exit_to_library_requested = true;
+  MasterExit = RuntimeExitStatus::EXIT;
+  return 0;
+}
+
 void install_app_machine_functions() {
   jak1::make_function_symbol_from_c("pc-filepath-exists?", (void*)app_pc_filepath_exists);
   // The app writes nothing outside its own container, so it does not make directories for GOAL.
@@ -270,6 +278,9 @@ void install_app_machine_functions() {
   jak1::make_function_symbol_from_c("file-stream-seek", (void*)app_file_stream_seek);
   jak1::make_function_symbol_from_c("file-stream-read", (void*)app_file_stream_read);
   jak1::make_function_symbol_from_c("file-stream-write", (void*)app_file_stream_write);
+  // Title-screen Quit asks the platform host to close the running game. The app owns the frame
+  // loop and navigation, so publish that request after preserving the kernel's normal exit state.
+  jak1::make_function_symbol_from_c("kernel-shutdown", (void*)app_kernel_shutdown);
 }
 
 goalpad::BootStatus failure(std::string message) {
@@ -390,6 +401,7 @@ BootStatus boot_game() noexcept {
     if (g_booted) {
       return failure("The game is already booted.");
     }
+    g_exit_to_library_requested = false;
 
     register_aot_objects();
 
@@ -756,6 +768,7 @@ FrameChainStats frame_chain_stats() noexcept {
 void reset_game() noexcept {
   g_booted = false;
   g_frames = 0;
+  g_exit_to_library_requested = false;
   g_dispatcher = Ptr<jak1::Symbol>();
   g_master_mode = nullptr;
   g_gameplay_mode = 0;
@@ -802,6 +815,10 @@ std::uint64_t frames_run() noexcept {
 
 bool game_is_booted() noexcept {
   return g_booted;
+}
+
+bool exit_to_library_requested() noexcept {
+  return g_exit_to_library_requested;
 }
 
 GameMode game_mode() noexcept {
@@ -945,6 +962,10 @@ std::uint64_t frames_run() noexcept {
 }
 
 bool game_is_booted() noexcept {
+  return false;
+}
+
+bool exit_to_library_requested() noexcept {
   return false;
 }
 

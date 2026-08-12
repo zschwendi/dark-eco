@@ -2296,6 +2296,40 @@ private func fastStartupSyncIsNotRepeatedBeforePlay() async throws {
 }
 
 @MainActor
+private func gameDataImportRequiresFreshCloudSnapshotBeforePlay() async throws {
+    print("game-data import invalidates an earlier empty cloud snapshot before Play")
+    let entries = OperationLog()
+    let fixture = try Fixture(operationAwaitHook: { await entries.append("sync") })
+    let defaults = UserDefaults(
+        suiteName: "goalpad-import-save-freshness-\(UUID().uuidString)")!
+    let controller = SaveSyncController(defaults: defaults, engine: fixture.engine,
+                                        pregameWaitInterval: .milliseconds(1))
+
+    await controller.prepare()
+    let initialSyncStarted = await waitForOperationCount(1, in: entries)
+    let initialSyncFinished = await waitForController { !controller.isBusy }
+    check(initialSyncStarted && initialSyncFinished,
+          "the launcher's initial empty provider snapshot completes")
+
+    let cloudEven = jak1Bank(progress: 64, saveCount: 6, marker: 64)
+    let cloudOdd = jak1Bank(progress: 63, saveCount: 5, marker: 63)
+    let cloudDate = Date(timeIntervalSince1970: 1_700_000_000)
+    try writeBank(progress: 64, saveCount: 6, marker: 64,
+                  to: bankFilePath(0), under: fixture.cloud, modificationDate: cloudDate)
+    try writeBank(progress: 63, saveCount: 5, marker: 63,
+                  to: bankFilePath(1), under: fixture.cloud, modificationDate: cloudDate)
+
+    controller.gameDataImportDidFinish()
+    let ready = await controller.syncBeforeGameplay()
+    let completedEntries = await entries.entries()
+    check(ready && completedEntries.count == 2,
+          "Play performs one new bidirectional reconcile after import")
+    check(data(bankFilePath(0), under: fixture.local) == cloudEven
+            && data(bankFilePath(1), under: fixture.local) == cloudOdd,
+          "the newly visible cloud save pair reaches native gameplay storage before boot")
+}
+
+@MainActor
 private func launcherAppearanceCoalescesAutomaticReconciliation() async throws {
     print("launcher appearance starts one automatic bidirectional save reconcile")
     let gate = OperationGate()
@@ -2773,8 +2807,8 @@ private func replacementFrameCheckKeepsTaskOwnershipAndCancelsQuietly() async th
     controller.gameplayFrameCompleted()
 
     await gate.waitUntilEntered()
-    check(controller.activeOperation == .checking && controller.hasPendingFrameCheck,
-          "the replacement check owns the visible checking operation")
+    check(controller.hasPendingFrameCheck,
+          "the replacement check owns the pending frame-check state")
     try await Task.sleep(for: .milliseconds(30))
     check(controller.hasPendingFrameCheck,
           "the cancelled check cannot clear the replacement task")
@@ -2845,6 +2879,7 @@ private struct SaveSyncCheck {
             try await startupSyncIsObservableAndCannotIndefinitelyGatePlay()
             try await enablingSyncUsesTheSameCancelableAutomaticOwner()
             try await fastStartupSyncIsNotRepeatedBeforePlay()
+            try await gameDataImportRequiresFreshCloudSnapshotBeforePlay()
             try await launcherAppearanceCoalescesAutomaticReconciliation()
             try await delayedProviderUpdateReconcilesWithoutAnotherLaunch()
             try await completedNativeSaveAutomaticallyUploads()

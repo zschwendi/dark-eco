@@ -303,13 +303,17 @@ test "$(tail -n 1 "$touch_guide")" = '#endif'
 for guide_title in 'Swipe Actions' 'Movement' 'Camera' 'Speeder controls'; do
   rg -Fq "title: \"$guide_title\"" "$touch_guide"
 done
-rg -Fq 'Swipe anywhere on the right side:' "$touch_guide"
-rg -Fq '• Up: Jump\n• Down: Crouch\n• Left: Punch\n• Right: Spin Kick' "$touch_guide"
-rg -Fq 'guideRow(symbol: "L", title: "Movement")' "$touch_guide"
-rg -Fq 'guideRow(symbol: "R", title: "Camera")' "$touch_guide"
+rg -Fq 'Swipe anywhere on the right side\n- Up: Jump' "$touch_guide"
+rg -Fq -- '- Down: Crouch\n- Left: Punch\n- Right: Spin Kick' "$touch_guide"
+rg -Fq '.systemImage("hand.tap.fill")' "$touch_guide"
+rg -Fq '.systemImage("rocket.fill")' "$touch_guide"
+rg -Fq 'guideRow(symbol: .text("L"), title: "Movement")' "$touch_guide"
+rg -Fq 'guideRow(symbol: .text("R"), title: "Camera")' "$touch_guide"
 rg -Fq 'Swipe up and hold to accelerate. Swipe down to hop brake.' "$touch_guide"
 rg -Fq 'Dark Eco also supports wireless gamepads for controller input.' "$touch_guide"
-if rg -Fq 'Zoom and fire' "$touch_guide" \
+if rg -Fq 'right side:' "$touch_guide" \
+    || rg -Fq '• Up:' "$touch_guide" \
+    || rg -Fq 'Zoom and fire' "$touch_guide" \
     || rg -Fq 'Game prompts' "$touch_guide" \
     || rg -Fq 'Use the visible Start, Pause' "$touch_guide"; then
   echo "the touch guide still contains removed controls or footer copy" >&2
