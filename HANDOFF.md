@@ -16687,3 +16687,82 @@ report. No uninstall, container clearing, save mutation, log attachment,
 screenshot capture, or additional device action was performed. At this
 handoff, nested OpenGOAL is clean; the parent has no uncommitted source changes
 and retains only the intentional untracked `.agent-builds/` artifacts.
+
+## Jak II black-frame pre-submission regression checkpoint
+
+Date: 2026-08-12.
+
+Work resumed in the isolated `agent/jak2-ipad-playtest` integration worktree.
+The last combined checkpoint's black output is now reproduced and narrowed to
+the strict common-PRIS texture policy introduced with the broad Merc/GMerc
+promotion. On the first live title chain, bucket 220 did not match the one
+captured 208-byte fixture envelope. The graphics callback returned before DMA
+dispatch, command-buffer commit, drawable acquisition, or submission while the
+game, menu, and audio threads continued. This exactly explains a running app
+with BGM/save interaction but globally black title, intro, and prison output.
+
+Nested OpenGOAL commit `c2f2c4b1d3fcac4e7f904a5eed026ad9d2318db0`
+(`fix(jak2): defer unproven common PRIS texture DMA (AI-assisted)`) restores
+`TEX_LCOM_PRIS` bucket 220 to `DeferredSkip`. It removes the unconditional
+strict planner from the app-owned host callback while preserving the routed
+`MERC_LCOM_PRIS` and `GMERC_LCOM_PRIS` draw buckets. The accepted audio commit
+`e5eee6428`, save/load commit `766c28f6a`, ocean route, glow route, and all
+other Merc/GMerc routes are unchanged. The one-envelope PRIS planner remains
+available only for bounded fixture work and is no longer presented as public
+live-DMA coverage.
+
+Before the policy change, this exact live-data command failed at tick 1 with
+`Jak 2 common PRIS texture plan rejected bucket 220 DMA`; its metrics showed
+one chain, zero completed chains, zero buckets, zero commits, zero drawables,
+zero submissions, and zero draws:
+
+```text
+.agent-builds/jak2-combined-host/game/jak2-metal-runtime-proof --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 --saves-dir /private/tmp/goalpad-jak2-resume-baseline --ticks 40 --hidden --probe-pad
+```
+
+After the change, the same proof with a fresh save directory passed all 40
+ticks. It completed 40/40 chains, dispatched all 327 buckets per chain,
+committed/submitted 40/40 frames, recorded 47 draws and 245,676 triangles, and
+read back a changing non-black 640x480 title frame with hash
+`280f54b28e761914`, 20,406 non-black RGB pixels, and nonzero alpha across all
+307,200 pixels:
+
+```text
+.agent-builds/jak2-combined-host/game/jak2-metal-runtime-proof --data-dir /Users/zach/Developer/OS_Projects/GOALPad/Jak2/projdata/out/jak2 --saves-dir /private/tmp/goalpad-jak2-resume-common-pris-deferred --ticks 40 --hidden --probe-pad
+```
+
+Focused validation passed:
+
+```text
+cmake --build .agent-builds/jak2-combined-host --target jak2-metal-bucket-table-test jak2-common-tfrag-texture-upload-capture-test jak2-metal-host-bridge-test jak2-metal-runtime-proof -j6
+.agent-builds/jak2-combined-host/game/jak2-metal-bucket-table-test
+.agent-builds/jak2-combined-host/game/jak2-common-tfrag-texture-upload-capture-test
+.agent-builds/jak2-combined-host/game/jak2-metal-host-bridge-test
+git diff --check
+```
+
+The first `Eco Jak II Dev` simulator build attempt failed before compilation
+because the restricted process lost its CoreSimulatorService connection and
+could not resolve the approved M5 simulator. The identical build with normal
+Xcode/Simulator service access then succeeded with exit status 0:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme 'Eco Jak II Dev' -configuration Release -destination 'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' -derivedDataPath /private/tmp/GOALPad-jak2-c2f2c4b1d-simulator -jobs 2 ENABLE_PREVIEWS=NO COMPILER_INDEX_STORE_ENABLE=NO GOALPAD_BUILD_JOBS=2 build
+```
+
+The build verified the complete 840-object Jak II AOT corpus, rebuilt the
+iPhoneSimulator native runtime/Metal host and importer, and linked the Release
+app. The artifact is arm64 `EcoJak2Dev.app`, bundle
+`com.zephyrstudiosllc.eco.jak2dev`, version `1.0 (1)`, with executable SHA-256
+`2a9f4fac50ae11a8c565611713204d0ad97c928b085917c556aee749788a3ed7`.
+The retained build log is
+`.agent-builds/jak2-resume-logs/eco-jak2-dev-simulator-build.log`, SHA-256
+`ed333e33641193f653cc04f365d6abbad22281479e16cf370f7a647edcfd8232`.
+
+This is a deterministic live-data non-black title readback and complete
+separate-app build checkpoint. It is not yet visible Simulator gameplay,
+physical title/prison acceptance, or proof that every later scene is correct.
+No physical device was accessed, and no app/container/save data was installed,
+cleared, or inspected. The next narrow gate is to launch this exact simulator
+artifact with its existing prepared-data container, enter the Jak II runtime,
+and confirm visible title plus prison output before any physical checkpoint.
