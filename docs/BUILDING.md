@@ -536,8 +536,10 @@ It is also registered with CTest, so `ctest --output-on-failure` in
 ## The Metal renderer in the app
 
 **Implemented.** The game is drawn by OpenGOAL's Metal renderer, the same source
-the Mac plays Jak 1 with. The iPad app boots the game, runs its frames and
-presents them at 60 fps on the iPad Pro 11-inch (M5) simulator.
+the Mac plays Jak 1 with. The app boots the game and runs it at the selected
+60 Hz target or an adaptive target up to 120 Hz on supported iOS displays.
+Deterministic timing, signed builds and simulator launch are validated; physical
+adaptive-120 performance remains an explicit acceptance gate.
 
 ### Where the two halves meet
 
@@ -551,12 +553,14 @@ puts behind `__send-gfx-dma-chain`, `syncv`, `sync-path`,
 
 `GOALPad/Native/GOALPadMetalHost.mm` fills that table in. It is the iPad's
 answer to `OpenGOAL/game/goalpad_play.cpp`, the desktop host, and it owns the
-same four things that host owns: a `MetalRenderer`, a `TexturePool`, a
-`FixedChunkDmaCopier`, and the level-art bookkeeping. `GOALPadGameBoot.cpp`
-starts it and installs the seam where `goalpad_play.cpp` does - after
-`goal_kernel_core_stub_machine_layer` and before the first DGO load, because the
-game uploads texture pages while GAME.CGO is read and a page that arrives with no
-pool behind it is a texture missing for the rest of the session.
+same renderer, texture-pool and level-art responsibilities. Unlike the
+asynchronous desktop host, GOALPad does not snapshot the submitted chain with a
+`FixedChunkDmaCopier`: it validates the live EE base and aligned root offset,
+then consumes the chain synchronously before returning to GOAL.
+`GOALPadGameBoot.cpp` starts it and installs the seam where `goalpad_play.cpp`
+does - after `goal_kernel_core_stub_machine_layer` and before the first DGO load,
+because the game uploads texture pages while GAME.CGO is read and a page that
+arrives with no pool behind it is a texture missing for the rest of the session.
 
 `OpenGOAL/game/graphics/pipelines/metal/metal_pipeline.mm` is deliberately not
 compiled. That file is the desktop *display*: an SDL window, the SDL event queue
@@ -567,9 +571,10 @@ renderers - is compiled unchanged.
 
 **One thread does everything.** `CADisplayLink` calls `GameSession.tick()` on the
 main thread; that arms the Metal surface, pushes the controller state, and runs
-one `kernel-dispatcher` frame. `__send-gfx-dma-chain` copies and renders the
-chain synchronously inside that frame, before the dispatcher can rewrite the
-live Merc bone matrices referenced outside the DMA chain. `__pc-texture-upload-now`,
+one `kernel-dispatcher` frame. `__send-gfx-dma-chain` decodes and renders the
+live chain synchronously inside that frame, before the dispatcher can rewrite
+either its packets or the Merc bone matrices referenced outside it. No chain
+pointer survives the call. `__pc-texture-upload-now`,
 `__pc-texture-relocate` and `__pc-set-levels` are all called from inside that
 GOAL frame, on that thread. Boot is the one thing that runs elsewhere, on its
 own queue; chains sent before the first armed display-link tick are discarded

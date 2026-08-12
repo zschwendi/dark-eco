@@ -37,7 +37,7 @@ one GameSession tick
 one GOAL simulation frame
         |
         v
-one copied DMA chain while live Merc side data remains valid
+one call-scoped live DMA chain while Merc side data remains valid
         |
         +-------------------------+
         |                         |
