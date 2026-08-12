@@ -17453,3 +17453,27 @@ Do not route around that boundary. Next executable gate: recover disk and
 CoreSimulator health, rebuild the existing Release simulator target, run the
 focused minimap/Sprite3 GPU proofs, then verify one correctly oriented lower-right
 minimap with no upper-left leak and feathered vehicle burners.
+
+## Jak II exact PRIS2 Merc bucket 229 checkpoint
+
+Date: 2026-08-12.
+
+Nested commit `e001e6fa8` routes only numeric bucket 229
+(`MERC_L1_PRIS2`) through the existing transactional Metal Merc renderer. The
+source-shaped fixture reproduces the retained nine-transfer/2032-byte envelope:
+a 1664-byte PC_PORT packet for `samos-highres`, 77 matrices, one effect, the
+logical padding link, and the exact DIRECT10 default-end tail. The current Merc
+packet grammar and model-pool callback accept that fixture without consuming DMA;
+malformed PC_PORT, cyclic padding, and non-DIRECT10 tail variants reject. Every
+other PRIS2/EMerc/GMerc bucket remains deferred.
+
+Focused portable validation passed: the exact Merc DMA/preflight fixture, the
+scalar capture fixture (five inert, one direct, three other, zero malformed), and
+the 327-entry bucket table (32 deferred, 22 Merc, fingerprint
+`0xc57f2aa099d65681`). The arm64 Metal renderer fixture compiled and linked against
+the retained canonical artifacts, but its GPU run remains pending because the
+sandbox exposed no default Metal device. Bucket 229's passive texture-capture
+`executions` field is expected to remain zero; live acceptance instead requires
+the exact capture counts, zero global Merc preflight/malformed/missing-model and
+missing-texture counters, and visibly correct high-resolution Samos. The nested
+commit is pushed and remote-backed. No simulator or physical device was accessed.
