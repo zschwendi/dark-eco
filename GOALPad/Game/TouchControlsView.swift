@@ -164,6 +164,9 @@ struct TouchControlsView: View {
                                  isSuppressed: isSuppressed,
                                  safeAreaInsets: safeAreaInsets,
                                  reclaimTouchInput: reclaimTouchInput)
+
+                    SwipeTrailArtwork(touches: controls.gestures)
+                        .allowsHitTesting(false)
                     #endif
 
                     if isAwaitingTitleStart {
@@ -897,6 +900,99 @@ private struct RightStickControl: View {
                                                  deadzone: touch.deadzone)
         let travel = radius - knobSize / 2
         return CGSize(width: push.x * travel, height: push.y * travel)
+    }
+}
+
+private struct SwipeTrailArtwork: View {
+    let touches: [TouchControls.Tracked]
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: touches.isEmpty)) { timeline in
+            Canvas { context, _ in
+                let phase = timeline.date.timeIntervalSinceReferenceDate
+                for touch in touches {
+                    draw(touch, phase: phase, in: &context)
+                }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func draw(_ touch: TouchControls.Tracked,
+                      phase: TimeInterval,
+                      in context: inout GraphicsContext) {
+        let dx = touch.point.x - touch.origin.x
+        let dy = touch.point.y - touch.origin.y
+        let length = (dx * dx + dy * dy).squareRoot()
+        guard length >= 4, let direction = direction(for: touch) else { return }
+
+        let color = trailColor(for: direction)
+        var line = Path()
+        line.move(to: touch.origin)
+        line.addLine(to: touch.point)
+        context.stroke(line, with: .color(color.opacity(0.24)),
+                       style: StrokeStyle(lineWidth: 16, lineCap: .round))
+        context.stroke(
+            line,
+            with: .linearGradient(
+                Gradient(colors: [color.opacity(0.12), color.opacity(0.95)]),
+                startPoint: touch.origin,
+                endPoint: touch.point),
+            style: StrokeStyle(lineWidth: 6, lineCap: .round))
+
+        let unitX = dx / length
+        let unitY = dy / length
+        let normalX = -unitY
+        let normalY = unitX
+        for index in 0..<8 {
+            let rawFraction = phase * 0.78 + Double(index) / 8.0
+            let fraction = CGFloat(rawFraction - floor(rawFraction))
+            let side = CGFloat((index % 3) - 1) * 3.5
+            let centre = CGPoint(
+                x: touch.origin.x + dx * fraction + normalX * side,
+                y: touch.origin.y + dy * fraction + normalY * side)
+            let pulse = CGFloat(0.72 + 0.28 * sin(phase * 7 + Double(index)))
+            let radius = (index.isMultiple(of: 3) ? 4.8 : 3.1) * pulse
+            context.fill(sparklePath(at: centre, radius: radius),
+                         with: .color(.white.opacity(direction == .down ? 0.96 : 0.84)))
+        }
+    }
+
+    private func direction(for touch: TouchControls.Tracked) -> TouchGestureDirection? {
+        if let button = touch.swiped {
+            return switch button {
+            case .square: .left
+            case .circle: .right
+            case .cross: .up
+            case .crouch: .down
+            default: TouchControls.swipeDirection(from: touch.origin, to: touch.point)
+            }
+        }
+        return TouchControls.swipeDirection(from: touch.origin, to: touch.point)
+    }
+
+    private func trailColor(for direction: TouchGestureDirection) -> Color {
+        switch direction {
+        case .left: Color(red: 1.0, green: 0.18, blue: 0.58)
+        case .right: Color(red: 1.0, green: 0.42, blue: 0.08)
+        case .up: Color(red: 0.12, green: 0.50, blue: 1.0)
+        case .down: Color(red: 0.48, green: 0.51, blue: 0.57)
+        }
+    }
+
+    private func sparklePath(at centre: CGPoint, radius: CGFloat) -> Path {
+        let inner = radius * 0.24
+        var path = Path()
+        path.move(to: CGPoint(x: centre.x, y: centre.y - radius))
+        path.addLine(to: CGPoint(x: centre.x + inner, y: centre.y - inner))
+        path.addLine(to: CGPoint(x: centre.x + radius, y: centre.y))
+        path.addLine(to: CGPoint(x: centre.x + inner, y: centre.y + inner))
+        path.addLine(to: CGPoint(x: centre.x, y: centre.y + radius))
+        path.addLine(to: CGPoint(x: centre.x - inner, y: centre.y + inner))
+        path.addLine(to: CGPoint(x: centre.x - radius, y: centre.y))
+        path.addLine(to: CGPoint(x: centre.x - inner, y: centre.y - inner))
+        path.closeSubpath()
+        return path
     }
 }
 

@@ -1988,8 +1988,8 @@ final class TouchControls {
     // MARK: - Mapping
 
     /// The three face-button gestures plus held crouch on the downward direction.
-    private static func swipeDirection(from origin: CGPoint,
-                                       to point: CGPoint) -> TouchGestureDirection? {
+    nonisolated static func swipeDirection(from origin: CGPoint,
+                                           to point: CGPoint) -> TouchGestureDirection? {
         let dx = point.x - origin.x
         let dy = point.y - origin.y
         guard dx != 0 || dy != 0 else { return nil }

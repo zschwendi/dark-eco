@@ -18202,3 +18202,23 @@ passed. The signed product is Dark Eco 1.0 (169), bundle
 /private/tmp/goalpad-build169-ios-sim.log
 /private/tmp/goalpad-build169-ios-device.log
 ```
+
+The exact signed Build 169 product was installed and launched on physical
+`Z iPad Pro`; `devicectl device info apps` confirmed bundle version 169.
+
+# 2026-08-11 Build 170 directional swipe-trail checkpoint
+
+Build 170 draws a straight animated trail from each gameplay-gesture origin to
+the live finger position. The trail locks to the detected action color: pink
+Square/left, orange Circle/right, blue Cross/up, or gray L1/down, with moving
+white sparkles. It is noninteractive and disappears when that touch ends, so
+the accepted gesture mapping is unchanged.
+
+The checkpoint is on branch `agent/build170-swipe-trails`. The signed generic
+iOS Release build passed and produced Dark Eco 1.0 (170). That exact product
+was installed and launched on physical `Z iPad Pro`; `devicectl device info
+apps` confirmed bundle version 170. Build log:
+
+```text
+/private/tmp/goalpad-build170-ios-device.log
+```
