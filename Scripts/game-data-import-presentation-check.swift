@@ -15,17 +15,14 @@ import Foundation
 private struct GameDataImportPresentationCheck {
     @MainActor static func main() {
         check(GameDataImportPresentation.acceptedSources(rawISOAvailable: false)
-                == "Prepared game-data folder",
+                == ["Prepared game data folder"],
               "prepared-folder-only builds do not advertise raw media")
         check(GameDataImportPresentation.acceptedSources(rawISOAvailable: true)
-                == "Prepared game-data folder, ISO disc image, or ZIP with exactly one ISO",
-              "raw-media-capable builds advertise only the ISO and one-ISO ZIP paths")
+                == ["ISO", "ZIP with exactly one ISO", "Prepared game data folder"],
+              "raw-media-capable builds list ISO, one-ISO ZIP, and prepared data in order")
         check(GameDataImportPresentation.backgroundGuidance
                 == "Keep Dark Eco open and in the foreground until setup finishes.",
               "foreground guidance remains concise and safe")
-        check(GameDataImportPresentation.setupReassurance
-                == "Dark Eco checks your selection before it uses it.",
-              "setup explains validation without staging implementation detail")
         check(GameDataImportPresentation.cancellationGuidance(isActivating: false)
                 == "You can cancel. Your current game data will stay unchanged.",
               "pre-activation cancellation preserves the active install")

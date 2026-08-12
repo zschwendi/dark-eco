@@ -32,16 +32,19 @@ let library = source(at: root + "/GOALPad/Library/GameLibraryView.swift")
 let libraryModel = source(at: root + "/GOALPad/Library/GameLibrary.swift")
 let presentation = source(at: root + "/GOALPad/Data/GameDataImportPresentation.swift")
 let theme = source(at: root + "/GOALPad/UI/DarkEcoTheme.swift")
+let content = source(at: root + "/GOALPad/ContentView.swift")
 
-check(view.contains("GameDataImportPresentation.acceptedSources(rawISOAvailable: canImportRawISO)")
+check(view.contains("GameDataImportPresentation.acceptedSources(")
+        && view.contains("rawISOAvailable: canImportRawISO")
         && view.contains("return [.folder, rawISOType, .zip]")
         && view.contains("return [.folder]"),
       "the import copy and picker both follow the actual raw-ISO capability gate")
-check(presentation.contains("ZIP with exactly one ISO")
-        && !presentation.contains("ZIP64")
-        && view.contains("if canImportRawISO {")
-        && view.contains("This build accepts prepared folders only."),
-      "the concise ZIP note appears only when raw-media preparation is available")
+check(view.contains("ForEach(GameDataImportPresentation.acceptedSources(")
+        && view.contains("Text(\"•\")")
+        && presentation.contains("\"ISO\"")
+        && presentation.contains("\"ZIP with exactly one ISO\"")
+        && presentation.contains("\"Prepared game data folder\""),
+      "supported sources render as separate bullets in the published order")
 check(view.contains("ProgressView(value: progress.overallProgress)")
         && view.contains("progress.overallPercent")
         && view.contains("ProgressView(value: 1)")
@@ -63,13 +66,23 @@ check(view.contains("case .failed(let failure)")
       "importer, picker, cancellation, and recovery failures remain visible")
 check(!view.contains("setupInstructions") && !view.contains("missingList("),
       "the prior long setup wall and archive inventory are removed")
-check(view.contains("Label(\"Add game data\"")
+check(view.contains("Text(\"Choose a compatible source from a copy you own.\")")
+        && view.contains(".foregroundStyle(.secondary)")
+        && !view.contains("Label(\"Add game data\"")
         && view.contains("Supported sources")
-        && view.contains("GameDataImportPresentation.setupReassurance")
         && view.contains("Choose game data…")
         && !view.contains("private candidate")
-        && !view.contains("Prepared \\(copied) file(s)"),
-      "setup keeps source and ownership information without duplicate developer-facing copy")
+        && !view.contains("Prepared \\(copied) file(s)")
+        && !view.contains("Game data stays on this device.")
+        && !view.contains("A ZIP must contain exactly one ISO.")
+        && !view.contains("Dark Eco checks your selection before it uses it."),
+      "setup keeps the short subtext and status while removing redundant copy")
+check(library.contains("title: Text(\"Set Up \\(GameLibraryTitle.jak1.name)\")")
+        && libraryModel.contains("Provide game data from a copy of")
+        && !libraryModel.contains("This build accepts"),
+      "the library entry keeps the exact setup title and ownership sentence only")
+check(!content.contains("ToolbarItem(placement: .primaryAction)"),
+      "Game Setup has no Settings toolbar action")
 check(view.contains("DarkEcoPanel") && view.contains("DarkEcoTheme.background")
         && theme.contains("accessibilityReduceTransparency")
         && !theme.contains(".animation("),

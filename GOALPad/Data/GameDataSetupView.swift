@@ -48,27 +48,16 @@ struct GameDataSetupView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Add game data", systemImage: "bolt.fill")
-                .font(.title2.weight(.bold))
-                .foregroundStyle(DarkEcoTheme.accentGlow)
-            Text("Dark Eco includes no game data. Choose a compatible source from a copy you own.")
-                .font(.body)
-                .foregroundStyle(.white.opacity(0.84))
-        }
-        .accessibilityElement(children: .combine)
+        Text("Choose a compatible source from a copy you own.")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
     }
 
     private var dataStatus: some View {
         DarkEcoPanel {
-            VStack(alignment: .leading, spacing: 7) {
-                Label(session.dataReport.summary, systemImage: statusIcon)
-                    .font(.headline)
-                    .foregroundStyle(statusColor)
-                Text("Game data stays on this device. iCloud Settings and iCloud Saves do not transfer it.")
-                    .font(.footnote)
-                    .foregroundStyle(.white.opacity(0.72))
-            }
+            Label(session.dataReport.summary, systemImage: statusIcon)
+                .font(.headline)
+                .foregroundStyle(statusColor)
         }
     }
 
@@ -77,20 +66,18 @@ struct GameDataSetupView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Supported sources")
                     .font(.headline)
-                Text(GameDataImportPresentation.acceptedSources(rawISOAvailable: canImportRawISO))
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.84))
-                Text(GameDataImportPresentation.setupReassurance)
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.84))
-                if canImportRawISO {
-                    Text("A ZIP must contain exactly one ISO.")
-                        .font(.footnote)
-                        .foregroundStyle(DarkEcoTheme.warning)
-                } else {
-                    Text("This build accepts prepared folders only.")
-                        .font(.footnote)
-                        .foregroundStyle(DarkEcoTheme.warning)
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(GameDataImportPresentation.acceptedSources(
+                        rawISOAvailable: canImportRawISO
+                    ), id: \.self) { source in
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text("•")
+                                .foregroundStyle(.secondary)
+                            Text(source)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
         }

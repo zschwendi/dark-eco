@@ -106,8 +106,7 @@ struct GameLibraryView: View {
             case .importJak1:
                 Alert(
                     title: Text("Set Up \(GameLibraryTitle.jak1.name)"),
-                    message: Text(GameLibraryOfferCopy.jak1ImportMessage(
-                        canImportRawISO: RawISOCandidateProducer.isAvailable())),
+                    message: Text(GameLibraryOfferCopy.jak1ImportMessage()),
                     primaryButton: .default(Text("Continue"), action: openJak1Setup),
                     secondaryButton: .cancel()
                 )

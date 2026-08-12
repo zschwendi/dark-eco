@@ -190,13 +190,8 @@ nonisolated enum GameLibraryCardAction: Equatable {
 }
 
 nonisolated enum GameLibraryOfferCopy {
-    static func jak1ImportMessage(canImportRawISO: Bool) -> String {
-        let ownership = "Provide game data from a copy of \(GameLibraryTitle.jak1.name) you legally own."
-        if canImportRawISO {
-            return ownership + " This build accepts a prepared out/jak1 folder, a supported .iso, "
-                + "or a standard .zip containing exactly one .iso."
-        }
-        return ownership + " This build accepts a prepared out/jak1 folder."
+    static func jak1ImportMessage() -> String {
+        return "Provide game data from a copy of \(GameLibraryTitle.jak1.name) you legally own."
     }
 
     static func unsupportedMessage(for title: GameLibraryTitle) -> String {

@@ -124,12 +124,6 @@ struct ContentView: View {
                                         Label("Library", systemImage: "chevron.left")
                                     }
                                 }
-                                ToolbarItem(placement: .primaryAction) {
-                                    Button(action: presentSettings) {
-                                        Image(systemName: "gearshape")
-                                    }
-                                    .accessibilityLabel("Settings")
-                                }
                             }
                     }
                     .preferredColorScheme(.dark)
