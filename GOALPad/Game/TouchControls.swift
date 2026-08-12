@@ -1353,6 +1353,12 @@ final class TouchControls {
         case skip(NativeCutsceneSkipTouchSnapshot)
     }
 
+    struct SwipeTrailSegment {
+        let start: CGPoint
+        var end: CGPoint
+        let direction: TouchGestureDirection
+    }
+
     struct Tracked: Identifiable {
         let id: ObjectIdentifier
         let role: Role
@@ -1361,6 +1367,9 @@ final class TouchControls {
         var point: CGPoint
         var travelled: CGFloat = 0
         var swiped: TouchButton? = nil
+        var trailSegments: [SwipeTrailSegment] = []
+        var trailCandidateDirection: TouchGestureDirection? = nil
+        var trailCandidateStart: CGPoint? = nil
         var crouchPeakY: CGFloat? = nil
         var acceleratorPeakY: CGFloat? = nil
         var speederBrakeTriggered = false
@@ -1721,6 +1730,9 @@ final class TouchControls {
 
     func moved(_ id: ObjectIdentifier, to point: CGPoint) {
         guard var touch = touches[id] else { return }
+        if touch.role == .gesture {
+            Self.updateSwipeTrail(&touch, to: point)
+        }
         touch.point = point
         touch.travelled = max(touch.travelled, Self.distance(touch.origin, point))
         if (touch.role == .movement || touch.role == .rightStick),
@@ -1779,6 +1791,48 @@ final class TouchControls {
             }
         }
         touches[id] = touch
+    }
+
+    private static func updateSwipeTrail(_ touch: inout Tracked,
+                                         to point: CGPoint) {
+        let previousPoint = touch.point
+        let stepDistance = distance(previousPoint, point)
+        guard stepDistance >= 1.5 else { return }
+
+        guard !touch.trailSegments.isEmpty else {
+            guard distance(touch.origin, point) >= 4,
+                  let direction = swipeDirection(from: touch.origin, to: point) else { return }
+            touch.trailSegments = [
+                SwipeTrailSegment(start: touch.origin, end: point, direction: direction)
+            ]
+            return
+        }
+
+        guard let direction = swipeDirection(from: previousPoint, to: point),
+              let activeDirection = touch.trailSegments.last?.direction else { return }
+        if direction == activeDirection {
+            touch.trailCandidateDirection = nil
+            touch.trailCandidateStart = nil
+            touch.trailSegments[touch.trailSegments.count - 1].end = point
+            return
+        }
+
+        if touch.trailCandidateDirection != direction {
+            touch.trailCandidateDirection = direction
+            touch.trailCandidateStart = previousPoint
+        }
+        guard let turnPoint = touch.trailCandidateStart,
+              distance(turnPoint, point) >= 12 else { return }
+
+        touch.trailSegments[touch.trailSegments.count - 1].end = turnPoint
+        touch.trailSegments.append(
+            SwipeTrailSegment(start: turnPoint, end: point, direction: direction)
+        )
+        if touch.trailSegments.count > 2 {
+            touch.trailSegments.removeFirst(touch.trailSegments.count - 2)
+        }
+        touch.trailCandidateDirection = nil
+        touch.trailCandidateStart = nil
     }
 
     func ended(_ id: ObjectIdentifier, at _: TimeInterval,

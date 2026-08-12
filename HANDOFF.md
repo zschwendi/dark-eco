@@ -18291,3 +18291,21 @@ generic iOS Release build passed, was installed and launched on physical
 ```text
 /private/tmp/goalpad-build174-ios-device.log
 ```
+
+# 2026-08-11 Build 175 segmented swipe-trail checkpoint
+
+Build 175 replaces the origin-anchored radial gesture trail with at most two
+straight direction segments. A confirmed turn starts a newly colored segment,
+the previous segment remains at half length and reduced opacity, and a ring at
+the live endpoint keeps a held finger visible. Gameplay gesture recognition is
+unchanged.
+
+The checkpoint is on branch `agent/build175-segmented-swipe-trails`. The signed
+generic iOS Release build passed and produced Dark Eco 1.0 (175). That exact
+product was installed and launched on physical `Z iPad Pro` and `Z iPhone Air`;
+device inventory confirmed bundle version 175 on both. Per maintainer direction,
+no additional test-suite run was performed. Build log:
+
+```text
+/private/tmp/goalpad-build175-ios-device.log
+```
