@@ -40,7 +40,7 @@ struct GameLibraryView: View {
                 if isPortrait, horizontalSizeClass == .regular {
                     fittedPortraitLibrary(containerSize: proxy.size)
                         .overlay(alignment: .bottom) { versionFooter }
-                } else if !isPortrait, horizontalSizeClass == .compact {
+                } else if !isPortrait, isPhone || horizontalSizeClass == .compact {
                     compactLandscapeLibrary(containerSize: proxy.size)
                         .overlay(alignment: .bottom) { versionFooter }
                 } else if isPortrait {
@@ -200,7 +200,8 @@ struct GameLibraryView: View {
     @ViewBuilder
     private func compactLandscapeLibrary(containerSize: CGSize) -> some View {
         let layout = GameLibraryCompactLandscapeLayout(containerSize: containerSize)
-        let cards = HStack(alignment: .center, spacing: layout.spacing) {
+        let cards = HStack(alignment: .center,
+                           spacing: GameLibraryCompactLandscapeLayout.spacing) {
             ForEach(GameLibraryTitle.allCases) { title in
                 tile(title, coverSize: layout.coverSize, usesHorizontalCard: true,
                      cardWidth: layout.cardWidth)
@@ -211,14 +212,14 @@ struct GameLibraryView: View {
         if layout.usesHorizontalScroll {
             ScrollView(.horizontal) {
                 cards
-                    .padding(.horizontal, layout.outerPadding)
+                    .padding(.horizontal, GameLibraryCompactLandscapeLayout.outerPadding)
             }
             .scrollIndicators(.hidden)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .padding(.bottom, 32)
         } else {
             cards
-                .padding(.horizontal, layout.outerPadding)
+                .padding(.horizontal, GameLibraryCompactLandscapeLayout.outerPadding)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .padding(.bottom, 32)
         }
@@ -251,9 +252,17 @@ struct GameLibraryView: View {
             .padding(.vertical, 12)
     }
 
+    private var isPhone: Bool {
+#if os(iOS)
+        UIDevice.current.userInterfaceIdiom == .phone
+#else
+        false
+#endif
+    }
+
     private var menuPlacement: ToolbarItemPlacement {
 #if os(iOS)
-        UIDevice.current.userInterfaceIdiom == .phone ? .principal : .navigation
+        isPhone ? .principal : .navigation
 #else
         .navigation
 #endif
@@ -262,7 +271,7 @@ struct GameLibraryView: View {
     @ViewBuilder
     private var mainMenuLabel: some View {
 #if os(iOS)
-        if UIDevice.current.userInterfaceIdiom == .phone {
+        if isPhone {
             DarkEcoMenuLabel()
         } else {
             Image(systemName: "line.3.horizontal")

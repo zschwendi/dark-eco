@@ -131,7 +131,7 @@ do {
           settingsMenuLabel.lowerBound < aboutMenuLabel.lowerBound,
           libraryScreen.contains("GeometryReader { proxy in")
             && libraryScreen.contains("if isPortrait, horizontalSizeClass == .regular")
-            && libraryScreen.contains("else if !isPortrait, horizontalSizeClass == .compact")
+            && libraryScreen.contains("else if !isPortrait, isPhone || horizontalSizeClass == .compact")
             && libraryScreen.contains("fittedPortraitLibrary(containerSize: proxy.size)")
             && libraryScreen.contains("compactLandscapeLibrary(containerSize: proxy.size)")
             && libraryScreen.contains("wideLibrary(containerSize: proxy.size)")
@@ -160,6 +160,7 @@ do {
     }
     print("  ok   launcher menu is Settings then a unified About destination")
     guard libraryScreen.contains("UIDevice.current.userInterfaceIdiom == .phone")
+            && libraryScreen.contains("isPhone ? .principal : .navigation")
             && libraryScreen.contains("? .principal : .navigation")
             && libraryScreen.contains("ToolbarItem(placement: menuPlacement)")
             && libraryScreen.contains("} label: { mainMenuLabel }")
