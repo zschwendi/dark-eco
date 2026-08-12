@@ -360,7 +360,7 @@ private struct DarkEcoMenuLabel: View {
     private func shimmerLocation(at date: Date) -> CGFloat {
         guard !reduceMotion else { return 1 }
         let wrapped = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: shimmerDuration)
-        return CGFloat(wrapped / shimmerDuration * 2 - 1)
+        return CGFloat(wrapped / shimmerDuration * 4 - 2)
     }
 
     private func labelForegroundStyle(at date: Date) -> LinearGradient {
