@@ -17,6 +17,30 @@ private func check(_ condition: Bool, _ what: String) {
 
 private let neutral = UInt8(GOALPadAnalogNeutral)
 
+private func referenceControllerFrame(
+    bindings: Jak1InputBindings,
+    snapshot: Jak1ControllerSnapshot
+) -> Jak1MappedControllerFrame {
+    var buttons: GOALPadButton = []
+    for control in Jak1ControllerControl.allCases where snapshot.isPressed(control) {
+        if let action = bindings.action(for: control) {
+            buttons.formUnion(action.buttons)
+        }
+    }
+
+    func triggerByte(for action: Jak1InputAction) -> UInt8 {
+        var value: Float = 0
+        for binding in bindings.controllerBindings where binding.action == action {
+            value = max(value, snapshot.value(for: binding.control))
+        }
+        return UInt8(max(0, min(255, (value * 255).rounded())))
+    }
+
+    return Jak1MappedControllerFrame(buttons: buttons,
+                                     leftTrigger: triggerByte(for: .L2),
+                                     rightTrigger: triggerByte(for: .R2))
+}
+
 private func keyboardMovement() {
     print("WASD produces a deterministic full-range left stick")
     var state = KeyboardMouseInputState()
@@ -130,6 +154,89 @@ private func defaultControllerBytes() {
           && Jak1InputBindings.standard.action(for: .buttonX) == .square
           && Jak1InputBindings.standard.action(for: .buttonY) == .triangle,
           "face-button position defaults remain Cross, Circle, Square, Triangle")
+}
+
+private func fixedControllerSnapshots() {
+    print("fixed controller snapshots preserve every control, mapping, and trigger byte")
+    let controls = Jak1ControllerControl.allCases
+    check(controls.count == 16 && controls.enumerated().allSatisfy {
+        $0.offset == $0.element.snapshotIndex
+    }, "all sixteen persisted controls have one stable packed index")
+
+    var indexed = Jak1ControllerSnapshot()
+    var expectedPressed: UInt16 = 0
+    for (index, control) in controls.enumerated() {
+        let pressed = index.isMultiple(of: 2)
+        indexed.set(control, pressed: pressed, value: Float(index) / 15)
+        if pressed { expectedPressed |= UInt16(1) << index }
+    }
+    check(indexed.pressedMask == expectedPressed
+          && controls.allSatisfy {
+              indexed.isPressed($0) == $0.snapshotIndex.isMultiple(of: 2)
+                  && indexed.value(for: $0) == Float($0.snapshotIndex) / 15
+          }, "packed pressed bits and SIMD values round-trip through every control index")
+
+    var values = SIMD16<Float>(repeating: 0)
+    for index in values.indices { values[index] = Float(index) / 15 }
+    var remapped = Jak1InputBindings.standard
+    remapped.setControllerAction(.square, for: .buttonA)
+    remapped.setControllerAction(.L2, for: .buttonY)
+    remapped.setControllerAction(.R2, for: .dpadLeft)
+
+    var standardMatches = true
+    var remappedMatches = true
+    for rawMask in 0...Int(UInt16.max) {
+        let snapshot = Jak1ControllerSnapshot(pressedMask: UInt16(rawMask), values: values)
+        if Jak1InputBindings.standard.controllerFrame(snapshot: snapshot)
+            != referenceControllerFrame(bindings: .standard, snapshot: snapshot) {
+            standardMatches = false
+            break
+        }
+        if remapped.controllerFrame(snapshot: snapshot)
+            != referenceControllerFrame(bindings: remapped, snapshot: snapshot) {
+            remappedMatches = false
+            break
+        }
+    }
+    check(standardMatches, "all 65,536 pressed masks match the collection-era standard reducer")
+    check(remappedMatches, "all 65,536 pressed masks match after button and trigger remapping")
+
+    let triggerValues: [Float] = [-0.25, 0, 1 / 255, 0.25, 0.5, 0.75, 1, 2]
+    var analogMatches = true
+    for (index, leftControl) in controls.enumerated() {
+        let rightControl = controls[(index + 7) % controls.count]
+        var bindings = Jak1InputBindings.standard
+        bindings.setControllerAction(.L2, for: leftControl)
+        bindings.setControllerAction(.R2, for: rightControl)
+        for leftValue in triggerValues {
+            for rightValue in triggerValues {
+                var analog = SIMD16<Float>(repeating: 0)
+                analog[leftControl.snapshotIndex] = leftValue
+                analog[rightControl.snapshotIndex] = rightValue
+                let snapshot = Jak1ControllerSnapshot(values: analog)
+                if bindings.controllerFrame(snapshot: snapshot)
+                    != referenceControllerFrame(bindings: bindings, snapshot: snapshot) {
+                    analogMatches = false
+                    break
+                }
+            }
+            if !analogMatches { break }
+        }
+        if !analogMatches { break }
+    }
+    check(analogMatches,
+          "every control can own L2/R2 pressure with the exact legacy clamp and rounding")
+
+    let compatibilityPressed: Set<Jak1ControllerControl> = [.buttonA, .dpadDown, .leftTrigger]
+    let compatibilityValues: [Jak1ControllerControl: Float] = [
+        .leftTrigger: 0.333,
+        .rightTrigger: 0.875,
+    ]
+    let compatibilitySnapshot = Jak1ControllerSnapshot(pressed: compatibilityPressed,
+                                                        values: compatibilityValues)
+    check(remapped.controllerFrame(pressed: compatibilityPressed, values: compatibilityValues)
+          == remapped.controllerFrame(snapshot: compatibilitySnapshot),
+          "the collection compatibility entry point delegates without changing output")
 }
 
 private func controllerStickRoleMapping() {
@@ -372,6 +479,18 @@ private func remappingAndCollisions() {
           "duplicate controller actions normalize by declared control order")
     check(duplicate.action(for: .w) == .moveForward && duplicate.action(for: .d) == nil,
           "duplicate keyboard actions use the same stable first-control policy")
+    let duplicateController = Jak1ControllerSnapshot(
+        pressedMask: (UInt16(1) << Jak1ControllerControl.buttonA.snapshotIndex)
+            | (UInt16(1) << Jak1ControllerControl.buttonB.snapshotIndex))
+    check(duplicate.controllerFrame(snapshot: duplicateController).buttons == .cross,
+          "duplicate controller declarations emit their normalized action exactly once")
+    var duplicateKeyboard = KeyboardMouseInputState()
+    duplicateKeyboard.setKey(.w, pressed: true)
+    duplicateKeyboard.setKey(.d, pressed: true)
+    let duplicateKeyboardFrame = duplicateKeyboard.consumeFrame(bindings: duplicate)
+    check(duplicateKeyboardFrame.leftX == neutral && duplicateKeyboardFrame.leftY == 0
+          && duplicateKeyboardFrame.buttons.isEmpty,
+          "duplicate keyboard declarations keep only the normalized forward owner")
 }
 
 private func primaryInputSourcePolicy() {
@@ -674,6 +793,7 @@ struct KeyboardMouseInputCheck {
         configurableKeyboardMovement()
         keyboardButtons()
         defaultControllerBytes()
+        fixedControllerSnapshots()
         controllerStickRoleMapping()
         do {
             try controllerAnalogTuning()

@@ -121,6 +121,27 @@ enum Jak1ControllerControl: String, CaseIterable, Codable, Hashable, Sendable {
     case menu
     case options
 
+    var snapshotIndex: Int {
+        switch self {
+        case .buttonA: 0
+        case .buttonB: 1
+        case .buttonX: 2
+        case .buttonY: 3
+        case .dpadUp: 4
+        case .dpadDown: 5
+        case .dpadLeft: 6
+        case .dpadRight: 7
+        case .leftShoulder: 8
+        case .rightShoulder: 9
+        case .leftTrigger: 10
+        case .rightTrigger: 11
+        case .leftThumbstickButton: 12
+        case .rightThumbstickButton: 13
+        case .menu: 14
+        case .options: 15
+        }
+    }
+
     var title: String {
         switch self {
         case .buttonA: "Bottom Face (A / Cross)"
@@ -140,6 +161,42 @@ enum Jak1ControllerControl: String, CaseIterable, Codable, Hashable, Sendable {
         case .menu: "Menu / Options"
         case .options: "Options / Create"
         }
+    }
+}
+
+struct Jak1ControllerSnapshot: Equatable, Sendable {
+    private(set) var pressedMask: UInt16
+    private(set) var values: SIMD16<Float>
+
+    init(pressedMask: UInt16 = 0, values: SIMD16<Float> = .zero) {
+        self.pressedMask = pressedMask
+        self.values = values
+    }
+
+    init(pressed: Set<Jak1ControllerControl>,
+         values: [Jak1ControllerControl: Float] = [:]) {
+        self.init()
+        for control in Jak1ControllerControl.allCases {
+            set(control, pressed: pressed.contains(control), value: values[control] ?? 0)
+        }
+    }
+
+    mutating func set(_ control: Jak1ControllerControl, pressed: Bool, value: Float) {
+        let bit = UInt16(1) << control.snapshotIndex
+        if pressed {
+            pressedMask |= bit
+        } else {
+            pressedMask &= ~bit
+        }
+        values[control.snapshotIndex] = value
+    }
+
+    func isPressed(_ control: Jak1ControllerControl) -> Bool {
+        pressedMask & (UInt16(1) << control.snapshotIndex) != 0
+    }
+
+    func value(for control: Jak1ControllerControl) -> Float {
+        values[control.snapshotIndex]
     }
 }
 
@@ -655,24 +712,33 @@ struct Jak1InputBindings: Codable, Equatable, Sendable {
 
     func controllerFrame(pressed: Set<Jak1ControllerControl>,
                          values: [Jak1ControllerControl: Float] = [:]) -> Jak1MappedControllerFrame {
-        var buttons: GOALPadButton = []
-        for control in pressed {
-            if let action = action(for: control) { buttons.formUnion(action.buttons) }
-        }
-        let leftTrigger = triggerByte(for: .L2, values: values)
-        let rightTrigger = triggerByte(for: .R2, values: values)
-        return Jak1MappedControllerFrame(buttons: buttons,
-                                         leftTrigger: leftTrigger,
-                                         rightTrigger: rightTrigger)
+        controllerFrame(snapshot: Jak1ControllerSnapshot(pressed: pressed, values: values))
     }
 
-    private func triggerByte(for action: Jak1InputAction,
-                             values: [Jak1ControllerControl: Float]) -> UInt8 {
-        let value = controllerBindings.lazy
-            .filter { $0.action == action }
-            .compactMap { values[$0.control] }
-            .max() ?? 0
-        return UInt8(max(0, min(255, (value * 255).rounded())))
+    func controllerFrame(snapshot: Jak1ControllerSnapshot) -> Jak1MappedControllerFrame {
+        var buttons: GOALPadButton = []
+        var leftTrigger: Float = 0
+        var rightTrigger: Float = 0
+        for binding in controllerBindings {
+            if snapshot.isPressed(binding.control) {
+                buttons.formUnion(binding.action.buttons)
+            }
+            switch binding.action {
+            case .L2:
+                leftTrigger = max(leftTrigger, snapshot.value(for: binding.control))
+            case .R2:
+                rightTrigger = max(rightTrigger, snapshot.value(for: binding.control))
+            default:
+                break
+            }
+        }
+        return Jak1MappedControllerFrame(buttons: buttons,
+                                         leftTrigger: Self.triggerByte(leftTrigger),
+                                         rightTrigger: Self.triggerByte(rightTrigger))
+    }
+
+    private static func triggerByte(_ value: Float) -> UInt8 {
+        UInt8(max(0, min(255, (value * 255).rounded())))
     }
 
     private static func normalized(_ bindings: [ControllerBinding]) -> [ControllerBinding] {
@@ -877,25 +943,48 @@ struct KeyboardMouseInputState {
     }
 
     mutating func consumeFrame(bindings: Jak1InputBindings = .standard) -> KeyboardMouseFrame {
-        var frame = KeyboardMouseFrame()
-        let activeControls = heldControls.filter { bindings.action(for: $0) != nil }
-        frame.hasKeyboardInput = activeControls.contains(where: \.isKeyboard)
-        let actions = Set(activeControls.compactMap { bindings.action(for: $0) })
+        guard !heldControls.isEmpty || pendingMouseX != 0 || pendingMouseY != 0 else {
+            return KeyboardMouseFrame()
+        }
 
-        let horizontal = Self.digitalAxis(negative: actions.contains(.moveLeft),
-                                          positive: actions.contains(.moveRight))
-        let vertical = Self.digitalAxis(negative: actions.contains(.moveForward),
-                                        positive: actions.contains(.moveBackward))
+        var frame = KeyboardMouseFrame()
+        var movesForward = false
+        var movesBackward = false
+        var movesLeft = false
+        var movesRight = false
+        for control in heldControls {
+            guard let action = bindings.action(for: control) else { continue }
+            if control.isKeyboard {
+                frame.hasKeyboardInput = true
+            } else {
+                frame.hasMouseInput = true
+            }
+            switch action {
+            case .moveForward:
+                movesForward = true
+            case .moveBackward:
+                movesBackward = true
+            case .moveLeft:
+                movesLeft = true
+            case .moveRight:
+                movesRight = true
+            default:
+                frame.buttons.formUnion(action.buttons)
+            }
+        }
+
+        let horizontal = Self.digitalAxis(negative: movesLeft, positive: movesRight)
+        let vertical = Self.digitalAxis(negative: movesForward, positive: movesBackward)
         frame.leftX = Self.axisByte(horizontal)
         frame.leftY = Self.axisByte(vertical)
-
-        for action in actions { frame.buttons.formUnion(action.buttons) }
-
-        frame.hasMouseInput = pendingMouseX != 0 || pendingMouseY != 0
-            || activeControls.contains { !$0.isKeyboard }
+        frame.hasMouseInput = frame.hasMouseInput || pendingMouseX != 0 || pendingMouseY != 0
         frame.rightX = Self.mouseAxisByte(pendingMouseX)
         frame.rightY = Self.mouseAxisByte(pendingMouseY)
-        clearMouse()
+        heldControls.remove(.mouseLeft)
+        heldControls.remove(.mouseRight)
+        heldControls.remove(.mouseMiddle)
+        pendingMouseX = 0
+        pendingMouseY = 0
         return frame
     }
 

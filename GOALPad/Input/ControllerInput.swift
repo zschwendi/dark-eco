@@ -192,9 +192,8 @@ final class ControllerInput {
             )
             : sourcePolicy
         if policy.allowsController, let gamepad = controller?.extendedGamepad {
-            let controllerFrame = bindings.controllerFrame(
-                pressed: Self.pressedControls(of: gamepad),
-                values: Self.controlValues(of: gamepad))
+            let controllerSnapshot = Self.controllerSnapshot(of: gamepad)
+            let controllerFrame = bindings.controllerFrame(snapshot: controllerSnapshot)
             let controllerSticks = Jak1MappedControllerSticks(
                 roles: bindings.controllerStickRoles,
                 analog: bindings.controllerAnalog,
@@ -373,30 +372,36 @@ final class ControllerInput {
 
     /// Keep Apple's positional controls distinct here so the persisted mapping, rather than a
     /// controller-brand special case, decides which PS2 pad action each one emits.
-    nonisolated private static func pressedControls(
+    nonisolated private static func controllerSnapshot(
         of pad: GCExtendedGamepad
-    ) -> Set<Jak1ControllerControl> {
-        var pressed: Set<Jak1ControllerControl> = []
-        func add(_ button: GCControllerButtonInput?, _ control: Jak1ControllerControl) {
-            if button?.isPressed == true { pressed.insert(control) }
-        }
-        add(pad.buttonA, .buttonA)
-        add(pad.buttonB, .buttonB)
-        add(pad.buttonX, .buttonX)
-        add(pad.buttonY, .buttonY)
-        add(pad.dpad.up, .dpadUp)
-        add(pad.dpad.down, .dpadDown)
-        add(pad.dpad.left, .dpadLeft)
-        add(pad.dpad.right, .dpadRight)
-        add(pad.leftShoulder, .leftShoulder)
-        add(pad.rightShoulder, .rightShoulder)
-        add(pad.leftTrigger, .leftTrigger)
-        add(pad.rightTrigger, .rightTrigger)
-        add(pad.leftThumbstickButton, .leftThumbstickButton)
-        add(pad.rightThumbstickButton, .rightThumbstickButton)
-        add(pad.buttonMenu, .menu)
-        add(pad.buttonOptions, .options)
-        return pressed
+    ) -> Jak1ControllerSnapshot {
+        var snapshot = Jak1ControllerSnapshot()
+        snapshot.set(.buttonA, pressed: pad.buttonA.isPressed, value: pad.buttonA.value)
+        snapshot.set(.buttonB, pressed: pad.buttonB.isPressed, value: pad.buttonB.value)
+        snapshot.set(.buttonX, pressed: pad.buttonX.isPressed, value: pad.buttonX.value)
+        snapshot.set(.buttonY, pressed: pad.buttonY.isPressed, value: pad.buttonY.value)
+        snapshot.set(.dpadUp, pressed: pad.dpad.up.isPressed, value: pad.dpad.up.value)
+        snapshot.set(.dpadDown, pressed: pad.dpad.down.isPressed, value: pad.dpad.down.value)
+        snapshot.set(.dpadLeft, pressed: pad.dpad.left.isPressed, value: pad.dpad.left.value)
+        snapshot.set(.dpadRight, pressed: pad.dpad.right.isPressed, value: pad.dpad.right.value)
+        snapshot.set(.leftShoulder, pressed: pad.leftShoulder.isPressed,
+                     value: pad.leftShoulder.value)
+        snapshot.set(.rightShoulder, pressed: pad.rightShoulder.isPressed,
+                     value: pad.rightShoulder.value)
+        snapshot.set(.leftTrigger, pressed: pad.leftTrigger.isPressed,
+                     value: pad.leftTrigger.value)
+        snapshot.set(.rightTrigger, pressed: pad.rightTrigger.isPressed,
+                     value: pad.rightTrigger.value)
+        snapshot.set(.leftThumbstickButton,
+                     pressed: pad.leftThumbstickButton?.isPressed == true,
+                     value: pad.leftThumbstickButton?.value ?? 0)
+        snapshot.set(.rightThumbstickButton,
+                     pressed: pad.rightThumbstickButton?.isPressed == true,
+                     value: pad.rightThumbstickButton?.value ?? 0)
+        snapshot.set(.menu, pressed: pad.buttonMenu.isPressed, value: pad.buttonMenu.value)
+        snapshot.set(.options, pressed: pad.buttonOptions?.isPressed == true,
+                     value: pad.buttonOptions?.value ?? 0)
+        return snapshot
     }
 
     nonisolated private static func touchpadIsPressed(on pad: GCExtendedGamepad) -> Bool {
@@ -407,29 +412,6 @@ final class ControllerInput {
             return dualShock.touchpadButton.isPressed
         }
         return false
-    }
-
-    private static func controlValues(
-        of pad: GCExtendedGamepad
-    ) -> [Jak1ControllerControl: Float] {
-        [
-            .buttonA: pad.buttonA.value,
-            .buttonB: pad.buttonB.value,
-            .buttonX: pad.buttonX.value,
-            .buttonY: pad.buttonY.value,
-            .dpadUp: pad.dpad.up.value,
-            .dpadDown: pad.dpad.down.value,
-            .dpadLeft: pad.dpad.left.value,
-            .dpadRight: pad.dpad.right.value,
-            .leftShoulder: pad.leftShoulder.value,
-            .rightShoulder: pad.rightShoulder.value,
-            .leftTrigger: pad.leftTrigger.value,
-            .rightTrigger: pad.rightTrigger.value,
-            .leftThumbstickButton: pad.leftThumbstickButton?.value ?? 0,
-            .rightThumbstickButton: pad.rightThumbstickButton?.value ?? 0,
-            .menu: pad.buttonMenu.value,
-            .options: pad.buttonOptions?.value ?? 0,
-        ]
     }
 
     // MARK: - Connection
@@ -461,12 +443,12 @@ final class ControllerInput {
         candidate.extendedGamepad?.valueChangedHandler = {
             [weak self, weak candidate] pad, element in
             guard Self.capturesRapidButtonEdge(from: element, on: pad) else { return }
-            let pressed = Self.pressedControls(of: pad)
+            let snapshot = Self.controllerSnapshot(of: pad)
             let touchpadPressed = Self.touchpadIsPressed(on: pad)
             DispatchQueue.main.async { [weak self, weak candidate] in
                 MainActor.assumeIsolated {
                     self?.recordControllerButtonSnapshot(
-                        pressed: pressed,
+                        snapshot: snapshot,
                         touchpadPressed: touchpadPressed,
                         from: candidate)
                 }
@@ -524,19 +506,19 @@ final class ControllerInput {
             lastObservedControllerButtons = []
             return
         }
-        let pressed = Self.pressedControls(of: gamepad)
-        var buttons = bindings.controllerFrame(pressed: pressed).buttons
+        let snapshot = Self.controllerSnapshot(of: gamepad)
+        var buttons = bindings.controllerFrame(snapshot: snapshot).buttons
         if Self.touchpadIsPressed(on: gamepad) { buttons.insert(.select) }
         lastObservedControllerButtons = buttons
     }
 
     private func recordControllerButtonSnapshot(
-        pressed: Set<Jak1ControllerControl>,
+        snapshot: Jak1ControllerSnapshot,
         touchpadPressed: Bool,
         from candidate: GCController?
     ) {
         guard controller === candidate else { return }
-        var buttons = bindings.controllerFrame(pressed: pressed).buttons
+        var buttons = bindings.controllerFrame(snapshot: snapshot).buttons
         if touchpadPressed { buttons.insert(.select) }
         guard buttons != lastObservedControllerButtons else { return }
         lastObservedControllerButtons = buttons
