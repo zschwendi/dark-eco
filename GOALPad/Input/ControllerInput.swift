@@ -722,30 +722,47 @@ private final class DeviceRumbleHaptics {
 }
 #endif
 /// The two PS2 vibration channels, driven through Core Haptics. The engine's `large` motor is the
-/// on/off one the PS2 pulsed to fake an intensity and `small` is the analog one; their strongest
-/// requested intensity drives the controller's default haptic locality.
+/// on/off one the PS2 pulsed to fake an intensity and `small` is the analog one. Controllers with
+/// distinct handle localities receive the channels separately; other controllers use one default
+/// locality at the stronger requested intensity.
 ///
 /// The DualSense's adaptive triggers are deliberately not driven: the PS2 pad had no such thing,
 /// so there is nothing in the game asking for it.
 @MainActor
 private final class ControllerRumble {
-    private var motor: Motor?
+    private var largeMotor: Motor?
+    private var smallMotor: Motor?
+    private var combinedMotor: Motor?
 
     init?(controller: GCController) {
         guard let haptics = controller.haptics else { return nil }
-        motor = Motor(haptics: haptics, locality: .default)
-        guard motor != nil else { return nil }
+        if haptics.supportedLocalities.contains(.leftHandle),
+           haptics.supportedLocalities.contains(.rightHandle),
+           let largeMotor = Motor(haptics: haptics, locality: .leftHandle),
+           let smallMotor = Motor(haptics: haptics, locality: .rightHandle) {
+            self.largeMotor = largeMotor
+            self.smallMotor = smallMotor
+        } else {
+            combinedMotor = Motor(haptics: haptics, locality: .default)
+        }
+        guard largeMotor != nil || smallMotor != nil || combinedMotor != nil else { return nil }
     }
 
     func set(large largeValue: UInt8, small smallValue: UInt8) {
         let largeIntensity: Float = largeValue == 0 ? 0 : 1
         let smallIntensity = Float(smallValue) / 255
-        motor?.set(intensity: max(largeIntensity, smallIntensity))
+        largeMotor?.set(intensity: largeIntensity)
+        smallMotor?.set(intensity: smallIntensity)
+        combinedMotor?.set(intensity: max(largeIntensity, smallIntensity))
     }
 
     func stop() {
-        motor?.stop()
-        motor = nil
+        largeMotor?.stop()
+        smallMotor?.stop()
+        combinedMotor?.stop()
+        largeMotor = nil
+        smallMotor = nil
+        combinedMotor = nil
     }
 
     /// One handle: a continuous haptic event whose intensity is updated in place, so a frame of
