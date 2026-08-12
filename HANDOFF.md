@@ -19447,3 +19447,91 @@ adaptive 120 Hz cadence, battery/power, thermals, DualSense rumble, and iPhone
 13-class acceptance remain pending. Remote `main` remains the stable pre-120
 Build 197 checkpoint. Build 202 is isolated and unpushed on
 `agent/build181-input-settings-polish`.
+
+# 2026-08-12 Build 203 performance checkpoint
+
+Build 203 layers four additional deterministic hot-path reductions on Build
+202. This checkpoint remains unmeasured on physical hardware and does not claim
+the adaptive 120 Hz goal is physically accepted.
+
+Outer commits:
+
+```text
+5f84886f Eliminate input polling allocations (AI-assisted)
+f3e76503 Reuse checked target state per frame (AI-assisted)
+df9663cc Integrate asynchronous ocean composition (AI-assisted)
+ed6d79e1 Skip unchanged input observation and haptic work (AI-assisted)
+```
+
+Controller polling now uses a fixed `UInt16` pressed mask plus `SIMD16<Float>`
+values. The per-frame and rapid-edge paths share it. Keyboard/mouse reduction
+has an empty fast path and one pass over its persistent held-control set instead
+of transient filter/compactMap/Set collections. Exhaustive tests cover all
+65,536 pressed masks for standard and remapped bindings, every control as an
+analog L2/R2 owner, duplicate mappings, and opposing axes.
+
+The native aggregate snapshot validates `*target*` once per successful frame
+and reuses scalar current-state, next-state, look flags, and camera mode for
+title, first-person, and speeder classification. Malformed current state, next
+state, target type, declared size, and backing bounds remain independently
+fail-closed. No GOAL object pointer persists across frames.
+
+Nested OpenGOAL commit `a8cd0689c` removes up to two ocean-generation CPU/GPU
+rendezvous on renderer-owned frames. The exact 33,792-byte dynamic ocean vertex
+payload now lives in the frame stream. Ocean auxiliary buffers commit before
+the tracked main frame on the same serial queue, whose completion guards stream
+reuse; borrowed/headless paths retain their conservative wait.
+
+Repeated silent rumble now consumes the native latch without publishing
+observation or invoking haptic state. Sustained nonzero values still refresh
+finite Core Haptics players, and the first zero transition still silences
+ordinary controllers. Repeated unchanged button/stick values skip observable
+writes.
+
+Focused and combined validation passed:
+
+```text
+Scripts/run-keyboard-mouse-input-check.sh
+Scripts/run-controller-rumble-check.sh
+Scripts/run-game-menu-state-check.sh
+Scripts/run-game-look-around-state-check.sh
+GOALPAD_OPENGOAL_SOURCE="$PWD/OpenGOAL" Scripts/run-game-frame-state-snapshot-check.sh
+Scripts/run-game-lifecycle-check.sh
+Scripts/run-promotion-frame-rate-check.sh
+Scripts/run-touch-controls-check.sh
+Scripts/run-portrait-library-check.sh
+xcrun swift -frontend -parse GOALPad/Input/ControllerInput.swift
+xcrun swift -frontend -parse GOALPad/Input/KeyboardMouseInput.swift
+xcrun swift -frontend -parse GOALPad/Input/ControllerRumblePolicy.swift
+xcrun swift -frontend -parse Scripts/keyboard-mouse-input-check.swift
+xcrun swift -frontend -parse Scripts/controller-rumble-check.swift
+xcrun swift -frontend -parse Scripts/game-lifecycle-route-check.swift
+cmake --build OpenGOAL/build/Release/bin --target metal-proof -j2
+OpenGOAL/build/Release/bin/game/metal-proof
+OpenGOAL/build/Release/bin/game/metal-proof --stereo-pixels-only
+git diff --check
+git -C OpenGOAL diff --check
+```
+
+The combined full proof reported `METAL PROOF PASSED`; stereo reported
+`METAL STEREO PIXEL PROOF PASSED`. Logs:
+`/private/tmp/goalpad-build203-metal-build.log`,
+`/private/tmp/goalpad-build203-metal-proof.log`, and
+`/private/tmp/goalpad-build203-metal-proof-stereo.log`.
+
+The signed generic arm64 iOS Release build passed. Log:
+`/private/tmp/goalpad-build203-signed-device-build.log`. Product:
+`/private/tmp/GOALPad-build194-derived/Build/Products/Release-iphoneos/Dark Eco.app`.
+It is Dark Eco 1.0 (203), arm64, and strict deep codesign verification passed.
+
+The incremental Release iOS Simulator build passed using
+`/private/tmp/GOALPad-build202-simulator-derived`, then installed and launched
+on the approved iPad Pro 11-inch (M5) simulator. Screenshot:
+`/private/tmp/goalpad-build203-m5-ipad-launch.png`; it shows Version 1.0 (203).
+
+No physical device was accessed. Physical Spider Cave frame pacing, adaptive
+120 Hz cadence, ocean-scene gain, battery/power, thermals, DualSense behavior,
+and iPhone 13 Pro-class acceptance remain pending. The ocean wait removal does
+not by itself explain the Spider Cave report, which contains no ocean generator.
+Remote `main` remains the stable pre-120 Build 197 checkpoint; Build 203 is
+isolated and unpushed on `agent/build181-input-settings-polish`.
