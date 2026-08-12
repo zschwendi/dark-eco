@@ -17003,6 +17003,65 @@ also still have visibly hard polygonal edges. The next narrow steps are:
 
 The physical `Z iPad Pro` was not accessed.
 
+## Jak II common-PRIS, PRIS2, and light-path diagnostic checkpoint
+
+Date: 2026-08-12.
+
+The active integration branch remains `agent/jak2-ipad-playtest`. Nested
+`97e5d5094` adds passive, bounded capture for PRIS2 buckets 228 and 229, and
+nested `d5920a40b` adds passive common-PRIS bucket-220 capture plus per-frame
+Merc animated-slot diagnostics for slots 0 through 3. Both nested commits are
+pushed to the same remote branch. All affected bucket policies remain
+`DeferredSkip`, and the common-PRIS and PRIS2 execution counters remain zero.
+No renderer, texture-pool, or packet-execution behavior changed.
+
+The source and synthetic fixture now identify the missing gameplay-Jak
+producer precisely. Default-level PRIS installs the four-output DARKJAK group,
+GOAL emits `pc-clut-blender` opcode 22, and Metal has no opcode-22 producer.
+The expected bucket-220 envelope is 11 transfers and 240 payload bytes: one
+ordinary descriptor, one GS setup, one qwc-2/32-byte opcode-22 body inside
+start/finish animator markers, and the standard Direct reset. The five
+post-intro Merc animated-placeholder draws are draw occurrences across slots 0
+through 3 rather than five unique textures. Two independent eye placeholders
+account for the remaining two missing Merc textures.
+
+Focused integration validation passed:
+
+```text
+cmake --build .agent-builds/jak2-combined-host --target jak2-common-tfrag-texture-upload-capture-test jak2-metal-host-bridge-test jak2-metal-merc-renderer-test jak2-metal-bucket-table-test -j2
+ctest --test-dir .agent-builds/jak2-combined-host --output-on-failure -R '^(jak2-common-tfrag-texture-upload-capture-test|jak2-metal-host-bridge-test|jak2-metal-merc-renderer-test|jak2-metal-bucket-table-test)$'
+```
+
+All four tests passed. The host ABI additions are tail-appended, and the parent
+runtime bridge now logs the common-PRIS/PRIS2 envelope counters plus per-slot
+draw, placeholder, and stable numeric model-hash diagnostics. The Release
+simulator build and live envelope capture are pending for this checkpoint.
+
+A no-source-edit visual A/B used the retained Game 1 active-prison camera and
+the already-installed accepted executable. The baseline is
+`/private/tmp/goalpad-jak2-prison-ab-baseline.png` (SHA-256
+`54145cba9f8931aca35edd681c76a97e3df1da076e3548dc156353304b4c28f4`).
+The final-glow-suppressed capture is
+`/private/tmp/goalpad-jak2-prison-ab-skip-glow.png` (SHA-256
+`e542978314039305995b45b2ef8e6b7d008a8ca835c12fcdd7756d6b34fba6dc`),
+and the ordinary-Sprite3-suppressed capture is
+`/private/tmp/goalpad-jak2-prison-ab-skip-normal.png` (SHA-256
+`979c8dcbd1f3e45e896cbec41ba256fd8104f6b68202aafcbf0b45033d31e28c`).
+The large hard green quadrilateral under Jak and the vent/wall plumes are
+ordinary Sprite3-dominant: they survive final-glow suppression and disappear
+when the ordinary path is suppressed. The small railing-lamp halos are final
+SpriteGlow-dominant. Residual lamp cores and static floor geometry are separate
+likely translucent-tfrag contributions. This disproves a single global glow
+shader explanation, so no speculative shader patch was made.
+
+The next executable task is one Release simulator build and natural opening
+run to capture the exact live bucket-220 opcode-22 envelope, slots 0 through 3,
+and buckets 228/229 in the Samos-hut opening. If those counters match the typed
+source grammar, implement the owned live/copied common DARKJAK plan and four
+stable CLUT outputs as the next vertical slice. The two eye placeholders and
+ordinary-Sprite3 light-card record correlation remain separate follow-ups. The
+physical `Z iPad Pro` was not accessed.
+
 ## Jak II prison CLUT publication acceptance
 
 Date: 2026-08-12.

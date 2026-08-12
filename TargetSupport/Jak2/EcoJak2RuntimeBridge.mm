@@ -492,6 +492,73 @@ void log_jak2_diagnostics_locked() {
   NSLog(@"GOALPAD_JAK2_PRIS_UPLOAD_STATE tick=%llu %@",
         static_cast<unsigned long long>(runtime.ticks), pris_upload_state);
 
+  NSMutableString* pris_diagnostic_state = [NSMutableString string];
+  const auto append_pris_diagnostic =
+      [&](const goal_jak2_tfrag_texture_upload_metrics& upload) {
+        [pris_diagnostic_state
+            appendFormat:@"%@b%u cap=%llu present=%llu "
+                         "class=m%llu/a%llu/o%llu/n%llu/oa%llu/e%llu/g%llu "
+                         "xfer=%llu bytes=%llu inert=%llu ordinary=%llu direct=%llu gs=%llu "
+                         "anim=%llu/%llu/%llu op12=%llu op13=%llu op22=%llu eye=%llu "
+                         "other=%llu malformed=%llu exec=%llu "
+                         "last=t%u/q%u/b%llu/v0k%u/v0i%u/v1k%u/v1i%u",
+                         pris_diagnostic_state.length ? @" " : @"", upload.bucket_id,
+                         static_cast<unsigned long long>(upload.captures),
+                         static_cast<unsigned long long>(upload.present_captures),
+                         static_cast<unsigned long long>(upload.classifications[0]),
+                         static_cast<unsigned long long>(upload.classifications[1]),
+                         static_cast<unsigned long long>(upload.classifications[2]),
+                         static_cast<unsigned long long>(upload.classifications[3]),
+                         static_cast<unsigned long long>(upload.classifications[4]),
+                         static_cast<unsigned long long>(upload.classifications[5]),
+                         static_cast<unsigned long long>(upload.classifications[6]),
+                         static_cast<unsigned long long>(upload.transfers),
+                         static_cast<unsigned long long>(upload.payload_bytes),
+                         static_cast<unsigned long long>(upload.inert_transfers),
+                         static_cast<unsigned long long>(upload.ordinary_descriptors),
+                         static_cast<unsigned long long>(upload.direct_setup_transfers),
+                         static_cast<unsigned long long>(upload.gs_setup_transfers),
+                         static_cast<unsigned long long>(upload.animator_arrays),
+                         static_cast<unsigned long long>(upload.animator_body_transfers),
+                         static_cast<unsigned long long>(upload.animator_payload_bytes),
+                         static_cast<unsigned long long>(upload.opcode_counts[12]),
+                         static_cast<unsigned long long>(upload.opcode_counts[13]),
+                         static_cast<unsigned long long>(upload.opcode_counts[22]),
+                         static_cast<unsigned long long>(upload.eye_markers),
+                         static_cast<unsigned long long>(upload.other_transfers),
+                         static_cast<unsigned long long>(upload.malformed_transfers),
+                         static_cast<unsigned long long>(upload.executions),
+                         static_cast<unsigned>(upload.last_nonordinary_tag_kind),
+                         static_cast<unsigned>(upload.last_nonordinary_qwc),
+                         static_cast<unsigned long long>(upload.last_nonordinary_payload_bytes),
+                         static_cast<unsigned>(upload.last_nonordinary_vif0_kind),
+                         static_cast<unsigned>(upload.last_nonordinary_vif0_immediate),
+                         static_cast<unsigned>(upload.last_nonordinary_vif1_kind),
+                         static_cast<unsigned>(upload.last_nonordinary_vif1_immediate)];
+      };
+  append_pris_diagnostic(metal.common_pris_texture_upload);
+  for (const auto& pris2 : metal.pris2_bucket_captures) {
+    append_pris_diagnostic(pris2);
+  }
+  NSLog(@"GOALPAD_JAK2_PRIS_DIAGNOSTIC_STATE tick=%llu %@",
+        static_cast<unsigned long long>(runtime.ticks), pris_diagnostic_state);
+
+  NSLog(@"GOALPAD_JAK2_MERC_ANIM_SLOT_STATE tick=%llu draws=%llu,%llu,%llu,%llu "
+         "placeholders=%llu,%llu,%llu,%llu models=%016llx,%016llx,%016llx,%016llx",
+        static_cast<unsigned long long>(runtime.ticks),
+        static_cast<unsigned long long>(metal.last_merc_anim_slot_draws_by_slot[0]),
+        static_cast<unsigned long long>(metal.last_merc_anim_slot_draws_by_slot[1]),
+        static_cast<unsigned long long>(metal.last_merc_anim_slot_draws_by_slot[2]),
+        static_cast<unsigned long long>(metal.last_merc_anim_slot_draws_by_slot[3]),
+        static_cast<unsigned long long>(metal.last_merc_anim_slot_placeholder_draws_by_slot[0]),
+        static_cast<unsigned long long>(metal.last_merc_anim_slot_placeholder_draws_by_slot[1]),
+        static_cast<unsigned long long>(metal.last_merc_anim_slot_placeholder_draws_by_slot[2]),
+        static_cast<unsigned long long>(metal.last_merc_anim_slot_placeholder_draws_by_slot[3]),
+        static_cast<unsigned long long>(metal.last_merc_anim_slot_first_model_hashes[0]),
+        static_cast<unsigned long long>(metal.last_merc_anim_slot_first_model_hashes[1]),
+        static_cast<unsigned long long>(metal.last_merc_anim_slot_first_model_hashes[2]),
+        static_cast<unsigned long long>(metal.last_merc_anim_slot_first_model_hashes[3]));
+
   NSLog(@"GOALPAD_JAK2_PROGRESS_STATE tick=%llu available=%d screen=%d option=%d "
          "selected=%d transition=%d navigation=%d starting=%d exit-start=%d back=%d",
         static_cast<unsigned long long>(runtime.ticks), progress_menu.available,
