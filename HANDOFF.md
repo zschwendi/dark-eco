@@ -17282,3 +17282,30 @@ The full Release simulator rebuild and zero-failure runtime acceptance for the
 one-eye patch are the next gates. PRIS2 bucket 228 and the hard-edged Sprite3
 light cards remain separate follow-up lanes. The physical `Z iPad Pro` was not
 accessed.
+
+The final Release simulator build passed and revalidated all 840 Jak II AOT
+units. Its executable SHA-256 is
+`e3fc403a18805818372f6e4dcfe20fc987447de17e755eba06eb2bd1b200e6ec`;
+the retained build log is
+`.agent-builds/jak2-resume-logs/eco-jak2-dev-common-pris-one-eye-build.log`,
+SHA-256 `7da93543f406fe2292ff6e4bb4ba8a7dedc963478ccafafc6799a9bed6ba77c3`.
+
+The exact app was installed over the approved M5 simulator app and the save
+banks remained present. At tick 1800 the two source-valid one-eye frames were
+classified as `e2`, executed successfully (`present=1800 exec=1800`), and
+reported `eyes=2/8/16`, `eye-cmd=1/1/0`; the runtime remained
+`chains=1800/1800/0` with an empty error. After loading retained Game 1, tick
+3600 reported `chains=3600/3600/0`, `merc-anim=5/0`,
+`merc-missing-textures=0`, `merc-eyes=4/0/0/0`, and
+`eyes=4/16/32 missing=0 unexpected=0 duplicate=0 eye-cmd=2/2/0`.
+
+The accepted prison screenshot is
+`.agent-builds/jak2-resume-logs/eco-jak2-dev-common-pris-one-eye-prison.png`,
+SHA-256 `4ff6e66739d581008511873ad963f93d94babe4e5da9b407f757272716280620`.
+The accepted runtime log is
+`.agent-builds/jak2-resume-logs/eco-jak2-dev-common-pris-one-eye-runtime.log`,
+SHA-256 `ec846046cb87e8c413ddc20f41b1bfea91913aaed572485ac86188b2c608eca6`.
+The simulator app and log stream were stopped after capture; the already-booted
+simulator remains available. This checkpoint is accepted. The next executable
+task is typed bucket-228 PRIS2 execution for the early Samos-hut opening, while
+bucket 229 and every other PRIS2 family remain deferred.
