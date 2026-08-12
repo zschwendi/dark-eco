@@ -18398,3 +18398,50 @@ was performed. Build log:
 ```text
 /private/tmp/goalpad-build180-ios-device.log
 ```
+
+# 2026-08-11 Build 186 DualSense checkpoint and Build 187 pending rumble latch
+
+Active parent worktree:
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-build165-touch-controls` on
+`agent/build181-input-settings-polish`. Parent HEAD is pushed commit `f4116869`
+(`Use standard DualSense haptic playback in Build 186`). Active nested OpenGOAL
+branch is `agent/build183-rumble-gate`; nested HEAD is pushed commit `52f665148`
+(`Latch rumble events until the host consumes them`). The parent currently has
+only the dirty OpenGOAL gitlink because it still records nested `50c4bf0f1`.
+
+Build 186 replaced the silent infinite advanced Core Haptics player with finite
+standard controller players, retains separate DualSense left/right handle
+localities, and emits a 0.25-second connection confirmation. Signed generic iOS
+Release passed with the canonical `/private/tmp/GOALPad-build169-ios-device`
+DerivedData and the Build 142 Jak 1 source object pack. Log:
+`/private/tmp/goalpad-build186-ios-device.log`.
+
+Build 186 was installed and launched on physical iPad
+`6A4111AB-1663-508A-98D9-F0C1A9EA7863`. The maintainer physically confirmed
+the DualSense connection pulse, proving the Bluetooth/Core Haptics output path
+works. No iPhone access is authorized going forward and none occurred for
+Builds 185-186.
+
+Gameplay rumble remains unaccepted. Static tracing confirmed real AOT
+`cpad-set-buzz!` call sites, `service-cpads`, native `CPadGetData`, and
+`scePadSetActDirect` are reachable. A brief LLDB inspection found the native
+motor bytes zero at the sampled idle point. A later conditional watchpoint made
+the app appear frozen; it was deleted, LLDB detached, and Build 186 was
+reinstalled/launched cleanly. Do not attach that debugger again for this task.
+
+Nested commit `52f665148` is the unvalidated Build 187 candidate. It latches the
+strongest nonzero large/small motor request until the host consumes it, so a
+same-frame zero cannot erase a real event. It also clears current and pending
+rumble on disconnect/disabled state. Remaining next steps:
+
+1. Change `GOALPad/Native/GOALPadRuntimeBridge.mm` from
+   `goal_pad_get_rumble` to `goal_pad_take_rumble` and update the bridge header
+   comment to describe consuming latched events.
+2. Bump both target configurations from Build 186 to 187.
+3. Run `git diff --check`, Swift parse for `ControllerInput.swift`, and the
+   signed generic iOS Release build. Do not run broad test suites.
+4. Commit the parent gitlink, bridge, project build number, and this handoff;
+   push `agent/build181-input-settings-polish`.
+5. Install and launch on the physical iPad only. Do not touch the iPhone.
+6. Physical acceptance is gameplay events such as damage or crate impacts; the
+   connection confirmation alone is not gameplay-rumble proof.
