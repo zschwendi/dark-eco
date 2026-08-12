@@ -238,11 +238,10 @@ final class GameSession {
         startupError = nil
         settings.apply()
         #if os(iOS)
-        targetFrameRate = presentationSettings.graphicsHighFrameRate ? 120 : 60
+        let bootTargetFrameRate = presentationSettings.graphicsHighFrameRate ? 120 : 60
         #else
-        targetFrameRate = 60
+        let bootTargetFrameRate = 60
         #endif
-        let bootTargetFrameRate = targetFrameRate
         runReadiness = .preRun
         isBooting = true
         startupState.move(to: .booting, generation: startupGeneration)
@@ -250,12 +249,14 @@ final class GameSession {
         bootQueue.async {
             let boot = GOALPadRuntimeBridge.bootGame(targetFrameRate: bootTargetFrameRate)
             DispatchQueue.main.async {
-                MainActor.assumeIsolated { self.bootFinished(boot) }
+                MainActor.assumeIsolated {
+                    self.bootFinished(boot, targetFrameRate: bootTargetFrameRate)
+                }
             }
         }
     }
 
-    private func bootFinished(_ status: GOALPadGameBootStatus) {
+    private func bootFinished(_ status: GOALPadGameBootStatus, targetFrameRate bootFrameRate: Int) {
         boot = status
         isBooting = false
         startupState.reset()
@@ -269,6 +270,7 @@ final class GameSession {
             return
         }
 
+        targetFrameRate = bootFrameRate
         isRunning = true
         #if os(iOS)
         setHighFrameRateEnabled(presentationSettings.graphicsHighFrameRate)
@@ -306,10 +308,7 @@ final class GameSession {
         let requestedFrameRate = enabled ? 120 : 60
         guard requestedFrameRate != targetFrameRate else { return }
         guard !isBooting else { return }
-        guard isRunning else {
-            targetFrameRate = requestedFrameRate
-            return
-        }
+        guard isRunning else { return }
         guard GOALPadRuntimeBridge.setTargetFrameRate(requestedFrameRate) else {
             sessionLog.error("Could not switch the live gameplay timing domain to \(requestedFrameRate) Hz")
             return
