@@ -250,7 +250,7 @@ void log_jak2_diagnostics_locked() {
 
   NSLog(@"GOALPAD_JAK2_FOREGROUND_STATE tick=%llu "
          "merc=%llu/%llu/%llu malformed=%llu reject-reason=%u missing-models=%llu "
-         "merc-eyes=%llu/%llu/%llu/%llu merc-missing-textures=%llu "
+         "merc-anim=%llu/%llu merc-eyes=%llu/%llu/%llu/%llu merc-missing-textures=%llu "
          "bones=%llu/%llu/%llu/%llu "
          "generic=%llu/%llu/%llu missing-textures=%llu unexpected-dma=%llu "
          "eyes=%llu/%llu/%llu missing=%llu unexpected=%llu duplicate=%llu "
@@ -263,6 +263,8 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(metal.last_merc_malformed_dma),
         metal.last_merc_preflight_rejection_reason,
         static_cast<unsigned long long>(metal.last_merc_missing_models),
+        static_cast<unsigned long long>(metal.last_merc_anim_slot_draws),
+        static_cast<unsigned long long>(metal.last_merc_anim_slot_placeholder_draws),
         static_cast<unsigned long long>(metal.last_merc_eye_draws),
         static_cast<unsigned long long>(metal.last_merc_eye_renderer_missing),
         static_cast<unsigned long long>(metal.last_merc_eye_lookup_failed),

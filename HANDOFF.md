@@ -16931,3 +16931,74 @@ simulator title/opening acceptance for Merc characters, soft lights, and
 animated eyes, not physical-device acceptance or complete Jak II renderer
 coverage. Known follow-up remains the deferred bucket set (especially common
 PRIS 220) and the independently logged `jakb-lod0` required-bone-slot warning.
+
+## Jak II prison animator unfreeze and animated-Merc consumer checkpoint
+
+Date: 2026-08-12.
+
+The active integration branch is `agent/jak2-ipad-playtest`. The bucket-204
+animator parser/renderer and portable CLUT CPU proof are pushed at parent
+`e7399032` and nested `6bcaf91d9`. Nested `d9c7d9dfe` then adds the source-valid
+Metal Merc consumer for negative animated texture IDs; the parent telemetry
+and gitlink commit immediately following this handoff entry must pin it.
+
+Bucket 204 now accepts the exact prison-Jak opcode 12/23/13 animator envelope,
+owns and fingerprints its 48-byte body, matches live and compacted semantic
+plans before mutation, and explicitly consumes the animator before continuing
+through zero, one, or two eye chunks and the normal bucket tail. The renderer
+still treats the animator itself as a validated no-op. The portable
+`jak2-metal-prison-clut-cpu-test` proves the six exact indexed-palette blends;
+the host-owned registry publication executor remains the next implementation
+step.
+
+Focused validation before the simulator build passed:
+
+```text
+cmake --build .agent-builds/jak2-combined-host --target jak2-common-tfrag-texture-upload-capture-test jak2-metal-eye-renderer-test jak2-metal-host-bridge-test jak2-metal-prison-clut-cpu-test -j2
+ctest --test-dir .agent-builds/jak2-combined-host --output-on-failure -R '^(jak2-common-tfrag-texture-upload-capture-test|jak2-metal-eye-renderer-test|jak2-metal-host-bridge-test|jak2-metal-prison-clut-cpu-test)$'
+```
+
+All four tests passed with host Metal access. The exact Release simulator build
+also passed and verified all 840 Jak II AOT units:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme 'Eco Jak II Dev' -configuration Release -destination 'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' -derivedDataPath /private/tmp/GOALPad-jak2-c2f2c4b1d-simulator -jobs 2 ENABLE_PREVIEWS=NO COMPILER_INDEX_STORE_ENABLE=NO GOALPAD_BUILD_JOBS=2 build
+```
+
+The arm64 executable SHA-256 is
+`a09990da29d327082d6d11ce7a12edf906c779cb18686d2007d3186bb014ce49`.
+The retained build log is
+`.agent-builds/jak2-resume-logs/eco-jak2-dev-prison-animator-composite-build.log`,
+SHA-256 `bdbd17fd0b2e5a04b8633f7897f83d8bf2c9432242c13609ae213b0918880552`.
+
+The exact artifact was installed over the existing approved M5 simulator app;
+the app container and Game 1 save were preserved. A new game was started with
+`Continue without saving` and the opening played naturally without a cutscene
+skip. Title, Jak, Daxter, Keira, and their composed eyes remained visible.
+
+The former bucket-204 failure is cleared. At tick 20,400 in `intro-prison`,
+the runtime reported `chains=20400/20400/0`, `submit=20400/0/0`, an empty
+runtime error, `merc=7/110/50818`, `malformed=0`, `reject-reason=0`, and
+bucket 204 `anim=6296/6296/302208`, `malformed=0`. The runtime continued into
+active prison gameplay at ticks 22,800 and 23,400 with every chain and submit
+completed. The retained screenshots are
+`/private/tmp/goalpad-jak2-intro-prison-checkpoint.png` (SHA-256
+`29e10801ed518a9ab8cd7844b69ac345120df6bb9a6f3064c5fce5981729c95d`) and
+`/private/tmp/goalpad-jak2-prison-post-intro-checkpoint.png` (SHA-256
+`03706c9c864a87e780c02c1c81b344fd5e9b54a553cc7cb4a91cf6fb525ed99e`).
+
+This is simulator unfreeze and gameplay-entry evidence, not final prison
+texture or lighting acceptance. Prison Jak still visibly has checkerboard hair
+and live Merc telemetry reports seven to eight missing textures because the
+validated animator is not yet publishing its six outputs. Some light cards
+also still have visibly hard polygonal edges. The next narrow steps are:
+
+1. Finish the host-owned six-output prison CLUT executor from `GAME.fr3` and
+   publish stable registry handles into slots 4, 5, 7, 8, 9, and 10.
+2. Rebuild and replay prison with nested `d9c7d9dfe`, requiring nonzero Merc
+   animated-slot draws, zero animated-slot placeholders, and no checkerboard
+   character textures.
+3. Resume the separate light-card investigation only after the animated
+   character path is accepted.
+
+The physical `Z iPad Pro` was not accessed.
