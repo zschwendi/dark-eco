@@ -17729,3 +17729,26 @@ relinked, and the host-access Metal test passed the complete combined b306,
 b316, and b322 suite. The initial worker sandbox run failed only because it
 could not see a default Metal device. No simulator, physical device, retail
 data, or fresh heavy build directory was used.
+
+## Jak II isolated bucket-315 Lightning Metal proof checkpoint
+
+Date: 2026-08-12.
+
+Nested isolated commit `83332a8a9` on branch
+`agent/jak2-effects315-lightning-proof` adds a private
+`MetalGeneric2::Mode::LIGHTNING`, exact bounded Jak II Lightning DMA parsing,
+and a deterministic 64x64 synthetic GPU proof. The proof covers one fragment,
+four vertices, one additive/fogged draw, masked depth writes, missing-texture
+placeholder telemetry, exact follower completion, and malformed Direct/header/
+vertex/MSCAL/terminator rejection. Production bucket 315 remains
+`DeferredSkip`; the commit has no bucket-table, host ABI, or runtime route.
+
+Both changed Objective-C++ files compiled with canonical flags and the focused
+proof linked successfully. Its sandbox run stopped at
+`FAIL a default Metal device is available`. The required host-GPU run was
+rejected before execution by the approval-usage limit, so pixel/depth and
+malformed-case assertions remain unvalidated and the commit was not integrated
+into the playtest branch. The isolated branch is pushed for backup. The retained
+3,808-byte live EFFECTS frame remains liveness evidence only; do not promote
+bucket 315 until this exact GPU proof passes and a live envelope is separately
+matched.
