@@ -17643,3 +17643,12 @@ bucket-316 telemetry was stopped before editing because the approval service
 rejected workspace mutation after exhausting its usage quota. Both attempted
 worktrees are clean. No workaround was attempted; the exact ABI, host-test, and
 numeric iOS-log insertion design is retained in the agent handoff.
+
+The PRIS tail ID audit also corrected a naming mistake: 198/202/206/210/214/218
+are EMERC and remain `StrictEmpty`; true `GMERC_Ln_PRIS` buckets are
+199/203/207/211/215/219 and remain `DeferredSkip`. Their source grammar is
+compatible with Generic2 Normal in principle, but retained title, intro,
+prison, and sampled post-prison logs show no nonempty occurrence and provide no
+per-level TBP/model evidence. Do not promote the family speculatively. The
+smallest future seam is passive bucket-203 metadata after producer bucket 200,
+followed by a source-shaped MetalGeneric2 fixture only if live textures resolve.
