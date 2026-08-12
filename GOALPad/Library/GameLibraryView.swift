@@ -338,7 +338,7 @@ struct GameLibraryView: View {
 
 private struct DarkEcoMenuLabel: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private let shimmerDuration: TimeInterval = 1.6
+    private let shimmerDuration: TimeInterval = 2.6
     private let labelFont: Font = .caption.weight(.semibold)
 
     var body: some View {
