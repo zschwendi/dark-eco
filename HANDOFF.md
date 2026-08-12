@@ -17002,3 +17002,80 @@ also still have visibly hard polygonal edges. The next narrow steps are:
    character path is accepted.
 
 The physical `Z iPad Pro` was not accessed.
+
+## Jak II prison CLUT publication acceptance
+
+Date: 2026-08-12.
+
+The active integration branch remains `agent/jak2-ipad-playtest`. Nested
+`28a6c8987` added the host-owned six-output prison CLUT executor and nested
+`e90172faf` completed the source-correct dynamic PRIS dispatch. The latter is
+pushed to the same remote branch. This parent checkpoint pins that nested
+state and records the live acceptance evidence.
+
+The first executor build proved that the texture synthesis and Metal
+publication were correct, but exposed a source-ordering error: after the
+prison animator moved from bucket 204 to bucket 208, the runtime accumulated
+80 failed chains with `Jak 2 prison CLUT animator did not appear exactly once
+in bucket 204`. Source audit showed that `draw-level` indices are dynamically
+sorted and that opcode 23 uniquely identifies the `LDJAKBRN` prison-Jak
+animator. The corrected host now permits zero or one such semantic group
+across PRIS buckets 196, 200, 204, 208, 212, and 216, prepares it before any
+render mutation, publishes it from whichever callback owns it, and rejects a
+duplicate before mutation. The six registry handles remain stable.
+
+Focused host validation passed:
+
+```text
+cmake --build .agent-builds/jak2-combined-host --target jak2-metal-host-bridge-test -j2
+ctest --test-dir .agent-builds/jak2-combined-host --output-on-failure -R '^jak2-metal-host-bridge-test$'
+git diff --check HEAD^ HEAD
+```
+
+The sandboxed CTest run failed only because no default Metal device was
+available. The exact rerun with host Metal access passed 1/1. The final Release
+simulator build also passed and verified all 840 Jak II AOT units:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme 'Eco Jak II Dev' -configuration Release -destination 'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' -derivedDataPath /private/tmp/GOALPad-jak2-c2f2c4b1d-simulator -jobs 2 ENABLE_PREVIEWS=NO COMPILER_INDEX_STORE_ENABLE=NO GOALPAD_BUILD_JOBS=2 build
+```
+
+The final arm64 simulator executable SHA-256 is
+`c4f0a64e1a325828b9b29c8abe0f1d7a40e52f01f9103919cb9b46ea42a73da7`.
+The retained build log is
+`.agent-builds/jak2-resume-logs/eco-jak2-dev-prison-clut-dynamic-build.log`,
+SHA-256 `2326e775fff689a00e7105ae258b64d99f767d2d2fda479bc75bafa6938d5669`.
+
+The exact app was installed over the existing approved M5 simulator app, the
+container and Game 1 save were preserved, and a new game used `Continue
+without saving`. The opening played naturally. At tick 16,200 in
+`intro-prison`, the runtime reported `chains=16200/16200/0`, an empty error,
+`merc=8/151/66970`, `malformed=0`, `merc-anim=8/0`,
+`merc-missing-textures=0`, and CLUT `prep=980 publish=980`. At tick 20,400 it
+still reported `chains=20400/20400/0`, `merc-anim=8/0`, zero missing Merc
+textures, and CLUT `prep=5180 publish=5180`. Across both checkpoints the
+published handles were 7740 through 7745, the output TBPs were
+`5d8,5d4,5c4,4a3,3a3,29f`, and the slots were `4,5,7,8,9,10`.
+
+The retained visual proof is
+`/private/tmp/goalpad-jak2-prison-clut-dynamic-16200.png`, SHA-256
+`585e4d79b2db506d7da394ec4006d3fa3bb86ebed0d7c7ceb7c671c265a60029`.
+Jak, Daxter, and the guards are visibly textured without the former character
+checkerboards. The retained counter log is
+`.agent-builds/jak2-resume-logs/eco-jak2-dev-prison-clut-dynamic-runtime.log`,
+SHA-256 `db27a8419a9f7b126ebfe6fbfcf0eb75a3367d6e7bca3d621de94bfa0876432a`.
+
+The active-prison frame at tick 23,400 remained structurally healthy with
+`chains=23400/23400/0` and an empty error, but it exposes the next independent
+Merc texture gap after `ldjakbrn` unloads: `merc-anim=5/5`,
+`merc-missing-textures=7`, and `merc-eyes=4/0/2/2`. Its screenshot is
+`/private/tmp/goalpad-jak2-post-intro-gameplay-22800.png`, SHA-256
+`e12422909642872da61a43c52a111b7dee4fedff3b91c196b4ac2caed770c0bb`.
+The next narrow task is to identify those five negative texture slots and
+their missing producer without changing the accepted prison CLUT path.
+
+The early Samos-hut opening separately confirms deferred PRIS2 buckets
+228/229 and needs a non-mutating live capture before routing. The remaining
+hard-edged prison light patches also remain a separate SpriteGlow versus
+ordinary Sprite3 versus TRANS-tfrag A/B; no speculative shader change is
+authorized by this checkpoint. The physical `Z iPad Pro` was not accessed.
