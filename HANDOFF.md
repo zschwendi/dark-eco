@@ -18581,3 +18581,65 @@ visible; there are no build errors.
 
 Build 188 was not installed or launched. Physical imported-size presentation and
 gameplay rumble remain maintainer acceptance gates. No iPhone was accessed.
+
+# 2026-08-12 Build 192 byte-detected ZIP and 7z import checkpoint
+
+Build 192 is implemented on
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-build165-touch-controls`, branch
+`agent/build181-input-settings-polish`. The implementation commits are:
+
+```text
+e19d1ff6 Vendor bounded 7z decoder for iPad import
+0481c0c3 Complete vendored PLzma package headers
+86ecd818 Support byte-detected 7z ISO imports in Build 192
+```
+
+The selected file that repeatedly produced `The ZIP end-of-directory record is
+missing` was inspected locally and is a 7z archive with a `.zip` filename. Its
+bytes begin with the 7z signature and contain exactly one 1,460,535,296-byte
+ISO. Builds 50/80/100/120/150 all routed `.zip` exclusively through the custom
+ZIP32 parser; none had a 7z fallback. Build 191 proved the Files provider had
+materialized the complete 803,417,737-byte selected file, so this failure was a
+format mismatch rather than provider truncation.
+
+Build 192 materializes a selected archive once, identifies ZIP or 7z from its
+bytes, and streams 7z output into the existing raw-ISO preparation path. It
+also permits ordinary `.7z` selection. The 7z route requires exactly one
+non-directory file and requires that file to be an unencrypted ISO. It retains
+path, entry-count, expansion-ratio, output-size, free-space, cancellation, and
+atomic activation checks. PLzmaSDK 1.6.1 is vendored locally under MIT, updated
+with the intersecting upstream LZMA SDK 26.02 changes, and narrowed to Copy,
+LZMA, and LZMA2 with a 256 MiB dictionary cap and 64 MiB header caps. No
+upstream test archives/assets or user game data are in the repository.
+
+The exact user-selected archive successfully streamed through the Build 192
+extractor on macOS to a temporary 1,460,535,296-byte ISO. The temporary ISO was
+then deleted; the selected source was unchanged. A two-file synthetic 7z was
+rejected before extraction with `unsupportedArchive`, and a synthetic one-file
+7z reproduced its complete bytes. Focused checks passed:
+
+```text
+Scripts/run-zip-iso-import-check.sh
+Scripts/run-game-data-import-source-check.sh
+Scripts/run-game-data-import-presentation-check.sh
+Scripts/run-game-data-import-lifecycle-check.sh
+xcrun swift -frontend -parse GOALPad/Data/SevenZipISOExtractor.swift GOALPad/Data/ZIPISOCandidateProducer.swift
+swift package --package-path ThirdParty/PLzmaSDK describe
+plutil -lint GOALPad.xcodeproj/project.pbxproj
+git diff --check
+```
+
+The generic arm64 iOS Release build passed with the canonical Build 142 public
+source-object pack. Unsigned full-build log:
+`/private/tmp/goalpad-build192-local-device-build-2.log`. The subsequent signed
+build passed at:
+`/private/tmp/goalpad-build192-signed-device-build.log`. Product:
+`/private/tmp/GOALPad-build192-local-device-derived/Build/Products/Release-iphoneos/Dark Eco.app`.
+The app is signed by the existing development identity and reports bundle
+version 192.
+
+Build 192 was installed in place and launched on physical `Z iPad Pro`; no
+uninstall occurred and no iPhone was accessed. Device inventory confirmed Dark
+Eco 1.0 (192). Maintainer acceptance of the exact Files-provider archive import
+remains pending at this checkpoint. Do not claim that physical archive import
+completed until that result is reported or captured.
