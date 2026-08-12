@@ -20234,3 +20234,55 @@ Objective-C++ -> GOAL -> Metal -> CAMetalLayer path without prepared Jak 1
 data; adding a test-only synthetic gameplay architecture would not prove the
 real workload. The remaining objective is therefore the explicitly authorized
 physical iPhone 13 Pro-class capture and any trace-directed fix it identifies.
+
+### Build 207 installed and launched on Z iPad Pro
+
+The maintainer explicitly authorized physical access to `Z iPad Pro` in the
+current request and asked for Build 207 to be installed immediately. CoreDevice
+identified the authorized device as `6A4111AB-1663-508A-98D9-F0C1A9EA7863`, an
+iPad Pro 11-inch (M5). No other physical device was accessed.
+
+Because the earlier signed DerivedData product had been reclaimed, the app was
+rebuilt from the canonical Build 207 518-object source pack:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build207-physical-derived -jobs 2 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT="$PWD/build/jak1-source-object-pack-build207" \
+  build
+```
+
+Result: exit 0. Log:
+`/private/tmp/goalpad-build207-authorized-physical-build.log`. Product:
+`/private/tmp/GOALPad-build207-physical-derived/Build/Products/Release-iphoneos/Dark Eco.app`.
+The product is 53 MiB, arm64, bundle `com.zephyrstudiosllc.eco`, Build 207, and
+contains `CADisableMinimumFrameDurationOnPhone=true`. The fresh local
+`codesign --verify --deep --strict` invocation reported
+`CSSMERR_TP_NOT_TRUSTED`; the authorized physical iPad nevertheless accepted
+the embedded development provisioning and installed the app successfully.
+
+The app was installed in place, without uninstalling or inspecting its
+container:
+
+```text
+xcrun devicectl device install app \
+  --device 6A4111AB-1663-508A-98D9-F0C1A9EA7863 \
+  '/private/tmp/GOALPad-build207-physical-derived/Build/Products/Release-iphoneos/Dark Eco.app'
+```
+
+Install evidence:
+`/private/tmp/goalpad-build207-z-ipad-install.json`. It was then launched with
+`--terminate-existing --activate`; launch evidence is
+`/private/tmp/goalpad-build207-z-ipad-launch.json`. Final CoreDevice inventory
+reported Dark Eco 1.0, bundle version 207:
+`/private/tmp/goalpad-build207-z-ipad-inventory.json`.
+
+This proves physical installation and foreground launch only. No Instruments
+trace or Spider Cave performance acceptance was performed in this request, and
+no app container, imported game data, saves, or user files were inspected.
+After the requested context reset, the next task is a maintainer-driven warmed
+Spider Cave 60/HFR comparison using the committed capture workflow. The actual
+iPhone 13 Pro-class target remains physically unvalidated.
