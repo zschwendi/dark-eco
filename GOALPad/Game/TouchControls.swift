@@ -812,8 +812,8 @@ struct ModernTouchLayout: Sendable {
         default: false
         }
     }
-    static let movementKnobSize: CGFloat = 56
-    static let movementVisualRadius = TouchControls.movementRadius
+    static let movementKnobSize: CGFloat = TouchStickSize.small.knobDiameter
+    static let movementVisualRadius = TouchStickSize.small.ringDiameter / 2
     static let movementEdgePadding: CGFloat = 95
     static let movementCaptureExtent: CGFloat = 300
     static let rightStickHitSlop: CGFloat = 16
@@ -825,6 +825,10 @@ struct ModernTouchLayout: Sendable {
 
     let safeBounds: CGRect
     let rightStickSpacer: CGFloat
+    let movementRadius: CGFloat
+    let movementKnobSize: CGFloat
+    let rightStickRadius: CGFloat
+    let rightStickKnobSize: CGFloat
     let movementArtworkFrame: CGRect
     let movementCaptureFrame: CGRect
     let movementHitFrame: CGRect?
@@ -853,11 +857,20 @@ struct ModernTouchLayout: Sendable {
                           height: bounds.height - top - bottom)
         safeBounds = safe
 
+        let movementSize = customization.stickSize(for: .modernMovement)
+        let movementStickRadius = movementSize.ringDiameter / 2
+        movementRadius = movementStickRadius
+        movementKnobSize = movementSize.knobDiameter
+        let cameraSize = customization.stickSize(for: .modernCamera)
+        let cameraStickRadius = cameraSize.ringDiameter / 2
+        rightStickRadius = cameraStickRadius
+        rightStickKnobSize = cameraSize.knobDiameter
+
         let legacyEdge = Self.legacyRightStickEdge(for: bounds.size)
         let targetSpacer = min(Self.rightStickSpacerCap,
                                max(legacyEdge, safe.width * 0.24))
         rightStickSpacer = min(targetSpacer,
-                                max(0, safe.width - TouchControls.rightStickRadius * 2))
+                                max(0, safe.width - cameraStickRadius * 2))
 
         let isPortrait = bounds.height > bounds.width
         let chromeBounds = isPortrait ? safe : bounds
@@ -887,19 +900,18 @@ struct ModernTouchLayout: Sendable {
             ? max(0, bounds.maxY - (pillHitTop - Self.portraitStackGap))
             : max(20, bottom)
         let portraitStickCentreY = pillHitFrames.map(\.minY).min()
-            .map { $0 - Self.controlGap - Self.movementVisualRadius }
-            ?? safe.maxY - Self.movementVisualRadius
-        let movementDiameter = Self.movementVisualRadius * 2
-        let leadingPadding = isPortrait
-            ? 0
-            : min(Self.movementEdgePadding, max(0, safe.width - movementDiameter))
+            .map { $0 - Self.controlGap - movementStickRadius }
+            ?? safe.maxY - movementStickRadius
+        let movementDiameter = movementStickRadius * 2
+        let leadingPadding = min(Self.movementEdgePadding,
+                                 max(0, safe.width - movementDiameter))
         let bottomPadding = min(Self.movementEdgePadding,
                                 max(0, safe.height - movementDiameter))
         let movementCentre = CGPoint(
-            x: safe.minX + leadingPadding + Self.movementVisualRadius,
+            x: safe.minX + leadingPadding + movementStickRadius,
             y: isPortrait
                 ? portraitStickCentreY
-                : safe.maxY - bottomPadding - Self.movementVisualRadius)
+                : safe.maxY - bottomPadding - movementStickRadius)
         let defaultMovementFrame = Self.frame(centre: movementCentre,
                                               diameter: movementDiameter)
         movementArtworkFrame = Self.resolvedFrame(defaultMovementFrame, id: .modernMovement,
@@ -908,21 +920,21 @@ struct ModernTouchLayout: Sendable {
         let captureWidth = min(Self.movementCaptureExtent,
                                max(0, captureMaxX - safe.minX))
         let captureHeight = min(Self.movementCaptureExtent, safe.height)
-        movementCaptureFrame = CGRect(x: safe.minX,
-                                      y: safe.maxY - captureHeight,
-                                      width: captureWidth,
-                                      height: captureHeight)
         if customization.position(for: .modernMovement) != nil {
-            let diameter = min(safe.width, safe.height,
-                               TouchControls.movementRadius * 2
-                                   * customization.scale(for: .modernMovement))
-            let requested = Self.frame(centre: movementArtworkFrame.centre, diameter: diameter)
-            movementHitFrame = TouchLayoutGeometry.minimumHitFrame(for: requested, in: safe)
+            let requested = Self.frame(centre: movementArtworkFrame.centre,
+                                       size: CGSize(width: captureWidth,
+                                                    height: captureHeight))
+            movementCaptureFrame = Self.clampedFrame(requested, in: safe)
+            movementHitFrame = movementCaptureFrame
         } else {
+            movementCaptureFrame = CGRect(x: safe.minX,
+                                          y: safe.maxY - captureHeight,
+                                          width: captureWidth,
+                                          height: captureHeight)
             movementHitFrame = nil
         }
 
-        let radius = TouchControls.rightStickRadius
+        let radius = cameraStickRadius
         let renderedRightEdge = isPortrait ? safe.maxX : bounds.maxX
         let candidateCentreX = renderedRightEdge - radius - rightStickSpacer
         let rightHitRadius = radius + Self.rightStickHitSlop
@@ -1039,6 +1051,17 @@ struct ModernTouchLayout: Sendable {
     private static func frame(centre: CGPoint, size: CGSize) -> CGRect {
         CGRect(x: centre.x - size.width / 2, y: centre.y - size.height / 2,
                width: size.width, height: size.height)
+    }
+
+    private static func clampedFrame(_ frame: CGRect, in bounds: CGRect) -> CGRect {
+        let fitted = CGSize(width: min(frame.width, bounds.width),
+                            height: min(frame.height, bounds.height))
+        let centre = CGPoint(
+            x: min(max(bounds.minX + fitted.width / 2, frame.midX),
+                   bounds.maxX - fitted.width / 2),
+            y: min(max(bounds.minY + fitted.height / 2, frame.midY),
+                   bounds.maxY - fitted.height / 2))
+        return self.frame(centre: centre, size: fitted)
     }
 }
 
@@ -1282,10 +1305,10 @@ struct TouchPadState: Equatable {
 @MainActor
 @Observable
 final class TouchControls {
-    nonisolated static let movementRadius: CGFloat = 60
+    nonisolated static let movementRadius: CGFloat = TouchStickSize.small.ringDiameter / 2
     nonisolated static let movementDeadzone: CGFloat = 4
     nonisolated static let movementResponseExponent: CGFloat = 1.25
-    nonisolated static let rightStickRadius: CGFloat = 38
+    nonisolated static let rightStickRadius: CGFloat = TouchStickSize.small.ringDiameter / 2
     nonisolated static let rightStickDeadzone: CGFloat = 12
     nonisolated static let rollJumpDistance: CGFloat = 44
     nonisolated static let swipeDistance: CGFloat = 44
@@ -1631,7 +1654,8 @@ final class TouchControls {
         if stick == nil {
             if dynamicLeftStick, point.x < size.width / 2 { return .movement }
             if !dynamicLeftStick {
-                let layout = ModernTouchLayout(size: size, safeAreaInsets: safeAreaInsets)
+                let layout = ModernTouchLayout(size: size, safeAreaInsets: safeAreaInsets,
+                                               customization: layoutCustomization)
                 if layout.movementCaptureFrame.contains(point) { return .movement }
             }
         }
@@ -1652,6 +1676,8 @@ final class TouchControls {
         guard !capturesNativeTouchInput else { return }
         guard let role = build96Role(for: point, in: size,
                                      safeAreaInsets: safeAreaInsets) else { return }
+        let layout = ModernTouchLayout(size: size, safeAreaInsets: safeAreaInsets,
+                                       customization: layoutCustomization)
         let origin: CGPoint
         let radius: CGFloat
         let deadzone: CGFloat
@@ -1659,13 +1685,14 @@ final class TouchControls {
         switch role {
         case .movement:
             origin = point
-            radius = Self.movementRadius
+            radius = layout.movementRadius
             deadzone = dynamicLeftStick ? 0 : Self.movementDeadzone
             responseExponent = dynamicLeftStick ? 1 : Self.movementResponseExponent
         case .rightStick:
             origin = rightStickFrame.centre
-            radius = Self.rightStickRadius
-            deadzone = Self.rightStickDeadzone
+            radius = layout.rightStickRadius
+            deadzone = Self.rightStickDeadzone * layout.rightStickRadius
+                / (TouchStickSize.small.ringDiameter / 2)
             responseExponent = 1
         case .gesture:
             origin = point

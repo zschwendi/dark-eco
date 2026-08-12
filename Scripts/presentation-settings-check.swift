@@ -293,9 +293,9 @@ private func legacyDocumentAndPickerOrderingRemainCompatible() async throws {
           "a document without remapping data decodes to exact established input defaults")
     check(value.jak1TouchLayout == .standard
           && value.touchLayoutDocument.jak1TouchLayoutOverride == nil
-          && !value.dynamicLeftStick
+          && value.dynamicLeftStick
           && value.touchLayoutDocument.dynamicLeftStickOverride == nil,
-          "a Build 93 document preserves the fixed default stick and established touch layout")
+          "a Build 93 document adopts the dynamic-small default without changing its layout")
 }
 
 @MainActor
@@ -467,13 +467,17 @@ private func legacyTouchLayoutSidecarPersistsAcrossPresentationResets() async th
     let value = settings(fixture, writerID: "device-a", cloudAvailable: false)
     check(value.jak1TouchLayout == .standard
           && value.touchLayoutDocument.jak1TouchLayoutOverride == nil
-          && !value.dynamicLeftStick
+          && value.dynamicLeftStick
           && value.touchLayoutDocument.dynamicLeftStickOverride == nil,
-          "a fresh title uses the fixed stick and existing geometry without overrides")
+          "a fresh title uses dynamic-left and the smallest stick geometry without overrides")
 
     value.setDynamicLeftStick(true)
     value.setTouchControlPosition(NormalizedTouchPosition(x: 0.18, y: 0.76),
                                   for: .modernMovement)
+    value.setTouchControlPosition(NormalizedTouchPosition(x: 0.82, y: 0.72),
+                                  for: .modernCamera)
+    value.setTouchStickSize(.medium, for: .modernMovement)
+    value.setTouchStickSize(.large, for: .modernCamera)
     value.setTouchControlAction(.cameraStick, for: .modernMovement)
     value.setTouchGestureAction(.square, for: .up)
     value.setTouchGestureAction(.circle, for: .down)
@@ -487,8 +491,10 @@ private func legacyTouchLayoutSidecarPersistsAcrossPresentationResets() async th
           && value.jak1TouchLayout.gestureAction(for: .left) == .cross
           && value.jak1TouchLayout.gestureAction(for: .down) == .crouch
           && value.jak1TouchLayout.opacity(for: .modernActions) == 0.55
+          && value.jak1TouchLayout.stickSize(for: .modernMovement) == .medium
+          && value.jak1TouchLayout.stickSize(for: .modernCamera) == .large
           && value.jak1TouchLayout.scale(for: .classicCross) == 1.35,
-          "position, swap remaps, gesture mapping, opacity, and size update one live value")
+          "positions, discrete stick sizes, remaps, gestures, and opacity update one live value")
     let presentationJSON = (try? String(contentsOf: fixture.local, encoding: .utf8)) ?? ""
     let touchLayoutJSON = try String(contentsOf: fixture.localTouchLayout, encoding: .utf8)
     check(!presentationJSON.contains("jak1TouchLayoutOverride")
@@ -496,10 +502,11 @@ private func legacyTouchLayoutSidecarPersistsAcrossPresentationResets() async th
           "touch-only writes never add Build 117 fields to the frozen presentation document")
     check(touchLayoutJSON.contains("jak1TouchLayoutOverride")
           && touchLayoutJSON.contains("modernMovement")
-          && touchLayoutJSON.contains("dynamicLeftStickOverride\":true")
+          && !touchLayoutJSON.contains("dynamicLeftStickOverride")
           && !touchLayoutJSON.contains("opacityPercent\":100")
-          && !touchLayoutJSON.contains("sizePercent\":100"),
-          "only customized touch fields and the dynamic opt-in occupy the Jak 1 sidecar")
+          && touchLayoutJSON.contains("sizePercent\":100")
+          && touchLayoutJSON.contains("sizePercent\":150"),
+          "only customized touch fields occupy the Jak 1 sidecar")
 
     let restored = settings(fixture, writerID: "device-b", cloudAvailable: false)
     check(restored.jak1TouchLayout == value.jak1TouchLayout
@@ -519,25 +526,23 @@ private func legacyTouchLayoutSidecarPersistsAcrossPresentationResets() async th
     restored.setTouchControlPosition(NormalizedTouchPosition(x: 0.3, y: 0.7),
                                      for: .modernMovement)
     restored.setTouchControlSizePercent(125, for: .classicCross)
-    let layoutBeforeControlsDefaults = restored.jak1TouchLayout
     restored.restoreDefaults(for: .controls)
-    check(restored.jak1TouchLayout == layoutBeforeControlsDefaults
-          && !restored.dynamicLeftStick
+    check(restored.jak1TouchLayout == .standard
+          && restored.dynamicLeftStick
           && restored.touchLayoutDocument.dynamicLeftStickOverride == nil
           && readTouchLayoutDocument(at: fixture.localTouchLayout)?.jak1TouchLayout
-            == layoutBeforeControlsDefaults,
-          "Restore Controls Defaults resets Dynamic Left Stick without erasing legacy geometry")
+            == .standard,
+          "Restore Controls Defaults restores dynamic-left and both stick layouts")
 
     restored.setTouchControlSizePercent(145, for: .classicCamera)
     restored.setDynamicLeftStick(true)
-    let layoutBeforeFullReset = restored.jak1TouchLayout
     restored.resetAll()
-    check(restored.jak1TouchLayout == layoutBeforeFullReset
-          && !restored.dynamicLeftStick
+    check(restored.jak1TouchLayout == .standard
+          && restored.dynamicLeftStick
           && restored.touchLayoutDocument.dynamicLeftStickOverride == nil
           && readTouchLayoutDocument(at: fixture.localTouchLayout)?.jak1TouchLayout
-            == layoutBeforeFullReset,
-          "Reset Jak 1 Settings resets Dynamic Left Stick without erasing legacy geometry")
+            == .standard,
+          "Reset Jak 1 Settings restores dynamic-left and both stick layouts")
 }
 
 @MainActor

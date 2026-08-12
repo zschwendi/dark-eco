@@ -98,12 +98,12 @@ private func close(_ lhs: CGFloat, _ rhs: CGFloat, tolerance: CGFloat = 0.001) -
 @MainActor
 private func modernLayoutIsCompactAndSafe() {
     print("Modern artwork geometry keeps input semantics and clears the centre controls")
-    check(ModernTouchLayout.movementKnobSize == 56,
-          "the Modern movement knob is a compact 56 points")
+    check(ModernTouchLayout.movementKnobSize == 32,
+          "the default Modern movement knob is the smallest 32-point choice")
     check(ModernTouchLayout.movementVisualRadius == TouchControls.movementRadius,
           "the resting Modern movement ring matches the live Build 96 artwork")
-    check(TouchControls.movementRadius == 60,
-          "the Modern movement ring is a compact 120 points across")
+    check(TouchControls.movementRadius == 38,
+          "the default Modern movement ring is the smallest 76-point choice")
     check(TouchControls.movementDeadzone == 4
           && TouchControls.movementResponseExponent == 1.25,
           "the anchored stick filters resting motion and softens its low-end response")
@@ -120,6 +120,12 @@ private func modernLayoutIsCompactAndSafe() {
           && roomyIPad.movementCaptureFrame.contains(roomyIPad.movementArtworkFrame)
           && roomyIPad.safeBounds.contains(roomyIPad.movementCaptureFrame),
           "a bounded 300-point lower-left capture area surrounds the compact home ring")
+    let portraitIPad = ModernTouchLayout(
+        size: CGSize(width: 834, height: 1210),
+        safeAreaInsets: TouchSafeAreaInsets(top: 28, leading: 12, bottom: 24, trailing: 12))
+    check(close(portraitIPad.movementArtworkFrame.minX - portraitIPad.safeBounds.minX,
+                ModernTouchLayout.movementEdgePadding),
+          "portrait applies the same leading movement-stick padding as landscape")
     check(roomyIPad.rightStickSpacer <= ModernTouchLayout.rightStickSpacerCap,
           "the right-stick spacer never exceeds 200 points")
     check(roomyIPad.rightStickSpacer > ModernTouchLayout.legacyRightStickEdge(for: Runner.screen),
@@ -334,7 +340,7 @@ private func forgivingAnchoredMovementAndDynamicOptInAreExact() {
           "resting-finger travel inside four points cannot create movement")
 
     run.move(thumb, CGPoint(x: centre.x + 12, y: centre.y))
-    check(run.frame().leftX == 138,
+    check(run.frame().leftX == 148,
           "a small correction produces a deliberately soft analog value")
 
     run.move(thumb, CGPoint(x: centre.x + TouchControls.movementRadius, y: centre.y))
@@ -348,7 +354,7 @@ private func forgivingAnchoredMovementAndDynamicOptInAreExact() {
     run.move(thumb, CGPoint(x: centre.x + TouchControls.movementRadius / 2,
                             y: centre.y + TouchControls.movementRadius / 2))
     state = run.frame()
-    check(state.leftX == 183 && state.leftY == 183,
+    check(state.leftX == 182 && state.leftY == 182,
           "the eased half-radius diagonal preserves fine analog control")
 
     run.move(thumb, CGPoint(x: centre.x, y: centre.y - 300))
@@ -839,10 +845,10 @@ private func touchHapticsAreDiscreteAndRearmSafely() {
     let stick = Finger()
     let stickCentre = Runner.movementCentre
     modern.down(stick, stickCentre)
-    modern.move(stick, CGPoint(x: stickCentre.x + 30, y: stickCentre.y))
+    modern.move(stick, CGPoint(x: stickCentre.x + 12, y: stickCentre.y))
     check(modern.controls.consumeHapticEvents().isEmpty,
           "small Modern stick travel does not count as engagement")
-    modern.move(stick, CGPoint(x: stickCentre.x + 55, y: stickCentre.y))
+    modern.move(stick, CGPoint(x: stickCentre.x + 30, y: stickCentre.y))
     check(modern.controls.consumeHapticEvents() == [.stickEngaged],
           "meaningful Modern stick engagement emits once")
     modern.move(stick, CGPoint(x: stickCentre.x + 90, y: stickCentre.y))
@@ -852,7 +858,7 @@ private func touchHapticsAreDiscreteAndRearmSafely() {
     modern.cancel(stick)
     let rearmedStick = Finger()
     modern.down(rearmedStick, stickCentre)
-    modern.move(rearmedStick, CGPoint(x: stickCentre.x + 55, y: stickCentre.y))
+    modern.move(rearmedStick, CGPoint(x: stickCentre.x + 30, y: stickCentre.y))
     check(modern.controls.consumeHapticEvents() == [.stickEngaged],
           "cancelling re-arms a new Modern stick contact")
 
@@ -861,7 +867,7 @@ private func touchHapticsAreDiscreteAndRearmSafely() {
           "reset clears pending feedback alongside interrupted input")
     let resetStick = Finger()
     modern.down(resetStick, stickCentre)
-    modern.move(resetStick, CGPoint(x: stickCentre.x + 55, y: stickCentre.y))
+    modern.move(resetStick, CGPoint(x: stickCentre.x + 30, y: stickCentre.y))
     check(modern.controls.consumeHapticEvents() == [.stickEngaged],
           "reset re-arms a fresh Modern stick contact")
 

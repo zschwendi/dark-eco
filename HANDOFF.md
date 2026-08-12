@@ -18174,6 +18174,31 @@ git diff --check
 
 The unsigned iPad Simulator Release build passed and its bundle reports Dark
 Eco 1.0 (168). The build log is
-`/private/tmp/goalpad-build168-ios-sim.log`. Build 168 has not been installed or
-launched on physical `Z iPad Pro` because this request did not authorize a new
-physical-device operation; physical visual acceptance remains pending.
+`/private/tmp/goalpad-build168-ios-sim.log`. After explicit authorization, the
+signed Build 168 product was installed and launched on physical `Z iPad Pro`.
+
+# 2026-08-11 Build 169 touch-stick settings checkpoint
+
+Build 169 adds three discrete sizes for both modern sticks, defaults both to
+Small, defaults the left stick to Dynamic, and adds a Touch Sticks settings
+screen for fixed left/right placement. Dynamic-left artwork now disappears on
+release; fixed-left artwork keeps the shared three-second chrome behavior. The
+portrait movement-stick leading inset now matches landscape instead of being
+forced to zero.
+
+The checkpoint is on:
+
+```text
+/Users/zach/Developer/OS_Projects/GOALPad/GP-build165-touch-controls
+agent/build169-touch-stick-settings
+```
+
+Focused settings and touch checks, Swift parsing, `git diff --check`, the
+unsigned simulator Release build, and the signed generic-iOS Release build
+passed. The signed product is Dark Eco 1.0 (169), bundle
+`com.zephyrstudiosllc.eco`, team `V729QMY3V6`. Build logs are:
+
+```text
+/private/tmp/goalpad-build169-ios-sim.log
+/private/tmp/goalpad-build169-ios-device.log
+```

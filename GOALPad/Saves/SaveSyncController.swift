@@ -1326,6 +1326,11 @@ struct SaveSettingsView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
             NavigationLink {
+                TouchStickSettingsView(settings: settings)
+            } label: {
+                LabeledContent("Touch Sticks", value: "Size & Position")
+            }
+            NavigationLink {
                 TouchControlsGuideView()
             } label: {
                 Label("Touch Controls Guide", systemImage: "hand.tap")

@@ -102,23 +102,28 @@ private func remappingSwapsOnlyWithinCompatibleSets() {
 
 private func defaultsAreOmittedAndDecodingIsBounded() throws {
     print("customization encoding omits safe defaults and bounds decoded values")
+    check(TouchStickSize.allCases == [.small, .medium, .large]
+          && TouchStickSize.small.ringDiameter == 76
+          && TouchStickSize.medium.ringDiameter == 120
+          && TouchStickSize.large.ringDiameter == 180,
+          "the three stick choices preserve camera, current, and original ring sizes")
     var layout = TouchLayoutCustomization.standard
     layout.setOpacityPercent(100, for: .modernCamera)
-    layout.setSizePercent(100, for: .modernCamera)
+    layout.setStickSize(.small, for: .modernCamera)
     layout.setAction(.cameraStick, for: .modernCamera)
     check(layout.isDefault && layout.controls.isEmpty,
           "default opacity, size, and action do not create an override")
 
     layout.setPosition(NormalizedTouchPosition(x: 0.2, y: 0.8), for: .modernCamera)
     layout.setOpacityPercent(5, for: .modernCamera)
-    layout.setSizePercent(500, for: .modernCamera)
+    layout.setStickSize(.large, for: .modernCamera)
     let encoded = try JSONEncoder().encode(layout)
     let decoded = try JSONDecoder().decode(TouchLayoutCustomization.self, from: encoded)
     check(decoded.position(for: .modernCamera) == NormalizedTouchPosition(x: 0.2, y: 0.8),
           "normalized coordinates survive deterministic JSON round-trip")
     check(decoded.opacity(for: .modernCamera) == 0.25
-          && decoded.scale(for: .modernCamera) == 1.6,
-          "opacity and size are clamped to the editor's safe ranges")
+          && decoded.stickSize(for: .modernCamera) == .large,
+          "opacity is bounded and the discrete large stick survives decoding")
     check(!String(decoding: encoded, as: UTF8.self).contains("action"),
           "an unchanged action remains absent from persisted customization")
 

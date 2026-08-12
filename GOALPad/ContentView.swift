@@ -156,6 +156,10 @@ struct ContentView: View {
             session.input.setBindings(bindings)
         }
         #if os(iOS)
+        .onChange(of: session.presentationSettings.jak1TouchLayout, initial: true) {
+            _, customization in
+            session.touch.setLayoutCustomization(customization)
+        }
         .onChange(of: session.presentationSettings.dynamicLeftStick, initial: true) {
             _, enabled in
             session.touch.setDynamicLeftStick(enabled)

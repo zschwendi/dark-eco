@@ -151,7 +151,7 @@ nonisolated struct Jak1TouchLayoutSettingsDocument: Codable, Equatable, Sendable
     }
 
     var dynamicLeftStick: Bool {
-        dynamicLeftStickOverride ?? false
+        dynamicLeftStickOverride ?? true
     }
 }
 
@@ -693,6 +693,10 @@ final class PresentationSettings {
         updateTouchLayout { $0.setSizePercent(percent, for: control) }
     }
 
+    func setTouchStickSize(_ size: TouchStickSize, for control: TouchLayoutControlID) {
+        updateTouchLayout { $0.setStickSize(size, for: control) }
+    }
+
     func resetTouchControl(_ control: TouchLayoutControlID) {
         updateTouchLayout { $0.reset(control) }
     }
@@ -705,17 +709,21 @@ final class PresentationSettings {
 
     func setDynamicLeftStick(_ enabled: Bool) {
         guard enabled != dynamicLeftStick else { return }
-        changeTouchLayout { $0.dynamicLeftStickOverride = enabled ? true : nil }
+        changeTouchLayout { $0.dynamicLeftStickOverride = enabled ? nil : false }
     }
 
     func restoreDefaults(for section: SettingsSection) {
         change { $0.restoreDefaults(for: section) }
-        if section == .controls { setDynamicLeftStick(false) }
+        if section == .controls {
+            resetTouchLayout()
+            setDynamicLeftStick(true)
+        }
     }
 
     func resetAll() {
         change { $0.resetAll() }
-        setDynamicLeftStick(false)
+        resetTouchLayout()
+        setDynamicLeftStick(true)
     }
 
     func prepare() async {

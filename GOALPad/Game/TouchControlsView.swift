@@ -152,7 +152,8 @@ struct TouchControlsView: View {
                 bottom: proxy.safeAreaInsets.bottom,
                 trailing: proxy.safeAreaInsets.trailing)
             let layout = ModernTouchLayout(size: proxy.size,
-                                           safeAreaInsets: safeAreaInsets)
+                                           safeAreaInsets: safeAreaInsets,
+                                           customization: controls.layoutCustomization)
             let reservesCapturedSessionRow = ecoSettingsIsVisible || sessionControl != nil
 
             ZStack {
@@ -243,7 +244,10 @@ struct TouchControlsView: View {
             MovementStickArtwork(touch: controls.stick,
                                  restingOrigin: CGPoint(x: layout.movementArtworkFrame.midX,
                                                         y: layout.movementArtworkFrame.midY),
-                                 followsTouchOrigin: controls.dynamicLeftStick)
+                                 followsTouchOrigin: controls.dynamicLeftStick,
+                                 radius: layout.movementRadius,
+                                 knobSize: layout.movementKnobSize)
+                .opacity(controls.dynamicLeftStick && controls.stick == nil ? 0 : 1)
                 .allowsHitTesting(false)
 
             if activeGameplayChromeIsAvailable {
@@ -255,7 +259,9 @@ struct TouchControlsView: View {
                     .allowsHitTesting(false)
             }
 
-            RightStickControl(controls: controls)
+            RightStickControl(controls: controls,
+                              radius: layout.rightStickRadius,
+                              knobSize: layout.rightStickKnobSize)
                 .position(x: layout.rightStickArtworkFrame.midX,
                           y: layout.rightStickArtworkFrame.midY)
                 .opacity(rightStickArtworkIsAvailable ? 1 : 0)
@@ -818,7 +824,8 @@ private struct MovementStickArtwork: View {
     let touch: TouchControls.Tracked?
     let restingOrigin: CGPoint
     let followsTouchOrigin: Bool
-    private let knobSize = ModernTouchLayout.movementKnobSize
+    let radius: CGFloat
+    let knobSize: CGFloat
 
     var body: some View {
         ZStack {
@@ -836,8 +843,7 @@ private struct MovementStickArtwork: View {
                 }
                 .offset(knobOffset)
         }
-        .frame(width: TouchControls.movementRadius * 2,
-               height: TouchControls.movementRadius * 2)
+        .frame(width: radius * 2, height: radius * 2)
         .position(followsTouchOrigin ? touch?.origin ?? restingOrigin : restingOrigin)
     }
 
@@ -847,14 +853,15 @@ private struct MovementStickArtwork: View {
                                                  radius: touch.radius,
                                                  deadzone: touch.deadzone,
                                                  responseExponent: touch.responseExponent)
-        let travel = TouchControls.movementRadius - knobSize / 2
+        let travel = radius - knobSize / 2
         return CGSize(width: push.x * travel, height: push.y * travel)
     }
 }
 
 private struct RightStickControl: View {
     let controls: TouchControls
-    private let knobSize: CGFloat = 32
+    let radius: CGFloat
+    let knobSize: CGFloat
 
     private var isDown: Bool { controls.rightStick != nil }
 
@@ -875,8 +882,7 @@ private struct RightStickControl: View {
                 }
                 .offset(knobOffset)
         }
-        .frame(width: TouchControls.rightStickRadius * 2,
-               height: TouchControls.rightStickRadius * 2)
+        .frame(width: radius * 2, height: radius * 2)
         .onGeometryChange(for: CGRect.self) { proxy in
             proxy.frame(in: .named(TouchControlsView.space)).insetBy(dx: -16, dy: -16)
         } action: {
@@ -886,8 +892,10 @@ private struct RightStickControl: View {
 
     private var knobOffset: CGSize {
         guard let touch = controls.rightStick else { return .zero }
-        let push = TouchControls.rightStickDeflection(from: touch.origin, to: touch.point)
-        let travel = TouchControls.rightStickRadius - knobSize / 2
+        let push = TouchControls.stickDeflection(from: touch.origin, to: touch.point,
+                                                 radius: touch.radius,
+                                                 deadzone: touch.deadzone)
+        let travel = radius - knobSize / 2
         return CGSize(width: push.x * travel, height: push.y * travel)
     }
 }

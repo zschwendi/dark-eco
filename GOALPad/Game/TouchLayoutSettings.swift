@@ -17,6 +17,47 @@ nonisolated enum TouchLayoutProfile: String, CaseIterable, Codable, Sendable {
     var title: String { rawValue.capitalized }
 }
 
+/// The three physical stick diameters retained from the accepted touch iterations.
+nonisolated enum TouchStickSize: String, CaseIterable, Codable, Sendable, Identifiable {
+    case small
+    case medium
+    case large
+
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+
+    /// Small matches the Build 168 camera stick, medium the Build 168 movement stick, and large
+    /// the pre-Build-165 movement stick.
+    var ringDiameter: CGFloat {
+        switch self {
+        case .small: 76
+        case .medium: 120
+        case .large: 180
+        }
+    }
+
+    var knobDiameter: CGFloat {
+        switch self {
+        case .small: 32
+        case .medium: 56
+        case .large: 66
+        }
+    }
+
+    fileprivate var storedSizePercent: Int? {
+        switch self {
+        case .small: nil
+        case .medium: 100
+        case .large: 150
+        }
+    }
+
+    fileprivate static func nearest(toStoredSizePercent percent: Int?) -> Self {
+        guard let percent else { return .small }
+        return percent < 82 ? .small : (percent < 125 ? .medium : .large)
+    }
+}
+
 nonisolated enum TouchLayoutAction: String, CaseIterable, Codable, Hashable, Sendable {
     case movementStick
     case cameraStick
@@ -218,6 +259,10 @@ nonisolated enum TouchLayoutControlID: String, CaseIterable, Codable, Hashable, 
         rawValue.hasPrefix("modern") ? .modern : .classic
     }
 
+    var isModernStick: Bool {
+        self == .modernMovement || self == .modernCamera
+    }
+
     var title: String {
         switch self {
         case .modernMovement, .classicMovement: "Movement Stick"
@@ -362,7 +407,10 @@ nonisolated struct TouchControlCustomization: Codable, Equatable, Sendable, Iden
             let bounded = min(100, max(25, opacityPercent))
             self.opacityPercent = bounded == 100 ? nil : bounded
         }
-        if let sizePercent {
+        if id.isModernStick {
+            self.sizePercent = TouchStickSize.nearest(
+                toStoredSizePercent: sizePercent).storedSizePercent
+        } else if let sizePercent {
             let bounded = min(160, max(65, sizePercent))
             self.sizePercent = bounded == 100 ? nil : bounded
         }
@@ -445,7 +493,14 @@ nonisolated struct TouchLayoutCustomization: Codable, Equatable, Sendable {
     }
 
     func scale(for id: TouchLayoutControlID) -> CGFloat {
-        CGFloat(customization(for: id)?.sizePercent ?? 100) / 100
+        if id.isModernStick { return 1 }
+        return CGFloat(customization(for: id)?.sizePercent ?? 100) / 100
+    }
+
+    func stickSize(for id: TouchLayoutControlID) -> TouchStickSize {
+        guard id.isModernStick else { return .small }
+        return TouchStickSize.nearest(
+            toStoredSizePercent: customization(for: id)?.sizePercent)
     }
 
     func hasCustomGeometry(for id: TouchLayoutControlID) -> Bool {
@@ -464,6 +519,11 @@ nonisolated struct TouchLayoutCustomization: Codable, Equatable, Sendable {
 
     mutating func setSizePercent(_ percent: Int, for id: TouchLayoutControlID) {
         update(id) { $0.sizePercent = percent }
+    }
+
+    mutating func setStickSize(_ size: TouchStickSize, for id: TouchLayoutControlID) {
+        guard id.isModernStick else { return }
+        update(id) { $0.sizePercent = size.storedSizePercent }
     }
 
     mutating func setAction(_ action: TouchLayoutAction,
