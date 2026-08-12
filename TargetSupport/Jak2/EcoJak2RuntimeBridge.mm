@@ -251,7 +251,8 @@ void log_jak2_diagnostics_locked() {
   NSLog(@"GOALPAD_JAK2_FOREGROUND_STATE tick=%llu "
          "merc=%llu/%llu/%llu malformed=%llu reject-reason=%u missing-models=%llu "
          "bones=%llu/%llu/%llu/%llu "
-         "generic=%llu/%llu/%llu missing-textures=%llu unexpected-dma=%llu",
+         "generic=%llu/%llu/%llu missing-textures=%llu unexpected-dma=%llu "
+         "sprite-placeholder=%llu/%llu first-valid=%u first-tbp=0x%08x first-mode=0x%08x",
         static_cast<unsigned long long>(runtime.ticks),
         static_cast<unsigned long long>(metal.last_merc_models),
         static_cast<unsigned long long>(metal.last_merc_draws),
@@ -267,7 +268,13 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(metal.last_generic_draws),
         static_cast<unsigned long long>(metal.last_generic_triangles),
         static_cast<unsigned long long>(metal.last_generic_missing_textures),
-        static_cast<unsigned long long>(metal.last_generic_unexpected_dma));
+        static_cast<unsigned long long>(metal.last_generic_unexpected_dma),
+        static_cast<unsigned long long>(metal.last_sprite_placeholder_batches),
+        static_cast<unsigned long long>(metal.last_sprite_placeholder_sprites),
+        metal.last_sprite_first_placeholder_valid,
+        metal.last_sprite_first_placeholder_valid ? metal.last_sprite_first_placeholder_tbp : 0,
+        metal.last_sprite_first_placeholder_valid ? metal.last_sprite_first_placeholder_draw_mode
+                                                  : 0);
 
   NSLog(@"GOALPAD_JAK2_GLOW_STATE tick=%llu marked=%llu skipped=%llu "
          "parsed=%llu accepted=%llu rejected=%llu invalid=%llu "
