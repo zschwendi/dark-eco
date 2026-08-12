@@ -1332,8 +1332,8 @@ final class TouchControls {
     nonisolated static let nativeWarpSwipeDistance: CGFloat = 44
 
     /// Frames a recognised one-shot press remains down, followed by a guaranteed release gap.
-    nonisolated static let holdFrames = 6
-    nonisolated static let releaseFrames = 2
+    nonisolated static let holdFrames = 2
+    nonisolated static let releaseFrames = 1
     /// App-owned gameplay artwork idles away together after the last screen interaction.
     nonisolated static let gameplayChromeFadeOutDelay: TimeInterval = 3
 
@@ -2313,6 +2313,12 @@ final class TouchControls {
         mutating func press() {
             if holdRemaining == 0 && gapRemaining == 0 {
                 holdRemaining = TouchControls.holdFrames
+            } else if holdRemaining > 0 {
+                // Give a distinct second tap its release edge now instead of queueing it behind
+                // the first pulse's remaining hold window.
+                holdRemaining = 0
+                gapRemaining = max(gapRemaining, TouchControls.releaseFrames)
+                queued += 1
             } else {
                 queued += 1
             }

@@ -66,6 +66,8 @@ final class ControllerInput {
     @ObservationIgnored private var keyboardMouseState = KeyboardMouseInputState()
     @ObservationIgnored private var heldShiftCodes: Set<GCKeyCode> = []
     @ObservationIgnored private var activity = InputActivityTracker()
+    @ObservationIgnored private var controllerButtonSnapshots: [GOALPadButton] = []
+    @ObservationIgnored private var lastObservedControllerButtons: GOALPadButton = []
     #if os(iOS)
     @ObservationIgnored private let deviceRumbleHaptics = DeviceRumbleHaptics()
     #endif
@@ -79,6 +81,7 @@ final class ControllerInput {
     func setBindings(_ bindings: Jak1InputBindings) {
         guard bindings != self.bindings else { return }
         self.bindings = bindings
+        resetControllerButtonSnapshots()
     }
 
     func setRumbleEnabled(_ enabled: Bool) {
@@ -199,7 +202,9 @@ final class ControllerInput {
                 physicalLeftY: gamepad.leftThumbstick.yAxis.value,
                 physicalRightX: gamepad.rightThumbstick.xAxis.value,
                 physicalRightY: gamepad.rightThumbstick.yAxis.value)
-            state.buttons = controllerFrame.buttons
+            var polledButtons = controllerFrame.buttons
+            if Self.touchpadIsPressed(on: gamepad) { polledButtons.insert(.select) }
+            state.buttons = nextControllerButtons(polled: polledButtons)
             state.leftX = controllerSticks.leftX
             state.leftY = controllerSticks.leftY
             state.rightX = controllerSticks.rightX
@@ -369,7 +374,9 @@ final class ControllerInput {
 
     /// Keep Apple's positional controls distinct here so the persisted mapping, rather than a
     /// controller-brand special case, decides which PS2 pad action each one emits.
-    private static func pressedControls(of pad: GCExtendedGamepad) -> Set<Jak1ControllerControl> {
+    nonisolated private static func pressedControls(
+        of pad: GCExtendedGamepad
+    ) -> Set<Jak1ControllerControl> {
         var pressed: Set<Jak1ControllerControl> = []
         func add(_ button: GCControllerButtonInput?, _ control: Jak1ControllerControl) {
             if button?.isPressed == true { pressed.insert(control) }
@@ -391,6 +398,16 @@ final class ControllerInput {
         add(pad.buttonMenu, .menu)
         add(pad.buttonOptions, .options)
         return pressed
+    }
+
+    nonisolated private static func touchpadIsPressed(on pad: GCExtendedGamepad) -> Bool {
+        if let dualSense = pad as? GCDualSenseGamepad {
+            return dualSense.touchpadButton.isPressed
+        }
+        if let dualShock = pad as? GCDualShockGamepad {
+            return dualShock.touchpadButton.isPressed
+        }
+        return false
     }
 
     private static func controlValues(
@@ -441,6 +458,19 @@ final class ControllerInput {
         controller = candidate
         controllerName = candidate.vendorName ?? candidate.productCategory
         isDualSense = candidate.extendedGamepad is GCDualSenseGamepad
+        resetControllerButtonSnapshots()
+        candidate.extendedGamepad?.valueChangedHandler = { [weak self, weak candidate] pad, _ in
+            let pressed = Self.pressedControls(of: pad)
+            let touchpadPressed = Self.touchpadIsPressed(on: pad)
+            DispatchQueue.main.async { [weak self, weak candidate] in
+                MainActor.assumeIsolated {
+                    self?.recordControllerButtonSnapshot(
+                        pressed: pressed,
+                        touchpadPressed: touchpadPressed,
+                        from: candidate)
+                }
+            }
+        }
         motors = ControllerRumble(controller: candidate)
         if motors == nil {
             inputLog.error("Controller haptics are unavailable for \(self.controllerName ?? "unnamed", privacy: .public)")
@@ -463,12 +493,53 @@ final class ControllerInput {
     }
 
     private func releaseController() {
+        controller?.extendedGamepad?.valueChangedHandler = nil
         motors?.stop()
         motors = nil
         controller = nil
         controllerName = nil
         isDualSense = false
+        controllerButtonSnapshots.removeAll()
+        lastObservedControllerButtons = []
         activity.disconnectController()
+    }
+
+    private func resetControllerButtonSnapshots() {
+        controllerButtonSnapshots.removeAll()
+        guard let gamepad = controller?.extendedGamepad else {
+            lastObservedControllerButtons = []
+            return
+        }
+        let pressed = Self.pressedControls(of: gamepad)
+        var buttons = bindings.controllerFrame(pressed: pressed).buttons
+        if Self.touchpadIsPressed(on: gamepad) { buttons.insert(.select) }
+        lastObservedControllerButtons = buttons
+    }
+
+    private func recordControllerButtonSnapshot(
+        pressed: Set<Jak1ControllerControl>,
+        touchpadPressed: Bool,
+        from candidate: GCController?
+    ) {
+        guard controller === candidate else { return }
+        var buttons = bindings.controllerFrame(pressed: pressed).buttons
+        if touchpadPressed { buttons.insert(.select) }
+        guard buttons != lastObservedControllerButtons else { return }
+        lastObservedControllerButtons = buttons
+        if controllerButtonSnapshots.last != buttons {
+            controllerButtonSnapshots.append(buttons)
+        }
+        if controllerButtonSnapshots.count > 32 {
+            controllerButtonSnapshots.removeFirst(controllerButtonSnapshots.count - 32)
+        }
+    }
+
+    private func nextControllerButtons(polled: GOALPadButton) -> GOALPadButton {
+        guard !controllerButtonSnapshots.isEmpty else {
+            lastObservedControllerButtons = polled
+            return polled
+        }
+        return controllerButtonSnapshots.removeFirst()
     }
 
     private func adoptKeyboard(_ candidate: GCKeyboard?) {
@@ -650,9 +721,9 @@ private final class DeviceRumbleHaptics {
     }
 }
 #endif
-/// The two vibration motors, driven by Core Haptics. The engine's `large` motor is the on/off one
-/// the PS2 pulsed to fake an intensity and `small` is the analog one; the two controller handles
-/// are the closest thing a DualSense offers.
+/// The two PS2 vibration channels, driven through Core Haptics. The engine's `large` motor is the
+/// on/off one the PS2 pulsed to fake an intensity and `small` is the analog one; their strongest
+/// requested intensity drives the controller's default haptic locality.
 ///
 /// The DualSense's adaptive triggers are deliberately not driven: the PS2 pad had no such thing,
 /// so there is nothing in the game asking for it.
@@ -692,18 +763,23 @@ private final class ControllerRumble {
             }
             self.engine = engine
             engine.isAutoShutdownEnabled = false
+            engine.stoppedHandler = { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.player = nil
+                    self?.running = false
+                }
+            }
+            engine.resetHandler = { [weak self] in
+                Task { @MainActor [weak self] in
+                    do {
+                        try self?.restartEngine()
+                    } catch {
+                        inputLog.error("Rumble reset failed: \(error.localizedDescription, privacy: .public)")
+                    }
+                }
+            }
             do {
-                try engine.start()
-                let event = CHHapticEvent(
-                    eventType: .hapticContinuous,
-                    parameters: [
-                        CHHapticEventParameter(parameterID: .hapticIntensity, value: 1),
-                        CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.5),
-                    ],
-                    relativeTime: 0,
-                    duration: TimeInterval(GCHapticDurationInfinite))
-                player = try engine.makeAdvancedPlayer(with: CHHapticPattern(events: [event],
-                                                                            parameters: []))
+                try restartEngine()
             } catch {
                 inputLog.error("Haptics unavailable for \(locality.rawValue, privacy: .public): \(error.localizedDescription, privacy: .public)")
                 return nil
@@ -711,9 +787,10 @@ private final class ControllerRumble {
         }
 
         func set(intensity: Float) {
-            guard let player else { return }
             do {
                 if intensity > 0 {
+                    if player == nil { try restartEngine() }
+                    guard let player else { return }
                     try player.sendParameters(
                         [CHHapticDynamicParameter(parameterID: .hapticIntensityControl,
                                                   value: intensity,
@@ -724,7 +801,7 @@ private final class ControllerRumble {
                         running = true
                     }
                 } else if running {
-                    try player.stop(atTime: CHHapticTimeImmediate)
+                    try player?.stop(atTime: CHHapticTimeImmediate)
                     running = false
                 }
             } catch {
@@ -736,6 +813,21 @@ private final class ControllerRumble {
             try? player?.stop(atTime: CHHapticTimeImmediate)
             running = false
             engine.stop()
+        }
+
+        private func restartEngine() throws {
+            try engine.start()
+            let event = CHHapticEvent(
+                eventType: .hapticContinuous,
+                parameters: [
+                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 1),
+                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.5),
+                ],
+                relativeTime: 0,
+                duration: TimeInterval(GCHapticDurationInfinite))
+            player = try engine.makeAdvancedPlayer(
+                with: CHHapticPattern(events: [event], parameters: []))
+            running = false
         }
     }
 }

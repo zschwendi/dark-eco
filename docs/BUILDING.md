@@ -969,8 +969,9 @@ wireless discovery, and `GCExtendedGamepad`. GameController names face buttons b
 position and the DualSense's are where the PS2's were, so A/B/X/Y map to
 cross/circle/square/triangle directly. Shoulders are L1/R1, triggers are L2/R2
 plus an analog pressure byte, thumbstick buttons are L3/R3, `buttonMenu`
-(Options) is Start and `buttonOptions` (Create) is Select. Sticks become a byte
-per axis with 127 at rest, growing right and down — the Y axis is negated
+(Options) is Start, and both `buttonOptions` (Create) and the DualSense or
+DualShock touchpad button are Select. Sticks become a byte per axis with 127 at
+rest, growing right and down — the Y axis is negated
 because GameController reports up as positive and the PS2 pad did not. With no
 controller attached on a non-iOS host, the port is pushed as disconnected. On
 iOS the on-screen controls provide a neutral connected pad, merged with
