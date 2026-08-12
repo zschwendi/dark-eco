@@ -22,7 +22,9 @@ mkdir -p "$module_cache"
 # from a temporary copy so this macOS-hosted deterministic test can keep exercising its helpers.
 test "$(sed -n '1p' "$root/GOALPad/Game/TouchControlsView.swift")" = '#if os(iOS)'
 test "$(tail -n 1 "$root/GOALPad/Game/TouchControlsView.swift")" = '#endif'
-sed '1d;$d' "$root/GOALPad/Game/TouchControlsView.swift" > "$touch_view_source"
+sed '1d;$d' "$root/GOALPad/Game/TouchControlsView.swift" \
+  | sed 's/UIDevice.current.userInterfaceIdiom == .phone/false/' \
+  > "$touch_view_source"
 
 swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
   -module-cache-path "$module_cache" \
@@ -157,10 +159,11 @@ rg -Fq '.allowsHitTesting(isInteractive)' "$root/GOALPad/Game/TouchControlsView.
 # Portrait native-menu commands stack above that row rather than sharing its bottom edge.
 rg -Fq 'NativeEcoSettingsPresentation.isVisible(' \
   "$root/GOALPad/Game/TouchControlsView.swift"
-rg -Fq 'Button { openSettings() }' "$root/GOALPad/Game/TouchControlsView.swift"
-rg -Fq '.position(x: layout.settingsButtonFrame.midX,' \
+rg -Fq 'Button { performOpenSettings() }' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'openSettings()' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq '.position(x: layout.statsPillFrame.midX,' \
   "$root/GOALPad/Game/TouchControlsView.swift"
-rg -Fq 'ecoSettingsIsVisible ? layout.startPillFrame.midX' \
+rg -Fq 'capturedSettingsButtonIsVisible ? layout.startPillFrame.midX' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'layout.menuControlsBottomInset' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'layout.warpPromptBottomInset' "$root/GOALPad/Game/TouchControlsView.swift"
@@ -213,7 +216,9 @@ movement_stick_view=$(sed -n \
   '/private struct MovementStickArtwork: View {/,/private struct RightStickControl: View {/p' \
   "$root/GOALPad/Game/TouchControlsView.swift")
 printf '%s\n' "$movement_stick_view" \
-  | rg -Fq 'private let knobSize = ModernTouchLayout.movementKnobSize'
+  | rg -Fq 'let knobSize: CGFloat'
+rg -Fq 'knobSize: layout.movementKnobSize' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
 printf '%s\n' "$movement_stick_view" | rg -Fq 'Text("L")'
 printf '%s\n' "$movement_stick_view" \
   | rg -Fq '.font(.system(size: 13, weight: .bold, design: .rounded))'
@@ -305,8 +310,8 @@ for guide_title in 'Swipe Actions' 'Movement' 'Camera' 'Speeder controls'; do
 done
 rg -Fq 'Swipe anywhere on the right side\n- Up: Jump' "$touch_guide"
 rg -Fq -- '- Down: Crouch\n- Left: Punch\n- Right: Spin Kick' "$touch_guide"
-rg -Fq '.systemImage("hand.tap.fill")' "$touch_guide"
-rg -Fq '.systemImage("rocket.fill")' "$touch_guide"
+rg -Fq '.systemImage("hand.draw")' "$touch_guide"
+rg -Fq '.systemImage("flag.pattern.checkered.2.crossed")' "$touch_guide"
 rg -Fq 'guideRow(symbol: .text("L"), title: "Movement")' "$touch_guide"
 rg -Fq 'guideRow(symbol: .text("R"), title: "Camera")' "$touch_guide"
 rg -Fq 'Swipe up and hold to accelerate. Swipe down to hop brake.' "$touch_guide"

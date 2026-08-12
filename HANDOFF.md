@@ -19334,3 +19334,116 @@ checkpoint proves equivalent output and removes deterministic CPU work; it does
 not claim a measured performance improvement. Remote `main` remains the stable
 pre-120 Build 197 checkpoint. Build 201 remains isolated and unpushed on
 `agent/build181-input-settings-polish`.
+
+# 2026-08-12 Build 202 performance checkpoint
+
+Build 202 is the first signed/simulator checkpoint containing the remaining
+bounded default-path performance work after Build 201. It does not change the
+renderer output contract or claim a measured physical-device speedup.
+
+Outer branch `agent/build181-input-settings-polish` now contains:
+
+```text
+1aad1a51 Reduce per-frame diagnostics and input work (AI-assisted)
+579011a2 Snapshot native frame state once per tick (AI-assisted)
+9e091f83 Integrate asynchronous eye composition (AI-assisted)
+```
+
+The first commit avoids the default-off host camera snapshot, skips disabled
+rumble dispatch, and replaces per-frame touch pulse dictionaries/filtering with
+fixed indexed storage and one scan. The second replaces ten Swift/native state
+bridge reads after each successful frame with one ownership-free aggregate
+snapshot while retaining the previous Swift update order. The third advances
+the nested OpenGOAL pointer to `e261be721`.
+
+Nested branch `agent/build183-rumble-gate` is clean and contains:
+
+```text
+add37d929 Gate Metal camera provenance diagnostics (AI-assisted)
+e261be721 Avoid same-queue eye completion waits
+```
+
+The camera gate leaves functional packet validation, shader camera data,
+command completion/errors, and cheap chain/draw/triangle counters active while
+Developer Logs is off. The eye change removes only CPU completion waits whose
+auxiliary and consuming command buffers are committed on the same renderer-owned
+serial queue; borrowed/external and untracked paths retain the conservative
+wait. Synthetic proofs require exact RGBA equivalence and clean trace re-enable.
+
+The macOS touch runner now substitutes `false` for the iOS-only `UIDevice`
+phone-layout expression in its temporary stripped source and asserts the
+current Settings helper/positions, injected movement-knob size, and current
+guide symbols. Product source is unchanged by those runner repairs. The full
+485-case executable and the source assertions now both exit zero.
+
+Focused validation passed:
+
+```text
+cmake --build build/Release/bin --target metal-proof -j2
+OpenGOAL/build/Release/bin/game/metal-proof
+OpenGOAL/build/Release/bin/game/metal-proof --stereo-pixels-only
+Scripts/run-promotion-frame-rate-check.sh
+GOALPAD_OPENGOAL_SOURCE="$PWD/OpenGOAL" Scripts/run-game-frame-state-snapshot-check.sh
+Scripts/run-game-lifecycle-check.sh
+Scripts/run-controller-rumble-check.sh
+Scripts/run-camera-correction-diagnostics-check.sh
+Scripts/run-merc-transform-diagnostics-check.sh
+Scripts/run-portrait-library-check.sh
+Scripts/run-presentation-settings-check.sh
+Scripts/run-game-menu-state-check.sh
+Scripts/run-game-progress-state-check.sh
+Scripts/run-game-look-around-state-check.sh
+Scripts/run-touch-controls-check.sh
+xcrun swift -frontend -parse GOALPad/Game/GameSession.swift
+xcrun swift -frontend -parse GOALPad/Input/ControllerInput.swift
+xcrun swift -frontend -parse GOALPad/Game/TouchControls.swift
+xcrun swift -frontend -parse Scripts/game-frame-state-snapshot-bridge-check.swift
+xcrun swift -frontend -parse Scripts/game-lifecycle-route-check.swift
+sh -n Scripts/run-touch-controls-check.sh
+plutil -lint GOALPad.xcodeproj/project.pbxproj
+git diff --check
+git -C OpenGOAL diff --check
+```
+
+Full Metal proof log:
+`/private/tmp/goalpad-build202-metal-proof.log` (`METAL PROOF PASSED`). Stereo
+pixel proof log: `/private/tmp/goalpad-build202-metal-proof-stereo.log` (exit 0).
+
+The first combined Swift parse invocation put two top-level checker programs in
+one frontend job and failed because top-level expressions were not accepted in
+that multi-file mode. Parsing each required file individually passed. The first
+touch-runner invocation compiled and passed all 485 executable checks, then
+exited on stale source assertions; the bounded runner updates above made the
+canonical command pass.
+
+The signed generic arm64 iOS Release build passed with:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build194-derived -jobs 4 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT="$PWD/build/jak1-source-object-pack" \
+  build
+```
+
+Log: `/private/tmp/goalpad-build202-signed-device-build.log`. Product:
+`/private/tmp/GOALPad-build194-derived/Build/Products/Release-iphoneos/Dark Eco.app`.
+It is Dark Eco 1.0 (202), arm64, and strict deep codesign verification passed.
+Existing precision/conversion and AOT uninitialized-value warnings remain; no
+new build error was reported.
+
+A fresh Release iOS Simulator build passed in
+`/private/tmp/GOALPad-build202-simulator-derived`, installed, and launched on
+the already-booted approved iPad Pro 11-inch (M5) simulator. Screenshot:
+`/private/tmp/goalpad-build202-m5-ipad-launch.png`. It shows Version 1.0 (202)
+and I/II/III placeholder artwork with no `ECO` caption. It also confirms the
+Library still has the existing top-leading menu button; the separately requested
+centered shimmering `Dark Eco` pill is not part of this checkpoint.
+
+No physical device was accessed. Physical frame time, Spider Cave hitching,
+adaptive 120 Hz cadence, battery/power, thermals, DualSense rumble, and iPhone
+13-class acceptance remain pending. Remote `main` remains the stable pre-120
+Build 197 checkpoint. Build 202 is isolated and unpushed on
+`agent/build181-input-settings-polish`.
