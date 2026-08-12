@@ -249,7 +249,7 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(metal.skipped_bucket_bytes));
 
   NSLog(@"GOALPAD_JAK2_FOREGROUND_STATE tick=%llu "
-         "merc=%llu/%llu/%llu malformed=%llu missing-models=%llu "
+         "merc=%llu/%llu/%llu malformed=%llu reject-reason=%u missing-models=%llu "
          "bones=%llu/%llu/%llu/%llu "
          "generic=%llu/%llu/%llu missing-textures=%llu unexpected-dma=%llu",
         static_cast<unsigned long long>(runtime.ticks),
@@ -257,6 +257,7 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(metal.last_merc_draws),
         static_cast<unsigned long long>(metal.last_merc_triangles),
         static_cast<unsigned long long>(metal.last_merc_malformed_dma),
+        metal.last_merc_preflight_rejection_reason,
         static_cast<unsigned long long>(metal.last_merc_missing_models),
         static_cast<unsigned long long>(metal.last_merc_bad_bone_pointers),
         static_cast<unsigned long long>(metal.last_merc_missing_bone_slots),
