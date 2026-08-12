@@ -20164,3 +20164,73 @@ actual cadence/frame-time distribution, CPU/GPU occupancy, thermals, power,
 audio, input, saves, and rumble. Remote `main` remains the stable pre-120 Build
 197 checkpoint; Build 207 is isolated and unpushed on
 `agent/build181-input-settings-polish`.
+
+### Build 207 physical performance capture workflow
+
+Outer commit `d6fac383` (`Add physical ProMotion capture workflow
+(AI-assisted)`) makes the remaining physical gate reproducible without adding
+shipping runtime instrumentation. `Scripts/capture-ios-game-performance.sh`
+requires explicit `--device`, `--mode`, `--kind`, and `--output` arguments. It
+does not enumerate devices, install, or launch the app. The signed app must
+already be running at the prepared route; the helper attaches `xctrace`, records
+one Game Performance Overview, Metal System Trace, Time Profiler, or Power
+Profiler run, exports its table of contents, and records exact outer/nested
+commits and capture metadata. `--dry-run` performs no device access.
+
+`docs/BUILDING.md` now defines a counterbalanced warmed Spider Cave protocol:
+60-A, HFR-A, HFR-B, then 60-B with Developer Logs off, Low Power Mode off, fixed
+graphics/resolution/input/route/brightness, and matching nominal starting
+thermal state. Each settings change requires a new gameplay session because the
+60/120 target is immutable for a session. Short overview/Metal/CPU runs default
+to 30 seconds; the sustained Power Profiler run defaults to five minutes. Judge
+the result against actual adaptive cadence, including its corresponding frame
+budget, rather than requiring continuous 120 Hz. HFR must enter a cadence above
+60 Hz in the warmed route without recurring multi-interval hitches or a worse
+60 Hz baseline. Camera/timer/audio, input, saves, and rumble remain acceptance
+requirements.
+
+Focused workflow validation passed:
+
+```text
+sh -n Scripts/capture-ios-game-performance.sh
+overview and power --dry-run argument/template/default-duration checks
+missing-device and invalid-duration fail-closed checks
+fake xcrun full-path record/export/metadata check
+git diff --check
+git -C OpenGOAL diff --check
+```
+
+A real one-second host-only `Game Performance Overview` recording and table-of-
+contents export also passed. Its exported schemas include
+`metal-perf-overview-layer-per-frame-metric`, `time-profile`, and
+`device-thermal-state-intervals`. Evidence:
+
+```text
+/private/tmp/goalpad-build207-capture-workflow-validation.log
+/private/tmp/goalpad-build207-capture-workflow-toc.xml
+```
+
+Two non-authoritative M5 simulator `xctrace` attempts resolved or targeted the
+simulator but stalled during Instruments device initialization and never reached
+their three-second recording timer. They were stopped after bounded waits and
+produced no usable trace. This was an Instruments/CoreSimulator coordination
+failure, not an app crash or performance result. Host capture is healthy; the
+physical-device attach path still requires fresh authorization and validation.
+
+The simulator Instruments attempts caused CoreSimulator's explicitly named
+`containermanagerd/Dead` cache to retain superseded Dark Eco, EcoJak2Dev, and
+GOALPad installation staging. After verifying the cache contained only
+`Dead/temp.*` app bundles/placeholders, had no open handles, and was separate
+from the live Build 207 bundle and data containers, its children were deleted.
+About 1.4 GiB of regenerable dead staging was removed; it is not recoverable as
+old staging copies. The simulator device and live app/data containers remain
+intact. No source worktree, canonical DerivedData, current source pack, user or
+game data, or simulator device was removed.
+
+An independent completion audit found no additional software gap or safe
+source-only optimization before physical measurement. No copyright-clean
+fixture reaches the complete shipping CADisplayLink -> Swift session ->
+Objective-C++ -> GOAL -> Metal -> CAMetalLayer path without prepared Jak 1
+data; adding a test-only synthetic gameplay architecture would not prove the
+real workload. The remaining objective is therefore the explicitly authorized
+physical iPhone 13 Pro-class capture and any trace-directed fix it identifies.
