@@ -169,17 +169,35 @@ struct GameLibraryView: View {
     }
 
     private func fittedPortraitLibrary(containerSize: CGSize) -> some View {
-        let layout = GameLibraryShelfLayout(
-            containerSize: CGSize(width: containerSize.width,
-                                  height: max(0, containerSize.height - 44)),
-            usesRegularWidth: false
+        let spacing = GameLibraryGridLayout.spacing
+        let outerPadding = GameLibraryGridLayout.outerPadding
+        let footerReserve: CGFloat = 44
+        let availableWidth = max(0, containerSize.width - outerPadding * 2 - spacing)
+        let availableHeight = max(0, containerSize.height - footerReserve
+                                  - outerPadding * 2 - spacing)
+        let coverWidth = min(
+            GameLibraryShelfLayout.maximumCoverWidth,
+            max(0, availableWidth / 2
+                - GameLibraryShelfLayout.cardHorizontalInset * 2),
+            max(0, availableHeight / 2 - GameLibraryShelfLayout.cardFooterHeight)
+                * GameLibraryShelfLayout.coverAspectRatio
         )
-        return HStack(alignment: .top, spacing: layout.spacing) {
-            ForEach(GameLibraryTitle.allCases) { title in
-                tile(title, coverSize: layout.coverSize)
+        let coverSize = CGSize(width: coverWidth,
+                               height: coverWidth / GameLibraryShelfLayout.coverAspectRatio)
+        let titles = GameLibraryTitle.allCases
+        return Grid(horizontalSpacing: spacing, verticalSpacing: spacing) {
+            GridRow {
+                tile(titles[0], coverSize: coverSize)
+                tile(titles[1], coverSize: coverSize)
+            }
+            GridRow {
+                tile(titles[2], coverSize: coverSize)
+                Color.clear
+                    .frame(width: coverWidth
+                        + GameLibraryShelfLayout.cardHorizontalInset * 2)
             }
         }
-        .frame(width: layout.shelfWidth, height: layout.shelfHeight, alignment: .top)
+        .padding(outerPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 

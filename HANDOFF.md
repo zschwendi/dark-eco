@@ -18380,3 +18380,21 @@ test-suite run was performed. Build log:
 ```text
 /private/tmp/goalpad-build179-ios-device.log
 ```
+
+# 2026-08-11 Build 180 fixed portrait grid checkpoint
+
+Build 180 keeps the portrait iPad library in the two-column grid introduced in
+Build 172 but removes its ScrollView. Cover size is bounded by both two-column
+width and two-row height, so all three cards and the version footer fit in the
+available screen. Compact iPhone portrait scrolling and the Build 177 compact
+landscape horizontal cards are unchanged.
+
+The checkpoint is on branch `agent/build180-portrait-grid`. The signed generic
+iOS Release build passed and was installed on physical `Z iPad Pro`; device
+inventory confirmed Dark Eco 1.0 (180). The iPad remained locked at launch time,
+and `Z iPhone Air` remained offline. Per maintainer direction, no test-suite run
+was performed. Build log:
+
+```text
+/private/tmp/goalpad-build180-ios-device.log
+```
