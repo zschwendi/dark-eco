@@ -261,8 +261,8 @@ struct GameLibraryView: View {
     }
 
     private var menuPlacement: ToolbarItemPlacement {
-#if os(iOS)
-        isPhone ? .principal : .navigation
+#if os(iOS) || os(visionOS)
+        .principal
 #else
         .navigation
 #endif
@@ -270,15 +270,7 @@ struct GameLibraryView: View {
 
     @ViewBuilder
     private var mainMenuLabel: some View {
-#if os(iOS)
-        if isPhone {
-            DarkEcoMenuLabel()
-        } else {
-            Image(systemName: "line.3.horizontal")
-        }
-#else
-        Image(systemName: "line.3.horizontal")
-#endif
+        DarkEcoMenuLabel()
     }
 
     private func state(for title: GameLibraryTitle) -> GameLibraryState {
@@ -350,12 +342,14 @@ struct GameLibraryView: View {
 
 private struct DarkEcoMenuLabel: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var highlightLocation: CGFloat = -1
+    @State private var shimmerProgress: CGFloat = -1
+    private let labelFont: Font = .caption.weight(.semibold)
+    private let menuText = "Dark Eco"
 
     var body: some View {
-        Text("Dark Eco")
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(labelForegroundStyle)
+        Text(menuText)
+            .font(labelFont)
+            .foregroundStyle(DarkEcoTheme.accent)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(DarkEcoTheme.surface.opacity(0.9), in: Capsule())
@@ -364,11 +358,29 @@ private struct DarkEcoMenuLabel: View {
                     .strokeBorder(DarkEcoTheme.accent.opacity(0.58), lineWidth: 1)
             }
             .shadow(color: DarkEcoTheme.accent.opacity(0.32), radius: 6)
+            .overlay(alignment: .center) {
+                if !reduceMotion {
+                    GeometryReader { geometry in
+                        let width = geometry.size.width
+                        let travelDistance = max(160, width + 80)
+                        Text(menuText)
+                            .font(labelFont)
+                            .foregroundStyle(shimmerGradient)
+                            .mask(
+                                Text(menuText)
+                                    .font(labelFont)
+                            )
+                            .offset(x: shimmerProgress * travelDistance / 2)
+                            .blendMode(.screen)
+                            .allowsHitTesting(false)
+                    }
+                }
+            }
             .onAppear { updateShimmer() }
             .onChange(of: reduceMotion) { _, _ in updateShimmer() }
     }
 
-    private var labelForegroundStyle: LinearGradient {
+    private var shimmerGradient: LinearGradient {
         guard !reduceMotion else {
             return LinearGradient(
                 colors: [DarkEcoTheme.accent, DarkEcoTheme.accent],
@@ -378,18 +390,25 @@ private struct DarkEcoMenuLabel: View {
         }
 
         return LinearGradient(
-            colors: [DarkEcoTheme.accent, DarkEcoTheme.accent,
-                     .white.opacity(0.85), DarkEcoTheme.accent, DarkEcoTheme.accent],
-            startPoint: UnitPoint(x: highlightLocation - 1, y: 0.5),
-            endPoint: UnitPoint(x: highlightLocation + 1, y: 0.5)
+            colors: [
+                DarkEcoTheme.accent.opacity(0.0),
+                DarkEcoTheme.accent.opacity(0.1),
+                DarkEcoTheme.accent.opacity(0.0),
+                .white.opacity(0.95),
+                DarkEcoTheme.accent.opacity(0.0),
+                DarkEcoTheme.accent.opacity(0.1),
+                DarkEcoTheme.accent.opacity(0.0)
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
         )
     }
 
     private func updateShimmer() {
-        highlightLocation = -1
+        shimmerProgress = -1
         guard !reduceMotion else { return }
         withAnimation(.linear(duration: 3.2).repeatForever(autoreverses: false)) {
-            highlightLocation = 1
+            shimmerProgress = 1.6
         }
     }
 }
