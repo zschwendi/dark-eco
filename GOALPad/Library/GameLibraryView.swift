@@ -261,11 +261,7 @@ struct GameLibraryView: View {
     }
 
     private var menuPlacement: ToolbarItemPlacement {
-#if os(iOS) || os(visionOS)
         .principal
-#else
-        .navigation
-#endif
     }
 
     @ViewBuilder
