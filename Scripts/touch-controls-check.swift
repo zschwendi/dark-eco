@@ -849,8 +849,8 @@ private func touchHapticsAreDiscreteAndRearmSafely() {
     check(modern.controls.consumeHapticEvents().isEmpty,
           "small Modern stick travel does not count as engagement")
     modern.move(stick, CGPoint(x: stickCentre.x + 30, y: stickCentre.y))
-    check(modern.controls.consumeHapticEvents() == [.stickEngaged],
-          "meaningful Modern stick engagement emits once")
+    check(modern.controls.consumeHapticEvents().isEmpty,
+          "Modern stick deflection remains silent")
     modern.move(stick, CGPoint(x: stickCentre.x + 90, y: stickCentre.y))
     _ = modern.frames(20)
     check(modern.controls.consumeHapticEvents().isEmpty,
@@ -859,8 +859,8 @@ private func touchHapticsAreDiscreteAndRearmSafely() {
     let rearmedStick = Finger()
     modern.down(rearmedStick, stickCentre)
     modern.move(rearmedStick, CGPoint(x: stickCentre.x + 30, y: stickCentre.y))
-    check(modern.controls.consumeHapticEvents() == [.stickEngaged],
-          "cancelling re-arms a new Modern stick contact")
+    check(modern.controls.consumeHapticEvents().isEmpty,
+          "a new Modern stick contact remains silent")
 
     modern.controls.reset()
     check(modern.controls.consumeHapticEvents().isEmpty,
@@ -868,8 +868,8 @@ private func touchHapticsAreDiscreteAndRearmSafely() {
     let resetStick = Finger()
     modern.down(resetStick, stickCentre)
     modern.move(resetStick, CGPoint(x: stickCentre.x + 30, y: stickCentre.y))
-    check(modern.controls.consumeHapticEvents() == [.stickEngaged],
-          "reset re-arms a fresh Modern stick contact")
+    check(modern.controls.consumeHapticEvents().isEmpty,
+          "a reset Modern stick contact remains silent")
 
 }
 
@@ -2495,8 +2495,8 @@ private func nativeProgressListSwipeIsOneShotAndStateGated() {
     check(run.controls.performNativeMenuVerticalSwipe(
         translation: CGSize(width: 2, height: -TouchControls.nativeMenuSwipeDistance)),
           "upward settings-list swipe is accepted")
-    check(run.controls.consumeHapticEvents() == [.button(.up)],
-          "one completed swipe emits one feedback event")
+    check(run.controls.consumeHapticEvents().isEmpty,
+          "ordinary native-menu navigation stays silent")
     check(run.frame().buttons.contains(.up), "upward swipe emits one Up pulse")
 
     run.controls.setNativeMenuState(.progress,
@@ -2504,8 +2504,8 @@ private func nativeProgressListSwipeIsOneShotAndStateGated() {
     check(run.controls.performNativeMenuVerticalSwipe(
         translation: CGSize(width: 0, height: TouchControls.nativeMenuSwipeDistance)),
           "downward settings-list swipe is accepted")
-    check(run.controls.consumeHapticEvents() == [.button(.down)],
-          "downward swipe emits one feedback event")
+    check(run.controls.consumeHapticEvents().isEmpty,
+          "downward native-menu navigation stays silent")
     check(run.frame().buttons.contains(.down), "downward swipe emits one Down pulse")
 
     run.controls.setNativeMenuState(.progress,
@@ -2519,9 +2519,9 @@ private func nativeProgressListSwipeIsOneShotAndStateGated() {
     check(run.controls.performNativeMenuVerticalSwipe(
         translation: CGSize(width: 0, height: -TouchControls.nativeMenuSwipeDistance)),
           "fuel-cell stats accept their source-proven upward level navigation")
-    check(run.controls.consumeHapticEvents() == [.button(.up)]
+    check(run.controls.consumeHapticEvents().isEmpty
           && run.frame().buttons.contains(.up),
-          "fuel-cell stats swipe emits one exact Up pulse")
+          "fuel-cell stats swipe emits one exact silent Up pulse")
 }
 
 @MainActor

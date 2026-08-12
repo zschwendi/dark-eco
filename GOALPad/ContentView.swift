@@ -259,6 +259,7 @@ struct ContentView: View {
 
 private struct SettingsSheetView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var isConfirmingReturnToLibrary = false
     @Bindable var sync: SaveSyncController
     @Bindable var settings: PresentationSettings
     @Bindable var input: ControllerInput
@@ -286,7 +287,30 @@ private struct SettingsSheetView: View {
         }
         .tint(DarkEcoTheme.accent)
         .background(DarkEcoTheme.background)
-        #if !os(visionOS)
+        #if os(iOS)
+        .toolbar {
+            ToolbarItemGroup(placement: .confirmationAction) {
+                if isGameRunning {
+                    Button(role: .destructive) {
+                        isConfirmingReturnToLibrary = true
+                    } label: {
+                        Image(systemName: "power")
+                            .foregroundStyle(.red)
+                    }
+                    .accessibilityLabel("Return to Library")
+                }
+                Button("Done") { dismiss() }
+            }
+        }
+        .confirmationDialog("Return to Library?",
+                            isPresented: $isConfirmingReturnToLibrary,
+                            titleVisibility: .visible) {
+            Button("Return to Library", role: .destructive) { returnToLibrary() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Dark Eco will close the running game. Progress since your last in-game save will be lost.")
+        }
+        #elseif !os(visionOS)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") { dismiss() }

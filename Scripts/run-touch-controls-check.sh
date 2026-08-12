@@ -167,13 +167,11 @@ rg -Fq 'layout.warpPromptBottomInset' "$root/GOALPad/Game/TouchControlsView.swif
 rg -Fq 'if isPortrait {' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq '.frame(maxWidth: .infinity, alignment: .leading)' \
   "$root/GOALPad/Game/TouchControlsView.swift"
-settings_icon=$(sed -n \
-  '/private var settingsIconLabel: some View {/,/^    }/p' \
-  "$root/GOALPad/Game/TouchControlsView.swift")
-printf '%s\n' "$settings_icon" | rg -Fq 'Image(systemName: "gearshape")'
-printf '%s\n' "$settings_icon" | rg -Fq '.frame(width: 42, height: 42)'
-if printf '%s\n' "$settings_icon" | rg -Fq 'Text("DARK ECO")'; then
-  echo "gameplay Settings control still includes the Dark Eco wordmark" >&2
+rg -Fq 'capturedPillLabel("SETTINGS", isEnabled: true)' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+if rg -Fq 'Image(systemName: "gearshape")' \
+    "$root/GOALPad/Game/TouchControlsView.swift"; then
+  echo "gameplay Settings control still uses the gear icon" >&2
   exit 1
 fi
 native_menu_button=$(sed -n \

@@ -147,6 +147,13 @@ struct TouchControlsView: View {
             runReadiness: runReadiness)
     }
 
+    private var capturedSettingsButtonIsVisible: Bool {
+        ecoSettingsIsVisible
+            || (sessionControl != nil
+                && capturesNativeMenuInput
+                && (runReadiness == .active || runReadiness == .titleMenu))
+    }
+
     /// Triangle belongs to SKIP while the authored cutscene query owns it.
     private var zoomIsAvailable: Bool {
         activeGameplayChromeIsAvailable && !cutsceneSkipAvailable && facePromptActions.isEmpty
@@ -163,7 +170,8 @@ struct TouchControlsView: View {
                                            safeAreaInsets: safeAreaInsets,
                                            customization: controls.layoutCustomization,
                                            usesCompactSessionChrome: usesCompactSessionChrome)
-            let reservesCapturedSessionRow = ecoSettingsIsVisible || sessionControl != nil
+            let reservesCapturedSessionRow = capturedSettingsButtonIsVisible
+                || sessionControl != nil
 
             ZStack {
                 if !capturesNativeMenuInput && !capturesWarpGateTouchInput {
@@ -287,11 +295,9 @@ struct TouchControlsView: View {
 
     private func pill(_ button: TouchButton) -> some View {
         let isDown = controls.isPillDown(button)
-        let label = usesCompactSessionChrome && button == .stats && !cutsceneSkipAvailable
-            ? "SELECT"
-            : TouchControls.artworkLabel(for: button,
-                                         sessionAction: sessionControl?.action,
-                                         cutsceneSkipAvailable: cutsceneSkipAvailable)
+        let label = TouchControls.artworkLabel(for: button,
+                                               sessionAction: sessionControl?.action,
+                                               cutsceneSkipAvailable: cutsceneSkipAvailable)
         return Text(label)
             .font(.system(size: 12, weight: .semibold, design: .rounded))
             .tracking(1.4)
@@ -335,17 +341,13 @@ struct TouchControlsView: View {
     private func capturedMenuChrome(in proxy: GeometryProxy,
                                     layout: ModernTouchLayout) -> some View {
         return ZStack {
-            if ecoSettingsIsVisible {
-                Button { openSettings() } label: {
-                    if usesCompactSessionChrome {
-                        capturedPillLabel("SETTINGS", isEnabled: true)
-                    } else {
-                        settingsIconLabel
-                    }
+            if capturedSettingsButtonIsVisible {
+                Button { performOpenSettings() } label: {
+                    capturedPillLabel("SETTINGS", isEnabled: true)
                 }
                 .buttonStyle(.plain)
-                .position(x: layout.settingsButtonFrame.midX,
-                          y: layout.settingsButtonFrame.midY)
+                .position(x: layout.statsPillFrame.midX,
+                          y: layout.statsPillFrame.midY)
                 .accessibilityLabel("Settings")
             }
 
@@ -356,8 +358,8 @@ struct TouchControlsView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(!sessionControl.isEnabled)
-                .position(x: ecoSettingsIsVisible ? layout.startPillFrame.midX
-                                                  : layout.selectPillFrame.midX,
+                .position(x: capturedSettingsButtonIsVisible ? layout.startPillFrame.midX
+                                                             : layout.selectPillFrame.midX,
                           y: layout.startPillFrame.midY)
                 .accessibilityLabel(sessionControl.action.label)
             }
@@ -377,16 +379,6 @@ struct TouchControlsView: View {
             .overlay(Capsule().strokeBorder(.white.opacity(isEnabled ? 0.35 : 0.18),
                                             lineWidth: 1))
             .contentShape(Capsule())
-    }
-
-    private var settingsIconLabel: some View {
-        Image(systemName: "gearshape")
-            .font(.system(size: 16, weight: .semibold))
-            .foregroundStyle(.white.opacity(0.8))
-            .frame(width: 42, height: 42)
-            .background(Circle().fill(.black.opacity(0.42)))
-            .overlay(Circle().strokeBorder(.white.opacity(0.35), lineWidth: 1))
-            .contentShape(Circle())
     }
 
     /// The title prompt is an app-owned semantic action. Keep its visible Build 96 pill, but do
@@ -424,6 +416,14 @@ struct TouchControlsView: View {
         _ = reclaimTouchInput()
         controls.performNativeMenuAction(presentation.action)
         playChromeFeedback()
+    }
+
+    private func performOpenSettings() {
+        _ = reclaimTouchInput()
+        #if canImport(UIKit)
+        chromeHaptics.play([.button(.select)])
+        #endif
+        openSettings()
     }
 
     private func playChromeFeedback() {
@@ -731,7 +731,7 @@ private struct NativeMenuTouchControls: View {
 
     private func perform(_ action: NativeMenuTouchAction) {
         _ = reclaimTouchInput()
-        controls.performNativeMenuAction(action)
+        controls.performNativeMenuAction(action, emitsHaptic: false)
         playFeedback()
     }
 
@@ -1195,21 +1195,17 @@ private final class TouchSurfaceView: UIView {
 /// Maps touch-owned actions to device feedback; iPhone/iPad feedback has no controller-side locality.
 private final class TouchHapticDriver {
     private let button = UIImpactFeedbackGenerator(style: .light)
-    private let gesture = UIImpactFeedbackGenerator(style: .medium)
-    private let stick = UISelectionFeedbackGenerator()
+    private let gesture = UIImpactFeedbackGenerator(style: .light)
 
     func play(_ events: [TouchHapticEvent]) {
         for event in events {
             switch event {
             case .button:
-                button.impactOccurred(intensity: 0.75)
+                button.impactOccurred(intensity: 0.65)
                 button.prepare()
             case .gesture:
-                gesture.impactOccurred(intensity: 0.9)
+                gesture.impactOccurred(intensity: 0.72)
                 gesture.prepare()
-            case .stickEngaged:
-                stick.selectionChanged()
-                stick.prepare()
             }
         }
     }

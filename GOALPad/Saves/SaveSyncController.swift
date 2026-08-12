@@ -975,49 +975,34 @@ enum CloudSyncPresentation {
 
 private struct SettingsGamePicker: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Game")
-                .font(.headline)
-            SettingsGamePickerRow(title: "Jak 1", status: "Selected", isSelected: true)
-            SettingsGamePickerRow(title: GameLibraryTitle.jak2.name,
-                                  status: GameLibraryTitle.jak2.availabilityLabel,
-                                  isSelected: false)
-            SettingsGamePickerRow(title: GameLibraryTitle.jak3.name,
-                                  status: GameLibraryTitle.jak3.availabilityLabel,
-                                  isSelected: false)
+        HStack(spacing: 0) {
+            SettingsGamePickerChoice(title: "Jak 1", isSelected: true)
+            SettingsGamePickerChoice(title: GameLibraryTitle.jak2.name, isSelected: false)
+            SettingsGamePickerChoice(title: GameLibraryTitle.jak3.name, isSelected: false)
         }
         .accessibilityValue("Jak 1 selected")
     }
 }
 
-private struct SettingsGamePickerRow: View {
+private struct SettingsGamePickerChoice: View {
     let title: String
-    let status: String
     let isSelected: Bool
 
     var body: some View {
-        Button(action: {}) {
-            HStack(spacing: 10) {
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "hourglass")
-                    .foregroundStyle(isSelected ? DarkEcoTheme.accent : Color.secondary)
-                Text(title)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Text(status)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(isSelected ? DarkEcoTheme.accent : Color.secondary)
+        Text(title)
+            .font(.subheadline.weight(isSelected ? .semibold : .regular))
+            .foregroundStyle(isSelected ? DarkEcoTheme.accent : Color.secondary)
+            .frame(maxWidth: .infinity, minHeight: 32)
+            .overlay(alignment: .bottom) {
+                if isSelected {
+                    Capsule()
+                        .fill(DarkEcoTheme.accent)
+                        .frame(height: 2)
+                        .padding(.horizontal, 12)
+                }
             }
-            .padding(.horizontal, 12)
-            .frame(minHeight: 44)
-            .background(
-                isSelected ? DarkEcoTheme.accent.opacity(0.16) : Color.secondary.opacity(0.08),
-                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .disabled(!isSelected)
-        .opacity(isSelected ? 1 : 0.72)
-        .accessibilityLabel("\(title), \(status)")
+            .accessibilityLabel(title)
+            .accessibilityValue(isSelected ? "Selected" : "Unavailable")
     }
 }
 
@@ -1047,10 +1032,11 @@ struct SaveSettingsView: View {
 
     var body: some View {
         Form {
-            Section {
+            Section("Game") {
                 SettingsGamePicker()
             }
 
+            #if !os(iOS)
             if isGameRunning {
                 Section {
                     Button(role: .destructive) {
@@ -1063,6 +1049,7 @@ struct SaveSettingsView: View {
                     Text("Closes the running game. Progress since your last in-game save will be lost.")
                 }
             }
+            #endif
 
             Section {
                 DisclosureGroup(isExpanded: expansion(for: .controls)) {
@@ -1247,6 +1234,7 @@ struct SaveSettingsView: View {
             Text(archiveSummary(candidate)
                  + ". The current active copy will be preserved before replacement.")
         }
+        #if !os(iOS)
         .confirmationDialog("Return to Library?",
                             isPresented: $isConfirmingReturnToLibrary,
                             titleVisibility: .visible) {
@@ -1255,6 +1243,7 @@ struct SaveSettingsView: View {
         } message: {
             Text("Dark Eco will close the running game. Progress since your last in-game save will be lost.")
         }
+        #endif
     }
 
     private func handleSavePickerResult(_ result: Result<[URL], Error>) {

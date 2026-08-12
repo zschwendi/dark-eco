@@ -767,7 +767,6 @@ nonisolated struct NativeMenuCommandLayout: Equatable, Sendable {
 enum TouchHapticEvent: Equatable {
     case button(TouchButton)
     case gesture(TouchButton)
-    case stickEngaged
 }
 
 /// Lays out the app-owned session pills and an independent circular zoom control.
@@ -1387,7 +1386,7 @@ final class TouchControls {
         var speederBrakeTriggered = false
         var jumpTriggered = false
         var punchTriggered = false
-        var stickHapticTriggered = false
+        var jumpComboTriggered = false
         let radius: CGFloat
         let deadzone: CGFloat
         let responseExponent: CGFloat
@@ -1561,7 +1560,8 @@ final class TouchControls {
 
     /// Emits one ordinary pad pulse. Availability is mode-gated so a stale SwiftUI action cannot
     /// send menu input after the game has returned to gameplay or moved into progress.
-    func performNativeMenuAction(_ action: NativeMenuTouchAction) {
+    func performNativeMenuAction(_ action: NativeMenuTouchAction,
+                                 emitsHaptic: Bool = true) {
         guard NativeMenuTouchAction.isEnabled(action, in: nativeMenuMode,
                                               progress: progressMenuSnapshot,
                                               titleStartState: titleStartState,
@@ -1569,7 +1569,7 @@ final class TouchControls {
         else { return }
         noteScreenInteraction()
         press(action.button)
-        enqueueHaptic(.button(action.button))
+        if emitsHaptic { enqueueHaptic(.button(action.button)) }
     }
 
     /// The compact STATS pill mirrors the physical L2+R2 chord while the native pause owner has
@@ -1590,7 +1590,7 @@ final class TouchControls {
               abs(translation.height) > abs(translation.width) else { return false }
         let action: NativeMenuTouchAction = translation.height < 0 ? .up : .down
         guard actions.contains(action) else { return false }
-        performNativeMenuAction(action)
+        performNativeMenuAction(action, emitsHaptic: false)
         return true
     }
 
@@ -1747,16 +1747,7 @@ final class TouchControls {
         }
         touch.point = point
         touch.travelled = max(touch.travelled, Self.distance(touch.origin, point))
-        if (touch.role == .movement || touch.role == .rightStick),
-           !touch.stickHapticTriggered,
-           Self.distance(.zero, Self.radialDeflection(from: touch.origin, to: point,
-                                                      radius: touch.radius,
-                                                      deadzone: touch.deadzone,
-                                                      responseExponent:
-                                                        touch.responseExponent)) >= 0.5 {
-            touch.stickHapticTriggered = true
-            enqueueHaptic(.stickEngaged)
-        } else if touch.role == .gesture, touch.swiped == nil,
+        if touch.role == .gesture, touch.swiped == nil,
            touch.travelled >= Self.swipeDistance,
            let direction = Self.swipeDirection(from: touch.origin, to: point) {
             let button: TouchButton = switch direction {
@@ -1795,6 +1786,14 @@ final class TouchControls {
         } else if touch.role == .gesture, touch.swiped == .cross {
             let peak = min(touch.acceleratorPeakY ?? point.y, point.y)
             touch.acceleratorPeakY = peak
+            let horizontal = point.x - touch.origin.x
+            if !touch.jumpComboTriggered, abs(horizontal) >= Self.swipeDistance {
+                let action: TouchButton = horizontal < 0 ? .square : .circle
+                touch.jumpComboTriggered = true
+                press(action)
+                enqueueHaptic(.gesture(action))
+                touchLog.debug("jump combo \(action == .square ? "punch" : "spin")")
+            }
             if speederState == .riding, !touch.speederBrakeTriggered,
                point.y - peak >= Self.rollJumpDistance {
                 touch.speederBrakeTriggered = true

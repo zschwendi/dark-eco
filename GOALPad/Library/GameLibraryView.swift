@@ -135,13 +135,8 @@ struct GameLibraryView: View {
 
     private func scrollingLibrary(containerWidth: CGFloat) -> some View {
         let layout = GameLibraryGridLayout(containerWidth: containerWidth)
-        let columns = Array(repeating: GridItem(.fixed(
-            layout.coverSize.width + GameLibraryShelfLayout.cardHorizontalInset * 2),
-            spacing: GameLibraryGridLayout.spacing, alignment: .top),
-            count: layout.columnCount)
         return ScrollView {
-            LazyVGrid(columns: columns, alignment: .center,
-                      spacing: GameLibraryGridLayout.spacing) {
+            VStack(spacing: GameLibraryGridLayout.spacing) {
                 ForEach(GameLibraryTitle.allCases) { title in
                     tile(title, coverSize: layout.coverSize)
                 }
@@ -151,7 +146,7 @@ struct GameLibraryView: View {
 
             versionFooter
         }
-        .scrollIndicators(.visible)
+        .scrollIndicators(.hidden)
     }
 
     private func wideLibrary(containerSize: CGSize) -> some View {

@@ -3,6 +3,10 @@ import GameController
 import OSLog
 import QuartzCore
 
+#if canImport(UIKit)
+import UIKit
+#endif
+
 nonisolated private let inputLog = Logger(subsystem: "com.zephyrstudiosllc.eco",
                                           category: "Input")
 
@@ -61,6 +65,9 @@ final class ControllerInput {
     @ObservationIgnored private var keyboardMouseState = KeyboardMouseInputState()
     @ObservationIgnored private var heldShiftCodes: Set<GCKeyCode> = []
     @ObservationIgnored private var activity = InputActivityTracker()
+    #if os(iOS)
+    @ObservationIgnored private let deviceRumbleHaptics = DeviceRumbleHaptics()
+    #endif
 
     func setPrimarySource(_ source: PrimaryInputSource) {
         guard source != primarySource else { return }
@@ -255,11 +262,17 @@ final class ControllerInput {
     func applyRumble() {
         rumble = GOALPadInputRumble(Self.primaryPort)
         motors?.set(large: rumble.large, small: rumble.small)
+        #if os(iOS)
+        deviceRumbleHaptics.update(rumble)
+        #endif
     }
 
     func stopRumble() {
         rumble = GOALPadRumble(large: 0, small: 0)
         motors?.set(large: 0, small: 0)
+        #if os(iOS)
+        deviceRumbleHaptics.reset()
+        #endif
     }
 
     // MARK: - Mapping
@@ -589,6 +602,39 @@ final class ControllerInput {
         GOALPadInputSetDisconnected(Self.primaryPort)
     }
 }
+
+#if os(iOS)
+/// UIKit cannot sustain the PS2 motors continuously, so translate engine rumble edges and
+/// meaningful intensity rises into bounded impacts while preserving the engine's 0...255 scale.
+@MainActor
+private final class DeviceRumbleHaptics {
+    private let impact = UIImpactFeedbackGenerator(style: .rigid)
+    private var previousIntensity: CGFloat = 0
+    private var previousLarge: UInt8 = 0
+    private var lastImpactTime = -Double.infinity
+
+    func update(_ rumble: GOALPadRumble) {
+        let intensity = max(CGFloat(rumble.large), CGFloat(rumble.small)) / 255
+        let now = CACurrentMediaTime()
+        let startsRumbling = previousIntensity == 0 && intensity > 0
+        let largeMotorPulse = previousLarge == 0 && rumble.large > 0
+        let meaningfulRise = intensity - previousIntensity >= 0.12
+        if intensity > 0, startsRumbling || largeMotorPulse || meaningfulRise,
+           now - lastImpactTime >= 0.04 {
+            impact.impactOccurred(intensity: max(0.18, intensity))
+            impact.prepare()
+            lastImpactTime = now
+        }
+        previousIntensity = intensity
+        previousLarge = rumble.large
+    }
+
+    func reset() {
+        previousIntensity = 0
+        previousLarge = 0
+    }
+}
+#endif
 /// The two vibration motors, driven by Core Haptics. The engine's `large` motor is the on/off one
 /// the PS2 pulsed to fake an intensity and `small` is the analog one; the two controller handles
 /// are the closest thing a DualSense offers.
