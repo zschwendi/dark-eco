@@ -18953,3 +18953,64 @@ presentation callbacks and the dormant vision stereo borrowed-buffer path do
 not currently publish those samples and would need explicit unavailable-state
 labels before their values could be interpreted. Nested OpenGOAL telemetry is
 commit `39cdc9022`; the outer implementation checkpoint is `ef25410c`.
+
+# 2026-08-12 Build 197 telemetry removal and DualSense rumble checkpoint
+
+Build 197 removes all Build 196 in-game performance measurement after the
+maintainer rejected the overlay and requested that no diagnostic work perturb
+gameplay. The four per-frame clock reads, CPU ring bookkeeping, one-second
+observable publication, process-footprint sampling, Metal GPU timestamps,
+diagnostic UI, bridge fields, and performance test files are gone. The only
+retained performance change is beneficial: the existing very large renderer
+statistics structure is now copied only for its ten-second developer log instead
+of on every display callback.
+
+The physical DualSense report was weak overall and perceptible only on the right
+side. The cause of the missing left/large response was a semantic mismatch: the
+portable seam's `goal_pad_take_rumble` is an event latch, but the next frame's
+zero immediately stopped the finite 120 ms Core Haptics player. Build 197 lets a
+DualSense handle event finish that finite pulse. Explicit rumble disable,
+lifecycle suspension, disconnect, and shutdown use a separate immediate silence
+path. DualSense handle tuning also applies twofold clamped gain to the analog
+right channel and distinct sharpness (low left, sharp right). This policy is
+selected by the public `GCDualSenseGamepad` profile and only when both handle
+localities exist. Other controllers and the default-locality fallback retain
+their previous scale and zero behavior.
+
+Focused validation passed:
+
+```text
+Scripts/run-controller-rumble-check.sh
+Scripts/run-keyboard-mouse-input-check.sh
+Scripts/run-game-lifecycle-check.sh
+xcrun swift -frontend -parse <each changed Swift source/check individually>
+sh -n Scripts/run-controller-rumble-check.sh
+plutil -lint GOALPad.xcodeproj/project.pbxproj
+git diff --check
+git -C OpenGOAL diff --check
+```
+
+The signed generic arm64 iOS Release build passed with:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build194-derived -jobs 4 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT="$PWD/build/jak1-source-object-pack" \
+  build
+```
+
+Log: `/private/tmp/goalpad-build197-signed-device-build.log`. Product:
+`/private/tmp/GOALPad-build194-derived/Build/Products/Release-iphoneos/Dark Eco.app`.
+It is a signed arm64 Dark Eco 1.0 (197) app, identifier
+`com.zephyrstudiosllc.eco`, team `V729QMY3V6`; strict deep codesign verification
+passed. The build removed stale Build 196 performance object files. Existing
+conversion and always-run script warnings remain; no build errors were reported.
+
+Build 197 was not installed or launched because the maintainer has not yet
+authorized this separate physical-device build. Physical DualSense strength,
+left/right identity, pulse length, and cancellation remain the acceptance gate.
+The nested telemetry-removal commit is `44ab44f27`; the outer implementation
+checkpoint is `da3d8ba7`.
