@@ -17773,3 +17773,20 @@ ordered metadata, relocation identity, top-only `MSCALF 6`, malformed chains,
 cycles, and transfer/payload/UNPACK limits. The isolated worker also passed the
 same fixtures under ASan/UBSan. No simulator, physical device, retail data,
 heavy build, or gameplay execution was used.
+
+Nested follow-up commit `1bd68edf5` wires that observer into the immutable-live
+DMA phase before validation, copying, or host mutation. It tail-appends bounded
+aggregate/last-observation metrics to the host C ABI and the outer runtime emits
+numeric-only `GOALPAD_JAK2_SHADOW195_STATE` telemetry. The iPhoneOS static-host
+source graph includes the capture. Bucket 195 remains `DeferredSkip`; there is
+still no callback, execution counter, renderer, or bucket-314 behavior.
+
+The updated C ABI parsed as C11, the portable shadow fixture passed, the host,
+capture, and host-test objects compiled with canonical flags, the focused host
+test linked against a temporary archive, and the outer iPhoneOS Objective-C++
+bridge passed a syntax check. Its sandbox run reached the expected first Metal
+host creation and failed because no default Metal device is exposed. The
+host-GPU retry was rejected before execution by the external usage quota, so
+the new empty/top-only in-host assertions are compiled but GPU-unexecuted. The
+exact retained binary is
+`/private/tmp/jak2-shadow195-link/jak2-metal-host-bridge-test`.

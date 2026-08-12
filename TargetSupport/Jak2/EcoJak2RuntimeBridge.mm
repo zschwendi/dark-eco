@@ -586,6 +586,31 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(effects315.last_semantic_fingerprint),
         static_cast<unsigned>(effects315.last_classification));
 
+  const auto& shadow195 = metal.shadow_bucket195;
+  NSLog(@"GOALPAD_JAK2_SHADOW195_STATE tick=%llu observations=%llu absent=%llu observed=%llu "
+         "malformed=%llu limited=%llu last-status=%u boundary=%u transfers=%u "
+         "v432=%u/%u v48=%u/%u direct=%u bytes=%llu/%llu/%llu "
+         "terminal=%u/%u/%u/%u fingerprint=%016llx",
+        static_cast<unsigned long long>(runtime.ticks),
+        static_cast<unsigned long long>(shadow195.observations),
+        static_cast<unsigned long long>(shadow195.absent),
+        static_cast<unsigned long long>(shadow195.observed),
+        static_cast<unsigned long long>(shadow195.malformed),
+        static_cast<unsigned long long>(shadow195.limit_exceeded),
+        static_cast<unsigned>(shadow195.last_status),
+        static_cast<unsigned>(shadow195.last_reached_boundary), shadow195.last_transfer_count,
+        shadow195.last_v4_32_transfer_count, shadow195.last_v4_32_unpack_count,
+        shadow195.last_v4_8_transfer_count, shadow195.last_v4_8_unpack_count,
+        shadow195.last_direct_transfer_count,
+        static_cast<unsigned long long>(shadow195.last_total_payload_bytes),
+        static_cast<unsigned long long>(shadow195.last_direct_payload_bytes),
+        static_cast<unsigned long long>(shadow195.last_flusha_direct_payload_bytes),
+        static_cast<unsigned>(shadow195.last_terminal_qwc),
+        static_cast<unsigned>(shadow195.last_terminal_tag_kind),
+        static_cast<unsigned>(shadow195.last_terminal_vif0_kind),
+        static_cast<unsigned>(shadow195.last_terminal_vif1_kind),
+        static_cast<unsigned long long>(shadow195.last_semantic_fingerprint));
+
   const auto& warp316 = metal.warp_texture_upload;
   NSLog(@"GOALPAD_JAK2_WARP316_STATE tick=%llu observations=%llu absent=%llu ordinary=%llu "
          "unclassified=%llu last-uploads=%u last-transfers=%u last-payload-bytes=%llu "
