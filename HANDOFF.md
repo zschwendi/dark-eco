@@ -17594,3 +17594,52 @@ worker; the canonical CMake targets for buckets 316 and 317 then built and
 passed 2/2 in integration. The commit is pushed. Execution and table promotion
 remain explicitly unauthorized until live envelope and Metal warp output are
 proven. No simulator or physical device was accessed.
+
+## Jak II post-prison deferred-family audit checkpoint
+
+Date: 2026-08-12.
+
+The original-game HUD reference says Haven City's map is a circular lower-right
+display centered on Jak's blue marker, with the map moving/rotating around it.
+The next minimap acceptance therefore requires exactly one circular authored
+map, correct orientation, no upper-left render-target leak, and no checkerboard
+frame. The physical screenshot remains outside Git at the path and hash already
+recorded above.
+
+Read-only source audits stopped several unsafe table flips:
+
+- Bucket 195 `SHADOW` and bucket 314 `SHADOW2` share the Jak II OpenGL Shadow2
+  path, not the Jak 1 Metal shadow grammar. The retained 6,320-byte bucket-195
+  skip implies 4,640 dynamic bytes after its 1,680-byte fixed envelope, but no
+  ordered live transfer trace exists. A source-reachable top-only/`MSCALF 6`
+  case conflicts with the OpenGL consumer's unconditional top+bottom reads.
+  Keep both deferred; first add metadata-only ordered VIF/state telemetry.
+- The deferred common-water texture bucket is Metal slot 306, not 310; slot
+  310 is the implemented `OCEAN_NEAR`. Common water's desktop handler accepts
+  generic animator, eye, ordinary upload, and Direct forms, and no retained live
+  envelope exists. Do not reuse per-level water, common PRIS, or sky-post plans.
+- Bucket 315 `EFFECTS` is a distinct Generic2 Lightning mode. It uses 32-byte
+  Direct setup, 128-byte constants, 192-byte headers, 48-byte vertices,
+  `MSCAL 6`, masked depth writes, alpha-test disabled, fog enabled, and its own
+  blend contract. Current Metal Generic2 implements only Normal. The passive
+  capture cannot authorize execution; the next bounded code proof is one exact
+  Lightning strip with deterministic texture, fog, blend, and depth readback.
+- Bucket 317 `GMERC_WARP` requires a same-command-buffer snapshot of the current
+  game color published at TBP 1216, then Generic2 Warp sampling with
+  `warp_off=0.1875`, `scissor_adjust=512/416`, forced clamp, and retained draw
+  filtering/blend/depth/alpha/fog. Existing `MetalPoolTexture` is CPU-upload
+  based and cannot provide this ordering. Keep 317 deferred until a dedicated
+  GPU snapshot-to-pool lifecycle and readback proof exist.
+- Bucket 322 `SUBTITLE` is a mixed texture-animator/upload/Direct UI bucket,
+  not interchangeable with routed `DEBUG_NO_ZBUF2`. No retained live capture
+  exists; only passive bounded opcode/Direct metadata is safe. The separate PC
+  `subtitle2` text path already uses routed bucket 325.
+
+The designed next passive seams are non-fatal metrics for bucket 316 ordinary
+versus unsupported animator forms, ordered shadow VIF metadata for bucket 195,
+and bounded scalar captures for common-water slot 306 and subtitle slot 322.
+They must not promote or execute those buckets. An isolated attempt to implement
+bucket-316 telemetry was stopped before editing because the approval service
+rejected workspace mutation after exhausting its usage quota. Both attempted
+worktrees are clean. No workaround was attempted; the exact ABI, host-test, and
+numeric iOS-log insertion design is retained in the agent handoff.
