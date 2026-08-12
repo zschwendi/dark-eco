@@ -314,6 +314,10 @@ static GOALPadGameFrameStateSnapshot GOALPadGameFrameStateSnapshotFromCore(
   return status;
 }
 
++ (BOOL)setTargetFrameRate:(NSInteger)targetFrameRate {
+  return goalpad::set_target_frame_rate(static_cast<int>(targetFrameRate)) ? YES : NO;
+}
+
 + (BOOL)runFrameAtPresentationTime:(CFTimeInterval)targetPresentationTime {
   return goalpad::run_frame(targetPresentationTime) ? YES : NO;
 }

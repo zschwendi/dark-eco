@@ -1090,9 +1090,12 @@ graph, and backgrounding gives up the device entirely.
 `GameSurfaceView` hosts a `UIView` whose `layerClass` is `CAMetalLayer` and hands
 the layer to `GOALPadRenderSurface`, which sets the device, `BGRA8Unorm`, and
 `framebufferOnly`. The default `CADisplayLink` range is fixed at 60 Hz. When the
-player enables High Frame Rate on a supported iOS display, it requests an
+player enables ProMotion on a supported iOS display, it requests an
 adaptive 60-120 Hz range with 120 Hz preferred; the system may choose a lower
-cadence for animation alignment, power, or temperature.
+cadence for animation alignment, power, or temperature. Changing ProMotion
+while gameplay is running updates the GOAL timing domain, native display and
+sound clocks, and display-link request between frames; no app or game restart
+is required.
 
 The geometry matches what `MetalRenderer::encode_present_pass` in the OpenGOAL
 fork expects: the game renders into an offscreen target at its internal
@@ -1126,7 +1129,7 @@ surface can be armed.
 
 On iOS, consecutive `CADisplayLink.targetTimestamp` values pass through Swift
 and the Objective-C++ bridge to `DisplayClock`. The accepted 60 Hz path keeps
-its integral ratio from 1 through 4. A High Frame Rate session uses the 120 Hz
+its integral ratio from 1 through 4. A ProMotion session uses the 120 Hz
 timing domain in half-frame units, including exact factors for 120, 80, 60, 48,
 40, 30, and 24 Hz; the 24 Hz factor is 5. The first sample, an invalid or
 non-positive sample, and a sample after lifecycle reset return 1; long intervals
@@ -1159,19 +1162,19 @@ will be the fused renderer's decision.
 
 ### Physical adaptive-frame-rate acceptance
 
-The High Frame Rate option is not accepted from simulator or synthetic timing
+The ProMotion option is not accepted from simulator or synthetic timing
 evidence alone. Its final gate is a physical iPhone 13 Pro-class or newer
 ProMotion device containing the player's own prepared Jak 1 data. Physical
 access still requires explicit maintainer authorization for that request.
 
-Use the signed Build 207 app and the same warmed Spider Cave route for every
+Use the signed Build 208 app and the same warmed Spider Cave route for every
 run. Developer Logs must be off so display sampling, detailed renderer
 statistics, camera/Merc diagnostics, and presentation handlers do not perturb
 the shipping path. Keep the graphics profile, internal resolution, save, input
 device, route, and brightness fixed, keep Low Power Mode off, and begin each
-counterbalanced pair from the same nominal thermal state.
-High Frame Rate is captured when gameplay starts, so leave gameplay and start a
-new session after changing it.
+counterbalanced pair from the same nominal thermal state. ProMotion now applies
+to the running game; after changing it, dismiss Settings and wait for the route
+to return to its steady cadence before beginning the next capture.
 
 Capture at least two counterbalanced passes per mode, for example 60-A, HFR-A,
 HFR-B, then 60-B. Before each capture, foreground the already-installed app and
@@ -1182,12 +1185,12 @@ an explicit device and never installs or launches the app:
 Scripts/capture-ios-game-performance.sh \
   --device <authorized-device-name-or-UDID> \
   --mode 60 --kind overview \
-  --output /private/tmp/dark-eco-build207-60-a-overview
+  --output /private/tmp/dark-eco-build208-60-a-overview
 
 Scripts/capture-ios-game-performance.sh \
   --device <authorized-device-name-or-UDID> \
   --mode hfr --kind overview \
-  --output /private/tmp/dark-eco-build207-hfr-a-overview
+  --output /private/tmp/dark-eco-build208-hfr-a-overview
 ```
 
 Repeat the route with `--kind metal` and `--kind cpu` to collect a Metal System
@@ -1227,15 +1230,15 @@ nominal start thermal state, and state `low_power_mode` and `developer_logs` as
   "low_power_mode": false,
   "developer_logs": false,
   "nominal_start_thermal_state": "Nominal",
-  "installed_build_artifact": "Dark Eco 207, independently verified bundle/build and SHA-256"
+  "installed_build_artifact": "Dark Eco 208, independently verified bundle/build and SHA-256"
 }
 ```
 
 ```sh
 Scripts/analyze-ios-game-performance.py \
-  --input /private/tmp/dark-eco-build207-hfr-a-overview \
-  --output /private/tmp/dark-eco-build207-hfr-a-analysis \
-  --comparison-context /private/tmp/dark-eco-build207-hfr-a-context.json \
+  --input /private/tmp/dark-eco-build208-hfr-a-overview \
+  --output /private/tmp/dark-eco-build208-hfr-a-analysis \
+  --comparison-context /private/tmp/dark-eco-build208-hfr-a-context.json \
   --export-missing \
   --presentation-metric '<observed presentation interval name or label>' \
   --cpu-metric '<observed CPU frame metric name or label>' \
@@ -1262,11 +1265,11 @@ counterbalanced pairs, 60-A/HFR-A and HFR-B/60-B.
 
 ```sh
 Scripts/compare-ios-game-performance.py \
-  --60-a  /private/tmp/dark-eco-build207-60-a-analysis/report.json \
-  --hfr-a /private/tmp/dark-eco-build207-hfr-a-analysis/report.json \
-  --hfr-b /private/tmp/dark-eco-build207-hfr-b-analysis/report.json \
-  --60-b  /private/tmp/dark-eco-build207-60-b-analysis/report.json \
-  --output /private/tmp/dark-eco-build207-comparison
+  --60-a  /private/tmp/dark-eco-build208-60-a-analysis/report.json \
+  --hfr-a /private/tmp/dark-eco-build208-hfr-a-analysis/report.json \
+  --hfr-b /private/tmp/dark-eco-build208-hfr-b-analysis/report.json \
+  --60-b  /private/tmp/dark-eco-build208-60-b-analysis/report.json \
+  --output /private/tmp/dark-eco-build208-comparison
 ```
 
 HFR evidence is any observed cadence above 60 Hz in both HFR replicates; it

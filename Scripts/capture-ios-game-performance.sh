@@ -107,10 +107,10 @@ fi
 printf '%s\n' "$duration" | grep -Eq '^[1-9][0-9]*(ms|s|m|h)$' \
   || fail "--duration must be an xctrace duration such as 30s or 5m"
 
-trace_path="$output_directory/dark-eco-build207-$mode-$kind.trace"
-toc_path="$output_directory/dark-eco-build207-$mode-$kind-toc.xml"
-metadata_path="$output_directory/dark-eco-build207-$mode-$kind-metadata.txt"
-run_name="Dark Eco Build 207 $mode $kind"
+trace_path="$output_directory/dark-eco-build208-$mode-$kind.trace"
+toc_path="$output_directory/dark-eco-build208-$mode-$kind-toc.xml"
+metadata_path="$output_directory/dark-eco-build208-$mode-$kind-metadata.txt"
+run_name="Dark Eco Build 208 $mode $kind"
 
 if [ "$dry_run" -eq 1 ]; then
   printf 'Device: %s\n' "$device"

@@ -1080,13 +1080,6 @@ struct SaveSettingsView: View {
                 SettingsGamePicker()
             }
 
-            Section("Gameplay") {
-                Toggle("Rumble", isOn: Binding(
-                    get: { settings.rumbleEnabled },
-                    set: { settings.setRumbleEnabled($0) }
-                ))
-            }
-
             #if !os(iOS)
             if isGameRunning {
                 Section {
@@ -1286,7 +1279,7 @@ struct SaveSettingsView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This restores the default controls, graphics, gameplay, and input settings.")
+            Text("This restores the default controls and graphics settings.")
         }
         #if !os(iOS)
         .confirmationDialog("Return to Library?",
@@ -1362,6 +1355,12 @@ struct SaveSettingsView: View {
             } label: {
                 Label("Touch Controls Guide", systemImage: "hand.tap")
             }
+            #endif
+            Toggle("Rumble", isOn: Binding(
+                get: { settings.rumbleEnabled },
+                set: { settings.setRumbleEnabled($0) }
+            ))
+            #if os(iOS)
             NavigationLink {
                 TouchStickSettingsView(settings: settings)
             } label: {
@@ -1404,6 +1403,7 @@ struct SaveSettingsView: View {
                 settings.restoreDefaults(for: .controls)
                 input.setPrimarySource(settings.primaryInputSource)
                 input.setBindings(settings.jak1InputBindings)
+                input.setRumbleEnabled(settings.rumbleEnabled)
             }
             .foregroundStyle(.white.opacity(0.8))
     }
@@ -1421,14 +1421,10 @@ struct SaveSettingsView: View {
             .pickerStyle(.segmented)
 
             #if os(iOS)
-            Toggle("High Frame Rate", isOn: Binding(
+            Toggle("ProMotion", isOn: Binding(
                 get: { settings.graphicsHighFrameRate },
                 set: { settings.setGraphicsHighFrameRate($0) }
             ))
-            Text("Allows up to 120 fps on supported ProMotion displays. Applies the next time "
-                 + "gameplay starts; iOS may lower the refresh rate for power or temperature.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
             #endif
 
             if settings.profile(for: .graphics) == .modern {

@@ -148,7 +148,7 @@ Enhancement work proceeds in this order:
    defer stereoscopic presentation until a later, separately gated project,
    and keep macOS compilation healthy while its release remains deferred.
 
-An experimental iOS High Frame Rate option is implemented on that conventional
+An experimental iOS ProMotion option is implemented on that conventional
 renderer. It uses a 120 Hz gameplay timing domain with adaptive display-link
 fallback and is built for both iPhone and iPad. Deterministic timing, signed
 build, and simulator checks are complete; sustained performance, thermals,

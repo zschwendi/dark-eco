@@ -300,6 +300,14 @@ int main() {
                 sound_24_fallback.advance(5.0f, 120)},
                {2, 3});
 
+  goalpad::SoundFrameClock live_rate_transition;
+  assert(live_rate_transition.advance(1.0f, 120) == 0);
+  assert(live_rate_transition.advance(1.0f, 120) == 1);
+  live_rate_transition.reset();
+  assert(live_rate_transition.advance(1.0f, 60) == 1);
+  live_rate_transition.reset();
+  assert(live_rate_transition.advance(1.0f, 120) == 0);
+
   goalpad::DisplayClock promotion_lifecycle;
   goalpad::SoundFrameClock sound_120;
   sound_frames = 0;

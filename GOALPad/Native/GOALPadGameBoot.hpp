@@ -1013,6 +1013,9 @@ struct BootStatus {
 BootStatus boot_game(int target_frame_rate) noexcept;
 BootStatus boot_game() noexcept;
 
+/*! Switch a booted game between the host-managed 60 and 120 Hz timing domains. */
+bool set_target_frame_rate(int target_frame_rate) noexcept;
+
 /*!
  * Run one frame of the game: the GOAL kernel's own `kernel-dispatcher`, which runs every process
  * and state, and then the overlord's vblank work, which is what moves the music along. This is

@@ -261,6 +261,10 @@ typedef struct GOALPadGameFrameStateSnapshot {
 + (GOALPadGameBootStatus *)bootGameWithTargetFrameRate:(NSInteger)targetFrameRate
     NS_SWIFT_NAME(bootGame(targetFrameRate:));
 
+/// Switch a running Jak 1 session between the host-managed 60 and 120 Hz timing domains. Returns
+/// NO without changing the display request when no game is booted.
++ (BOOL)setTargetFrameRate:(NSInteger)targetFrameRate;
+
 /// Run one frame of the game: `kernel-dispatcher`, then the overlord's vblank work. The target
 /// presentation time and selected 60/120 Hz simulation rate supply the display cadence. NO when
 /// the game is not booted. Call from one thread only.

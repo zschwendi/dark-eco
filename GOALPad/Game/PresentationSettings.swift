@@ -38,8 +38,8 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
     /// Optional so existing same-schema documents decode unchanged. Modern uses stereoscopic
     /// window rendering by default on visionOS; Classic and an explicit opt-out use Comfort.
     var graphicsModernStereo3DOverride: Bool?
-    /// Optional so existing same-schema documents decode unchanged. High frame rate defaults off
-    /// and applies when the next iOS gameplay session starts.
+    /// Optional so existing same-schema documents decode unchanged. ProMotion defaults off and
+    /// applies live on iOS when gameplay is already running.
     var graphicsHighFrameRateOverride: Bool?
     /// Optional so Build 93 settings documents decode without a migration. Developer logs are
     /// hidden by default and belong to this title's synced settings document.
@@ -121,6 +121,7 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
             graphicsModernStereo3DOverride = nil
             graphicsHighFrameRateOverride = nil
         case .controls:
+            rumbleEnabledOverride = nil
             primaryInputSourceOverride = nil
             jak1InputBindingsOverride = nil
         case .audio, .interface:

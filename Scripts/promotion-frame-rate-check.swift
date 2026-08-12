@@ -73,19 +73,27 @@ check(surface.contains("window?.screen.maximumFramesPerSecond")
       "the iOS display link requests adaptive ProMotion cadence and uses its presentation target")
 check(session.contains("targetFrameRate = presentationSettings.graphicsHighFrameRate ? 120 : 60")
         && session.contains("let bootTargetFrameRate = targetFrameRate")
-        && session.contains("bootGame(targetFrameRate: bootTargetFrameRate)"),
-      "one immutable 60/120 Hz target is captured for each gameplay boot")
+        && session.contains("bootGame(targetFrameRate: bootTargetFrameRate)")
+        && session.contains("func setHighFrameRateEnabled(_ enabled: Bool)")
+        && session.contains("GOALPadRuntimeBridge.setTargetFrameRate(requestedFrameRate)")
+        && content.contains(".onChange(of: session.presentationSettings.graphicsHighFrameRate")
+        && content.contains("session.setHighFrameRateEnabled(enabled)"),
+      "the persisted 60/120 Hz choice applies at boot and to a live iOS session")
 check(content.components(separatedBy: "targetFrameRate: session.targetFrameRate").count == 3,
       "conventional and stereo-capable surfaces receive the session target")
 check(bridgeHeader.contains("NS_SWIFT_NAME(bootGame(targetFrameRate:))")
-        && bridge.contains("goalpad::boot_game(static_cast<int>(targetFrameRate))"),
-      "the Swift preference crosses the narrow Objective-C++ bridge")
+        && bridgeHeader.contains("+ (BOOL)setTargetFrameRate:(NSInteger)targetFrameRate;")
+        && bridge.contains("goalpad::boot_game(static_cast<int>(targetFrameRate))")
+        && bridge.contains("goalpad::set_target_frame_rate(static_cast<int>(targetFrameRate))"),
+      "boot and live preferences cross the narrow Objective-C++ bridge")
 check(boot.contains("g_display_clock.advance(target_presentation_time, g_target_frame_rate)")
         && boot.contains("g_sound_frame_clock.advance(display_time_ratio, g_target_frame_rate)")
         && boot.contains("goalpad-set-target-frame-rate")
+        && boot.contains("bool set_target_frame_rate(int target_frame_rate) noexcept")
+        && boot.contains("g_display_clock.reset();\n    g_sound_frame_clock.reset();")
         && boot.contains("s64 app_pc_get_active_display_refresh_rate() {\n  return g_target_frame_rate;\n}")
         && boot.contains("void reset_frame_timing() noexcept {\n#if TARGET_OS_IOS || TARGET_OS_VISION\n  g_display_clock.reset();\n#endif"),
-      "native timing drives gameplay cadence while preserving the 60 Hz sound clock")
+      "native timing drives gameplay cadence and resets both clocks on a live domain change")
 check(drawable.contains("(defun goalpad-set-target-frame-rate")
         && drawable.contains("(set-frame-rate! *pc-settings* rate #t)")
         && drawable.contains("*host-game-scaled-time-remainder*")

@@ -285,7 +285,7 @@ private func legacyDocumentAndPickerOrderingRemainCompatible() async throws {
           "a Build 93 document defaults the newly added developer logs setting off")
     check(!value.graphicsHighFrameRate
           && value.document.graphicsHighFrameRateOverride == nil,
-          "a same-schema document without High Frame Rate defaults the launcher preference off")
+          "a same-schema document without ProMotion defaults the presentation preference off")
     check(value.primaryInputSource == .automatic,
           "a Build 93 document defaults the new Primary Controller choice to Automatic")
     check(value.jak1InputBindings == .standard
@@ -373,9 +373,10 @@ private func primaryInputSourcePersistsAndResets() async throws {
     let restored = settings(fixture, writerID: "device-b", cloudAvailable: false)
     check(restored.primaryInputSource == .controller,
           "Primary Controller persists in the Jak 1 document")
+    restored.setRumbleEnabled(false)
     restored.restoreDefaults(for: .controls)
-    check(restored.primaryInputSource == .automatic,
-          "Restore Controls Defaults restores Automatic source selection")
+    check(restored.primaryInputSource == .automatic && restored.rumbleEnabled,
+          "Restore Controls Defaults restores Automatic source selection and Rumble")
     restored.setPrimaryInputSource(.keyboardMouse)
     restored.resetAll()
     check(restored.primaryInputSource == .automatic,
@@ -630,22 +631,22 @@ private func defaultsUseModernGraphics() async throws {
 
 @MainActor
 private func highFrameRatePersistsAndResets() async throws {
-    print("High Frame Rate is an opt-in launcher preference with a safe default")
+    print("ProMotion is an opt-in presentation preference with a safe default")
     let fixture = try Fixture(name: "high-frame-rate")
     let value = settings(fixture, writerID: "device-a", cloudAvailable: false)
     check(!value.graphicsHighFrameRate
           && value.document.graphicsHighFrameRateOverride == nil,
-          "High Frame Rate begins off without a stored override")
+          "ProMotion begins off without a stored override")
 
     value.setGraphicsHighFrameRate(true)
     check(value.graphicsHighFrameRate
           && value.document.graphicsHighFrameRateOverride == true
           && readDocument(at: fixture.local)?.graphicsHighFrameRateOverride == true,
-          "enabling High Frame Rate persists the explicit launcher preference")
+          "enabling ProMotion persists the explicit presentation preference")
 
     let restored = settings(fixture, writerID: "device-b", cloudAvailable: false)
     check(restored.graphicsHighFrameRate,
-          "the High Frame Rate preference survives local relaunch decoding")
+          "the ProMotion preference survives local relaunch decoding")
     restored.setProfile(.classic, for: .graphics)
     check(restored.graphicsHighFrameRate,
           "the launcher preference remains independent of the graphics profile")
@@ -653,12 +654,12 @@ private func highFrameRatePersistsAndResets() async throws {
     restored.restoreDefaults(for: .graphics)
     check(!restored.graphicsHighFrameRate
           && restored.document.graphicsHighFrameRateOverride == nil,
-          "Restore Graphics Defaults clears High Frame Rate")
+          "Restore Graphics Defaults clears ProMotion")
     restored.setGraphicsHighFrameRate(true)
     restored.resetAll()
     check(!restored.graphicsHighFrameRate
           && restored.document.graphicsHighFrameRateOverride == nil,
-          "Reset All to Defaults clears High Frame Rate")
+          "Reset All to Defaults clears ProMotion")
 }
 
 @MainActor
@@ -791,7 +792,7 @@ private func cloudSettingsAndTouchLayoutConverge() async throws {
     check(!second.graphicsFillWidth && !second.graphicsStereo3D,
           "the second device receives the customized Modern options")
     check(second.graphicsHighFrameRate,
-          "the second device receives the persisted High Frame Rate preference")
+          "the second device receives the persisted ProMotion preference")
     check(second.jak1InputBindings.action(for: .buttonA) == .square
           && second.jak1InputBindings.action(for: .buttonX) == .cross
           && second.jak1InputBindings.action(for: .spacebar) == .stats

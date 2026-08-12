@@ -270,6 +270,9 @@ final class GameSession {
         }
 
         isRunning = true
+        #if os(iOS)
+        setHighFrameRateEnabled(presentationSettings.graphicsHighFrameRate)
+        #endif
         updateNativeMenuState(mode: GOALPadRuntimeBridge.gameMode,
                               progress: NativeProgressMenuSnapshot(
                                 GOALPadRuntimeBridge.progressMenuSnapshot),
@@ -294,6 +297,29 @@ final class GameSession {
         #endif
         setIdleTimerDisabled(active)
         sessionLog.notice("Session started: \(status.message)")
+    }
+
+    /// Apply the persisted ProMotion choice between dispatcher frames. Boot captures the choice
+    /// separately; if it changes during boot, `bootFinished` reconciles it before frames begin.
+    func setHighFrameRateEnabled(_ enabled: Bool) {
+        #if os(iOS)
+        let requestedFrameRate = enabled ? 120 : 60
+        guard requestedFrameRate != targetFrameRate else { return }
+        guard !isBooting else { return }
+        guard isRunning else {
+            targetFrameRate = requestedFrameRate
+            return
+        }
+        guard GOALPadRuntimeBridge.setTargetFrameRate(requestedFrameRate) else {
+            sessionLog.error("Could not switch the live gameplay timing domain to \(requestedFrameRate) Hz")
+            return
+        }
+        targetFrameRate = requestedFrameRate
+        resetDisplayTiming()
+        sessionLog.notice("Live gameplay timing switched to \(requestedFrameRate) Hz")
+        #else
+        _ = enabled
+        #endif
     }
 
     func shutdown() {

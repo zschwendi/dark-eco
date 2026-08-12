@@ -158,6 +158,10 @@ struct ContentView: View {
             session.input.setRumbleEnabled(enabled)
         }
         #if os(iOS)
+        .onChange(of: session.presentationSettings.graphicsHighFrameRate, initial: true) {
+            _, enabled in
+            session.setHighFrameRateEnabled(enabled)
+        }
         .onChange(of: session.presentationSettings.jak1TouchLayout, initial: true) {
             _, customization in
             session.touch.setLayoutCustomization(customization)

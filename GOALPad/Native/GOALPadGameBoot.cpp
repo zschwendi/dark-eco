@@ -697,6 +697,53 @@ BootStatus boot_game() noexcept {
   return boot_game(60);
 }
 
+bool set_target_frame_rate(int target_frame_rate) noexcept {
+  if (!g_booted || !g_set_target_frame_rate) {
+    return false;
+  }
+  const int normalized_frame_rate = DisplayClock::normalize_target_frame_rate(target_frame_rate);
+  if (normalized_frame_rate == g_target_frame_rate) {
+    return true;
+  }
+
+  const int previous_frame_rate = g_target_frame_rate;
+#if TARGET_OS_IOS || TARGET_OS_VISION
+  const int32_t previous_host_display_time_ratio =
+      g_host_display_time_ratio ? *g_host_display_time_ratio : 0;
+#endif
+  try {
+    g_target_frame_rate = normalized_frame_rate;
+#if TARGET_OS_IOS || TARGET_OS_VISION
+    // Do not let the previous timing domain's adaptive ratio participate in mode setup. The next
+    // display callback publishes a fresh ratio after both native clocks restart.
+    if (g_host_display_time_ratio) {
+      *g_host_display_time_ratio = 0;
+    }
+#endif
+    call_goal(Ptr<Function>(g_set_target_frame_rate), g_target_frame_rate, 0, 0, s7.offset,
+              g_ee_main_mem);
+    drain_goal_print_buffer();
+#if TARGET_OS_IOS || TARGET_OS_VISION
+    g_display_clock.reset();
+    g_sound_frame_clock.reset();
+#endif
+    return true;
+  } catch (const std::exception& error) {
+    os_log_error(boot_log(), "Could not change target frame rate: %{public}s", error.what());
+  } catch (...) {
+    os_log_error(boot_log(), "Could not change target frame rate: unknown exception");
+  }
+  g_target_frame_rate = previous_frame_rate;
+#if TARGET_OS_IOS || TARGET_OS_VISION
+  if (g_host_display_time_ratio) {
+    *g_host_display_time_ratio = previous_host_display_time_ratio;
+  }
+  g_display_clock.reset();
+  g_sound_frame_clock.reset();
+#endif
+  return false;
+}
+
 bool run_frame(double target_presentation_time,
                GameFrameStateSnapshot* state_snapshot) noexcept {
   if (state_snapshot) {
@@ -1072,6 +1119,11 @@ BootStatus boot_game() noexcept {
       "again.";
   os_log_error(boot_log(), "%{public}s", status.message.c_str());
   return status;
+}
+
+bool set_target_frame_rate(int target_frame_rate) noexcept {
+  (void)target_frame_rate;
+  return false;
 }
 
 bool run_frame(double target_presentation_time,

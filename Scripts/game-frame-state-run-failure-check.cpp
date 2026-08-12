@@ -18,7 +18,8 @@ int main() {
   snapshot.speeder_state = goalpad::SpeederState::Riding;
 
   const bool ran = goalpad::run_frame(0, &snapshot);
-  if (ran || goalpad::run_frame(0) || snapshot.exit_to_library_requested ||
+  if (ran || goalpad::run_frame(0) || goalpad::set_target_frame_rate(120) ||
+      snapshot.exit_to_library_requested ||
       snapshot.frames_run != 0 ||
       snapshot.successful_save_generation != 0 ||
       snapshot.game_mode != goalpad::GameMode::Unknown || snapshot.progress_menu.available ||

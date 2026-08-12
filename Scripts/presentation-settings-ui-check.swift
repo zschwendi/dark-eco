@@ -58,7 +58,8 @@ check(occursInOrder([
         && view.contains("Progress since your last in-game save will be lost."),
       "the persistent game picker precedes a confirmed, loss-aware return to the Library")
 check(view.contains("Label(\"Touch Controls Guide\", systemImage: \"hand.tap\")")
-        && occursInOrder(["Label(\"Touch Controls Guide\"", "LabeledContent(\"Touch Sticks\""], in: view)
+        && occursInOrder(["Label(\"Touch Controls Guide\"", "Toggle(\"Rumble\"",
+                          "LabeledContent(\"Touch Sticks\""], in: view)
         && view.contains("#if os(iOS)")
         && touchGuide.contains("struct TouchControlsGuideSheet")
         && touchGuide.contains("struct TouchControlsGuideView")
@@ -98,6 +99,10 @@ check(occursInOrder([
     "Button(cloudState.actionTitle)",
     "Button(\"Reset All to Defaults\"",
 ], in: view), "Jak 1 Settings keeps compact Controls, Graphics, and iCloud categories in one form")
+check(view.components(separatedBy: "Toggle(\"Rumble\"").count - 1 == 1
+        && !view.contains("Section(\"Gameplay\")")
+        && store.contains("case .controls:\n            rumbleEnabledOverride = nil"),
+      "Rumble lives inside Controls and the duplicate Gameplay section is gone")
 check(view.contains("Label(\"Controls\", systemImage: \"gamecontroller\")")
         && view.contains("DisclosureGroup(isExpanded: expansion(for: .controls))")
         && view.contains("DisclosureGroup(isExpanded: expansion(for: .graphics))")
@@ -159,7 +164,7 @@ check(view.contains("Button(\"Restore Controls Defaults\"")
         && view.contains("Button(\"Reset All to Defaults\", role: .destructive)")
         && view.contains("isConfirmingResetAll")
         && view.contains("\"Reset all settings?\"")
-        && view.contains("This restores the default controls, graphics, gameplay, and input settings."),
+        && view.contains("This restores the default controls and graphics settings."),
       "Restore Defaults stays subdued and Reset All requires confirmation")
 check(view.contains("the four \\(GameLibraryTitle.jak1.name) save slots")
         && !view.contains("resolution.relativePath")
@@ -182,15 +187,17 @@ check(!view.contains("Label(\"Developer\", systemImage: \"wrench.and.screwdriver
 check(view.contains("older divergent copies were preserved automatically")
         && !view.contains("switch resolution.basis"),
       "automatic resolution copy remains generic across engine ranking cases")
-check(view.contains("Toggle(\"High Frame Rate\"")
-        && view.contains("Allows up to 120 fps on supported ProMotion displays.")
-        && view.contains("Applies the next time ")
-        && view.contains("iOS may lower the refresh rate for power or temperature.")
+check(view.contains("Toggle(\"ProMotion\"")
+        && !view.contains("Toggle(\"High Frame Rate\"")
+        && !view.contains("Allows up to 120 fps on supported ProMotion displays.")
+        && !view.contains("Applies the next time ")
         && !view.contains("Toggle(\"Fit to Screen\"")
         && store.contains("var graphicsHighFrameRateOverride: Bool?")
         && store.contains("var graphicsHighFrameRate: Bool")
-        && store.contains("func setGraphicsHighFrameRate(_ enabled: Bool)"),
-      "Graphics exposes a persisted High Frame Rate preference with a safe default")
+        && store.contains("func setGraphicsHighFrameRate(_ enabled: Bool)")
+        && content.contains("session.setHighFrameRateEnabled(enabled)")
+        && session.contains("func setHighFrameRateEnabled(_ enabled: Bool)"),
+      "Graphics exposes a concise persisted ProMotion toggle that applies live")
 check(store.contains("var graphicsModernFillWidthOverride: Bool?")
         && store.contains("var graphicsProfile: SettingsProfile = .modern")
         && store.contains("return graphicsModernFillWidthOverride ?? true"),
