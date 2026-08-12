@@ -18363,3 +18363,20 @@ test-suite run was performed. Build log:
 ```text
 /private/tmp/goalpad-build178-ios-device.log
 ```
+
+# 2026-08-11 Build 179 swipe endpoint orb checkpoint
+
+Build 179 preserves Build 175's accepted bounded straight trail segments,
+direction colors, and fade behavior. Only the live endpoint changed: the nested
+outline circles are now a softly pulsing, direction-colored radial lightburst
+with a white sparkle and bright core.
+
+The checkpoint is on branch `agent/build179-swipe-orb`. The signed generic iOS
+Release build passed and was installed on physical `Z iPad Pro`; device
+inventory confirmed Dark Eco 1.0 (179). The iPad was locked when launch was
+attempted, and `Z iPhone Air` remained offline. Per maintainer direction, no
+test-suite run was performed. Build log:
+
+```text
+/private/tmp/goalpad-build179-ios-device.log
+```

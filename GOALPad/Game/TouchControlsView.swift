@@ -944,14 +944,28 @@ private struct SwipeTrailArtwork: View {
 
         let endpointColor = touch.trailSegments.last.map { trailColor(for: $0.direction) }
             ?? .white
-        let outerRect = CGRect(x: touch.point.x - 15, y: touch.point.y - 15,
-                               width: 30, height: 30)
-        let innerRect = outerRect.insetBy(dx: 5, dy: 5)
-        context.fill(Path(ellipseIn: outerRect), with: .color(.black.opacity(0.28)))
-        context.stroke(Path(ellipseIn: outerRect),
-                       with: .color(endpointColor.opacity(0.9)), lineWidth: 3)
-        context.stroke(Path(ellipseIn: innerRect),
-                       with: .color(.white.opacity(0.72)), lineWidth: 1.5)
+        let pulse = CGFloat(0.92 + 0.08 * sin(phase * 6))
+        let haloRadius = 23 * pulse
+        let haloRect = CGRect(x: touch.point.x - haloRadius,
+                              y: touch.point.y - haloRadius,
+                              width: haloRadius * 2, height: haloRadius * 2)
+        context.fill(
+            Path(ellipseIn: haloRect),
+            with: .radialGradient(
+                Gradient(colors: [.white.opacity(0.92),
+                                  endpointColor.opacity(0.78),
+                                  endpointColor.opacity(0.22),
+                                  .clear]),
+                center: touch.point,
+                startRadius: 1,
+                endRadius: haloRadius))
+        context.fill(sparklePath(at: touch.point, radius: 18 * pulse),
+                     with: .color(.white.opacity(0.48)))
+        let coreRadius = 5.5 * pulse
+        let coreRect = CGRect(x: touch.point.x - coreRadius,
+                              y: touch.point.y - coreRadius,
+                              width: coreRadius * 2, height: coreRadius * 2)
+        context.fill(Path(ellipseIn: coreRect), with: .color(.white.opacity(0.95)))
     }
 
     private func draw(_ segment: TouchControls.SwipeTrailSegment,
