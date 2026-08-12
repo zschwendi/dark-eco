@@ -18309,3 +18309,21 @@ no additional test-suite run was performed. Build log:
 ```text
 /private/tmp/goalpad-build175-ios-device.log
 ```
+
+# 2026-08-11 Build 176 keyboard and mouse checkpoint
+
+Build 176 maps either Shift key to L1 and Space to Cross/jump by default, raises
+the default mouse-camera sensitivity to 250%, and hides the cursor while the
+pointer is over active fullscreen macOS gameplay. Opening the native menu or
+app settings restores the cursor.
+
+The checkpoint is on branch `agent/build176-keyboard-mouse`. Signed generic iOS
+and unsigned arm64 macOS Release builds passed. The signed product was installed
+on physical `Z iPad Pro` and installed and launched on `Z iPhone Air`; device
+inventory confirmed Dark Eco 1.0 (176) on both. The iPad was locked when launch
+was attempted. Per maintainer direction, no test-suite run was performed. Logs:
+
+```text
+/private/tmp/goalpad-build176-ios-device.log
+/private/tmp/goalpad-build176-macos.log
+```

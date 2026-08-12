@@ -59,6 +59,7 @@ final class ControllerInput {
     private var motors: ControllerRumble?
     private var observers: [NSObjectProtocol] = []
     @ObservationIgnored private var keyboardMouseState = KeyboardMouseInputState()
+    @ObservationIgnored private var heldShiftCodes: Set<GCKeyCode> = []
     @ObservationIgnored private var activity = InputActivityTracker()
 
     func setPrimarySource(_ source: PrimaryInputSource) {
@@ -318,6 +319,7 @@ final class ControllerInput {
         case .downArrow: .downArrow
         case .escape: .escape
         case .tab: .tab
+        case .leftShift, .rightShift: .shift
         case .spacebar: .spacebar
         case .returnOrEnter: .returnOrEnter
         default: nil
@@ -336,6 +338,7 @@ final class ControllerInput {
         case .downArrow: .downArrow
         case .escape: .escape
         case .tab: .tab
+        case .shift: nil
         case .spacebar: .spacebar
         case .returnOrEnter: .returnOrEnter
         case .mouseLeft, .mouseRight, .mouseMiddle: nil
@@ -451,7 +454,19 @@ final class ControllerInput {
             guard let key = Self.keyboardKey(for: code) else { return }
             DispatchQueue.main.async { [weak self, weak candidate] in
                 guard let self, self.keyboard === candidate else { return }
-                if self.keyboardMouseState.setKey(key, pressed: pressed) {
+                let changed: Bool
+                if key == .shift {
+                    if pressed {
+                        self.heldShiftCodes.insert(code)
+                    } else {
+                        self.heldShiftCodes.remove(code)
+                    }
+                    changed = self.keyboardMouseState.setKey(
+                        .shift, pressed: !self.heldShiftCodes.isEmpty)
+                } else {
+                    changed = self.keyboardMouseState.setKey(key, pressed: pressed)
+                }
+                if changed {
                     if self.bindings.action(for: key) != nil {
                         self.activity.noteKeyboard(at: CACurrentMediaTime())
                         self.noteDriving()
@@ -460,9 +475,11 @@ final class ControllerInput {
             }
         }
         let mappedCodes = KeyboardMouseKey.keyboardCases.compactMap(Self.keyboardCode(for:))
+            + [GCKeyCode.leftShift, .rightShift]
         var adoptedHeldInput = false
         for code in mappedCodes where input.button(forKeyCode: code)?.isPressed == true {
             if let key = Self.keyboardKey(for: code) {
+                if key == .shift { heldShiftCodes.insert(code) }
                 let adoptedMappedKey = keyboardMouseState.setKey(key, pressed: true)
                     && bindings.action(for: key) != nil
                 adoptedHeldInput = adoptedMappedKey || adoptedHeldInput
@@ -487,6 +504,7 @@ final class ControllerInput {
     private func releaseKeyboard() {
         keyboard?.keyboardInput?.keyChangedHandler = nil
         keyboard = nil
+        heldShiftCodes.removeAll()
         keyboardMouseState.clearKeyboard()
         activity.disconnectKeyboard()
     }

@@ -402,6 +402,7 @@ enum KeyboardMouseKey: String, CaseIterable, Codable, Hashable, Sendable {
     case downArrow
     case escape
     case tab
+    case shift
     case spacebar
     case returnOrEnter
     case mouseLeft
@@ -430,6 +431,7 @@ enum KeyboardMouseKey: String, CaseIterable, Codable, Hashable, Sendable {
         case .downArrow: "Down Arrow"
         case .escape: "Escape"
         case .tab: "Tab"
+        case .shift: "Shift"
         case .spacebar: "Space"
         case .returnOrEnter: "Return / Enter"
         case .mouseLeft: "Left Mouse Button"
@@ -448,7 +450,7 @@ struct Jak1MouseCameraSettings: Codable, Equatable, Sendable {
     private(set) var invertHorizontal: Bool
     private(set) var invertVertical: Bool
 
-    init(sensitivityPercent: Int = 100,
+    init(sensitivityPercent: Int = 250,
          invertHorizontal: Bool = false,
          invertVertical: Bool = false) {
         self.sensitivityPercent = Self.clampedSensitivity(sensitivityPercent)
@@ -482,7 +484,7 @@ struct Jak1MouseCameraSettings: Codable, Equatable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.init(
             sensitivityPercent: try container.decodeIfPresent(Int.self,
-                                                               forKey: .sensitivityPercent) ?? 100,
+                                                               forKey: .sensitivityPercent) ?? 250,
             invertHorizontal: try container.decodeIfPresent(Bool.self,
                                                               forKey: .invertHorizontal) ?? false,
             invertVertical: try container.decodeIfPresent(Bool.self,
@@ -491,7 +493,7 @@ struct Jak1MouseCameraSettings: Codable, Equatable, Sendable {
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        if sensitivityPercent != 100 {
+        if sensitivityPercent != 250 {
             try container.encode(sensitivityPercent, forKey: .sensitivityPercent)
         }
         if invertHorizontal {
@@ -544,6 +546,8 @@ struct Jak1InputBindings: Codable, Equatable, Sendable {
             .init(control: .downArrow, action: .shoulderChord),
             .init(control: .escape, action: .start),
             .init(control: .tab, action: .stats),
+            .init(control: .shift, action: .L1),
+            .init(control: .spacebar, action: .cross),
         ],
         controllerStickRoles: .standard,
         controllerAnalog: .standard,

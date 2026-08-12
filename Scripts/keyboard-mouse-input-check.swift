@@ -69,17 +69,18 @@ private func configurableKeyboardMovement() {
 
 private func keyboardButtons() {
     print("default keyboard bytes remain exact while the remapping surface stays explicit")
-    check(KeyboardMouseKey.keyboardCases.count == 12
+    check(KeyboardMouseKey.keyboardCases.count == 13
           && KeyboardMouseKey.mouseCases == [.mouseLeft, .mouseRight, .mouseMiddle],
           "only the named keyboard keys and three mouse buttons can be bound")
-    check(Jak1InputBindings.standard.keyboardMouseBindings.count == 10,
-          "the default mapping still assigns exactly the original ten keys")
-    check(Jak1InputBindings.standard.action(for: .spacebar) == nil
+    check(Jak1InputBindings.standard.keyboardMouseBindings.count == 12,
+          "the default mapping assigns movement, action, Shift, and Space keys")
+    check(Jak1InputBindings.standard.action(for: .spacebar) == .cross
+          && Jak1InputBindings.standard.action(for: .shift) == .L1
           && Jak1InputBindings.standard.action(for: .returnOrEnter) == nil
           && KeyboardMouseKey(rawValue: "q") == nil,
           "additional named keys begin unused and arbitrary typing has no control value")
     var unused = KeyboardMouseInputState()
-    unused.setControl(.spacebar, pressed: true)
+    unused.setControl(.returnOrEnter, pressed: true)
     unused.setControl(.mouseLeft, pressed: true)
     let unusedFrame = unused.consumeFrame()
     check(unusedFrame.buttons.isEmpty && !unusedFrame.hasKeyboardInput && !unusedFrame.hasMouseInput,
@@ -89,6 +90,8 @@ private func keyboardButtons() {
         (.leftArrow, .square, "Left Arrow is Square"),
         (.rightArrow, .circle, "Right Arrow is Circle"),
         (.upArrow, .triangle, "Up Arrow is Triangle"),
+        (.shift, .L1, "Shift is L1"),
+        (.spacebar, .cross, "Space is Cross / jump"),
         (.escape, .start, "Escape is Start/Pause"),
     ]
     for (key, button, label) in expected {
@@ -307,7 +310,7 @@ private func controllerAnalogTuning() throws {
     mouse.addMouseMovement(deltaX: 12, deltaY: 0, camera: bindings.mouseCamera)
     let mouseFrame = mouse.consumeFrame(bindings: bindings)
     check(mouseFrame.leftX == neutral && mouseFrame.leftY == neutral
-          && mouseFrame.rightX == 191 && mouseFrame.rightY == neutral,
+          && mouseFrame.rightX == 254 && mouseFrame.rightY == neutral,
           "controller role tuning cannot reroute relative mouse motion away from camera")
 }
 
@@ -336,8 +339,8 @@ private func remappingAndCollisions() {
           "the controller remap reaches emitted GOALPad button bytes")
 
     bindings.setKeyboardMouseAction(.stats, for: .spacebar)
-    check(bindings.action(for: .spacebar) == .stats && bindings.action(for: .tab) == nil,
-          "an unused explicit key moves Stats away from Tab without a duplicate")
+    check(bindings.action(for: .spacebar) == .stats && bindings.action(for: .tab) == .cross,
+          "remapping Space swaps its occupied action without a duplicate")
     var keyboard = KeyboardMouseInputState()
     keyboard.setControl(.spacebar, pressed: true)
     check(keyboard.consumeFrame(bindings: bindings).buttons == [.L2, .R2],
@@ -434,8 +437,8 @@ private func relativeMouse() {
 
     state.addMouseMovement(deltaX: 12, deltaY: 12)
     var frame = state.consumeFrame()
-    check(frame.rightX == 191 && frame.rightY == 64,
-          "half-scale movement produces proportional right-stick bytes")
+    check(frame.rightX == 254 && frame.rightY == 0,
+          "the stronger default reaches full right-stick deflection")
     check(frame.hasMouseInput, "nonzero relative motion counts as mouse activity")
 
     state.addMouseMovement(deltaX: 1, deltaY: 0)
@@ -474,24 +477,24 @@ private func relativeMouse() {
 private func mouseCameraTuning() throws {
     print("mouse camera sensitivity and directions preserve exact defaults and tune independently")
     check(Jak1InputBindings.standard.mouseCamera == .standard
-          && Jak1InputBindings.standard.mouseCamera.sensitivityPercent == 100
+          && Jak1InputBindings.standard.mouseCamera.sensitivityPercent == 250
           && !Jak1InputBindings.standard.mouseCamera.invertHorizontal
           && !Jak1InputBindings.standard.mouseCamera.invertVertical,
-          "the persisted mouse camera defaults are exactly 100% with neither direction inverted")
+          "the persisted mouse camera defaults are exactly 250% with neither direction inverted")
 
     var bindings = Jak1InputBindings.standard
     bindings.setMouseCameraInvertHorizontal(true)
     var state = KeyboardMouseInputState()
     state.addMouseMovement(deltaX: 12, deltaY: 12, camera: bindings.mouseCamera)
     var frame = state.consumeFrame(bindings: bindings)
-    check(frame.rightX == 64 && frame.rightY == 64,
+    check(frame.rightX == 0 && frame.rightY == 0,
           "horizontal inversion flips only X while default vertical conversion stays exact")
 
     bindings.setMouseCameraInvertHorizontal(false)
     bindings.setMouseCameraInvertVertical(true)
     state.addMouseMovement(deltaX: 12, deltaY: 12, camera: bindings.mouseCamera)
     frame = state.consumeFrame(bindings: bindings)
-    check(frame.rightX == 191 && frame.rightY == 191,
+    check(frame.rightX == 254 && frame.rightY == 254,
           "vertical inversion flips only Y while default horizontal conversion stays exact")
 
     bindings.setMouseCameraInvertVertical(false)

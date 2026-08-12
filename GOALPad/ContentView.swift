@@ -70,7 +70,11 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            GameplaySurface(session: session)
+            GameplaySurface(
+                session: session,
+                hidesCursorInFullScreen: session.isRunning && !session.isNativeMenuOpen
+                    && settingsPresentation == nil
+            )
 
             if session.isRunning {
                 #if os(iOS)
@@ -303,6 +307,7 @@ private struct SettingsSheetView: View {
 
 private struct GameplaySurface: View {
     let session: GameSession
+    let hidesCursorInFullScreen: Bool
 
     var body: some View {
         GeometryReader { proxy in
@@ -339,7 +344,10 @@ private struct GameplaySurface: View {
             onStereoFrame: { session.tickStereo(request: $0) }
         )
         #else
-        GameSurfaceView(onFrame: { session.tick(targetPresentationTime: $0) })
+        GameSurfaceView(
+            onFrame: { session.tick(targetPresentationTime: $0) },
+            hidesCursorInFullScreen: hidesCursorInFullScreen
+        )
         #endif
     }
 }

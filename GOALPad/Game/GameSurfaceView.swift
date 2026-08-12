@@ -20,6 +20,7 @@ import AppKit
 struct GameSurfaceView: View {
     /// Called once per display refresh, on the main thread.
     let onFrame: (CFTimeInterval) -> Void
+    var hidesCursorInFullScreen = false
 
     #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
     @Environment(VisionPresentationCoordinator.self) private var visionPresentation
@@ -63,7 +64,8 @@ struct GameSurfaceView: View {
     }
 
     private var conventionalSurface: some View {
-        SurfaceRepresentable(onFrame: onFrame)
+        SurfaceRepresentable(onFrame: onFrame,
+                             hidesCursorInFullScreen: hidesCursorInFullScreen)
             .ignoresSafeArea()
             .background(.black)
     }
@@ -250,6 +252,7 @@ private final class MetalHostView: UIView {
 
 private struct SurfaceRepresentable: UIViewRepresentable {
     let onFrame: (CFTimeInterval) -> Void
+    let hidesCursorInFullScreen: Bool
 
     func makeUIView(context: Context) -> UIView {
         let view = MetalHostView()
@@ -268,8 +271,14 @@ private struct SurfaceRepresentable: UIViewRepresentable {
 /// The macOS launcher uses the same Metal surface and frame callback as the mobile app.
 private final class MetalHostView: NSView {
     var onFrame: ((CFTimeInterval) -> Void)?
+    var hidesCursorInFullScreen = false {
+        didSet { updateCursorVisibility() }
+    }
     private var frameLink: CADisplayLink?
     private var observesApplicationLifecycle = false
+    private var cursorIsHidden = false
+    private var mouseIsInside = false
+    private var cursorTrackingArea: NSTrackingArea?
 
     override func makeBackingLayer() -> CALayer { CAMetalLayer() }
 
@@ -279,6 +288,7 @@ private final class MetalHostView: NSView {
         super.viewDidMoveToWindow()
         guard window != nil else {
             stopObservingApplicationLifecycle()
+            showCursorIfNeeded()
             frameLink?.invalidate()
             frameLink = nil
             PresentationSurfaceCoordinator.shared.unregister(self)
@@ -290,6 +300,26 @@ private final class MetalHostView: NSView {
             return
         }
         resumePresentation()
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let cursorTrackingArea { removeTrackingArea(cursorTrackingArea) }
+        let area = NSTrackingArea(rect: .zero,
+                                  options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                                  owner: self)
+        addTrackingArea(area)
+        cursorTrackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        mouseIsInside = true
+        updateCursorVisibility()
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        mouseIsInside = false
+        updateCursorVisibility()
     }
 
     private func resumePresentation() {
@@ -307,12 +337,14 @@ private final class MetalHostView: NSView {
             link.add(to: .main, forMode: .common)
             frameLink = link
         }
+        updateCursorVisibility()
     }
 
     private func suspendPresentation() {
         frameLink?.invalidate()
         frameLink = nil
         PresentationSurfaceCoordinator.shared.deactivate(self)
+        updateCursorVisibility()
     }
 
     private func startObservingApplicationLifecycle() {
@@ -322,6 +354,10 @@ private final class MetalHostView: NSView {
                            name: NSApplication.didResignActiveNotification, object: nil)
         center.addObserver(self, selector: #selector(applicationDidBecomeActive(_:)),
                            name: NSApplication.didBecomeActiveNotification, object: nil)
+        center.addObserver(self, selector: #selector(windowFullScreenDidChange(_:)),
+                           name: NSWindow.didEnterFullScreenNotification, object: nil)
+        center.addObserver(self, selector: #selector(windowFullScreenDidChange(_:)),
+                           name: NSWindow.didExitFullScreenNotification, object: nil)
         observesApplicationLifecycle = true
     }
 
@@ -330,6 +366,8 @@ private final class MetalHostView: NSView {
         let center = NotificationCenter.default
         center.removeObserver(self, name: NSApplication.didResignActiveNotification, object: nil)
         center.removeObserver(self, name: NSApplication.didBecomeActiveNotification, object: nil)
+        center.removeObserver(self, name: NSWindow.didEnterFullScreenNotification, object: nil)
+        center.removeObserver(self, name: NSWindow.didExitFullScreenNotification, object: nil)
         observesApplicationLifecycle = false
     }
 
@@ -340,6 +378,30 @@ private final class MetalHostView: NSView {
     @objc private func applicationDidBecomeActive(_ notification: Notification) {
         guard window != nil else { return }
         resumePresentation()
+    }
+
+    @objc private func windowFullScreenDidChange(_ notification: Notification) {
+        guard let changedWindow = notification.object as? NSWindow,
+              changedWindow === window else { return }
+        updateCursorVisibility()
+    }
+
+    private func updateCursorVisibility() {
+        let shouldHide = hidesCursorInFullScreen && mouseIsInside
+            && NSApplication.shared.isActive
+            && window?.styleMask.contains(.fullScreen) == true
+        if shouldHide, !cursorIsHidden {
+            NSCursor.hide()
+            cursorIsHidden = true
+        } else if !shouldHide {
+            showCursorIfNeeded()
+        }
+    }
+
+    private func showCursorIfNeeded() {
+        guard cursorIsHidden else { return }
+        NSCursor.unhide()
+        cursorIsHidden = false
     }
 
     override func layout() {
@@ -361,16 +423,19 @@ private final class MetalHostView: NSView {
 
 private struct SurfaceRepresentable: NSViewRepresentable {
     let onFrame: (CFTimeInterval) -> Void
+    let hidesCursorInFullScreen: Bool
 
     func makeNSView(context: Context) -> NSView {
         let view = MetalHostView()
         view.wantsLayer = true
         view.onFrame = onFrame
+        view.hidesCursorInFullScreen = hidesCursorInFullScreen
         return view
     }
 
     func updateNSView(_ view: NSView, context: Context) {
         (view as? MetalHostView)?.onFrame = onFrame
+        (view as? MetalHostView)?.hidesCursorInFullScreen = hidesCursorInFullScreen
     }
 }
 

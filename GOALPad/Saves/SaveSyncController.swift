@@ -1622,7 +1622,7 @@ private struct KeyboardMouseBindingsSettingsView: View {
             } header: {
                 Text("Mouse / Trackpad Camera")
             } footer: {
-                Text("100% preserves the default camera response. Horizontal and vertical "
+                Text("250% is the default camera response. Horizontal and vertical "
                      + "direction can be inverted independently. Relative mouse or trackpad "
                      + "motion remains dedicated to camera control.")
             }
