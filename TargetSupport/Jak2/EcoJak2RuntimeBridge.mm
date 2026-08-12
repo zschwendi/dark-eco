@@ -248,6 +248,42 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(metal.last_screen_filter_draws),
         static_cast<unsigned long long>(metal.skipped_bucket_bytes));
 
+  NSLog(@"GOALPAD_JAK2_FOREGROUND_STATE tick=%llu "
+         "merc=%llu/%llu/%llu malformed=%llu missing-models=%llu "
+         "bones=%llu/%llu/%llu/%llu "
+         "generic=%llu/%llu/%llu missing-textures=%llu unexpected-dma=%llu",
+        static_cast<unsigned long long>(runtime.ticks),
+        static_cast<unsigned long long>(metal.last_merc_models),
+        static_cast<unsigned long long>(metal.last_merc_draws),
+        static_cast<unsigned long long>(metal.last_merc_triangles),
+        static_cast<unsigned long long>(metal.last_merc_malformed_dma),
+        static_cast<unsigned long long>(metal.last_merc_missing_models),
+        static_cast<unsigned long long>(metal.last_merc_bad_bone_pointers),
+        static_cast<unsigned long long>(metal.last_merc_missing_bone_slots),
+        static_cast<unsigned long long>(metal.last_merc_nonfinite_bone_matrices),
+        static_cast<unsigned long long>(metal.last_merc_degenerate_bone_matrices),
+        static_cast<unsigned long long>(metal.last_generic_draw_buckets),
+        static_cast<unsigned long long>(metal.last_generic_draws),
+        static_cast<unsigned long long>(metal.last_generic_triangles),
+        static_cast<unsigned long long>(metal.last_generic_missing_textures),
+        static_cast<unsigned long long>(metal.last_generic_unexpected_dma));
+
+  NSLog(@"GOALPAD_JAK2_GLOW_STATE tick=%llu marked=%llu skipped=%llu "
+         "parsed=%llu accepted=%llu rejected=%llu invalid=%llu "
+         "force-visible=%llu/%llu/%llu/%llu/%llu",
+        static_cast<unsigned long long>(runtime.ticks),
+        static_cast<unsigned long long>(metal.last_sprite_glow_marked),
+        static_cast<unsigned long long>(metal.last_sprite_glow_skipped),
+        static_cast<unsigned long long>(metal.last_sprite_glow_parsed),
+        static_cast<unsigned long long>(metal.last_sprite_glow_accepted),
+        static_cast<unsigned long long>(metal.last_sprite_glow_rejected),
+        static_cast<unsigned long long>(metal.last_sprite_glow_invalid_records),
+        static_cast<unsigned long long>(metal.last_sprite_glow_force_visible_submitted),
+        static_cast<unsigned long long>(metal.last_sprite_glow_force_visible_drawn),
+        static_cast<unsigned long long>(metal.last_sprite_glow_force_visible_draws),
+        static_cast<unsigned long long>(metal.last_sprite_glow_force_visible_triangles),
+        static_cast<unsigned long long>(metal.last_sprite_glow_force_visible_missing_textures));
+
   const auto& water252 = metal.water_texture_uploads[0];
   NSLog(@"GOALPAD_JAK2_DEFERRED_STATE tick=%llu deferred_count=%u "
          "deferred_top=%u/%llu,%u/%llu,%u/%llu,%u/%llu "
