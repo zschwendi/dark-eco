@@ -454,8 +454,9 @@ check(controllerMessageOccurrences == 1
       "the full noninteractive purple controller message shimmers without a duplicate or masked label")
 check(content.contains("NavigationStack {\n            SaveSettingsView(")
         && !content.contains("SettingsTitleListView")
-        && content.contains("#if !os(visionOS)\n        .toolbar {\n            ToolbarItem(placement: .confirmationAction)")
+        && content.contains("#if os(iOS)\n                .toolbar {")
         && content.contains("Button(\"Done\") { dismiss() }")
+        && content.contains("#elseif !os(visionOS)\n        .toolbar {\n            ToolbarItem(placement: .confirmationAction)")
         && content.contains("#else\n        .toolbar {\n            ToolbarItem(placement: .topBarLeading)")
         && content.contains("Image(systemName: \"xmark\")")
         && content.contains(".accessibilityLabel(\"Close Settings\")"),
