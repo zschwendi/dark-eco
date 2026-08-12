@@ -375,16 +375,10 @@ private struct GameLibraryTile: View {
                 .lineLimit(usesHorizontalCard ? 4 : (coverSize.width < 120 ? 4 : 2))
                 .minimumScaleFactor(0.78)
                 .allowsTightening(true)
-            Label(stateLabel, systemImage: stateSymbol)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(stateColor)
+            stateStatus
             if case .preparing(let preparation) = state {
                 if let fraction = preparation.fraction {
                     ProgressView(value: fraction)
-                        .tint(DarkEcoTheme.accent)
-                } else {
-                    ProgressView()
-                        .controlSize(.small)
                         .tint(DarkEcoTheme.accent)
                 }
             }
@@ -394,6 +388,24 @@ private struct GameLibraryTile: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var stateStatus: some View {
+        if case .preparing(let preparation) = state, preparation.fraction == nil {
+            HStack(spacing: 5) {
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(DarkEcoTheme.accent)
+                Text(stateLabel)
+                    .foregroundStyle(stateColor)
+            }
+            .font(.caption.weight(.medium))
+        } else {
+            Label(stateLabel, systemImage: stateSymbol)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(stateColor)
         }
     }
 

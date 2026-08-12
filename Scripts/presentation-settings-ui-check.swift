@@ -60,11 +60,17 @@ check(view.contains("Label(\"Touch Controls Guide\", systemImage: \"hand.tap\")"
         && view.contains("#if os(iOS)")
         && touchGuide.contains("struct TouchControlsGuideSheet")
         && touchGuide.contains("struct TouchControlsGuideView")
-        && occursInOrder(["title: \"Move\"", "title: \"Camera\"",
-                          "title: \"Actions\"", "title: \"Zoom and fire\"",
-                          "title: \"Speeder\"", "title: \"Game prompts\""], in: touchGuide)
-        && touchGuide.contains("In first-person, tap the open right side to fire.")
-        && touchGuide.contains("Touch and a connected controller work together."),
+        && occursInOrder(["title: \"Swipe Actions\"", "title: \"Movement\"",
+                          "title: \"Camera\"", "title: \"Speeder controls\""], in: touchGuide)
+        && touchGuide.contains("Swipe anywhere on the right side:")
+        && touchGuide.contains("• Up: Jump\\n• Down: Crouch\\n• Left: Punch\\n• Right: Spin Kick")
+        && touchGuide.contains("guideRow(symbol: \"L\", title: \"Movement\")")
+        && touchGuide.contains("guideRow(symbol: \"R\", title: \"Camera\")")
+        && touchGuide.contains("Swipe up and hold to accelerate. Swipe down to hop brake.")
+        && touchGuide.contains("Dark Eco also supports wireless gamepads for controller input.")
+        && !touchGuide.contains("Zoom and fire")
+        && !touchGuide.contains("Game prompts")
+        && !touchGuide.contains("Use the visible Start, Pause"),
       "Controls begins with a reusable visual touch guide covering the shipped gesture contract")
 check(content.contains("@AppStorage(\"jak1TouchControlsGuideVersion\")")
         && content.contains("readiness == .active, touchControlsGuideVersion < 1")

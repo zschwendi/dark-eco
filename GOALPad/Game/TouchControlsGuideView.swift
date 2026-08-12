@@ -25,21 +25,15 @@ struct TouchControlsGuideView: View {
                 TouchControlsInfographic()
 
                 VStack(spacing: 14) {
-                    guideRow(symbol: "L", title: "Move",
-                             detail: "Drag anywhere on the left side.")
-                    guideRow(symbol: "R", title: "Camera",
-                             detail: "Drag the right stick to look around.")
-                    guideRow(symbol: "↕", title: "Actions",
-                             detail: "On the open right side, swipe up to jump, left to punch, or right to spin or interact. Hold down to crouch; from crouch, drag up to jump or left to punch.")
-                    guideRow(symbol: "⌕", title: "Zoom and fire",
-                             detail: "Tap Zoom. In first-person, tap the open right side to fire.")
-                    guideRow(symbol: "↑", title: "Speeder",
-                             detail: "Swipe up to accelerate. While holding, drag down to brake.")
-                    guideRow(symbol: "◇", title: "Game prompts",
-                             detail: "When a prompt appears, tap its matching button.")
+                    guideRow(symbol: "↕", title: "Swipe Actions",
+                             detail: "Swipe anywhere on the right side:\n• Up: Jump\n• Down: Crouch\n• Left: Punch\n• Right: Spin Kick")
+                    guideRow(symbol: "L", title: "Movement")
+                    guideRow(symbol: "R", title: "Camera")
+                    guideRow(symbol: "↑", title: "Speeder controls",
+                             detail: "Swipe up and hold to accelerate. Swipe down to hop brake.")
                 }
 
-                Text("Use the visible Start, Pause, Stats, Zoom, and prompt controls when they appear. Touch and a connected controller work together.")
+                Text("Dark Eco also supports wireless gamepads for controller input.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -51,7 +45,7 @@ struct TouchControlsGuideView: View {
         .navigationTitle("Touch Controls")
     }
 
-    private func guideRow(symbol: String, title: String, detail: String) -> some View {
+    private func guideRow(symbol: String, title: String, detail: String? = nil) -> some View {
         HStack(alignment: .top, spacing: 14) {
             Text(symbol)
                 .font(.system(size: 17, weight: .bold, design: .rounded))
@@ -62,9 +56,11 @@ struct TouchControlsGuideView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.headline)
-                Text(detail)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                if let detail {
+                    Text(detail)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }

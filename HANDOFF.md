@@ -18695,3 +18695,61 @@ build errors were reported.
 Build 193 was not installed or launched, because the current request did not
 authorize physical-device access. Physical cancellation and completed-screen UI
 acceptance remain pending. No iPhone was accessed.
+
+# 2026-08-12 Build 194 launcher indicator and touch-guide checkpoint
+
+Build 194 replaces the Library card's indeterminate preparing symbol and
+separate progress view with one small accent-purple spinner in the symbol
+position. The preparation text, including `Checking Saves`, retains the existing
+blue accent-glow color. Determinate archive-import progress retains its progress
+bar and ordinary state symbol.
+
+The iOS Touch Controls guide now presents, in order: `Swipe Actions` with four
+direction bullets, title-only `Movement`, title-only `Camera`, and `Speeder
+controls` with the requested acceleration/braking sentence. Zoom/fire, Game
+prompts, their detail copy, and the old visible-controls footer are removed. The
+footer is now `Dark Eco also supports wireless gamepads for controller input.`
+Gameplay touch mappings were not changed.
+
+Focused validation passed:
+
+```text
+Scripts/run-game-data-import-presentation-check.sh
+swift Scripts/presentation-settings-ui-check.swift "$PWD"
+  guide-specific assertion: PASS
+sh -n Scripts/run-touch-controls-check.sh
+xcrun swift -frontend -parse <each changed Swift source and check individually>
+plutil -lint GOALPad.xcodeproj/project.pbxproj
+git diff --check
+```
+
+Existing broader baseline failures remain outside this patch. The complete
+presentation model runner reports two unrelated physical-binding/cloud checks;
+the presentation UI runner reports seven unrelated settings/cloud/layout
+assertions, while its changed touch-guide assertion passes. The portrait runner
+still rejects the existing adaptive title line-limit expression. The touch
+runner's macOS-hosted temporary compile still includes the existing iOS-only
+`UIDevice` expression; a temporary diagnostic-only substitution advanced it to
+three existing face-swipe expectation failures. No gameplay behavior was changed
+to conceal or expand those failures.
+
+The signed generic arm64 iOS Release build passed with:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build194-derived -jobs 4 \
+  -allowProvisioningUpdates \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack \
+  build
+```
+
+Log: `/private/tmp/goalpad-build194-signed-device-build.log`. Product:
+`/private/tmp/GOALPad-build194-derived/Build/Products/Release-iphoneos/Dark Eco.app`.
+The bundle reports version 194 and `codesign --verify --deep --strict` passed.
+No build errors were reported.
+
+Build 194 was not installed or launched because the current request did not
+authorize physical-device access. Physical indicator/color, copy/layout, and
+touch-guide acceptance remain pending. No iPhone was accessed.
