@@ -561,6 +561,19 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(effects315.last_semantic_fingerprint),
         static_cast<unsigned>(effects315.last_classification));
 
+  const auto& warp316 = metal.warp_texture_upload;
+  NSLog(@"GOALPAD_JAK2_WARP316_STATE tick=%llu observations=%llu absent=%llu ordinary=%llu "
+         "unclassified=%llu last-uploads=%u last-transfers=%u last-payload-bytes=%llu "
+         "last-fingerprint=%016llx",
+        static_cast<unsigned long long>(runtime.ticks),
+        static_cast<unsigned long long>(warp316.observations),
+        static_cast<unsigned long long>(warp316.absent),
+        static_cast<unsigned long long>(warp316.ordinary),
+        static_cast<unsigned long long>(warp316.unclassified), warp316.last_upload_count,
+        warp316.last_transfer_count,
+        static_cast<unsigned long long>(warp316.last_payload_bytes),
+        static_cast<unsigned long long>(warp316.last_semantic_fingerprint));
+
   NSLog(@"GOALPAD_JAK2_SKY_POST_STATE tick=%llu executions=%llu",
         static_cast<unsigned long long>(runtime.ticks),
         static_cast<unsigned long long>(metal.sky_post_texture_upload_executions));

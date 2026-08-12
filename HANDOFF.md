@@ -17652,3 +17652,27 @@ prison, and sampled post-prison logs show no nonempty occurrence and provide no
 per-level TBP/model evidence. Do not promote the family speculatively. The
 smallest future seam is passive bucket-203 metadata after producer bucket 200,
 followed by a source-shaped MetalGeneric2 fixture only if live textures resolve.
+
+## Jak II passive warp-upload runtime telemetry checkpoint
+
+Date: 2026-08-12.
+
+Nested commit `dc6d1bc27` wires the existing typed bucket-316 plan into passive,
+pre-copy host observation while leaving `TEX_ALL_WARP` `DeferredSkip`. The ABI
+tail and numeric iOS diagnostic expose observations, absent/ordinary/unclassified
+counts, last upload/transfer/payload counts, and a semantic fingerprint. No
+execution counter, texture publication, bucket callback, renderer route, or
+table promotion was added. Unsupported animator grammar remains deferred and
+does not fail an otherwise valid game chain.
+
+The canonical full target could not rebuild because Xcode's Metal Toolchain is
+still absent; the first failure was `cannot execute tool 'metal' due to missing
+Metal Toolchain`. Instead, the three changed host/plan/test objects compiled
+with the canonical Ninja commands, the existing host archive/test were relinked,
+and the host-access Metal test passed the full suite. New checks prove exact
+empty, one-upload, seven-upload, and unsupported-animator forms; all four chains
+complete with zero texture uploads and unchanged live texture count. The initial
+sandboxed run failed only because it could not see a default Metal device. The
+outer Objective-C++ runtime bridge also passed a focused syntax check. Nested
+commit `dc6d1bc27` is pushed to `origin/agent/jak2-ipad-playtest`; no simulator
+or physical device was accessed.
