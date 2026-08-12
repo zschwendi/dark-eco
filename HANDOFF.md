@@ -17124,6 +17124,16 @@ zero placeholders, plus two successful eye outputs and no chain/command
 failure. PRIS2 228/229 should follow as a separate typed producer/consumer
 slice. The physical `Z iPad Pro` was not accessed.
 
+Nested `3d3b17963` now adds the first parser-only PRIS2 follow-up. It accepts
+only bucket 228's exact five-transfer/176-byte ordinary form or exact
+32-transfer/2032-byte single-eye form, owns the ordinary page header and eye
+semantics, and compares independently preflighted live/copied plans while
+ignoring relocation. It remains completely unwired: bucket 228 and matching
+Merc bucket 229 are still deferred and no runtime behavior changed. The
+implementation is isolated in three new files and its direct `clang++`
+compile, focused executable, and diff check pass. The corrected one-eye
+contract has four inert transfers; five inert transfers belongs to bucket 229.
+
 ## Jak II prison CLUT publication acceptance
 
 Date: 2026-08-12.
