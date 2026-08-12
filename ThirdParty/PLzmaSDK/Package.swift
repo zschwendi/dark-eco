@@ -31,23 +31,7 @@ let package = Package(
                 path: "swift",
                 resources: [
                     .copy("../resources/PrivacyInfo.xcprivacy"),
-                ]),
-        .target(name: "plzma_test_files",
-                path: "test_files",
-                cSettings: [
-                    .unsafeFlags(["-fPIC"])
-                ],
-                cxxSettings: [
-                    .unsafeFlags(["-fPIC", "-fno-rtti"])
-                ]),
-        .testTarget(
-            name: "PLzmaSDKTests",
-            dependencies: [
-                .target(name: "PLzmaSDK"),
-                .target(name: "libplzma"),
-                .target(name: "plzma_test_files")
-            ],
-            path: "swift_pm_tests")
+                ])
     ],
     swiftLanguageModes: [.v5, .v6],
     cLanguageStandard: .c11,
