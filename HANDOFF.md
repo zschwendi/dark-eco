@@ -17211,42 +17211,6 @@ hard-edged prison light patches also remain a separate SpriteGlow versus
 ordinary Sprite3 versus TRANS-tfrag A/B; no speculative shader change is
 authorized by this checkpoint. The physical `Z iPad Pro` was not accessed.
 
-## Jak II common PRIS execution checkpoint
-
-Date: 2026-08-12.
-
-Nested `cb9bd6fcd` implements the exact observed common-PRIS bucket-220
-contracts. It accepts the strict absent form, the nine-transfer/208-byte Dark
-Jak animator form, and the 63-transfer/3920-byte Dark Jak plus two-eye form.
-Both the live and copied DMA chains are independently parsed and semantically
-matched before mutation. All four Dark Jak RGBA outputs are prepared before
-bucket 4 executes, then published as stable animated slots 0 through 3 at
-bucket 220 before common Merc bucket 221. The combined form composes both
-planned eye pairs through the detached Metal eye renderer in the same source
-order. PRIS2 buckets remain deferred.
-
-The integration owner reviewed the implementation and an independent
-read-only review found no blocker. The canonical focused build passed:
-
-```text
-cmake --build .agent-builds/jak2-combined-host --target jak2-metal-bucket-table-test jak2-common-tfrag-texture-upload-capture-test jak2-dark-jak-clut-executor-test jak2-metal-eye-renderer-test jak2-metal-merc-renderer-test jak2-metal-host-bridge-test -j2
-```
-
-The initial sandboxed CTest run passed the portable tests but the four Metal
-tests reported that no default Metal device was available. The exact rerun
-with host Metal access passed 6/6:
-
-```text
-ctest --test-dir .agent-builds/jak2-combined-host --output-on-failure -R '^(jak2-metal-bucket-table-test|jak2-common-tfrag-texture-upload-capture-test|jak2-dark-jak-clut-executor-test|jak2-metal-eye-renderer-test|jak2-metal-merc-renderer-test|jak2-metal-host-bridge-test)$'
-```
-
-Nested commit `cb9bd6fcde74322bc13b6a40e3e6add81918e072` is pushed to
-`origin/agent/jak2-ipad-playtest`. The next gate is one Release simulator
-build and the retained active-prison save. Acceptance requires slots 0 through
-3 to keep their live draw counts with zero placeholders, both common eye
-outputs to bind without lookup/placeholder failures, and no chain or Metal
-command-buffer failure. The physical `Z iPad Pro` remains untouched.
-
 ## Jak II common PRIS Dark Jak implementation checkpoint
 
 Date: 2026-08-12.
