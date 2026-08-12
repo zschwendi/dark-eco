@@ -49,6 +49,10 @@ private struct ControllerRumbleCheck {
                 && source.contains("if preservesFinitePulseTail")
                 && source.contains("func silence()"),
               "explicit cancellation remains immediate while DualSense event tails may finish")
+        check(source.contains("let intensityChanged = playerIntensity.map")
+                && source.contains("if intensityChanged {")
+                && source.contains("try player?.start(atTime: CHHapticTimeImmediate)"),
+              "unchanged finite rumble refreshes reuse their standard haptic player")
 
         if failures == 0 {
             print("controller rumble checks passed")

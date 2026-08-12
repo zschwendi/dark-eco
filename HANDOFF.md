@@ -19030,3 +19030,69 @@ inventory confirms Dark Eco 1.0 (197), bundle identifier
 
 Physical DualSense rumble acceptance remains pending until the maintainer
 launches the installed build and tests strength and left/right identity.
+
+# 2026-08-12 Build 198 controller performance checkpoint
+
+Build 198 removes two recent sources of controller-related main-thread churn
+without changing renderer behavior, rumble gain, handle routing, or input
+polling. The Build 186 finite Core Haptics path now reuses its standard pattern
+player when intensity is unchanged instead of stopping and reconstructing the
+event, pattern, and player every 80 ms. Apple documents that starting an
+already-playing standard player restarts its pattern, so finite refresh and the
+accepted DualSense pulse-tail behavior remain intact. Build 184's rapid-edge
+callback now rejects thumbstick-only changes before dispatching to the main
+queue; button, trigger, touchpad-button, and D-pad edges remain captured while
+analog axes continue through per-frame polling.
+
+Three independent read-only audits converged on Core Haptics churn as the
+strongest post-Build-154 regression candidate and the unfiltered controller
+callback as the second. They found no surviving Metal source change between the
+accepted Build 154 renderer and Build 197. Older measurable candidates remain:
+double FR3 decode/texture upload during level transitions, synchronous streamed
+VAG reads, shipping renderer diagnostics, lazy PSO creation, the single
+in-flight stream arena, 600-frame Swift diagnostics/logging, save stamp polling,
+and audio mixer lock contention. None was changed without a physical trace or a
+controlled cold/warm A/B.
+
+Focused validation passed:
+
+```text
+Scripts/run-controller-rumble-check.sh
+Scripts/run-keyboard-mouse-input-check.sh
+Scripts/run-game-lifecycle-check.sh
+xcrun swift -frontend -parse GOALPad/Input/ControllerInput.swift Scripts/controller-rumble-check.swift
+sh -n Scripts/run-controller-rumble-check.sh Scripts/run-keyboard-mouse-input-check.sh
+plutil -lint GOALPad.xcodeproj/project.pbxproj
+git diff --check
+git -C OpenGOAL diff --check
+```
+
+`Scripts/run-vision-stereo-integration-check.sh` passed 39 assertions and
+reported the same unrelated stale Settings-toolbar assertion already recorded
+for Build 196: it expects a direct `#if !os(visionOS)` branch while current
+source uses an iOS branch followed by `#elseif !os(visionOS)`.
+
+The signed generic arm64 iOS Release build passed with:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build194-derived -jobs 4 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT="$PWD/build/jak1-source-object-pack" \
+  build
+```
+
+Log: `/private/tmp/goalpad-build198-controller-performance.log`. Product:
+`/private/tmp/GOALPad-build194-derived/Build/Products/Release-iphoneos/Dark Eco.app`.
+It is a signed arm64 Dark Eco 1.0 (198) app; strict deep codesign verification
+passed. Existing account-token, actor-isolation, conversion, and always-run
+script warnings remain; no build errors were reported.
+
+Build 198 was not installed, launched, logged, or profiled on physical
+`Z iPad Pro` because this request did not provide fresh physical-device
+authorization. The decisive acceptance test is the same warmed Spider Cave
+route with Rumble off and on, followed—if needed—by controller disconnected
+versus connected with rumble off. Physical Metal/Time Profiler evidence remains
+required before changing renderer synchronization or level-load architecture.

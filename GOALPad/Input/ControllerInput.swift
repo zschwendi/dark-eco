@@ -459,7 +459,9 @@ final class ControllerInput {
         controllerName = candidate.vendorName ?? candidate.productCategory
         isDualSense = candidate.extendedGamepad is GCDualSenseGamepad
         resetControllerButtonSnapshots()
-        candidate.extendedGamepad?.valueChangedHandler = { [weak self, weak candidate] pad, _ in
+        candidate.extendedGamepad?.valueChangedHandler = {
+            [weak self, weak candidate] pad, element in
+            guard Self.capturesRapidButtonEdge(from: element, on: pad) else { return }
             let pressed = Self.pressedControls(of: pad)
             let touchpadPressed = Self.touchpadIsPressed(on: pad)
             DispatchQueue.main.async { [weak self, weak candidate] in
@@ -491,6 +493,18 @@ final class ControllerInput {
             adoptController(next)
         }
         noteDriving()
+    }
+
+    /// Polling owns analog stick values. The profile callback exists only to retain button edges
+    /// that begin and end between display frames, so thumbstick motion must not flood the main
+    /// queue that also owns the display link.
+    nonisolated private static func capturesRapidButtonEdge(
+        from element: GCControllerElement,
+        on pad: GCExtendedGamepad
+    ) -> Bool {
+        element is GCControllerButtonInput
+            || element === pad.dpad
+            || element.collection === pad.dpad
     }
 
     private func releaseController() {
@@ -806,7 +820,7 @@ private final class ControllerRumble {
         private let preservesFinitePulseTail: Bool
         private var player: CHHapticPatternPlayer?
         private var connectionPlayer: CHHapticPatternPlayer?
-        private var currentIntensity: Float = 0
+        private var playerIntensity: Float?
         private var lastStartTime = -Double.infinity
 
         init?(haptics: GCDeviceHaptics,
@@ -826,7 +840,7 @@ private final class ControllerRumble {
                 Task { @MainActor [weak self] in
                     self?.player = nil
                     self?.connectionPlayer = nil
-                    self?.currentIntensity = 0
+                    self?.playerIntensity = nil
                 }
             }
             engine.resetHandler = { [weak self] in
@@ -850,20 +864,25 @@ private final class ControllerRumble {
             let intensity = min(1, max(0, intensity))
             do {
                 guard intensity > 0 else {
-                    if preservesFinitePulseTail {
-                        currentIntensity = 0
-                    } else {
-                        silence()
-                    }
+                    if preservesFinitePulseTail { return }
+                    silence()
                     return
                 }
                 let now = CACurrentMediaTime()
-                guard player == nil || abs(intensity - currentIntensity) >= 0.04
-                        || now - lastStartTime >= Self.refreshInterval else { return }
-                try player?.stop(atTime: CHHapticTimeImmediate)
-                player = try makePlayer(intensity: intensity, duration: Self.pulseDuration)
+                let intensityChanged = playerIntensity.map { abs(intensity - $0) >= 0.04 }
+                    ?? true
+                guard intensityChanged || now - lastStartTime >= Self.refreshInterval else {
+                    return
+                }
+                if intensityChanged {
+                    try player?.stop(atTime: CHHapticTimeImmediate)
+                    player = try makePlayer(intensity: intensity, duration: Self.pulseDuration)
+                    playerIntensity = intensity
+                }
+                // Apple documents that starting an already-playing standard player restarts its
+                // pattern. Reuse it for finite refreshes instead of rebuilding Core Haptics
+                // objects on the display-link thread every 80 ms.
                 try player?.start(atTime: CHHapticTimeImmediate)
-                currentIntensity = intensity
                 lastStartTime = now
             } catch {
                 inputLog.error("Rumble failed: \(error.localizedDescription, privacy: .public)")
@@ -882,7 +901,7 @@ private final class ControllerRumble {
         func silence() {
             try? player?.stop(atTime: CHHapticTimeImmediate)
             player = nil
-            currentIntensity = 0
+            playerIntensity = nil
             lastStartTime = -Double.infinity
         }
 
@@ -897,7 +916,7 @@ private final class ControllerRumble {
             try engine.start()
             player = nil
             connectionPlayer = nil
-            currentIntensity = 0
+            playerIntensity = nil
         }
 
         private func makePlayer(

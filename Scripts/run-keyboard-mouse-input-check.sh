@@ -29,3 +29,7 @@ rg -Fq 'controllerDidConnect(note.object as? GCController)' \
   "$root/GOALPad/Input/ControllerInput.swift"
 rg -Fq 'Self.preferredController(excluding: leaving)' \
   "$root/GOALPad/Input/ControllerInput.swift"
+rg -Fq 'guard Self.capturesRapidButtonEdge(from: element, on: pad) else { return }' \
+  "$root/GOALPad/Input/ControllerInput.swift"
+rg -Fq 'element is GCControllerButtonInput' "$root/GOALPad/Input/ControllerInput.swift"
+rg -Fq 'element === pad.dpad' "$root/GOALPad/Input/ControllerInput.swift"
