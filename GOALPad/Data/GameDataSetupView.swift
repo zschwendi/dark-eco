@@ -157,13 +157,19 @@ struct GameDataSetupView: View {
                 Label(progress.phase.playerLabel, systemImage: "bolt.circle.fill")
                     .font(.headline)
                     .foregroundStyle(DarkEcoTheme.accentGlow)
-                ProgressView(value: progress.overallProgress)
-                    .tint(DarkEcoTheme.accent)
-                    .accessibilityLabel("\(GameLibraryTitle.jak1.name) import progress")
-                    .accessibilityValue("\(progress.overallPercent)% complete · \(progress.phase.playerLabel)")
-                Text("\(progress.overallPercent)% complete")
-                    .font(.footnote.monospacedDigit())
-                    .foregroundStyle(.white.opacity(0.78))
+                if progress.fraction != nil {
+                    ProgressView(value: progress.overallProgress)
+                        .tint(DarkEcoTheme.accent)
+                        .accessibilityLabel("\(GameLibraryTitle.jak1.name) import progress")
+                        .accessibilityValue("\(progress.overallPercent)% complete · \(progress.phase.playerLabel)")
+                    Text("\(progress.overallPercent)% complete")
+                        .font(.footnote.monospacedDigit())
+                        .foregroundStyle(.white.opacity(0.78))
+                } else {
+                    ProgressView()
+                        .tint(DarkEcoTheme.accent)
+                        .accessibilityLabel("\(progress.phase.playerLabel) in progress")
+                }
 
                 Text(GameDataImportPresentation.backgroundGuidance)
                     .font(.footnote)
@@ -204,7 +210,14 @@ struct GameDataSetupView: View {
             .tint(DarkEcoTheme.accent)
             .disabled(!session.importer.canStart || session.isRefreshingDataReport)
 
-            HStack(spacing: 12) {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) { recheckButton; playButton }
+                VStack(alignment: .leading, spacing: 12) { recheckButton; playButton }
+            }
+        }
+    }
+
+    private var recheckButton: some View {
                 Button {
                     Task { await session.refreshDataReport() }
                 } label: {
@@ -218,13 +231,13 @@ struct GameDataSetupView: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(session.isRefreshingDataReport)
+    }
 
-                Button("Play \(GameLibraryTitle.jak1.name)") { Task { await session.start() } }
-                    .buttonStyle(.bordered)
-                    .disabled(!session.dataReport.canBoot || session.isRefreshingDataReport
-                        || session.startupPhase.isPreparing)
-            }
-        }
+    private var playButton: some View {
+        Button("Play \(GameLibraryTitle.jak1.name)") { Task { await session.start() } }
+            .buttonStyle(.bordered)
+            .disabled(!session.dataReport.canBoot || session.isRefreshingDataReport
+                || session.startupPhase.isPreparing)
     }
 
     private var startupMessage: String? {

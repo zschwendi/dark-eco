@@ -13,8 +13,8 @@ struct TouchStickSettingsView: View {
                 ))
                 stickSizePicker("Size", control: .modernMovement)
                 Text(settings.dynamicLeftStick
-                     ? "Appears under your thumb and disappears as soon as you lift it."
-                     : "Uses the fixed position below and stays visible with the other controls for three seconds.")
+                     ? "Stick moves to wherever your finger is placed."
+                     : "Uses the chosen fixed position.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

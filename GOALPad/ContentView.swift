@@ -209,7 +209,7 @@ struct ContentView: View {
                               isGameRunning: session.isRunning,
                               returnToLibrary: returnToLibrary)
                 .id(presentation.id)
-                .frame(minWidth: 360, minHeight: 360)
+                .frame(minHeight: 360)
         }
         #if os(iOS)
         .sheet(isPresented: $isShowingTouchControlsGuide, onDismiss: {

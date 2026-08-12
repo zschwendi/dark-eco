@@ -1081,10 +1081,13 @@ struct SaveSettingsView: View {
             }
 
             Section("iCloud") {
-                Label(cloudState.summary, systemImage: cloudStatusSymbol)
-                    .foregroundStyle(cloudStatusColor)
-                if let message = cloudState.progressMessage {
-                    ProgressView(message)
+                HStack(spacing: 10) {
+                    ProgressView()
+                        .controlSize(.small)
+                        .opacity(cloudState.progressMessage == nil ? 0 : 1)
+                        .accessibilityHidden(cloudState.progressMessage == nil)
+                    Label(cloudState.summary, systemImage: cloudStatusSymbol)
+                        .foregroundStyle(cloudStatusColor)
                 }
 
                 DisclosureGroup(isExpanded: expansion(for: .iCloud)) {
@@ -1126,7 +1129,8 @@ struct SaveSettingsView: View {
             }
 
             Section("Saves") {
-                if sync.isTransferring, let message = sync.progressMessage {
+                if (sync.isTransferring || sync.activeOperation == .loadingArchives),
+                   let message = sync.progressMessage {
                     ProgressView(message)
                 }
                 if sync.isGameplayActive {
@@ -1322,7 +1326,7 @@ struct SaveSettingsView: View {
                 get: { settings.dynamicLeftStick },
                 set: { settings.setDynamicLeftStick($0) }
             ))
-            Text("Off keeps a fixed home ring with a forgiving nearby touch area. On lets the ring follow any new touch on the left side.")
+            Text("Stick moves to wherever your finger is placed.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
             NavigationLink {
@@ -1388,13 +1392,8 @@ struct SaveSettingsView: View {
             .pickerStyle(.segmented)
 
             if settings.profile(for: .graphics) == .modern {
-                Toggle("Fit to Screen", isOn: Binding(
-                    get: { settings.graphicsFillWidth },
-                    set: { settings.setGraphicsFillWidth($0) }
-                ))
-                Text("Keeps the vertical view and widens the game horizontally to fill the display.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                // Fit to Screen is the only additional Modern option today and duplicates the
+                // profile switch. Restore its explicit toggle once Modern has a settings group.
 
                 #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
                 Toggle("Stereoscopic 3D", isOn: Binding(

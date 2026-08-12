@@ -279,12 +279,17 @@ private struct GameLibraryTile: View {
                         Label(stateLabel, systemImage: stateSymbol)
                             .font(.caption.weight(.medium))
                             .foregroundStyle(stateColor)
-                        if case .preparing(let preparation) = state,
-                           let fraction = preparation.fraction {
-                            ProgressView(value: fraction)
-                                .tint(DarkEcoTheme.accent)
+                        if case .preparing(let preparation) = state {
+                            if let fraction = preparation.fraction {
+                                ProgressView(value: fraction)
+                                    .tint(DarkEcoTheme.accent)
+                            } else {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .tint(DarkEcoTheme.accent)
+                            }
                         }
-                        if let progress {
+                        if let progress, progress.fraction != nil {
                             Text("\(progress.filesCopied) of \(progress.filesTotal) files")
                                 .font(.caption2.monospacedDigit())
                                 .foregroundStyle(.secondary)

@@ -18258,3 +18258,21 @@ bundle version 172. Logs:
 /private/tmp/goalpad-build172-iphone-sim.log
 /private/tmp/goalpad-build172-ios-device.log
 ```
+
+# 2026-08-11 Build 173 progress and settings checkpoint
+
+Build 173 stabilizes the iCloud section by keeping one fixed-height status row
+and placing its indeterminate spinner inline. Save archive loading, local-data
+checks, save checks, and unmeasured import phases now show real indeterminate
+progress; measured copy/composition work keeps a determinate bar. Compact game
+setup actions adapt vertically, the settings sheet no longer forces a 360-point
+width, Fit to Screen is hidden until Modern has a meaningful settings group,
+and Dynamic Left Stick uses the requested one-line description.
+
+The checkpoint is on branch `agent/build173-progress-settings`. The signed
+generic iOS Release build passed, was installed and launched on physical
+`Z iPad Pro`, and device inventory confirmed Dark Eco 1.0 (173). Build log:
+
+```text
+/private/tmp/goalpad-build173-ios-device.log
+```
