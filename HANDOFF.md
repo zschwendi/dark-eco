@@ -19096,3 +19096,69 @@ authorization. The decisive acceptance test is the same warmed Spider Cave
 route with Rumble off and on, followed—if needed—by controller disconnected
 versus connected with rumble off. Physical Metal/Time Profiler evidence remains
 required before changing renderer synchronization or level-load architecture.
+
+# 2026-08-12 Build 199 adaptive 120 Hz checkpoint
+
+Build 199 adds an opt-in **High Frame Rate** setting that requests an adaptive
+60–120 Hz iOS display-link range and captures one immutable 60/120 target for
+each gameplay boot. The Objective-C++ seam supplies target-presentation timing
+to the native runtime. Host-managed 120 Hz GOAL timing carries fractional
+300 Hz and integral-frame remainders, ages controller history by elapsed virtual
+frames, and keeps the established sound system on its 60 Hz vblank clock.
+
+Direct per-callback high-FPS integrations use the immutable host cadence rather
+than mutable gameplay slowdown. Counter conversions and fixed simulation steps
+remain target-rate based. The host path is explicitly gated so ordinary
+OpenGOAL desktop and PS2 timing retain their existing behavior, including the
+legacy one-unit eye countdown and one sound update per 60 Hz callback. Movie,
+pause, lifecycle, and sound-debt remainders are kept in separate clock domains.
+
+The final nested OpenGOAL checkpoint is `8c0c48b1c`. The complete 518-source
+GOAL sweep emitted 10,632 functions, retained seven native functions, and had
+zero source failures. Its canonical source-object-pack identity is
+`8e8019d6c74ed9fc` (10,756,454 bytes). Regenerated AOT verifies 518 objects,
+10,632 emitted functions, and seven native functions; the generated eye,
+seagull, and target objects resolve `*host-display-time-ratio*`. A final
+independent read-only timing review reported no blockers.
+
+Focused validation passed:
+
+```text
+Scripts/run-promotion-frame-rate-check.sh
+Scripts/run-camera-timing-check.sh
+Scripts/run-presentation-settings-check.sh
+Scripts/run-game-lifecycle-check.sh
+Scripts/run-controller-rumble-check.sh
+Scripts/run-keyboard-mouse-input-check.sh
+Scripts/verify-generated-aot.sh Generated/jak1-aot 518
+OpenGOAL/build/Release/bin/goalc/jak1-source-object-pack-verify build/jak1-source-object-pack
+ctest --test-dir OpenGOAL/build/Release/bin -R jak1-source-object-pack-test --output-on-failure -j1
+xcrun swift -frontend -parse <changed Swift sources and each top-level check separately>
+sh -n Scripts/run-promotion-frame-rate-check.sh
+plutil -lint GOALPad-Info.plist GOALPad.xcodeproj/project.pbxproj
+git diff --check
+git -C OpenGOAL diff --check
+```
+
+The signed generic arm64 iOS Release build passed with the canonical source
+pack. Log: `/private/tmp/goalpad-build199-adaptive-final.log`. Product:
+`/private/tmp/GOALPad-build194-derived/Build/Products/Release-iphoneos/Dark Eco.app`.
+It is Dark Eco 1.0 (199), identifier `com.zephyrstudiosllc.eco`; strict deep
+codesign verification passes and the staged pack identity is
+`8e8019d6c74ed9fc`.
+
+A clean arm64 Release simulator build passed on the approved, already-booted
+`iPad Pro 11-inch (M5)` simulator. Log:
+`/private/tmp/goalpad-build199-m5-simulator-build-final.log`. Build 199 installed
+and launched as PID 71138. Accessibility and visual inspection confirmed the
+Graphics page exposes the default-off High Frame Rate toggle with accurate
+adaptive ProMotion copy; toggling on and back off worked. Screenshots:
+`/private/tmp/goalpad-build199-m5-simulator-final.png` and
+`/private/tmp/goalpad-build199-high-frame-toggle.png`. The simulator was already
+running, so it was not shut down.
+
+No physical iPad or iPhone was accessed. The simulator cannot prove real
+ProMotion cadence, sustained 8.33 ms CPU/GPU budget, A15 performance, frame
+pacing, power, or thermal behavior. Build 199 must remain off `main` until a
+separately authorized physical test. Remote `main` remains the physically tested
+Build 197 checkpoint `45e1eeb8`.

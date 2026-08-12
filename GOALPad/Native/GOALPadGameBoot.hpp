@@ -912,6 +912,7 @@ struct BootStatus {
  * The kernel must already be up (`start_kernel`) and pointed at the data directory. Takes seconds,
  * so call it off the main thread; nothing else may touch the kernel while it runs. Never throws.
  */
+BootStatus boot_game(int target_frame_rate) noexcept;
 BootStatus boot_game() noexcept;
 
 /*!

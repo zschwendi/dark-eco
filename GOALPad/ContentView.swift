@@ -370,12 +370,14 @@ private struct GameplaySurface: View {
         #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
         GameSurfaceView(
             onFrame: { session.tick(targetPresentationTime: $0) },
+            targetFrameRate: session.targetFrameRate,
             isStereoRendererReady: session.isRunning,
             onStereoFrame: { session.tickStereo(request: $0) }
         )
         #else
         GameSurfaceView(
             onFrame: { session.tick(targetPresentationTime: $0) },
+            targetFrameRate: session.targetFrameRate,
             hidesCursorInFullScreen: hidesCursorInFullScreen
         )
         #endif

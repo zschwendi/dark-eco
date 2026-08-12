@@ -11,6 +11,9 @@
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<!-- iPhone ProMotion requires this opt-in before CADisplayLink may request more than 60 Hz. -->
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<!-- Eco uses the full dual-stick profile and always keeps touch available alongside it. -->
 	<key>GCSupportsControllerUserInteraction</key>
 	<true/>

@@ -162,9 +162,13 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
 }
 
 + (GOALPadGameBootStatus *)bootGame {
+  return [self bootGameWithTargetFrameRate:60];
+}
+
++ (GOALPadGameBootStatus *)bootGameWithTargetFrameRate:(NSInteger)targetFrameRate {
   goalpad::BootStatus core;
   try {
-    core = goalpad::boot_game();
+    core = goalpad::boot_game(static_cast<int>(targetFrameRate));
   } catch (...) {
     core = goalpad::BootStatus();
     core.message = "The native boot threw; no game is running.";

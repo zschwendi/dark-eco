@@ -26,6 +26,7 @@
 #include "game/kernel/core/dgo_loader.h"
 #include "game/kernel/core/dma_capture.h"
 #include "game/kernel/core/kernel_game.h"
+#include "game/graphics/gfx.h"
 #include "game/graphics/pipelines/metal/metal_camera_trace.h"
 #include "game/kernel/jak1/klisten.h"
 #include "game/kernel/jak1/kscheme.h"
@@ -87,10 +88,13 @@ int32_t* g_camera_combiner = nullptr;
 std::uint32_t g_camera_master_type = 0;
 std::uint32_t g_camera_slave_type = 0;
 std::uint32_t g_camera_combiner_type = 0;
+std::uint32_t g_set_target_frame_rate = 0;
+int g_target_frame_rate = 60;
 #if TARGET_OS_IOS || TARGET_OS_VISION
 int32_t* g_timer_reset_value = nullptr;
 int32_t* g_host_display_time_ratio = nullptr;
 goalpad::DisplayClock g_display_clock;
+goalpad::SoundFrameClock g_sound_frame_clock;
 #endif
 
 /*! Everything GOAL printed since the last drain, into the app's log. */
@@ -265,6 +269,18 @@ u64 app_kernel_shutdown() {
   return 0;
 }
 
+u32 app_pc_get_display_mode() {
+  return goal_game_intern("windowed");
+}
+
+s64 app_pc_get_active_display_refresh_rate() {
+  return g_target_frame_rate;
+}
+
+void app_pc_set_frame_rate(int rate) {
+  Gfx::g_global_settings.target_fps = static_cast<float>(rate);
+}
+
 void install_app_machine_functions() {
   jak1::make_function_symbol_from_c("pc-filepath-exists?", (void*)app_pc_filepath_exists);
   // The app writes nothing outside its own container, so it does not make directories for GOAL.
@@ -278,6 +294,10 @@ void install_app_machine_functions() {
   jak1::make_function_symbol_from_c("file-stream-seek", (void*)app_file_stream_seek);
   jak1::make_function_symbol_from_c("file-stream-read", (void*)app_file_stream_read);
   jak1::make_function_symbol_from_c("file-stream-write", (void*)app_file_stream_write);
+  jak1::make_function_symbol_from_c("pc-get-display-mode", (void*)app_pc_get_display_mode);
+  jak1::make_function_symbol_from_c("pc-get-active-display-refresh-rate",
+                                    (void*)app_pc_get_active_display_refresh_rate);
+  jak1::make_function_symbol_from_c("pc-set-frame-rate", (void*)app_pc_set_frame_rate);
   // Title-screen Quit asks the platform host to close the running game. The app owns the frame
   // loop and navigation, so publish that request after preserving the kernel's normal exit state.
   jak1::make_function_symbol_from_c("kernel-shutdown", (void*)app_kernel_shutdown);
@@ -390,7 +410,7 @@ namespace goalpad {
 
 #if GOALPAD_HAVE_GAME_BOOT
 
-BootStatus boot_game() noexcept {
+BootStatus boot_game(int target_frame_rate) noexcept {
   try {
     const auto started = std::chrono::steady_clock::now();
     BootStatus status;
@@ -402,6 +422,7 @@ BootStatus boot_game() noexcept {
       return failure("The game is already booted.");
     }
     g_exit_to_library_requested = false;
+    g_target_frame_rate = DisplayClock::normalize_target_frame_rate(target_frame_rate);
 
     register_aot_objects();
 
@@ -484,6 +505,14 @@ BootStatus boot_game() noexcept {
     os_log(boot_log(), "Using the MIPS2C bones matrix producer for iOS/visionOS compatibility.");
 #endif
 
+    if (!goal_game_find_symbol("goalpad-set-target-frame-rate", &g_set_target_frame_rate) ||
+        !g_set_target_frame_rate) {
+      return failure("GAME.CGO did not define goalpad-set-target-frame-rate.");
+    }
+    call_goal(Ptr<Function>(g_set_target_frame_rate), g_target_frame_rate, 0, 0, s7.offset,
+              g_ee_main_mem);
+    drain_goal_print_buffer();
+
     // The last thing InitMachineScheme does. `play` allocates the level heaps and drives the whole
     // title-level load itself, through GOAL's own loader.
     jak1::call_goal_function_by_name("play");
@@ -528,7 +557,9 @@ BootStatus boot_game() noexcept {
       return failure("GAME.CGO did not define *host-display-time-ratio*.");
     }
     g_host_display_time_ratio = goal_game_symbol_slot("*host-display-time-ratio*");
+
     g_display_clock.reset();
+    g_sound_frame_clock.reset();
 #endif
 
     g_dispatcher = jak1::find_symbol_from_c("kernel-dispatcher");
@@ -673,16 +704,20 @@ BootStatus boot_game() noexcept {
   }
 }
 
+BootStatus boot_game() noexcept {
+  return boot_game(60);
+}
+
 bool run_frame(double target_presentation_time) noexcept {
   if (!g_booted) {
     return false;
   }
+  float display_time_ratio = 1.0f;
 #if TARGET_OS_IOS || TARGET_OS_VISION
   // `display-frame-start` consumes this value at the same boundary as its upstream timer result,
   // before the next frame's process and camera updates. CADisplayLink's target timestamp measures
   // display cadence; callback workload does not move the ratio onto the wrong game frame.
-  const float display_time_ratio =
-      static_cast<float>(g_display_clock.advance(target_presentation_time));
+  display_time_ratio = g_display_clock.advance(target_presentation_time, g_target_frame_rate);
   int32_t display_time_ratio_bits = 0;
   static_assert(sizeof(display_time_ratio_bits) == sizeof(display_time_ratio));
   std::memcpy(&display_time_ratio_bits, &display_time_ratio, sizeof(display_time_ratio_bits));
@@ -698,9 +733,16 @@ bool run_frame(double target_presentation_time) noexcept {
   call_goal_on_stack(Ptr<Function>(g_dispatcher->value), goal_kernel_stack_top(), s7.offset,
                      g_ee_main_mem);
   drain_goal_print_buffer();
-  // The overlord's vblank work: the music fade, and the `sound-iop-info` block written back to the
-  // EE. A frame of the game is a frame of sound.
+#if TARGET_OS_IOS || TARGET_OS_VISION
+  // Sound's fades and fake stream clock are defined in 60 Hz vblanks. A 120 Hz dispatcher must not
+  // advance them twice as fast, while a lower ProMotion factor must catch up by the same wall time.
+  const int sound_frames = g_sound_frame_clock.advance(display_time_ratio, g_target_frame_rate);
+  for (int frame = 0; frame < sound_frames; ++frame) {
+    goal_sound_frame();
+  }
+#else
   goal_sound_frame();
+#endif
   g_frames++;
   return true;
 }
@@ -803,6 +845,8 @@ void reset_game() noexcept {
   g_camera_slave_type = 0;
   g_camera_combiner_type = 0;
   reset_frame_timing();
+  g_set_target_frame_rate = 0;
+  g_target_frame_rate = 60;
 #if TARGET_OS_IOS || TARGET_OS_VISION
   g_timer_reset_value = nullptr;
   g_host_display_time_ratio = nullptr;
@@ -930,6 +974,11 @@ FacePromptTouchSnapshot face_prompt_touch_snapshot() noexcept {
 }
 
 #else  // GOALPAD_HAVE_GAME_BOOT
+
+BootStatus boot_game(int target_frame_rate) noexcept {
+  (void)target_frame_rate;
+  return boot_game();
+}
 
 BootStatus boot_game() noexcept {
   BootStatus status;

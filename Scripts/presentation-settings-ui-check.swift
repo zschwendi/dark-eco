@@ -183,14 +183,14 @@ check(view.contains("older divergent copies were preserved automatically")
         && !view.contains("switch resolution.basis"),
       "automatic resolution copy remains generic across engine ranking cases")
 check(view.contains("Toggle(\"High Frame Rate\"")
-        && view.contains("Prefer a higher display refresh rate on supported devices.")
-        && view.contains("This launcher setting ")
-        && view.contains("is saved independently; gameplay pacing remains on the stable 60 Hz path")
+        && view.contains("Allows up to 120 fps on supported ProMotion displays.")
+        && view.contains("Applies the next time ")
+        && view.contains("iOS may lower the refresh rate for power or temperature.")
         && !view.contains("Toggle(\"Fit to Screen\"")
         && store.contains("var graphicsHighFrameRateOverride: Bool?")
         && store.contains("var graphicsHighFrameRate: Bool")
         && store.contains("func setGraphicsHighFrameRate(_ enabled: Bool)"),
-      "Graphics exposes a launcher-only High Frame Rate preference with a safe default")
+      "Graphics exposes a persisted High Frame Rate preference with a safe default")
 check(store.contains("var graphicsModernFillWidthOverride: Bool?")
         && store.contains("var graphicsProfile: SettingsProfile = .modern")
         && store.contains("return graphicsModernFillWidthOverride ?? true"),

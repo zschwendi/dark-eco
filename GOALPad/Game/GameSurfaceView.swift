@@ -20,6 +20,7 @@ import AppKit
 struct GameSurfaceView: View {
     /// Called once per display refresh, on the main thread.
     let onFrame: (CFTimeInterval) -> Void
+    var targetFrameRate = 60
     var hidesCursorInFullScreen = false
 
     #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
@@ -28,9 +29,11 @@ struct GameSurfaceView: View {
     let onStereoFrame: VisionWindowStereoFrameHandler?
 
     init(onFrame: @escaping (CFTimeInterval) -> Void,
+         targetFrameRate: Int = 60,
          isStereoRendererReady: Bool = false,
          onStereoFrame: VisionWindowStereoFrameHandler? = nil) {
         self.onFrame = onFrame
+        self.targetFrameRate = targetFrameRate
         self.isStereoRendererReady = isStereoRendererReady
         self.onStereoFrame = onStereoFrame
     }
@@ -65,6 +68,7 @@ struct GameSurfaceView: View {
 
     private var conventionalSurface: some View {
         SurfaceRepresentable(onFrame: onFrame,
+                             targetFrameRate: targetFrameRate,
                              hidesCursorInFullScreen: hidesCursorInFullScreen)
             .ignoresSafeArea()
             .background(.black)
@@ -146,6 +150,12 @@ private final class PresentationSurfaceCoordinator {
 
 private final class MetalHostView: UIView {
     var onFrame: ((CFTimeInterval) -> Void)?
+    var targetFrameRate = 60 {
+        didSet {
+            guard targetFrameRate != oldValue, let frameLink else { return }
+            configureFrameRate(for: frameLink)
+        }
+    }
     private var frameLink: CADisplayLink?
     private var observesSceneLifecycle = false
 
@@ -199,10 +209,22 @@ private final class MetalHostView: UIView {
     private func startDisplayLink() {
         guard frameLink == nil else { return }
         let link = CADisplayLink(target: self, selector: #selector(step(_:)))
-        // The game runs at 60 Hz; letting a ProMotion display ask for 120 would only spend power.
-        link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 60, preferred: 60)
+        configureFrameRate(for: link)
         link.add(to: .main, forMode: .common)
         frameLink = link
+    }
+
+    private func configureFrameRate(for link: CADisplayLink) {
+        #if os(iOS)
+        let screenMaximum = window?.screen.maximumFramesPerSecond ?? 60
+        if targetFrameRate >= 120, screenMaximum > 60 {
+            let maximum = Float(min(screenMaximum, 120))
+            link.preferredFrameRateRange = CAFrameRateRange(
+                minimum: 60, maximum: maximum, preferred: maximum)
+            return
+        }
+        #endif
+        link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 60, preferred: 60)
     }
 
     private func stopDisplayLink() {
@@ -252,17 +274,21 @@ private final class MetalHostView: UIView {
 
 private struct SurfaceRepresentable: UIViewRepresentable {
     let onFrame: (CFTimeInterval) -> Void
+    let targetFrameRate: Int
     let hidesCursorInFullScreen: Bool
 
     func makeUIView(context: Context) -> UIView {
         let view = MetalHostView()
         view.onFrame = onFrame
+        view.targetFrameRate = targetFrameRate
         view.isOpaque = true
         return view
     }
 
     func updateUIView(_ view: UIView, context: Context) {
-        (view as? MetalHostView)?.onFrame = onFrame
+        guard let view = view as? MetalHostView else { return }
+        view.onFrame = onFrame
+        view.targetFrameRate = targetFrameRate
     }
 }
 
@@ -423,6 +449,7 @@ private final class MetalHostView: NSView {
 
 private struct SurfaceRepresentable: NSViewRepresentable {
     let onFrame: (CFTimeInterval) -> Void
+    let targetFrameRate: Int
     let hidesCursorInFullScreen: Bool
 
     func makeNSView(context: Context) -> NSView {

@@ -1405,9 +1405,8 @@ struct SaveSettingsView: View {
                 get: { settings.graphicsHighFrameRate },
                 set: { settings.setGraphicsHighFrameRate($0) }
             ))
-            Text("Prefer a higher display refresh rate on supported devices. This launcher setting "
-                 + "is saved independently; gameplay pacing remains on the stable 60 Hz path until "
-                 + "the display path is enabled.")
+            Text("Allows up to 120 fps on supported ProMotion displays. Applies the next time "
+                 + "gameplay starts; iOS may lower the refresh rate for power or temperature.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
             #endif

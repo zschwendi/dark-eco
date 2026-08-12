@@ -37,6 +37,7 @@ final class GameSession {
     private(set) var boot: GOALPadGameBootStatus?
     private(set) var isBooting = false
     private(set) var isRunning = false
+    private(set) var targetFrameRate = 60
     private(set) var gameMode: GOALPadGameMode = .unknown
     private(set) var titleStartState: GOALPadTitleStartState = .unknown
     private(set) var progressMenuSnapshot: NativeProgressMenuSnapshot = .unavailable
@@ -231,12 +232,18 @@ final class GameSession {
         handledNativeExitToLibraryRequest = false
         startupError = nil
         settings.apply()
+        #if os(iOS)
+        targetFrameRate = presentationSettings.graphicsHighFrameRate ? 120 : 60
+        #else
+        targetFrameRate = 60
+        #endif
+        let bootTargetFrameRate = targetFrameRate
         runReadiness = .preRun
         isBooting = true
         startupState.move(to: .booting, generation: startupGeneration)
         sessionLog.notice("Booting \(GameLibraryTitle.jak1.name, privacy: .public)")
         bootQueue.async {
-            let boot = GOALPadRuntimeBridge.bootGame()
+            let boot = GOALPadRuntimeBridge.bootGame(targetFrameRate: bootTargetFrameRate)
             DispatchQueue.main.async {
                 MainActor.assumeIsolated { self.bootFinished(boot) }
             }
@@ -249,6 +256,7 @@ final class GameSession {
         startupState.reset()
         guard status.isBooted else {
             startupError = status.message
+            targetFrameRate = 60
             GOALPadRuntimeBridge.stopKernel()
             kernel = nil
             saveSync.setGameplayActive(false)
@@ -296,6 +304,7 @@ final class GameSession {
         kernel = nil
         boot = nil
         isRunning = false
+        targetFrameRate = 60
         runReadiness = .preRun
         updateNativeMenuState(mode: .unknown, progress: .unavailable,
                               titleStartState: .unknown)

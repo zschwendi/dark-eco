@@ -243,10 +243,12 @@ typedef struct GOALPadFacePromptTouchSnapshot {
 /// must already be up. This takes seconds and runs the game's own startup code, so call it off the
 /// main thread; nothing else may touch the kernel while it runs.
 + (GOALPadGameBootStatus *)bootGame;
++ (GOALPadGameBootStatus *)bootGameWithTargetFrameRate:(NSInteger)targetFrameRate
+    NS_SWIFT_NAME(bootGame(targetFrameRate:));
 
 /// Run one frame of the game: `kernel-dispatcher`, then the overlord's vblank work. The target
-/// presentation time supplies the same 60 Hz cadence that schedules the frame. NO when the game
-/// is not booted. Call from one thread only.
+/// presentation time and selected 60/120 Hz simulation rate supply the display cadence. NO when
+/// the game is not booted. Call from one thread only.
 + (BOOL)runFrameAtPresentationTime:(CFTimeInterval)targetPresentationTime
     NS_SWIFT_NAME(runFrame(at:));
 
