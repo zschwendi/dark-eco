@@ -19851,3 +19851,200 @@ stated phone target. Until that evidence exists, Build 205 is implemented and
 host/simulator validated but not proven to sustain 120 fps on physical
 hardware. Remote `main` remains the stable pre-120 Build 197 checkpoint; Build
 205 is isolated and unpushed on `agent/build181-input-settings-polish`.
+
+# 2026-08-12 Build 206 frame-resource checkpoint
+
+Build 206 removes the remaining source-proven CPU/GPU rendezvous in the
+ordinary Metal frame path and one redundant Swift-to-Objective-C++ crossing.
+It is signed and launched on the approved M5 simulator. No physical device was
+accessed, and the adaptive-120 performance target is still not physically
+accepted.
+
+Outer commits after Build 205:
+
+```text
+0e491585 Fuse frame tick and state snapshot bridge
+91ca0941 Integrate Build 206 performance checkpoint (AI-assisted)
+4cb192ad Update performance source checks for Build 206 (AI-assisted)
+```
+
+Nested OpenGOAL commit after Build 205:
+
+```text
+036af5607 Ring Metal transient frame resources
+```
+
+The successful game tick now returns its post-tick fixed-size aggregate state
+through the same Objective-C++ call. Swift no longer calls the bridge again
+immediately after every successful frame. The original C++ and Objective-C
+entry points remain for compatibility. A fused failure returns false with a
+fully zeroed snapshot; success captures after `g_frames` advances, preserving
+save-generation, exit, menu, look, prompt, and speeder ordering.
+
+Ordinary layer-backed Metal frames now rotate through three exact-owned
+resource slots. Each slot owns its transient stream pages and mutable
+time-of-day/sky resources until that slot's exact command submission completes.
+The first three frames therefore queue without the previous unconditional
+one-frame CPU/GPU wait; the fourth waits only when wrapping to slot zero.
+Borrowed/external stereo remains on a dedicated conservative fourth slot.
+External completion is monotonic so a late callback from quarantined Vision
+work cannot regress newer ownership. Completion/error reporting, external
+busy/fallback behavior, same-queue eye/ocean auxiliary ordering, and exact
+pixels remain unchanged.
+
+Memory remains bounded. Ordinary gameplay can lazily allocate one 2 MiB stream
+page in each of three slots (6 MiB total when all are used); the dedicated
+external slot allocates separately only when that path is used. Time-of-day
+palettes add three 32 KiB copies, or 96 KiB per loaded tfrag/tie/shrub tree.
+Sky slot copies add approximately 60 KiB in total. No real FR3 was available
+to measure the aggregate loaded-level count.
+
+The audio Player lock was audited but not changed. An optimized host probe with
+48 permanent silent voices measured nominal `Tick(480)` at 27.7 us median,
+39.0 us p99, and 84.5 us maximum. The mutex can starve a command under an
+artificial continuous-reacquisition loop, but safely replacing it requires a
+larger command/ownership redesign. No `try_lock`, dropped command, PCM, pause,
+bank, or lifecycle behavior was changed. Probe artifacts:
+
+```text
+/private/tmp/goalpad_audio_lock_probe.cpp
+/private/tmp/goalpad_audio_lock_probe.log
+```
+
+The Build 205 source graph, writer, and embedded AOT graph did not change.
+Build 206 therefore reuses and reverified the canonical pack:
+
+```text
+count=518
+aggregate_xxh64=51d2b85ff1b53223
+total_bytes=10756270
+emitted_functions=10631
+native_functions=7
+source_failures=0
+path=build/jak1-source-object-pack-build205
+```
+
+Combined focused validation passed:
+
+```text
+Scripts/run-promotion-frame-rate-check.sh
+Scripts/run-camera-timing-check.sh
+Scripts/run-presentation-settings-check.sh
+Scripts/run-save-sync-check.sh
+GOALPAD_OPENGOAL_SOURCE="$PWD/OpenGOAL" Scripts/run-game-frame-state-snapshot-check.sh
+Scripts/run-game-lifecycle-check.sh
+Scripts/run-keyboard-mouse-input-check.sh
+Scripts/run-controller-rumble-check.sh
+Scripts/run-touch-controls-check.sh
+Scripts/run-portrait-library-check.sh
+Scripts/run-vision-stereo-integration-check.sh
+Scripts/run-game-menu-state-check.sh
+Scripts/run-game-look-around-state-check.sh
+python3 OpenGOAL/test/goalc/test_jak1_managed_display_settings.py
+Scripts/verify-generated-aot.sh Generated/jak1-aot 518
+OpenGOAL/build/Release/bin/goalc/jak1-source-object-pack-verify \
+  build/jak1-source-object-pack-build205
+ctest --test-dir OpenGOAL/build/Release/bin \
+  -R jak1-source-object-pack-test --output-on-failure -j1
+git diff --check
+git -C OpenGOAL diff --check
+```
+
+Two stale source-shape assertions failed on the first pass. The input checker
+still expected only the four `MainActor.assumeIsolated` occurrences added by
+an earlier patch even though the complete file has twelve, and still expected
+a callback-local snapshot binding that was intentionally inlined. The Vision
+checker named the removed single `m_stream`. The assertions were updated to
+the current accepted callback and dedicated-external-slot contracts, then all
+canonical suites passed.
+
+The canonical Metal build and complete proofs passed:
+
+```text
+cmake --build OpenGOAL/build/Release/bin --target metal-proof --parallel 1
+OpenGOAL/build/Release/bin/game/metal-proof
+OpenGOAL/build/Release/bin/game/metal-proof --stereo-pixels-only
+```
+
+The full executable reported `METAL PROOF PASSED`; stereo reported `METAL
+STEREO PIXEL PROOF PASSED`. The proof covers three successive drawable frames
+without a reuse wait, exact slot-zero ownership on fourth-frame wrap, prior sky
+slot immutability after VRAM remapping, distinct auxiliary stream ranges,
+conservative external reuse, exact output/counters, and stereo pixels. Logs:
+
+```text
+/private/tmp/goalpad-build206-metal-build.log
+/private/tmp/goalpad-build206-metal-proof.log
+/private/tmp/goalpad-build206-metal-proof-stereo.log
+/private/tmp/goalpad-build206-promotion.log
+/private/tmp/goalpad-build206-camera-timing.log
+/private/tmp/goalpad-build206-presentation-settings.log
+/private/tmp/goalpad-build206-save-sync.log
+/private/tmp/goalpad-build206-frame-state.log
+/private/tmp/goalpad-build206-lifecycle.log
+/private/tmp/goalpad-build206-keyboard-mouse.log
+/private/tmp/goalpad-build206-rumble.log
+/private/tmp/goalpad-build206-touch.log
+/private/tmp/goalpad-build206-portrait-library.log
+/private/tmp/goalpad-build206-vision-stereo.log
+/private/tmp/goalpad-build206-menu-state.log
+/private/tmp/goalpad-build206-look-around.log
+/private/tmp/goalpad-build206-managed-settings.log
+/private/tmp/goalpad-build206-aot-verify.log
+/private/tmp/goalpad-build206-source-pack-verify.log
+/private/tmp/goalpad-build206-source-pack-ctest.log
+```
+
+The first canonical Metal attempt stopped for disk capacity, not source: ccache
+could not create a temporary file and the concurrent frontend was terminated.
+Four obsolete reproducible output directories were removed after confirming no
+related process was running and preserving their source worktrees:
+
+```text
+/private/tmp/GOALPad-build197-iphone-air
+/private/tmp/GOALPad-build199-m5-simulator
+/private/tmp/GOALPad-build197-aot-host
+/private/tmp/OG-build201-camera-provenance-gate/build
+```
+
+They were old DerivedData/CMake outputs only and can be regenerated. No source
+worktree, user/app/game data, current source pack, ccache, current canonical
+CMake build, or current Xcode DerivedData was deleted. The one-job rerun passed.
+
+The generic arm64 iOS Release build passed with:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build194-derived -jobs 2 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT="$PWD/build/jak1-source-object-pack-build205" \
+  build
+```
+
+Log: `/private/tmp/goalpad-build206-signed-device-build.log`. Product:
+`/private/tmp/GOALPad-build194-derived/Build/Products/Release-iphoneos/Dark Eco.app`.
+It is Dark Eco 1.0 (206), arm64, and passed strict deep codesign verification.
+Existing native precision and generated AOT warnings remain.
+
+The Release iOS Simulator build passed in
+`/private/tmp/GOALPad-build202-simulator-derived`. The final Build 206 product
+was installed and launched on the already-booted approved iPad Pro 11-inch
+(M5) simulator as PID 95646. Screenshot:
+`/private/tmp/goalpad-build206-m5-ipad-launch.png`; it visibly shows Version
+1.0 (206). The simulator remains booted because it was already running. It has
+no imported Jak 1 game data, so it cannot exercise Spider Cave, Metal gameplay,
+adaptive frame pacing, save completion, controller rumble, audio, thermals, or
+power.
+
+No physical device was accessed. The next decisive gate requires fresh
+maintainer authorization: install Build 206, enable High Frame Rate, and run
+the same warmed Spider Cave route repeatedly with developer diagnostics off,
+comparing 60 Hz versus adaptive 120 Hz and rumble off versus on. Record actual
+callback cadence/frame-time distribution, sustained thermal state,
+power/battery impact, audio, input, save completion, and DualSense behavior.
+Repeat the acceptance on an iPhone 13 Pro-class device or stronger before
+claiming the phone target. Remote `main` remains the stable pre-120 Build 197
+checkpoint; Build 206 is isolated and unpushed on
+`agent/build181-input-settings-polish`.
