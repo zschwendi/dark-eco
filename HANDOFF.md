@@ -19644,3 +19644,210 @@ cadence, direct-live-DMA correctness, DualSense behavior, battery/power,
 thermals, and iPhone 13 Pro-class acceptance remain pending. Remote `main`
 remains the stable pre-120 Build 197 checkpoint; Build 204 is isolated and
 unpushed on `agent/build181-input-settings-polish`.
+
+# 2026-08-12 Build 205 adaptive-performance checkpoint
+
+Build 205 closes the remaining source-proven frame-rate authority hole and adds
+three bounded steady-state reductions on Build 204. It is signed and launched
+on the approved M5 simulator, but no physical device was accessed and the
+adaptive-120 performance goal is not yet physically accepted.
+
+Outer commits after Build 204:
+
+```text
+89ab81c4 Restore save sync checker dependencies (AI-assisted)
+4dbbc244 Document live DMA and adaptive frame targets (AI-assisted)
+d374754e Complete adaptive frame-rate promotion checks (AI-assisted)
+39d123b0 Sync completed native saves by event (AI-assisted)
+95d5f6e6 Integrate Build 205 performance fixes (AI-assisted)
+00625cb3 Record Build 205 AOT inputs (AI-assisted)
+```
+
+Nested OpenGOAL commits after Build 204:
+
+```text
+edb430d64 Reuse Metal sprite bucket storage (AI-assisted)
+9e7133786 Fix managed display frame-rate authority (AI-assisted)
+9598bc507 Expose successful memcard save generation (AI-assisted)
+c1dcd5199 Gate Metal presentation diagnostics (AI-assisted)
+cec90384a Record Build 205 source-pack identity (AI-assisted)
+```
+
+The host-managed OpenGOAL graphics menu no longer exposes its legacy frame-rate
+row. More importantly, the central `set-frame-rate!` writer now retains the
+host-reported immutable 60/120 target whenever the platform owns the display.
+Late menu, speedrun, and debug writers therefore cannot split GOAL timing from
+the Swift display link and native clock. Ordinary desktop OpenGOAL still uses
+the requested rate, and PS2 behavior is untouched. The deterministic promotion
+test now drives the real `DisplayClock` and `SoundFrameClock` for one second at
+120/80/60/40/30 callbacks and proves 300 scaled ticks, 120 target-integral
+units, 60 sound frames, the expected callback factors, one-shot pad-history
+aging, and lifecycle sound-debt behavior.
+
+The Metal Sprite renderer no longer destroys and recreates `std::map` nodes and
+per-bucket vectors at every flush. One renderer owns an approximately 480 KiB
+fixed 8,192-bucket pool, a 16,384-slot generation-reset lookup, and preallocated
+linked sprite indices. First-use draw-bucket order and per-bucket encounter
+order are preserved. The synthetic A/B/A texture proof exercises a reused
+non-consecutive bucket and reads the exact expected pixel.
+
+Native memcard code now publishes a `u64` generation only after a save bank is
+fully written and `fclose` succeeds. That generation crosses the existing
+fixed-size aggregate frame snapshot. Swift compares it by inequality, including
+wraparound, and schedules the established 250 ms upload-only reconciliation
+only for a real completed save. Ordinary game frames no longer construct a task
+and later scan the save directory. Active work, bidirectional priority,
+pregame gating, cancellation ownership, failure paths, kernel restart, and
+shutdown behavior remain covered by the save and lifecycle suites.
+
+With detailed developer diagnostics off, Metal no longer reads physical
+`drawableID`, attaches an `addPresentedHandler`, or runs that callback's lock
+and retained presentation-history scan every frame. The separate command-buffer
+completion handler remains unconditional and continues to own GPU error
+reporting, stream retirement/reuse, condition notification, and external stereo
+completion. Generic desktop/proof callers retain detailed diagnostics by
+default.
+
+The existing rumble hot path already had the safe steady-zero coalescing from
+`ed6d79e1`: enabled gameplay always consumes the native latch, repeated zero
+skips observable/controller/device work, repeated nonzero still refreshes the
+finite player, the first zero transition publishes, and explicit settings or
+lifecycle cancellation is immediate. No additional rumble patch was made.
+
+The current normal game target remains the established default 1280x960
+internal render resolution (2x the 640x480 base, widened only when the selected
+presentation aspect requires it), not the full Retina drawable. No speculative
+dynamic-resolution change was made without a physical bottleneck trace.
+
+The managed-display GOAL edit intentionally changed the 518-object source-pack
+identity. The first canonical writer run compiled all sources successfully and
+was rejected by the previous expected identity. A second candidate was
+independently verified with the explicit new aggregate before the recorded
+constant was changed; the default verifier then accepted it and a one-bit-wrong
+aggregate was rejected. The Build 205 source pack is:
+
+```text
+count=518
+aggregate_xxh64=51d2b85ff1b53223
+total_bytes=10756270
+emitted_functions=10631
+native_functions=7
+source_failures=0
+path=build/jak1-source-object-pack-build205
+```
+
+`Generated/jak1-aot` was regenerated from the same canonical graph and passed
+the 518-object preflight. Source-pack and AOT logs:
+
+```text
+/private/tmp/goalpad-build205-source-pack.log
+/private/tmp/goalpad-build205-source-pack-candidate.log
+/private/tmp/goalpad-build205-source-pack-candidate-verify.log
+/private/tmp/goalpad-build205-source-pack-default-verify.log
+/private/tmp/goalpad-build205-source-pack-wrong-verify.log
+/private/tmp/goalpad-build205-source-pack-ctest.log
+/private/tmp/goalpad-build205-generate-aot.log
+/private/tmp/goalpad-build205-aot-verify.log
+```
+
+Combined validation passed:
+
+```text
+Scripts/run-promotion-frame-rate-check.sh
+Scripts/run-camera-timing-check.sh
+Scripts/run-presentation-settings-check.sh
+Scripts/run-save-sync-check.sh
+GOALPAD_OPENGOAL_SOURCE="$PWD/OpenGOAL" Scripts/run-game-frame-state-snapshot-check.sh
+Scripts/run-game-lifecycle-check.sh
+Scripts/run-keyboard-mouse-input-check.sh
+Scripts/run-controller-rumble-check.sh
+Scripts/run-touch-controls-check.sh
+Scripts/run-portrait-library-check.sh
+Scripts/run-vision-stereo-integration-check.sh
+Scripts/run-game-menu-state-check.sh
+Scripts/run-game-look-around-state-check.sh
+python3 OpenGOAL/test/goalc/test_jak1_managed_display_settings.py
+Scripts/verify-generated-aot.sh Generated/jak1-aot 518
+OpenGOAL/build/Release/bin/goalc/jak1-source-object-pack-verify \
+  build/jak1-source-object-pack-build205
+ctest --test-dir OpenGOAL/build/Release/bin \
+  -R jak1-source-object-pack-test --output-on-failure -j1
+cmake --build OpenGOAL/build/Release/bin --target metal-proof --parallel 2
+OpenGOAL/build/Release/bin/game/metal-proof
+OpenGOAL/build/Release/bin/game/metal-proof --stereo-pixels-only
+git diff --check
+git -C OpenGOAL diff --check
+```
+
+The full Metal executable reported `METAL PROOF PASSED`; stereo reported
+`METAL STEREO PIXEL PROOF PASSED`. Main logs include:
+
+```text
+/private/tmp/goalpad-build205-metal-build.log
+/private/tmp/goalpad-build205-metal-proof.log
+/private/tmp/goalpad-build205-metal-proof-stereo.log
+/private/tmp/goalpad-build205-promotion.log
+/private/tmp/goalpad-build205-presentation-settings.log
+/private/tmp/goalpad-build205-save-sync.log
+/private/tmp/goalpad-build205-frame-state.log
+/private/tmp/goalpad-build205-lifecycle.log
+/private/tmp/goalpad-build205-keyboard-mouse.log
+/private/tmp/goalpad-build205-rumble.log
+/private/tmp/goalpad-build205-touch.log
+/private/tmp/goalpad-build205-vision-stereo.log
+```
+
+One parallel rumble invocation exited without output while three other test
+groups were running. The exact canonical rumble command immediately passed,
+then the touch suite passed; no reproducible source or test failure remains.
+Existing Swift actor-isolation and native precision/AOT warnings remain.
+
+The generic arm64 iOS Release build passed with:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build194-derived -jobs 4 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT="$PWD/build/jak1-source-object-pack-build205" \
+  build
+```
+
+Log: `/private/tmp/goalpad-build205-signed-device-build.log`. Product:
+`/private/tmp/GOALPad-build194-derived/Build/Products/Release-iphoneos/Dark Eco.app`.
+After compiler/link activity fully ended, it was verified as Dark Eco 1.0
+(205), arm64, and passed strict deep codesign verification.
+
+The Release iOS Simulator build passed in
+`/private/tmp/GOALPad-build202-simulator-derived`. The final linked product was
+installed and launched on the already-booted approved iPad Pro 11-inch (M5)
+simulator as PID 58580. The installed bundle and executable are the final Build
+205 product. Screenshot:
+`/private/tmp/goalpad-build205-m5-ipad-launch-final.png`; it visibly shows
+Version 1.0 (205). The simulator remains booted because it was already running.
+It has no imported Jak 1 game data, so it cannot exercise gameplay, Spider
+Cave, Metal DMA rendering, save completion, or adaptive frame pacing.
+
+To make space for this checkpoint, five obsolete reproducible output
+directories were permanently removed after confirming no related process was
+running: `/private/tmp/OG-renderer-diagnostics-gate-build`,
+`/private/tmp/OG-build201-eye-async-build`,
+`/private/tmp/OG-build202-ocean-async-build`, and
+`/private/tmp/GOALPad-build201-simulator-derived`, plus
+`/private/tmp/OG-presentation-handler-diagnostics-gate-build` after its focused
+result was integrated. No source worktree, game/app
+data, current cache, or active DerivedData was removed; those build outputs can
+be regenerated from their recorded commits and commands.
+
+No physical device was accessed. The next decisive gate requires fresh
+maintainer authorization: install Build 205, enable High Frame Rate, and run
+the same warmed Spider Cave route repeatedly with diagnostics off, comparing
+60 Hz versus adaptive 120 Hz and rumble off versus on. Record actual callback
+cadence/frame-time distribution, sustained thermal state, power/battery impact,
+audio, input, save completion, and DualSense behavior. Repeat the performance
+acceptance on an iPhone 13 Pro-class device or stronger before claiming the
+stated phone target. Until that evidence exists, Build 205 is implemented and
+host/simulator validated but not proven to sustain 120 fps on physical
+hardware. Remote `main` remains the stable pre-120 Build 197 checkpoint; Build
+205 is isolated and unpushed on `agent/build181-input-settings-polish`.
