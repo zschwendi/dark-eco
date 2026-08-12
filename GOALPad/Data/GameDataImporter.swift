@@ -157,6 +157,9 @@ final class GameDataImporter {
                 state = .cancelled
             } catch let failure as GameDataImportFailure {
                 setImportWorkActive(false)
+                importLog.error(
+                    "Import failed with code \(failure.code.rawValue, privacy: .public): \(failure.message, privacy: .private)"
+                )
                 state = .failed(failure)
                 await onFinish()
             } catch {

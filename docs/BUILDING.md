@@ -3294,18 +3294,24 @@ prepare a private candidate, validate it, and atomically activate it. Prepared
 folders remain supported. The ZIP path streams stored or raw-DEFLATE content,
 validates size and CRC-32, and rejects ZIP64, encryption, multidisk, ambiguous,
 unsafe, unsupported, or corrupt archives without changing active data.
-Build 187 coordinates a selected Files-provider ZIP into a stable local snapshot
-before parsing and tolerates legal short reads. A synthetic provider-placeholder
-fixture reproduces the prior `ZIP end-of-directory record is missing` failure and
-passes through the coordinated path.
+Build 187 coordinated the selected Files-provider URL and tolerated legal short
+reads, but a physical retry showed that a stable provider-supplied descriptor can
+still contain a tail with no valid ZIP end record. Build 189 instead holds an
+ordinary coordinated read while copying every source byte into app-private
+staging, then parses only that local file. The materialized ZIP is removed after
+success, failure, or cancellation; bounded cleanup recognizes an exact
+app-generated UUID suffix after an interrupted attempt. Privacy-safe diagnostics
+record only byte counts, normalized error codes, and ZIP-tail structure facts.
+A synthetic provider-placeholder fixture reproduces the reported
+`ZIP end-of-directory record is missing` failure and verifies the local-copy path.
 
 Focused raw-source, install-worker, ZIP, resource-staging, and composer checks
 pass. A generic signed iOS Release build passed with the current 518-object AOT
-corpus and verified public source pack. No controlled end-to-end simulator
-import or real-device Files-provider ZIP retry is recorded; available-space
-behavior, throughput, and physical activation remain unrecorded, non-blocking
-presentation/distribution evidence rather than Jak 1 gameplay or Jak II
-continuation gates.
+corpus and verified public source pack. The Build 187 physical Files-provider ZIP
+retry reproduced the missing-end-record failure; Build 189 physical import,
+available-space behavior, throughput, and activation remain unrecorded,
+non-blocking presentation/distribution evidence rather than Jak 1 gameplay or
+Jak II continuation gates.
 
 The Checkpoint 50 release preflight remains `518/10596/7`. The external public
 source pack verifies as 518 objects, aggregate `f1770cae6287a359`, and

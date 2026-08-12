@@ -1,6 +1,12 @@
 import Darwin
 import Foundation
+import OSLog
 import zlib
+
+nonisolated private let zipImportLog = Logger(
+    subsystem: "com.zephyrstudiosllc.eco",
+    category: "ZIPImport"
+)
 
 /// Streams one ordinary ZIP member to private staging before handing it to the raw-ISO producer.
 /// The temporary image is a sibling of the candidate so it can never enter the activated install.
@@ -50,7 +56,7 @@ nonisolated struct ZIPISOCandidateProducer: GameDataCandidateProducing {
 /// Removes only exact app-generated temporary names. The current import has not created its UUID
 /// yet, so any matching pre-existing sibling belongs to an interrupted earlier attempt.
 nonisolated struct ZIPISOStagingCleaner: Sendable {
-    private static let suffix = ".extracted.iso"
+    private static let suffixes = [".extracted.iso", ".source.zip"]
     private let maximumRemovals: Int
 
     init(maximumRemovals: Int = 4) {
@@ -66,7 +72,7 @@ nonisolated struct ZIPISOStagingCleaner: Sendable {
             options: [.skipsHiddenFiles]
         )) ?? []
         let ownedFiles = siblings.filter { url in
-            guard Self.isOwnedTemporaryISO(url.lastPathComponent),
+            guard Self.isOwnedTemporaryFile(url.lastPathComponent),
                   let values = try? url.resourceValues(forKeys: [
                       .isRegularFileKey,
                       .isSymbolicLinkKey,
@@ -82,17 +88,20 @@ nonisolated struct ZIPISOStagingCleaner: Sendable {
         }
     }
 
-    private static func isOwnedTemporaryISO(_ name: String) -> Bool {
-        guard name.hasSuffix(suffix) else { return false }
-        let uuidString = String(name.dropLast(suffix.count))
-        guard let uuid = UUID(uuidString: uuidString) else { return false }
-        return uuid.uuidString == uuidString
+    private static func isOwnedTemporaryFile(_ name: String) -> Bool {
+        for suffix in suffixes where name.hasSuffix(suffix) {
+            let uuidString = String(name.dropLast(suffix.count))
+            guard let uuid = UUID(uuidString: uuidString) else { return false }
+            return uuid.uuidString == uuidString
+        }
+        return false
     }
 }
 
 /// Minimal ZIP32 reader for local, bounded ISO extraction. It intentionally rejects ZIP features
 /// that are unnecessary for the supported import path instead of trying to repair or guess them.
 nonisolated struct ZIPISOExtractor: Sendable {
+    typealias ArchiveMaterializationOperation = @Sendable (URL, URL) throws -> Void
     typealias ArchiveOpenOperation = @Sendable (URL) throws -> FileHandle
     typealias ArchiveReadOperation = @Sendable (FileHandle, Int) throws -> Data?
 
@@ -128,17 +137,20 @@ nonisolated struct ZIPISOExtractor: Sendable {
     }
 
     private let limits: Limits
+    private let materializeArchive: ArchiveMaterializationOperation
     private let openArchive: ArchiveOpenOperation
     private let readArchive: ArchiveReadOperation
 
     init(
         limits: Limits = Limits(),
-        openArchive: @escaping ArchiveOpenOperation = Self.openCoordinatedArchive,
+        materializeArchive: @escaping ArchiveMaterializationOperation = Self.materializeCoordinatedArchive,
+        openArchive: @escaping ArchiveOpenOperation = { try FileHandle(forReadingFrom: $0) },
         readArchive: @escaping ArchiveReadOperation = { handle, count in
             try handle.read(upToCount: count)
         }
     ) {
         self.limits = limits
+        self.materializeArchive = materializeArchive
         self.openArchive = openArchive
         self.readArchive = readArchive
     }
@@ -152,9 +164,32 @@ nonisolated struct ZIPISOExtractor: Sendable {
             throw Self.failure(.stagingFailed, "The ZIP extraction buffer is invalid.")
         }
 
+        let materializedArchive = destinationURL.deletingLastPathComponent().appending(
+            path: "\(UUID().uuidString).source.zip"
+        )
+        defer { try? FileManager.default.removeItem(at: materializedArchive) }
+
+        Self.recordDiagnostic("materialization started")
+        do {
+            try materializeArchive(archiveURL, materializedArchive)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let failure as GameDataImportFailure {
+            throw failure
+        } catch {
+            let cocoa = error as NSError
+            let domain = cocoa.domain == NSCocoaErrorDomain ? "cocoa"
+                : cocoa.domain == NSPOSIXErrorDomain ? "posix" : "other"
+            Self.recordDiagnostic(
+                "materialization failed domain=\(domain) code=\(cocoa.code)"
+            )
+            throw Self.materializationFailure(error)
+        }
+        try Task.checkCancellation()
+
         let archive: FileHandle
         do {
-            archive = try openArchive(archiveURL)
+            archive = try openArchive(materializedArchive)
         } catch {
             throw Self.failure(
                 .sourceUnavailable,
@@ -172,6 +207,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
                 "The selected ZIP archive could not be read: \(error.localizedDescription)"
             )
         }
+        Self.recordDiagnostic("materialization complete bytes=\(archiveSize)")
 
         await report(GameDataImportProgress(phase: .scanning))
         try Task.checkCancellation()
@@ -276,9 +312,15 @@ nonisolated struct ZIPISOExtractor: Sendable {
         let tail = try readExactly(archive, offset: tailOffset, count: tailSize)
 
         var recordIndex: Int?
+        var signatureCount = 0
+        var nearestSignatureDistance = -1
         var index = tail.count - Int(minimumRecordBytes)
         while index >= 0 {
             if Self.uint32(tail, at: index) == 0x0605_4b50 {
+                signatureCount += 1
+                if nearestSignatureDistance < 0 {
+                    nearestSignatureDistance = tail.count - index
+                }
                 let commentLength = Int(Self.uint16(tail, at: index + 20))
                 if index + Int(minimumRecordBytes) + commentLength == tail.count {
                     recordIndex = index
@@ -289,6 +331,10 @@ nonisolated struct ZIPISOExtractor: Sendable {
             index -= 1
         }
         guard let recordIndex else {
+            Self.recordDiagnostic(
+                "EOCD missing archiveBytes=\(archiveSize) tailBytes=\(tail.count) "
+                    + "signatures=\(signatureCount) nearestDistance=\(nearestSignatureDistance)"
+            )
             throw Self.failure(.invalidDiscImage, "The ZIP end-of-directory record is missing.")
         }
 
@@ -760,25 +806,75 @@ nonisolated struct ZIPISOExtractor: Sendable {
         }
     }
 
-    /// File-provider URLs can be placeholders or move while access is being granted. Foundation's
-    /// upload option creates a local stable snapshot; this importer does not upload it anywhere.
-    /// An opened descriptor may outlive the accessor even though its snapshot path is then removed.
-    private static func openCoordinatedArchive(_ url: URL) throws -> FileHandle {
+    /// A coordinated read materializes File Provider placeholders. Copying every byte while the
+    /// claim is held gives the ZIP parser a stable app-private file after the accessor returns.
+    private static func materializeCoordinatedArchive(_ source: URL, _ destination: URL) throws {
         let coordinator = NSFileCoordinator(filePresenter: nil)
         var coordinationError: NSError?
-        var result: Result<FileHandle, Error>?
+        var result: Result<Void, Error>?
         coordinator.coordinate(
-            readingItemAt: url,
-            options: .forUploading,
+            readingItemAt: source,
+            options: [],
             error: &coordinationError
         ) { coordinatedURL in
-            result = Result { try FileHandle(forReadingFrom: coordinatedURL) }
+            result = Result {
+                let values = try coordinatedURL.resourceValues(forKeys: [
+                    .fileSizeKey,
+                    .isRegularFileKey,
+                ])
+                guard values.isRegularFile == true else {
+                    throw failure(
+                        .sourceUnavailable,
+                        "The selected ZIP source is not a regular file."
+                    )
+                }
+
+                try Data().write(to: destination, options: .withoutOverwriting)
+                var succeeded = false
+                defer {
+                    if !succeeded {
+                        try? FileManager.default.removeItem(at: destination)
+                    }
+                }
+
+                let input = try FileHandle(forReadingFrom: coordinatedURL)
+                defer { try? input.close() }
+                let output = try FileHandle(forWritingTo: destination)
+                defer { try? output.close() }
+
+                var bytesCopied: UInt64 = 0
+                while true {
+                    try Task.checkCancellation()
+                    guard let data = try input.read(upToCount: 1 * 1_024 * 1_024),
+                          !data.isEmpty else {
+                        break
+                    }
+                    try output.write(contentsOf: data)
+                    bytesCopied += UInt64(data.count)
+                }
+                try output.synchronize()
+
+                if let expectedSize = values.fileSize,
+                   expectedSize > 0,
+                   bytesCopied != UInt64(expectedSize)
+                {
+                    recordDiagnostic(
+                        "materialization size mismatch expected=\(expectedSize) actual=\(bytesCopied)"
+                    )
+                }
+                succeeded = true
+            }
         }
         if let coordinationError { throw coordinationError }
         guard let result else {
             throw CocoaError(.fileReadUnknown)
         }
-        return try result.get()
+        try result.get()
+    }
+
+    private static func recordDiagnostic(_ message: String) {
+        zipImportLog.notice("\(message, privacy: .public)")
+        print("[ZIPImport] \(message)")
     }
 
     private static func validateFlags(_ flags: UInt16, method: UInt16? = nil) throws {
@@ -912,6 +1008,24 @@ nonisolated struct ZIPISOExtractor: Sendable {
         return failure(
             .stagingFailed,
             "Dark Eco could not write the extracted ISO: \(error.localizedDescription)"
+        )
+    }
+
+    private static func materializationFailure(_ error: Error) -> GameDataImportFailure {
+        let cocoa = error as NSError
+        if (cocoa.domain == NSCocoaErrorDomain && cocoa.code == NSFileWriteOutOfSpaceError)
+            || (cocoa.domain == NSPOSIXErrorDomain
+                && (cocoa.code == ENOSPC || cocoa.code == EDQUOT))
+        {
+            return failure(
+                .insufficientStorage,
+                "There is not enough free space to make a private copy of the ZIP."
+            )
+        }
+        return failure(
+            .sourceUnavailable,
+            "Dark Eco could not make a complete private copy of the selected ZIP: "
+                + error.localizedDescription
         )
     }
 }

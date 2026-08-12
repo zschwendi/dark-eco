@@ -216,6 +216,13 @@ private final class Fixture: @unchecked Sendable {
             includingPropertiesForKeys: nil
         )) ?? []).filter { $0.lastPathComponent.hasSuffix(".extracted.iso") }
     }
+
+    var temporaryZIPs: [URL] {
+        ((try? FileManager.default.contentsOfDirectory(
+            at: candidate.deletingLastPathComponent(),
+            includingPropertiesForKeys: nil
+        )) ?? []).filter { $0.lastPathComponent.hasSuffix(".source.zip") }
+    }
 }
 
 private actor DownstreamRecorder {
@@ -498,6 +505,9 @@ private func writeCompleteCandidate(at root: URL, payload: Data) throws {
     do {
         try await ZIPISOExtractor(
             limits: limits,
+            materializeArchive: { source, destination in
+                try FileManager.default.copyItem(at: source, to: destination)
+            },
             openArchive: { url in try FileHandle(forReadingFrom: url) }
         ).extractISO(from: fixture.archive, to: fixture.output) { _ in }
         check(false, "an unmaterialized provider placeholder cannot appear complete")
@@ -507,7 +517,9 @@ private func writeCompleteCandidate(at root: URL, payload: Data) throws {
     }
     let extractor = ZIPISOExtractor(
         limits: limits,
-        openArchive: { _ in try FileHandle(forReadingFrom: completeArchive) },
+        materializeArchive: { _, destination in
+            try FileManager.default.copyItem(at: completeArchive, to: destination)
+        },
         readArchive: { handle, count in
             try handle.read(upToCount: min(count, 7))
         }
@@ -555,6 +567,8 @@ private func writeCompleteCandidate(at root: URL, payload: Data) throws {
               "temporary ISO is a sibling rather than candidate content")
         check(fixture.temporaryISOs.isEmpty,
               "temporary ISO is removed after downstream success or failure")
+        check(fixture.temporaryZIPs.isEmpty,
+              "materialized ZIP is removed after downstream success or failure")
     }
 }
 
@@ -563,6 +577,7 @@ private func writeCompleteCandidate(at root: URL, payload: Data) throws {
     let fixture = try Fixture()
     let directory = fixture.candidate.deletingLastPathComponent()
     let ownedNames = [
+        "00000000-0000-4000-8000-000000000000.source.zip",
         "11111111-1111-4111-8111-111111111111.extracted.iso",
         "22222222-2222-4222-8222-222222222222.extracted.iso",
         "33333333-3333-4333-8333-333333333333.extracted.iso",
@@ -599,6 +614,9 @@ private func writeCompleteCandidate(at root: URL, payload: Data) throws {
         !FileManager.default.fileExists(atPath: $0.path)
     }.count
     check(removedOwnedCount == 2, "cleanup removes at most its bounded app-owned limit")
+    check(!FileManager.default.fileExists(
+        atPath: directory.appending(path: ownedNames[0]).path
+    ), "cleanup recognizes app-owned materialized ZIP staging")
     check(unrelated.allSatisfy { FileManager.default.fileExists(atPath: $0.path) },
           "ambiguous and unrelated files are preserved")
     check(FileManager.default.fileExists(atPath: fixture.candidate.path),
