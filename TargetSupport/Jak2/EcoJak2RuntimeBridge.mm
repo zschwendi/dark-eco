@@ -451,6 +451,31 @@ void log_jak2_diagnostics_locked() {
   NSLog(@"GOALPAD_JAK2_WATER_UPLOAD_STATE tick=%llu %@",
         static_cast<unsigned long long>(runtime.ticks), water_upload_state);
 
+  const auto& common_water306 = metal.common_water_texture_upload;
+  NSLog(@"GOALPAD_JAK2_COMMON_WATER306_STATE tick=%llu bucket=%u captures=%llu "
+         "present=%llu malformed-class=%llu transfers=%llu bytes=%llu ordinary=%llu "
+         "anim=%llu/%llu/%llu op12=%llu op13=%llu op16=%llu direct=%llu gs=%llu "
+         "eye=%llu other=%llu malformed=%llu executions=%llu",
+        static_cast<unsigned long long>(runtime.ticks), common_water306.bucket_id,
+        static_cast<unsigned long long>(common_water306.captures),
+        static_cast<unsigned long long>(common_water306.present_captures),
+        static_cast<unsigned long long>(common_water306.classifications[0]),
+        static_cast<unsigned long long>(common_water306.transfers),
+        static_cast<unsigned long long>(common_water306.payload_bytes),
+        static_cast<unsigned long long>(common_water306.ordinary_descriptors),
+        static_cast<unsigned long long>(common_water306.animator_arrays),
+        static_cast<unsigned long long>(common_water306.animator_body_transfers),
+        static_cast<unsigned long long>(common_water306.animator_payload_bytes),
+        static_cast<unsigned long long>(common_water306.opcode_counts[12]),
+        static_cast<unsigned long long>(common_water306.opcode_counts[13]),
+        static_cast<unsigned long long>(common_water306.opcode_counts[16]),
+        static_cast<unsigned long long>(common_water306.direct_setup_transfers),
+        static_cast<unsigned long long>(common_water306.gs_setup_transfers),
+        static_cast<unsigned long long>(common_water306.eye_markers),
+        static_cast<unsigned long long>(common_water306.other_transfers),
+        static_cast<unsigned long long>(common_water306.malformed_transfers),
+        static_cast<unsigned long long>(common_water306.executions));
+
   NSMutableString* pris_upload_state = [NSMutableString string];
   for (const auto& pris : metal.pris_texture_uploads) {
     [pris_upload_state

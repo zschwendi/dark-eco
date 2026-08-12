@@ -17676,3 +17676,33 @@ sandboxed run failed only because it could not see a default Metal device. The
 outer Objective-C++ runtime bridge also passed a focused syntax check. Nested
 commit `dc6d1bc27` is pushed to `origin/agent/jak2-ipad-playtest`; no simulator
 or physical device was accessed.
+
+## Jak II passive common-water bucket 306 capture checkpoint
+
+Date: 2026-08-12.
+
+Nested integration commit `4388de441` admits only numeric bucket 306
+(`TEX_LCOM_WATER`) to
+the existing bounded, payload-free texture-upload metadata inspector. The host
+observes immutable live DMA before validation, copying, or texture mutation and
+accumulates it in the append-only `common_water_texture_upload` ABI tail field.
+Invalid capture metadata is diagnostic and non-fatal. Bucket 306 remains
+`DeferredSkip`; there is no plan, callback, renderer execution, texture upload,
+or texture-pool mutation. The outer runtime emits fixed-format numeric-only
+`GOALPAD_JAK2_COMMON_WATER306_STATE` telemetry.
+
+Synthetic coverage includes the canonical empty CNT tag, a representative
+seven-transfer/32-byte descriptor plus PC_PORT 12/16/13 animator envelope, and
+a structurally traversable PC_PORT-12 qwc-1 form that the bounded capture marks
+malformed after two transfers/16 bytes. Host assertions require all three
+chains to complete, `executions == 0`, `texture_uploads == 0`, and no change in
+the live Metal texture count. The 327-entry policy regression passed with 31
+deferred buckets and the unchanged common-water policy.
+
+The direct portable capture test passed. On the combined b306+b316 state, the
+three canonical host objects compiled, the existing host archive/test relinked,
+and the host-access Metal test passed the complete suite, including all new
+b306 and b316 assertions. The initial worker and integration sandbox runs
+failed only because no default Metal device was exposed. The outer bridge
+passed focused Objective-C++ syntax checks. No simulator, physical device,
+retail data, fresh heavy build directory, or gameplay execution was used.
