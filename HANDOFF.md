@@ -17817,3 +17817,27 @@ default Metal device is available`; the host-GPU retry was quota-rejected
 before execution. The branch is pushed for backup, but the proof is not merged
 and buckets 316/317 remain `DeferredSkip`. Retained proof binary:
 `/private/tmp/goalpad-warp317-proof.2pbG0N/jak2-metal-gmerc-warp317-snapshot-proof`.
+
+## Jak II passive GMERC_WARP bucket 317 telemetry checkpoint
+
+Date: 2026-08-12.
+
+Nested integration commit `1fced45c1` observes the existing bounded typed
+bucket-317 plan from immutable live DMA before validation, copying, or any host
+mutation. It tail-appends aggregate and last-plan numeric metrics for absent,
+setup-only, fragment, and malformed observations. The macOS and iPhoneOS host
+graphs now include the portable plan source, and the outer runtime emits
+numeric-only `GOALPAD_JAK2_WARP317_STATE` telemetry. A malformed plan is a
+nonfatal diagnostic and clears every last-plan field instead of exposing stale
+data.
+
+The exact empty, 192/352-byte setup, one-fragment, continued-fragment, and
+malformed fixtures prove zero Generic2 draws/triangles, zero texture uploads,
+and unchanged live texture count. The strict portable plan test and C11 ABI
+parse passed. The plan, host, and host-test objects compiled with canonical
+flags and the focused host binary linked. Its sandbox run failed at the first
+Metal host creation because no default device is exposed; no quota-blocked
+host escalation was retried. The iPhoneOS outer bridge passed a focused syntax
+check. Buckets 316 and 317 remain `DeferredSkip`; there is no callback,
+execution counter, snapshot publication, or renderer route. Retained focused
+binary: `/private/tmp/jak2-warp317-link-1bd6/jak2-metal-host-bridge-test`.

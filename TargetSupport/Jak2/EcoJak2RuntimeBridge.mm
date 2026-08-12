@@ -624,6 +624,22 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(warp316.last_payload_bytes),
         static_cast<unsigned long long>(warp316.last_semantic_fingerprint));
 
+  const auto& warp317 = metal.gmerc_warp_bucket317;
+  NSLog(@"GOALPAD_JAK2_WARP317_STATE tick=%llu observations=%llu absent=%llu setup=%llu "
+         "fragments=%llu malformed=%llu last-variant=%u transfers=%u fragments-last=%u "
+         "continued=%u vertices=%u adgifs=%u bytes=%llu fingerprint=%016llx",
+        static_cast<unsigned long long>(runtime.ticks),
+        static_cast<unsigned long long>(warp317.observations),
+        static_cast<unsigned long long>(warp317.absent),
+        static_cast<unsigned long long>(warp317.setup_only),
+        static_cast<unsigned long long>(warp317.fragments),
+        static_cast<unsigned long long>(warp317.malformed),
+        static_cast<unsigned>(warp317.last_variant), warp317.last_transfer_count,
+        warp317.last_fragment_count, warp317.last_continued_fragment_count,
+        warp317.last_vertex_count, warp317.last_adgif_count,
+        static_cast<unsigned long long>(warp317.last_payload_bytes),
+        static_cast<unsigned long long>(warp317.last_semantic_fingerprint));
+
   const auto& subtitle322 = metal.subtitle_capture;
   NSLog(@"GOALPAD_JAK2_SUBTITLE322_STATE tick=%llu bucket=%u captures=%llu present=%llu "
          "class=m%llu/a%llu/o%llu/n%llu/oa%llu/e%llu/g%llu transfers=%llu bytes=%llu "
