@@ -17309,3 +17309,29 @@ The simulator app and log stream were stopped after capture; the already-booted
 simulator remains available. This checkpoint is accepted. The next executable
 task is typed bucket-228 PRIS2 execution for the early Samos-hut opening, while
 bucket 229 and every other PRIS2 family remain deferred.
+
+## Jak II prison light-card A/B checkpoint
+
+Date: 2026-08-12.
+
+The accepted Release build was replayed from retained Game 1 with the existing
+literal debug gates, without rebuilding. With
+`GOALPAD_JAK2_DEBUG_SKIP_SPRITE_NORMAL=1`, the large hard-edged green floor
+patch under Jak and the left vent/wall plumes disappeared, while the small
+railing lights remained. With `GOALPAD_JAK2_DEBUG_SKIP_SPRITE_GLOW=1`, the
+large floor patch and vent/wall plumes remained, while the small railing halos
+disappeared or reduced to their non-glow source. This classifies the dominant
+broken quadrilaterals as ordinary Sprite3 and the small railing halos as final
+SpriteGlow. It falsifies final glow and TRANS tfrag as the cause of the large
+artifacts in this exact camera.
+
+The retained normal-Sprite3-off frame is
+`.agent-builds/jak2-resume-logs/eco-jak2-dev-light-ab-skip-normal.png`, SHA-256
+`d1505b41d5525baafce3dda7d80e66378226039b2d550c4677a1d712c0a7d170`.
+The retained final-glow-off frame is
+`.agent-builds/jak2-resume-logs/eco-jak2-dev-light-ab-skip-glow.png`, SHA-256
+`c15f211c222174b3c94dd3277c9a6708b5ad219a0a6167e76f9a301ba838c77e`.
+Both A/B app runs were stopped after capture; the already-booted simulator was
+left available. The next light-renderer task should therefore audit ordinary
+Sprite3 source texture/blend/animation behavior for these prison card families,
+without changing the accepted final-glow path.
