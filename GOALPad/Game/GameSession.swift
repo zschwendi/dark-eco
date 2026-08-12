@@ -86,6 +86,7 @@ final class GameSession {
     private var foregroundPreparationGeneration: UInt64?
     private var controlsGuideSuspension = ControlsGuideSuspensionState()
     private var handledNativeExitToLibraryRequest = false
+    private var gameplaySaveGeneration = GameplaySaveGenerationState()
     var startupPhase: GameplayStartupPhase { startupState.phase }
     private var isStartingGameplay: Bool { startupPhase.isPreparing }
     private var isPreparingGameplay: Bool {
@@ -230,6 +231,7 @@ final class GameSession {
             startupError = status.message
             return
         }
+        gameplaySaveGeneration.reset()
 
         saveSync.setGameplayActive(true)
         handledNativeExitToLibraryRequest = false
@@ -262,6 +264,7 @@ final class GameSession {
             targetFrameRate = 60
             GOALPadRuntimeBridge.stopKernel()
             kernel = nil
+            gameplaySaveGeneration.reset()
             saveSync.setGameplayActive(false)
             return
         }
@@ -308,6 +311,7 @@ final class GameSession {
         #endif
         GOALPadRuntimeBridge.stopKernel()
         handledNativeExitToLibraryRequest = false
+        gameplaySaveGeneration.reset()
         kernel = nil
         boot = nil
         isRunning = false
@@ -451,6 +455,9 @@ final class GameSession {
         var shouldLog = false
         if GOALPadRuntimeBridge.runFrame(at: targetPresentationTime) {
             let nativeState = GOALPadRuntimeBridge.gameFrameStateSnapshot
+            if gameplaySaveGeneration.observe(nativeState.successfulSaveGeneration) {
+                saveSync.gameplaySaveCompleted()
+            }
             if nativeState.exitToLibraryRequested.boolValue, !handledNativeExitToLibraryRequest {
                 handledNativeExitToLibraryRequest = true
                 returnToLibraryRequestID &+= 1
@@ -491,7 +498,6 @@ final class GameSession {
                 updateSpeederState(currentSpeederState)
             }
             shouldLog = developerLogsEnabled && framesRun % 600 == 0
-            saveSync.gameplayFrameCompleted()
         }
 
         let framePresented = endFrame()

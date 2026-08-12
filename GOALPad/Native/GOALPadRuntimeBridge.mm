@@ -354,6 +354,7 @@ static GOALPadFacePromptTouchSnapshot GOALPadFacePromptTouchSnapshotFromCore(
   GOALPadGameFrameStateSnapshot snapshot = {};
   snapshot.exitToLibraryRequested = core.exit_to_library_requested ? YES : NO;
   snapshot.framesRun = core.frames_run;
+  snapshot.successfulSaveGeneration = core.successful_save_generation;
   snapshot.gameMode = GOALPadGameModeFromCore(core.game_mode);
   snapshot.progressMenu = GOALPadProgressMenuSnapshotFromCore(core.progress_menu);
   snapshot.titleStartState = GOALPadTitleStartStateFromCore(core.title_start_state);

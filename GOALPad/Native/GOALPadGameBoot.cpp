@@ -20,6 +20,7 @@
 #include "game/kernel/common/kernel_types.h"
 #include "game/kernel/common/kboot.h"
 #include "game/kernel/common/klink.h"
+#include "game/kernel/common/kmemcard.h"
 #include "game/kernel/common/kprint.h"
 #include "game/kernel/common/kscheme.h"
 #include "game/kernel/core/aot_loader.h"
@@ -1032,6 +1033,7 @@ GameFrameStateSnapshot game_frame_state_snapshot() noexcept {
   GameFrameStateSnapshot snapshot;
   snapshot.exit_to_library_requested = exit_to_library_requested();
   snapshot.frames_run = frames_run();
+  snapshot.successful_save_generation = kmemcard_successful_save_generation();
   const auto current_mode = game_mode();
   snapshot.game_mode = current_mode;
   snapshot.progress_menu = progress_menu_snapshot_for_mode(current_mode);

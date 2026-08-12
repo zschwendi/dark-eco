@@ -167,9 +167,9 @@ let sharedTick = section(session,
                          to: "private func updateNativeMenuState")
 check(sharedTick.components(separatedBy: "GOALPadRuntimeBridge.runFrame(").count - 1 == 1,
       "the shared tick advances the GOAL kernel exactly once")
-check(sharedTick.components(separatedBy: "saveSync.gameplayFrameCompleted()").count - 1 == 1
+check(sharedTick.components(separatedBy: "saveSync.gameplaySaveCompleted()").count - 1 == 1
         && sharedTick.components(separatedBy: "input.applyRumble()").count - 1 == 1,
-      "frame completion and rumble side effects remain single-shot")
+      "changed-save notification and rumble side effects remain single-shot")
 check(sharedTick.contains("#if os(iOS)")
         && sharedTick.contains("input.pushFrame(merging: touch.frameState())")
         && sharedTick.contains("#elseif os(visionOS)\n        input.pushControllerFrame()")

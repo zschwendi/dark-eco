@@ -56,11 +56,15 @@ let content = source(at: root + "/GOALPad/ContentView.swift")
 let audio = source(at: root + "/GOALPad/Audio/AudioOutput.swift")
 let gameBoot = source(at: root + "/GOALPad/Native/GOALPadGameBoot.cpp")
 let gameBootHeader = source(at: root + "/GOALPad/Native/GOALPadGameBoot.hpp")
+let gameplaySaveGeneration = source(
+    at: root + "/GOALPad/Game/GameplaySaveGenerationState.swift")
 let bridge = source(at: root + "/GOALPad/Native/GOALPadRuntimeBridge.h")
 let bridgeImplementation = source(at: root + "/GOALPad/Native/GOALPadRuntimeBridge.mm")
 let surfaceView = source(at: root + "/GOALPad/Game/GameSurfaceView.swift")
 let renderSurface = source(at: root + "/GOALPad/Native/GOALPadRenderSurface.mm")
 let metalHost = source(at: root + "/GOALPad/Native/GOALPadMetalHost.mm")
+let kmemcardHeader = source(at: root + "/OpenGOAL/game/kernel/common/kmemcard.h")
+let kmemcard = source(at: root + "/OpenGOAL/game/kernel/common/kmemcard.cpp")
 
 let audioSession = section(audio,
                            from: "private func activateSession() throws",
@@ -160,6 +164,8 @@ check(occursInOrder([
     "input.pushFrame",
     "GOALPadRuntimeBridge.runFrame(at: targetPresentationTime)",
     "let nativeState = GOALPadRuntimeBridge.gameFrameStateSnapshot",
+    "gameplaySaveGeneration.observe(nativeState.successfulSaveGeneration)",
+    "saveSync.gameplaySaveCompleted()",
     "nativeState.exitToLibraryRequested.boolValue",
     "returnToLibraryRequestID &+= 1",
     "framesRun = nativeState.framesRun",
@@ -184,8 +190,14 @@ check(occurrenceCount("GOALPadRuntimeBridge.gameFrameStateSnapshot", in: armedTi
         && !armedTick.contains("GOALPadRuntimeBridge.cutsceneSkipTouchSnapshot")
         && !armedTick.contains("GOALPadRuntimeBridge.facePromptTouchSnapshot")
         && !armedTick.contains("GOALPadRuntimeBridge.lookAroundState")
-        && !armedTick.contains("GOALPadRuntimeBridge.speederState"),
+        && !armedTick.contains("GOALPadRuntimeBridge.speederState")
+        && !armedTick.contains("gameplayFrameCompleted")
+        && occurrenceCount("saveSync.gameplaySaveCompleted()", in: armedTick) == 1,
       "each successful frame crosses the Objective-C++ bridge for native state exactly once")
+check(gameplaySaveGeneration.contains("guard generation != observed else { return false }")
+        && gameplaySaveGeneration.contains("observed = generation")
+        && gameplaySaveGeneration.contains("observed = 0"),
+      "the session save tracker emits only changed generations and treats wrap as a change")
 check(armedTick.contains("if developerLogsEnabled {\n            recordDisplayCallback()\n        }")
         && armedTick.contains("shouldLog = developerLogsEnabled && framesRun % 600 == 0")
         && armedTick.contains("if shouldLog { logRunningState(renderer: GOALPadRenderSurface.shared.stats) }"),
@@ -197,6 +209,7 @@ let nativeFrameState = section(gameBoot,
 check(occursInOrder([
     "snapshot.exit_to_library_requested = exit_to_library_requested();",
     "snapshot.frames_run = frames_run();",
+    "snapshot.successful_save_generation = kmemcard_successful_save_generation();",
     "const auto current_mode = game_mode();",
     "snapshot.game_mode = current_mode;",
     "snapshot.progress_menu = progress_menu_snapshot_for_mode(current_mode);",
@@ -225,10 +238,12 @@ let frameStateMapping = section(bridgeImplementation,
                                 from: "+ (GOALPadGameFrameStateSnapshot)gameFrameStateSnapshot",
                                 to: "+ (GOALPadFrameChainStats)frameChainStats")
 check(bridge.contains("typedef struct GOALPadGameFrameStateSnapshot")
+        && bridge.contains("uint64_t successfulSaveGeneration;")
         && bridge.contains("@property(class, nonatomic, readonly) GOALPadGameFrameStateSnapshot gameFrameStateSnapshot;")
         && occursInOrder([
             "snapshot.exitToLibraryRequested = core.exit_to_library_requested ? YES : NO;",
             "snapshot.framesRun = core.frames_run;",
+            "snapshot.successfulSaveGeneration = core.successful_save_generation;",
             "snapshot.gameMode = GOALPadGameModeFromCore(core.game_mode);",
             "snapshot.progressMenu = GOALPadProgressMenuSnapshotFromCore(core.progress_menu);",
             "snapshot.titleStartState = GOALPadTitleStartStateFromCore(core.title_start_state);",
@@ -240,6 +255,34 @@ check(bridge.contains("typedef struct GOALPadGameFrameStateSnapshot")
         ], in: frameStateMapping),
       "the fixed C bridge maps every native frame field without object ownership")
 
+let memcardInitialization = section(kmemcard,
+                                    from: "void kmemcard_init_globals()",
+                                    to: "u64 kmemcard_successful_save_generation()")
+let memcardSave = section(kmemcard,
+                          from: "void pc_game_save_synch()",
+                          to: "void pc_game_load_open_file")
+check(kmemcardHeader.contains("class KmemcardSuccessfulSaveGeneration")
+        && kmemcardHeader.contains("if (close_result == 0) {")
+        && kmemcardHeader.contains("value_++;")
+        && kmemcardHeader.contains("u64 kmemcard_successful_save_generation();")
+        && memcardInitialization.contains("successful_save_generation.reset();")
+        && occursInOrder([
+            "const int close_result = fclose(fd);",
+            "successful_save_generation.record_close_result(close_result);",
+            "if (close_result == 0) {",
+            "op.result = McStatusCode::OK;",
+        ], in: memcardSave)
+        && occurrenceCount("record_close_result", in: kmemcard) == 1,
+      "kmemcard resets its host counter and advances it only from the successful save close")
+
+let start = section(session, from: "func start() async", to: "private func bootFinished")
+check(occursInOrder([
+    "let status = GOALPadRuntimeBridge.startKernel(",
+    "guard status.isRunning else",
+    "gameplaySaveGeneration.reset()",
+    "bootQueue.async",
+], in: start), "a successful kernel start resets the save baseline before asynchronous boot")
+
 let bootFinished = section(session,
                            from: "private func bootFinished",
                            to: "func shutdown")
@@ -249,6 +292,15 @@ check(occursInOrder([
     "cameraDiagnosticsURL = nil",
 ], in: bootFinished),
       "camera diagnostics start only when developer logs are enabled")
+check(bootFinished.contains("GOALPadRuntimeBridge.stopKernel()")
+        && bootFinished.contains("gameplaySaveGeneration.reset()"),
+      "boot failure clears the session save baseline")
+
+let shutdown = section(session, from: "func shutdown()", to: "func presentTouchControlsGuide()")
+check(occursInOrder([
+    "GOALPadRuntimeBridge.stopKernel()",
+    "gameplaySaveGeneration.reset()",
+], in: shutdown), "session shutdown clears the native save baseline")
 
 let cameraPersistence = section(session,
                                 from: "private func persistCameraDiagnosticsForLifecycleEvent()",

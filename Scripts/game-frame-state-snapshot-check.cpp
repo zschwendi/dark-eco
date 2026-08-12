@@ -1,9 +1,11 @@
 #include "GOALPad/Native/GOALPadGameBoot.hpp"
+#include "game/kernel/common/kmemcard.h"
 
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <limits>
 #include <type_traits>
 #include <vector>
 
@@ -31,6 +33,7 @@ void write(std::vector<std::uint8_t>& memory, std::size_t offset, T value) {
 int main() {
   goalpad::GameFrameStateSnapshot snapshot;
   check(!snapshot.exit_to_library_requested && snapshot.frames_run == 0 &&
+            snapshot.successful_save_generation == 0 &&
             snapshot.game_mode == goalpad::GameMode::Unknown &&
             !snapshot.progress_menu.available &&
             snapshot.title_start_state == goalpad::TitleStartState::Unknown &&
@@ -42,6 +45,7 @@ int main() {
 
   snapshot.exit_to_library_requested = true;
   snapshot.frames_run = 42;
+  snapshot.successful_save_generation = 17;
   snapshot.game_mode = goalpad::GameMode::Progress;
   snapshot.progress_menu.available = true;
   snapshot.progress_menu.screen = goalpad::ProgressScreen::FuelCells;
@@ -56,6 +60,7 @@ int main() {
   snapshot.speeder_state = goalpad::SpeederState::Riding;
 
   check(snapshot.exit_to_library_requested && snapshot.frames_run == 42 &&
+            snapshot.successful_save_generation == 17 &&
             snapshot.game_mode == goalpad::GameMode::Progress &&
             snapshot.progress_menu.screen == goalpad::ProgressScreen::FuelCells &&
             snapshot.title_start_state == goalpad::TitleStartState::TitleSequence &&
@@ -65,6 +70,21 @@ int main() {
             snapshot.look_around_state == goalpad::LookAroundState::FirstPerson &&
             snapshot.speeder_state == goalpad::SpeederState::Riding,
         "the fixed snapshot carries every native state field independently");
+
+  KmemcardSuccessfulSaveGeneration save_generation;
+  save_generation.record_close_result(-1);
+  check(save_generation.value() == 0,
+        "a failed native save close does not advance the host generation");
+  save_generation.record_close_result(0);
+  check(save_generation.value() == 1,
+        "a successful native save close advances the host generation once");
+  save_generation.reset();
+  check(save_generation.value() == 0,
+        "native memcard initialization can reset the host generation");
+  KmemcardSuccessfulSaveGeneration wrapping_generation(std::numeric_limits<u64>::max());
+  wrapping_generation.record_close_result(0);
+  check(wrapping_generation.value() == 0,
+        "the unsigned native save generation wraps without changing event semantics");
 
   constexpr std::size_t kLowProtect = 64;
   constexpr std::uint32_t kTargetType = 132;

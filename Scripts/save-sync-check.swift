@@ -2241,7 +2241,7 @@ private func startupSyncIsObservableAndCannotIndefinitelyGatePlay() async throws
 
     let ready = await controller.syncBeforeGameplay()
     check(ready, "Play continues from local saves after the timed-out cloud lease fully stops")
-    check(!controller.isBusy && !controller.hasPendingFrameCheck,
+    check(!controller.isBusy && !controller.hasPendingGameplaySaveCheck,
           "Play never overlaps the canceled cloud operation or a pending save check")
     check(controller.summary.contains("did not respond in time")
             && controller.summary.contains("use Sync in Settings"),
@@ -2443,9 +2443,12 @@ private func delayedProviderUpdateReconcilesWithoutAnotherLaunch() async throws 
 @MainActor
 private func completedNativeSaveAutomaticallyUploads() async throws {
     print("a completed native save automatically uploads without blocking its frame")
-    let fixture = try Fixture()
+    let entries = OperationLog()
+    let fixture = try Fixture(operationAwaitHook: { await entries.append("sync") })
     let defaults = UserDefaults(suiteName: "goalpad-native-save-upload-\(UUID().uuidString)")!
-    let controller = SaveSyncController(defaults: defaults, engine: fixture.engine)
+    let controller = SaveSyncController(
+        defaults: defaults, engine: fixture.engine,
+        gameplaySaveCompletionDebounce: .milliseconds(1))
     let baselineDate = Date(timeIntervalSince1970: 1_700_000_000)
     let savedDate = baselineDate.addingTimeInterval(60)
     try writeBank(progress: 60, saveCount: 5, marker: 1,
@@ -2466,16 +2469,20 @@ private func completedNativeSaveAutomaticallyUploads() async throws {
     let savedOdd = data(bankFilePath(1), under: fixture.local)
 
     controller.setGameplayActive(true)
-    controller.gameplayFrameCompleted()
-    check(controller.hasPendingFrameCheck && !controller.isBusy,
-          "the completed frame only schedules save work and does not synchronously enter cloud I/O")
+    controller.gameplaySaveCompleted()
+    check(controller.hasPendingGameplaySaveCheck && !controller.isBusy,
+          "the native save event only schedules work and does not synchronously enter cloud I/O")
     let becameIdle = await waitForController {
-        !controller.isBusy && !controller.hasPendingFrameCheck
+        !controller.isBusy && !controller.hasPendingGameplaySaveCheck
     }
     check(becameIdle, "the automatic completed-save check drains without a manual Sync action")
     check(data(bankFilePath(0), under: fixture.cloud) == savedEven
             && data(bankFilePath(1), under: fixture.cloud) == savedOdd,
           "the newly completed native generation is mirrored to iCloud automatically")
+    try await Task.sleep(for: .milliseconds(20))
+    let completedEntries = await entries.entries()
+    check(completedEntries.count == 2,
+          "one native event performs one check with no periodic frame-based retry")
 }
 
 @MainActor
@@ -2483,7 +2490,9 @@ private func completedNativeSaveDefersNewerRemoteWinner() async throws {
     print("automatic native-save upload defers a deterministically newer iCloud generation")
     let fixture = try Fixture()
     let defaults = UserDefaults(suiteName: "goalpad-native-save-defer-\(UUID().uuidString)")!
-    let controller = SaveSyncController(defaults: defaults, engine: fixture.engine)
+    let controller = SaveSyncController(
+        defaults: defaults, engine: fixture.engine,
+        gameplaySaveCompletionDebounce: .milliseconds(1))
     let baselineDate = Date(timeIntervalSince1970: 1_700_000_000)
     try writeBank(progress: 60, saveCount: 5, marker: 1,
                   to: bankFilePath(0), under: fixture.local,
@@ -2513,9 +2522,9 @@ private func completedNativeSaveDefersNewerRemoteWinner() async throws {
     let remoteOdd = data(bankFilePath(1), under: fixture.cloud)
 
     controller.setGameplayActive(true)
-    controller.gameplayFrameCompleted()
+    controller.gameplaySaveCompleted()
     let becameIdle = await waitForController {
-        !controller.isBusy && !controller.hasPendingFrameCheck
+        !controller.isBusy && !controller.hasPendingGameplaySaveCheck
     }
     check(becameIdle, "the automatic upload-only comparison completes without a manual action")
     check(data(bankFilePath(0), under: fixture.local) == localEven
@@ -2526,6 +2535,153 @@ private func completedNativeSaveDefersNewerRemoteWinner() async throws {
           "automatic upload does not overwrite the deterministically newer iCloud generation")
     check(controller.summary.contains("Newer iCloud saves are waiting"),
           "the deferred remote winner remains visible for the next Library reconciliation")
+}
+
+@MainActor
+private func nativeSaveEventsCoalesce() async throws {
+    print("native save events coalesce into one upload-only check")
+    let entries = OperationLog()
+    let fixture = try Fixture(operationAwaitHook: { await entries.append("sync") })
+    let defaults = UserDefaults(suiteName: "goalpad-save-event-coalesce-\(UUID().uuidString)")!
+    let controller = SaveSyncController(
+        defaults: defaults, engine: fixture.engine,
+        gameplaySaveCompletionDebounce: .milliseconds(1))
+
+    controller.setGameplayActive(true)
+    controller.gameplaySaveCompleted()
+    controller.gameplaySaveCompleted()
+    controller.gameplaySaveCompleted()
+    let becameIdle = await waitForController {
+        !controller.isBusy && !controller.hasPendingGameplaySaveCheck
+    }
+    let completedEntries = await entries.entries()
+    check(becameIdle && completedEntries.count == 1,
+          "multiple completion events inside the debounce perform one engine check")
+}
+
+@MainActor
+private func nativeSaveEventQueuesDuringActiveWork() async throws {
+    print("a native save event queues upload-only work behind an active operation")
+    let gate = OperationGate()
+    let entries = OperationLog()
+    let fixture = try Fixture(operationAwaitHook: {
+        await entries.append("sync")
+        await gate.pauseFirstEntry()
+    })
+    let defaults = UserDefaults(suiteName: "goalpad-save-event-active-\(UUID().uuidString)")!
+    let controller = SaveSyncController(defaults: defaults, engine: fixture.engine)
+    controller.setGameplayActive(true)
+
+    let activeSync = Task { await controller.syncNow(mode: .uploadOnly) }
+    await gate.waitUntilEntered()
+    controller.gameplaySaveCompleted()
+    controller.gameplaySaveCompleted()
+    check(!controller.hasPendingGameplaySaveCheck,
+          "an event during active work queues intent without creating a competing check task")
+
+    await gate.release()
+    await activeSync.value
+    let becameIdle = await waitForController { !controller.isBusy }
+    let completedEntries = await entries.entries()
+    check(becameIdle && completedEntries.count == 2,
+          "active work drains one coalesced upload-only follow-up")
+}
+
+@MainActor
+private func nativeSaveEventPreservesBidirectionalPriority() async throws {
+    print("native save upload intent cannot downgrade a queued bidirectional sync")
+    let gate = OperationGate()
+    let entries = OperationLog()
+    let fixture = try Fixture(operationAwaitHook: {
+        await entries.append("sync")
+        await gate.pauseFirstEntry()
+    })
+    try writeBank(progress: 40, saveCount: 2, marker: 1,
+                  to: bankFilePath(0), under: fixture.local,
+                  modificationDate: Date(timeIntervalSince1970: 1_700_000_000))
+    let defaults = UserDefaults(suiteName: "goalpad-save-event-priority-\(UUID().uuidString)")!
+    let controller = SaveSyncController(defaults: defaults, engine: fixture.engine)
+    controller.setGameplayActive(true)
+
+    let activeSync = Task { await controller.syncNow(mode: .uploadOnly) }
+    await gate.waitUntilEntered()
+    let bidirectionalSync = Task { await controller.syncNow(mode: .bidirectional) }
+    await Task.yield()
+    controller.gameplaySaveCompleted()
+
+    await gate.release()
+    await activeSync.value
+    await bidirectionalSync.value
+    let becameIdle = await waitForController { !controller.isBusy }
+    let completedEntries = await entries.entries()
+    check(becameIdle && completedEntries.count == 2 && controller.lastSyncDate != nil,
+          "the coalesced follow-up remains bidirectional after the save event")
+}
+
+@MainActor
+private func disabledAndInactiveSaveEventsStayInert() async throws {
+    print("disabled and ended gameplay cancel native save-event work")
+    let disabledEntries = OperationLog()
+    let disabledFixture = try Fixture(
+        operationAwaitHook: { await disabledEntries.append("sync") })
+    let disabledDefaults = UserDefaults(
+        suiteName: "goalpad-save-event-disabled-\(UUID().uuidString)")!
+    disabledDefaults.set(false, forKey: "iCloudSavesEnabled")
+    let disabledController = SaveSyncController(
+        defaults: disabledDefaults, engine: disabledFixture.engine,
+        gameplaySaveCompletionDebounce: .milliseconds(1))
+    disabledController.setGameplayActive(true)
+    disabledController.gameplaySaveCompleted()
+    try await Task.sleep(for: .milliseconds(20))
+    let disabledOperations = await disabledEntries.entries()
+    check(disabledOperations.isEmpty
+            && !disabledController.hasPendingGameplaySaveCheck,
+          "disabled sync ignores native save events")
+
+    let inactiveEntries = OperationLog()
+    let inactiveFixture = try Fixture(
+        operationAwaitHook: { await inactiveEntries.append("sync") })
+    let inactiveDefaults = UserDefaults(
+        suiteName: "goalpad-save-event-inactive-\(UUID().uuidString)")!
+    let inactiveController = SaveSyncController(
+        defaults: inactiveDefaults, engine: inactiveFixture.engine,
+        gameplaySaveCompletionDebounce: .milliseconds(20))
+    inactiveController.setGameplayActive(true)
+    inactiveController.gameplaySaveCompleted()
+    inactiveController.setGameplayActive(false)
+    try await Task.sleep(for: .milliseconds(40))
+    let inactiveOperations = await inactiveEntries.entries()
+    check(inactiveOperations.isEmpty
+            && !inactiveController.hasPendingGameplaySaveCheck,
+          "ending gameplay cancels a debounced save event without an upload retry")
+}
+
+@MainActor
+private func activeSaveCheckRetainsOwnershipThroughLifecycleChange() async throws {
+    print("an in-flight save check retains task ownership through a lifecycle change")
+    let gate = OperationGate()
+    let fixture = try Fixture(operationAwaitHook: { await gate.pauseFirstEntry() })
+    let defaults = UserDefaults(
+        suiteName: "goalpad-save-event-active-cancel-\(UUID().uuidString)")!
+    let controller = SaveSyncController(
+        defaults: defaults, engine: fixture.engine,
+        gameplaySaveCompletionDebounce: .milliseconds(1))
+
+    controller.setGameplayActive(true)
+    controller.gameplaySaveCompleted()
+    await gate.waitUntilEntered()
+    controller.setGameplayActive(false)
+    check(controller.hasPendingGameplaySaveCheck,
+          "the lifecycle change cannot discard ownership while the engine check is suspended")
+    await gate.release()
+    let becameIdle = await waitForController {
+        !controller.isBusy && !controller.hasPendingGameplaySaveCheck
+    }
+    if case .failed = controller.status {
+        check(false, "the lifecycle change is not surfaced as a save-sync failure")
+    } else {
+        check(becameIdle, "the in-flight check releases its task ownership after finishing")
+    }
 }
 
 @MainActor
@@ -2580,7 +2736,9 @@ private func controllerCoalescesSyncIntentAndPreservesLastSuccess() async throws
                   to: bankFilePath(0), under: fixture.local,
                   modificationDate: Date(timeIntervalSince1970: 1_700_000_000))
     let defaults = UserDefaults(suiteName: "goalpad-save-controller-\(UUID().uuidString)")!
-    let controller = SaveSyncController(defaults: defaults, engine: fixture.engine)
+    let controller = SaveSyncController(
+        defaults: defaults, engine: fixture.engine,
+        gameplaySaveCompletionDebounce: .milliseconds(1))
 
     let firstSync = Task { await controller.syncNow(mode: .uploadOnly) }
     await gate.waitUntilEntered()
@@ -2793,24 +2951,26 @@ private func controllerReportsObservedSaveStateTruthfully() async throws {
 }
 
 @MainActor
-private func replacementFrameCheckKeepsTaskOwnershipAndCancelsQuietly() async throws {
-    print("replacement frame checks retain ownership after an older debounce is cancelled")
+private func replacementSaveCheckKeepsTaskOwnershipAndCancelsQuietly() async throws {
+    print("replacement save checks retain ownership after an older debounce is cancelled")
     let gate = OperationGate()
     let fixture = try Fixture(operationAwaitHook: { await gate.pauseFirstEntry() })
     let defaults = UserDefaults(suiteName: "goalpad-frame-controller-\(UUID().uuidString)")!
-    let controller = SaveSyncController(defaults: defaults, engine: fixture.engine)
+    let controller = SaveSyncController(
+        defaults: defaults, engine: fixture.engine,
+        gameplaySaveCompletionDebounce: .milliseconds(1))
 
     controller.setGameplayActive(true)
-    controller.gameplayFrameCompleted()
+    controller.gameplaySaveCompleted()
     controller.setGameplayActive(false)
     controller.setGameplayActive(true)
-    controller.gameplayFrameCompleted()
+    controller.gameplaySaveCompleted()
 
     await gate.waitUntilEntered()
-    check(controller.hasPendingFrameCheck,
-          "the replacement check owns the pending frame-check state")
+    check(controller.hasPendingGameplaySaveCheck,
+          "the replacement check owns the pending save-check state")
     try await Task.sleep(for: .milliseconds(30))
-    check(controller.hasPendingFrameCheck,
+    check(controller.hasPendingGameplaySaveCheck,
           "the cancelled check cannot clear the replacement task")
     if case .failed = controller.status {
         check(false, "cancelling the superseded debounce is not reported as a sync failure")
@@ -2820,7 +2980,7 @@ private func replacementFrameCheckKeepsTaskOwnershipAndCancelsQuietly() async th
 
     await gate.release()
     let becameIdle = await waitForController {
-        !controller.isBusy && !controller.hasPendingFrameCheck
+        !controller.isBusy && !controller.hasPendingGameplaySaveCheck
     }
     check(becameIdle, "the replacement check clears its own busy and task state on completion")
 }
@@ -2884,11 +3044,16 @@ private struct SaveSyncCheck {
             try await delayedProviderUpdateReconcilesWithoutAnotherLaunch()
             try await completedNativeSaveAutomaticallyUploads()
             try await completedNativeSaveDefersNewerRemoteWinner()
+            try await nativeSaveEventsCoalesce()
+            try await nativeSaveEventQueuesDuringActiveWork()
+            try await nativeSaveEventPreservesBidirectionalPriority()
+            try await disabledAndInactiveSaveEventsStayInert()
+            try await activeSaveCheckRetainsOwnershipThroughLifecycleChange()
             try await identityChangesReevaluateUnavailableCloudSaves()
             try await controllerCoalescesSyncIntentAndPreservesLastSuccess()
             try await combinedCloudPresentationCoordinatesEnabledDomains()
             try await controllerReportsObservedSaveStateTruthfully()
-            try await replacementFrameCheckKeepsTaskOwnershipAndCancelsQuietly()
+            try await replacementSaveCheckKeepsTaskOwnershipAndCancelsQuietly()
         } catch {
             print("  FAIL unexpected error: \(error)")
             failures += 1

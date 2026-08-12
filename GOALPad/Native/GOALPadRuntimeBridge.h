@@ -227,6 +227,7 @@ typedef struct GOALPadFacePromptTouchSnapshot {
 typedef struct GOALPadGameFrameStateSnapshot {
   BOOL exitToLibraryRequested;
   uint64_t framesRun;
+  uint64_t successfulSaveGeneration;
   GOALPadGameMode gameMode;
   GOALPadProgressMenuSnapshot progressMenu;
   GOALPadTitleStartState titleStartState;

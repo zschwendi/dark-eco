@@ -480,6 +480,7 @@ class FacePromptTouchReader {
 struct GameFrameStateSnapshot {
   bool exit_to_library_requested = false;
   std::uint64_t frames_run = 0;
+  std::uint64_t successful_save_generation = 0;
   GameMode game_mode = GameMode::Unknown;
   ProgressMenuSnapshot progress_menu;
   TitleStartState title_start_state = TitleStartState::Unknown;

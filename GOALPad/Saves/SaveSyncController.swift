@@ -149,7 +149,7 @@ final class SaveSyncController {
             } else {
                 cloudMetadataMonitor?.stop()
                 cancelPendingCloudContentChange()
-                cancelPendingFrameCheck()
+                cancelPendingGameplaySaveCheck()
                 pendingSyncMode = nil
                 automaticSyncGeneration += 1
                 automaticSyncTask?.cancel()
@@ -170,8 +170,8 @@ final class SaveSyncController {
 
     private let defaults: UserDefaults
     private let engine: SaveSyncEngine
-    private var frameCheckTask: Task<Void, Never>?
-    private var frameCheckGeneration = 0
+    private var gameplaySaveCheckTask: Task<Void, Never>?
+    private var gameplaySaveCheckGeneration = 0
     @ObservationIgnored private var isCheckingGameplaySaves = false
     private var pendingSyncMode: SaveSyncMode?
     private var activeSyncMode: SaveSyncMode?
@@ -195,6 +195,7 @@ final class SaveSyncController {
 
     private let notificationCenter: NotificationCenter
     private let cloudContentChangeDebounce: Duration
+    private let gameplaySaveCompletionDebounce: Duration
     private let pregameWaitInterval: Duration
     private let pregameWaitAttempts: Int
     private let pregameCancellationWaitAttempts: Int
@@ -206,12 +207,14 @@ final class SaveSyncController {
          cloudContentDidChangeNotification: Notification.Name =
             .goalpadCloudSaveContentDidChange,
          cloudContentChangeDebounce: Duration = .milliseconds(250),
+         gameplaySaveCompletionDebounce: Duration = .milliseconds(250),
          pregameWaitInterval: Duration = .milliseconds(50),
          pregameWaitAttempts: Int = 160,
          pregameCancellationWaitAttempts: Int = 20) {
         self.defaults = defaults
         self.notificationCenter = notificationCenter
         self.cloudContentChangeDebounce = cloudContentChangeDebounce
+        self.gameplaySaveCompletionDebounce = gameplaySaveCompletionDebounce
         self.pregameWaitInterval = pregameWaitInterval
         self.pregameWaitAttempts = pregameWaitAttempts
         self.pregameCancellationWaitAttempts = pregameCancellationWaitAttempts
@@ -288,7 +291,7 @@ final class SaveSyncController {
             || activeOperation == .restoringArchive
     }
 
-    var hasPendingFrameCheck: Bool { frameCheckTask != nil }
+    var hasPendingGameplaySaveCheck: Bool { gameplaySaveCheckTask != nil }
 
     func setGameplayReadinessHandler(_ handler: @escaping () -> Void) {
         gameplayReadinessDidChange = handler
@@ -316,6 +319,7 @@ final class SaveSyncController {
             transferMessage = "Preserved saves issue: \(error.localizedDescription)"
         }
         activeOperation = nil
+        await drainPendingSync()
     }
 
     func promoteArchivedSave(_ candidate: ArchivedSaveCandidate) async {
@@ -419,42 +423,58 @@ final class SaveSyncController {
         }
     }
 
-    /// Called after completed gameplay frames. The native save is synchronous, so any successful
-    /// memcard write is closed before this check runs. Coalescing keeps file I/O off the hot loop.
-    func gameplayFrameCompleted() {
-        guard isEnabled, isGameplayActive, !hasActiveSaveWork, frameCheckTask == nil else { return }
-        frameCheckGeneration += 1
-        let generation = frameCheckGeneration
-        frameCheckTask = Task { [weak self] in
-            guard let self else { return }
-            defer { clearFrameCheckTask(for: generation) }
-            do {
-                try await Task.sleep(for: .milliseconds(250))
-            } catch {
-                return
-            }
-            guard isEnabled, !Task.isCancelled, generation == frameCheckGeneration else { return }
-            guard !hasActiveSaveWork else {
-                enqueueSync(.uploadOnly)
-                return
-            }
-            isCheckingGameplaySaves = true
-            do {
-                if let outcome = try await engine.syncIfLocalFilesChanged(mode: .uploadOnly) {
-                    if isEnabled {
-                        apply(outcome, mode: .uploadOnly)
-                    } else {
-                        status = .disabled
-                    }
-                }
-            } catch is CancellationError {
-                // Cancellation during the debounce is expected; active save work is not cancelled.
-            } catch {
-                status = isEnabled ? .failed(error.localizedDescription) : .disabled
-            }
-            isCheckingGameplaySaves = false
-            await drainPendingSync()
+    /// Called once when the native memcard reports a newly completed save. The write is synchronous,
+    /// so the bank is closed before this event; coalescing keeps file I/O off the frame loop.
+    func gameplaySaveCompleted() {
+        guard isEnabled, isGameplayActive else { return }
+        guard !hasActiveSaveWork else {
+            enqueueSync(.uploadOnly)
+            return
         }
+        guard gameplaySaveCheckTask == nil else { return }
+        gameplaySaveCheckGeneration += 1
+        let generation = gameplaySaveCheckGeneration
+        let debounce = gameplaySaveCompletionDebounce
+        gameplaySaveCheckTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: debounce)
+            } catch {
+                self?.clearGameplaySaveCheckTask(for: generation)
+                return
+            }
+            await self?.checkGameplaySaveCompletion(for: generation)
+        }
+    }
+
+    private func checkGameplaySaveCompletion(for generation: Int) async {
+        guard isEnabled, isGameplayActive, !Task.isCancelled,
+              generation == gameplaySaveCheckGeneration else {
+            clearGameplaySaveCheckTask(for: generation)
+            return
+        }
+        guard !hasActiveSaveWork else {
+            enqueueSync(.uploadOnly)
+            clearGameplaySaveCheckTask(for: generation)
+            return
+        }
+
+        isCheckingGameplaySaves = true
+        do {
+            if let outcome = try await engine.syncIfLocalFilesChanged(mode: .uploadOnly) {
+                if isEnabled {
+                    apply(outcome, mode: .uploadOnly)
+                } else {
+                    status = .disabled
+                }
+            }
+        } catch is CancellationError {
+            // Lifecycle cancellation is expected; no new save check is synthesized.
+        } catch {
+            status = isEnabled ? .failed(error.localizedDescription) : .disabled
+        }
+        isCheckingGameplaySaves = false
+        clearGameplaySaveCheckTask(for: generation)
+        await drainPendingSync()
     }
 
     func importSaves(from source: URL) async {
@@ -520,7 +540,7 @@ final class SaveSyncController {
         let wasActive = isGameplayActive
         isGameplayActive = active
         if !active {
-            cancelPendingFrameCheck()
+            cancelPendingGameplaySaveCheck()
         }
         if wasActive, !active {
             markBidirectionalSyncRequired()
@@ -569,7 +589,7 @@ final class SaveSyncController {
     }
 
     private var hasPregameSaveWork: Bool {
-        hasActiveSaveWork || frameCheckTask != nil || cloudContentChangeTask != nil
+        hasActiveSaveWork || gameplaySaveCheckTask != nil || cloudContentChangeTask != nil
             || pendingSyncMode != nil || automaticSyncTask != nil
     }
 
@@ -614,7 +634,7 @@ final class SaveSyncController {
         }
 
         var cancellationAttempts = 0
-        while hasActiveSaveWork || frameCheckTask != nil || cloudContentChangeTask != nil
+        while hasActiveSaveWork || gameplaySaveCheckTask != nil || cloudContentChangeTask != nil
                 || automaticSyncTask != nil {
             guard cancellationAttempts < pregameCancellationWaitAttempts else {
                 status = .failed("Save preparation is still finishing. Wait a moment and try Play again.")
@@ -722,16 +742,16 @@ final class SaveSyncController {
         }
     }
 
-    private func cancelPendingFrameCheck() {
-        guard activeOperation != .checking else { return }
-        frameCheckGeneration += 1
-        frameCheckTask?.cancel()
-        frameCheckTask = nil
+    private func cancelPendingGameplaySaveCheck() {
+        guard !isCheckingGameplaySaves else { return }
+        gameplaySaveCheckTask?.cancel()
+        gameplaySaveCheckGeneration += 1
+        gameplaySaveCheckTask = nil
     }
 
-    private func clearFrameCheckTask(for generation: Int) {
-        guard frameCheckGeneration == generation else { return }
-        frameCheckTask = nil
+    private func clearGameplaySaveCheckTask(for generation: Int) {
+        guard gameplaySaveCheckGeneration == generation else { return }
+        gameplaySaveCheckTask = nil
     }
 
     private func apply(_ outcome: SaveSyncOutcome, mode: SaveSyncMode) {

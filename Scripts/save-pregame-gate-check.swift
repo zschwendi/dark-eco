@@ -58,7 +58,7 @@ let bridge = source(at: root + "/GOALPad/Native/GOALPadRuntimeBridge.mm")
 
 let gate = section(controller,
                    from: "func syncBeforeGameplay() async -> Bool",
-                   to: "func gameplayFrameCompleted()")
+                   to: "func gameplaySaveCompleted()")
 check(occursInOrder([
     "setGameplayActive(false)",
     "while hasPregameSaveWork",
@@ -80,12 +80,47 @@ check(gate.components(separatedBy: "return false").count - 1 >= 2,
 check(!gate.contains("case .unavailable") && !gate.contains("status == .unavailable"),
       "ordinary iCloud unavailability is not a gameplay rejection")
 
+let saveEvent = section(controller,
+                        from: "func gameplaySaveCompleted()",
+                        to: "func importSaves")
+check(occursInOrder([
+    "guard isEnabled, isGameplayActive else { return }",
+    "guard !hasActiveSaveWork else",
+    "enqueueSync(.uploadOnly)",
+    "guard gameplaySaveCheckTask == nil else { return }",
+    "try await Task.sleep(for: debounce)",
+    "isCheckingGameplaySaves = true",
+    "engine.syncIfLocalFilesChanged(mode: .uploadOnly)",
+    "isCheckingGameplaySaves = false",
+    "clearGameplaySaveCheckTask(for: generation)",
+    "await drainPendingSync()",
+], in: saveEvent),
+      "native save events debounce once and queue upload-only intent behind active work")
+check(controller.contains("gameplaySaveCompletionDebounce: Duration = .milliseconds(250)")
+        && controller.contains("case (.bidirectional, _), (_, .bidirectional):")
+        && controller.contains("pendingSyncMode = .bidirectional"),
+      "save-event coalescing retains the established debounce and bidirectional priority")
+let cancelSaveEvent = section(controller,
+                              from: "private func cancelPendingGameplaySaveCheck()",
+                              to: "private func apply")
+check(occursInOrder([
+    "guard !isCheckingGameplaySaves else { return }",
+    "gameplaySaveCheckTask?.cancel()",
+    "gameplaySaveCheckGeneration += 1",
+    "gameplaySaveCheckTask = nil",
+], in: cancelSaveEvent),
+      "an in-flight engine check retains ownership until cancellation actually finishes")
+check(session.contains("gameplaySaveGeneration.observe(nativeState.successfulSaveGeneration)")
+        && session.contains("saveSync.gameplaySaveCompleted()")
+        && !session.contains("gameplayFrameCompleted"),
+      "game frames signal save sync only when the native generation changes")
+
 let timeout = section(controller,
                       from: "private func finishTimedOutPregameSync() async -> Bool",
                       to: "private func ubiquityIdentityDidChange()")
 check(occursInOrder([
     "automaticSyncTask?.cancel()",
-    "while isBusy || frameCheckTask != nil || cloudContentChangeTask != nil",
+    "while hasActiveSaveWork || gameplaySaveCheckTask != nil || cloudContentChangeTask != nil",
     "|| automaticSyncTask != nil",
     "return false",
     "Using local saves",
