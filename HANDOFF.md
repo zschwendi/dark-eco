@@ -20286,3 +20286,48 @@ no app container, imported game data, saves, or user files were inspected.
 After the requested context reset, the next task is a maintainer-driven warmed
 Spider Cave 60/HFR comparison using the committed capture workflow. The actual
 iPhone 13 Pro-class target remains physically unvalidated.
+
+### Build 207 deterministic trace analysis checkpoint
+
+Outer commit `cd66fc02` (`Add deterministic iOS performance trace analyzer`)
+adds a non-shipping, read-only analysis stage for the already-recorded physical
+capture directories. `Scripts/analyze-ios-game-performance.py` can export known
+tables from an existing `.trace`, but never records, enumerates, launches, or
+contacts a device. It preserves the TOC and raw known-schema XML and emits a
+deterministic `report.json` plus compact `report.csv`.
+
+The parser preserves xctrace's distinct raw, formatted, and element-type values
+through `id`/`ref` references. Duration and Time Profiler weight values are
+normalized only from supported raw nanosecond payloads; unsupported units fail
+closed instead of being reported as milliseconds. Process, metric, thermal,
+and stack identities use their formatted display values, and measurement rows
+are restricted to `Dark Eco`. The first run exposes a deterministic
+`metric_catalog` so exact observed metric names/labels can be selected without
+guessing. Cadence reports include 120/80/60/48/40/30/24 clusters and contiguous
+runs. Threshold crossings are explicitly `multi_interval_hitch_candidates`,
+because a sustained adaptive ProMotion downshift is not by itself a hitch.
+
+Focused validation passed:
+
+```text
+python3 -m py_compile Scripts/analyze-ios-game-performance.py \
+  Scripts/ios-game-performance-analysis-check.py
+sh -n Scripts/run-ios-game-performance-analysis-check.sh
+Scripts/run-ios-game-performance-analysis-check.sh
+git diff f27f8633..cd66fc02 --check
+```
+
+The synthetic check covers realistic xctrace raw-plus-`fmt` values, nested and
+referenced process/stack/weight/duration cells, wrong-process exclusion,
+explicit metric selection, unknown and missing schemas, unsupported units,
+cadence clusters/runs and candidate intervals, thermal states, sampled CPU
+weight, no-Dark-Eco samples, and deterministic JSON/CSV. A separate one-second
+Mac-only Time Profiler probe confirmed Apple's real XML form
+(`weight fmt="1.00 ms"` with raw `1000000`, nested process and tagged-backtrace
+objects); its 6.6 MiB temporary trace was deleted after inspection.
+
+No app/runtime source, Xcode project, generated AOT, physical device, game data,
+save, or app container changed. Build 207 remains installed on `Z iPad Pro`.
+The next gate is unchanged: the maintainer prepares the warmed Spider Cave
+60-A route and explicitly reports `60 ready`, then the authorized capture is
+recorded and analyzed before any further frame-path optimization.
