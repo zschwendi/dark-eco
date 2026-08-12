@@ -1157,6 +1157,65 @@ warning is counted and logged; the kernel's 128 MiB is fixed for the life of the
 session so the shell has nothing to give back, and dropping cached level data
 will be the fused renderer's decision.
 
+### Physical adaptive-frame-rate acceptance
+
+The High Frame Rate option is not accepted from simulator or synthetic timing
+evidence alone. Its final gate is a physical iPhone 13 Pro-class or newer
+ProMotion device containing the player's own prepared Jak 1 data. Physical
+access still requires explicit maintainer authorization for that request.
+
+Use the signed Build 207 app and the same warmed Spider Cave route for every
+run. Developer Logs must be off so display sampling, detailed renderer
+statistics, camera/Merc diagnostics, and presentation handlers do not perturb
+the shipping path. Keep the graphics profile, internal resolution, save, input
+device, route, and brightness fixed, keep Low Power Mode off, and begin each
+counterbalanced pair from the same nominal thermal state.
+High Frame Rate is captured when gameplay starts, so leave gameplay and start a
+new session after changing it.
+
+Capture at least two counterbalanced passes per mode, for example 60-A, HFR-A,
+HFR-B, then 60-B. Before each capture, foreground the already-installed app and
+position Jak at the same route marker. The capture helper deliberately requires
+an explicit device and never installs or launches the app:
+
+```sh
+Scripts/capture-ios-game-performance.sh \
+  --device <authorized-device-name-or-UDID> \
+  --mode 60 --kind overview \
+  --output /private/tmp/dark-eco-build207-60-a-overview
+
+Scripts/capture-ios-game-performance.sh \
+  --device <authorized-device-name-or-UDID> \
+  --mode hfr --kind overview \
+  --output /private/tmp/dark-eco-build207-hfr-a-overview
+```
+
+Repeat the route with `--kind metal` and `--kind cpu` to collect a Metal System
+Trace and Time Profiler run. Their default duration is 30 seconds. Use a
+separate sustained route with `--kind power` for the default five-minute Power
+Profiler run. The helper records the exact outer and nested commits, mode,
+template, duration, device argument, and `xctrace` version and exports each
+trace's table of contents. Use `--dry-run` to validate arguments without
+contacting a device.
+
+Judge the result against the actual adaptive cadence, not an assumption that
+the display must remain at 120 Hz. Record the presented-frame interval
+distribution and cadence clusters, recurring hitches, drawable misses and late
+submissions, CPU and GPU frame duration, thermal state, and power. At 120 Hz a
+frame has an 8.33 ms wall-time budget; a fallback cadence has its corresponding
+larger budget. HFR must reach the high-refresh path during the warmed gameplay
+route and must not introduce recurring multi-interval hitches or make the 60 Hz
+baseline worse. Camera motion, timers, dialogue/audio duration, controller and
+touch input, save completion, and rumble must remain correct. A short nominal
+trace is not sustained thermal or battery evidence.
+
+If the trace is GPU-bound, compare Modern and Classic once as a diagnostic A/B
+without changing the accepted default. Modern Fit to Screen can rasterize more
+internal pixels on a wide iPhone. If CPU-bound, inspect the Time Profiler result
+before changing renderer synchronization, time-of-day palette work, auxiliary
+ocean/eye submissions, or audio ownership. Change one measured material
+variable at a time and repeat the same counterbalanced route.
+
 ### What was observed on the simulator
 
 iPad Pro 11-inch (M5), `id=96C5C21A-B925-4213-82A3-90DCB8518339`, Debug, with the

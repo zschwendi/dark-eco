@@ -1292,8 +1292,8 @@ architecture, gameplay-semantic, backend, or physical-tuning gate:
    entry; mods remain a nice-to-have rather than release-critical work.
 4. Rich localized device/controller haptic design beyond preserved native
    rumble and a small UI-haptic proof.
-5. ProMotion/120 Hz; research is complete and the maintainer does not need an
-   implementation in the current product cycle.
+5. ProMotion/120 Hz follow-up after the experimental iOS implementation passes
+   physical iPhone 13 Pro-class frame-pacing, thermal, and power acceptance.
 6. Stereoscopic, tabletop, room-scale, and first-person visionOS modes beyond
    the conventional Comfort window.
 7. Extensive low-memory optimization after confirmed lifecycle freezes are
