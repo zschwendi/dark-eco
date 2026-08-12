@@ -18753,3 +18753,20 @@ No build errors were reported.
 Build 194 was not installed or launched because the current request did not
 authorize physical-device access. Physical indicator/color, copy/layout, and
 touch-guide acceptance remain pending. No iPhone was accessed.
+
+## Build 194 physical installation and launch
+
+After explicit maintainer authorization, the signed Build 194 product was
+installed in place on physical `Z iPad Pro` and launched with `devicectl`. No
+uninstall occurred, and the app container, imported data, and saves were not
+inspected. Device inventory reports Dark Eco 1.0 (194), bundle identifier
+`com.zephyrstudiosllc.eco`. Installation, launch, and inventory evidence is at:
+
+```text
+/private/tmp/goalpad-build194-install.json
+/private/tmp/goalpad-build194-launch.json
+/private/tmp/goalpad-build194-inventory.json
+```
+
+The command-level launch succeeded. Visual acceptance of the spinner colors and
+touch-guide copy/layout remains with the maintainer. No iPhone was accessed.
