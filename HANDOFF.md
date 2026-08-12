@@ -17512,3 +17512,24 @@ metal` reports the optional Metal Toolchain component unavailable; retained
 binaries and metallib remain present, but no stale binary was reported as new
 runtime evidence. Simulator and physical device were not accessed. All nested
 commits through `880b4b891` are pushed and remote-backed.
+
+## Jak II sky-post execution checkpoint
+
+Date: 2026-08-12.
+
+Nested commit `15f368147` promotes only bucket 309 (`TEX_LCOM_SKY_POST`) from
+deferred to the audited host texture-upload path. The host independently plans
+the exact live and copied six-transfer/208-byte envelopes before mutation,
+requires semantic equality after relocation, executes the owned ordinary page
+upload exactly once at bucket entry, and requires the callback even for an
+absent structural no-op. Malformed mode or envelope data fails before copying
+or upload execution. The iOS runtime exposes the cumulative execution count as
+`GOALPAD_JAK2_SKY_POST_STATE`.
+
+Validation: direct typed-plan execution passed; canonical bucket-table and
+sky-post CTest targets passed 2/2; changed host and host-test Objective-C++
+translation units passed their exact canonical compiler flags in syntax-only
+mode. The canonical object build again stopped at the unchanged environmental
+failure `cannot execute tool 'metal' due to missing Metal Toolchain`. With only
+about 100 MiB free, no fresh build directory or simulator run was attempted.
+The nested commit was pushed to `origin/agent/jak2-ipad-playtest`.

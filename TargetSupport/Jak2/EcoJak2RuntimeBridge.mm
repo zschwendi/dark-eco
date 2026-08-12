@@ -561,6 +561,10 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(effects315.last_semantic_fingerprint),
         static_cast<unsigned>(effects315.last_classification));
 
+  NSLog(@"GOALPAD_JAK2_SKY_POST_STATE tick=%llu executions=%llu",
+        static_cast<unsigned long long>(runtime.ticks),
+        static_cast<unsigned long long>(metal.sky_post_texture_upload_executions));
+
   NSLog(@"GOALPAD_JAK2_MERC_ANIM_SLOT_STATE tick=%llu draws=%llu,%llu,%llu,%llu "
          "placeholders=%llu,%llu,%llu,%llu models=%016llx,%016llx,%016llx,%016llx",
         static_cast<unsigned long long>(runtime.ticks),
