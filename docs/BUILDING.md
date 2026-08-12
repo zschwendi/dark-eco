@@ -1198,6 +1198,33 @@ template, duration, device argument, and `xctrace` version and exports each
 trace's table of contents. Use `--dry-run` to validate arguments without
 contacting a device.
 
+After the already-authorized capture has completed, use the non-shipping
+analyzer against its saved directory. It never records or enumerates devices.
+Name the presentation, CPU, and GPU metrics exactly as they appear in that
+capture's exported Instruments data; it deliberately does not guess metric IDs
+or labels. It writes retained raw XML plus a deterministic JSON/CSV report and
+marks unavailable measurements rather than substituting zeroes. First inspect
+`metric_catalog` in `report.json`: it lists only Dark Eco's observed metric
+names/labels, source schema, sample count, value column, cell tag, and display
+examples without selecting a metric.
+
+```sh
+Scripts/analyze-ios-game-performance.py \
+  --input /private/tmp/dark-eco-build207-hfr-a-overview \
+  --output /private/tmp/dark-eco-build207-hfr-a-analysis \
+  --export-missing \
+  --presentation-metric '<observed presentation interval name or label>' \
+  --cpu-metric '<observed CPU frame metric name or label>' \
+  --gpu-metric '<observed GPU frame metric name or label>' \
+  --hitch-reference-hz 120
+```
+
+Time Profiler output is explicitly reported as sampled running CPU weight and
+top stacks, not exact CPU frame duration. Adaptive cadence changes can be
+legitimate. `multi_interval_hitch_candidates` is intentionally not a hitch
+verdict: it includes legitimate cadence transitions. Correlate its candidates
+with the contiguous `cadence_runs` and the trace before judging a hitch.
+
 Judge the result against the actual adaptive cadence, not an assumption that
 the display must remain at 120 Hz. Record the presented-frame interval
 distribution and cadence clusters, recurring hitches, drawable misses and late
