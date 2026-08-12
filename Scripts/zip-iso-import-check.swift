@@ -93,8 +93,10 @@ private func rawDeflate(_ data: Data) throws -> Data {
 private func makeArchive(
     _ entries: [ArchiveEntry],
     diskNumber: UInt16 = 0,
-    forceZIP64Marker: Bool = false
+    forceZIP64Marker: Bool = false,
+    comment: Data = Data()
 ) throws -> Data {
+    guard comment.count <= Int(UInt16.max) else { throw FixtureError.compression }
     struct DirectoryRecord {
         let entry: ArchiveEntry
         let name: Data
@@ -175,7 +177,8 @@ private func makeArchive(
     archive.appendLE16(count)
     archive.appendLE32(directorySize)
     archive.appendLE32(directoryOffset)
-    archive.appendLE16(0)
+    archive.appendLE16(UInt16(comment.count))
+    archive.append(comment)
     return archive
 }
 
@@ -455,6 +458,64 @@ private func writeCompleteCandidate(at root: URL, payload: Data) throws {
     ) { _ in }
     let extracted = try Data(contentsOf: fixture.output)
     check(extracted == contents, "exact output-buffer boundary preserves every byte")
+}
+
+@MainActor private func maximumZIPCommentExtracts() async throws {
+    print("maximum ZIP32 comment remains a valid archive tail")
+    let fixture = try Fixture()
+    let contents = Data("synthetic commented ISO".utf8)
+    let comment = Data(repeating: 0x63, count: Int(UInt16.max))
+    try fixture.writeArchive(try makeArchive(
+        [ArchiveEntry(name: "game.iso", contents: contents)],
+        comment: comment
+    ))
+    var limits = ZIPISOExtractor.Limits()
+    limits.minimumFreeSpaceAfterExtraction = 0
+    try await ZIPISOExtractor(limits: limits).extractISO(
+        from: fixture.archive,
+        to: fixture.output
+    ) { _ in }
+    let extracted = try Data(contentsOf: fixture.output)
+    check(extracted == contents,
+          "the full 65,535-byte ZIP comment is scanned without losing the EOCD")
+}
+
+@MainActor private func coordinatedProviderSnapshotAndShortReadsExtract() async throws {
+    print("Files-provider snapshot and short reads preserve a complete ZIP")
+    let fixture = try Fixture()
+    let contents = Data((0..<(96 * 1_024)).map { UInt8(truncatingIfNeeded: $0) })
+    let completeArchive = fixture.root.appending(path: "materialized.zip")
+    try makeArchive([
+        ArchiveEntry(name: "disc/game.iso", contents: contents, method: 8),
+    ]).write(to: completeArchive)
+
+    // Model a selected provider placeholder whose visible prefix has no EOCD. Coordination gives
+    // the extractor the materialized snapshot instead of that incomplete selected-file view.
+    try Data(repeating: 0x50, count: 128).write(to: fixture.archive)
+    var limits = ZIPISOExtractor.Limits()
+    limits.chunkBytes = 4 * 1_024
+    limits.minimumFreeSpaceAfterExtraction = 0
+    do {
+        try await ZIPISOExtractor(
+            limits: limits,
+            openArchive: { url in try FileHandle(forReadingFrom: url) }
+        ).extractISO(from: fixture.archive, to: fixture.output) { _ in }
+        check(false, "an unmaterialized provider placeholder cannot appear complete")
+    } catch let failure as GameDataImportFailure {
+        check(failure.message.contains("ZIP end-of-directory record is missing"),
+              "the incomplete provider view reproduces the reported EOCD failure")
+    }
+    let extractor = ZIPISOExtractor(
+        limits: limits,
+        openArchive: { _ in try FileHandle(forReadingFrom: completeArchive) },
+        readArchive: { handle, count in
+            try handle.read(upToCount: min(count, 7))
+        }
+    )
+    try await extractor.extractISO(from: fixture.archive, to: fixture.output) { _ in }
+    let extracted = try Data(contentsOf: fixture.output)
+    check(extracted == contents,
+          "the coordinated materialized snapshot tolerates provider-style short reads")
 }
 
 @MainActor private func producerUsesSiblingAndCleansUp() async throws {
@@ -767,6 +828,8 @@ private struct ZIPISOImportCheck {
         do {
             try await storedAndDeflatedMembersExtract()
             try await exactOutputBufferBoundaryExtracts()
+            try await maximumZIPCommentExtracts()
+            try await coordinatedProviderSnapshotAndShortReadsExtract()
             try await producerUsesSiblingAndCleansUp()
             try staleOwnedCleanupIsBounded()
             try await cancellationRemovesPartialOutput()

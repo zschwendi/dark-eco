@@ -93,6 +93,9 @@ nonisolated struct ZIPISOStagingCleaner: Sendable {
 /// Minimal ZIP32 reader for local, bounded ISO extraction. It intentionally rejects ZIP features
 /// that are unnecessary for the supported import path instead of trying to repair or guess them.
 nonisolated struct ZIPISOExtractor: Sendable {
+    typealias ArchiveOpenOperation = @Sendable (URL) throws -> FileHandle
+    typealias ArchiveReadOperation = @Sendable (FileHandle, Int) throws -> Data?
+
     nonisolated struct Limits: Sendable {
         var maximumEntries = 100_000
         var maximumCentralDirectoryBytes: UInt64 = 64 * 1_024 * 1_024
@@ -125,9 +128,19 @@ nonisolated struct ZIPISOExtractor: Sendable {
     }
 
     private let limits: Limits
+    private let openArchive: ArchiveOpenOperation
+    private let readArchive: ArchiveReadOperation
 
-    init(limits: Limits = Limits()) {
+    init(
+        limits: Limits = Limits(),
+        openArchive: @escaping ArchiveOpenOperation = Self.openCoordinatedArchive,
+        readArchive: @escaping ArchiveReadOperation = { handle, count in
+            try handle.read(upToCount: count)
+        }
+    ) {
         self.limits = limits
+        self.openArchive = openArchive
+        self.readArchive = readArchive
     }
 
     func extractISO(
@@ -141,7 +154,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
 
         let archive: FileHandle
         do {
-            archive = try FileHandle(forReadingFrom: archiveURL)
+            archive = try openArchive(archiveURL)
         } catch {
             throw Self.failure(
                 .sourceUnavailable,
@@ -260,7 +273,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
 
         let tailSize = Int(min(archiveSize, minimumRecordBytes + UInt64(UInt16.max)))
         let tailOffset = archiveSize - UInt64(tailSize)
-        let tail = try Self.readExactly(archive, offset: tailOffset, count: tailSize)
+        let tail = try readExactly(archive, offset: tailOffset, count: tailSize)
 
         var recordIndex: Int?
         var index = tail.count - Int(minimumRecordBytes)
@@ -350,7 +363,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
             guard let fixedEnd = Self.adding(cursor, 46), fixedEnd <= directoryEnd else {
                 throw Self.failure(.invalidDiscImage, "The ZIP central directory is truncated.")
             }
-            let fixed = try Self.readExactly(archive, offset: cursor, count: 46)
+            let fixed = try readExactly(archive, offset: cursor, count: 46)
             guard Self.uint32(fixed, at: 0) == 0x0201_4b50 else {
                 throw Self.failure(.invalidDiscImage, "The ZIP central directory is malformed.")
             }
@@ -390,7 +403,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
             else {
                 throw Self.failure(.invalidDiscImage, "A ZIP directory entry is truncated.")
             }
-            let nameAndExtra = try Self.readExactly(
+            let nameAndExtra = try readExactly(
                 archive,
                 offset: cursor + 46,
                 count: nameLength + extraLength
@@ -503,7 +516,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
         else {
             throw Self.failure(.invalidDiscImage, "The ZIP local header has invalid bounds.")
         }
-        let fixed = try Self.readExactly(archive, offset: entry.localHeaderOffset, count: 30)
+        let fixed = try readExactly(archive, offset: entry.localHeaderOffset, count: 30)
         guard Self.uint32(fixed, at: 0) == 0x0403_4b50 else {
             throw Self.failure(.invalidDiscImage, "The ZIP local file header is malformed.")
         }
@@ -525,7 +538,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
             throw Self.failure(.invalidDiscImage, "The ZIP member data has invalid bounds.")
         }
 
-        let nameAndExtra = try Self.readExactly(
+        let nameAndExtra = try readExactly(
             archive,
             offset: entry.localHeaderOffset + 30,
             count: nameLength + extraLength
@@ -558,7 +571,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
         while consumed < entry.compressedSize {
             try Task.checkCancellation()
             let count = Int(min(UInt64(limits.chunkBytes), entry.compressedSize - consumed))
-            let chunk = try Self.readExactly(archive, offset: dataOffset + consumed, count: count)
+            let chunk = try readExactly(archive, offset: dataOffset + consumed, count: count)
             try Self.write(chunk, output: output, expectedSize: entry.uncompressedSize, state: &state)
             consumed += UInt64(count)
             await report(Self.progress(entry: entry, bytesWritten: state.bytesWritten))
@@ -596,7 +609,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
                 UInt64(limits.chunkBytes),
                 entry.compressedSize - compressedConsumed
             ))
-            let input = try Self.readExactly(
+            let input = try readExactly(
                 archive,
                 offset: dataOffset + compressedConsumed,
                 count: count
@@ -720,25 +733,52 @@ nonisolated struct ZIPISOExtractor: Sendable {
         state.bytesWritten = newSize
     }
 
-    private static func readExactly(
+    private func readExactly(
         _ handle: FileHandle,
         offset: UInt64,
         count: Int
     ) throws -> Data {
         do {
             try handle.seek(toOffset: offset)
-            guard let data = try handle.read(upToCount: count), data.count == count else {
-                throw failure(.invalidDiscImage, "The ZIP archive is truncated.")
+            var result = Data()
+            result.reserveCapacity(count)
+            while result.count < count {
+                guard let chunk = try readArchive(handle, count - result.count),
+                      !chunk.isEmpty else {
+                    throw Self.failure(.invalidDiscImage, "The ZIP archive is truncated.")
+                }
+                result.append(chunk)
             }
-            return data
+            return result
         } catch let failure as GameDataImportFailure {
             throw failure
         } catch {
-            throw failure(
+            throw Self.failure(
                 .sourceUnavailable,
                 "The selected ZIP archive could not be read: \(error.localizedDescription)"
             )
         }
+    }
+
+    /// File-provider URLs can be placeholders or move while access is being granted. Foundation's
+    /// upload option creates a local stable snapshot; this importer does not upload it anywhere.
+    /// An opened descriptor may outlive the accessor even though its snapshot path is then removed.
+    private static func openCoordinatedArchive(_ url: URL) throws -> FileHandle {
+        let coordinator = NSFileCoordinator(filePresenter: nil)
+        var coordinationError: NSError?
+        var result: Result<FileHandle, Error>?
+        coordinator.coordinate(
+            readingItemAt: url,
+            options: .forUploading,
+            error: &coordinationError
+        ) { coordinatedURL in
+            result = Result { try FileHandle(forReadingFrom: coordinatedURL) }
+        }
+        if let coordinationError { throw coordinationError }
+        guard let result else {
+            throw CocoaError(.fileReadUnknown)
+        }
+        return try result.get()
     }
 
     private static func validateFlags(_ flags: UInt16, method: UInt16? = nil) throws {
