@@ -20516,3 +20516,13 @@ using the same command above. Final log:
 still Dark Eco 1.0 (208), passes strict deep code-sign verification, retains
 `CADisableMinimumFrameDurationOnPhone=true`, and its executable SHA-256 is
 `1eb78ea6b51eac5a9849a70035d6b106a1a9c5d0293b18941da995b392c3a967`.
+
+The maintainer then explicitly authorized physical deployment in the current
+request. The final signed artifact was installed and launched on `Z iPad Pro`
+(CoreDevice identifier `6A4111AB-1663-508A-98D9-F0C1A9EA7863`). Both
+`devicectl device install app` and `devicectl device process launch` exited 0,
+and the device app inventory reports Dark Eco 1.0, bundle version 208. No
+container, prepared game data, save, or screen capture was accessed. This is
+install/launch evidence only: delivered cadence above 60 Hz and live-toggle
+behavior still require maintainer gameplay observation and the counterbalanced
+analyzer capture.
