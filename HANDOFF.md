@@ -18874,3 +18874,82 @@ strict codesign verification passed. Final release-consistent log:
 `/private/tmp/goalpad-build195-current-source-pack-build.log`. The app's staged
 manifest reports the same `44f9fbb492ed188a` identity. This later build is the
 Build 195 product to use; the earlier Build 142-pack artifact is superseded.
+
+# 2026-08-12 Build 196 performance telemetry checkpoint
+
+Build 196 adds a bounded one-second gameplay performance snapshot without
+changing renderer scheduling or speculative optimization behavior. The native
+Metal completion path now accumulates successful command-buffer GPU duration.
+The Swift session records input, GOAL/native game-frame, presentation, and total
+CPU time in a fixed 240-frame ring; publishes actual completed presentations per
+second, CPU mean/p95/max and hitch counts, GPU mean/last/session maximum,
+physical-memory current/session peak, thermal and Low Power state, and the
+existing last-level-load duration at most once per second. The large renderer
+diagnostic structure is no longer copied on every display callback.
+
+The existing developer diagnostics overlay exposes the snapshot while the
+native game menu is open and `Show Developer Logs` is enabled. The same setting
+also emits one concise performance log line per second. The in-app power facts
+are thermal pressure and Low Power state only; device energy and battery-drain
+attribution still require a controlled Instruments Power Profiler run.
+
+Focused validation passed:
+
+```text
+Scripts/run-game-performance-check.sh
+Scripts/run-game-lifecycle-check.sh
+xcrun swift -frontend -parse GOALPad/Game/GamePerformanceSnapshot.swift GOALPad/Game/GameSession.swift GOALPad/ContentView.swift Scripts/game-performance-check.swift
+sh -n Scripts/run-game-performance-check.sh
+plutil -lint GOALPad.xcodeproj/project.pbxproj
+git diff --check
+git -C OpenGOAL diff --check
+```
+
+`Scripts/run-vision-stereo-integration-check.sh` passed 36 assertions and
+reported one pre-existing stale source assertion: it expects the non-vision
+Settings toolbar to begin with `#if !os(visionOS)`, while the current Build 195
+source already has an iOS-specific branch followed by `#elseif !os(visionOS)`.
+The Build 196 ContentView diff only adds the diagnostics performance section and
+does not touch that toolbar.
+
+The signed generic arm64 iOS Release build passed with:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build194-derived -jobs 4 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT="$PWD/build/jak1-source-object-pack" \
+  build
+```
+
+Final log: `/private/tmp/goalpad-build196-signed-device-build-final.log`.
+Product:
+`/private/tmp/GOALPad-build194-derived/Build/Products/Release-iphoneos/Dark Eco.app`.
+It is a signed arm64 Dark Eco 1.0 (196) app, identifier
+`com.zephyrstudiosllc.eco`, team `V729QMY3V6`; strict deep codesign verification
+passed. Existing actor-isolation and always-run script warnings remain; no build
+errors were reported.
+
+After explicit maintainer authorization, Build 196 was installed in place and
+launched on physical `Z iPad Pro` (`6A4111AB-1663-508A-98D9-F0C1A9EA7863`). No
+uninstall occurred, and the app container, imported game data, saves, and user
+archives were not inspected. Device inventory reports bundle version 196.
+Evidence:
+
+```text
+/private/tmp/goalpad-build196-install.json
+/private/tmp/goalpad-build196-launch.json
+/private/tmp/goalpad-build196-inventory.json
+```
+
+Physical frame-dip reproduction and metric interpretation remain with the
+maintainer. An Instruments Game Performance/Metal System Trace and Power
+Profiler capture is still required before changing the correctness-first prior
+command-buffer wait or synchronous level-load path. The zero-value presentation
+and GPU readouts are valid for this ordinary physical iPad path; simulator
+presentation callbacks and the dormant vision stereo borrowed-buffer path do
+not currently publish those samples and would need explicit unavailable-state
+labels before their values could be interpreted. Nested OpenGOAL telemetry is
+commit `39cdc9022`; the outer implementation checkpoint is `ef25410c`.
