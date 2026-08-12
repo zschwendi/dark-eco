@@ -403,6 +403,47 @@ void log_jak2_diagnostics_locked() {
   NSLog(@"GOALPAD_JAK2_WATER_UPLOAD_STATE tick=%llu %@",
         static_cast<unsigned long long>(runtime.ticks), water_upload_state);
 
+  NSMutableString* pris_upload_state = [NSMutableString string];
+  for (const auto& pris : metal.pris_texture_uploads) {
+    [pris_upload_state
+        appendFormat:@"%@b%u cap=%llu present=%llu "
+                     "class=m%llu/a%llu/o%llu/n%llu/oa%llu/e%llu/g%llu "
+                     "xfer=%llu bytes=%llu inert=%llu ordinary=%llu direct=%llu gs=%llu "
+                     "anim=%llu/%llu/%llu eye=%llu other=%llu malformed=%llu "
+                     "last=t%u/q%u/b%llu/v0k%u/v0i%u/v1k%u/v1i%u",
+                     pris_upload_state.length ? @" " : @"", pris.bucket_id,
+                     static_cast<unsigned long long>(pris.captures),
+                     static_cast<unsigned long long>(pris.present_captures),
+                     static_cast<unsigned long long>(pris.classifications[0]),
+                     static_cast<unsigned long long>(pris.classifications[1]),
+                     static_cast<unsigned long long>(pris.classifications[2]),
+                     static_cast<unsigned long long>(pris.classifications[3]),
+                     static_cast<unsigned long long>(pris.classifications[4]),
+                     static_cast<unsigned long long>(pris.classifications[5]),
+                     static_cast<unsigned long long>(pris.classifications[6]),
+                     static_cast<unsigned long long>(pris.transfers),
+                     static_cast<unsigned long long>(pris.payload_bytes),
+                     static_cast<unsigned long long>(pris.inert_transfers),
+                     static_cast<unsigned long long>(pris.ordinary_descriptors),
+                     static_cast<unsigned long long>(pris.direct_setup_transfers),
+                     static_cast<unsigned long long>(pris.gs_setup_transfers),
+                     static_cast<unsigned long long>(pris.animator_arrays),
+                     static_cast<unsigned long long>(pris.animator_body_transfers),
+                     static_cast<unsigned long long>(pris.animator_payload_bytes),
+                     static_cast<unsigned long long>(pris.eye_markers),
+                     static_cast<unsigned long long>(pris.other_transfers),
+                     static_cast<unsigned long long>(pris.malformed_transfers),
+                     static_cast<unsigned>(pris.last_nonordinary_tag_kind),
+                     static_cast<unsigned>(pris.last_nonordinary_qwc),
+                     static_cast<unsigned long long>(pris.last_nonordinary_payload_bytes),
+                     static_cast<unsigned>(pris.last_nonordinary_vif0_kind),
+                     static_cast<unsigned>(pris.last_nonordinary_vif0_immediate),
+                     static_cast<unsigned>(pris.last_nonordinary_vif1_kind),
+                     static_cast<unsigned>(pris.last_nonordinary_vif1_immediate)];
+  }
+  NSLog(@"GOALPAD_JAK2_PRIS_UPLOAD_STATE tick=%llu %@",
+        static_cast<unsigned long long>(runtime.ticks), pris_upload_state);
+
   NSLog(@"GOALPAD_JAK2_PROGRESS_STATE tick=%llu available=%d screen=%d option=%d "
          "selected=%d transition=%d navigation=%d starting=%d exit-start=%d back=%d",
         static_cast<unsigned long long>(runtime.ticks), progress_menu.available,
