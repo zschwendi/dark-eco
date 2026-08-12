@@ -390,18 +390,6 @@ goalpad::camera_correction_trace::FrameSnapshot current_camera_correction_snapsh
   return out;
 }
 
-// Jak 1's asserted target layout includes the four-byte basic-object type tag that native object
-// pointers skip: process-drawable.state-flags is 164 and target.cam-user-mode is 204.
-constexpr std::size_t kTargetStateFlagsOffset =
-    164 - goalpad::camera_correction_trace::jak1_layout::kBasicObjectTypeTagBytes;
-constexpr std::size_t kTargetCameraUserModeOffset =
-    204 - goalpad::camera_correction_trace::jak1_layout::kBasicObjectTypeTagBytes;
-constexpr std::size_t kTargetRequiredObjectBytes =
-    kTargetCameraUserModeOffset + sizeof(std::uint32_t);
-constexpr std::size_t kTargetDeclaredObjectBytes =
-    0x250 - goalpad::camera_correction_trace::jak1_layout::kBasicObjectTypeTagBytes;
-static_assert(kTargetRequiredObjectBytes <= kTargetDeclaredObjectBytes);
-
 #endif  // GOALPAD_HAVE_GAME_BOOT
 
 }  // namespace
@@ -896,30 +884,36 @@ LookAroundState look_around_state() noexcept {
   const auto target_offset = static_cast<std::uint32_t>(*g_target);
   const void* target = camera_correction_trace::checked_goal_object(
       g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT, target_offset, g_target_type,
-      kTargetRequiredObjectBytes, nullptr);
+      target_frame_layout::kLookAroundRequiredObjectBytes, nullptr);
   if (!target) {
     return LookAroundState::Unknown;
   }
 
   std::uint32_t state_flags = 0;
   std::uint32_t camera_user_mode = 0;
-  std::memcpy(&state_flags, static_cast<const std::uint8_t*>(target) + kTargetStateFlagsOffset,
+  std::memcpy(&state_flags,
+              static_cast<const std::uint8_t*>(target) + target_frame_layout::kStateFlagsOffset,
               sizeof(state_flags));
   std::memcpy(&camera_user_mode,
-              static_cast<const std::uint8_t*>(target) + kTargetCameraUserModeOffset,
+              static_cast<const std::uint8_t*>(target) +
+                  target_frame_layout::kCameraUserModeOffset,
               sizeof(camera_user_mode));
   return classify_look_around_state(true, state_flags, camera_user_mode, g_look_around_mode);
+}
+
+static void resolve_speeder_state_symbols() noexcept {
+  for (std::size_t index = 0; index < kSpeederStateNames.size(); ++index) {
+    if (!g_speeder_state_symbols[index]) {
+      g_speeder_state_symbols[index] = goal_game_find_symbol(kSpeederStateNames[index], nullptr);
+    }
+  }
 }
 
 SpeederState speeder_state() noexcept {
   if (!g_booted || !g_target || !g_target_type || !g_state_type || !g_ee_main_mem) {
     return SpeederState::Unknown;
   }
-  for (std::size_t index = 0; index < kSpeederStateNames.size(); ++index) {
-    if (!g_speeder_state_symbols[index]) {
-      g_speeder_state_symbols[index] = goal_game_find_symbol(kSpeederStateNames[index], nullptr);
-    }
-  }
+  resolve_speeder_state_symbols();
   const auto state_name = read_process_state_name(
       g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT,
       static_cast<std::uint32_t>(*g_target), g_target_type, g_state_type, true);
@@ -996,6 +990,44 @@ static FacePromptTouchSnapshot face_prompt_touch_snapshot_for_mode(
       g_face_prompt_touch_snapshot_type, g_frames);
 }
 
+static TargetFrameStateCapture capture_target_frame_state() noexcept {
+  if (!g_booted || !g_target || !g_target_type || !g_ee_main_mem) {
+    return {};
+  }
+  return read_target_frame_state_capture(
+      g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT,
+      static_cast<std::uint32_t>(*g_target), g_target_type, g_state_type);
+}
+
+static TitleStartState title_start_state_from_capture(
+    const TargetFrameStateCapture& capture) noexcept {
+  if (!g_booted || !g_target || !g_target_type || !g_state_type ||
+      !g_target_title_wait_symbol || !g_target_title_symbol ||
+      !g_target_title_play_symbol || !g_ee_main_mem) {
+    return TitleStartState::Unknown;
+  }
+  return classify_title_start_state(capture.current_state_name, g_target_title_wait_symbol,
+                                    g_target_title_symbol, g_target_title_play_symbol);
+}
+
+static LookAroundState look_around_state_from_capture(
+    const TargetFrameStateCapture& capture) noexcept {
+  if (!g_booted || !g_target || !g_target_type || !g_look_around_mode || !g_ee_main_mem) {
+    return LookAroundState::Unknown;
+  }
+  return classify_look_around_state(capture.look_around_fields_valid, capture.state_flags,
+                                    capture.camera_user_mode, g_look_around_mode);
+}
+
+static SpeederState speeder_state_from_capture(
+    const TargetFrameStateCapture& capture) noexcept {
+  if (!g_booted || !g_target || !g_target_type || !g_state_type || !g_ee_main_mem) {
+    return SpeederState::Unknown;
+  }
+  resolve_speeder_state_symbols();
+  return classify_speeder_state(capture.next_state_name, g_speeder_state_symbols);
+}
+
 GameFrameStateSnapshot game_frame_state_snapshot() noexcept {
   GameFrameStateSnapshot snapshot;
   snapshot.exit_to_library_requested = exit_to_library_requested();
@@ -1003,12 +1035,13 @@ GameFrameStateSnapshot game_frame_state_snapshot() noexcept {
   const auto current_mode = game_mode();
   snapshot.game_mode = current_mode;
   snapshot.progress_menu = progress_menu_snapshot_for_mode(current_mode);
-  snapshot.title_start_state = title_start_state();
+  const auto target_state = capture_target_frame_state();
+  snapshot.title_start_state = title_start_state_from_capture(target_state);
   snapshot.warp_gate_touch = warp_gate_touch_snapshot();
   snapshot.cutscene_skip_touch = cutscene_skip_touch_snapshot_for_mode(current_mode);
   snapshot.face_prompt_touch = face_prompt_touch_snapshot_for_mode(current_mode);
-  snapshot.look_around_state = look_around_state();
-  snapshot.speeder_state = speeder_state();
+  snapshot.look_around_state = look_around_state_from_capture(target_state);
+  snapshot.speeder_state = speeder_state_from_capture(target_state);
   return snapshot;
 }
 

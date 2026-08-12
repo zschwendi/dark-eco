@@ -185,14 +185,26 @@ check(occursInOrder([
     "const auto current_mode = game_mode();",
     "snapshot.game_mode = current_mode;",
     "snapshot.progress_menu = progress_menu_snapshot_for_mode(current_mode);",
-    "snapshot.title_start_state = title_start_state();",
+    "const auto target_state = capture_target_frame_state();",
+    "snapshot.title_start_state = title_start_state_from_capture(target_state);",
     "snapshot.warp_gate_touch = warp_gate_touch_snapshot();",
     "snapshot.cutscene_skip_touch = cutscene_skip_touch_snapshot_for_mode(current_mode);",
     "snapshot.face_prompt_touch = face_prompt_touch_snapshot_for_mode(current_mode);",
-    "snapshot.look_around_state = look_around_state();",
-    "snapshot.speeder_state = speeder_state();",
-], in: nativeFrameState) && occurrenceCount("game_mode();", in: nativeFrameState) == 1,
-      "the native aggregate preserves read order and reuses one master-mode classification")
+    "snapshot.look_around_state = look_around_state_from_capture(target_state);",
+    "snapshot.speeder_state = speeder_state_from_capture(target_state);",
+], in: nativeFrameState)
+        && occurrenceCount("game_mode();", in: nativeFrameState) == 1
+        && occurrenceCount("capture_target_frame_state();", in: nativeFrameState) == 1,
+      "the native aggregate preserves read order and reuses one mode and target capture")
+
+let targetFrameCapture = section(gameBootHeader,
+                                 from: "inline TargetFrameStateCapture read_target_frame_state_capture(",
+                                 to: "template <std::size_t StateCount>")
+check(occurrenceCount("camera_correction_trace::checked_goal_object(", in: targetFrameCapture) == 1
+        && targetFrameCapture.contains("live_state_layout::kProcessRequiredObjectBytes")
+        && targetFrameCapture.contains("target_bytes < target_frame_layout::kLookAroundRequiredObjectBytes")
+        && occurrenceCount("read_checked_state_name(", in: targetFrameCapture) == 2,
+      "one checked target read preserves independent current, next, and look bounds")
 
 let frameStateMapping = section(bridgeImplementation,
                                 from: "+ (GOALPadGameFrameStateSnapshot)gameFrameStateSnapshot",

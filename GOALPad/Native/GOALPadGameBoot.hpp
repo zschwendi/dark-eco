@@ -683,6 +683,48 @@ constexpr std::size_t kStateRequiredObjectBytes = kStateNameOffset + sizeof(std:
 
 }  // namespace live_state_layout
 
+namespace target_frame_layout {
+
+// Native basic-object pointers skip the four-byte type tag in Jak 1's asserted target layout.
+constexpr std::size_t kStateFlagsOffset =
+    164 - camera_correction_trace::jak1_layout::kBasicObjectTypeTagBytes;
+constexpr std::size_t kCameraUserModeOffset =
+    204 - camera_correction_trace::jak1_layout::kBasicObjectTypeTagBytes;
+constexpr std::size_t kLookAroundRequiredObjectBytes =
+    kCameraUserModeOffset + sizeof(std::uint32_t);
+constexpr std::size_t kDeclaredObjectBytes =
+    0x250 - camera_correction_trace::jak1_layout::kBasicObjectTypeTagBytes;
+static_assert(kLookAroundRequiredObjectBytes <= kDeclaredObjectBytes);
+
+}  // namespace target_frame_layout
+
+struct TargetFrameStateCapture {
+  bool target_valid = false;
+  bool look_around_fields_valid = false;
+  std::uint32_t current_state_name = 0;
+  std::uint32_t next_state_name = 0;
+  std::uint32_t state_flags = 0;
+  std::uint32_t camera_user_mode = 0;
+};
+
+inline std::uint32_t read_checked_state_name(const void* memory,
+                                             std::size_t memory_bytes,
+                                             std::size_t low_protect_bytes,
+                                             std::uint32_t state_offset,
+                                             std::uint32_t state_type) noexcept {
+  const void* state = camera_correction_trace::checked_goal_object(
+      memory, memory_bytes, low_protect_bytes, state_offset, state_type,
+      live_state_layout::kStateRequiredObjectBytes, nullptr);
+  if (!state) {
+    return 0;
+  }
+  std::uint32_t state_name = 0;
+  std::memcpy(&state_name,
+              static_cast<const std::uint8_t*>(state) + live_state_layout::kStateNameOffset,
+              sizeof(state_name));
+  return state_name;
+}
+
 inline std::uint32_t read_process_state_name(const void* memory,
                                              std::size_t memory_bytes,
                                              std::size_t low_protect_bytes,
@@ -701,17 +743,48 @@ inline std::uint32_t read_process_state_name(const void* memory,
   std::uint32_t state_offset = 0;
   std::memcpy(&state_offset, static_cast<const std::uint8_t*>(process) + state_field_offset,
               sizeof(state_offset));
-  const void* state = camera_correction_trace::checked_goal_object(
-      memory, memory_bytes, low_protect_bytes, state_offset, state_type,
-      live_state_layout::kStateRequiredObjectBytes, nullptr);
-  if (!state) {
-    return 0;
+  return read_checked_state_name(memory, memory_bytes, low_protect_bytes, state_offset,
+                                 state_type);
+}
+
+inline TargetFrameStateCapture read_target_frame_state_capture(
+    const void* memory,
+    std::size_t memory_bytes,
+    std::size_t low_protect_bytes,
+    std::uint32_t target_offset,
+    std::uint32_t target_type,
+    std::uint32_t state_type) noexcept {
+  TargetFrameStateCapture capture;
+  std::size_t target_bytes = 0;
+  const void* target = camera_correction_trace::checked_goal_object(
+      memory, memory_bytes, low_protect_bytes, target_offset, target_type,
+      live_state_layout::kProcessRequiredObjectBytes, &target_bytes);
+  if (!target) {
+    return capture;
   }
-  std::uint32_t state_name = 0;
-  std::memcpy(&state_name,
-              static_cast<const std::uint8_t*>(state) + live_state_layout::kStateNameOffset,
-              sizeof(state_name));
-  return state_name;
+
+  capture.target_valid = true;
+  const auto* bytes = static_cast<const std::uint8_t*>(target);
+  std::uint32_t current_state_offset = 0;
+  std::uint32_t next_state_offset = 0;
+  std::memcpy(&current_state_offset, bytes + live_state_layout::kProcessStateOffset,
+              sizeof(current_state_offset));
+  std::memcpy(&next_state_offset, bytes + live_state_layout::kProcessNextStateOffset,
+              sizeof(next_state_offset));
+  capture.current_state_name = read_checked_state_name(
+      memory, memory_bytes, low_protect_bytes, current_state_offset, state_type);
+  capture.next_state_name = read_checked_state_name(
+      memory, memory_bytes, low_protect_bytes, next_state_offset, state_type);
+
+  if (target_bytes < target_frame_layout::kLookAroundRequiredObjectBytes) {
+    return capture;
+  }
+  capture.look_around_fields_valid = true;
+  std::memcpy(&capture.state_flags, bytes + target_frame_layout::kStateFlagsOffset,
+              sizeof(capture.state_flags));
+  std::memcpy(&capture.camera_user_mode, bytes + target_frame_layout::kCameraUserModeOffset,
+              sizeof(capture.camera_user_mode));
+  return capture;
 }
 
 template <std::size_t StateCount>
@@ -734,6 +807,27 @@ constexpr SpeederState classify_speeder_state(
   return SpeederState::NotRiding;
 }
 
+constexpr TitleStartState classify_title_start_state(
+    std::uint32_t state_name,
+    std::uint32_t target_title_wait_symbol,
+    std::uint32_t target_title_symbol,
+    std::uint32_t target_title_play_symbol) noexcept {
+  if (!state_name || !target_title_wait_symbol || !target_title_symbol ||
+      !target_title_play_symbol) {
+    return TitleStartState::Unknown;
+  }
+  if (state_name == target_title_wait_symbol) {
+    return TitleStartState::Awaiting;
+  }
+  if (state_name == target_title_symbol) {
+    return TitleStartState::TitleOpening;
+  }
+  if (state_name == target_title_play_symbol) {
+    return TitleStartState::TitleSequence;
+  }
+  return TitleStartState::NotAwaiting;
+}
+
 inline TitleStartState read_title_start_state(const void* memory,
                                               std::size_t memory_bytes,
                                               std::size_t low_protect_bytes,
@@ -748,19 +842,8 @@ inline TitleStartState read_title_start_state(const void* memory,
   }
   const auto state_name = read_process_state_name(
       memory, memory_bytes, low_protect_bytes, target_offset, target_type, state_type, false);
-  if (!state_name) {
-    return TitleStartState::Unknown;
-  }
-  if (state_name == target_title_wait_symbol) {
-    return TitleStartState::Awaiting;
-  }
-  if (state_name == target_title_symbol) {
-    return TitleStartState::TitleOpening;
-  }
-  if (state_name == target_title_play_symbol) {
-    return TitleStartState::TitleSequence;
-  }
-  return TitleStartState::NotAwaiting;
+  return classify_title_start_state(state_name, target_title_wait_symbol, target_title_symbol,
+                                    target_title_play_symbol);
 }
 
 /*! Read a Jak 1 `progress` through `*progress-process*` without advancing or mutating GOAL. */
