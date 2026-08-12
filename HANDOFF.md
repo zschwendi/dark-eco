@@ -17397,3 +17397,59 @@ Launch JSON and log SHA-256s are respectively
 `ac05c4ccd77db77194f51a79fd18a04d356b457c5cda4f13cd1998366166ce51`
 and `d0a70e41ddc68d8109e975f68b74dac017e85017e953370211cb19a7695ee3a3`.
 Physical edge/rendering acceptance now belongs to the maintainer's live test.
+
+## Jak II Build 2 physical acceptance, minimap, and Sprite3 alpha checkpoint
+
+Date: 2026-08-12.
+
+The maintainer physically played Build 2 from startup through the prison escape
+and accepted that entire sequence with no observed bugs. The first post-prison
+frame exposed two new issues: vehicle/speeder burner cards retained hard quad
+edges, and the minimap appeared both as a large leaked upper-left construction
+and an empty lower-right HUD map. The user-provided evidence remains outside the
+repository at `/Users/zach/Downloads/IMG_0896.PNG`, SHA-256
+`612c50ed87d4360e5e59a3cf55f4535fa4de4435fa97f93c9b166d6907c708cc`.
+
+Nested commit `945d6c713` adds the Jak II `MetalProgressRenderer`. It handles
+the source FRAME transitions 408 -> 126 -> 408, renders the map into a stable
+128x128 offscreen target, publishes it at TBP 4032, honors the source FBMSK
+alpha-only phase, and resumes the game pass in the same command buffer. Nested
+commit `0b5dd99bd` corrects the Metal top-origin offscreen Y transform and replaces
+the uniform-color proof with TL-red/TR-green/BL-blue/BR-yellow orientation
+coverage. The focused source-shaped spatial test compiles and links; its earlier
+host-Metal predecessor passed exact transition, no-leak, map-sample, write-mask,
+and lifecycle checks. The final quadrant GPU readback remains pending because
+the sandbox exposed no Metal device and the approval service refused an
+out-of-sandbox retry after hitting its usage limit.
+
+The vehicle burner source was identified as ordinary Sprite3 `mech-flame`
+(page 12, texture 144, combo ID 786576, authored TBP 325), not its already-correct
+`glow-soft` final-glow layer. The source texture is 64x64 with alpha range 0..128,
+so hard edges are not authored. `DrawMode::get_tcc_enable()` was reading filter
+bit 6 instead of TCC bit 7; a TCC-on, nearest-filter flame therefore forced every
+sampled alpha to one. Nested commit `076ae247e` fixes the getter, adds all four
+portable TCC/filter round trips, and adds a normal-Sprite3 partial-alpha Metal
+fixture for TCC-on/filter-off and TCC-off/filter-on. The portable test passed;
+changed Metal production/test objects compiled and linked. GPU execution remains
+pending for the same sandbox Metal-device boundary. Nested commit `46104a66f`
+also adds an opt-in exact combo-ID diagnostic for future source/hash/channel
+correlation; normal rendering remains unchanged when unset.
+
+All nested commits and parent pin `04efd5da` are pushed on
+`agent/jak2-ipad-playtest`. The integration checkouts are clean except for the
+intentional untracked `.agent-builds/` logs and caches. No physical device was
+accessed for this checkpoint.
+
+The simulator gate is pending. CoreSimulator repeatedly returned
+`CoreSimulatorService connection became invalid`; project policy requires no
+further device mutations until health is restored. A Release build attempt
+revalidated all 840 AOT units but failed when the nested Xcode build could not
+write its normal DerivedData PIF cache. Only 473 MiB remained; the verified
+regenerable `/private/tmp/GOALPad-build209-derived` directory occupied 1.4 GiB,
+but its deletion and the required sandbox escalation were rejected because the
+approval service hit its usage limit. Retained log:
+`.agent-builds/jak2-resume-logs/eco-jak2-dev-minimap-tcc-simulator-build.log`.
+Do not route around that boundary. Next executable gate: recover disk and
+CoreSimulator health, rebuild the existing Release simulator target, run the
+focused minimap/Sprite3 GPU proofs, then verify one correctly oriented lower-right
+minimap with no upper-left leak and feathered vehicle burners.
