@@ -20048,3 +20048,119 @@ Repeat the acceptance on an iPhone 13 Pro-class device or stronger before
 claiming the phone target. Remote `main` remains the stable pre-120 Build 197
 checkpoint; Build 206 is isolated and unpushed on
 `agent/build181-input-settings-polish`.
+
+## Build 207 adaptive 24 Hz fallback checkpoint (2026-08-12)
+
+Build 207 closes one source-proven correctness gap in the experimental High
+Frame Rate path. Apple's adaptive display cadence can fall to 24 Hz despite a
+requested 60-120 Hz range. Build 206 capped the host display-time ratio at four,
+which would advance only 96 of 120 target-frame units and 48 of 60 sound frames
+per sustained 24 Hz second. Build 207 permits ratio five only for the
+PC-host-managed 120 Hz timing domain. The accepted 60 Hz path, ordinary desktop
+OpenGOAL, and PS2 retain their existing cap and behavior.
+
+The same narrow gate now permits five controller-history steps. Deterministic
+coverage proves 120, 80, 60, 48, 40, 30, and 24 Hz all advance 300 scaled
+ticks, 120 target integral units, and 60 sound frames per wall-clock second;
+the 24 Hz sound trace alternates two and three frames, and a relative input edge
+ages into the fifth existing history slot without duplication.
+
+Commits:
+
+```text
+outer  c05c5e65 Complete 24 Hz adaptive frame pacing (AI-assisted)
+nested 95ac96145 Handle 24 Hz adaptive frame pacing (AI-assisted)
+nested d505158af Record Build 207 source-pack identity (AI-assisted)
+```
+
+The canonical Build 207 public source pack and generated AOT passed:
+
+```text
+count=518
+aggregate_xxh64=67c34dd77ddab10e
+total_bytes=10756599
+emitted_functions=10631
+native_functions=7
+source_failures=0
+path=build/jak1-source-object-pack-build207
+```
+
+`Scripts/generate-jak1-aot.sh OpenGOAL/build/Release/bin` generated all 518
+objects with 10,631 emitted and seven native functions.
+`Scripts/verify-generated-aot.sh Generated/jak1-aot 518` passed. The
+production-order GOAL C-backend prefix also passed through both changed GOAL
+objects: 259 sources, 3,987 emitted plus seven native functions, zero source
+failures. An earlier isolated `makeo "obj/display"` command failed before the
+changed source because that reduced dependency closure omits `pckernel-impl`;
+the production all-code order includes it and passed.
+
+Focused validation passed:
+
+```text
+Scripts/run-camera-timing-check.sh
+Scripts/run-promotion-frame-rate-check.sh
+Scripts/run-presentation-settings-check.sh
+Scripts/run-game-lifecycle-check.sh
+Scripts/run-controller-rumble-check.sh
+GOALPAD_OPENGOAL_SOURCE="$PWD/OpenGOAL" Scripts/run-game-frame-state-snapshot-check.sh
+python3 OpenGOAL/test/goalc/test_jak1_managed_display_settings.py
+OpenGOAL/build/Release/bin/goalc/jak1-source-object-pack-verify \
+  build/jak1-source-object-pack-build207 \
+  --expected-aggregate 67c34dd77ddab10e
+```
+
+One initial source-pack verifier invocation used unsupported count/function
+flags and returned its usage text. Rerunning the tool's supported pack-root and
+aggregate interface passed. This was a command invocation error, not a product
+or pack failure.
+
+The generic arm64 iOS Release build passed with the canonical Build 207 pack:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build194-derived -jobs 2 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT="$PWD/build/jak1-source-object-pack-build207" \
+  build
+```
+
+Log: `/private/tmp/goalpad-build207-signed-device-build.log`. Product:
+`/private/tmp/GOALPad-build194-derived/Build/Products/Release-iphoneos/Dark Eco.app`.
+It is Dark Eco 1.0 (207), arm64, includes
+`CADisableMinimumFrameDurationOnPhone=true`, and passed strict deep codesign
+verification. The credential diagnostic for an unrelated stale Xcode account
+and existing native/generated AOT warnings did not fail the build.
+
+The Release iOS Simulator build also passed using the canonical
+`/private/tmp/GOALPad-build202-simulator-derived` directory and Build 207 pack.
+Log: `/private/tmp/goalpad-build207-simulator-build.log`. It was installed and
+launched on the already-booted approved iPad Pro 11-inch (M5) simulator as PID
+18491. Screenshot: `/private/tmp/goalpad-build207-m5-simulator.png`; it visibly
+shows the Library and Version 1.0 (207). The simulator remains booted because it
+was already running. It contains no imported Jak 1 game data, so this is startup
+and UI evidence only.
+
+Disk capacity was recovered before the builds by deleting only two verified
+reproducible temporary outputs and trimming ccache from 500 MiB to 200 MiB:
+
+```text
+/private/tmp/goalpad-build206-ring-link.zE1ifH
+/private/tmp/GOALPad-jak2-c2f2c4b1d-simulator
+```
+
+No source worktree, `/Users/zach/Developer` content, user/app/game data,
+canonical Xcode DerivedData, current source pack, or simulator device was
+deleted. Approximately 1.7 GiB remains after both Build 207 products.
+
+No physical device was accessed. Static audit found no further safe material
+optimization to ship without measurement. The next decisive gate requires
+fresh maintainer authorization and an iPhone 13 Pro-class ProMotion device:
+run a warmed Spider Cave route at 60 Hz and adaptive High Frame Rate, with
+Developer Logs off, using Metal System Trace and Time Profiler. Compare Modern
+versus Classic only as a diagnostic A/B if GPU time is implicated, then measure
+actual cadence/frame-time distribution, CPU/GPU occupancy, thermals, power,
+audio, input, saves, and rumble. Remote `main` remains the stable pre-120 Build
+197 checkpoint; Build 207 is isolated and unpushed on
+`agent/build181-input-settings-polish`.
