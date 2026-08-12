@@ -17533,3 +17533,14 @@ mode. The canonical object build again stopped at the unchanged environmental
 failure `cannot execute tool 'metal' due to missing Metal Toolchain`. With only
 about 100 MiB free, no fresh build directory or simulator run was attempted.
 The nested commit was pushed to `origin/agent/jak2-ipad-playtest`.
+
+Follow-up nested commit `7e5be7be0` fixes the exact empty-envelope contract:
+bucket 309 now accepts both a zero-NEXT linker and the canonical zero-CNT tag
+used by an otherwise empty 327-bucket chain. The first focused host run exposed
+that the present form worked but the next empty frame failed closed; the new
+portable regression covers both forms. After rebuilding only the changed host
+objects and table/renderer archive members, the host-GPU test passed in full,
+including present upload once, absent callback without reupload, malformed
+rejection before copy/mutation, and every established host lifecycle check.
+The sandboxed GPU run first failed because no default Metal device was visible;
+the exact host-access rerun passed. The follow-up commit is pushed.
