@@ -17544,3 +17544,30 @@ including present upload once, absent callback without reupload, malformed
 rejection before copy/mutation, and every established host lifecycle check.
 The sandboxed GPU run first failed because no default Metal device was visible;
 the exact host-access rerun passed. The follow-up commit is pushed.
+
+## Jak II typed warp texture-upload plan checkpoint
+
+Date: 2026-08-12.
+
+Nested commit `9fcfb0faf` adds a portable, fail-closed plan for bucket 316
+(`TEX_ALL_WARP`) without changing the bucket table, host ABI, renderer, or
+runtime execution. It accepts the two canonical empty-tag forms or one through
+seven exact ordinary texture-upload groups, owns every validated 124-byte page
+header, and compares independently relocated live/copied semantics. Animator,
+mixed, extra, malformed, cyclic, out-of-bounds, and eighth-group forms reject.
+Bucket 316 remains `DeferredSkip`; the synthetic plan is not live-envelope or
+rendering proof.
+
+An independent review found the commit safe to integrate as a portable plan
+only. The canonical CMake target built successfully and
+`ctest --test-dir .agent-builds/jak2-combined-host --output-on-failure -R
+'^jak2-warp-texture-upload-plan-test$'` passed 1/1. The nested commit is pushed
+to `origin/agent/jak2-ipad-playtest`. The first attempted build path incorrectly
+looked below the nested checkout; rerunning against the parent canonical build
+directory succeeded.
+
+The missing Apple Metal Toolchain remains the full-build blocker. An official
+`xcodebuild -downloadComponent MetalToolchain` request was rejected before
+execution because the approval service had exhausted its usage quota. Do not
+work around that rejection. CoreSimulator remains unhealthy and was not
+mutated. No simulator or physical device was accessed.
