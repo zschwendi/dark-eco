@@ -17571,3 +17571,26 @@ The missing Apple Metal Toolchain remains the full-build blocker. An official
 execution because the approval service had exhausted its usage quota. Do not
 work around that rejection. CoreSimulator remains unhealthy and was not
 mutated. No simulator or physical device was accessed.
+
+## Jak II passive GMERC warp plan checkpoint
+
+Date: 2026-08-12.
+
+Nested commit `0234d1b6d` adds a portable, passive parser for bucket 317
+(`GMERC_WARP`) and leaves that bucket deferred. It classifies exact absence,
+the short and terminated setup-only envelopes, and bounded source-shaped Jak II
+Generic2 fragments including the continued-fragment form. It retains only
+numeric counts and a relocation-independent semantic fingerprint; it has no
+host ABI, framebuffer, shader, table, or renderer execution wiring.
+
+Review caught two concrete pre-integration mismatches. Continued position
+payloads are qword padded, so their source/reference contract is floor-divided
+`payload_bytes / 12 == vertex_count`, not exact byte equality. The renderer
+allocators also require total vertices strictly below 500,000, making the
+portable maximum 499,999. The isolated commit was amended with both fixes plus
+one- and two-vertex padded fixtures, wrong-floor rejection, and both canonical
+empty tags before cherry-pick. Strict direct and ASan/UBSan tests passed in the
+worker; the canonical CMake targets for buckets 316 and 317 then built and
+passed 2/2 in integration. The commit is pushed. Execution and table promotion
+remain explicitly unauthorized until live envelope and Metal warp output are
+proven. No simulator or physical device was accessed.
