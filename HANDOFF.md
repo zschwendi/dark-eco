@@ -17062,6 +17062,68 @@ stable CLUT outputs as the next vertical slice. The two eye placeholders and
 ordinary-Sprite3 light-card record correlation remain separate follow-ups. The
 physical `Z iPad Pro` was not accessed.
 
+### Live PRIS diagnostic acceptance and corrected contracts
+
+The Release simulator diagnostic build completed successfully against parent
+`d04ae7487` and nested `d5920a40b`. It rebuilt 840 Jak II AOT units and
+produced
+`/private/tmp/GOALPad-jak2-c2f2c4b1d-simulator/Build/Products/Release-iphonesimulator/EcoJak2Dev.app`.
+The executable SHA-256 is
+`fa1c0e82b477d491b781bdd6f37b1aeaab4fc99524d24089463e708eb86479a1`;
+the build-log SHA-256 is
+`02d1ba10126c69dd595d6c35f63f18a9aa6d1f7c9bd580419685834f722e13c1`.
+
+A fresh New Game was started with **Continue without saving**, so the retained
+Game 1 was not overwritten. The opening played naturally through the Samos
+hut, city, prison cutscene, and prison gameplay with zero failed chains or
+command buffers. The passive live capture corrected two static assumptions:
+
+- PRIS2 texture bucket 228 alternates an exact five-transfer/176-byte
+  ordinary-only form with an exact 32-transfer/2032-byte one-eye-chunk form.
+  Matching Merc bucket 229 is present on the eye frames as an exact
+  nine-transfer/2032-byte payload with five inert, one direct, and three
+  other transfers. Both remain deferred and their execution counters remain
+  zero, directly matching the missing high-resolution Samos path.
+- Common PRIS bucket 220 is not the predicted 11-transfer/240-byte form. Its
+  ordinary animator-only form is exactly nine transfers/208 bytes with four
+  inert transfers, one ordinary upload, one direct reset, one 32-byte animator
+  body, and opcodes 12, 22, and 13 exactly once each. In active prison gameplay
+  it becomes a combined 63-transfer/3920-byte form: six inert, one ordinary,
+  one direct, 22 GS, one animator array/body, four eye markers, and 26 other
+  transfers. Any executor must own and validate both forms rather than route
+  the packet through the generic texture handler.
+
+The first stable post-cutscene prison frames report Merc animated-slot draws
+`2,1,1,1` and placeholders `2,1,1,1` for slots 0 through 3. All four first
+model hashes are `d8aa2b7fa473f77d`, proving that the five missing Dark Jak
+texture occurrences belong to one model. The same frame reports
+`merc-anim=5/5`, `merc-eyes=4/0/2/2`, and seven total missing Merc textures:
+five Dark Jak outputs plus two separate eye outputs. The already-integrated
+prison slots 4, 5, 7, 8, 9, and 10 remain stable and non-placeholder during
+the opening.
+
+The retained runtime log is
+`.agent-builds/jak2-resume-logs/eco-jak2-dev-pris-diagnostic-runtime.log`
+(SHA-256
+`780608a6af620373cc30e913f58786d5a5a8adce733b41cd8ef27eb5900dfdc0`).
+The opening evidence image is
+`.agent-builds/jak2-resume-logs/eco-jak2-dev-pris2-opening.png` (SHA-256
+`eb113a38e1f42fd7724d7533023607264f66cc07597244818699159eb80a7d76`),
+and the active-prison image is
+`.agent-builds/jak2-resume-logs/eco-jak2-dev-common-pris-prison.png`
+(SHA-256
+`397df13857a465446897ce06e56491747e079879d6809b6e27a9c5f5b42fe755`).
+These artifacts remain intentionally untracked under `.agent-builds/`.
+
+The next executable slice is a typed live/copied common-PRIS plan that accepts
+only the two observed bucket-220 forms, executes the ordinary upload and
+opcode-22 Dark Jak CLUT publication in source order, and composes the planned
+eyes when the combined form is present. Acceptance is a rebuilt simulator
+prison frame with slots 0 through 3 retaining the same draw distribution but
+zero placeholders, plus two successful eye outputs and no chain/command
+failure. PRIS2 228/229 should follow as a separate typed producer/consumer
+slice. The physical `Z iPad Pro` was not accessed.
+
 ## Jak II prison CLUT publication acceptance
 
 Date: 2026-08-12.
