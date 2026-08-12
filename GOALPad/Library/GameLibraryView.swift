@@ -395,7 +395,7 @@ private struct GameLibraryTile: View {
     let removeArtwork: () -> Void
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
+        ZStack(alignment: .bottomTrailing) {
             Button(action: activate) {
                 Group {
                     if usesHorizontalCard {
