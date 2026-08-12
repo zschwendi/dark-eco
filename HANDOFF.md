@@ -16766,3 +16766,93 @@ No physical device was accessed, and no app/container/save data was installed,
 cleared, or inspected. The next narrow gate is to launch this exact simulator
 artifact with its existing prepared-data container, enter the Jak II runtime,
 and confirm visible title plus prison output before any physical checkpoint.
+
+## Jak II Merc and final-glow restoration checkpoint
+
+Date: 2026-08-12.
+
+The approved iPad Pro 11-inch (M5) simulator now renders the Jak II title and
+opening cinematic with Merc characters present and without the large hard
+rectangular light cards reported after the black-frame repair. The active
+integration branch is clean apart from the intentionally retained untracked
+`.agent-builds/` directory at parent `6e5a4ef0` and nested OpenGOAL
+`a01397557`. Both exact commits are pushed to
+`origin/agent/jak2-ipad-playtest`.
+
+Merc rendering required three narrow corrections. Nested `27e931724` routes
+the six per-level `MERC_Ln_PRIS` slots through the Jak II Metal Merc renderer
+while leaving unproven PRIS texture, GMerc, PRIS2, shadow, ocean, and common
+PRIS routes unchanged. Nested `2de88e008` follows source-valid zero-QWC NEXT
+linkers between logical Merc chains, and `dbd4d93aa` accepts only the exact
+Merc default-end `CNT qwc=10` FLUSHA/DIRECT10 tail followed by a zero-QWC NEXT
+to the bucket boundary. Diagnostic `88a0a03b9` exposes the first fail-closed
+preflight rejection stage. The corresponding parent checkpoints are
+`7dc86829`, `7d8ba335`, `8617e2e6`, and `64779e88`; parent `8a6b154a` exposes
+the foreground telemetry used for live acceptance.
+
+The hard light cards were not a blend or shader defect. The Sprite3 A/B in
+`d8b2e9e66`, placeholder counters in `a93241f71`, and bounded numeric texture
+provenance diagnostic in `46d33e4fb` showed that final glow records were
+sampling unrelated ordinary TFRAG pages such as page 917 `can-knob` and page
+974 `slum-stone-broken`. The host had published the TEX_ALL_SPRITE plan before
+rendering; earlier TFRAG/common/water buckets then replaced the same VRAM slots
+before Sprite3 bucket 313 consumed them. Nested `a01397557` now validates and
+carries the sprite plan into the render dispatch and executes it exactly once
+at the existing host callback for TEX_ALL_SPRITE bucket 312, immediately before
+Sprite3, matching the OpenGL/source bucket order. It fails closed on repeated
+or missing dispatch and removes the early pre-render publication. No glow
+shader, source-alpha, texture importer, or blend equation was changed. Parent
+`6e5a4ef0` pins that nested commit.
+
+Focused host validation for the bucket-order fix passed in the isolated ccache
+build:
+
+```text
+cmake --build /private/tmp/GOALPad-jak2-sprite-upload-order-build --target jak2-metal-host-bridge-test -j2
+ctest --test-dir /private/tmp/GOALPad-jak2-sprite-upload-order-build --output-on-failure -R '^jak2-metal-host-bridge-test$'
+git diff --check
+```
+
+The first CTest attempt in the restricted sandbox could not create a default
+Metal device and stopped before the changed path. The identical focused CTest
+with host Metal access passed 1/1. The exact integration Release build then
+passed and verified all 840 Jak II AOT units:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme 'Eco Jak II Dev' -configuration Release -destination 'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' -derivedDataPath /private/tmp/GOALPad-jak2-c2f2c4b1d-simulator -jobs 2 ENABLE_PREVIEWS=NO COMPILER_INDEX_STORE_ENABLE=NO GOALPAD_BUILD_JOBS=2 build
+```
+
+The built executable SHA-256 is
+`7b3df6e361b25396cf2d9ecdbf6085392cafd8d6a23dac92a1de735b5bc0673d`.
+The retained build log is
+`.agent-builds/jak2-resume-logs/eco-jak2-dev-sprite-upload-order-build.log`,
+SHA-256
+`2e389599ed67a6640cd6cbcb5894b3b4d3586ec41d8e50fc11003e8b74f1268f`.
+
+The artifact was installed and launched only on the approved simulator with
+`GOALPAD_JAK2_DEBUG_LOG_GLOW_TEXTURES=1`. After the fix, the wrong page 917 and
+974 sources disappeared; live final-glow TBPs resolved to the sprite effects
+page, including `glow`, `glow-soft`, and `hotdot`. The title screenshot changed
+from the retained hard-card capture
+`/private/tmp/goalpad-jak2-glow-live.png` to the soft-light capture
+`/private/tmp/goalpad-jak2-sprite-upload-order-live.png`. Their SHA-256 values
+are `2834a1cadb9174eee3d19cee10bc272603e8116d2a36b4fe27421ba7f96fa938`
+and `fe64c023514f50f2f8668fea1370af717fc24adbe55dcf0b0ecc6c286b9ac7aa`.
+
+The existing Game 1 save was not overwritten. The opening was started through
+`Continue without saving`; Jak, Keira, and Daxter remained visible across
+multiple shots. At tick 14400 the live intro reported
+`merc=16/230/96188`, `malformed=0`, `reject-reason=0`,
+`missing-models=0`, and `missing-textures=0`; later intro ticks remained
+healthy. The retained opening capture is
+`/private/tmp/goalpad-jak2-opening-after-sprite-upload-order.png`, SHA-256
+`673f6b374292b247781058d20c8377f8008580660dbcf7f25d975f31874845fd`.
+
+This is simulator rendering evidence, not physical-device acceptance. The
+physical `Z iPad Pro` was not accessed. The next visible defect is the
+checkerboard on animated character eyes in the opening. Merc geometry and
+ordinary model textures are otherwise present, the foreground counters report
+no missing model texture, and an earlier log identified the separate
+`jakb-lod0` required-bone-slot warning. Audit the Jak II eye texture upload and
+animated-slot path next without reopening Merc routing or changing final-glow
+blend semantics.
