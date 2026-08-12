@@ -20526,3 +20526,60 @@ container, prepared game data, save, or screen capture was accessed. This is
 install/launch evidence only: delivered cadence above 60 Hz and live-toggle
 behavior still require maintainer gameplay observation and the counterbalanced
 analyzer capture.
+
+### Build 209 profile-aware graphics defaults
+
+Outer commit `b85c78e4` (`Restore profile-aware graphics defaults in Build 209
+(AI-assisted)`) advances both target configurations to Build 209. ProMotion now
+inherits the selected Graphics profile when no explicit override exists:
+Modern defaults on and Classic defaults off. The live toggle remains available
+in either profile; non-default opt-in/opt-out values persist locally and through
+settings sync, while Restore Graphics Defaults and Reset All return to the
+profile-derived behavior.
+
+The existing renderer-backed **Fit to Screen** toggle is restored inside the
+Modern Graphics options with its original explanation. Its storage, live
+`ContentView` observation, `RenderSettings` seam, and native Hor+ geometry were
+already intact: Modern remains on by default, Classic remains exact 4:3/off,
+and a saved Modern override survives profile switching. No nested OpenGOAL or
+renderer source changed.
+
+Focused validation passed:
+
+```text
+Scripts/run-presentation-settings-check.sh
+Scripts/run-presentation-geometry-check.sh
+Scripts/run-promotion-frame-rate-check.sh
+Scripts/run-game-lifecycle-check.sh
+xcrun swift -frontend -parse GOALPad/Game/PresentationSettings.swift
+xcrun swift -frontend -parse GOALPad/Saves/SaveSyncController.swift
+xcrun swift -frontend -parse Scripts/presentation-settings-check.swift
+xcrun swift -frontend -parse Scripts/presentation-settings-ui-check.swift
+sh -n Scripts/capture-ios-game-performance.sh
+git diff --check
+```
+
+The complete Release iOS Simulator build passed using fresh DerivedData at
+`/private/tmp/GOALPad-build209-derived`; log:
+`/private/tmp/goalpad-build209-simulator-build.log`. The approved M5 simulator
+was booted and installed with Build 209, but the maintainer redirected the task
+to the physical iPad before the requested Settings visual interaction could be
+completed. The simulator was then shut down. Deterministic UI/source checks are
+green; visual profile-switch acceptance remains physical.
+
+The generic signed arm64 iOS Release build passed from the same DerivedData;
+log: `/private/tmp/goalpad-build209-signed-device-build.log`. Product:
+`/private/tmp/GOALPad-build209-derived/Build/Products/Release-iphoneos/Dark Eco.app`.
+It is Dark Eco 1.0 (209), arm64, retains
+`CADisableMinimumFrameDurationOnPhone=true`, passes strict deep code-sign
+verification, and its executable SHA-256 is
+`712e2610382044a8864734db57852dceef584b1754d77916cb5a038078d1076c`.
+
+The maintainer explicitly requested physical deployment. Installation on
+`Z iPad Pro` (CoreDevice `6A4111AB-1663-508A-98D9-F0C1A9EA7863`) exited 0, and
+the device app inventory confirms Dark Eco 1.0 (209). Automatic launch was
+denied because the device was locked; that is not an app/build failure. No app
+container, prepared game data, save, trace, log attachment, or screen capture
+was accessed. Unlock and manually launch, or explicitly retry remote launch
+after the device is unlocked, then physically verify the profile defaults and
+live toggles.
