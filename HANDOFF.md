@@ -18445,3 +18445,80 @@ rumble on disconnect/disabled state. Remaining next steps:
 5. Install and launch on the physical iPad only. Do not touch the iPhone.
 6. Physical acceptance is gameplay events such as damage or crate impacts; the
    connection confirmation alone is not gameplay-rumble proof.
+
+# 2026-08-11 Build 187 setup, Files-provider ZIP, and rumble-latch checkpoint
+
+Build 187 is implemented on
+`/Users/zach/Developer/OS_Projects/GOALPad/GP-build165-touch-controls`, branch
+`agent/build181-input-settings-polish`. The verified implementation commits are:
+
+```text
+f91a1498 Simplify Jak 1 game setup copy
+74fea7bf Fix Files-provider ZIP archive reads
+b643c78f Integrate Build 187 setup and import fixes
+```
+
+The nested OpenGOAL pin remains pushed commit `52f665148` on
+`agent/build183-rumble-gate`. The parent now consumes its latched
+`goal_pad_take_rumble` request, and both target configurations report Build 187.
+This closes the source/build portion of the rumble-latch candidate. Gameplay
+rumble still requires maintainer acceptance from damage, crate impacts, or
+another real game event; the Build 186 connection pulse alone is not gameplay
+rumble proof.
+
+The Jak 1 setup alert now contains only `Set Up Jak and Daxter: The Precursor
+Legacy` and the ownership sentence. Game Setup has no Settings button or `Add
+game data` heading. Its short source-selection subtext uses the secondary style,
+the status remains, and Supported sources lists separate bullets in this order:
+ISO, ZIP with exactly one ISO, Prepared game data folder. The redundant device,
+iCloud, validation, and duplicate ZIP explanations are removed.
+
+The reported `The ZIP end-of-directory record is missing` failure was
+deterministically reproduced from an incomplete Files-provider-style view. The
+extractor now opens a coordinated local snapshot and permits legal short reads
+instead of requiring one read call to fill every request. Existing CRC, bounds,
+encryption, traversal, entry-count, compression-ratio, size, multidisk, and
+ZIP64 rejection behavior is unchanged. The import guard prevents concurrent or
+queued attempts; repeated taps can start only a later sequential attempt after
+the previous task finishes. Recheck only rescans the active install. A likely
+observed sequence is therefore a first provider-prefix failure followed by a
+later retry after provider materialization.
+
+Focused validation passed:
+
+```text
+Scripts/run-game-data-import-presentation-check.sh
+Scripts/run-zip-iso-import-check.sh
+Scripts/run-game-data-import-source-check.sh
+Scripts/run-game-data-import-lifecycle-check.sh
+xcrun swift -frontend -parse <each changed Swift source and check individually>
+git diff --check
+```
+
+The serialized signed generic-iOS Release build passed with:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build169-ios-device -jobs 4 \
+  -allowProvisioningUpdates ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT=/Users/zach/Developer/OS_Projects/GOALPad/GP-build142-integration/build/jak1-source-object-pack \
+  build
+```
+
+Log: `/private/tmp/goalpad-build187-ios-device.log`. Product:
+`/private/tmp/GOALPad-build169-ios-device/Build/Products/Release-iphoneos/Dark Eco.app`.
+It is a signed ARM64 Dark Eco 1.0 (187) bundle, identifier
+`com.zephyrstudiosllc.eco`, team `V729QMY3V6`. Existing actor-isolation,
+generated-AOT, precision-conversion, and always-run script-phase warnings remain
+visible; the build produced no errors.
+
+One initial source-parse invocation incorrectly combined independent top-level
+check scripts and failed with `statements are not allowed at the top level`.
+Parsing each file independently, as required for top-level Swift scripts,
+passed. This was a validation-command error, not a source or product failure.
+
+No physical device, installed app, user ZIP, app container, save, or imported
+game data was accessed. Do not delete the currently installed app to retest this
+checkpoint. A controlled Files-provider retry and gameplay-rumble acceptance
+remain physical gates, and no iPhone access is authorized.
