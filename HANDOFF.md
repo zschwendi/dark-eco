@@ -16856,3 +16856,78 @@ no missing model texture, and an earlier log identified the separate
 `jakb-lod0` required-bone-slot warning. Audit the Jak II eye texture upload and
 animated-slot path next without reopening Merc routing or changing final-glow
 blend semantics.
+
+## Jak II animated-eye restoration checkpoint
+
+Date: 2026-08-12.
+
+The approved iPad Pro 11-inch (M5) simulator now renders composed Jak II eyes
+on the title and throughout the opening cinematic without checkerboards. Merc
+characters and the corrected soft-light cards remain present. The active
+integration branch is clean apart from the intentionally retained untracked
+`.agent-builds/` directory at parent `4a92a5b8` and nested OpenGOAL
+`5edb77a7d`. Both exact commits are pushed to
+`origin/agent/jak2-ipad-playtest`.
+
+The eye path was restored as a narrow, source-ordered pipeline. Per-level PRIS
+texture buckets are captured and fully preflighted before host mutation,
+replanned after DMA compaction, and matched semantically. A detached Jak II
+`MetalEyeRenderer` owns and transactionally publishes the 40 animated eye
+targets, and the dedicated PRIS bucket renderer executes only the exact planned
+zero-, one-, or two-chunk grammar. Merc eye bindings now distinguish missing
+renderer, failed lookup, and placeholder fallback. Common PRIS bucket 220
+remains deferred.
+
+The final two live-parser mismatches were source-invalid predicates rather than
+renderer failures. Nested `55fe2b228` compares the low GS-register selector
+byte for the five eye ADGIF A+D address lanes while retaining their high
+Jak II shader-link and texture-ID metadata in the live/copied fingerprint.
+Nested `5edb77a7d` permits source-emitted iris, pupil, and lid rectangles to be
+fully clipped by their exact eye viewport. It retains exact DMA/GIF/GS shape,
+TEX0/UV agreement, coordinate range and direction, fixed lid X coordinates,
+scissors, slot uniqueness, resets, boundaries, and the live/copied semantic
+fingerprint. The corresponding parent gitlink commits are `c957af3d` and
+`4a92a5b8`.
+
+Focused validation passed after each final parser correction:
+
+```text
+cmake --build .agent-builds/jak2-combined-host --target jak2-common-tfrag-texture-upload-capture-test jak2-metal-host-bridge-test -j 2
+ctest --test-dir .agent-builds/jak2-combined-host --output-on-failure -R '^(jak2-common-tfrag-texture-upload-capture-test|jak2-metal-host-bridge-test)$'
+git diff --check
+```
+
+Both focused tests passed 2/2 with host Metal access. The exact integration
+Release build then passed after each correction and verified all 840 Jak II AOT
+units:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme 'Eco Jak II Dev' -configuration Release -destination 'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' -derivedDataPath /private/tmp/GOALPad-jak2-c2f2c4b1d-simulator -jobs 2 ENABLE_PREVIEWS=NO COMPILER_INDEX_STORE_ENABLE=NO GOALPAD_BUILD_JOBS=2 build
+```
+
+The retained final build logs are
+`.agent-builds/jak2-resume-logs/eco-jak2-dev-pris-eye-adgif-address-build.log`
+(SHA-256 `dcb0b80ca52d14669bbc96ded01f9e832a93e41d055cd4129e2cdc0bb82e84a2`)
+and
+`.agent-builds/jak2-resume-logs/eco-jak2-dev-pris-eye-dynamic-clipping-build.log`
+(SHA-256 `8cacaf63183acc47b8a7daa2755decd0156fcfb8a27ff0db16635216c8c69587`).
+
+The existing Game 1 save was again preserved by choosing `Continue without
+saving`. On the final pushed build, the title reported `eyes=2/8/16`,
+`eye-cmd=1/1/0`, `pris=6/3/1`, composed Merc-eye use with zero fallback, and
+an empty runtime error. During the opening, ticks 4200 through 5400 remained
+healthy. A representative tick reported `merc=16/229/96316`,
+`malformed=0`, `reject-reason=0`, `missing-models=0`,
+`merc-eyes=8/0/0/0`, `merc-missing-textures=0`, `eyes=6/24/48`,
+`missing=0`, `unexpected=0`, `duplicate=0`, `eye-cmd=3/3/0`,
+`pris=6/3/3`, and an empty runtime error. Visual inspection showed natural
+eyes on Jak, Daxter, and Keira with no checkerboards.
+
+An attempt to save a final PNG after this acceptance failed because
+CoreSimulatorService became invalid. Simulator-side operations stopped at
+that point; the running app/container was not cleared or mutated further. The
+physical `Z iPad Pro` was not accessed. This checkpoint therefore establishes
+simulator title/opening acceptance for Merc characters, soft lights, and
+animated eyes, not physical-device acceptance or complete Jak II renderer
+coverage. Known follow-up remains the deferred bucket set (especially common
+PRIS 220) and the independently logged `jakb-lod0` required-bone-slot warning.
