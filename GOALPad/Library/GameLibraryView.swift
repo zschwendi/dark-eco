@@ -59,6 +59,24 @@ struct GameLibraryView: View {
                 .ignoresSafeArea()
             }
             .navigationTitle("Library")
+            #if os(visionOS)
+            .overlay(alignment: .top) {
+                HStack {
+                    Spacer()
+                    Menu {
+                        Button(action: openSettings) {
+                            Label("Settings", systemImage: "gearshape")
+                        }
+                        Button { isShowingAbout = true } label: {
+                            Label("About", systemImage: "info.circle")
+                        }
+                    } label: { mainMenuLabel }
+                    .accessibilityLabel("Main menu")
+                    Spacer()
+                }
+                .padding(.top, 12)
+            }
+            #else
             .toolbar {
                 ToolbarItem(placement: menuPlacement) {
                     Menu {
@@ -72,6 +90,7 @@ struct GameLibraryView: View {
                     .accessibilityLabel("Main menu")
                 }
             }
+            #endif
         }
         .preferredColorScheme(.dark)
         .tint(DarkEcoTheme.accent)

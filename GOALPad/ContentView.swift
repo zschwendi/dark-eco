@@ -188,15 +188,6 @@ struct ContentView: View {
                 .padding(.bottom, 12)
         }
         .ornament(
-            visibility: visionEcoSettingsUsesCenteredPlacement ? .hidden : .visible,
-            attachmentAnchor: .scene(.topLeading),
-            contentAlignment: .bottomTrailing
-        ) {
-            VisionPausedEcoOrnament { presentSettings() }
-                .padding(.leading, 20)
-                .padding(.bottom, 12)
-        }
-        .ornament(
             visibility: visionEcoSettingsUsesCenteredPlacement ? .visible : .hidden,
             attachmentAnchor: .scene(.top),
             contentAlignment: .bottom
