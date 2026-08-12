@@ -314,6 +314,32 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(metal.last_sprite_glow_force_visible_triangles),
         static_cast<unsigned long long>(metal.last_sprite_glow_force_visible_missing_textures));
 
+  NSLog(@"GOALPAD_JAK2_PRISON_CLUT_STATE tick=%llu prep=%llu publish=%llu "
+         "textures=%llu,%llu,%llu,%llu,%llu,%llu "
+         "tbps=0x%08x,0x%08x,0x%08x,0x%08x,0x%08x,0x%08x "
+         "slots=%u,%u,%u,%u,%u,%u",
+        static_cast<unsigned long long>(runtime.ticks),
+        static_cast<unsigned long long>(metal.prison_clut_preparations),
+        static_cast<unsigned long long>(metal.prison_clut_publications),
+        static_cast<unsigned long long>(metal.prison_clut_textures[0]),
+        static_cast<unsigned long long>(metal.prison_clut_textures[1]),
+        static_cast<unsigned long long>(metal.prison_clut_textures[2]),
+        static_cast<unsigned long long>(metal.prison_clut_textures[3]),
+        static_cast<unsigned long long>(metal.prison_clut_textures[4]),
+        static_cast<unsigned long long>(metal.prison_clut_textures[5]),
+        metal.prison_clut_destination_tbps[0],
+        metal.prison_clut_destination_tbps[1],
+        metal.prison_clut_destination_tbps[2],
+        metal.prison_clut_destination_tbps[3],
+        metal.prison_clut_destination_tbps[4],
+        metal.prison_clut_destination_tbps[5],
+        metal.prison_clut_anim_slots[0],
+        metal.prison_clut_anim_slots[1],
+        metal.prison_clut_anim_slots[2],
+        metal.prison_clut_anim_slots[3],
+        metal.prison_clut_anim_slots[4],
+        metal.prison_clut_anim_slots[5]);
+
   const auto& water252 = metal.water_texture_uploads[0];
   NSLog(@"GOALPAD_JAK2_DEFERRED_STATE tick=%llu deferred_count=%u "
          "deferred_top=%u/%llu,%u/%llu,%u/%llu,%u/%llu "
