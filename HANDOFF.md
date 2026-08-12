@@ -17790,3 +17790,30 @@ host-GPU retry was rejected before execution by the external usage quota, so
 the new empty/top-only in-host assertions are compiled but GPU-unexecuted. The
 exact retained binary is
 `/private/tmp/jak2-shadow195-link/jak2-metal-host-bridge-test`.
+
+## Jak II isolated bucket-317 WARP snapshot proof checkpoint
+
+Date: 2026-08-12.
+
+Nested isolated commit `75601051f` on branch
+`agent/jak2-warp317-snapshot-proof-c0c4` adds a private GPU snapshot publisher
+and proof-only `MetalGeneric2::Mode::WARP`. It allocates a shader-readable
+texture matching the game target, binds one stable Jak II PC texture identity
+to TBP 1216, copies the already-rendered game color through the same command
+buffer, and then samples with source-equivalent `warp_off = 0.1875`,
+`scissor_adjust = 512/416`, height scale `0.5`, clamp S/T, and the draw's
+nearest/linear filter. Missing or placeholder publication returns before a
+draw. Resize replaces the registry texture behind the stable handle and updates
+pool dimensions/slot state; teardown unloads the pool texture and releases the
+handle.
+
+The deterministic 64x64 synthetic proof distinguishes the prior snapshot from
+the later target, checks the exact transformed V coordinate against distinct
+bands, clamp, nearest/linear, blend/depth/fog behavior, follower completion,
+missing-publication no-draw, stable identity, resize, and cleanup. All changed
+Objective-C++ objects and the existing Generic2 test compiled with canonical
+flags, and the focused proof linked. Its sandbox run failed only at `FAIL a
+default Metal device is available`; the host-GPU retry was quota-rejected
+before execution. The branch is pushed for backup, but the proof is not merged
+and buckets 316/317 remain `DeferredSkip`. Retained proof binary:
+`/private/tmp/goalpad-warp317-proof.2pbG0N/jak2-metal-gmerc-warp317-snapshot-proof`.
