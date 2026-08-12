@@ -17335,3 +17335,65 @@ Both A/B app runs were stopped after capture; the already-booted simulator was
 left available. The next light-renderer task should therefore audit ordinary
 Sprite3 source texture/blend/animation behavior for these prison card families,
 without changing the accepted final-glow path.
+
+## Jak II PRIS2 bucket 228 and physical Build 2 checkpoint
+
+Date: 2026-08-12.
+
+Nested commit `01fc78652` executes only the independently typed PRIS2 texture
+bucket 228. Live and copied plans are parsed and matched before mutation; exact
+absence, ordinary-only, and one-eye forms are supported, cross-family eye-slot
+overlap rejects, and bucket 229 remains deferred with zero executions. Nested
+commit `f70afff3b` adds the opt-in, eight-state numeric ordinary-Sprite3 texture
+diagnostic (`GOALPAD_JAK2_DEBUG_LOG_SPRITE_TEXTURES=1`) without changing normal
+rendering. Both commits and parent pins are pushed and remote-verified.
+
+The canonical host build compiled all changed production objects. Portable
+bucket-table, PRIS2-plan, and common-capture tests passed 3/3; host-Metal
+Sprite3, eye-renderer, and host-bridge tests passed 3/3. The Release simulator
+build succeeded and revalidated all 840 Jak II AOT units. Its executable
+SHA-256 is
+`5da806a0ab138a794370abb6e4e8a942d4d21f007206d2f9b4d9e7c79a1a7ea8`;
+the retained build log SHA-256 is
+`390343761b99d40c103438b37a507f9f30bb10da3e8dd4f40c9d4eaced667454`.
+
+A fresh no-save, unskipped simulator run reached
+`scene-stage-64|scenecamera|intro-samos-hut`. At tick 7200 it reported
+`chains=7200/7200/0`, empty runtime error, healthy Merc and eye metrics, bucket
+228 `present=4089 exec=4089 malformed=0`, and bucket 229 `exec=0`. Daxter and
+Keira rendered correctly in the retained opening frame
+`.agent-builds/jak2-resume-logs/eco-jak2-dev-pris2-b228-opening.png`, SHA-256
+`b393d679c9b198d2a003fdfd39210c66c807f200169cf40bf79a90296dc76b27`.
+
+The maintainer then explicitly authorized deployment to physical `Z iPad Pro`.
+Only the isolated Eco Jak II Dev Debug and Release configurations were bumped
+from build 1 to build 2; parent commit `bbaaf445` is pushed and remote-verified.
+The main Eco target remains unchanged. The exact physical destination was
+`00008142-000A504C3CC2401C` / CoreDevice
+`6A4111AB-1663-508A-98D9-F0C1A9EA7863`.
+
+The Release iPhoneOS build for that destination succeeded with all 840 Jak II
+AOT units. The signed artifact is:
+
+```text
+/private/tmp/GOALPad-jak2-c2f2c4b1d-simulator/Build/Products/Release-iphoneos/EcoJak2Dev.app
+bundle:     com.zephyrstudiosllc.eco.jak2dev
+version:    1.0 (2)
+arch:       arm64
+executable SHA-256: 2b41def4b516c82b002932446df90472821677be19cbe0250f8f16d945d1d6cf
+CDHash:     885e198a993087021de8646d9d658646baec15a7
+team:       V729QMY3V6
+```
+
+The host's strict `codesign --verify` reported the existing
+`CSSMERR_TP_NOT_TRUSTED` certificate-chain condition, so do not describe local
+signature verification as clean. The embedded team provisioning profile was
+present, and CoreDevice authoritatively accepted the bundle. It replaced
+installed `1.0 (1)` in place with `1.0 (2)` at installation UUID
+`F0EBC37B-A4EF-4947-ADEC-8E20CF57DB8D`; no uninstall, app-container deletion,
+save reset, prepared-data mutation, or retail-data inspection was performed.
+The verbose foreground launch succeeded and remains running as PID `32556`.
+Launch JSON and log SHA-256s are respectively
+`ac05c4ccd77db77194f51a79fd18a04d356b457c5cda4f13cd1998366166ce51`
+and `d0a70e41ddc68d8109e975f68b74dac017e85017e953370211cb19a7695ee3a3`.
+Physical edge/rendering acceptance now belongs to the maintainer's live test.
