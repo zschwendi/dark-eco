@@ -338,26 +338,33 @@ struct GameLibraryView: View {
 
 private struct DarkEcoMenuLabel: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var highlightLocation: CGFloat = -1
+    private let shimmerDuration: TimeInterval = 1.6
     private let labelFont: Font = .caption.weight(.semibold)
 
     var body: some View {
-        Text("Dark Eco")
-            .font(labelFont)
-            .foregroundStyle(labelForegroundStyle)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(DarkEcoTheme.surface.opacity(0.9), in: Capsule())
-            .overlay {
-                Capsule()
-                    .strokeBorder(DarkEcoTheme.accent.opacity(0.58), lineWidth: 1)
-            }
-            .shadow(color: DarkEcoTheme.accent.opacity(0.32), radius: 6)
-            .onAppear { updateShimmer() }
-            .onChange(of: reduceMotion) { _, _ in updateShimmer() }
+        TimelineView(.animation) { timeline in
+            Text("Dark Eco")
+                .font(labelFont)
+                .foregroundStyle(labelForegroundStyle(at: timeline.date))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(DarkEcoTheme.surface.opacity(0.9), in: Capsule())
+                .overlay {
+                    Capsule()
+                        .strokeBorder(DarkEcoTheme.accent.opacity(0.58), lineWidth: 1)
+                }
+                .shadow(color: DarkEcoTheme.accent.opacity(0.32), radius: 6)
+        }
     }
 
-    private var labelForegroundStyle: LinearGradient {
+    private func shimmerLocation(at date: Date) -> CGFloat {
+        guard !reduceMotion else { return 1 }
+        let wrapped = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: shimmerDuration)
+        return CGFloat(wrapped / shimmerDuration * 2 - 1)
+    }
+
+    private func labelForegroundStyle(at date: Date) -> LinearGradient {
+        let highlightLocation = shimmerLocation(at: date)
         guard !reduceMotion else {
             return LinearGradient(
                 colors: [DarkEcoTheme.accent, DarkEcoTheme.accent],
@@ -371,14 +378,6 @@ private struct DarkEcoMenuLabel: View {
             startPoint: UnitPoint(x: highlightLocation - 1, y: 0.5),
             endPoint: UnitPoint(x: highlightLocation + 1, y: 0.5)
         )
-    }
-
-    private func updateShimmer() {
-        highlightLocation = -1
-        guard !reduceMotion else { return }
-        withAnimation(.linear(duration: 1.6).repeatForever(autoreverses: false)) {
-            highlightLocation = 1
-        }
     }
 }
 
