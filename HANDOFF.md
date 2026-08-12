@@ -18327,3 +18327,21 @@ was attempted. Per maintainer direction, no test-suite run was performed. Logs:
 /private/tmp/goalpad-build176-ios-device.log
 /private/tmp/goalpad-build176-macos.log
 ```
+
+# 2026-08-11 Build 177 responsive library refinement checkpoint
+
+Build 177 uses a fixed three-card grid with no scroll view on regular-width
+portrait iPads. Compact landscape iPhones use three horizontal cards with text
+to the left of each cover, while the accepted wide-iPad landscape shelf remains
+unchanged. Jak II and Jak 3 unsupported alerts use the shorter requested copy.
+
+The checkpoint is on branch `agent/build177-library-layout`. The signed generic
+iOS Release build passed and was installed on physical `Z iPad Pro`; device
+inventory confirmed Dark Eco 1.0 (177). The iPad was locked when launch was
+attempted. `Z iPhone Air` disconnected before its install and remains a pending
+deployment retry. Per maintainer direction, no test-suite run was performed.
+Build log:
+
+```text
+/private/tmp/goalpad-build177-ios-device.log
+```

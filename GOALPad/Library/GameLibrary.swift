@@ -73,7 +73,7 @@ nonisolated struct GameLibraryShelfLayout: Equatable, Sendable {
     }
 }
 
-/// A larger scrolling library for every portrait window and compact-width iPhone window.
+/// A larger scrolling library for portrait compact-width phones.
 nonisolated struct GameLibraryGridLayout: Equatable, Sendable {
     static let spacing: CGFloat = 16
     static let outerPadding: CGFloat = 16
@@ -202,9 +202,9 @@ nonisolated enum GameLibraryOfferCopy {
     static func unsupportedMessage(for title: GameLibraryTitle) -> String {
         switch title {
         case .jak2:
-            return "Jak II — Coming Soon. It is not available in this build."
+            return "Jak II support is in active development and is coming soon."
         case .jak3:
-            return "Jak 3 — Planned. It is not available in this build."
+            return "Jak 3 support is planned."
         case .jak1:
             return "Import for \(title.shelfName) is not supported in this build. "
                 + "Dark Eco currently supports \(GameLibraryTitle.jak1.name) game data only."

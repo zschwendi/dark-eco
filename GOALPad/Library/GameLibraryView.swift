@@ -33,9 +33,14 @@ struct GameLibraryView: View {
     var body: some View {
         NavigationStack {
             GeometryReader { proxy in
-                let usesScrollingGrid = proxy.size.height > proxy.size.width
-                    || horizontalSizeClass == .compact
-                if usesScrollingGrid {
+                let isPortrait = proxy.size.height > proxy.size.width
+                if isPortrait, horizontalSizeClass == .regular {
+                    fittedPortraitLibrary(containerSize: proxy.size)
+                        .overlay(alignment: .bottom) { versionFooter }
+                } else if !isPortrait, horizontalSizeClass == .compact {
+                    compactLandscapeLibrary(containerSize: proxy.size)
+                        .overlay(alignment: .bottom) { versionFooter }
+                } else if isPortrait {
                     scrollingLibrary(containerWidth: proxy.size.width)
                 } else {
                     wideLibrary(containerSize: proxy.size)
@@ -163,12 +168,50 @@ struct GameLibraryView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
-    private func tile(_ title: GameLibraryTitle, coverSize: CGSize) -> some View {
+    private func fittedPortraitLibrary(containerSize: CGSize) -> some View {
+        let layout = GameLibraryShelfLayout(
+            containerSize: CGSize(width: containerSize.width,
+                                  height: max(0, containerSize.height - 44)),
+            usesRegularWidth: false
+        )
+        return HStack(alignment: .top, spacing: layout.spacing) {
+            ForEach(GameLibraryTitle.allCases) { title in
+                tile(title, coverSize: layout.coverSize)
+            }
+        }
+        .frame(width: layout.shelfWidth, height: layout.shelfHeight, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    }
+
+    private func compactLandscapeLibrary(containerSize: CGSize) -> some View {
+        let outerPadding: CGFloat = 12
+        let spacing: CGFloat = 8
+        let cardWidth = max(0, (containerSize.width - outerPadding * 2 - spacing * 2) / 3)
+        let coverHeight = min(230, max(120, containerSize.height - 96))
+        let coverSize = CGSize(width: coverHeight * GameLibraryShelfLayout.coverAspectRatio,
+                               height: coverHeight)
+        return HStack(alignment: .center, spacing: spacing) {
+            ForEach(GameLibraryTitle.allCases) { title in
+                tile(title, coverSize: coverSize, usesHorizontalCard: true,
+                     cardWidth: cardWidth)
+            }
+        }
+        .padding(.horizontal, outerPadding)
+        .padding(.bottom, 32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    }
+
+    private func tile(_ title: GameLibraryTitle,
+                      coverSize: CGSize,
+                      usesHorizontalCard: Bool = false,
+                      cardWidth: CGFloat? = nil) -> some View {
         GameLibraryTile(
             title: title,
             state: state(for: title),
             progress: progress(for: title),
             coverSize: coverSize,
+            usesHorizontalCard: usesHorizontalCard,
+            cardWidth: cardWidth,
             artworkURL: artworkStore.artworkURL(for: title),
             artworkRevision: artworkStore.revision,
             open: { open(title) },
@@ -257,6 +300,8 @@ private struct GameLibraryTile: View {
     let state: GameLibraryState
     let progress: GameDataImporter.Progress?
     let coverSize: CGSize
+    let usesHorizontalCard: Bool
+    let cardWidth: CGFloat?
     let artworkURL: URL?
     let artworkRevision: Int
     let open: () -> Void
@@ -266,41 +311,24 @@ private struct GameLibraryTile: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             Button(action: activate) {
-                VStack(alignment: .leading, spacing: 8) {
-                    artwork
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(title.shelfName)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .lineLimit(coverSize.width < 120 ? 4 : 2)
-                            .minimumScaleFactor(0.78)
-                            .allowsTightening(true)
-                        Label(stateLabel, systemImage: stateSymbol)
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(stateColor)
-                        if case .preparing(let preparation) = state {
-                            if let fraction = preparation.fraction {
-                                ProgressView(value: fraction)
-                                    .tint(DarkEcoTheme.accent)
-                            } else {
-                                ProgressView()
-                                    .controlSize(.small)
-                                    .tint(DarkEcoTheme.accent)
-                            }
+                Group {
+                    if usesHorizontalCard {
+                        HStack(alignment: .center, spacing: 8) {
+                            details
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            artwork
                         }
-                        if let progress, progress.fraction != nil {
-                            Text("\(progress.filesCopied) of \(progress.filesTotal) files")
-                                .font(.caption2.monospacedDigit())
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
+                    } else {
+                        VStack(alignment: .leading, spacing: 8) {
+                            artwork
+                            details
                         }
                     }
                 }
                 .padding(GameLibraryShelfLayout.cardHorizontalInset)
-                .frame(width: coverSize.width
+                .frame(width: cardWidth ?? coverSize.width
                     + GameLibraryShelfLayout.cardHorizontalInset * 2,
-                       alignment: .leading)
+                       alignment: usesHorizontalCard ? .center : .leading)
                 .background(DarkEcoTheme.surface.opacity(0.9),
                             in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .overlay {
@@ -324,6 +352,36 @@ private struct GameLibraryTile: View {
         }
         .contextMenu {
             artworkActions
+        }
+    }
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title.shelfName)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(usesHorizontalCard ? 4 : (coverSize.width < 120 ? 4 : 2))
+                .minimumScaleFactor(0.78)
+                .allowsTightening(true)
+            Label(stateLabel, systemImage: stateSymbol)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(stateColor)
+            if case .preparing(let preparation) = state {
+                if let fraction = preparation.fraction {
+                    ProgressView(value: fraction)
+                        .tint(DarkEcoTheme.accent)
+                } else {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(DarkEcoTheme.accent)
+                }
+            }
+            if let progress, progress.fraction != nil {
+                Text("\(progress.filesCopied) of \(progress.filesTotal) files")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
     }
 
