@@ -53,7 +53,11 @@ do {
                                         endingWith: "\n\nprivate struct GameplaySurface")
     let shelfLayout = try declaration(in: library,
                                       startingWith: "nonisolated struct GameLibraryShelfLayout",
-                                      endingWith: "\n\nnonisolated enum GameLibraryTitle")
+                                      endingWith: "\n\n/// Gives compact landscape phones")
+    let compactLandscapeLayout = try declaration(
+        in: library,
+        startingWith: "nonisolated struct GameLibraryCompactLandscapeLayout",
+        endingWith: "\n\n/// A larger scrolling library for portrait compact-width phones.")
     let titles = try declaration(in: library,
                                  startingWith: "nonisolated enum GameLibraryTitle",
                                  endingWith: "\n\nnonisolated enum GameLibraryState")
@@ -131,6 +135,8 @@ do {
             && libraryScreen.contains("fittedPortraitLibrary(containerSize: proxy.size)")
             && libraryScreen.contains("compactLandscapeLibrary(containerSize: proxy.size)")
             && libraryScreen.contains("wideLibrary(containerSize: proxy.size)")
+            && libraryScreen.contains("VStack(alignment: .center, spacing: GameLibraryGridLayout.spacing)")
+            && libraryScreen.contains(".frame(maxWidth: .infinity, alignment: .center)")
             && libraryScreen.contains("HStack(alignment: .top, spacing: layout.spacing)")
             && libraryScreen.contains("Spacer(minLength: layout.gutter)")
             && !libraryScreen.contains("LazyVGrid")
@@ -171,6 +177,20 @@ do {
                         "iPhone Dark Eco menu pill, slower shimmer, or non-iPhone hamburger regressed"])
     }
     print("  ok   iPhone centers a slower Eco-purple Dark Eco menu pill while iPad and vision retain the hamburger")
+    guard libraryScreen.contains("GameLibraryCompactLandscapeLayout(containerSize: containerSize)")
+            && libraryScreen.contains("if layout.usesHorizontalScroll")
+            && libraryScreen.contains("ScrollView(.horizontal)")
+            && libraryScreen.contains(".frame(width: layout.shelfWidth")
+            && tile.contains("HStack(alignment: .center, spacing: 8) {\n                            artwork\n                            details")
+            && tile.contains(".frame(maxWidth: .infinity, alignment: .leading)")
+            && libraryView.contains("Text(title.fallbackMark)")
+            && !libraryView.contains("Text(\"DARK ECO\")")
+    else {
+        throw NSError(domain: "portrait-library-check", code: 3,
+                      userInfo: [NSLocalizedDescriptionKey:
+                        "compact phone card geometry, artwork order, or placeholder copy regressed"])
+    }
+    print("  ok   compact portrait centers cards, landscape uses readable artwork-left cards, and placeholders keep only numerals")
     guard libraryScreen.contains("case .waitingForForegroundPreparation:")
             && libraryScreen.contains("return .preparing(.finishingSaveCheck)")
             && libraryScreen.contains("case .checkingSaves:")
@@ -213,6 +233,8 @@ do {
     \(gameplayLayout)
 
     \(shelfLayout)
+
+    \(compactLandscapeLayout)
 
     \(titles)
 
@@ -279,6 +301,29 @@ do {
               "\\(name) keeps the compact cover cap")
     }
 
+    func checkCompactLandscape(_ size: CGSize, _ name: String) {
+        let layout = GameLibraryCompactLandscapeLayout(containerSize: size)
+        check(layout.cardWidth >= GameLibraryCompactLandscapeLayout.minimumCardWidth,
+              "\\(name) keeps each card wide enough for readable details")
+        check(layout.detailsWidth >= 140,
+              "\\(name) reserves a readable details column beside artwork")
+        check(layout.coverSize.width > 160,
+              "\\(name) uses materially larger landscape artwork")
+        check(layout.shelfWidth
+                == layout.cardWidth * CGFloat(GameLibraryCompactLandscapeLayout.titleCount)
+                    + GameLibraryCompactLandscapeLayout.spacing
+                        * CGFloat(GameLibraryCompactLandscapeLayout.titleCount - 1),
+              "\\(name) computes the complete three-card shelf width")
+        let naturalCardWidth = (max(0, size.width
+            - GameLibraryCompactLandscapeLayout.outerPadding * 2)
+            - GameLibraryCompactLandscapeLayout.spacing
+                * CGFloat(GameLibraryCompactLandscapeLayout.titleCount - 1))
+            / CGFloat(GameLibraryCompactLandscapeLayout.titleCount)
+        check(layout.usesHorizontalScroll
+                == (naturalCardWidth < GameLibraryCompactLandscapeLayout.minimumCardWidth),
+              "\\(name) scrolls only when three readable cards cannot fit")
+    }
+
     func checkRegularShelf(_ size: CGSize, _ name: String) {
         let shelf = GameLibraryShelfLayout(containerSize: size, usesRegularWidth: true)
         check(shelf.usesFlexibleGutters,
@@ -314,6 +359,10 @@ do {
     checkShelf(CGSize(width: 834, height: 1_000), usesRegularWidth: true, "portrait iPad")
     checkShelf(CGSize(width: 1_194, height: 650), usesRegularWidth: true, "landscape iPad")
     checkCompactShelf(CGSize(width: 393, height: 700), "modern portrait iPhone")
+    checkCompactLandscape(CGSize(width: 852, height: 390), "landscape iPhone")
+    check(!GameLibraryCompactLandscapeLayout(containerSize: CGSize(width: 1_200, height: 390))
+            .usesHorizontalScroll,
+          "wide compact landscape fits three readable cards without scrolling")
     checkRegularShelf(CGSize(width: 834, height: 1_000), "portrait iPad")
     checkRegularShelf(CGSize(width: 1_194, height: 650), "landscape iPad")
     check(GameLibraryShelfLayout(containerSize: CGSize(width: 834, height: 1_000), usesRegularWidth: true)

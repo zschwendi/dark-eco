@@ -136,11 +136,12 @@ struct GameLibraryView: View {
     private func scrollingLibrary(containerWidth: CGFloat) -> some View {
         let layout = GameLibraryGridLayout(containerWidth: containerWidth)
         return ScrollView {
-            VStack(spacing: GameLibraryGridLayout.spacing) {
+            VStack(alignment: .center, spacing: GameLibraryGridLayout.spacing) {
                 ForEach(GameLibraryTitle.allCases) { title in
                     tile(title, coverSize: layout.coverSize)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .center)
             .padding(.horizontal, GameLibraryGridLayout.outerPadding)
             .padding(.top, 12)
 
@@ -196,22 +197,31 @@ struct GameLibraryView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
+    @ViewBuilder
     private func compactLandscapeLibrary(containerSize: CGSize) -> some View {
-        let outerPadding: CGFloat = 12
-        let spacing: CGFloat = 8
-        let cardWidth = max(0, (containerSize.width - outerPadding * 2 - spacing * 2) / 3)
-        let coverHeight = min(230, max(120, containerSize.height - 96))
-        let coverSize = CGSize(width: coverHeight * GameLibraryShelfLayout.coverAspectRatio,
-                               height: coverHeight)
-        return HStack(alignment: .center, spacing: spacing) {
+        let layout = GameLibraryCompactLandscapeLayout(containerSize: containerSize)
+        let cards = HStack(alignment: .center, spacing: layout.spacing) {
             ForEach(GameLibraryTitle.allCases) { title in
-                tile(title, coverSize: coverSize, usesHorizontalCard: true,
-                     cardWidth: cardWidth)
+                tile(title, coverSize: layout.coverSize, usesHorizontalCard: true,
+                     cardWidth: layout.cardWidth)
             }
         }
-        .padding(.horizontal, outerPadding)
-        .padding(.bottom, 32)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .frame(width: layout.shelfWidth, alignment: .leading)
+
+        if layout.usesHorizontalScroll {
+            ScrollView(.horizontal) {
+                cards
+                    .padding(.horizontal, layout.outerPadding)
+            }
+            .scrollIndicators(.hidden)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .padding(.bottom, 32)
+        } else {
+            cards
+                .padding(.horizontal, layout.outerPadding)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .padding(.bottom, 32)
+        }
     }
 
     private func tile(_ title: GameLibraryTitle,
@@ -394,9 +404,9 @@ private struct GameLibraryTile: View {
                 Group {
                     if usesHorizontalCard {
                         HStack(alignment: .center, spacing: 8) {
+                            artwork
                             details
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                            artwork
                         }
                     } else {
                         VStack(alignment: .leading, spacing: 8) {
@@ -608,12 +618,6 @@ private struct FallbackGameArtwork: View {
                     )
                     .minimumScaleFactor(0.5)
                     .shadow(color: DarkEcoTheme.accent.opacity(0.55), radius: 12)
-                Text("DARK ECO")
-                    .font(.caption2.weight(.bold))
-                    .tracking(1.2)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                    .foregroundStyle(.white.opacity(0.72))
             }
         }
         .clipped()

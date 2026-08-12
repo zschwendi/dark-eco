@@ -73,6 +73,52 @@ nonisolated struct GameLibraryShelfLayout: Equatable, Sendable {
     }
 }
 
+/// Gives compact landscape phones readable artwork-left cards, scrolling only when three cards
+/// cannot fit at the minimum width needed for their title and status details.
+nonisolated struct GameLibraryCompactLandscapeLayout: Equatable, Sendable {
+    static let titleCount = GameLibraryShelfLayout.titleCount
+    static let spacing: CGFloat = 12
+    static let outerPadding: CGFloat = 12
+    static let minimumCardWidth: CGFloat = 360
+    static let maximumCardWidth: CGFloat = 420
+    static let minimumCoverHeight: CGFloat = 180
+    static let maximumCoverHeight: CGFloat = 280
+    static let verticalReserve: CGFloat = 72
+    static let artworkDetailsSpacing: CGFloat = 12
+
+    let cardWidth: CGFloat
+    let coverSize: CGSize
+    let shelfWidth: CGFloat
+    let usesHorizontalScroll: Bool
+
+    init(containerSize: CGSize) {
+        let width = max(0, containerSize.width)
+        let height = max(0, containerSize.height)
+        let availableWidth = max(0, width - Self.outerPadding * 2)
+        let naturalCardWidth = max(
+            0,
+            (availableWidth - Self.spacing * CGFloat(Self.titleCount - 1))
+                / CGFloat(Self.titleCount)
+        )
+        cardWidth = min(Self.maximumCardWidth,
+                        max(Self.minimumCardWidth, naturalCardWidth))
+        usesHorizontalScroll = naturalCardWidth < Self.minimumCardWidth
+        shelfWidth = cardWidth * CGFloat(Self.titleCount)
+            + Self.spacing * CGFloat(Self.titleCount - 1)
+
+        let coverHeight = min(Self.maximumCoverHeight,
+                              max(Self.minimumCoverHeight,
+                                  height - Self.verticalReserve))
+        coverSize = CGSize(width: coverHeight * GameLibraryShelfLayout.coverAspectRatio,
+                           height: coverHeight)
+    }
+
+    var detailsWidth: CGFloat {
+        cardWidth - coverSize.width - Self.artworkDetailsSpacing
+            - GameLibraryShelfLayout.cardHorizontalInset * 2
+    }
+}
+
 /// A larger scrolling library for portrait compact-width phones.
 nonisolated struct GameLibraryGridLayout: Equatable, Sendable {
     static let spacing: CGFloat = 16
