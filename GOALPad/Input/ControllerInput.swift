@@ -476,6 +476,7 @@ final class ControllerInput {
             inputLog.error("Controller haptics are unavailable for \(self.controllerName ?? "unnamed", privacy: .public)")
         } else {
             inputLog.notice("Controller haptics ready for \(self.controllerName ?? "unnamed", privacy: .public)")
+            motors?.confirmConnection()
         }
         inputLog.notice("Controller connected: \(self.controllerName ?? "unnamed", privacy: .public) (DualSense: \(self.isDualSense))")
     }
@@ -765,12 +766,24 @@ private final class ControllerRumble {
         combinedMotor = nil
     }
 
-    /// One handle: a continuous haptic event whose intensity is updated in place, so a frame of
-    /// rumble costs a parameter send rather than a new pattern.
+    func confirmConnection() {
+        largeMotor?.confirmConnection()
+        smallMotor?.confirmConnection()
+        combinedMotor?.confirmConnection()
+    }
+
+    /// One controller locality. Finite standard players match Apple's controller-haptics sample
+    /// path and avoid relying on an infinite advanced player that can accept commands yet remain
+    /// physically silent on a Bluetooth controller.
     private final class Motor {
+        private static let pulseDuration: TimeInterval = 0.12
+        private static let refreshInterval: TimeInterval = 0.08
+
         private let engine: CHHapticEngine
-        private var player: CHHapticAdvancedPatternPlayer?
-        private var running = false
+        private var player: CHHapticPatternPlayer?
+        private var connectionPlayer: CHHapticPatternPlayer?
+        private var currentIntensity: Float = 0
+        private var lastStartTime = -Double.infinity
 
         init?(haptics: GCDeviceHaptics, locality: GCHapticsLocality) {
             guard haptics.supportedLocalities.contains(locality),
@@ -783,7 +796,8 @@ private final class ControllerRumble {
             engine.stoppedHandler = { [weak self] _ in
                 Task { @MainActor [weak self] in
                     self?.player = nil
-                    self?.running = false
+                    self?.connectionPlayer = nil
+                    self?.currentIntensity = 0
                 }
             }
             engine.resetHandler = { [weak self] in
@@ -804,47 +818,63 @@ private final class ControllerRumble {
         }
 
         func set(intensity: Float) {
+            let intensity = min(1, max(0, intensity))
             do {
-                if intensity > 0 {
-                    if player == nil { try restartEngine() }
-                    guard let player else { return }
-                    try player.sendParameters(
-                        [CHHapticDynamicParameter(parameterID: .hapticIntensityControl,
-                                                  value: intensity,
-                                                  relativeTime: 0)],
-                        atTime: CHHapticTimeImmediate)
-                    if !running {
-                        try player.start(atTime: CHHapticTimeImmediate)
-                        running = true
-                    }
-                } else if running {
+                guard intensity > 0 else {
                     try player?.stop(atTime: CHHapticTimeImmediate)
-                    running = false
+                    player = nil
+                    currentIntensity = 0
+                    return
                 }
+                let now = CACurrentMediaTime()
+                guard player == nil || abs(intensity - currentIntensity) >= 0.04
+                        || now - lastStartTime >= Self.refreshInterval else { return }
+                try player?.stop(atTime: CHHapticTimeImmediate)
+                player = try makePlayer(intensity: intensity, duration: Self.pulseDuration)
+                try player?.start(atTime: CHHapticTimeImmediate)
+                currentIntensity = intensity
+                lastStartTime = now
             } catch {
                 inputLog.error("Rumble failed: \(error.localizedDescription, privacy: .public)")
             }
         }
 
+        func confirmConnection() {
+            do {
+                connectionPlayer = try makePlayer(intensity: 0.65, duration: 0.25)
+                try connectionPlayer?.start(atTime: CHHapticTimeImmediate)
+            } catch {
+                inputLog.error("Rumble confirmation failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+
         func stop() {
             try? player?.stop(atTime: CHHapticTimeImmediate)
-            running = false
+            try? connectionPlayer?.stop(atTime: CHHapticTimeImmediate)
+            player = nil
+            connectionPlayer = nil
+            currentIntensity = 0
             engine.stop()
         }
 
         private func restartEngine() throws {
             try engine.start()
+            player = nil
+            connectionPlayer = nil
+            currentIntensity = 0
+        }
+
+        private func makePlayer(
+            intensity: Float,
+            duration: TimeInterval
+        ) throws -> CHHapticPatternPlayer {
             let event = CHHapticEvent(
                 eventType: .hapticContinuous,
-                parameters: [
-                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 1),
-                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.5),
-                ],
+                parameters: [CHHapticEventParameter(parameterID: .hapticIntensity,
+                                                     value: intensity)],
                 relativeTime: 0,
-                duration: TimeInterval(GCHapticDurationInfinite))
-            player = try engine.makeAdvancedPlayer(
-                with: CHHapticPattern(events: [event], parameters: []))
-            running = false
+                duration: duration)
+            return try engine.makePlayer(with: CHHapticPattern(events: [event], parameters: []))
         }
     }
 }
