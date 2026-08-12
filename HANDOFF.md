@@ -20331,3 +20331,69 @@ save, or app container changed. Build 207 remains installed on `Z iPad Pro`.
 The next gate is unchanged: the maintainer prepares the warmed Spider Cave
 60-A route and explicitly reports `60 ready`, then the authorized capture is
 recorded and analyzed before any further frame-path optimization.
+
+### Build 207 counterbalanced comparison checkpoint
+
+Outer commit `63c76bcb` (`Add offline iOS performance run comparator`) upgrades
+the per-run report to schema v2 and adds
+`Scripts/compare-ios-game-performance.py`. This remains non-shipping tooling;
+it reads four completed reports and never records, enumerates, launches, or
+contacts a device.
+
+The schema retains an exact nanosecond interval histogram, total and per-cadence
+durations, contiguous cadence-run durations, duration- and sample-weighted
+above-60-Hz shares, candidate counts at 1.5x/2x/3x, exact selected metric source
+identity, thermal state summaries, a versioned analysis contract, and an
+explicit operator-supplied run context. Runtime settings are never inferred.
+The context requires the route, graphics profile, resolution, input,
+brightness, Low Power Mode off, Developer Logs off, nominal initial thermal
+state, run label, and an independently verified installed-build identity.
+
+The comparator accepts exactly `60-A`, `HFR-A`, `HFR-B`, and `60-B`. It fails
+closed on mismatched device, source heads, installed build, process, mode,
+template/kind, requested or actual duration, xctrace version, analysis
+contract, controlled settings, cadence metric identity/units, candidate
+semantics, or thermal coverage. It independently reconstructs cadence clusters,
+duration totals, above-60 evidence, percentiles, runs, and candidate thresholds
+from each exact histogram. Thermal intervals must be ordered, non-overlapping,
+effectively contiguous, cover the trace, match the operator-declared start, and
+start equivalently within the adjacent counterbalanced pairs
+`60-A`/`HFR-A` and `HFR-B`/`60-B`.
+
+Output keeps the two different weighting questions explicit: sample share and
+wall-time duration share. HFR evidence means any classified cadence above
+60 Hz in both HFR replicates; it does not require a 120 Hz cluster. Exact
+sample-weighted pooled percentiles and equal-replicate median-of-run summaries
+are both labeled. Threshold crossings remain candidates, never an automatic
+hitch or performance-acceptance verdict. Camera/timer/audio/input/save/rumble
+and sustained power evidence remain manual or separate capture gates.
+
+Focused validation passed after integration review:
+
+```text
+python3 -m py_compile Scripts/analyze-ios-game-performance.py \
+  Scripts/ios-game-performance-analysis-check.py \
+  Scripts/compare-ios-game-performance.py \
+  Scripts/ios-game-performance-comparison-check.py
+sh -n Scripts/run-ios-game-performance-analysis-check.sh \
+  Scripts/run-ios-game-performance-comparison-check.sh
+Scripts/run-ios-game-performance-analysis-check.sh
+Scripts/run-ios-game-performance-comparison-check.sh
+git diff c7911314..63c76bcb --check
+```
+
+The comparison fixture covers a valid adaptive 80 Hz HFR result without any
+120 Hz samples, a no-above-60 evidence result, duration share differing from
+sample share, exact pooled percentiles, deterministic JSON/CSV, and independent
+rejections for mismatched schema/device/source/mode/kind/duration/template/
+process/xctrace/contract/context/artifact/metric units plus tampered histogram,
+clusters, high-refresh totals, cadence runs, candidate thresholds, and missing,
+late, overlapping, gapped, incomplete, or pair-mismatched thermal evidence.
+
+To restore headroom for physical Instruments traces, only the already-installed
+Build 207 physical Xcode DerivedData at
+`/private/tmp/GOALPad-build207-physical-derived` was deleted after verifying no
+build was running. It was 670 MiB of reproducible cache and is not recoverable
+as that cache; the signed build log, canonical 518-object source pack, source
+worktrees, installed iPad app, user data, saves, and device containers remain.
+Approximately 1.0 GiB was free afterward. No physical device was accessed.
