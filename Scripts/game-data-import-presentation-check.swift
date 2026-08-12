@@ -23,6 +23,10 @@ private struct GameDataImportPresentationCheck {
         check(GameDataImportPresentation.backgroundGuidance
                 == "Keep Dark Eco open and in the foreground until setup finishes.",
               "foreground guidance remains concise and safe")
+        check(GameDataImportPresentation.completedStorageGuidance
+                == "Game data is stored in the Dark Eco folder on this device. Keep that copy. "
+                    + "After setup completes, you can delete the original ISO, ZIP, or prepared folder.",
+              "completed setup distinguishes the retained Dark Eco copy from the removable source")
         check(GameDataImportPresentation.cancellationGuidance(isActivating: false)
                 == "You can cancel. Your current game data will stay unchanged.",
               "pre-activation cancellation preserves the active install")

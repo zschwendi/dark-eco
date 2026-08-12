@@ -77,6 +77,10 @@ check(view.contains("Text(\"Choose a compatible source from a copy you own.\")")
         && !view.contains("A ZIP must contain exactly one ISO.")
         && !view.contains("Dark Eco checks your selection before it uses it."),
       "setup keeps the short subtext and status while removing redundant copy")
+check(view.contains("session.dataReport.status == .ready")
+        && view.contains("GameDataImportPresentation.completedStorageGuidance")
+        && view.contains(".font(.body)"),
+      "complete setup shows ordinary source-cleanup guidance below the imported size")
 check(library.contains("title: Text(\"Set Up \\(GameLibraryTitle.jak1.name)\")")
         && libraryModel.contains("Provide game data from a copy of")
         && !libraryModel.contains("This build accepts"),

@@ -55,9 +55,16 @@ struct GameDataSetupView: View {
 
     private var dataStatus: some View {
         DarkEcoPanel {
-            Label(session.dataReport.summary, systemImage: statusIcon)
-                .font(.headline)
-                .foregroundStyle(statusColor)
+            VStack(alignment: .leading, spacing: 7) {
+                Label(session.dataReport.summary, systemImage: statusIcon)
+                    .font(.headline)
+                    .foregroundStyle(statusColor)
+                if session.dataReport.status == .ready {
+                    Text(GameDataImportPresentation.completedStorageGuidance)
+                        .font(.body)
+                        .foregroundStyle(.white.opacity(0.84))
+                }
+            }
         }
     }
 

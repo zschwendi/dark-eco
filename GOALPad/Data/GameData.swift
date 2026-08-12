@@ -119,8 +119,8 @@ nonisolated struct GameDataReport: Sendable {
             let missing = missingLevelArchives.count + missingLevelGeometry.count
             return "Boot data is present, but \(missing) level file(s) are missing."
         case .ready:
-            return "Complete: \(isoFileCount) files in iso/, \(fr3FileCount) in fr3/, "
-                + ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file) + "."
+            let size = ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)
+            return "Complete: Imported (\(size))"
         }
     }
 }

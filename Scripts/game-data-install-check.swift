@@ -126,6 +126,10 @@ private func preparedFolder(under root: URL, payload: String = "fixture") throws
     let report = GameDataInspector.inspect(gameDirectory: fixture.active)
     check(report.status == .ready, "the existing Documents/Jak1 install is ready immediately")
     check(report.canBoot, "the existing install keeps the launcher bootable")
+    check(report.summary == "Complete: Imported ("
+            + ByteCountFormatter.string(fromByteCount: report.totalBytes, countStyle: .file) + ")"
+            && !report.summary.contains("iso/") && !report.summary.contains("fr3/"),
+          "the ready summary reports only the user-facing imported size")
     check(fixture.candidates.isEmpty, "recognition does not create an import candidate")
 }
 
