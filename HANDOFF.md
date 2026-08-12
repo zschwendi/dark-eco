@@ -20488,3 +20488,31 @@ maintainer authorization: install and launch Build 208, verify live ProMotion
 toggle behavior, then run the counterbalanced analyzer capture. The capture
 helper and examples now name Build 208. Physical iPhone 13 Pro-class acceptance
 also remains pending.
+
+Follow-up outer commit `4736989b` (`Keep launcher cadence at 60 Hz
+(AI-assisted)`) closes an avoidable idle-cost edge found during the final
+artifact audit. An enabled persisted ProMotion preference no longer accelerates
+the always-mounted Library display link or the asynchronous boot UI. Boot keeps
+the requested native rate local, publishes it only after a successful game
+boot, and still reconciles any preference change made during boot before the
+first gameplay frame. Shutdown and boot failure restore the published 60 Hz
+launcher cadence.
+
+Focused checks passed after that correction:
+
+```text
+Scripts/run-promotion-frame-rate-check.sh
+Scripts/run-game-lifecycle-check.sh
+xcrun swift Scripts/save-pregame-gate-check.swift "$PWD"
+Scripts/run-presentation-settings-check.sh
+xcrun swift -frontend -parse GOALPad/Game/GameSession.swift
+xcrun swift -frontend -parse Scripts/promotion-frame-rate-check.swift
+git diff --check
+```
+
+The incremental generic signed arm64 iOS build also passed after the correction
+using the same command above. Final log:
+`/private/tmp/goalpad-build208-signed-device-build-final2.log`. The final app is
+still Dark Eco 1.0 (208), passes strict deep code-sign verification, retains
+`CADisableMinimumFrameDurationOnPhone=true`, and its executable SHA-256 is
+`1eb78ea6b51eac5a9849a70035d6b106a1a9c5d0293b18941da995b392c3a967`.
