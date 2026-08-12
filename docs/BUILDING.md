@@ -807,8 +807,8 @@ The recorded Checkpoint 36 result is 23 passing assertions, including duplicate
 and gap resets, smooth motion, real returns, durable event retention, callback
 arrival reordering, actual presentation inversion, and zero-time drops.
 
-The current A/B retains Checkpoint 37's fixed 60 Hz display-link range but
-restores Checkpoint 36's independent per-callback interval rounding.
+The historical Checkpoint 37 A/B retained a fixed 60 Hz display-link range but
+restored Checkpoint 36's independent per-callback interval rounding.
 `Scripts/run-camera-timing-check.sh` covers ordinary cadence, skipped intervals,
 complementary early/late intervals, repeated boundary and slow cadence, the
 long-stall cap, invalid input, and lifecycle reset. The A/B changes only the
@@ -1089,7 +1089,10 @@ graph, and backgrounding gives up the device entirely.
 
 `GameSurfaceView` hosts a `UIView` whose `layerClass` is `CAMetalLayer` and hands
 the layer to `GOALPadRenderSurface`, which sets the device, `BGRA8Unorm`, and
-`framebufferOnly`. A `CADisplayLink` at a preferred 60 Hz drives one frame.
+`framebufferOnly`. The default `CADisplayLink` range is fixed at 60 Hz. When the
+player enables High Frame Rate on a supported iOS display, it requests an
+adaptive 60-120 Hz range with 120 Hz preferred; the system may choose a lower
+cadence for animation alignment, power, or temperature.
 
 The geometry matches what `MetalRenderer::encode_present_pass` in the OpenGOAL
 fork expects: the game renders into an offscreen target at its internal
@@ -1122,10 +1125,12 @@ read the vibration request back out. GOAL does not advance when no valid
 surface can be armed.
 
 On iOS, consecutive `CADisplayLink.targetTimestamp` values pass through Swift
-and the Objective-C++ bridge to `DisplayClock`. The clock independently rounds
-each interval to an integral 60 Hz ratio from 1 through 4. The first sample, an
-invalid or non-positive sample, and a sample after lifecycle reset return 1;
-long intervals remain capped. The runtime stores the result in
+and the Objective-C++ bridge to `DisplayClock`. The accepted 60 Hz path keeps
+its integral ratio from 1 through 4. A High Frame Rate session uses the 120 Hz
+timing domain in half-frame units, including exact factors for 120, 80, 60, 48,
+40, 30, and 24 Hz; the 24 Hz factor is 5. The first sample, an invalid or
+non-positive sample, and a sample after lifecycle reset return 1; long intervals
+remain capped. The runtime stores the result in
 `*host-display-time-ratio*`, which `display-frame-start` consumes immediately
 before `set-time-ratios`. A zero host value preserves the upstream fallback on
 other hosts.

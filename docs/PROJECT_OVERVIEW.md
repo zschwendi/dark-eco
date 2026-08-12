@@ -148,6 +148,13 @@ Enhancement work proceeds in this order:
    defer stereoscopic presentation until a later, separately gated project,
    and keep macOS compilation healthy while its release remains deferred.
 
+An experimental iOS High Frame Rate option is implemented on that conventional
+renderer. It uses a 120 Hz gameplay timing domain with adaptive display-link
+fallback and is built for both iPhone and iPad. Deterministic timing, signed
+build, and simulator checks are complete; sustained performance, thermals,
+power, and frame pacing on an iPhone 13 Pro-class device or newer remain a
+physical acceptance gate.
+
 No enhancement may fork gameplay semantics, weaken user-owned asset separation,
 or replace the accepted Build 154 baseline before its replacement has been
 physically compared and accepted.
@@ -159,13 +166,11 @@ These are allowed later but are not prerequisites for the first complete port:
 - Jak II support
 - Additional accessibility work
 - Keyboard support
-- Higher frame-rate modes
 - External display support
 - Custom aspect ratios
 - Advanced mod management
 - On-device mod browsing
 - Custom-level workflows
-- iPhone support
 - tvOS support
 - Upstreamable Apple-platform abstractions
 

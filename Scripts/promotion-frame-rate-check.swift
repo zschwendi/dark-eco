@@ -95,6 +95,8 @@ check(drawable.contains("(defun goalpad-set-target-frame-rate")
 check(display.contains("(if (> *host-display-time-ratio* 0.0)")
         && display.contains("(* DISPLAY_FPS_RATIO *host-display-time-ratio*)")
         && display.contains("DISPLAY_FPS_RATIO))")
+        && display.contains("(= (-> *pc-settings* target-fps) 120)")
+        && display.contains("5.0")
         && eye.contains("(if (> *host-display-time-ratio* 0.0)")
         && eye.contains("(-> *display* old-real-integral-frame-counter)")
         && eye.contains("(-> *display* real-integral-frame-counter)")
@@ -105,6 +107,10 @@ check(pad.contains("(defun service-cpads ((history-steps int))")
         && pad.contains("(> *host-display-time-ratio* 0.0)")
         && pad.contains("(dotimes (virtual-step history-steps)"),
       "controller recent-press history ages by virtual frames at adaptive refresh factors")
+check(drawable.contains("(min (if (and (= (-> *pc-settings* target-fps) 120)")
+        && drawable.contains("> *host-display-time-ratio* 0.0))")
+        && drawable.contains("                               5\n                               4)"),
+      "24 Hz adaptive fallback preserves five target frames of controller history")
 
 let managedGraphics = section(progress,
                               from: "(define *graphic-options-managed-display*",

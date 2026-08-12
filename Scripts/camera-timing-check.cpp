@@ -218,7 +218,7 @@ int main() {
       {1.0 / 120.0, 1.0 / 80.0, 1.0 / 60.0, 1.0 / 48.0, 1.0 / 40.0,
        1.0 / 30.0, 1.0 / 24.0});
   expect_float_trace("ProMotion factors", promotion_factors,
-                     {1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 4.0f, 4.0f});
+                     {1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 4.0f, 5.0f});
 
   goalpad::DisplayClock rate_transition;
   assert(rate_transition.advance(10.0, 60) == 1.0f);
@@ -240,6 +240,7 @@ int main() {
            RefreshFactor{60, 2.0f, 1.0, 2, {0, 1, 0, 0, 0}},
            RefreshFactor{40, 3.0f, 1.5, 3, {0, 0, 1, 0, 0}},
            RefreshFactor{30, 4.0f, 2.0, 4, {0, 0, 0, 1, 0}},
+           RefreshFactor{24, 5.0f, 2.5, 5, {0, 0, 0, 0, 1}},
        }) {
     const auto trace = promotion_second_trace(factor.callbacks_per_second);
     assert(std::all_of(trace.display_ratios.begin(), trace.display_ratios.end(),
@@ -280,6 +281,8 @@ int main() {
           == std::array<int, 5>{0, 1, 0, 0, 0}));
   assert((age_relative_pad_history(empty_pad_history, 1, 4)
           == std::array<int, 5>{0, 0, 0, 1, 0}));
+  assert((age_relative_pad_history(empty_pad_history, 1, 5)
+          == std::array<int, 5>{0, 0, 0, 0, 1}));
   assert((age_relative_pad_history(empty_pad_history, 1, 0) == empty_pad_history));
 
   goalpad::SoundFrameClock sound_60;
@@ -290,6 +293,12 @@ int main() {
   assert(sound_frames == 60);
   assert(sound_60.advance(2.0f, 60) == 1);
   assert(sound_60.advance(3.0f, 60) == 1);
+
+  goalpad::SoundFrameClock sound_24_fallback;
+  expect_trace("24 Hz sound fallback",
+               {sound_24_fallback.advance(5.0f, 120),
+                sound_24_fallback.advance(5.0f, 120)},
+               {2, 3});
 
   goalpad::DisplayClock promotion_lifecycle;
   goalpad::SoundFrameClock sound_120;

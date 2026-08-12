@@ -42,7 +42,11 @@ class DisplayClock {
     // represent ProMotion's 80 Hz and 48 Hz factors without injecting timestamp-scale jitter.
     const double quantization = target_frame_rate_ == 120 ? 0.5 : 1.0;
     const double quantized = std::round(elapsed_frames / quantization) * quantization;
-    return static_cast<float>(std::clamp(quantized, 1.0, 4.0));
+    // The established 60 Hz path retains its four-frame safety cap. A host-managed 120 Hz
+    // session also needs to represent ProMotion's supported 24 Hz cadence: one callback then
+    // advances five target frames while remaining only 1/24 second of wall time.
+    const double maximum_ratio = target_frame_rate_ == 120 ? 5.0 : 4.0;
+    return static_cast<float>(std::clamp(quantized, 1.0, maximum_ratio));
   }
 
   int advance(double target_presentation_time) noexcept {
