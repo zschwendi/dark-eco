@@ -101,13 +101,15 @@ nonisolated struct ZIPISOStagingCleaner: Sendable {
 /// Minimal ZIP32 reader for local, bounded ISO extraction. It intentionally rejects ZIP features
 /// that are unnecessary for the supported import path instead of trying to repair or guess them.
 nonisolated struct ZIPISOExtractor: Sendable {
-    typealias ArchiveMaterializationOperation = @Sendable (URL, URL) throws -> Void
+    typealias ArchiveMaterializationOperation = @Sendable (URL, URL, Limits) throws -> Void
     typealias ArchiveOpenOperation = @Sendable (URL) throws -> FileHandle
     typealias ArchiveReadOperation = @Sendable (FileHandle, Int) throws -> Data?
 
     nonisolated struct Limits: Sendable {
         var maximumEntries = 100_000
         var maximumCentralDirectoryBytes: UInt64 = 64 * 1_024 * 1_024
+        var maximumArchiveBytes: UInt64 = UInt64(UInt32.max)
+        var maximumTrailingBytes: UInt64 = 64 * 1_024 * 1_024
         var maximumISOBytes: UInt64 = UInt64(UInt32.max)
         var maximumCompressionRatio: UInt64 = 1_000
         var minimumFreeSpaceAfterExtraction: UInt64 = 256 * 1_024 * 1_024
@@ -171,7 +173,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
 
         Self.recordDiagnostic("materialization started")
         do {
-            try materializeArchive(archiveURL, materializedArchive)
+            try materializeArchive(archiveURL, materializedArchive, limits)
         } catch is CancellationError {
             throw CancellationError()
         } catch let failure as GameDataImportFailure {
@@ -208,6 +210,16 @@ nonisolated struct ZIPISOExtractor: Sendable {
             )
         }
         Self.recordDiagnostic("materialization complete bytes=\(archiveSize)")
+        guard archiveSize <= limits.maximumArchiveBytes else {
+            throw Self.failure(
+                .unsupportedArchive,
+                "The ZIP archive is too large for the supported ZIP32 format."
+            )
+        }
+        if archiveSize >= 4 {
+            let signature = try readExactly(archive, offset: 0, count: 4)
+            Self.recordDiagnostic("materialized format=\(Self.archiveKind(signature))")
+        }
 
         await report(GameDataImportProgress(phase: .scanning))
         try Task.checkCancellation()
@@ -307,11 +319,15 @@ nonisolated struct ZIPISOExtractor: Sendable {
             throw Self.failure(.invalidDiscImage, "The selected file is not a complete ZIP archive.")
         }
 
-        let tailSize = Int(min(archiveSize, minimumRecordBytes + UInt64(UInt16.max)))
+        let standardTailBytes = minimumRecordBytes + UInt64(UInt16.max)
+        let maximumTailBytes = Self.adding(standardTailBytes, limits.maximumTrailingBytes)
+            ?? UInt64.max
+        let tailSize = Int(min(archiveSize, maximumTailBytes))
         let tailOffset = archiveSize - UInt64(tailSize)
         let tail = try readExactly(archive, offset: tailOffset, count: tailSize)
 
         var recordIndex: Int?
+        var trailingBytes: UInt64 = 0
         var signatureCount = 0
         var nearestSignatureDistance = -1
         var index = tail.count - Int(minimumRecordBytes)
@@ -322,9 +338,27 @@ nonisolated struct ZIPISOExtractor: Sendable {
                     nearestSignatureDistance = tail.count - index
                 }
                 let commentLength = Int(Self.uint16(tail, at: index + 20))
-                if index + Int(minimumRecordBytes) + commentLength == tail.count {
-                    recordIndex = index
-                    break
+                let recordEnd = index + Int(minimumRecordBytes) + commentLength
+                if recordEnd <= tail.count {
+                    let candidateTrailingBytes = UInt64(tail.count - recordEnd)
+                    let candidateRecordOffset = tailOffset + UInt64(index)
+                    let directorySize = UInt64(Self.uint32(tail, at: index + 12))
+                    let directoryOffset = UInt64(Self.uint32(tail, at: index + 16))
+                    let hasZIP32Sentinel = Self.uint16(tail, at: index + 8) == UInt16.max
+                        || Self.uint16(tail, at: index + 10) == UInt16.max
+                        || directorySize == UInt64(UInt32.max)
+                        || directoryOffset == UInt64(UInt32.max)
+                    let hasZIP64Locator = index >= 20
+                        && Self.uint32(tail, at: index - 20) == 0x0706_4b50
+                    let directoryEndsAtRecord = Self.adding(directoryOffset, directorySize)
+                        == candidateRecordOffset
+                    if candidateTrailingBytes <= limits.maximumTrailingBytes,
+                       directoryEndsAtRecord || (hasZIP32Sentinel && hasZIP64Locator)
+                    {
+                        recordIndex = index
+                        trailingBytes = candidateTrailingBytes
+                        break
+                    }
                 }
             }
             if index == 0 { break }
@@ -336,6 +370,9 @@ nonisolated struct ZIPISOExtractor: Sendable {
                     + "signatures=\(signatureCount) nearestDistance=\(nearestSignatureDistance)"
             )
             throw Self.failure(.invalidDiscImage, "The ZIP end-of-directory record is missing.")
+        }
+        if trailingBytes > 0 {
+            Self.recordDiagnostic("accepted bounded ZIP trailer bytes=\(trailingBytes)")
         }
 
         if recordIndex >= 20,
@@ -808,7 +845,11 @@ nonisolated struct ZIPISOExtractor: Sendable {
 
     /// A coordinated read materializes File Provider placeholders. Copying every byte while the
     /// claim is held gives the ZIP parser a stable app-private file after the accessor returns.
-    private static func materializeCoordinatedArchive(_ source: URL, _ destination: URL) throws {
+    private static func materializeCoordinatedArchive(
+        _ source: URL,
+        _ destination: URL,
+        _ limits: Limits
+    ) throws {
         let coordinator = NSFileCoordinator(filePresenter: nil)
         var coordinationError: NSError?
         var result: Result<Void, Error>?
@@ -827,6 +868,39 @@ nonisolated struct ZIPISOExtractor: Sendable {
                         .sourceUnavailable,
                         "The selected ZIP source is not a regular file."
                     )
+                }
+
+                if let expectedSize = values.fileSize, expectedSize > 0 {
+                    let sourceBytes = UInt64(expectedSize)
+                    guard sourceBytes <= limits.maximumArchiveBytes else {
+                        throw failure(
+                            .unsupportedArchive,
+                            "The ZIP archive is too large for the supported ZIP32 format."
+                        )
+                    }
+                    let parent = destination.deletingLastPathComponent()
+                    let capacity = try? parent.resourceValues(forKeys: [
+                        .volumeAvailableCapacityForImportantUsageKey,
+                        .volumeAvailableCapacityKey,
+                    ])
+                    let available = capacity?.volumeAvailableCapacityForImportantUsage
+                        .flatMap { $0 > 0 ? UInt64($0) : nil }
+                        ?? capacity?.volumeAvailableCapacity.flatMap { $0 > 0 ? UInt64($0) : nil }
+                    guard let required = adding(
+                        sourceBytes,
+                        limits.minimumFreeSpaceAfterExtraction
+                    ) else {
+                        throw failure(
+                            .insufficientStorage,
+                            "There is not enough free space to make a private copy of the ZIP."
+                        )
+                    }
+                    guard available.map({ $0 >= required }) != false else {
+                        throw failure(
+                            .insufficientStorage,
+                            "There is not enough free space to make a private copy of the ZIP."
+                        )
+                    }
                 }
 
                 try Data().write(to: destination, options: .withoutOverwriting)
@@ -861,6 +935,11 @@ nonisolated struct ZIPISOExtractor: Sendable {
                     recordDiagnostic(
                         "materialization size mismatch expected=\(expectedSize) actual=\(bytesCopied)"
                     )
+                    throw failure(
+                        .sourceUnavailable,
+                        "Files did not provide the complete selected ZIP. Confirm it is fully "
+                            + "downloaded in Files and try again."
+                    )
                 }
                 succeeded = true
             }
@@ -875,6 +954,16 @@ nonisolated struct ZIPISOExtractor: Sendable {
     private static func recordDiagnostic(_ message: String) {
         zipImportLog.notice("\(message, privacy: .public)")
         print("[ZIPImport] \(message)")
+    }
+
+    private static func archiveKind(_ signature: Data) -> String {
+        guard signature.count >= 4 else { return "short" }
+        switch uint32(signature, at: 0) {
+        case 0x0403_4b50: return "zip-local-header"
+        case 0x0605_4b50: return "zip-empty"
+        case 0x0807_4b50: return "zip-spanned"
+        default: return "unknown"
+        }
     }
 
     private static func validateFlags(_ flags: UInt16, method: UInt16? = nil) throws {

@@ -487,6 +487,52 @@ private func writeCompleteCandidate(at root: URL, payload: Data) throws {
           "the full 65,535-byte ZIP comment is scanned without losing the EOCD")
 }
 
+@MainActor private func boundedTrailingDataExtracts() async throws {
+    print("bounded nonstandard data after the ZIP end record is tolerated")
+    let fixture = try Fixture()
+    let contents = Data("synthetic ISO with a bounded ZIP trailer".utf8)
+    var archive = try makeArchive([
+        ArchiveEntry(name: "game.iso", contents: contents),
+    ])
+    archive.append(Data(repeating: 0xa5, count: 128 * 1_024))
+    try fixture.writeArchive(archive)
+
+    var limits = ZIPISOExtractor.Limits()
+    limits.maximumTrailingBytes = 256 * 1_024
+    limits.minimumFreeSpaceAfterExtraction = 0
+    try await ZIPISOExtractor(limits: limits).extractISO(
+        from: fixture.archive,
+        to: fixture.output
+    ) { _ in }
+    let extracted = try Data(contentsOf: fixture.output)
+    check(extracted == contents,
+          "a structurally valid ZIP survives bounded bytes trailing its end record")
+}
+
+@MainActor private func excessiveTrailingDataFailsClosed() async throws {
+    print("trailing data beyond the compatibility bound is rejected")
+    let fixture = try Fixture()
+    var archive = try makeArchive([
+        ArchiveEntry(name: "game.iso", contents: Data("synthetic ISO".utf8)),
+    ])
+    archive.append(Data(repeating: 0xa5, count: 128 * 1_024))
+    try fixture.writeArchive(archive)
+
+    var limits = ZIPISOExtractor.Limits()
+    limits.maximumTrailingBytes = 64 * 1_024
+    limits.minimumFreeSpaceAfterExtraction = 0
+    do {
+        try await ZIPISOExtractor(limits: limits).extractISO(
+            from: fixture.archive,
+            to: fixture.output
+        ) { _ in }
+        check(false, "an excessive ZIP trailer cannot be accepted")
+    } catch let failure as GameDataImportFailure {
+        check(failure.code == .invalidDiscImage,
+              "an excessive ZIP trailer remains a typed invalid-disc failure")
+    }
+}
+
 @MainActor private func coordinatedProviderSnapshotAndShortReadsExtract() async throws {
     print("Files-provider snapshot and short reads preserve a complete ZIP")
     let fixture = try Fixture()
@@ -505,7 +551,7 @@ private func writeCompleteCandidate(at root: URL, payload: Data) throws {
     do {
         try await ZIPISOExtractor(
             limits: limits,
-            materializeArchive: { source, destination in
+            materializeArchive: { source, destination, _ in
                 try FileManager.default.copyItem(at: source, to: destination)
             },
             openArchive: { url in try FileHandle(forReadingFrom: url) }
@@ -517,7 +563,7 @@ private func writeCompleteCandidate(at root: URL, payload: Data) throws {
     }
     let extractor = ZIPISOExtractor(
         limits: limits,
-        materializeArchive: { _, destination in
+        materializeArchive: { _, destination, _ in
             try FileManager.default.copyItem(at: completeArchive, to: destination)
         },
         readArchive: { handle, count in
@@ -847,6 +893,8 @@ private struct ZIPISOImportCheck {
             try await storedAndDeflatedMembersExtract()
             try await exactOutputBufferBoundaryExtracts()
             try await maximumZIPCommentExtracts()
+            try await boundedTrailingDataExtracts()
+            try await excessiveTrailingDataFailsClosed()
             try await coordinatedProviderSnapshotAndShortReadsExtract()
             try await producerUsesSiblingAndCleansUp()
             try staleOwnedCleanupIsBounded()
