@@ -7,6 +7,7 @@
 #include "GOALPadRuntimeCore.hpp"
 
 #include <algorithm>
+#include <mach/mach.h>
 #include <string>
 
 #if GOALPAD_HAVE_PAD_SEAM
@@ -202,6 +203,14 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
 
 + (BOOL)isGameBooted {
   return goalpad::game_is_booted() ? YES : NO;
+}
+
++ (uint64_t)physicalMemoryFootprintBytes {
+  task_vm_info_data_t info = {};
+  mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
+  const kern_return_t result = task_info(mach_task_self_, TASK_VM_INFO,
+                                         reinterpret_cast<task_info_t>(&info), &count);
+  return result == KERN_SUCCESS ? info.phys_footprint : 0;
 }
 
 + (BOOL)exitToLibraryRequested {

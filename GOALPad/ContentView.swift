@@ -409,6 +409,7 @@ private struct DiagnosticsOverlay: View {
                 header
                 seams
                 game
+                performanceReadout
                 renderer
                 surface
                 controller
@@ -430,6 +431,38 @@ private struct DiagnosticsOverlay: View {
             Button("Shut down") { session.shutdown() }
                 .buttonStyle(.bordered)
         }
+    }
+
+    private var performanceReadout: some View {
+        let value = session.performance
+        let memory = ByteCountFormatter.string(fromByteCount: Int64(value.physicalMemoryBytes),
+                                               countStyle: .memory)
+        let peakMemory = ByteCountFormatter.string(
+            fromByteCount: Int64(value.peakPhysicalMemoryBytes), countStyle: .memory)
+        return section("Performance", [
+            ("sample window", String(format: "%.2f seconds", value.windowSeconds)),
+            ("actual presentation", String(format: "%.1f fps", value.actualFramesPerSecond)),
+            ("CPU frame", String(format: "%.2f / %.2f / %.2f ms mean/p95/max",
+                                 value.frameMeanMilliseconds,
+                                 value.frameP95Milliseconds,
+                                 value.frameMaxMilliseconds)),
+            ("CPU input/game/present", String(format: "%.2f / %.2f / %.2f ms mean",
+                                              value.inputMeanMilliseconds,
+                                              value.gameMeanMilliseconds,
+                                              value.presentationMeanMilliseconds)),
+            ("CPU hitches", "\(value.hitchesOverBudget) over 16.67 ms, "
+                + "\(value.severeHitches) over 33.33 ms / \(value.frameSamples) frames"),
+            ("GPU", String(format: "%.2f / %.2f / %.2f ms mean/last/session max",
+                           value.gpuMeanMilliseconds,
+                           value.gpuLastMilliseconds,
+                           value.gpuMaximumMilliseconds)),
+            ("memory", "\(memory) current, \(peakMemory) session peak"),
+            ("power state", "thermal \(value.thermalState), low power "
+                + (value.lowPowerModeEnabled ? "on" : "off")),
+            ("last level load", value.lastLevelLoadMilliseconds > 0
+                ? String(format: "%.1f ms", value.lastLevelLoadMilliseconds)
+                : "-"),
+        ])
     }
 
     private var seams: some View {

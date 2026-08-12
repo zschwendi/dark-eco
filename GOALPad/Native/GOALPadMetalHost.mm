@@ -1209,6 +1209,10 @@ MetalHostStats metal_host_stats() {
     g_host.stats.last_presented_chain_ordinal = chain.last_presented_chain_ordinal;
     g_host.stats.last_requested_presentation_time = chain.last_requested_presentation_time;
     g_host.stats.last_actual_presentation_time = chain.last_actual_presentation_time;
+    g_host.stats.gpu_samples = chain.gpu_samples;
+    g_host.stats.gpu_total_seconds = chain.gpu_total_seconds;
+    g_host.stats.last_gpu_seconds = chain.last_gpu_seconds;
+    g_host.stats.maximum_gpu_seconds = chain.maximum_gpu_seconds;
   }
   return g_host.stats;
 }

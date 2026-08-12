@@ -663,6 +663,11 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
                                 core.last_merc_eichar_weighted_skin_host_tick_id,
                                 core.last_merc_eichar_weighted_skin_chain_ordinal};
   stats.jak1ShadowOutputEnabled = core.jak1_shadow_output_enabled;
+  stats.gpuSamples = core.gpu_samples;
+  stats.gpuTotalSeconds = core.gpu_total_seconds;
+  stats.lastGPUSeconds = core.last_gpu_seconds;
+  stats.maximumGPUSeconds = core.maximum_gpu_seconds;
+  stats.lastLevelLoadMilliseconds = core.last_level_load_ms;
   return stats;
 }
 

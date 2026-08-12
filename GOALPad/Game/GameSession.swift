@@ -58,6 +58,7 @@ final class GameSession {
     private(set) var displayFastCallbacks = 0
     private(set) var displaySlowCallbacks = 0
     private(set) var displaySampleCount = 0
+    private(set) var performance = GamePerformanceSnapshot()
 
     var frameChain: GOALPadFrameChainStats { GOALPadRuntimeBridge.frameChainStats }
 
@@ -91,6 +92,12 @@ final class GameSession {
     }
     private var previousDisplayCallback: CFTimeInterval?
     private var displayIntervals: [Double] = []
+    private var framePerformance = FramePerformanceAccumulator()
+    private var lastPerformancePublishTime: CFTimeInterval?
+    private var lastPerformancePresentations: UInt64 = 0
+    private var lastPerformanceGPUSamples: UInt64 = 0
+    private var lastPerformanceGPUTotalSeconds = 0.0
+    private var peakPhysicalMemoryBytes: UInt64 = 0
     #if os(iOS) || os(visionOS)
     private var cameraDiagnosticsURL: URL?
     private var cameraDiagnosticsRunID: UInt64 = 0
@@ -256,6 +263,7 @@ final class GameSession {
         }
 
         isRunning = true
+        resetPerformanceTiming()
         updateNativeMenuState(mode: GOALPadRuntimeBridge.gameMode,
                               progress: NativeProgressMenuSnapshot(
                                 GOALPadRuntimeBridge.progressMenuSnapshot),
@@ -316,6 +324,7 @@ final class GameSession {
         displayFastCallbacks = 0
         displaySlowCallbacks = 0
         displaySampleCount = 0
+        clearPerformanceTiming()
         setIdleTimerDisabled(false)
         sessionLog.notice("Session shut down")
     }
@@ -418,6 +427,7 @@ final class GameSession {
 
     private func runArmedTick(targetPresentationTime: CFTimeInterval,
                               endFrame: () -> Bool) -> Bool {
+        let frameStart = CACurrentMediaTime()
         recordDisplayCallback()
         #if os(iOS)
         input.pushFrame(merging: touch.frameState())
@@ -426,11 +436,14 @@ final class GameSession {
         #else
         input.pushFrame()
         #endif
+        let inputEnd = CACurrentMediaTime()
 
         // The GOAL kernel's own frame: every process and state, then the overlord's vblank work.
         // Its DMA send renders synchronously while out-of-chain Merc bones still match the chain.
         var shouldLog = false
-        if GOALPadRuntimeBridge.runFrame(at: targetPresentationTime) {
+        let ranFrame = GOALPadRuntimeBridge.runFrame(at: targetPresentationTime)
+        let gameEnd = CACurrentMediaTime()
+        if ranFrame {
             if GOALPadRuntimeBridge.exitToLibraryRequested,
                !handledNativeExitToLibraryRequest {
                 handledNativeExitToLibraryRequest = true
@@ -477,10 +490,25 @@ final class GameSession {
         if framePresented {
             framesPresented += 1
         }
-        let renderer = GOALPadRenderSurface.shared.stats
+        let frameEnd = CACurrentMediaTime()
+        framePerformance.record(
+            inputMilliseconds: (inputEnd - frameStart) * 1_000,
+            gameMilliseconds: (gameEnd - inputEnd) * 1_000,
+            presentationMilliseconds: (frameEnd - gameEnd) * 1_000,
+            totalMilliseconds: (frameEnd - frameStart) * 1_000
+        )
+        let shouldPublishPerformance = lastPerformancePublishTime.map {
+            frameEnd - $0 >= 1.0
+        } ?? true
+        let renderer = shouldLog || shouldPublishPerformance
+            ? GOALPadRenderSurface.shared.stats
+            : nil
+        if shouldPublishPerformance, let renderer {
+            publishPerformance(at: frameEnd, renderer: renderer)
+        }
         // File snapshots remain available at startup and lifecycle boundaries, never in this
         // display callback.
-        if shouldLog { logRunningState(renderer: renderer) }
+        if shouldLog, let renderer { logRunningState(renderer: renderer) }
         input.applyRumble()
         return framePresented
     }
@@ -1700,6 +1728,94 @@ final class GameSession {
         displayFastCallbacks = 0
         displaySlowCallbacks = 0
         displaySampleCount = 0
+        if isRunning {
+            resetPerformanceTiming()
+        } else {
+            clearPerformanceTiming()
+        }
+    }
+
+    private func resetPerformanceTiming() {
+        let renderer = GOALPadRenderSurface.shared.stats
+        let memory = GOALPadRuntimeBridge.physicalMemoryFootprintBytes
+        framePerformance.reset()
+        lastPerformancePublishTime = CACurrentMediaTime()
+        lastPerformancePresentations = renderer.presentationsCompleted
+        lastPerformanceGPUSamples = renderer.gpuSamples
+        lastPerformanceGPUTotalSeconds = renderer.gpuTotalSeconds
+        peakPhysicalMemoryBytes = max(peakPhysicalMemoryBytes, memory)
+        performance = GamePerformanceSnapshot(physicalMemoryBytes: memory,
+                                              peakPhysicalMemoryBytes: peakPhysicalMemoryBytes,
+                                              thermalState: thermalStateName,
+                                              lowPowerModeEnabled:
+                                                ProcessInfo.processInfo.isLowPowerModeEnabled)
+    }
+
+    private func clearPerformanceTiming() {
+        framePerformance.reset()
+        lastPerformancePublishTime = nil
+        lastPerformancePresentations = 0
+        lastPerformanceGPUSamples = 0
+        lastPerformanceGPUTotalSeconds = 0
+        peakPhysicalMemoryBytes = 0
+        performance = GamePerformanceSnapshot()
+    }
+
+    private func publishPerformance(at now: CFTimeInterval, renderer: GOALPadRendererStats) {
+        guard let previousTime = lastPerformancePublishTime else {
+            resetPerformanceTiming()
+            return
+        }
+        let elapsed = max(now - previousTime, 0.001)
+        let presented = renderer.presentationsCompleted >= lastPerformancePresentations
+            ? renderer.presentationsCompleted - lastPerformancePresentations
+            : 0
+        let gpuSamples = renderer.gpuSamples >= lastPerformanceGPUSamples
+            ? renderer.gpuSamples - lastPerformanceGPUSamples
+            : 0
+        let gpuSeconds = renderer.gpuTotalSeconds >= lastPerformanceGPUTotalSeconds
+            ? renderer.gpuTotalSeconds - lastPerformanceGPUTotalSeconds
+            : 0
+        let memory = GOALPadRuntimeBridge.physicalMemoryFootprintBytes
+        peakPhysicalMemoryBytes = max(peakPhysicalMemoryBytes, memory)
+        performance = framePerformance.drain(
+            windowSeconds: elapsed,
+            actualFramesPerSecond: Double(presented) / elapsed,
+            gpuMeanMilliseconds: gpuSamples > 0 ? gpuSeconds * 1_000 / Double(gpuSamples) : 0,
+            gpuLastMilliseconds: renderer.lastGPUSeconds * 1_000,
+            gpuMaximumMilliseconds: renderer.maximumGPUSeconds * 1_000,
+            physicalMemoryBytes: memory,
+            peakPhysicalMemoryBytes: peakPhysicalMemoryBytes,
+            thermalState: thermalStateName,
+            lowPowerModeEnabled: ProcessInfo.processInfo.isLowPowerModeEnabled,
+            lastLevelLoadMilliseconds: renderer.lastLevelLoadMilliseconds
+        )
+        lastPerformancePublishTime = now
+        lastPerformancePresentations = renderer.presentationsCompleted
+        lastPerformanceGPUSamples = renderer.gpuSamples
+        lastPerformanceGPUTotalSeconds = renderer.gpuTotalSeconds
+        if presentationSettings.developerLogsEnabled {
+            sessionLog.info("""
+                Performance: \(self.performance.actualFramesPerSecond, format: .fixed(precision: 1)) actual fps; \
+                CPU frame \(self.performance.frameMeanMilliseconds, format: .fixed(precision: 2))/\
+                \(self.performance.frameP95Milliseconds, format: .fixed(precision: 2))/\
+                \(self.performance.frameMaxMilliseconds, format: .fixed(precision: 2)) ms mean/p95/max; \
+                GPU \(self.performance.gpuMeanMilliseconds, format: .fixed(precision: 2)) ms mean; \
+                memory \(self.performance.physicalMemoryBytes) bytes; thermal \
+                \(self.performance.thermalState, privacy: .public); low power \
+                \(self.performance.lowPowerModeEnabled)
+                """)
+        }
+    }
+
+    private var thermalStateName: String {
+        switch ProcessInfo.processInfo.thermalState {
+        case .nominal: "nominal"
+        case .fair: "fair"
+        case .serious: "serious"
+        case .critical: "critical"
+        @unknown default: "unknown"
+        }
     }
 
     private func observeSystem() {
