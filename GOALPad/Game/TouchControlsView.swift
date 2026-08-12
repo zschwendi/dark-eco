@@ -22,7 +22,15 @@ struct TouchControlsView: View {
     let openSettings: () -> Void
 
     fileprivate static let space = "GOALPadTouchControls"
-    private static let pillWidth: CGFloat = 118
+    private var usesCompactSessionChrome: Bool {
+        UIDevice.current.userInterfaceIdiom == .phone
+    }
+
+    private var pillSize: CGSize {
+        usesCompactSessionChrome
+            ? ModernTouchChromeLayout.compactPillSize
+            : ModernTouchChromeLayout.pillSize
+    }
 
     #if canImport(UIKit)
     @State private var chromeHaptics = TouchHapticDriver()
@@ -153,7 +161,8 @@ struct TouchControlsView: View {
                 trailing: proxy.safeAreaInsets.trailing)
             let layout = ModernTouchLayout(size: proxy.size,
                                            safeAreaInsets: safeAreaInsets,
-                                           customization: controls.layoutCustomization)
+                                           customization: controls.layoutCustomization,
+                                           usesCompactSessionChrome: usesCompactSessionChrome)
             let reservesCapturedSessionRow = ecoSettingsIsVisible || sessionControl != nil
 
             ZStack {
@@ -278,13 +287,16 @@ struct TouchControlsView: View {
 
     private func pill(_ button: TouchButton) -> some View {
         let isDown = controls.isPillDown(button)
-        return Text(TouchControls.artworkLabel(for: button,
-                                               sessionAction: sessionControl?.action,
-                                               cutsceneSkipAvailable: cutsceneSkipAvailable))
+        let label = usesCompactSessionChrome && button == .stats && !cutsceneSkipAvailable
+            ? "SELECT"
+            : TouchControls.artworkLabel(for: button,
+                                         sessionAction: sessionControl?.action,
+                                         cutsceneSkipAvailable: cutsceneSkipAvailable)
+        return Text(label)
             .font(.system(size: 12, weight: .semibold, design: .rounded))
             .tracking(1.4)
             .foregroundStyle(.white.opacity(isDown ? 1 : 0.8))
-            .frame(width: Self.pillWidth, height: 42)
+            .frame(width: pillSize.width, height: pillSize.height)
             .background(Capsule().fill(.black.opacity(isDown ? 0.72 : 0.42)))
             .overlay(Capsule().strokeBorder(.white.opacity(isDown ? 0.9 : 0.35), lineWidth: 1))
             .onGeometryChange(for: CGRect.self) { proxy in
@@ -325,7 +337,11 @@ struct TouchControlsView: View {
         return ZStack {
             if ecoSettingsIsVisible {
                 Button { openSettings() } label: {
-                    settingsIconLabel
+                    if usesCompactSessionChrome {
+                        capturedPillLabel("SETTINGS", isEnabled: true)
+                    } else {
+                        settingsIconLabel
+                    }
                 }
                 .buttonStyle(.plain)
                 .position(x: layout.settingsButtonFrame.midX,
@@ -356,7 +372,7 @@ struct TouchControlsView: View {
             .font(.system(size: 12, weight: .semibold, design: .rounded))
             .tracking(1.4)
             .foregroundStyle(.white.opacity(isEnabled ? 0.8 : 0.42))
-            .frame(width: Self.pillWidth, height: 42)
+            .frame(width: pillSize.width, height: pillSize.height)
             .background(Capsule().fill(.black.opacity(0.42)))
             .overlay(Capsule().strokeBorder(.white.opacity(isEnabled ? 0.35 : 0.18),
                                             lineWidth: 1))
@@ -383,7 +399,7 @@ struct TouchControlsView: View {
     private func titleStartTouchTarget(frame: CGRect) -> some View {
         Button { performTitleStart() } label: {
             Color.clear
-                .frame(width: Self.pillWidth + 20, height: 66)
+                .frame(width: pillSize.width + 20, height: pillSize.height + 24)
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)

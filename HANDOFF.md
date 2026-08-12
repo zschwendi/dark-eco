@@ -18345,3 +18345,21 @@ Build log:
 ```text
 /private/tmp/goalpad-build177-ios-device.log
 ```
+
+# 2026-08-11 Build 178 compact iPhone session controls checkpoint
+
+Build 178 leaves iPad touch chrome unchanged and reduces iPhone session pills
+to 92 by 38 points with an 8-point gap and 16-point bottom inset. The left pill
+uses one location for contextual `SELECT`, `SKIP`, or `SETTINGS` text; the right
+pill retains dynamic Start, Pause, and Resume behavior. The settings gear is
+therefore replaced by `SETTINGS` on iPhone only.
+
+The checkpoint is on branch `agent/build178-iphone-session-controls`. The signed
+generic iOS Release build passed and was installed on physical `Z iPad Pro`;
+device inventory confirmed Dark Eco 1.0 (178). The iPad remained locked at
+launch time, and `Z iPhone Air` was offline. Per maintainer direction, no
+test-suite run was performed. Build log:
+
+```text
+/private/tmp/goalpad-build178-ios-device.log
+```

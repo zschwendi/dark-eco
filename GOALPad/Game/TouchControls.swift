@@ -778,6 +778,9 @@ struct ModernTouchChromeLayout: Equatable, Sendable {
     nonisolated static let zoomDiameter: CGFloat = 42
     nonisolated static let zoomGap: CGFloat = pillSpacing
     nonisolated static let bottomInset: CGFloat = 30
+    nonisolated static let compactPillSize = CGSize(width: 92, height: 38)
+    nonisolated static let compactPillSpacing: CGFloat = 8
+    nonisolated static let compactBottomInset: CGFloat = 16
 
     let zoomFrame: CGRect
     let statsFrame: CGRect
@@ -785,22 +788,27 @@ struct ModernTouchChromeLayout: Equatable, Sendable {
     let settingsFrame: CGRect
     let centeredSessionFrame: CGRect
 
-    init(size: CGSize) {
+    init(size: CGSize, compact: Bool = false) {
         let width = max(0, size.width)
         let height = max(0, size.height)
-        let pairWidth = Self.pillSize.width * 2 + Self.pillSpacing
+        let pillSize = compact ? Self.compactPillSize : Self.pillSize
+        let pillSpacing = compact ? Self.compactPillSpacing : Self.pillSpacing
+        let bottomInset = compact ? Self.compactBottomInset : Self.bottomInset
+        let pairWidth = pillSize.width * 2 + pillSpacing
         let stats = CGRect(x: (width - pairWidth) / 2,
-                           y: height - Self.bottomInset - Self.pillSize.height,
-                           width: Self.pillSize.width, height: Self.pillSize.height)
+                           y: height - bottomInset - pillSize.height,
+                           width: pillSize.width, height: pillSize.height)
         statsFrame = stats
-        startFrame = stats.offsetBy(dx: Self.pillSize.width + Self.pillSpacing, dy: 0)
-        settingsFrame = CGRect(x: startFrame.minX - Self.pillSpacing - Self.settingsDiameter,
-                               y: startFrame.midY - Self.settingsDiameter / 2,
-                               width: Self.settingsDiameter, height: Self.settingsDiameter)
-        centeredSessionFrame = CGRect(x: (width - Self.pillSize.width) / 2,
+        startFrame = stats.offsetBy(dx: pillSize.width + pillSpacing, dy: 0)
+        settingsFrame = compact
+            ? stats
+            : CGRect(x: startFrame.minX - Self.pillSpacing - Self.settingsDiameter,
+                     y: startFrame.midY - Self.settingsDiameter / 2,
+                     width: Self.settingsDiameter, height: Self.settingsDiameter)
+        centeredSessionFrame = CGRect(x: (width - pillSize.width) / 2,
                                       y: stats.minY,
-                                      width: Self.pillSize.width,
-                                      height: Self.pillSize.height)
+                                      width: pillSize.width,
+                                      height: pillSize.height)
         zoomFrame = CGRect(x: stats.minX - Self.zoomGap - Self.zoomDiameter,
                            y: stats.midY - Self.zoomDiameter / 2,
                            width: Self.zoomDiameter, height: Self.zoomDiameter)
@@ -849,7 +857,8 @@ struct ModernTouchLayout: Sendable {
     let warpPromptBottomInset: CGFloat
 
     init(size: CGSize, safeAreaInsets: TouchSafeAreaInsets = .zero,
-         customization: TouchLayoutCustomization = .standard) {
+         customization: TouchLayoutCustomization = .standard,
+         usesCompactSessionChrome: Bool = false) {
         let bounds = CGRect(origin: .zero,
                             size: CGSize(width: max(0, size.width), height: max(0, size.height)))
         let leading = min(max(0, safeAreaInsets.leading), bounds.width)
@@ -878,7 +887,8 @@ struct ModernTouchLayout: Sendable {
 
         let isPortrait = bounds.height > bounds.width
         let chromeBounds = isPortrait ? safe : bounds
-        let chrome = ModernTouchChromeLayout(size: chromeBounds.size)
+        let chrome = ModernTouchChromeLayout(size: chromeBounds.size,
+                                             compact: usesCompactSessionChrome)
         let chromeOffset = chromeBounds.origin
         let defaultSelectPillFrame = chrome.centeredSessionFrame.offsetBy(
             dx: chromeOffset.x, dy: chromeOffset.y)
@@ -892,9 +902,11 @@ struct ModernTouchLayout: Sendable {
                                             customization: customization, safeBounds: safe)
         startPillFrame = Self.resolvedFrame(defaultStartPillFrame, id: .modernStart,
                                             customization: customization, safeBounds: safe)
-        settingsButtonFrame = chrome.settingsFrame.offsetBy(
-            dx: chromeOffset.x + startPillFrame.minX - defaultStartPillFrame.minX,
-            dy: chromeOffset.y + startPillFrame.minY - defaultStartPillFrame.minY)
+        settingsButtonFrame = usesCompactSessionChrome
+            ? statsPillFrame
+            : chrome.settingsFrame.offsetBy(
+                dx: chromeOffset.x + startPillFrame.minX - defaultStartPillFrame.minX,
+                dy: chromeOffset.y + startPillFrame.minY - defaultStartPillFrame.minY)
 
         let pillHitFrames = [selectPillFrame, statsPillFrame, startPillFrame].map {
             $0.insetBy(dx: -Self.pillHitInsets.width, dy: -Self.pillHitInsets.height)
