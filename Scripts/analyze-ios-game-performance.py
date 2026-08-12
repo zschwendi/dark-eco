@@ -138,6 +138,11 @@ def read_metadata(path: Path | None) -> dict[str, str]:
         if "=" in line:
             key, value = line.split("=", 1)
             result[key] = value
+        elif line.startswith("xctrace version "):
+            # capture-ios-game-performance.sh writes the command's version output
+            # verbatim after its key/value provenance.  Preserve it rather than
+            # guessing a version from a later tool installation.
+            result["xctrace_version"] = line
     return result
 
 
@@ -241,20 +246,36 @@ def is_dark_eco(row: dict[str, Cell]) -> bool:
     return process == PROCESS_NAME or (process is not None and process.startswith(f"{PROCESS_NAME} ("))
 
 
-def named_metric(rows: list[dict[str, Cell]], requested: str | None) -> dict[str, Any]:
+def named_metric(schema_rows: dict[str, list[dict[str, Cell]]], requested: str | None) -> dict[str, Any]:
     if requested is None:
         return {"available": False, "reason": "no explicit metric name or label was requested"}
-    matching = [row for row in rows if is_dark_eco(row) and requested in (row_display(row, "name"), row_display(row, "label"))]
-    pairs = {(row_display(row, "name"), row_display(row, "label")) for row in matching}
+    matching = [
+        (schema, row)
+        for schema in FRAME_SCHEMAS
+        for row in schema_rows.get(schema, [])
+        if is_dark_eco(row) and requested in (row_display(row, "name"), row_display(row, "label"))
+    ]
+    pairs = {(schema, row_display(row, "name"), row_display(row, "label")) for schema, row in matching}
     if not matching:
         return {"available": False, "reason": f"named metric not present for {PROCESS_NAME}: {requested}"}
     if len(pairs) != 1:
-        return {"available": False, "reason": f"named metric is ambiguous: {requested}", "candidates": sorted(pairs, key=lambda pair: (pair[0] or "", pair[1] or ""))}
+        return {"available": False, "reason": f"named metric is ambiguous: {requested}", "candidates": sorted(pairs, key=lambda pair: (pair[0], pair[1] or "", pair[2] or ""))}
     values: list[float] = []
-    for row in matching:
+    for _, row in matching:
         values.append(frame_metric_ms(row, requested))
-    name, label = next(iter(pairs))
-    return {"available": True, "name": name, "label": label, **metric_summary(values)}
+    schema, name, label = next(iter(pairs))
+    value_column = CATALOG_VALUE_COLUMNS[schema]
+    return {
+        "available": True,
+        "source": {"schema": schema, "name": name, "label": label, "value_column": value_column, "observed_cell_tags": sorted({row[value_column].tag for _, row in matching}), "unit": "ms"},
+        "schema": schema,
+        "name": name,
+        "label": label,
+        "value_column": value_column,
+        "observed_cell_tags": sorted({row[value_column].tag for _, row in matching}),
+        "unit": "ms",
+        **metric_summary(values),
+    }
 
 
 def classify_cadence(interval_ms: float) -> str:
@@ -270,6 +291,17 @@ def cadence_runs(classifications: list[str]) -> list[dict[str, Any]]:
             runs[-1]["sample_count"] += 1
         else:
             runs.append({"classification": classification, "sample_count": 1})
+    return runs
+
+
+def cadence_run_durations(classifications: list[str], intervals_ns: list[int]) -> list[dict[str, Any]]:
+    runs: list[dict[str, Any]] = []
+    for classification, duration_ns in zip(classifications, intervals_ns):
+        if runs and runs[-1]["classification"] == classification:
+            runs[-1]["sample_count"] += 1
+            runs[-1]["total_duration_ns"] += duration_ns
+        else:
+            runs.append({"classification": classification, "sample_count": 1, "total_duration_ns": duration_ns})
     return runs
 
 
@@ -307,14 +339,46 @@ def cadence(rows: list[dict[str, Cell]], selected: str | None, hitch_hz: int | N
     if len(pairs) != 1:
         return {"available": False, "reason": f"presentation metric is ambiguous: {selected}", "candidates": sorted(pairs, key=lambda pair: (pair[0] or "", pair[1] or ""))}
     intervals: list[float] = []
+    intervals_ns: list[int] = []
     for row in matching:
         interval = duration_ms(row.get("duration"), f"presentation metric {selected}")
         if interval <= 0:
             raise AnalysisError(f"presentation metric {selected} has an invalid duration")
         intervals.append(interval)
+        intervals_ns.append(round(interval * 1_000_000.0))
     classifications = [classify_cadence(interval) for interval in intervals]
     clusters: Counter[str] = Counter(classifications)
-    result: dict[str, Any] = {"available": True, "name": next(iter(pairs))[0], "label": next(iter(pairs))[1], **metric_summary(intervals), "cadence_clusters": {str(hz): clusters[str(hz)] for hz in CADENCE_HZ}, "unclassified": clusters["unclassified"], "cadence_runs": cadence_runs(classifications)}
+    cluster_durations: Counter[str] = Counter()
+    for classification, duration_ns in zip(classifications, intervals_ns):
+        cluster_durations[classification] += duration_ns
+    total_duration_ns = sum(intervals_ns)
+    high_count = sum(count for cluster, count in clusters.items() if cluster != "unclassified" and int(cluster) > 60)
+    high_duration = sum(duration for cluster, duration in cluster_durations.items() if cluster != "unclassified" and int(cluster) > 60)
+    result: dict[str, Any] = {
+        "available": True,
+        "source": {"schema": INTERVAL_SCHEMA, "name": next(iter(pairs))[0], "label": next(iter(pairs))[1], "value_column": "duration", "observed_cell_tags": sorted({row["duration"].tag for row in matching}), "unit": "ms"},
+        "schema": INTERVAL_SCHEMA,
+        "name": next(iter(pairs))[0],
+        "label": next(iter(pairs))[1],
+        "value_column": "duration",
+        "observed_cell_tags": sorted({row["duration"].tag for row in matching}),
+        "unit": "ms",
+        **metric_summary(intervals),
+        "interval_histogram_ns": {str(value): count for value, count in sorted(Counter(intervals_ns).items())},
+        "total_duration_ns": total_duration_ns,
+        "min_duration_ns": min(intervals_ns),
+        "cadence_clusters": {str(hz): clusters[str(hz)] for hz in CADENCE_HZ},
+        "cadence_cluster_total_duration_ns": {str(hz): cluster_durations[str(hz)] for hz in CADENCE_HZ},
+        "unclassified": clusters["unclassified"],
+        "unclassified_total_duration_ns": cluster_durations["unclassified"],
+        "cadence_runs": cadence_run_durations(classifications, intervals_ns),
+        "high_refresh_above_60": {
+            "sample_count": high_count,
+            "sample_share": round(high_count / len(intervals), 6),
+            "total_duration_ns": high_duration,
+            "duration_share": round(high_duration / total_duration_ns, 6),
+        },
+    }
     if hitch_hz is None:
         result["multi_interval_hitch_candidates"] = {"available": False, "reason": "no hitch reference cadence was requested", "candidate_only": True, "note": "Candidates include legitimate adaptive cadence transitions; correlate cadence runs and trace events before calling a hitch."}
     else:
@@ -328,6 +392,11 @@ def cadence(rows: list[dict[str, Cell]], selected: str | None, hitch_hz: int | N
             "reference_hz": hitch_hz,
             "count": sum(interval >= reference_ms * 1.5 for interval in intervals),
             "threshold_ms": round(reference_ms * 1.5, 6),
+            "thresholds": {
+                "1.5x": sum(interval >= reference_ms * 1.5 for interval in intervals),
+                "2x": sum(interval >= reference_ms * 2 for interval in intervals),
+                "3x": sum(interval >= reference_ms * 3 for interval in intervals),
+            },
         }
     return result
 
@@ -343,7 +412,34 @@ def thermal(rows: list[dict[str, Cell]]) -> dict[str, Any]:
         if start_ns is None:
             raise AnalysisError("thermal interval has invalid start payload")
         intervals.append({"start_ns": int(start_ns), "duration_ms": round(duration_ms(row.get("duration"), "thermal interval"), 6), "state": row_display(row, "thermal-state")})
-    return {"available": True, "intervals": intervals}
+    states = Counter(interval["state"] or "<missing>" for interval in intervals)
+    durations = Counter()
+    for interval in intervals:
+        durations[interval["state"] or "<missing>"] += round(interval["duration_ms"] * 1_000_000.0)
+    return {"available": True, "intervals": intervals, "state_sample_counts": dict(sorted(states.items())), "state_total_duration_ns": dict(sorted(durations.items()))}
+
+
+CONTEXT_FIELDS = ("route_id", "graphics_profile", "resolution", "input", "brightness", "low_power_mode", "developer_logs", "nominal_start_thermal_state", "run_label")
+
+
+def read_context(path: Path | None) -> dict[str, Any]:
+    if path is None:
+        raise AnalysisError("--comparison-context is required; runtime settings are operator-supplied, never inferred")
+    try:
+        context = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise AnalysisError(f"invalid comparison context: {error}") from error
+    if not isinstance(context, dict) or context.get("source") != "operator":
+        raise AnalysisError("comparison context must be an object with source=operator")
+    missing = [field for field in CONTEXT_FIELDS if field not in context]
+    if missing:
+        raise AnalysisError(f"comparison context is missing: {', '.join(missing)}")
+    if context["low_power_mode"] is not False or context["developer_logs"] is not False:
+        raise AnalysisError("comparison context requires low_power_mode=false and developer_logs=false")
+    artifact = context.get("installed_build_artifact")
+    if not isinstance(artifact, str) or not artifact:
+        raise AnalysisError("comparison context requires a nonempty independently verified installed_build_artifact")
+    return {field: context[field] for field in CONTEXT_FIELDS} | {"source": "operator", "installed_build_artifact": artifact}
 
 
 def sampled_cpu(rows: list[dict[str, Cell]], trace_duration_seconds: float | None) -> dict[str, Any]:
@@ -401,6 +497,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cpu-metric", help="exact observed CPU frame metric name or label")
     parser.add_argument("--gpu-metric", help="exact observed GPU frame metric name or label")
     parser.add_argument("--hitch-reference-hz", type=int, help="explicit cadence used for candidate multi-interval hitches")
+    parser.add_argument("--comparison-context", type=Path, help="operator-supplied JSON for this run; required for schema v2")
     args = parser.parse_args(argv)
     if args.output.exists():
         raise AnalysisError(f"output already exists: {args.output}")
@@ -454,17 +551,18 @@ def main(argv: list[str] | None = None) -> int:
         schema_rows[schema] = query_rows(source, schema)
         statuses[schema] = {"available": True, "row_count": len(schema_rows[schema])}
 
-    frame_rows = [row for schema in FRAME_SCHEMAS for row in schema_rows.get(schema, [])]
     report = {
-        "schema_version": 1,
+        "schema_version": 2,
+        "analysis_contract": {"analyzer_version": 2, "cadence_hz": list(CADENCE_HZ), "classifier_tolerance_fraction": 0.08, "histogram_unit": "ns", "high_refresh_definition": "classified_hz > 60", "candidate_multipliers": [1.5, 2, 3], "percentile_method": "nearest-rank", "non_shipping": True, "no_hitch_verdict": True, "runtime_settings_source": "operator"},
+        "comparison_context": read_context(args.comparison_context),
         "provenance": {"trace": str(trace) if trace else None, "toc": str(toc), **provenance, "capture_metadata": read_metadata(metadata_path)},
         "schema_inventory": {"known": [schema for schema in inventory if schema in KNOWN_SCHEMAS], "unknown_preserved_but_not_interpreted": unknown, "status": statuses},
         "process_filter": PROCESS_NAME,
         "metric_catalog": metric_catalog(schema_rows),
         "measurements": {
             "cadence": cadence(schema_rows.get(INTERVAL_SCHEMA, []), args.presentation_metric, args.hitch_reference_hz) if INTERVAL_SCHEMA in schema_rows else {"available": False, "reason": "missing presentation interval schema"},
-            "cpu_frame_metric": named_metric(frame_rows, args.cpu_metric) if frame_rows else {"available": False, "reason": "missing named frame metric schemas"},
-            "gpu_frame_metric": named_metric(frame_rows, args.gpu_metric) if frame_rows else {"available": False, "reason": "missing named frame metric schemas"},
+            "cpu_frame_metric": named_metric(schema_rows, args.cpu_metric) if any(schema in schema_rows for schema in FRAME_SCHEMAS) else {"available": False, "reason": "missing named frame metric schemas"},
+            "gpu_frame_metric": named_metric(schema_rows, args.gpu_metric) if any(schema in schema_rows for schema in FRAME_SCHEMAS) else {"available": False, "reason": "missing named frame metric schemas"},
             "sampled_cpu": sampled_cpu(schema_rows[CPU_SCHEMA], provenance["duration_seconds"]) if CPU_SCHEMA in schema_rows else {"available": False, "reason": "missing Time Profiler schema"},
             "thermal": thermal(schema_rows[THERMAL_SCHEMA]) if THERMAL_SCHEMA in schema_rows else {"available": False, "reason": "missing thermal schema"},
         },

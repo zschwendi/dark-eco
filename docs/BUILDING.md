@@ -1208,10 +1208,34 @@ marks unavailable measurements rather than substituting zeroes. First inspect
 names/labels, source schema, sample count, value column, cell tag, and display
 examples without selecting a metric.
 
+For every run, create a separate operator-supplied JSON context. These values
+are not observable from the trace and are never inferred by either tool. Its
+`run_label` must be exactly one of `60-A`, `HFR-A`, `HFR-B`, or `60-B`; it must
+also identify the route, graphics profile, resolution, input, brightness,
+nominal start thermal state, and state `low_power_mode` and `developer_logs` as
+`false`.
+
+```json
+{
+  "source": "operator",
+  "run_label": "HFR-A",
+  "route_id": "spider-cave-warmed-marker-1",
+  "graphics_profile": "Modern",
+  "resolution": "2x",
+  "input": "DualSense",
+  "brightness": "fixed-50-percent",
+  "low_power_mode": false,
+  "developer_logs": false,
+  "nominal_start_thermal_state": "Nominal",
+  "installed_build_artifact": "Dark Eco 207, independently verified bundle/build and SHA-256"
+}
+```
+
 ```sh
 Scripts/analyze-ios-game-performance.py \
   --input /private/tmp/dark-eco-build207-hfr-a-overview \
   --output /private/tmp/dark-eco-build207-hfr-a-analysis \
+  --comparison-context /private/tmp/dark-eco-build207-hfr-a-context.json \
   --export-missing \
   --presentation-metric '<observed presentation interval name or label>' \
   --cpu-metric '<observed CPU frame metric name or label>' \
@@ -1224,6 +1248,34 @@ top stacks, not exact CPU frame duration. Adaptive cadence changes can be
 legitimate. `multi_interval_hitch_candidates` is intentionally not a hitch
 verdict: it includes legitimate cadence transitions. Correlate its candidates
 with the contiguous `cadence_runs` and the trace before judging a hitch.
+
+After producing four schema-v2 reports in the prescribed order, compare them
+offline. The comparator rejects v1 reports and any mismatch in capture device,
+outer/nested heads, template, xctrace version, process filter, operator context,
+or selected cadence metric schema/name/label/unit. It writes deterministic
+`comparison.json` and `comparison.csv`; it reports evidence sufficiency only,
+never a performance acceptance or hitch-regression threshold.
+It also requires comparable 30-second actual trace durations (within one
+second) and continuous, ordered thermal intervals that cover each trace. The
+operator's nominal initial thermal state must match the adjacent
+counterbalanced pairs, 60-A/HFR-A and HFR-B/60-B.
+
+```sh
+Scripts/compare-ios-game-performance.py \
+  --60-a  /private/tmp/dark-eco-build207-60-a-analysis/report.json \
+  --hfr-a /private/tmp/dark-eco-build207-hfr-a-analysis/report.json \
+  --hfr-b /private/tmp/dark-eco-build207-hfr-b-analysis/report.json \
+  --60-b  /private/tmp/dark-eco-build207-60-b-analysis/report.json \
+  --output /private/tmp/dark-eco-build207-comparison
+```
+
+HFR evidence is any observed cadence above 60 Hz in both HFR replicates; it
+does not require a 120-Hz cluster or continuous 120 Hz. Exact per-run interval
+histograms allow the comparison to provide pooled sample-weighted percentiles;
+it also keeps median-of-run percentiles so counterbalanced replicates are not
+hidden. Capture Git heads identify source provenance, not
+the installed binary; record an independently verified artifact/build in the
+operator context if that identity is needed.
 
 Judge the result against the actual adaptive cadence, not an assumption that
 the display must remain at 120 Hz. Record the presented-frame interval

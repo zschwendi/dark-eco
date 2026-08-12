@@ -41,6 +41,8 @@ def main():
         root = Path(temporary)
         capture = root / "capture"
         capture.mkdir()
+        context = root / "context.json"
+        write(context, json.dumps({"source": "operator", "route_id": "spider-cave-marker", "graphics_profile": "Modern", "resolution": "2x", "input": "DualSense", "brightness": "fixed-50", "low_power_mode": False, "developer_logs": False, "nominal_start_thermal_state": "Nominal", "run_label": "HFR-A", "installed_build_artifact": "Dark Eco 207 sha"}))
         write(capture / "dark-eco-build207-hfr-metadata.txt", "mode=hfr\nxctrace_version=16.0\nouter_head=f27f8633\n")
         write(capture / "dark-eco-build207-hfr-toc.xml", '''<trace-toc><run number="1"><info><summary><template-name>Game Performance Overview</template-name><instruments-version>16.0 (17F113)</instruments-version><duration fmt="30.00 s">30</duration></summary></info><data>
 <table schema="metal-perf-overview-layer-per-frame-metric"/><table schema="metal-perf-overview-layer-per-frame-interval-metric"/><table schema="time-profile"/><table schema="device-thermal-state-intervals"/><table schema="future-schema"/></data></run></trace-toc>''')
@@ -70,7 +72,7 @@ def main():
             "device-thermal-state-intervals", ["start", "duration", "thermal-state"],
             [cells(cell("start-time", "0", fmt="00:00.000.000"), cell("duration", "10000000000", fmt="10.00 s"), cell("thermal-state", "0", fmt="Nominal")), cells(cell("start-time", "10000000000", fmt="00:10.000.000"), cell("duration", "20000000000", fmt="20.00 s"), cell("thermal-state", "1", fmt="Fair"))]))
         output = root / "analysis"
-        command = ["python3", str(ANALYZER), "--input", str(capture), "--output", str(output), "--presentation-metric", "Presentation interval", "--cpu-metric", "CPU frame", "--gpu-metric", "GPU frame", "--hitch-reference-hz", "120"]
+        command = ["python3", str(ANALYZER), "--input", str(capture), "--output", str(output), "--comparison-context", str(context), "--presentation-metric", "Presentation interval", "--cpu-metric", "CPU frame", "--gpu-metric", "GPU frame", "--hitch-reference-hz", "120"]
         result = subprocess.run(command, capture_output=True, text=True)
         assert result.returncode == 0, result.stderr
         report = json.loads((output / "report.json").read_text())
@@ -79,7 +81,8 @@ def main():
         assert not report["schema_inventory"]["status"]["metal-perf-overview-layer-duration-metric"]["available"]
         cadence = report["measurements"]["cadence"]
         assert cadence["sample_count"] == 4 and cadence["p50_ms"] == 8.333333 and cadence["cadence_clusters"]["120"] == 2 and cadence["cadence_clusters"]["60"] == 1
-        assert cadence["cadence_runs"] == [{"classification": "120", "sample_count": 2}, {"classification": "60", "sample_count": 1}, {"classification": "30", "sample_count": 1}]
+        assert cadence["interval_histogram_ns"]["8333333"] == 2 and cadence["high_refresh_above_60"]["sample_count"] == 2
+        assert [(run["classification"], run["sample_count"]) for run in cadence["cadence_runs"]] == [("120", 2), ("60", 1), ("30", 1)]
         candidates = cadence["multi_interval_hitch_candidates"]
         assert candidates["count"] == 2 and candidates["candidate_only"]
         catalog = report["metric_catalog"]
@@ -99,24 +102,24 @@ def main():
         assert (output / "report.json").read_text() == (deterministic / "report.json").read_text()
         assert (output / "report.csv").read_text() == (deterministic / "report.csv").read_text()
         missing = root / "missing"
-        result = subprocess.run(["python3", str(ANALYZER), "--input", str(capture), "--output", str(missing), "--presentation-metric", "unknown"], capture_output=True, text=True)
+        result = subprocess.run(["python3", str(ANALYZER), "--input", str(capture), "--output", str(missing), "--comparison-context", str(context), "--presentation-metric", "unknown"], capture_output=True, text=True)
         assert result.returncode == 0
         report = json.loads((missing / "report.json").read_text())
         assert not report["measurements"]["cadence"]["available"]
         assert not report["measurements"]["gpu_frame_metric"]["available"]
         units = root / "units"
-        result = subprocess.run(["python3", str(ANALYZER), "--input", str(capture), "--output", str(units), "--gpu-metric", "unspecified"], capture_output=True, text=True)
+        result = subprocess.run(["python3", str(ANALYZER), "--input", str(capture), "--output", str(units), "--comparison-context", str(context), "--gpu-metric", "unspecified"], capture_output=True, text=True)
         assert result.returncode == 2 and "unsupported metric-value unit/tag fixed-decimal" in result.stderr
         no_cpu_xml = root / "no-cpu.xml"
         write(no_cpu_xml, query("time-profile", ["thread-state", "weight", "stack", "process"], []))
         no_cpu = root / "no-cpu"
-        result = subprocess.run(["python3", str(ANALYZER), "--input", str(capture), "--output", str(no_cpu), "--xml", f"time-profile={no_cpu_xml}"], capture_output=True, text=True)
+        result = subprocess.run(["python3", str(ANALYZER), "--input", str(capture), "--output", str(no_cpu), "--comparison-context", str(context), "--xml", f"time-profile={no_cpu_xml}"], capture_output=True, text=True)
         assert result.returncode == 0, result.stderr
         report = json.loads((no_cpu / "report.json").read_text())
         assert not report["measurements"]["sampled_cpu"]["available"]
         bad = root / "bad"
         write(root / "wrong.xml", query("wrong-schema", ["a"], [cells(cell("a", "1"))]))
-        result = subprocess.run(["python3", str(ANALYZER), "--input", str(capture), "--output", str(bad), "--xml", f"time-profile={root / 'wrong.xml'}"], capture_output=True, text=True)
+        result = subprocess.run(["python3", str(ANALYZER), "--input", str(capture), "--output", str(bad), "--comparison-context", str(context), "--xml", f"time-profile={root / 'wrong.xml'}"], capture_output=True, text=True)
         assert result.returncode == 2 and "schema mismatch" in result.stderr
     print("ios-game-performance-analysis-check: PASS")
 
