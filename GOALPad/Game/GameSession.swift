@@ -449,41 +449,40 @@ final class GameSession {
         // Its DMA send renders synchronously while out-of-chain Merc bones still match the chain.
         var shouldLog = false
         if GOALPadRuntimeBridge.runFrame(at: targetPresentationTime) {
-            if GOALPadRuntimeBridge.exitToLibraryRequested,
-               !handledNativeExitToLibraryRequest {
+            let nativeState = GOALPadRuntimeBridge.gameFrameStateSnapshot
+            if nativeState.exitToLibraryRequested.boolValue, !handledNativeExitToLibraryRequest {
                 handledNativeExitToLibraryRequest = true
                 returnToLibraryRequestID &+= 1
             }
-            framesRun = GOALPadRuntimeBridge.framesRun
-            let currentMode = GOALPadRuntimeBridge.gameMode
-            let currentProgress = NativeProgressMenuSnapshot(
-                GOALPadRuntimeBridge.progressMenuSnapshot)
-            let currentTitleStartState = GOALPadRuntimeBridge.titleStartState
+            framesRun = nativeState.framesRun
+            let currentMode = nativeState.gameMode
+            let currentProgress = NativeProgressMenuSnapshot(nativeState.progressMenu)
+            let currentTitleStartState = nativeState.titleStartState
             if currentMode != gameMode || currentProgress != progressMenuSnapshot
                 || currentTitleStartState != titleStartState {
                 updateNativeMenuState(mode: currentMode, progress: currentProgress,
                                       titleStartState: currentTitleStartState)
             }
             let currentWarpGateTouchSnapshot = NativeWarpGateTouchSnapshot(
-                GOALPadRuntimeBridge.warpGateTouchSnapshot)
+                nativeState.warpGateTouch)
             if currentWarpGateTouchSnapshot != warpGateTouchSnapshot {
                 updateWarpGateTouchSnapshot(currentWarpGateTouchSnapshot)
             }
             let currentCutsceneSkipTouchSnapshot = NativeCutsceneSkipTouchSnapshot(
-                GOALPadRuntimeBridge.cutsceneSkipTouchSnapshot)
+                nativeState.cutsceneSkipTouch)
             if currentCutsceneSkipTouchSnapshot != cutsceneSkipTouchSnapshot {
                 updateCutsceneSkipTouchSnapshot(currentCutsceneSkipTouchSnapshot)
             }
             let currentFacePromptTouchSnapshot = NativeFacePromptTouchSnapshot(
-                GOALPadRuntimeBridge.facePromptTouchSnapshot)
+                nativeState.facePromptTouch)
             if currentFacePromptTouchSnapshot != facePromptTouchSnapshot {
                 updateFacePromptTouchSnapshot(currentFacePromptTouchSnapshot)
             }
-            let currentLookAroundState = GOALPadRuntimeBridge.lookAroundState
+            let currentLookAroundState = nativeState.lookAroundState
             if currentLookAroundState != lookAroundState {
                 lookAroundState = currentLookAroundState
             }
-            let currentSpeederState = GOALPadRuntimeBridge.speederState
+            let currentSpeederState = nativeState.speederState
             if currentSpeederState != speederState {
                 updateSpeederState(currentSpeederState)
             }

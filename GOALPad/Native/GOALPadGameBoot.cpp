@@ -926,8 +926,18 @@ SpeederState speeder_state() noexcept {
   return classify_speeder_state(state_name, g_speeder_state_symbols);
 }
 
+static ProgressMenuSnapshot progress_menu_snapshot_for_mode(GameMode current_mode) noexcept;
+static CutsceneSkipTouchSnapshot cutscene_skip_touch_snapshot_for_mode(
+    GameMode current_mode) noexcept;
+static FacePromptTouchSnapshot face_prompt_touch_snapshot_for_mode(
+    GameMode current_mode) noexcept;
+
 ProgressMenuSnapshot progress_menu_snapshot() noexcept {
-  if (!g_booted || game_mode() != GameMode::Progress || !g_progress_process ||
+  return progress_menu_snapshot_for_mode(game_mode());
+}
+
+static ProgressMenuSnapshot progress_menu_snapshot_for_mode(GameMode current_mode) noexcept {
+  if (!g_booted || current_mode != GameMode::Progress || !g_progress_process ||
       !g_progress_type || !g_ee_main_mem) {
     return {};
   }
@@ -952,7 +962,12 @@ WarpGateTouchSnapshot warp_gate_touch_snapshot() noexcept {
 }
 
 CutsceneSkipTouchSnapshot cutscene_skip_touch_snapshot() noexcept {
-  if (!g_booted || game_mode() != GameMode::Gameplay || !g_cutscene_skip_touch_snapshot ||
+  return cutscene_skip_touch_snapshot_for_mode(game_mode());
+}
+
+static CutsceneSkipTouchSnapshot cutscene_skip_touch_snapshot_for_mode(
+    GameMode current_mode) noexcept {
+  if (!g_booted || current_mode != GameMode::Gameplay || !g_cutscene_skip_touch_snapshot ||
       !g_cutscene_skip_touch_snapshot_type || !g_ee_main_mem) {
     return {};
   }
@@ -964,7 +979,12 @@ CutsceneSkipTouchSnapshot cutscene_skip_touch_snapshot() noexcept {
 }
 
 FacePromptTouchSnapshot face_prompt_touch_snapshot() noexcept {
-  if (!g_booted || game_mode() != GameMode::Gameplay || !g_face_prompt_touch_snapshot ||
+  return face_prompt_touch_snapshot_for_mode(game_mode());
+}
+
+static FacePromptTouchSnapshot face_prompt_touch_snapshot_for_mode(
+    GameMode current_mode) noexcept {
+  if (!g_booted || current_mode != GameMode::Gameplay || !g_face_prompt_touch_snapshot ||
       !g_face_prompt_touch_snapshot_type || !g_ee_main_mem) {
     g_face_prompt_touch_reader.reset();
     return {};
@@ -974,6 +994,22 @@ FacePromptTouchSnapshot face_prompt_touch_snapshot() noexcept {
       g_ee_main_mem, EE_MAIN_MEM_SIZE, EE_MAIN_MEM_LOW_PROTECT,
       static_cast<std::uint32_t>(*g_face_prompt_touch_snapshot),
       g_face_prompt_touch_snapshot_type, g_frames);
+}
+
+GameFrameStateSnapshot game_frame_state_snapshot() noexcept {
+  GameFrameStateSnapshot snapshot;
+  snapshot.exit_to_library_requested = exit_to_library_requested();
+  snapshot.frames_run = frames_run();
+  const auto current_mode = game_mode();
+  snapshot.game_mode = current_mode;
+  snapshot.progress_menu = progress_menu_snapshot_for_mode(current_mode);
+  snapshot.title_start_state = title_start_state();
+  snapshot.warp_gate_touch = warp_gate_touch_snapshot();
+  snapshot.cutscene_skip_touch = cutscene_skip_touch_snapshot_for_mode(current_mode);
+  snapshot.face_prompt_touch = face_prompt_touch_snapshot_for_mode(current_mode);
+  snapshot.look_around_state = look_around_state();
+  snapshot.speeder_state = speeder_state();
+  return snapshot;
 }
 
 #else  // GOALPAD_HAVE_GAME_BOOT
@@ -1050,6 +1086,10 @@ CutsceneSkipTouchSnapshot cutscene_skip_touch_snapshot() noexcept {
 }
 
 FacePromptTouchSnapshot face_prompt_touch_snapshot() noexcept {
+  return {};
+}
+
+GameFrameStateSnapshot game_frame_state_snapshot() noexcept {
   return {};
 }
 

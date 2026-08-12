@@ -41,6 +41,10 @@ private func occursInOrder(_ needles: [String], in source: String) -> Bool {
     return true
 }
 
+private func occurrenceCount(_ needle: String, in source: String) -> Int {
+    source.components(separatedBy: needle).count - 1
+}
+
 guard CommandLine.arguments.count == 2 else {
     print("usage: swift Scripts/game-lifecycle-route-check.swift <repository-root>")
     Foundation.exit(2)
@@ -140,14 +144,74 @@ check(occursInOrder([
     "let developerLogsEnabled = presentationSettings.developerLogsEnabled",
     "input.pushFrame",
     "GOALPadRuntimeBridge.runFrame(at: targetPresentationTime)",
-    "GOALPadRuntimeBridge.exitToLibraryRequested",
+    "let nativeState = GOALPadRuntimeBridge.gameFrameStateSnapshot",
+    "nativeState.exitToLibraryRequested.boolValue",
     "returnToLibraryRequestID &+= 1",
+    "framesRun = nativeState.framesRun",
+    "let currentMode = nativeState.gameMode",
+    "NativeProgressMenuSnapshot(nativeState.progressMenu)",
+    "let currentTitleStartState = nativeState.titleStartState",
+    "NativeWarpGateTouchSnapshot(\n                nativeState.warpGateTouch)",
+    "NativeCutsceneSkipTouchSnapshot(\n                nativeState.cutsceneSkipTouch)",
+    "NativeFacePromptTouchSnapshot(\n                nativeState.facePromptTouch)",
+    "let currentLookAroundState = nativeState.lookAroundState",
+    "let currentSpeederState = nativeState.speederState",
     "let framePresented = endFrame()",
-], in: armedTick), "the shared frame body pushes input, runs once, then ends presentation")
+], in: armedTick),
+      "the shared frame body preserves input, state-publication, and presentation ordering")
+check(occurrenceCount("GOALPadRuntimeBridge.gameFrameStateSnapshot", in: armedTick) == 1
+        && !armedTick.contains("GOALPadRuntimeBridge.exitToLibraryRequested")
+        && !armedTick.contains("GOALPadRuntimeBridge.framesRun")
+        && !armedTick.contains("GOALPadRuntimeBridge.gameMode")
+        && !armedTick.contains("GOALPadRuntimeBridge.progressMenuSnapshot")
+        && !armedTick.contains("GOALPadRuntimeBridge.titleStartState")
+        && !armedTick.contains("GOALPadRuntimeBridge.warpGateTouchSnapshot")
+        && !armedTick.contains("GOALPadRuntimeBridge.cutsceneSkipTouchSnapshot")
+        && !armedTick.contains("GOALPadRuntimeBridge.facePromptTouchSnapshot")
+        && !armedTick.contains("GOALPadRuntimeBridge.lookAroundState")
+        && !armedTick.contains("GOALPadRuntimeBridge.speederState"),
+      "each successful frame crosses the Objective-C++ bridge for native state exactly once")
 check(armedTick.contains("if developerLogsEnabled {\n            recordDisplayCallback()\n        }")
         && armedTick.contains("shouldLog = developerLogsEnabled && framesRun % 600 == 0")
         && armedTick.contains("if shouldLog { logRunningState(renderer: GOALPadRenderSurface.shared.stats) }"),
       "display cadence samples and renderer logging remain opt-in developer diagnostics")
+
+let nativeFrameState = section(gameBoot,
+                               from: "GameFrameStateSnapshot game_frame_state_snapshot() noexcept",
+                               to: "#else  // GOALPAD_HAVE_GAME_BOOT")
+check(occursInOrder([
+    "snapshot.exit_to_library_requested = exit_to_library_requested();",
+    "snapshot.frames_run = frames_run();",
+    "const auto current_mode = game_mode();",
+    "snapshot.game_mode = current_mode;",
+    "snapshot.progress_menu = progress_menu_snapshot_for_mode(current_mode);",
+    "snapshot.title_start_state = title_start_state();",
+    "snapshot.warp_gate_touch = warp_gate_touch_snapshot();",
+    "snapshot.cutscene_skip_touch = cutscene_skip_touch_snapshot_for_mode(current_mode);",
+    "snapshot.face_prompt_touch = face_prompt_touch_snapshot_for_mode(current_mode);",
+    "snapshot.look_around_state = look_around_state();",
+    "snapshot.speeder_state = speeder_state();",
+], in: nativeFrameState) && occurrenceCount("game_mode();", in: nativeFrameState) == 1,
+      "the native aggregate preserves read order and reuses one master-mode classification")
+
+let frameStateMapping = section(bridgeImplementation,
+                                from: "+ (GOALPadGameFrameStateSnapshot)gameFrameStateSnapshot",
+                                to: "+ (GOALPadFrameChainStats)frameChainStats")
+check(bridge.contains("typedef struct GOALPadGameFrameStateSnapshot")
+        && bridge.contains("@property(class, nonatomic, readonly) GOALPadGameFrameStateSnapshot gameFrameStateSnapshot;")
+        && occursInOrder([
+            "snapshot.exitToLibraryRequested = core.exit_to_library_requested ? YES : NO;",
+            "snapshot.framesRun = core.frames_run;",
+            "snapshot.gameMode = GOALPadGameModeFromCore(core.game_mode);",
+            "snapshot.progressMenu = GOALPadProgressMenuSnapshotFromCore(core.progress_menu);",
+            "snapshot.titleStartState = GOALPadTitleStartStateFromCore(core.title_start_state);",
+            "snapshot.warpGateTouch = GOALPadWarpGateTouchSnapshotFromCore(core.warp_gate_touch);",
+            "snapshot.cutsceneSkipTouch = GOALPadCutsceneSkipTouchSnapshotFromCore(core.cutscene_skip_touch);",
+            "snapshot.facePromptTouch = GOALPadFacePromptTouchSnapshotFromCore(core.face_prompt_touch);",
+            "snapshot.lookAroundState = GOALPadLookAroundStateFromCore(core.look_around_state);",
+            "snapshot.speederState = GOALPadSpeederStateFromCore(core.speeder_state);",
+        ], in: frameStateMapping),
+      "the fixed C bridge maps every native frame field without object ownership")
 
 let bootFinished = section(session,
                            from: "private func bootFinished",

@@ -223,6 +223,20 @@ typedef struct GOALPadFacePromptTouchSnapshot {
   uint32_t sequence;
 } GOALPadFacePromptTouchSnapshot;
 
+/// Fixed-size, non-owning native state consumed once after a successful game frame.
+typedef struct GOALPadGameFrameStateSnapshot {
+  BOOL exitToLibraryRequested;
+  uint64_t framesRun;
+  GOALPadGameMode gameMode;
+  GOALPadProgressMenuSnapshot progressMenu;
+  GOALPadTitleStartState titleStartState;
+  GOALPadWarpGateTouchSnapshot warpGateTouch;
+  GOALPadCutsceneSkipTouchSnapshot cutsceneSkipTouch;
+  GOALPadFacePromptTouchSnapshot facePromptTouch;
+  GOALPadLookAroundState lookAroundState;
+  GOALPadSpeederState speederState;
+} GOALPadGameFrameStateSnapshot;
+
 /// The whole Swift-facing surface of the native runtime. The GOAL kernel is a process-wide
 /// singleton, so this is a class API rather than an instantiable object.
 @interface GOALPadRuntimeBridge : NSObject
@@ -275,6 +289,8 @@ typedef struct GOALPadFacePromptTouchSnapshot {
 @property(class, nonatomic, readonly) GOALPadCutsceneSkipTouchSnapshot cutsceneSkipTouchSnapshot;
 /// GOAL-owned contextual face-button requests; first, malformed, and stale reads fail closed.
 @property(class, nonatomic, readonly) GOALPadFacePromptTouchSnapshot facePromptTouchSnapshot;
+/// Read once immediately after `runFrame(at:)` succeeds.
+@property(class, nonatomic, readonly) GOALPadGameFrameStateSnapshot gameFrameStateSnapshot;
 @property(class, nonatomic, readonly) GOALPadFrameChainStats frameChainStats;
 
 /// Whether this build carries each engine host seam. A seam that is not linked reports its absence

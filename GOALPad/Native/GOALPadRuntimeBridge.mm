@@ -105,6 +105,111 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
   return status;
 }
 
+static GOALPadGameMode GOALPadGameModeFromCore(goalpad::GameMode mode) {
+  switch (mode) {
+    case goalpad::GameMode::Gameplay:
+      return GOALPadGameModeGameplay;
+    case goalpad::GameMode::Pause:
+      return GOALPadGameModePause;
+    case goalpad::GameMode::Progress:
+      return GOALPadGameModeProgress;
+    case goalpad::GameMode::Menu:
+      return GOALPadGameModeMenu;
+    case goalpad::GameMode::Unknown:
+      return GOALPadGameModeUnknown;
+  }
+}
+
+static GOALPadTitleStartState GOALPadTitleStartStateFromCore(goalpad::TitleStartState state) {
+  switch (state) {
+    case goalpad::TitleStartState::Awaiting:
+      return GOALPadTitleStartStateAwaiting;
+    case goalpad::TitleStartState::TitleOpening:
+      return GOALPadTitleStartStateTitleOpening;
+    case goalpad::TitleStartState::TitleSequence:
+      return GOALPadTitleStartStateTitleSequence;
+    case goalpad::TitleStartState::NotAwaiting:
+      return GOALPadTitleStartStateNotAwaiting;
+    case goalpad::TitleStartState::Unknown:
+      return GOALPadTitleStartStateUnknown;
+  }
+}
+
+static GOALPadLookAroundState GOALPadLookAroundStateFromCore(goalpad::LookAroundState state) {
+  switch (state) {
+    case goalpad::LookAroundState::Normal:
+      return GOALPadLookAroundStateNormal;
+    case goalpad::LookAroundState::FirstPerson:
+      return GOALPadLookAroundStateFirstPerson;
+    case goalpad::LookAroundState::Unknown:
+      return GOALPadLookAroundStateUnknown;
+  }
+}
+
+static GOALPadSpeederState GOALPadSpeederStateFromCore(goalpad::SpeederState state) {
+  switch (state) {
+    case goalpad::SpeederState::Riding:
+      return GOALPadSpeederStateRiding;
+    case goalpad::SpeederState::NotRiding:
+      return GOALPadSpeederStateNotRiding;
+    case goalpad::SpeederState::Unknown:
+      return GOALPadSpeederStateUnknown;
+  }
+}
+
+static GOALPadProgressMenuSnapshot GOALPadProgressMenuSnapshotFromCore(
+    const goalpad::ProgressMenuSnapshot &core) {
+  GOALPadProgressMenuSnapshot snapshot = {
+      core.available ? YES : NO,
+      core.available ? static_cast<GOALPadProgressScreen>(core.screen)
+                     : GOALPadProgressScreenUnknown,
+      core.option_index,
+      core.selected_option ? YES : NO,
+      core.in_transition ? YES : NO,
+      core.navigation_available ? YES : NO,
+      core.navigation_available ? static_cast<GOALPadProgressScreen>(core.starting_screen)
+                                : GOALPadProgressScreenUnknown,
+      core.can_exit_with_start ? YES : NO,
+      core.can_go_back ? YES : NO,
+  };
+  return snapshot;
+}
+
+static GOALPadWarpGateTouchSnapshot GOALPadWarpGateTouchSnapshotFromCore(
+    const goalpad::WarpGateTouchSnapshot &core) {
+  GOALPadWarpGateTouchSnapshot snapshot = {
+      core.valid ? YES : NO,
+      core.sequence,
+      core.valid ? static_cast<GOALPadWarpGateTouchState>(core.state)
+                 : GOALPadWarpGateTouchStateUnavailable,
+      core.selected_slot,
+      core.permitted_mask,
+      core.selection_moving ? YES : NO,
+  };
+  return snapshot;
+}
+
+static GOALPadCutsceneSkipTouchSnapshot GOALPadCutsceneSkipTouchSnapshotFromCore(
+    const goalpad::CutsceneSkipTouchSnapshot &core) {
+  GOALPadCutsceneSkipTouchSnapshot snapshot = {
+      core.valid ? YES : NO,
+      core.sequence,
+      core.valid ? static_cast<GOALPadCutsceneSkipTouchState>(core.state)
+                 : GOALPadCutsceneSkipTouchStateUnavailable,
+  };
+  return snapshot;
+}
+
+static GOALPadFacePromptTouchSnapshot GOALPadFacePromptTouchSnapshotFromCore(
+    const goalpad::FacePromptTouchSnapshot &core) {
+  GOALPadFacePromptTouchSnapshot snapshot = {
+      core.valid ? YES : NO,
+      core.valid ? core.requested_buttons : 0,
+      core.sequence,
+  };
+  return snapshot;
+}
+
 @implementation GOALPadRuntimeBridge
 
 + (GOALPadKernelStatus *)startKernelWithDataDirectory:(NSString *)dataDirectory
@@ -213,107 +318,50 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
 }
 
 + (GOALPadGameMode)gameMode {
-  switch (goalpad::game_mode()) {
-    case goalpad::GameMode::Gameplay:
-      return GOALPadGameModeGameplay;
-    case goalpad::GameMode::Pause:
-      return GOALPadGameModePause;
-    case goalpad::GameMode::Progress:
-      return GOALPadGameModeProgress;
-    case goalpad::GameMode::Menu:
-      return GOALPadGameModeMenu;
-    case goalpad::GameMode::Unknown:
-      return GOALPadGameModeUnknown;
-  }
+  return GOALPadGameModeFromCore(goalpad::game_mode());
 }
 
 + (GOALPadTitleStartState)titleStartState {
-  switch (goalpad::title_start_state()) {
-    case goalpad::TitleStartState::Awaiting:
-      return GOALPadTitleStartStateAwaiting;
-    case goalpad::TitleStartState::TitleOpening:
-      return GOALPadTitleStartStateTitleOpening;
-    case goalpad::TitleStartState::TitleSequence:
-      return GOALPadTitleStartStateTitleSequence;
-    case goalpad::TitleStartState::NotAwaiting:
-      return GOALPadTitleStartStateNotAwaiting;
-    case goalpad::TitleStartState::Unknown:
-      return GOALPadTitleStartStateUnknown;
-  }
+  return GOALPadTitleStartStateFromCore(goalpad::title_start_state());
 }
 
 + (GOALPadLookAroundState)lookAroundState {
-  switch (goalpad::look_around_state()) {
-    case goalpad::LookAroundState::Normal:
-      return GOALPadLookAroundStateNormal;
-    case goalpad::LookAroundState::FirstPerson:
-      return GOALPadLookAroundStateFirstPerson;
-    case goalpad::LookAroundState::Unknown:
-      return GOALPadLookAroundStateUnknown;
-  }
+  return GOALPadLookAroundStateFromCore(goalpad::look_around_state());
 }
 
 + (GOALPadSpeederState)speederState {
-  switch (goalpad::speeder_state()) {
-    case goalpad::SpeederState::Riding:
-      return GOALPadSpeederStateRiding;
-    case goalpad::SpeederState::NotRiding:
-      return GOALPadSpeederStateNotRiding;
-    case goalpad::SpeederState::Unknown:
-      return GOALPadSpeederStateUnknown;
-  }
+  return GOALPadSpeederStateFromCore(goalpad::speeder_state());
 }
 
 + (GOALPadProgressMenuSnapshot)progressMenuSnapshot {
-  const auto core = goalpad::progress_menu_snapshot();
-  GOALPadProgressMenuSnapshot snapshot = {
-      core.available ? YES : NO,
-      core.available ? static_cast<GOALPadProgressScreen>(core.screen)
-                     : GOALPadProgressScreenUnknown,
-      core.option_index,
-      core.selected_option ? YES : NO,
-      core.in_transition ? YES : NO,
-      core.navigation_available ? YES : NO,
-      core.navigation_available ? static_cast<GOALPadProgressScreen>(core.starting_screen)
-                                : GOALPadProgressScreenUnknown,
-      core.can_exit_with_start ? YES : NO,
-      core.can_go_back ? YES : NO,
-  };
-  return snapshot;
+  return GOALPadProgressMenuSnapshotFromCore(goalpad::progress_menu_snapshot());
 }
 
 + (GOALPadWarpGateTouchSnapshot)warpGateTouchSnapshot {
-  const auto core = goalpad::warp_gate_touch_snapshot();
-  GOALPadWarpGateTouchSnapshot snapshot = {
-      core.valid ? YES : NO,
-      core.sequence,
-      core.valid ? static_cast<GOALPadWarpGateTouchState>(core.state)
-                 : GOALPadWarpGateTouchStateUnavailable,
-      core.selected_slot,
-      core.permitted_mask,
-      core.selection_moving ? YES : NO,
-  };
-  return snapshot;
+  return GOALPadWarpGateTouchSnapshotFromCore(goalpad::warp_gate_touch_snapshot());
 }
 
 + (GOALPadCutsceneSkipTouchSnapshot)cutsceneSkipTouchSnapshot {
-  const auto core = goalpad::cutscene_skip_touch_snapshot();
-  GOALPadCutsceneSkipTouchSnapshot snapshot = {
-      core.valid ? YES : NO,
-      core.sequence,
-      core.valid ? static_cast<GOALPadCutsceneSkipTouchState>(core.state)
-                 : GOALPadCutsceneSkipTouchStateUnavailable,
-  };
-  return snapshot;
+  return GOALPadCutsceneSkipTouchSnapshotFromCore(goalpad::cutscene_skip_touch_snapshot());
 }
 
 + (GOALPadFacePromptTouchSnapshot)facePromptTouchSnapshot {
-  const auto core = goalpad::face_prompt_touch_snapshot();
-  GOALPadFacePromptTouchSnapshot snapshot = {
-      core.valid ? YES : NO,
-      core.valid ? core.requested_buttons : 0,
-      core.sequence,
-  };
+  return GOALPadFacePromptTouchSnapshotFromCore(goalpad::face_prompt_touch_snapshot());
+}
+
++ (GOALPadGameFrameStateSnapshot)gameFrameStateSnapshot {
+  const auto core = goalpad::game_frame_state_snapshot();
+  GOALPadGameFrameStateSnapshot snapshot = {};
+  snapshot.exitToLibraryRequested = core.exit_to_library_requested ? YES : NO;
+  snapshot.framesRun = core.frames_run;
+  snapshot.gameMode = GOALPadGameModeFromCore(core.game_mode);
+  snapshot.progressMenu = GOALPadProgressMenuSnapshotFromCore(core.progress_menu);
+  snapshot.titleStartState = GOALPadTitleStartStateFromCore(core.title_start_state);
+  snapshot.warpGateTouch = GOALPadWarpGateTouchSnapshotFromCore(core.warp_gate_touch);
+  snapshot.cutsceneSkipTouch = GOALPadCutsceneSkipTouchSnapshotFromCore(core.cutscene_skip_touch);
+  snapshot.facePromptTouch = GOALPadFacePromptTouchSnapshotFromCore(core.face_prompt_touch);
+  snapshot.lookAroundState = GOALPadLookAroundStateFromCore(core.look_around_state);
+  snapshot.speederState = GOALPadSpeederStateFromCore(core.speeder_state);
   return snapshot;
 }
 

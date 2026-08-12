@@ -476,6 +476,20 @@ class FacePromptTouchReader {
   std::uint64_t last_refresh_frame_ = 0;
 };
 
+/*! Fixed-size, non-owning state read once after a successful dispatcher frame. */
+struct GameFrameStateSnapshot {
+  bool exit_to_library_requested = false;
+  std::uint64_t frames_run = 0;
+  GameMode game_mode = GameMode::Unknown;
+  ProgressMenuSnapshot progress_menu;
+  TitleStartState title_start_state = TitleStartState::Unknown;
+  WarpGateTouchSnapshot warp_gate_touch;
+  CutsceneSkipTouchSnapshot cutscene_skip_touch;
+  FacePromptTouchSnapshot face_prompt_touch;
+  LookAroundState look_around_state = LookAroundState::Unknown;
+  SpeederState speeder_state = SpeederState::Unknown;
+};
+
 namespace warp_gate_touch_layout {
 
 // checked_goal_object returns the bytes after the basic object's four-byte type tag.
@@ -957,6 +971,8 @@ WarpGateTouchSnapshot warp_gate_touch_snapshot() noexcept;
 CutsceneSkipTouchSnapshot cutscene_skip_touch_snapshot() noexcept;
 /*! GOAL-owned contextual face-button requests. First, malformed, and stale samples fail closed. */
 FacePromptTouchSnapshot face_prompt_touch_snapshot() noexcept;
+/*! One fixed host aggregate of the native state consumed after each successful game frame. */
+GameFrameStateSnapshot game_frame_state_snapshot() noexcept;
 
 /*! Forget the boot. The heap goes away with the kernel; this only drops what this file caches. */
 void reset_game() noexcept;
