@@ -125,12 +125,40 @@ let armedTick = section(session,
                         from: "private func runArmedTick",
                         to: "private func updateNativeMenuState")
 check(occursInOrder([
+    "let developerLogsEnabled = presentationSettings.developerLogsEnabled",
     "input.pushFrame",
     "GOALPadRuntimeBridge.runFrame(at: targetPresentationTime)",
     "GOALPadRuntimeBridge.exitToLibraryRequested",
     "returnToLibraryRequestID &+= 1",
     "let framePresented = endFrame()",
 ], in: armedTick), "the shared frame body pushes input, runs once, then ends presentation")
+check(armedTick.contains("if developerLogsEnabled {\n            recordDisplayCallback()\n        }")
+        && armedTick.contains("shouldLog = developerLogsEnabled && framesRun % 600 == 0")
+        && armedTick.contains("if shouldLog { logRunningState(renderer: GOALPadRenderSurface.shared.stats) }"),
+      "display cadence samples and renderer logging remain opt-in developer diagnostics")
+
+let bootFinished = section(session,
+                           from: "private func bootFinished",
+                           to: "func shutdown")
+check(occursInOrder([
+    "if presentationSettings.developerLogsEnabled",
+    "startCameraDiagnostics()",
+    "cameraDiagnosticsURL = nil",
+], in: bootFinished),
+      "camera diagnostics start only when developer logs are enabled")
+
+let cameraPersistence = section(session,
+                                from: "private func persistCameraDiagnosticsForLifecycleEvent()",
+                                to: "private func mercPaletteHealthTotal")
+check(occursInOrder([
+    "guard presentationSettings.developerLogsEnabled else { return }",
+    "guard isRunning, surface.isRendererLinked else { return }",
+    "persistCameraDiagnosticsIfNeeded(",
+], in: cameraPersistence),
+      "lifecycle camera diagnostics are inert unless developer logs are enabled")
+check(content.contains("session.presentationSettings.developerLogsEnabled")
+        && content.contains("DiagnosticsOverlay(session: session)"),
+      "the developer diagnostics overlay remains opt-in")
 
 let nativeMachineOverrides = section(gameBoot,
                                      from: "void install_app_machine_functions()",

@@ -280,7 +280,11 @@ final class GameSession {
         saveSync.setGameplayActive(active)
         audio.start()
         #if os(iOS) || os(visionOS)
-        startCameraDiagnostics()
+        if presentationSettings.developerLogsEnabled {
+            startCameraDiagnostics()
+        } else {
+            cameraDiagnosticsURL = nil
+        }
         #endif
         setIdleTimerDisabled(active)
         sessionLog.notice("Session started: \(status.message)")
@@ -427,7 +431,10 @@ final class GameSession {
 
     private func runArmedTick(targetPresentationTime: CFTimeInterval,
                               endFrame: () -> Bool) -> Bool {
-        recordDisplayCallback()
+        let developerLogsEnabled = presentationSettings.developerLogsEnabled
+        if developerLogsEnabled {
+            recordDisplayCallback()
+        }
         #if os(iOS)
         input.pushFrame(merging: touch.frameState())
         #elseif os(visionOS)
@@ -478,7 +485,7 @@ final class GameSession {
             if currentSpeederState != speederState {
                 updateSpeederState(currentSpeederState)
             }
-            shouldLog = framesRun % 600 == 0
+            shouldLog = developerLogsEnabled && framesRun % 600 == 0
             saveSync.gameplayFrameCompleted()
         }
 
@@ -774,6 +781,7 @@ final class GameSession {
     }
 
     private func persistCameraDiagnosticsForLifecycleEvent() {
+        guard presentationSettings.developerLogsEnabled else { return }
         let surface = GOALPadRenderSurface.shared
         guard isRunning, surface.isRendererLinked else { return }
         persistCameraDiagnosticsIfNeeded(surface.stats,
