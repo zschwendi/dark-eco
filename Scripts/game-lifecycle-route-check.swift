@@ -119,10 +119,12 @@ check(session.contains("GOALPadRenderSurface.shared.setDetailedFrameStatsEnabled
 check(bridge.contains("- (void)setDetailedFrameStatsEnabled:(BOOL)enabled;")
         && renderSurface.contains("goalpad::metal_host_set_detailed_frame_stats_enabled(enabled);")
         && metalHost.contains("jak1_bones_provenance_trace::registry().set_enabled(enabled);")
-        && metalHost.contains("current_camera_frame_identity(g_host.detailed_frame_stats_enabled)")
+        && metalHost.contains("if (g_host.detailed_frame_stats_enabled) {\n    camera.emplace(goalpad::current_camera_frame_identity(true));")
+        && metalHost.contains("opts.engine_frame_id = goalpad::frames_run() + 1;")
+        && metalHost.contains("retain_current_frame_target_post_flag(opts.engine_frame_id")
         && metalHost.contains("if (!g_host.detailed_frame_stats_enabled) {\n    return;\n  }\n  const auto stats = g_host.renderer->chain_stats();")
         && metalHost.contains("if (g_host.renderer && g_host.detailed_frame_stats_enabled)"),
-      "shipping frames avoid detailed Metal stats copies and host evidence processing")
+      "shipping frames avoid camera snapshots, detailed Metal stats copies, and host evidence processing")
 check(occursInOrder([
     "lifecycle.frameLoopEnabled",
     "!controlsGuideSuspension.blocksGameplay",

@@ -272,9 +272,8 @@ final class ControllerInput {
 
     /// Read what GOAL asked the two motors to do and drive them.
     func applyRumble() {
-        rumble = isRumbleEnabled
-            ? GOALPadInputRumble(Self.primaryPort)
-            : GOALPadRumble(large: 0, small: 0)
+        guard isRumbleEnabled else { return }
+        rumble = GOALPadInputRumble(Self.primaryPort)
         motors?.set(large: rumble.large, small: rumble.small)
         #if os(iOS)
         deviceRumbleHaptics.update(rumble)

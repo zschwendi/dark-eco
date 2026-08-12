@@ -29,6 +29,7 @@ extern "C" std::uint64_t goal_call_on_stack_arm64(void* new_sp,
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <optional>
 #include <thread>
 #include <vector>
 
@@ -629,20 +630,24 @@ void render_chain() {
   opts.presentation_time = g_host.frame.presentation_time;
   opts.host_tick_id = g_host.stats.frames_armed;
   opts.chain_ordinal = g_host.chains_in_frame;
-  const auto camera =
-      goalpad::current_camera_frame_identity(g_host.detailed_frame_stats_enabled);
-  opts.engine_frame_id = camera.engine_frame_id;
-  opts.expected_camera_valid = camera.camera_valid;
-  if (camera.camera_valid) {
-    std::copy(camera.camera.begin(), camera.camera.end(), opts.expected_camera.bytes.begin());
+  std::optional<goalpad::CameraFrameIdentity> camera;
+  if (g_host.detailed_frame_stats_enabled) {
+    camera.emplace(goalpad::current_camera_frame_identity(true));
+    opts.engine_frame_id = camera->engine_frame_id;
+    opts.expected_camera_valid = camera->camera_valid;
+    if (camera->camera_valid) {
+      std::copy(camera->camera.begin(), camera->camera.end(), opts.expected_camera.bytes.begin());
+    }
+    opts.expected_render_camera_valid = camera->render_camera_valid;
+    if (camera->render_camera_valid) {
+      std::copy(camera->render_camera.begin(), camera->render_camera.end(),
+                opts.expected_render_camera.bytes.begin());
+    }
+    retain_current_frame_target_post_flag(opts.engine_frame_id, opts.host_tick_id,
+                                          opts.chain_ordinal);
+  } else {
+    opts.engine_frame_id = goalpad::frames_run() + 1;
   }
-  opts.expected_render_camera_valid = camera.render_camera_valid;
-  if (camera.render_camera_valid) {
-    std::copy(camera.render_camera.begin(), camera.render_camera.end(),
-              opts.expected_render_camera.bytes.begin());
-  }
-  retain_current_frame_target_post_flag(opts.engine_frame_id, opts.host_tick_id,
-                                        opts.chain_ordinal);
 
   const auto& chain = g_host.copier->get_last_result();
   const bool rendered = g_host.frame_is_stereo
@@ -672,7 +677,7 @@ void render_chain() {
   const bool render_alternation =
       stats.render_camera_alternations > g_host.stats.render_camera_alternations;
   const auto camera_correction_event = g_host.camera_correction_trace.observe(
-      camera.camera_correction, producer_alternation, render_alternation,
+      camera->camera_correction, producer_alternation, render_alternation,
       stats.last_host_tick_id, stats.last_chain_ordinal, stats.last_render_camera_fingerprint);
   g_host.stats.camera_correction_events_total = g_host.camera_correction_trace.event_count();
   if (camera_correction_event.valid) {

@@ -5,7 +5,7 @@ nonisolated private let touchLog = Logger(subsystem: "com.zephyrstudiosllc.eco",
                                           category: "Touch")
 
 /// The PS2 buttons the on-screen controls drive.
-enum TouchButton: CaseIterable, Hashable, Sendable {
+enum TouchButton: Int, CaseIterable, Hashable, Sendable {
     case cross, square, circle, crouch, start, select, stats
     case up, down, left, right
     case triangle, leftShoulder, rightShoulder
@@ -1402,7 +1402,7 @@ final class TouchControls {
     var gestures: [Tracked] { touches.values.filter { $0.role == .gesture } }
     var hasActiveGameplayGesture: Bool { !gestures.isEmpty }
     var isCrouching: Bool {
-        gestures.contains { $0.swiped == .crouch }
+        touches.values.contains { $0.role == .gesture && $0.swiped == .crouch }
     }
 
     func isPillDown(_ button: TouchButton) -> Bool {
@@ -1417,8 +1417,8 @@ final class TouchControls {
 
     @ObservationIgnored private var rightStickFrame = CGRect.zero
     @ObservationIgnored private var pillFrames: [TouchButton: CGRect] = [:]
-    @ObservationIgnored private var pulses: [TouchButton: Pulse] = [:]
-    @ObservationIgnored private var facePromptPulses: [TouchButton: Pulse] = [:]
+    @ObservationIgnored private var pulses = TouchControls.emptyPulses()
+    @ObservationIgnored private var facePromptPulses = TouchControls.emptyPulses()
     @ObservationIgnored private var facePromptHapticEvents: [TouchHapticEvent] = []
     @ObservationIgnored private var fadeToken = 0
     @ObservationIgnored private var dpad = DirectionRepeat()
@@ -1635,7 +1635,7 @@ final class TouchControls {
                 cutsceneSkipAvailable: cutsceneAvailable).contains(action)
         else { return }
         noteScreenInteraction()
-        facePromptPulses[action.button, default: Pulse()].press()
+        facePromptPulses[action.button.rawValue].press()
         facePromptHapticEvents.append(.button(action.button))
     }
 
@@ -1895,8 +1895,8 @@ final class TouchControls {
     /// UIKit may not deliver individual cancellations during a lifecycle transition.
     func reset() {
         touches.removeAll()
-        pulses.removeAll()
-        facePromptPulses.removeAll()
+        pulses = Self.emptyPulses()
+        facePromptPulses = Self.emptyPulses()
         dpad = DirectionRepeat()
         hapticEvents.removeAll()
         facePromptHapticEvents.removeAll()
@@ -2002,20 +2002,23 @@ final class TouchControls {
         if capturesNativeTouchInput {
             var state = TouchPadState()
             for button in TouchButton.allCases {
-                var pulse = pulses[button] ?? Pulse()
-                if pulse.advance() { state.buttons.insert(button.bit) }
-                pulses[button] = pulse
+                if pulses[button.rawValue].advance() { state.buttons.insert(button.bit) }
             }
             return state
         }
 
+        var isCrouchingThisFrame = false
+        var hasSpeederBrakeThisFrame = false
         for touch in touches.values {
             switch touch.role {
             case .pill(let button):
-                pulses[button, default: Pulse()].sustain()
+                pulses[button.rawValue].sustain()
             case .gesture:
+                isCrouchingThisFrame = isCrouchingThisFrame || touch.swiped == .crouch
+                hasSpeederBrakeThisFrame = hasSpeederBrakeThisFrame
+                    || (touch.swiped == .cross && touch.speederBrakeTriggered)
                 if let button = touch.swiped, button != .crouch {
-                    pulses[button, default: Pulse()].sustain()
+                    pulses[button.rawValue].sustain()
                 }
             case .movement, .rightStick, .skip:
                 break
@@ -2035,16 +2038,11 @@ final class TouchControls {
 
         var state = TouchPadState()
         for button in TouchButton.allCases {
-            var pulse = pulses[button] ?? Pulse()
-            if pulse.advance() { state.buttons.insert(button.bit) }
-            pulses[button] = pulse
-            var facePromptPulse = facePromptPulses[button] ?? Pulse()
-            if facePromptPulse.advance() { state.buttons.insert(button.bit) }
-            facePromptPulses[button] = facePromptPulse
+            if pulses[button.rawValue].advance() { state.buttons.insert(button.bit) }
+            if facePromptPulses[button.rawValue].advance() { state.buttons.insert(button.bit) }
         }
-        if isCrouching { state.buttons.insert(TouchButton.crouch.bit) }
-        if speederState == .riding,
-           gestures.contains(where: { $0.swiped == .cross && $0.speederBrakeTriggered }) {
+        if isCrouchingThisFrame { state.buttons.insert(TouchButton.crouch.bit) }
+        if speederState == .riding, hasSpeederBrakeThisFrame {
             state.buttons.formUnion([TouchButton.leftShoulder.bit,
                                      TouchButton.rightShoulder.bit])
         }
@@ -2255,7 +2253,7 @@ final class TouchControls {
     // MARK: - Presses
 
     private func press(_ button: TouchButton) {
-        pulses[button, default: Pulse()].press()
+        pulses[button.rawValue].press()
     }
 
     private func enqueueHaptic(_ event: TouchHapticEvent) {
@@ -2263,13 +2261,13 @@ final class TouchControls {
     }
 
     private func cancelFacePromptInput() {
-        facePromptPulses.removeAll()
+        facePromptPulses = Self.emptyPulses()
         facePromptHapticEvents.removeAll()
     }
 
     private func cancelOrdinaryGameplayCommandInput() {
         touches = touches.filter { $0.value.role == .movement }
-        pulses.removeAll()
+        pulses = Self.emptyPulses()
         hapticEvents.removeAll()
         fadeWhenIdle()
     }
@@ -2341,6 +2339,10 @@ final class TouchControls {
             if gapRemaining > 0 { gapRemaining -= 1 }
             return false
         }
+    }
+
+    private static func emptyPulses() -> [Pulse] {
+        Array(repeating: Pulse(), count: TouchButton.allCases.count)
     }
 
     // MARK: - Visibility

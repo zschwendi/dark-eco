@@ -444,7 +444,9 @@ private func faceButtonGesturesAndNoTap() {
         run.down(finger, CGPoint(x: 900, y: 360))
         run.move(finger, CGPoint(x: 900 + dx, y: 360 + dy))
         run.up(finger)
-        check(run.frames(3).allSatisfy { $0.buttons == expected },
+        let frames = run.frames(TouchControls.holdFrames + TouchControls.releaseFrames)
+        check(frames.prefix(TouchControls.holdFrames).allSatisfy { $0.buttons == expected }
+              && frames.suffix(TouchControls.releaseFrames).allSatisfy { $0 == .neutral },
               "swipe \(name) maps to its original face button")
     }
 

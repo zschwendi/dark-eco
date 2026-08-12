@@ -53,6 +53,9 @@ private struct ControllerRumbleCheck {
                 && source.contains("if intensityChanged {")
                 && source.contains("try player?.start(atTime: CHHapticTimeImmediate)"),
               "unchanged finite rumble refreshes reuse their standard haptic player")
+        check(source.contains("func applyRumble() {\n        guard isRumbleEnabled else { return }")
+                && source.contains("rumble = GOALPadInputRumble(Self.primaryPort)"),
+              "disabled rumble skips all per-frame native and haptic bookkeeping")
 
         if failures == 0 {
             print("controller rumble checks passed")
