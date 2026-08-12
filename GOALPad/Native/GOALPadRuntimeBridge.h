@@ -326,8 +326,8 @@ typedef struct GOALPadControllerState {
   uint8_t rightTrigger;
 } GOALPadControllerState;
 
-/// What GOAL last asked a port's two vibration motors to do. `large` is the on/off motor GOAL
-/// pulses to fake an intensity; `small` is the analog one.
+/// The strongest vibration request waiting for the host. `large` is the on/off motor GOAL pulses
+/// to fake an intensity; `small` is the analog one.
 typedef struct GOALPadRumble {
   uint8_t large;
   uint8_t small;
@@ -343,7 +343,7 @@ void GOALPadInputSetState(int32_t port, GOALPadControllerState state);
 void GOALPadInputSetDisconnected(int32_t port);
 void GOALPadInputSetRumbleEnabled(int32_t port, BOOL enabled);
 
-/// Read the motors back out. All zero when nothing is buzzing or the seam is not linked.
+/// Consume the waiting motor request. All zero when no request is pending or the seam is not linked.
 GOALPadRumble GOALPadInputRumble(int32_t port);
 
 /// How many times GOAL has read `port`. 0 when the seam is not linked, which is how the app can

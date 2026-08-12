@@ -402,7 +402,7 @@ GOALPadRumble GOALPadInputRumble(int32_t port) {
 #if GOALPAD_HAVE_PAD_SEAM
   uint8_t large = 0;
   uint8_t small = 0;
-  if (goal_pad_get_rumble(port, &large, &small) == GOAL_KERNEL_CORE_OK) {
+  if (goal_pad_take_rumble(port, &large, &small) == GOAL_KERNEL_CORE_OK) {
     rumble.large = large;
     rumble.small = small;
   }

@@ -3294,14 +3294,18 @@ prepare a private candidate, validate it, and atomically activate it. Prepared
 folders remain supported. The ZIP path streams stored or raw-DEFLATE content,
 validates size and CRC-32, and rejects ZIP64, encryption, multidisk, ambiguous,
 unsafe, unsupported, or corrupt archives without changing active data.
+Build 187 coordinates a selected Files-provider ZIP into a stable local snapshot
+before parsing and tolerates legal short reads. A synthetic provider-placeholder
+fixture reproduces the prior `ZIP end-of-directory record is missing` failure and
+passes through the coordinated path.
 
 Focused raw-source, install-worker, ZIP, resource-staging, and composer checks
 pass. A generic signed iOS Release build passed with the current 518-object AOT
-corpus and verified public source pack. No successful end-to-end simulator
-import or real-device raw ISO/ZIP import is recorded; Files-provider
-materialization, available-space behavior, throughput, and physical activation
-remain unrecorded, non-blocking presentation/distribution evidence rather than
-Jak 1 gameplay or Jak II continuation gates.
+corpus and verified public source pack. No controlled end-to-end simulator
+import or real-device Files-provider ZIP retry is recorded; available-space
+behavior, throughput, and physical activation remain unrecorded, non-blocking
+presentation/distribution evidence rather than Jak 1 gameplay or Jak II
+continuation gates.
 
 The Checkpoint 50 release preflight remains `518/10596/7`. The external public
 source pack verifies as 518 objects, aggregate `f1770cae6287a359`, and

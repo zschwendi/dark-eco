@@ -390,6 +390,9 @@ a standard ZIP32 archive containing exactly one `.iso`, or an already prepared
 `out/jak1` folder. ZIP extraction is local and streaming: the app writes the ISO
 to private Application Support staging, verifies its size and CRC-32, passes it
 to the same raw-disc preparation pipeline, and removes the temporary image.
+Selected Files-provider ZIPs are opened through a coordinated local snapshot so
+the parser does not inspect an incomplete placeholder or a moving provider
+revision. Exact reads also tolerate valid short file reads.
 Stored and raw-DEFLATE ZIP members are supported. ZIP64, encrypted, multi-disk,
 ambiguous, and unsafe archives are rejected with no change to active game data.
 Member names must use ASCII or UTF-8; legacy CP437 names are deliberately
