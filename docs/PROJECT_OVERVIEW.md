@@ -386,17 +386,24 @@ The Apple app should:
 ### On-device preparation status
 
 **Experimental:** The Apple-device importer accepts a user-selected raw `.iso`,
-a standard ZIP32 archive containing exactly one `.iso`, or an already prepared
-`out/jak1` folder. ZIP extraction is local and streaming: the app writes the ISO
-to private Application Support staging, verifies its size and CRC-32, passes it
-to the same raw-disc preparation pipeline, and removes the temporary image.
-Selected Files-provider ZIPs are opened through a coordinated local snapshot so
+a standard ZIP32 or 7z archive containing exactly one `.iso`, or an already
+prepared `out/jak1` folder. Archive extraction is local and streaming: the app
+writes the ISO to private Application Support staging, verifies the extracted
+file, passes it to the same raw-disc preparation pipeline, and removes the
+temporary image. Selected Files-provider archives are opened through a
+coordinated local snapshot so
 the parser does not inspect an incomplete placeholder or a moving provider
 revision. Exact reads also tolerate valid short file reads.
 Stored and raw-DEFLATE ZIP members are supported. ZIP64, encrypted, multi-disk,
 ambiguous, and unsafe archives are rejected with no change to active game data.
 Member names must use ASCII or UTF-8; legacy CP437 names are deliberately
 rejected rather than guessed.
+
+7z archives are detected by their content rather than their filename extension,
+so a 7z file mislabeled as `.zip` still reaches the correct decoder. PLzmaSDK is
+used only for file-backed 7z reading and extraction; the app validates one
+unencrypted ISO and retains its own storage, path, cancellation, and atomic
+activation checks.
 
 On-device preparation is more than extracting an archive: the pipeline parses
 and verifies the disc image, generates the prepared level data, and rebuilds

@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 /// Imports player-supplied Jak 1 data without bundling or downloading game content.
 struct GameDataSetupView: View {
     private static let rawISOType = UTType(filenameExtension: "iso", conformingTo: .data)
+    private static let sevenZipType = UTType(filenameExtension: "7z", conformingTo: .archive)
 
     @Bindable var session: GameSession
     @State private var isChoosingSource = false
@@ -261,7 +262,7 @@ struct GameDataSetupView: View {
 
     private var importContentTypes: [UTType] {
         if canImportRawISO, let rawISOType = Self.rawISOType {
-            return [.folder, rawISOType, .zip]
+            return [.folder, rawISOType, .zip] + (Self.sevenZipType.map { [$0] } ?? [])
         }
         return [.folder]
     }

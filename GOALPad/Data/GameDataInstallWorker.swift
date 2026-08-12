@@ -5,7 +5,7 @@ import OSLog
 nonisolated private let installLog = Logger(subsystem: "com.zephyrstudiosllc.eco",
                                             category: "GameDataInstall")
 
-/// Progress shared by prepared-folder, raw-disc, and zipped-disc imports.
+/// Progress shared by prepared-folder, raw-disc, and archived-disc imports.
 nonisolated struct GameDataImportProgress: Sendable {
     nonisolated enum Phase: String, Sendable {
         case scanning

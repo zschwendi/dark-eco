@@ -36,13 +36,14 @@ let content = source(at: root + "/GOALPad/ContentView.swift")
 
 check(view.contains("GameDataImportPresentation.acceptedSources(")
         && view.contains("rawISOAvailable: canImportRawISO")
-        && view.contains("return [.folder, rawISOType, .zip]")
+        && view.contains("return [.folder, rawISOType, .zip] +")
+        && view.contains("sevenZipType")
         && view.contains("return [.folder]"),
       "the import copy and picker both follow the actual raw-ISO capability gate")
 check(view.contains("ForEach(GameDataImportPresentation.acceptedSources(")
         && view.contains("Text(\"•\")")
         && presentation.contains("\"ISO\"")
-        && presentation.contains("\"ZIP with exactly one ISO\"")
+        && presentation.contains("\"ZIP or 7z with exactly one ISO\"")
         && presentation.contains("\"Prepared game data folder\""),
       "supported sources render as separate bullets in the published order")
 check(view.contains("ProgressView(value: progress.overallProgress)")

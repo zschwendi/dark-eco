@@ -65,7 +65,7 @@ as completing the overall goal.
 | Signed native ARM64 execution | Implemented through linked AOT game code; physical runtime reports `PROT_EXEC=no` |
 | Storage and Metal initialization | Implemented; user-local data and physical Metal rendering verified |
 | Controller, audio, and lifecycle integration | Experimental; core paths run, physical controller and side-by-side media remain open |
-| User-owned Jak 1 import pipeline | Experimental; prepared folders remain supported, and Release builds can select a supported raw ISO or a standard ZIP32 archive containing exactly one ISO. The native composer, Objective-C++ bridge, recoverable staging/activation, ZIP extraction, and deterministic validation are implemented. The maintainer reported a successful physical Vision Pro ISO import in Build 146; an iOS Files-provider import remains separately unrecorded. |
+| User-owned Jak 1 import pipeline | Experimental; prepared folders remain supported, and Release builds can select a supported raw ISO or a ZIP32/7z archive containing exactly one ISO. The native composer, Objective-C++ bridge, recoverable staging/activation, byte-detected archive extraction, and deterministic validation are implemented. The maintainer reported a successful physical Vision Pro ISO import in Build 146; iOS Files-provider archive validation remains recorded per build. |
 | Compiler-produced ARM64 GOAL execution | Implemented for the current Jak 1 AOT set; seven native routines remain |
 | OpenGOAL game frame or title screen | Implemented and physically verified |
 | Playable gameplay slice | Experimental; Build 145 is the locked physical gameplay baseline. Its corrected controls guide, Snowy Mountain gondola, and Misty Island travel were physically accepted by the maintainer. This is not a complete-playthrough claim. |
@@ -648,7 +648,7 @@ Required work:
    fail-closed five-revision validator, checked DGO/FR3 preparation, output
    graph/materializer, exact public-artifact generator, checked public source
    pack, `jak1-base-retail` profile, native composer, Objective-C++ bridge,
-   recoverable activation, and bounded ZIP32-to-ISO adapter as separately
+   recoverable activation, and bounded ZIP32/7z-to-ISO adapters as separately
    validated phases.
 10. Keep the current prepared-folder importer available throughout this work.
 

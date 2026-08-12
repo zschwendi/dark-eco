@@ -65,7 +65,7 @@ final class GameDataImporter {
     private let worker: GameDataInstallWorker
     private let preparedFolderProducer: any GameDataCandidateProducing
     private let rawISOProducer = RawISOCandidateProducer()
-    private let zippedISOProducer: ZIPISOCandidateProducer
+    private let archivedISOProducer: ZIPISOCandidateProducer
     private let idleTimerAssertions: DeviceIdleTimerAssertions
     private var task: Task<Void, Never>?
     private(set) var isImportWorkActive = false
@@ -78,7 +78,7 @@ final class GameDataImporter {
         self.worker = worker
         self.preparedFolderProducer = preparedFolderProducer
         self.idleTimerAssertions = idleTimerAssertions ?? .shared
-        zippedISOProducer = ZIPISOCandidateProducer(downstream: rawISOProducer)
+        archivedISOProducer = ZIPISOCandidateProducer(downstream: rawISOProducer)
     }
 
     var isRunning: Bool {
@@ -90,7 +90,7 @@ final class GameDataImporter {
 
     var canStart: Bool { task == nil }
 
-    /// `source` may be a supported raw or ZIP-contained disc image, the directory holding `iso/`
+    /// `source` may be a supported raw or archived disc image, the directory holding `iso/`
     /// and `fr3/`, or either of those two prepared directories on its own.
     func start(from source: URL, onFinish: @escaping @MainActor () async -> Void) {
         guard task == nil else { return }
@@ -100,8 +100,8 @@ final class GameDataImporter {
             producer = preparedFolderProducer
         case .rawISO where RawISOCandidateProducer.isAvailable():
             producer = rawISOProducer
-        case .zippedISO where RawISOCandidateProducer.isAvailable():
-            producer = zippedISOProducer
+        case .archivedISO where RawISOCandidateProducer.isAvailable():
+            producer = archivedISOProducer
         case .rawISO:
             state = .failed(GameDataImportFailure(
                 code: .appResourcesUnavailable,
@@ -111,10 +111,10 @@ final class GameDataImporter {
             ))
             Task { await onFinish() }
             return
-        case .zippedISO:
+        case .archivedISO:
             state = .failed(GameDataImportFailure(
                 code: .appResourcesUnavailable,
-                message: "ZIP-to-ISO preparation is not available in this build. "
+                message: "Archive-to-ISO preparation is not available in this build. "
                     + "Choose a prepared game-data folder instead.",
                 candidatePreserved: false
             ))
@@ -123,8 +123,8 @@ final class GameDataImporter {
         case .unsupportedArchive:
             state = .failed(GameDataImportFailure(
                 code: .unsupportedArchive,
-                message: "This archive format is not supported. Choose a standard .zip "
-                    + "containing one .iso, a raw .iso, or prepared game data.",
+                message: "This archive format is not supported. Choose a ZIP or 7z "
+                    + "containing one ISO, a raw ISO, or prepared game data.",
                 candidatePreserved: false
             ))
             Task { await onFinish() }

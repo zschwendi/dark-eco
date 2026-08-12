@@ -18,14 +18,14 @@ private struct GameDataImportPresentationCheck {
                 == ["Prepared game data folder"],
               "prepared-folder-only builds do not advertise raw media")
         check(GameDataImportPresentation.acceptedSources(rawISOAvailable: true)
-                == ["ISO", "ZIP with exactly one ISO", "Prepared game data folder"],
-              "raw-media-capable builds list ISO, one-ISO ZIP, and prepared data in order")
+                == ["ISO", "ZIP or 7z with exactly one ISO", "Prepared game data folder"],
+              "raw-media-capable builds list ISO, one-ISO archives, and prepared data in order")
         check(GameDataImportPresentation.backgroundGuidance
                 == "Keep Dark Eco open and in the foreground until setup finishes.",
               "foreground guidance remains concise and safe")
         check(GameDataImportPresentation.completedStorageGuidance
                 == "Game data is stored in the Dark Eco folder on this device. Keep that copy. "
-                    + "After setup completes, you can delete the original ISO, ZIP, or prepared folder.",
+                    + "After setup completes, you can delete the original ISO, archive, or prepared folder.",
               "completed setup distinguishes the retained Dark Eco copy from the removable source")
         check(GameDataImportPresentation.cancellationGuidance(isActivating: false)
                 == "You can cancel. Your current game data will stay unchanged.",

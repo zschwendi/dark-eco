@@ -17,11 +17,21 @@ nonisolated struct ZIPISOCandidateProducer: GameDataCandidateProducing {
 
     init(
         downstream: any GameDataCandidateProducing,
-        extractor: ZIPISOExtractor = ZIPISOExtractor(),
+        extractor: ZIPISOExtractor? = nil,
         stagingCleaner: ZIPISOStagingCleaner = ZIPISOStagingCleaner()
     ) {
         self.downstream = downstream
-        self.extractor = extractor
+        if let extractor {
+            self.extractor = extractor
+        } else {
+            #if canImport(PLzmaSDK)
+            self.extractor = ZIPISOExtractor(
+                extractSevenZip: SevenZipISOExtractor().extractISO
+            )
+            #else
+            self.extractor = ZIPISOExtractor()
+            #endif
+        }
         self.stagingCleaner = stagingCleaner
     }
 
@@ -56,7 +66,7 @@ nonisolated struct ZIPISOCandidateProducer: GameDataCandidateProducing {
 /// Removes only exact app-generated temporary names. The current import has not created its UUID
 /// yet, so any matching pre-existing sibling belongs to an interrupted earlier attempt.
 nonisolated struct ZIPISOStagingCleaner: Sendable {
-    private static let suffixes = [".extracted.iso", ".source.zip"]
+    private static let suffixes = [".extracted.iso", ".source.archive", ".source.zip"]
     private let maximumRemovals: Int
 
     init(maximumRemovals: Int = 4) {
@@ -117,6 +127,13 @@ nonisolated struct ZIPISOExtractor: Sendable {
         var chunkBytes = 1 * 1_024 * 1_024
     }
 
+    typealias SevenZipExtractionOperation = @Sendable (
+        URL,
+        URL,
+        Limits,
+        @escaping @Sendable (GameDataImportProgress) async -> Void
+    ) async throws -> Void
+
     private struct EndOfCentralDirectory: Sendable {
         let entryCount: Int
         let centralDirectoryOffset: UInt64
@@ -149,6 +166,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
     private let materializeArchive: ArchiveMaterializationOperation
     private let openArchive: ArchiveOpenOperation
     private let readArchive: ArchiveReadOperation
+    private let extractSevenZip: SevenZipExtractionOperation?
 
     init(
         limits: Limits = Limits(),
@@ -156,12 +174,14 @@ nonisolated struct ZIPISOExtractor: Sendable {
         openArchive: @escaping ArchiveOpenOperation = { try FileHandle(forReadingFrom: $0) },
         readArchive: @escaping ArchiveReadOperation = { handle, count in
             try handle.read(upToCount: count)
-        }
+        },
+        extractSevenZip: SevenZipExtractionOperation? = nil
     ) {
         self.limits = limits
         self.materializeArchive = materializeArchive
         self.openArchive = openArchive
         self.readArchive = readArchive
+        self.extractSevenZip = extractSevenZip
     }
 
     func extractISO(
@@ -174,7 +194,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
         }
 
         let materializedArchive = destinationURL.deletingLastPathComponent().appending(
-            path: "\(UUID().uuidString).source.zip"
+            path: "\(UUID().uuidString).source.archive"
         )
         defer { try? FileManager.default.removeItem(at: materializedArchive) }
 
@@ -220,12 +240,28 @@ nonisolated struct ZIPISOExtractor: Sendable {
         guard archiveSize <= limits.maximumArchiveBytes else {
             throw Self.failure(
                 .unsupportedArchive,
-                "The ZIP archive is too large for the supported ZIP32 format."
+                "The selected archive is too large to prepare safely."
             )
         }
-        if archiveSize >= 4 {
-            let signature = try readExactly(archive, offset: 0, count: 4)
-            Self.recordDiagnostic("materialized format=\(Self.archiveKind(signature))")
+        if archiveSize >= 6 {
+            let signature = try readExactly(archive, offset: 0, count: 6)
+            let kind = Self.archiveKind(signature)
+            Self.recordDiagnostic("materialized format=\(kind)")
+            if kind == "7z" {
+                guard let extractSevenZip else {
+                    throw Self.failure(
+                        .appResourcesUnavailable,
+                        "7z preparation is not available in this build."
+                    )
+                }
+                try await extractSevenZip(
+                    materializedArchive,
+                    destinationURL,
+                    limits,
+                    report
+                )
+                return
+            }
         }
 
         await report(GameDataImportProgress(phase: .scanning))
@@ -973,7 +1009,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
                 guard values.isRegularFile == true else {
                     throw failure(
                         .sourceUnavailable,
-                        "The selected ZIP source is not a regular file."
+                        "The selected archive source is not a regular file."
                     )
                 }
 
@@ -982,7 +1018,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
                     guard sourceBytes <= limits.maximumArchiveBytes else {
                         throw failure(
                             .unsupportedArchive,
-                            "The ZIP archive is too large for the supported ZIP32 format."
+                            "The selected archive is too large to prepare safely."
                         )
                     }
                     let parent = destination.deletingLastPathComponent()
@@ -999,13 +1035,13 @@ nonisolated struct ZIPISOExtractor: Sendable {
                     ) else {
                         throw failure(
                             .insufficientStorage,
-                            "There is not enough free space to make a private copy of the ZIP."
+                            "There is not enough free space to make a private copy of the archive."
                         )
                     }
                     guard available.map({ $0 >= required }) != false else {
                         throw failure(
                             .insufficientStorage,
-                            "There is not enough free space to make a private copy of the ZIP."
+                            "There is not enough free space to make a private copy of the archive."
                         )
                     }
                 }
@@ -1044,7 +1080,7 @@ nonisolated struct ZIPISOExtractor: Sendable {
                     )
                     throw failure(
                         .sourceUnavailable,
-                        "Files did not provide the complete selected ZIP. Confirm it is fully "
+                        "Files did not provide the complete selected archive. Confirm it is fully "
                             + "downloaded in Files and try again."
                     )
                 }
@@ -1065,6 +1101,11 @@ nonisolated struct ZIPISOExtractor: Sendable {
 
     private static func archiveKind(_ signature: Data) -> String {
         guard signature.count >= 4 else { return "short" }
+        if signature.count >= 6,
+           signature.prefix(6) == Data([0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c])
+        {
+            return "7z"
+        }
         switch uint32(signature, at: 0) {
         case 0x0403_4b50: return "zip-local-header"
         case 0x0605_4b50: return "zip-empty"

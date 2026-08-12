@@ -23,10 +23,12 @@ private struct GameDataImportSourceCheck {
               "a prepared folder keeps the existing producer")
         check("/proof/prepared.iso", isDirectory: true, expected: .preparedFolder,
               "a folder name that ends in ISO remains a folder")
-        check("/proof/source.zip", expected: .zippedISO, "ZIP uses local ISO extraction")
-        check("/proof/source.ZIP", expected: .zippedISO, "ZIP matching is case-insensitive")
-        check("/proof/source.7z", expected: .unsupportedArchive,
-              "other archives are rejected explicitly")
+        check("/proof/source.zip", expected: .archivedISO, "ZIP uses local ISO extraction")
+        check("/proof/source.ZIP", expected: .archivedISO, "ZIP matching is case-insensitive")
+        check("/proof/source.7z", expected: .archivedISO, "7z uses local ISO extraction")
+        check("/proof/source.7Z", expected: .archivedISO, "7z matching is case-insensitive")
+        check("/proof/source.rar", expected: .unsupportedArchive,
+              "unsupported archives are rejected explicitly")
 
         if failures == 0 {
             print("game data import source checks passed")

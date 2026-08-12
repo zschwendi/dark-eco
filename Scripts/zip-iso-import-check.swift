@@ -217,11 +217,14 @@ private final class Fixture: @unchecked Sendable {
         )) ?? []).filter { $0.lastPathComponent.hasSuffix(".extracted.iso") }
     }
 
-    var temporaryZIPs: [URL] {
+    var temporaryArchives: [URL] {
         ((try? FileManager.default.contentsOfDirectory(
             at: candidate.deletingLastPathComponent(),
             includingPropertiesForKeys: nil
-        )) ?? []).filter { $0.lastPathComponent.hasSuffix(".source.zip") }
+        )) ?? []).filter {
+            $0.lastPathComponent.hasSuffix(".source.archive")
+                || $0.lastPathComponent.hasSuffix(".source.zip")
+        }
     }
 }
 
@@ -412,12 +415,36 @@ private func writeCompleteCandidate(at root: URL, payload: Data) throws {
     try await verifyInstallPipeline(
         label: "zipped ISO",
         source: zipSource,
-        expectedSource: .zippedISO,
+        expectedSource: .archivedISO,
         expectedPayload: zippedPayload,
         fixture: zipFixture,
         producer: ZIPISOCandidateProducer(
             downstream: SyntheticComposerProducer(),
             extractor: ZIPISOExtractor(limits: limits)
+        )
+    )
+
+    let sevenZipFixture = try PipelineFixture()
+    let sevenZipPayload = Data("synthetic 7z-contained ISO bytes".utf8)
+    let sevenZipSource = sevenZipFixture.root.appending(path: "selected.ZIP")
+    try Data([0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c, 0x00, 0x04]).write(
+        to: sevenZipSource
+    )
+    try await verifyInstallPipeline(
+        label: "7z ISO with a ZIP extension",
+        source: sevenZipSource,
+        expectedSource: .archivedISO,
+        expectedPayload: sevenZipPayload,
+        fixture: sevenZipFixture,
+        producer: ZIPISOCandidateProducer(
+            downstream: SyntheticComposerProducer(),
+            extractor: ZIPISOExtractor(
+                limits: limits,
+                extractSevenZip: { _, destination, _, report in
+                    await report(GameDataImportProgress(phase: .preparingCandidate))
+                    try sevenZipPayload.write(to: destination)
+                }
+            )
         )
     )
 }
@@ -614,8 +641,8 @@ private func writeCompleteCandidate(at root: URL, payload: Data) throws {
               "temporary ISO is a sibling rather than candidate content")
         check(fixture.temporaryISOs.isEmpty,
               "temporary ISO is removed after downstream success or failure")
-        check(fixture.temporaryZIPs.isEmpty,
-              "materialized ZIP is removed after downstream success or failure")
+        check(fixture.temporaryArchives.isEmpty,
+              "materialized archive is removed after downstream success or failure")
     }
 }
 
@@ -624,7 +651,8 @@ private func writeCompleteCandidate(at root: URL, payload: Data) throws {
     let fixture = try Fixture()
     let directory = fixture.candidate.deletingLastPathComponent()
     let ownedNames = [
-        "00000000-0000-4000-8000-000000000000.source.zip",
+        "00000000-0000-4000-8000-000000000000.source.archive",
+        "00000000-0000-4000-8000-000000000001.source.zip",
         "11111111-1111-4111-8111-111111111111.extracted.iso",
         "22222222-2222-4222-8222-222222222222.extracted.iso",
         "33333333-3333-4333-8333-333333333333.extracted.iso",
@@ -663,7 +691,7 @@ private func writeCompleteCandidate(at root: URL, payload: Data) throws {
     check(removedOwnedCount == 2, "cleanup removes at most its bounded app-owned limit")
     check(!FileManager.default.fileExists(
         atPath: directory.appending(path: ownedNames[0]).path
-    ), "cleanup recognizes app-owned materialized ZIP staging")
+    ), "cleanup recognizes app-owned materialized archive staging")
     check(unrelated.allSatisfy { FileManager.default.fileExists(atPath: $0.path) },
           "ambiguous and unrelated files are preserved")
     check(FileManager.default.fileExists(atPath: fixture.candidate.path),
