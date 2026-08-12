@@ -39,6 +39,7 @@ struct TouchStickSettingsView: View {
                     settings.setTouchControlPosition(nil, for: .modernMovement)
                     settings.setTouchControlPosition(nil, for: .modernCamera)
                 }
+                .foregroundStyle(.white.opacity(0.8))
             }
         }
         .navigationTitle("Touch Sticks")

@@ -976,9 +976,7 @@ enum CloudSyncPresentation {
         case .waiting:
             return "Waiting to sync"
         case .uploadOnly:
-            if settingsEnabled {
-                return "Settings: \(settingsSummary) — saves upload only while playing"
-            }
+            if settingsEnabled { return settingsSummary }
             return savesSummary
         case .synced:
             if settingsEnabled && !savesEnabled { return settingsSummary }
@@ -1021,6 +1019,17 @@ private struct SettingsGamePickerChoice: View {
     }
 }
 
+private struct SettingsRowLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 8) {
+            configuration.icon
+                .foregroundStyle(DarkEcoTheme.accent)
+            configuration.title
+                .foregroundStyle(.white)
+        }
+    }
+}
+
 struct SaveSettingsView: View {
     private enum SaveTransferPicker {
         case importSaves
@@ -1032,7 +1041,6 @@ struct SaveSettingsView: View {
         case graphics
         case iCloud
         case saves
-        case developer
     }
 
     @Bindable var sync: SaveSyncController
@@ -1043,6 +1051,7 @@ struct SaveSettingsView: View {
     @State private var saveTransferPicker: SaveTransferPicker?
     @State private var archivedSaveToPromote: ArchivedSaveCandidate?
     @State private var isConfirmingReturnToLibrary = false
+    @State private var isConfirmingResetAll = false
     @State private var expandedCategories: Set<SettingsCategory> = []
 
     var body: some View {
@@ -1101,7 +1110,6 @@ struct SaveSettingsView: View {
                     .frame(width: 18, height: 18)
                     .accessibilityHidden(cloudState.progressMessage == nil)
                     Label(cloudState.summary, systemImage: cloudStatusSymbol)
-                        .foregroundStyle(cloudStatusColor)
                 }
 
                 DisclosureGroup(isExpanded: expansion(for: .iCloud)) {
@@ -1142,21 +1150,20 @@ struct SaveSettingsView: View {
                 }
             }
 
-            Section("Saves") {
-                if (sync.isTransferring || sync.activeOperation == .loadingArchives),
-                   let message = sync.progressMessage {
-                    ProgressView(message)
-                }
-                if sync.isGameplayActive {
-                    Text("Pause gameplay before importing saves.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-                if let message = sync.transferMessage {
-                    Text(message).font(.callout)
-                }
+            if (sync.isTransferring || sync.activeOperation == .loadingArchives),
+               let message = sync.progressMessage {
+                ProgressView(message)
+            }
+            if sync.isGameplayActive {
+                Text("Pause gameplay before importing saves.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            if let message = sync.transferMessage {
+                Text(message).font(.callout)
+            }
 
-                DisclosureGroup(isExpanded: expansion(for: .saves)) {
+            DisclosureGroup(isExpanded: expansion(for: .saves)) {
                 Button {
                     sync.clearTransferMessage()
                     saveTransferPicker = .importSaves
@@ -1207,34 +1214,20 @@ struct SaveSettingsView: View {
                      + "the current active copy before replacing it.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
-                } label: {
-                    Label("Manage Save Files", systemImage: "externaldrive")
-                }
+            } label: {
+                Label("Manage Save Files", systemImage: "externaldrive")
             }
 
             Section {
-                DisclosureGroup(isExpanded: expansion(for: .developer)) {
-                Toggle("Show Developer Logs", isOn: Binding(
-                    get: { settings.developerLogsEnabled },
-                    set: { settings.setDeveloperLogsEnabled($0) }
-                ))
-                Text("Shows the live engine readout only while the game's pause or progress menu is open.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                } label: {
-                    Label("Developer", systemImage: "wrench.and.screwdriver")
-                }
-            }
-
-            Section {
-                Button("Reset \(GameLibraryTitle.jak1.name) Settings", role: .destructive) {
-                    settings.resetAll()
-                    input.setPrimarySource(settings.primaryInputSource)
-                    input.setBindings(settings.jak1InputBindings)
+                Button("Reset All to Defaults", role: .destructive) {
+                    isConfirmingResetAll = true
                 }
             }
         }
+        .foregroundStyle(.white)
         .navigationTitle("Settings")
+        .labelStyle(SettingsRowLabelStyle())
+        .tint(DarkEcoTheme.accent)
         .fileImporter(isPresented: Binding(
             get: { saveTransferPicker != nil },
             set: { if !$0 { saveTransferPicker = nil } }
@@ -1260,6 +1253,20 @@ struct SaveSettingsView: View {
         } message: { candidate in
             Text(archiveSummary(candidate)
                  + ". The current active copy will be preserved before replacement.")
+        }
+        .confirmationDialog(
+            "Reset all settings?",
+            isPresented: $isConfirmingResetAll,
+            titleVisibility: .visible
+        ) {
+            Button("Reset All to Defaults", role: .destructive) {
+                settings.resetAll()
+                input.setPrimarySource(settings.primaryInputSource)
+                input.setBindings(settings.jak1InputBindings)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This restores the default controls, graphics, gameplay, and input settings.")
         }
         #if !os(iOS)
         .confirmationDialog("Return to Library?",
@@ -1314,14 +1321,6 @@ struct SaveSettingsView: View {
         }
     }
 
-    private var cloudStatusColor: Color {
-        switch cloudState.phase {
-        case .unavailable: return .secondary
-        case .failed: return .orange
-        default: return .primary
-        }
-    }
-
     private func expansion(for category: SettingsCategory) -> Binding<Bool> {
         Binding(
             get: { expandedCategories.contains(category) },
@@ -1338,22 +1337,15 @@ struct SaveSettingsView: View {
     @ViewBuilder
     private var controlsContent: some View {
             #if os(iOS)
-            Toggle("Dynamic Left Stick", isOn: Binding(
-                get: { settings.dynamicLeftStick },
-                set: { settings.setDynamicLeftStick($0) }
-            ))
-            Text("Stick moves to wherever your finger is placed.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            NavigationLink {
-                TouchStickSettingsView(settings: settings)
-            } label: {
-                LabeledContent("Touch Sticks", value: "Size & Position")
-            }
             NavigationLink {
                 TouchControlsGuideView()
             } label: {
                 Label("Touch Controls Guide", systemImage: "hand.tap")
+            }
+            NavigationLink {
+                TouchStickSettingsView(settings: settings)
+            } label: {
+                LabeledContent("Touch Sticks", value: "Size & Position")
             }
             #endif
             #if !os(visionOS)
@@ -1393,6 +1385,7 @@ struct SaveSettingsView: View {
                 input.setPrimarySource(settings.primaryInputSource)
                 input.setBindings(settings.jak1InputBindings)
             }
+            .foregroundStyle(.white.opacity(0.8))
     }
 
     @ViewBuilder
@@ -1406,6 +1399,18 @@ struct SaveSettingsView: View {
                 }
             }
             .pickerStyle(.segmented)
+
+            #if os(iOS)
+            Toggle("High Frame Rate", isOn: Binding(
+                get: { settings.graphicsHighFrameRate },
+                set: { settings.setGraphicsHighFrameRate($0) }
+            ))
+            Text("Prefer a higher display refresh rate on supported devices. This launcher setting "
+                 + "is saved independently; gameplay pacing remains on the stable 60 Hz path until "
+                 + "the display path is enabled.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            #endif
 
             if settings.profile(for: .graphics) == .modern {
                 // Fit to Screen is the only additional Modern option today and duplicates the
@@ -1426,6 +1431,7 @@ struct SaveSettingsView: View {
             Button("Restore Graphics Defaults") {
                 settings.restoreDefaults(for: .graphics)
             }
+            .foregroundStyle(.white.opacity(0.8))
     }
 
     private var primaryInputSourceChoices: [PrimaryInputSource] {

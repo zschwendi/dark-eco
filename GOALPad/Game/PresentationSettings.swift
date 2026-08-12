@@ -38,6 +38,9 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
     /// Optional so existing same-schema documents decode unchanged. Modern uses stereoscopic
     /// window rendering by default on visionOS; Classic and an explicit opt-out use Comfort.
     var graphicsModernStereo3DOverride: Bool?
+    /// Optional so existing same-schema documents decode unchanged. This launcher-only
+    /// preference defaults off until a supported display path consumes it.
+    var graphicsHighFrameRateOverride: Bool?
     /// Optional so Build 93 settings documents decode without a migration. Developer logs are
     /// hidden by default and belong to this title's synced settings document.
     var developerLogsEnabledOverride: Bool?
@@ -91,6 +94,10 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         return graphicsModernStereo3DOverride ?? true
     }
 
+    var graphicsHighFrameRate: Bool {
+        graphicsHighFrameRateOverride ?? false
+    }
+
     var developerLogsEnabled: Bool {
         developerLogsEnabledOverride ?? false
     }
@@ -112,6 +119,7 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         case .graphics:
             graphicsModernFillWidthOverride = nil
             graphicsModernStereo3DOverride = nil
+            graphicsHighFrameRateOverride = nil
         case .controls:
             primaryInputSourceOverride = nil
             jak1InputBindingsOverride = nil
@@ -127,6 +135,7 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         interfaceProfile = .classic
         graphicsModernFillWidthOverride = nil
         graphicsModernStereo3DOverride = nil
+        graphicsHighFrameRateOverride = nil
         developerLogsEnabledOverride = nil
         rumbleEnabledOverride = nil
         primaryInputSourceOverride = nil
@@ -548,6 +557,8 @@ final class PresentationSettings {
 
     var graphicsStereo3D: Bool { document.graphicsStereo3D }
 
+    var graphicsHighFrameRate: Bool { document.graphicsHighFrameRate }
+
     var developerLogsEnabled: Bool { document.developerLogsEnabled }
 
     var rumbleEnabled: Bool { document.rumbleEnabled }
@@ -597,6 +608,10 @@ final class PresentationSettings {
 
     func setGraphicsStereo3D(_ enabled: Bool) {
         change { $0.graphicsModernStereo3DOverride = enabled }
+    }
+
+    func setGraphicsHighFrameRate(_ enabled: Bool) {
+        change { $0.graphicsHighFrameRateOverride = enabled ? true : nil }
     }
 
     func setDeveloperLogsEnabled(_ enabled: Bool) {

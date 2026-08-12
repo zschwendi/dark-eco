@@ -283,6 +283,9 @@ private func legacyDocumentAndPickerOrderingRemainCompatible() async throws {
           "the legacy graphics option remains persisted even while Classic is selected")
     check(!value.developerLogsEnabled,
           "a Build 93 document defaults the newly added developer logs setting off")
+    check(!value.graphicsHighFrameRate
+          && value.document.graphicsHighFrameRateOverride == nil,
+          "a same-schema document without High Frame Rate defaults the launcher preference off")
     check(value.primaryInputSource == .automatic,
           "a Build 93 document defaults the new Primary Controller choice to Automatic")
     check(value.jak1InputBindings == .standard
@@ -408,8 +411,8 @@ private func inputBindingsPersistSyncAndReset() async throws {
           && value.jak1InputBindings.action(for: .buttonX) == .cross,
           "controller collision swaps are stored through PresentationSettings")
     check(value.jak1InputBindings.action(for: .spacebar) == .stats
-          && value.jak1InputBindings.action(for: .tab) == nil,
-          "an explicit added Stats key is stored without duplicate ownership")
+          && value.jak1InputBindings.action(for: .tab) == .cross,
+          "an explicit Stats key swaps the previous Space binding without duplicate ownership")
     check(value.jak1InputBindings.action(for: .returnOrEnter) == .moveForward
           && value.jak1InputBindings.action(for: .w) == nil,
           "a movement direction can move away from its default W key")
@@ -626,6 +629,39 @@ private func defaultsUseModernGraphics() async throws {
 }
 
 @MainActor
+private func highFrameRatePersistsAndResets() async throws {
+    print("High Frame Rate is an opt-in launcher preference with a safe default")
+    let fixture = try Fixture(name: "high-frame-rate")
+    let value = settings(fixture, writerID: "device-a", cloudAvailable: false)
+    check(!value.graphicsHighFrameRate
+          && value.document.graphicsHighFrameRateOverride == nil,
+          "High Frame Rate begins off without a stored override")
+
+    value.setGraphicsHighFrameRate(true)
+    check(value.graphicsHighFrameRate
+          && value.document.graphicsHighFrameRateOverride == true
+          && readDocument(at: fixture.local)?.graphicsHighFrameRateOverride == true,
+          "enabling High Frame Rate persists the explicit launcher preference")
+
+    let restored = settings(fixture, writerID: "device-b", cloudAvailable: false)
+    check(restored.graphicsHighFrameRate,
+          "the High Frame Rate preference survives local relaunch decoding")
+    restored.setProfile(.classic, for: .graphics)
+    check(restored.graphicsHighFrameRate,
+          "the launcher preference remains independent of the graphics profile")
+
+    restored.restoreDefaults(for: .graphics)
+    check(!restored.graphicsHighFrameRate
+          && restored.document.graphicsHighFrameRateOverride == nil,
+          "Restore Graphics Defaults clears High Frame Rate")
+    restored.setGraphicsHighFrameRate(true)
+    restored.resetAll()
+    check(!restored.graphicsHighFrameRate
+          && restored.document.graphicsHighFrameRateOverride == nil,
+          "Reset All to Defaults clears High Frame Rate")
+}
+
+@MainActor
 private func savedChoicesSurviveNewDefaults() async throws {
     print("existing saved profile and option choices survive the new defaults")
     let classicFixture = try Fixture(name: "saved-classic")
@@ -731,6 +767,7 @@ private func cloudSettingsAndTouchLayoutConverge() async throws {
     first.setProfile(.modern, for: .audio)
     first.setGraphicsFillWidth(false)
     first.setGraphicsStereo3D(false)
+    first.setGraphicsHighFrameRate(true)
     first.setControllerAction(.square, for: .buttonA)
     first.setKeyboardMouseAction(.stats, for: .spacebar)
     first.setKeyboardMouseAction(.moveForward, for: .returnOrEnter)
@@ -753,10 +790,12 @@ private func cloudSettingsAndTouchLayoutConverge() async throws {
           "a second device receives every changed section profile together")
     check(!second.graphicsFillWidth && !second.graphicsStereo3D,
           "the second device receives the customized Modern options")
+    check(second.graphicsHighFrameRate,
+          "the second device receives the persisted High Frame Rate preference")
     check(second.jak1InputBindings.action(for: .buttonA) == .square
           && second.jak1InputBindings.action(for: .buttonX) == .cross
           && second.jak1InputBindings.action(for: .spacebar) == .stats
-          && second.jak1InputBindings.action(for: .tab) == nil
+          && second.jak1InputBindings.action(for: .tab) == .cross
           && second.jak1InputBindings.action(for: .returnOrEnter) == .moveForward
           && second.jak1InputBindings.action(for: .w) == nil
           && second.jak1InputBindings.controllerStickRoles == .swapped
@@ -1142,6 +1181,7 @@ private struct PresentationSettingsCheck {
             try await legacyTouchLayoutSidecarPersistsAcrossPresentationResets()
             try await explicitFreshResetBeatsOlderRemoteTouchLayout()
             try await defaultsUseModernGraphics()
+            try await highFrameRatePersistsAndResets()
             try await savedChoicesSurviveNewDefaults()
             try await profilesCanBeMixedWithoutLosingOptions()
             try await localOptOutDoesNotTouchCloud()

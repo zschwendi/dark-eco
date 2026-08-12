@@ -25,11 +25,11 @@ struct TouchControlsGuideView: View {
                 TouchControlsInfographic()
 
                 VStack(spacing: 14) {
-                    guideRow(symbol: .systemImage("hand.tap.fill"), title: "Swipe Actions",
+                    guideRow(symbol: .systemImage("hand.draw"), title: "Swipe Actions",
                              detail: "Swipe anywhere on the right side\n- Up: Jump\n- Down: Crouch\n- Left: Punch\n- Right: Spin Kick")
                     guideRow(symbol: .text("L"), title: "Movement")
                     guideRow(symbol: .text("R"), title: "Camera")
-                    guideRow(symbol: .systemImage("rocket.fill"), title: "Speeder controls",
+                    guideRow(symbol: .systemImage("flag.pattern.checkered.2.crossed"), title: "Speeder controls",
                              detail: "Swipe up and hold to accelerate. Swipe down to hop brake.")
                 }
 
