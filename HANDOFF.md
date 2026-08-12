@@ -17210,3 +17210,37 @@ The early Samos-hut opening separately confirms deferred PRIS2 buckets
 hard-edged prison light patches also remain a separate SpriteGlow versus
 ordinary Sprite3 versus TRANS-tfrag A/B; no speculative shader change is
 authorized by this checkpoint. The physical `Z iPad Pro` was not accessed.
+
+## Jak II common PRIS Dark Jak implementation checkpoint
+
+Date: 2026-08-12.
+
+Nested `cb9bd6fcd` implements the exact live bucket-220 forms observed during
+the natural opening: strict absent, nine-transfer/208-byte Dark Jak animator,
+and 63-transfer/3920-byte Dark Jak animator plus two eye chunks. The host now
+parses live DMA before copying, independently reparses and semantically matches
+the copied chain, prepares four registry-only Dark Jak textures before any
+mutation, and publishes stable animated slots 0 through 3 at bucket 220 before
+common Merc bucket 221. The dedicated renderer consumes the planned animator,
+optional eye chunks, default reset, and terminal linker exactly. PRIS2 remains
+deferred and the already-accepted prison slots 4, 5, 7, 8, 9, and 10 are
+unchanged.
+
+The integration diff was independently reviewed with no concrete blocker.
+The canonical affected build passed:
+
+```text
+cmake --build .agent-builds/jak2-combined-host --target jak2-metal-bucket-table-test jak2-common-tfrag-texture-upload-capture-test jak2-dark-jak-clut-executor-test jak2-metal-eye-renderer-test jak2-metal-merc-renderer-test jak2-metal-host-bridge-test -j2
+```
+
+The first sandboxed CTest run passed the two portable tests and failed the four
+Metal tests only because no default Metal device was available. The exact
+rerun with host Metal access passed 6/6:
+
+```text
+ctest --test-dir .agent-builds/jak2-combined-host --output-on-failure -R '^(jak2-metal-bucket-table-test|jak2-common-tfrag-texture-upload-capture-test|jak2-dark-jak-clut-executor-test|jak2-metal-eye-renderer-test|jak2-metal-merc-renderer-test|jak2-metal-host-bridge-test)$'
+```
+
+Nested commit `cb9bd6fcd` is pushed to `origin/agent/jak2-ipad-playtest` and
+the remote ref was verified exactly. Simulator build and retained-save visual
+acceptance remain the next gate. The physical `Z iPad Pro` was not accessed.
