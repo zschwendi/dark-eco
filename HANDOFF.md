@@ -17244,3 +17244,41 @@ ctest --test-dir .agent-builds/jak2-combined-host --output-on-failure -R '^(jak2
 Nested commit `cb9bd6fcd` is pushed to `origin/agent/jak2-ipad-playtest` and
 the remote ref was verified exactly. Simulator build and retained-save visual
 acceptance remain the next gate. The physical `Z iPad Pro` was not accessed.
+
+## Jak II common PRIS one-eye transition checkpoint
+
+Date: 2026-08-12.
+
+Nested `63ecf2037` adds the missing source-valid one-eye common-PRIS form. The
+retained-save simulator run proved the prior Dark Jak path (`merc-anim=5/0`,
+slots 0 through 3 with zero placeholders, `merc-missing-textures=0`, and
+healthy detached eyes), while exactly two early startup frames failed. Their
+aggregate counters isolate two 36-transfer/2064-byte bucket-220 envelopes:
+the nine-transfer Dark Jak form plus one 27-transfer eye chunk. Jak II source
+independently toggles eye-control draw flags, so the parser now accepts strict
+zero-, one-, and two-eye forms while preserving all existing live/copy,
+fingerprint, boundary, and renderer gates.
+
+Focused validation passed:
+
+```text
+cmake --build .agent-builds/jak2-combined-host --target jak2-common-tfrag-texture-upload-capture-test jak2-metal-eye-renderer-test jak2-metal-host-bridge-test -j2
+ctest --test-dir .agent-builds/jak2-combined-host --output-on-failure -R '^(jak2-common-tfrag-texture-upload-capture-test|jak2-metal-eye-renderer-test|jak2-metal-host-bridge-test)$'
+git diff --check HEAD^ HEAD
+```
+
+The sandboxed CTest run passed the parser and failed the two Metal tests only
+because no default Metal device was available. The exact host-Metal rerun
+passed 3/3. The nested commit is pushed and the remote ref was verified at
+`63ecf20371ad3d2cfa5bcce3b81db7e939121af6`.
+
+The retained pre-fix prison screenshot is
+`.agent-builds/jak2-resume-logs/eco-jak2-dev-common-pris-darkjak-prison.png`,
+SHA-256 `4a760b3541800ea67840cd3eba1923b896d1acb1fc3e15d9b03bdc91fc3ff777`.
+The retained counter log is
+`.agent-builds/jak2-resume-logs/eco-jak2-dev-common-pris-darkjak-runtime.log`,
+SHA-256 `ddd7b9b17ebf117f1694dc4cbd2021fe009a4c07414a018501d5ea0be725d92a`.
+The full Release simulator rebuild and zero-failure runtime acceptance for the
+one-eye patch are the next gates. PRIS2 bucket 228 and the hard-edged Sprite3
+light cards remain separate follow-up lanes. The physical `Z iPad Pro` was not
+accessed.
