@@ -76,6 +76,10 @@ do {
     let libraryScreen = try declaration(in: libraryView,
                                         startingWith: "struct GameLibraryView",
                                         endingWith: "\n\nprivate struct GameLibraryTile")
+    let menuLabel = try declaration(in: libraryView,
+                                    startingWith: "private struct DarkEcoMenuLabel",
+                                    endingWith: "\n\nprivate struct GameLibraryTile")
+    let visionOrnament = try source(at: root + "/GOALPad/Vision/VisionControllerStatusOrnament.swift")
     let about = try declaration(in: supportViews,
                                 startingWith: "struct EcoAboutView",
                                 endingWith: "\n\nprivate struct EcoContactView")
@@ -89,7 +93,7 @@ do {
     }
     let cardLabel = tile[cardButton.lowerBound..<cardButtonStyle.lowerBound]
     guard cardLabel.contains(".padding(GameLibraryShelfLayout.cardHorizontalInset)")
-            && cardLabel.contains(".frame(width: coverSize.width")
+            && cardLabel.contains(".frame(width: cardWidth ?? coverSize.width")
             && cardLabel.contains(".background(DarkEcoTheme.surface")
             && cardLabel.contains(".contentShape(RoundedRectangle")
             && !cardLabel.contains("artworkMenu")
@@ -100,7 +104,7 @@ do {
             && !tile.contains(".scaledToFill()")
             && tile.contains(".frame(width: coverSize.width, height: coverSize.height)")
             && tile.contains("Text(title.shelfName)")
-            && tile.contains(".lineLimit(coverSize.width < 120 ? 4 : 2)")
+            && tile.contains(".lineLimit(usesHorizontalCard ? 4 : (coverSize.width < 120 ? 4 : 2))")
             && tile.contains(".minimumScaleFactor(0.78)")
             && tile.contains(".allowsTightening(true)")
             && !tile.contains(".accessibilityElement(children: .combine)")
@@ -122,9 +126,12 @@ do {
               of: "Label(\"About\", systemImage: \"info.circle\")"),
           settingsMenuLabel.lowerBound < aboutMenuLabel.lowerBound,
           libraryScreen.contains("GeometryReader { proxy in")
-            && libraryScreen.contains("usesRegularWidth: (horizontalSizeClass ?? .regular) == .regular")
+            && libraryScreen.contains("if isPortrait, horizontalSizeClass == .regular")
+            && libraryScreen.contains("else if !isPortrait, horizontalSizeClass == .compact")
+            && libraryScreen.contains("fittedPortraitLibrary(containerSize: proxy.size)")
+            && libraryScreen.contains("compactLandscapeLibrary(containerSize: proxy.size)")
+            && libraryScreen.contains("wideLibrary(containerSize: proxy.size)")
             && libraryScreen.contains("HStack(alignment: .top, spacing: layout.spacing)")
-            && libraryScreen.contains("if layout.usesFlexibleGutters")
             && libraryScreen.contains("Spacer(minLength: layout.gutter)")
             && !libraryScreen.contains("LazyVGrid")
             && !libraryScreen.contains("GridItem")
@@ -146,6 +153,24 @@ do {
                         "launcher shelf, adaptive gutters, menu ordering, or About destination regressed"])
     }
     print("  ok   launcher menu is Settings then a unified About destination")
+    guard libraryScreen.contains("UIDevice.current.userInterfaceIdiom == .phone")
+            && libraryScreen.contains("? .principal : .navigation")
+            && libraryScreen.contains("ToolbarItem(placement: menuPlacement)")
+            && libraryScreen.contains("} label: { mainMenuLabel }")
+            && libraryScreen.contains(".accessibilityLabel(\"Main menu\")")
+            && libraryScreen.contains("Image(systemName: \"line.3.horizontal\")")
+            && menuLabel.contains("Text(\"Dark Eco\")")
+            && menuLabel.contains("DarkEcoTheme.accent")
+            && menuLabel.contains("@Environment(\\.accessibilityReduceMotion)")
+            && menuLabel.contains("withAnimation(.linear(duration: 3.2)")
+            && menuLabel.contains("highlightLocation = 1")
+            && visionOrnament.contains("withAnimation(.linear(duration: 1.6)")
+    else {
+        throw NSError(domain: "portrait-library-check", code: 3,
+                      userInfo: [NSLocalizedDescriptionKey:
+                        "iPhone Dark Eco menu pill, slower shimmer, or non-iPhone hamburger regressed"])
+    }
+    print("  ok   iPhone centers a slower Eco-purple Dark Eco menu pill while iPad and vision retain the hamburger")
     guard libraryScreen.contains("case .waitingForForegroundPreparation:")
             && libraryScreen.contains("return .preparing(.finishingSaveCheck)")
             && libraryScreen.contains("case .checkingSaves:")
@@ -325,21 +350,16 @@ do {
           == .showUnsupported(.jak3),
           "Jak II and Jak 3 fail closed even if a future state is misclassified")
 
-    let rawOffer = GameLibraryOfferCopy.jak1ImportMessage(canImportRawISO: true)
-    let preparedOffer = GameLibraryOfferCopy.jak1ImportMessage(canImportRawISO: false)
-    check(rawOffer.contains("legally own") && rawOffer.contains(".iso")
-          && rawOffer.contains(".zip") && rawOffer.contains("exactly one .iso"),
-          "Jak 1 raw-source offer states ownership and exact accepted formats")
-    check(preparedOffer.contains("legally own") && preparedOffer.contains("out/jak1")
-          && !preparedOffer.contains(".zip") && !preparedOffer.contains("supported .iso"),
-          "prepared-only Jak 1 offer does not advertise unavailable importers")
+    let offer = GameLibraryOfferCopy.jak1ImportMessage()
+    check(offer.contains("legally own") && offer.contains(GameLibraryTitle.jak1.name),
+          "Jak 1 setup offer states ownership and the canonical title")
     check(GameLibraryOfferCopy.unsupportedMessage(for: .jak2).contains("Jak II")
           && GameLibraryOfferCopy.unsupportedMessage(for: .jak3).contains("Jak 3"),
           "unsupported offers remain title-specific")
     check(GameLibraryTitle.jak2.availabilityLabel == "Coming Soon"
           && GameLibraryTitle.jak3.availabilityLabel == "Planned"
-          && GameLibraryOfferCopy.unsupportedMessage(for: .jak2).contains("Coming Soon")
-          && GameLibraryOfferCopy.unsupportedMessage(for: .jak3).contains("Planned"),
+          && GameLibraryOfferCopy.unsupportedMessage(for: .jak2).contains("coming soon")
+          && GameLibraryOfferCopy.unsupportedMessage(for: .jak3).contains("planned"),
           "follow-on title availability uses the same truthful copy everywhere")
     print("portrait and library checks passed")
     """

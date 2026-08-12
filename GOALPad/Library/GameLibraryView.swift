@@ -1,5 +1,8 @@
 import SwiftUI
 import UniformTypeIdentifiers
+#if os(iOS)
+import UIKit
+#endif
 
 private enum GameLibraryAlert: Identifiable {
     case importJak1
@@ -57,7 +60,7 @@ struct GameLibraryView: View {
             }
             .navigationTitle("Library")
             .toolbar {
-                ToolbarItem(placement: .navigation) {
+                ToolbarItem(placement: menuPlacement) {
                     Menu {
                         Button(action: openSettings) {
                             Label("Settings", systemImage: "gearshape")
@@ -65,9 +68,7 @@ struct GameLibraryView: View {
                         Button { isShowingAbout = true } label: {
                             Label("About", systemImage: "info.circle")
                         }
-                    } label: {
-                        Image(systemName: "line.3.horizontal")
-                    }
+                    } label: { mainMenuLabel }
                     .accessibilityLabel("Main menu")
                 }
             }
@@ -240,6 +241,27 @@ struct GameLibraryView: View {
             .padding(.vertical, 12)
     }
 
+    private var menuPlacement: ToolbarItemPlacement {
+#if os(iOS)
+        UIDevice.current.userInterfaceIdiom == .phone ? .principal : .navigation
+#else
+        .navigation
+#endif
+    }
+
+    @ViewBuilder
+    private var mainMenuLabel: some View {
+#if os(iOS)
+        if UIDevice.current.userInterfaceIdiom == .phone {
+            DarkEcoMenuLabel()
+        } else {
+            Image(systemName: "line.3.horizontal")
+        }
+#else
+        Image(systemName: "line.3.horizontal")
+#endif
+    }
+
     private func state(for title: GameLibraryTitle) -> GameLibraryState {
         guard title == .jak1 else { return .planned }
         switch session.importer.state {
@@ -304,6 +326,52 @@ struct GameLibraryView: View {
     private func chooseArtwork(for title: GameLibraryTitle) {
         artworkTitle = title
         isChoosingArtwork = true
+    }
+}
+
+private struct DarkEcoMenuLabel: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var highlightLocation: CGFloat = -1
+
+    var body: some View {
+        Text("Dark Eco")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(labelForegroundStyle)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(DarkEcoTheme.surface.opacity(0.9), in: Capsule())
+            .overlay {
+                Capsule()
+                    .strokeBorder(DarkEcoTheme.accent.opacity(0.58), lineWidth: 1)
+            }
+            .shadow(color: DarkEcoTheme.accent.opacity(0.32), radius: 6)
+            .onAppear { updateShimmer() }
+            .onChange(of: reduceMotion) { _, _ in updateShimmer() }
+    }
+
+    private var labelForegroundStyle: LinearGradient {
+        guard !reduceMotion else {
+            return LinearGradient(
+                colors: [DarkEcoTheme.accent, DarkEcoTheme.accent],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        }
+
+        return LinearGradient(
+            colors: [DarkEcoTheme.accent, DarkEcoTheme.accent,
+                     .white.opacity(0.85), DarkEcoTheme.accent, DarkEcoTheme.accent],
+            startPoint: UnitPoint(x: highlightLocation - 1, y: 0.5),
+            endPoint: UnitPoint(x: highlightLocation + 1, y: 0.5)
+        )
+    }
+
+    private func updateShimmer() {
+        highlightLocation = -1
+        guard !reduceMotion else { return }
+        withAnimation(.linear(duration: 3.2).repeatForever(autoreverses: false)) {
+            highlightLocation = 1
+        }
     }
 }
 
