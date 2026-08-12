@@ -288,24 +288,28 @@ private struct SettingsSheetView: View {
                              input: input,
                              isGameRunning: isGameRunning,
                              returnToLibrary: returnToLibrary)
+                #if os(iOS)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Done") { dismiss() }
+                    }
+                    if isGameRunning {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button(role: .destructive) {
+                                isConfirmingReturnToLibrary = true
+                            } label: {
+                                Image(systemName: "power")
+                                    .foregroundStyle(.red)
+                            }
+                            .accessibilityLabel("Return to Library")
+                        }
+                    }
+                }
+                #endif
         }
         .tint(DarkEcoTheme.accent)
         .background(DarkEcoTheme.background)
         #if os(iOS)
-        .toolbar {
-            ToolbarItemGroup(placement: .confirmationAction) {
-                if isGameRunning {
-                    Button(role: .destructive) {
-                        isConfirmingReturnToLibrary = true
-                    } label: {
-                        Image(systemName: "power")
-                            .foregroundStyle(.red)
-                    }
-                    .accessibilityLabel("Return to Library")
-                }
-                Button("Done") { dismiss() }
-            }
-        }
         .confirmationDialog("Return to Library?",
                             isPresented: $isConfirmingReturnToLibrary,
                             titleVisibility: .visible) {

@@ -172,6 +172,7 @@ final class SaveSyncController {
     private let engine: SaveSyncEngine
     private var frameCheckTask: Task<Void, Never>?
     private var frameCheckGeneration = 0
+    @ObservationIgnored private var isCheckingGameplaySaves = false
     private var pendingSyncMode: SaveSyncMode?
     private var activeSyncMode: SaveSyncMode?
     private var needsBidirectionalSyncBeforeGameplay = true
@@ -277,6 +278,10 @@ final class SaveSyncController {
 
     var isBusy: Bool { activeOperation != nil }
 
+    private var hasActiveSaveWork: Bool {
+        activeOperation != nil || isCheckingGameplaySaves
+    }
+
     var isTransferring: Bool {
         activeOperation == .importing || activeOperation == .exporting
             || activeOperation == .restoringArchive
@@ -302,7 +307,7 @@ final class SaveSyncController {
     }
 
     func refreshArchivedSaves() async {
-        guard !isBusy else { return }
+        guard !hasActiveSaveWork else { return }
         activeOperation = .loadingArchives
         do {
             archivedSaves = try await engine.archivedSaveCandidates()
@@ -313,7 +318,7 @@ final class SaveSyncController {
     }
 
     func promoteArchivedSave(_ candidate: ArchivedSaveCandidate) async {
-        guard !isBusy else { return }
+        guard !hasActiveSaveWork else { return }
         guard !isGameplayActive else {
             transferMessage = "Pause gameplay before changing the active save."
             return
@@ -408,7 +413,7 @@ final class SaveSyncController {
     /// Called after completed gameplay frames. The native save is synchronous, so any successful
     /// memcard write is closed before this check runs. Coalescing keeps file I/O off the hot loop.
     func gameplayFrameCompleted() {
-        guard isEnabled, isGameplayActive, !isBusy, frameCheckTask == nil else { return }
+        guard isEnabled, isGameplayActive, !hasActiveSaveWork, frameCheckTask == nil else { return }
         frameCheckGeneration += 1
         let generation = frameCheckGeneration
         frameCheckTask = Task { [weak self] in
@@ -420,37 +425,31 @@ final class SaveSyncController {
                 return
             }
             guard isEnabled, !Task.isCancelled, generation == frameCheckGeneration else { return }
-            guard !isBusy else {
+            guard !hasActiveSaveWork else {
                 enqueueSync(.uploadOnly)
                 return
             }
-            activeOperation = .checking
+            isCheckingGameplaySaves = true
             do {
                 if let outcome = try await engine.syncIfLocalFilesChanged(mode: .uploadOnly) {
-                    guard isEnabled else {
+                    if isEnabled {
+                        apply(outcome, mode: .uploadOnly)
+                    } else {
                         status = .disabled
-                        activeOperation = nil
-                        return
                     }
-                    apply(outcome, mode: .uploadOnly)
                 }
             } catch is CancellationError {
                 // Cancellation during the debounce is expected; active save work is not cancelled.
             } catch {
-                guard isEnabled else {
-                    status = .disabled
-                    activeOperation = nil
-                    return
-                }
-                status = .failed(error.localizedDescription)
+                status = isEnabled ? .failed(error.localizedDescription) : .disabled
             }
-            activeOperation = nil
+            isCheckingGameplaySaves = false
             await drainPendingSync()
         }
     }
 
     func importSaves(from source: URL) async {
-        guard !isBusy else { return }
+        guard !hasActiveSaveWork else { return }
         guard !isGameplayActive else {
             transferMessage = "Pause gameplay before importing saves."
             return
@@ -475,7 +474,7 @@ final class SaveSyncController {
     }
 
     func exportSaves(to destination: URL) async {
-        guard !isBusy else { return }
+        guard !hasActiveSaveWork else { return }
         activeOperation = .exporting
         transferMessage = "Exporting saves…"
         let accessed = destination.startAccessingSecurityScopedResource()
@@ -561,7 +560,7 @@ final class SaveSyncController {
     }
 
     private var hasPregameSaveWork: Bool {
-        isBusy || frameCheckTask != nil || cloudContentChangeTask != nil
+        hasActiveSaveWork || frameCheckTask != nil || cloudContentChangeTask != nil
             || pendingSyncMode != nil || automaticSyncTask != nil
     }
 
@@ -576,7 +575,7 @@ final class SaveSyncController {
         let generation = automaticSyncGeneration
         automaticSyncTask = Task { [weak self] in
             guard let self else { return }
-            while self.activeOperation != nil {
+            while self.hasActiveSaveWork {
                 do {
                     try await Task.sleep(for: .milliseconds(10))
                 } catch {
@@ -606,7 +605,7 @@ final class SaveSyncController {
         }
 
         var cancellationAttempts = 0
-        while isBusy || frameCheckTask != nil || cloudContentChangeTask != nil
+        while hasActiveSaveWork || frameCheckTask != nil || cloudContentChangeTask != nil
                 || automaticSyncTask != nil {
             guard cancellationAttempts < pregameCancellationWaitAttempts else {
                 status = .failed("Save preparation is still finishing. Wait a moment and try Play again.")
@@ -665,7 +664,7 @@ final class SaveSyncController {
     }
 
     private func drainPendingSync() async {
-        guard activeOperation == nil else { return }
+        guard !hasActiveSaveWork else { return }
         while isEnabled, let mode = pendingSyncMode {
             pendingSyncMode = nil
             activeOperation = .syncing
@@ -1076,10 +1075,15 @@ struct SaveSettingsView: View {
 
             Section("iCloud") {
                 HStack(spacing: 10) {
-                    ProgressView()
-                        .controlSize(.small)
-                        .opacity(cloudState.progressMessage == nil ? 0 : 1)
-                        .accessibilityHidden(cloudState.progressMessage == nil)
+                    ZStack {
+                        Color.clear
+                        if cloudState.progressMessage != nil {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                    }
+                    .frame(width: 18, height: 18)
+                    .accessibilityHidden(cloudState.progressMessage == nil)
                     Label(cloudState.summary, systemImage: cloudStatusSymbol)
                         .foregroundStyle(cloudStatusColor)
                 }

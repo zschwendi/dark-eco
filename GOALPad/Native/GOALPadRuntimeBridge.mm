@@ -388,6 +388,15 @@ void GOALPadInputSetDisconnected(int32_t port) {
 #endif
 }
 
+void GOALPadInputSetRumbleEnabled(int32_t port, BOOL enabled) {
+#if GOALPAD_HAVE_PAD_SEAM
+  goal_pad_set_rumble_enabled(port, enabled ? 1 : 0);
+#else
+  (void)port;
+  (void)enabled;
+#endif
+}
+
 GOALPadRumble GOALPadInputRumble(int32_t port) {
   GOALPadRumble rumble = {0, 0};
 #if GOALPAD_HAVE_PAD_SEAM

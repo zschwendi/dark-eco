@@ -158,6 +158,10 @@ u64 goal_bool(bool value) {
   return value ? s7.offset + jak1_symbols::FIX_SYM_TRUE : s7.offset;
 }
 
+u64 app_pc_current_controller_has_rumble() {
+  return goal_bool(true);
+}
+
 /*! Does this file exist? Every name is resolved under the player's data directory, which is the
  *  only place the app can read. */
 u64 app_pc_filepath_exists(u32 filepath) {
@@ -257,6 +261,8 @@ void install_app_machine_functions() {
   jak1::make_function_symbol_from_c("pc-filepath-exists?", (void*)app_pc_filepath_exists);
   // The app writes nothing outside its own container, so it does not make directories for GOAL.
   jak1::make_function_symbol_from_c("pc-mkdir-file-path", (void*)goal_false);
+  jak1::make_function_symbol_from_c("pc-current-controller-has-rumble?",
+                                    (void*)app_pc_current_controller_has_rumble);
 
   jak1::make_function_symbol_from_c("file-stream-open", (void*)app_file_stream_open);
   jak1::make_function_symbol_from_c("file-stream-close", (void*)app_file_stream_close);

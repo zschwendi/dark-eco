@@ -82,8 +82,8 @@ final class ControllerInput {
     }
 
     func setRumbleEnabled(_ enabled: Bool) {
-        guard enabled != isRumbleEnabled else { return }
         isRumbleEnabled = enabled
+        GOALPadInputSetRumbleEnabled(Self.primaryPort, enabled)
         if !enabled { stopRumble() }
     }
 
@@ -442,6 +442,11 @@ final class ControllerInput {
         controllerName = candidate.vendorName ?? candidate.productCategory
         isDualSense = candidate.extendedGamepad is GCDualSenseGamepad
         motors = ControllerRumble(controller: candidate)
+        if motors == nil {
+            inputLog.error("Controller haptics are unavailable for \(self.controllerName ?? "unnamed", privacy: .public)")
+        } else {
+            inputLog.notice("Controller haptics ready for \(self.controllerName ?? "unnamed", privacy: .public)")
+        }
         inputLog.notice("Controller connected: \(self.controllerName ?? "unnamed", privacy: .public) (DualSense: \(self.isDualSense))")
     }
 
@@ -653,39 +658,23 @@ private final class DeviceRumbleHaptics {
 /// so there is nothing in the game asking for it.
 @MainActor
 private final class ControllerRumble {
-    private var large: Motor?
-    private var small: Motor?
-    private var combined: Motor?
+    private var motor: Motor?
 
     init?(controller: GCController) {
         guard let haptics = controller.haptics else { return nil }
-        if haptics.supportedLocalities.contains(.leftHandle),
-           haptics.supportedLocalities.contains(.rightHandle),
-           let large = Motor(haptics: haptics, locality: .leftHandle),
-           let small = Motor(haptics: haptics, locality: .rightHandle) {
-            self.large = large
-            self.small = small
-        } else {
-            combined = Motor(haptics: haptics, locality: .default)
-        }
-        if large == nil && small == nil && combined == nil { return nil }
+        motor = Motor(haptics: haptics, locality: .default)
+        guard motor != nil else { return nil }
     }
 
     func set(large largeValue: UInt8, small smallValue: UInt8) {
         let largeIntensity: Float = largeValue == 0 ? 0 : 1
         let smallIntensity = Float(smallValue) / 255
-        large?.set(intensity: largeIntensity)
-        small?.set(intensity: smallIntensity)
-        combined?.set(intensity: max(largeIntensity, smallIntensity))
+        motor?.set(intensity: max(largeIntensity, smallIntensity))
     }
 
     func stop() {
-        large?.stop()
-        small?.stop()
-        combined?.stop()
-        large = nil
-        small = nil
-        combined = nil
+        motor?.stop()
+        motor = nil
     }
 
     /// One handle: a continuous haptic event whose intensity is updated in place, so a frame of
@@ -725,15 +714,15 @@ private final class ControllerRumble {
             guard let player else { return }
             do {
                 if intensity > 0 {
-                    if !running {
-                        try player.start(atTime: CHHapticTimeImmediate)
-                        running = true
-                    }
                     try player.sendParameters(
                         [CHHapticDynamicParameter(parameterID: .hapticIntensityControl,
                                                   value: intensity,
                                                   relativeTime: 0)],
                         atTime: CHHapticTimeImmediate)
+                    if !running {
+                        try player.start(atTime: CHHapticTimeImmediate)
+                        running = true
+                    }
                 } else if running {
                     try player.stop(atTime: CHHapticTimeImmediate)
                     running = false

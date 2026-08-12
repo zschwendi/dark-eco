@@ -341,6 +341,7 @@ typedef struct GOALPadRumble {
 /// nothing pressed.
 void GOALPadInputSetState(int32_t port, GOALPadControllerState state);
 void GOALPadInputSetDisconnected(int32_t port);
+void GOALPadInputSetRumbleEnabled(int32_t port, BOOL enabled);
 
 /// Read the motors back out. All zero when nothing is buzzing or the seam is not linked.
 GOALPadRumble GOALPadInputRumble(int32_t port);
