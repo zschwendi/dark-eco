@@ -19014,3 +19014,19 @@ authorized this separate physical-device build. Physical DualSense strength,
 left/right identity, pulse length, and cancellation remain the acceptance gate.
 The nested telemetry-removal commit is `44ab44f27`; the outer implementation
 checkpoint is `da3d8ba7`.
+
+## Build 197 physical installation
+
+After explicit maintainer authorization, signed Build 197 was installed in
+place on physical `Z iPad Pro`. No uninstall or launch occurred, and the app
+container, imported data, saves, and user archives were not inspected. Device
+inventory confirms Dark Eco 1.0 (197), bundle identifier
+`com.zephyrstudiosllc.eco`. Evidence:
+
+```text
+/private/tmp/goalpad-build197-install.json
+/private/tmp/goalpad-build197-inventory.json
+```
+
+Physical DualSense rumble acceptance remains pending until the maintainer
+launches the installed build and tests strength and left/right identity.
