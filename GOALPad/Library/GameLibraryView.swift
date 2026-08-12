@@ -33,33 +33,14 @@ struct GameLibraryView: View {
     var body: some View {
         NavigationStack {
             GeometryReader { proxy in
-                let layout = GameLibraryShelfLayout(
-                    containerSize: proxy.size,
-                    usesRegularWidth: (horizontalSizeClass ?? .regular) == .regular
-                )
-                HStack(alignment: .top, spacing: layout.spacing) {
-                    if layout.usesFlexibleGutters {
-                        Spacer(minLength: layout.gutter)
-                    }
-                    ForEach(GameLibraryTitle.allCases) { title in
-                        GameLibraryTile(
-                            title: title,
-                            state: state(for: title),
-                            progress: progress(for: title),
-                            coverSize: layout.coverSize,
-                            artworkURL: artworkStore.artworkURL(for: title),
-                            artworkRevision: artworkStore.revision,
-                            open: { open(title) },
-                            chooseArtwork: { chooseArtwork(for: title) },
-                            removeArtwork: { artworkStore.removeArtwork(for: title) }
-                        )
-                        if layout.usesFlexibleGutters {
-                            Spacer(minLength: layout.gutter)
-                        }
-                    }
+                let usesScrollingGrid = proxy.size.height > proxy.size.width
+                    || horizontalSizeClass == .compact
+                if usesScrollingGrid {
+                    scrollingLibrary(containerWidth: proxy.size.width)
+                } else {
+                    wideLibrary(containerSize: proxy.size)
+                        .overlay(alignment: .bottom) { versionFooter }
                 }
-                .frame(width: layout.shelfWidth, height: layout.shelfHeight, alignment: .top)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
             .background {
                 LinearGradient(
@@ -145,6 +126,63 @@ struct GameLibraryView: View {
                 )
             }
         }
+    }
+
+    private func scrollingLibrary(containerWidth: CGFloat) -> some View {
+        let layout = GameLibraryGridLayout(containerWidth: containerWidth)
+        let columns = Array(repeating: GridItem(.fixed(
+            layout.coverSize.width + GameLibraryShelfLayout.cardHorizontalInset * 2),
+            spacing: GameLibraryGridLayout.spacing, alignment: .top),
+            count: layout.columnCount)
+        return ScrollView {
+            LazyVGrid(columns: columns, alignment: .center,
+                      spacing: GameLibraryGridLayout.spacing) {
+                ForEach(GameLibraryTitle.allCases) { title in
+                    tile(title, coverSize: layout.coverSize)
+                }
+            }
+            .padding(.horizontal, GameLibraryGridLayout.outerPadding)
+            .padding(.top, 12)
+
+            versionFooter
+        }
+        .scrollIndicators(.visible)
+    }
+
+    private func wideLibrary(containerSize: CGSize) -> some View {
+        let layout = GameLibraryShelfLayout(containerSize: containerSize,
+                                            usesRegularWidth: true)
+        return HStack(alignment: .top, spacing: layout.spacing) {
+            Spacer(minLength: layout.gutter)
+            ForEach(GameLibraryTitle.allCases) { title in
+                tile(title, coverSize: layout.coverSize)
+                Spacer(minLength: layout.gutter)
+            }
+        }
+        .frame(width: layout.shelfWidth, height: layout.shelfHeight, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    }
+
+    private func tile(_ title: GameLibraryTitle, coverSize: CGSize) -> some View {
+        GameLibraryTile(
+            title: title,
+            state: state(for: title),
+            progress: progress(for: title),
+            coverSize: coverSize,
+            artworkURL: artworkStore.artworkURL(for: title),
+            artworkRevision: artworkStore.revision,
+            open: { open(title) },
+            chooseArtwork: { chooseArtwork(for: title) },
+            removeArtwork: { artworkStore.removeArtwork(for: title) }
+        )
+    }
+
+    private var versionFooter: some View {
+        Text(GOALPadBuildIdentity.versionText)
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
     }
 
     private func state(for title: GameLibraryTitle) -> GameLibraryState {

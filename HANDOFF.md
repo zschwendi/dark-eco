@@ -18240,3 +18240,21 @@ test-suite run was performed. Build log:
 ```text
 /private/tmp/goalpad-build171-ios-device.log
 ```
+
+# 2026-08-11 Build 172 responsive library checkpoint
+
+Build 172 keeps the accepted wide iPad landscape shelf, but uses a vertically
+scrolling adaptive grid for portrait windows and compact-width iPhones. Cards
+remain large instead of shrinking all three covers into one row. The launcher
+footer now displays the live bundle identity as `Version 1.0 (172)` in padded
+secondary caption text.
+
+The checkpoint is on branch `agent/build172-responsive-library`. Release builds
+passed on the iPhone SE simulator and generic iOS. The signed Build 172 product
+was installed and launched on physical `Z iPad Pro`; device inventory confirmed
+bundle version 172. Logs:
+
+```text
+/private/tmp/goalpad-build172-iphone-sim.log
+/private/tmp/goalpad-build172-ios-device.log
+```

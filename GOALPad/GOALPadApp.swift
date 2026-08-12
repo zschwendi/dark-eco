@@ -13,6 +13,7 @@ enum GOALPadBuildIdentity {
     static let version = value(for: "CFBundleShortVersionString", fallback: "unknown")
     static let build = value(for: "CFBundleVersion", fallback: "unknown")
     static let displayText = "\(displayName) \(version) (\(build))"
+    static let versionText = "Version \(version) (\(build))"
 
     private static func value(for key: String, fallback: String) -> String {
         Bundle.main.object(forInfoDictionaryKey: key) as? String ?? fallback

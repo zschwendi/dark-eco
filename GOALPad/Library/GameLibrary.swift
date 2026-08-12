@@ -73,6 +73,30 @@ nonisolated struct GameLibraryShelfLayout: Equatable, Sendable {
     }
 }
 
+/// A larger scrolling library for every portrait window and compact-width iPhone window.
+nonisolated struct GameLibraryGridLayout: Equatable, Sendable {
+    static let spacing: CGFloat = 16
+    static let outerPadding: CGFloat = 16
+    static let maximumCardWidth: CGFloat = 320
+    static let minimumCardWidth: CGFloat = 250
+
+    let columnCount: Int
+    let coverSize: CGSize
+
+    init(containerWidth: CGFloat) {
+        let width = max(0, containerWidth)
+        let usableWidth = max(0, width - Self.outerPadding * 2)
+        let twoColumnWidth = (usableWidth - Self.spacing) / 2
+        columnCount = twoColumnWidth >= Self.minimumCardWidth ? 2 : 1
+        let cardWidth = min(Self.maximumCardWidth,
+                            (usableWidth - Self.spacing * CGFloat(columnCount - 1))
+                                / CGFloat(columnCount))
+        let coverWidth = max(0, cardWidth - GameLibraryShelfLayout.cardHorizontalInset * 2)
+        coverSize = CGSize(width: coverWidth,
+                           height: coverWidth / GameLibraryShelfLayout.coverAspectRatio)
+    }
+}
+
 nonisolated enum GameLibraryTitle: String, CaseIterable, Equatable, Identifiable, Sendable {
     case jak1
     case jak2
