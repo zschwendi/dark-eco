@@ -338,14 +338,13 @@ struct GameLibraryView: View {
 
 private struct DarkEcoMenuLabel: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var shimmerProgress: CGFloat = -1
+    @State private var highlightLocation: CGFloat = -1
     private let labelFont: Font = .caption.weight(.semibold)
-    private let menuText = "Dark Eco"
 
     var body: some View {
-        Text(menuText)
+        Text("Dark Eco")
             .font(labelFont)
-            .foregroundStyle(DarkEcoTheme.accent)
+            .foregroundStyle(labelForegroundStyle)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(DarkEcoTheme.surface.opacity(0.9), in: Capsule())
@@ -354,29 +353,11 @@ private struct DarkEcoMenuLabel: View {
                     .strokeBorder(DarkEcoTheme.accent.opacity(0.58), lineWidth: 1)
             }
             .shadow(color: DarkEcoTheme.accent.opacity(0.32), radius: 6)
-            .overlay(alignment: .center) {
-                if !reduceMotion {
-                    GeometryReader { geometry in
-                        let width = geometry.size.width
-                        let travelDistance = max(160, width + 80)
-                        Text(menuText)
-                            .font(labelFont)
-                            .foregroundStyle(shimmerGradient)
-                            .mask(
-                                Text(menuText)
-                                    .font(labelFont)
-                            )
-                            .offset(x: shimmerProgress * travelDistance / 2)
-                            .blendMode(.screen)
-                            .allowsHitTesting(false)
-                    }
-                }
-            }
             .onAppear { updateShimmer() }
             .onChange(of: reduceMotion) { _, _ in updateShimmer() }
     }
 
-    private var shimmerGradient: LinearGradient {
+    private var labelForegroundStyle: LinearGradient {
         guard !reduceMotion else {
             return LinearGradient(
                 colors: [DarkEcoTheme.accent, DarkEcoTheme.accent],
@@ -386,25 +367,17 @@ private struct DarkEcoMenuLabel: View {
         }
 
         return LinearGradient(
-            colors: [
-                DarkEcoTheme.accent.opacity(0.0),
-                DarkEcoTheme.accent.opacity(0.1),
-                DarkEcoTheme.accent.opacity(0.0),
-                .white.opacity(0.95),
-                DarkEcoTheme.accent.opacity(0.0),
-                DarkEcoTheme.accent.opacity(0.1),
-                DarkEcoTheme.accent.opacity(0.0)
-            ],
-            startPoint: .leading,
-            endPoint: .trailing
+            colors: [DarkEcoTheme.accent, DarkEcoTheme.accent, .white.opacity(0.85), DarkEcoTheme.accent, DarkEcoTheme.accent],
+            startPoint: UnitPoint(x: highlightLocation - 1, y: 0.5),
+            endPoint: UnitPoint(x: highlightLocation + 1, y: 0.5)
         )
     }
 
     private func updateShimmer() {
-        shimmerProgress = -1
+        highlightLocation = -1
         guard !reduceMotion else { return }
-        withAnimation(.linear(duration: 3.2).repeatForever(autoreverses: false)) {
-            shimmerProgress = 1.6
+        withAnimation(.linear(duration: 1.6).repeatForever(autoreverses: false)) {
+            highlightLocation = 1
         }
     }
 }
