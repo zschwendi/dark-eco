@@ -753,9 +753,12 @@ void reset_frame_timing() noexcept {
 #endif
 }
 
-CameraFrameIdentity current_camera_frame_identity() noexcept {
+CameraFrameIdentity current_camera_frame_identity(bool include_diagnostics) noexcept {
   CameraFrameIdentity out;
   out.engine_frame_id = g_frames + 1;
+  if (!include_diagnostics) {
+    return out;
+  }
   out.camera_correction = current_camera_correction_snapshot();
   if (!g_math_camera || !g_ee_main_mem) {
     return out;
@@ -996,7 +999,7 @@ bool run_frame(double target_presentation_time) noexcept {
 
 void reset_frame_timing() noexcept {}
 
-CameraFrameIdentity current_camera_frame_identity() noexcept {
+CameraFrameIdentity current_camera_frame_identity(bool) noexcept {
   return {};
 }
 

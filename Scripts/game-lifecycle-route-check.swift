@@ -56,6 +56,7 @@ let bridge = source(at: root + "/GOALPad/Native/GOALPadRuntimeBridge.h")
 let bridgeImplementation = source(at: root + "/GOALPad/Native/GOALPadRuntimeBridge.mm")
 let surfaceView = source(at: root + "/GOALPad/Game/GameSurfaceView.swift")
 let renderSurface = source(at: root + "/GOALPad/Native/GOALPadRenderSurface.mm")
+let metalHost = source(at: root + "/GOALPad/Native/GOALPadMetalHost.mm")
 
 let audioSession = section(audio,
                            from: "private func activateSession() throws",
@@ -113,6 +114,15 @@ check(occursInOrder([
 let tick = section(session,
                    from: "func tick(targetPresentationTime",
                    to: "#if os(visionOS)\n    func tickStereo")
+check(session.contains("GOALPadRenderSurface.shared.setDetailedFrameStatsEnabled(\n            presentationSettings.developerLogsEnabled)"),
+      "rich renderer frame evidence follows the opt-in Developer Logs setting")
+check(bridge.contains("- (void)setDetailedFrameStatsEnabled:(BOOL)enabled;")
+        && renderSurface.contains("goalpad::metal_host_set_detailed_frame_stats_enabled(enabled);")
+        && metalHost.contains("jak1_bones_provenance_trace::registry().set_enabled(enabled);")
+        && metalHost.contains("current_camera_frame_identity(g_host.detailed_frame_stats_enabled)")
+        && metalHost.contains("if (!g_host.detailed_frame_stats_enabled) {\n    return;\n  }\n  const auto stats = g_host.renderer->chain_stats();")
+        && metalHost.contains("if (g_host.renderer && g_host.detailed_frame_stats_enabled)"),
+      "shipping frames avoid detailed Metal stats copies and host evidence processing")
 check(occursInOrder([
     "lifecycle.frameLoopEnabled",
     "!controlsGuideSuspension.blocksGameplay",

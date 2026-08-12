@@ -935,6 +935,9 @@ typedef struct GOALPadRendererStats {
 /// Disabled is the exact 4:3 Classic presentation path.
 - (void)setHorizontalPlusEnabled:(BOOL)enabled;
 
+/// Retain rich per-frame renderer evidence only for an explicitly enabled Developer Logs session.
+- (void)setDetailedFrameStatsEnabled:(BOOL)enabled;
+
 - (GOALPadSurfaceGeometry)geometry;
 
 /// Arm the surface immediately before the GOAL frame so its DMA send can render synchronously.

@@ -19243,3 +19243,94 @@ physically validated. The High Frame Rate setting remains default-off. Remote
 `main` remains the physically tested pre-120 Build 197 checkpoint `45e1eeb8`;
 Build 200 remains isolated and unpushed on
 `agent/build181-input-settings-polish`. Nested OpenGOAL remains `8c0c48b1c`.
+
+# 2026-08-12 Build 201 native diagnostics performance checkpoint
+
+Build 201 removes rich native renderer investigations from ordinary shipping
+frames. `Developer Logs` remains default-off and is published before the game
+kernel starts. With it off, GOALPad no longer snapshots the full camera object,
+copies the large `ChainStats` value, walks and RTTI-casts every bucket renderer,
+retains camera/Merc events, or captures Jak 1 producer bone provenance and target
+post flags. Detailed desktop/proof behavior remains default-on, and an explicit
+Developer Logs session restores it.
+
+The reduced Merc path still performs model/EE bounds, allocator capacity,
+required/missing bone-slot, nonfinite-matrix, GPU draw-range, texture-fallback,
+and actual rendering work. It skips only determinant/source-coherence analysis,
+provenance and temporal trackers, EICHAR hashing, and weighted-skin/duplicate
+investigation. The Metal proof renders the same chain with diagnostics enabled
+and disabled and requires byte-identical output plus matching cheap
+chain/view/draw/triangle counters. Stereo no longer copies and restores the
+entire `ChainStats` value around the secondary view.
+
+Nested OpenGOAL commits on `agent/build183-rumble-gate`:
+
+```text
+2a78bed69 Gate detailed Metal frame stats (AI-assisted)
+47aeca2d1 Gate Jak 1 producer diagnostics (AI-assisted)
+991490652 Gate detailed Merc diagnostics (AI-assisted)
+```
+
+Focused validation passed:
+
+```text
+Scripts/run-game-lifecycle-check.sh
+Scripts/run-promotion-frame-rate-check.sh
+Scripts/run-merc-transform-diagnostics-check.sh
+Scripts/run-camera-correction-diagnostics-check.sh
+Scripts/run-portrait-library-check.sh
+Scripts/run-presentation-settings-check.sh
+xcrun swift -frontend -parse GOALPad/Game/GameSession.swift
+xcrun swift -frontend -parse Scripts/game-lifecycle-route-check.swift
+xcrun clang++ -std=c++20 -O2 -I. -Ithird-party/fmt/include \
+  game/graphics/pipelines/metal/metal_merc_transform_trace_test.cpp \
+  -o /private/tmp/metal-merc-transform-trace-test-goalpad
+/private/tmp/metal-merc-transform-trace-test-goalpad
+plutil -lint GOALPad.xcodeproj/project.pbxproj
+git diff --check
+git -C OpenGOAL diff --check
+```
+
+The delegated clean OpenGOAL worktree also passed:
+
+```text
+cmake --build /private/tmp/OG-renderer-diagnostics-gate-build --target metal-proof -j2
+/private/tmp/OG-renderer-diagnostics-gate-build/game/metal-proof
+```
+
+The final result was `METAL PROOF PASSED`. The first ad-hoc direct Merc test
+compile omitted the existing `third-party/fmt/include` path and failed on
+`fmt/format.h`; rerunning with that path passed every assertion. A combined
+multi-file Swift frontend parse also rejected the checker's valid top-level
+statements; the required individual `swift -frontend -parse` invocations pass.
+The standalone native boot scripts currently omit SDL/fmt include roots; an
+explicit arm64 iOS syntax check with both roots passed. These are validation
+command/setup issues, not source failures.
+
+`Scripts/run-vision-stereo-integration-check.sh` passed every performance and
+renderer assertion and retained its pre-existing stale Settings-toolbar source
+assertion failure. The current UI check and product source agree that iOS owns a
+Done action and visionOS owns a visible Close action; this checkpoint does not
+change that UI.
+
+The signed generic arm64 iOS Release build passed with the unchanged canonical
+`8e8019d6c74ed9fc` 518-object source pack. Log:
+`/private/tmp/goalpad-build201-signed-device-build.log`. Product:
+`/private/tmp/GOALPad-build194-derived/Build/Products/Release-iphoneos/Dark Eco.app`.
+It is Dark Eco 1.0 (201), arm64, and strict deep codesign verification passed.
+
+A fresh Release iOS Simulator build passed in
+`/private/tmp/GOALPad-build201-simulator-derived`, then installed and launched
+on the already-booted approved M5 iPad simulator. Screenshot:
+`/private/tmp/goalpad-build201-m5-ipad-launch.png`. It shows the Library at
+Version 1.0 (201), and the placeholder cards retain only I/II/III with no Eco
+caption. An initial simulator build sharing the device-build DerivedData stopped
+making progress; it was interrupted without deleting artifacts, and the clean
+separate DerivedData build passed.
+
+No physical device was accessed. No physical frame-time, Spider Cave hitch,
+120 Hz cadence, power, thermal, or iPhone 13-class acceptance exists yet. This
+checkpoint proves equivalent output and removes deterministic CPU work; it does
+not claim a measured performance improvement. Remote `main` remains the stable
+pre-120 Build 197 checkpoint. Build 201 remains isolated and unpushed on
+`agent/build181-input-settings-polish`.

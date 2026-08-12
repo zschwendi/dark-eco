@@ -218,6 +218,8 @@ final class GameSession {
         }
         guard !isRunning, !isBooting else { return }
         audio.resumeIfSuspended()
+        GOALPadRenderSurface.shared.setDetailedFrameStatsEnabled(
+            presentationSettings.developerLogsEnabled)
 
         let status = GOALPadRuntimeBridge.startKernel(
             withDataDirectory: GameDataLayout.gameDirectory.path,

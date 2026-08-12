@@ -936,7 +936,7 @@ struct CameraFrameIdentity {
   std::array<std::uint8_t, 240> render_camera = {};
   camera_correction_trace::FrameSnapshot camera_correction;
 };
-CameraFrameIdentity current_camera_frame_identity() noexcept;
+CameraFrameIdentity current_camera_frame_identity(bool include_diagnostics) noexcept;
 
 std::uint64_t frames_run() noexcept;
 bool game_is_booted() noexcept;

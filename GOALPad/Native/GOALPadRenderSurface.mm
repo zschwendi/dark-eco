@@ -467,6 +467,10 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
   [self updatePortableDisplaySize];
 }
 
+- (void)setDetailedFrameStatsEnabled:(BOOL)enabled {
+  goalpad::metal_host_set_detailed_frame_stats_enabled(enabled);
+}
+
 - (void)updatePortableDisplaySize {
 #if GOALPAD_HAVE_SOUND_SEAM
   const auto geometry = goalpad::presentation_geometry(

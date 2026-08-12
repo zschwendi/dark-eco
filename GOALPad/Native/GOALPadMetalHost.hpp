@@ -48,6 +48,9 @@ void metal_host_stop();
 
 bool metal_host_is_running();
 
+/*! Enable the expensive per-frame renderer evidence retained for Developer Logs. */
+void metal_host_set_detailed_frame_stats_enabled(bool enabled);
+
 /*!
  * Answer the machine layer's graphics functions out of the renderer started above. Call after
  * `goal_kernel_core_stub_machine_layer` and before the first DGO load, exactly where

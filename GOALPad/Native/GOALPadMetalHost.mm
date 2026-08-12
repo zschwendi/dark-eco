@@ -80,6 +80,7 @@ using LoadedLevelArt = goalpad::level_art_residency::Entry;
  */
 struct MetalHost {
   bool running = false;
+  bool detailed_frame_stats_enabled = false;
   MetalRenderer* renderer = nullptr;
   std::shared_ptr<TexturePool> texture_pool;
   std::unique_ptr<FixedChunkDmaCopier> copier;
@@ -628,7 +629,8 @@ void render_chain() {
   opts.presentation_time = g_host.frame.presentation_time;
   opts.host_tick_id = g_host.stats.frames_armed;
   opts.chain_ordinal = g_host.chains_in_frame;
-  const auto camera = goalpad::current_camera_frame_identity();
+  const auto camera =
+      goalpad::current_camera_frame_identity(g_host.detailed_frame_stats_enabled);
   opts.engine_frame_id = camera.engine_frame_id;
   opts.expected_camera_valid = camera.camera_valid;
   if (camera.camera_valid) {
@@ -658,6 +660,9 @@ void render_chain() {
   }
   g_host.frame_rendered = rendered || g_host.frame_rendered;
 
+  if (!g_host.detailed_frame_stats_enabled) {
+    return;
+  }
   const auto stats = g_host.renderer->chain_stats();
   const auto& background = g_host.renderer->background_state();
   g_host.stats.tie_envmap_second_pass_draws = background.tie_envmap_second_draws;
@@ -1112,6 +1117,7 @@ bool metal_host_start(std::string* error) {
     *error = "The Metal renderer would not initialize.";
     return false;
   }
+  renderer->set_detailed_frame_stats_enabled(g_host.detailed_frame_stats_enabled);
   g_host.renderer = renderer;
 
   g_host.texture_pool = std::make_shared<TexturePool>(GameVersion::Jak1);
@@ -1164,6 +1170,14 @@ bool metal_host_is_running() {
   return g_host.running;
 }
 
+void metal_host_set_detailed_frame_stats_enabled(bool enabled) {
+  g_host.detailed_frame_stats_enabled = enabled;
+  jak1_bones_provenance_trace::registry().set_enabled(enabled);
+  if (g_host.renderer) {
+    g_host.renderer->set_detailed_frame_stats_enabled(enabled);
+  }
+}
+
 bool metal_host_install_seam() {
   if (!g_host.running) {
     return false;
@@ -1187,7 +1201,7 @@ void metal_host_set_level_art_directory(const std::string& path) {
 }
 
 MetalHostStats metal_host_stats() {
-  if (g_host.renderer) {
+  if (g_host.renderer && g_host.detailed_frame_stats_enabled) {
     const auto chain = g_host.renderer->chain_stats();
     g_host.stats.chains_rendered = chain.chains_rendered;
     g_host.stats.last_draw_calls = chain.draw_calls;
@@ -1445,6 +1459,8 @@ void metal_host_stop() {}
 bool metal_host_is_running() {
   return false;
 }
+
+void metal_host_set_detailed_frame_stats_enabled(bool) {}
 
 bool metal_host_install_seam() {
   return false;
