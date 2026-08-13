@@ -721,12 +721,12 @@
 				"$(GOALPAD_AOT_MANIFEST_INPUT)",
 				"$(GOALPAD_AOT_COVERAGE_INPUT)",
 			);
-			name = "Verify release AOT";
+			name = "Verify generated AOT";
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ \"$CONFIGURATION\" = \"Release\" ]; then\n  \"$SRCROOT/Scripts/verify-generated-aot.sh\" \"$SRCROOT/Generated/jak1-aot\" 518 --manifest-only\nfi\n";
+			shellScript = "if [ \"$CONFIGURATION\" = \"Release\" ] || [ -f \"$SRCROOT/Generated/jak1-aot/aot_boot_manifest.c\" ]; then\n  \"$SRCROOT/Scripts/verify-generated-aot.sh\" \"$SRCROOT/Generated/jak1-aot\" 518 --manifest-only\nfi\n";
 		};
 		A73100000000000000000001 /* Compile Metal shaders */ = {
 			isa = PBXShellScriptBuildPhase;

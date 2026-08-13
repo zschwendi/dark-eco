@@ -12,6 +12,7 @@ directory=$1
 expected_objects=$2
 manifest="$directory/aot_boot_manifest.c"
 coverage="$directory/coverage.tsv"
+jak1_drawable="$directory/drawable.c"
 scan_files=true
 
 fail() {
@@ -32,6 +33,12 @@ esac
 [ -d "$directory" ] || fail "missing generated directory $directory"
 [ -f "$manifest" ] || fail "missing $manifest"
 [ -f "$coverage" ] || fail "missing $coverage; regenerate the AOT output"
+
+if [ "$expected_objects" = 518 ]; then
+  [ -f "$jak1_drawable" ] || fail "missing $jak1_drawable; regenerate the Jak 1 AOT output"
+  grep -Fq '"goalpad-set-target-frame-rate",' "$jak1_drawable" || \
+    fail "Jak 1 AOT drawable does not define goalpad-set-target-frame-rate; regenerate the AOT output"
+fi
 
 if [ "$scan_files" = true ]; then
   expected_files=$((expected_objects + 1))
