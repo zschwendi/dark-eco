@@ -17841,3 +17841,56 @@ host escalation was retried. The iPhoneOS outer bridge passed a focused syntax
 check. Buckets 316 and 317 remain `DeferredSkip`; there is no callback,
 execution counter, snapshot publication, or renderer route. Retained focused
 binary: `/private/tmp/jak2-warp317-link-1bd6/jak2-metal-host-bridge-test`.
+
+## Jak II `jak2-best` and pause-compositing checkpoint
+
+Date: 2026-08-12.
+
+The isolated development line now has explicit remote-backed `jak2-best`
+branches in both repositories. The physically accepted scope remains Build 2:
+startup through the prison escape completed without an observed bug. The newer
+minimap orientation/progress-target and Sprite3 TCC fixes remain source and host
+GPU validated here but still require a fresh simulator and maintainer physical
+acceptance before replacing that physical scope.
+
+Nested commits `bd3d4d218` and `3ca8b836b` add a narrow pause diagnostic and a
+source-shaped deterministic compositing regression. The host ABI now exposes
+the active BlitDisplays snapshot/copyback request, TBP, lookup, and placeholder
+state; the fixed numeric `GOALPAD_JAK2_VISUAL_STATE` line correlates those with
+the existing SKY texture and blend state. No pause renderer behavior was
+changed.
+
+The source audit corrected the old blanket opacity diagnosis. The steady pause
+backdrop is intentionally an opaque frozen sepia-tinted copy of the scene. The
+gray page/list panel is separate: it is an untextured PARTICLES Direct sprite
+with raw alpha 64 and must remain approximately half translucent. The new GPU
+fixture proves the exact SKY alpha-80 transition retains its TBP 0x4c0
+destination, the following raw-zero SKY ALPHA is intentionally opaque, PROGRESS
+alpha-32/64 draws retain distinct destination weights on FBP 408, and the exact
+PARTICLES RGBA 64 panel uses source-over rather than replacing the scene.
+
+The first combined focused run exposed a test-only error in the existing
+Sprite3 TCC fixture: its nominal transparent-edge sample at x=36 was outside the
+actual rasterized row. Nested commit `14afd4061` moves that assertion to the
+covered x=90 texel. That point now distinguishes TCC-on zero-alpha discard from
+TCC-off forced sampled alpha while preserving the sprite vertex alpha. No
+production TCC or blend behavior changed in this follow-up.
+
+The installed Metal toolchain is selected with `TOOLCHAINS=Metal`; without that
+environment, the first canonical build attempt failed at `xcrun metal` with the
+stale `missing Metal Toolchain` diagnostic. With it, the current canonical host
+product rebuilt successfully. The focused matrix then passed 4/4:
+
+```text
+jak2-metal-sprite-renderer-test
+jak2-metal-submit-readback-proof
+jak2-metal-blit-display-spatial-test
+jak2-metal-host-bridge-test
+```
+
+This jointly covers the vehicle-burner alpha path, low-alpha Direct blending,
+pause snapshot/panel behavior, minimap orientation/no-leak rendering, and the
+new host telemetry. No simulator or physical device was accessed during this
+checkpoint. The next executable gate is the current Release build on the
+approved iPad Pro 11-inch (M5) simulator, followed by a pause-frame telemetry
+capture and maintainer physical comparison if the simulator remains healthy.
