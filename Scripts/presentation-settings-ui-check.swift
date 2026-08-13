@@ -42,6 +42,7 @@ let view = source(at: root + "/GOALPad/Saves/SaveSyncController.swift")
 let store = source(at: root + "/GOALPad/Game/PresentationSettings.swift")
 let session = source(at: root + "/GOALPad/Game/GameSession.swift")
 let content = source(at: root + "/GOALPad/ContentView.swift")
+let app = source(at: root + "/GOALPad/GOALPadApp.swift")
 let renderer = source(at: root + "/GOALPad/Game/RenderSettings.swift")
 let touchLayout = source(at: root + "/GOALPad/Game/TouchLayoutSettings.swift")
 let touchGuide = source(at: root + "/GOALPad/Game/TouchControlsGuideView.swift")
@@ -357,12 +358,16 @@ check(content.contains("@State private var settingsPresentation: SettingsSheetPr
         && content.contains(".id(presentation.id)")
         && !content.contains("showSettings"),
       "one item-backed Settings presentation keeps a stable identity while it is open")
-check(content.contains(".defersSystemGestures(on: immersiveGameplay ? .bottom : [])")
-        && content.contains(".persistentSystemOverlays(immersiveGameplay ? .hidden : .automatic)")
+check(content.contains("systemGesturePreference.setImmersiveGameplay(isImmersiveGameplay)")
         && occursInOrder(["private var immersiveGameplay: Bool {",
                           "session.isRunning", "settingsPresentation == nil",
-                          "!isShowingTouchControlsGuide"], in: content),
-      "only the running iOS game defers the Home gesture and hides persistent system overlays")
+                          "!isShowingTouchControlsGuide"], in: content)
+        && app.contains("override var preferredScreenEdgesDeferringSystemGestures: UIRectEdge")
+        && app.contains("systemGesturePreference.isImmersiveGameplay ? .bottom : []")
+        && app.contains("override var prefersHomeIndicatorAutoHidden: Bool")
+        && app.contains("setNeedsUpdateOfScreenEdgesDeferringSystemGestures()")
+        && app.contains("setNeedsUpdateOfHomeIndicatorAutoHidden()"),
+      "only the running iOS game asks its root controller to defer Home gestures and hide the indicator")
 check(content.contains("#if GOALPAD_APPSTORE_CAPTURE")
         && content.contains("arguments.contains(\"-EcoCaptureGameSetup\")")
         && content.contains("arguments.contains(\"-EcoCaptureSettings\")"),
