@@ -2204,14 +2204,19 @@ actor SaveSyncEngine {
         let keys: Set<URLResourceKey> = [.isUbiquitousItemKey,
                                          .ubiquitousItemDownloadingStatusKey,
                                          .ubiquitousItemDownloadingErrorKey]
-        var values = try url.resourceValues(forKeys: keys)
+        var currentURL = url
+        currentURL.removeAllCachedResourceValues()
+        var values = try currentURL.resourceValues(forKeys: keys)
         guard values.isUbiquitousItem == true else { return }
         if values.ubiquitousItemDownloadingStatus == .current { return }
 
-        try manager.startDownloadingUbiquitousItem(at: url)
+        try manager.startDownloadingUbiquitousItem(at: currentURL)
         for attempt in 0..<max(1, configuration.downloadPollAttempts) {
             try Task.checkCancellation()
-            values = try url.resourceValues(forKeys: keys)
+            // URL resource values are cached. This actor does not run on the main run loop, so
+            // explicitly invalidate them or every poll can keep seeing the initial placeholder.
+            currentURL.removeAllCachedResourceValues()
+            values = try currentURL.resourceValues(forKeys: keys)
             if let error = values.ubiquitousItemDownloadingError { throw error }
             if values.ubiquitousItemDownloadingStatus == .current { return }
             if attempt + 1 < configuration.downloadPollAttempts {

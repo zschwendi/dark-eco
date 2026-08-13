@@ -129,6 +129,20 @@ check(occursInOrder([
       "timed-out cloud work must release its owned lease before local gameplay can continue")
 check(engine.contains("downloadPollAttempts: Int = 300"),
       "one iCloud placeholder has a bounded thirty-second provider wait")
+let cloudDownload = section(engine,
+                            from: "private func ensureCloudFileIsCurrent",
+                            to: "private func cloudUploadsArePending")
+check(occursInOrder([
+    "var currentURL = url",
+    "currentURL.removeAllCachedResourceValues()",
+    "var values = try currentURL.resourceValues(forKeys: keys)",
+    "try manager.startDownloadingUbiquitousItem(at: currentURL)",
+    "for attempt in",
+    "currentURL.removeAllCachedResourceValues()",
+    "values = try currentURL.resourceValues(forKeys: keys)",
+    "if values.ubiquitousItemDownloadingStatus == .current { return }",
+], in: cloudDownload),
+      "placeholder polling invalidates cached URL status before every provider check")
 check(engine.contains("NSMetadataQueryUbiquitousDocumentsScope")
         && engine.contains("NSMetadataQueryDidFinishGathering")
         && engine.contains("cloudDiscoveryTimeout: Duration = .seconds(5)"),
