@@ -51,7 +51,14 @@ nonisolated struct ZIPISOCandidateProducer: GameDataCandidateProducing {
         try await extractor.extractISO(
             from: source,
             to: temporaryISO,
-            report: report
+            report: { progress in
+                var archiveProgress = progress
+                archiveProgress.overallProgressOverride = GameDataImportProgress.mappedProgress(
+                    in: 0.15...0.25,
+                    fraction: progress.fraction ?? 0
+                )
+                await report(archiveProgress)
+            }
         )
         try Task.checkCancellation()
         return try await downstream.prepareCandidate(

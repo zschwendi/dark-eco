@@ -147,18 +147,18 @@ struct GameDataSetupView: View {
                 Label(progress.phase.playerLabel, systemImage: "bolt.circle.fill")
                     .font(.headline)
                     .foregroundStyle(DarkEcoTheme.accentGlow)
-                if progress.fraction != nil {
-                    ProgressView(value: progress.overallProgress)
+                ProgressView(value: progress.overallProgress)
+                    .tint(DarkEcoTheme.accent)
+                    .accessibilityLabel("\(GameLibraryTitle.jak1.name) import progress")
+                    .accessibilityValue("\(progress.overallPercent)% complete · \(progress.phase.playerLabel)")
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
                         .tint(DarkEcoTheme.accent)
-                        .accessibilityLabel("\(GameLibraryTitle.jak1.name) import progress")
-                        .accessibilityValue("\(progress.overallPercent)% complete · \(progress.phase.playerLabel)")
+                        .accessibilityHidden(true)
                     Text("\(progress.overallPercent)% complete")
                         .font(.footnote.monospacedDigit())
                         .foregroundStyle(.white.opacity(0.78))
-                } else {
-                    ProgressView()
-                        .tint(DarkEcoTheme.accent)
-                        .accessibilityLabel("\(progress.phase.playerLabel) in progress")
                 }
 
                 Text(GameDataImportPresentation.backgroundGuidance)
@@ -166,8 +166,14 @@ struct GameDataSetupView: View {
                     .foregroundStyle(DarkEcoTheme.warning)
 
                 if progress.phase != .activatingCandidate {
-                    Button("Cancel import", role: .destructive) { session.importer.cancel() }
-                        .buttonStyle(.bordered)
+                    Button(role: .destructive) {
+                        session.importer.cancel()
+                    } label: {
+                        Text("Cancel import")
+                            .foregroundStyle(DarkEcoTheme.danger)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.gray)
                 }
             }
         }

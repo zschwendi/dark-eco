@@ -176,6 +176,31 @@ private func preparedFolder(under root: URL, payload: String = "fixture") throws
     check(GameDataImportProgress(phase: .validatingCandidate).overallProgress == 0.85
             && GameDataImportProgress(phase: .activatingCandidate).overallProgress == 0.95,
           "unmeasured validation and activation use conservative phase floors")
+    let archivedExtractionHalf = GameDataImportProgress.mappedProgress(
+        in: 0.15...0.25, fraction: 0.5
+    )
+    let archivedComposerStart = GameDataImportProgress.mappedProgress(
+        in: 0.25...0.85, phaseIndex: 0, phaseCount: 8, fraction: 0
+    )
+    let archivedComposerLate = GameDataImportProgress.mappedProgress(
+        in: 0.25...0.85, phaseIndex: 6, phaseCount: 8, fraction: 0.5
+    )
+    let archivedComposerComplete = GameDataImportProgress.mappedProgress(
+        in: 0.25...0.85, phaseIndex: 7, phaseCount: 8, fraction: 1
+    )
+    check(abs(archivedExtractionHalf - 0.20) < 0.000_001
+            && abs(archivedComposerStart - 0.25) < 0.000_001
+            && abs(archivedComposerLate - 0.7375) < 0.000_001
+            && abs(archivedComposerComplete - 0.85) < 0.000_001,
+          "archive extraction and all eight composer phases occupy one aggregate range")
+    let overridden = GameDataImportProgress(
+        phase: .preparingCandidate,
+        bytesCopied: 90,
+        bytesTotal: 100,
+        overallProgressOverride: 0.42
+    )
+    check(overridden.overallProgress == 0.42 && overridden.overallPercent == 42,
+          "an aggregate override replaces a nested phase's local percentage")
     check(GameDataImportProgress.Phase.preparingCandidate.playerLabel == "Preparing game data"
             && GameDataImportProgress.Phase.activatingCandidate.playerLabel == "Finishing setup",
           "the UI uses player-facing phase labels")

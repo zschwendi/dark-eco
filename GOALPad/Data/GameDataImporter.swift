@@ -64,11 +64,12 @@ final class GameDataImporter {
     private(set) var state: State = .idle
     private let worker: GameDataInstallWorker
     private let preparedFolderProducer: any GameDataCandidateProducing
-    private let rawISOProducer = RawISOCandidateProducer()
+    private let rawISOProducer: RawISOCandidateProducer
     private let archivedISOProducer: ZIPISOCandidateProducer
     private let idleTimerAssertions: DeviceIdleTimerAssertions
     private var task: Task<Void, Never>?
     private(set) var isImportWorkActive = false
+    private var highestReportedOverallProgress = 0.0
 
     init(
         worker: GameDataInstallWorker = GameDataInstallWorker(),
@@ -78,7 +79,10 @@ final class GameDataImporter {
         self.worker = worker
         self.preparedFolderProducer = preparedFolderProducer
         self.idleTimerAssertions = idleTimerAssertions ?? .shared
-        archivedISOProducer = ZIPISOCandidateProducer(downstream: rawISOProducer)
+        rawISOProducer = RawISOCandidateProducer()
+        archivedISOProducer = ZIPISOCandidateProducer(
+            downstream: RawISOCandidateProducer(overallProgressRange: 0.25...0.85)
+        )
     }
 
     var isRunning: Bool {
@@ -132,6 +136,7 @@ final class GameDataImporter {
         }
 
         state = .scanning
+        highestReportedOverallProgress = 0
         setImportWorkActive(true)
         task = Task { [self, producer] in
             do {
@@ -142,7 +147,15 @@ final class GameDataImporter {
                     guard !Task.isCancelled else { return }
                     await MainActor.run {
                         if case .cancelling = self.state { return }
-                        self.state = progress.phase == .scanning ? .scanning : .copying(progress)
+                        var displayedProgress = progress
+                        self.highestReportedOverallProgress = max(
+                            self.highestReportedOverallProgress,
+                            progress.overallProgress
+                        )
+                        displayedProgress.overallProgressOverride =
+                            self.highestReportedOverallProgress
+                        self.state = progress.phase == .scanning
+                            ? .scanning : .copying(displayedProgress)
                     }
                 }
                 setImportWorkActive(false)

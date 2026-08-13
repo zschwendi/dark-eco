@@ -7,6 +7,7 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
 
     private let projectResourceURL: URL?
     private let sourceObjectPackURL: URL?
+    private let overallProgressRange: ClosedRange<Double>
 
     static func isAvailable(in bundle: Bundle = .main) -> Bool {
         GOALPadGameDataPreparationIsAvailable()
@@ -14,7 +15,10 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
             && bundle.url(forResource: sourceObjectPackName, withExtension: nil) != nil
     }
 
-    init(bundle: Bundle = .main) {
+    init(
+        bundle: Bundle = .main,
+        overallProgressRange: ClosedRange<Double> = 0.15...0.85
+    ) {
         projectResourceURL = bundle.url(
             forResource: Self.projectResourceName,
             withExtension: nil
@@ -23,6 +27,7 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
             forResource: Self.sourceObjectPackName,
             withExtension: nil
         )
+        self.overallProgressRange = overallProgressRange
     }
 
     func prepareCandidate(
@@ -65,7 +70,7 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
         let outcome: NativePreparationOutcome = await withTaskCancellationHandler(operation: {
             await withCheckedContinuation { continuation in
                 job.value.start(progress: { nativeProgress in
-                    progressContinuation.yield(Self.progress(from: nativeProgress))
+                    progressContinuation.yield(self.progress(from: nativeProgress))
                 }, completion: { summary, error in
                     if let error {
                         let nativeError = error as NSError
@@ -116,16 +121,26 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
         }
     }
 
-    private static func progress(
+    private func progress(
         from native: GOALPadGameDataPreparationProgress
     ) -> GameDataImportProgress {
         let item = native.currentItem.isEmpty ? native.phaseLabel : native.currentItem
+        let phaseFraction = native.total > 0
+            ? Double(native.completed) / Double(native.total)
+            : 0
+        let overallProgress = GameDataImportProgress.mappedProgress(
+            in: overallProgressRange,
+            phaseIndex: Int(native.phase.rawValue) - 1,
+            phaseCount: 8,
+            fraction: phaseFraction
+        )
         return GameDataImportProgress(
             phase: .preparingCandidate,
             filesCopied: Int(clamping: native.completed),
             filesTotal: Int(clamping: native.total),
             bytesCopied: Int64(clamping: native.bytesCompleted),
-            currentFile: item
+            currentFile: item,
+            overallProgressOverride: overallProgress
         )
     }
 

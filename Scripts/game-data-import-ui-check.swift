@@ -70,13 +70,26 @@ check(view.contains("ForEach(GameDataImportPresentation.acceptedSources(")
 check(view.contains("ProgressView(value: progress.overallProgress)")
         && view.contains("progress.overallPercent")
         && view.contains("progress.phase.playerLabel")
+        && occursInOrder([
+            "ProgressView(value: progress.overallProgress)",
+            "HStack(spacing: 8)",
+            "ProgressView()",
+            ".controlSize(.small)",
+            ".tint(DarkEcoTheme.accent)",
+            ".accessibilityHidden(true)",
+            "Text(\"\\(progress.overallPercent)% complete\")",
+        ], in: view)
         && !view.contains("progress.currentFile")
         && !view.contains("progress.filesCopied")
         && view.contains("GameDataImportPresentation.backgroundGuidance")
         && !view.contains("cancellationGuidance")
         && !presentation.contains("cancellationGuidance")
-        && view.contains("if progress.phase != .activatingCandidate"),
-      "import progress keeps foreground safety and the activation cancellation boundary without redundant guidance")
+        && view.contains("if progress.phase != .activatingCandidate")
+        && view.contains("Button(role: .destructive)")
+        && view.contains("session.importer.cancel()")
+        && view.contains(".foregroundStyle(DarkEcoTheme.danger)")
+        && view.contains(".tint(.gray)"),
+      "one aggregate bar keeps a purple activity spinner beside percent and a gray, red-text Cancel button")
 check(view.contains("case .failed(let failure)")
         && view.contains("failure.recoveryMessage")
         && view.contains("case .cancelling:")
@@ -136,6 +149,8 @@ check(view.contains("Finishing the current save check before gameplay…")
 check(library.contains(".preparing(.checkingLocalData)")
         && library.contains(".preparing(.finishingSaveCheck)")
         && library.contains(".preparing(.checkingSaves)")
+        && library.contains(".preparing(.importing(progress.overallProgress))")
+        && !library.contains(".preparing(.importing(progress.fraction))")
         && library.contains("if case .preparing(let preparation) = state, preparation.fraction == nil")
         && library.contains("ProgressView()")
         && library.contains("Text(stateLabel)")

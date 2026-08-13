@@ -41,6 +41,7 @@ nonisolated struct GameDataImportProgress: Sendable {
     var bytesCopied: Int64 = 0
     var bytesTotal: Int64 = 0
     var currentFile = ""
+    var overallProgressOverride: Double?
 
     var fraction: Double? {
         switch phase {
@@ -57,6 +58,9 @@ nonisolated struct GameDataImportProgress: Sendable {
     /// A conservative overall-progress floor. Measured copy work advances within its own
     /// interval; phases without a measurable total advance only when that phase begins.
     var overallProgress: Double {
+        if let overallProgressOverride {
+            return min(1, max(0, overallProgressOverride))
+        }
         let measuredFraction = min(1, max(0, fraction ?? 0))
         return switch phase {
         case .scanning:
@@ -74,6 +78,21 @@ nonisolated struct GameDataImportProgress: Sendable {
 
     var overallPercent: Int {
         Int((overallProgress * 100).rounded())
+    }
+
+    static func mappedProgress(
+        in range: ClosedRange<Double>,
+        phaseIndex: Int = 0,
+        phaseCount: Int = 1,
+        fraction: Double
+    ) -> Double {
+        let lower = min(1, max(0, range.lowerBound))
+        let upper = min(1, max(lower, range.upperBound))
+        let count = max(1, phaseCount)
+        let index = min(count - 1, max(0, phaseIndex))
+        let measuredFraction = min(1, max(0, fraction))
+        let pipelineFraction = (Double(index) + measuredFraction) / Double(count)
+        return lower + (upper - lower) * pipelineFraction
     }
 }
 

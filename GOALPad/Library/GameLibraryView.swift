@@ -273,7 +273,7 @@ struct GameLibraryView: View {
         case .scanning:
             return .preparing(.importing(nil))
         case .copying(let progress):
-            return .preparing(.importing(progress.fraction))
+            return .preparing(.importing(progress.overallProgress))
         case .cancelling:
             return .preparing(.cancellingImport)
         case .idle, .finished, .failed, .cancelled:

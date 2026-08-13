@@ -3,6 +3,8 @@ import Foundation
 nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
     static func isAvailable() -> Bool { false }
 
+    init(overallProgressRange _: ClosedRange<Double> = 0.15...0.85) {}
+
     func prepareCandidate(
         from source: URL,
         activeDirectory: URL,
