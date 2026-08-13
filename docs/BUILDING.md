@@ -126,17 +126,16 @@ exists for both this command and the Xcode build. Historical checkpoint commands
 that name a `/private/tmp` pack are recorded local evidence, not a Release
 requirement.
 
-Debug remains the prepared-folder-only fallback: the composer macro is `0`, no
-importer archive is added to the link, and both importer phases exit without
-touching their derived outputs. Release is deliberately ARM64-only and enables
-the composer for `macosx`, `iphoneos`, `iphonesimulator`, `xros`, and
-`xrsimulator`; this matches the native ARM64 port and the thin archive contract.
-The checked xcconfigs inherit the target's existing inline settings. Both
-importer configurations disable only Xcode's build-script sandbox. The custom
-Metal phase creates transitive module-cache files below the derived sources
-directory, and Release also needs CMake access to recursively discovered files
-below the pinned `OpenGOAL` source tree and external source-object pack. This
-does not disable the built app's runtime sandbox or change its entitlements.
+Debug and Release are ARM64-only and enable the composer for `macosx`,
+`iphoneos`, `iphonesimulator`, `xros`, and `xrsimulator`. This keeps an ordinary
+Xcode Run build capable of selecting and preparing ISO, ZIP, and 7z sources
+instead of silently degrading to prepared-folder-only setup. Both configurations
+require the canonical verified source pack before building. The checked
+xcconfigs inherit the target's existing inline settings and disable only Xcode's
+build-script sandbox. The custom Metal and importer phases create or discover
+transitive files below the derived sources directory, pinned `OpenGOAL` source
+tree, and external source-object pack. This does not disable the built app's
+runtime sandbox or change its entitlements.
 
 Set `GOALPAD_JAK1_IMPORT_DEPLOYMENT_TARGET` from
 `MACOSX_DEPLOYMENT_TARGET` for macOS and `IPHONEOS_DEPLOYMENT_TARGET` for

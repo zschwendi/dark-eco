@@ -45,6 +45,15 @@ let presentation = source(at: root + "/GOALPad/Data/GameDataImportPresentation.s
 let gameData = source(at: root + "/GOALPad/Data/GameData.swift")
 let theme = source(at: root + "/GOALPad/UI/DarkEcoTheme.swift")
 let content = source(at: root + "/GOALPad/ContentView.swift")
+let debugImporter = source(at: root + "/Configuration/GOALPad-Importer-Debug.xcconfig")
+let releaseImporter = source(at: root + "/Configuration/GOALPad-Importer-Release.xcconfig")
+
+for (name, configuration) in [("Debug", debugImporter), ("Release", releaseImporter)] {
+    check(configuration.contains("GOALPAD_HAS_JAK1_IMPORT_COMPOSER[sdk=iphoneos*] = 1")
+            && configuration.contains("GOALPAD_JAK1_SOURCE_OBJECT_PACK_PHASE_INPUT = $(GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT)")
+            && configuration.contains("OTHER_LDFLAGS[sdk=iphoneos*] = $(inherited) \"$(GOALPAD_JAK1_IMPORT_ARCHIVE)\""),
+          "\(name) iPhone and iPad builds include selectable ISO/archive preparation")
+}
 
 check(view.contains("GameDataImportPresentation.acceptedSources(")
         && view.contains("rawISOAvailable: canImportRawISO")
