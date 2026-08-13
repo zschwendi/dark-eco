@@ -83,7 +83,6 @@ do {
     let menuLabel = try declaration(in: libraryView,
                                     startingWith: "private struct DarkEcoMenuLabel",
                                     endingWith: "\n\nprivate struct GameLibraryTile")
-    let visionOrnament = try source(at: root + "/GOALPad/Vision/VisionControllerStatusOrnament.swift")
     let about = try declaration(in: supportViews,
                                 startingWith: "struct EcoAboutView",
                                 endingWith: "\n\nprivate struct EcoContactView")
@@ -159,25 +158,25 @@ do {
                         "launcher shelf, adaptive gutters, menu ordering, or About destination regressed"])
     }
     print("  ok   launcher menu is Settings then a unified About destination")
-    guard libraryScreen.contains("UIDevice.current.userInterfaceIdiom == .phone")
-            && libraryScreen.contains("isPhone ? .principal : .navigation")
-            && libraryScreen.contains("? .principal : .navigation")
-            && libraryScreen.contains("ToolbarItem(placement: menuPlacement)")
+    guard libraryScreen.contains("ToolbarItem(placement: .principal)")
             && libraryScreen.contains("} label: { mainMenuLabel }")
+            && libraryScreen.contains(".menuStyle(.button)")
+            && libraryScreen.contains(".buttonStyle(.plain)")
             && libraryScreen.contains(".accessibilityLabel(\"Main menu\")")
-            && libraryScreen.contains("Image(systemName: \"line.3.horizontal\")")
+            && !libraryScreen.contains("#if os(visionOS)\n            .overlay(alignment: .top)")
+            && !libraryScreen.contains("private var menuPlacement")
             && menuLabel.contains("Text(\"Dark Eco\")")
             && menuLabel.contains("DarkEcoTheme.accent")
             && menuLabel.contains("@Environment(\\.accessibilityReduceMotion)")
-            && menuLabel.contains("withAnimation(.linear(duration: 3.2)")
-            && menuLabel.contains("highlightLocation = 1")
-            && visionOrnament.contains("withAnimation(.linear(duration: 1.6)")
+            && menuLabel.contains("private let shimmerDuration: TimeInterval = 2.6")
+            && menuLabel.contains("TimelineView(.animation)")
+            && menuLabel.contains("wrapped / shimmerDuration * 4 - 2")
     else {
         throw NSError(domain: "portrait-library-check", code: 3,
                       userInfo: [NSLocalizedDescriptionKey:
-                        "iPhone Dark Eco menu pill, slower shimmer, or non-iPhone hamburger regressed"])
+                        "cross-platform Dark Eco toolbar menu or shimmer regressed"])
     }
-    print("  ok   iPhone centers a slower Eco-purple Dark Eco menu pill while iPad and vision retain the hamburger")
+    print("  ok   iPhone, iPad, and visionOS share one centered Dark Eco toolbar menu without a second system pill")
     guard libraryScreen.contains("GameLibraryCompactLandscapeLayout(containerSize: containerSize)")
             && libraryScreen.contains("if layout.usesHorizontalScroll")
             && libraryScreen.contains("ScrollView(.horizontal)")

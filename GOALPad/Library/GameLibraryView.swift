@@ -59,26 +59,8 @@ struct GameLibraryView: View {
                 .ignoresSafeArea()
             }
             .navigationTitle("Library")
-            #if os(visionOS)
-            .overlay(alignment: .top) {
-                HStack {
-                    Spacer()
-                    Menu {
-                        Button(action: openSettings) {
-                            Label("Settings", systemImage: "gearshape")
-                        }
-                        Button { isShowingAbout = true } label: {
-                            Label("About", systemImage: "info.circle")
-                        }
-                    } label: { mainMenuLabel }
-                    .accessibilityLabel("Main menu")
-                    Spacer()
-                }
-                .padding(.top, 12)
-            }
-            #else
             .toolbar {
-                ToolbarItem(placement: menuPlacement) {
+                ToolbarItem(placement: .principal) {
                     Menu {
                         Button(action: openSettings) {
                             Label("Settings", systemImage: "gearshape")
@@ -87,10 +69,11 @@ struct GameLibraryView: View {
                             Label("About", systemImage: "info.circle")
                         }
                     } label: { mainMenuLabel }
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
                     .accessibilityLabel("Main menu")
                 }
             }
-            #endif
         }
         .preferredColorScheme(.dark)
         .tint(DarkEcoTheme.accent)
@@ -279,10 +262,6 @@ struct GameLibraryView: View {
 #endif
     }
 
-    private var menuPlacement: ToolbarItemPlacement {
-        .principal
-    }
-
     @ViewBuilder
     private var mainMenuLabel: some View {
         DarkEcoMenuLabel()
@@ -368,10 +347,6 @@ private struct DarkEcoMenuLabel: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .background(DarkEcoTheme.surface.opacity(0.9), in: Capsule())
-                .overlay {
-                    Capsule()
-                        .strokeBorder(DarkEcoTheme.accent.opacity(0.58), lineWidth: 1)
-                }
                 .shadow(color: DarkEcoTheme.accent.opacity(0.32), radius: 6)
         }
     }

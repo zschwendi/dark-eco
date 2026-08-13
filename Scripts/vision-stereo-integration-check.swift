@@ -411,23 +411,19 @@ check(content.contains("visibility: session.input.isConnected ? .hidden : .visib
         && content.contains("attachmentAnchor: .scene(.top)"),
       "the controller ornament follows supported gamepad connection state at the window top")
 check(content.contains(
-            "visibility: visionEcoSettingsUsesCenteredPlacement ? .hidden : .visible"
-        )
-        && content.contains(
             "visibility: visionEcoSettingsUsesCenteredPlacement ? .visible : .hidden"
         )
-        && content.contains("attachmentAnchor: .scene(.topLeading)")
-        && content.contains("contentAlignment: .bottomTrailing")
         && content.contains("attachmentAnchor: .scene(.top)")
         && content.components(
             separatedBy: "VisionPausedEcoOrnament { presentSettings() }"
-        ).count - 1 == 2
+        ).count - 1 == 1
+        && !content.contains("attachmentAnchor: .scene(.topLeading)")
         && content.contains("session.input.isConnected && session.isRunning")
         && content.contains("&& NativeEcoSettingsPresentation.isVisible(")
         && content.contains("mode: session.gameMode")
         && content.contains("progress: session.progressMenuSnapshot")
         && content.contains("runReadiness: session.runReadiness"),
-      "exactly one Settings ornament stays visible and centers only for connected native menu state")
+      "one Settings ornament centers only for connected native menu state")
 check(pausedEcoOrnament.contains("Button(action: openSettings)")
         && pausedEcoOrnament.contains("Image(systemName: \"gearshape\")")
         && !pausedEcoOrnament.contains("Text(\"DARK ECO\")")
@@ -435,6 +431,12 @@ check(pausedEcoOrnament.contains("Button(action: openSettings)")
         && pausedEcoOrnament.contains(".glassBackgroundEffect(in: Circle())")
         && pausedEcoOrnament.contains(".accessibilityLabel(\"Settings\")"),
       "the always-available ornament is an icon-only accessible glass Settings control")
+check(libraryUI.contains("ToolbarItem(placement: .principal)")
+        && libraryUI.contains("} label: { mainMenuLabel }")
+        && libraryUI.contains(".menuStyle(.button)")
+        && libraryUI.contains(".buttonStyle(.plain)")
+        && !libraryUI.contains("#if os(visionOS)\n            .overlay(alignment: .top)"),
+      "the visionOS Library shares the centered toolbar menu without an overlay or outer system pill")
 let controllerMessageOccurrences = ornament.components(separatedBy: "Text(\"No controller detected.\")").count - 1
 check(controllerMessageOccurrences == 1
         && ornament.contains(".foregroundStyle(labelForegroundStyle)")
