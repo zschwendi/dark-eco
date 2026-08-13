@@ -17890,7 +17890,32 @@ jak2-metal-host-bridge-test
 
 This jointly covers the vehicle-burner alpha path, low-alpha Direct blending,
 pause snapshot/panel behavior, minimap orientation/no-leak rendering, and the
-new host telemetry. No simulator or physical device was accessed during this
-checkpoint. The next executable gate is the current Release build on the
-approved iPad Pro 11-inch (M5) simulator, followed by a pause-frame telemetry
-capture and maintainer physical comparison if the simulator remains healthy.
+new host telemetry.
+
+The exact `jak2-best` checkpoint was then built as the Release `Eco Jak II Dev`
+simulator app with `TOOLCHAINS=Metal`. The outer Xcode build and all 840 Jak II
+AOT unit validations passed. The resulting app is version 1.0, build 2, bundle
+ID `com.zephyrstudiosllc.eco.jak2dev`; its 89 MiB executable SHA-256 is
+`b7f614d917eeace493b51d6c7a8b2a9496dcbac1a36ab1ed205c710019274764`.
+
+The app was update-installed without deleting simulator data on the approved
+iPad Pro 11-inch (M5) simulator, launched through its retained Jak II library
+entry, and reached the rendered startup cinematic. At tick 2400 the runtime
+reported `chains=2400/2400/0`, `cmd=2400/2399/0`, `submit=2400/0/0`, an empty
+runtime error, zero Merc malformed/rejection/missing-model/texture counters,
+and one completed PRIS eye command buffer. The title/startup frame correctly
+had no pause snapshot request; therefore it does not close the live pause-frame
+telemetry gate. Desktop UI automation stopped when macOS detected physical
+input, so no pause menu was opened or claimed validated. The simulator was shut
+down after the read-only capture. Retained evidence:
+
+```text
+.agent-builds/jak2-resume-logs/eco-jak2-dev-jak2-best-pause-build.log
+.agent-builds/jak2-resume-logs/jak2-best-release-simulator.png
+.agent-builds/jak2-resume-logs/jak2-best-release-simulator.log
+.agent-builds/jak2-resume-logs/jak2-best-runtime-simulator.png
+.agent-builds/jak2-resume-logs/jak2-best-runtime-simulator.log
+```
+
+No physical device was accessed. Physical acceptance of the minimap,
+vehicle-burner alpha, and pause panel remains the next maintainer gate.
