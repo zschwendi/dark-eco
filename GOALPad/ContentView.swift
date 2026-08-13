@@ -131,6 +131,10 @@ struct ContentView: View {
                 }
             }
         }
+        #if os(iOS)
+        .defersSystemGestures(on: immersiveGameplay ? .bottom : [])
+        .persistentSystemOverlays(immersiveGameplay ? .hidden : .automatic)
+        #endif
         .task { await session.prepare() }
         .onChange(of: scenePhase) { _, phase in session.scenePhaseChanged(to: phase) }
         .onChange(of: session.presentationSettings.graphicsFillWidth, initial: true) {
@@ -221,6 +225,12 @@ struct ContentView: View {
         }
         #endif
     }
+
+    #if os(iOS)
+    private var immersiveGameplay: Bool {
+        session.isRunning && settingsPresentation == nil && !isShowingTouchControlsGuide
+    }
+    #endif
 
     private func presentSettings() {
         nextSettingsPresentationID += 1

@@ -357,6 +357,12 @@ check(content.contains("@State private var settingsPresentation: SettingsSheetPr
         && content.contains(".id(presentation.id)")
         && !content.contains("showSettings"),
       "one item-backed Settings presentation keeps a stable identity while it is open")
+check(content.contains(".defersSystemGestures(on: immersiveGameplay ? .bottom : [])")
+        && content.contains(".persistentSystemOverlays(immersiveGameplay ? .hidden : .automatic)")
+        && occursInOrder(["private var immersiveGameplay: Bool {",
+                          "session.isRunning", "settingsPresentation == nil",
+                          "!isShowingTouchControlsGuide"], in: content),
+      "only the running iOS game defers the Home gesture and hides persistent system overlays")
 check(content.contains("#if GOALPAD_APPSTORE_CAPTURE")
         && content.contains("arguments.contains(\"-EcoCaptureGameSetup\")")
         && content.contains("arguments.contains(\"-EcoCaptureSettings\")"),
