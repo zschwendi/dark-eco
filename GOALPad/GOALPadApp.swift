@@ -7,9 +7,6 @@
 
 import Foundation
 import SwiftUI
-#if os(iOS)
-import UIKit
-#endif
 
 enum GOALPadBuildIdentity {
     static let displayName = value(for: "CFBundleDisplayName", fallback: "Dark Eco")
@@ -23,82 +20,6 @@ enum GOALPadBuildIdentity {
     }
 }
 
-#if os(iOS)
-@MainActor
-final class SystemGesturePreference {
-    private(set) var isImmersiveGameplay = false
-    var didChange: (() -> Void)?
-
-    func setImmersiveGameplay(_ isImmersiveGameplay: Bool) {
-        guard self.isImmersiveGameplay != isImmersiveGameplay else { return }
-        self.isImmersiveGameplay = isImmersiveGameplay
-        didChange?()
-    }
-}
-
-private struct IOSRootView: View {
-    let systemGesturePreference: SystemGesturePreference
-
-    var body: some View {
-        ContentView(systemGesturePreference: systemGesturePreference)
-            .task { await EcoTipTransactionObserver.run() }
-    }
-}
-
-private final class GameplayHostingController: UIHostingController<IOSRootView> {
-    private let systemGesturePreference: SystemGesturePreference
-
-    init() {
-        let systemGesturePreference = SystemGesturePreference()
-        self.systemGesturePreference = systemGesturePreference
-        super.init(rootView: IOSRootView(systemGesturePreference: systemGesturePreference))
-        systemGesturePreference.didChange = { [weak self] in
-            self?.setNeedsUpdateOfScreenEdgesDeferringSystemGestures()
-            self?.setNeedsUpdateOfHomeIndicatorAutoHidden()
-        }
-    }
-
-    @MainActor @preconcurrency required dynamic init?(coder aDecoder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override var preferredScreenEdgesDeferringSystemGestures: UIRectEdge {
-        systemGesturePreference.isImmersiveGameplay ? .bottom : []
-    }
-
-    override var prefersHomeIndicatorAutoHidden: Bool {
-        systemGesturePreference.isImmersiveGameplay
-    }
-}
-
-final class GOALPadSceneDelegate: UIResponder, UIWindowSceneDelegate {
-    var window: UIWindow?
-
-    func scene(_ scene: UIScene,
-               willConnectTo session: UISceneSession,
-               options connectionOptions: UIScene.ConnectionOptions) {
-        guard let windowScene = scene as? UIWindowScene else { return }
-        let window = UIWindow(windowScene: windowScene)
-        window.rootViewController = GameplayHostingController()
-        self.window = window
-        window.makeKeyAndVisible()
-    }
-}
-
-@main
-final class GOALPadApp: UIResponder, UIApplicationDelegate {
-    func application(_ application: UIApplication,
-                     configurationForConnecting connectingSceneSession: UISceneSession,
-                     options: UIScene.ConnectionOptions) -> UISceneConfiguration {
-        let configuration = UISceneConfiguration(
-            name: "Default Configuration",
-            sessionRole: connectingSceneSession.role
-        )
-        configuration.delegateClass = GOALPadSceneDelegate.self
-        return configuration
-    }
-}
-#else
 @main
 struct GOALPadApp: App {
     #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
@@ -118,4 +39,3 @@ struct GOALPadApp: App {
         }
     }
 }
-#endif

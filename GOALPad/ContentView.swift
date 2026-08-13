@@ -50,23 +50,11 @@ struct ContentView: View {
     @State private var settingsPresentation: SettingsSheetPresentation?
     @State private var nextSettingsPresentationID = 0
     #if os(iOS)
-    private let systemGesturePreference: SystemGesturePreference
     @State private var isShowingTouchControlsGuide = false
     @AppStorage("jak1TouchControlsGuideVersion") private var touchControlsGuideVersion = 0
     #endif
 
-    #if os(iOS)
-    init(systemGesturePreference: SystemGesturePreference) {
-        self.systemGesturePreference = systemGesturePreference
-        configureCaptureState()
-    }
-    #else
     init() {
-        configureCaptureState()
-    }
-    #endif
-
-    private func configureCaptureState() {
         #if GOALPAD_APPSTORE_CAPTURE
         let arguments = ProcessInfo.processInfo.arguments
         let opensSettings = arguments.contains("-EcoCaptureSettings")
@@ -170,9 +158,6 @@ struct ContentView: View {
             session.input.setRumbleEnabled(enabled)
         }
         #if os(iOS)
-        .onChange(of: immersiveGameplay, initial: true) { _, isImmersiveGameplay in
-            systemGesturePreference.setImmersiveGameplay(isImmersiveGameplay)
-        }
         .onChange(of: session.presentationSettings.graphicsHighFrameRate, initial: true) {
             _, enabled in
             session.setHighFrameRateEnabled(enabled)
@@ -236,12 +221,6 @@ struct ContentView: View {
         }
         #endif
     }
-
-    #if os(iOS)
-    private var immersiveGameplay: Bool {
-        session.isRunning && settingsPresentation == nil && !isShowingTouchControlsGuide
-    }
-    #endif
 
     private func presentSettings() {
         nextSettingsPresentationID += 1
