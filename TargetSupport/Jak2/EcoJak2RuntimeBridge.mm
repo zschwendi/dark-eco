@@ -234,7 +234,10 @@ void log_jak2_diagnostics_locked() {
 
   NSLog(@"GOALPAD_JAK2_VISUAL_STATE tick=%llu raw=%llu/%llu/%llu "
          "progress=%llu/%llu/%llu debug-no-zbuf1=%llu/%llu/%llu "
-         "screen-filter=%llu skipped=%llu",
+         "screen-filter=%llu skipped=%llu "
+         "blit=%u/%u/%u/tbp0x%08x/lookup%u/placeholder%u "
+         "sky-texture=%u/%u/tbp0x%08x/tcc%u/decal%u/lookup%u/placeholder%u "
+         "sky-blend=%u/%u/%u/%u/%u",
         static_cast<unsigned long long>(runtime.ticks),
         static_cast<unsigned long long>(metal.raw_image_publications),
         static_cast<unsigned long long>(metal.raw_image_texture),
@@ -246,7 +249,25 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(metal.last_debug_no_zbuf1_textured_draws),
         static_cast<unsigned long long>(metal.last_debug_no_zbuf1_missing_texture_draws),
         static_cast<unsigned long long>(metal.last_screen_filter_draws),
-        static_cast<unsigned long long>(metal.skipped_bucket_bytes));
+        static_cast<unsigned long long>(metal.skipped_bucket_bytes),
+        metal.last_blit_display_snapshot_requested,
+        metal.last_blit_display_copy_back_requested,
+        metal.last_blit_display_copy_back_performed,
+        metal.last_blit_display_texture_tbp,
+        metal.last_blit_display_texture_lookup_hit,
+        metal.last_blit_display_used_placeholder,
+        metal.last_sky_draw_batch_valid,
+        metal.last_sky_draw_batch_textured,
+        metal.last_sky_draw_batch_tex0_tbp,
+        metal.last_sky_draw_batch_tex0_tcc,
+        metal.last_sky_draw_batch_tex0_decal,
+        metal.last_sky_draw_batch_texture_lookup_hit,
+        metal.last_sky_draw_batch_used_placeholder,
+        metal.last_sky_draw_batch_blend_enabled,
+        metal.last_sky_draw_batch_blend_a,
+        metal.last_sky_draw_batch_blend_b,
+        metal.last_sky_draw_batch_blend_c,
+        metal.last_sky_draw_batch_blend_d);
 
   NSLog(@"GOALPAD_JAK2_FOREGROUND_STATE tick=%llu "
          "merc=%llu/%llu/%llu malformed=%llu reject-reason=%u missing-models=%llu "
