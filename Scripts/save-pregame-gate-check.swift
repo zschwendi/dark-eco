@@ -127,8 +127,8 @@ check(occursInOrder([
     "return await checkLocalGameplaySafety()",
 ], in: timeout),
       "timed-out cloud work must release its owned lease before local gameplay can continue")
-check(engine.contains("downloadPollAttempts: Int = 50"),
-      "one iCloud placeholder has a bounded five-second provider wait")
+check(engine.contains("downloadPollAttempts: Int = 300"),
+      "one iCloud placeholder has a bounded thirty-second provider wait")
 check(engine.contains("NSMetadataQueryUbiquitousDocumentsScope")
         && engine.contains("NSMetadataQueryDidFinishGathering")
         && engine.contains("cloudDiscoveryTimeout: Duration = .seconds(5)"),

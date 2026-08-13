@@ -289,7 +289,7 @@ actor SaveSyncEngine {
              cloudLocations: @escaping CloudLocationsProvider, coordinateCloudAccess: Bool,
              fileSettleDelay: Duration = .milliseconds(100),
              downloadPollInterval: Duration = .milliseconds(100),
-             downloadPollAttempts: Int = 50,
+             downloadPollAttempts: Int = 300,
              cloudDiscoveryTimeout: Duration = .seconds(5),
              discoverCloudFiles: @escaping CloudFileDiscovery = {
                 root, timeout in
