@@ -18194,3 +18194,21 @@ regression are byte-unchanged, and `jak2-sound-rpc-test` passes 1/1. Thus Build
 6 contains the global streamed-cutscene fix; the reported physical freeze came
 from an older installed build. Physical validation of Build 6 is still pending
 a fresh maintainer authorization.
+
+Post-Build-6 nested commit `09a88bbf4` and outer commit `d09d5b8d` add a
+diagnostic for the separate Dark Jak/Hellcat crash. The global GOAL stack
+watermark now tail-appends current used/size plus overflow and validation
+counters. Rejected suspend/resume ranges emit and flush a fixed numeric
+`GOALPAD_GOAL_THREAD_STACK_FAILURE` line before the existing abort, while the
+periodic outer `GOALPAD_JAK2_STACK_STATE` is numeric-only. This does not change
+gameplay and does not claim the observed crash was the historic Dark Bomb stack
+bug. The current ABI has no safe numeric process-role identity, so the metric
+is explicitly global.
+
+Focused kernel/test source compiles, C11 ABI assertions, outer Objective-C++
+format checking, and diff checks passed in the isolated lane. A root attempt to
+build the previously unbuilt `jak2-thread-switch-test` expanded into 453 cold
+tool/decompiler dependencies; it was stopped at 291/453 when free disk reached
+about 461 MiB. Therefore that runtime test remains pending. No physical device
+or simulator was accessed for this post-Build-6 diagnostic, and it is not part
+of the already-built Build 6 binaries.
