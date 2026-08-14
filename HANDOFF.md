@@ -18212,3 +18212,40 @@ tool/decompiler dependencies; it was stopped at 291/453 when free disk reached
 about 461 MiB. Therefore that runtime test remains pending. No physical device
 or simulator was accessed for this post-Build-6 diagnostic, and it is not part
 of the already-built Build 6 binaries.
+
+## Jak II exact Lightning execution checkpoint
+
+Date: 2026-08-13.
+
+Nested commit `698f10b6e` promotes only the source-exact Jak II EFFECTS bucket
+315 Lightning grammar. Live DMA is validated before copying; the copied packet
+is independently recaptured and compared byte-semantically before rendering.
+The renderer accepts absent, exact 8-transfer/352-byte setup-only, and exact
+active Lightning fragments. It renders active fragments with the source
+additive/no-alpha-test/depth-write-masked state. A missing source texture skips
+the draw without using the placeholder and fails the host execution gate.
+Bucket 316 remains the typed ordinary upload route and bucket 317 remains
+DeferredSkip.
+
+The existing numeric `GOALPAD_JAK2_EFFECTS315_STATE` line now includes callback,
+completion, expected/actual geometry, missing-texture, placeholder,
+unsupported-blend, unexpected-DMA, and overflow counters. This is diagnostic
+only; it does not broaden the accepted packet grammar.
+
+The existing canonical host build rebuilt 39 affected actions and the focused
+matrix passed 5/5:
+
+```text
+jak2-effects-bucket315-capture-test
+jak2-metal-bucket-table-test
+jak2-metal-effects315-lightning-proof
+jak2-metal-generic2-renderer-test
+jak2-metal-host-bridge-test
+```
+
+The outer Objective-C++ bridge also passed a standalone macOS syntax check with
+format checking enabled. No simulator, physical device, or new signed iPadOS
+build was used for this checkpoint. Build 6 therefore remains the latest built
+artifact and does not contain this production bucket-315 route or the later
+stack diagnostic. A next signed Build 7 should include both once enough free
+disk is available; only about 717 MiB was free after focused validation.

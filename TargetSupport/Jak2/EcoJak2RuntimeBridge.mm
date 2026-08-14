@@ -595,10 +595,14 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(runtime.ticks), pris_diagnostic_state);
 
   const auto& effects315 = metal.effects_bucket315;
+  const auto& effects315Execution = metal.effects_bucket315_execution;
   NSLog(@"GOALPAD_JAK2_EFFECTS315_STATE tick=%llu "
          "captures=%llu valid=%llu malformed=%llu absent=%llu lightning=%llu other=%llu "
          "payload-bytes=%llu last-transfers=%u last-fragments=%u last-vertices=%u "
-         "last-payload-bytes=%llu last-fingerprint=%016llx last-classification=%u",
+         "last-payload-bytes=%llu last-fingerprint=%016llx last-classification=%u "
+         "exec-callbacks=%llu exec-completed=%llu expected=%u/%u/%u/%u "
+         "actual=%u/%u/%u/%u/%u missing=%u placeholders=%u unsupported=%u unexpected=%u "
+         "overflow=%u",
         static_cast<unsigned long long>(runtime.ticks),
         static_cast<unsigned long long>(effects315.captures),
         static_cast<unsigned long long>(effects315.valid_captures),
@@ -610,7 +614,17 @@ void log_jak2_diagnostics_locked() {
         effects315.last_fragment_count, effects315.last_vertex_count,
         static_cast<unsigned long long>(effects315.last_payload_bytes),
         static_cast<unsigned long long>(effects315.last_semantic_fingerprint),
-        static_cast<unsigned>(effects315.last_classification));
+        static_cast<unsigned>(effects315.last_classification),
+        static_cast<unsigned long long>(effects315Execution.callback_dispatches),
+        static_cast<unsigned long long>(effects315Execution.completed_executions),
+        effects315Execution.last_expected_fragments, effects315Execution.last_expected_vertices,
+        effects315Execution.last_expected_adgifs, effects315Execution.last_expected_draws,
+        effects315Execution.last_actual_fragments, effects315Execution.last_actual_vertices,
+        effects315Execution.last_actual_adgifs, effects315Execution.last_actual_draw_buckets,
+        effects315Execution.last_actual_draws, effects315Execution.last_actual_missing_textures,
+        effects315Execution.last_actual_placeholder_draws,
+        effects315Execution.last_actual_unsupported_blends,
+        effects315Execution.last_actual_unexpected_dma, effects315Execution.last_actual_overflow);
 
   const auto& shadow195 = metal.shadow_bucket195;
   NSLog(@"GOALPAD_JAK2_SHADOW195_STATE tick=%llu observations=%llu absent=%llu observed=%llu "
