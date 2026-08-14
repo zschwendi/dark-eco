@@ -13,14 +13,16 @@ struct GameDataSetupView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: isImportComplete ? 32 : 18) {
-                if !isImportComplete {
+                if showsSourceSelection {
                     header
+                    dataStatus
+                    importFlow
+                } else if isImportComplete {
+                    dataStatus
                 }
-                dataStatus
                 if isImportComplete {
                     completionActions
                 } else {
-                    importFlow
                     importState
                 }
                 if let error = selectionError ?? session.startupError {
@@ -299,6 +301,14 @@ struct GameDataSetupView: View {
 
     private var isImportComplete: Bool {
         session.dataReport.status == .ready
+    }
+
+    private var showsSourceSelection: Bool {
+        guard !isImportComplete else { return false }
+        return switch session.importer.state {
+        case .scanning, .copying, .cancelling: false
+        case .idle, .finished, .cancelled, .failed: true
+        }
     }
 
     private var statusIcon: String {

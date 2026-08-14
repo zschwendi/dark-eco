@@ -117,8 +117,21 @@ check(view.contains("session.dataReport.status == .ready")
         && view.contains("GameDataImportPresentation.completedStorageGuidance")
         && view.contains(".font(.body)"),
       "complete setup shows ordinary source-cleanup guidance below the imported size")
-check(view.contains("if !isImportComplete")
-        && view.contains("if isImportComplete")
+check(occursInOrder([
+            "if showsSourceSelection {",
+            "header",
+            "dataStatus",
+            "importFlow",
+            "} else if isImportComplete {",
+            "dataStatus",
+            "if isImportComplete {",
+            "completionActions",
+            "} else {",
+            "importState",
+        ], in: view)
+        && view.contains("private var showsSourceSelection: Bool")
+        && view.contains("case .scanning, .copying, .cancelling: false")
+        && view.contains("case .idle, .finished, .cancelled, .failed: true")
         && view.contains("completionActions")
         && gameData.contains("return \"Import Complete (\\(size))\"")
         && view.contains("Text(\"Play Now\")")
@@ -129,7 +142,7 @@ check(view.contains("if !isImportComplete")
         && view.contains(".padding(.top, isImportComplete ? 16 : 0)")
         && !view.contains("ProgressView(value: 1)")
         && !view.contains("100% complete"),
-      "completed setup adds deliberate title and Play Now spacing around the imported-size card")
+      "source guidance appears only while choosing, active import stands alone, and completion keeps its imported-size card")
 check(library.contains("title: Text(\"Set Up \\(GameLibraryTitle.jak1.name)\")")
         && libraryModel.contains("Provide game data from a copy of")
         && !libraryModel.contains("This build accepts"),
