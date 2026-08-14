@@ -18077,3 +18077,54 @@ The historic Dark Bomb stack-size fix is already present, and the smaller
 reported encounter does not match the separately hardened 129-target overflow;
 an iOS crash report/top frame plus final stack/effects/runtime telemetry is
 still required before making another crash fix.
+
+## Jak II Build 5 common-water and renderer-proof checkpoint
+
+Date: 2026-08-13.
+
+Nested production commit `58802c351` promotes only common-water texture bucket
+306 through the exact typed host path observed in the retained run. It accepts
+strict-empty or the exact 9-transfer/512-byte ordinary descriptor plus opcode-30
+security-environment prefix and Direct-reset envelope. Live and copied DMA are
+independently planned and compared before any mutation. The callback executes
+the ordinary upload and publishes only ctywide environment slot 20 at bucket
+306. Dot-only, full environment-plus-dot, reordered, malformed, non-finite, and
+out-of-range forms remain fail-closed. The focused capture, bucket-table,
+animator, and host-bridge matrix passed 4/4.
+
+Outer commit `61e9e41d` pins that production commit and bumps only Eco Jak II
+Dev Debug/Release to build 5. The Release simulator build passed all 840 Jak II
+AOT unit validations. Build 5 was update-installed without deleting data on the
+approved iPad Pro 11-inch (M5) simulator and launched to the library shell. The
+installed executable exactly matched the built artifact, SHA-256
+`54cba0251f81758436823c26dae050c70c0ac5ca65b4e6db1d5599afe5ff8574`.
+The simulator was then terminated and shut down. Evidence:
+
+```text
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build5-simulator-build.log
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build5-app-launch.png
+```
+
+The generic signed iPadOS Release build also passed without accessing a
+physical device. Its arm64 executable is 62,405,440 bytes, has SHA-256
+`6cae13be877b572b8853a3b71ed687b558a0f5488e4bd47c47c09a20c118adfb`,
+and CDHash `5fb57c499b683487445bb3ad04c2c2088089f67b`. Log:
+
+```text
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build5-iphoneos-build.log
+```
+
+Three later nested commits are proof-only and do not change live bucket
+routing. `bb977a4b0` adds a source-exact Metal LIGHTNING mode and GPU proof while
+leaving bucket 315 DeferredSkip. The new Lightning proof and the existing
+Generic2 regression both pass on the host Metal GPU. `1d5dae629` adds an owned,
+bounded parser for the exact Shadow 195 source grammar while leaving buckets
+195 and 314 deferred. `d257563ee` registers that parser proof in CTest; it
+passes. The Shadow parser has not been validated against a retained live packet
+payload, so it does not authorize rendering yet.
+
+No physical device was installed, launched, logged, or otherwise accessed.
+Build 5 remains the current playable artifact; the proof-only commits were
+integrated after it and require no physical acceptance until their buckets are
+actually routed. The next production lane is exact ordinary texture upload for
+bucket 316; animator/mixed forms and bucket 317 remain deferred.
