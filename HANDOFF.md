@@ -18008,3 +18008,72 @@ completed successfully. No physical device was installed, launched, logged, or
 otherwise accessed. Physical Build 3 acceptance remains the next gate; the
 cutscene and crash changes are diagnostic/hardening checkpoints, not yet
 physical fixes.
+
+## Jak II Build 4 global silent-cutscene clock checkpoint
+
+Date: 2026-08-13.
+
+The repeatable held first frame in the Kor/young-Mar scene was traced to a
+global downstream stream-clock omission, not to that individual scene. Jak II
+intentionally accepts a no-audio/art-only stream status as playing and upstream
+advances a synthetic movie clock for it every sound frame. The portable iPad
+sound path published the same playing status but left its position at zero, so
+any spooled cinematic without a resolved VAG could keep submitting and remain
+pause/skip responsive while its animation pose never advanced.
+
+Nested commit `c74d54d9a` restores the source-equivalent synthetic clock and
+preserves the original transition rules: only PLAY starts it, duplicate PLAY
+does not unpause it, individual and group pause retain its position, and group
+continue does not start a merely queued stream. The existing bounded stream
+telemetry now follows the four published stream slots, including no-audio
+streams, and attaches raw-voice details only when a matching VAG exists. Tests
+cover active and never-played no-audio streams, duplicate PLAY, individual and
+group pause/continue, plus the existing long multi-wrap VAG path.
+
+The focused combined host matrix passed 5/5:
+
+```text
+jak2-sound-rpc-test
+jak2-metal-sprite-renderer-test
+jak2-metal-submit-readback-proof
+jak2-metal-blit-display-spatial-test
+jak2-metal-host-bridge-test
+```
+
+Outer commit `1c6667ec` pins that nested commit and bumps only Eco Jak II Dev
+Debug/Release to build 4. Both `jak2-best` branches were pushed and verified
+equal to their remotes.
+
+The Release simulator build passed all 840 Jak II AOT validations. Build 4 was
+update-installed without deleting data on the approved iPad Pro 11-inch (M5)
+simulator and launched to the library shell. The installed executable exactly
+matched the built artifact (SHA-256
+`b596d477da388c7c897dc299339e0acca1405247ad6462d82043cf3b5708d23e`).
+The simulator has no retained save near the Kor/young-Mar scene: all three save
+previews are 00:00/0%, and the furthest retained load enters the prison.
+Therefore the exact scene was not claimed replayed. The simulator was shut down
+after validation. Evidence:
+
+```text
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build4-simulator-build.log
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build4-app-launch.png
+```
+
+The generic signed iPadOS Release build also passed without accessing a
+physical device. The build 4 arm64 executable is 62,386,976 bytes, signed by
+the configured Apple Development identity, and has SHA-256
+`84af06533f662ba57d31af12a8d8d862a7e35d672aa7ca345bcf8141c518fa0f`.
+Artifact and log:
+
+```text
+/private/tmp/GOALPad-jak2-c2f2c4b1d-simulator/Build/Products/Release-iphoneos/EcoJak2Dev.app
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build4-iphoneos-build.log
+```
+
+No physical device was installed, launched, logged, or otherwise accessed.
+Physical Build 4 acceptance of the Kor/young-Mar scene, current minimap/HUD,
+vehicle-burner alpha, and the separate Dark Jak/Hellcat crash remains pending.
+The historic Dark Bomb stack-size fix is already present, and the smaller
+reported encounter does not match the separately hardened 129-target overflow;
+an iOS crash report/top frame plus final stack/effects/runtime telemetry is
+still required before making another crash fix.
