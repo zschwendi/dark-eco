@@ -239,7 +239,7 @@ final class GameSession {
         startupError = nil
         settings.apply()
         #if os(visionOS)
-        let bootTargetFrameRate = 90
+        let bootTargetFrameRate = presentationSettings.graphicsVisionHighFrameRate ? 90 : 60
         #elseif os(iOS)
         let bootTargetFrameRate = presentationSettings.graphicsHighFrameRate ? 120 : 60
         #else
@@ -277,6 +277,8 @@ final class GameSession {
         isRunning = true
         #if os(iOS)
         setHighFrameRateEnabled(presentationSettings.graphicsHighFrameRate)
+        #elseif os(visionOS)
+        setVisionHighFrameRateEnabled(presentationSettings.graphicsVisionHighFrameRate)
         #endif
         updateNativeMenuState(mode: GOALPadRuntimeBridge.gameMode,
                               progress: NativeProgressMenuSnapshot(
@@ -309,6 +311,26 @@ final class GameSession {
     func setHighFrameRateEnabled(_ enabled: Bool) {
         #if os(iOS)
         let requestedFrameRate = enabled ? 120 : 60
+        guard requestedFrameRate != targetFrameRate else { return }
+        guard !isBooting else { return }
+        guard isRunning else { return }
+        guard GOALPadRuntimeBridge.setTargetFrameRate(requestedFrameRate) else {
+            sessionLog.error("Could not switch the live gameplay timing domain to \(requestedFrameRate) Hz")
+            return
+        }
+        targetFrameRate = requestedFrameRate
+        resetDisplayTiming()
+        sessionLog.notice("Live gameplay timing switched to \(requestedFrameRate) Hz")
+        #else
+        _ = enabled
+        #endif
+    }
+
+    /// Apply the visionOS 90 Hz preference between dispatcher frames. The platform can still
+    /// deliver a lower cadence; the native display clock preserves elapsed wall time.
+    func setVisionHighFrameRateEnabled(_ enabled: Bool) {
+        #if os(visionOS)
+        let requestedFrameRate = enabled ? 90 : 60
         guard requestedFrameRate != targetFrameRate else { return }
         guard !isBooting else { return }
         guard isRunning else { return }

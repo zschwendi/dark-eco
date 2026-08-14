@@ -1001,11 +1001,12 @@ using modification time and a stable writer ID. Unresolved iCloud file versions
 participate in that merge. The `Sync settings with iCloud` switch is stored only
 on the current device and is separate from `iCloud Saves`.
 
-Graphics Modern currently exposes Fill Width (Hor+). On a drawable wider than
-4:3 it preserves internal target height, widens the target, fills the drawable,
-and reports the wide aspect to GOAL. Classic keeps the prior 4:3 target,
-letterbox, and machine-query behavior. On portrait or narrower drawables Hor+
-does not reduce the Classic horizontal field of view.
+Modern and Classic expose the same Graphics settings on every supported device;
+the profile changes defaults rather than hiding controls. With Fit to Screen on,
+a drawable wider than 4:3 preserves internal target height, widens the target,
+fills the drawable, and reports the wide aspect to GOAL. With it off, the renderer
+keeps the prior 4:3 target, letterbox, and machine-query behavior. On portrait or
+narrower drawables Hor+ does not reduce the Classic horizontal field of view.
 
 The deterministic checks are:
 
@@ -1096,19 +1097,28 @@ while gameplay is running updates the GOAL timing domain, native display and
 sound clocks, and display-link request between frames; no app or game restart
 is required.
 
-On visionOS, gameplay requests a fixed 90 Hz range and boots directly into a
-distinct 90 Hz timing domain; there is no visionOS frame-rate setting. The
-Library and boot UI retain the default 60 Hz cadence. The fixed request is not
-a hardware guarantee: visionOS may still deliver a lower cadence, and the
-native clock preserves wall time when that occurs. The dormant experimental
-stereo surface uses the same 90 Hz game-frame cadence so it cannot diverge from
-the conventional shipping surface if explicitly enabled for development.
+On visionOS, the default 90 Hz setting requests a fixed 90 Hz range and boots
+into a distinct 90 Hz timing domain. Turning it off requests and runs at 60 Hz;
+the preference applies live between gameplay frames and is independent of the
+iOS ProMotion preference. The Library and boot UI retain the default 60 Hz
+cadence. The 90 Hz request is not a hardware guarantee: visionOS may still
+deliver a lower cadence, and the native clock preserves wall time when that
+occurs. The dormant experimental stereo surface follows the active game-frame
+cadence so it cannot diverge from the conventional shipping surface if
+explicitly enabled for development.
 
 The geometry matches what `MetalRenderer::encode_present_pass` in the OpenGOAL
 fork expects: the game renders into an offscreen target at its internal
 resolution, and a present pass draws that target into a centred, letterboxed
 draw region of the drawable. The draw region is the largest rectangle of the
-game's own aspect that fits the drawable.
+game’s own aspect that fits the drawable.
+
+Fit to Screen defaults on for Modern Graphics and off for Classic, but is
+available in both profiles. On visionOS, turning it off asks the window scene to
+shrink to the largest contained 4:3 size with uniform resizing, so the window
+matches the renderer instead of surrounding it with black bars. Turning it on
+restores freeform resizing and the prior freeform window size. The system still
+owns whether a requested geometry update can be fulfilled.
 
 **Internal render resolution is 2x — 1280x960 — by default,** settable to 1x, 2x,
 3x or 4x and persisted in `UserDefaults`. The scale is a whole multiple of the

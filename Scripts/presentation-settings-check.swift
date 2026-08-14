@@ -623,6 +623,8 @@ private func defaultsUseModernGraphics() async throws {
     check(value.graphicsFillWidth, "Modern Graphics begins with Fill Width enabled")
     check(value.graphicsStereo3D, "Modern Graphics begins with Stereoscopic 3D enabled")
     check(value.graphicsHighFrameRate, "Modern Graphics begins with ProMotion enabled")
+    check(value.graphicsVisionHighFrameRate,
+          "visionOS high refresh begins at 90 Hz independently of the profile")
     check(value.document.graphicsModernFillWidthOverride == nil,
           "the default uses the Modern option value instead of a stored override")
     check(value.document.graphicsModernStereo3DOverride == nil,
@@ -674,6 +676,80 @@ private func highFrameRatePersistsAndResets() async throws {
     check(restored.graphicsHighFrameRate
           && restored.document.graphicsHighFrameRateOverride == nil,
           "Reset All to Defaults restores Modern ProMotion")
+}
+
+@MainActor
+private func visionHighFrameRatePersistsAndResets() async throws {
+    print("visionOS 90 Hz remains independent of the iOS profile preference")
+    let fixture = try Fixture(name: "vision-high-frame-rate")
+    let value = settings(fixture, writerID: "device-a", cloudAvailable: false)
+    check(value.graphicsVisionHighFrameRate
+          && value.document.graphicsVisionHighFrameRateOverride == nil,
+          "visionOS defaults to 90 Hz without storing an override")
+
+    value.setProfile(.classic, for: .graphics)
+    check(value.graphicsVisionHighFrameRate,
+          "Classic keeps the independent visionOS 90 Hz default")
+    value.setGraphicsVisionHighFrameRate(false)
+    check(!value.graphicsVisionHighFrameRate
+          && value.document.graphicsVisionHighFrameRateOverride == false
+          && readDocument(at: fixture.local)?.graphicsVisionHighFrameRateOverride == false,
+          "visionOS can persist a 60 Hz opt-out")
+
+    let restored = settings(fixture, writerID: "device-b", cloudAvailable: false)
+    check(!restored.graphicsVisionHighFrameRate,
+          "the visionOS 60 Hz opt-out survives relaunch decoding")
+    restored.setGraphicsVisionHighFrameRate(true)
+    check(restored.graphicsVisionHighFrameRate
+          && restored.document.graphicsVisionHighFrameRateOverride == nil,
+          "returning to the 90 Hz default clears the override")
+    restored.setGraphicsVisionHighFrameRate(false)
+    restored.restoreDefaults(for: .graphics)
+    check(restored.graphicsVisionHighFrameRate,
+          "Restore Graphics Defaults returns visionOS to 90 Hz")
+}
+
+@MainActor
+private func fitToScreenCanOverrideEitherProfile() async throws {
+    print("shared Graphics controls can explicitly override either profile")
+    let fixture = try Fixture(name: "fit-to-screen-profiles")
+    let value = settings(fixture, writerID: "device-a", cloudAvailable: false)
+    check(value.graphicsFillWidth
+          && value.graphicsStereo3D
+          && value.document.graphicsModernFillWidthOverride == nil
+          && value.document.graphicsModernStereo3DOverride == nil,
+          "Modern defaults its shared Graphics options on")
+
+    value.setProfile(.classic, for: .graphics)
+    check(!value.graphicsFillWidth && !value.graphicsStereo3D,
+          "Classic defaults its shared Graphics options off")
+    value.setGraphicsFillWidth(true)
+    value.setGraphicsStereo3D(true)
+    check(value.graphicsFillWidth
+          && value.graphicsStereo3D
+          && value.document.graphicsModernFillWidthOverride == true
+          && value.document.graphicsModernStereo3DOverride == true,
+          "Classic can persist explicit opt-ins from the same controls")
+
+    value.setProfile(.modern, for: .graphics)
+    check(value.graphicsFillWidth && value.graphicsStereo3D,
+          "the explicit opt-ins remain active when returning to Modern")
+    value.setGraphicsFillWidth(false)
+    value.setGraphicsStereo3D(false)
+    check(!value.graphicsFillWidth
+          && !value.graphicsStereo3D
+          && value.document.graphicsModernFillWidthOverride == false
+          && value.document.graphicsModernStereo3DOverride == false,
+          "Modern can persist explicit opt-outs from the same controls")
+
+    value.setProfile(.classic, for: .graphics)
+    value.setGraphicsFillWidth(false)
+    value.setGraphicsStereo3D(false)
+    check(!value.graphicsFillWidth
+          && !value.graphicsStereo3D
+          && value.document.graphicsModernFillWidthOverride == nil
+          && value.document.graphicsModernStereo3DOverride == nil,
+          "returning Classic to its off defaults clears both overrides")
 }
 
 @MainActor
@@ -1201,6 +1277,8 @@ private struct PresentationSettingsCheck {
             try await explicitFreshResetBeatsOlderRemoteTouchLayout()
             try await defaultsUseModernGraphics()
             try await highFrameRatePersistsAndResets()
+            try await visionHighFrameRatePersistsAndResets()
+            try await fitToScreenCanOverrideEitherProfile()
             try await savedChoicesSurviveNewDefaults()
             try await profilesCanBeMixedWithoutLosingOptions()
             try await localOptOutDoesNotTouchCloud()

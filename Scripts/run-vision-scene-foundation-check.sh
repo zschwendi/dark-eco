@@ -20,6 +20,7 @@ window_surface_source="$root/GOALPad/Vision/VisionWindowStereoSurface.swift"
 submission_watchdog_source="$root/GOALPad/Vision/VisionStereoSubmissionWatchdog.swift"
 controller_ornament_source="$root/GOALPad/Vision/VisionControllerStatusOrnament.swift"
 settings_ornament_source="$root/GOALPad/Vision/VisionPausedEcoOrnament.swift"
+window_geometry_source="$root/GOALPad/Vision/VisionWindowGeometry.swift"
 touch_view_source="$root/GOALPad/Game/TouchControlsView.swift"
 touch_guide_source="$root/GOALPad/Game/TouchControlsGuideView.swift"
 window_material="$root/GOALPad/Vision/VisionStereoWindow.rkassets/VisionStereoWindowMaterial.usda"
@@ -170,6 +171,7 @@ do
     "$window_surface_source" \
     "$controller_ornament_source" \
     "$settings_ornament_source" \
+    "$window_geometry_source" \
     "$root/Scripts/vision-scene-foundation-check.swift"
 done
 
@@ -198,6 +200,7 @@ if test "$requested_sdk" = all || test "$requested_sdk" = xros; then
     "$window_surface_source" \
     "$controller_ornament_source" \
     "$settings_ornament_source" \
+    "$window_geometry_source" \
     "$root/Scripts/vision-scene-foundation-check.swift"
   echo "visionOS dormant stereo opt-in typecheck passed"
 

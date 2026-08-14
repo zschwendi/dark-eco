@@ -128,8 +128,12 @@ concept and touch editor in favor of one gameplay-touch scheme whose stick
 placement, radii, two-pill layout, and base face gestures match Build 96. Later
 bounded additions remain: crouch-left punch, semantic zoom, contextual SKIP,
 touch haptics, truthful native-menu controls, and validated warp-gate capture.
-Graphics retains its independent **Modern / Classic** presentation choice,
-including Modern Fit to Screen. Builds 160 and 161's post-processing experiment
+Graphics retains its independent **Modern / Classic** presentation choice, but
+both profiles expose the same settings on every supported device. Fit to Screen
+defaults on for Modern and off for Classic, and either profile can override that
+default. On visionOS, the off state also constrains the gameplay window to 4:3
+instead of leaving bars inside a wider window. Builds 160 and
+161's post-processing experiment
 was physically rejected and removed; the accepted conventional-2D presentation
 is frozen, and visual-improvement work is deferred until the maintainer
 explicitly reopens it. Old Controls profile and touch-layout documents must stay
@@ -155,11 +159,11 @@ build, and simulator checks are complete; sustained performance, thermals,
 power, and frame pacing on an iPhone 13 Pro-class device or newer remain a
 physical acceptance gate.
 
-The conventional visionOS renderer targets a fixed 90 Hz gameplay timing
-domain without a player-facing setting; the Library and asynchronous boot UI
-remain at 60 Hz. The system still owns delivered cadence, and sustained 90 Hz
-gameplay, audio, controller history, thermals, and power remain a physical
-Vision Pro acceptance gate.
+The conventional visionOS renderer exposes a player-facing 90 Hz preference,
+enabled by default and independently switchable to 60 Hz. The Library and
+asynchronous boot UI remain at 60 Hz. The system still owns delivered cadence,
+and sustained 90 Hz gameplay, audio, controller history, thermals, and power
+remain a physical Vision Pro acceptance gate.
 
 No enhancement may fork gameplay semantics, weaken user-owned asset separation,
 or replace the accepted Build 154 baseline before its replacement has been

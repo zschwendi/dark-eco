@@ -1021,10 +1021,19 @@ private struct SettingsGamePickerChoice: View {
     let title: String
     let isSelected: Bool
 
+    private var titleColor: Color {
+        if isSelected { return DarkEcoTheme.accent }
+        #if os(visionOS)
+        return .white.opacity(0.8)
+        #else
+        return .secondary
+        #endif
+    }
+
     var body: some View {
         Text(title)
             .font(.subheadline.weight(isSelected ? .semibold : .regular))
-            .foregroundStyle(isSelected ? DarkEcoTheme.accent : Color.secondary)
+            .foregroundStyle(titleColor)
             .frame(maxWidth: .infinity, minHeight: 32)
             .overlay(alignment: .bottom) {
                 if isSelected {
@@ -1080,7 +1089,7 @@ struct SaveSettingsView: View {
                 SettingsGamePicker()
             }
 
-            #if !os(iOS)
+            #if os(macOS)
             if isGameRunning {
                 Section {
                     Button(role: .destructive) {
@@ -1281,7 +1290,7 @@ struct SaveSettingsView: View {
         } message: {
             Text("This restores the default controls and graphics settings.")
         }
-        #if !os(iOS)
+        #if os(macOS)
         .confirmationDialog("Return to Library?",
                             isPresented: $isConfirmingReturnToLibrary,
                             titleVisibility: .visible) {
@@ -1425,28 +1434,31 @@ struct SaveSettingsView: View {
                 get: { settings.graphicsHighFrameRate },
                 set: { settings.setGraphicsHighFrameRate($0) }
             ))
+            #elseif os(visionOS)
+            Toggle("90 Hz", isOn: Binding(
+                get: { settings.graphicsVisionHighFrameRate },
+                set: { settings.setGraphicsVisionHighFrameRate($0) }
+            ))
             #endif
 
-            if settings.profile(for: .graphics) == .modern {
-                Toggle("Fit to Screen", isOn: Binding(
-                    get: { settings.graphicsFillWidth },
-                    set: { settings.setGraphicsFillWidth($0) }
-                ))
-                Text("Keeps the vertical view and widens the game horizontally to fill the display.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+            Toggle("Fit to Screen", isOn: Binding(
+                get: { settings.graphicsFillWidth },
+                set: { settings.setGraphicsFillWidth($0) }
+            ))
+            Text("On widens the game to fill the window. Off preserves the original 4:3 view.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
 
-                #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
-                Toggle("Stereoscopic 3D", isOn: Binding(
-                    get: { settings.graphicsStereo3D },
-                    set: { settings.setGraphicsStereo3D($0) }
-                ))
-                Text("Renders a fixed left/right pair from Jak's existing game camera inside the "
-                    + "normal game window. Turn it off to use Comfort mode.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                #endif
-            }
+            #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
+            Toggle("Stereoscopic 3D", isOn: Binding(
+                get: { settings.graphicsStereo3D },
+                set: { settings.setGraphicsStereo3D($0) }
+            ))
+            Text("Renders a fixed left/right pair from Jak's existing game camera inside the "
+                + "normal game window. Turn it off to use Comfort mode.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            #endif
 
             Button("Restore Graphics Defaults") {
                 settings.restoreDefaults(for: .graphics)

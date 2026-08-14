@@ -86,20 +86,35 @@ do {
     let about = try declaration(in: supportViews,
                                 startingWith: "struct EcoAboutView",
                                 endingWith: "\n\nprivate struct EcoContactView")
-    guard let cardButton = tile.range(of: "Button(action: activate)"),
-          let cardButtonStyle = tile.range(of: ".buttonStyle(.plain)",
-                                           range: cardButton.upperBound..<tile.endIndex)
+    let activationSurface = try declaration(
+        in: tile,
+        startingWith: "@ViewBuilder\n    private var activationSurface",
+        endingWith: "\n\n    private var tileSurface")
+    let tileSurface = try declaration(
+        in: tile,
+        startingWith: "private var tileSurface",
+        endingWith: "\n\n    private var details")
+    guard let visionBranchEnd = activationSurface.range(of: "#else"),
+          let cardButton = activationSurface.range(of: "Button(action: activate)",
+                                                   range: visionBranchEnd.upperBound..<activationSurface.endIndex),
+          let cardButtonStyle = activationSurface.range(of: ".buttonStyle(.plain)",
+                                                        range: cardButton.upperBound..<activationSurface.endIndex)
     else {
         throw NSError(domain: "portrait-library-check", code: 2,
                       userInfo: [NSLocalizedDescriptionKey:
                         "library tile lost its semantic launch button"])
     }
-    let cardLabel = tile[cardButton.lowerBound..<cardButtonStyle.lowerBound]
-    guard cardLabel.contains(".padding(GameLibraryShelfLayout.cardHorizontalInset)")
-            && cardLabel.contains(".frame(width: cardWidth ?? coverSize.width")
-            && cardLabel.contains(".background(DarkEcoTheme.surface")
-            && cardLabel.contains(".contentShape(RoundedRectangle")
-            && !cardLabel.contains("artworkMenu")
+    let visionActivation = activationSurface[..<visionBranchEnd.lowerBound]
+    guard tileSurface.contains(".padding(GameLibraryShelfLayout.cardHorizontalInset)")
+            && tileSurface.contains(".frame(width: cardWidth ?? coverSize.width")
+            && tileSurface.contains(".background(DarkEcoTheme.surface")
+            && tileSurface.contains(".contentShape(RoundedRectangle")
+            && !tileSurface.contains("artworkMenu")
+            && !visionActivation.contains("Button(")
+            && visionActivation.contains(".onTapGesture(perform: activate)")
+            && visionActivation.contains(".accessibilityAddTraits(.isButton)")
+            && visionActivation.contains(".accessibilityAction {")
+            && activationSurface[cardButton.lowerBound..<cardButtonStyle.lowerBound].contains("tileSurface")
             && !tile.contains(".disabled(state == .planned)")
             && tile.contains(".opacity(state == .planned ? 0.48 : 1)")
             && tile.contains("private func activate() {\n        open()")
@@ -112,17 +127,18 @@ do {
             && tile.contains(".allowsTightening(true)")
             && !tile.contains(".accessibilityElement(children: .combine)")
             && tile.contains(".frame(minWidth: 44, minHeight: 44)")
-            && tile.contains(".contentShape(Rectangle())")
-            && tile[cardButtonStyle.upperBound...].contains("artworkMenu")
-            && tile.contains(".contentShape([.interaction, .hoverEffect]")
-            && tile.contains(".focusable(true)")
-            && tile.contains(".hoverEffect(.highlight)")
+            && tile.contains(".contentShape([.interaction, .hoverEffect], Rectangle())")
+            && tile.contains("activationSurface\n                .opacity")
+            && tile.contains("\n\n            artworkMenu")
+            && visionActivation.contains(".contentShape([.interaction, .hoverEffect]")
+            && visionActivation.contains(".hoverEffect { effect, isActive, _ in")
+            && visionActivation.contains("effect.scaleEffect(isActive ? 1.025 : 1)")
     else {
         throw NSError(domain: "portrait-library-check", code: 2,
                       userInfo: [NSLocalizedDescriptionKey:
                         "full-card launch target or independent artwork menu regressed"])
     }
-    print("  ok   ready and unavailable cards remain full semantic hover and focus targets beside artwork options")
+    print("  ok   ready and unavailable cards retain rectangular hover targets beside artwork options")
     guard let settingsMenuLabel = libraryScreen.range(
               of: "Label(\"Settings\", systemImage: \"gearshape\")"),
           let aboutMenuLabel = libraryScreen.range(
@@ -181,7 +197,7 @@ do {
             && libraryScreen.contains("if layout.usesHorizontalScroll")
             && libraryScreen.contains("ScrollView(.horizontal)")
             && libraryScreen.contains(".frame(width: layout.shelfWidth")
-            && tile.contains("HStack(alignment: .center, spacing: 8) {\n                            artwork\n                            details")
+            && tile.contains("HStack(alignment: .center, spacing: 8) {\n                    artwork\n                    details")
             && tile.contains(".frame(maxWidth: .infinity, alignment: .leading)")
             && libraryView.contains("Text(title.fallbackMark)")
             && !libraryView.contains("Text(\"DARK ECO\")")

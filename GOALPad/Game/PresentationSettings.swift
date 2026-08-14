@@ -32,15 +32,18 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
     var audioProfile: SettingsProfile = .classic
     var interfaceProfile: SettingsProfile = .classic
 
-    /// `nil` means the selected profile's default. This option belongs to Modern, whose default is
-    /// enabled; Classic always uses the preserved compatibility view.
+    /// `nil` means the selected profile's default: enabled for Modern and disabled for Classic.
+    /// An explicit override remains active while switching profiles.
     var graphicsModernFillWidthOverride: Bool?
-    /// Optional so existing same-schema documents decode unchanged. Modern uses stereoscopic
-    /// window rendering by default on visionOS; Classic and an explicit opt-out use Comfort.
+    /// `nil` means the selected profile's default: enabled for Modern and disabled for Classic.
+    /// An explicit override remains active while switching profiles.
     var graphicsModernStereo3DOverride: Bool?
     /// Optional so existing same-schema documents decode unchanged. ProMotion follows the
     /// selected graphics profile by default and applies live on iOS during gameplay.
     var graphicsHighFrameRateOverride: Bool?
+    /// Optional so existing same-schema documents default to 90 Hz on visionOS. This remains
+    /// separate from iOS ProMotion because the supported rates and device preference differ.
+    var graphicsVisionHighFrameRateOverride: Bool?
     /// Optional so Build 93 settings documents decode without a migration. Developer logs are
     /// hidden by default and belong to this title's synced settings document.
     var developerLogsEnabledOverride: Bool?
@@ -85,17 +88,19 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
     }
 
     var graphicsFillWidth: Bool {
-        guard graphicsProfile == .modern else { return false }
-        return graphicsModernFillWidthOverride ?? true
+        graphicsModernFillWidthOverride ?? (graphicsProfile == .modern)
     }
 
     var graphicsStereo3D: Bool {
-        guard graphicsProfile == .modern else { return false }
-        return graphicsModernStereo3DOverride ?? true
+        graphicsModernStereo3DOverride ?? (graphicsProfile == .modern)
     }
 
     var graphicsHighFrameRate: Bool {
         graphicsHighFrameRateOverride ?? (graphicsProfile == .modern)
+    }
+
+    var graphicsVisionHighFrameRate: Bool {
+        graphicsVisionHighFrameRateOverride ?? true
     }
 
     var developerLogsEnabled: Bool {
@@ -120,6 +125,7 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
             graphicsModernFillWidthOverride = nil
             graphicsModernStereo3DOverride = nil
             graphicsHighFrameRateOverride = nil
+            graphicsVisionHighFrameRateOverride = nil
         case .controls:
             rumbleEnabledOverride = nil
             primaryInputSourceOverride = nil
@@ -137,6 +143,7 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         graphicsModernFillWidthOverride = nil
         graphicsModernStereo3DOverride = nil
         graphicsHighFrameRateOverride = nil
+        graphicsVisionHighFrameRateOverride = nil
         developerLogsEnabledOverride = nil
         rumbleEnabledOverride = nil
         primaryInputSourceOverride = nil
@@ -560,6 +567,8 @@ final class PresentationSettings {
 
     var graphicsHighFrameRate: Bool { document.graphicsHighFrameRate }
 
+    var graphicsVisionHighFrameRate: Bool { document.graphicsVisionHighFrameRate }
+
     var developerLogsEnabled: Bool { document.developerLogsEnabled }
 
     var rumbleEnabled: Bool { document.rumbleEnabled }
@@ -604,11 +613,17 @@ final class PresentationSettings {
     }
 
     func setGraphicsFillWidth(_ enabled: Bool) {
-        change { $0.graphicsModernFillWidthOverride = enabled }
+        change { document in
+            let profileDefault = document.graphicsProfile == .modern
+            document.graphicsModernFillWidthOverride = enabled == profileDefault ? nil : enabled
+        }
     }
 
     func setGraphicsStereo3D(_ enabled: Bool) {
-        change { $0.graphicsModernStereo3DOverride = enabled }
+        change { document in
+            let profileDefault = document.graphicsProfile == .modern
+            document.graphicsModernStereo3DOverride = enabled == profileDefault ? nil : enabled
+        }
     }
 
     func setGraphicsHighFrameRate(_ enabled: Bool) {
@@ -616,6 +631,10 @@ final class PresentationSettings {
             let profileDefault = document.graphicsProfile == .modern
             document.graphicsHighFrameRateOverride = enabled == profileDefault ? nil : enabled
         }
+    }
+
+    func setGraphicsVisionHighFrameRate(_ enabled: Bool) {
+        change { $0.graphicsVisionHighFrameRateOverride = enabled ? nil : false }
     }
 
     func setDeveloperLogsEnabled(_ enabled: Bool) {

@@ -20680,3 +20680,90 @@ Before shipping visionOS, explicitly authorize installation on Vision Pro and
 physically verify sustained cadence, frame pacing/fallback, audio, controller
 history, thermals, power, and normal gameplay. The generic build is compilation
 and signing evidence only, not physical 90 Hz acceptance.
+
+## Build 219 visionOS launcher and Graphics parity checkpoint (2026-08-13)
+
+Build 219 keeps the Build 218 native timing work and adds the requested
+player-facing visionOS controls and launcher polish without changing nested
+OpenGOAL. Both target configurations use bundle version 219.
+
+- The visionOS Graphics form exposes a live `90 Hz` switch. It defaults on,
+  persists independently of iOS ProMotion and the selected profile, and switches
+  a running visionOS session between the existing 90 Hz and 60 Hz timing domains.
+- Modern and Classic expose the same Graphics controls on every platform. Fit to
+  Screen, iOS ProMotion, visionOS 90 Hz, and the source-gated stereo option are
+  not hidden by profile selection. Profiles retain different defaults where
+  intended: Fit and dormant stereo default on in Modern and off in Classic.
+- Fit to Screen can be overridden from either profile. During visionOS gameplay,
+  turning it off asks the public window-scene geometry API for the largest
+  contained 4:3 window and uniform resizing; turning it on restores the prior
+  freeform size. The deterministic geometry state suppresses duplicate requests.
+- Inactive visionOS game choices use a legible white label treatment. Running
+  visionOS Settings has a confirmed red top-trailing power action to return to
+  the Library, while keeping its top-leading Close action.
+- visionOS library cards no longer use a native `Button` as their activation
+  container. A rounded-rectangle interaction/hover shape, tap gesture, custom
+  full-card scale, button accessibility trait, and default accessibility action
+  preserve behavior without the system-generated oval focus treatment. The
+  iOS semantic button path is unchanged.
+- The gray top strip observed while resizing remains deliberately deferred.
+
+Focused validation passed:
+
+```text
+Scripts/run-vision-window-geometry-check.sh
+Scripts/run-presentation-settings-check.sh
+Scripts/run-promotion-frame-rate-check.sh
+Scripts/run-portrait-library-check.sh
+GOALPAD_VISION_SDK=xros Scripts/run-vision-scene-foundation-check.sh
+Scripts/run-vision-stereo-integration-check.sh
+Scripts/run-game-lifecycle-check.sh
+Scripts/run-presentation-geometry-check.sh
+Scripts/run-game-data-import-presentation-check.sh
+xcrun swiftc -frontend -parse GOALPad/Game/PresentationSettings.swift \
+  GOALPad/Saves/SaveSyncController.swift GOALPad/Library/GameLibraryView.swift
+git diff --check
+```
+
+The final Release visionOS Simulator build passed and was installed and launched
+on the approved Apple Vision Pro simulator:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release \
+  -destination 'platform=visionOS Simulator,id=3D2BABE2-59B1-496C-9FFF-6D3EE1856E8D' \
+  -derivedDataPath /private/tmp/GOALPad-build215-rootcontroller-derived \
+  -jobs 2 ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  COMPILER_INDEX_STORE_ENABLE=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT="$PWD/build/jak1-source-object-pack-build218" \
+  build
+```
+
+Final log: `/private/tmp/goalpad-build219-final-vision-simulator.log`. The
+simulator product reports Dark Eco 1.0 (219). Visual inspection confirmed the
+launcher uses the full rectangular cards without the prior oval focus bubble.
+The simulator was shut down after validation.
+
+The matching generic arm64 iOS Release compile passed with code signing disabled
+and no physical-device access:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-build215-rootcontroller-derived \
+  -jobs 2 ENABLE_PREVIEWS=NO ENABLE_DEBUG_DYLIB=NO \
+  COMPILER_INDEX_STORE_ENABLE=NO CODE_SIGNING_ALLOWED=NO \
+  GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT="$PWD/build/jak1-source-object-pack-build218" \
+  build
+```
+
+Final log: `/private/tmp/goalpad-build219-final-ios-generic.log`. Existing AOT,
+asset-catalog, and Swift actor-isolation warnings remain. The first simulator
+attempt exposed and removed an unsupported custom-hover brightness call; the
+final builds have no Build 219 source error.
+
+No physical Vision Pro app was installed or launched. A physical Build 219
+acceptance pass remains pending for delivered 90/60 Hz cadence, live switching,
+4:3 window resizing, power-button navigation, legibility, and card hover shape.

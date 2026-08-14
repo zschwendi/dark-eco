@@ -390,49 +390,66 @@ private struct GameLibraryTile: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            Button(action: activate) {
-                Group {
-                    if usesHorizontalCard {
-                        HStack(alignment: .center, spacing: 8) {
-                            artwork
-                            details
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    } else {
-                        VStack(alignment: .leading, spacing: 8) {
-                            artwork
-                            details
-                        }
-                    }
-                }
-                .padding(GameLibraryShelfLayout.cardHorizontalInset)
-                .frame(width: cardWidth ?? coverSize.width
-                    + GameLibraryShelfLayout.cardHorizontalInset * 2,
-                       alignment: usesHorizontalCard ? .center : .leading)
-                .background(DarkEcoTheme.surface.opacity(0.9),
-                            in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .strokeBorder(DarkEcoTheme.accent.opacity(0.42), lineWidth: 1)
-                }
-                .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            }
-            .buttonStyle(.plain)
-            #if os(visionOS)
-            .contentShape([.interaction, .hoverEffect],
-                          RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .focusable(true)
-            .hoverEffect(.highlight)
-            #endif
-            .opacity(state == .planned ? 0.48 : 1)
-            .accessibilityLabel("\(title.name), \(stateLabel)")
-            .accessibilityHint(accessibilityHint)
+            activationSurface
+                .opacity(state == .planned ? 0.48 : 1)
+                .accessibilityLabel("\(title.name), \(stateLabel)")
+                .accessibilityHint(accessibilityHint)
 
             artworkMenu
         }
         .contextMenu {
             artworkActions
         }
+    }
+
+    @ViewBuilder
+    private var activationSurface: some View {
+        #if os(visionOS)
+        tileSurface
+            .contentShape([.interaction, .hoverEffect],
+                          RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .onTapGesture(perform: activate)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction {
+                activate()
+            }
+            .hoverEffect { effect, isActive, _ in
+                effect.scaleEffect(isActive ? 1.025 : 1)
+            }
+        #else
+        Button(action: activate) {
+            tileSurface
+        }
+        .buttonStyle(.plain)
+        #endif
+    }
+
+    private var tileSurface: some View {
+        Group {
+            if usesHorizontalCard {
+                HStack(alignment: .center, spacing: 8) {
+                    artwork
+                    details
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    artwork
+                    details
+                }
+            }
+        }
+        .padding(GameLibraryShelfLayout.cardHorizontalInset)
+        .frame(width: cardWidth ?? coverSize.width
+            + GameLibraryShelfLayout.cardHorizontalInset * 2,
+               alignment: usesHorizontalCard ? .center : .leading)
+        .background(DarkEcoTheme.surface.opacity(0.9),
+                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(DarkEcoTheme.accent.opacity(0.42), lineWidth: 1)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var details: some View {
@@ -509,7 +526,11 @@ private struct GameLibraryTile: View {
                 .padding(10)
                 .background(.black.opacity(0.55), in: Circle())
                 .frame(minWidth: 44, minHeight: 44)
+                #if os(visionOS)
+                .contentShape([.interaction, .hoverEffect], Rectangle())
+                #else
                 .contentShape(Rectangle())
+                #endif
         }
         .buttonStyle(.plain)
         .padding(10)

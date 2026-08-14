@@ -58,6 +58,9 @@ let touchView = source(root, "GOALPad/Game/TouchControlsView.swift")
 let touchGuide = source(root, "GOALPad/Game/TouchControlsGuideView.swift")
 let settingsUI = source(root, "GOALPad/Saves/SaveSyncController.swift")
 let libraryUI = source(root, "GOALPad/Library/GameLibraryView.swift")
+let visionCardActivation = section(libraryUI,
+                                   from: "#if os(visionOS)\n        tileSurface",
+                                   to: "#else")
 let surface = source(root, "GOALPad/Vision/VisionWindowStereoSurface.swift")
 let submissionWatchdog = source(root, "GOALPad/Vision/VisionStereoSubmissionWatchdog.swift")
 let clipPlan = source(root, "GOALPad/Vision/VisionWindowStereoClipPlan.swift")
@@ -127,7 +130,7 @@ check(app.contains(experimentalStereoGate + "\n    @State private var visionPres
         && content.contains(experimentalStereoGate
             + "\n    @Environment(VisionPresentationCoordinator.self)")
         && settingsUI.contains(experimentalStereoGate
-            + "\n                Toggle(\"Stereoscopic 3D\"")
+            + "\n            Toggle(\"Stereoscopic 3D\"")
         && !project.contains("GOALPAD_EXPERIMENTAL_VISION_STEREO"),
       "stereo is source-gated and no normal Xcode configuration opts into it")
 
@@ -461,12 +464,18 @@ check(content.contains("NavigationStack {\n            SaveSettingsView(")
         && content.contains("#elseif !os(visionOS)\n        .toolbar {\n            ToolbarItem(placement: .confirmationAction)")
         && content.contains("#else\n        .toolbar {\n            ToolbarItem(placement: .topBarLeading)")
         && content.contains("Image(systemName: \"xmark\")")
-        && content.contains(".accessibilityLabel(\"Close Settings\")"),
-      "the direct visionOS Settings sheet owns a top-leading Close action while iOS retains Done")
-check(libraryUI.contains("#if os(visionOS)\n            .contentShape([.interaction, .hoverEffect],")
-        && libraryUI.contains("RoundedRectangle(cornerRadius: 16, style: .continuous)")
-        && libraryUI.contains(".hoverEffect(.highlight)"),
-      "visionOS library cards use their full rounded-card shape for interaction and hover")
+        && content.contains(".accessibilityLabel(\"Close Settings\")")
+        && content.contains("ToolbarItem(placement: .topBarTrailing)")
+        && content.contains("Image(systemName: \"power\")"),
+      "visionOS Settings owns top-leading Close and top-trailing power actions while iOS retains Done")
+check(visionCardActivation.contains(".contentShape([.interaction, .hoverEffect],")
+        && visionCardActivation.contains("RoundedRectangle(cornerRadius: 16, style: .continuous)")
+        && visionCardActivation.contains(".onTapGesture(perform: activate)")
+        && visionCardActivation.contains(".accessibilityAddTraits(.isButton)")
+        && visionCardActivation.contains(".hoverEffect { effect, isActive, _ in")
+        && visionCardActivation.contains("effect.scaleEffect(isActive ? 1.025 : 1)")
+        && !visionCardActivation.contains("Button("),
+      "visionOS library cards animate their full rounded-card shape instead of a system oval")
 
 if failures == 0 {
     print("visionOS stereo integration checks passed")

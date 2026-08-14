@@ -75,17 +75,19 @@ check(surface.contains("window?.screen.maximumFramesPerSecond")
 check(surface.contains("#if os(visionOS)")
         && surface.contains("minimum: 90, maximum: 90, preferred: 90"),
       "the visionOS gameplay display link requests a fixed 90 Hz cadence")
-check(session.contains("#if os(visionOS)\n        let bootTargetFrameRate = 90")
+check(session.contains("#if os(visionOS)\n        let bootTargetFrameRate = presentationSettings.graphicsVisionHighFrameRate ? 90 : 60")
         && session.contains("#elseif os(iOS)\n        let bootTargetFrameRate = presentationSettings.graphicsHighFrameRate ? 120 : 60")
         && session.contains("bootGame(targetFrameRate: bootTargetFrameRate)")
         && session.contains("self.bootFinished(boot, targetFrameRate: bootTargetFrameRate)")
         && session.contains("targetFrameRate = bootFrameRate\n        isRunning = true")
         && session.contains("func setHighFrameRateEnabled(_ enabled: Bool)")
+        && session.contains("func setVisionHighFrameRateEnabled(_ enabled: Bool)")
         && session.contains("guard isRunning else { return }")
         && session.contains("GOALPadRuntimeBridge.setTargetFrameRate(requestedFrameRate)")
         && content.contains(".onChange(of: session.presentationSettings.graphicsHighFrameRate")
-        && content.contains("session.setHighFrameRateEnabled(enabled)"),
-      "visionOS boots at 90 Hz while the persisted iOS 60/120 Hz choice remains live-switchable")
+        && content.contains("session.setHighFrameRateEnabled(enabled)")
+        && content.contains("session.setVisionHighFrameRateEnabled(enabled)"),
+      "visionOS and iOS boot and live-switch their independent high-refresh preferences")
 check(content.components(separatedBy: "targetFrameRate: session.targetFrameRate").count == 3,
       "conventional and stereo-capable surfaces receive the session target")
 check(bridgeHeader.contains("NS_SWIFT_NAME(bootGame(targetFrameRate:))")

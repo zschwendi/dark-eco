@@ -131,6 +131,14 @@ struct ContentView: View {
                 }
             }
         }
+        #if os(visionOS)
+        .background {
+            VisionWindowGeometryView(
+                locksToFourByThree: session.isRunning
+                    && !session.presentationSettings.graphicsFillWidth
+            )
+        }
+        #endif
         .task { await session.prepare() }
         .onChange(of: scenePhase) { _, phase in session.scenePhaseChanged(to: phase) }
         .onChange(of: session.presentationSettings.graphicsFillWidth, initial: true) {
@@ -169,6 +177,11 @@ struct ContentView: View {
         .onChange(of: session.presentationSettings.dynamicLeftStick, initial: true) {
             _, enabled in
             session.touch.setDynamicLeftStick(enabled)
+        }
+        #elseif os(visionOS)
+        .onChange(of: session.presentationSettings.graphicsVisionHighFrameRate, initial: true) {
+            _, enabled in
+            session.setVisionHighFrameRateEnabled(enabled)
         }
         #endif
         .onChange(of: session.isNativeMenuOpen) { _, isOpen in
@@ -325,6 +338,25 @@ private struct SettingsSheetView: View {
                 }
                 .accessibilityLabel("Close Settings")
             }
+            if isGameRunning {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(role: .destructive) {
+                        isConfirmingReturnToLibrary = true
+                    } label: {
+                        Image(systemName: "power")
+                            .foregroundStyle(.red)
+                    }
+                    .accessibilityLabel("Return to Library")
+                }
+            }
+        }
+        .confirmationDialog("Return to Library?",
+                            isPresented: $isConfirmingReturnToLibrary,
+                            titleVisibility: .visible) {
+            Button("Return to Library", role: .destructive) { returnToLibrary() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Dark Eco will close the running game. Progress since your last in-game save will be lost.")
         }
         #endif
     }

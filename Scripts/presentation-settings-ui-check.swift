@@ -57,6 +57,16 @@ check(occursInOrder([
         && view.contains(".confirmationDialog(\"Return to Library?\"")
         && view.contains("Progress since your last in-game save will be lost."),
       "the persistent game picker precedes a confirmed, loss-aware return to the Library")
+check(view.contains("private var titleColor: Color")
+        && view.contains("#if os(visionOS)\n        return .white.opacity(0.8)")
+        && view.contains(".foregroundStyle(titleColor)"),
+      "inactive visionOS game choices remain legible")
+check(content.contains("ToolbarItem(placement: .topBarTrailing)")
+        && content.contains("Image(systemName: \"power\")")
+        && content.contains(".foregroundStyle(.red)")
+        && content.contains(".accessibilityLabel(\"Return to Library\")")
+        && content.contains(".confirmationDialog(\"Return to Library?\""),
+      "visionOS Settings exposes the confirmed red top-trailing power action")
 check(view.contains("Label(\"Touch Controls Guide\", systemImage: \"hand.tap\")")
         && occursInOrder(["Label(\"Touch Controls Guide\"", "Toggle(\"Rumble\"",
                           "LabeledContent(\"Touch Sticks\""], in: view)
@@ -198,22 +208,35 @@ check(view.contains("Toggle(\"ProMotion\"")
         && content.contains("session.setHighFrameRateEnabled(enabled)")
         && session.contains("func setHighFrameRateEnabled(_ enabled: Bool)"),
       "Graphics exposes concise profile-aware ProMotion that applies live")
+check(view.contains("Toggle(\"90 Hz\"")
+        && view.contains("settings.graphicsVisionHighFrameRate")
+        && view.contains("settings.setGraphicsVisionHighFrameRate($0)")
+        && store.contains("var graphicsVisionHighFrameRateOverride: Bool?")
+        && store.contains("graphicsVisionHighFrameRateOverride ?? true")
+        && content.contains("session.setVisionHighFrameRateEnabled(enabled)")
+        && session.contains("func setVisionHighFrameRateEnabled(_ enabled: Bool)"),
+      "visionOS exposes its independent live 90 Hz preference")
 check(store.contains("var graphicsModernFillWidthOverride: Bool?")
         && store.contains("var graphicsProfile: SettingsProfile = .modern")
-        && store.contains("return graphicsModernFillWidthOverride ?? true")
+        && store.contains("graphicsModernFillWidthOverride ?? (graphicsProfile == .modern)")
         && view.contains("Toggle(\"Fit to Screen\"")
         && view.contains("settings.setGraphicsFillWidth($0)")
-        && view.contains("Keeps the vertical view and widens the game horizontally"),
-      "Modern exposes Fit to Screen on by default while Classic preserves 4:3")
+        && view.contains("Off preserves the original 4:3 view.")
+        && !view.contains("if settings.profile(for: .graphics) == .modern {\n                Toggle(\"Fit to Screen\"")
+        && content.contains("VisionWindowGeometryView(")
+        && content.contains("session.isRunning")
+        && content.contains("!session.presentationSettings.graphicsFillWidth"),
+      "both profiles expose Fit to Screen while Classic defaults to a 4:3 vision window")
 check(view.contains(experimentalStereoGate)
         && view.contains("Toggle(\"Stereoscopic 3D\"")
         && view.contains("settings.setGraphicsStereo3D")
+        && !view.contains("if settings.profile(for: .graphics) == .modern")
         && store.contains("var graphicsModernStereo3DOverride: Bool?")
-        && store.contains("graphicsModernStereo3DOverride ?? true")
+        && store.contains("graphicsModernStereo3DOverride ?? (graphicsProfile == .modern)")
         && content.contains("session.presentationSettings.graphicsStereo3D")
         && content.contains("synchronizeVisionPresentation()")
         && content.contains(experimentalStereoGate),
-      "shipping UI hides stereo while its compatible setting and opt-in wiring remain dormant")
+      "both profiles expose the same controls while shipping stereo remains source-gated")
 check(occursInOrder(["case modern", "case classic"], in: store)
         && store.contains("enum SettingsProfile: String, CaseIterable, Codable"),
       "CaseIterable ordering changes without changing string-backed document compatibility")
