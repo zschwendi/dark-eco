@@ -825,6 +825,30 @@ Operating rules:
   required by the pinned OpenGOAL contribution rules.
 - Do not advance the roadmap status based only on source inspection.
 
+## Deferred product UX ideas
+
+Build 222's current Library and Settings presentation is frozen as the
+screenshot-safe release state. The following are ideas to reconsider after the
+current release-media need; they are not active Build 222 requirements and must
+not be implemented incidentally with runtime or importer fixes:
+
+1. Make the centered **Dark Eco** Library pill open Settings directly instead
+   of presenting a one-item menu containing a second **Settings** action.
+2. Move **About**, **Contact**, and **Support Dark Eco** into one bottom
+   **Info** section, in that order, rather than nesting Contact and Support
+   inside About.
+3. Change the Settings navigation title from **Settings** to **Dark Eco**.
+4. Place iCloud status/options and **Manage Save Files** together in one
+   clearly named **Sync** section while preserving independent settings-sync
+   and save-sync behavior.
+5. Replace the Settings game picker labels **Jak 1 / Future Title / Future
+   Title** with the same neutral Roman-numeral identity used by the Library:
+   **I / II / III**.
+
+Before implementing this batch, confirm the exact Sync disclosure labels and
+capture new release screenshots. Keep it one coherent, separately validated UI
+checkpoint.
+
 ## Current checkpoint
 
 Build 130 is the current unified integration checkpoint. Its exact parent,

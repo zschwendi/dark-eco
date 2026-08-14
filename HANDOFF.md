@@ -20888,3 +20888,65 @@ Build 221 visual refinement:
 
 No Build 221 source edit, simulator inspection, build-number bump, test, build,
 or screenshot has been performed yet.
+
+# 2026-08-14 Build 222 screenshot-safe UI freeze and subtitle follow-up
+
+The canonical checkout began this checkpoint clean on `main` at `2b4f04c1`,
+matching `origin/main`. Both Debug and Release configurations remain Dark Eco
+1.0 (222); do not bump the build number for the current request. Nested
+OpenGOAL began clean at `afe7ec820` and the focused subtitle-import work is on
+`agent/build222-subtitle-hint`.
+
+The maintainer explicitly withdrew the proposed Settings-page redesign because
+the current Build 222 screens are safe for release screenshots. No Settings
+layout or launcher change was made. The remaining idea batch is recorded under
+**Deferred product UX ideas** in `ROADMAP.md`: direct Dark Eco pill navigation,
+a bottom Info section, a Dark Eco Settings title, one Sync section for iCloud
+and save management, and I/II/III picker labels. The maintainer separately
+reopened the narrow About content: its option and destination now say **Support
+Dark Eco**, and About links to Zephyr Studios' verified Terms of Use and Privacy
+Policy pages.
+
+The only active code issue from this request is the intro subtitle notice. The
+runtime requests `subtitle-hint` (`#x103f`, decimal 4159), then
+`subtitle-enabled` (`#x1040`) or `subtitle-disabled` (`#x1041`) after the Square
+button is pressed. These are a coherent public OpenGOAL custom-text family, but
+the current on-device import composer calls the generated-input adapter with no
+public game-text additions. It therefore rebuilds each `*COMMON.TXT` bank from
+retail text alone, so all three lookups can fall back to an unknown-ID string.
+
+The nested patch supplies those three strings in all seven supported language
+banks and has a deterministic encoding regression. Because Game Setup tells
+users they may delete their original import source, it also adds a lookup-first,
+subtitle-local AOT fallback for existing prepared installs; active user data is
+not rewritten. The corresponding 518-object Build 222 source pack is preserved
+at `build/jak1-source-object-pack-build222`, with aggregate
+`c75b9e971a2c3bad`, and `Generated/jak1-aot` was regenerated from the same
+source. Existing source packs were not replaced.
+
+Focused host tests, the 518-source GOAL sweep, AOT preflight, the Apple importer
+archive, About/support checks, and the signed generic iOS Release build passed.
+The build log is `/private/tmp/goalpad-build222-subtitle-xcodebuild.log` and the
+product is `/private/tmp/GOALPad-build222-subtitle/Build/Products/Release-iphoneos/Dark Eco.app`.
+After explicit authorization, that exact product was installed in place on
+physical `Z iPad Pro` and launched. Device inventory confirms Dark Eco 1.0
+(222), bundle `com.zephyrstudiosllc.eco`. Evidence:
+
+```text
+/private/tmp/goalpad-build222-z-ipad-install.json
+/private/tmp/goalpad-build222-z-ipad-launch.json
+/private/tmp/goalpad-build222-z-ipad-inventory.json
+```
+
+Physical visual acceptance of the corrected intro notice and About links is
+still the maintainer's gate. No app container, imported data, or saves were
+inspected.
+
+The same Build 222 checkpoint now also links the displayed maintainer name,
+**Zach Schwendiman**, directly to `https://x.com/zschwendi` in About. The
+focused Support and portrait/Library checks, Swift parse, GOAL subtitle contract
+test, and `git diff --check` passed. Nested OpenGOAL is committed and pushed as
+`828fba14c` on `agent/build222-subtitle-hint`. A fresh signed generic-iOS
+Release build passed against `build/jak1-source-object-pack-build222`; its log is
+`/private/tmp/goalpad-build222-about-xcodebuild.log` and its product remains
+`/private/tmp/GOALPad-build222-subtitle/Build/Products/Release-iphoneos/Dark Eco.app`.

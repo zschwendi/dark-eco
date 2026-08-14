@@ -50,7 +50,7 @@ resolution. Do not resize a simulator capture to invent a required device size.
 | 2 | Game Setup | Streamlined local import/setup guidance that the app includes no game data | None |
 | 3 | Settings | Controls, Graphics, iCloud, Saves, and Support without the unavailable Game picker | None |
 
-Capture the Support Development page separately as the three consumables' App
+Capture the Support Dark Eco page separately as the three consumables' App
 Review screenshot; it is not one of the three customer-facing storefront
 concepts.
 

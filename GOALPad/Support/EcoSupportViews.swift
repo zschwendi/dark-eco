@@ -12,12 +12,20 @@ struct EcoAboutView: View {
                     Text("Dark Eco")
                         .font(.largeTitle.bold())
 
-                    Text("Dark Eco is an unofficial native runtime for OpenGOAL developed by Zach Schwendiman.")
+                    Text("This app is an unofficial iOS port for OpenGOAL developed by [Zach Schwendiman](https://x.com/zschwendi).")
 
-                    Text("This app was built on the shoulders of the open-source OpenGOAL project and the work of its contributors.")
+                    Text("Dark Eco was built on the shoulders of the open-source OpenGOAL project and the work of its contributors.")
 
                     Link(destination: openGOALProjectURL) {
                         Label("Visit OpenGOAL project", systemImage: "arrow.up.right.square")
+                    }
+
+                    Link(destination: zephyrTermsURL) {
+                        Label("Terms of Use", systemImage: "doc.text")
+                    }
+
+                    Link(destination: zephyrPrivacyURL) {
+                        Label("Privacy Policy", systemImage: "hand.raised")
                     }
 
                     Text("Dark Eco is not affiliated with Sony Interactive Entertainment, Naughty Dog, or the OpenGOAL team.")
@@ -35,7 +43,7 @@ struct EcoAboutView: View {
                 NavigationLink {
                     EcoSupportDevelopmentView(tipStore: tipStore)
                 } label: {
-                    SupportRow(title: "Support Development", systemImage: "heart")
+                    SupportRow(title: "Support Dark Eco", systemImage: "heart")
                 }
             }
             .buttonStyle(.plain)
@@ -49,6 +57,8 @@ struct EcoAboutView: View {
 }
 
 private let openGOALProjectURL = URL(string: "https://github.com/open-goal/jak-project")!
+private let zephyrTermsURL = URL(string: "https://zephyrstudios.dev/terms-of-use.html")!
+private let zephyrPrivacyURL = URL(string: "https://zephyrstudios.dev/privacy-policy.html")!
 
 private struct EcoContactView: View {
     private let emailURL = URL(string: "mailto:contact@zephyrstudios.dev?subject=Dark%20Eco%20Support")!
@@ -75,12 +85,12 @@ private struct EcoSupportDevelopmentView: View {
     let tipStore: EcoTipStore
 
     var body: some View {
-        SupportPage(title: "Support Development") {
+        SupportPage(title: "Support Dark Eco") {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Optional Support")
                     .font(.title2.bold())
 
-                Text("If you’d like, you can make an optional one-time purchase to support continued development.")
+                Text("You can make an optional one-time purchase to support continued development.")
                     .foregroundStyle(.secondary)
 
                 ForEach(EcoTip.allCases) { tip in

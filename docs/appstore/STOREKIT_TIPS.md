@@ -29,7 +29,7 @@ For each row, an authorized App Store Connect user must:
 2. Add the customer display name and description above for at least one
    localization, set the intended US base price, select the applicable tax
    category, and choose availability deliberately.
-3. Upload an App Review screenshot of the app's **Support Development** page
+3. Upload an App Review screenshot of the app's **Support Dark Eco** page
    showing all three choices. This review-only image is not customer-facing,
    must use a screenshot specification supported by the app, and must not
    contain retail game data. Do not configure promoted-IAP images for this
