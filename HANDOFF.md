@@ -18123,6 +18123,12 @@ bounded parser for the exact Shadow 195 source grammar while leaving buckets
 passes. The Shadow parser has not been validated against a retained live packet
 payload, so it does not authorize rendering yet.
 
+Nested follow-up `dd18c7e02` corrects the passive bucket-315 classifier to
+include the source zero-byte bucket-link NOP before the FLUSHA/DIRECT trailer.
+This explains why retained exact 8-transfer/352-byte setup-only packets were
+previously reported as `Other`. Both the standalone plan and full passive
+capture tests are now registered and pass; bucket 315 remains DeferredSkip.
+
 No physical device was installed, launched, logged, or otherwise accessed.
 Build 5 remains the current playable artifact; the proof-only commits were
 integrated after it and require no physical acceptance until their buckets are
