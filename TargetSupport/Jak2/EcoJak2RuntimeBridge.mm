@@ -770,11 +770,12 @@ void log_jak2_diagnostics_locked() {
         runtime.sound_updates, runtime.sound_str_requests, runtime.sound_str_reads,
         runtime.sound_str_bytes);
 
-  NSLog(@"GOALPAD_JAK2_STACK_STATE tick=%llu suspends=%d deepest=%d/%d/%s "
-         "fullest=%d/%d/%s",
-        static_cast<unsigned long long>(runtime.ticks), stack.suspends, stack.deepest_used,
-        stack.deepest_size, stack.deepest_name ? stack.deepest_name : "", stack.fullest_used,
-        stack.fullest_size, stack.fullest_name ? stack.fullest_name : "");
+  NSLog(@"GOALPAD_JAK2_STACK_STATE tick=%llu suspends=%d current=%d/%d "
+        @"deepest=%d/%d fullest=%d/%d overflows=%d failures=%d",
+        static_cast<unsigned long long>(runtime.ticks), stack.suspends,
+        stack.current_used, stack.current_size, stack.deepest_used,
+        stack.deepest_size, stack.fullest_used, stack.fullest_size,
+        stack.overflow_failures, stack.validation_failures);
 
   NSLog(@"GOALPAD_JAK2_STREAM_CLOCK_STATE tick=%llu pulls=%llu/%llu",
         static_cast<unsigned long long>(runtime.ticks),
