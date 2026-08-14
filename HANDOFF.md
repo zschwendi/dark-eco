@@ -20583,3 +20583,100 @@ container, prepared game data, save, trace, log attachment, or screen capture
 was accessed. Unlock and manually launch, or explicitly retry remote launch
 after the device is unlocked, then physically verify the profile defaults and
 live toggles.
+
+## Build 218 visionOS 90 Hz gameplay checkpoint (2026-08-13)
+
+Outer commit `268bd5e86b59c36d893dc90e09461824044a22b7` (`Ship
+visionOS 90 Hz gameplay in Build 218 (AI-assisted)`) advances both target
+configurations to Build 218. Nested OpenGOAL commit
+`afe7ec82091e30dc77a8443f4ba18102d47972ed` (`Support 90 Hz host timing
+(AI-assisted)`) is published on `origin/agent/build218-vision-90hz`.
+
+Only visionOS selects the new rate: each successful visionOS game boot enters
+a distinct 90 Hz native/GOAL timing domain and the conventional gameplay
+`CADisplayLink` requests a fixed 90 Hz range. There is no player-facing
+visionOS frame-rate setting. The Library and asynchronous boot UI retain their
+60 Hz cadence. iOS retains its existing 60/120 Hz setting, boot selection, and
+live switching. The shared native clock now recognizes 90 as an additional
+domain, keeps exact half-frame fallback ratios, preserves 300 scaled ticks, 90
+target-frame units, and 60 sound vblanks per wall-clock second, and ages recent
+controller input by integral target-frame deltas. The dormant opt-in stereo
+surface uses the same 90 Hz cadence.
+
+The changed GOAL graph required a new public source-pack identity and matching
+signed AOT regeneration. The canonical Build 218 pack is:
+
+```text
+count=518
+aggregate_xxh64=1ede49b3f668cc45
+total_bytes=10756615
+emitted_functions=10631
+native_functions=7
+source_failures=0
+path=build/jak1-source-object-pack-build218
+```
+
+The candidate pack was first verified against the explicit new aggregate,
+then the recorded constant was updated and the default verifier plus CTest
+passed. `Scripts/generate-jak1-aot.sh OpenGOAL/build/Release/bin` regenerated
+all 518 objects; `Scripts/verify-generated-aot.sh Generated/jak1-aot 518`
+passed.
+
+Focused validation passed:
+
+```text
+Scripts/run-camera-timing-check.sh
+Scripts/run-promotion-frame-rate-check.sh
+Scripts/run-presentation-settings-check.sh
+Scripts/run-game-lifecycle-check.sh
+Scripts/run-controller-rumble-check.sh
+GOALPAD_OPENGOAL_SOURCE="$PWD/OpenGOAL" Scripts/run-game-frame-state-snapshot-check.sh
+Scripts/run-vision-stereo-integration-check.sh
+GOALPAD_VISION_SDK=xros Scripts/run-vision-scene-foundation-check.sh
+python3 OpenGOAL/test/goalc/test_jak1_managed_display_settings.py
+Scripts/verify-generated-aot.sh Generated/jak1-aot 518
+OpenGOAL/build/Release/bin/goalc/jak1-source-object-pack-verify build/jak1-source-object-pack-build218
+ctest --test-dir OpenGOAL/build/Release/bin -R jak1-source-object-pack-test --output-on-failure -j1
+git diff --check
+git -C OpenGOAL diff --check
+```
+
+Main focused log: `/private/tmp/goalpad-build218-focused-checks.log`. The final
+camera and promotion reruns are
+`/private/tmp/goalpad-build218-final-camera-timing.log` and
+`/private/tmp/goalpad-build218-final-promotion-check.log`.
+
+The generic signed arm64 visionOS Release build passed:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -destination 'generic/platform=visionOS' \
+  -derivedDataPath /private/tmp/GOALPad-build215-rootcontroller-derived \
+  -jobs 2 -allowProvisioningUpdates ENABLE_PREVIEWS=NO \
+  ENABLE_DEBUG_DYLIB=NO GOALPAD_OPENGOAL_ROOT="$PWD/OpenGOAL" \
+  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT="$PWD/build/jak1-source-object-pack-build218" \
+  build
+```
+
+Log: `/private/tmp/goalpad-build218-visionos.log`. Product:
+`/private/tmp/GOALPad-build215-rootcontroller-derived/Build/Products/Release-xros/Dark Eco.app`.
+It is Dark Eco 1.0 (218), 51 MiB, arm64, passes strict deep code-sign
+verification, and its executable SHA-256 is
+`aa5775cc79fbeeccefeffc40fcfffd9baea6da31084683158842c893c4e8432d`.
+
+The matching generic signed arm64 iOS Release build passed with the same
+command except `-destination 'generic/platform=iOS'`. Log:
+`/private/tmp/goalpad-build218-ios.log`. Product:
+`/private/tmp/GOALPad-build215-rootcontroller-derived/Build/Products/Release-iphoneos/Dark Eco.app`.
+It is Dark Eco 1.0 (218), 53 MiB, arm64, passes strict deep code-sign
+verification, and its executable SHA-256 is
+`b3bf9291e197eb9148f9d5c42d032ee9c6b521d0836a94a62c7445bfea769192`.
+The known stale secondary Xcode-account credential warning did not fail either
+build or signing; existing generated-AOT and Swift isolation warnings remain.
+
+No physical device, app container, prepared game data, save, or user file was
+accessed. The system owns actual delivered cadence even with a fixed request.
+Before shipping visionOS, explicitly authorize installation on Vision Pro and
+physically verify sustained cadence, frame pacing/fallback, audio, controller
+history, thermals, power, and normal gameplay. The generic build is compilation
+and signing evidence only, not physical 90 Hz acceptance.
