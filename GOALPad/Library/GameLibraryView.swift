@@ -160,19 +160,25 @@ struct GameLibraryView: View {
         let coverSize = CGSize(width: coverWidth,
                                height: coverWidth / GameLibraryShelfLayout.coverAspectRatio)
         let titles = GameLibraryTitle.allCases
-        return Grid(horizontalSpacing: spacing, verticalSpacing: spacing) {
-            GridRow {
+        return VStack(spacing: spacing) {
+            HStack(spacing: 0) {
+                Spacer(minLength: outerPadding)
                 tile(titles[0], coverSize: coverSize)
+                Spacer(minLength: spacing)
                 tile(titles[1], coverSize: coverSize)
+                Spacer(minLength: outerPadding)
             }
-            GridRow {
+            HStack(spacing: 0) {
+                Spacer(minLength: outerPadding)
                 tile(titles[2], coverSize: coverSize)
+                Spacer(minLength: spacing)
                 Color.clear
                     .frame(width: coverWidth
                         + GameLibraryShelfLayout.cardHorizontalInset * 2)
+                Spacer(minLength: outerPadding)
             }
         }
-        .padding(outerPadding)
+        .padding(.vertical, outerPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 

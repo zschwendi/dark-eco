@@ -240,6 +240,11 @@ do {
             && tile.contains(".frame(maxWidth: .infinity, alignment: .leading)")
             && libraryView.contains("Text(title.fallbackMark)")
             && libraryScreen.contains("GameLibraryShelfLayout.regularPortraitMaximumCoverWidth")
+            && libraryScreen.components(separatedBy: "Spacer(minLength: outerPadding)").count == 5
+            && libraryScreen.components(separatedBy: "Spacer(minLength: spacing)").count == 3
+            && libraryScreen.contains("return VStack(spacing: spacing)")
+            && libraryScreen.contains("HStack(spacing: 0)")
+            && !libraryScreen.contains("Grid(horizontalSpacing: spacing")
             && !libraryView.contains(".stroke(DarkEcoTheme.accent.opacity(0.18), lineWidth: 2)")
             && !libraryView.contains(".fill(.black.opacity(0.38))")
             && !libraryView.contains("RoundedRectangle(cornerRadius: 30, style: .continuous)")
@@ -250,7 +255,7 @@ do {
                         "compact phone card geometry, artwork order, or placeholder copy regressed"])
     }
     print("  ok   compact portrait centers cards, landscape uses readable artwork-left cards, and placeholders keep only numerals")
-    print("  ok   empty artwork drops its decorative spheres and inner outline while vertical cards use extra footer room and wider iPad portrait art")
+    print("  ok   portrait iPad uses flexible side and inter-card spacers while empty artwork stays free of decorative spheres and inner outlines")
     guard libraryScreen.contains("case .waitingForForegroundPreparation:")
             && libraryScreen.contains("return .preparing(.finishingSaveCheck)")
             && libraryScreen.contains("case .checkingSaves:")
