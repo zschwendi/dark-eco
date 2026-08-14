@@ -18288,3 +18288,61 @@ handling, stable handle reuse, resize, and cleanup. The C ABI tail and outer
 Objective-C++ bridge format check also pass. No simulator, physical device, or
 new signed iPadOS build was used. Build 6 remains the latest built artifact;
 Build 7 should include buckets 315 and 317 plus the stack diagnostic.
+
+## Jak II Build 7 simulator and signed-iPadOS checkpoint
+
+Date: 2026-08-13.
+
+Outer commit `5e9a5f56` and nested commit `333b66a37` are pushed on
+`jak2-best`. Eco Jak II Dev Debug/Release use bundle build 7. This checkpoint
+contains the previously integrated streamed-cutscene no-audio clock, minimap
+target/orientation fixes, exact bucket-315 Lightning execution, typed bucket-316
+ordinary warp-texture uploads, source-ordered bucket-317 framebuffer warp, and
+the global GOAL stack-failure diagnostic.
+
+The cached Release simulator build passed and validated all 840 Jak II AOT
+units:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme 'Eco Jak II Dev' \
+  -configuration Release \
+  -destination 'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-jak2-c2f2c4b1d-simulator \
+  -jobs 2 ENABLE_PREVIEWS=NO COMPILER_INDEX_STORE_ENABLE=NO \
+  GOALPAD_BUILD_JOBS=2 build
+```
+
+Build 7 was update-installed without deleting app data on the approved iPad
+Pro 11-inch (M5) simulator and launched to the library shell. The installed
+arm64 executable exactly matches the built artifact, SHA-256
+`8b295bbb10cdafcf32cee5de63d972cc9a57b52b5d7124b2d2dc16c6c1d69a29`.
+The simulator was then terminated and shut down. Evidence:
+
+```text
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build7-simulator-build.log
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build7-app-launch.png
+```
+
+The generic signed iPadOS Release build also passed without accessing a
+physical device:
+
+```text
+xcodebuild -quiet -project GOALPad.xcodeproj -scheme 'Eco Jak II Dev' \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath /private/tmp/GOALPad-jak2-c2f2c4b1d-simulator \
+  -jobs 2 -allowProvisioningUpdates ENABLE_PREVIEWS=NO \
+  COMPILER_INDEX_STORE_ENABLE=NO GOALPAD_BUILD_JOBS=2 build
+```
+
+The signed build-7 arm64 executable is 62,428,576 bytes, has SHA-256
+`a140ce6a40ec1f92d0746f0918137f3e87571a7eec73e67fe2318f4ccd915ff9`,
+CDHash `6ef427921d33bcbd78fc66ece779680504606f04`, and TeamIdentifier
+`V729QMY3V6`. `codesign --verify --deep --strict` passed. Log and artifact:
+
+```text
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build7-iphoneos-build.log
+/private/tmp/GOALPad-jak2-c2f2c4b1d-simulator/Build/Products/Release-iphoneos/EcoJak2Dev.app
+```
+
+No physical device was installed, launched, inspected, or otherwise accessed.
+Physical Jak II acceptance remains pending a fresh maintainer authorization.
