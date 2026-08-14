@@ -17919,3 +17919,92 @@ down after the read-only capture. Retained evidence:
 
 No physical device was accessed. Physical acceptance of the minimap,
 vehicle-burner alpha, and pause panel remains the next maintainer gate.
+
+## Jak II Build 3 crash and cutscene diagnostic checkpoint
+
+Date: 2026-08-13.
+
+The physical reports in `IMG_0915.PNG` and the Kor/young-Mar screenshot came
+from the still-installed Build 2. That binary predates the integrated PROGRESS
+minimap target/orientation fixes and the Sprite3 TCC regression coverage, so its
+upper-left white leak and broken lower-right map are not evidence against the
+current `jak2-best` source. The bottom-left Dark Jak face/meter is authored HUD
+and is not itself corruption. Physical validation of those current fixes is
+still pending a separately authorized Build 3 install.
+
+The repeatable cutscene hold is currently diagnosed as a global spooled-stream
+clock failure rather than a Kor-scene script or renderer failure. Retained
+runtime evidence showed scene time and render/submit counters advancing with no
+BlitDisplays copyback while the spooled animation frame remained bit-for-bit
+fixed. All spooled cinematics derive their pose clock from the streamed VAG
+position and intentionally retain the current pose when that stream stops
+reporting a playing/advancing state. This explains both the identical first
+frame and the fact that pause/skip remains responsive without requiring a
+scene-by-scene workaround.
+
+Nested commit `ec5890a10` adds a read-only stream-clock snapshot and a long
+synthetic VAG regression. The test performs nine 8192-frame pulls across more
+than two complete 0x4000 NAX wraps and at least five half-buffer transitions;
+the published position advanced on every pull and the playing/buffered status
+remained valid. Since the valid synthetic stream did not reproduce the freeze,
+no speculative audio-clock behavior change was made. The new snapshot exposes
+cumulative host pull calls/frames and four bounded numeric slot records with
+published ID/status/position, NAX/base, byte counts, sample rate, wraps, half
+transitions, advances/stalls, invalid samples, and playback flags. Outer commit
+`273348a6` logs these as `GOALPAD_JAK2_STREAM_CLOCK_STATE` and
+`GOALPAD_JAK2_STREAM_SLOT_STATE`. A single physical reproduction can now
+distinguish a stopped host callback, a zero-frame mixer, invalid NAX, a valid
+but stalled position, or a healthy stream clock for every spooled cutscene.
+
+The historic upstream Dark Bomb stack-size fix is already present in current
+source and AOT logic: the 2048 target request and 512 spawned attack request
+become 6656-byte and 2048-byte native backup buffers, and native suspension
+checks overflow before copying. The reported guard/Hellcat crash is therefore
+not established as the old stack bug. Outer commit `00de2cb2` exposes the
+existing stack watermark in `GOALPAD_JAK2_STACK_STATE` so a reproduction can
+prove or reject stack exhaustion directly.
+
+Nested commit `39e039e47` also hardens a separate real Dark Bomb source hazard.
+The fixed 128-handle target array now checks capacity before indexing, preserving
+the first 128 eligible targets and skipping candidate 129 onward. Its contract
+test passes 2/2, and a focused GOAL/AOT front-end sweep emitted target-darkjak
+30/30 with zero file failures. This is general bounds hardening, not a claim
+that the observed smaller encounter hit the 129-target predicate.
+
+The current combined host matrix passed 5/5:
+
+```text
+jak2-sound-rpc-test
+jak2-metal-sprite-renderer-test
+jak2-metal-submit-readback-proof
+jak2-metal-blit-display-spatial-test
+jak2-metal-host-bridge-test
+```
+
+This covers the long stream-clock regression, vehicle-burner alpha path,
+low-alpha Direct blending, pause/minimap spatial rendering, and host bridge
+contracts. A Release Build 3 simulator build passed all 840 Jak II AOT unit
+validations, was update-installed on the approved iPad Pro 11-inch (M5)
+simulator, and launched to the Eco library shell. The simulator was then shut
+down. Retained shell screenshot:
+
+```text
+.agent-builds/jak2-resume-logs/jak2-best-build3-app-launch.png
+```
+
+The generic signed iPadOS Release build also passed without accessing a
+physical device. Artifact:
+
+```text
+/private/tmp/GOALPad-jak2-c2f2c4b1d-simulator/Build/Products/Release-iphoneos/EcoJak2Dev.app
+```
+
+It is bundle `com.zephyrstudiosllc.eco.jak2dev`, version 1.0 build 3, signed by
+the configured Apple Development identity, with a 62,386,976-byte arm64
+executable and SHA-256
+`6488ea301aa2306fb620ba1a62104192af208d847f5956a904f25315b2e6c662`.
+The build emitted existing Swift actor-isolation and asset-catalog warnings but
+completed successfully. No physical device was installed, launched, logged, or
+otherwise accessed. Physical Build 3 acceptance remains the next gate; the
+cutscene and crash changes are diagnostic/hardening checkpoints, not yet
+physical fixes.
