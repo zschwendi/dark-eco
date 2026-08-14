@@ -32,8 +32,8 @@ and storing app-only preferences. These declarations do not replace the
 separate App Store Connect privacy questionnaire.
 
 Dark Eco offers three optional consumable StoreKit purchases supporting
-continued development. They do not unlock features or content at this time and
-grant no status, recognition, access, or other benefit. Product identifiers,
+continued development. They do not unlock features at this time and grant no
+status, recognition, access, or other benefit. Product identifiers,
 customer copy, intended US prices, test cases, and required App Store Connect
 setup are recorded in [Dark Eco optional support](STOREKIT_TIPS.md). No App
 Store Connect product record has been created or verified by this repository.

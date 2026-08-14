@@ -117,6 +117,10 @@ private struct EcoSupportDevelopmentView: View {
                               || tipStore.purchasingProductID != nil)
                 }
 
+                Text("These optional purchases do not unlock features at this time.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
                 Link(destination: openGOALProjectURL) {
                     Label("Support OpenGOAL directly on its official project page",
                           systemImage: "arrow.up.right.square")
@@ -131,10 +135,6 @@ private struct EcoSupportDevelopmentView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.primary)
-
-                Text("Dark Eco is unofficial. These optional purchases do not unlock features or content at this time.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
 
                 if let notice = tipStore.notice {
                     Text(notice)
@@ -192,11 +192,10 @@ private struct EcoSupportThankYouView: View {
                         .font(.system(size: 54))
                         .foregroundStyle(DarkEcoTheme.accent)
                         .accessibilityHidden(true)
-                    Text("Thank You")
+                    Text("Thank You!")
                         .font(.largeTitle.bold())
-                    Text("Your support helps Zach continue developing and maintaining Dark Eco.")
+                    Text("Your support helps Zach continue developing and maintaining Dark Eco, and is sincerely appreciated.")
                         .font(.title3)
-                    Text("This purchase does not unlock features or content at this time, but it is sincerely appreciated.")
                         .foregroundStyle(.secondary)
                 }
             }

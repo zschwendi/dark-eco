@@ -2,7 +2,7 @@
 
 **Release decision:** Dark Eco offers three repeatable **Consumable** StoreKit
 purchases. They are optional payments that support continued development and
-do not unlock features or content at this time. They do not grant status,
+do not unlock features at this time. They do not grant status,
 recognition, access, or any other benefit.
 
 This document is a release-input checklist; it does not claim that App Store
@@ -35,9 +35,9 @@ For each row, an authorized App Store Connect user must:
    contain retail game data. Do not configure promoted-IAP images for this
    release.
 4. Add review notes: “These are optional consumable purchases that support Dark
-   Eco development. They do not unlock features, content, status, recognition,
+   Eco development. They do not unlock features or grant status, recognition,
    or access at this time. The page is reachable from Settings > About > Support
-   Development.”
+   Dark Eco.”
 5. Test all three identifiers in StoreKit testing and the App Store sandbox:
    available product, verified success and Thank You sheet, verification
    failure, Ask to Buy/pending, cancellation, unavailable product, interrupted

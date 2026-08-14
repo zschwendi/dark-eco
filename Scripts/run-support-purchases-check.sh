@@ -40,8 +40,9 @@ rg -Fq 'Label("Terms of Use", systemImage: "doc.text")' "$views"
 rg -Fq 'Label("Privacy Policy", systemImage: "hand.raised")' "$views"
 rg -Fq 'https://zephyrstudios.dev/terms-of-use.html' "$views"
 rg -Fq 'https://zephyrstudios.dev/privacy-policy.html' "$views"
-rg -Fq 'Dark Eco is unofficial. These optional purchases do not unlock features or content at this time.' "$views"
-rg -Fq 'This purchase does not unlock features or content at this time, but it is sincerely appreciated.' "$views"
+rg -Fq 'Text("These optional purchases do not unlock features at this time.")' "$views"
+rg -Fq 'Text("Thank You!")' "$views"
+rg -Fq 'Your support helps Zach continue developing and maintaining Dark Eco, and is sincerely appreciated.' "$views"
 rg -Fq 'mailto:contact@zephyrstudios.dev?subject=Dark%20Eco%20Support' "$views"
 
 contact_line=$(rg -n -F 'SupportRow(title: "Contact"' "$views" | cut -d: -f1)
