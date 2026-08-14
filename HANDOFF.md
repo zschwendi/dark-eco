@@ -18164,3 +18164,33 @@ trailer. The fixture and expected transfer count were corrected; no production
 Lightning route was changed. Eco Jak II Dev Debug/Release are bumped to build
 6 for the next simulator and generic signed iPadOS checkpoint. No physical
 device has been accessed at this checkpoint.
+
+The Release simulator build passed all 840 Jak II AOT validations. Build 6 was
+update-installed without deleting data on the approved iPad Pro 11-inch (M5)
+simulator and launched to the library shell. The installed executable exactly
+matched the built artifact, SHA-256
+`9da8fe1afc49ae858cc76bb08ac739292fdfae43a970a540fce18702a5e462e3`.
+The simulator was then terminated and shut down. Evidence:
+
+```text
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build6-simulator-build.log
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build6-app-launch.png
+```
+
+The generic signed iPadOS Release build also passed without accessing a
+physical device. Its build-6 arm64 executable is 62,406,672 bytes, has SHA-256
+`43e12b66c548389d9f37da5ba485fb6d6cfd90d26a902c8ef2b038cb8227e6d3`,
+CDHash `1e24f98ce8c7f9b91cfc2b1de0bc70a9237045aa`, and TeamIdentifier
+`V729QMY3V6`. Log and artifact:
+
+```text
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build6-iphoneos-build.log
+/private/tmp/GOALPad-jak2-c2f2c4b1d-simulator/Build/Products/Release-iphoneos/EcoJak2Dev.app
+```
+
+The already-integrated source-equivalent no-audio cutscene clock was rechecked
+at nested HEAD: `c74d54d9a` remains an ancestor, its sound implementation and
+regression are byte-unchanged, and `jak2-sound-rpc-test` passes 1/1. Thus Build
+6 contains the global streamed-cutscene fix; the reported physical freeze came
+from an older installed build. Physical validation of Build 6 is still pending
+a fresh maintainer authorization.
