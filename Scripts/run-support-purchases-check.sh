@@ -12,7 +12,7 @@ xcrun swiftc -parse "$store" "$views" "$library" "$settings" "$app"
 
 rg -Fqx '    case coffee = "com.zephyrstudiosllc.eco.tip.coffee"' "$store"
 rg -Fqx '    case development = "com.zephyrstudiosllc.eco.tip.development"' "$store"
-rg -Fqx '    case topSupporter = "com.zephyrstudiosllc.eco.tip.top-supporter"' "$store"
+rg -Fqx '    case topSupporter = "com.zephyrstudiosllc.eco.tip.topsupporter"' "$store"
 rg -Fq 'case .coffee: "Small Support"' "$store"
 rg -Fq 'case .development: "Development Support"' "$store"
 rg -Fq 'case .topSupporter: "Extra Support"' "$store"

@@ -14,7 +14,7 @@ Connect records exist.
 | --- | --- | --- | --- | --- |
 | Small Support | `com.zephyrstudiosllc.eco.tip.coffee` | Small Support | Optional purchase supporting Dark Eco. | $4.99 |
 | Development Support | `com.zephyrstudiosllc.eco.tip.development` | Development Support | Optional purchase supporting development. | $14.99 |
-| Extra Support | `com.zephyrstudiosllc.eco.tip.top-supporter` | Extra Support | Optional extra support for Dark Eco. | $29.99 |
+| Extra Support | `com.zephyrstudiosllc.eco.tip.topsupporter` | Extra Support | Optional extra support for Dark Eco. | $29.99 |
 
 The existing product identifiers remain unchanged. The app displays StoreKit's
 localized `Product.displayPrice`; the amounts above are App Store Connect
