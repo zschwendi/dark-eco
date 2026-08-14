@@ -54,11 +54,11 @@ private enum VisionStereoSubmissionWatchdogCheck {
                 scheduledTimes.append(scheduled)
             }
         }
-        check(scheduledTimes.count == 120,
-              "180 RealityKit updates at 90 Hz schedule exactly 120 game frames")
+        check(scheduledTimes.count == 180,
+              "180 RealityKit updates at 90 Hz schedule exactly 180 game frames")
         check(zip(scheduledTimes, scheduledTimes.dropFirst()).allSatisfy {
-            abs(($0.1 - $0.0) - (1.0 / 60.0)) < 0.000_001
-        }, "scheduled game timestamps retain a deterministic 60 Hz cadence")
+            abs(($0.1 - $0.0) - (1.0 / 90.0)) < 0.000_001
+        }, "scheduled game timestamps retain a deterministic 90 Hz cadence")
         check(cadence.scheduledTime(for: 10.0) == 10.0,
               "a lifecycle-sized discontinuity restarts cadence at the current time")
         cadence.reset()

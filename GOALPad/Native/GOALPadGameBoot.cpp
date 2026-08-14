@@ -774,8 +774,8 @@ bool run_frame(double target_presentation_time,
                      g_ee_main_mem);
   drain_goal_print_buffer();
 #if TARGET_OS_IOS || TARGET_OS_VISION
-  // Sound's fades and fake stream clock are defined in 60 Hz vblanks. A 120 Hz dispatcher must not
-  // advance them twice as fast, while a lower ProMotion factor must catch up by the same wall time.
+  // Sound's fades and fake stream clock are defined in 60 Hz vblanks. A high-refresh dispatcher
+  // must not advance them too fast, while a lower callback factor must catch up by wall time.
   const int sound_frames = g_sound_frame_clock.advance(display_time_ratio, g_target_frame_rate);
   for (int frame = 0; frame < sound_frames; ++frame) {
     goal_sound_frame();

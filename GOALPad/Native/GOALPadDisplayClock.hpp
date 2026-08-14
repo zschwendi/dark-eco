@@ -9,7 +9,10 @@ namespace goalpad {
 class DisplayClock {
  public:
   static constexpr int normalize_target_frame_rate(int target_frame_rate) noexcept {
-    return target_frame_rate >= 90 ? 120 : 60;
+    if (target_frame_rate == 90) {
+      return 90;
+    }
+    return target_frame_rate >= 120 ? 120 : 60;
   }
 
   float advance(double target_presentation_time, int target_frame_rate) noexcept {
@@ -38,13 +41,12 @@ class DisplayClock {
       return 1.0f;
     }
 
-    // Preserve the physically accepted 60 Hz integer cadence. At 120 Hz, half-frame units also
-    // represent ProMotion's 80 Hz and 48 Hz factors without injecting timestamp-scale jitter.
-    const double quantization = target_frame_rate_ == 120 ? 0.5 : 1.0;
+    // Preserve the physically accepted 60 Hz integer cadence. High-refresh domains use half-frame
+    // units so common adaptive fallback rates remain exact without timestamp-scale jitter.
+    const double quantization = target_frame_rate_ > 60 ? 0.5 : 1.0;
     const double quantized = std::round(elapsed_frames / quantization) * quantization;
-    // The established 60 Hz path retains its four-frame safety cap. A host-managed 120 Hz
-    // session also needs to represent ProMotion's supported 24 Hz cadence: one callback then
-    // advances five target frames while remaining only 1/24 second of wall time.
+    // The 60 and 90 Hz paths retain the four-frame safety cap. A 120 Hz session additionally
+    // represents ProMotion's 24 Hz fallback as five target frames in one callback.
     const double maximum_ratio = target_frame_rate_ == 120 ? 5.0 : 4.0;
     return static_cast<float>(std::clamp(quantized, 1.0, maximum_ratio));
   }
@@ -78,14 +80,19 @@ class SoundFrameClock {
       return 0;
     }
     // The accepted 60 Hz path advances sound once per dispatcher callback, including after a
-    // missed presentation. Debt conversion is only needed when the dispatcher target is 120 Hz.
+    // missed presentation. Debt conversion is only needed when the dispatcher target exceeds 60 Hz.
     if (target_frame_rate_ == 60) {
       return 1;
     }
 
     debt_ += static_cast<double>(display_time_ratio) * 60.0 / target_frame_rate_;
-    const int frames = std::clamp(static_cast<int>(debt_), 0, 4);
+    constexpr double kIntegralBoundaryTolerance = 1e-9;
+    const int frames =
+        std::clamp(static_cast<int>(debt_ + kIntegralBoundaryTolerance), 0, 4);
     debt_ -= frames;
+    if (debt_ < 0.0 && debt_ > -kIntegralBoundaryTolerance) {
+      debt_ = 0.0;
+    }
     return frames;
   }
 

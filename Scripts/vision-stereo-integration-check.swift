@@ -283,7 +283,7 @@ check(occursInOrder([
 ], in: surface)
         && surface.contains("cadence.scheduledTime(for: updateTime)")
         && surface.contains("let disposition = renderFrame(request)"),
-      "RealityKit rendering updates are the sole producer behind the 60 Hz cadence gate")
+      "RealityKit rendering updates are the sole producer behind the 90 Hz cadence gate")
 check(occursInOrder([
     "let leftReplacement = leftTexture.replace(using: commandBuffer)",
     "let rightReplacement = rightTexture.replace(using: commandBuffer)",

@@ -215,6 +215,13 @@ private final class MetalHostView: UIView {
     }
 
     private func configureFrameRate(for link: CADisplayLink) {
+        #if os(visionOS)
+        if targetFrameRate >= 90 {
+            link.preferredFrameRateRange = CAFrameRateRange(
+                minimum: 90, maximum: 90, preferred: 90)
+            return
+        }
+        #endif
         #if os(iOS)
         let screenMaximum = window?.screen.maximumFramesPerSecond ?? 60
         if targetFrameRate >= 120, screenMaximum > 60 {

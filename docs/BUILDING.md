@@ -1096,6 +1096,14 @@ while gameplay is running updates the GOAL timing domain, native display and
 sound clocks, and display-link request between frames; no app or game restart
 is required.
 
+On visionOS, gameplay requests a fixed 90 Hz range and boots directly into a
+distinct 90 Hz timing domain; there is no visionOS frame-rate setting. The
+Library and boot UI retain the default 60 Hz cadence. The fixed request is not
+a hardware guarantee: visionOS may still deliver a lower cadence, and the
+native clock preserves wall time when that occurs. The dormant experimental
+stereo surface uses the same 90 Hz game-frame cadence so it cannot diverge from
+the conventional shipping surface if explicitly enabled for development.
+
 The geometry matches what `MetalRenderer::encode_present_pass` in the OpenGOAL
 fork expects: the game renders into an offscreen target at its internal
 resolution, and a present pass draws that target into a centred, letterboxed
@@ -1126,7 +1134,7 @@ while its DMA send renders synchronously, close the presentation context, then
 read the vibration request back out. GOAL does not advance when no valid
 surface can be armed.
 
-On iOS, consecutive `CADisplayLink.targetTimestamp` values pass through Swift
+On iOS and visionOS, consecutive `CADisplayLink.targetTimestamp` values pass through Swift
 and the Objective-C++ bridge to `DisplayClock`. The accepted 60 Hz path keeps
 its integral ratio from 1 through 4. A ProMotion session uses the 120 Hz
 timing domain in half-frame units, including exact factors for 120, 80, 60, 48,
@@ -1136,6 +1144,11 @@ remain capped. The runtime stores the result in
 `*host-display-time-ratio*`, which `display-frame-start` consumes immediately
 before `set-time-ratios`. A zero host value preserves the upstream fallback on
 other hosts.
+
+The visionOS 90 Hz domain also uses half-frame units, including exact ratios
+for 90 Hz, 60 Hz, 45 Hz, and 30 Hz callbacks. Fractional counters retain 300
+scaled game ticks, 90 integral target frames, and 60 sound vblanks per second;
+controller history ages by those integral target-frame deltas.
 
 Booting runs the game's own startup - two DGO archives and `play` - so it runs
 on its own queue and the UI says `Booting Jak 1` until it finishes. The frame

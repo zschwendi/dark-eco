@@ -53,7 +53,7 @@ nonisolated struct VisionStereoSubmissionWatchdog: Sendable {
 }
 
 nonisolated struct VisionStereoCadenceGate: Sendable {
-    static let framesPerSecond = 60.0
+    static let framesPerSecond = 90.0
     static let discontinuitySeconds = 0.25
 
     private let interval = 1.0 / framesPerSecond

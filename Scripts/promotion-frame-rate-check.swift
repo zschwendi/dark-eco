@@ -51,6 +51,7 @@ let plist = source(root, "GOALPad-Info.plist")
 let surface = source(root, "GOALPad/Game/GameSurfaceView.swift")
 let content = source(root, "GOALPad/ContentView.swift")
 let session = source(root, "GOALPad/Game/GameSession.swift")
+let displayClock = source(root, "GOALPad/Native/GOALPadDisplayClock.hpp")
 let bridgeHeader = source(root, "GOALPad/Native/GOALPadRuntimeBridge.h")
 let bridge = source(root, "GOALPad/Native/GOALPadRuntimeBridge.mm")
 let boot = source(root, "GOALPad/Native/GOALPadGameBoot.cpp")
@@ -71,7 +72,11 @@ check(surface.contains("window?.screen.maximumFramesPerSecond")
         && surface.contains("minimum: 60, maximum: maximum, preferred: maximum")
         && surface.contains("onFrame?(link.targetTimestamp)"),
       "the iOS display link requests adaptive ProMotion cadence and uses its presentation target")
-check(session.contains("let bootTargetFrameRate = presentationSettings.graphicsHighFrameRate ? 120 : 60")
+check(surface.contains("#if os(visionOS)")
+        && surface.contains("minimum: 90, maximum: 90, preferred: 90"),
+      "the visionOS gameplay display link requests a fixed 90 Hz cadence")
+check(session.contains("#if os(visionOS)\n        let bootTargetFrameRate = 90")
+        && session.contains("#elseif os(iOS)\n        let bootTargetFrameRate = presentationSettings.graphicsHighFrameRate ? 120 : 60")
         && session.contains("bootGame(targetFrameRate: bootTargetFrameRate)")
         && session.contains("self.bootFinished(boot, targetFrameRate: bootTargetFrameRate)")
         && session.contains("targetFrameRate = bootFrameRate\n        isRunning = true")
@@ -80,7 +85,7 @@ check(session.contains("let bootTargetFrameRate = presentationSettings.graphicsH
         && session.contains("GOALPadRuntimeBridge.setTargetFrameRate(requestedFrameRate)")
         && content.contains(".onChange(of: session.presentationSettings.graphicsHighFrameRate")
         && content.contains("session.setHighFrameRateEnabled(enabled)"),
-      "the persisted 60/120 Hz choice applies at boot and live without accelerating the launcher")
+      "visionOS boots at 90 Hz while the persisted iOS 60/120 Hz choice remains live-switchable")
 check(content.components(separatedBy: "targetFrameRate: session.targetFrameRate").count == 3,
       "conventional and stereo-capable surfaces receive the session target")
 check(bridgeHeader.contains("NS_SWIFT_NAME(bootGame(targetFrameRate:))")
@@ -96,12 +101,17 @@ check(boot.contains("g_display_clock.advance(target_presentation_time, g_target_
         && boot.contains("s64 app_pc_get_active_display_refresh_rate() {\n  return g_target_frame_rate;\n}")
         && boot.contains("void reset_frame_timing() noexcept {\n#if TARGET_OS_IOS || TARGET_OS_VISION\n  g_display_clock.reset();\n#endif"),
       "native timing drives gameplay cadence and resets both clocks on a live domain change")
+check(displayClock.contains("if (target_frame_rate == 90)")
+        && displayClock.contains("const double quantization = target_frame_rate_ > 60 ? 0.5 : 1.0;")
+        && displayClock.contains("const double maximum_ratio = target_frame_rate_ == 120 ? 5.0 : 4.0;"),
+      "native display and sound clocks retain a distinct 90 Hz timing domain")
 check(drawable.contains("(defun goalpad-set-target-frame-rate")
+        && drawable.contains("(if (= requested-rate 90) 90 60)")
         && drawable.contains("(set-frame-rate! *pc-settings* rate #t)")
         && drawable.contains("*host-game-scaled-time-remainder*")
         && drawable.contains("*host-non-movie-scaled-time-remainder*")
         && drawable.contains("*host-real-integral-time-remainder*"),
-      "GOAL selects custom 120 Hz timing and carries fractional frame counters")
+      "GOAL selects custom 90/120 Hz timing and carries fractional frame counters")
 check(display.contains("(if (> *host-display-time-ratio* 0.0)")
         && display.contains("(* DISPLAY_FPS_RATIO *host-display-time-ratio*)")
         && display.contains("DISPLAY_FPS_RATIO))")
@@ -113,7 +123,7 @@ check(display.contains("(if (> *host-display-time-ratio* 0.0)")
         && eye.contains("                                   -1)\n                                 -1)"),
       "host-managed per-callback fixes and eye timers follow adaptive fallback cadence")
 check(pad.contains("(defun service-cpads ((history-steps int))")
-        && pad.contains("((and (= (-> *pc-settings* target-fps) 120)")
+        && pad.contains("((and (> (-> *pc-settings* target-fps) 60)")
         && pad.contains("(> *host-display-time-ratio* 0.0)")
         && pad.contains("(dotimes (virtual-step history-steps)"),
       "controller recent-press history ages by virtual frames at adaptive refresh factors")

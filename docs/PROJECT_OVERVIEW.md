@@ -155,6 +155,12 @@ build, and simulator checks are complete; sustained performance, thermals,
 power, and frame pacing on an iPhone 13 Pro-class device or newer remain a
 physical acceptance gate.
 
+The conventional visionOS renderer targets a fixed 90 Hz gameplay timing
+domain without a player-facing setting; the Library and asynchronous boot UI
+remain at 60 Hz. The system still owns delivered cadence, and sustained 90 Hz
+gameplay, audio, controller history, thermals, and power remain a physical
+Vision Pro acceptance gate.
+
 No enhancement may fork gameplay semantics, weaken user-owned asset separation,
 or replace the accepted Build 154 baseline before its replacement has been
 physically compared and accepted.

@@ -15,7 +15,8 @@ nonisolated private let sessionLog = Logger(subsystem: "com.zephyrstudiosllc.eco
 ///
 /// One frame is: arm the surface, push the merged pad state, run one `kernel-dispatcher` frame,
 /// finish the presentation, then read the vibration request back out. The display link is the frame
-/// clock and its target time is passed through to Metal so ProMotion does not add a second cadence.
+/// clock and its target time is passed through to Metal so high-refresh displays do not add a
+/// second cadence.
 @MainActor
 @Observable
 final class GameSession {
@@ -237,7 +238,9 @@ final class GameSession {
         handledNativeExitToLibraryRequest = false
         startupError = nil
         settings.apply()
-        #if os(iOS)
+        #if os(visionOS)
+        let bootTargetFrameRate = 90
+        #elseif os(iOS)
         let bootTargetFrameRate = presentationSettings.graphicsHighFrameRate ? 120 : 60
         #else
         let bootTargetFrameRate = 60

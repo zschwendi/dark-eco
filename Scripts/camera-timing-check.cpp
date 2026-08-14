@@ -57,16 +57,17 @@ std::vector<int> display_trace(double first_interval, double second_interval) {
   return display_trace({first_interval, second_interval});
 }
 
-std::vector<float> high_frame_rate_trace(const std::vector<double>& intervals) {
+std::vector<float> high_frame_rate_trace(int target_frame_rate,
+                                         const std::vector<double>& intervals) {
   goalpad::DisplayClock clock;
   constexpr double start = 100.0;
-  assert(clock.advance(start, 120) == 1.0f);
+  assert(clock.advance(start, target_frame_rate) == 1.0f);
   double target = start;
   std::vector<float> result;
   result.reserve(intervals.size());
   for (const double interval : intervals) {
     target += interval;
-    result.push_back(clock.advance(target, 120));
+    result.push_back(clock.advance(target, target_frame_rate));
   }
   return result;
 }
@@ -116,7 +117,7 @@ struct PromotionSecondTrace {
   bool duplicated_one_shot = false;
 };
 
-PromotionSecondTrace promotion_second_trace(int callbacks_per_second) {
+PromotionSecondTrace high_refresh_second_trace(int target_frame_rate, int callbacks_per_second) {
   goalpad::DisplayClock display_clock;
   goalpad::SoundFrameClock sound_clock;
   FractionalFrameCounters counters;
@@ -124,17 +125,18 @@ PromotionSecondTrace promotion_second_trace(int callbacks_per_second) {
   trace.display_ratios.reserve(callbacks_per_second);
 
   double target = 100.0;
-  assert(display_clock.advance(target, 120) == 1.0f);
+  assert(display_clock.advance(target, target_frame_rate) == 1.0f);
   std::array<int, 5> pad_history = {};
   for (int callback = 0; callback < callbacks_per_second; ++callback) {
     target += 1.0 / static_cast<double>(callbacks_per_second);
-    const float ratio = display_clock.advance(target, 120);
+    const float ratio = display_clock.advance(target, target_frame_rate);
     trace.display_ratios.push_back(ratio);
-    trace.callback_units += 0.5 * static_cast<double>(ratio);
-    trace.sound_frames += sound_clock.advance(ratio, 120);
+    trace.callback_units +=
+        60.0 / static_cast<double>(target_frame_rate) * static_cast<double>(ratio);
+    trace.sound_frames += sound_clock.advance(ratio, target_frame_rate);
 
     const int previous_integral = counters.integral;
-    counters.advance(ratio, 2.5);
+    counters.advance(ratio, 300.0 / static_cast<double>(target_frame_rate));
     const int pad_steps = counters.integral - previous_integral;
     trace.maximum_pad_steps = std::max(trace.maximum_pad_steps, pad_steps);
     pad_history = age_relative_pad_history(pad_history, callback == 0 ? 1 : 0, pad_steps);
@@ -187,6 +189,10 @@ bool near(double lhs, double rhs) {
 }  // namespace
 
 int main() {
+  static_assert(goalpad::DisplayClock::normalize_target_frame_rate(60) == 60);
+  static_assert(goalpad::DisplayClock::normalize_target_frame_rate(90) == 90);
+  static_assert(goalpad::DisplayClock::normalize_target_frame_rate(120) == 120);
+
   const auto ordinary = display_trace(kFramePeriod, kFramePeriod);
   const auto skipped = display_trace(kFramePeriod, 2.0 * kFramePeriod);
   expect_trace("ordinary cadence", ordinary, {1, 1});
@@ -214,7 +220,7 @@ int main() {
   expect_trace("repeated slow cadence", repeated_slow, {2, 2});
   expect_trace("independent interval rounding", independently_rounded, {2, 4, 1, 2});
 
-  const auto promotion_factors = high_frame_rate_trace(
+  const auto promotion_factors = high_frame_rate_trace(120,
       {1.0 / 120.0, 1.0 / 80.0, 1.0 / 60.0, 1.0 / 48.0, 1.0 / 40.0,
        1.0 / 30.0, 1.0 / 24.0});
   expect_float_trace("ProMotion factors", promotion_factors,
@@ -225,6 +231,8 @@ int main() {
   assert(rate_transition.advance(10.0 + kFramePeriod, 60) == 1.0f);
   assert(rate_transition.advance(20.0, 120) == 1.0f);
   assert(rate_transition.advance(20.0 + 1.0 / 120.0, 120) == 1.0f);
+  assert(rate_transition.advance(25.0, 90) == 1.0f);
+  assert(rate_transition.advance(25.0 + 1.0 / 90.0, 90) == 1.0f);
   assert(rate_transition.advance(30.0, 60) == 1.0f);
 
   struct RefreshFactor {
@@ -242,7 +250,7 @@ int main() {
            RefreshFactor{30, 4.0f, 2.0, 4, {0, 0, 0, 1, 0}},
            RefreshFactor{24, 5.0f, 2.5, 5, {0, 0, 0, 0, 1}},
        }) {
-    const auto trace = promotion_second_trace(factor.callbacks_per_second);
+    const auto trace = high_refresh_second_trace(120, factor.callbacks_per_second);
     assert(std::all_of(trace.display_ratios.begin(), trace.display_ratios.end(),
                        [&](float ratio) { return ratio == factor.display_ratio; }));
     assert(near(0.5 * trace.display_ratios.front(), factor.callback_factor));
@@ -266,7 +274,37 @@ int main() {
     }
     assert(eye_target_frames_remaining == 0);
   }
-  // The host-managed 120 Hz path consumes elapsed target frames. Ordinary PC/PS2 timing retains
+  for (const auto factor : {
+           RefreshFactor{90, 1.0f, 2.0 / 3.0, 1, {1, 0, 0, 0, 0}},
+           RefreshFactor{60, 1.5f, 1.0, 2, {1, 0, 0, 0, 0}},
+           RefreshFactor{45, 2.0f, 4.0 / 3.0, 2, {0, 1, 0, 0, 0}},
+           RefreshFactor{30, 3.0f, 2.0, 3, {0, 0, 1, 0, 0}},
+       }) {
+    const auto trace = high_refresh_second_trace(90, factor.callbacks_per_second);
+    assert(std::all_of(trace.display_ratios.begin(), trace.display_ratios.end(),
+                       [&](float ratio) { return ratio == factor.display_ratio; }));
+    assert(near((2.0 / 3.0) * trace.display_ratios.front(), factor.callback_factor));
+    assert(near(trace.callback_units, 60.0));
+    assert(trace.scaled_ticks == 300);
+    assert(trace.integral_target_units == 90);
+    assert(trace.sound_frames == 60);
+    assert(trace.maximum_pad_steps == factor.maximum_pad_steps);
+    assert(trace.first_pad_history == factor.first_pad_history);
+    assert(!trace.duplicated_one_shot);
+    assert((trace.final_pad_history == std::array<int, 5>{}));
+
+    int eye_target_frames_remaining = 90;
+    FractionalFrameCounters eye_counter;
+    for (const float ratio : trace.display_ratios) {
+      const int previous_integral = eye_counter.integral;
+      eye_counter.advance(ratio, 300.0 / 90.0);
+      const int integral_frames = eye_counter.integral - previous_integral;
+      eye_target_frames_remaining =
+          std::max(0, eye_target_frames_remaining - eye_timer_decrement(true, integral_frames));
+    }
+    assert(eye_target_frames_remaining == 0);
+  }
+  // Host-managed high-refresh paths consume elapsed target frames. Ordinary PC/PS2 timing retains
   // the original one blink-countdown unit per callback, even after a missed presentation.
   for (const int legacy_integral_delta : {1, 2, 3, 4}) {
     assert(eye_timer_decrement(false, legacy_integral_delta) == 1);
@@ -300,9 +338,18 @@ int main() {
                 sound_24_fallback.advance(5.0f, 120)},
                {2, 3});
 
+  goalpad::SoundFrameClock sound_90;
+  expect_trace("90 Hz sound cadence",
+               {sound_90.advance(1.0f, 90), sound_90.advance(1.0f, 90),
+                sound_90.advance(1.0f, 90)},
+               {0, 1, 1});
+
   goalpad::SoundFrameClock live_rate_transition;
   assert(live_rate_transition.advance(1.0f, 120) == 0);
   assert(live_rate_transition.advance(1.0f, 120) == 1);
+  live_rate_transition.reset();
+  assert(live_rate_transition.advance(1.0f, 90) == 0);
+  assert(live_rate_transition.advance(1.0f, 90) == 1);
   live_rate_transition.reset();
   assert(live_rate_transition.advance(1.0f, 60) == 1);
   live_rate_transition.reset();
