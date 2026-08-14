@@ -192,6 +192,8 @@ bool should_log_jak2_diagnostics(uint64_t tick) {
 void log_jak2_diagnostics_locked() {
   const auto& runtime = g_runtime_metrics;
   const auto& metal = g_metal_metrics;
+  goal_thread_stack_watermark_report stack = {};
+  goal_thread_stack_watermark(&stack);
   goal_jak2_progress_menu_snapshot progress_menu = {};
   goal_jak2_runtime_get_progress_menu_snapshot(&progress_menu);
   goal_jak2_progress_menu_diagnostics progress_detail = {};
@@ -763,6 +765,12 @@ void log_jak2_diagnostics_locked() {
         runtime.sound_player_commands, runtime.sound_play_requests, runtime.sound_sounds_started,
         runtime.sound_updates, runtime.sound_str_requests, runtime.sound_str_reads,
         runtime.sound_str_bytes);
+
+  NSLog(@"GOALPAD_JAK2_STACK_STATE tick=%llu suspends=%d deepest=%d/%d/%s "
+         "fullest=%d/%d/%s",
+        static_cast<unsigned long long>(runtime.ticks), stack.suspends, stack.deepest_used,
+        stack.deepest_size, stack.deepest_name ? stack.deepest_name : "", stack.fullest_used,
+        stack.fullest_size, stack.fullest_name ? stack.fullest_name : "");
 }
 
 void clear_runtime_snapshots_locked() {
