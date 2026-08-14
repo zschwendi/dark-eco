@@ -640,7 +640,7 @@ void log_jak2_diagnostics_locked() {
   const auto& warp316 = metal.warp_texture_upload;
   NSLog(@"GOALPAD_JAK2_WARP316_STATE tick=%llu observations=%llu absent=%llu ordinary=%llu "
          "unclassified=%llu last-uploads=%u last-transfers=%u last-payload-bytes=%llu "
-         "last-fingerprint=%016llx",
+         "last-fingerprint=%016llx executions=%llu",
         static_cast<unsigned long long>(runtime.ticks),
         static_cast<unsigned long long>(warp316.observations),
         static_cast<unsigned long long>(warp316.absent),
@@ -648,7 +648,8 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(warp316.unclassified), warp316.last_upload_count,
         warp316.last_transfer_count,
         static_cast<unsigned long long>(warp316.last_payload_bytes),
-        static_cast<unsigned long long>(warp316.last_semantic_fingerprint));
+        static_cast<unsigned long long>(warp316.last_semantic_fingerprint),
+        static_cast<unsigned long long>(metal.warp_texture_upload_executions));
 
   const auto& warp317 = metal.gmerc_warp_bucket317;
   NSLog(@"GOALPAD_JAK2_WARP317_STATE tick=%llu observations=%llu absent=%llu setup=%llu "

@@ -18134,3 +18134,33 @@ Build 5 remains the current playable artifact; the proof-only commits were
 integrated after it and require no physical acceptance until their buckets are
 actually routed. The next production lane is exact ordinary texture upload for
 bucket 316; animator/mixed forms and bucket 317 remain deferred.
+
+## Jak II Build 6 warp-texture checkpoint
+
+Date: 2026-08-13.
+
+Nested commits `03fdd5d99` and `a4e30eb69` promote only the exact typed ordinary
+texture-upload form for bucket 316 and align the host Lightning fixture with
+the corrected source envelope. Bucket 316 now requires a valid live plan, an
+independently parsed copied plan, and a complete semantic match before any
+texture mutation. Its callback prevalidates every owned page header and mode
+before executing uploads in source order. Mixed animator and malformed forms
+remain fail-closed, and bucket 317 remains DeferredSkip. The existing numeric
+WARP316 log now includes the cumulative execution count.
+
+The canonical focused matrix passed 5/5:
+
+```text
+jak2-warp-texture-upload-plan-test
+jak2-metal-bucket-table-test
+jak2-common-tfrag-texture-upload-capture-test
+jak2-opcode27-skull-gem-executor-test
+jak2-metal-host-bridge-test
+```
+
+The first integration run caught a stale setup-only Lightning fixture that had
+one rather than the source-exact two zero-payload NOP transfers before the
+trailer. The fixture and expected transfer count were corrected; no production
+Lightning route was changed. Eco Jak II Dev Debug/Release are bumped to build
+6 for the next simulator and generic signed iPadOS checkpoint. No physical
+device has been accessed at this checkpoint.
