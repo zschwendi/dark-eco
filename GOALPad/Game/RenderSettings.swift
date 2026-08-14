@@ -8,8 +8,8 @@ import Foundation
 /// a Retina iPad 640x480 is far below the panel.
 ///
 /// The scale is a whole multiple of 640x480 so the game keeps its 4:3 aspect and its HUD keeps its
-/// proportions. The default is 2x - clearly better than the PS2, well inside what an M-series iPad
-/// should manage, and conservative until the fused renderer can actually be measured on hardware.
+/// proportions. The shared app defaults to 2x. Eco Jak II Dev uses 4x after physical 2x
+/// validation.
 @MainActor
 @Observable
 final class RenderSettings {
@@ -18,6 +18,9 @@ final class RenderSettings {
     static let availableScales = [1, 2, 3, 4]
 
     private static let defaultsKey = "internalResolutionScale"
+    private static var configuredDefaultScale: Int? {
+        Bundle.main.bundleIdentifier == "com.zephyrstudiosllc.eco.jak2dev" ? 4 : nil
+    }
 
     var horizontalPlusEnabled = false {
         didSet { apply() }
@@ -39,8 +42,20 @@ final class RenderSettings {
     var internalHeight: Int { Self.baseHeight * internalResolutionScale }
 
     init() {
-        let stored = UserDefaults.standard.integer(forKey: Self.defaultsKey)
-        internalResolutionScale = Self.availableScales.contains(stored) ? stored : 2
+        let defaults = UserDefaults.standard
+        let stored = defaults.integer(forKey: Self.defaultsKey)
+        if let configured = Self.configuredDefaultScale {
+            let migrationKey = "\(Self.defaultsKey).target-default-\(configured)"
+            if !defaults.bool(forKey: migrationKey) {
+                internalResolutionScale = stored == 0 || stored == 2 ? configured : stored
+                defaults.set(internalResolutionScale, forKey: Self.defaultsKey)
+                defaults.set(true, forKey: migrationKey)
+            } else {
+                internalResolutionScale = Self.availableScales.contains(stored) ? stored : configured
+            }
+        } else {
+            internalResolutionScale = Self.availableScales.contains(stored) ? stored : 2
+        }
         apply()
     }
 

@@ -18346,3 +18346,101 @@ CDHash `6ef427921d33bcbd78fc66ece779680504606f04`, and TeamIdentifier
 
 No physical device was installed, launched, inspected, or otherwise accessed.
 Physical Jak II acceptance remains pending a fresh maintainer authorization.
+
+## Jak II Build 9 actor, cutscene, and 4x checkpoint
+
+Date: 2026-08-14.
+
+Nested `jak2-best` now ends at `d9f2a3dad` and contains five reviewed commits:
+
+```text
+628ca117a metal: route all Jak II PRIS2 level pairs (AI-assisted)
+54b104d9d metal: initialize Jak 2 animated face textures
+c0a435a92 test(metal): cover Jak II mech-flame Sprite3 contract (AI-assisted)
+7b58eebb2 fix(jak2): preserve active cutscene streams (AI-assisted)
+d9f2a3dad metal: publish Jak 2 face defaults at load (AI-assisted)
+```
+
+All six Jak II PRIS2 texture/eye producers (224, 228, 232, 236, 240, 244)
+now accept the exact absent, ordinary, one-eye, and two-eye forms. Their six
+matching Merc consumers (225, 229, 233, 237, 241, 245) use the existing strict
+Merc path. Other PRIS2 GMerc families remain deferred. The common GAME.fr3
+load now publishes morph-zero animated face/hair slots 0 through 3 before the
+first common-PRIS animator packet, matching the desktop renderer; later Dark
+Jak morphs update the same stable handles.
+
+The global streamed-cutscene repair is not scene-specific. Published VAG time
+now includes the source 0x30-byte header offset, and replacing the pending
+stream request list no longer drops an already-playing stream merely because
+it was omitted from the new pending list. Focused tests cover the exact clock,
+active audio and no-audio streams, queue replacement, and empty pending queues.
+
+The mech-flame investigation did not justify a runtime override. A new
+source-shaped GPU regression proves page 12 / texture 144 at authored TBP 325,
+texture alpha 0 through 128, TCC, and the two authored particle alpha endpoints
+all render correctly when the expected texture is published. Build 8 did not
+retain an unfiltered TBP 325 identity sample, so a reusable-VRAM identity
+override would be speculative. The next physical run must collect that live
+publication identity if the quadrilateral remains.
+
+The combined canonical host matrix passed 8/8:
+
+```text
+jak2-sound-rpc-test
+jak2-metal-bucket-table-test
+jak2-pris2-bucket228-plan-test
+jak2-metal-eye-renderer-test
+jak2-metal-merc-renderer-test
+jak2-dark-jak-clut-executor-test
+jak2-metal-sprite-renderer-test
+jak2-metal-host-bridge-test
+```
+
+Log:
+
+```text
+.agent-builds/jak2-resume-logs/build9-combined-focused-tests.log
+```
+
+Eco Jak II Dev Debug and Release use bundle build 9. Its target default is now
+4x (2560x1920). The one-time target migration changes a missing or prior 2x
+setting to 4x while preserving explicit 1x, 3x, and 4x choices. The shared app
+default remains 2x.
+
+The Release simulator build passed with the Metal toolchain override and
+validated all 840 Jak II AOT units:
+
+```text
+TOOLCHAINS=Metal GOALPAD_BUILD_JOBS=2 xcodebuild -quiet \
+  -project GOALPad.xcodeproj -scheme 'Eco Jak II Dev' \
+  -configuration Release \
+  -destination 'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-jak2-c2f2c4b1d-simulator \
+  -jobs 2 ENABLE_PREVIEWS=NO COMPILER_INDEX_STORE_ENABLE=NO build
+```
+
+Build 9 was update-installed without deleting app data on the approved iPad
+Pro 11-inch (M5) simulator and launched successfully to the library shell. The
+retained preference store confirms `internalResolutionScale=4` and
+`internalResolutionScale.target-default-4=true`. The executable SHA-256 is
+`77708ef9118bd27d0b639a77a991f7ff86cbe7f142183e886db0367f8e3e158f`.
+The simulator was already booted before this checkpoint and was left running.
+
+Evidence:
+
+```text
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build9-simulator-build.log
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build9-simulator-launch.log
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build9-app-launch.png
+```
+
+First useful validation failures were bounded and corrected: the first native
+shader build lacked `TOOLCHAINS=Metal`; two old host assertions still expected
+the first common-PRIS packet to allocate four handles instead of finding the
+new eager defaults; and a custom generated Info.plist key was not emitted, so
+the 4x target selection now uses the Eco Jak II Dev bundle identifier directly.
+
+This simulator has no retained near-Kor save, so it did not exercise the Kor
+cutscene or the affected actor art. No physical device was installed, launched,
+inspected, or otherwise accessed. Physical actor, cutscene, 4x performance, and
+mech-flame acceptance remain pending a fresh maintainer authorization.
