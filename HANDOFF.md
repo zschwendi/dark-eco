@@ -18446,3 +18446,45 @@ This simulator has no retained near-Kor save, so it did not exercise the Kor
 cutscene or the affected actor art. No physical device was installed, launched,
 inspected, or otherwise accessed. Physical actor, cutscene, 4x performance, and
 mech-flame acceptance remain pending a fresh maintainer authorization.
+
+## Jak II post-Build-9 renderer diagnostics checkpoint
+
+Date: 2026-08-14.
+
+Nested `jak2-best` now includes three verified commits after Build 9:
+
+```text
+17186dc42 test(jak2): cover spooled scene progression (AI-assisted)
+6eab566e2 diag(jak2): expose mech-flame texture identity (AI-assisted)
+658e6fede test(metal): use common art for security environment (AI-assisted)
+```
+
+The cutscene regression samples the same stream position/status contract as the
+GOAL scene loader and proves three generic scene handoffs advance across four
+synthetic streams. The mech-flame diagnostic is disabled by default and, when
+`GOALPAD_JAK2_DEBUG_LOG_MECH_FLAME_IDENTITY=1`, records at most eight distinct
+numeric TBP-325 identities: missing, expected page 12/texture 144, or a wrong
+live identity. It does not change rendering.
+
+The common-water Build-7 black-screen cause is now source-backed. Desktop
+OpenGL initializes the security fixed-animation textures from common
+`GAME.fr3`; the prepared Jak II `GAME.fr3` contains every required environment
+source and destination. The reverted Metal route instead required the separate
+`ctywide.fr3` before dispatching bucket 306, even though bucket 306 is present
+from startup. The compositor regression now proves the exact environment output
+is identical when prepared from a synthetic GAME-owned texture set. Production
+bucket 306 remains deferred until the shared host/table files are free for a
+source-equivalent callback fix and combined validation.
+
+Focused validation passed:
+
+```text
+jak2-sound-rpc-test
+jak2-mech-flame-identity-test
+jak2-metal-sprite-renderer-test
+jak2-opcode27-skull-gem-executor-test
+```
+
+The first mech identity target invocation used the wrong nested-relative build
+path and failed before compilation; the canonical parent build path then built
+and passed. No simulator or physical-device action was used for this checkpoint.
