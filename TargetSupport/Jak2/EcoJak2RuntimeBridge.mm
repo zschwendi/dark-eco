@@ -666,9 +666,13 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(metal.warp_texture_upload_executions));
 
   const auto& warp317 = metal.gmerc_warp_bucket317;
+  const auto& warp317Execution = metal.gmerc_warp_bucket317_execution;
   NSLog(@"GOALPAD_JAK2_WARP317_STATE tick=%llu observations=%llu absent=%llu setup=%llu "
          "fragments=%llu malformed=%llu last-variant=%u transfers=%u fragments-last=%u "
-         "continued=%u vertices=%u adgifs=%u bytes=%llu fingerprint=%016llx",
+         "continued=%u vertices=%u adgifs=%u bytes=%llu fingerprint=%016llx "
+         "exec=%llu/%llu expected=%u/%u/%u/%u actual=%u/%u/%u/%u/%u/%u/%u "
+         "missing=%u/%u/%u unsupported=%u unexpected=%u overflow=%u "
+         "snapshot=%u/%u/%u/%u/%u handle=%llu",
         static_cast<unsigned long long>(runtime.ticks),
         static_cast<unsigned long long>(warp317.observations),
         static_cast<unsigned long long>(warp317.absent),
@@ -679,7 +683,25 @@ void log_jak2_diagnostics_locked() {
         warp317.last_fragment_count, warp317.last_continued_fragment_count,
         warp317.last_vertex_count, warp317.last_adgif_count,
         static_cast<unsigned long long>(warp317.last_payload_bytes),
-        static_cast<unsigned long long>(warp317.last_semantic_fingerprint));
+        static_cast<unsigned long long>(warp317.last_semantic_fingerprint),
+        static_cast<unsigned long long>(warp317Execution.callback_dispatches),
+        static_cast<unsigned long long>(warp317Execution.completed_executions),
+        warp317Execution.last_expected_fragments,
+        warp317Execution.last_expected_continued_fragments,
+        warp317Execution.last_expected_vertices, warp317Execution.last_expected_adgifs,
+        warp317Execution.last_actual_fragments,
+        warp317Execution.last_actual_continued_fragments,
+        warp317Execution.last_actual_vertices, warp317Execution.last_actual_adgifs,
+        warp317Execution.last_actual_draw_buckets, warp317Execution.last_actual_draws,
+        warp317Execution.last_actual_triangles, warp317Execution.last_actual_missing_textures,
+        warp317Execution.last_actual_placeholder_draws,
+        warp317Execution.last_actual_missing_publications,
+        warp317Execution.last_actual_unsupported_blends,
+        warp317Execution.last_actual_unexpected_dma, warp317Execution.last_actual_overflow,
+        warp317Execution.last_snapshot_publications, warp317Execution.last_snapshot_copies,
+        warp317Execution.last_snapshot_allocations, warp317Execution.last_snapshot_replacements,
+        warp317Execution.last_snapshot_failures,
+        static_cast<unsigned long long>(warp317Execution.last_snapshot_texture));
 
   const auto& subtitle322 = metal.subtitle_capture;
   NSLog(@"GOALPAD_JAK2_SUBTITLE322_STATE tick=%llu bucket=%u captures=%llu present=%llu "

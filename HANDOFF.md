@@ -18249,3 +18249,42 @@ build was used for this checkpoint. Build 6 therefore remains the latest built
 artifact and does not contain this production bucket-315 route or the later
 stack diagnostic. A next signed Build 7 should include both once enough free
 disk is available; only about 717 MiB was free after focused validation.
+
+## Jak II source-ordered framebuffer warp checkpoint
+
+Date: 2026-08-13.
+
+Nested commit `333b66a37` promotes only the typed GMERC_WARP bucket 317 path.
+The host requires the existing bounded live plan before copying, independently
+replans the copied chain, and compares exact semantics before any framebuffer
+publication. Absent and setup-only packets consume without copying or drawing.
+Fragment packets copy the current game target on the same Metal command buffer,
+publish it at source TBP 1216 behind one stable registry handle, and then run
+the existing Jak II Generic2 grammar in WARP mode. Only TBP 1216 receives the
+source warp coordinates and forced edge clamp; other textures retain normal
+Generic2 behavior. Missing or placeholder-backed TBP 1216 skips the draw and
+fails the exact host gate. Bucket 316 remains the distinct typed upload route.
+
+The snapshot lifecycle owns allocation, same-size reuse, resize replacement,
+TexturePool dimensions, and teardown. The numeric `GOALPAD_JAK2_WARP317_STATE`
+line now includes callback/completion, expected and actual geometry, draw and
+error counters, snapshot publications/copies/allocation/replacement/failure,
+and the stable numeric handle.
+
+The canonical focused matrix passed 5/5:
+
+```text
+jak2-metal-generic2-renderer-test
+jak2-metal-gmerc-warp317-renderer-test
+jak2-metal-effects315-lightning-proof
+jak2-gmerc-warp-bucket317-plan-test
+jak2-metal-host-bridge-test
+```
+
+The new GPU proof validates same-command-buffer copy-before-draw ordering,
+Jak II warp coordinates, forced clamp with retained nearest/linear filtering,
+source-over blend, fog/depth behavior, missing-publication no-placeholder
+handling, stable handle reuse, resize, and cleanup. The C ABI tail and outer
+Objective-C++ bridge format check also pass. No simulator, physical device, or
+new signed iPadOS build was used. Build 6 remains the latest built artifact;
+Build 7 should include buckets 315 and 317 plus the stack diagnostic.
