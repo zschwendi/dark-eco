@@ -1464,7 +1464,12 @@ int32_t GOALPadAudioPull(int16_t* out, int32_t frames) {
   if (!layer) {
     g_last_error = @"The Jak II surface is detached; its current host retains the original layer.";
   } else if (layer != g_host_layer) {
-    g_last_error = @"Jak II cannot replace a live Metal layer; stop and restart the session.";
+    if (goal_jak2_metal_host_rebind_presenting_layer(g_metal_host, layer)) {
+      g_host_layer = layer;
+      g_last_error = @"";
+    } else {
+      g_last_error = @"Jak II could not bind the replacement Metal layer.";
+    }
   } else {
     g_last_error = @"";
   }

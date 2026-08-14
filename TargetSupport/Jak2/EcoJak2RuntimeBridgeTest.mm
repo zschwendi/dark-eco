@@ -9,8 +9,10 @@
 
 #include "game/graphics/pipelines/metal/metal_jak2_host_bridge.h"
 #include "game/kernel/core/jak2_runtime.h"
+#include "game/kernel/core/kernel_core.h"
 #include "game/kernel/core/kernel_game.h"
 #include "game/kernel/core/pad.h"
+#include "game/kernel/core/sound_rpc_jak2.h"
 
 struct goal_jak2_metal_host {
   int marker;
@@ -52,11 +54,33 @@ size_t call_index(const char* call) {
 
 extern "C" {
 
+void goal_thread_stack_watermark(goal_thread_stack_watermark_report* out) {
+  if (out) {
+    *out = {};
+  }
+}
+
+void goal_jak2_sound_stream_state_get(goal_jak2_sound_stream_state* out) {
+  if (out) {
+    *out = {};
+  }
+}
+
 goal_jak2_metal_host* goal_jak2_metal_host_create_presenting(CAMetalLayer* layer) {
   g_calls.emplace_back("create");
   g_created_layer = layer;
   g_host_active = layer != nil;
   return g_host_active ? &g_host : nullptr;
+}
+
+int goal_jak2_metal_host_rebind_presenting_layer(goal_jak2_metal_host* host,
+                                                 CAMetalLayer* layer) {
+  g_calls.emplace_back("rebind");
+  if (host != &g_host || !g_host_active || !layer) {
+    return 0;
+  }
+  g_created_layer = layer;
+  return 1;
 }
 
 int goal_jak2_metal_host_set_present_pacing(goal_jak2_metal_host* host, double seconds) {
@@ -526,10 +550,13 @@ int main() {
     CAMetalLayer* replacement_layer = [[CAMetalLayer alloc] init];
     [surface attachLayer:replacement_layer];
     [surface setDrawableSize:CGSizeMake(1280, 960)];
-    check(![surface beginFrameAtTime:2.0], "a live host rejects a replacement layer");
-    check([surface.lastError containsString:@"restart"],
-          "replacement-layer rejection explains the required restart");
-    [surface attachLayer:first_layer];
+    check(g_created_layer == replacement_layer && [surface beginFrameAtTime:2.0],
+          "a live host rebinds to a replacement layer after view recreation");
+    check(surface.lastError.length == 0,
+          "replacement-layer recovery clears the stale presentation error");
+    check([GOALPadRuntimeBridge runFrameAtPresentationTime:2.0] && [surface endFrame] &&
+              GOALPadRuntimeBridge.framesRun == 2,
+          "the rebound layer resumes frame submission without restarting the game");
     [GOALPadRuntimeBridge resetFrameTiming];
 
     GOALPadCameraCorrectionTailSnapshot* tail = surface.cameraCorrectionTailSnapshot;
