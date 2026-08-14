@@ -35,7 +35,10 @@ struct GameDataSetupView: View {
         }
         .safeAreaPadding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(DarkEcoTheme.background)
+        .background {
+            DarkEcoLauncherBackground()
+                .ignoresSafeArea()
+        }
         .task { _ = await session.refreshDataReport() }
         .fileImporter(isPresented: $isChoosingSource,
                       allowedContentTypes: importContentTypes,

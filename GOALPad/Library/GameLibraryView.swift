@@ -51,12 +51,8 @@ struct GameLibraryView: View {
                 }
             }
             .background {
-                LinearGradient(
-                    colors: [Color.black, DarkEcoTheme.background],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
+                DarkEcoLauncherBackground()
+                    .ignoresSafeArea()
             }
             .navigationTitle("Library")
             .toolbar {

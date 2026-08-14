@@ -41,6 +41,8 @@ do {
     let content = try source(at: root + "/GOALPad/ContentView.swift")
     let library = try source(at: root + "/GOALPad/Library/GameLibrary.swift")
     let libraryView = try source(at: root + "/GOALPad/Library/GameLibraryView.swift")
+    let launcherBackground = try source(at: root + "/GOALPad/UI/DarkEcoLauncherBackground.swift")
+    let launcherShader = try source(at: root + "/GOALPad/UI/DarkEcoLauncherBackground.metal")
     let supportViews = try source(at: root + "/GOALPad/Support/EcoSupportViews.swift")
     let gameplayLayout = try declaration(in: content,
                                          startingWith: "nonisolated enum GameplaySurfaceLayout",
@@ -174,6 +176,25 @@ do {
                         "launcher shelf, adaptive gutters, menu ordering, or About destination regressed"])
     }
     print("  ok   launcher menu is Settings then a unified About destination")
+    guard libraryScreen.contains("DarkEcoLauncherBackground()")
+            && launcherBackground.contains("@Environment(\\.accessibilityReduceMotion)")
+            && launcherBackground.contains("minimumInterval: 1.0 / 30.0")
+            && launcherBackground.contains("paused: reduceMotion")
+            && launcherBackground.contains("guard !reduceMotion else { return 0 }")
+            && launcherBackground.contains(".allowsHitTesting(false)")
+            && launcherBackground.contains(".accessibilityHidden(true)")
+            && launcherShader.contains("[[ stitchable ]] half4 darkEcoLauncherBackground")
+            && launcherShader.contains("float2 warped = domain")
+            && launcherShader.contains("float wavyEnergy = max")
+            && launcherShader.contains("float hotVein = smoothstep")
+            && launcherShader.contains("float vatGradient = clamp")
+            && launcherShader.contains("return half4(half3(color), sourceColor.a)")
+    else {
+        throw NSError(domain: "portrait-library-check", code: 3,
+                      userInfo: [NSLocalizedDescriptionKey:
+                        "Dark Eco liquid shader, accessibility fallback, or launcher wiring regressed"])
+    }
+    print("  ok   launcher uses a bounded noninteractive Dark Eco liquid shader with Reduce Motion support")
     guard libraryScreen.contains("ToolbarItem(placement: .principal)")
             && libraryScreen.contains("} label: { mainMenuLabel }")
             && libraryScreen.contains(".menuStyle(.button)")
