@@ -18351,6 +18351,8 @@ Physical Jak II acceptance remains pending a fresh maintainer authorization.
 
 Date: 2026-08-14.
 
+Outer functional checkpoint commit: `7a00ff713` on `jak2-best`.
+
 Nested `jak2-best` now ends at `d9f2a3dad` and contains five reviewed commits:
 
 ```text
@@ -18423,7 +18425,7 @@ Build 9 was update-installed without deleting app data on the approved iPad
 Pro 11-inch (M5) simulator and launched successfully to the library shell. The
 retained preference store confirms `internalResolutionScale=4` and
 `internalResolutionScale.target-default-4=true`. The executable SHA-256 is
-`77708ef9118bd27d0b639a77a991f7ff86cbe7f142183e886db0367f8e3e158f`.
+`96101f9bd97f95d4c61705c10ef7c9feb94c762e5a3f54342a8e2e5cbd59c69f`.
 The simulator was already booted before this checkpoint and was left running.
 
 Evidence:
