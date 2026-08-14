@@ -20950,3 +20950,18 @@ test, and `git diff --check` passed. Nested OpenGOAL is committed and pushed as
 Release build passed against `build/jak1-source-object-pack-build222`; its log is
 `/private/tmp/goalpad-build222-about-xcodebuild.log` and its product remains
 `/private/tmp/GOALPad-build222-subtitle/Build/Products/Release-iphoneos/Dark Eco.app`.
+
+Parent `main` was committed and pushed as `dba15e6f` with that nested pointer
+and every previously dangling Build 222 file. The pushed checkpoint was then
+rebuilt with the signed Release generic-iOS command and the Build 222 source
+pack; `/private/tmp/goalpad-build222-main-xcodebuild.log` records the passing
+build. That product was update-installed in place and foreground-launched on
+physical `Z iPad Pro` without uninstalling or inspecting its container. Final
+CoreDevice inventory reports Dark Eco 1.0 (222), bundle
+`com.zephyrstudiosllc.eco`. Evidence is preserved at:
+
+```text
+/private/tmp/goalpad-build222-main-install.json
+/private/tmp/goalpad-build222-main-launch.json
+/private/tmp/goalpad-build222-main-inventory.json
+```
