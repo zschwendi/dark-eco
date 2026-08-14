@@ -13,6 +13,7 @@
 #include "game/kernel/core/jak2_runtime.h"
 #include "game/kernel/core/kernel_game.h"
 #include "game/kernel/core/pad.h"
+#include "game/kernel/core/sound_rpc_jak2.h"
 
 static_assert((uint32_t)GOALPadButtonSelect == (uint32_t)GOAL_PAD_SELECT, "pad bit drift");
 static_assert((uint32_t)GOALPadButtonL3 == (uint32_t)GOAL_PAD_L3, "pad bit drift");
@@ -194,6 +195,8 @@ void log_jak2_diagnostics_locked() {
   const auto& metal = g_metal_metrics;
   goal_thread_stack_watermark_report stack = {};
   goal_thread_stack_watermark(&stack);
+  goal_jak2_sound_stream_state sound_streams = {};
+  goal_jak2_sound_stream_state_get(&sound_streams);
   goal_jak2_progress_menu_snapshot progress_menu = {};
   goal_jak2_runtime_get_progress_menu_snapshot(&progress_menu);
   goal_jak2_progress_menu_diagnostics progress_detail = {};
@@ -771,6 +774,32 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(runtime.ticks), stack.suspends, stack.deepest_used,
         stack.deepest_size, stack.deepest_name ? stack.deepest_name : "", stack.fullest_used,
         stack.fullest_size, stack.fullest_name ? stack.fullest_name : "");
+
+  NSLog(@"GOALPAD_JAK2_STREAM_CLOCK_STATE tick=%llu pulls=%llu/%llu",
+        static_cast<unsigned long long>(runtime.ticks),
+        static_cast<unsigned long long>(sound_streams.pull_calls),
+        static_cast<unsigned long long>(sound_streams.pulled_frames));
+  for (uint32_t i = 0; i < GOAL_JAK2_SOUND_STREAM_SLOT_COUNT; i++) {
+    const auto& stream = sound_streams.slots[i];
+    NSLog(@"GOALPAD_JAK2_STREAM_SLOT_STATE tick=%llu slot=%u active=%u id=%d "
+           "published=%u/%d voices=%d/%d ring=0x%08x/0x%08x/0x%08x "
+           "bytes=%u/%u/%llu rate=%u chunks=%u samples=%llu invalid=%llu "
+           "wraps=%llu advances=%llu stalls=%llu halves=%llu flags=%u/%u/%u/%u",
+          static_cast<unsigned long long>(runtime.ticks), i,
+          static_cast<unsigned>(stream.active), stream.id, stream.published_status,
+          stream.published_position, stream.primary_voice, stream.secondary_voice,
+          stream.ring_base, stream.sampled_nax, stream.last_nax, stream.bytes_read,
+          stream.total_bytes, static_cast<unsigned long long>(stream.played_bytes),
+          stream.sample_rate, stream.chunks_loaded,
+          static_cast<unsigned long long>(stream.clock_samples),
+          static_cast<unsigned long long>(stream.invalid_nax_samples),
+          static_cast<unsigned long long>(stream.ring_wraps),
+          static_cast<unsigned long long>(stream.position_advances),
+          static_cast<unsigned long long>(stream.position_stalls),
+          static_cast<unsigned long long>(stream.half_transitions),
+          static_cast<unsigned>(stream.playing), static_cast<unsigned>(stream.paused),
+          static_cast<unsigned>(stream.finished), static_cast<unsigned>(stream.current_half));
+  }
 }
 
 void clear_runtime_snapshots_locked() {
