@@ -1010,8 +1010,8 @@ private struct SettingsGamePicker: View {
     var body: some View {
         HStack(spacing: 0) {
             SettingsGamePickerChoice(title: "Jak 1", isSelected: true)
-            SettingsGamePickerChoice(title: GameLibraryTitle.jak2.name, isSelected: false)
-            SettingsGamePickerChoice(title: GameLibraryTitle.jak3.name, isSelected: false)
+            SettingsGamePickerChoice(title: "Future Title", isSelected: false)
+            SettingsGamePickerChoice(title: "Future Title", isSelected: false)
         }
         .accessibilityValue("Jak 1 selected")
     }
@@ -1075,6 +1075,7 @@ struct SaveSettingsView: View {
     @Bindable var sync: SaveSyncController
     @Bindable var settings: PresentationSettings
     @Bindable var input: ControllerInput
+    let isGameDataReady: Bool
     let isGameRunning: Bool
     let returnToLibrary: () -> Void
     @State private var saveTransferPicker: SaveTransferPicker?
@@ -1082,11 +1083,14 @@ struct SaveSettingsView: View {
     @State private var isConfirmingReturnToLibrary = false
     @State private var isConfirmingResetAll = false
     @State private var expandedCategories: Set<SettingsCategory> = []
+    @State private var tipStore = EcoTipStore()
 
     var body: some View {
         Form {
-            Section("Game") {
-                SettingsGamePicker()
+            if isGameDataReady {
+                Section("Game") {
+                    SettingsGamePicker()
+                }
             }
 
             #if os(macOS)
@@ -1200,7 +1204,7 @@ struct SaveSettingsView: View {
                     Label("Export Saves", systemImage: "square.and.arrow.up")
                 }
                 .disabled(sync.isBusy)
-                Text("Dark Eco imports and exports the four \(GameLibraryTitle.jak1.name) save slots. When copies "
+                Text("Dark Eco imports and exports four compatible save slots. When copies "
                      + "differ, the older copy is preserved automatically.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -1232,7 +1236,7 @@ struct SaveSettingsView: View {
                     Label("Refresh Preserved Saves", systemImage: "arrow.clockwise")
                 }
                 .disabled(sync.isBusy)
-                Text("Choose Make Active to restore a preserved native \(GameLibraryTitle.jak1.name) save. Dark Eco preserves "
+                Text("Choose Make Active to restore a preserved native save. Dark Eco preserves "
                      + "the current active copy before replacing it.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -1244,6 +1248,23 @@ struct SaveSettingsView: View {
                 Button("Reset All to Defaults", role: .destructive) {
                     isConfirmingResetAll = true
                 }
+            }
+
+            Section {
+                NavigationLink {
+                    EcoAboutView(tipStore: tipStore)
+                } label: {
+                    Label("About", systemImage: "info.circle")
+                }
+            } footer: {
+                HStack {
+                    Spacer()
+                    Text(GOALPadBuildIdentity.versionText)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .textCase(nil)
             }
         }
         .foregroundStyle(.white)
@@ -1454,7 +1475,7 @@ struct SaveSettingsView: View {
                 get: { settings.graphicsStereo3D },
                 set: { settings.setGraphicsStereo3D($0) }
             ))
-            Text("Renders a fixed left/right pair from Jak's existing game camera inside the "
+            Text("Renders a fixed left/right pair from the game's existing camera inside the "
                 + "normal game window. Turn it off to use Comfort mode.")
                 .font(.callout)
                 .foregroundStyle(.secondary)

@@ -46,8 +46,7 @@ struct GameDataSetupView: View {
             switch result {
             case .success(let urls):
                 guard let source = urls.first else {
-                    selectionError = "No source was selected. Choose one source for "
-                        + "\(GameLibraryTitle.jak1.name) and try again."
+                    selectionError = "No source was selected. Choose one compatible source and try again."
                     return
                 }
                 selectionError = nil
@@ -55,14 +54,14 @@ struct GameDataSetupView: View {
                     session.saveSync.gameDataImportDidFinish()
                     await session.refreshDataReport()
                 }
-            case .failure(let error):
-                selectionError = "Dark Eco could not open that source: \(error.localizedDescription) Try again."
+            case .failure:
+                selectionError = "Dark Eco could not open that source. Choose another compatible source and try again."
             }
         }
     }
 
     private var header: some View {
-        Text("Choose a compatible source from a copy you own.")
+        Text(GameLibraryOfferCopy.jak1ImportMessage())
             .font(.subheadline)
             .foregroundStyle(.secondary)
     }
@@ -154,7 +153,7 @@ struct GameDataSetupView: View {
                     .foregroundStyle(DarkEcoTheme.accentGlow)
                 ProgressView(value: progress.overallProgress)
                     .tint(DarkEcoTheme.accent)
-                    .accessibilityLabel("\(GameLibraryTitle.jak1.name) import progress")
+                    .accessibilityLabel("Game data import progress")
                     .accessibilityValue("\(progress.overallPercent)% complete · \(progress.phase.playerLabel)")
                 HStack(spacing: 8) {
                     ProgressView()
@@ -260,7 +259,7 @@ struct GameDataSetupView: View {
     }
 
     private var playButton: some View {
-        Button("Play \(GameLibraryTitle.jak1.name)") { Task { await session.start() } }
+        Button("Play Now") { Task { await session.start() } }
             .buttonStyle(.bordered)
             .disabled(!session.dataReport.canBoot || session.isRefreshingDataReport
                 || session.startupPhase.isPreparing)

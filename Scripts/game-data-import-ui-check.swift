@@ -99,11 +99,11 @@ check(view.contains("case .failed(let failure)")
         && view.contains("Text(\"Import canceled\")")
         && !view.contains("cancelledRecovery")
         && importer.contains("if Task.isCancelled || error is CancellationError")
-        && view.contains("case .failure(let error):"),
+        && view.contains("case .failure:"),
       "cancelled imports suppress late errors while real failures remain visible")
 check(!view.contains("setupInstructions") && !view.contains("missingList("),
       "the prior long setup wall and archive inventory are removed")
-check(view.contains("Text(\"Choose a compatible source from a copy you own.\")")
+check(view.contains("Text(GameLibraryOfferCopy.jak1ImportMessage())")
         && view.contains(".foregroundStyle(.secondary)")
         && !view.contains("Label(\"Add game data\"")
         && view.contains("Supported sources")
@@ -144,10 +144,16 @@ check(occursInOrder([
         && !view.contains("ProgressView(value: 1)")
         && !view.contains("100% complete"),
       "source guidance appears only while choosing, active import stands alone, and completion keeps its imported-size card")
-check(library.contains("title: Text(\"Set Up \\(GameLibraryTitle.jak1.name)\")")
-        && libraryModel.contains("Provide game data from a copy of")
+check(library.contains("title: Text(\"Set Up Game Data\")")
+        && library.contains("title: Text(\"Title Isn't Available Yet\")")
+        && libraryModel.contains("Provide compatible game data from a copy you legally own.")
+        && view.contains("Text(GameLibraryOfferCopy.jak1ImportMessage())")
+        && view.contains("Button(\"Play Now\")")
+        && view.contains(".accessibilityLabel(\"Game data import progress\")")
+        && view.contains("No source was selected. Choose one compatible source and try again.")
+        && view.contains("Dark Eco could not open that source. Choose another compatible source and try again.")
         && !libraryModel.contains("This build accepts"),
-      "the library entry keeps the exact setup title and ownership sentence only")
+      "pre-import setup, play, progress, selection failures, and unsupported alerts stay generic")
 check(!content.contains("ToolbarItem(placement: .primaryAction)"),
       "Game Setup has no Settings toolbar action")
 check(view.contains("DarkEcoPanel")

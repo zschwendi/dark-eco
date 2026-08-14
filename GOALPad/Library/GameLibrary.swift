@@ -7,11 +7,13 @@ nonisolated struct GameLibraryShelfLayout: Equatable, Sendable {
     static let titleCount = 3
     static let coverAspectRatio: CGFloat = 2 / 3
     static let maximumCoverWidth: CGFloat = 210
+    static let regularPortraitMaximumCoverWidth: CGFloat = 250
     static let compactSpacing: CGFloat = 8
     static let compactOuterPadding: CGFloat = 12
     static let regularVerticalPadding: CGFloat = 24
     static let regularMinimumGutter: CGFloat = 24
     static let cardHorizontalInset: CGFloat = 6
+    static let cardBottomInset: CGFloat = 20
     static let cardFooterHeight: CGFloat = 108
 
     let coverSize: CGSize
@@ -179,6 +181,18 @@ nonisolated enum GameLibraryTitle: String, CaseIterable, Equatable, Identifiable
     }
 }
 
+nonisolated enum GameLibraryPresentation {
+    static func displayTitle(for title: GameLibraryTitle,
+                             isValidatedAndLinked: Bool) -> String {
+        switch title {
+        case .jak1:
+            return isValidatedAndLinked ? title.shelfName : "Set Up Game Data"
+        case .jak2, .jak3:
+            return "Future Title"
+        }
+    }
+}
+
 nonisolated enum GameLibraryState: Equatable {
     case notImported
     case preparing(GameLibraryPreparation)
@@ -237,18 +251,17 @@ nonisolated enum GameLibraryCardAction: Equatable {
 
 nonisolated enum GameLibraryOfferCopy {
     static func jak1ImportMessage() -> String {
-        return "Provide game data from a copy of \(GameLibraryTitle.jak1.name) you legally own."
+        return "Provide compatible game data from a copy you legally own."
     }
 
     static func unsupportedMessage(for title: GameLibraryTitle) -> String {
         switch title {
         case .jak2:
-            return "Jak II support is in active development and is coming soon."
+            return "Support for this future title is coming soon."
         case .jak3:
-            return "Jak 3 support is planned."
+            return "Support for this future title is planned."
         case .jak1:
-            return "Import for \(title.shelfName) is not supported in this build. "
-                + "Dark Eco currently supports \(GameLibraryTitle.jak1.name) game data only."
+            return "That game-data format is not supported in this build."
         }
     }
 }

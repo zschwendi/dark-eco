@@ -49,6 +49,8 @@ let touchSticks = source(at: root + "/GOALPad/Game/TouchStickSettingsView.swift"
 let touchControlsView = source(at: root + "/GOALPad/Game/TouchControlsView.swift")
 
 check(occursInOrder([
+    "if isGameDataReady",
+    "Section(\"Game\")",
     "SettingsGamePicker()",
     "if isGameRunning",
     "Label(\"Return to Library\"",
@@ -56,7 +58,7 @@ check(occursInOrder([
 ], in: view)
         && view.contains(".confirmationDialog(\"Return to Library?\"")
         && view.contains("Progress since your last in-game save will be lost."),
-      "the persistent game picker precedes a confirmed, loss-aware return to the Library")
+      "the ready-only game picker precedes a confirmed, loss-aware return to the Library")
 check(view.contains("private var titleColor: Color")
         && view.contains("#if os(visionOS)\n        return .white.opacity(0.8)")
         && view.contains(".foregroundStyle(titleColor)"),
@@ -176,7 +178,18 @@ check(view.contains("Button(\"Restore Controls Defaults\"")
         && view.contains("\"Reset all settings?\"")
         && view.contains("This restores the default controls and graphics settings."),
       "Restore Defaults stays subdued and Reset All requires confirmation")
-check(view.contains("the four \\(GameLibraryTitle.jak1.name) save slots")
+check(occursInOrder([
+    "Button(\"Reset All to Defaults\", role: .destructive)",
+    "Label(\"About\", systemImage: \"info.circle\")",
+    "Text(GOALPadBuildIdentity.versionText)",
+], in: view)
+        && view.contains("EcoAboutView(tipStore: tipStore)")
+        && view.contains("@State private var tipStore = EcoTipStore()"),
+      "About follows Reset and the version/build footer is the final Settings content")
+check(view.contains("Dark Eco imports and exports four compatible save slots.")
+        && view.contains("restore a preserved native save.")
+        && !view.contains("the four \\(GameLibraryTitle.jak1.name) save slots")
+        && !view.contains("preserved native \\(GameLibraryTitle.jak1.name) save")
         && !view.contains("resolution.relativePath")
         && !view.contains("Section(\"Automatic Resolution\")")
         && !view.contains("BASCUS-"),
@@ -382,7 +395,8 @@ check(content.contains("@State private var settingsPresentation: SettingsSheetPr
       "one item-backed Settings presentation keeps a stable identity while it is open")
 check(content.contains("#if GOALPAD_APPSTORE_CAPTURE")
         && content.contains("arguments.contains(\"-EcoCaptureGameSetup\")")
-        && content.contains("arguments.contains(\"-EcoCaptureSettings\")"),
+        && content.contains("arguments.contains(\"-EcoCaptureSettings\")")
+        && !content.contains("EcoCaptureEmptyTitle"),
       "release-media builds can open the three truthful storefront states without retail data")
 check(content.contains("openSettings: presentSettings")
         && content.contains("openSettings: presentSettings")
@@ -392,12 +406,21 @@ check(content.contains("openSettings: presentSettings")
         && !content.contains("NavigationStack(path: $path)"),
       "every entry opens the direct Settings form without a title-list interstitial")
 check(view.contains("private struct SettingsGamePicker")
+        && view.contains("if isGameDataReady {")
+        && view.contains("Section(\"Game\")")
         && view.contains("SettingsGamePickerChoice(title: \"Jak 1\", isSelected: true)")
-        && view.contains("SettingsGamePickerChoice(title: GameLibraryTitle.jak2.name, isSelected: false)")
-        && view.contains("SettingsGamePickerChoice(title: GameLibraryTitle.jak3.name, isSelected: false)")
+        && view.components(separatedBy: "SettingsGamePickerChoice(title: \"Future Title\", isSelected: false)").count - 1 == 2
+        && !view.contains("SettingsGamePickerChoice(title: GameLibraryTitle.jak2.name")
+        && !view.contains("SettingsGamePickerChoice(title: GameLibraryTitle.jak3.name")
         && view.contains("Jak 1 selected")
         && view.contains(".navigationTitle(\"Settings\")"),
-      "the persistent picker keeps Jak 1 selected and future titles visibly unavailable")
+      "the existing picker appears only for validated data and keeps future titles neutral")
+check(content.contains("isGameDataReady: isGameDataReady")
+        && content.contains("session.dataReport.status == .ready")
+        && content.contains("private var isGameDataReady: Bool")
+        && view.contains("let isGameDataReady: Bool")
+        && !view.contains("if isGameRunning {\n                Section(\"Game\")"),
+      "Settings receives readiness explicitly instead of inferring it from active gameplay")
 check(occursInOrder(["Section(\"iCloud\")", "Label(cloudState.summary",
                      "DisclosureGroup(isExpanded: expansion(for: .iCloud))"], in: view)
         && !view.contains("Section(\"Saves\")")

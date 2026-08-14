@@ -10,17 +10,17 @@ nonisolated enum EcoTip: String, CaseIterable, Identifiable, Sendable {
 
     var emoji: String {
         switch self {
-        case .coffee: "☕"
+        case .coffee: "💜"
         case .development: "🚀"
-        case .topSupporter: "❤️"
+        case .topSupporter: "✨"
         }
     }
 
     var title: String {
         switch self {
-        case .coffee: "Coffee tip"
-        case .development: "Development tip"
-        case .topSupporter: "Extra support tip"
+        case .coffee: "Small Support"
+        case .development: "Development Support"
+        case .topSupporter: "Extra Support"
         }
     }
 }
@@ -52,6 +52,7 @@ final class EcoTipStore {
     private(set) var isLoading = false
     private(set) var purchasingProductID: String?
     private(set) var notice: String?
+    private(set) var isShowingThankYou = false
 
     func prepare() async {
         guard !isLoading else { return }
@@ -68,11 +69,11 @@ final class EcoTipStore {
             let fetched = try await Product.products(for: EcoTip.allCases.map(\.rawValue))
             products = Dictionary(uniqueKeysWithValues: fetched.map { ($0.id, $0) })
             if products.count != EcoTip.allCases.count {
-                notice = "Some tip options aren’t available from the App Store right now."
+                notice = "Some support options aren’t available from the App Store right now."
             }
         } catch {
             products = [:]
-            notice = "Tips couldn’t be loaded. Check your connection and try again."
+            notice = "Support options couldn’t be loaded. Check your connection and try again."
         }
     }
 
@@ -82,12 +83,12 @@ final class EcoTipStore {
 
     func purchase(_ tip: EcoTip) async {
         #if os(visionOS)
-        notice = "Tips aren’t available on visionOS."
+        notice = "Support purchases aren’t available on visionOS."
         return
         #else
         guard purchasingProductID == nil else { return }
         guard let product = product(for: tip) else {
-            notice = "That tip isn’t available from the App Store right now."
+            notice = "That support option isn’t available from the App Store right now."
             return
         }
 
@@ -101,12 +102,12 @@ final class EcoTipStore {
                 switch result {
                 case .verified(let transaction):
                     await transaction.finish()
-                    notice = "Thank you for supporting Dark Eco."
+                    isShowingThankYou = true
                 case .unverified:
                     notice = "The App Store couldn’t verify this purchase. Contact support if it appears in your purchase history."
                 }
             case .pending:
-                notice = "This tip is pending App Store approval."
+                notice = "This purchase is pending App Store approval."
             case .userCancelled:
                 notice = "Purchase canceled. You weren’t charged."
             @unknown default:
@@ -118,4 +119,7 @@ final class EcoTipStore {
         #endif
     }
 
+    func dismissThankYou() {
+        isShowingThankYou = false
+    }
 }

@@ -43,6 +43,7 @@ do {
     let libraryView = try source(at: root + "/GOALPad/Library/GameLibraryView.swift")
     let launcherBackground = try source(at: root + "/GOALPad/UI/DarkEcoLauncherBackground.swift")
     let launcherShader = try source(at: root + "/GOALPad/UI/DarkEcoLauncherBackground.metal")
+    let saveSettings = try source(at: root + "/GOALPad/Saves/SaveSyncController.swift")
     let supportViews = try source(at: root + "/GOALPad/Support/EcoSupportViews.swift")
     let gameplayLayout = try declaration(in: content,
                                          startingWith: "nonisolated enum GameplaySurfaceLayout",
@@ -62,7 +63,11 @@ do {
         endingWith: "\n\n/// A larger scrolling library for portrait compact-width phones.")
     let titles = try declaration(in: library,
                                  startingWith: "nonisolated enum GameLibraryTitle",
-                                 endingWith: "\n\nnonisolated enum GameLibraryState")
+                                 endingWith: "\n\nnonisolated enum GameLibraryPresentation")
+    let libraryPresentation = try declaration(
+        in: library,
+        startingWith: "nonisolated enum GameLibraryPresentation",
+        endingWith: "\n\nnonisolated enum GameLibraryState")
     let libraryState = try declaration(in: library,
                                        startingWith: "nonisolated enum GameLibraryState",
                                        endingWith: "\n\nnonisolated enum GameLibraryCardAction")
@@ -107,7 +112,9 @@ do {
                         "library tile lost its semantic launch button"])
     }
     let visionActivation = activationSurface[..<visionBranchEnd.lowerBound]
-    guard tileSurface.contains(".padding(GameLibraryShelfLayout.cardHorizontalInset)")
+    guard tileSurface.contains(".padding(.horizontal, GameLibraryShelfLayout.cardHorizontalInset)")
+            && tileSurface.contains(".padding(.top, GameLibraryShelfLayout.cardHorizontalInset)")
+            && tileSurface.contains(".padding(.bottom, usesHorizontalCard")
             && tileSurface.contains(".frame(width: cardWidth ?? coverSize.width")
             && tileSurface.contains(".background(DarkEcoTheme.surface")
             && tileSurface.contains(".contentShape(RoundedRectangle")
@@ -123,7 +130,14 @@ do {
             && tile.contains(".scaledToFit()")
             && !tile.contains(".scaledToFill()")
             && tile.contains(".frame(width: coverSize.width, height: coverSize.height)")
-            && tile.contains("Text(title.shelfName)")
+            && tile.contains(".padding(.bottom, usesHorizontalCard")
+            && tile.contains("GameLibraryShelfLayout.cardBottomInset")
+            && tile.contains("Text(displayTitle)")
+            && tile.contains(".accessibilityLabel(\"\\(displayTitle), \\(stateLabel)\")")
+            && tile.contains(".accessibilityLabel(\"Artwork options for \\(displayTitle)\")")
+            && !tile.contains("Text(title.shelfName)")
+            && !tile.contains("\\(title.name), \\(stateLabel)")
+            && !tile.contains("Artwork options for \\(title.name)")
             && tile.contains(".lineLimit(usesHorizontalCard ? 4 : (coverSize.width < 120 ? 4 : 2))")
             && tile.contains(".minimumScaleFactor(0.78)")
             && tile.contains(".allowsTightening(true)")
@@ -141,12 +155,12 @@ do {
                         "full-card launch target or independent artwork menu regressed"])
     }
     print("  ok   ready and unavailable cards retain rectangular hover targets beside artwork options")
-    guard let settingsMenuLabel = libraryScreen.range(
-              of: "Label(\"Settings\", systemImage: \"gearshape\")"),
-          let aboutMenuLabel = libraryScreen.range(
-              of: "Label(\"About\", systemImage: \"info.circle\")"),
-          settingsMenuLabel.lowerBound < aboutMenuLabel.lowerBound,
-          libraryScreen.contains("GeometryReader { proxy in")
+    guard libraryScreen.contains("Label(\"Settings\", systemImage: \"gearshape\")")
+            && !libraryScreen.contains("Label(\"About\", systemImage: \"info.circle\")")
+            && !libraryScreen.contains("EcoAboutView(tipStore: tipStore)")
+            && !libraryScreen.contains("versionFooter")
+            && !libraryScreen.contains("GOALPadBuildIdentity.versionText")
+            && libraryScreen.contains("GeometryReader { proxy in")
             && libraryScreen.contains("if isPortrait, horizontalSizeClass == .regular")
             && libraryScreen.contains("else if !isPortrait, isPhone || horizontalSizeClass == .compact")
             && libraryScreen.contains("fittedPortraitLibrary(containerSize: proxy.size)")
@@ -160,22 +174,26 @@ do {
             && !libraryScreen.contains("GridItem")
             && !libraryScreen.contains("Import Game")
             && !libraryScreen.contains("ToolbarItem(placement: .primaryAction)")
-            && libraryScreen.contains("EcoAboutView(tipStore: tipStore)")
             && libraryScreen.contains(".tint(DarkEcoTheme.accent)")
+            && saveSettings.contains("EcoAboutView(tipStore: tipStore)")
+            && saveSettings.contains("Label(\"About\", systemImage: \"info.circle\")")
+            && saveSettings.contains("Text(GOALPadBuildIdentity.versionText)")
             && about.contains("SupportPage(title: \"About\")")
             && supportViews.contains(".tint(DarkEcoTheme.accent)")
-            && about.contains("Dark Eco is built on the open-source OpenGOAL project")
+            && about.contains("Dark Eco is an unofficial native runtime for OpenGOAL developed by Zach Schwendiman.")
+            && about.contains("This app was built on the shoulders of the open-source OpenGOAL project and the work of its contributors.")
+            && about.contains("Visit OpenGOAL project")
             && about.contains("SupportRow(title: \"Contact\"")
-            && about.contains("SupportRow(title: \"Donate\"")
+            && about.contains("SupportRow(title: \"Support Development\"")
             && about.contains("Button(\"Done\")")
             && settingsSheet.contains(".tint(DarkEcoTheme.accent)")
             && settingsSheet.contains(".background(DarkEcoTheme.background)")
     else {
         throw NSError(domain: "portrait-library-check", code: 3,
                       userInfo: [NSLocalizedDescriptionKey:
-                        "launcher shelf, adaptive gutters, menu ordering, or About destination regressed"])
+                        "launcher shelf, adaptive gutters, or Settings About destination regressed"])
     }
-    print("  ok   launcher menu is Settings then a unified About destination")
+    print("  ok   launcher menu opens Settings, whose bottom rows own About and version")
     guard libraryScreen.contains("DarkEcoLauncherBackground()")
             && launcherBackground.contains("@Environment(\\.accessibilityReduceMotion)")
             && launcherBackground.contains("minimumInterval: 1.0 / 30.0")
@@ -221,6 +239,10 @@ do {
             && tile.contains("HStack(alignment: .center, spacing: 8) {\n                    artwork\n                    details")
             && tile.contains(".frame(maxWidth: .infinity, alignment: .leading)")
             && libraryView.contains("Text(title.fallbackMark)")
+            && libraryScreen.contains("GameLibraryShelfLayout.regularPortraitMaximumCoverWidth")
+            && !libraryView.contains(".stroke(DarkEcoTheme.accent.opacity(0.18), lineWidth: 2)")
+            && !libraryView.contains(".fill(.black.opacity(0.38))")
+            && !libraryView.contains("RoundedRectangle(cornerRadius: 30, style: .continuous)")
             && !libraryView.contains("Text(\"DARK ECO\")")
     else {
         throw NSError(domain: "portrait-library-check", code: 3,
@@ -228,6 +250,7 @@ do {
                         "compact phone card geometry, artwork order, or placeholder copy regressed"])
     }
     print("  ok   compact portrait centers cards, landscape uses readable artwork-left cards, and placeholders keep only numerals")
+    print("  ok   empty artwork drops its decorative spheres and inner outline while vertical cards use extra footer room and wider iPad portrait art")
     guard libraryScreen.contains("case .waitingForForegroundPreparation:")
             && libraryScreen.contains("return .preparing(.finishingSaveCheck)")
             && libraryScreen.contains("case .checkingSaves:")
@@ -274,6 +297,8 @@ do {
     \(compactLandscapeLayout)
 
     \(titles)
+
+    \(libraryPresentation)
 
     \(libraryState)
 
@@ -436,17 +461,45 @@ do {
           == .showUnsupported(.jak3),
           "Jak II and Jak 3 fail closed even if a future state is misclassified")
 
+    let emptyTitles = GameLibraryTitle.allCases.map {
+        GameLibraryPresentation.displayTitle(for: $0, isValidatedAndLinked: false)
+    }
+    check(emptyTitles == ["Set Up Game Data", "Future Title", "Future Title"],
+          "the empty Library uses only neutral shipping titles")
+    check(GameLibraryPresentation.displayTitle(for: .jak1, isValidatedAndLinked: true)
+            == GameLibraryTitle.jak1.name,
+          "validated and linked game data reveals the canonical first title")
+    check(GameLibraryPresentation.displayTitle(for: .jak2, isValidatedAndLinked: true)
+            == "Future Title"
+          && GameLibraryPresentation.displayTitle(for: .jak3, isValidatedAndLinked: true)
+            == "Future Title",
+          "planned titles remain neutral even if future state is misclassified")
+
     let offer = GameLibraryOfferCopy.jak1ImportMessage()
-    check(offer.contains("legally own") && offer.contains(GameLibraryTitle.jak1.name),
-          "Jak 1 setup offer states ownership and the canonical title")
-    check(GameLibraryOfferCopy.unsupportedMessage(for: .jak2).contains("Jak II")
-          && GameLibraryOfferCopy.unsupportedMessage(for: .jak3).contains("Jak 3"),
-          "unsupported offers remain title-specific")
+    check(offer == "Provide compatible game data from a copy you legally own.",
+          "setup offer uses the generic ownership sentence")
+    check(GameLibraryOfferCopy.unsupportedMessage(for: .jak2)
+            == "Support for this future title is coming soon."
+          && GameLibraryOfferCopy.unsupportedMessage(for: .jak3)
+            == "Support for this future title is planned.",
+          "unsupported offers remain truthful without revealing planned titles")
     check(GameLibraryTitle.jak2.availabilityLabel == "Coming Soon"
           && GameLibraryTitle.jak3.availabilityLabel == "Planned"
           && GameLibraryOfferCopy.unsupportedMessage(for: .jak2).contains("coming soon")
           && GameLibraryOfferCopy.unsupportedMessage(for: .jak3).contains("planned"),
           "follow-on title availability uses the same truthful copy everywhere")
+    let emptyPresentationText = (emptyTitles + [
+        "Not Imported",
+        GameLibraryTitle.jak2.availabilityLabel,
+        GameLibraryTitle.jak3.availabilityLabel,
+        offer,
+        GameLibraryOfferCopy.unsupportedMessage(for: .jak1),
+        GameLibraryOfferCopy.unsupportedMessage(for: .jak2),
+        GameLibraryOfferCopy.unsupportedMessage(for: .jak3),
+    ]).joined(separator: " ")
+    let prohibited = ["Jak", "Daxter", "Precursor", "Jak II", "Jak 3"]
+    check(prohibited.allSatisfy { !emptyPresentationText.localizedCaseInsensitiveContains($0) },
+          "empty Library titles, statuses, setup copy, and alerts contain no prohibited names")
     print("portrait and library checks passed")
     """
 

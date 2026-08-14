@@ -31,12 +31,12 @@ reading file metadata in app/iCloud containers and user-selected locations,
 and storing app-only preferences. These declarations do not replace the
 separate App Store Connect privacy questionnaire.
 
-Dark Eco offers three optional consumable StoreKit tips. The app displays
-Apple's localized prices and provides no feature, content, or entitlement in
-return. Product identifiers, customer-facing copy, intended US price points,
-test cases, and required App Store Connect setup are recorded in
-[Dark Eco optional tips](STOREKIT_TIPS.md). No App Store Connect product record
-has been created or verified by this repository.
+Dark Eco offers three optional consumable StoreKit purchases supporting
+continued development. They do not unlock features or content at this time and
+grant no status, recognition, access, or other benefit. Product identifiers,
+customer copy, intended US prices, test cases, and required App Store Connect
+setup are recorded in [Dark Eco optional support](STOREKIT_TIPS.md). No App
+Store Connect product record has been created or verified by this repository.
 
 `ITSAppUsesNonExemptEncryption` is `false`. The app implements no encryption;
 CryptoKit is used only for one-way save-file identity hashes, while iCloud and

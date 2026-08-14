@@ -30,8 +30,6 @@ struct GameLibraryView: View {
     @State private var artworkTitle: GameLibraryTitle?
     @State private var isChoosingArtwork = false
     @State private var presentedAlert: GameLibraryAlert?
-    @State private var isShowingAbout = false
-    @State private var tipStore = EcoTipStore()
 
     var body: some View {
         NavigationStack {
@@ -39,15 +37,12 @@ struct GameLibraryView: View {
                 let isPortrait = proxy.size.height > proxy.size.width
                 if isPortrait, horizontalSizeClass == .regular {
                     fittedPortraitLibrary(containerSize: proxy.size)
-                        .overlay(alignment: .bottom) { versionFooter }
                 } else if !isPortrait, isPhone || horizontalSizeClass == .compact {
                     compactLandscapeLibrary(containerSize: proxy.size)
-                        .overlay(alignment: .bottom) { versionFooter }
                 } else if isPortrait {
                     scrollingLibrary(containerWidth: proxy.size.width)
                 } else {
                     wideLibrary(containerSize: proxy.size)
-                        .overlay(alignment: .bottom) { versionFooter }
                 }
             }
             .background {
@@ -61,9 +56,6 @@ struct GameLibraryView: View {
                         Button(action: openSettings) {
                             Label("Settings", systemImage: "gearshape")
                         }
-                        Button { isShowingAbout = true } label: {
-                            Label("About", systemImage: "info.circle")
-                        }
                     } label: { mainMenuLabel }
                     .menuStyle(.button)
                     .buttonStyle(.plain)
@@ -73,13 +65,6 @@ struct GameLibraryView: View {
         }
         .preferredColorScheme(.dark)
         .tint(DarkEcoTheme.accent)
-        .sheet(isPresented: $isShowingAbout) {
-            NavigationStack {
-                EcoAboutView(tipStore: tipStore)
-            }
-            .preferredColorScheme(.dark)
-            .tint(DarkEcoTheme.accent)
-        }
         .fileImporter(
             isPresented: $isChoosingArtwork,
             allowedContentTypes: [.image],
@@ -104,14 +89,14 @@ struct GameLibraryView: View {
             switch alert {
             case .importJak1:
                 Alert(
-                    title: Text("Set Up \(GameLibraryTitle.jak1.name)"),
+                    title: Text("Set Up Game Data"),
                     message: Text(GameLibraryOfferCopy.jak1ImportMessage()),
                     primaryButton: .default(Text("Continue"), action: openJak1Setup),
                     secondaryButton: .cancel()
                 )
             case .unsupported(let title):
                 Alert(
-                    title: Text("\(title.shelfName) Isn't Supported Yet"),
+                    title: Text("Title Isn't Available Yet"),
                     message: Text(GameLibraryOfferCopy.unsupportedMessage(for: title)),
                     dismissButton: .default(Text("OK"))
                 )
@@ -142,8 +127,6 @@ struct GameLibraryView: View {
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.horizontal, GameLibraryGridLayout.outerPadding)
             .padding(.top, 12)
-
-            versionFooter
         }
         .scrollIndicators(.hidden)
     }
@@ -165,12 +148,10 @@ struct GameLibraryView: View {
     private func fittedPortraitLibrary(containerSize: CGSize) -> some View {
         let spacing = GameLibraryGridLayout.spacing
         let outerPadding = GameLibraryGridLayout.outerPadding
-        let footerReserve: CGFloat = 44
         let availableWidth = max(0, containerSize.width - outerPadding * 2 - spacing)
-        let availableHeight = max(0, containerSize.height - footerReserve
-                                  - outerPadding * 2 - spacing)
+        let availableHeight = max(0, containerSize.height - outerPadding * 2 - spacing)
         let coverWidth = min(
-            GameLibraryShelfLayout.maximumCoverWidth,
+            GameLibraryShelfLayout.regularPortraitMaximumCoverWidth,
             max(0, availableWidth / 2
                 - GameLibraryShelfLayout.cardHorizontalInset * 2),
             max(0, availableHeight / 2 - GameLibraryShelfLayout.cardFooterHeight)
@@ -214,12 +195,10 @@ struct GameLibraryView: View {
             }
             .scrollIndicators(.hidden)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .padding(.bottom, 32)
         } else {
             cards
                 .padding(.horizontal, GameLibraryCompactLandscapeLayout.outerPadding)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                .padding(.bottom, 32)
         }
     }
 
@@ -227,8 +206,13 @@ struct GameLibraryView: View {
                       coverSize: CGSize,
                       usesHorizontalCard: Bool = false,
                       cardWidth: CGFloat? = nil) -> some View {
-        GameLibraryTile(
+        let displayTitle = GameLibraryPresentation.displayTitle(
+            for: title,
+            isValidatedAndLinked: isGameDataValidatedAndLinked
+        )
+        return GameLibraryTile(
             title: title,
+            displayTitle: displayTitle,
             state: state(for: title),
             progress: progress(for: title),
             coverSize: coverSize,
@@ -242,12 +226,8 @@ struct GameLibraryView: View {
         )
     }
 
-    private var versionFooter: some View {
-        Text(GOALPadBuildIdentity.versionText)
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+    private var isGameDataValidatedAndLinked: Bool {
+        session.dataReport.status == .ready && GOALPadRuntimeBridge.isGameCodeLinked
     }
 
     private var isPhone: Bool {
@@ -373,6 +353,7 @@ private struct DarkEcoMenuLabel: View {
 
 private struct GameLibraryTile: View {
     let title: GameLibraryTitle
+    let displayTitle: String
     let state: GameLibraryState
     let progress: GameDataImporter.Progress?
     let coverSize: CGSize
@@ -388,7 +369,7 @@ private struct GameLibraryTile: View {
         ZStack(alignment: .bottomTrailing) {
             activationSurface
                 .opacity(state == .planned ? 0.48 : 1)
-                .accessibilityLabel("\(title.name), \(stateLabel)")
+                .accessibilityLabel("\(displayTitle), \(stateLabel)")
                 .accessibilityHint(accessibilityHint)
 
             artworkMenu
@@ -435,7 +416,11 @@ private struct GameLibraryTile: View {
                 }
             }
         }
-        .padding(GameLibraryShelfLayout.cardHorizontalInset)
+        .padding(.horizontal, GameLibraryShelfLayout.cardHorizontalInset)
+        .padding(.top, GameLibraryShelfLayout.cardHorizontalInset)
+        .padding(.bottom, usesHorizontalCard
+            ? GameLibraryShelfLayout.cardHorizontalInset
+            : GameLibraryShelfLayout.cardBottomInset)
         .frame(width: cardWidth ?? coverSize.width
             + GameLibraryShelfLayout.cardHorizontalInset * 2,
                alignment: usesHorizontalCard ? .center : .leading)
@@ -450,7 +435,7 @@ private struct GameLibraryTile: View {
 
     private var details: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title.shelfName)
+            Text(displayTitle)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.primary)
                 .lineLimit(usesHorizontalCard ? 4 : (coverSize.width < 120 ? 4 : 2))
@@ -530,7 +515,7 @@ private struct GameLibraryTile: View {
         }
         .buttonStyle(.plain)
         .padding(10)
-        .accessibilityLabel("Artwork options for \(title.name)")
+        .accessibilityLabel("Artwork options for \(displayTitle)")
     }
 
     @ViewBuilder
@@ -600,22 +585,6 @@ private struct FallbackGameArtwork: View {
     var body: some View {
         ZStack {
             LinearGradient(colors: palette, startPoint: .topLeading, endPoint: .bottomTrailing)
-            Circle()
-                .fill(.black.opacity(0.38))
-                .frame(width: 190, height: 190)
-                .offset(x: 80, y: -55)
-            Circle()
-                .stroke(DarkEcoTheme.accent.opacity(0.18), lineWidth: 2)
-                .frame(width: 150, height: 150)
-                .offset(x: -90, y: 70)
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .stroke(
-                    LinearGradient(colors: [.white.opacity(0.34), .clear,
-                                            DarkEcoTheme.accentGlow.opacity(0.48)],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing),
-                    lineWidth: 2
-                )
-                .padding(11)
             VStack(spacing: 8) {
                 Text(title.fallbackMark)
                     .font(.system(size: 62, weight: .black, design: .rounded))

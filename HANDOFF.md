@@ -20767,3 +20767,124 @@ final builds have no Build 219 source error.
 No physical Vision Pro app was installed or launched. A physical Build 219
 acceptance pass remains pending for delivered 90/60 Hz cadence, live switching,
 4:3 window resizing, power-button navigation, legibility, and card hover shape.
+## Build 220 launcher-background integration pause and Build 221 request (2026-08-14)
+
+The maintainer asked to integrate the finished Dark Eco launcher-background
+experiment, assign it Build 220, then paused the work before the pending Xcode
+build matrix. This is a durable bailout checkpoint; do not infer that Build 220
+has been fully integrated, pushed, or build-validated.
+
+### Source and clean integration lane
+
+The approved source remains:
+
+- branch: `agent/dark-eco-launcher-background`
+- worktree:
+  `/Users/zach/Developer/OS_Projects/GOALPad/GP-dark-eco-launcher-background`
+- source commits, in order:
+  - `c25498fb` — shader, SwiftUI wrapper, and Library integration
+  - `07d875eb` — final wavy, gradient-heavy, no-orb refinement
+  - `5b08a066` — reuse behind game setup/import
+- deliberately skipped: `2516ea99`, which only records that experiment's
+  HANDOFF entry.
+
+A clean integration worktree was created from current Build 219 commit
+`b833012da6b0849eb38afecf742db551e8590534`:
+
+- branch: `agent/build220-launcher-background-integration`
+- worktree:
+  `/Users/zach/Developer/OS_Projects/GOALPad/GP-build220-launcher-background-integration`
+- commits:
+  - `9ba750d4` — cherry-pick of `c25498fb`
+  - `c51eb090` — cherry-pick of `07d875eb`
+  - `c66d8d7b` — cherry-pick of `5b08a066`
+  - `889fb7f6` — both target configurations bumped from 219 to 220
+
+The clean lane preserves the accepted design: liquid black-violet waves,
+uneven distributed gradient, restrained spatial curl, no orbs or particles,
+Reduce Motion freezing shader time, noninteractive/accessibility-hidden
+presentation, and the same background on Library and setup/import screens.
+
+### Dirty main checkout state
+
+The main checkout remains on `main` at
+`b833012da6b0849eb38afecf742db551e8590534` with unrelated pre-existing
+presentation, setup, Settings/About, and StoreKit work still dirty. Preserve all
+of it. The Build 220 changes were manually ported into that working tree without
+discarding the newer edits in the overlapping files.
+
+Build 220-owned working-tree changes are limited to:
+
+- new, currently untracked in main:
+  - `GOALPad/UI/DarkEcoLauncherBackground.swift`
+  - `GOALPad/UI/DarkEcoLauncherBackground.metal`
+- narrow background wiring in:
+  - `GOALPad/Library/GameLibraryView.swift`
+  - `GOALPad/Data/GameDataSetupView.swift`
+- additive regression assertions in:
+  - `Scripts/portrait-library-check.swift`
+  - `Scripts/game-data-import-ui-check.swift`
+- `CURRENT_PROJECT_VERSION = 220` in both target configurations in
+  `GOALPad.xcodeproj/project.pbxproj`.
+
+Do not broadly stage or commit the dirty main checkout. Do not cherry-pick the
+source commits over the manually ported overlapping files. The next integration
+owner should compare the Build 220-owned hunks against the clean integration
+branch, selectively stage only those hunks plus the build bump, and preserve all
+other unstaged changes.
+
+### Validation completed before pause
+
+The following passed against the newer dirty main working tree after the manual
+port:
+
+```text
+Scripts/run-portrait-library-check.sh
+swift Scripts/game-data-import-ui-check.swift .
+git diff --check
+xcrun swiftc -frontend -parse   GOALPad/UI/DarkEcoLauncherBackground.swift   GOALPad/Data/GameDataSetupView.swift   GOALPad/Library/GameLibraryView.swift
+```
+
+The checks confirm both Library/setup wiring, the final wavy shader markers,
+Reduce Motion freeze behavior, disabled hit testing, and hidden accessibility.
+
+### Still pending for Build 220
+
+No Build 220 Xcode compile was started before the bailout. Run these serially
+only after unrelated active Xcode builds have finished:
+
+1. Release build for the approved iPad Pro 11-inch (M5) simulator.
+2. Release `generic/platform=iOS` build with code signing disabled.
+3. Verify the resulting `default.metallib` contains
+   `darkEcoLauncherBackground`.
+4. Re-run `git diff --check`, then selectively commit/integrate and push the
+   verified Build 220 checkpoint as repository policy requires.
+
+At pause time, other Jak II lanes owned active `xcodebuild` processes. Do not
+interrupt them or begin a competing heavy build. No physical device was
+accessed for this background integration, and the maintainer explicitly
+prohibited physical-device access for it.
+
+### Requested Build 221 follow-up — not started
+
+After Build 220 is safely checkpointed, the maintainer requested a separate
+Build 221 visual refinement:
+
+1. The shader background must never rotate. Remove the UV rotation/curl transform
+   while keeping the liquid waves, uneven gradient, and other internal flow
+   animation moving. Reduce Motion must continue freezing all animation.
+2. Inspect the ordinary empty Library on the approved simulator. The current
+   fallback artwork looks like too many outlined cards nested inside each card.
+3. Change only fallback artwork, never user-selected custom artwork:
+   - first title: one tastefully placed circle;
+   - second title: the existing two-circle idea, refined as needed;
+   - third title: three tastefully placed circles.
+4. Remove or simplify the extra internal rectangular outlines that create the
+   nested-card look. Preserve the neutral empty-state titles/statuses and Roman
+   numeral identity marks unless the visual inspection proves a narrower
+   adjustment is necessary.
+5. Use simulator visual inspection and capture before/after evidence. Do not
+   access a physical device.
+
+No Build 221 source edit, simulator inspection, build-number bump, test, build,
+or screenshot has been performed yet.

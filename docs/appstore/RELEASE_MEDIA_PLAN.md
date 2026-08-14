@@ -8,7 +8,7 @@ been uploaded or approved.
 ## Existing inventory
 
 - [App Store metadata](metadata.md) contains product identity and disclosures.
-- [Optional tips](STOREKIT_TIPS.md) contains the IAP review-screen requirement.
+- [Optional support](STOREKIT_TIPS.md) contains the IAP review-screen requirement.
 - `docs/appstore/icon-concepts/` contains icon studies, not release screenshots
   or previews.
 - `docs/BUILDING.md` records historical simulator screenshot commands and
@@ -19,7 +19,9 @@ been uploaded or approved.
   outside this Git repository.
 - `ContentView` has a compile-time-only `GOALPAD_APPSTORE_CAPTURE` seam for the
   empty Library, Game Setup, and Settings states. It is absent from normal
-  builds unless that Swift condition is explicitly supplied.
+  builds unless that Swift condition is explicitly supplied. The condition
+  selects only the launch destination; it does not replace shipping labels or
+  readiness behavior.
 - No app preview was produced for Build 164. The preview is optional, and a
   UI-only video does not add enough information to this release's three still
   concepts.
@@ -44,12 +46,13 @@ resolution. Do not resize a simulator capture to invent a required device size.
 
 | Order | State | Visible message | Data needed |
 | --- | --- | --- | --- |
-| 1 | Library, empty container | Truthful available, Coming Soon, and Planned library states | None |
+| 1 | Library, empty container | Set Up Game Data / Not Imported, then two neutral Future Title cards marked Coming Soon and Planned | None |
 | 2 | Game Setup | Streamlined local import/setup guidance that the app includes no game data | None |
-| 3 | Settings | The single input picker and compact settings categories | None |
+| 3 | Settings | Controls, Graphics, iCloud, Saves, and Support without the unavailable Game picker | None |
 
-Capture the Donate page separately as each consumable's App Review screenshot;
-it is not one of the three customer-facing storefront concepts.
+Capture the Support Development page separately as the three consumables' App
+Review screenshot; it is not one of the three customer-facing storefront
+concepts.
 
 For iPhone and iPad, create the three concepts for each supported platform’s
 required family: one accepted iPhone 6.9-inch size matching the capture device
@@ -100,7 +103,8 @@ gate.
    `OTHER_SWIFT_FLAGS=$(inherited) -DGOALPAD_APPSTORE_CAPTURE` to the Release
    simulator build. Launch without an argument for Library, with
    `-EcoCaptureGameSetup` for Game Setup, or with `-EcoCaptureSettings` for
-   Settings. Wait for the UI to settle, then capture with Xcode or
+   Settings. These arguments route to the ordinary shipping empty state and do
+   not substitute capture-only labels. Wait for the UI to settle, then capture with Xcode or
    `xcrun simctl io <simulator-udid> screenshot <path>`. For visionOS, use the
    simulator/Xcode capture that produces the required 3840 × 2160 frame.
 4. Inspect every exported image with `sips -g pixelWidth -g pixelHeight -g

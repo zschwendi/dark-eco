@@ -9,16 +9,16 @@ struct EcoAboutView: View {
         SupportPage(title: "About") {
             VStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Dark Eco")
-                            .font(.largeTitle.bold())
+                    Text("Dark Eco")
+                        .font(.largeTitle.bold())
+
+                    Text("Dark Eco is an unofficial native runtime for OpenGOAL developed by Zach Schwendiman.")
+
+                    Text("This app was built on the shoulders of the open-source OpenGOAL project and the work of its contributors.")
+
+                    Link(destination: openGOALProjectURL) {
+                        Label("Visit OpenGOAL project", systemImage: "arrow.up.right.square")
                     }
-
-                    Text("Dark Eco is a native Apple runtime for OpenGOAL developed by Zach Schwendiman, published by Zephyr Studios.")
-          
-
-                    Text("Dark Eco is built on the open-source OpenGOAL project and the work of its contributors.")
-
 
                     Text("Dark Eco is not affiliated with Sony Interactive Entertainment, Naughty Dog, or the OpenGOAL team.")
                         .foregroundStyle(.secondary)
@@ -33,9 +33,9 @@ struct EcoAboutView: View {
                 }
 
                 NavigationLink {
-                    EcoDonateView(tipStore: tipStore)
+                    EcoSupportDevelopmentView(tipStore: tipStore)
                 } label: {
-                    SupportRow(title: "Donate", systemImage: "heart")
+                    SupportRow(title: "Support Development", systemImage: "heart")
                 }
             }
             .buttonStyle(.plain)
@@ -47,6 +47,8 @@ struct EcoAboutView: View {
         }
     }
 }
+
+private let openGOALProjectURL = URL(string: "https://github.com/open-goal/jak-project")!
 
 private struct EcoContactView: View {
     private let emailURL = URL(string: "mailto:contact@zephyrstudios.dev?subject=Dark%20Eco%20Support")!
@@ -69,19 +71,22 @@ private struct EcoContactView: View {
     }
 }
 
-private struct EcoDonateView: View {
+private struct EcoSupportDevelopmentView: View {
     let tipStore: EcoTipStore
 
     var body: some View {
-        SupportPage(title: "Donate") {
+        SupportPage(title: "Support Development") {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Optional tips")
+                Text("Optional Support")
                     .font(.title2.bold())
 
-            ForEach(EcoTip.allCases) { tip in
-                Button {
-                    Task { await tipStore.purchase(tip) }
-                } label: {
+                Text("If you’d like, you can make an optional one-time purchase to support continued development.")
+                    .foregroundStyle(.secondary)
+
+                ForEach(EcoTip.allCases) { tip in
+                    Button {
+                        Task { await tipStore.purchase(tip) }
+                    } label: {
                         HStack(spacing: 12) {
                             Text(tip.emoji)
                             Text(tip.title)
@@ -90,33 +95,35 @@ private struct EcoDonateView: View {
                         }
                         .frame(minHeight: 50)
                         .padding(.horizontal, 14)
-                        .background(DarkEcoTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+                        .background(DarkEcoTheme.surface,
+                                    in: RoundedRectangle(cornerRadius: 12))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 12)
+                                .strokeBorder(DarkEcoTheme.accent.opacity(0.5), lineWidth: 1)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(tipStore.product(for: tip) == nil
+                              || tipStore.purchasingProductID != nil)
+                }
+
+                Link(destination: openGOALProjectURL) {
+                    Label("Support OpenGOAL directly on its official project page",
+                          systemImage: "arrow.up.right.square")
+                        .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
+                        .padding(.horizontal, 14)
+                        .background(DarkEcoTheme.surface,
+                                    in: RoundedRectangle(cornerRadius: 12))
                         .overlay {
                             RoundedRectangle(cornerRadius: 12)
                                 .strokeBorder(DarkEcoTheme.accent.opacity(0.5), lineWidth: 1)
                         }
                 }
                 .buttonStyle(.plain)
-                .disabled(tipStore.product(for: tip) == nil
-                              || tipStore.purchasingProductID != nil)
-            }
+                .foregroundStyle(.primary)
 
-            Link(destination: URL(string: "https://github.com/open-goal/jak-project")!) {
-                Label("Want to support the OpenGOAL project directly? Visit their official project page.",
-                      systemImage: "arrow.up.right.square")
-                    .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
-                    .padding(.horizontal, 14)
-                    .background(DarkEcoTheme.surface, in: RoundedRectangle(cornerRadius: 12))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(DarkEcoTheme.accent.opacity(0.5), lineWidth: 1)
-                    }
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.primary)
-
-            Text("The app is free. Tips are optional and unlock no features or content.")
-                .font(.footnote)
+                Text("Dark Eco is unofficial. These optional purchases do not unlock features or content at this time.")
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
 
                 if let notice = tipStore.notice {
@@ -135,6 +142,16 @@ private struct EcoDonateView: View {
             }
         }
         .task { await tipStore.prepare() }
+        .sheet(isPresented: Binding(
+            get: { tipStore.isShowingThankYou },
+            set: { if !$0 { tipStore.dismissThankYou() } }
+        )) {
+            EcoSupportThankYouView {
+                tipStore.dismissThankYou()
+            }
+            .preferredColorScheme(.dark)
+            .tint(DarkEcoTheme.accent)
+        }
     }
 
     @ViewBuilder
@@ -150,6 +167,34 @@ private struct EcoDonateView: View {
             Text("Unavailable")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct EcoSupportThankYouView: View {
+    let done: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            SupportPage(title: "Thank You") {
+                VStack(alignment: .leading, spacing: 18) {
+                    Image(systemName: "heart.circle.fill")
+                        .font(.system(size: 54))
+                        .foregroundStyle(DarkEcoTheme.accent)
+                        .accessibilityHidden(true)
+                    Text("Thank You")
+                        .font(.largeTitle.bold())
+                    Text("Your support helps Zach continue developing and maintaining Dark Eco.")
+                        .font(.title3)
+                    Text("This purchase does not unlock features or content at this time, but it is sincerely appreciated.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { done() }
+                }
+            }
         }
     }
 }

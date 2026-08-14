@@ -220,6 +220,7 @@ struct ContentView: View {
             SettingsSheetView(sync: session.saveSync,
                               settings: session.presentationSettings,
                               input: session.input,
+                              isGameDataReady: isGameDataReady,
                               isGameRunning: session.isRunning,
                               returnToLibrary: returnToLibrary)
                 .id(presentation.id)
@@ -238,6 +239,10 @@ struct ContentView: View {
     private func presentSettings() {
         nextSettingsPresentationID += 1
         settingsPresentation = SettingsSheetPresentation(id: nextSettingsPresentationID)
+    }
+
+    private var isGameDataReady: Bool {
+        session.dataReport.status == .ready
     }
 
     private func returnToLibrary() {
@@ -273,16 +278,19 @@ private struct SettingsSheetView: View {
     @Bindable var sync: SaveSyncController
     @Bindable var settings: PresentationSettings
     @Bindable var input: ControllerInput
+    let isGameDataReady: Bool
     let isGameRunning: Bool
     let returnToLibrary: () -> Void
     init(sync: SaveSyncController,
          settings: PresentationSettings,
          input: ControllerInput,
+         isGameDataReady: Bool,
          isGameRunning: Bool,
          returnToLibrary: @escaping () -> Void) {
         self.sync = sync
         self.settings = settings
         self.input = input
+        self.isGameDataReady = isGameDataReady
         self.isGameRunning = isGameRunning
         self.returnToLibrary = returnToLibrary
     }
@@ -292,6 +300,7 @@ private struct SettingsSheetView: View {
             SaveSettingsView(sync: sync,
                              settings: settings,
                              input: input,
+                             isGameDataReady: isGameDataReady,
                              isGameRunning: isGameRunning,
                              returnToLibrary: returnToLibrary)
                 #if os(iOS)
