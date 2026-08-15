@@ -324,6 +324,26 @@ void log_jak2_diagnostics_locked() {
         metal.last_sprite_first_placeholder_valid ? metal.last_sprite_first_placeholder_draw_mode
                                                   : 0);
 
+  const uint32_t mercModelDiagnosticCount =
+      metal.last_merc_model_diagnostic_count < GOAL_JAK2_MERC_MODEL_DIAGNOSTIC_COUNT
+          ? metal.last_merc_model_diagnostic_count
+          : GOAL_JAK2_MERC_MODEL_DIAGNOSTIC_COUNT;
+  for (uint32_t index = 0; index < mercModelDiagnosticCount; ++index) {
+    const auto& diagnostic = metal.last_merc_model_diagnostics[index];
+    NSLog(@"GOALPAD_JAK2_MERC_MODEL_STATE tick=%llu index=%u count=%u overflow=%llu "
+           "bucket=%u model=%016llx packets=%llu draws=%llu triangles=%llu missing=%llu",
+          static_cast<unsigned long long>(runtime.ticks),
+          index,
+          mercModelDiagnosticCount,
+          static_cast<unsigned long long>(metal.last_merc_model_diagnostic_overflow_packets),
+          diagnostic.bucket_id,
+          static_cast<unsigned long long>(diagnostic.model_name_hash),
+          static_cast<unsigned long long>(diagnostic.packets),
+          static_cast<unsigned long long>(diagnostic.draws),
+          static_cast<unsigned long long>(diagnostic.triangles),
+          static_cast<unsigned long long>(diagnostic.missing_models));
+  }
+
   NSLog(@"GOALPAD_JAK2_GLOW_STATE tick=%llu marked=%llu skipped=%llu "
          "parsed=%llu accepted=%llu rejected=%llu invalid=%llu "
          "force-visible=%llu/%llu/%llu/%llu/%llu",

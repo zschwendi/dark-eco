@@ -18625,3 +18625,49 @@ Evidence:
 .agent-builds/jak2-resume-logs/eco-jak2-dev-build16-jak2-entry.png
 .agent-builds/jak2-resume-logs/eco-jak2-dev-build16-physical-build.log
 ```
+
+## Jak II Build 17 title-terrain and Merc identity checkpoint
+
+Date: 2026-08-14.
+
+The Build 16 title screenshot was initially described as missing Haven water,
+but the exact prepared-data audit disproved that identity. `title-disk-intro`
+loads `title`, `ctywide`, and `ctysluma`; all three FR3 files contain zero WATER
+TFragment trees, have empty TIE water ranges, and their level metadata disables
+ocean rendering. `ctywide.fr3` instead owns one NORMAL TFragment tree per LOD.
+Its geom0 tree contains 39 draws, 1,520 triangles, 150 visibility groups, and
+zero always-visible groups, and maps through slot-1 bucket 19. The large lower
+void therefore remains a normal city-terrain visibility/rendering problem, not
+a water-bucket regression.
+
+Nested `jak2-best` is pushed at `76c0e7a50`. It adds no bucket promotion or
+rendering override. A literal-`1`, maximum-eight-line bucket-19 diagnostic now
+separates frustum, occlusion, combined-node, and visible-group counts. Its
+synthetic GPU fixture proves the same in-frustum slot-1 tree renders zero
+triangles with its visibility bit clear and exactly two triangles with that bit
+set. Diagnostic-only visibility indexing is bounded.
+
+The missing title foreground objects are standard Merc, not MercWater or
+GMerc. Prepared `title.fr3` owns `jak-stand-lod0`, `jak-logo-lod0`, and
+`daxter-highres-lod0`; their source route is TEX_L0_PRIS 196 followed by
+MERC_L0_PRIS 197. The host ABI and outer fixed numeric log now expose at most
+16 per-model records containing bucket ID, FNV64 model hash, packet, draw,
+triangle, and missing-model counts. This is diagnostic-only. A separate
+GPU-only regression proves all currently deferred per-level PRIS and PRIS2
+GMerc IDs can render the source-shaped Generic2 NORMAL fixture and fail closed
+when malformed; their production policies remain unchanged pending live use.
+
+Focused canonical host validation passed:
+
+```text
+TOOLCHAINS=Metal cmake --build .agent-builds/jak2-combined-host \
+  --target jak2-metal-tfrag-renderer-test jak2-metal-merc-renderer-test \
+  jak2-metal-generic2-renderer-test jak2-metal-host-bridge-test -j 2
+ctest --test-dir .agent-builds/jak2-combined-host --output-on-failure \
+  -R '^(jak2-metal-tfrag-renderer-test|jak2-metal-merc-renderer-test|jak2-metal-generic2-renderer-test|jak2-metal-host-bridge-test)$'
+```
+
+All four tests passed. The outer logger passed Objective-C++ syntax checking,
+and the append-only C ABI header passed a strict C11 parse. Eco Jak II Dev Debug
+and Release are bumped to build 17. Simulator build, launch, and live diagnostic
+capture remain pending at this checkpoint; no physical device was accessed.
