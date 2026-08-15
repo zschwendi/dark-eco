@@ -18589,3 +18589,37 @@ renderer fault. The next build must first recover enough disk for one canonical
 Xcode checkpoint, then validate same-layer portrait/landscape recovery and the
 deferred-shadow presentation in the approved simulator before asking for a new
 physical install.
+
+## Jak II Build 16 rotation recovery checkpoint
+
+Date: 2026-08-14.
+
+Outer `jak2-best` is pushed at `1a950785`; nested `jak2-best` is pushed at
+`78fcd4db5`. Eco Jak II Dev Debug and Release use bundle build 16. The nested
+checkpoint contains the per-chain drawable-miss recovery (`c311b26ea`), the
+physical Shadow2 rollback (`487f611aa`), and the passive bucket-322 classifier
+(`78fcd4db5`). Bucket 195 and bucket 314 remain deferred.
+
+The canonical Release simulator build passed and validated all 840 Jak II AOT
+units. Build 16 was update-installed on the approved iPad Pro 11-inch (M5)
+simulator and reached a visible Jak II title frame. The maintainer then stopped
+the simulator after observing that orientation recovery looked correct. That
+same Haven City intro still lacked water and the Jak II Merc actor, so those
+remain explicit renderer gaps rather than accepted behavior.
+
+The signed physical Release build also passed. The bundle is version 16,
+identifier `com.zephyrstudiosllc.eco.jak2dev`, TeamIdentifier `V729QMY3V6`, and
+its arm64 executable SHA-256 is
+`50fc00a074099bada2c87b6eda642cef88980655dda180111ee028f80f7390d3`.
+The first read-only app query and the requested update-install both failed
+before transfer with CoreDevice error 4000 because the tunnel to Z iPad Pro
+timed out. The device remained listed as connected. No launch, data mutation,
+or partial install occurred; retry when the iPad is awake and unlocked.
+
+Evidence:
+
+```text
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build16-simulator-build.log
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build16-jak2-entry.png
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build16-physical-build.log
+```
