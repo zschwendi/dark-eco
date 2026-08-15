@@ -18671,3 +18671,52 @@ All four tests passed. The outer logger passed Objective-C++ syntax checking,
 and the append-only C ABI header passed a strict C11 parse. Eco Jak II Dev Debug
 and Release are bumped to build 17. Simulator build, launch, and live diagnostic
 capture remain pending at this checkpoint; no physical device was accessed.
+
+## Jak II Build 17 simulator evidence and corrected title diagnosis
+
+Date: 2026-08-14.
+
+Build 17 was subsequently built from the pushed parent `6a86c4c6` and nested
+`76c0e7a50`, update-installed on the approved iPad Pro 11-inch (M5) simulator,
+and launched into the visible Jak II title. The app is bundle build 17 and its
+simulator executable SHA-256 is
+`12e078d5121e2b496cae596ec4a0552ad1895b705c8093242f80165f3a414df4`.
+The simulator app was terminated and the simulator shut down after capture. No
+physical device was accessed.
+
+The live run corrected two earlier assumptions:
+
+1. `ctywide` has draw priority 9.0 while the other title levels have priority
+   10.0, and Jak II sorts active draw levels by priority. It is therefore draw
+   slot 0 and its NORMAL TFragment producer is bucket 8, not bucket 19. The
+   bucket-19 diagnostic was safe but targeted the empty `title` TFragment slot.
+   The black area below the 1668x1251 4:3 gameplay surface in the portrait
+   screenshot is expected outer layout; a separate large black region remains
+   inside the gameplay band and still needs slot-0/bucket-8 visibility evidence.
+
+2. The missing title objects are upstream of the Merc renderer. `TITLE.DGO`
+   loaded and linked `daxter-highres`, `jak-logo`, and `jak-stand`, but the later
+   `title-disk-intro+0` art group reported that it could not find a master slot
+   for `scenecamera-title-disk-intro`, `jak-stand-title-disk-intro`,
+   `jak-logo-title-disk-intro`, or `daxter-highres-title-disk-intro`. Live Merc
+   diagnostics contained only bucket-197 hash `81519d64ffa46774` and bucket-253
+   hash `d07b31028dc18b5b`; none of the expected title actor hashes were submitted.
+   Missing-model and missing-texture counters were zero. The next fix belongs in
+   general art-group/master-slot loading, not a Merc bucket or placeholder
+   override.
+
+Focused host validation before the simulator run remained green for the TFrag,
+Merc, Generic2, and host-bridge tests. The initial Xcode invocation was stopped
+after it unexpectedly invalidated the AOT corpus and disk fell to 132 MiB; only
+two exact old reproducible temporary DerivedData directories were removed,
+recovering about 4.2 GiB. The same existing Jak II DerivedData build then
+succeeded. No source or user data was removed.
+
+Evidence:
+
+```text
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build17-simulator-build.log
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build17-simulator-launch.png
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build17-title.png
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build17-simulator-runtime.log
+```
