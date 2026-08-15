@@ -18804,3 +18804,73 @@ recover build space. Their committed branches remain recoverable. No active
 source checkout, canonical Jak II DerivedData, simulator game data, or physical
 device data was deleted. A complete user-owned reimport remains required before
 the title/cutscene renderer can be evaluated again.
+
+## Jak II Build 19 sequential PRIS-eye checkpoint
+
+Date: 2026-08-14.
+
+Build 18's first real New Game blackout was a fail-closed host rejection during
+`intro-prison`: per-level PRIS producer bucket 200 composed high-resolution eye
+pair 12, its adjacent Merc consumer encoded Errol, then producer bucket 204
+legitimately reused pair 12 before encoding the prison actors. The former Metal
+gate required every eye mask in the entire frame to be disjoint even though the
+source bucket order explicitly permits this producer/Merc/producer sequence.
+
+Nested commit `d45f4c939` preserves the safety boundary without reusing mutable
+backing storage. Each individual producer must still own unique eye chunks and
+same-producer repeats remain rejected. A later audited PRIS producer that reuses
+a slot first composes into a fresh Metal texture, then republishes that
+generation while retaining the earlier handle until the next frame boundary.
+The previous stream submission is complete before that retirement, so an
+earlier Merc encoder keeps sampling its already-bound texture.
+
+Focused validation passed before integration:
+
+```text
+.agent-builds/jak2-resume-logs/build19-pris-eye-fix/jak2-pris2-bucket228-plan-test.log
+.agent-builds/jak2-resume-logs/build19-pris-eye-fix/jak2-metal-eye-renderer-test.log
+.agent-builds/jak2-resume-logs/build19-pris-eye-fix/jak2-metal-host-bridge-test.log
+```
+
+The GPU fixture encodes producer 200, consumer A, overlapping producer 204,
+and consumer B into the same later frame command buffer and proves distinct
+retained pixel contents. It separately proves that producer 200 repeating
+itself still fails closed.
+
+Eco Jak II Dev was bumped to bundle build 19. The canonical Release simulator
+build succeeded in 8.58 seconds and revalidated all 840 Jak II AOT units:
+
+```text
+TOOLCHAINS=Metal GOALPAD_BUILD_JOBS=2 xcodebuild -quiet \
+  -project GOALPad.xcodeproj -scheme 'Eco Jak II Dev' \
+  -configuration Release \
+  -destination 'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-jak2-c2f2c4b1d-simulator \
+  -jobs 2 ENABLE_PREVIEWS=NO COMPILER_INDEX_STORE_ENABLE=NO build
+```
+
+The executable SHA-256 is
+`a0418413296f24dc3e145ed56123655cb96644f9d8653f9b5d48dc3eb29abdfd`.
+
+The approved M5 simulator was update-installed with the complete retained Jak
+II data and driven through a fresh New Game. Build 19 passed the exact failure
+window and completed the cutscene without user skipping. At tick 20400 through
+22200, bucket 200 and 204 eye chunks were both active while foreground metrics
+reported `eyes=4/16/32`, `missing=0`, `unexpected=0`, `duplicate=0`, and
+`eye-cmd=2/2/0`. At tick 26400 the game had transitioned to `active=prison`
+with `chains=26400/26400/0`, no error, no missing Merc model/texture, and no
+command-buffer failure.
+
+Evidence:
+
+```text
+.agent-builds/jak2-resume-logs/build19-simulator/build.log
+.agent-builds/jak2-resume-logs/build19-simulator/runtime.log
+.agent-builds/jak2-resume-logs/build19-simulator/intro-prison-eye-overlap-fixed.png
+.agent-builds/jak2-resume-logs/build19-simulator/prison-gameplay-after-overlap.png
+```
+
+The simulator app was terminated and the simulator shut down after capture. No
+physical device was accessed. The completed isolated eye-fix worktree and its
+39 MiB reproducible temp link directory were removed after preserving the test
+logs; the integrated commits remain recoverable.
