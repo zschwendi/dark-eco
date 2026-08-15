@@ -221,6 +221,7 @@ private func preparedFolder(
           ]
           && manifest.requiredSupportFiles == [
               "DEMO1.SBK", "CTYWIDE1.SBK", "FOREXIT1.SBK", "FOREXIT2.SBK",
+              "VAGDIR.AYB", "VAGWAD.ENG",
           ]
           && manifest.preparedDataContractVersion == 1,
           "Jak II declares the source-derived title and initial New Game contract v1")
@@ -276,6 +277,37 @@ private func preparedFolder(
     check(report.summary.contains("Jak II title/gameplay launch contract v1")
           && !report.summary.localizedCaseInsensitiveContains("complete"),
           "the incomplete report names the versioned contract without calling it complete")
+}
+
+@MainActor private func jak2StreamedAudioFilesGateReadinessAndActivation() async throws {
+    print("Jak II streamed-audio files are required before a candidate can activate")
+    for missingFile in ["VAGDIR.AYB", "VAGWAD.ENG"] {
+        let fixture = try Fixture(profile: .jak2)
+        let activeMarker = fixture.active.appending(path: "iso/ACTIVE.DAT")
+        try write("active", to: activeMarker)
+        let source = try preparedFolder(under: fixture.root, profile: .jak2, payload: "candidate")
+        try FileManager.default.removeItem(at: source.appending(path: "iso/\(missingFile)"))
+
+        let sourceReport = GameDataInspector.inspect(gameDirectory: source, profile: .jak2)
+        check(sourceReport.status == .incomplete && sourceReport.missingSupportFiles == [missingFile],
+              "a candidate without \(missingFile) is incomplete")
+
+        do {
+            _ = try await fixture.worker.install(
+                from: source,
+                using: PreparedFolderCandidateProducer()
+            ) { _ in }
+            check(false, "a candidate without \(missingFile) cannot activate")
+        } catch let failure as GameDataImportFailure {
+            check(failure.code == .candidateIncomplete && failure.candidatePreserved,
+                  "a candidate without \(missingFile) remains recoverable instead of activating")
+        }
+
+        check(read(activeMarker) == "active",
+              "a candidate without \(missingFile) never replaces active data")
+        check(fixture.candidates.count == 1,
+              "a candidate without \(missingFile) remains isolated for recovery")
+    }
 }
 
 @MainActor private func jak2RecoveryAndSymlinkRulesRemainFailClosed() async throws {
@@ -773,6 +805,7 @@ private struct GameDataInstallCheck {
             profilesKeepDefaultAndJak2StorageIsolated()
             try await jak2TitleAndGameplayCandidateActivatesInItsOwnProfile()
             try jak2ThreeFileBootstrapCannotLaunch()
+            try await jak2StreamedAudioFilesGateReadinessAndActivation()
             try await jak2RecoveryAndSymlinkRulesRemainFailClosed()
             try await incompleteCandidateIsRecoverable()
             try await sourceFilesAreNotCopiedFromActiveFirst()

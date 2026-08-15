@@ -68,7 +68,10 @@ nonisolated struct GameDataManifest: Equatable, Sendable {
             "forexita.fr3", "introcst.fr3", "ldjakbrn.fr3",
         ],
         audioExtensions: ["SBK", "MUS"],
-        requiredSupportFiles: ["DEMO1.SBK", "CTYWIDE1.SBK", "FOREXIT1.SBK", "FOREXIT2.SBK"],
+        requiredSupportFiles: [
+            "DEMO1.SBK", "CTYWIDE1.SBK", "FOREXIT1.SBK", "FOREXIT2.SBK",
+            "VAGDIR.AYB", "VAGWAD.ENG",
+        ],
         preparedDataContractVersion: 1
     )
 }
