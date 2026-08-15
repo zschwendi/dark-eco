@@ -18611,10 +18611,12 @@ The signed physical Release build also passed. The bundle is version 16,
 identifier `com.zephyrstudiosllc.eco.jak2dev`, TeamIdentifier `V729QMY3V6`, and
 its arm64 executable SHA-256 is
 `50fc00a074099bada2c87b6eda642cef88980655dda180111ee028f80f7390d3`.
-The first read-only app query and the requested update-install both failed
-before transfer with CoreDevice error 4000 because the tunnel to Z iPad Pro
-timed out. The device remained listed as connected. No launch, data mutation,
-or partial install occurred; retry when the iPad is awake and unlocked.
+The first read-only app query and update-install attempts failed before transfer
+with CoreDevice error 4000 because the tunnel to Z iPad Pro timed out. A later
+retry through the device's CoreDevice identifier acquired the tunnel and
+update-installed in place successfully. The device then reported `Eco Jak II
+Dev 1.0 (16)`. It was not launched, and no save/import data was removed or
+rewritten.
 
 Evidence:
 
