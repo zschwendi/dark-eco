@@ -18488,3 +18488,53 @@ jak2-opcode27-skull-gem-executor-test
 The first mech identity target invocation used the wrong nested-relative build
 path and failed before compilation; the canonical parent build path then built
 and passed. No simulator or physical-device action was used for this checkpoint.
+
+## Jak II Build 15 Shadow2 and rotation checkpoint
+
+Date: 2026-08-14.
+
+Outer `jak2-best` is pushed at `355414d3`; nested `jak2-best` is pushed at
+`408a0633e`. Eco Jak II Dev Debug and Release use bundle build 15.
+
+The permanent black frame after portrait/landscape transitions was fixed in
+Build 14 by rebinding the live replacement `CAMetalLayer` without recreating
+the native runtime. Build 15 retains that fix and restores bucket-195 Shadow2
+after correcting a source mismatch: desktop Shadow2 classifies each complete
+wall quad once, while Metal had independently classified its two triangles.
+That could increment stencil for one half and decrement it for the other.
+Metal now places both wall triangles on the one desktop-equivalent stencil
+side. The deterministic GPU proof includes bounded changed and preserved pixel
+regions, exact triangle-side counts, repeated execution, Absent, and the
+source-reachable top-only no-draw form.
+
+Focused validation passed:
+
+```text
+jak2-shadow-bucket195-plan-test
+jak2-metal-bucket-table-test
+jak2-shadow-bucket195-renderer-test
+jak2-metal-host-bridge-test
+```
+
+The Release simulator build passed and validated all 840 Jak II AOT units.
+Build 15 was update-installed on the approved iPad Pro 11-inch (M5) simulator,
+launched into Jak II, reached the visible title frame, remained visible through
+portrait-to-landscape rotation, and recovered again to portrait. The simulator
+was then terminated and shut down. Artifact SHA-256:
+`6a477c70cab24a69d76263a8a9c1ff2e53e3e5e1458d8ce0b22a93f2aadda7b1`.
+
+The generic signed iPadOS Release build passed. Its arm64 executable SHA-256 is
+`b5d9d14699bcd7685e56abb74a44ab317e773390bce1b38b78b26e1480d55b15`,
+CDHash `ed818d171752046b107cc025a6ce3e122bc0bf97`, and TeamIdentifier
+`V729QMY3V6`; `codesign --verify --deep --strict` passed. It was update-installed
+in place and launched successfully on physical `Z iPad Pro` via CoreDevice.
+Physical water, gameplay Shadow2 appearance, and rotation recovery remain the
+maintainer acceptance gate.
+
+Evidence:
+
+```text
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build15-simulator-build.log
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build15-simulator-launch.png
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build15-iphoneos-build.log
+```
