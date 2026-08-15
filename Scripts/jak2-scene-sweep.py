@@ -32,6 +32,8 @@ MAX_PNG_BYTES = 16 * 1024 * 1024
 MAX_PNG_PIXELS = 4_000_000
 CONTENT_CHANNEL_THRESHOLD = 20
 CONTENT_FRACTION_THRESHOLD = 0.005
+# Authored zero-scale visibility bones are finite but degenerate, so they remain telemetry rather
+# than a scene failure. Nonfinite palettes and invalid sources are still hard failures below.
 FOREGROUND_ERRORS = (
     ("malformed Merc DMA", re.compile(r"\bmalformed=(\d+)\b")),
     ("Merc preflight rejection", re.compile(r"\breject-reason=(\d+)\b")),
@@ -44,7 +46,6 @@ FOREGROUND_ERRORS = (
     ("bad Merc bone pointers", re.compile(r"\bbones=(\d+)/\d+/\d+/\d+\b")),
     ("missing Merc bone slots", re.compile(r"\bbones=\d+/(\d+)/\d+/\d+\b")),
     ("nonfinite Merc bones", re.compile(r"\bbones=\d+/\d+/(\d+)/\d+\b")),
-    ("degenerate Merc bones", re.compile(r"\bbones=\d+/\d+/\d+/(\d+)\b")),
     ("missing Generic2 textures", re.compile(r"\bgeneric=\d+/\d+/\d+ missing-textures=(\d+)\b")),
     ("unexpected Generic2 DMA", re.compile(r"\bunexpected-dma=(\d+)\b")),
     ("missing eye textures", re.compile(r"\beyes=\d+/\d+/\d+ missing=(\d+)\b")),
@@ -424,6 +425,8 @@ def self_test() -> None:
         )
     )
     assert validate(good_log.splitlines(), scene, ["sample-scene=alpha"]).startswith("PASS")
+    degenerate_log = good_log.replace("bones=0/0/0/0", "bones=0/0/0/1", 1)
+    assert validate(degenerate_log.splitlines(), scene, ["sample-scene=alpha"]).startswith("PASS")
     observations, _ = collect_scene_observations(good_log.splitlines(), scene)
     assert next_sample_observation(observations, 0, 1) == observations[1]
     assert next_sample_observation(observations, observations[0].tick, 1) == observations[1]

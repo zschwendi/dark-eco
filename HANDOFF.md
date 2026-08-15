@@ -19033,3 +19033,82 @@ C11 with `-Wall -Wextra -Werror`, and the Objective-C++ runtime bridge parsed
 for arm64 macOS. Shadow2 remains deferred until the exact Build 20 capture is
 replayed and the physically rejected mask is explained. No physical device has
 been accessed for this checkpoint.
+
+## Jak II Build 21 simulator cutscene checkpoint (2026-08-15)
+
+Build 21 advances nested `jak2-best` through:
+
+```text
+afe0d2cd4 test: cover Merc normal-matrix AOT contract (AI-assisted)
+d2c2a7ee3 diagnostics(shadow195): capture one selected frame atomically (AI-assisted)
+530eacbda diagnostics(jak2): classify deferred subtitle packets (AI-assisted)
+6a1dcba58 compiler: emulate PS2 VU DIV-Q semantics (AI-assisted)
+cf67e3a60 test: correct PS2 VU MAX over eight bits (AI-assisted)
+```
+
+The VU change is limited to `.div.vf` Q semantics in MIPS2C, AOT, and native
+codegen; generic division, RSQRT, Merc, and renderer policy are unchanged. The
+canonical focused compiler regression passed after correcting the test oracle
+for `FLT_MAX / 8` from `0x7d7fffff` to `0x7dffffff`:
+
+```text
+ctest --test-dir .agent-builds/jak2-combined-host \
+  -R '^goalc-c-backend-vector-ops$' --output-on-failure
+```
+
+The same canonical build generated and verified the complete Jak II AOT corpus:
+
+```text
+GOALPAD_BUILD_JOBS=2 Scripts/generate-jak2-aot.sh \
+  .agent-builds/jak2-combined-host
+Scripts/verify-generated-aot.sh Generated/jak2-aot 840
+```
+
+Result: `18487/18494` functions emitted, seven supplied natively, zero files
+failed, and all 840 objects verified. Generated `bones.c` now calls
+`goal_vf_ps2_vu_div_q` for the source `.div.vf` operation.
+
+The parent target build number is 21. The approved iPad Pro 11-inch (M5)
+simulator build completed with:
+
+```text
+TOOLCHAINS=Metal GOALPAD_BUILD_JOBS=2 xcodebuild -quiet \
+  -project GOALPad.xcodeproj -scheme 'Eco Jak II Dev' \
+  -configuration Release \
+  -destination 'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-jak2-c2f2c4b1d-simulator \
+  -jobs 2 ENABLE_PREVIEWS=NO COMPILER_INDEX_STORE_ENABLE=NO build
+```
+
+Result: `** BUILD SUCCEEDED **` in 78.361 seconds. The installed artifact is
+`/private/tmp/GOALPad-jak2-c2f2c4b1d-simulator/Build/Products/Release-iphonesimulator/EcoJak2Dev.app`,
+bundle `com.zephyrstudiosllc.eco.jak2dev`, version 21.
+
+Two fresh-process scene sweeps passed and preserved every save byte-for-byte:
+
+```text
+PASS city-help-kid-intro: identity ticks 3000-6600; aframe 142.295->1943.174;
+completion tick 7200; required levels ctykora,ctyslumb,ctywide,lwidea
+PASS intro-samos-hut: identity ticks 3000-9000; aframe 134.619->3139.599;
+completion tick 9600; required levels introcst,lintcstb,village1
+```
+
+Kor, the kid, Jak, Daxter, and the Samos/Keira-scene actors are visible and
+textured across the retained samples; neither scene freezes on its first frame.
+Chain, command-buffer, submission, model, texture, eye, placeholder, and
+nonfinite-palette error counters remain zero. Evidence is under:
+
+```text
+.agent-builds/jak2-resume-logs/build21-simulator-scene-sweep/kor-kid/
+.agent-builds/jak2-resume-logs/build21-simulator-scene-sweep/samos-keira/
+```
+
+The sweep validator no longer treats a finite degenerate Merc matrix as a hard
+failure. Authored zero-scale visibility bones produce that state legitimately;
+nonfinite matrices, bad pointers/sources, missing slots/textures/models, DMA
+errors, and render/submit failures remain fatal. Its self-test covers the
+finite-degenerate case.
+
+This is simulator evidence only. No physical iPad was accessed. Subtitle bucket
+322 and Shadow buckets 195/314 remain diagnostic/deferred; this checkpoint does
+not claim those rendering paths are complete.
