@@ -15,7 +15,8 @@ only when GOALPAD_JAK2_DEBUG_PREVIEW_SCENE is non-empty. Each scene artifact dir
 launch.txt, runtime.log, before-saves.tsv, after-saves.tsv, observed.png, and completed.png. A
 scene passes only when the Build20 telemetry observes its identity, aframe progress, no-save
 completion, zero chain/command/submit/stack errors, unchanged save manifest, and any per-scene
-required levels as a subset.
+required levels as a subset. Missing foreground models, textures, eye publications, Sprite3
+textures, malformed DMA, and invalid bone data also fail the scene.
 
 Options:
   --timeout SECONDS              Maximum wait per scene (default: 180)

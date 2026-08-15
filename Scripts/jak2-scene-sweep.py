@@ -15,6 +15,7 @@ from pathlib import Path
 RUNTIME_MARKER = "GOALPAD_JAK2_RUNTIME_STATE"
 SCENE_MARKER = "GOALPAD_JAK2_SCENE_STATE"
 STACK_MARKER = "GOALPAD_JAK2_STACK_STATE"
+FOREGROUND_MARKER = "GOALPAD_JAK2_FOREGROUND_STATE"
 TICK = re.compile(r"\btick=(\d+)\b")
 SCENE = re.compile(r"\bscene=(\d+)/(\d+)\b.*\bidentity=([^ ]*)")
 ANIMATION = re.compile(r"\banim=1/[^/]+/[-+0-9.eE]+/([-+0-9.eE]+)")
@@ -24,6 +25,28 @@ SUBMIT = re.compile(r"\bsubmit=(\d+)/(\d+)/(\d+)\b")
 STACK = re.compile(r"\boverflows=(\d+)\s+failures=(\d+)\b")
 LEVELS = re.compile(r"\bdesired=([^ ]*)\s+active=([^ ]*)\b")
 PID = re.compile(r"\[(\d+):")
+FOREGROUND_ERRORS = (
+    ("malformed Merc DMA", re.compile(r"\bmalformed=(\d+)\b")),
+    ("Merc preflight rejection", re.compile(r"\breject-reason=(\d+)\b")),
+    ("missing Merc models", re.compile(r"\bmissing-models=(\d+)\b")),
+    ("Merc animated-slot placeholders", re.compile(r"\bmerc-anim=\d+/(\d+)\b")),
+    ("Merc eye renderer misses", re.compile(r"\bmerc-eyes=\d+/(\d+)/\d+/\d+\b")),
+    ("Merc eye lookup failures", re.compile(r"\bmerc-eyes=\d+/\d+/(\d+)/\d+\b")),
+    ("Merc eye placeholders", re.compile(r"\bmerc-eyes=\d+/\d+/\d+/(\d+)\b")),
+    ("missing Merc textures", re.compile(r"\bmerc-missing-textures=(\d+)\b")),
+    ("bad Merc bone pointers", re.compile(r"\bbones=(\d+)/\d+/\d+/\d+\b")),
+    ("missing Merc bone slots", re.compile(r"\bbones=\d+/(\d+)/\d+/\d+\b")),
+    ("nonfinite Merc bones", re.compile(r"\bbones=\d+/\d+/(\d+)/\d+\b")),
+    ("degenerate Merc bones", re.compile(r"\bbones=\d+/\d+/\d+/(\d+)\b")),
+    ("missing Generic2 textures", re.compile(r"\bgeneric=\d+/\d+/\d+ missing-textures=(\d+)\b")),
+    ("unexpected Generic2 DMA", re.compile(r"\bunexpected-dma=(\d+)\b")),
+    ("missing eye textures", re.compile(r"\beyes=\d+/\d+/\d+ missing=(\d+)\b")),
+    ("unexpected eye DMA", re.compile(r"\beyes=\d+/\d+/\d+ missing=\d+ unexpected=(\d+)\b")),
+    ("duplicate eye writes", re.compile(r"\bduplicate=(\d+)\b")),
+    ("eye command-buffer errors", re.compile(r"\beye-cmd=\d+/\d+/(\d+)\b")),
+    ("Sprite3 placeholder batches", re.compile(r"\bsprite-placeholder=(\d+)/\d+\b")),
+    ("Sprite3 placeholder sprites", re.compile(r"\bsprite-placeholder=\d+/(\d+)\b")),
+)
 
 
 class SweepFailure(RuntimeError):
@@ -105,10 +128,13 @@ def validate(lines: list[str], scene: str, requirements: list[str]) -> str:
     scoped = [line for line in lines if (tick := parse_tick(line)) is not None and first_tick <= tick <= completed_tick]
     runtime_lines = [line for line in scoped if RUNTIME_MARKER in line]
     stack_lines = [line for line in scoped if STACK_MARKER in line]
+    foreground_lines = [line for line in scoped if FOREGROUND_MARKER in line]
     if not runtime_lines:
         fail(f"{scene}: no runtime telemetry was captured between identity and completion")
     if not stack_lines:
         fail(f"{scene}: no stack telemetry was captured between identity and completion")
+    if not foreground_lines:
+        fail(f"{scene}: no foreground telemetry was captured between identity and completion")
 
     for line in runtime_lines:
         for label, pattern in (("chain", CHAIN), ("command", COMMAND), ("submit", SUBMIT)):
@@ -123,6 +149,13 @@ def validate(lines: list[str], scene: str, requirements: list[str]) -> str:
             fail(f"{scene}: stack telemetry omitted overflow/failure counters")
         if int(match.group(1)) != 0 or int(match.group(2)) != 0:
             fail(f"{scene}: stack errors were nonzero at tick {parse_tick(line)}")
+    for line in foreground_lines:
+        for label, pattern in FOREGROUND_ERRORS:
+            match = pattern.search(line)
+            if not match:
+                fail(f"{scene}: foreground telemetry omitted {label}")
+            if int(match.group(1)) != 0:
+                fail(f"{scene}: {label} were nonzero at tick {parse_tick(line)}")
 
     expected_levels = required_levels_for_scene(requirements, scene)
     observed_levels: set[str] = set()
@@ -175,12 +208,15 @@ def self_test() -> None:
             "GOALPAD_JAK2_RUNTIME_STATE tick=100 mode=game desired=alpha+beta active=alpha+beta chains=10/10/0 cmd=10/10/0 submit=10/10/0",
             "GOALPAD_JAK2_SCENE_STATE tick=100 scene=1/1 identity=entity|group|sample-scene anim=1/00000000/1.000/10.000",
             "GOALPAD_JAK2_STACK_STATE tick=100 overflows=0 failures=0",
+            "GOALPAD_JAK2_FOREGROUND_STATE tick=100 merc=1/1/1 malformed=0 reject-reason=0 missing-models=0 merc-anim=0/0 merc-eyes=0/0/0/0 merc-missing-textures=0 bones=0/0/0/0 generic=0/0/0 missing-textures=0 unexpected-dma=0 eyes=0/0/0 missing=0 unexpected=0 duplicate=0 eye-cmd=0/0/0 sprite-placeholder=0/0",
             "GOALPAD_JAK2_RUNTIME_STATE tick=200 mode=game desired=alpha+beta active=alpha+beta chains=20/20/0 cmd=20/20/0 submit=20/20/0",
             "GOALPAD_JAK2_SCENE_STATE tick=200 scene=1/1 identity=entity|group|sample-scene anim=1/00000000/2.000/20.000",
             "GOALPAD_JAK2_STACK_STATE tick=200 overflows=0 failures=0",
+            "GOALPAD_JAK2_FOREGROUND_STATE tick=200 merc=1/1/1 malformed=0 reject-reason=0 missing-models=0 merc-anim=1/0 merc-eyes=1/0/0/0 merc-missing-textures=0 bones=0/0/0/0 generic=1/1/1 missing-textures=0 unexpected-dma=0 eyes=1/1/1 missing=0 unexpected=0 duplicate=0 eye-cmd=1/1/0 sprite-placeholder=0/0",
             "GOALPAD_JAK2_RUNTIME_STATE tick=300 mode=progress desired=alpha+beta active=alpha+beta chains=30/30/0 cmd=30/30/0 submit=30/30/0",
             "GOALPAD_JAK2_SCENE_STATE tick=300 scene=0/0 identity=|| anim=0/00000000/0.000/0.000",
             "GOALPAD_JAK2_STACK_STATE tick=300 overflows=0 failures=0",
+            "GOALPAD_JAK2_FOREGROUND_STATE tick=300 merc=0/0/0 malformed=0 reject-reason=0 missing-models=0 merc-anim=0/0 merc-eyes=0/0/0/0 merc-missing-textures=0 bones=0/0/0/0 generic=0/0/0 missing-textures=0 unexpected-dma=0 eyes=0/0/0 missing=0 unexpected=0 duplicate=0 eye-cmd=0/0/0 sprite-placeholder=0/0",
         )
     )
     assert validate(good_log.splitlines(), scene, ["sample-scene=alpha"]).startswith("PASS")
@@ -190,6 +226,12 @@ def self_test() -> None:
         pass
     else:
         raise AssertionError("self-test accepted a submit error")
+    try:
+        validate(good_log.replace("merc-missing-textures=0", "merc-missing-textures=1", 1).splitlines(), scene, [])
+    except SweepFailure:
+        pass
+    else:
+        raise AssertionError("self-test accepted a missing Merc texture")
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory) / "saves"
         root.mkdir()
