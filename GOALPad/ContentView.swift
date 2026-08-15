@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 nonisolated enum GameplaySurfaceLayout {
@@ -117,7 +118,12 @@ struct ContentView: View {
                 }
             }
         }
-        .task { await session.prepare() }
+        .task {
+            await session.prepare()
+            if ProcessInfo.processInfo.environment["GOALPAD_JAK2_DEBUG_PREVIEW_SCENE"]?.isEmpty == false {
+                await session.start()
+            }
+        }
         .onDisappear { session.releaseIdleTimerOwnership() }
         .onChange(of: scenePhase) { _, phase in session.scenePhaseChanged(to: phase) }
         .onChange(of: session.importer.isTaskActive, initial: true) { _, _ in
