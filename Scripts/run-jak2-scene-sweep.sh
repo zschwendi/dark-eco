@@ -12,16 +12,26 @@ Usage:
 Runs each supplied debug preview scene in a new simulator process. It neither boots, installs,
 builds, nor shuts down a simulator. The env-gated debug launch path starts the prepared session
 only when GOALPAD_JAK2_DEBUG_PREVIEW_SCENE is non-empty. Each scene artifact directory receives
-launch.txt, runtime.log, before-saves.tsv, after-saves.tsv, observed.png, and completed.png. A
-scene passes only when the Build20 telemetry observes its identity, aframe progress, no-save
-completion, zero chain/command/submit/stack errors, unchanged save manifest, and any per-scene
-required levels as a subset. Missing foreground models, textures, eye publications, Sprite3
-textures, malformed DMA, and invalid bone data also fail the scene.
+launch.txt, runtime.log, before-saves.tsv, after-saves.tsv, three to five bounded active-scene
+sample-*.png files, completed.png, visual-samples.tsv, and visual-selection.tsv. The active-scene
+samples are spaced by telemetry ticks and resampled to the requested maximum dimension. The
+selection reports a central-crop non-black signal to avoid accepting a fade as the only visual
+checkpoint; it is capture triage only and does not prove renderer or gameplay correctness.
+`current-visual-samples.txt` is replaced at the start of each run and is the only sample list
+passed to the final visual selection, so prior scene artifacts cannot satisfy a rerun.
+
+A scene passes only when the Build20 telemetry observes its identity, aframe progress, no-save
+completion, zero chain/command/submit/stack errors, unchanged save manifest, required levels as a
+subset, and at least one content-bearing active-scene sample. Missing foreground models, textures,
+eye publications, Sprite3 textures, malformed DMA, and invalid bone data also fail the scene.
 
 Options:
   --timeout SECONDS              Maximum wait per scene (default: 180)
   --save-root PATH               Override the app-container save root
   --required-level SCENE=LEVEL   Repeatable subset requirement; does not require an exact level set
+  --sample-count COUNT           Active-scene screenshots, from 3 through 5 (default: 4)
+  --sample-minimum-ticks TICKS   Minimum telemetry-tick separation (default: 120)
+  --sample-max-dimension PIXELS  Resample each screenshot's longest edge (default: 1600)
 EOF
 }
 
@@ -47,6 +57,9 @@ process=
 artifacts=
 save_root=
 timeout=180
+sample_target=4
+sample_minimum_ticks=120
+sample_max_dimension=1600
 
 scene_file=$(mktemp "${TMPDIR:-/tmp}/goalpad-jak2-scenes.XXXXXX")
 requirements_file=$(mktemp "${TMPDIR:-/tmp}/goalpad-jak2-requirements.XXXXXX")
@@ -61,6 +74,9 @@ while [ "$#" -gt 0 ]; do
     --save-root) save_root=$2; shift 2 ;;
     --timeout) timeout=$2; shift 2 ;;
     --required-level) printf '%s\n' "$2" >> "$requirements_file"; shift 2 ;;
+    --sample-count) sample_target=$2; shift 2 ;;
+    --sample-minimum-ticks) sample_minimum_ticks=$2; shift 2 ;;
+    --sample-max-dimension) sample_max_dimension=$2; shift 2 ;;
     --self-test)
       self_test_pid=$(printf '%s\n' 'com.zephyrstudiosllc.eco.jak2dev: 84926' | parse_launch_pid)
       [ "$self_test_pid" = 84926 ]
@@ -85,6 +101,13 @@ if [ "$timeout" -eq 0 ]; then
   printf '%s\n' 'timeout must be a positive integer' >&2
   exit 2
 fi
+case "$sample_target:$sample_minimum_ticks:$sample_max_dimension" in
+  *[!0-9:]*|*::*|:*|*:) printf '%s\n' 'sample options must be positive integers' >&2; exit 2 ;;
+esac
+if [ "$sample_target" -lt 3 ] || [ "$sample_target" -gt 5 ] || [ "$sample_minimum_ticks" -eq 0 ] || [ "$sample_max_dimension" -eq 0 ]; then
+  printf '%s\n' 'sample count must be 3 through 5; tick separation and max dimension must be positive' >&2
+  exit 2
+fi
 if [ "$#" -eq 0 ]; then
   printf '%s\n' 'at least one scene name is required after --' >&2
   usage >&2
@@ -99,6 +122,11 @@ capture_log() {
     --predicate "process == '$process'" > "$1"
 }
 
+capture_screenshot() {
+  xcrun simctl io "$simulator" screenshot "$1"
+  sips -Z "$sample_max_dimension" "$1" >/dev/null
+}
+
 while IFS= read -r scene; do
   case "$scene" in
     ''|*[!A-Za-z0-9._-]*)
@@ -108,6 +136,8 @@ while IFS= read -r scene; do
   esac
   scene_artifacts="$artifacts/$scene"
   mkdir -p "$scene_artifacts"
+  current_samples="$scene_artifacts/current-visual-samples.txt"
+  : > "$current_samples"
   if [ -n "$save_root" ]; then
     scene_saves="$save_root"
   else
@@ -126,24 +156,33 @@ while IFS= read -r scene; do
   fi
 
   elapsed=0
-  observed=0
+  sample_captured=0
+  last_sample_tick=0
   completed=0
+  printf 'sample\ttick\taframe\n' > "$scene_artifacts/visual-samples.tsv"
   while [ "$elapsed" -lt "$timeout" ]; do
     capture_log "$scene_artifacts/runtime.log"
-    if [ "$observed" -eq 0 ] && python3 "$checker" --scene "$scene" --log "$scene_artifacts/runtime.log" --pid "$pid" --event observed; then
-      xcrun simctl io "$simulator" screenshot "$scene_artifacts/observed.png"
-      observed=1
+    if [ "$sample_captured" -lt "$sample_target" ] && sample_info=$(python3 "$checker" --scene "$scene" --log "$scene_artifacts/runtime.log" --pid "$pid" --event sample --sample-after-tick "$last_sample_tick" --sample-minimum-ticks "$sample_minimum_ticks"); then
+      sample_tick=$(printf '%s\n' "$sample_info" | awk -F '\t' 'NR == 1 { print $1 }')
+      sample_aframe=$(printf '%s\n' "$sample_info" | awk -F '\t' 'NR == 1 { print $2 }')
+      sample_index=$((sample_captured + 1))
+      sample_path="$scene_artifacts/$(printf 'sample-%02d-tick-%s.png' "$sample_index" "$sample_tick")"
+      capture_screenshot "$sample_path"
+      printf '%s\t%s\t%s\n' "$(basename "$sample_path")" "$sample_tick" "$sample_aframe" >> "$scene_artifacts/visual-samples.tsv"
+      printf '%s\n' "$sample_path" >> "$current_samples"
+      sample_captured=$sample_index
+      last_sample_tick=$sample_tick
     fi
     if python3 "$checker" --scene "$scene" --log "$scene_artifacts/runtime.log" --pid "$pid" --event completed; then
-      xcrun simctl io "$simulator" screenshot "$scene_artifacts/completed.png"
+      capture_screenshot "$scene_artifacts/completed.png"
       completed=1
       break
     fi
     sleep 2
     elapsed=$((elapsed + 2))
   done
-  if [ "$observed" -eq 0 ] || [ "$completed" -eq 0 ]; then
-    printf '%s\n' "$scene: timed out before a complete preview telemetry capture" >&2
+  if [ "$sample_captured" -lt 3 ] || [ "$completed" -eq 0 ]; then
+    printf '%s\n' "$scene: captured $sample_captured active-scene visual samples before completion; need at least 3" >&2
     exit 1
   fi
 
@@ -152,7 +191,8 @@ while IFS= read -r scene; do
 
   set -- python3 "$checker" --scene "$scene" --log "$scene_artifacts/runtime.log" --pid "$pid" \
     --save-before "$scene_artifacts/before-saves.tsv" --save-after "$scene_artifacts/after-saves.tsv" \
-    --screenshot "$scene_artifacts/observed.png" --screenshot "$scene_artifacts/completed.png"
+    --screenshot "$scene_artifacts/completed.png" --visual-sample-list "$current_samples" \
+    --visual-report "$scene_artifacts/visual-selection.tsv"
   while IFS= read -r requirement; do
     set -- "$@" --required-level "$requirement"
   done < "$requirements_file"
