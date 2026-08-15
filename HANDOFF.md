@@ -18875,6 +18875,78 @@ physical device was accessed. The completed isolated eye-fix worktree and its
 39 MiB reproducible temp link directory were removed after preserving the test
 logs; the integrated commits remain recoverable.
 
+## Jak II Build 20 cutscene completion and actor checkpoint
+
+Date: 2026-08-15.
+
+Build 20 now completes the exact `city-help-kid-intro` Kor/kid cutscene in the
+approved iPad Pro 11-inch (M5) simulator. Three nested commits close the two
+independent runtime defects and correct the resulting diagnostic proof:
+
+```text
+f31e951f6 fix(jak2): dispatch scene preview from progress process (AI-assisted)
+653f2f0be jak2: publish terminal VAG stream position
+78c1426e0 fix(jak2): read boxed array payload after header (AI-assisted)
+```
+
+The preview request is now consumed by `progress-trans` in its real scheduler
+process instead of calling GOAL directly from the host. This preserves a valid
+`PP` and GOAL process stack. Natural loaded-VAG completion now retains the
+stream ID/status but publishes position zero, matching the upstream Jak II
+sound RPC contract and allowing the existing loader timeout to release every
+spooled cutscene. The actor reader now skips the complete 12-byte live array
+header instead of interpreting allocated-length/content-type metadata as
+actor fields.
+
+Focused checks passed:
+
+```text
+ctest --test-dir .agent-builds/jak2-combined-host \
+  -R '^jak2-sound-rpc-test$' --output-on-failure
+ctest --test-dir .agent-builds/jak2-combined-host \
+  -R '^jak2-runtime-metrics-reader-test$' --output-on-failure
+Scripts/verify-generated-aot.sh Generated/jak2-aot 840
+```
+
+Only current `scene` and `progress` AOT outputs were regenerated before the
+complete 840-unit corpus verification. The final incremental Release simulator
+build succeeded in 13.96 seconds and compiled `jak2_runtime.cpp`; the executable
+SHA-256 is `ea0a39575c8cc8061429e8f5f858d71e88836c67ffcd6965e72dca38f3288d6c`.
+
+The final simulator run proved:
+
+- `city-help-kid-intro` advanced from aframe `144.229` at tick 3000 to
+  `444.375` at tick 3600 and continued normally.
+- All eight actors reported flags `31` (attempted, allocated, draw control,
+  joint control, and Merc geometry). The seven scene actors used level 3 / Merc
+  bucket 209 with nonzero joint counts; the camera/default actor used common
+  bucket 221.
+- Kor and the boy were visibly rendered together in the captured live frame.
+- By tick 7200 the runtime had returned to Progress with `scene=0/0`, empty
+  identity, no chain/command/submit failure, no stack overflow, and all stream
+  slots inactive.
+- All four save banks retained byte-identical hashes, sizes, and mtimes.
+
+Evidence:
+
+```text
+.agent-builds/jak2-resume-logs/build20-simulator/stream-terminal-scene-aot-rebuild.log
+.agent-builds/jak2-resume-logs/build20-simulator/actor-array-layout-rebuild.log
+.agent-builds/jak2-resume-logs/build20-simulator/final-scene-actor-runtime.log
+.agent-builds/jak2-resume-logs/build20-simulator/final-scene-actor-key-state.log
+.agent-builds/jak2-resume-logs/build20-simulator/city-help-kid-final.jpeg
+.agent-builds/jak2-resume-logs/build20-simulator/saves-after-final-actor-run.tsv
+```
+
+The screenshot and actor lifecycle facts establish that the earlier invisible
+Kor/boy and frozen-first-frame symptoms are absent in this checkpoint. A
+transient aggregate `merc-missing-textures=6` was still observed during the
+scene despite the actors rendering correctly, so that counter remains a
+separate renderer follow-up rather than being hidden or declared solved.
+
+The app was terminated and the simulator shut down. No physical device was
+accessed for this checkpoint.
+
 ## Jak II post-Build-19 diagnostic prerequisites
 
 Date: 2026-08-14.
