@@ -18874,3 +18874,90 @@ The simulator app was terminated and the simulator shut down after capture. No
 physical device was accessed. The completed isolated eye-fix worktree and its
 39 MiB reproducible temp link directory were removed after preserving the test
 logs; the integrated commits remain recoverable.
+
+## Jak II post-Build-19 diagnostic prerequisites
+
+Date: 2026-08-14.
+
+Nested `jak2-best` is locally four commits ahead of the pushed Build 19 source:
+
+```text
+a67923dff jak2: add deterministic scene preview seam (AI-assisted)
+aa5b6cb9a jak2: retain first shadow plan capture
+a9e0b7b62 jak2: serialize shadow bucket 195 plans
+837d0cbc4 jak2: expose scene actor lifecycle telemetry (AI-assisted)
+d45f4c939 metal: preserve sequential PRIS eye generations
+```
+
+`837d0cbc4` adds bounded, numeric scene-actor lifecycle telemetry without
+changing actor, renderer, or bucket policy. For at most eight actors in the
+latest scene it records spawn attempt, dead-pool allocation, draw control,
+joint control, Merc geometry, level index, skeleton status, and Merc joint
+count. The runtime reader appends these facts to its C ABI, hashes the scene
+name, derives the expected standard-Merc PRIS bucket as `197 + 4 * level`, and
+retains the latest valid facts within the same scene sequence. The kernel
+reader deliberately has no renderer-header dependency.
+
+`a9e0b7b62` adds a deterministic, little-endian, version-1 serializer for the
+already-owned bucket-195 Shadow2 plan. Its 32-byte header contains
+`J2S195P\0`, exact lengths, reserved bits, and an FNV-1a payload checksum. The
+whole blob is bounded to 1 MiB; decoding verifies the checksum before dynamic
+graph allocation, cumulatively bounds batches/vertices/commands/records, and
+revalidates the same source-plan semantics. This is capture infrastructure
+only: buckets 195 and 314 remain deferred and no filesystem or renderer path
+was enabled.
+
+`aa5b6cb9a` retains the first non-absent bucket-195 plan only after independent
+live and copied parsing plus exact semantic equality. Its mutex-protected C ABI
+supports a size query and an all-or-nothing copy of the immutable versioned
+blob. The outer debug bridge writes at most one atomic, fixed-name, private
+Caches file per runtime session when
+`GOALPAD_JAK2_DEBUG_CAPTURE_SHADOW195=1`; the default path remains off and does
+not expose the payload in logs or metrics.
+
+`a67923dff` adds the release-safe `scene-player-preview` / runtime request seam
+and a `jak2_boot_test --preview-scene` gate. The preview is queued until stable
+title state, resolves the exact authored scene and continue, uses the existing
+debug scene-player path, and fails closed on invalid input. The
+`city-help-kid-intro` oracle requires the exact dependencies, Kor/kid/Jak/Daxter
+actor lifecycle facts and standard Merc bucket 205, real animation-frame
+progress, normal scene completion, and byte-and-timestamp-identical saves. The
+outer bridge requests it only when `GOALPAD_JAK2_DEBUG_PREVIEW_SCENE` is set;
+ordinary launches are unchanged.
+
+Focused integration checks passed:
+
+```text
+python3 test/goalc/test_jak2_scene_actor_lifecycle_contract.py
+/usr/bin/clang++ -std=gnu++20 -arch arm64 -Wall -Wextra -Werror \
+  -Wno-deprecated-enum-compare -I. -Ithird-party/fmt/include \
+  game/kernel/core/jak2_runtime_metrics_reader_test.cpp \
+  -o /private/tmp/jak2-runtime-metrics-reader-test-build20
+/private/tmp/jak2-runtime-metrics-reader-test-build20
+/usr/bin/clang++ -std=gnu++20 -arch arm64 -O2 -Wall -Wextra -Werror \
+  -I. -Ithird-party/fmt/include \
+  game/graphics/pipelines/metal/metal_jak2_shadow_bucket195_plan.cpp \
+  game/graphics/pipelines/metal/metal_jak2_shadow_bucket195_plan_test.cpp \
+  -o /private/tmp/jak2-shadow195-plan-codec-build20
+/private/tmp/jak2-shadow195-plan-codec-build20
+```
+
+Both fixtures passed. No GOAL/AOT, Xcode, simulator, or physical-device build
+had been run for these commits at that checkpoint. Immediately before the
+Build 20 Xcode gate, the three focused current-checkout CMake targets were
+rebuilt and passed 3/3:
+
+```text
+TOOLCHAINS=Metal cmake --build .agent-builds/jak2-combined-host \
+  --target jak2-runtime-metrics-reader-test \
+           jak2-shadow-bucket195-plan-test \
+           jak2-metal-host-bridge-test -j2
+ctest --test-dir .agent-builds/jak2-combined-host --output-on-failure \
+  -R '^(jak2-runtime-metrics-reader-test|jak2-shadow-bucket195-plan-test|jak2-metal-host-bridge-test)$'
+```
+
+The three GOAL source-contract suites passed 17/17, the C ABI headers parsed as
+C11 with `-Wall -Wextra -Werror`, and the Objective-C++ runtime bridge parsed
+for arm64 macOS. Shadow2 remains deferred until the exact Build 20 capture is
+replayed and the physically rejected mask is explained. No physical device has
+been accessed for this checkpoint.

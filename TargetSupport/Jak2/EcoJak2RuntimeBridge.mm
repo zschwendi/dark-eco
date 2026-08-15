@@ -1,10 +1,12 @@
 #include <algorithm>
 #include <chrono>
 #include <condition_variable>
+#include <cstdlib>
 #include <cstring>
 #include <limits>
 #include <mutex>
 #include <string>
+#include <vector>
 
 #include "GOALPadPresentationGeometry.hpp"
 #import "GOALPadRuntimeBridge.h"
@@ -116,6 +118,7 @@ uint64_t g_frames_armed = 0;
 uint64_t g_frames_without_chain = 0;
 uint64_t g_frames_with_multiple_chains = 0;
 uint64_t g_max_chains_per_frame = 0;
+bool g_shadow_bucket195_capture_written = false;
 
 NSString* string_from_utf8(const char* value) {
   if (!value || !value[0]) {
@@ -190,6 +193,84 @@ bool should_log_jak2_diagnostics(uint64_t tick) {
          (tick > 0 && tick % 600 == 0);
 }
 
+bool environment_is_exact_one(const char* name) {
+  const char* value = name ? std::getenv(name) : nullptr;
+  return value && std::strcmp(value, "1") == 0;
+}
+
+void write_shadow_bucket195_capture_locked() {
+  if (g_shadow_bucket195_capture_written || !g_metal_host ||
+      !environment_is_exact_one("GOALPAD_JAK2_DEBUG_CAPTURE_SHADOW195")) {
+    return;
+  }
+
+  uint64_t required_size = 0;
+  uint64_t fingerprint = 0;
+  constexpr uint64_t kMaximumCaptureBytes = 1 << 20;
+  if (!goal_jak2_metal_host_copy_shadow_bucket195_plan_capture(
+          g_metal_host, nullptr, 0, &required_size, &fingerprint) || !required_size ||
+      required_size > kMaximumCaptureBytes) {
+    return;
+  }
+
+  std::vector<uint8_t> bytes(required_size);
+  uint64_t copied_size = 0;
+  uint64_t copied_fingerprint = 0;
+  if (!goal_jak2_metal_host_copy_shadow_bucket195_plan_capture(
+          g_metal_host, bytes.data(), bytes.size(), &copied_size, &copied_fingerprint) ||
+      copied_size != bytes.size() || copied_fingerprint != fingerprint) {
+    return;
+  }
+
+  NSFileManager* files = [NSFileManager defaultManager];
+  NSError* error = nil;
+  NSURL* caches = [files URLForDirectory:NSCachesDirectory
+                                inDomain:NSUserDomainMask
+                       appropriateForURL:nil
+                                  create:YES
+                                   error:&error];
+  if (!caches) {
+    NSLog(@"GOALPAD_JAK2_SHADOW195_CAPTURE_STATE tick=%llu status=1 size=%llu "
+           "fingerprint=%016llx error=%lld",
+          static_cast<unsigned long long>(g_runtime_metrics.ticks),
+          static_cast<unsigned long long>(required_size),
+          static_cast<unsigned long long>(fingerprint), static_cast<long long>(error.code));
+    return;
+  }
+  NSURL* directory = [caches URLByAppendingPathComponent:@"GOALPad/Jak2Diagnostics"
+                                             isDirectory:YES];
+  error = nil;
+  if (![files createDirectoryAtURL:directory
+       withIntermediateDirectories:YES
+                        attributes:nil
+                             error:&error]) {
+    NSLog(@"GOALPAD_JAK2_SHADOW195_CAPTURE_STATE tick=%llu status=2 size=%llu "
+           "fingerprint=%016llx error=%lld",
+          static_cast<unsigned long long>(g_runtime_metrics.ticks),
+          static_cast<unsigned long long>(required_size),
+          static_cast<unsigned long long>(fingerprint), static_cast<long long>(error.code));
+    return;
+  }
+  NSURL* output = [directory URLByAppendingPathComponent:@"shadow195-v1.j2s195p"
+                                              isDirectory:NO];
+  NSData* data = [NSData dataWithBytes:bytes.data() length:bytes.size()];
+  error = nil;
+  if (![data writeToURL:output options:NSDataWritingAtomic error:&error]) {
+    NSLog(@"GOALPAD_JAK2_SHADOW195_CAPTURE_STATE tick=%llu status=3 size=%llu "
+           "fingerprint=%016llx error=%lld",
+          static_cast<unsigned long long>(g_runtime_metrics.ticks),
+          static_cast<unsigned long long>(required_size),
+          static_cast<unsigned long long>(fingerprint), static_cast<long long>(error.code));
+    return;
+  }
+  g_shadow_bucket195_capture_written = true;
+  NSLog(@"GOALPAD_JAK2_SHADOW195_CAPTURE_STATE tick=%llu status=0 size=%llu "
+         "fingerprint=%016llx error=0",
+        static_cast<unsigned long long>(g_runtime_metrics.ticks),
+        static_cast<unsigned long long>(required_size),
+        static_cast<unsigned long long>(fingerprint));
+}
+
 void log_jak2_diagnostics_locked() {
   const auto& runtime = g_runtime_metrics;
   const auto& metal = g_metal_metrics;
@@ -201,6 +282,7 @@ void log_jak2_diagnostics_locked() {
   goal_jak2_runtime_get_progress_menu_snapshot(&progress_menu);
   goal_jak2_progress_menu_diagnostics progress_detail = {};
   goal_jak2_runtime_get_progress_menu_diagnostics(&progress_detail);
+  write_shadow_bucket195_capture_locked();
   NSLog(@"GOALPAD_JAK2_RUNTIME_STATE tick=%llu mode=%s title=%s scene=%s target=%s "
          "pmode=%.3f desired=%s active=%s dgo=%s/%s result=%d failures=%d "
          "dma=%d/%d/%d bytes=%u/%u chains=%llu/%llu/%llu cmd=%llu/%llu/%llu "
@@ -236,6 +318,23 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(metal.last_buckets_dispatched),
         static_cast<unsigned long long>(metal.skipped_bucket_bytes),
         g_metal_host ? goal_jak2_metal_host_last_error(g_metal_host) : "");
+
+  NSLog(@"GOALPAD_JAK2_SCENE_ACTOR_STATE tick=%llu valid=%d sequence=%u scene=%016llx "
+         "count=%d total=%d overflow=%d",
+        static_cast<unsigned long long>(runtime.ticks), runtime.scene_actor_diagnostics_valid,
+        runtime.scene_actor_sequence,
+        static_cast<unsigned long long>(runtime.scene_actor_scene_name_hash),
+        runtime.scene_actor_count, runtime.scene_actor_total_count, runtime.scene_actor_overflow);
+  const int32_t actor_count =
+      std::clamp(runtime.scene_actor_count, 0, GOAL_JAK2_SCENE_ACTOR_DIAGNOSTIC_MAX);
+  for (int32_t index = 0; index < actor_count; ++index) {
+    const auto& actor = runtime.scene_actors[index];
+    NSLog(@"GOALPAD_JAK2_SCENE_ACTOR_ITEM tick=%llu sequence=%u index=%d "
+           "flags=%u level=%u bucket=%u skeleton=%u joints=%u",
+          static_cast<unsigned long long>(runtime.ticks), runtime.scene_actor_sequence, index,
+          actor.flags, actor.level_index, actor.merc_pris_bucket, actor.skeleton_status,
+          actor.merc_joint_count);
+  }
 
   NSLog(@"GOALPAD_JAK2_VISUAL_STATE tick=%llu raw=%llu/%llu/%llu "
          "progress=%llu/%llu/%llu debug-no-zbuf1=%llu/%llu/%llu "
@@ -871,6 +970,7 @@ void clear_runtime_snapshots_locked() {
   g_frames_without_chain = 0;
   g_frames_with_multiple_chains = 0;
   g_max_chains_per_frame = 0;
+  g_shadow_bucket195_capture_written = false;
 }
 
 GOALPadProgressMenuSnapshot unavailable_progress_snapshot() {
@@ -1120,6 +1220,11 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
     }
     if (!failure && !goal_jak2_metal_host_get_metrics(host, &metal_metrics)) {
       failure = string_from_utf8(goal_jak2_metal_host_last_error(host));
+    }
+    const char* preview_scene = std::getenv("GOALPAD_JAK2_DEBUG_PREVIEW_SCENE");
+    if (!failure && preview_scene && preview_scene[0] &&
+        goal_jak2_runtime_request_scene_preview(preview_scene) != GOAL_JAK2_RUNTIME_OK) {
+      failure = string_from_utf8(goal_jak2_runtime_last_error());
     }
   } catch (const std::exception& error) {
     failure = [NSString stringWithFormat:@"Jak II startup threw: %s", error.what()];
