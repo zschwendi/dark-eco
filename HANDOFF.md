@@ -18538,3 +18538,54 @@ Evidence:
 .agent-builds/jak2-resume-logs/eco-jak2-dev-build15-simulator-launch.png
 .agent-builds/jak2-resume-logs/eco-jak2-dev-build15-iphoneos-build.log
 ```
+
+## Jak II post-Build-15 physical rejection and rotation recovery
+
+Date: 2026-08-14.
+
+Physical Build 15 was rejected for two reasons: bucket-195 shadows were visibly
+wrong, and a portrait-to-landscape change could leave the renderer permanently
+black. The water complaint did not correlate with a Build 15 water-policy
+change: the Build 14-to-15 nested delta was entirely Shadow2-related, while the
+ocean and water routes stayed unchanged.
+
+The permanent black frame had a deterministic host cause. During a resize,
+`CAMetalLayer` may transiently return no drawable. The host recorded that one
+miss in a lifetime counter and, on a frame that also published textures, made
+the post-render failure sticky. Every later chain was rejected even after the
+layer supplied valid drawables again. Nested commit `c311b26ea` now validates
+drawable acquisition, misses, and submission by per-chain deltas. A synthetic
+layer withholds exactly one drawable after a same-layer size change and texture
+upload: the prior host fails to present the next frame, while the patched full
+host suite passes and presents immediately afterward. Cumulative miss/failure
+telemetry remains intact; DMA, texture, command-buffer, ocean, blend, and
+submission gates remain strict.
+
+The physically rejected bucket-195 production route is deferred again in
+nested commit `487f611aa`. Its typed parser, corrected wall classification,
+renderer, and GPU proofs remain in source for further work, but live gameplay
+does not execute it. This restores the Build 14 safety boundary while retaining
+the rotation recovery. Parent `jak2-best` is pushed at `74ac6cdf`.
+
+The rotation worker's exact Release host validation passed. Root review and
+`git diff --check` passed. A fresh root compile and app build were not possible:
+the data volume had only about 120 MiB free and Clang failed before compilation
+with `unable to make temporary file: No space left on device`. The clean,
+already-integrated rotation worktree was removed through `git worktree remove`;
+its branches and pushed commits remain recoverable. The canonical OpenGOAL
+build and every unrelated source worktree were preserved. No simulator or
+physical device was accessed after these changes, so this is a source/host-test
+checkpoint, not a new installed build.
+
+Build 15 simulator gameplay evidence retained before the physical rejection:
+
+```text
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build15-prison-gameplay.png
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build15-simulator-errors.log
+```
+
+The latter contains only simulator GameKit/service noise, not a Metal or
+renderer fault. The next build must first recover enough disk for one canonical
+Xcode checkpoint, then validate same-layer portrait/landscape recovery and the
+deferred-shadow presentation in the approved simulator before asking for a new
+physical install.
