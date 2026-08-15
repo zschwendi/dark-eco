@@ -18757,3 +18757,50 @@ prepared again with `VAGWAD.ENG`. Do not weaken the sound RPC into a silent
 fallback for this inconsistent state. No simulator or physical device was
 accessed for this correction. The data volume had about 1.7 GiB free at the
 checkpoint, so no Xcode/AOT build or reimport was attempted.
+
+## Jak II Build 18 readiness checkpoint
+
+Date: 2026-08-14.
+
+Eco Jak II Dev Debug and Release use bundle build 18. The Release simulator
+build passed with the canonical DerivedData directory and Metal toolchain
+override, including the Jak II native-runtime/import-composer build phases and
+the 840-unit AOT verification. The app was update-installed on the approved
+iPad Pro 11-inch (M5) simulator without removing its data.
+
+Build 18 correctly classifies the retained incomplete Jak II tree as `Needs
+Attention` and stays in the library instead of entering the runtime. Its fixed
+GameData log reports one missing launch-contract file. A direct inventory
+confirms `VAGDIR.AYB` is present at 65,552 bytes and `VAGWAD.ENG` is absent.
+This validates the new readiness boundary against the exact previously
+misclassified simulator install; it does not validate title rendering or
+gameplay.
+
+Build command:
+
+```text
+TOOLCHAINS=Metal GOALPAD_BUILD_JOBS=2 xcodebuild -quiet \
+  -project GOALPad.xcodeproj -scheme 'Eco Jak II Dev' \
+  -configuration Release \
+  -destination 'platform=iOS Simulator,id=96C5C21A-B925-4213-82A3-90DCB8518339' \
+  -derivedDataPath /private/tmp/GOALPad-jak2-c2f2c4b1d-simulator \
+  -jobs 2 ENABLE_PREVIEWS=NO COMPILER_INDEX_STORE_ENABLE=NO build
+```
+
+The simulator executable SHA-256 is
+`226f0d2d50ba995d8e48297459763441f72ec6da483dfcdfbcb5c2f1e9821484`.
+Evidence:
+
+```text
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build18-simulator-build.log
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build18-simulator-launch.log
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build18-readiness.log
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build18-readiness.png
+```
+
+Only completed temporary agent worktrees and one obsolete reproducible
+`/private/tmp/GOALPad-build222-subtitle` DerivedData directory were removed to
+recover build space. Their committed branches remain recoverable. No active
+source checkout, canonical Jak II DerivedData, simulator game data, or physical
+device data was deleted. A complete user-owned reimport remains required before
+the title/cutscene renderer can be evaluated again.
