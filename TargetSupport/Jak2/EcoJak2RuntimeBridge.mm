@@ -423,6 +423,19 @@ void log_jak2_diagnostics_locked() {
         metal.last_sprite_first_placeholder_valid ? metal.last_sprite_first_placeholder_draw_mode
                                                   : 0);
 
+  const auto& firstPalette = metal.first_merc_palette_health_event;
+  const auto& lastPalette = metal.last_merc_palette_health_event;
+  NSLog(@"GOALPAD_JAK2_MERC_PALETTE_STATE tick=%llu "
+         "first=%u/%016llx/%d/0x%08x/0x%08x/%016llx "
+         "last=%u/%016llx/%d/0x%08x/0x%08x/%016llx",
+        static_cast<unsigned long long>(runtime.ticks), firstPalette.issue_mask,
+        static_cast<unsigned long long>(firstPalette.model_name_hash), firstPalette.bone_slot,
+        firstPalette.nonfinite_lane_mask, firstPalette.source_address,
+        static_cast<unsigned long long>(firstPalette.matrix_hash), lastPalette.issue_mask,
+        static_cast<unsigned long long>(lastPalette.model_name_hash), lastPalette.bone_slot,
+        lastPalette.nonfinite_lane_mask, lastPalette.source_address,
+        static_cast<unsigned long long>(lastPalette.matrix_hash));
+
   const uint32_t mercModelDiagnosticCount =
       metal.last_merc_model_diagnostic_count < GOAL_JAK2_MERC_MODEL_DIAGNOSTIC_COUNT
           ? metal.last_merc_model_diagnostic_count
