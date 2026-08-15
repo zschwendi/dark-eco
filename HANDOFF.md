@@ -18720,3 +18720,40 @@ Evidence:
 .agent-builds/jak2-resume-logs/eco-jak2-dev-build17-title.png
 .agent-builds/jak2-resume-logs/eco-jak2-dev-build17-simulator-runtime.log
 ```
+
+## Jak II Build 17 prepared-data correction
+
+Date: 2026-08-14.
+
+The Build 17 title capture was taken after `title-disk-intro` had already
+aborted, so it did not establish a Merc or TFragment rendering failure. The
+simulator's active `Documents/Jak2` tree contains `iso/VAGDIR.AYB` but no
+`iso/VAGWAD.ENG`. The title PLAY request names a directory entry, so the sound
+RPC correctly rejects the inconsistent stream source before it creates a
+stream slot. The scene then reaches its source four-second no-position timeout
+and returns to the static title wait state. Build 12 instead had a valid active
+stereo VAG stream and retained the animated title cinematic.
+
+This is a prepared-data readiness bug. The Jak II project graph already copies
+the English VAG WAD and explicitly includes both `VAGDIR.AYB` and
+`VAGWAD.ENG` in the engine group. The app's bounded Jak II readiness manifest
+required neither one, allowing an incomplete prepared folder to activate and
+launch. Parent commit `0c946c72` now requires both files. Its deterministic
+install test proves that omitting either file reports an incomplete recoverable
+candidate, leaves active data untouched, and does not activate staging. The
+complete candidate path remains ready.
+
+Validation:
+
+```text
+Scripts/run-game-data-install-check.sh
+git diff --check HEAD^ HEAD
+```
+
+Both passed. Parent `jak2-best` is pushed at `0c946c72`. The current incomplete
+simulator install should be rejected by the next app build; it cannot validate
+the title actors, terrain, or later cinematics until the user-owned data is
+prepared again with `VAGWAD.ENG`. Do not weaken the sound RPC into a silent
+fallback for this inconsistent state. No simulator or physical device was
+accessed for this correction. The data volume had about 1.7 GiB free at the
+checkpoint, so no Xcode/AOT build or reimport was attempted.
