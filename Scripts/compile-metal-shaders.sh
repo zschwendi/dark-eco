@@ -27,6 +27,7 @@ xcrun -sdk "$PLATFORM_NAME" metal -Wall -Werror \
     "$shader_dir/generic.metal" \
     "$shader_dir/shadow.metal" \
     "$shader_dir/sprite.metal" \
+    "$shader_dir/sprite_glow.metal" \
     "$shader_dir/background.metal" \
     "$shader_dir/ocean.metal" \
     "$shader_dir/merc2.metal"

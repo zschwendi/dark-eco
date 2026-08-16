@@ -168,6 +168,28 @@
 		A73200000000000000020002 /* metal_shadow_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73200000000000000010002 /* metal_shadow_renderer.mm */; };
 		A73200000000000000020003 /* Shadow_PS2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73200000000000000010003 /* Shadow_PS2.cpp */; };
 		A73200000000000000020004 /* ShadowVu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73200000000000000010004 /* ShadowVu.cpp */; };
+		A73400000000000000020000 /* metal_pool_texture.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73400000000000000010000 /* metal_pool_texture.mm */; };
+		A73400000000000000020001 /* sprite_glow_math.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73400000000000000010001 /* sprite_glow_math.cpp */; };
+		A73400000000000000020002 /* metal_glow_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73400000000000000010002 /* metal_glow_renderer.mm */; };
+		A73400000000000000020003 /* metal_jak2_blit_display_plan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73400000000000000010003 /* metal_jak2_blit_display_plan.cpp */; };
+		A73400000000000000020004 /* metal_jak2_blit_display_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73400000000000000010004 /* metal_jak2_blit_display_renderer.mm */; };
+		A73400000000000000020005 /* metal_jak2_fog_texture_convert.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73400000000000000010005 /* metal_jak2_fog_texture_convert.cpp */; };
+		A73400000000000000020006 /* metal_jak2_bucket4_mixed_executor.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73400000000000000010006 /* metal_jak2_bucket4_mixed_executor.mm */; };
+		A73400000000000000020007 /* metal_jak2_opcode27_skull_gem_cpu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73400000000000000010007 /* metal_jak2_opcode27_skull_gem_cpu.cpp */; };
+		A73400000000000000020008 /* metal_jak2_opcode27_skull_gem_executor.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73400000000000000010008 /* metal_jak2_opcode27_skull_gem_executor.mm */; };
+		A73400000000000000020009 /* metal_jak2_opcode41_cloud_cpu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73400000000000000010009 /* metal_jak2_opcode41_cloud_cpu.cpp */; };
+		A7340000000000000002000A /* metal_jak2_prison_clut_cpu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A7340000000000000001000A /* metal_jak2_prison_clut_cpu.cpp */; };
+		A7340000000000000002000B /* metal_jak2_dark_jak_clut_executor.mm in Sources */ = {isa = PBXBuildFile; fileRef = A7340000000000000001000B /* metal_jak2_dark_jak_clut_executor.mm */; };
+		A7340000000000000002000C /* metal_jak2_highres_jak_clut_defaults.mm in Sources */ = {isa = PBXBuildFile; fileRef = A7340000000000000001000C /* metal_jak2_highres_jak_clut_defaults.mm */; };
+		A7340000000000000002000D /* metal_jak2_prison_clut_executor.mm in Sources */ = {isa = PBXBuildFile; fileRef = A7340000000000000001000D /* metal_jak2_prison_clut_executor.mm */; };
+		A7340000000000000002000E /* metal_jak2_raw_image_upload_executor.mm in Sources */ = {isa = PBXBuildFile; fileRef = A7340000000000000001000E /* metal_jak2_raw_image_upload_executor.mm */; };
+		A7340000000000000002000F /* metal_jak2_shadow2_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A7340000000000000001000F /* metal_jak2_shadow2_renderer.mm */; };
+		A73400000000000000020010 /* metal_jak2_shadow195_frame_capture.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73400000000000000010010 /* metal_jak2_shadow195_frame_capture.cpp */; };
+		A73400000000000000020011 /* metal_jak2_shadow195_frame_capture_metal.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73400000000000000010011 /* metal_jak2_shadow195_frame_capture_metal.mm */; };
+		A73400000000000000020012 /* metal_jak2_warp_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73400000000000000010012 /* metal_jak2_warp_renderer.mm */; };
+		A73400000000000000020013 /* metal_vis_data.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73400000000000000010013 /* metal_vis_data.cpp */; };
+		A73400000000000000020014 /* metal_jak2_pris2_bucket228_plan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73400000000000000010014 /* metal_jak2_pris2_bucket228_plan.cpp */; };
+		A73400000000000000020015 /* metal_jak2_common_tfrag_texture_upload_capture.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73400000000000000010015 /* metal_jak2_common_tfrag_texture_upload_capture.cpp */; };
 		D7A000000000000000020000 /* PLzmaSDK in Frameworks */ = {isa = PBXBuildFile; productRef = D7A000000000000000010001 /* PLzmaSDK */; };
 /* End PBXBuildFile section */
 
@@ -332,6 +354,28 @@
 		A73200000000000000010002 /* metal_shadow_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_shadow_renderer.mm; path = game/graphics/pipelines/metal/metal_shadow_renderer.mm; sourceTree = "<group>"; };
 		A73200000000000000010003 /* Shadow_PS2.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Shadow_PS2.cpp; path = game/graphics/opengl_renderer/Shadow_PS2.cpp; sourceTree = "<group>"; };
 		A73200000000000000010004 /* ShadowVu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ShadowVu.cpp; path = game/graphics/opengl_renderer/ShadowVu.cpp; sourceTree = "<group>"; };
+		A73400000000000000010000 /* metal_pool_texture.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_pool_texture.mm; path = game/graphics/pipelines/metal/metal_pool_texture.mm; sourceTree = "<group>"; };
+		A73400000000000000010001 /* sprite_glow_math.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sprite_glow_math.cpp; path = game/graphics/sprite_glow_math.cpp; sourceTree = "<group>"; };
+		A73400000000000000010002 /* metal_glow_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_glow_renderer.mm; path = game/graphics/pipelines/metal/metal_glow_renderer.mm; sourceTree = "<group>"; };
+		A73400000000000000010003 /* metal_jak2_blit_display_plan.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_jak2_blit_display_plan.cpp; path = game/graphics/pipelines/metal/metal_jak2_blit_display_plan.cpp; sourceTree = "<group>"; };
+		A73400000000000000010004 /* metal_jak2_blit_display_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_jak2_blit_display_renderer.mm; path = game/graphics/pipelines/metal/metal_jak2_blit_display_renderer.mm; sourceTree = "<group>"; };
+		A73400000000000000010005 /* metal_jak2_fog_texture_convert.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_jak2_fog_texture_convert.cpp; path = game/graphics/pipelines/metal/metal_jak2_fog_texture_convert.cpp; sourceTree = "<group>"; };
+		A73400000000000000010006 /* metal_jak2_bucket4_mixed_executor.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_jak2_bucket4_mixed_executor.mm; path = game/graphics/pipelines/metal/metal_jak2_bucket4_mixed_executor.mm; sourceTree = "<group>"; };
+		A73400000000000000010007 /* metal_jak2_opcode27_skull_gem_cpu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_jak2_opcode27_skull_gem_cpu.cpp; path = game/graphics/pipelines/metal/metal_jak2_opcode27_skull_gem_cpu.cpp; sourceTree = "<group>"; };
+		A73400000000000000010008 /* metal_jak2_opcode27_skull_gem_executor.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_jak2_opcode27_skull_gem_executor.mm; path = game/graphics/pipelines/metal/metal_jak2_opcode27_skull_gem_executor.mm; sourceTree = "<group>"; };
+		A73400000000000000010009 /* metal_jak2_opcode41_cloud_cpu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_jak2_opcode41_cloud_cpu.cpp; path = game/graphics/pipelines/metal/metal_jak2_opcode41_cloud_cpu.cpp; sourceTree = "<group>"; };
+		A7340000000000000001000A /* metal_jak2_prison_clut_cpu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_jak2_prison_clut_cpu.cpp; path = game/graphics/pipelines/metal/metal_jak2_prison_clut_cpu.cpp; sourceTree = "<group>"; };
+		A7340000000000000001000B /* metal_jak2_dark_jak_clut_executor.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_jak2_dark_jak_clut_executor.mm; path = game/graphics/pipelines/metal/metal_jak2_dark_jak_clut_executor.mm; sourceTree = "<group>"; };
+		A7340000000000000001000C /* metal_jak2_highres_jak_clut_defaults.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_jak2_highres_jak_clut_defaults.mm; path = game/graphics/pipelines/metal/metal_jak2_highres_jak_clut_defaults.mm; sourceTree = "<group>"; };
+		A7340000000000000001000D /* metal_jak2_prison_clut_executor.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_jak2_prison_clut_executor.mm; path = game/graphics/pipelines/metal/metal_jak2_prison_clut_executor.mm; sourceTree = "<group>"; };
+		A7340000000000000001000E /* metal_jak2_raw_image_upload_executor.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_jak2_raw_image_upload_executor.mm; path = game/graphics/pipelines/metal/metal_jak2_raw_image_upload_executor.mm; sourceTree = "<group>"; };
+		A7340000000000000001000F /* metal_jak2_shadow2_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_jak2_shadow2_renderer.mm; path = game/graphics/pipelines/metal/metal_jak2_shadow2_renderer.mm; sourceTree = "<group>"; };
+		A73400000000000000010010 /* metal_jak2_shadow195_frame_capture.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_jak2_shadow195_frame_capture.cpp; path = game/graphics/pipelines/metal/metal_jak2_shadow195_frame_capture.cpp; sourceTree = "<group>"; };
+		A73400000000000000010011 /* metal_jak2_shadow195_frame_capture_metal.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_jak2_shadow195_frame_capture_metal.mm; path = game/graphics/pipelines/metal/metal_jak2_shadow195_frame_capture_metal.mm; sourceTree = "<group>"; };
+		A73400000000000000010012 /* metal_jak2_warp_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_jak2_warp_renderer.mm; path = game/graphics/pipelines/metal/metal_jak2_warp_renderer.mm; sourceTree = "<group>"; };
+		A73400000000000000010013 /* metal_vis_data.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_vis_data.cpp; path = game/graphics/pipelines/metal/metal_vis_data.cpp; sourceTree = "<group>"; };
+		A73400000000000000010014 /* metal_jak2_pris2_bucket228_plan.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_jak2_pris2_bucket228_plan.cpp; path = game/graphics/pipelines/metal/metal_jak2_pris2_bucket228_plan.cpp; sourceTree = "<group>"; };
+		A73400000000000000010015 /* metal_jak2_common_tfrag_texture_upload_capture.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_jak2_common_tfrag_texture_upload_capture.cpp; path = game/graphics/pipelines/metal/metal_jak2_common_tfrag_texture_upload_capture.cpp; sourceTree = "<group>"; };
 		A73300000000000000010000 /* GOALPad-Importer-Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "GOALPad-Importer-Debug.xcconfig"; sourceTree = "<group>"; };
 		A73300000000000000010001 /* GOALPad-Importer-Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "GOALPad-Importer-Release.xcconfig"; sourceTree = "<group>"; };
 		A74000000000000000010000 /* EcoJak2Dev.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EcoJak2Dev.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -544,11 +588,31 @@
 				A73100000000000000010001 /* metal_direct_renderer.mm */,
 				A73200000000000000010000 /* metal_eye_renderer.mm */,
 				A73200000000000000010001 /* metal_generic2.mm */,
+				A73400000000000000010002 /* metal_glow_renderer.mm */,
+				A73400000000000000010003 /* metal_jak2_blit_display_plan.cpp */,
+				A73400000000000000010004 /* metal_jak2_blit_display_renderer.mm */,
+				A73400000000000000010005 /* metal_jak2_fog_texture_convert.cpp */,
+				A73400000000000000010006 /* metal_jak2_bucket4_mixed_executor.mm */,
+				A73400000000000000010015 /* metal_jak2_common_tfrag_texture_upload_capture.cpp */,
+				A73400000000000000010007 /* metal_jak2_opcode27_skull_gem_cpu.cpp */,
+				A73400000000000000010008 /* metal_jak2_opcode27_skull_gem_executor.mm */,
+				A73400000000000000010009 /* metal_jak2_opcode41_cloud_cpu.cpp */,
+				A7340000000000000001000A /* metal_jak2_prison_clut_cpu.cpp */,
+				A73400000000000000010014 /* metal_jak2_pris2_bucket228_plan.cpp */,
+				A7340000000000000001000B /* metal_jak2_dark_jak_clut_executor.mm */,
+				A7340000000000000001000C /* metal_jak2_highres_jak_clut_defaults.mm */,
+				A7340000000000000001000D /* metal_jak2_prison_clut_executor.mm */,
+				A7340000000000000001000E /* metal_jak2_raw_image_upload_executor.mm */,
+				A7340000000000000001000F /* metal_jak2_shadow2_renderer.mm */,
+				A73400000000000000010010 /* metal_jak2_shadow195_frame_capture.cpp */,
+				A73400000000000000010011 /* metal_jak2_shadow195_frame_capture_metal.mm */,
+				A73400000000000000010012 /* metal_jak2_warp_renderer.mm */,
 				A73200000000000000010002 /* metal_shadow_renderer.mm */,
 				A73100000000000000010002 /* metal_level_data.mm */,
 				A73100000000000000010003 /* metal_merc.mm */,
 				A73100000000000000010004 /* metal_merc_model_pool.mm */,
 				A73100000000000000010005 /* metal_ocean_renderer.mm */,
+				A73400000000000000010000 /* metal_pool_texture.mm */,
 				A73100000000000000010006 /* metal_pso_cache.mm */,
 				A73100000000000000010007 /* metal_renderer.mm */,
 				A73100000000000000010008 /* metal_shrub.mm */,
@@ -561,7 +625,9 @@
 				A7310000000000000001000F /* metal_kernel_bridge.cpp */,
 				A73100000000000000010010 /* metal_texture_upload_handler.cpp */,
 				A7310000000000000001003E /* metal_jak2_bucket_table.cpp */,
+				A73400000000000000010013 /* metal_vis_data.cpp */,
 				A73100000000000000010011 /* dma_helpers.cpp */,
+				A73400000000000000010001 /* sprite_glow_math.cpp */,
 				A73200000000000000010003 /* Shadow_PS2.cpp */,
 				A73200000000000000010004 /* ShadowVu.cpp */,
 				A73100000000000000010012 /* OceanMid_PS2.cpp */,
@@ -861,6 +927,7 @@
 				"$(GOALPAD_OPENGOAL_ROOT)/game/graphics/pipelines/metal/shaders/generic.metal",
 				"$(GOALPAD_OPENGOAL_ROOT)/game/graphics/pipelines/metal/shaders/shadow.metal",
 				"$(GOALPAD_OPENGOAL_ROOT)/game/graphics/pipelines/metal/shaders/sprite.metal",
+				"$(GOALPAD_OPENGOAL_ROOT)/game/graphics/pipelines/metal/shaders/sprite_glow.metal",
 				"$(GOALPAD_OPENGOAL_ROOT)/game/graphics/pipelines/metal/shaders/background.metal",
 				"$(GOALPAD_OPENGOAL_ROOT)/game/graphics/pipelines/metal/shaders/ocean.metal",
 				"$(GOALPAD_OPENGOAL_ROOT)/game/graphics/pipelines/metal/shaders/merc2.metal",
@@ -1051,11 +1118,31 @@
 				A73100000000000000020001 /* metal_direct_renderer.mm in Sources */,
 				A73200000000000000020000 /* metal_eye_renderer.mm in Sources */,
 				A73200000000000000020001 /* metal_generic2.mm in Sources */,
+				A73400000000000000020002 /* metal_glow_renderer.mm in Sources */,
+				A73400000000000000020003 /* metal_jak2_blit_display_plan.cpp in Sources */,
+				A73400000000000000020004 /* metal_jak2_blit_display_renderer.mm in Sources */,
+				A73400000000000000020005 /* metal_jak2_fog_texture_convert.cpp in Sources */,
+				A73400000000000000020006 /* metal_jak2_bucket4_mixed_executor.mm in Sources */,
+				A73400000000000000020015 /* metal_jak2_common_tfrag_texture_upload_capture.cpp in Sources */,
+				A73400000000000000020007 /* metal_jak2_opcode27_skull_gem_cpu.cpp in Sources */,
+				A73400000000000000020008 /* metal_jak2_opcode27_skull_gem_executor.mm in Sources */,
+				A73400000000000000020009 /* metal_jak2_opcode41_cloud_cpu.cpp in Sources */,
+				A7340000000000000002000A /* metal_jak2_prison_clut_cpu.cpp in Sources */,
+				A73400000000000000020014 /* metal_jak2_pris2_bucket228_plan.cpp in Sources */,
+				A7340000000000000002000B /* metal_jak2_dark_jak_clut_executor.mm in Sources */,
+				A7340000000000000002000C /* metal_jak2_highres_jak_clut_defaults.mm in Sources */,
+				A7340000000000000002000D /* metal_jak2_prison_clut_executor.mm in Sources */,
+				A7340000000000000002000E /* metal_jak2_raw_image_upload_executor.mm in Sources */,
+				A7340000000000000002000F /* metal_jak2_shadow2_renderer.mm in Sources */,
+				A73400000000000000020010 /* metal_jak2_shadow195_frame_capture.cpp in Sources */,
+				A73400000000000000020011 /* metal_jak2_shadow195_frame_capture_metal.mm in Sources */,
+				A73400000000000000020012 /* metal_jak2_warp_renderer.mm in Sources */,
 				A73200000000000000020002 /* metal_shadow_renderer.mm in Sources */,
 				A73100000000000000020002 /* metal_level_data.mm in Sources */,
 				A73100000000000000020003 /* metal_merc.mm in Sources */,
 				A73100000000000000020004 /* metal_merc_model_pool.mm in Sources */,
 				A73100000000000000020005 /* metal_ocean_renderer.mm in Sources */,
+				A73400000000000000020000 /* metal_pool_texture.mm in Sources */,
 				A73100000000000000020006 /* metal_pso_cache.mm in Sources */,
 				A73100000000000000020007 /* metal_renderer.mm in Sources */,
 				A73100000000000000020008 /* metal_shrub.mm in Sources */,
@@ -1068,7 +1155,9 @@
 				A7310000000000000002000F /* metal_kernel_bridge.cpp in Sources */,
 				A73100000000000000020010 /* metal_texture_upload_handler.cpp in Sources */,
 				A7310000000000000002003E /* metal_jak2_bucket_table.cpp in Sources */,
+				A73400000000000000020013 /* metal_vis_data.cpp in Sources */,
 				A73100000000000000020011 /* dma_helpers.cpp in Sources */,
+				A73400000000000000020001 /* sprite_glow_math.cpp in Sources */,
 				A73200000000000000020003 /* Shadow_PS2.cpp in Sources */,
 				A73200000000000000020004 /* ShadowVu.cpp in Sources */,
 				A73100000000000000020012 /* OceanMid_PS2.cpp in Sources */,

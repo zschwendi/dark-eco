@@ -649,12 +649,13 @@ void render_chain(const void* ee_base, std::uint32_t chain_offset) {
   }
 
   const auto* chain_data = static_cast<const std::uint8_t*>(ee_base);
+  const auto chain_size = static_cast<std::size_t>(EE_MAIN_MEM_SIZE);
   const bool rendered = g_host.frame_is_stereo
                             ? g_host.renderer->render_chain_frame_to_external_stereo_targets(
                                   opts, g_host.stereo_left, g_host.stereo_right,
-                                  g_host.stereo_command_buffer, chain_data, chain_offset)
+                                  g_host.stereo_command_buffer, chain_data, chain_offset, chain_size)
                             : g_host.renderer->render_chain_frame(
-                                  opts, g_host.frame_layer, chain_data, chain_offset);
+                                  opts, g_host.frame_layer, chain_data, chain_offset, chain_size);
   if (g_host.frame_is_stereo && !rendered && g_host.stereo_stream_reserved) {
     // Both LowLevelTexture replacements already contain the paired black initialization pass.
     // Commit it once so a failed DMA encode cannot strand an acquired replacement.
