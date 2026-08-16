@@ -1449,6 +1449,18 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
   return status;
 }
 
++ (GOALPadGameBootStatus*)bootGameWithTargetFrameRate:(NSInteger)targetFrameRate {
+  // The Jak II Metal host has only passed its 60 Hz pacing proof. Keep this ABI-compatible entry
+  // point fixed at that cadence until another rate has an independent runtime proof.
+  (void)targetFrameRate;
+  return [self bootGame];
+}
+
++ (BOOL)setTargetFrameRate:(NSInteger)targetFrameRate {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  return targetFrameRate == 60 && g_state == SessionState::Running ? YES : NO;
+}
+
 + (BOOL)runFrameAtPresentationTime:(CFTimeInterval)targetPresentationTime {
   (void)targetPresentationTime;
   std::lock_guard<std::mutex> lock(g_mutex);
@@ -1474,6 +1486,13 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
   return YES;
 }
 
++ (BOOL)runFrameAtPresentationTime:(CFTimeInterval)targetPresentationTime
+                     stateSnapshot:(GOALPadGameFrameStateSnapshot*)stateSnapshot {
+  const BOOL ran = [self runFrameAtPresentationTime:targetPresentationTime];
+  *stateSnapshot = [self gameFrameStateSnapshot];
+  return ran;
+}
+
 + (void)resetFrameTiming {
   std::lock_guard<std::mutex> lock(g_mutex);
   g_frame_armed = false;
@@ -1488,6 +1507,11 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
 + (BOOL)isGameBooted {
   std::lock_guard<std::mutex> lock(g_mutex);
   return g_state == SessionState::Running && goal_jak2_runtime_is_running();
+}
+
++ (BOOL)exitToLibraryRequested {
+  // Jak II has no managed library-exit request contract in this target bridge.
+  return NO;
 }
 
 + (GOALPadGameMode)gameMode {
@@ -1597,6 +1621,30 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
   return {};
 }
 
++ (GOALPadGameFrameStateSnapshot)gameFrameStateSnapshot {
+  GOALPadGameFrameStateSnapshot snapshot = {};
+  snapshot.progressMenu = unavailable_progress_snapshot();
+  snapshot.warpGateTouch = unavailable_warp_gate_snapshot();
+  snapshot.cutsceneSkipTouch = unavailable_cutscene_snapshot();
+  if (![self isGameBooted]) {
+    return snapshot;
+  }
+
+  snapshot.framesRun = [self framesRun];
+  snapshot.gameMode = [self gameMode];
+  snapshot.progressMenu = [self progressMenuSnapshot];
+  snapshot.titleStartState = [self titleStartState];
+  snapshot.warpGateTouch = [self warpGateTouchSnapshot];
+  snapshot.cutsceneSkipTouch = [self cutsceneSkipTouchSnapshot];
+  snapshot.facePromptTouch = [self facePromptTouchSnapshot];
+  snapshot.lookAroundState = [self lookAroundState];
+  snapshot.speederState = [self speederState];
+  // No Jak II managed-save publication is established for the shared session contract.
+  snapshot.exitToLibraryRequested = NO;
+  snapshot.successfulSaveGeneration = 0;
+  return snapshot;
+}
+
 + (GOALPadFrameChainStats)frameChainStats {
   std::lock_guard<std::mutex> lock(g_mutex);
   copy_metal_metrics_locked();
@@ -1694,6 +1742,10 @@ void GOALPadInputSetDisconnected(int32_t port) {
   goal_pad_set_state(port, &pad);
 }
 
+void GOALPadInputSetRumbleEnabled(int32_t port, BOOL enabled) {
+  goal_pad_set_rumble_enabled(port, enabled ? 1 : 0);
+}
+
 GOALPadRumble GOALPadInputRumble(int32_t port) {
   GOALPadRumble result = {};
   goal_pad_get_rumble(port, &result.large, &result.small);
@@ -1783,6 +1835,11 @@ int32_t GOALPadAudioPull(int16_t* out, int32_t frames) {
 
 - (void)setHorizontalPlusEnabled:(BOOL)enabled {
   // The current Jak II host exposes only its audited 4:3 draw region.
+  (void)enabled;
+}
+
+- (void)setDetailedFrameStatsEnabled:(BOOL)enabled {
+  // The Jak II host exposes only its fixed conservative metric set.
   (void)enabled;
 }
 

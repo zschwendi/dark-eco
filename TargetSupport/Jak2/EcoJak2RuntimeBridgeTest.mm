@@ -28,6 +28,8 @@ goal_jak2_progress_menu_diagnostics g_progress_diagnostics = {};
 goal_jak2_metal_host_metrics g_metal = {};
 goal_pad_state g_pad = {};
 int g_pad_port = -1;
+int g_rumble_enabled_port = -1;
+int g_rumble_enabled = -1;
 bool g_runtime_running = false;
 bool g_host_active = false;
 bool g_fail_configure = false;
@@ -111,6 +113,41 @@ int goal_jak2_metal_host_get_metrics(goal_jak2_metal_host* host,
   }
   *out = g_metal;
   return 1;
+}
+
+int goal_jak2_metal_host_copy_shadow_bucket195_plan_capture(goal_jak2_metal_host* host,
+                                                             uint8_t* out_bytes,
+                                                             uint64_t capacity,
+                                                             uint64_t* required_size,
+                                                             uint64_t* serialized_fingerprint) {
+  (void)host;
+  (void)out_bytes;
+  (void)capacity;
+  if (required_size) {
+    *required_size = 0;
+  }
+  if (serialized_fingerprint) {
+    *serialized_fingerprint = 0;
+  }
+  return 0;
+}
+
+int goal_jak2_metal_host_arm_shadow195_frame_capture(
+    goal_jak2_metal_host* host,
+    const goal_jak2_shadow195_frame_capture_selector* selector) {
+  (void)host;
+  (void)selector;
+  return 0;
+}
+
+int goal_jak2_metal_host_get_shadow195_frame_capture(
+    goal_jak2_metal_host* host,
+    goal_jak2_shadow195_frame_capture_result* out) {
+  (void)host;
+  if (out) {
+    *out = {};
+  }
+  return 0;
 }
 
 int goal_jak2_metal_host_wait_for_last_frame(goal_jak2_metal_host* host,
@@ -251,6 +288,11 @@ goal_jak2_runtime_status goal_jak2_runtime_get_metrics(goal_jak2_runtime_metrics
   return GOAL_JAK2_RUNTIME_OK;
 }
 
+goal_jak2_runtime_status goal_jak2_runtime_request_scene_preview(const char* scene_name) {
+  (void)scene_name;
+  return GOAL_JAK2_RUNTIME_OK;
+}
+
 goal_jak2_runtime_status goal_jak2_runtime_get_progress_menu_snapshot(
     goal_jak2_progress_menu_snapshot* out) {
   if (!out) {
@@ -307,6 +349,12 @@ goal_kernel_core_status goal_pad_set_state(int port, const goal_pad_state* state
   return GOAL_KERNEL_CORE_OK;
 }
 
+goal_kernel_core_status goal_pad_set_rumble_enabled(int port, int enabled) {
+  g_rumble_enabled_port = port;
+  g_rumble_enabled = enabled;
+  return GOAL_KERNEL_CORE_OK;
+}
+
 goal_kernel_core_status goal_pad_get_rumble(int port, uint8_t* large, uint8_t* small) {
   if (port < 0 || !large || !small) {
     return GOAL_KERNEL_CORE_INVALID_ARGUMENT;
@@ -353,13 +401,16 @@ int main() {
     check([prepared.dataDirectory isEqualToString:@"/tmp/jak2-data"],
           "startup retains the data directory");
 
-    GOALPadGameBootStatus* boot = [GOALPadRuntimeBridge bootGame];
+    GOALPadGameBootStatus* boot = [GOALPadRuntimeBridge bootGameWithTargetFrameRate:60];
     check(boot.isBooted && boot.didPlay, "boot starts the Jak II runtime");
     check(boot.kernelObjects == 8 && boot.gameObjects == 465,
           "boot publishes runtime object counts");
     check(boot.isRendererInstalled && boot.isSoundInstalled,
           "boot publishes renderer and sound installation");
     check(g_created_layer == first_layer, "boot uses the cached presentation layer");
+    check([GOALPadRuntimeBridge setTargetFrameRate:60] &&
+              ![GOALPadRuntimeBridge setTargetFrameRate:120],
+          "Jak II accepts only the proven 60 Hz runtime cadence");
     check(g_data_directory == "/tmp/jak2-data" && g_saves_directory == "/tmp/jak2-saves",
           "boot passes the cached runtime directories");
     check(g_fr3_directory == "/tmp/jak2-data/fr3", "boot configures the Jak II fr3 directory");
@@ -521,6 +572,9 @@ int main() {
     GOALPadRumble rumble = GOALPadInputRumble(0);
     check(rumble.large == 3 && rumble.small == 7 && GOALPadInputReadCount(0) == 42,
           "rumble and read telemetry use the shared pad seam");
+    GOALPadInputSetRumbleEnabled(0, YES);
+    check(g_rumble_enabled_port == 0 && g_rumble_enabled == 1,
+          "rumble enablement reaches the shared pad seam");
     GOALPadInputSetDisconnected(0);
     check(!g_pad.connected, "controller disconnect reaches the shared pad seam");
 
@@ -530,8 +584,12 @@ int main() {
           "audio uses the shared mixer seam");
 
     check([surface beginFrameAtTime:1.0], "the attached running surface arms a frame");
-    check([GOALPadRuntimeBridge runFrameAtPresentationTime:1.0],
-          "the runtime bridge ticks one frame");
+    GOALPadGameFrameStateSnapshot frame = {};
+    check([GOALPadRuntimeBridge runFrameAtPresentationTime:1.0 stateSnapshot:&frame],
+          "the runtime bridge ticks one frame and returns a state snapshot");
+    check(!frame.exitToLibraryRequested && frame.successfulSaveGeneration == 0 &&
+              frame.framesRun == 1 && frame.gameMode == GOALPadGameModeProgress,
+          "Jak II frame snapshots fail closed for library exit and managed-save generation");
     check([surface endFrame], "the surface reports a submitted drawable");
     check(GOALPadRuntimeBridge.framesRun == 1, "the runtime frame counter advances");
     GOALPadRendererStats stats = surface.stats;

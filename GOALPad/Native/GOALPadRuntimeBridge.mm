@@ -366,6 +366,13 @@ static GOALPadGameFrameStateSnapshot GOALPadGameFrameStateSnapshotFromCore(
   return GOALPadProgressMenuSnapshotFromCore(goalpad::progress_menu_snapshot());
 }
 
++ (GOALPadJak2ProgressMenuSemanticSnapshot)jak2ProgressMenuSemanticSnapshot {
+  GOALPadJak2ProgressMenuSemanticSnapshot snapshot = {};
+  snapshot.phase = GOALPadJak2ProgressMenuPhaseUnavailable;
+  snapshot.optionIndex = -1;
+  return snapshot;
+}
+
 + (GOALPadWarpGateTouchSnapshot)warpGateTouchSnapshot {
   return GOALPadWarpGateTouchSnapshotFromCore(goalpad::warp_gate_touch_snapshot());
 }
