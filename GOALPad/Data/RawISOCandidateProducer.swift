@@ -1,30 +1,33 @@
 import Foundation
 
-/// Produces a complete desktop-compatible candidate from one supported Jak 1 disc image.
+/// Produces a complete desktop-compatible candidate from one supported profile disc image.
 nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
-    private static let projectResourceName = "OpenGOALProjectResources"
-    private static let sourceObjectPackName = "Jak1SourceObjectPack"
-
+    private let profile: GameDataProfile
     private let projectResourceURL: URL?
     private let sourceObjectPackURL: URL?
     private let overallProgressRange: ClosedRange<Double>
 
-    static func isAvailable(in bundle: Bundle = .main) -> Bool {
+    static func isAvailable(
+        for profile: GameDataProfile = .active,
+        in bundle: Bundle = .main
+    ) -> Bool {
         GOALPadGameDataPreparationIsAvailable()
-            && bundle.url(forResource: projectResourceName, withExtension: nil) != nil
-            && bundle.url(forResource: sourceObjectPackName, withExtension: nil) != nil
+            && bundle.url(forResource: profile.projectResourceName, withExtension: nil) != nil
+            && bundle.url(forResource: profile.sourceObjectPackName, withExtension: nil) != nil
     }
 
     init(
+        profile: GameDataProfile = .active,
         bundle: Bundle = .main,
         overallProgressRange: ClosedRange<Double> = 0.15...0.85
     ) {
+        self.profile = profile
         projectResourceURL = bundle.url(
-            forResource: Self.projectResourceName,
+            forResource: profile.projectResourceName,
             withExtension: nil
         )
         sourceObjectPackURL = bundle.url(
-            forResource: Self.sourceObjectPackName,
+            forResource: profile.sourceObjectPackName,
             withExtension: nil
         )
         self.overallProgressRange = overallProgressRange
@@ -128,10 +131,20 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
         let phaseFraction = native.total > 0
             ? Double(native.completed) / Double(native.total)
             : 0
+        let phaseIndex: Int
+        let phaseCount: Int
+        if profile.identifier == .jak2 {
+            phaseCount = 9
+            phaseIndex = native.phase == .validatingProjectResources
+                ? 1 : Int(native.phase.rawValue)
+        } else {
+            phaseCount = 8
+            phaseIndex = Int(native.phase.rawValue) - 1
+        }
         let overallProgress = GameDataImportProgress.mappedProgress(
             in: overallProgressRange,
-            phaseIndex: Int(native.phase.rawValue) - 1,
-            phaseCount: 8,
+            phaseIndex: phaseIndex,
+            phaseCount: phaseCount,
             fraction: phaseFraction
         )
         return GameDataImportProgress(
@@ -182,7 +195,7 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
                 message: message.isEmpty ? "This disc revision is not supported." : message,
                 candidatePreserved: preserved
             )
-        case .sourcePackFailed:
+        case .sourcePackFailed, .projectResourcesFailed:
             return GameDataImportFailure(
                 code: .appResourcesUnavailable,
                 message: message.isEmpty

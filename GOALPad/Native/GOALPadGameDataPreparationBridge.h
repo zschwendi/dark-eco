@@ -27,6 +27,7 @@ typedef NS_ENUM(NSInteger, GOALPadGameDataPreparationErrorCode) {
   GOALPadGameDataPreparationErrorAllocationFailed = 19,
   GOALPadGameDataPreparationErrorUnexpectedFailure = 20,
   GOALPadGameDataPreparationErrorAlreadyStarted = 21,
+  GOALPadGameDataPreparationErrorProjectResourcesFailed = 22,
 };
 
 typedef NS_ENUM(NSInteger, GOALPadGameDataPreparationPhase) {
@@ -38,6 +39,7 @@ typedef NS_ENUM(NSInteger, GOALPadGameDataPreparationPhase) {
   GOALPadGameDataPreparationPhaseGeneratingRecipe = 6,
   GOALPadGameDataPreparationPhaseMaterializingOutput = 7,
   GOALPadGameDataPreparationPhaseFinalizingCandidate = 8,
+  GOALPadGameDataPreparationPhaseValidatingProjectResources = 9,
 };
 
 @interface GOALPadGameDataPreparationProgress : NSObject
@@ -74,7 +76,7 @@ typedef void (^GOALPadGameDataPreparationProgressHandler)(
 typedef void (^GOALPadGameDataPreparationCompletionHandler)(
     GOALPadGameDataPreparationSummary *_Nullable summary, NSError *_Nullable error);
 
-/// A single-use, cancellable invocation of the native Jak 1 disc-image composer.
+/// A single-use, cancellable invocation of the selected native disc-image composer.
 ///
 /// Work runs on a private serial utility queue. Cancellation is cooperative, and completion is
 /// not delivered until the native composer has stopped touching every supplied URL.
