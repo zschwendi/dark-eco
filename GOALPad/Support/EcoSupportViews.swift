@@ -45,6 +45,8 @@ struct EcoAboutView: View {
                 } label: {
                     SupportRow(title: "Support Dark Eco", systemImage: "heart")
                 }
+
+                EcoLegalLinks()
             }
             .buttonStyle(.plain)
         }
@@ -114,7 +116,8 @@ private struct EcoSupportDevelopmentView: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(tipStore.product(for: tip) == nil
-                              || tipStore.purchasingProductID != nil)
+                              || tipStore.purchasingProductID != nil
+                              || tipStore.isRestoringPurchases)
                 }
 
                 Text("These optional purchases do not unlock features at this time.")
@@ -149,6 +152,15 @@ private struct EcoSupportDevelopmentView: View {
                         Task { await tipStore.reloadProducts() }
                     }
                 }
+
+                Button("Restore Purchases") {
+                    Task { await tipStore.restorePurchases() }
+                }
+                .buttonStyle(.bordered)
+                .disabled(tipStore.purchasingProductID != nil
+                          || tipStore.isRestoringPurchases)
+
+                EcoLegalLinks()
             }
         }
         .task { await tipStore.prepare() }
@@ -177,6 +189,26 @@ private struct EcoSupportDevelopmentView: View {
             Text("Unavailable")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct EcoLegalLinks: View {
+    var body: some View {
+        HStack(spacing: 16) {
+            Link(destination: zephyrPrivacyURL) {
+                Text("Privacy Policy")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .underline()
+            }
+
+            Link(destination: zephyrTermsURL) {
+                Text("Terms and Conditions")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .underline()
+            }
         }
     }
 }

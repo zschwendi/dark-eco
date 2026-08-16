@@ -51,6 +51,7 @@ final class EcoTipStore {
     private(set) var products: [String: Product] = [:]
     private(set) var isLoading = false
     private(set) var purchasingProductID: String?
+    private(set) var isRestoringPurchases = false
     private(set) var notice: String?
     private(set) var isShowingThankYou = false
 
@@ -117,6 +118,20 @@ final class EcoTipStore {
             notice = "The purchase couldn’t be completed. Please try again."
         }
         #endif
+    }
+
+    func restorePurchases() async {
+        guard !isRestoringPurchases else { return }
+        isRestoringPurchases = true
+        notice = nil
+        defer { isRestoringPurchases = false }
+
+        do {
+            try await AppStore.sync()
+            notice = "Purchase history refreshed. Consumable support purchases don’t unlock restorable features."
+        } catch {
+            notice = "Purchases couldn’t be restored. Please try again."
+        }
     }
 
     func dismissThankYou() {

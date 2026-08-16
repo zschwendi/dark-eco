@@ -20,6 +20,11 @@ The existing product identifiers remain unchanged. The app displays StoreKit's
 localized `Product.displayPrice`; the amounts above are App Store Connect
 configuration targets, not hardcoded in-app copy.
 
+The Support Dark Eco page includes a **Restore Purchases** action that invokes
+`AppStore.sync()` to refresh App Store purchase history. These three products
+remain consumable and unlock no features, so a successful sync does not restore
+a durable entitlement. The page reports that distinction to the customer.
+
 ## App Store Connect entry checklist
 
 For each row, an authorized App Store Connect user must:

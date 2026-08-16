@@ -24,6 +24,8 @@ rg -Fq 'case .userCancelled:' "$store"
 rg -Fq 'Transaction.unfinished' "$store"
 rg -Fq 'Transaction.updates' "$store"
 rg -Fq 'isShowingThankYou = true' "$store"
+rg -Fq 'func restorePurchases() async' "$store"
+rg -Fq 'try await AppStore.sync()' "$store"
 rg -Fq '.task { await EcoTipTransactionObserver.run() }' "$app"
 
 rg -Fq 'Text(product.displayPrice)' "$views"
@@ -40,6 +42,8 @@ rg -Fq 'Label("Terms of Use", systemImage: "doc.text")' "$views"
 rg -Fq 'Label("Privacy Policy", systemImage: "hand.raised")' "$views"
 rg -Fq 'https://zephyrstudios.dev/terms-of-use.html' "$views"
 rg -Fq 'https://zephyrstudios.dev/privacy-policy.html' "$views"
+rg -Fq 'Button("Restore Purchases")' "$views"
+rg -Fq 'Text("Terms and Conditions")' "$views"
 rg -Fq 'Text("These optional purchases do not unlock features at this time.")' "$views"
 rg -Fq 'Text("Thank You!")' "$views"
 rg -Fq 'Your support helps Zach continue developing and maintaining Dark Eco, and is sincerely appreciated.' "$views"
@@ -49,10 +53,8 @@ contact_line=$(rg -n -F 'SupportRow(title: "Contact"' "$views" | cut -d: -f1)
 support_line=$(rg -n -F 'SupportRow(title: "Support Dark Eco"' "$views" | cut -d: -f1)
 test "$contact_line" -lt "$support_line"
 
-if rg -qi 'restore purchase|restore purchases' "$store" "$views"; then
-  echo "consumable support purchases must not offer a restore action" >&2
-  exit 1
-fi
+legal_footer_count=$(rg -c -F 'EcoLegalLinks()' "$views")
+test "$legal_footer_count" -eq 2
 if rg -Fq 'AppIconEco' "$store" "$views"; then
   echo "support purchases must not include alternate-icon rewards" >&2
   exit 1
