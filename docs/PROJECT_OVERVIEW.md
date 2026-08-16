@@ -459,6 +459,9 @@ FIFO-exclusive lease. Gameplay remains paused if a committed local-target intent
 cannot be validated and recovered. A source generation that changed after commit
 is reconciled in that same pregame sync. A one-bank slot without a matching intent
 is ranked as normal divergence rather than inferred to be an interrupted write.
+The preserved-save catalog also materializes checksum-valid iCloud-only archives
+and the inactive valid bank beside a newer active generation, allowing the prior
+generation to be made active without changing sync authority or ranking rules.
 Settings reports sync progress, availability, the last successful sync, and a
 concise recovery action without exposing internal memcard paths or presenting a
 second save picker. The game's ordinary four save positions remain inside its
