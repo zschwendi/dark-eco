@@ -198,6 +198,7 @@ nonisolated struct SaveTransferResult: Sendable, Equatable {
 nonisolated enum ArchivedSaveSource: String, Sendable, Equatable {
     case thisDevice = "This Device"
     case iCloud = "iCloud"
+    case previousSave = "Previous Save"
     case beforeImport = "Before Import"
     case beforeRestore = "Before Restore"
 }
@@ -379,6 +380,12 @@ actor SaveSyncEngine {
         let bankIndex: Int
         let source: ArchivedSaveSource
         let hash: String
+    }
+
+    private struct ArchivedSaveFile {
+        let descriptor: ArchiveDescriptor
+        let file: SaveFile
+        let metadata: Jak1BankMetadata
     }
 
     private struct ConflictRecord: Codable, Equatable {
@@ -780,9 +787,10 @@ actor SaveSyncEngine {
         return try await importSavesUnlocked(from: selectedDirectory)
     }
 
-    /// Lists only complete, checksum-valid native Jak 1 banks from the local preservation mirror.
-    /// Each bank is independently loadable, so legacy archives do not need an event manifest to
-    /// remain recoverable. Internal archive filenames stay behind the controller/UI boundary.
+    /// Lists only complete, checksum-valid native Jak 1 banks from the preservation mirrors.
+    /// iCloud-only copies are first materialized locally so the existing promotion path remains
+    /// local-first. Each bank is independently loadable, so legacy archives do not need an event
+    /// manifest to remain recoverable. Internal archive filenames stay behind the UI boundary.
     func archivedSaveCandidates() async throws -> [ArchivedSaveCandidate] {
         await acquireOperation()
         defer { releaseOperation() }
@@ -790,32 +798,30 @@ actor SaveSyncEngine {
         await configuration.operationAwaitHook()
         try Task.checkCancellation()
 
-        var candidates: [ArchivedSaveCandidate] = []
-        for url in try fileURLs(in: configuration.localConflictsRoot, coordinated: false) {
-            let relativePath = relativePath(of: url, under: configuration.localConflictsRoot)
-            guard let descriptor = archiveDescriptor(for: relativePath),
-                  let safeURL = safeArchiveURL(for: relativePath),
-                  safeURL.standardizedFileURL == url.standardizedFileURL else { continue }
-            let values = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey,
-                                                           .fileSizeKey])
-            guard values.isRegularFile == true, values.isSymbolicLink != true,
-                  values.fileSize == Self.jak1BankFileSize else { continue }
-            let file = try await stableFile(at: url, coordinated: false,
-                                            relativeTo: configuration.localConflictsRoot,
-                                            expectedSize: Self.jak1BankFileSize)
-            guard descriptor.hash == file.hash,
-                  let metadata = jak1BankMetadata(in: file,
-                                                  relativePath: descriptor.canonicalBankPath)
-            else { continue }
-            candidates.append(ArchivedSaveCandidate(
-                id: descriptor.relativePath,
-                slotNumber: descriptor.bankIndex / 2 + 1,
-                source: descriptor.source,
-                modificationDate: file.modificationDate,
-                saveGeneration: metadata.saveCount,
-                completionPercentage: metadata.completionPercentage))
+        let cloud = configuration.cloudLocations()
+        try await preservePreviousCanonicalBanks(cloud: cloud)
+        var archivedFiles = try await archivedSaveFiles(
+            in: configuration.localConflictsRoot, coordinated: false)
+        if let cloud {
+            let cloudFiles = try await archivedSaveFiles(
+                in: cloud.conflictsRoot, coordinated: configuration.coordinateCloudAccess)
+            for relativePath in cloudFiles.keys.sorted() where archivedFiles[relativePath] == nil {
+                guard let cloudFile = cloudFiles[relativePath] else { continue }
+                try write(cloudFile.file, relativePath: relativePath,
+                          to: configuration.localConflictsRoot, coordinated: false)
+                archivedFiles[relativePath] = cloudFile
+            }
         }
-        return candidates.sorted {
+
+        return archivedFiles.values.map { archived in
+            ArchivedSaveCandidate(
+                id: archived.descriptor.relativePath,
+                slotNumber: archived.descriptor.bankIndex / 2 + 1,
+                source: archived.descriptor.source,
+                modificationDate: archived.file.modificationDate,
+                saveGeneration: archived.metadata.saveCount,
+                completionPercentage: archived.metadata.completionPercentage)
+        }.sorted {
             if $0.modificationDate != $1.modificationDate {
                 return ($0.modificationDate ?? .distantPast) > ($1.modificationDate ?? .distantPast)
             }
@@ -1835,6 +1841,7 @@ actor SaveSyncEngine {
         let markers: [(String, ArchivedSaveSource)] = [
             (".local-", .thisDevice),
             (".icloud-", .iCloud),
+            (".previous-", .previousSave),
             (".before-import-", .beforeImport),
             (".before-restore-", .beforeRestore),
         ]
@@ -1852,17 +1859,82 @@ actor SaveSyncEngine {
         return nil
     }
 
+    private func preservePreviousCanonicalBanks(cloud: CloudSaveLocations?) async throws {
+        let files = try await files(in: configuration.localRoot, coordinated: false)
+        for evenPath in Set(files.keys.compactMap(jak1SlotEvenPath)).sorted() {
+            let slot = jak1SlotSnapshot(evenPath: evenPath, files: files)
+            guard let activeHash = slot.effectiveFile?.hash else { continue }
+            for path in [slot.evenPath, slot.oddPath] {
+                guard let file = slot.file(at: path), file.hash != activeHash,
+                      jak1BankMetadata(in: file, relativePath: path) != nil else { continue }
+                let archivePath = path + ".previous-" + file.hash
+                try write(file, relativePath: archivePath,
+                          to: configuration.localConflictsRoot, coordinated: false)
+                if let cloud {
+                    try write(file, relativePath: archivePath, to: cloud.conflictsRoot,
+                              coordinated: configuration.coordinateCloudAccess)
+                }
+            }
+        }
+    }
+
+    private func archivedSaveFiles(in root: URL, coordinated: Bool) async throws
+        -> [String: ArchivedSaveFile] {
+        let urls: [URL]
+        if coordinated {
+            let discovered = try await configuration.discoverCloudFiles(
+                root, configuration.cloudDiscoveryTimeout)
+            let locallyVisible = try uncoordinatedFileURLs(in: root)
+            urls = Dictionary((discovered + locallyVisible).map {
+                ($0.standardizedFileURL.path, $0.standardizedFileURL)
+            }, uniquingKeysWith: { first, _ in first }).values.sorted { $0.path < $1.path }
+        } else {
+            urls = try uncoordinatedFileURLs(in: root)
+        }
+
+        var result: [String: ArchivedSaveFile] = [:]
+        let rootPath = root.standardizedFileURL.path
+        let rootPrefix = rootPath.hasSuffix("/") ? rootPath : rootPath + "/"
+        for url in urls {
+            let standardizedURL = url.standardizedFileURL
+            guard standardizedURL.path.hasPrefix(rootPrefix) else { continue }
+            let relativePath = String(standardizedURL.path.dropFirst(rootPrefix.count))
+            guard let descriptor = archiveDescriptor(for: relativePath),
+                  let safeURL = safeArchiveURL(for: relativePath, under: root),
+                  safeURL.standardizedFileURL == standardizedURL else { continue }
+            if coordinated {
+                try await ensureCloudFileIsCurrent(at: standardizedURL, relativeTo: root)
+            }
+            let values = try standardizedURL.resourceValues(
+                forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
+            guard values.isRegularFile == true, values.isSymbolicLink != true,
+                  values.fileSize == Self.jak1BankFileSize else { continue }
+            let file = try await stableFile(at: standardizedURL, coordinated: coordinated,
+                                            relativeTo: root,
+                                            expectedSize: Self.jak1BankFileSize)
+            guard descriptor.hash == file.hash,
+                  let metadata = jak1BankMetadata(
+                    in: file, relativePath: descriptor.canonicalBankPath) else { continue }
+            result[relativePath] = ArchivedSaveFile(
+                descriptor: descriptor, file: file, metadata: metadata)
+        }
+        return result
+    }
+
     private func safeArchiveURL(for relativePath: String) -> URL? {
+        safeArchiveURL(for: relativePath, under: configuration.localConflictsRoot)
+    }
+
+    private func safeArchiveURL(for relativePath: String, under root: URL) -> URL? {
         let components = relativePath.split(separator: "/", omittingEmptySubsequences: false)
         guard !components.isEmpty,
               components.allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." }) else {
             return nil
         }
-        let candidate = components.reduce(configuration.localConflictsRoot) {
+        let candidate = components.reduce(root) {
             $0.appending(path: String($1), directoryHint: .notDirectory)
         }
-        let rootPath = configuration.localConflictsRoot.resolvingSymlinksInPath()
-            .standardizedFileURL.path
+        let rootPath = root.resolvingSymlinksInPath().standardizedFileURL.path
         let resolvedPath = candidate.resolvingSymlinksInPath().standardizedFileURL.path
         guard resolvedPath.hasPrefix(rootPath + "/") else { return nil }
         return candidate

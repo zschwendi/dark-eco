@@ -626,6 +626,85 @@ private func preservedNativeBankCanBecomeActive() async throws {
           "a rejected archive identity cannot replace the active native save")
 }
 
+private func freshDeviceCanRecoverCloudOnlyPreservedBank() async throws {
+    print("a fresh device can recover a displaced save from the iCloud preservation mirror")
+    let fixture = try Fixture()
+    let older = Date(timeIntervalSince1970: 1_700_000_000)
+    let newer = older.addingTimeInterval(60)
+    try writeBank(progress: 95, saveCount: 40, marker: 95,
+                  to: bankFilePath(0), under: fixture.cloud,
+                  modificationDate: older)
+    let displacedSave = data(bankFilePath(0), under: fixture.cloud)!
+    try writeBank(progress: 0, saveCount: 1, marker: 0,
+                  to: bankFilePath(0), under: fixture.local,
+                  modificationDate: newer)
+
+    let upload = try await fixture.engine.sync(mode: .uploadOnly)
+    check(upload.uploaded == 1,
+          "the active zero-percent save becomes canonical after preserving the remote copy")
+    check(data(bankFilePath(0), under: fixture.cloud) == data(bankFilePath(0), under: fixture.local),
+          "the active save mirrors to iCloud")
+    check(regularFiles(under: fixture.cloudConflicts).contains {
+        (try? Data(contentsOf: $0)) == displacedSave
+    }, "the displaced 95-percent bytes remain in the iCloud preservation mirror")
+
+    if FileManager.default.fileExists(atPath: fixture.localConflicts.path) {
+        try FileManager.default.removeItem(at: fixture.localConflicts)
+    }
+    let candidates = try await fixture.engine.archivedSaveCandidates()
+    guard let candidate = candidates.first(where: {
+        $0.source == .iCloud && $0.saveGeneration == 40
+            && $0.completionPercentage == 95
+    }) else {
+        check(false, "a fresh device lists the cloud-only 95-percent save")
+        return
+    }
+    check(true, "a fresh device lists the cloud-only 95-percent save")
+    check(regularFiles(under: fixture.localConflicts).contains {
+        (try? Data(contentsOf: $0)) == displacedSave
+    }, "the validated cloud archive is materialized into the local preservation mirror")
+
+    _ = try await fixture.engine.promoteArchivedSave(id: candidate.id)
+    check(data(bankFilePath(0), under: fixture.local) == displacedSave,
+          "the recovered 95-percent save becomes active byte-for-byte")
+}
+
+private func previousCanonicalBankCanBeRecovered() async throws {
+    print("the inactive bank beside a newer New Game save remains recoverable")
+    let fixture = try Fixture()
+    let older = Date(timeIntervalSince1970: 1_700_000_000)
+    let newer = older.addingTimeInterval(60)
+    try writeBank(progress: 95, saveCount: 40, marker: 95,
+                  to: bankFilePath(0), under: fixture.local,
+                  modificationDate: older)
+    let previousSave = data(bankFilePath(0), under: fixture.local)!
+    try writeBank(progress: 0, saveCount: 41, marker: 0,
+                  to: bankFilePath(1), under: fixture.local,
+                  modificationDate: newer)
+
+    _ = try await fixture.engine.sync()
+    check(loaderSelectedCompletion(evenIndex: 0, under: fixture.local) == 0,
+          "the newer New Game bank is initially active")
+    let candidates = try await fixture.engine.archivedSaveCandidates()
+    guard let candidate = candidates.first(where: {
+        $0.source == .previousSave && $0.saveGeneration == 40
+            && $0.completionPercentage == 95
+    }) else {
+        check(false, "recovery lists the intact inactive 95-percent bank")
+        return
+    }
+    check(true, "recovery lists the intact inactive 95-percent bank")
+    check(regularFiles(under: fixture.cloudConflicts).contains {
+        (try? Data(contentsOf: $0)) == previousSave
+    }, "refreshing recovery preserves the previous bank in iCloud too")
+
+    _ = try await fixture.engine.promoteArchivedSave(id: candidate.id)
+    check(data(bankFilePath(0), under: fixture.local) == previousSave,
+          "the previous 95-percent bank becomes active byte-for-byte")
+    check(data(bankFilePath(1), under: fixture.local) == nil,
+          "the newer zero-percent peer is removed from the restored active pair")
+}
+
 private func twoSidedChangeAutomaticallyResolves() async throws {
     print("two changes after a shared baseline also resolve without blocking")
     let fixture = try Fixture()
@@ -2996,6 +3075,8 @@ private struct SaveSyncCheck {
             try await changedSideWinsAgainstBaseline()
             try await initialDivergenceUsesNewestDateAndPreservesBoth()
             try await preservedNativeBankCanBecomeActive()
+            try await freshDeviceCanRecoverCloudOnlyPreservedBank()
+            try await previousCanonicalBankCanBeRecovered()
             try await twoSidedChangeAutomaticallyResolves()
             try await newerLowerProgressWins()
             try await equalDateHigherSaveGenerationWins()
