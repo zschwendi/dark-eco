@@ -72,6 +72,7 @@ struct GameDataSetupView: View {
     }
 
     private var header: some View {
+        Group {
         #if GOALPAD_JAK2
         Text(GameLibraryOfferCopy.importMessage(
             for: GameLibraryTitle.active,
@@ -80,6 +81,7 @@ struct GameDataSetupView: View {
         #else
         Text(GameLibraryOfferCopy.jak1ImportMessage())
         #endif
+        }
             .font(.subheadline)
             .foregroundStyle(.secondary)
     }
