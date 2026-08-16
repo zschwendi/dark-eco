@@ -64,8 +64,8 @@ cat >"$build_root/goalc/jak2-source-object-pack-verify" <<'VERIFY'
 set -eu
 : "${FAKE_VERIFY_LOG:?}"
 printf '%s\n' "$*" >>"$FAKE_VERIFY_LOG"
-[ "${1:-}" != '' ] && [ "${2:-}" = --project-path ] && [ "${4:-}" = --expected-aggregate ] || exit 1
-[ "${5:-}" = 0123456789abcdef ] || exit 1
+[ "${1:-}" != '' ] && [ "${2:-}" = --expected-aggregate ] || exit 1
+[ "${3:-}" = 0123456789abcdef ] || exit 1
 [ -f "$1/synthetic.o" ]
 [ "$(awk -F '\t' '$1 == "AGGREGATE_XXH64" { print $2 }' "$1/object_pack_manifest.tsv")" = 0123456789abcdef ]
 printf 'Verified 840 Jak II source objects (aggregate 0123456789abcdef, 7 bytes).\n'

@@ -1,7 +1,53 @@
 #!/bin/sh
-# Build the flattened Apple Jak 1 importer archive and verify its existing source pack.
+# Build one flattened Apple importer archive and verify its existing source pack.
 
 set -eu
+
+game=${GOALPAD_IMPORT_COMPOSER_GAME:-jak1}
+case "$game" in
+  jak1)
+    display_name="Jak 1"
+    script_name=build-jak1-import-composer-apple.sh
+    source_pack_env_name=GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT
+    import_build_root_env_name=GOALPAD_JAK1_IMPORT_BUILD_ROOT
+    deployment_target_env_name=GOALPAD_JAK1_IMPORT_DEPLOYMENT_TARGET
+    source_pack_env_value=${GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT:-}
+    import_build_root_env_value=${GOALPAD_JAK1_IMPORT_BUILD_ROOT:-}
+    deployment_target_env_value=${GOALPAD_JAK1_IMPORT_DEPLOYMENT_TARGET:-}
+    source_pack_only_option=OPENGOAL_BUILD_JAK1_SOURCE_OBJECT_PACK_ONLY
+    import_composer_only_option=OPENGOAL_BUILD_JAK1_IMPORT_COMPOSER_ONLY
+    verifier_target=jak1-source-object-pack-verify
+    composer_target=jak1-import-composer-apple-archive
+    composer_directory=jak1-import-composer-apple
+    composer_archive=libjak1-import-composer-apple.a
+    object_count=518
+    contract_archive_name=GOALPAD_JAK1_IMPORT_ARCHIVE
+    contract_verifier_name=GOALPAD_JAK1_SOURCE_OBJECT_PACK_VERIFIER
+    ;;
+  jak2)
+    display_name="Jak II"
+    script_name=build-jak2-import-composer-apple.sh
+    source_pack_env_name=GOALPAD_JAK2_SOURCE_OBJECT_PACK_ROOT
+    import_build_root_env_name=GOALPAD_JAK2_IMPORT_BUILD_ROOT
+    deployment_target_env_name=GOALPAD_JAK2_IMPORT_DEPLOYMENT_TARGET
+    source_pack_env_value=${GOALPAD_JAK2_SOURCE_OBJECT_PACK_ROOT:-}
+    import_build_root_env_value=${GOALPAD_JAK2_IMPORT_BUILD_ROOT:-}
+    deployment_target_env_value=${GOALPAD_JAK2_IMPORT_DEPLOYMENT_TARGET:-}
+    source_pack_only_option=OPENGOAL_BUILD_JAK2_SOURCE_OBJECT_PACK_ONLY
+    import_composer_only_option=OPENGOAL_BUILD_JAK2_IMPORT_COMPOSER_ONLY
+    verifier_target=jak2-source-object-pack-verify
+    composer_target=jak2-import-composer-apple-archive
+    composer_directory=jak2-import-composer-apple
+    composer_archive=libjak2-import-composer-apple.a
+    object_count=840
+    contract_archive_name=GOALPAD_JAK2_IMPORT_ARCHIVE
+    contract_verifier_name=GOALPAD_JAK2_SOURCE_OBJECT_PACK_VERIFIER
+    ;;
+  *)
+    echo "Apple importer build failed: select a supported game through its wrapper." >&2
+    exit 2
+    ;;
+esac
 
 # Finder-launched Xcode does not inherit the Homebrew paths from the user's shell.
 # Keep an existing PATH authoritative, then add the two standard Homebrew prefixes.
@@ -9,9 +55,9 @@ PATH="${PATH:-/usr/bin:/bin}:/opt/homebrew/bin:/usr/local/bin"
 export PATH
 
 usage() {
-  cat >&2 <<'EOF'
+  cat >&2 <<EOF
 Usage:
-  build-jak1-import-composer-apple.sh \
+  $script_name \
     --opengoal-root DIRECTORY \
     --source-pack DIRECTORY \
     --derived-root DIRECTORY \
@@ -20,10 +66,10 @@ Usage:
 
 Each option may instead be supplied through its corresponding build setting:
   GOALPAD_OPENGOAL_ROOT
-  GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT
-  GOALPAD_JAK1_IMPORT_BUILD_ROOT
+  $source_pack_env_name
+  $import_build_root_env_name
   PLATFORM_NAME
-  GOALPAD_JAK1_IMPORT_DEPLOYMENT_TARGET
+  $deployment_target_env_name
 
 Optional tool settings:
   GOALPAD_CMAKE_EXECUTABLE
@@ -38,7 +84,7 @@ EOF
 }
 
 fail() {
-  echo "Jak 1 Apple importer build failed: $*" >&2
+  echo "$display_name Apple importer build failed: $*" >&2
   exit 1
 }
 
@@ -178,14 +224,14 @@ configure_host_verifier() (
   run_host_command append_common_cmake_options \
     "" "" \
     "$cmake" -S "$opengoal_root" -B "$build_directory" -G "$generator" \
-    "-DOPENGOAL_BUILD_JAK1_SOURCE_OBJECT_PACK_ONLY=ON" \
+    "-D$source_pack_only_option=ON" \
     "-DCMAKE_OSX_SYSROOT=macosx"
 )
 
 configure_composer() {
   build_directory=$1
   set -- "$cmake" -S "$opengoal_root" -B "$build_directory" -G "$generator" \
-    "-DOPENGOAL_BUILD_JAK1_IMPORT_COMPOSER_ONLY=ON" \
+    "-D$import_composer_only_option=ON" \
     "-DCMAKE_OSX_SYSROOT=$platform"
   case "$platform" in
     iphoneos|iphonesimulator)
@@ -203,10 +249,10 @@ configure_composer() {
 }
 
 opengoal_root=${GOALPAD_OPENGOAL_ROOT:-}
-source_pack=${GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT:-}
-derived_root=${GOALPAD_JAK1_IMPORT_BUILD_ROOT:-}
+source_pack=$source_pack_env_value
+derived_root=$import_build_root_env_value
 platform=${PLATFORM_NAME:-}
-deployment_target=${GOALPAD_JAK1_IMPORT_DEPLOYMENT_TARGET:-}
+deployment_target=$deployment_target_env_value
 script_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 repository_root=$(CDPATH= cd -- "$script_directory/.." && pwd -P)
 
@@ -249,8 +295,8 @@ while [ "$#" -gt 0 ]; do
 done
 
 require_value "--opengoal-root / GOALPAD_OPENGOAL_ROOT" "$opengoal_root"
-require_value "--source-pack / GOALPAD_JAK1_SOURCE_OBJECT_PACK_ROOT" "$source_pack"
-require_value "--derived-root / GOALPAD_JAK1_IMPORT_BUILD_ROOT" "$derived_root"
+require_value "--source-pack / $source_pack_env_name" "$source_pack"
+require_value "--derived-root / $import_build_root_env_name" "$derived_root"
 require_value "--platform / PLATFORM_NAME" "$platform"
 
 case "$platform" in
@@ -324,32 +370,32 @@ fi
 
 if [ "$platform" = macosx ]; then
   "$cmake" --build "$verifier_build_root" \
-    --target jak1-source-object-pack-verify --parallel "$jobs"
+    --target "$verifier_target" --parallel "$jobs"
 else
   run_host_command "$cmake" --build "$verifier_build_root" \
-    --target jak1-source-object-pack-verify --parallel "$jobs"
+    --target "$verifier_target" --parallel "$jobs"
 fi
-verifier=$verifier_build_root/jak1-source-object-pack-verify
+verifier=$verifier_build_root/$verifier_target
 ensure_direct_regular_file "$verifier" "source object-pack verifier"
 [ -x "$verifier" ] || fail "source object-pack verifier is not executable: $verifier"
 if ! "$verifier" "$source_pack"; then
-  fail "the existing source object pack did not match the recorded 518-object identity"
+  fail "the existing source object pack did not match the recorded $object_count-object identity"
 fi
 
 if [ "$platform" != macosx ]; then
   configure_composer "$platform_build_root"
 fi
 "$cmake" --build "$platform_build_root" \
-  --target jak1-import-composer-apple-archive --parallel "$jobs"
+  --target "$composer_target" --parallel "$jobs"
 
-archive=$platform_build_root/jak1-import-composer-apple/libjak1-import-composer-apple.a
+archive=$platform_build_root/$composer_directory/$composer_archive
 ensure_direct_regular_file "$archive" "flattened composer archive"
 
-contract_archive=$derived_root_contract/$platform/jak1-import-composer-apple/libjak1-import-composer-apple.a
+contract_archive=$derived_root_contract/$platform/$composer_directory/$composer_archive
 if [ "$platform" = macosx ]; then
-  contract_verifier=$derived_root_contract/macosx/jak1-source-object-pack-verify
+  contract_verifier=$derived_root_contract/macosx/$verifier_target
 else
-  contract_verifier=$derived_root_contract/macosx-host/jak1-source-object-pack-verify
+  contract_verifier=$derived_root_contract/macosx-host/$verifier_target
 fi
-echo "GOALPAD_JAK1_IMPORT_ARCHIVE=$contract_archive"
-echo "GOALPAD_JAK1_SOURCE_OBJECT_PACK_VERIFIER=$contract_verifier"
+echo "$contract_archive_name=$contract_archive"
+echo "$contract_verifier_name=$contract_verifier"
