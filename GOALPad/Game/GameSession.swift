@@ -175,16 +175,19 @@ final class GameSession {
         startupError = nil
     }
 
-    /// Bring the session up. Refuses rather than half-starting when the data on disk cannot boot
-    /// the game, or when this build has no ahead-of-time Jak 1 code to boot.
+    /// Bring the session up. Refuses rather than half-starting when the active title's data cannot
+    /// launch its runtime, or when this build has no matching ahead-of-time game code.
     func start() async {
         guard !isRunning, !isBooting else { return }
         guard GOALPadRuntimeBridge.isGameCodeLinked else {
-            startupError = "This build has no ahead-of-time \(GameLibraryTitle.jak1.name) code. "
-                + "Run Scripts/generate-jak1-aot.sh and build again."
+            let generator = GameDataProfile.active.identifier == .jak2
+                ? "Scripts/generate-jak2-aot.sh"
+                : "Scripts/generate-jak1-aot.sh"
+            startupError = "This build has no ahead-of-time \(GameLibraryTitle.active.name) code. "
+                + "Run \(generator) and build again."
             return
         }
-        guard dataReport.canBoot else {
+        guard dataReport.canLaunchRuntime else {
             startupError = dataReport.summary
             return
         }
@@ -238,7 +241,9 @@ final class GameSession {
         handledNativeExitToLibraryRequest = false
         startupError = nil
         settings.apply()
-        #if os(visionOS)
+        #if GOALPAD_JAK2
+        let bootTargetFrameRate = 60
+        #elseif os(visionOS)
         let bootTargetFrameRate = presentationSettings.graphicsVisionHighFrameRate ? 90 : 60
         #elseif os(iOS)
         let bootTargetFrameRate = presentationSettings.graphicsHighFrameRate ? 120 : 60
@@ -248,7 +253,7 @@ final class GameSession {
         runReadiness = .preRun
         isBooting = true
         startupState.move(to: .booting, generation: startupGeneration)
-        sessionLog.notice("Booting \(GameLibraryTitle.jak1.name, privacy: .public)")
+        sessionLog.notice("Booting \(GameLibraryTitle.active.name, privacy: .public)")
         bootQueue.async {
             let boot = GOALPadRuntimeBridge.bootGame(targetFrameRate: bootTargetFrameRate)
             DispatchQueue.main.async {
@@ -309,7 +314,9 @@ final class GameSession {
     /// Apply the persisted ProMotion choice between dispatcher frames. Boot captures the choice
     /// separately; if it changes during boot, `bootFinished` reconciles it before frames begin.
     func setHighFrameRateEnabled(_ enabled: Bool) {
-        #if os(iOS)
+        #if GOALPAD_JAK2
+        _ = enabled
+        #elseif os(iOS)
         let requestedFrameRate = enabled ? 120 : 60
         guard requestedFrameRate != targetFrameRate else { return }
         guard !isBooting else { return }
@@ -329,7 +336,9 @@ final class GameSession {
     /// Apply the visionOS 90 Hz preference between dispatcher frames. The platform can still
     /// deliver a lower cadence; the native display clock preserves elapsed wall time.
     func setVisionHighFrameRateEnabled(_ enabled: Bool) {
-        #if os(visionOS)
+        #if GOALPAD_JAK2
+        _ = enabled
+        #elseif os(visionOS)
         let requestedFrameRate = enabled ? 90 : 60
         guard requestedFrameRate != targetFrameRate else { return }
         guard !isBooting else { return }

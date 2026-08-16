@@ -46,7 +46,7 @@ jak1_phase_names = re.findall(r"/\* ([^*]+) \*/", re.search(
     r"buildPhases = \((.*?)\n\t\t\t\);", jak1_target, re.DOTALL
 ).group(1))
 require(jak1_phase_names == [
-    "Verify release AOT",
+    "Verify generated AOT",
     "Compile Metal shaders",
     "Build Jak 1 import composer",
     "Sources",

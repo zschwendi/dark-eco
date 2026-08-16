@@ -2,7 +2,7 @@ import Foundation
 
 /// The game's internal render resolution.
 ///
-/// The PS2 drew Jak 1 into a 640x480 target and the video hardware scanned that out; OpenGOAL's
+/// The PS2 games draw into a 640x480 target and the video hardware scans that out; OpenGOAL's
 /// renderers keep that structure, drawing the game into an offscreen target and then presenting it
 /// into a letterboxed region of the window. The internal target is therefore a free choice, and on
 /// a Retina iPad 640x480 is far below the panel.
@@ -40,7 +40,12 @@ final class RenderSettings {
 
     init() {
         let stored = UserDefaults.standard.integer(forKey: Self.defaultsKey)
-        internalResolutionScale = Self.availableScales.contains(stored) ? stored : 2
+        #if GOALPAD_JAK2
+        let defaultScale = 4
+        #else
+        let defaultScale = 2
+        #endif
+        internalResolutionScale = Self.availableScales.contains(stored) ? stored : defaultScale
         apply()
     }
 

@@ -90,7 +90,10 @@ struct GameLibraryView: View {
             case .importJak1:
                 Alert(
                     title: Text("Set Up Game Data"),
-                    message: Text(GameLibraryOfferCopy.jak1ImportMessage()),
+                    message: Text(GameLibraryOfferCopy.importMessage(
+                        for: .active,
+                        canImportRawMedia: session.importer.profile.supportsRawMediaPreparation
+                    )),
                     primaryButton: .default(Text("Continue"), action: openJak1Setup),
                     secondaryButton: .cancel()
                 )
@@ -250,7 +253,7 @@ struct GameLibraryView: View {
     }
 
     private func state(for title: GameLibraryTitle) -> GameLibraryState {
-        guard title == .jak1 else { return .planned }
+        guard title == .active else { return .planned }
         switch session.importer.state {
         case .scanning:
             return .preparing(.importing(nil))
@@ -285,13 +288,18 @@ struct GameLibraryView: View {
     }
 
     private func progress(for title: GameLibraryTitle) -> GameDataImporter.Progress? {
-        guard title == .jak1,
+        guard title == .active,
               case .copying(let progress) = session.importer.state else { return nil }
         return progress
     }
 
     private func open(_ title: GameLibraryTitle) {
-        switch GameLibraryCardAction.resolve(title: title, state: state(for: title)) {
+        switch GameLibraryCardAction.resolve(
+            title: title,
+            state: state(for: title),
+            activeTitle: .active,
+            supportsRuntimeLaunch: session.importer.profile.supportsRuntimeLaunch
+        ) {
         case .start:
             Task { await session.start() }
         case .openJak1Setup:

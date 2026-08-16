@@ -73,21 +73,39 @@ nonisolated enum SaveDataLayout {
     /// OpenGOAL's existing desktop-compatible memcard directory. The kernel keeps using this
     /// exact local path; iCloud is never passed to native gameplay code.
     static var localSavesDirectory: URL {
-        applicationSupportDirectory
-            .appending(path: "OpenGOAL/jak1/saves", directoryHint: .isDirectory)
+        #if GOALPAD_JAK2
+        let gamePath = "OpenGOAL/jak2/saves"
+        #else
+        let gamePath = "OpenGOAL/jak1/saves"
+        #endif
+        return applicationSupportDirectory
+            .appending(path: gamePath, directoryHint: .isDirectory)
     }
 
     static var localConflictsDirectory: URL {
-        applicationSupportDirectory
-            .appending(path: "GOALPad/SaveConflicts", directoryHint: .isDirectory)
+        #if GOALPAD_JAK2
+        let conflictsPath = "GOALPad/Jak2/SaveConflicts"
+        #else
+        let conflictsPath = "GOALPad/SaveConflicts"
+        #endif
+        return applicationSupportDirectory
+            .appending(path: conflictsPath, directoryHint: .isDirectory)
     }
 
     static var stateFile: URL {
-        applicationSupportDirectory
-            .appending(path: "GOALPad/SaveSync/state-v1.json", directoryHint: .notDirectory)
+        #if GOALPAD_JAK2
+        let statePath = "GOALPad/Jak2/SaveSync/state-v1.json"
+        #else
+        let statePath = "GOALPad/SaveSync/state-v1.json"
+        #endif
+        return applicationSupportDirectory
+            .appending(path: statePath, directoryHint: .notDirectory)
     }
 
     static func cloudLocations() -> CloudSaveLocations? {
+        #if GOALPAD_JAK2
+        return nil
+        #else
         let manager = FileManager.default
         guard let identityToken = manager.ubiquityIdentityToken,
               let accountIdentifier = try? NSKeyedArchiver.archivedData(
@@ -102,6 +120,7 @@ nonisolated enum SaveDataLayout {
             conflictsRoot: documents.appending(path: "GOALPad/SaveConflicts",
                                                 directoryHint: .isDirectory),
             accountIdentifier: accountIdentifier)
+        #endif
     }
 
     static func cloudUnavailableReason() -> CloudSaveUnavailableReason {
@@ -138,8 +157,20 @@ final class SaveSyncController {
     private static let enabledDefaultsKey = "iCloudSavesEnabled"
     private static let lastResolutionsDefaultsKey = "lastSaveAutoResolutions"
 
+    var supportsManagedSaveSync: Bool {
+        #if GOALPAD_JAK2
+        false
+        #else
+        true
+        #endif
+    }
+
     var isEnabled: Bool {
         didSet {
+            guard supportsManagedSaveSync else {
+                if isEnabled { isEnabled = false }
+                return
+            }
             defaults.set(isEnabled, forKey: Self.enabledDefaultsKey)
             if isEnabled {
                 cloudMetadataMonitor?.start()
@@ -219,11 +250,15 @@ final class SaveSyncController {
         self.pregameWaitAttempts = pregameWaitAttempts
         self.pregameCancellationWaitAttempts = pregameCancellationWaitAttempts
         let enabled: Bool
+        #if GOALPAD_JAK2
+        enabled = false
+        #else
         if defaults.object(forKey: Self.enabledDefaultsKey) == nil {
             enabled = true
         } else {
             enabled = defaults.bool(forKey: Self.enabledDefaultsKey)
         }
+        #endif
         isEnabled = enabled
         status = enabled ? .waiting : .disabled
         if let data = defaults.data(forKey: Self.lastResolutionsDefaultsKey),
@@ -368,6 +403,7 @@ final class SaveSyncController {
     }
 
     func syncBeforeGameplay() async -> Bool {
+        guard supportsManagedSaveSync else { return true }
         setGameplayActive(false)
         var waitAttempts = 0
         while hasPregameSaveWork {
@@ -1009,11 +1045,19 @@ enum CloudSyncPresentation {
 private struct SettingsGamePicker: View {
     var body: some View {
         HStack(spacing: 0) {
+            #if GOALPAD_JAK2
+            SettingsGamePickerChoice(title: "Jak II", isSelected: true)
+            #else
             SettingsGamePickerChoice(title: "Jak 1", isSelected: true)
+            #endif
             SettingsGamePickerChoice(title: "Future Title", isSelected: false)
             SettingsGamePickerChoice(title: "Future Title", isSelected: false)
         }
+        #if GOALPAD_JAK2
+        .accessibilityValue("Jak II selected")
+        #else
         .accessibilityValue("Jak 1 selected")
+        #endif
     }
 }
 
@@ -1141,8 +1185,14 @@ struct SaveSettingsView: View {
                 DisclosureGroup(isExpanded: expansion(for: .iCloud)) {
                 Toggle("Sync Settings", isOn: $settings.cloudSyncEnabled)
                     .disabled(settings.syncStatus == .syncing)
-                Toggle("Sync Saves", isOn: $sync.isEnabled)
-                    .disabled(sync.isBusy)
+                if sync.supportsManagedSaveSync {
+                    Toggle("Sync Saves", isOn: $sync.isEnabled)
+                        .disabled(sync.isBusy)
+                } else {
+                    Text("Jak II saves stay local to this device in the experimental target.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
                 if cloudState.settingsEnabled {
                     LabeledContent("Settings", value: cloudState.settingsSummary)
                     if let date = cloudState.settingsLastSyncDate {
@@ -1168,7 +1218,9 @@ struct SaveSettingsView: View {
                     }
                 }
                 .disabled(!cloudState.isActionEnabled)
-                Text("Choose settings and save sync independently on this device.")
+                Text(sync.supportsManagedSaveSync
+                     ? "Choose settings and save sync independently on this device."
+                     : "Settings sync is independent of local Jak II game data and saves.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 } label: {
@@ -1176,6 +1228,7 @@ struct SaveSettingsView: View {
                 }
             }
 
+            #if !GOALPAD_JAK2
             if (sync.isTransferring || sync.activeOperation == .loadingArchives),
                let message = sync.progressMessage {
                 ProgressView(message)
@@ -1243,6 +1296,7 @@ struct SaveSettingsView: View {
             } label: {
                 Label("Manage Save Files", systemImage: "externaldrive")
             }
+            #endif
 
             Section {
                 Button("Reset All to Defaults", role: .destructive) {
@@ -1379,7 +1433,7 @@ struct SaveSettingsView: View {
 
     @ViewBuilder
     private var controlsContent: some View {
-            #if os(iOS)
+            #if os(iOS) && !GOALPAD_JAK2
             NavigationLink {
                 TouchControlsGuideView()
             } label: {

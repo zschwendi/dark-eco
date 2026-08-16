@@ -1,7 +1,8 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Imports player-supplied Jak 1 data without bundling or downloading game content.
+/// Imports player-supplied data for the compile-selected title without bundling or downloading
+/// game content.
 struct GameDataSetupView: View {
     private static let rawISOType = UTType(filenameExtension: "iso", conformingTo: .data)
     private static let sevenZipType = UTType(filenameExtension: "7z", conformingTo: .archive)
@@ -46,7 +47,12 @@ struct GameDataSetupView: View {
             switch result {
             case .success(let urls):
                 guard let source = urls.first else {
+                    #if GOALPAD_JAK2
+                    selectionError = "No source was selected. Choose compatible "
+                        + "\(GameDataProfile.active.displayName) data and try again."
+                    #else
                     selectionError = "No source was selected. Choose one compatible source and try again."
+                    #endif
                     return
                 }
                 selectionError = nil
@@ -55,13 +61,25 @@ struct GameDataSetupView: View {
                     await session.refreshDataReport()
                 }
             case .failure:
+                #if GOALPAD_JAK2
+                selectionError = "Dark Eco could not open that source. Choose another compatible "
+                    + "\(GameDataProfile.active.displayName) source and try again."
+                #else
                 selectionError = "Dark Eco could not open that source. Choose another compatible source and try again."
+                #endif
             }
         }
     }
 
     private var header: some View {
+        #if GOALPAD_JAK2
+        Text(GameLibraryOfferCopy.importMessage(
+            for: GameLibraryTitle.active,
+            canImportRawMedia: canImportRawISO
+        ))
+        #else
         Text(GameLibraryOfferCopy.jak1ImportMessage())
+        #endif
             .font(.subheadline)
             .foregroundStyle(.secondary)
     }
@@ -261,8 +279,13 @@ struct GameDataSetupView: View {
     private var playButton: some View {
         Button("Play Now") { Task { await session.start() } }
             .buttonStyle(.bordered)
+            #if GOALPAD_JAK2
+            .disabled(!session.dataReport.canLaunchRuntime || session.isRefreshingDataReport
+                || session.startupPhase.isPreparing)
+            #else
             .disabled(!session.dataReport.canBoot || session.isRefreshingDataReport
                 || session.startupPhase.isPreparing)
+            #endif
     }
 
     private var startupMessage: String? {
@@ -298,7 +321,8 @@ struct GameDataSetupView: View {
     }
 
     private var canImportRawISO: Bool {
-        RawISOCandidateProducer.isAvailable()
+        GameDataProfile.active.supportsRawMediaPreparation
+            && RawISOCandidateProducer.isAvailable(for: .active)
     }
 
     private var isImportComplete: Bool {

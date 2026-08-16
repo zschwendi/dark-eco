@@ -425,7 +425,7 @@ private struct BootingView: View {
     var body: some View {
         VStack(spacing: 12) {
             ProgressView()
-            Text("Booting \(GameLibraryTitle.jak1.name)")
+            Text("Booting \(GameLibraryTitle.active.name)")
                 .font(.system(.headline, design: .monospaced))
             Text("KERNEL.CGO, GAME.CGO, then the title level")
                 .font(.system(.footnote, design: .monospaced))
@@ -476,7 +476,7 @@ private struct DiagnosticsOverlay: View {
             ("game data", flag(GOALPadRuntimeBridge.isDataSeamLinked)),
             ("controller", flag(GOALPadRuntimeBridge.isInputSeamLinked)),
             ("audio", flag(GOALPadRuntimeBridge.isAudioSeamLinked)),
-                ("\(GameLibraryTitle.jak1.name) GOAL code",
+                ("\(GameLibraryTitle.active.name) GOAL code",
                  flag(GOALPadRuntimeBridge.isGameCodeLinked)),
             ("renderer", flag(GOALPadRenderSurface.shared.isRendererLinked)),
         ])
@@ -487,7 +487,7 @@ private struct DiagnosticsOverlay: View {
     private var game: some View {
         if let boot = session.boot {
             let chain = session.frameChain
-            section(GameLibraryTitle.jak1.name, [
+            section(GameLibraryTitle.active.name, [
                 ("KERNEL.CGO", "\(boot.kernelObjects) objects"),
                 ("GAME.CGO", "\(boot.gameObjects) objects: \(boot.codeObjects) code, "
                     + "\(boot.dataObjects) data"),
@@ -695,7 +695,7 @@ private struct DiagnosticsOverlay: View {
     }
 
     /// What `start_kernel` found, before any game data was loaded. The live heap and symbol counts
-    /// are in the Jak 1 section above.
+    /// are in the active game's section above.
     @ViewBuilder
     private var kernel: some View {
         if let status = session.kernel {

@@ -152,6 +152,14 @@ nonisolated enum GameLibraryTitle: String, CaseIterable, Equatable, Identifiable
 
     var id: String { rawValue }
 
+    static var active: GameLibraryTitle {
+        #if GOALPAD_JAK2
+        .jak2
+        #else
+        .jak1
+        #endif
+    }
+
     var name: String {
         switch self {
         case .jak1: "Jak and Daxter: The Precursor Legacy"
@@ -167,7 +175,12 @@ nonisolated enum GameLibraryTitle: String, CaseIterable, Equatable, Identifiable
     var availabilityLabel: String {
         switch self {
         case .jak1: "Available"
-        case .jak2: "Coming Soon"
+        case .jak2:
+            #if GOALPAD_JAK2
+            "Experimental"
+            #else
+            "Coming Soon"
+            #endif
         case .jak3: "Planned"
         }
     }
@@ -184,12 +197,10 @@ nonisolated enum GameLibraryTitle: String, CaseIterable, Equatable, Identifiable
 nonisolated enum GameLibraryPresentation {
     static func displayTitle(for title: GameLibraryTitle,
                              isValidatedAndLinked: Bool) -> String {
-        switch title {
-        case .jak1:
+        if title == .active {
             return isValidatedAndLinked ? title.shelfName : "Set Up Game Data"
-        case .jak2, .jak3:
-            return "Future Title"
         }
+        return "Future Title"
     }
 }
 
@@ -230,11 +241,16 @@ nonisolated enum GameLibraryCardAction: Equatable {
     case verifyJak1Data
     case showUnsupported(GameLibraryTitle)
 
-    static func resolve(title: GameLibraryTitle, state: GameLibraryState) -> Self {
-        guard title == .jak1 else { return .showUnsupported(title) }
+    static func resolve(
+        title: GameLibraryTitle,
+        state: GameLibraryState,
+        activeTitle: GameLibraryTitle = .jak1,
+        supportsRuntimeLaunch: Bool = true
+    ) -> Self {
+        guard title == activeTitle else { return .showUnsupported(title) }
         switch state {
         case .ready:
-            return .start
+            return supportsRuntimeLaunch ? .start : .openJak1Setup
         case .preparing(.importing), .preparing(.cancellingImport):
             return .openJak1Setup
         case .preparing(.finishingSaveCheck), .preparing(.checkingSaves):
@@ -251,7 +267,17 @@ nonisolated enum GameLibraryCardAction: Equatable {
 
 nonisolated enum GameLibraryOfferCopy {
     static func jak1ImportMessage() -> String {
-        return "Provide compatible game data from a copy you legally own."
+        "Provide compatible game data from a copy you legally own."
+    }
+
+    static func importMessage(
+        for title: GameLibraryTitle,
+        canImportRawMedia: Bool
+    ) -> String {
+        guard title != .jak1 else { return jak1ImportMessage() }
+        _ = canImportRawMedia
+        let ownership = "Provide compatible game data from a copy of \(title.shelfName) you legally own."
+        return ownership
     }
 
     static func unsupportedMessage(for title: GameLibraryTitle) -> String {
