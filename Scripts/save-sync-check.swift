@@ -703,6 +703,63 @@ private func previousCanonicalBankCanBeRecovered() async throws {
           "the previous 95-percent bank becomes active byte-for-byte")
     check(data(bankFilePath(1), under: fixture.local) == nil,
           "the newer zero-percent peer is removed from the restored active pair")
+
+    let restartedEngine = engine(for: fixture)
+    _ = try await restartedEngine.sync()
+    check(loaderSelectedCompletion(evenIndex: 0, under: fixture.local) == 95,
+          "the automatic sync after restore keeps the selected 95-percent save active")
+    check(data(bankFilePath(0), under: fixture.cloud) == previousSave,
+          "the automatic sync mirrors the selected 95-percent save to iCloud")
+    check(data(bankFilePath(1), under: fixture.cloud) == nil,
+          "the automatic sync removes the displaced zero-percent peer from iCloud")
+}
+
+private func restoreAuthorityDoesNotCrossCloudAccounts() async throws {
+    print("a selected restore cannot overwrite a different iCloud account")
+    let fixture = try Fixture(accountIdentifier: "account-a")
+    let older = Date(timeIntervalSince1970: 1_700_000_000)
+    let newer = older.addingTimeInterval(60)
+    try writeBank(progress: 95, saveCount: 40, marker: 95,
+                  to: bankFilePath(0), under: fixture.local,
+                  modificationDate: older)
+    try writeBank(progress: 0, saveCount: 41, marker: 0,
+                  to: bankFilePath(1), under: fixture.local,
+                  modificationDate: newer)
+    _ = try await fixture.engine.sync()
+    let candidates = try await fixture.engine.archivedSaveCandidates()
+    guard let candidate = candidates.first(where: {
+        $0.source == .previousSave && $0.completionPercentage == 95
+    }) else {
+        check(false, "the account-switch fixture exposes the previous save")
+        return
+    }
+    _ = try await fixture.engine.promoteArchivedSave(id: candidate.id)
+
+    let accountBCloud = fixture.root.appending(
+        path: "account-b/Documents/OpenGOAL/jak1/saves", directoryHint: .isDirectory)
+    let accountBConflicts = fixture.root.appending(
+        path: "account-b/Documents/GOALPad/SaveConflicts", directoryHint: .isDirectory)
+    try writeBank(progress: 20, saveCount: 50, marker: 20,
+                  to: bankFilePath(0), under: accountBCloud,
+                  modificationDate: newer.addingTimeInterval(60))
+    let accountBSave = data(bankFilePath(0), under: accountBCloud)
+    let accountBLocations = CloudSaveLocations(
+        savesRoot: accountBCloud,
+        conflictsRoot: accountBConflicts,
+        accountIdentifier: Data("account-b".utf8))
+    let accountBEngine = SaveSyncEngine(configuration: .init(
+        localRoot: fixture.local,
+        localConflictsRoot: fixture.localConflicts,
+        stateFile: fixture.state,
+        cloudLocations: { accountBLocations },
+        coordinateCloudAccess: false,
+        fileSettleDelay: .milliseconds(1)))
+
+    _ = try await accountBEngine.sync()
+    check(loaderSelectedCompletion(evenIndex: 0, under: fixture.local) == 20,
+          "changing accounts clears the pending restore authority")
+    check(data(bankFilePath(0), under: accountBCloud) == accountBSave,
+          "the different account's cloud save is not overwritten")
 }
 
 private func twoSidedChangeAutomaticallyResolves() async throws {
@@ -3077,6 +3134,7 @@ private struct SaveSyncCheck {
             try await preservedNativeBankCanBecomeActive()
             try await freshDeviceCanRecoverCloudOnlyPreservedBank()
             try await previousCanonicalBankCanBeRecovered()
+            try await restoreAuthorityDoesNotCrossCloudAccounts()
             try await twoSidedChangeAutomaticallyResolves()
             try await newerLowerProgressWins()
             try await equalDateHigherSaveGenerationWins()

@@ -431,6 +431,7 @@ actor SaveSyncEngine {
     private struct State: Codable {
         var baselineHashes: [String: String] = [:]
         var slotBaselineHashes: [String: String] = [:]
+        var pendingRestoreSlotIdentities: [String: String] = [:]
         var conflicts: [String: ConflictRecord] = [:]
         var cloudAccountIdentifier: Data?
         var pairMutationIntent: PairMutationIntent? = nil
@@ -438,6 +439,7 @@ actor SaveSyncEngine {
         private enum CodingKeys: String, CodingKey {
             case baselineHashes
             case slotBaselineHashes
+            case pendingRestoreSlotIdentities
             case conflicts
             case cloudAccountIdentifier
             case pairMutationIntent
@@ -451,6 +453,8 @@ actor SaveSyncEngine {
                                                             forKey: .baselineHashes) ?? [:]
             slotBaselineHashes = try container.decodeIfPresent([String: String].self,
                                                                 forKey: .slotBaselineHashes) ?? [:]
+            pendingRestoreSlotIdentities = try container.decodeIfPresent(
+                [String: String].self, forKey: .pendingRestoreSlotIdentities) ?? [:]
             conflicts = try container.decodeIfPresent([String: ConflictRecord].self,
                                                        forKey: .conflicts) ?? [:]
             cloudAccountIdentifier = try container.decodeIfPresent(
@@ -545,6 +549,7 @@ actor SaveSyncEngine {
         if state.cloudAccountIdentifier != cloud.accountIdentifier {
             state.baselineHashes.removeAll()
             state.slotBaselineHashes.removeAll()
+            state.pendingRestoreSlotIdentities.removeAll()
             state.conflicts.removeAll()
             state.cloudAccountIdentifier = cloud.accountIdentifier
         }
@@ -899,6 +904,7 @@ actor SaveSyncEngine {
         let intent = pairMutationIntent(
             source: source, target: existing, targetCopy: .local,
             sourceKind: .imported, cloudAccountIdentifier: state.cloudAccountIdentifier)
+        state.pendingRestoreSlotIdentities[evenPath] = source.identity
         _ = try beginPairMutation(intent, liveSource: source, liveTarget: existing,
                                   cloud: nil, state: &state)
         lastLocalStamps = nil
@@ -1065,8 +1071,28 @@ actor SaveSyncEngine {
         }
 
         if local.identity == remote.identity {
+            state.pendingRestoreSlotIdentities.removeValue(forKey: evenPath)
             state.slotBaselineHashes[evenPath] = local.identity
             return (recoveredUploaded, recoveredDownloaded, false)
+        }
+
+        if let restoredIdentity = state.pendingRestoreSlotIdentities[evenPath] {
+            if restoredIdentity == local.identity, local.effectiveMetadata != nil {
+                // Make Active is an explicit user choice. Keep it authoritative even when
+                // restoring one member intentionally changes the alternating-bank pair shape.
+                if remote.hasFiles {
+                    try preserveSlotDivergence(local: local, remote: remote, cloud: cloud)
+                }
+                let changed = try replaceJak1SlotDuringSync(
+                    local, replacing: remote, targetCopy: .iCloud, cloud: cloud, state: &state,
+                    resolution: remote.hasFiles ? SaveResolution(
+                        relativePath: evenPath, winner: .local,
+                        basis: .activeGameplayAuthority) : nil)
+                state.pendingRestoreSlotIdentities.removeValue(forKey: evenPath)
+                state.slotBaselineHashes[evenPath] = local.identity
+                return (recoveredUploaded + changed, recoveredDownloaded, false)
+            }
+            state.pendingRestoreSlotIdentities.removeValue(forKey: evenPath)
         }
 
         if mode == .uploadOnly {
