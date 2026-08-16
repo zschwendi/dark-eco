@@ -139,7 +139,14 @@ struct ContentView: View {
             )
         }
         #endif
-        .task { await session.prepare() }
+        .task {
+            await session.prepare()
+            #if GOALPAD_JAK2
+            if ProcessInfo.processInfo.environment["GOALPAD_JAK2_DEBUG_PREVIEW_SCENE"]?.isEmpty == false {
+                await session.start()
+            }
+            #endif
+        }
         .onChange(of: scenePhase) { _, phase in session.scenePhaseChanged(to: phase) }
         .onChange(of: session.presentationSettings.graphicsFillWidth, initial: true) {
             _, enabled in
