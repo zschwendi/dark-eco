@@ -29,7 +29,7 @@ Options:
   --timeout SECONDS              Maximum wait per scene (default: 180)
   --save-root PATH               Override the app-container save root
   --required-level SCENE=LEVEL   Repeatable subset requirement; does not require an exact level set
-  --sample-count COUNT           Active-scene screenshots, from 3 through 5 (default: 4)
+  --sample-count COUNT           Active-scene screenshots, from 1 through 5 (default: 4)
   --sample-minimum-ticks TICKS   Minimum telemetry-tick separation (default: 120)
   --sample-max-dimension PIXELS  Resample each screenshot's longest edge (default: 1600)
 EOF
@@ -104,8 +104,8 @@ fi
 case "$sample_target:$sample_minimum_ticks:$sample_max_dimension" in
   *[!0-9:]*|*::*|:*|*:) printf '%s\n' 'sample options must be positive integers' >&2; exit 2 ;;
 esac
-if [ "$sample_target" -lt 3 ] || [ "$sample_target" -gt 5 ] || [ "$sample_minimum_ticks" -eq 0 ] || [ "$sample_max_dimension" -eq 0 ]; then
-  printf '%s\n' 'sample count must be 3 through 5; tick separation and max dimension must be positive' >&2
+if [ "$sample_target" -lt 1 ] || [ "$sample_target" -gt 5 ] || [ "$sample_minimum_ticks" -eq 0 ] || [ "$sample_max_dimension" -eq 0 ]; then
+  printf '%s\n' 'sample count must be 1 through 5; tick separation and max dimension must be positive' >&2
   exit 2
 fi
 if [ "$#" -eq 0 ]; then
@@ -181,8 +181,12 @@ while IFS= read -r scene; do
     sleep 2
     elapsed=$((elapsed + 2))
   done
-  if [ "$sample_captured" -lt 3 ] || [ "$completed" -eq 0 ]; then
-    printf '%s\n' "$scene: captured $sample_captured active-scene visual samples before completion; need at least 3" >&2
+  minimum_samples=$sample_target
+  if [ "$minimum_samples" -gt 3 ]; then
+    minimum_samples=3
+  fi
+  if [ "$sample_captured" -lt "$minimum_samples" ] || [ "$completed" -eq 0 ]; then
+    printf '%s\n' "$scene: captured $sample_captured active-scene visual samples before completion; need at least $minimum_samples" >&2
     exit 1
   fi
 

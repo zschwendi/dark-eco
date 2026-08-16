@@ -119,6 +119,7 @@ uint64_t g_frames_without_chain = 0;
 uint64_t g_frames_with_multiple_chains = 0;
 uint64_t g_max_chains_per_frame = 0;
 bool g_shadow_bucket195_capture_written = false;
+bool g_shadow195_frame_capture_logged = false;
 
 NSString* string_from_utf8(const char* value) {
   if (!value || !value[0]) {
@@ -189,13 +190,41 @@ bool copy_metal_metrics_locked() {
 }
 
 bool should_log_jak2_diagnostics(uint64_t tick) {
+  const char* preview_scene = std::getenv("GOALPAD_JAK2_DEBUG_PREVIEW_SCENE");
+  const bool preview_active = preview_scene && preview_scene[0];
   return tick == 1 || tick == 10 || tick == 20 || tick == 30 || tick == 60 || tick == 120 ||
-         (tick > 0 && tick % 600 == 0);
+         (tick > 0 && ((preview_active && tick % 120 == 0) || tick % 600 == 0));
 }
 
 bool environment_is_exact_one(const char* name) {
   const char* value = name ? std::getenv(name) : nullptr;
   return value && std::strcmp(value, "1") == 0;
+}
+
+bool read_positive_u64_environment(const char* name, uint64_t* result) {
+  if (!name || !result) {
+    return false;
+  }
+  const char* value = std::getenv(name);
+  if (!value || !value[0]) {
+    return false;
+  }
+  uint64_t parsed = 0;
+  for (const char* cursor = value; *cursor; ++cursor) {
+    if (*cursor < '0' || *cursor > '9') {
+      return false;
+    }
+    const uint64_t digit = static_cast<uint64_t>(*cursor - '0');
+    if (parsed > (std::numeric_limits<uint64_t>::max() - digit) / 10) {
+      return false;
+    }
+    parsed = parsed * 10 + digit;
+  }
+  if (!parsed) {
+    return false;
+  }
+  *result = parsed;
+  return true;
 }
 
 void write_shadow_bucket195_capture_locked() {
@@ -271,6 +300,111 @@ void write_shadow_bucket195_capture_locked() {
         static_cast<unsigned long long>(fingerprint));
 }
 
+void log_shadow195_frame_capture_locked() {
+  if (g_shadow195_frame_capture_logged || !g_metal_host) {
+    return;
+  }
+  goal_jak2_shadow195_frame_capture_result capture = {};
+  if (!goal_jak2_metal_host_get_shadow195_frame_capture(g_metal_host, &capture) ||
+      (capture.status != GOAL_JAK2_SHADOW195_CAPTURE_COMPLETE &&
+       capture.status != GOAL_JAK2_SHADOW195_CAPTURE_FAILED)) {
+    return;
+  }
+
+  NSLog(@"GOALPAD_JAK2_SHADOW195_FRAME_STATE tick=%llu status=%u failure=%u "
+         "selector=%u/%llu/%llu/%016llx selected=%llu/%llu/%llu/%016llx",
+        static_cast<unsigned long long>(g_runtime_metrics.ticks), capture.status,
+        capture.failure_reason, capture.selector.match,
+        static_cast<unsigned long long>(capture.selector.host_tick_id),
+        static_cast<unsigned long long>(capture.selector.engine_frame_id),
+        static_cast<unsigned long long>(capture.selector.plan_fingerprint),
+        static_cast<unsigned long long>(capture.selected_host_tick_id),
+        static_cast<unsigned long long>(capture.selected_chain_ordinal),
+        static_cast<unsigned long long>(capture.selected_engine_frame_id),
+        static_cast<unsigned long long>(capture.selected_plan_fingerprint));
+  NSLog(@"GOALPAD_JAK2_SHADOW195_FRAME_TARGET tick=%llu view=%llu external=%u "
+         "size=%u/%u formats=%u/%u/%u slices=%u/%u/%u type=%u storage=%u "
+         "samples=%u array=%u mips=%u load=%u/%u/%u store=%u/%u/%u "
+         "viewport=%.3f/%.3f/%.3f/%.3f/%.6f/%.6f scissor=%u/%u/%u/%u/%u "
+         "scale=%.6f/%.6f",
+        static_cast<unsigned long long>(g_runtime_metrics.ticks),
+        static_cast<unsigned long long>(capture.target_view_id), capture.target_external,
+        capture.target_width, capture.target_height, capture.target_pixel_format,
+        capture.target_depth_pixel_format, capture.target_stencil_pixel_format,
+        capture.target_color_slice, capture.target_depth_slice, capture.target_stencil_slice,
+        capture.target_texture_type, capture.target_storage_mode, capture.target_sample_count,
+        capture.target_array_length, capture.target_mipmap_level_count,
+        capture.target_color_load_action, capture.target_depth_load_action,
+        capture.target_stencil_load_action, capture.target_color_store_action,
+        capture.target_depth_store_action, capture.target_stencil_store_action,
+        capture.target_viewport_origin_x, capture.target_viewport_origin_y,
+        capture.target_viewport_width, capture.target_viewport_height,
+        capture.target_viewport_znear, capture.target_viewport_zfar, capture.target_scissor_x,
+        capture.target_scissor_y, capture.target_scissor_width, capture.target_scissor_height,
+        capture.target_scissor_explicit, capture.target_render_scale_x,
+        capture.target_render_scale_y);
+  NSLog(@"GOALPAD_JAK2_SHADOW195_FRAME_PIXELS tick=%llu before=%016llx/%llu "
+         "after=%016llx/%llu changed=%llu bounds=%u/%u/%u/%u/%u "
+         "depth=%016llx/%016llx/%llu finite=%llu/%llu nonfinite=%llu/%llu "
+         "range=%u/%.9g/%.9g/%u/%.9g/%.9g depth-bounds=%u/%u/%u/%u/%u",
+        static_cast<unsigned long long>(g_runtime_metrics.ticks),
+        static_cast<unsigned long long>(capture.before_hash),
+        static_cast<unsigned long long>(capture.before_nonzero_pixels),
+        static_cast<unsigned long long>(capture.after_hash),
+        static_cast<unsigned long long>(capture.after_nonzero_pixels),
+        static_cast<unsigned long long>(capture.changed_pixels), capture.changed_bounds.valid,
+        capture.changed_bounds.min_x, capture.changed_bounds.min_y,
+        capture.changed_bounds.max_x_exclusive, capture.changed_bounds.max_y_exclusive,
+        static_cast<unsigned long long>(capture.before_depth.hash),
+        static_cast<unsigned long long>(capture.after_depth.hash),
+        static_cast<unsigned long long>(capture.changed_depth_pixels),
+        static_cast<unsigned long long>(capture.before_depth.finite_pixels),
+        static_cast<unsigned long long>(capture.after_depth.finite_pixels),
+        static_cast<unsigned long long>(capture.before_depth.nonfinite_pixels),
+        static_cast<unsigned long long>(capture.after_depth.nonfinite_pixels),
+        capture.before_depth.finite_range_valid, capture.before_depth.min_finite,
+        capture.before_depth.max_finite, capture.after_depth.finite_range_valid,
+        capture.after_depth.min_finite, capture.after_depth.max_finite,
+        capture.changed_depth_bounds.valid, capture.changed_depth_bounds.min_x,
+        capture.changed_depth_bounds.min_y, capture.changed_depth_bounds.max_x_exclusive,
+        capture.changed_depth_bounds.max_y_exclusive);
+  NSLog(@"GOALPAD_JAK2_SHADOW195_FRAME_STENCIL tick=%llu "
+         "hash=%016llx/%016llx/%016llx nonzero=%llu/%llu/%llu "
+         "volume-changed=%llu bounds=%u/%u/%u/%u/%u final-changed=%llu "
+         "final-bounds=%u/%u/%u/%u/%u renderer=%llu/%u/%u/%u/%u/%u/%u/%u/%u/%u/%u/%u/%u "
+         "errors=%u/%u/%u/%u/%u boundary=%u",
+        static_cast<unsigned long long>(g_runtime_metrics.ticks),
+        static_cast<unsigned long long>(capture.before_stencil.hash),
+        static_cast<unsigned long long>(capture.volume_stencil.hash),
+        static_cast<unsigned long long>(capture.after_stencil.hash),
+        static_cast<unsigned long long>(capture.before_stencil.nonzero_pixels),
+        static_cast<unsigned long long>(capture.volume_stencil.nonzero_pixels),
+        static_cast<unsigned long long>(capture.after_stencil.nonzero_pixels),
+        static_cast<unsigned long long>(capture.volume_stencil_changed_pixels),
+        capture.volume_stencil_changed_bounds.valid, capture.volume_stencil_changed_bounds.min_x,
+        capture.volume_stencil_changed_bounds.min_y,
+        capture.volume_stencil_changed_bounds.max_x_exclusive,
+        capture.volume_stencil_changed_bounds.max_y_exclusive,
+        static_cast<unsigned long long>(capture.final_stencil_changed_pixels),
+        capture.final_stencil_changed_bounds.valid, capture.final_stencil_changed_bounds.min_x,
+        capture.final_stencil_changed_bounds.min_y,
+        capture.final_stencil_changed_bounds.max_x_exclusive,
+        capture.final_stencil_changed_bounds.max_y_exclusive,
+        static_cast<unsigned long long>(capture.renderer.completed_executions),
+        capture.renderer.last_actual_executions, capture.renderer.last_actual_ready,
+        capture.renderer.last_actual_input_batches, capture.renderer.last_actual_input_vertices,
+        capture.renderer.last_actual_input_records, capture.renderer.last_actual_output_vertices,
+        capture.renderer.last_actual_front_triangles,
+        capture.renderer.last_actual_back_triangles, capture.renderer.last_actual_draws,
+        capture.renderer.last_actual_triangles, capture.renderer.last_actual_darken_draws,
+        capture.renderer.last_actual_lighten_draws,
+        capture.renderer.last_actual_unexpected_dma, capture.renderer.last_actual_invalid_plan,
+        capture.renderer.last_actual_nonfinite_projection, capture.renderer.last_actual_overflow,
+        capture.renderer.last_actual_pipeline_failures,
+        capture.renderer.last_actual_reached_boundary);
+  g_shadow195_frame_capture_logged = true;
+}
+
 void log_jak2_diagnostics_locked() {
   const auto& runtime = g_runtime_metrics;
   const auto& metal = g_metal_metrics;
@@ -283,6 +417,7 @@ void log_jak2_diagnostics_locked() {
   goal_jak2_progress_menu_diagnostics progress_detail = {};
   goal_jak2_runtime_get_progress_menu_diagnostics(&progress_detail);
   write_shadow_bucket195_capture_locked();
+  log_shadow195_frame_capture_locked();
   NSLog(@"GOALPAD_JAK2_RUNTIME_STATE tick=%llu mode=%s title=%s scene=%s target=%s "
          "pmode=%.3f desired=%s active=%s dgo=%s/%s result=%d failures=%d "
          "dma=%d/%d/%d bytes=%u/%u chains=%llu/%llu/%llu cmd=%llu/%llu/%llu "
@@ -984,6 +1119,7 @@ void clear_runtime_snapshots_locked() {
   g_frames_with_multiple_chains = 0;
   g_max_chains_per_frame = 0;
   g_shadow_bucket195_capture_written = false;
+  g_shadow195_frame_capture_logged = false;
 }
 
 GOALPadProgressMenuSnapshot unavailable_progress_snapshot() {
@@ -1201,6 +1337,22 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
     host = goal_jak2_metal_host_create_presenting(layer);
     if (!host) {
       failure = @"The Jak II Metal presentation host could not be created.";
+    }
+    const char* shadow195_capture_tick_value =
+        std::getenv("GOALPAD_JAK2_DEBUG_CAPTURE_SHADOW195_FRAME_TICK");
+    if (!failure && shadow195_capture_tick_value && shadow195_capture_tick_value[0]) {
+      uint64_t shadow195_capture_tick = 0;
+      if (!read_positive_u64_environment("GOALPAD_JAK2_DEBUG_CAPTURE_SHADOW195_FRAME_TICK",
+                                         &shadow195_capture_tick)) {
+        failure = @"GOALPAD_JAK2_DEBUG_CAPTURE_SHADOW195_FRAME_TICK must be a positive integer.";
+      } else {
+        goal_jak2_shadow195_frame_capture_selector selector = {};
+        selector.match = GOAL_JAK2_SHADOW195_CAPTURE_MATCH_HOST_TICK;
+        selector.host_tick_id = shadow195_capture_tick;
+        if (!goal_jak2_metal_host_arm_shadow195_frame_capture(host, &selector)) {
+          failure = @"The requested Jak II Shadow195 frame capture could not be armed.";
+        }
+      }
     }
     if (!failure && !goal_jak2_metal_host_set_present_pacing(host, 1.0 / 60.0)) {
       failure = string_from_utf8(goal_jak2_metal_host_last_error(host));

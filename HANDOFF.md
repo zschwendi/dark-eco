@@ -19112,3 +19112,68 @@ finite-degenerate case.
 This is simulator evidence only. No physical iPad was accessed. Subtitle bucket
 322 and Shadow buckets 195/314 remain diagnostic/deferred; this checkpoint does
 not claim those rendering paths are complete.
+
+## Jak II Build 24 Oracle/Nest checkpoint (2026-08-16)
+
+Build 24 advances nested `jak2-best` through:
+
+```text
+c3356b0e7 test(jak2): prove exact subtitle font glyph grammar (AI-assisted)
+8e9148097 fix(jak2): execute Oracle and Nest face animators (AI-assisted)
+```
+
+The renderer failure in `city-oracle-level-0` was an exact PRIS animator-family
+gap, not a generic cutscene or presentation failure. Opcodes 23 (Prison), 24
+(Oracle), and 25 (Nest) now share the source-shaped CLUT parser/executor while
+retaining their exact seven-versus-five destination layouts. Publication keeps
+source bucket order, and later Oracle/Nest generations may replace overlapping
+animated slots without invalidating textures already bound by an earlier Merc
+consumer. Callback exceptions now end an active Metal encoder before unwinding,
+so a rejected DMA plan reports its real failure instead of triggering a Metal
+encoder lifetime abort.
+
+Focused validation passed:
+
+```text
+cmake --build .agent-builds/jak2-combined-host \
+  --target jak2-common-tfrag-texture-upload-capture-test -j2
+.agent-builds/jak2-combined-host/game/jak2-common-tfrag-texture-upload-capture-test
+.agent-builds/jak2-combined-host/game/jak2-highres-jak-clut-defaults-test
+TOOLCHAINS=Metal cmake --build .agent-builds/jak2-combined-host \
+  --target jak2-metal-host-bridge-test -j2
+.agent-builds/jak2-combined-host/game/jak2-metal-host-bridge-test
+```
+
+The portable parser, 13-check high-resolution CLUT Metal fixture, and complete
+host bridge suite all passed. The parent Build 24 Release simulator build also
+succeeded and installed on the approved iPad Pro 11-inch (M5) simulator. Build
+log:
+
+```text
+.agent-builds/jak2-resume-logs/eco-jak2-dev-build24-simulator-build.log
+```
+
+Two fresh-process scene sweeps passed:
+
+```text
+PASS city-oracle-level-0: identity ticks 2640-3480; aframe -14.736->406.699;
+completion tick 3600
+PASS city-errol-challenge-res: identity ticks 2640-3480; aframe 10.781->439.570;
+completion tick 3600; required levels lerrol,lwidea,stadium
+```
+
+The Oracle sample visibly contains Oracle, Jak, the authored electrical effect,
+and scene geometry instead of the Build 23 black frame. Its active tick reports
+zero chain, command-buffer, submission, model, texture, eye, placeholder, and
+deferred-bucket failures. Evidence:
+
+```text
+.agent-builds/jak2-resume-logs/build24-expanded-scene-sweep/city-oracle-level-0/
+.agent-builds/jak2-resume-logs/build24-expanded-scene-sweep/city-errol-challenge-res/
+```
+
+The scene-sweep helper now accepts one through five requested active samples and
+still requires up to three when the caller requests at least three. The outer
+bridge's selected Shadow195 frame logging remains opt-in and metadata-only;
+Shadow buckets 195/314 remain deferred. This is simulator evidence only. No
+physical device was accessed.
