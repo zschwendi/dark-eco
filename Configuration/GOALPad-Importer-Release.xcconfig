@@ -1,3 +1,5 @@
+#include "Jak2Packaging.xcconfig"
+
 ARCHS = arm64
 
 // CMake discovers the pinned OpenGOAL target closure recursively. Xcode's user-script

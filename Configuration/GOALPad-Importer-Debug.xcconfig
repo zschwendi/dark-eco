@@ -1,3 +1,5 @@
+#include "Jak2Packaging.xcconfig"
+
 ARCHS = arm64
 
 GOALPAD_HAS_JAK1_IMPORT_COMPOSER = 0

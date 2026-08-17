@@ -41,6 +41,19 @@ require(jak2_phase_names == [
     "Stage Jak II importer resources",
 ], f"unexpected Eco Jak II Dev phase order: {jak2_phase_names}")
 
+jak2_runtime_target = target_block("F10200000000000000000002")
+jak2_runtime_phase_names = re.findall(r"/\* ([^*]+) \*/", re.search(
+    r"buildPhases = \((.*?)\n\t\t\t\);", jak2_runtime_target, re.DOTALL
+).group(1))
+require(jak2_runtime_phase_names == [
+    "Verify Jak II AOT",
+    "Build Jak II native runtime",
+    "Build Jak II import composer",
+    "Sources",
+    "Frameworks",
+    "Headers",
+], f"unexpected GOALPadJak2Runtime phase order: {jak2_runtime_phase_names}")
+
 jak1_target = target_block("92C2B201301C0D2F0025E4D5")
 jak1_phase_names = re.findall(r"/\* ([^*]+) \*/", re.search(
     r"buildPhases = \((.*?)\n\t\t\t\);", jak1_target, re.DOTALL
@@ -51,11 +64,14 @@ require(jak1_phase_names == [
     "Build Jak 1 import composer",
     "Sources",
     "Frameworks",
+    "Embed Frameworks",
     "Resources",
     "Stage Jak 1 importer resources",
+    "Stage Jak II importer resources",
 ], f"the GOALPad/Jak 1 target phase block changed: {jak1_phase_names}")
-require("Jak II" not in jak1_target and "GOALPAD_JAK2" not in jak1_target,
-        "Jak II importer wiring entered the GOALPad/Jak 1 target")
+require("Build Jak II" not in jak1_target and "Verify Jak II" not in jak1_target
+        and "GOALPAD_JAK2" not in jak1_target,
+        "Jak II compile or archive-build wiring entered the GOALPad/Jak 1 target")
 
 for marker in (
     "A74100000000000000000001 /* Build Jak II import composer */ = {",
@@ -67,6 +83,8 @@ for marker in (
     '"$(SRCROOT)/Scripts/stage-jak2-import-resources.sh"',
     '"$(GOALPAD_JAK2_PROJECT_RESOURCES)"',
     '"$(GOALPAD_JAK2_SOURCE_OBJECT_PACK_RESOURCES)"',
+    "F11200000000000000000004 /* Stage Jak II importer resources */ = {",
+    "F10100000000000000000004 /* GOALPadJak2Runtime.framework in Embed Frameworks */",
 ):
     require(marker in project, f"missing project contract: {marker}")
 
@@ -96,9 +114,12 @@ for marker in (
 require(re.search(r'<LaunchAction\s+buildConfiguration = "Release"', scheme) is not None,
         "Eco Jak II Dev LaunchAction must use Release so raw-media preparation is available")
 
+require('#include "Jak2Packaging.xcconfig"' in jak1_debug
+        and '#include "Jak2Packaging.xcconfig"' in jak1_release,
+        "the GOALPad target must receive only the shared Jak II resource paths")
 require("GOALPAD_HAS_JAK2_IMPORT_COMPOSER" not in jak1_debug
         and "GOALPAD_HAS_JAK2_IMPORT_COMPOSER" not in jak1_release,
-        "the existing Jak 1 importer configurations were made Jak II-aware")
+        "the GOALPad target must not compile the Jak II composer")
 
 print("Jak II import target/config source checks passed")
 PY

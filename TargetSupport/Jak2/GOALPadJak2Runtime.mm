@@ -1,0 +1,47 @@
+#define GOALPadKernelType GOALPadJak2KernelType
+#define GOALPadKernelStatus GOALPadJak2KernelStatus
+#define GOALPadGameBootStatus GOALPadJak2GameBootStatus
+#define GOALPadRuntimeBridge GOALPadJak2RuntimeBridge
+#define GOALPadCameraCorrectionTailSnapshot GOALPadJak2CameraCorrectionTailSnapshot
+#define GOALPadRenderSurface GOALPadJak2RenderSurface
+#define GOALPadInputSetState GOALPadJak2InputSetState
+#define GOALPadInputSetDisconnected GOALPadJak2InputSetDisconnected
+#define GOALPadInputSetRumbleEnabled GOALPadJak2InputSetRumbleEnabled
+#define GOALPadInputRumble GOALPadJak2InputRumble
+#define GOALPadInputReadCount GOALPadJak2InputReadCount
+#define GOALPadAudioSampleRate GOALPadJak2AudioSampleRate
+#define GOALPadAudioPull GOALPadJak2AudioPull
+
+#include "EcoJak2RuntimeBridge.mm"
+
+#undef GOALPadAudioPull
+#undef GOALPadAudioSampleRate
+#undef GOALPadInputReadCount
+#undef GOALPadInputRumble
+#undef GOALPadInputSetRumbleEnabled
+#undef GOALPadInputSetDisconnected
+#undef GOALPadInputSetState
+#undef GOALPadRenderSurface
+#undef GOALPadCameraCorrectionTailSnapshot
+#undef GOALPadRuntimeBridge
+#undef GOALPadGameBootStatus
+#undef GOALPadKernelStatus
+#undef GOALPadKernelType
+
+#define GOALPadGameDataPreparationErrorDomain GOALPadJak2GameDataPreparationErrorDomain
+#define GOALPadGameDataPreparationIsAvailable GOALPadJak2GameDataPreparationIsAvailable
+#define GOALPadGameDataPreparationProgress GOALPadJak2GameDataPreparationProgress
+#define GOALPadGameDataPreparationSummary GOALPadJak2GameDataPreparationSummary
+#define GOALPadGameDataPreparationJob GOALPadJak2GameDataPreparationJob
+
+#include "../../GOALPad/Native/GOALPadGameDataPreparationBridge.mm"
+
+#undef GOALPadGameDataPreparationJob
+#undef GOALPadGameDataPreparationSummary
+#undef GOALPadGameDataPreparationProgress
+#undef GOALPadGameDataPreparationIsAvailable
+#undef GOALPadGameDataPreparationErrorDomain
+
+extern "C" const char* GOALPadJak2RuntimeIdentifier(void) {
+  return "jak2";
+}
