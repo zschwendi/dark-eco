@@ -5,6 +5,34 @@ import OSLog
 nonisolated private let installLog = Logger(subsystem: "com.zephyrstudiosllc.eco",
                                             category: "GameDataInstall")
 
+nonisolated private final class GameDataImportProcessLease: @unchecked Sendable {
+    static let shared = GameDataImportProcessLease()
+
+    private let lock = NSLock()
+    private var activeRoots: Set<String> = []
+    private var activeDirectories: Set<String> = []
+
+    func acquire(activeDirectory: URL, stagingRoot: URL) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        let activePath = activeDirectory.standardizedFileURL.path
+        let stagingPath = stagingRoot.standardizedFileURL.path
+        guard !activeDirectories.contains(activePath), !activeRoots.contains(stagingPath) else {
+            return false
+        }
+        activeDirectories.insert(activePath)
+        activeRoots.insert(stagingPath)
+        return true
+    }
+
+    func release(activeDirectory: URL, stagingRoot: URL) {
+        lock.lock()
+        activeDirectories.remove(activeDirectory.standardizedFileURL.path)
+        activeRoots.remove(stagingRoot.standardizedFileURL.path)
+        lock.unlock()
+    }
+}
+
 /// Progress shared by prepared-folder, raw-disc, and archived-disc imports.
 nonisolated struct GameDataImportProgress: Sendable {
     nonisolated enum Phase: String, Sendable {
@@ -190,6 +218,23 @@ actor GameDataInstallWorker {
         using producer: any GameDataCandidateProducing,
         report: @escaping @Sendable (GameDataImportProgress) async -> Void
     ) async throws -> GameDataImportResult {
+        guard GameDataImportProcessLease.shared.acquire(
+            activeDirectory: configuration.activeDirectory,
+            stagingRoot: configuration.stagingRoot
+        )
+        else {
+            throw GameDataImportFailure(
+                code: .busy,
+                message: "Another game-data import is already running for this game.",
+                candidatePreserved: false
+            )
+        }
+        defer {
+            GameDataImportProcessLease.shared.release(
+                activeDirectory: configuration.activeDirectory,
+                stagingRoot: configuration.stagingRoot
+            )
+        }
         guard !isInstalling else {
             throw GameDataImportFailure(
                 code: .busy,
@@ -210,6 +255,7 @@ actor GameDataInstallWorker {
             try manager.createDirectory(at: attempts,
                                         withIntermediateDirectories: true)
             try excludeFromBackup(configuration.stagingRoot)
+            try removeAbandonedCandidates(in: attempts)
         } catch {
             throw GameDataImportFailure(
                 code: .stagingFailed,
@@ -255,6 +301,18 @@ actor GameDataInstallWorker {
             )
             return result
         } catch is CancellationError {
+            do {
+                if manager.fileExists(atPath: candidate.path) {
+                    try manager.removeItem(at: candidate)
+                }
+            } catch {
+                throw GameDataImportFailure(
+                    code: .stagingFailed,
+                    message: "Import stopped, but its private partial candidate could not be removed: "
+                        + error.localizedDescription,
+                    candidatePreserved: manager.fileExists(atPath: candidate.path)
+                )
+            }
             throw CancellationError()
         } catch let failure as GameDataImportFailure {
             throw failure
@@ -264,6 +322,23 @@ actor GameDataInstallWorker {
                 message: error.localizedDescription,
                 candidatePreserved: manager.fileExists(atPath: candidate.path)
             )
+        }
+    }
+
+    private func removeAbandonedCandidates(in attempts: URL) throws {
+        let manager = FileManager.default
+        let children = try manager.contentsOfDirectory(
+            at: attempts,
+            includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
+            options: [.skipsHiddenFiles]
+        )
+        for child in children {
+            guard child.pathExtension == "candidate",
+                  UUID(uuidString: child.deletingPathExtension().lastPathComponent) != nil
+            else { continue }
+            let values = try child.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+            guard values.isDirectory == true, values.isSymbolicLink != true else { continue }
+            try manager.removeItem(at: child)
         }
     }
 

@@ -85,6 +85,21 @@ private actor ProgressRecorder {
     }
 }
 
+private struct FailingCandidateProducer: GameDataCandidateProducing {
+    func prepareCandidate(
+        from _: URL,
+        activeDirectory _: URL,
+        candidateDirectory _: URL,
+        report _: @escaping @Sendable (GameDataImportProgress) async -> Void
+    ) async throws -> GameDataImportResult {
+        throw GameDataImportFailure(
+            code: .preparationFailed,
+            message: "synthetic stop after staging cleanup",
+            candidatePreserved: false
+        )
+    }
+}
+
 private func write(_ text: String, to url: URL) throws {
     try FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
                                             withIntermediateDirectories: true)
@@ -95,20 +110,29 @@ private func read(_ url: URL) -> String? {
     (try? Data(contentsOf: url)).map { String(decoding: $0, as: UTF8.self) }
 }
 
-private func writeCompletePreparedData(at prepared: URL, payload: String = "fixture") throws {
+private func writeCompletePreparedData(
+    at prepared: URL,
+    profile: GameDataProfile = .jak1,
+    payload: String = "fixture"
+) throws {
+    let manifest = profile.manifest
     let iso = prepared.appending(path: GameDataLayout.isoDirectoryName, directoryHint: .isDirectory)
     let fr3 = prepared.appending(path: GameDataLayout.fr3DirectoryName, directoryHint: .isDirectory)
-    for name in Set(GameDataManifest.bootArchives + GameDataManifest.levelArchives) {
+    for name in Set(manifest.requiredISOFiles) {
         try write(payload, to: iso.appending(path: name))
     }
-    for name in GameDataManifest.levelGeometry {
+    for name in manifest.levelGeometry {
         try write(payload, to: fr3.appending(path: name))
     }
 }
 
-private func preparedFolder(under root: URL, payload: String = "fixture") throws -> URL {
+private func preparedFolder(
+    under root: URL,
+    profile: GameDataProfile = .jak1,
+    payload: String = "fixture"
+) throws -> URL {
     let prepared = root.appending(path: "prepared", directoryHint: .isDirectory)
-    try writeCompletePreparedData(at: prepared, payload: payload)
+    try writeCompletePreparedData(at: prepared, profile: profile, payload: payload)
     return prepared
 }
 
@@ -259,8 +283,44 @@ private func preparedFolder(under root: URL, payload: String = "fixture") throws
           "a later folder import completes in a new candidate and activates")
     check(read(fixture.active.appending(path: "iso/ACTIVE.DAT")) == "active",
           "the new attempt seeds the unchanged active install")
-    check(incompleteCandidate.map { fixture.candidates.contains($0) } == true,
-          "the failed candidate was not mixed into or deleted by the later selection")
+    check(incompleteCandidate.map { !fixture.candidates.contains($0) } == true,
+          "the explicit later selection removes the prior abandoned candidate")
+}
+
+@MainActor private func abandonedCandidateCleanupIsExactAndSafe() async throws {
+    print("a new attempt removes only exact app-owned abandoned candidate directories")
+    let fixture = try Fixture()
+    let attempts = fixture.staging.appending(path: "Attempts", directoryHint: .isDirectory)
+    let abandoned = attempts.appending(
+        path: "\(UUID().uuidString).candidate", directoryHint: .isDirectory)
+    let unrelated = attempts.appending(path: "notes.candidate", directoryHint: .isDirectory)
+    let external = fixture.root.appending(path: "external", directoryHint: .isDirectory)
+    let externalMarker = external.appending(path: "keep.txt")
+    let linkedCandidate = attempts.appending(
+        path: "\(UUID().uuidString).candidate", directoryHint: .isDirectory)
+    try write("abandoned", to: abandoned.appending(path: "marker"))
+    try write("unrelated", to: unrelated.appending(path: "marker"))
+    try write("external", to: externalMarker)
+    try FileManager.default.createSymbolicLink(at: linkedCandidate, withDestinationURL: external)
+
+    do {
+        _ = try await fixture.worker.install(
+            from: fixture.root,
+            using: FailingCandidateProducer()
+        ) { _ in }
+        check(false, "the synthetic producer still fails after cleanup")
+    } catch let failure as GameDataImportFailure {
+        check(failure.code == .preparationFailed,
+              "cleanup completes before the synthetic producer failure")
+    }
+
+    check(!FileManager.default.fileExists(atPath: abandoned.path),
+          "an exact UUID candidate directory is removed")
+    check(read(unrelated.appending(path: "marker")) == "unrelated",
+          "a non-UUID candidate name is preserved")
+    let linkValues = try linkedCandidate.resourceValues(forKeys: [.isSymbolicLinkKey])
+    check(linkValues.isSymbolicLink == true && read(externalMarker) == "external",
+          "candidate cleanup neither removes nor follows a symbolic link")
 }
 
 @MainActor private func sourceFilesAreNotCopiedFromActiveFirst() async throws {
@@ -294,7 +354,7 @@ private func preparedFolder(under root: URL, payload: String = "fixture") throws
 }
 
 @MainActor private func cancellationKeepsActiveInstall() async throws {
-    print("cancellation preserves both the active install and recoverable staging")
+    print("cancellation preserves the active install and removes partial staging")
     let fixture = try Fixture()
     let activeSource = try preparedFolder(under: fixture.root, payload: "active")
     _ = try await fixture.worker.install(
@@ -328,14 +388,14 @@ private func preparedFolder(under root: URL, payload: String = "fixture") throws
 
     check(read(fixture.active.appending(path: "iso/GAME.CGO")) == "active",
           "the previous install remains active after cancellation")
-    let cancelledCandidate = fixture.candidates.first
-    check(cancelledCandidate != nil, "the cancelled candidate remains available for recovery")
-    let partials = (try? FileManager.default.contentsOfDirectory(
-        at: cancelledCandidate?.appending(path: "iso", directoryHint: .isDirectory)
-            ?? fixture.staging,
-        includingPropertiesForKeys: nil
-    ))?.filter { $0.lastPathComponent.hasSuffix(".partial") } ?? []
-    check(partials.isEmpty, "cancelled per-file temporary output is removed")
+    check(fixture.candidates.isEmpty,
+          "the cancelled candidate and per-file temporary output are removed")
+    _ = try await fixture.worker.install(
+        from: replacement,
+        using: PreparedFolderCandidateProducer()
+    ) { _ in }
+    check(read(fixture.active.appending(path: "iso/GAME.CGO")) == "replacement",
+          "a fresh retry acquires the released process lease")
 }
 
 @MainActor private func concurrentAttemptIsRejected() async throws {
@@ -364,10 +424,88 @@ private func preparedFolder(under root: URL, payload: String = "fixture") throws
     } catch let failure as GameDataImportFailure {
         check(failure.code == .busy, "the second request gets an explicit busy failure")
     }
+
+    let secondWindowWorker = GameDataInstallWorker(configuration: .init(
+        activeDirectory: fixture.active,
+        stagingRoot: fixture.staging,
+        profile: .jak1
+    ))
+    do {
+        _ = try await secondWindowWorker.install(
+            from: source,
+            using: PreparedFolderCandidateProducer()
+        ) { _ in }
+        check(false, "a second worker cannot race the same title roots")
+    } catch let failure as GameDataImportFailure {
+        check(failure.code == .busy,
+              "the process lease rejects a second worker for the same title")
+    }
+
+    let equivalentStagingWorker = GameDataInstallWorker(configuration: .init(
+        activeDirectory: fixture.root.appending(path: "OtherActive", directoryHint: .isDirectory),
+        stagingRoot: fixture.staging.appending(path: "..")
+            .appending(path: fixture.staging.lastPathComponent, directoryHint: .isDirectory),
+        profile: .jak1
+    ))
+    do {
+        _ = try await equivalentStagingWorker.install(
+            from: source,
+            using: PreparedFolderCandidateProducer()
+        ) { _ in }
+        check(false, "an equivalent staging path cannot bypass the process lease")
+    } catch let failure as GameDataImportFailure {
+        check(failure.code == .busy,
+              "the process lease normalizes equivalent staging paths")
+    }
+
+    let alternateStagingWorker = GameDataInstallWorker(configuration: .init(
+        activeDirectory: fixture.active,
+        stagingRoot: fixture.root.appending(path: "OtherStaging", directoryHint: .isDirectory),
+        profile: .jak1
+    ))
+    do {
+        _ = try await alternateStagingWorker.install(
+            from: source,
+            using: PreparedFolderCandidateProducer()
+        ) { _ in }
+        check(false, "a second staging root cannot race the same active install")
+    } catch let failure as GameDataImportFailure {
+        check(failure.code == .busy,
+              "the process lease also owns the active-install destination")
+    }
+
+    let jak2Active = fixture.root.appending(
+        path: "Documents/Jak2", directoryHint: .isDirectory)
+    let jak2Staging = fixture.root.appending(
+        path: "Library/Application Support/GOALPad/GameDataImport/Jak2",
+        directoryHint: .isDirectory
+    )
+    let jak2Source = try preparedFolder(
+        under: fixture.root.appending(path: "jak2-source", directoryHint: .isDirectory),
+        profile: .jak2
+    )
+    let jak2Worker = GameDataInstallWorker(configuration: .init(
+        activeDirectory: jak2Active,
+        stagingRoot: jak2Staging,
+        profile: .jak2
+    ))
+    _ = try await jak2Worker.install(
+        from: jak2Source,
+        using: PreparedFolderCandidateProducer()
+    ) { _ in }
+    check(GameDataInspector.inspect(gameDirectory: jak2Active, profile: .jak2).status == .ready,
+          "Jak II can import concurrently through its independent active and staging roots")
+
     await gate.release()
     _ = try await first.value
     check(GameDataInspector.inspect(gameDirectory: fixture.active).status == .ready,
           "the original request completes without interleaved writes")
+    _ = try await secondWindowWorker.install(
+        from: source,
+        using: PreparedFolderCandidateProducer()
+    ) { _ in }
+    check(GameDataInspector.inspect(gameDirectory: fixture.active).status == .ready,
+          "the same-title process lease is released after the original request completes")
 }
 
 @MainActor private func cancellationAtActivationBoundaryDoesNotSwap() async throws {
@@ -400,7 +538,8 @@ private func preparedFolder(under root: URL, payload: String = "fixture") throws
     }
     check(read(fixture.active.appending(path: "iso/GAME.CGO")) == "active",
           "the atomic switch did not run after cancellation")
-    check(fixture.candidates.count == 1, "the fully validated candidate remains recoverable")
+    check(fixture.candidates.isEmpty,
+          "the cancelled validated candidate is removed after the worker settles")
 }
 
 @MainActor private func unsafeSourceIsRejectedBeforeStaging() async throws {
@@ -494,6 +633,7 @@ private struct GameDataInstallCheck {
             overallProgressUsesMeasuredWorkAndPhaseFloors()
             try await completeCandidateActivates()
             try await incompleteCandidateIsRecoverable()
+            try await abandonedCandidateCleanupIsExactAndSafe()
             try await sourceFilesAreNotCopiedFromActiveFirst()
             try await cancellationKeepsActiveInstall()
             try await concurrentAttemptIsRejected()
