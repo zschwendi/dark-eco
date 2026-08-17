@@ -586,6 +586,8 @@ void log_jak2_diagnostics_locked() {
          "bones=%llu/%llu/%llu/%llu "
          "generic=%llu/%llu/%llu missing-textures=%llu unexpected-dma=%llu "
          "eyes=%llu/%llu/%llu missing=%llu unexpected=%llu duplicate=%llu "
+         "eye-source-placeholder=%llu/%llu/%llu/%llu "
+         "eye-source-first=%u/0x%08x/0x%016llx/%ux%u/0x%08x "
          "eye-cmd=%llu/%llu/%llu pris=%llu/%llu/%llu "
          "sprite-placeholder=%llu/%llu first-valid=%u first-tbp=0x%08x first-mode=0x%08x",
         static_cast<unsigned long long>(runtime.ticks),
@@ -617,6 +619,16 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(metal.last_eye_missing_textures),
         static_cast<unsigned long long>(metal.last_eye_unexpected_dma),
         static_cast<unsigned long long>(metal.last_eye_duplicate_slot_writes),
+        static_cast<unsigned long long>(metal.last_eye_placeholder_textures),
+        static_cast<unsigned long long>(metal.last_eye_placeholder_iris_textures),
+        static_cast<unsigned long long>(metal.last_eye_placeholder_pupil_textures),
+        static_cast<unsigned long long>(metal.last_eye_placeholder_lid_textures),
+        metal.last_eye_first_placeholder_component,
+        metal.last_eye_first_placeholder_tbp,
+        static_cast<unsigned long long>(metal.last_eye_first_placeholder_handle),
+        metal.last_eye_first_placeholder_width,
+        metal.last_eye_first_placeholder_height,
+        metal.last_eye_first_placeholder_texture_id,
         static_cast<unsigned long long>(metal.last_eye_command_buffers_committed),
         static_cast<unsigned long long>(metal.last_eye_command_buffers_completed),
         static_cast<unsigned long long>(metal.last_eye_command_buffer_errors),
