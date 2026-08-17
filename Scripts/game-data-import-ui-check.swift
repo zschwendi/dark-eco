@@ -215,7 +215,9 @@ check(view.contains("importer.start(from: source)")
 check(importer.contains("init(\n        profile: GameDataProfile,")
         && importer.contains("self.profile = profile")
         && importer.contains("GameDataInstallWorker(configuration: .app(for: profile))")
-        && importer.contains("RawISOCandidateProducer(profile: profile)")
+        && importer.contains("nativePreparationBackend: GameDataNativePreparationBackend")
+        && importer.contains("nativePreparationBackend: nativePreparationBackend")
+        && importer.contains("rawISOProducer.isAvailable")
         && library.contains("let openGameSetup: (GameLibraryTitle) -> Void")
         && library.contains("case .openSetup(let title):")
         && library.contains("case .verifyData(let title):")
@@ -223,7 +225,8 @@ check(importer.contains("init(\n        profile: GameDataProfile,")
         && content.contains("openGameSetup: openGameSetup")
         && content.contains("GameDataSetupView(session: session, title: title)")
         && view.contains("GameDataProfile.profile(for: title)")
-        && view.contains("GameDataImporter(profile: profile)"),
+        && view.contains("GameDataImporter(profile: profile)")
+        && view.contains("importer.canImportRawMedia"),
       "the clicked title and its explicit data profile flow through Library, destination, and setup")
 let touchedRoutingSources = [view, importer, library, content]
 check(touchedRoutingSources.allSatisfy {

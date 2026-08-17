@@ -77,16 +77,21 @@ final class GameDataImporter {
         profile: GameDataProfile,
         worker: GameDataInstallWorker? = nil,
         preparedFolderProducer: any GameDataCandidateProducing = PreparedFolderCandidateProducer(),
+        nativePreparationBackend: GameDataNativePreparationBackend = .appJak1Composer,
         idleTimerAssertions: DeviceIdleTimerAssertions? = nil
     ) {
         self.profile = profile
         self.worker = worker ?? GameDataInstallWorker(configuration: .app(for: profile))
         self.preparedFolderProducer = preparedFolderProducer
         self.idleTimerAssertions = idleTimerAssertions ?? .shared
-        rawISOProducer = RawISOCandidateProducer(profile: profile)
+        rawISOProducer = RawISOCandidateProducer(
+            profile: profile,
+            nativePreparationBackend: nativePreparationBackend
+        )
         archivedISOProducer = ZIPISOCandidateProducer(
             downstream: RawISOCandidateProducer(
                 profile: profile,
+                nativePreparationBackend: nativePreparationBackend,
                 overallProgressRange: 0.25...0.85
             )
         )
@@ -103,7 +108,7 @@ final class GameDataImporter {
 
     var canImportRawMedia: Bool {
         profile.supportsRawMediaPreparation
-            && RawISOCandidateProducer.isAvailable(for: profile)
+            && rawISOProducer.isAvailable
     }
 
     /// `source` may be a supported raw or archived disc image, the directory holding `iso/`

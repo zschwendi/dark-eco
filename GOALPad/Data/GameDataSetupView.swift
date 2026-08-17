@@ -332,8 +332,7 @@ struct GameDataSetupView: View {
     }
 
     private var canImportRawISO: Bool {
-        profile.supportsRawMediaPreparation
-            && RawISOCandidateProducer.isAvailable(for: profile)
+        importer.canImportRawMedia
     }
 
     private var isImportComplete: Bool {

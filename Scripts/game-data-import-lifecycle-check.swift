@@ -1,12 +1,25 @@
 import Foundation
 
+nonisolated extension GameDataNativePreparationBackend {
+    static let appJak1Composer = GameDataNativePreparationBackend(
+        profileIdentifier: .jak1,
+        isAvailable: { false },
+        prepare: { _, _, _, _ in 0 }
+    )
+}
+
 nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
-    static func isAvailable(for _: GameDataProfile) -> Bool { false }
+    private let availability: Bool
+
+    var isAvailable: Bool { availability }
 
     init(
-        profile _: GameDataProfile,
+        profile: GameDataProfile,
+        nativePreparationBackend: GameDataNativePreparationBackend = .appJak1Composer,
         overallProgressRange _: ClosedRange<Double> = 0.15...0.85
-    ) {}
+    ) {
+        availability = nativePreparationBackend.isAvailable(for: profile)
+    }
 
     func prepareCandidate(
         from source: URL,
@@ -99,6 +112,26 @@ private actor LateFailureCandidateProducer: GameDataCandidateProducing {
     }
 }
 
+private actor RecordingPreparedFolderProducer: GameDataCandidateProducing {
+    private var attempts = 0
+
+    func prepareCandidate(
+        from source: URL,
+        activeDirectory: URL,
+        candidateDirectory: URL,
+        report: @escaping @Sendable (GameDataImportProgress) async -> Void
+    ) async throws -> GameDataImportResult {
+        attempts += 1
+        throw GameDataImportFailure(
+            code: .invalidPreparedFolder,
+            message: "Synthetic prepared-folder stop.",
+            candidatePreserved: false
+        )
+    }
+
+    func attemptCount() -> Int { attempts }
+}
+
 @MainActor
 private final class IdleTimerRecorder {
     private(set) var values: [Bool] = []
@@ -153,6 +186,14 @@ private func waitForTeardown(_ producer: LateFailureCandidateProducer) async -> 
         try? await Task.sleep(for: .milliseconds(5))
     }
     return await producer.isWaitingForTeardown()
+}
+
+private func waitForAttempt(_ producer: RecordingPreparedFolderProducer) async -> Bool {
+    for _ in 0..<200 {
+        if await producer.attemptCount() == 1 { return true }
+        try? await Task.sleep(for: .milliseconds(5))
+    }
+    return await producer.attemptCount() == 1
 }
 
 @MainActor
@@ -294,6 +335,50 @@ private func importerRetainsExplicitProfile() {
           "raw-media availability is queried for each explicit profile")
 }
 
+@MainActor
+private func jak2RawMediaFailsClosedWithoutBlockingPreparedFolders() async throws {
+    print("Jak II raw media fails closed while prepared folders remain routable")
+    let root = FileManager.default.temporaryDirectory.appending(
+        path: "goalpad-jak2-import-routing-\(UUID().uuidString)", directoryHint: .isDirectory)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let worker = GameDataInstallWorker(configuration: .init(
+        activeDirectory: root.appending(path: "active", directoryHint: .isDirectory),
+        stagingRoot: root.appending(path: "staging", directoryHint: .isDirectory),
+        profile: .jak2))
+    let preparedProducer = RecordingPreparedFolderProducer()
+    let importer = GameDataImporter(
+        profile: .jak2,
+        worker: worker,
+        preparedFolderProducer: preparedProducer)
+
+    check(!importer.canImportRawMedia,
+          "Jak II exposes no raw/archive capability without its unique backend")
+    importer.start(from: root.appending(path: "disc.iso")) {}
+    if case .failed(let failure) = importer.state {
+        check(failure.code == .appResourcesUnavailable,
+              "Jak II raw ISO fails before entering the native composer")
+    } else {
+        check(false, "Jak II raw ISO fails before entering the native composer")
+    }
+    importer.reset()
+    importer.start(from: root.appending(path: "disc.zip")) {}
+    if case .failed(let failure) = importer.state {
+        check(failure.code == .appResourcesUnavailable,
+              "Jak II archived ISO fails through the same capability gate")
+    } else {
+        check(false, "Jak II archived ISO fails through the same capability gate")
+    }
+    importer.reset()
+
+    let prepared = root.appending(path: "prepared", directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: prepared, withIntermediateDirectories: true)
+    importer.start(from: prepared) {}
+    let preparedAttempted = await waitForAttempt(preparedProducer)
+    check(preparedAttempted,
+          "Jak II prepared-folder selection still reaches its candidate producer")
+}
+
 @main
 private struct GameDataImportLifecycleCheck {
     @MainActor
@@ -303,6 +388,7 @@ private struct GameDataImportLifecycleCheck {
             try await cancellationDominatesLateProducerFailure()
             idleTimerOwnersDoNotClobberEachOther()
             importerRetainsExplicitProfile()
+            try await jak2RawMediaFailsClosedWithoutBlockingPreparedFolders()
         } catch {
             print("  FAIL unexpected error: \(error)")
             failures += 1

@@ -3,34 +3,59 @@ import Foundation
 /// Produces a complete desktop-compatible candidate from one supported profile disc image.
 nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
     private let profile: GameDataProfile
-    private let projectResourceURL: URL?
-    private let sourceObjectPackURL: URL?
+    private let resources: GameDataNativePreparationResources?
+    private let nativePreparationBackend: GameDataNativePreparationBackend
     private let overallProgressRange: ClosedRange<Double>
 
     static func isAvailable(
-        for profile: GameDataProfile = .active,
-        in bundle: Bundle = .main
+        for profile: GameDataProfile,
+        in bundle: Bundle = .main,
+        nativePreparationBackend: GameDataNativePreparationBackend = .appJak1Composer
     ) -> Bool {
-        GOALPadGameDataPreparationIsAvailable()
-            && bundle.url(forResource: profile.projectResourceName, withExtension: nil) != nil
-            && bundle.url(forResource: profile.sourceObjectPackName, withExtension: nil) != nil
+        RawISOCandidateProducer(
+            profile: profile,
+            bundle: bundle,
+            nativePreparationBackend: nativePreparationBackend
+        ).isAvailable
     }
 
     init(
-        profile: GameDataProfile = .active,
+        profile: GameDataProfile,
         bundle: Bundle = .main,
+        nativePreparationBackend: GameDataNativePreparationBackend = .appJak1Composer,
+        overallProgressRange: ClosedRange<Double> = 0.15...0.85
+    ) {
+        self.init(
+            profile: profile,
+            resourceURL: { bundle.url(forResource: $0, withExtension: nil) },
+            nativePreparationBackend: nativePreparationBackend,
+            overallProgressRange: overallProgressRange
+        )
+    }
+
+    init(
+        profile: GameDataProfile,
+        resourceURL: (String) -> URL?,
+        nativePreparationBackend: GameDataNativePreparationBackend,
         overallProgressRange: ClosedRange<Double> = 0.15...0.85
     ) {
         self.profile = profile
-        projectResourceURL = bundle.url(
-            forResource: profile.projectResourceName,
-            withExtension: nil
-        )
-        sourceObjectPackURL = bundle.url(
-            forResource: profile.sourceObjectPackName,
-            withExtension: nil
-        )
+        let projectResourceURL = resourceURL(profile.projectResourceName)
+        let sourceObjectPackURL = resourceURL(profile.sourceObjectPackName)
+        resources = if let projectResourceURL, let sourceObjectPackURL {
+            GameDataNativePreparationResources(
+                projectResourceURL: projectResourceURL,
+                sourceObjectPackURL: sourceObjectPackURL
+            )
+        } else {
+            nil
+        }
+        self.nativePreparationBackend = nativePreparationBackend
         self.overallProgressRange = overallProgressRange
+    }
+
+    var isAvailable: Bool {
+        resources != nil && nativePreparationBackend.isAvailable(for: profile)
     }
 
     func prepareCandidate(
@@ -47,85 +72,50 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
                 candidatePreserved: false
             )
         }
-        guard let projectResourceURL, let sourceObjectPackURL else {
+        guard nativePreparationBackend.isAvailable(for: profile) else {
+            throw GameDataImportFailure(
+                code: .appResourcesUnavailable,
+                message: "This build has no verified native disc-image preparation backend for "
+                    + "\(profile.displayName).",
+                candidatePreserved: false
+            )
+        }
+        guard let resources else {
             throw GameDataImportFailure(
                 code: .appResourcesUnavailable,
                 message: "This build is missing its verified game-data preparation resources.",
                 candidatePreserved: false
             )
         }
-
-        let nativeJob = GOALPadGameDataPreparationJob(
-            sourceURL: source,
-            candidateURL: candidateDirectory,
-            projectResourceURL: projectResourceURL,
-            sourceObjectPackURL: sourceObjectPackURL
-        )
-        let job = NativePreparationJobBox(nativeJob)
-        let (progressStream, progressContinuation) =
-            AsyncStream<GameDataImportProgress>.makeStream(bufferingPolicy: .bufferingNewest(1))
-        let reportingTask = Task.detached(priority: .utility) {
-            for await progress in progressStream {
-                await report(progress)
-            }
-        }
-
-        let outcome: NativePreparationOutcome = await withTaskCancellationHandler(operation: {
-            await withCheckedContinuation { continuation in
-                job.value.start(progress: { nativeProgress in
-                    progressContinuation.yield(self.progress(from: nativeProgress))
-                }, completion: { summary, error in
-                    if let error {
-                        let nativeError = error as NSError
-                        continuation.resume(returning: .failure(
-                            domain: nativeError.domain,
-                            code: nativeError.code,
-                            message: nativeError.localizedDescription
-                        ))
-                    } else if let summary {
-                        continuation.resume(returning: .success(
-                            filesWritten: Int(summary.archivesWritten)
-                                + Int(summary.flatFilesWritten)
-                                + Int(summary.fr3FilesWritten)
-                        ))
-                    } else {
-                        continuation.resume(returning: .failure(
-                            domain: GOALPadGameDataPreparationErrorDomain,
-                            code: GOALPadGameDataPreparationErrorCode.unexpectedFailure.rawValue,
-                            message: "Native preparation returned no result."
-                        ))
-                    }
-                })
-            }
-        }, onCancel: {
-            job.cancel()
-            progressContinuation.finish()
-        })
-
-        progressContinuation.finish()
-        await reportingTask.value
-        try Task.checkCancellation()
-
-        switch outcome {
-        case .success(let filesWritten):
+        do {
+            let filesWritten = try await nativePreparationBackend.prepare(
+                for: profile,
+                sourceURL: source,
+                candidateURL: candidateDirectory,
+                resources: resources,
+                report: { nativeProgress in
+                    await report(progress(from: nativeProgress))
+                }
+            )
+            try Task.checkCancellation()
             return GameDataImportResult(filesCopied: filesWritten, filesSkipped: 0)
-        case .failure(let domain, let code, let message):
-            if domain == GOALPadGameDataPreparationErrorDomain,
-               code == GOALPadGameDataPreparationErrorCode.cancelled.rawValue
+        } catch let failure as GameDataNativePreparationFailure {
+            if failure.domain == GOALPadGameDataPreparationErrorDomain,
+               failure.code == GOALPadGameDataPreparationErrorCode.cancelled.rawValue
             {
                 throw CancellationError()
             }
             throw Self.importFailure(
-                domain: domain,
-                code: code,
-                message: message,
+                domain: failure.domain,
+                code: failure.code,
+                message: failure.message,
                 candidateDirectory: candidateDirectory
             )
         }
     }
 
     private func progress(
-        from native: GOALPadGameDataPreparationProgress
+        from native: GameDataNativePreparationProgress
     ) -> GameDataImportProgress {
         let item = native.currentItem.isEmpty ? native.phaseLabel : native.currentItem
         let phaseFraction = native.total > 0
@@ -236,6 +226,108 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
                 code: .preparationFailed,
                 message: "Native game-data preparation returned an unknown error.",
                 candidatePreserved: preserved
+            )
+        }
+    }
+}
+
+nonisolated extension GameDataNativePreparationBackend {
+    static let appJak1Composer = GameDataNativePreparationBackend(
+        profileIdentifier: .jak1,
+        isAvailable: {
+            #if GOALPAD_JAK2
+            false
+            #else
+            GOALPadGameDataPreparationIsAvailable()
+            #endif
+        },
+        prepare: { sourceURL, candidateURL, resources, report in
+            try await runAppJak1Composer(
+                sourceURL: sourceURL,
+                candidateURL: candidateURL,
+                resources: resources,
+                report: report
+            )
+        }
+    )
+
+    private static func runAppJak1Composer(
+        sourceURL: URL,
+        candidateURL: URL,
+        resources: GameDataNativePreparationResources,
+        report: @escaping ProgressHandler
+    ) async throws -> Int {
+        let nativeJob = GOALPadGameDataPreparationJob(
+            sourceURL: sourceURL,
+            candidateURL: candidateURL,
+            projectResourceURL: resources.projectResourceURL,
+            sourceObjectPackURL: resources.sourceObjectPackURL
+        )
+        let job = NativePreparationJobBox(nativeJob)
+        let (progressStream, progressContinuation) =
+            AsyncStream<GameDataNativePreparationProgress>.makeStream(
+                bufferingPolicy: .bufferingNewest(1)
+            )
+        let reportingTask = Task.detached(priority: .utility) {
+            for await progress in progressStream {
+                await report(progress)
+            }
+        }
+
+        let outcome: NativePreparationOutcome = await withTaskCancellationHandler(operation: {
+            await withCheckedContinuation { continuation in
+                job.value.start(progress: { nativeProgress in
+                    let phase = GameDataNativePreparationPhase(
+                        rawValue: Int(nativeProgress.phase.rawValue)
+                    ) ?? .validatingSourcePack
+                    progressContinuation.yield(GameDataNativePreparationProgress(
+                        phase: phase,
+                        completed: nativeProgress.completed,
+                        total: nativeProgress.total,
+                        bytesCompleted: nativeProgress.bytesCompleted,
+                        phaseLabel: nativeProgress.phaseLabel,
+                        currentItem: nativeProgress.currentItem.isEmpty
+                            ? nativeProgress.phaseLabel : nativeProgress.currentItem
+                    ))
+                }, completion: { summary, error in
+                    if let error {
+                        let nativeError = error as NSError
+                        continuation.resume(returning: .failure(
+                            domain: nativeError.domain,
+                            code: nativeError.code,
+                            message: nativeError.localizedDescription
+                        ))
+                    } else if let summary {
+                        continuation.resume(returning: .success(
+                            filesWritten: Int(summary.archivesWritten)
+                                + Int(summary.flatFilesWritten)
+                                + Int(summary.fr3FilesWritten)
+                        ))
+                    } else {
+                        continuation.resume(returning: .failure(
+                            domain: GOALPadGameDataPreparationErrorDomain,
+                            code: GOALPadGameDataPreparationErrorCode.unexpectedFailure.rawValue,
+                            message: "Native preparation returned no result."
+                        ))
+                    }
+                })
+            }
+        }, onCancel: {
+            job.cancel()
+            progressContinuation.finish()
+        })
+
+        progressContinuation.finish()
+        await reportingTask.value
+        try Task.checkCancellation()
+        switch outcome {
+        case .success(let filesWritten):
+            return filesWritten
+        case .failure(let domain, let code, let message):
+            throw GameDataNativePreparationFailure(
+                domain: domain,
+                code: code,
+                message: message
             )
         }
     }
