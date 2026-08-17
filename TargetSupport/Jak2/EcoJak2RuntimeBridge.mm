@@ -134,6 +134,7 @@ NSString* g_last_error = @"";
 goal_jak2_metal_host* g_metal_host = nullptr;
 goal_jak2_runtime_metrics g_runtime_metrics = {};
 goal_jak2_metal_host_metrics g_metal_metrics = {};
+NSInteger g_target_frame_rate = 60;
 CGSize g_drawable_size = CGSizeZero;
 bool g_horizontal_plus_enabled = false;
 bool g_frame_armed = false;
@@ -1240,6 +1241,7 @@ void clear_runtime_snapshots_locked() {
   g_max_chains_per_frame = 0;
   g_shadow_bucket195_capture_written = false;
   g_shadow195_frame_capture_logged = false;
+  g_target_frame_rate = 60;
 }
 
 GOALPadProgressMenuSnapshot unavailable_progress_snapshot() {
@@ -1490,6 +1492,13 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
 }
 
 + (GOALPadGameBootStatus*)bootGame {
+  return [self bootGameWithTargetFrameRate:60];
+}
+
++ (GOALPadGameBootStatus*)bootGameWithTargetFrameRate:(NSInteger)targetFrameRate {
+  if (targetFrameRate != 60 && targetFrameRate != 120) {
+    return failed_boot_status(@"Jak II supports only 60 or 120 Hz timing.", 0);
+  }
   NSString* data_path = nil;
   NSString* saves_path = nil;
   CAMetalLayer* layer = nil;
@@ -1537,7 +1546,8 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
         }
       }
     }
-    if (!failure && !goal_jak2_metal_host_set_present_pacing(host, 1.0 / 60.0)) {
+    if (!failure &&
+        !goal_jak2_metal_host_set_present_pacing(host, 1.0 / targetFrameRate)) {
       failure = string_from_utf8(goal_jak2_metal_host_last_error(host));
     }
 
@@ -1558,6 +1568,7 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
       config.saves_directory = saves_path.fileSystemRepresentation;
       config.graphics = GOAL_JAK2_RUNTIME_GRAPHICS_EXTERNAL_HOST;
       config.external_gfx_host = &graphics_host;
+      config.target_frame_rate = static_cast<int32_t>(targetFrameRate);
       if (goal_jak2_runtime_start(&config) != GOAL_JAK2_RUNTIME_OK) {
         failure = string_from_utf8(goal_jak2_runtime_last_error());
       }
@@ -1604,6 +1615,7 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
     g_host_layer = layer;
     g_runtime_metrics = runtime_metrics;
     g_metal_metrics = metal_metrics;
+    g_target_frame_rate = targetFrameRate;
     g_state = SessionState::Running;
     if (g_attached_layer != g_host_layer) {
       g_last_error = @"The presentation layer changed during Jak II boot; restart the session.";
@@ -1632,25 +1644,34 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
   return status;
 }
 
-+ (GOALPadGameBootStatus*)bootGameWithTargetFrameRate:(NSInteger)targetFrameRate {
-  // The Jak II Metal host has only passed its 60 Hz pacing proof. Keep this ABI-compatible entry
-  // point fixed at that cadence until another rate has an independent runtime proof.
-  (void)targetFrameRate;
-  return [self bootGame];
-}
-
 + (BOOL)setTargetFrameRate:(NSInteger)targetFrameRate {
   std::lock_guard<std::mutex> lock(g_mutex);
-  return targetFrameRate == 60 && g_state == SessionState::Running ? YES : NO;
+  if ((targetFrameRate != 60 && targetFrameRate != 120) ||
+      g_state != SessionState::Running || !g_metal_host) {
+    return NO;
+  }
+  if (targetFrameRate == g_target_frame_rate) {
+    return YES;
+  }
+  const NSInteger previousFrameRate = g_target_frame_rate;
+  if (!goal_jak2_metal_host_set_present_pacing(g_metal_host, 1.0 / targetFrameRate)) {
+    return NO;
+  }
+  if (goal_jak2_runtime_set_target_frame_rate(static_cast<int32_t>(targetFrameRate)) !=
+      GOAL_JAK2_RUNTIME_OK) {
+    (void)goal_jak2_metal_host_set_present_pacing(g_metal_host, 1.0 / previousFrameRate);
+    return NO;
+  }
+  g_target_frame_rate = targetFrameRate;
+  return YES;
 }
 
 + (BOOL)runFrameAtPresentationTime:(CFTimeInterval)targetPresentationTime {
-  (void)targetPresentationTime;
   std::lock_guard<std::mutex> lock(g_mutex);
   if (g_state != SessionState::Running) {
     return NO;
   }
-  const goal_jak2_runtime_status status = goal_jak2_runtime_tick();
+  const goal_jak2_runtime_status status = goal_jak2_runtime_tick_at(targetPresentationTime);
   copy_runtime_metrics_locked();
   copy_metal_metrics_locked();
   if (should_log_jak2_diagnostics(g_runtime_metrics.ticks)) {
@@ -1679,6 +1700,7 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
 + (void)resetFrameTiming {
   std::lock_guard<std::mutex> lock(g_mutex);
   g_frame_armed = false;
+  goal_jak2_runtime_reset_frame_timing();
 }
 
 + (uint64_t)framesRun {

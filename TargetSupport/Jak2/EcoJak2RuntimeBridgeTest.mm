@@ -38,6 +38,11 @@ int g_rumble_enabled = -1;
 bool g_runtime_running = false;
 bool g_host_active = false;
 bool g_fail_configure = false;
+int32_t g_requested_target_frame_rate = 0;
+int32_t g_runtime_target_frame_rate = 60;
+double g_last_tick_time = 0.0;
+int g_timing_resets = 0;
+std::vector<double> g_pacing_seconds;
 std::string g_data_directory;
 std::string g_saves_directory;
 std::string g_fr3_directory;
@@ -92,6 +97,7 @@ int goal_jak2_metal_host_rebind_presenting_layer(goal_jak2_metal_host* host,
 
 int goal_jak2_metal_host_set_present_pacing(goal_jak2_metal_host* host, double seconds) {
   g_calls.emplace_back("pacing");
+  g_pacing_seconds.push_back(seconds);
   return host == &g_host && seconds > 0;
 }
 
@@ -185,6 +191,8 @@ goal_jak2_runtime_status goal_jak2_runtime_start(const goal_jak2_runtime_config*
   }
   g_data_directory = config->data_directory ?: "";
   g_saves_directory = config->saves_directory ?: "";
+  g_requested_target_frame_rate = config->target_frame_rate;
+  g_runtime_target_frame_rate = config->target_frame_rate;
   g_runtime_running = true;
   g_runtime = {};
   g_runtime.state = GOAL_JAK2_RUNTIME_RUNNING;
@@ -206,10 +214,11 @@ goal_jak2_runtime_status goal_jak2_runtime_start(const goal_jak2_runtime_config*
   return GOAL_JAK2_RUNTIME_OK;
 }
 
-goal_jak2_runtime_status goal_jak2_runtime_tick(void) {
+goal_jak2_runtime_status goal_jak2_runtime_tick_at(double target_presentation_time) {
   if (!g_runtime_running) {
     return GOAL_JAK2_RUNTIME_NOT_RUNNING;
   }
+  g_last_tick_time = target_presentation_time;
   ++g_runtime.ticks;
   ++g_metal.chains;
   ++g_metal.completed_chains;
@@ -283,6 +292,25 @@ goal_jak2_runtime_status goal_jak2_runtime_tick(void) {
   g_metal.last_sprite_glow_force_visible_missing_textures = 53;
   g_metal.last_copied_bytes = 4096;
   return GOAL_JAK2_RUNTIME_OK;
+}
+
+goal_jak2_runtime_status goal_jak2_runtime_tick(void) {
+  return goal_jak2_runtime_tick_at(0.0);
+}
+
+goal_jak2_runtime_status goal_jak2_runtime_set_target_frame_rate(int32_t target_frame_rate) {
+  if (!g_runtime_running) {
+    return GOAL_JAK2_RUNTIME_NOT_RUNNING;
+  }
+  if (target_frame_rate != 60 && target_frame_rate != 120) {
+    return GOAL_JAK2_RUNTIME_INVALID_ARGUMENT;
+  }
+  g_runtime_target_frame_rate = target_frame_rate;
+  return GOAL_JAK2_RUNTIME_OK;
+}
+
+void goal_jak2_runtime_reset_frame_timing(void) {
+  ++g_timing_resets;
 }
 
 goal_jak2_runtime_status goal_jak2_runtime_get_metrics(goal_jak2_runtime_metrics* out) {
@@ -430,16 +458,24 @@ int main() {
     check([prepared.dataDirectory isEqualToString:@"/tmp/jak2-data"],
           "startup retains the data directory");
 
-    GOALPadGameBootStatus* boot = [GOALPadRuntimeBridge bootGameWithTargetFrameRate:60];
+    check(![GOALPadRuntimeBridge bootGameWithTargetFrameRate:90].isBooted,
+          "boot rejects unsupported Jak II timing without consuming the prepared session");
+    GOALPadGameBootStatus* boot = [GOALPadRuntimeBridge bootGameWithTargetFrameRate:120];
     check(boot.isBooted && boot.didPlay, "boot starts the Jak II runtime");
     check(boot.kernelObjects == 8 && boot.gameObjects == 465,
           "boot publishes runtime object counts");
     check(boot.isRendererInstalled && boot.isSoundInstalled,
           "boot publishes renderer and sound installation");
     check(g_created_layer == first_layer, "boot uses the cached presentation layer");
+    check(g_requested_target_frame_rate == 120 && g_runtime_target_frame_rate == 120 &&
+              !g_pacing_seconds.empty() && g_pacing_seconds.back() == 1.0 / 120.0,
+          "boot applies the selected Jak II logical and Metal pacing domain");
     check([GOALPadRuntimeBridge setTargetFrameRate:60] &&
-              ![GOALPadRuntimeBridge setTargetFrameRate:120],
-          "Jak II accepts only the proven 60 Hz runtime cadence");
+              g_runtime_target_frame_rate == 60 && g_pacing_seconds.back() == 1.0 / 60.0 &&
+              [GOALPadRuntimeBridge setTargetFrameRate:120] &&
+              g_runtime_target_frame_rate == 120 && g_pacing_seconds.back() == 1.0 / 120.0 &&
+              ![GOALPadRuntimeBridge setTargetFrameRate:90],
+          "Jak II switches live between the 60 and 120 Hz timing domains");
     check(g_data_directory == "/tmp/jak2-data" && g_saves_directory == "/tmp/jak2-saves",
           "boot passes the cached runtime directories");
     check(g_fr3_directory == "/tmp/jak2-data/fr3", "boot configures the Jak II fr3 directory");
@@ -448,6 +484,9 @@ int main() {
               call_index("configure") < call_index("copy") &&
               call_index("copy") < call_index("start"),
           "boot preserves Metal-host setup order");
+
+    [GOALPadRuntimeBridge resetFrameTiming];
+    check(g_timing_resets == 1, "a lifecycle reset clears Jak II presentation history");
 
     check(GOALPadRuntimeBridge.gameMode == GOALPadGameModeGameplay,
           "the shared game mode maps from Jak II metrics");
@@ -646,7 +685,8 @@ int main() {
     GOALPadGameFrameStateSnapshot frame = {};
     check([GOALPadRuntimeBridge runFrameAtPresentationTime:1.0 stateSnapshot:&frame],
           "the runtime bridge ticks one frame and returns a state snapshot");
-    check(!frame.exitToLibraryRequested && frame.successfulSaveGeneration == 0 &&
+    check(g_last_tick_time == 1.0 && !frame.exitToLibraryRequested &&
+              frame.successfulSaveGeneration == 0 &&
               frame.framesRun == 1 && frame.gameMode == GOALPadGameModeProgress &&
               frame.facePromptTouch.valid &&
               frame.facePromptTouch.requestedButtons == GOALPadButtonTriangle &&

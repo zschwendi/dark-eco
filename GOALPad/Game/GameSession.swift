@@ -286,17 +286,17 @@ final class GameSession {
         startupError = nil
         settings.apply()
         let bootTargetFrameRate: Int
+        #if os(visionOS)
         if profile.identifier == .jak2 {
             bootTargetFrameRate = 60
         } else {
-            #if os(visionOS)
             bootTargetFrameRate = presentationSettings.graphicsVisionHighFrameRate ? 90 : 60
-            #elseif os(iOS)
-            bootTargetFrameRate = presentationSettings.graphicsHighFrameRate ? 120 : 60
-            #else
-            bootTargetFrameRate = 60
-            #endif
         }
+        #elseif os(iOS)
+        bootTargetFrameRate = presentationSettings.graphicsHighFrameRate ? 120 : 60
+        #else
+        bootTargetFrameRate = 60
+        #endif
         runReadiness = .preRun
         isBooting = true
         startupState.move(to: .booting, generation: startupGeneration)
@@ -362,7 +362,7 @@ final class GameSession {
     /// separately; if it changes during boot, `bootFinished` reconciles it before frames begin.
     func setHighFrameRateEnabled(_ enabled: Bool) {
         #if os(iOS)
-        guard profile.identifier == .jak1 else { return }
+        guard profile.identifier == .jak1 || profile.identifier == .jak2 else { return }
         let requestedFrameRate = enabled ? 120 : 60
         guard requestedFrameRate != targetFrameRate else { return }
         guard !isBooting else { return }

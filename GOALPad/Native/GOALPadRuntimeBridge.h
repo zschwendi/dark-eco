@@ -311,15 +311,15 @@ typedef NS_ENUM(NSInteger, GOALPadGameIdentifier) {
 
 + (BOOL)isKernelRunning;
 
-/// Boot Jak 1: KERNEL.CGO, the machine layer, GAME.CGO, then the engine's own `play`. The kernel
-/// must already be up. This takes seconds and runs the game's own startup code, so call it off the
-/// main thread; nothing else may touch the kernel while it runs.
+/// Boot the selected title through its native AOT startup path. The kernel must already be up.
+/// This takes seconds and runs the game's own startup code, so call it off the main thread;
+/// nothing else may touch the kernel while it runs.
 + (GOALPadGameBootStatus *)bootGame;
 + (GOALPadGameBootStatus *)bootGameWithTargetFrameRate:(NSInteger)targetFrameRate
     NS_SWIFT_NAME(bootGame(targetFrameRate:));
 
-/// Switch a running Jak 1 session between the host-managed 60 and 120 Hz timing domains. Returns
-/// NO without changing the display request when no game is booted.
+/// Switch a running iOS session between the host-managed 60 and 120 Hz timing domains. Returns NO
+/// without changing the display request when the selected title cannot apply the rate.
 + (BOOL)setTargetFrameRate:(NSInteger)targetFrameRate;
 
 /// Run one frame of the game: `kernel-dispatcher`, then the overlord's vblank work. The target
