@@ -58,7 +58,8 @@ struct TouchControlsView: View {
 
     private var nativeMenuActions: [NativeMenuTouchAction] {
         NativeMenuTouchAction.available(
-            in: gameMode, progress: progressMenuSnapshot, titleStartState: titleStartState)
+            in: gameMode, progress: progressMenuSnapshot, titleStartState: titleStartState,
+            gameTitle: controls.gameTitle)
     }
 
     private var sessionControl: NativeSessionControlPresentation? {
@@ -70,7 +71,8 @@ struct TouchControlsView: View {
 
     private var nativeMenuControlsAreVisible: Bool {
         TouchControls.nativeMenuControlsAreVisible(mode: gameMode,
-                                                   progress: progressMenuSnapshot)
+                                                   progress: progressMenuSnapshot,
+                                                   gameTitle: controls.gameTitle)
     }
 
     private var capturesNativeMenuInput: Bool {
@@ -737,7 +739,8 @@ private struct NativeMenuTouchControls: View {
                             width: CGFloat = 60) -> some View {
         let isEnabled = NativeMenuTouchAction.isEnabled(
             action, in: controls.nativeMenuMode, progress: controls.progressMenuSnapshot,
-            titleStartState: controls.titleStartState)
+            titleStartState: controls.titleStartState,
+            gameTitle: controls.gameTitle)
         return Button { perform(action) } label: {
             Group {
                 if Self.dpadActions.contains(action) {

@@ -141,6 +141,57 @@ extension TouchLayoutAction {
     }
 }
 
+/// Jak II's source-proven progress/save-flow meaning, independent of Jak 1 screen numbers.
+struct NativeJak2ProgressMenuSemanticSnapshot: Equatable {
+    enum Phase: Equatable {
+        case unavailable
+        case selectSaveTitle
+        case noMemoryCard
+        case createGame
+        case creating
+        case saving
+        case existingSaveOverwrite
+        case saveIconInformation
+        case selectLoad
+        case selectSave
+        case loading
+    }
+
+    let available: Bool
+    let phase: Phase
+    let optionIndex: Int
+    let actionMask: UInt32
+
+    static let unavailable = NativeJak2ProgressMenuSemanticSnapshot(
+        available: false, phase: .unavailable, optionIndex: -1, actionMask: 0)
+
+    init(available: Bool, phase: Phase, optionIndex: Int, actionMask: UInt32) {
+        self.available = available
+        self.phase = phase
+        self.optionIndex = optionIndex
+        self.actionMask = actionMask
+    }
+
+    init(_ snapshot: GOALPadJak2ProgressMenuSemanticSnapshot) {
+        let semanticPhase: Phase = switch snapshot.phase {
+        case .selectSaveTitle: .selectSaveTitle
+        case .noMemoryCard: .noMemoryCard
+        case .createGame: .createGame
+        case .creating: .creating
+        case .saving: .saving
+        case .existingSaveOverwrite: .existingSaveOverwrite
+        case .saveIconInformation: .saveIconInformation
+        case .selectLoad: .selectLoad
+        case .selectSave: .selectSave
+        case .loading: .loading
+        case .unavailable: .unavailable
+        @unknown default: .unavailable
+        }
+        self.init(available: snapshot.available.boolValue, phase: semanticPhase,
+                  optionIndex: Int(snapshot.optionIndex), actionMask: snapshot.actionMask)
+    }
+}
+
 /// The read-only progress state that Swift uses to expose only screen-proven touch semantics.
 struct NativeProgressMenuSnapshot: Equatable {
     let available: Bool
@@ -152,16 +203,19 @@ struct NativeProgressMenuSnapshot: Equatable {
     let startingScreenRawValue: Int
     let canExitWithStart: Bool
     let canGoBack: Bool
+    let jak2Semantic: NativeJak2ProgressMenuSemanticSnapshot
 
     static let unavailable = NativeProgressMenuSnapshot(
         available: false, screenRawValue: -2, optionIndex: -1,
         selectedOption: false, inTransition: false, navigationAvailable: false,
-        startingScreenRawValue: -2, canExitWithStart: false, canGoBack: false)
+        startingScreenRawValue: -2, canExitWithStart: false, canGoBack: false,
+        jak2Semantic: .unavailable)
 
     init(available: Bool, screenRawValue: Int, optionIndex: Int,
          selectedOption: Bool, inTransition: Bool,
          navigationAvailable: Bool = false, startingScreenRawValue: Int = -2,
-         canExitWithStart: Bool = false, canGoBack: Bool = false) {
+         canExitWithStart: Bool = false, canGoBack: Bool = false,
+         jak2Semantic: NativeJak2ProgressMenuSemanticSnapshot = .unavailable) {
         self.available = available
         self.screenRawValue = screenRawValue
         self.optionIndex = optionIndex
@@ -171,9 +225,11 @@ struct NativeProgressMenuSnapshot: Equatable {
         self.startingScreenRawValue = startingScreenRawValue
         self.canExitWithStart = canExitWithStart
         self.canGoBack = canGoBack
+        self.jak2Semantic = jak2Semantic
     }
 
-    init(_ snapshot: GOALPadProgressMenuSnapshot) {
+    init(_ snapshot: GOALPadProgressMenuSnapshot,
+         jak2Semantic: NativeJak2ProgressMenuSemanticSnapshot = .unavailable) {
         available = snapshot.available.boolValue
         screenRawValue = snapshot.screen.rawValue
         optionIndex = Int(snapshot.optionIndex)
@@ -183,6 +239,7 @@ struct NativeProgressMenuSnapshot: Equatable {
         startingScreenRawValue = snapshot.startingScreen.rawValue
         canExitWithStart = snapshot.canExitWithStart.boolValue
         canGoBack = snapshot.canGoBack.boolValue
+        self.jak2Semantic = jak2Semantic
     }
 }
 
@@ -545,7 +602,7 @@ enum NativeFacePromptTouchAction: CaseIterable, Hashable, Sendable {
 /// Touch-friendly actions whose meanings are authoritative for the current native game state.
 enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
     case up, down, left, right
-    case confirm, back, cancel, start, pause, resume
+    case confirm, back, cancel, jak2Back, start, pause, resume
     case fuelCells, precursorOrbs, scoutFlies, settings
 
     /// Boxed-array lengths installed by Jak 1's shipping PC `init-game-options` override.
@@ -586,6 +643,7 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         case .confirm: .cross
         case .back: .square
         case .cancel: .square
+        case .jak2Back: .triangle
         case .start, .pause, .resume: .start
         case .fuelCells: .square
         case .precursorOrbs: .cross
@@ -603,6 +661,7 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         case .confirm: "Confirm"
         case .back: "Back"
         case .cancel: "Cancel"
+        case .jak2Back: "Back"
         case .start: "Start"
         case .pause: "Pause"
         case .resume: "Resume"
@@ -621,6 +680,7 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         case .right: "chevron.right"
         case .confirm: "xmark"
         case .back, .cancel: "circle"
+        case .jak2Back: "triangle"
         case .start: "play.fill"
         case .pause: "pause.fill"
         case .resume: "play.fill"
@@ -634,11 +694,14 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
     nonisolated static func available(
         in mode: GOALPadGameMode,
         progress: NativeProgressMenuSnapshot = .unavailable,
-        titleStartState: GOALPadTitleStartState = .unknown
+        titleStartState: GOALPadTitleStartState = .unknown,
+        gameTitle: TouchGameTitle = .jak1
     ) -> [Self] {
         return switch mode {
         case .pause:
-            []
+            gameTitle == .jak2
+                ? [.up, .down, .left, .right, .jak2Back, .confirm]
+                : []
         case .menu:
             [.up, .down, .left, .right, .back, .confirm]
         case .progress:
@@ -655,7 +718,8 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         in mode: GOALPadGameMode,
         progress: NativeProgressMenuSnapshot,
         titleStartState: GOALPadTitleStartState,
-        runReadiness: GameplayRunReadiness = .active
+        runReadiness: GameplayRunReadiness = .active,
+        gameTitle: TouchGameTitle = .jak1
     ) -> Bool {
         if let session = NativeSessionControlPresentation.reduce(
             mode: mode, titleStartState: titleStartState, progress: progress,
@@ -664,12 +728,16 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
             return session.isEnabled
         }
         return available(in: mode, progress: progress,
-                         titleStartState: titleStartState).contains(action)
+                         titleStartState: titleStartState,
+                         gameTitle: gameTitle).contains(action)
     }
 
     nonisolated private static func progressActions(
         for snapshot: NativeProgressMenuSnapshot
     ) -> [Self] {
+        if snapshot.jak2Semantic.available {
+            return jak2ProgressActions(for: snapshot.jak2Semantic)
+        }
         guard snapshot.available, !snapshot.inTransition else { return [] }
 
         if ShippingPCScreen.isConfirmOnlyNotice(snapshot.screenRawValue) {
@@ -729,6 +797,45 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
             actions.insert(.back, at: max(0, actions.count - 1))
         }
         return actions
+    }
+
+    nonisolated private static func jak2ProgressActions(
+        for snapshot: NativeJak2ProgressMenuSemanticSnapshot
+    ) -> [Self] {
+        let up = UInt32(1 << 0)
+        let down = UInt32(1 << 1)
+        let left = UInt32(1 << 2)
+        let right = UInt32(1 << 3)
+        let confirm = UInt32(1 << 4)
+        let back = UInt32(1 << 5)
+
+        switch snapshot.phase {
+        case .selectSaveTitle:
+            guard (0...4).contains(snapshot.optionIndex),
+                  snapshot.actionMask == (up | down | confirm | back) else { return [] }
+            return [.up, .down, .jak2Back, .confirm]
+        case .selectLoad, .selectSave:
+            guard (0...3).contains(snapshot.optionIndex),
+                  snapshot.actionMask == (up | down | confirm | back) else { return [] }
+            return [.up, .down, .jak2Back, .confirm]
+        case .noMemoryCard:
+            guard snapshot.optionIndex == 0,
+                  snapshot.actionMask == confirm else { return [] }
+            return [.confirm]
+        case .createGame, .existingSaveOverwrite:
+            guard snapshot.optionIndex == 0,
+                  snapshot.actionMask == (left | right | confirm | back) else { return [] }
+            return [.left, .right, .jak2Back, .confirm]
+        case .saveIconInformation:
+            guard snapshot.optionIndex == 0,
+                  snapshot.actionMask == confirm else { return [] }
+            return [.confirm]
+        case .creating, .saving, .loading:
+            guard snapshot.optionIndex == 0, snapshot.actionMask == 0 else { return [] }
+            return []
+        case .unavailable:
+            return []
+        }
     }
 
     nonisolated private static func commonOptions(
@@ -1694,7 +1801,8 @@ final class TouchControls {
         guard NativeMenuTouchAction.isEnabled(action, in: nativeMenuMode,
                                               progress: progressMenuSnapshot,
                                               titleStartState: titleStartState,
-                                              runReadiness: runReadiness)
+                                              runReadiness: runReadiness,
+                                              gameTitle: gameTitle)
         else { return }
         noteScreenInteraction()
         press(action.button)
@@ -1731,7 +1839,8 @@ final class TouchControls {
     @discardableResult
     func performNativeMenuVerticalSwipe(translation: CGSize) -> Bool {
         let actions = NativeMenuTouchAction.available(in: nativeMenuMode,
-                                                      progress: progressMenuSnapshot)
+                                                      progress: progressMenuSnapshot,
+                                                      gameTitle: gameTitle)
         guard abs(translation.height) >= Self.nativeMenuSwipeDistance,
               abs(translation.height) > abs(translation.width) else { return false }
         let action: NativeMenuTouchAction = translation.height < 0 ? .up : .down
@@ -2370,8 +2479,10 @@ final class TouchControls {
     }
 
     nonisolated static func nativeMenuControlsAreVisible(mode: GOALPadGameMode,
-                                                         progress: NativeProgressMenuSnapshot = .unavailable) -> Bool {
-        return !NativeMenuTouchAction.available(in: mode, progress: progress).isEmpty
+                                                         progress: NativeProgressMenuSnapshot = .unavailable,
+                                                         gameTitle: TouchGameTitle = .jak1) -> Bool {
+        return !NativeMenuTouchAction.available(
+            in: mode, progress: progress, gameTitle: gameTitle).isEmpty
     }
 
     nonisolated static func warpGateTouchControlsAreVisible(

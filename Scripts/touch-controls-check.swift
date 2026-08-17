@@ -2370,6 +2370,18 @@ private func progressSnapshot(screen: Int, option: Int = 0,
                                canGoBack: canGoBack)
 }
 
+private func jak2ProgressSnapshot(
+    phase: NativeJak2ProgressMenuSemanticSnapshot.Phase,
+    option: Int = 0,
+    actions: UInt32
+) -> NativeProgressMenuSnapshot {
+    NativeProgressMenuSnapshot(
+        available: true, screenRawValue: 27, optionIndex: option,
+        selectedOption: false, inTransition: false,
+        jak2Semantic: NativeJak2ProgressMenuSemanticSnapshot(
+            available: true, phase: phase, optionIndex: option, actionMask: actions))
+}
+
 private func warpList(slot: Int32 = 0, mask: UInt32 = 0x1f,
                       moving: Bool = false,
                       sequence: UInt32 = 2) -> NativeWarpGateTouchSnapshot {
@@ -2388,11 +2400,35 @@ private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
           "every right-stack command shares one left inset, icon column, and text gap")
     check(NativeMenuTouchAction.available(in: .pause).isEmpty,
           "pause keeps Resume in the persistent bottom session pill")
+    check(NativeMenuTouchAction.available(in: .pause, gameTitle: .jak2)
+          == [.up, .down, .left, .right, .jak2Back, .confirm],
+          "Jak II pause exposes D-pad, Triangle Back, and Confirm touch controls")
     check(NativeMenuTouchAction.available(in: .menu)
           == [.up, .down, .left, .right, .back, .confirm],
           "debug menu exposes its exact D-pad, Square, and X actions without duplicate Resume")
     check(NativeMenuTouchAction.available(in: .progress).isEmpty,
           "progress fails closed without an authoritative internal snapshot")
+
+    let up = UInt32(1 << 0)
+    let down = UInt32(1 << 1)
+    let left = UInt32(1 << 2)
+    let right = UInt32(1 << 3)
+    let confirm = UInt32(1 << 4)
+    let back = UInt32(1 << 5)
+    check(NativeMenuTouchAction.available(
+        in: .progress,
+        progress: jak2ProgressSnapshot(
+            phase: .selectSaveTitle, actions: up | down | confirm | back))
+          == [.up, .down, .jak2Back, .confirm],
+          "Jak II save selection restores Up, Down, Triangle Back, and Confirm")
+    check(NativeMenuTouchAction.available(
+        in: .progress,
+        progress: jak2ProgressSnapshot(
+            phase: .createGame, actions: left | right | confirm | back))
+          == [.left, .right, .jak2Back, .confirm],
+          "Jak II save confirmation restores Left, Right, Triangle Back, and Confirm")
+    check(NativeMenuTouchAction.jak2Back.button == .triangle,
+          "Jak II Back emits Triangle instead of Jak 1's Square")
     let stats = progressSnapshot(screen: 0)
     check(NativeMenuTouchAction.available(in: .progress, progress: stats)
           == [.up, .down, .left, .right,

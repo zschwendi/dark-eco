@@ -149,6 +149,7 @@ rg -Fq 'isInteractive: nativeMenuControlsAreVisible' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'showsChrome: nativeMenuControlsAreVisible' \
   "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'gameTitle: controls.gameTitle' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'isInteractive: warpGateTouchControlsAreVisible' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'showsChrome: warpGateTouchControlsAreVisible' \
@@ -188,6 +189,18 @@ printf '%s\n' "$native_menu_button" | rg -Fq \
   '.strokeBorder(.white.opacity(isEnabled ? 0.35 : 0.18), lineWidth: 1)'
 if printf '%s\n' "$native_menu_button" | rg -Fq '.opacity(isEnabled ? 1 : 0.55)'; then
   echo "native menu still applies opacity beyond the shared Start/Select styling" >&2
+  exit 1
+fi
+
+jak2_progress_reducer=$(sed -n \
+  '/private static func jak2ProgressActions(/,/private static func commonOptions(/p' \
+  "$root/GOALPad/Game/TouchControls.swift")
+printf '%s\n' "$jak2_progress_reducer" | rg -Fq 'case .selectLoad, .selectSave:'
+printf '%s\n' "$jak2_progress_reducer" | rg -Fq 'case .creating, .saving, .loading:'
+printf '%s\n' "$jak2_progress_reducer" | rg -Fq '.jak2Back'
+printf '%s\n' "$jak2_progress_reducer" | rg -Fq 'snapshot.actionMask'
+if printf '%s\n' "$jak2_progress_reducer" | rg -Fq 'screenRawValue'; then
+  echo "Jak II semantic reducer reuses an unproven raw progress screen number" >&2
   exit 1
 fi
 if rg -Fq 'session.isRunning && session.isNativeMenuOpen' \
