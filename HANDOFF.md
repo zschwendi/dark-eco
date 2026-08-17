@@ -21020,10 +21020,32 @@ The matching signed generic iOS Release build subsequently passed. Log:
 `/private/tmp/GOALPad-v2-main-derived/Build/Products/Release-iphoneos/EcoJak2Dev.app`.
 It reports bundle `com.zephyrstudiosllc.eco.jak2dev`, version 1.0 (235), is
 91 MiB, and passes strict deep code-sign verification. This is build/signing
-evidence only; it has not yet been installed on the physical iPad.
+evidence only; it was not installed on the physical iPad and the reproducible
+standalone product was later deleted to make room for the requested merged
+launcher build.
+
+The correct merged `GOALPad` scheme then produced signed Dark Eco 2.0 (235),
+bundle `com.zephyrstudiosllc.eco`, with the Jak II runtime embedded. The first
+merged attempt stopped at the first `No space left on device` error. After
+deleting only exact reproducible target intermediates and Xcode's stale
+942 MiB `Index.noindex` cache, the warm second attempt passed in 333.655
+seconds. The 136 MiB product passes strict deep code-sign verification:
+
+```text
+/private/tmp/goalpad-build235-merged-device-build-attempt2.log
+/private/tmp/GOALPad-v2-main-derived/Build/Products/Release-iphoneos/Dark Eco.app
+```
+
+This is the product to update-install in place. Do not uninstall the existing
+Dark Eco app, because an update install preserves its current sandbox, imports,
+and saves. Physical installation is still waiting for the maintainer to confirm
+that `Z iPad Pro` is unlocked and awake; do not make a fourth CoreDevice attempt
+until that external state changes.
 
 Disk space was critically low during that build. Only reproducible temporary
 Build 235 simulator products/intermediates (476 MiB reported before deletion)
-and the obsolete 22 MiB Build 234 source-pack backup were removed. The installed
-simulator app, current Build 235 source pack/AOT, source worktrees, prepared game
-data, device data, and saves were not deleted or inspected.
+and the obsolete 22 MiB Build 234 source-pack backup were removed. Additional
+cleanup for the merged build was limited to reproducible target intermediates,
+the uninstalled standalone product, and the stale Xcode index cache. The
+installed simulator app, current Build 235 source pack/AOT, source worktrees,
+prepared game data, device data, and saves were not deleted or inspected.
