@@ -695,7 +695,8 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         in mode: GOALPadGameMode,
         progress: NativeProgressMenuSnapshot = .unavailable,
         titleStartState: GOALPadTitleStartState = .unknown,
-        gameTitle: TouchGameTitle = .jak1
+        gameTitle: TouchGameTitle = .jak1,
+        runReadiness: GameplayRunReadiness = .active
     ) -> [Self] {
         return switch mode {
         case .pause:
@@ -705,7 +706,12 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
         case .menu:
             [.up, .down, .left, .right, .back, .confirm]
         case .progress:
-            progressActions(for: progress)
+            if gameTitle == .jak2, runReadiness == .active,
+               !progress.available, !progress.jak2Semantic.available {
+                [.up, .down, .left, .right, .jak2Back, .confirm]
+            } else {
+                progressActions(for: progress)
+            }
         case .unknown, .gameplay:
             []
         @unknown default:
@@ -723,13 +729,14 @@ enum NativeMenuTouchAction: CaseIterable, Hashable, Sendable {
     ) -> Bool {
         if let session = NativeSessionControlPresentation.reduce(
             mode: mode, titleStartState: titleStartState, progress: progress,
-            runReadiness: runReadiness),
+            runReadiness: runReadiness, gameTitle: gameTitle),
            action == session.action {
             return session.isEnabled
         }
         return available(in: mode, progress: progress,
                          titleStartState: titleStartState,
-                         gameTitle: gameTitle).contains(action)
+                         gameTitle: gameTitle,
+                         runReadiness: runReadiness).contains(action)
     }
 
     nonisolated private static func progressActions(
@@ -869,7 +876,8 @@ nonisolated struct NativeSessionControlPresentation: Equatable, Sendable {
         mode: GOALPadGameMode,
         titleStartState: GOALPadTitleStartState,
         progress: NativeProgressMenuSnapshot,
-        runReadiness: GameplayRunReadiness = .active
+        runReadiness: GameplayRunReadiness = .active,
+        gameTitle: TouchGameTitle = .jak1
     ) -> Self? {
         switch mode {
         case .gameplay:
@@ -888,6 +896,10 @@ nonisolated struct NativeSessionControlPresentation: Equatable, Sendable {
         case .pause, .menu:
             return Self(action: .resume, isEnabled: true)
         case .progress:
+            if gameTitle == .jak2, runReadiness == .active,
+               !progress.available, !progress.jak2Semantic.available {
+                return Self(action: .resume, isEnabled: true)
+            }
             guard progress.navigationAvailable else { return nil }
             let action: NativeMenuTouchAction = runReadiness == .active
                 && progress.startingScreenRawValue != 27 ? .resume : .start
@@ -1840,7 +1852,8 @@ final class TouchControls {
     func performNativeMenuVerticalSwipe(translation: CGSize) -> Bool {
         let actions = NativeMenuTouchAction.available(in: nativeMenuMode,
                                                       progress: progressMenuSnapshot,
-                                                      gameTitle: gameTitle)
+                                                      gameTitle: gameTitle,
+                                                      runReadiness: runReadiness)
         guard abs(translation.height) >= Self.nativeMenuSwipeDistance,
               abs(translation.height) > abs(translation.width) else { return false }
         let action: NativeMenuTouchAction = translation.height < 0 ? .up : .down
@@ -2480,9 +2493,11 @@ final class TouchControls {
 
     nonisolated static func nativeMenuControlsAreVisible(mode: GOALPadGameMode,
                                                          progress: NativeProgressMenuSnapshot = .unavailable,
-                                                         gameTitle: TouchGameTitle = .jak1) -> Bool {
+                                                         gameTitle: TouchGameTitle = .jak1,
+                                                         runReadiness: GameplayRunReadiness = .active) -> Bool {
         return !NativeMenuTouchAction.available(
-            in: mode, progress: progress, gameTitle: gameTitle).isEmpty
+            in: mode, progress: progress, gameTitle: gameTitle,
+            runReadiness: runReadiness).isEmpty
     }
 
     nonisolated static func warpGateTouchControlsAreVisible(

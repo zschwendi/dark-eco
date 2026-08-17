@@ -2408,6 +2408,18 @@ private func nativeMenuActionsAreTruthfullyGatedAndLabelled() {
           "debug menu exposes its exact D-pad, Square, and X actions without duplicate Resume")
     check(NativeMenuTouchAction.available(in: .progress).isEmpty,
           "progress fails closed without an authoritative internal snapshot")
+    check(NativeMenuTouchAction.available(
+        in: .progress, gameTitle: .jak2, runReadiness: .active)
+          == [.up, .down, .left, .right, .jak2Back, .confirm],
+          "active Jak II progress menus retain the native D-pad, Triangle Back, and Confirm")
+    check(NativeMenuTouchAction.available(
+        in: .progress, gameTitle: .jak2, runReadiness: .titleMenu).isEmpty,
+          "Jak II title progress still fails closed without an exact snapshot")
+    check(NativeSessionControlPresentation.reduce(
+        mode: .progress, titleStartState: .unknown, progress: .unavailable,
+        runReadiness: .active, gameTitle: .jak2)
+          == NativeSessionControlPresentation(action: .resume, isEnabled: true),
+          "active Jak II progress menus expose Start Resume")
 
     let up = UInt32(1 << 0)
     let down = UInt32(1 << 1)
@@ -2801,6 +2813,9 @@ private func nativeMenuSuppressionCancellationAndResetAreSafe() {
           "menu controls remain touchable alongside physical input")
     check(!TouchControls.nativeMenuControlsAreVisible(mode: .progress),
           "unavailable progress does not present controls with unproven labels")
+    check(TouchControls.nativeMenuControlsAreVisible(
+        mode: .progress, gameTitle: .jak2, runReadiness: .active),
+          "active Jak II progress retains generic native menu controls")
     check(TouchControls.nativeMenuControlsAreVisible(
         mode: .progress, progress: progressSnapshot(screen: 0)),
           "validated progress stats present exact touch controls")

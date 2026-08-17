@@ -59,20 +59,22 @@ struct TouchControlsView: View {
     private var nativeMenuActions: [NativeMenuTouchAction] {
         NativeMenuTouchAction.available(
             in: gameMode, progress: progressMenuSnapshot, titleStartState: titleStartState,
-            gameTitle: controls.gameTitle)
+            gameTitle: controls.gameTitle, runReadiness: runReadiness)
     }
 
     private var sessionControl: NativeSessionControlPresentation? {
         NativeSessionControlPresentation.reduce(mode: gameMode,
                                                 titleStartState: titleStartState,
                                                 progress: progressMenuSnapshot,
-                                                runReadiness: runReadiness)
+                                                runReadiness: runReadiness,
+                                                gameTitle: controls.gameTitle)
     }
 
     private var nativeMenuControlsAreVisible: Bool {
         TouchControls.nativeMenuControlsAreVisible(mode: gameMode,
                                                    progress: progressMenuSnapshot,
-                                                   gameTitle: controls.gameTitle)
+                                                   gameTitle: controls.gameTitle,
+                                                   runReadiness: runReadiness)
     }
 
     private var capturesNativeMenuInput: Bool {
@@ -740,6 +742,7 @@ private struct NativeMenuTouchControls: View {
         let isEnabled = NativeMenuTouchAction.isEnabled(
             action, in: controls.nativeMenuMode, progress: controls.progressMenuSnapshot,
             titleStartState: controls.titleStartState,
+            runReadiness: controls.runReadiness,
             gameTitle: controls.gameTitle)
         return Button { perform(action) } label: {
             Group {
