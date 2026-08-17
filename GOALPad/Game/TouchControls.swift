@@ -54,6 +54,69 @@ enum TouchControlStyle: String, CaseIterable, Sendable {
     case classic
 }
 
+/// The game-specific semantics layered over the shared raw touch surface.
+enum TouchGameTitle: Equatable, Sendable {
+    case jak1
+    case jak2
+}
+
+/// Jak II maps its four gun mods directly to the physical D-pad.
+enum Jak2WeaponTouchAction: CaseIterable, Equatable, Hashable, Sendable {
+    case scatterGun
+    case peaceMaker
+    case blaster
+    case vulcanFury
+
+    enum Tint: Equatable, Sendable {
+        case red
+        case dark
+        case yellow
+        case blue
+
+        struct RGB: Equatable, Sendable {
+            let red: Double
+            let green: Double
+            let blue: Double
+        }
+
+        var rgb: RGB {
+            switch self {
+            case .red: RGB(red: 0.65, green: 0, blue: 0)
+            case .dark: RGB(red: 0.6875, green: 0.6, blue: 0.78125)
+            case .yellow: RGB(red: 1, green: 0.75, blue: 0.125)
+            case .blue: RGB(red: 0.4375, green: 0.8125, blue: 1)
+            }
+        }
+    }
+
+    var button: TouchButton {
+        switch self {
+        case .scatterGun: .up
+        case .peaceMaker: .right
+        case .blaster: .down
+        case .vulcanFury: .left
+        }
+    }
+
+    var tint: Tint {
+        switch self {
+        case .scatterGun: .red
+        case .peaceMaker: .dark
+        case .blaster: .yellow
+        case .vulcanFury: .blue
+        }
+    }
+
+    var weaponName: String {
+        switch self {
+        case .scatterGun: "Scatter Gun"
+        case .peaceMaker: "Peace Maker"
+        case .blaster: "Blaster"
+        case .vulcanFury: "Vulcan Fury"
+        }
+    }
+}
+
 extension TouchLayoutAction {
     var touchButton: TouchButton? {
         switch self {
@@ -1080,6 +1143,35 @@ struct ModernTouchLayout: Sendable {
     }
 }
 
+/// Mirrors the fixed right-stick frame across the safe-area centre so both controls obey the
+/// same inward offset, radius, and vertical-placement rules.
+struct Jak2WeaponWheelLayout: Equatable, Sendable {
+    let frame: CGRect
+
+    init(modernLayout: ModernTouchLayout) {
+        let safe = modernLayout.safeBounds
+        let camera = modernLayout.rightStickArtworkFrame
+        let diameter = min(camera.width, camera.height, safe.width, safe.height)
+        let reflectedCentre = CGPoint(
+            x: safe.midX - (camera.midX - safe.midX),
+            y: camera.midY)
+        var candidate = CGRect(x: reflectedCentre.x - diameter / 2,
+                               y: reflectedCentre.y - diameter / 2,
+                               width: diameter,
+                               height: diameter)
+        let movementClearance = modernLayout.movementArtworkFrame.insetBy(dx: -8, dy: -8)
+        if candidate.intersects(movementClearance) {
+            candidate.origin.y = movementClearance.minY - candidate.height
+        }
+        let maximumX = max(safe.minX, safe.maxX - candidate.width)
+        let maximumY = max(safe.minY, safe.maxY - candidate.height)
+        frame = CGRect(x: min(max(candidate.minX, safe.minX), maximumX),
+                       y: min(max(candidate.minY, safe.minY), maximumY),
+                       width: candidate.width,
+                       height: candidate.height)
+    }
+}
+
 /// Deterministic Classic artwork and app-owned touch targets.
 struct ClassicTouchLayout {
     static let minimumButtonHitSize = CGSize(width: 44, height: 44)
@@ -1344,6 +1436,7 @@ final class TouchControls {
     nonisolated static let dpadRepeatInterval = 10
 
     private(set) var style: TouchControlStyle
+    private(set) var gameTitle: TouchGameTitle
     private(set) var layoutCustomization = TouchLayoutCustomization.standard
     private(set) var dynamicLeftStick = false
     private(set) var nativeMenuMode: GOALPadGameMode = .unknown
@@ -1423,8 +1516,9 @@ final class TouchControls {
     @ObservationIgnored private var fadeToken = 0
     @ObservationIgnored private var dpad = DirectionRepeat()
 
-    init(style: TouchControlStyle = .modern) {
+    init(style: TouchControlStyle = .modern, gameTitle: TouchGameTitle = .jak1) {
         self.style = style
+        self.gameTitle = gameTitle
     }
 
     var capturesNativeMenuInput: Bool {
@@ -1458,6 +1552,12 @@ final class TouchControls {
         guard style != self.style else { return }
         reset()
         self.style = style
+    }
+
+    func setGameTitle(_ gameTitle: TouchGameTitle) {
+        guard gameTitle != self.gameTitle else { return }
+        reset()
+        self.gameTitle = gameTitle
     }
 
     func setLayoutCustomization(_ customization: TouchLayoutCustomization) {
@@ -1570,6 +1670,23 @@ final class TouchControls {
         noteScreenInteraction()
         press(action.button)
         if emitsHaptic { enqueueHaptic(.button(action.button)) }
+    }
+
+    /// Emits the same ordinary D-pad bit as Jak II's physical weapon selector.
+    @discardableResult
+    func performJak2WeaponSelection(_ action: Jak2WeaponTouchAction) -> Bool {
+        guard Self.jak2WeaponWheelIsVisible(
+            gameTitle: gameTitle,
+            mode: nativeMenuMode,
+            runReadiness: runReadiness,
+            isAwaitingTitleStart: titleStartState == .awaiting
+                || titleStartState == .titleOpening
+                || titleStartState == .titleSequence),
+              !capturesNativeTouchInput else { return false }
+        noteScreenInteraction()
+        press(action.button)
+        enqueueHaptic(.button(action.button))
+        return true
     }
 
     /// The compact STATS pill mirrors the physical L2+R2 chord while the native pause owner has
@@ -1853,10 +1970,15 @@ final class TouchControls {
             performCutsceneSkip(for: expectedSnapshot)
         } else if touch.role == .gesture, touch.swiped == nil,
                   touch.travelled <= Self.tapDistance,
-                  lookAroundState == .firstPerson {
-            press(.square)
-            enqueueHaptic(.gesture(.square))
-            touchLog.debug("first-person fire")
+                  let button = Self.cameraRegionTapButton(
+                    gameTitle: gameTitle, lookAroundState: lookAroundState) {
+            press(button)
+            enqueueHaptic(.gesture(button))
+            if gameTitle == .jak1 {
+                touchLog.debug("first-person fire")
+            } else {
+                touchLog.debug("camera-region action \(button.glyph)")
+            }
         }
         fadeWhenIdle()
     }
@@ -2152,6 +2274,28 @@ final class TouchControls {
         if button == .stats, cutsceneSkipAvailable { return "SKIP" }
         guard button == .start else { return button.glyph }
         return (sessionAction?.label ?? button.glyph).uppercased()
+    }
+
+    nonisolated static func cameraRegionTapButton(
+        gameTitle: TouchGameTitle,
+        lookAroundState: GOALPadLookAroundState
+    ) -> TouchButton? {
+        switch gameTitle {
+        case .jak1:
+            lookAroundState == .firstPerson ? .square : nil
+        case .jak2:
+            .rightShoulder
+        }
+    }
+
+    nonisolated static func jak2WeaponWheelIsVisible(
+        gameTitle: TouchGameTitle,
+        mode: GOALPadGameMode,
+        runReadiness: GameplayRunReadiness,
+        isAwaitingTitleStart: Bool
+    ) -> Bool {
+        gameTitle == .jak2 && mode == .gameplay && runReadiness == .active
+            && !isAwaitingTitleStart
     }
 
     nonisolated static func cutsceneSkipIsAvailable(

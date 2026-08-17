@@ -140,6 +140,14 @@ struct TouchControlsView: View {
         activeGameplayChromeIsAvailable && !cutsceneSkipAvailable && facePromptActions.isEmpty
     }
 
+    private var jak2WeaponWheelIsVisible: Bool {
+        TouchControls.jak2WeaponWheelIsVisible(
+            gameTitle: controls.gameTitle,
+            mode: gameMode,
+            runReadiness: runReadiness,
+            isAwaitingTitleStart: isAwaitingTitleStart)
+    }
+
     private var ecoSettingsIsVisible: Bool {
         NativeEcoSettingsPresentation.isVisible(
             mode: gameMode,
@@ -170,6 +178,7 @@ struct TouchControlsView: View {
                                            safeAreaInsets: safeAreaInsets,
                                            customization: controls.layoutCustomization,
                                            usesCompactSessionChrome: usesCompactSessionChrome)
+            let weaponWheelLayout = Jak2WeaponWheelLayout(modernLayout: layout)
             let reservesCapturedSessionRow = capturedSettingsButtonIsVisible
                 || sessionControl != nil
 
@@ -195,6 +204,12 @@ struct TouchControlsView: View {
                         .opacity(ordinaryGameplayChromeIsVisible ? 1 : 0)
                         .animation(.easeOut(duration: 0.16),
                                    value: ordinaryGameplayChromeIsVisible)
+
+                    if jak2WeaponWheelIsVisible {
+                        Jak2WeaponWheelControl(controls: controls,
+                                               frame: weaponWheelLayout.frame,
+                                               reclaimTouchInput: reclaimTouchInput)
+                    }
 
                     if titleStartTouchTargetIsVisible {
                         titleStartTouchTarget(frame: layout.selectPillFrame)
@@ -916,6 +931,123 @@ private struct RightStickControl: View {
                                                  deadzone: touch.deadzone)
         let travel = radius - knobSize / 2
         return CGSize(width: push.x * travel, height: push.y * travel)
+    }
+}
+
+private struct Jak2WeaponWheelControl: View {
+    let controls: TouchControls
+    let frame: CGRect
+    let reclaimTouchInput: () -> Bool
+
+    #if canImport(UIKit)
+    @State private var haptics = TouchHapticDriver()
+    #endif
+
+    var body: some View {
+        ZStack {
+            ForEach(Jak2WeaponTouchAction.allCases, id: \.self) { action in
+                let shape = Jak2WeaponWheelSegmentShape(action: action)
+                Button { perform(action) } label: {
+                    ZStack {
+                        shape
+                            .fill(action.color.opacity(0.68))
+                        shape
+                            .strokeBorder(.white.opacity(0.52), lineWidth: 1.25)
+                        Text(action.button.glyph)
+                            .font(.system(size: max(14, frame.width * 0.22),
+                                          weight: .bold,
+                                          design: .rounded))
+                            .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.72), radius: 2)
+                            .offset(action.labelOffset(diameter: frame.width))
+                            .allowsHitTesting(false)
+                    }
+                    .contentShape(shape)
+                }
+                .buttonStyle(.plain)
+                .contentShape(shape)
+                .accessibilityLabel(action.accessibilityLabel)
+            }
+
+            Circle()
+                .strokeBorder(.white.opacity(0.58), lineWidth: 1.5)
+                .allowsHitTesting(false)
+        }
+        .frame(width: frame.width, height: frame.height)
+        .position(x: frame.midX, y: frame.midY)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Jak II weapons")
+    }
+
+    private func perform(_ action: Jak2WeaponTouchAction) {
+        _ = reclaimTouchInput()
+        guard controls.performJak2WeaponSelection(action) else { return }
+        #if canImport(UIKit)
+        haptics.play(controls.consumeHapticEvents())
+        #else
+        _ = controls.consumeHapticEvents()
+        #endif
+    }
+}
+
+private struct Jak2WeaponWheelSegmentShape: InsettableShape {
+    let action: Jak2WeaponTouchAction
+    var insetAmount: CGFloat = 0
+
+    func path(in rect: CGRect) -> Path {
+        let fitted = rect.insetBy(dx: insetAmount, dy: insetAmount)
+        let radius = min(fitted.width, fitted.height) / 2
+        let centre = CGPoint(x: fitted.midX, y: fitted.midY)
+        var path = Path()
+        path.move(to: centre)
+        path.addArc(center: centre,
+                    radius: radius,
+                    startAngle: .degrees(action.startAngleDegrees),
+                    endAngle: .degrees(action.startAngleDegrees + 90),
+                    clockwise: false)
+        path.closeSubpath()
+        return path
+    }
+
+    func inset(by amount: CGFloat) -> Self {
+        var copy = self
+        copy.insetAmount += amount
+        return copy
+    }
+}
+
+private extension Jak2WeaponTouchAction {
+    var startAngleDegrees: Double {
+        switch self {
+        case .scatterGun: -135
+        case .peaceMaker: -45
+        case .blaster: 45
+        case .vulcanFury: 135
+        }
+    }
+
+    var color: Color {
+        let rgb = tint.rgb
+        return Color(red: rgb.red, green: rgb.green, blue: rgb.blue)
+    }
+
+    var accessibilityLabel: String {
+        switch self {
+        case .scatterGun: "Scatter Gun, D-pad Up"
+        case .peaceMaker: "Peace Maker, D-pad Right"
+        case .blaster: "Blaster, D-pad Down"
+        case .vulcanFury: "Vulcan Fury, D-pad Left"
+        }
+    }
+
+    func labelOffset(diameter: CGFloat) -> CGSize {
+        let distance = diameter * 0.28
+        return switch self {
+        case .scatterGun: CGSize(width: 0, height: -distance)
+        case .peaceMaker: CGSize(width: distance, height: 0)
+        case .blaster: CGSize(width: 0, height: distance)
+        case .vulcanFury: CGSize(width: -distance, height: 0)
+        }
     }
 }
 

@@ -38,22 +38,25 @@ private struct Runner {
     let controls: TouchControls
     var clock: TimeInterval = 0
 
-    init(style: TouchControlStyle = .modern) {
-        self.init(style: style, rightStickFrame: Self.rightStick)
+    init(style: TouchControlStyle = .modern, gameTitle: TouchGameTitle = .jak1) {
+        self.init(style: style, gameTitle: gameTitle, rightStickFrame: Self.rightStick)
     }
 
-    init(style: TouchControlStyle = .modern, rightStickFrame: CGRect) {
-        self.init(style: style, size: Self.screen, safeAreaInsets: Self.safeAreaInsets,
-                  rightStickFrame: rightStickFrame)
+    init(style: TouchControlStyle = .modern,
+         gameTitle: TouchGameTitle = .jak1,
+         rightStickFrame: CGRect) {
+        self.init(style: style, gameTitle: gameTitle, size: Self.screen,
+                  safeAreaInsets: Self.safeAreaInsets, rightStickFrame: rightStickFrame)
     }
 
     init(style: TouchControlStyle,
+         gameTitle: TouchGameTitle = .jak1,
          size: CGSize,
          safeAreaInsets: TouchSafeAreaInsets = .zero,
          rightStickFrame: CGRect) {
         self.screen = size
         self.safeAreaInsets = safeAreaInsets
-        controls = TouchControls(style: style)
+        controls = TouchControls(style: style, gameTitle: gameTitle)
         controls.setPillFrame(.select, Self.select)
         controls.setPillFrame(.start, Self.start)
         controls.setPillFrame(.stats, Self.stats)
@@ -510,6 +513,139 @@ private func firstPersonTapFiresWithoutReplacingLeftSwipe() {
     check(swipeRun.frames(TouchControls.holdFrames).allSatisfy {
         $0.buttons == .square
     }, "the existing first-person left swipe still holds Square without a duplicate tap pulse")
+}
+
+@MainActor
+private func cameraRegionTapIsTitleAware() {
+    print("camera-region taps preserve Jak 1 and emit Jak II's native R1 bit")
+    check(TouchControls.cameraRegionTapButton(gameTitle: .jak1,
+                                              lookAroundState: .normal) == nil
+          && TouchControls.cameraRegionTapButton(gameTitle: .jak1,
+                                                 lookAroundState: .firstPerson) == .square,
+          "Jak 1 retains its exact inert-normal and Square-first-person tap semantics")
+    check(TouchControls.cameraRegionTapButton(gameTitle: .jak2,
+                                              lookAroundState: .normal) == .rightShoulder
+          && TouchControls.cameraRegionTapButton(gameTitle: .jak2,
+                                                 lookAroundState: .firstPerson) == .rightShoulder,
+          "Jak II maps the shared camera region to R1 without depending on Jak 1 camera state")
+
+    let tapPoint = CGPoint(x: 900, y: 360)
+    let layout = ModernTouchLayout(size: Runner.screen,
+                                   safeAreaInsets: Runner.safeAreaInsets)
+    check(layout.actionGestureFrame.contains(tapPoint)
+          && !layout.rightStickHitFrame.contains(tapPoint),
+          "the regression tap lands in the open camera region rather than the fixed R stick")
+
+    var run = Runner(gameTitle: .jak2)
+    let tap = Finger()
+    run.down(tap, tapPoint)
+    run.up(tap, lookAroundState: .normal)
+    check(run.controls.consumeHapticEvents() == [.gesture(.rightShoulder)],
+          "a Jak II camera-region tap emits one R1 gesture haptic")
+    let frames = run.frames(TouchControls.holdFrames + TouchControls.releaseFrames)
+    check(frames.prefix(TouchControls.holdFrames).allSatisfy {
+        $0.buttons == .R1 && !$0.isLeftDeflected && !$0.isRightDeflected
+    } && frames.suffix(TouchControls.releaseFrames).allSatisfy { $0 == .neutral },
+          "a Jak II camera-region tap emits one isolated complete R1 pulse")
+
+    var dragged = Runner(gameTitle: .jak2)
+    let drag = Finger()
+    dragged.down(drag, tapPoint)
+    dragged.move(drag, CGPoint(x: tapPoint.x - TouchControls.tapDistance - 1,
+                               y: tapPoint.y))
+    dragged.up(drag, lookAroundState: .normal)
+    check(dragged.frames(TouchControls.holdFrames).allSatisfy { $0 == .neutral }
+          && dragged.controls.consumeHapticEvents().isEmpty,
+          "a Jak II drag beyond tap slop cannot become an accidental R1 shot")
+}
+
+@MainActor
+private func jak2WeaponWheelMappingGeometryAndPulsesAreExact() {
+    print("Jak II's fixed weapon wheel mirrors R and emits only native D-pad bits")
+    let expected: [(Jak2WeaponTouchAction, TouchButton, Jak2WeaponTouchAction.Tint, String)] = [
+        (.scatterGun, .up, .red, "Scatter Gun"),
+        (.peaceMaker, .right, .dark, "Peace Maker"),
+        (.blaster, .down, .yellow, "Blaster"),
+        (.vulcanFury, .left, .blue, "Vulcan Fury"),
+    ]
+    check(Jak2WeaponTouchAction.allCases == expected.map(\.0),
+          "weapon segments retain clockwise Up, Right, Down, Left order")
+    check(expected.allSatisfy { action, button, tint, name in
+        action.button == button && action.tint == tint && action.weaponName == name
+    }, "weapon directions preserve source-backed red, dark, yellow, and blue gun mapping")
+    check(Jak2WeaponTouchAction.Tint.red.rgb == .init(red: 0.65, green: 0, blue: 0)
+          && Jak2WeaponTouchAction.Tint.dark.rgb == .init(red: 0.6875, green: 0.6,
+                                                         blue: 0.78125)
+          && Jak2WeaponTouchAction.Tint.yellow.rgb == .init(red: 1, green: 0.75,
+                                                           blue: 0.125)
+          && Jak2WeaponTouchAction.Tint.blue.rgb == .init(red: 0.4375, green: 0.8125,
+                                                         blue: 1),
+          "weapon segments retain the native Jak II gun-color RGB values")
+
+    let sizes = [Runner.screen, CGSize(width: 834, height: 1210),
+                 CGSize(width: 667, height: 375)]
+    for size in sizes {
+        let modern = ModernTouchLayout(size: size,
+                                       safeAreaInsets: Runner.safeAreaInsets)
+        let wheel = Jak2WeaponWheelLayout(modernLayout: modern).frame
+        let right = modern.rightStickArtworkFrame
+        check(modern.safeBounds.contains(wheel)
+              && close(wheel.width, right.width) && close(wheel.height, right.height),
+              "\(Int(size.width))x\(Int(size.height)) keeps the wheel safe with R's exact size")
+        let mirrored = CGRect(
+            x: modern.safeBounds.minX + modern.safeBounds.maxX - right.maxX,
+            y: right.minY, width: right.width, height: right.height)
+        let movementClearance = modern.movementArtworkFrame.insetBy(dx: -8, dy: -8)
+        check(close(wheel.minX, mirrored.minX)
+              && !wheel.intersects(movementClearance)
+              && (mirrored.intersects(movementClearance)
+                  ? close(wheel.maxY, movementClearance.minY)
+                  : close(wheel.midY, right.midY)),
+              "\(Int(size.width))x\(Int(size.height)) mirrors R and moves only to clear L")
+    }
+    let compactPortrait = ModernTouchLayout(size: CGSize(width: 393, height: 852),
+                                            safeAreaInsets: Runner.safeAreaInsets)
+    let compactWheel = Jak2WeaponWheelLayout(modernLayout: compactPortrait).frame
+    check(!compactWheel.intersects(compactPortrait.movementArtworkFrame.insetBy(dx: -8, dy: -8))
+          && compactPortrait.safeBounds.contains(compactWheel),
+          "compact portrait keeps the fixed wheel safe and clear of the movement artwork")
+
+    check(!TouchControls.jak2WeaponWheelIsVisible(
+        gameTitle: .jak1, mode: .gameplay, runReadiness: .active,
+        isAwaitingTitleStart: false)
+          && !TouchControls.jak2WeaponWheelIsVisible(
+            gameTitle: .jak2, mode: .pause, runReadiness: .active,
+            isAwaitingTitleStart: false)
+          && !TouchControls.jak2WeaponWheelIsVisible(
+            gameTitle: .jak2, mode: .gameplay, runReadiness: .titlePrompt,
+            isAwaitingTitleStart: true)
+          && TouchControls.jak2WeaponWheelIsVisible(
+            gameTitle: .jak2, mode: .gameplay, runReadiness: .active,
+            isAwaitingTitleStart: false),
+          "the wheel is Jak II active-gameplay-only and does not depend on idle engagement")
+
+    var jak1 = Runner()
+    jak1.controls.setNativeMenuState(
+        .gameplay, progress: .unavailable, titleStartState: .notAwaiting,
+        runReadiness: .active)
+    check(!jak1.controls.performJak2WeaponSelection(.scatterGun)
+          && jak1.frame() == .neutral && jak1.controls.consumeHapticEvents().isEmpty,
+          "Jak 1 rejects every Jak II weapon-wheel action")
+
+    for (action, button, _, _) in expected {
+        var jak2 = Runner(gameTitle: .jak2)
+        jak2.controls.setNativeMenuState(
+            .gameplay, progress: .unavailable, titleStartState: .notAwaiting,
+            runReadiness: .active)
+        check(jak2.controls.performJak2WeaponSelection(action)
+              && jak2.controls.consumeHapticEvents() == [.button(button)],
+              "\(action.weaponName) accepts one exact D-pad touch action and haptic")
+        let frames = jak2.frames(TouchControls.holdFrames + TouchControls.releaseFrames)
+        check(frames.prefix(TouchControls.holdFrames).allSatisfy {
+            $0.buttons == button.bit && !$0.isLeftDeflected && !$0.isRightDeflected
+        } && frames.suffix(TouchControls.releaseFrames).allSatisfy { $0 == .neutral },
+              "\(action.weaponName) emits only \(button.glyph) with a release gap")
+    }
 }
 
 @MainActor
@@ -3155,6 +3291,8 @@ struct TouchControlsCheck {
         freeCameraSwipeIsGone()
         faceButtonGesturesAndNoTap()
         firstPersonTapFiresWithoutReplacingLeftSwipe()
+        cameraRegionTapIsTitleAware()
+        jak2WeaponWheelMappingGeometryAndPulsesAreExact()
         rightStickIsFullyAnalog()
         downwardSwipeCanRollJump()
         downwardSwipeCanPunchLeft()
