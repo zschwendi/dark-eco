@@ -106,7 +106,7 @@ struct ContentView: View {
                 }
                 #endif
             } else if session.isBooting {
-                BootingView()
+                BootingView(title: session.title)
             } else {
                 switch launcherDestination {
                 case .library:
@@ -485,10 +485,12 @@ private struct GameplaySurface: View {
 
 /// The game's own startup: two DGO archives and `play`, which take seconds.
 private struct BootingView: View {
+    let title: GameLibraryTitle
+
     var body: some View {
         VStack(spacing: 12) {
             ProgressView()
-            Text("Booting \(GameLibraryTitle.jak1.name)")
+            Text("Booting \(title.name)")
                 .font(.system(.headline, design: .monospaced))
             Text("KERNEL.CGO, GAME.CGO, then the title level")
                 .font(.system(.footnote, design: .monospaced))
