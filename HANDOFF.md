@@ -21049,3 +21049,35 @@ cleanup for the merged build was limited to reproducible target intermediates,
 the uninstalled standalone product, and the stale Xcode index cache. The
 installed simulator app, current Build 235 source pack/AOT, source worktrees,
 prepared game data, device data, and saves were not deleted or inspected.
+
+## Build 236 title-specific Settings checkpoint (2026-08-17)
+
+Outer commit `8b6d1ba2` is pushed to `origin/v2.0`. The selected settings profile
+now owns the visible navigation heading: `Jak 1 Settings` or `Jak II Settings`.
+The existing pre-import title picker remains live for both supported games,
+locks while gameplay is running, and keeps Jak 3 labeled Planned. All six target
+configurations were incremented from Build 235 to Build 236.
+
+Focused validation passed:
+
+```text
+swift Scripts/presentation-settings-ui-check.swift "$PWD"
+xcrun swiftc -frontend -parse GOALPad/Saves/SaveSyncController.swift
+plutil -lint GOALPad.xcodeproj/project.pbxproj
+git diff --check
+```
+
+The warm signed merged-device build also passed in 51.953 seconds. It produces
+Dark Eco 2.0 (236), bundle `com.zephyrstudiosllc.eco`, with the Jak II runtime
+embedded and a valid strict deep signature:
+
+```text
+/private/tmp/goalpad-build236-merged-device-build.log
+/private/tmp/GOALPad-v2-main-derived/Build/Products/Release-iphoneos/Dark Eco.app
+```
+
+Only the reproducible Build 235 Dark Eco dSYM was removed for disk headroom; the
+Build 236 build regenerated it. Source, imported game data, simulator data,
+device data, and saves were not deleted or inspected. Physical update-install
+still waits for the maintainer to confirm that `Z iPad Pro` is unlocked and
+awake; preserve the installed app by updating in place rather than uninstalling.
