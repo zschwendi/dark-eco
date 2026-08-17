@@ -302,11 +302,11 @@ struct GameDataSetupView: View {
         guard usesSessionData else { return nil }
         switch session.startupPhase {
         case .waitingForForegroundPreparation:
-            "Finishing the current save check before gameplay…"
+            return "Finishing the current save check before gameplay…"
         case .checkingSaves:
-            "Checking saves before gameplay…"
+            return "Checking saves before gameplay…"
         case .idle, .booting:
-            nil
+            return nil
         }
     }
 
