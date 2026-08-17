@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F10100000000000000000002 /* GOALPadJak2Runtime.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F10600000000000000000002 /* GOALPadJak2Runtime.framework */; platformFilter = ios; };
+		F10100000000000000000004 /* GOALPadJak2Runtime.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F10600000000000000000002 /* GOALPadJak2Runtime.framework */; platformFilter = ios; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		F10100000000000000000007 /* GOALPadJak2RuntimeFacade.c in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000003 /* GOALPadJak2RuntimeFacade.c */; };
+		F10100000000000000000008 /* GOALPadJak2RuntimeFacade.h in Headers */ = {isa = PBXBuildFile; fileRef = F10000000000000000000004 /* GOALPadJak2RuntimeFacade.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		A74000000000000000020001 /* EcoJak2RuntimeBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = A74000000000000000010001 /* EcoJak2RuntimeBridge.mm */; };
 		A74000000000000000020002 /* PLzmaSDK in Frameworks */ = {isa = PBXBuildFile; productRef = D7A000000000000000010001 /* PLzmaSDK */; };
 		A73000000000000000020000 /* xdbg.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010000 /* xdbg.cpp */; };
@@ -194,6 +198,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		F10000000000000000000003 /* GOALPadJak2RuntimeFacade.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = GOALPadJak2RuntimeFacade.c; sourceTree = "<group>"; };
+		F10000000000000000000004 /* GOALPadJak2RuntimeFacade.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GOALPadJak2RuntimeFacade.h; sourceTree = "<group>"; };
+		F10600000000000000000002 /* GOALPadJak2Runtime.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = GOALPadJak2Runtime.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		92C2B202301C0D2F0025E4D5 /* Dark Eco.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Dark Eco.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A73000000000000000010000 /* xdbg.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = xdbg.cpp; path = common/cross_os_debug/xdbg.cpp; sourceTree = "<group>"; };
 		A73000000000000000010001 /* log.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = log.cpp; path = common/log/log.cpp; sourceTree = "<group>"; };
@@ -384,6 +391,41 @@
 		A74000000000000000010003 /* Jak2Dev-Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Jak2Dev-Release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXContainerItemProxy section */
+		F10700000000000000000002 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 92C2B1FA301C0D2F0025E4D5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F10200000000000000000002;
+			remoteInfo = GOALPadJak2Runtime;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		F10900000000000000000001 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				F10100000000000000000004 /* GOALPadJak2Runtime.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXHeadersBuildPhase section */
+		F10300000000000000000006 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F10100000000000000000008 /* GOALPadJak2RuntimeFacade.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		A74000000000000000000007 /* Exceptions for "GOALPad" folder in "Eco Jak II Dev" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -441,6 +483,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		F10300000000000000000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		A74000000000000000000005 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -453,6 +502,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F10100000000000000000002 /* GOALPadJak2Runtime.framework in Frameworks */,
 				D7A000000000000000020000 /* PLzmaSDK in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -467,6 +517,7 @@
 				A73000000000000000000001 /* Generated/jak1-aot */,
 				A73300000000000000000000 /* Configuration */,
 				A74000000000000000000008 /* Jak II Target Support */,
+				F11000000000000000000001 /* Runtime Facades */,
 				A73000000000000000000000 /* OpenGOAL Jak 1 Kernel Core */,
 				A73100000000000000000000 /* OpenGOAL Metal Renderer */,
 				92C2B203301C0D2F0025E4D5 /* Products */,
@@ -478,6 +529,7 @@
 			children = (
 				92C2B202301C0D2F0025E4D5 /* Dark Eco.app */,
 				A74000000000000000010000 /* EcoJak2Dev.app */,
+				F10600000000000000000002 /* GOALPadJak2Runtime.framework */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -698,9 +750,44 @@
 			name = "Jak II Target Support";
 			sourceTree = "<group>";
 		};
+		F11000000000000000000001 /* Runtime Facades */ = {
+			isa = PBXGroup;
+			children = (
+				F11000000000000000000003 /* Jak2 */,
+			);
+			name = "Runtime Facades";
+			path = TargetSupport;
+			sourceTree = "<group>";
+		};
+		F11000000000000000000003 /* Jak2 */ = {
+			isa = PBXGroup;
+			children = (
+				F10000000000000000000003 /* GOALPadJak2RuntimeFacade.c */,
+				F10000000000000000000004 /* GOALPadJak2RuntimeFacade.h */,
+			);
+			path = Jak2;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		F10200000000000000000002 /* GOALPadJak2Runtime */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F10500000000000000000002 /* Build configuration list for PBXNativeTarget "GOALPadJak2Runtime" */;
+			buildPhases = (
+				F10300000000000000000004 /* Sources */,
+				F10300000000000000000005 /* Frameworks */,
+				F10300000000000000000006 /* Headers */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = GOALPadJak2Runtime;
+			productName = GOALPadJak2Runtime;
+			productReference = F10600000000000000000002 /* GOALPadJak2Runtime.framework */;
+			productType = "com.apple.product-type.framework";
+		};
 		A74000000000000000000001 /* Eco Jak II Dev */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = A7400000000000000000000A /* Build configuration list for PBXNativeTarget "Eco Jak II Dev" */;
@@ -737,12 +824,14 @@
 				A73300000000000000000001 /* Build Jak 1 import composer */,
 				92C2B1FE301C0D2F0025E4D5 /* Sources */,
 				92C2B1FF301C0D2F0025E4D5 /* Frameworks */,
+				F10900000000000000000001 /* Embed Frameworks */,
 				92C2B200301C0D2F0025E4D5 /* Resources */,
 				A73300000000000000000002 /* Stage Jak 1 importer resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				F10800000000000000000002 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				92C2B204301C0D2F0025E4D5 /* GOALPad */,
@@ -798,6 +887,7 @@
 			targets = (
 				92C2B201301C0D2F0025E4D5 /* GOALPad */,
 				A74000000000000000000001 /* Eco Jak II Dev */,
+				F10200000000000000000002 /* GOALPadJak2Runtime */,
 			);
 		};
 /* End PBXProject section */
@@ -1012,6 +1102,14 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		F10300000000000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F10100000000000000000007 /* GOALPadJak2RuntimeFacade.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		A74000000000000000000004 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1210,7 +1308,63 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		F10800000000000000000002 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = ios;
+			target = F10200000000000000000002 /* GOALPadJak2Runtime */;
+			targetProxy = F10700000000000000000002 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		F10400000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 223;
+				DEVELOPMENT_TEAM = V729QMY3V6;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = GOALPadJak2Runtime;
+				INSTALL_PATH = "@rpath";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				MACH_O_TYPE = mh_dylib;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.zephyrstudiosllc.eco.runtime.jak2;
+				PRODUCT_MODULE_NAME = GOALPadJak2Runtime;
+				PRODUCT_NAME = GOALPadJak2Runtime;
+				SKIP_INSTALL = NO;
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+			};
+			name = Debug;
+		};
+		F10400000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 223;
+				DEVELOPMENT_TEAM = V729QMY3V6;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_DEBUG_DYLIB = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = GOALPadJak2Runtime;
+				INSTALL_PATH = "@rpath";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				MACH_O_TYPE = mh_dylib;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.zephyrstudiosllc.eco.runtime.jak2;
+				PRODUCT_MODULE_NAME = GOALPadJak2Runtime;
+				PRODUCT_NAME = GOALPadJak2Runtime;
+				SKIP_INSTALL = NO;
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+			};
+			name = Release;
+		};
 		A74000000000000000030000 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = A74000000000000000010002 /* Jak2Dev-Debug.xcconfig */;
@@ -1580,6 +1734,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		F10500000000000000000002 /* Build configuration list for PBXNativeTarget "GOALPadJak2Runtime" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F10400000000000000000003 /* Debug */,
+				F10400000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		A7400000000000000000000A /* Build configuration list for PBXNativeTarget "Eco Jak II Dev" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
