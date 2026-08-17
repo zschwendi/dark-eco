@@ -59,7 +59,7 @@ struct ContentView: View {
         let hasJak2DebugPreview = ProcessInfo.processInfo
             .environment["GOALPAD_JAK2_DEBUG_PREVIEW_SCENE"]?.isEmpty == false
         _session = State(initialValue: GameSession(
-            profile: hasJak2DebugPreview ? .jak2 : .jak1))
+            profile: hasJak2DebugPreview ? .jak2 : .initialProfile))
         #if GOALPAD_APPSTORE_CAPTURE
         let arguments = ProcessInfo.processInfo.arguments
         let opensSettings = arguments.contains("-EcoCaptureSettings")

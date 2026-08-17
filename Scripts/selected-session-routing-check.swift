@@ -49,6 +49,7 @@ let root = CommandLine.arguments[1]
 let session = source(at: root + "/GOALPad/Game/GameSession.swift")
 let content = source(at: root + "/GOALPad/ContentView.swift")
 let nativeRouting = source(at: root + "/GOALPad/Game/NativeGameRouting.swift")
+let titleProfiles = source(at: root + "/GOALPad/Data/GameTitleDataProfile.swift")
 
 let initializer = section(session, from: "init(profile: GameDataProfile)", to: "func prepare() async")
 check(session.contains("let profile: GameDataProfile")
@@ -126,7 +127,13 @@ let retirement = section(session,
                          from: "func retireForReplacement()",
                          to: "func presentTouchControlsGuide()")
 check(content.contains("@State private var session: GameSession")
-        && content.contains("profile: hasJak2DebugPreview ? .jak2 : .jak1")
+        && content.contains("profile: hasJak2DebugPreview ? .jak2 : .initialProfile")
+        && titleProfiles.contains("static var initialProfile: GameDataProfile")
+        && titleProfiles.contains("#if GOALPAD_JAK2")
+        && occursInOrder(["#if GOALPAD_JAK2", ".jak2", "#else", ".jak1", "#endif"], in: titleProfiles)
+        && !content.contains("#if GOALPAD_JAK2")
+        && !session.contains("#if GOALPAD_JAK2")
+        && !nativeRouting.contains("#if GOALPAD_JAK2")
         && content.contains("openGameSetup: openGameSetup")
         && occursInOrder([
             "importer.cancel()",
@@ -142,7 +149,7 @@ check(content.contains("@State private var session: GameSession")
             "session.retireForReplacement()",
             "session = GameSession(profile: profile)",
         ], in: selection),
-      "switching titles replaces the complete title-scoped session before any destination is shown")
+      "the target default lives in the title-profile seam while switching titles replaces the complete title-scoped session")
 check(content.contains("@State private var startAfterPreparationTitle: GameLibraryTitle?")
         && occursInOrder([
             "selectSession(for: title)",
