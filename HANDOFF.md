@@ -21113,3 +21113,31 @@ code-sign verification:
 This Build 237 product supersedes the queued Build 236 product for physical
 installation. Update it in place only after the maintainer confirms `Z iPad Pro`
 is unlocked and awake. No app container, imported data, or saves were accessed.
+
+## Build 238 Jak II vehicle-exit checkpoint (2026-08-17)
+
+Outer commit `a0e63a52` is pushed to `origin/v2.0`. The merged runtime now
+consumes the existing exact Jak II traversal snapshot. While the snapshot says
+`vehicleRiding`, active gameplay exposes a dedicated Triangle **Exit Vehicle**
+touch target; it disappears immediately when Jak returns on foot and remains
+suppressed under native menus, cutscenes, and contextual face-prompt ownership.
+The existing raw R1/R2, weapon wheel, prompts, and Jak 1 speeder behavior remain
+separate.
+
+The lifecycle and touch-control checks passed. All six target configurations
+were incremented to Build 238, and the signed merged generic-iOS Release build
+passed in 241.396 seconds after regenerating only disposable importer products.
+The 136 MiB product reports Dark Eco 2.0 (238), bundle
+`com.zephyrstudiosllc.eco`, embeds `GOALPadJak2Runtime.framework`, and passes
+strict deep code-sign verification:
+
+```text
+/private/tmp/goalpad-build238-merged-device-build.log
+/private/tmp/GOALPad-v2-main-derived/Build/Products/Release-iphoneos/Dark Eco.app
+```
+
+The previously signed Build 237 fallback remains preserved at
+`/private/tmp/Dark Eco Build 237.app`. Physical Build 238 update-install still
+waits for the maintainer to confirm that `Z iPad Pro` is unlocked and awake;
+three earlier CoreDevice attempts timed out, so do not retry without that state
+change. No app container, imported data, or saves were accessed.
