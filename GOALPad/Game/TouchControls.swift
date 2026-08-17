@@ -8,7 +8,7 @@ nonisolated private let touchLog = Logger(subsystem: "com.zephyrstudiosllc.eco",
 enum TouchButton: Int, CaseIterable, Hashable, Sendable {
     case cross, square, circle, crouch, start, select, stats
     case up, down, left, right
-    case triangle, leftShoulder, rightShoulder
+    case triangle, leftShoulder, rightShoulder, rightStickPress
 
     var bit: GOALPadButton {
         switch self {
@@ -26,6 +26,7 @@ enum TouchButton: Int, CaseIterable, Hashable, Sendable {
         case .triangle: .triangle
         case .leftShoulder: .L1
         case .rightShoulder: .R1
+        case .rightStickPress: .R3
         }
     }
 
@@ -45,6 +46,7 @@ enum TouchButton: Int, CaseIterable, Hashable, Sendable {
         case .triangle: "△"
         case .leftShoulder: "L1"
         case .rightShoulder: "R1"
+        case .rightStickPress: "R3"
         }
     }
 }
@@ -1355,6 +1357,7 @@ struct ClassicTouchLayout {
         case .start: .classicStart
         case .leftShoulder: .classicLeftShoulder
         case .rightShoulder: .classicRightShoulder
+        case .rightStickPress: .classicCamera
         case .triangle: .classicTriangle
         case .square: .classicSquare
         case .circle: .classicCircle
@@ -1995,7 +1998,8 @@ final class TouchControls {
         for id in staleIdentifiers { cancelled(id) }
     }
 
-    /// Jak's zoom is a Triangle toggle. The live camera mode supplies the truthful next direction.
+    /// The live camera mode supplies the truthful next direction while each title keeps its
+    /// native look-around toggle: Triangle in Jak 1 and R3 in Jak II.
     @discardableResult
     func performZoomToggle(lookAroundState: GOALPadLookAroundState) -> Bool {
         guard !capturesNativeTouchInput, !contextualFacePromptOwnsGameplayActions else {
@@ -2003,9 +2007,10 @@ final class TouchControls {
         }
         switch lookAroundState {
         case .normal, .firstPerson:
+            let button: TouchButton = gameTitle == .jak2 ? .rightStickPress : .triangle
             noteScreenInteraction()
-            press(.triangle)
-            enqueueHaptic(.gesture(.triangle))
+            press(button)
+            enqueueHaptic(.gesture(button))
             return true
         case .unknown:
             return false

@@ -1013,20 +1013,25 @@ private func touchHapticsAreDiscreteAndRearmSafely() {
 
 @MainActor
 private func semanticZoomButtonIsExactAndFailClosed() {
-    print("the semantic zoom button emits one authoritative Triangle toggle")
-    for mode in [GOALPadLookAroundState.normal, .firstPerson] {
-        var run = Runner()
-        check(run.controls.performZoomToggle(lookAroundState: mode),
-              "\(mode) accepts a zoom toggle")
-        check(run.controls.consumeHapticEvents() == [.gesture(.triangle)],
-              "\(mode) emits one zoom haptic")
-        let frames = run.frames(TouchControls.holdFrames + TouchControls.releaseFrames + 2)
-        check(frames.prefix(TouchControls.holdFrames).allSatisfy {
-            $0.buttons.contains(.triangle)
-        }, "\(mode) emits one complete Triangle pulse")
-        check(frames.dropFirst(TouchControls.holdFrames).allSatisfy {
-            !$0.buttons.contains(.triangle)
-        }, "\(mode) ends with a deterministic release")
+    print("the semantic zoom button emits each title's authoritative native toggle")
+    for (title, button, bit) in [
+        (TouchGameTitle.jak1, TouchButton.triangle, GOALPadButton.triangle),
+        (.jak2, .rightStickPress, .R3),
+    ] {
+        for mode in [GOALPadLookAroundState.normal, .firstPerson] {
+            var run = Runner(gameTitle: title)
+            check(run.controls.performZoomToggle(lookAroundState: mode),
+                  "\(title) \(mode) accepts a zoom toggle")
+            check(run.controls.consumeHapticEvents() == [.gesture(button)],
+                  "\(title) \(mode) emits one \(button.glyph) zoom haptic")
+            let frames = run.frames(TouchControls.holdFrames + TouchControls.releaseFrames + 2)
+            check(frames.prefix(TouchControls.holdFrames).allSatisfy {
+                $0.buttons == bit
+            }, "\(title) \(mode) emits one isolated \(button.glyph) pulse")
+            check(frames.dropFirst(TouchControls.holdFrames).allSatisfy {
+                !$0.buttons.contains(bit)
+            }, "\(title) \(mode) ends with a deterministic release")
+        }
     }
 
     var unknown = Runner()
