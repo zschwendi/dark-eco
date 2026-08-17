@@ -49,6 +49,7 @@ struct ContentView: View {
     @State private var launcherDestination = LauncherDestination.library
     @State private var settingsPresentation: SettingsSheetPresentation?
     @State private var nextSettingsPresentationID = 0
+    @State private var startAfterPreparationTitle: GameLibraryTitle?
     #if os(iOS)
     @State private var isShowingTouchControlsGuide = false
     @AppStorage("jak1TouchControlsGuideVersion") private var touchControlsGuideVersion = 0
@@ -113,6 +114,7 @@ struct ContentView: View {
                         session: session,
                         artworkStore: artworkStore,
                         openGameSetup: openGameSetup,
+                        startGame: startGame,
                         openSettings: presentSettings
                     )
                     .onAppear { session.saveSync.launcherDidAppear() }
@@ -147,6 +149,10 @@ struct ContentView: View {
             let selectedSession = session
             await selectedSession.prepare()
             guard selectedSession === session else { return }
+            if startAfterPreparationTitle == selectedSession.title {
+                startAfterPreparationTitle = nil
+                await selectedSession.start()
+            }
             if selectedSession.title == .jak2,
                ProcessInfo.processInfo
                 .environment["GOALPAD_JAK2_DEBUG_PREVIEW_SCENE"]?.isEmpty == false {
@@ -233,8 +239,9 @@ struct ContentView: View {
             SettingsSheetView(sync: session.saveSync,
                               settings: session.presentationSettings,
                               input: session.input,
-                              isGameDataReady: isGameDataReady,
+                              selectedTitle: session.title,
                               isGameRunning: session.isRunning,
+                              selectSettingsTitle: selectSettingsTitle,
                               returnToLibrary: returnToLibrary)
                 .id(presentation.id)
                 .frame(minHeight: 360)
@@ -250,25 +257,54 @@ struct ContentView: View {
     }
 
     private func presentSettings() {
+        startAfterPreparationTitle = nil
         nextSettingsPresentationID += 1
         settingsPresentation = SettingsSheetPresentation(id: nextSettingsPresentationID)
     }
 
     private func openGameSetup(_ title: GameLibraryTitle) {
-        guard let profile = GameDataProfile.profile(for: title) else { return }
-        if session.profile != profile {
-            settingsPresentation = nil
-            session.retireForReplacement()
-            session = GameSession(profile: profile)
-        }
+        startAfterPreparationTitle = nil
+        guard selectSession(for: title) != nil else { return }
         launcherDestination = .gameSetup(title)
     }
 
-    private var isGameDataReady: Bool {
-        session.dataReport.status == .ready
+    private func startGame(_ title: GameLibraryTitle) {
+        startAfterPreparationTitle = nil
+        guard let didReplaceSession = selectSession(for: title) else { return }
+        launcherDestination = .library
+        if didReplaceSession {
+            startAfterPreparationTitle = title
+        } else {
+            let selectedSession = session
+            Task {
+                guard selectedSession === session else { return }
+                await selectedSession.start()
+            }
+        }
+    }
+
+    /// A session owns title-scoped data, settings, saves, and its selected native runtime.
+    /// Replace it before presenting any supported title rather than retargeting those dependencies.
+    @discardableResult
+    private func selectSession(for title: GameLibraryTitle) -> Bool? {
+        guard let profile = GameDataProfile.profile(for: title) else { return nil }
+        guard session.profile != profile else { return false }
+        startAfterPreparationTitle = nil
+        settingsPresentation = nil
+        session.retireForReplacement()
+        session = GameSession(profile: profile)
+        return true
+    }
+
+    private func selectSettingsTitle(_ title: GameLibraryTitle) {
+        guard !session.isRunning, let didReplaceSession = selectSession(for: title) else { return }
+        launcherDestination = .library
+        guard didReplaceSession else { return }
+        presentSettings()
     }
 
     private func returnToLibrary() {
+        startAfterPreparationTitle = nil
         settingsPresentation = nil
         launcherDestination = .library
         session.shutdown()
@@ -301,20 +337,23 @@ private struct SettingsSheetView: View {
     @Bindable var sync: SaveSyncController
     @Bindable var settings: PresentationSettings
     @Bindable var input: ControllerInput
-    let isGameDataReady: Bool
+    let selectedTitle: GameLibraryTitle
     let isGameRunning: Bool
+    let selectSettingsTitle: (GameLibraryTitle) -> Void
     let returnToLibrary: () -> Void
     init(sync: SaveSyncController,
          settings: PresentationSettings,
          input: ControllerInput,
-         isGameDataReady: Bool,
+         selectedTitle: GameLibraryTitle,
          isGameRunning: Bool,
+         selectSettingsTitle: @escaping (GameLibraryTitle) -> Void,
          returnToLibrary: @escaping () -> Void) {
         self.sync = sync
         self.settings = settings
         self.input = input
-        self.isGameDataReady = isGameDataReady
+        self.selectedTitle = selectedTitle
         self.isGameRunning = isGameRunning
+        self.selectSettingsTitle = selectSettingsTitle
         self.returnToLibrary = returnToLibrary
     }
 
@@ -323,8 +362,9 @@ private struct SettingsSheetView: View {
             SaveSettingsView(sync: sync,
                              settings: settings,
                              input: input,
-                             isGameDataReady: isGameDataReady,
+                             selectedTitle: selectedTitle,
                              isGameRunning: isGameRunning,
+                             selectSettingsTitle: selectSettingsTitle,
                              returnToLibrary: returnToLibrary)
                 #if os(iOS)
                 .toolbar {

@@ -49,16 +49,17 @@ let touchSticks = source(at: root + "/GOALPad/Game/TouchStickSettingsView.swift"
 let touchControlsView = source(at: root + "/GOALPad/Game/TouchControlsView.swift")
 
 check(occursInOrder([
-    "if isGameDataReady",
     "Section(\"Game\")",
-    "SettingsGamePicker()",
+    "SettingsGamePicker(selectedTitle: selectedTitle",
+    "isGameRunning: isGameRunning",
+    "selectTitle: selectSettingsTitle)",
     "if isGameRunning",
     "Label(\"Return to Library\"",
     "DisclosureGroup(isExpanded: expansion(for: .controls))",
 ], in: view)
         && view.contains(".confirmationDialog(\"Return to Library?\"")
         && view.contains("Progress since your last in-game save will be lost."),
-      "the ready-only game picker precedes a confirmed, loss-aware return to the Library")
+      "the title picker is available before import and precedes a confirmed, loss-aware return")
 check(view.contains("private var titleColor: Color")
         && view.contains("#if os(visionOS)\n        return .white.opacity(0.8)")
         && view.contains(".foregroundStyle(titleColor)"),
@@ -406,21 +407,23 @@ check(content.contains("openSettings: presentSettings")
         && !content.contains("NavigationStack(path: $path)"),
       "every entry opens the direct Settings form without a title-list interstitial")
 check(view.contains("private struct SettingsGamePicker")
-        && view.contains("if isGameDataReady {")
         && view.contains("Section(\"Game\")")
-        && view.contains("SettingsGamePickerChoice(title: \"Jak 1\", isSelected: true)")
-        && view.components(separatedBy: "SettingsGamePickerChoice(title: \"Future Title\", isSelected: false)").count - 1 == 2
-        && !view.contains("SettingsGamePickerChoice(title: GameLibraryTitle.jak2.name")
-        && !view.contains("SettingsGamePickerChoice(title: GameLibraryTitle.jak3.name")
-        && view.contains("Jak 1 selected")
+        && view.contains("ForEach([GameLibraryTitle.jak1, .jak2])")
+        && view.contains("Button { selectTitle(title) }")
+        && view.contains(".disabled(isGameRunning || title == selectedTitle)")
+        && view.contains("title: title.settingsPickerLabel")
+        && view.contains("SettingsGamePickerChoice(title: GameLibraryTitle.jak3.settingsPickerLabel")
+        && view.contains("availability: \"Planned\"")
+        && view.contains("Locked while playing")
+        && view.contains("\\(selectedTitle.settingsPickerLabel) selected")
         && view.contains(".navigationTitle(\"Settings\")"),
-      "the existing picker appears only for validated data and keeps future titles neutral")
-check(content.contains("isGameDataReady: isGameDataReady")
-        && content.contains("session.dataReport.status == .ready")
-        && content.contains("private var isGameDataReady: Bool")
-        && view.contains("let isGameDataReady: Bool")
+      "settings selects either supported title before import, locks to gameplay, and labels Jak 3 Planned")
+check(content.contains("selectedTitle: session.title")
+        && content.contains("selectSettingsTitle: selectSettingsTitle")
+        && view.contains("let selectedTitle: GameLibraryTitle")
+        && view.contains("let selectSettingsTitle: (GameLibraryTitle) -> Void")
         && !view.contains("if isGameRunning {\n                Section(\"Game\")"),
-      "Settings receives readiness explicitly instead of inferring it from active gameplay")
+      "Settings receives the selected session title without requiring imported game data")
 check(occursInOrder(["Section(\"iCloud\")", "Label(cloudState.summary",
                      "DisclosureGroup(isExpanded: expansion(for: .iCloud))"], in: view)
         && !view.contains("Section(\"Saves\")")

@@ -28,6 +28,15 @@ private struct TitleDataRoutingCheck {
               && GameLibraryCardAction.resolve(title: .jak2, state: .notImported)
                 == .verifyData(.jak2),
               "setup actions retain the clicked supported title")
+        check(GameLibraryCardAction.resolve(title: .jak1, state: .ready)
+                == .start(.jak1)
+              && GameLibraryCardAction.resolve(title: .jak2, state: .ready)
+                == .start(.jak2),
+              "each imported supported title keeps its own direct-start action")
+        check(GameLibraryTitle.jak1.settingsPickerLabel == "Jak 1"
+              && GameLibraryTitle.jak2.settingsPickerLabel == "Jak II"
+              && GameLibraryTitle.jak3.settingsPickerLabel == "Jak 3",
+              "settings uses compact title labels without the Jak 1 shelf title")
         check(GameLibraryCardAction.resolve(title: .jak3, state: .planned)
                 == .showUnsupported(.jak3),
               "Jak 3 remains outside setup and import routing")

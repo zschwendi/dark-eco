@@ -25,11 +25,13 @@ struct GameLibraryView: View {
     @Bindable var session: GameSession
     @Bindable var artworkStore: GameArtworkStore
     let openGameSetup: (GameLibraryTitle) -> Void
+    let startGame: (GameLibraryTitle) -> Void
     let openSettings: () -> Void
 
     @State private var artworkTitle: GameLibraryTitle?
     @State private var isChoosingArtwork = false
     @State private var presentedAlert: GameLibraryAlert?
+    @State private var titleDataStatuses: [GameLibraryTitle: GameDataReport.Status] = [:]
 
     var body: some View {
         NavigationStack {
@@ -85,6 +87,10 @@ struct GameLibraryView: View {
             guard let message else { return }
             presentedAlert = .startup(message)
         }
+        .onChange(of: session.dataReport.status) { _, status in
+            titleDataStatuses[session.title] = status
+        }
+        .task(id: session.title) { await refreshTitleDataStatuses() }
         .alert(item: $presentedAlert) { alert in
             switch alert {
             case .importGameData(let title):
@@ -241,8 +247,7 @@ struct GameLibraryView: View {
 
     private func isGameDataValidatedAndLinked(for title: GameLibraryTitle) -> Bool {
         guard let profile = GameDataProfile.profile(for: title) else { return false }
-        return title == session.importer.profile.title
-            && session.dataReport.status == .ready
+        return dataStatus(for: title) == .ready
             && GOALPadRuntimeBridge.isGameCodeLinked(
                 for: profile.identifier.nativeGameIdentifier)
     }
@@ -262,29 +267,30 @@ struct GameLibraryView: View {
 
     private func state(for title: GameLibraryTitle) -> GameLibraryState {
         guard GameDataProfile.profile(for: title) != nil else { return .planned }
-        guard title == session.importer.profile.title else { return .notImported }
-        switch session.importer.state {
-        case .scanning:
-            return .preparing(.importing(nil))
-        case .copying(let progress):
-            return .preparing(.importing(progress.overallProgress))
-        case .cancelling:
-            return .preparing(.cancellingImport)
-        case .idle, .finished, .failed, .cancelled:
-            break
+        if title == session.title {
+            switch session.importer.state {
+            case .scanning:
+                return .preparing(.importing(nil))
+            case .copying(let progress):
+                return .preparing(.importing(progress.overallProgress))
+            case .cancelling:
+                return .preparing(.cancellingImport)
+            case .idle, .finished, .failed, .cancelled:
+                break
+            }
+            if session.isRefreshingDataReport || session.dataReport.status == .checking {
+                return .preparing(.checkingLocalData)
+            }
+            switch session.startupPhase {
+            case .waitingForForegroundPreparation:
+                return .preparing(.finishingSaveCheck)
+            case .checkingSaves:
+                return .preparing(.checkingSaves)
+            case .idle, .booting:
+                break
+            }
         }
-        if session.isRefreshingDataReport || session.dataReport.status == .checking {
-            return .preparing(.checkingLocalData)
-        }
-        switch session.startupPhase {
-        case .waitingForForegroundPreparation:
-            return .preparing(.finishingSaveCheck)
-        case .checkingSaves:
-            return .preparing(.checkingSaves)
-        case .idle, .booting:
-            break
-        }
-        switch session.dataReport.status {
+        switch dataStatus(for: title) {
         case .checking:
             return .preparing(.checkingLocalData)
         case .empty:
@@ -314,11 +320,7 @@ struct GameLibraryView: View {
                 .supportsRuntimeLaunch == true
         ) {
         case .start(let title):
-            if title == session.importer.profile.title {
-                Task { await session.start() }
-            } else {
-                openGameSetup(title)
-            }
+            startGame(title)
         case .openSetup(let title):
             openGameSetup(title)
         case .verifyData(let title):
@@ -341,12 +343,9 @@ struct GameLibraryView: View {
                         )
                     }.value
                 }
+                titleDataStatuses[title] = report.status
                 if report.status == .ready {
-                    if title == session.importer.profile.title {
-                        await session.start()
-                    } else {
-                        openGameSetup(title)
-                    }
+                    startGame(title)
                 } else {
                     presentedAlert = .importGameData(title)
                 }
@@ -359,6 +358,31 @@ struct GameLibraryView: View {
     private func chooseArtwork(for title: GameLibraryTitle) {
         artworkTitle = title
         isChoosingArtwork = true
+    }
+
+    private func dataStatus(for title: GameLibraryTitle) -> GameDataReport.Status {
+        if title == session.title { return session.dataReport.status }
+        return titleDataStatuses[title] ?? .checking
+    }
+
+    private func refreshTitleDataStatuses() async {
+        for title in GameLibraryTitle.allCases {
+            guard let profile = GameDataProfile.profile(for: title) else { continue }
+            if title == session.title {
+                titleDataStatuses[title] = session.dataReport.status
+                continue
+            }
+            let report = await Task.detached {
+                GameDataInspector.inspect(
+                    gameDirectory: GameDataLayout.gameDirectory(
+                        for: profile,
+                        in: GameDataLayout.documentsDirectory
+                    ),
+                    profile: profile
+                )
+            }.value
+            titleDataStatuses[title] = report.status
+        }
     }
 }
 

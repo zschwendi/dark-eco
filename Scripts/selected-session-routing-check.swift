@@ -108,8 +108,20 @@ check(session.contains(".appendingPathComponent(profile.identifier.rawValue, isD
       "diagnostic storage, payload, and failure copy identify the selected title")
 
 let selection = section(content,
-                        from: "private func openGameSetup(_ title: GameLibraryTitle)",
-                        to: "private var isGameDataReady")
+                        from: "private func selectSession(for title: GameLibraryTitle)",
+                        to: "private func selectSettingsTitle")
+let launcherStart = section(content,
+                            from: "private func startGame(_ title: GameLibraryTitle)",
+                            to: "/// A session owns title-scoped")
+let settingsPresentation = section(content,
+                                   from: "private func presentSettings()",
+                                   to: "private func openGameSetup")
+let setupSelection = section(content,
+                             from: "private func openGameSetup(_ title: GameLibraryTitle)",
+                             to: "private func startGame")
+let returnToLibrary = section(content,
+                              from: "private func returnToLibrary()",
+                              to: "#if os(visionOS)")
 let retirement = section(session,
                          from: "func retireForReplacement()",
                          to: "func presentTouchControlsGuide()")
@@ -125,12 +137,35 @@ check(content.contains("@State private var session: GameSession")
         ], in: retirement)
         && occursInOrder([
             "GameDataProfile.profile(for: title)",
-            "if session.profile != profile",
+            "guard session.profile != profile",
+            "settingsPresentation = nil",
             "session.retireForReplacement()",
             "session = GameSession(profile: profile)",
-            "launcherDestination = .gameSetup(title)",
         ], in: selection),
-      "opening another supported title replaces the complete session before showing setup")
+      "switching titles replaces the complete title-scoped session before any destination is shown")
+check(content.contains("@State private var startAfterPreparationTitle: GameLibraryTitle?")
+        && occursInOrder([
+            "selectSession(for: title)",
+            "launcherDestination = .library",
+            "startAfterPreparationTitle = title",
+            "let selectedSession = session",
+            "Task {",
+            "guard selectedSession === session else { return }",
+            "await selectedSession.start()",
+        ], in: launcherStart)
+        && content.contains("if startAfterPreparationTitle == selectedSession.title")
+        && content.contains("await selectedSession.start()"),
+      "a ready nonselected title replaces its session and starts after preparation instead of opening setup")
+check(settingsPresentation.contains("startAfterPreparationTitle = nil")
+        && setupSelection.contains("startAfterPreparationTitle = nil")
+        && selection.contains("startAfterPreparationTitle = nil")
+        && returnToLibrary.contains("startAfterPreparationTitle = nil"),
+      "opening settings or setup, returning to the Library, and non-start replacement cancel deferred starts")
+check(content.contains("private func selectSettingsTitle(_ title: GameLibraryTitle)")
+        && content.contains("guard !session.isRunning")
+        && content.contains("presentSettings()")
+        && content.contains(".id(presentation.id)"),
+      "settings title changes replace the owned session and refresh the sheet identity")
 check(content.contains(".task(id: session.title)")
         && content.contains("let selectedSession = session")
         && content.contains("guard selectedSession === session else { return }")

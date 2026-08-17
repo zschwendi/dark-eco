@@ -1072,27 +1072,36 @@ enum CloudSyncPresentation {
 }
 
 private struct SettingsGamePicker: View {
+    let selectedTitle: GameLibraryTitle
+    let isGameRunning: Bool
+    let selectTitle: (GameLibraryTitle) -> Void
+
     var body: some View {
         HStack(spacing: 0) {
-            #if GOALPAD_JAK2
-            SettingsGamePickerChoice(title: "Jak II", isSelected: true)
-            #else
-            SettingsGamePickerChoice(title: "Jak 1", isSelected: true)
-            #endif
-            SettingsGamePickerChoice(title: "Future Title", isSelected: false)
-            SettingsGamePickerChoice(title: "Future Title", isSelected: false)
+            ForEach([GameLibraryTitle.jak1, .jak2]) { title in
+                Button { selectTitle(title) } label: {
+                    SettingsGamePickerChoice(
+                        title: title.settingsPickerLabel,
+                        isSelected: title == selectedTitle,
+                        availability: isGameRunning && title != selectedTitle
+                            ? "Locked while playing" : "Available"
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(isGameRunning || title == selectedTitle)
+            }
+            SettingsGamePickerChoice(title: GameLibraryTitle.jak3.settingsPickerLabel,
+                                     isSelected: false,
+                                     availability: "Planned")
         }
-        #if GOALPAD_JAK2
-        .accessibilityValue("Jak II selected")
-        #else
-        .accessibilityValue("Jak 1 selected")
-        #endif
+        .accessibilityValue("\(selectedTitle.settingsPickerLabel) selected")
     }
 }
 
 private struct SettingsGamePickerChoice: View {
     let title: String
     let isSelected: Bool
+    let availability: String
 
     private var titleColor: Color {
         if isSelected { return DarkEcoTheme.accent }
@@ -1117,7 +1126,7 @@ private struct SettingsGamePickerChoice: View {
                 }
             }
             .accessibilityLabel(title)
-            .accessibilityValue(isSelected ? "Selected" : "Unavailable")
+            .accessibilityValue(isSelected ? "Selected" : availability)
     }
 }
 
@@ -1148,8 +1157,9 @@ struct SaveSettingsView: View {
     @Bindable var sync: SaveSyncController
     @Bindable var settings: PresentationSettings
     @Bindable var input: ControllerInput
-    let isGameDataReady: Bool
+    let selectedTitle: GameLibraryTitle
     let isGameRunning: Bool
+    let selectSettingsTitle: (GameLibraryTitle) -> Void
     let returnToLibrary: () -> Void
     @State private var saveTransferPicker: SaveTransferPicker?
     @State private var archivedSaveToPromote: ArchivedSaveCandidate?
@@ -1160,10 +1170,10 @@ struct SaveSettingsView: View {
 
     var body: some View {
         Form {
-            if isGameDataReady {
-                Section("Game") {
-                    SettingsGamePicker()
-                }
+            Section("Game") {
+                SettingsGamePicker(selectedTitle: selectedTitle,
+                                   isGameRunning: isGameRunning,
+                                   selectTitle: selectSettingsTitle)
             }
 
             #if os(macOS)

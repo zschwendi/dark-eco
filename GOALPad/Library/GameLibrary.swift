@@ -145,7 +145,7 @@ nonisolated struct GameLibraryGridLayout: Equatable, Sendable {
     }
 }
 
-nonisolated enum GameLibraryTitle: String, CaseIterable, Equatable, Identifiable, Sendable {
+nonisolated enum GameLibraryTitle: String, CaseIterable, Equatable, Hashable, Identifiable, Sendable {
     case jak1
     case jak2
     case jak3
@@ -170,6 +170,14 @@ nonisolated enum GameLibraryTitle: String, CaseIterable, Equatable, Identifiable
 
     var shelfName: String {
         name
+    }
+
+    var settingsPickerLabel: String {
+        switch self {
+        case .jak1: "Jak 1"
+        case .jak2: "Jak II"
+        case .jak3: "Jak 3"
+        }
     }
 
     var availabilityLabel: String {
