@@ -19,6 +19,7 @@ run_check() {
     "$root/GOALPad/Data/GameData.swift" \
     "$root/GOALPad/Data/GameDataInstallWorker.swift" \
     "$root/GOALPad/Data/GameDataNativePreparationBackend.swift" \
+    "$root/GOALPad/Data/Jak2NativePreparationBackend.swift" \
     "$root/GOALPad/Data/RawISOCandidateProducer.swift" \
     "$root/Scripts/raw-iso-profile-routing-check.swift" \
     -o "$out-$label"

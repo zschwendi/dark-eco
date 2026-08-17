@@ -1,0 +1,4 @@
+module GOALPadJak2Runtime {
+  header "GOALPadJak2Runtime.h"
+  export *
+}

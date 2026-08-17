@@ -100,15 +100,16 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
             try Task.checkCancellation()
             return GameDataImportResult(filesCopied: filesWritten, filesSkipped: 0)
         } catch let failure as GameDataNativePreparationFailure {
-            if failure.domain == GOALPadGameDataPreparationErrorDomain,
+            let isNativeFailure = nativePreparationBackend.ownsNativeFailure(failure)
+            if isNativeFailure,
                failure.code == GOALPadGameDataPreparationErrorCode.cancelled.rawValue
             {
                 throw CancellationError()
             }
             throw Self.importFailure(
-                domain: failure.domain,
                 code: failure.code,
                 message: failure.message,
+                isNativeFailure: isNativeFailure,
                 candidateDirectory: candidateDirectory
             )
         }
@@ -148,13 +149,13 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
     }
 
     private static func importFailure(
-        domain: String,
         code: Int,
         message: String,
+        isNativeFailure: Bool,
         candidateDirectory: URL
     ) -> GameDataImportFailure {
         let preserved = FileManager.default.fileExists(atPath: candidateDirectory.path)
-        guard domain == GOALPadGameDataPreparationErrorDomain,
+        guard isNativeFailure,
               let nativeCode = GOALPadGameDataPreparationErrorCode(rawValue: code)
         else {
             return GameDataImportFailure(
@@ -234,6 +235,7 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
 nonisolated extension GameDataNativePreparationBackend {
     static let appJak1Composer = GameDataNativePreparationBackend(
         profileIdentifier: .jak1,
+        nativeErrorDomain: GOALPadGameDataPreparationErrorDomain,
         isAvailable: {
             #if GOALPAD_JAK2
             false

@@ -3,6 +3,12 @@ import Foundation
 nonisolated extension GameDataNativePreparationBackend {
     static let appJak1Composer = GameDataNativePreparationBackend(
         profileIdentifier: .jak1,
+        isAvailable: { true },
+        prepare: { _, _, _, _ in 0 }
+    )
+
+    static let appJak2Composer = GameDataNativePreparationBackend(
+        profileIdentifier: .jak2,
         isAvailable: { false },
         prepare: { _, _, _, _ in 0 }
     )
@@ -331,8 +337,8 @@ private func importerRetainsExplicitProfile() {
     let jak2 = GameDataImporter(profile: .jak2)
     check(jak1.profile == .jak1 && jak2.profile == .jak2,
           "Jak 1 and Jak II importers retain independent named profiles")
-    check(!jak1.canImportRawMedia && !jak2.canImportRawMedia,
-          "raw-media availability is queried for each explicit profile")
+    check(jak1.canImportRawMedia && !jak2.canImportRawMedia,
+          "each explicit profile selects its own production preparation backend")
 }
 
 @MainActor

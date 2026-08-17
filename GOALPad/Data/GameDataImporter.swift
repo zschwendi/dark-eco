@@ -77,13 +77,15 @@ final class GameDataImporter {
         profile: GameDataProfile,
         worker: GameDataInstallWorker? = nil,
         preparedFolderProducer: any GameDataCandidateProducing = PreparedFolderCandidateProducer(),
-        nativePreparationBackend: GameDataNativePreparationBackend = .appJak1Composer,
+        nativePreparationBackend: GameDataNativePreparationBackend? = nil,
         idleTimerAssertions: DeviceIdleTimerAssertions? = nil
     ) {
         self.profile = profile
         self.worker = worker ?? GameDataInstallWorker(configuration: .app(for: profile))
         self.preparedFolderProducer = preparedFolderProducer
         self.idleTimerAssertions = idleTimerAssertions ?? .shared
+        let nativePreparationBackend = nativePreparationBackend
+            ?? Self.productionNativePreparationBackend(for: profile)
         rawISOProducer = RawISOCandidateProducer(
             profile: profile,
             nativePreparationBackend: nativePreparationBackend
@@ -95,6 +97,15 @@ final class GameDataImporter {
                 overallProgressRange: 0.25...0.85
             )
         )
+    }
+
+    private static func productionNativePreparationBackend(
+        for profile: GameDataProfile
+    ) -> GameDataNativePreparationBackend {
+        switch profile.identifier {
+        case .jak1: .appJak1Composer
+        case .jak2: .appJak2Composer
+        }
     }
 
     var isRunning: Bool {

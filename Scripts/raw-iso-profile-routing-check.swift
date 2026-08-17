@@ -179,6 +179,16 @@ private struct RawISOProfileRoutingCheck {
         check(NativeJobRecorder.shared.snapshot.starts == 0,
               "wrong-profile routing never constructs or starts the Jak 1 native job")
 
+        let unavailableJak2Producer = RawISOCandidateProducer(
+            profile: .jak2,
+            resourceURL: { name in
+                name == GameDataProfile.jak2.projectResourceName ? jak2Project : jak2Pack
+            },
+            nativePreparationBackend: .appJak2Composer
+        )
+        check(!unavailableJak2Producer.isAvailable,
+              "the Jak II framework backend fails closed on non-iOS hosts")
+
         var jak1ResourceNames: [String] = []
         let jak1Project = root.appending(path: "OpenGOALProjectResources")
         let jak1Pack = root.appending(path: "Jak1SourceObjectPack")
@@ -255,6 +265,40 @@ private struct RawISOProfileRoutingCheck {
         )
         check(await jak2BackendCalls.value() == 1,
               "the injected Jak II backend receives the preparation request exactly once")
+
+        let jak2ErrorDomain = "synthetic.jak2.framework.preparation"
+        let cancellingJak2Backend = GameDataNativePreparationBackend(
+            profileIdentifier: .jak2,
+            nativeErrorDomain: jak2ErrorDomain,
+            isAvailable: { true },
+            prepare: { _, _, _, _ in
+                throw GameDataNativePreparationFailure(
+                    domain: jak2ErrorDomain,
+                    code: GOALPadGameDataPreparationErrorCode.cancelled.rawValue,
+                    message: "Synthetic framework cancellation."
+                )
+            }
+        )
+        let cancellingJak2Producer = RawISOCandidateProducer(
+            profile: .jak2,
+            resourceURL: { name in
+                name == GameDataProfile.jak2.projectResourceName ? jak2Project : jak2Pack
+            },
+            nativePreparationBackend: cancellingJak2Backend
+        )
+        do {
+            _ = try await cancellingJak2Producer.prepareCandidate(
+                from: source,
+                activeDirectory: root,
+                candidateDirectory: candidate,
+                report: { _ in }
+            )
+            check(false, "the selected Jak II framework domain preserves cancellation")
+        } catch is CancellationError {
+            check(true, "the selected Jak II framework domain preserves cancellation")
+        } catch {
+            check(false, "the selected Jak II framework domain preserves cancellation")
+        }
 
         if failures == 0 {
             print("raw ISO profile routing checks passed")

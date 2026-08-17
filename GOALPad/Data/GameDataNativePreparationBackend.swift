@@ -46,15 +46,18 @@ nonisolated struct GameDataNativePreparationBackend: Sendable {
     ) async throws -> Int
 
     let profileIdentifier: GameDataProfile.Identifier
+    let nativeErrorDomain: String?
     private let availability: @Sendable () -> Bool
     private let preparation: Preparation
 
     init(
         profileIdentifier: GameDataProfile.Identifier,
+        nativeErrorDomain: String? = nil,
         isAvailable: @escaping @Sendable () -> Bool,
         prepare: @escaping Preparation
     ) {
         self.profileIdentifier = profileIdentifier
+        self.nativeErrorDomain = nativeErrorDomain
         availability = isAvailable
         preparation = prepare
     }
@@ -78,5 +81,9 @@ nonisolated struct GameDataNativePreparationBackend: Sendable {
             )
         }
         return try await preparation(sourceURL, candidateURL, resources, report)
+    }
+
+    func ownsNativeFailure(_ failure: GameDataNativePreparationFailure) -> Bool {
+        nativeErrorDomain == failure.domain
     }
 }
