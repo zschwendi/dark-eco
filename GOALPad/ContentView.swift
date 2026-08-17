@@ -52,7 +52,8 @@ struct ContentView: View {
     @State private var startAfterPreparationTitle: GameLibraryTitle?
     #if os(iOS)
     @State private var isShowingTouchControlsGuide = false
-    @AppStorage("jak1TouchControlsGuideVersion") private var touchControlsGuideVersion = 0
+    @AppStorage("jak1TouchControlsGuideVersion") private var jak1TouchControlsGuideVersion = 0
+    @AppStorage("jak2TouchControlsGuideVersion") private var jak2TouchControlsGuideVersion = 0
     #endif
 
     init() {
@@ -230,7 +231,7 @@ struct ContentView: View {
         #endif
         #if os(iOS)
         .onChange(of: session.runReadiness) { _, readiness in
-            guard readiness == .active, touchControlsGuideVersion < 1 else { return }
+            guard readiness == .active, selectedTouchControlsGuideVersion < 1 else { return }
             session.presentTouchControlsGuide()
             isShowingTouchControlsGuide = true
         }
@@ -248,10 +249,10 @@ struct ContentView: View {
         }
         #if os(iOS)
         .sheet(isPresented: $isShowingTouchControlsGuide, onDismiss: {
-            touchControlsGuideVersion = 1
+            acknowledgeSelectedTouchControlsGuide()
             session.dismissTouchControlsGuide()
         }) {
-            TouchControlsGuideSheet()
+            TouchControlsGuideSheet(gameTitle: touchGameTitle)
         }
         #endif
     }
@@ -261,6 +262,24 @@ struct ContentView: View {
         nextSettingsPresentationID += 1
         settingsPresentation = SettingsSheetPresentation(id: nextSettingsPresentationID)
     }
+
+    #if os(iOS)
+    private var touchGameTitle: TouchGameTitle {
+        session.title == .jak2 ? .jak2 : .jak1
+    }
+
+    private var selectedTouchControlsGuideVersion: Int {
+        touchGameTitle == .jak2 ? jak2TouchControlsGuideVersion : jak1TouchControlsGuideVersion
+    }
+
+    private func acknowledgeSelectedTouchControlsGuide() {
+        if touchGameTitle == .jak2 {
+            jak2TouchControlsGuideVersion = 1
+        } else {
+            jak1TouchControlsGuideVersion = 1
+        }
+    }
+    #endif
 
     private func openGameSetup(_ title: GameLibraryTitle) {
         startAfterPreparationTitle = nil

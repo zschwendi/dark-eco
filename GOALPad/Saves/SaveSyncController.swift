@@ -1543,9 +1543,9 @@ struct SaveSettingsView: View {
 
     @ViewBuilder
     private var controlsContent: some View {
-            #if os(iOS) && !GOALPAD_JAK2
+            #if os(iOS)
             NavigationLink {
-                TouchControlsGuideView()
+                TouchControlsGuideView(gameTitle: selectedTitle == .jak2 ? .jak2 : .jak1)
             } label: {
                 Label("Touch Controls Guide", systemImage: "hand.tap")
             }

@@ -3,10 +3,11 @@ import SwiftUI
 
 struct TouchControlsGuideSheet: View {
     @Environment(\.dismiss) private var dismiss
+    let gameTitle: TouchGameTitle
 
     var body: some View {
         NavigationStack {
-            TouchControlsGuideView()
+            TouchControlsGuideView(gameTitle: gameTitle)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") { dismiss() }
@@ -19,18 +20,21 @@ struct TouchControlsGuideSheet: View {
 }
 
 struct TouchControlsGuideView: View {
+    let gameTitle: TouchGameTitle
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                TouchControlsInfographic()
+                TouchControlsInfographic(gameTitle: gameTitle)
 
                 VStack(spacing: 14) {
-                    guideRow(symbol: .systemImage("hand.draw"), title: "Swipe Actions",
-                             detail: "Swipe anywhere on the right side\n- Up: Jump\n- Down: Crouch\n- Left: Punch\n- Right: Spin Kick")
+                    if gameTitle == .jak2 {
+                        jak2GuideRows
+                    } else {
+                        jak1GuideRows
+                    }
                     guideRow(symbol: .text("L"), title: "Movement")
                     guideRow(symbol: .text("R"), title: "Camera")
-                    guideRow(symbol: .systemImage("flag.pattern.checkered.2.crossed"), title: "Speeder controls",
-                             detail: "Swipe up and hold to accelerate. Swipe down to hop brake.")
                 }
 
                 Text("Dark Eco also supports wireless gamepads for controller input.")
@@ -42,7 +46,34 @@ struct TouchControlsGuideView: View {
             .frame(maxWidth: .infinity)
         }
         .background(DarkEcoTheme.background)
-        .navigationTitle("Touch Controls")
+        .navigationTitle(gameTitle == .jak2 ? "Jak II Touch Controls" : "Jak 1 Touch Controls")
+    }
+
+    @ViewBuilder
+    private var jak1GuideRows: some View {
+        guideRow(symbol: .systemImage("hand.draw"), title: "Swipe Actions",
+                 detail: "Swipe anywhere on the right side\n- Up: Jump\n- Down: Crouch\n- Left: Punch\n- Right: Spin Kick")
+        guideRow(symbol: .systemImage("flag.pattern.checkered.2.crossed"),
+                 title: "Speeder Controls",
+                 detail: "Swipe up and hold to accelerate. Swipe down to hop brake.")
+    }
+
+    @ViewBuilder
+    private var jak2GuideRows: some View {
+        guideRow(symbol: .systemImage("hand.draw"), title: "Action Swipes",
+                 detail: "Swipe and hold on the right side\n- Up: Jump or accelerate\n- Down: Crouch or jetboard trick\n- Left: Attack or vehicle brake\n- Right: Attack or vehicle action")
+        guideRow(symbol: .text("R1"), title: "Fire & Jetboard",
+                 detail: "Tap the camera area to fire. Hold R1 for sustained fire or a jetboard spin.")
+        guideRow(symbol: .text("R2"), title: "Jetboard & Vehicles",
+                 detail: "Hold R2 to mount or dismount the jetboard and switch vehicle flight height.")
+        guideRow(symbol: .text("R3"), title: "Look Around",
+                 detail: "Tap Zoom to enter or leave first-person look-around.")
+        guideRow(symbol: .text("↑↓←→"), title: "Weapons",
+                 detail: "Use the colored wheel: red up, dark right, yellow down, blue left.")
+        guideRow(symbol: .text("△"), title: "Game Prompts",
+                 detail: "Tap the visible action when Jak II offers Talk, Use, Play, or vehicle entry.")
+        guideRow(symbol: .systemImage("pause.fill"), title: "Menus",
+                 detail: "Pause and save screens provide D-pad, Back, Confirm, Settings, and Resume controls.")
     }
 
     private enum GuideSymbol {
@@ -82,6 +113,8 @@ struct TouchControlsGuideView: View {
 }
 
 private struct TouchControlsInfographic: View {
+    let gameTitle: TouchGameTitle
+
     var body: some View {
         GeometryReader { proxy in
             let width = proxy.size.width
@@ -127,7 +160,7 @@ private struct TouchControlsInfographic: View {
                               y: proxy.size.height - cameraDiameter * 0.72)
 
                 HStack(spacing: 12) {
-                    capsule("STATS")
+                    capsule(gameTitle == .jak2 ? "R2" : "STATS")
                     capsule("PAUSE")
                 }
                 .position(x: width / 2, y: proxy.size.height - 30)

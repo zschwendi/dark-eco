@@ -74,34 +74,43 @@ check(view.contains("Label(\"Touch Controls Guide\", systemImage: \"hand.tap\")"
         && occursInOrder(["Label(\"Touch Controls Guide\"", "Toggle(\"Rumble\"",
                           "LabeledContent(\"Touch Sticks\""], in: view)
         && view.contains("#if os(iOS)")
+        && view.contains("TouchControlsGuideView(gameTitle: selectedTitle == .jak2 ? .jak2 : .jak1)")
         && touchGuide.contains("struct TouchControlsGuideSheet")
         && touchGuide.contains("struct TouchControlsGuideView")
-        && occursInOrder(["title: \"Swipe Actions\"", "title: \"Movement\"",
-                          "title: \"Camera\"", "title: \"Speeder controls\""], in: touchGuide)
+        && touchGuide.contains("if gameTitle == .jak2")
+        && occursInOrder(["title: \"Swipe Actions\"", "title: \"Speeder Controls\""],
+                         in: touchGuide)
         && touchGuide.contains("Swipe anywhere on the right side\\n- Up: Jump")
         && touchGuide.contains("- Down: Crouch\\n- Left: Punch\\n- Right: Spin Kick")
         && touchGuide.contains(".systemImage(\"hand.draw\")")
         && touchGuide.contains(".systemImage(\"flag.pattern.checkered.2.crossed\")")
         && touchGuide.contains("guideRow(symbol: .text(\"L\"), title: \"Movement\")")
         && touchGuide.contains("guideRow(symbol: .text(\"R\"), title: \"Camera\")")
-        && !touchGuide.contains("right side:")
-        && !touchGuide.contains("• Up:")
         && touchGuide.contains("Swipe up and hold to accelerate. Swipe down to hop brake.")
+        && touchGuide.contains("title: \"Fire & Jetboard\"")
+        && touchGuide.contains("title: \"Jetboard & Vehicles\"")
+        && touchGuide.contains("title: \"Look Around\"")
+        && touchGuide.contains("red up, dark right, yellow down, blue left")
+        && touchGuide.contains("title: \"Game Prompts\"")
+        && touchGuide.contains("D-pad, Back, Confirm, Settings, and Resume")
         && touchGuide.contains("Dark Eco also supports wireless gamepads for controller input.")
-        && !touchGuide.contains("Zoom and fire")
-        && !touchGuide.contains("Game prompts")
-        && !touchGuide.contains("Use the visible Start, Pause"),
-      "Controls begins with a reusable visual touch guide covering the shipped gesture contract")
+        && touchGuide.contains("Jak II Touch Controls")
+        && touchGuide.contains("Jak 1 Touch Controls"),
+      "Controls begins with title-aware guides covering both shipped gesture contracts")
 check(content.contains("@AppStorage(\"jak1TouchControlsGuideVersion\")")
-        && content.contains("readiness == .active, touchControlsGuideVersion < 1")
+        && content.contains("@AppStorage(\"jak2TouchControlsGuideVersion\")")
+        && content.contains("readiness == .active, selectedTouchControlsGuideVersion < 1")
         && content.contains("session.presentTouchControlsGuide()")
         && content.contains("isShowingTouchControlsGuide = true")
-        && content.contains("touchControlsGuideVersion = 1")
+        && content.contains("acknowledgeSelectedTouchControlsGuide()")
+        && content.contains("jak2TouchControlsGuideVersion = 1")
+        && content.contains("jak1TouchControlsGuideVersion = 1")
+        && content.contains("TouchControlsGuideSheet(gameTitle: touchGameTitle)")
         && content.contains("session.dismissTouchControlsGuide()")
         && content.contains("private func returnToLibrary()")
         && occursInOrder(["settingsPresentation = nil", "launcherDestination = .library",
                           "session.shutdown()"], in: content),
-      "the first playable iOS session presents the guide once and confirmed exit tears down into Library")
+      "each title presents its guide once and confirmed exit tears down into Library")
 
 check(occursInOrder([
     "DisclosureGroup(isExpanded: expansion(for: .controls))",
