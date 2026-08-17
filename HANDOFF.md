@@ -21014,3 +21014,16 @@ Physical installation remains pending. Three CoreDevice attempts timed out
 while `Z iPad Pro` was locked or asleep. Wait for the maintainer to confirm the
 device is unlocked and awake before retrying. No app container, save data, or
 user-provided game data was inspected or modified.
+
+The matching signed generic iOS Release build subsequently passed. Log:
+`/private/tmp/goalpad-build235-device-build.log`. Product:
+`/private/tmp/GOALPad-v2-main-derived/Build/Products/Release-iphoneos/EcoJak2Dev.app`.
+It reports bundle `com.zephyrstudiosllc.eco.jak2dev`, version 1.0 (235), is
+91 MiB, and passes strict deep code-sign verification. This is build/signing
+evidence only; it has not yet been installed on the physical iPad.
+
+Disk space was critically low during that build. Only reproducible temporary
+Build 235 simulator products/intermediates (476 MiB reported before deletion)
+and the obsolete 22 MiB Build 234 source-pack backup were removed. The installed
+simulator app, current Build 235 source pack/AOT, source worktrees, prepared game
+data, device data, and saves were not deleted or inspected.
