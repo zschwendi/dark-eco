@@ -20965,3 +20965,52 @@ CoreDevice inventory reports Dark Eco 1.0 (222), bundle
 /private/tmp/goalpad-build222-main-launch.json
 /private/tmp/goalpad-build222-main-inventory.json
 ```
+
+## Build 235 Jak II memory-card regression checkpoint (2026-08-17)
+
+The active integration checkout is branch `v2.0`. Build 234 was committed and
+pushed as `2bba0c19` and restores Jak II touch menu controls while the native
+master mode is `progress`: Back, Confirm, D-pad, Settings, and Resume now remain
+available in the same menu family as Jak 1.
+
+Build 235 advances the Jak II physical-memory-card investigation without
+claiming the regression fixed. Nested OpenGOAL commit `a81645346` is pushed to
+`origin/v2.0`. It makes `progress.get-state-check-card` preserve the requested
+state on `PC_PORT`, restores the missing `pc-host-manages-display?` declaration
+needed to regenerate current Jak II AOT, and updates the public source-pack
+identity to `5a2079981b8e7eb6` (840 objects, 21,216,666 bytes).
+
+Focused source checks and AOT/source-pack generation passed:
+
+```text
+python3 OpenGOAL/test/goalc/test_jak2_scene_preview_contract.py  # 7/7
+python3 OpenGOAL/test/goalc/test_jak2_managed_display_settings.py  # 5/5
+AOT preflight: 840 objects, 18493 emitted functions, 7 native functions
+```
+
+The Release iPad simulator build passed and was installed as Eco Jak II Dev
+1.0 (235). Build log:
+`/private/tmp/goalpad-build235-simulator-build.log`. Generated and installed
+binary disassembly both show the intended PC implementation returning the
+requested state directly.
+
+The second bounded scene-preview attempt still reached the visible
+`No Memory Card (PS2) inserted in Memory Card slot 1` screen before an active
+scene. Evidence is under
+`/private/tmp/goalpad-build235-eye-sweep-20260817`, with screenshot
+`/private/tmp/goalpad-build235-current.png`. The touch menu controls are visible
+there, confirming the Build 234 UI regression fix in the simulator, but no eye
+or ocean acceptance result is valid because gameplay never became active.
+
+Do not run a third scene attempt until an exact second save-device correction
+is identified. The title-level PC bypass and progress state method are both
+present in the installed executable, while native `MC_get_status` still claims
+an initialized, formatted file-backed card. Compare merged app startup/save
+wiring with the last `jak2-best` outer checkpoint before changing more GOAL
+state transitions; do not blindly auto-dismiss the warning because that could
+silently disable saving.
+
+Physical installation remains pending. Three CoreDevice attempts timed out
+while `Z iPad Pro` was locked or asleep. Wait for the maintainer to confirm the
+device is unlocked and awake before retrying. No app container, save data, or
+user-provided game data was inspected or modified.
