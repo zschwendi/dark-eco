@@ -1140,7 +1140,8 @@ private struct SettingsGamePicker: View {
                         title: title.settingsPickerLabel,
                         isSelected: title == selectedTitle,
                         availability: isGameRunning && title != selectedTitle
-                            ? "Locked while playing" : "Available"
+                            ? "Locked while playing" : "Available",
+                        showsAvailability: false
                     )
                 }
                 .buttonStyle(.plain)
@@ -1148,7 +1149,8 @@ private struct SettingsGamePicker: View {
             }
             SettingsGamePickerChoice(title: GameLibraryTitle.jak3.settingsPickerLabel,
                                      isSelected: false,
-                                     availability: "Planned")
+                                     availability: "Planned",
+                                     showsAvailability: true)
         }
         .accessibilityValue("\(selectedTitle.settingsPickerLabel) selected")
     }
@@ -1158,6 +1160,7 @@ private struct SettingsGamePickerChoice: View {
     let title: String
     let isSelected: Bool
     let availability: String
+    let showsAvailability: Bool
 
     private var titleColor: Color {
         if isSelected { return DarkEcoTheme.accent }
@@ -1169,8 +1172,14 @@ private struct SettingsGamePickerChoice: View {
     }
 
     var body: some View {
-        Text(title)
-            .font(.subheadline.weight(isSelected ? .semibold : .regular))
+        VStack(spacing: 1) {
+            Text(title)
+                .font(.subheadline.weight(isSelected ? .semibold : .regular))
+            if showsAvailability {
+                Text(availability)
+                    .font(.caption2)
+            }
+        }
             .foregroundStyle(titleColor)
             .frame(maxWidth: .infinity, minHeight: 32)
             .overlay(alignment: .bottom) {

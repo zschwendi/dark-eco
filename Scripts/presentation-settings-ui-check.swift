@@ -414,6 +414,8 @@ check(view.contains("private struct SettingsGamePicker")
         && view.contains("title: title.settingsPickerLabel")
         && view.contains("SettingsGamePickerChoice(title: GameLibraryTitle.jak3.settingsPickerLabel")
         && view.contains("availability: \"Planned\"")
+        && view.contains("showsAvailability: true")
+        && view.contains("if showsAvailability")
         && view.contains("Locked while playing")
         && view.contains("\\(selectedTitle.settingsPickerLabel) selected")
         && view.contains(".navigationTitle(\"Settings\")"),
