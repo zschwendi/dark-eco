@@ -42,7 +42,6 @@ require(jak2_phase_names == [
     "Build Jak II import composer",
     "Sources",
     "Frameworks",
-    "Embed Frameworks",
     "Resources",
     "Stage Jak II importer resources",
 ], f"unexpected Eco Jak II Dev phase order: {jak2_phase_names}")
@@ -80,10 +79,6 @@ require("Build Jak II" not in jak1_target and "Verify Jak II" not in jak1_target
         "Jak II compile or archive-build wiring entered the GOALPad/Jak 1 target")
 
 for marker in (
-    "A74200000000000000000001 /* GOALPadJak2Runtime.framework in Frameworks */",
-    "A74200000000000000000002 /* GOALPadJak2Runtime.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F10600000000000000000002 /* GOALPadJak2Runtime.framework */; platformFilter = ios; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };",
-    "A74200000000000000000003 /* Embed Frameworks */ = {",
-    "A74200000000000000000004 /* PBXTargetDependency */ = {",
     "A74100000000000000000001 /* Build Jak II import composer */ = {",
     '"$(SRCROOT)/Scripts/build-jak2-import-composer-apple.sh"',
     '"$(GOALPAD_JAK2_IMPORT_ARCHIVE)"',
@@ -99,16 +94,11 @@ for marker in (
     require(marker in project, f"missing project contract: {marker}")
 
 jak2_frameworks = object_block("A74000000000000000000005")
-jak2_embed_frameworks = object_block("A74200000000000000000003")
-jak2_runtime_dependency = object_block("A74200000000000000000004")
-require("A74200000000000000000001 /* GOALPadJak2Runtime.framework in Frameworks */" in jak2_frameworks,
-        "Eco Jak II Dev must link the Jak II runtime framework")
-require("A74200000000000000000003 /* Embed Frameworks */" in jak2_target
-        and "A74200000000000000000002 /* GOALPadJak2Runtime.framework in Embed Frameworks */" in jak2_embed_frameworks,
-        "Eco Jak II Dev must embed the Jak II runtime framework")
-require("A74200000000000000000004 /* PBXTargetDependency */" in jak2_target
-        and "target = F10200000000000000000002 /* GOALPadJak2Runtime */;" in jak2_runtime_dependency,
-        "Eco Jak II Dev must build the Jak II runtime framework before linking")
+require("GOALPadJak2Runtime.framework" not in jak2_frameworks
+        and "GOALPadJak2Runtime.framework" not in jak2_target,
+        "Eco Jak II Dev must use its direct runtime instead of rebuilding the merged-app framework")
+require("EcoJak2RuntimeBridge.mm in Sources" in object_block("A74000000000000000000004"),
+        "Eco Jak II Dev must retain its direct runtime bridge")
 
 for marker in (
     "GOALPAD_HAS_JAK1_IMPORT_COMPOSER = 0",

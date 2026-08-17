@@ -27,17 +27,20 @@ func check(_ condition: Bool, _ message: String) {
     }
 }
 
-check(adapter.contains("#if os(iOS) && canImport(GOALPadJak2Runtime)")
+check(adapter.contains("#if GOALPAD_JAK2")
+        && adapter.contains("AppJak2GameDataPreparationJob = GOALPadGameDataPreparationJob")
+        && adapter.contains("GOALPadGameDataPreparationIsAvailable()")
+        && adapter.contains("#elseif os(iOS) && canImport(GOALPadJak2Runtime)")
         && adapter.contains("import GOALPadJak2Runtime")
         && adapter.contains("#else"),
-      "the framework umbrella is imported only for an available iOS module")
+      "the standalone target uses its local composer while the merged app uses the framework")
 check(adapter.contains("profileIdentifier: .jak2")
-        && adapter.contains("nativeErrorDomain: GOALPadJak2GameDataPreparationErrorDomain")
-        && adapter.contains("GOALPadJak2GameDataPreparationIsAvailable()"),
-      "the production backend is bound to Jak II and its framework error domain")
-check(adapter.contains("GOALPadJak2GameDataPreparationJob(")
-        && adapter.contains("GOALPadJak2GameDataPreparationProgress")
-        && adapter.contains("GOALPadJak2GameDataPreparationSummary")
+        && adapter.contains("nativeErrorDomain: appJak2GameDataPreparationErrorDomain")
+        && adapter.contains("appJak2GameDataPreparationIsAvailable()"),
+      "the production backend is bound to Jak II and its selected native error domain")
+check(adapter.contains("AppJak2GameDataPreparationJob(")
+        && adapter.contains("AppJak2GameDataPreparationProgress")
+        && adapter.contains("AppJak2GameDataPreparationSummary")
         && adapter.contains("summary.archivesWritten")
         && adapter.contains("summary.flatFilesWritten")
         && adapter.contains("summary.fr3FilesWritten"),

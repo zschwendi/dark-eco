@@ -7,8 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A74200000000000000000001 /* GOALPadJak2Runtime.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F10600000000000000000002 /* GOALPadJak2Runtime.framework */; platformFilter = ios; };
-		A74200000000000000000002 /* GOALPadJak2Runtime.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F10600000000000000000002 /* GOALPadJak2Runtime.framework */; platformFilter = ios; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		F10100000000000000000002 /* GOALPadJak2Runtime.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F10600000000000000000002 /* GOALPadJak2Runtime.framework */; platformFilter = ios; };
 		F10100000000000000000004 /* GOALPadJak2Runtime.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F10600000000000000000002 /* GOALPadJak2Runtime.framework */; platformFilter = ios; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		F10100000000000000000007 /* GOALPadJak2Runtime.mm in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000003 /* GOALPadJak2Runtime.mm */; };
@@ -423,17 +421,6 @@
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A74200000000000000000003 /* Embed Frameworks */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 10;
-			files = (
-				A74200000000000000000002 /* GOALPadJak2Runtime.framework in Embed Frameworks */,
-			);
-			name = "Embed Frameworks";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXHeadersBuildPhase section */
@@ -517,7 +504,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A74200000000000000000001 /* GOALPadJak2Runtime.framework in Frameworks */,
 				A74000000000000000020002 /* PLzmaSDK in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -830,14 +816,12 @@
 				A74100000000000000000001 /* Build Jak II import composer */,
 				A74000000000000000000004 /* Sources */,
 				A74000000000000000000005 /* Frameworks */,
-				A74200000000000000000003 /* Embed Frameworks */,
 				A74000000000000000000006 /* Resources */,
 				A74100000000000000000002 /* Stage Jak II importer resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				A74200000000000000000004 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				92C2B204301C0D2F0025E4D5 /* GOALPad */,
@@ -1440,12 +1424,6 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		A74200000000000000000004 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			platformFilter = ios;
-			target = F10200000000000000000002 /* GOALPadJak2Runtime */;
-			targetProxy = F10700000000000000000002 /* PBXContainerItemProxy */;
-		};
 		F10800000000000000000002 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			platformFilter = ios;

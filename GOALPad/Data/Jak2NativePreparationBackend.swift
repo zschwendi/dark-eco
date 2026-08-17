@@ -1,13 +1,41 @@
-#if os(iOS) && canImport(GOALPadJak2Runtime)
+#if GOALPAD_JAK2
+import Foundation
+
+private typealias AppJak2GameDataPreparationJob = GOALPadGameDataPreparationJob
+private typealias AppJak2GameDataPreparationProgress = GOALPadGameDataPreparationProgress
+private typealias AppJak2GameDataPreparationSummary = GOALPadGameDataPreparationSummary
+nonisolated private let appJak2GameDataPreparationErrorDomain =
+    GOALPadGameDataPreparationErrorDomain
+
+nonisolated private func appJak2GameDataPreparationIsAvailable() -> Bool {
+    GOALPadGameDataPreparationIsAvailable()
+}
+#elseif os(iOS) && canImport(GOALPadJak2Runtime)
 import Foundation
 import GOALPadJak2Runtime
+
+private typealias AppJak2GameDataPreparationJob =
+    GOALPadJak2GameDataPreparationJob
+private typealias AppJak2GameDataPreparationProgress =
+    GOALPadJak2GameDataPreparationProgress
+private typealias AppJak2GameDataPreparationSummary =
+    GOALPadJak2GameDataPreparationSummary
+nonisolated private let appJak2GameDataPreparationErrorDomain =
+    GOALPadJak2GameDataPreparationErrorDomain
+
+nonisolated private func appJak2GameDataPreparationIsAvailable() -> Bool {
+    GOALPadJak2GameDataPreparationIsAvailable()
+}
+#endif
+
+#if GOALPAD_JAK2 || (os(iOS) && canImport(GOALPadJak2Runtime))
 
 nonisolated extension GameDataNativePreparationBackend {
     static let appJak2Composer = GameDataNativePreparationBackend(
         profileIdentifier: .jak2,
-        nativeErrorDomain: GOALPadJak2GameDataPreparationErrorDomain,
+        nativeErrorDomain: appJak2GameDataPreparationErrorDomain,
         isAvailable: {
-            GOALPadJak2GameDataPreparationIsAvailable()
+            appJak2GameDataPreparationIsAvailable()
         },
         prepare: { sourceURL, candidateURL, resources, report in
             try await runAppJak2Composer(
@@ -25,7 +53,7 @@ nonisolated extension GameDataNativePreparationBackend {
         resources: GameDataNativePreparationResources,
         report: @escaping ProgressHandler
     ) async throws -> Int {
-        let nativeJob = GOALPadJak2GameDataPreparationJob(
+        let nativeJob = AppJak2GameDataPreparationJob(
             sourceURL: sourceURL,
             candidateURL: candidateURL,
             projectResourceURL: resources.projectResourceURL,
@@ -45,7 +73,7 @@ nonisolated extension GameDataNativePreparationBackend {
         let outcome: Jak2NativePreparationOutcome = await withTaskCancellationHandler(operation: {
             await withCheckedContinuation { continuation in
                 job.value.start(progress: {
-                    (nativeProgress: GOALPadJak2GameDataPreparationProgress) in
+                    (nativeProgress: AppJak2GameDataPreparationProgress) in
                     let phase = GameDataNativePreparationPhase(
                         rawValue: Int(nativeProgress.phase.rawValue)
                     ) ?? .validatingSourcePack
@@ -59,7 +87,7 @@ nonisolated extension GameDataNativePreparationBackend {
                             ? nativeProgress.phaseLabel : nativeProgress.currentItem
                     ))
                 }, completion: {
-                    (summary: GOALPadJak2GameDataPreparationSummary?, error: Error?) in
+                    (summary: AppJak2GameDataPreparationSummary?, error: Error?) in
                     if let error {
                         let nativeError = error as NSError
                         continuation.resume(returning: .failure(
@@ -75,7 +103,7 @@ nonisolated extension GameDataNativePreparationBackend {
                         ))
                     } else {
                         continuation.resume(returning: .failure(
-                            domain: GOALPadJak2GameDataPreparationErrorDomain,
+                            domain: appJak2GameDataPreparationErrorDomain,
                             code: GOALPadGameDataPreparationErrorCode.unexpectedFailure.rawValue,
                             message: "Native preparation returned no result."
                         ))
@@ -104,9 +132,9 @@ nonisolated extension GameDataNativePreparationBackend {
 }
 
 nonisolated private final class Jak2NativePreparationJobBox: @unchecked Sendable {
-    let value: GOALPadJak2GameDataPreparationJob
+    let value: AppJak2GameDataPreparationJob
 
-    init(_ value: GOALPadJak2GameDataPreparationJob) {
+    init(_ value: AppJak2GameDataPreparationJob) {
         self.value = value
     }
 
