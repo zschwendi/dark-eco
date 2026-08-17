@@ -645,6 +645,40 @@ void log_jak2_diagnostics_locked() {
         metal.last_sprite_first_placeholder_valid ? metal.last_sprite_first_placeholder_draw_mode
                                                   : 0);
 
+  NSLog(@"GOALPAD_JAK2_EYE_READBACK_STATE tick=%llu readbacks=%llu errors=%llu "
+         "producer=%u slot=%u vertex=0x%016llx/0x%016llx "
+         "output=0x%016llx quadrants=0x%016llx/0x%016llx/0x%016llx/0x%016llx "
+         "corners=0x%08x/0x%08x/0x%08x/0x%08x "
+         "iris=0x%016llx/%ux%u/0x%08x/0x%08x/0x%08x/0x%08x "
+         "lid=0x%016llx/%ux%u/0x%08x/0x%08x/0x%08x/0x%08x",
+        static_cast<unsigned long long>(runtime.ticks),
+        static_cast<unsigned long long>(metal.last_eye_diagnostic_readbacks),
+        static_cast<unsigned long long>(metal.last_eye_diagnostic_readback_errors),
+        metal.last_eye_diagnostic_producer_bucket, metal.last_eye_diagnostic_slot,
+        static_cast<unsigned long long>(metal.last_eye_source_vertex_fingerprint),
+        static_cast<unsigned long long>(metal.last_eye_vertex_fingerprint),
+        static_cast<unsigned long long>(metal.last_eye_diagnostic_output_hash),
+        static_cast<unsigned long long>(metal.last_eye_diagnostic_output_quadrant_hashes[0]),
+        static_cast<unsigned long long>(metal.last_eye_diagnostic_output_quadrant_hashes[1]),
+        static_cast<unsigned long long>(metal.last_eye_diagnostic_output_quadrant_hashes[2]),
+        static_cast<unsigned long long>(metal.last_eye_diagnostic_output_quadrant_hashes[3]),
+        metal.last_eye_diagnostic_output_corners[0],
+        metal.last_eye_diagnostic_output_corners[1],
+        metal.last_eye_diagnostic_output_corners[2],
+        metal.last_eye_diagnostic_output_corners[3],
+        static_cast<unsigned long long>(metal.last_eye_diagnostic_iris_source_hash),
+        metal.last_eye_diagnostic_iris_source_width, metal.last_eye_diagnostic_iris_source_height,
+        metal.last_eye_diagnostic_iris_source_corners[0],
+        metal.last_eye_diagnostic_iris_source_corners[1],
+        metal.last_eye_diagnostic_iris_source_corners[2],
+        metal.last_eye_diagnostic_iris_source_corners[3],
+        static_cast<unsigned long long>(metal.last_eye_diagnostic_lid_source_hash),
+        metal.last_eye_diagnostic_lid_source_width, metal.last_eye_diagnostic_lid_source_height,
+        metal.last_eye_diagnostic_lid_source_corners[0],
+        metal.last_eye_diagnostic_lid_source_corners[1],
+        metal.last_eye_diagnostic_lid_source_corners[2],
+        metal.last_eye_diagnostic_lid_source_corners[3]);
+
   NSLog(@"GOALPAD_JAK2_RENDERER_STATE tick=%llu "
          "ocean=%llu/%llu/%llu/%llu/%llu missing=%llu cmd=%llu/%llu/%llu "
          "phase=%d/%d transfers=%d/%d grammar=%d/%d calls=%d/%d "
