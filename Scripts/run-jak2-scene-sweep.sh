@@ -67,7 +67,22 @@ sample_max_dimension=1600
 scene_file=$(mktemp "${TMPDIR:-/tmp}/goalpad-jak2-scenes.XXXXXX")
 requirements_file=$(mktemp "${TMPDIR:-/tmp}/goalpad-jak2-requirements.XXXXXX")
 renderer_requirements_file=$(mktemp "${TMPDIR:-/tmp}/goalpad-jak2-renderers.XXXXXX")
-trap 'rm -f "$scene_file" "$requirements_file" "$renderer_requirements_file"' EXIT HUP INT TERM
+log_stream_pid=
+
+stop_log_stream() {
+  if [ -n "$log_stream_pid" ]; then
+    kill "$log_stream_pid" >/dev/null 2>&1 || true
+    wait "$log_stream_pid" >/dev/null 2>&1 || true
+    log_stream_pid=
+  fi
+}
+
+cleanup() {
+  stop_log_stream
+  rm -f "$scene_file" "$requirements_file" "$renderer_requirements_file"
+}
+
+trap cleanup EXIT HUP INT TERM
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -122,9 +137,12 @@ fi
 mkdir -p "$artifacts"
 printf '%s\n' "$@" > "$scene_file"
 
-capture_log() {
-  xcrun simctl spawn "$simulator" log show --last 5m --style compact \
-    --predicate "process == '$process'" > "$1"
+start_log_stream() {
+  runtime_log=$1
+  : > "$runtime_log"
+  xcrun simctl spawn "$simulator" log stream --style compact --level debug \
+    --predicate "process == '$process'" > "$runtime_log" 2>&1 &
+  log_stream_pid=$!
 }
 
 capture_screenshot() {
@@ -159,6 +177,7 @@ while IFS= read -r scene; do
     printf '%s\n' "could not read launch PID for $scene" >&2
     exit 1
   fi
+  start_log_stream "$scene_artifacts/runtime.log"
 
   elapsed=0
   sample_captured=0
@@ -166,7 +185,6 @@ while IFS= read -r scene; do
   completed=0
   printf 'sample\ttick\taframe\n' > "$scene_artifacts/visual-samples.tsv"
   while [ "$elapsed" -lt "$timeout" ]; do
-    capture_log "$scene_artifacts/runtime.log"
     if [ "$sample_captured" -lt "$sample_target" ] && sample_info=$(python3 "$checker" --scene "$scene" --log "$scene_artifacts/runtime.log" --pid "$pid" --event sample --sample-after-tick "$last_sample_tick" --sample-minimum-ticks "$sample_minimum_ticks"); then
       sample_tick=$(printf '%s\n' "$sample_info" | awk -F '\t' 'NR == 1 { print $1 }')
       sample_aframe=$(printf '%s\n' "$sample_info" | awk -F '\t' 'NR == 1 { print $2 }')
@@ -186,6 +204,7 @@ while IFS= read -r scene; do
     sleep 2
     elapsed=$((elapsed + 2))
   done
+  stop_log_stream
   minimum_samples=$sample_target
   if [ "$minimum_samples" -gt 3 ]; then
     minimum_samples=3
