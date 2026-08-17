@@ -1174,6 +1174,32 @@ struct Jak2WeaponWheelLayout: Equatable, Sendable {
     }
 }
 
+/// Keeps Jak II's holdable R1 beside the camera stick without overlapping its larger hit target.
+struct Jak2TraversalTouchLayout: Equatable, Sendable {
+    nonisolated static let shoulderDiameter: CGFloat = 44
+    nonisolated static let cameraGap: CGFloat = 28
+
+    let rightShoulderFrame: CGRect
+
+    init(modernLayout: ModernTouchLayout) {
+        let safe = modernLayout.safeBounds
+        let camera = modernLayout.rightStickArtworkFrame
+        let diameter = min(Self.shoulderDiameter, safe.width, safe.height)
+        let requested = CGRect(
+            x: camera.minX - Self.cameraGap - diameter,
+            y: camera.midY - diameter / 2,
+            width: diameter,
+            height: diameter)
+        let maximumX = max(safe.minX, safe.maxX - diameter)
+        let maximumY = max(safe.minY, safe.maxY - diameter)
+        rightShoulderFrame = CGRect(
+            x: min(max(requested.minX, safe.minX), maximumX),
+            y: min(max(requested.minY, safe.minY), maximumY),
+            width: diameter,
+            height: diameter)
+    }
+}
+
 /// Deterministic Classic artwork and app-owned touch targets.
 struct ClassicTouchLayout {
     static let minimumButtonHitSize = CGSize(width: 44, height: 44)
@@ -2129,7 +2155,9 @@ final class TouchControls {
         if capturesNativeTouchInput {
             var state = TouchPadState()
             for button in TouchButton.allCases {
-                if pulses[button.rawValue].advance() { state.buttons.insert(button.bit) }
+                if pulses[button.rawValue].advance() {
+                    state.buttons.insert(Self.inputBit(for: button, gameTitle: gameTitle))
+                }
             }
             return state
         }
@@ -2165,7 +2193,9 @@ final class TouchControls {
 
         var state = TouchPadState()
         for button in TouchButton.allCases {
-            if pulses[button.rawValue].advance() { state.buttons.insert(button.bit) }
+            if pulses[button.rawValue].advance() {
+                state.buttons.insert(Self.inputBit(for: button, gameTitle: gameTitle))
+            }
             if facePromptPulses[button.rawValue].advance() { state.buttons.insert(button.bit) }
         }
         if isCrouchingThisFrame { state.buttons.insert(TouchButton.crouch.bit) }
@@ -2275,10 +2305,18 @@ final class TouchControls {
 
     nonisolated static func artworkLabel(for button: TouchButton,
                                          sessionAction: NativeMenuTouchAction?,
-                                         cutsceneSkipAvailable: Bool = false) -> String {
+                                         cutsceneSkipAvailable: Bool = false,
+                                         gameTitle: TouchGameTitle = .jak1) -> String {
         if button == .stats, cutsceneSkipAvailable { return "SKIP" }
+        if button == .stats, gameTitle == .jak2 { return "R2" }
         guard button == .start else { return button.glyph }
         return (sessionAction?.label ?? button.glyph).uppercased()
+    }
+
+    nonisolated static func inputBit(for button: TouchButton,
+                                     gameTitle: TouchGameTitle) -> GOALPadButton {
+        if button == .stats, gameTitle == .jak2 { return .R2 }
+        return button.bit
     }
 
     nonisolated static func cameraRegionTapButton(

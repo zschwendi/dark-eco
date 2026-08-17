@@ -179,6 +179,7 @@ struct TouchControlsView: View {
                                            customization: controls.layoutCustomization,
                                            usesCompactSessionChrome: usesCompactSessionChrome)
             let weaponWheelLayout = Jak2WeaponWheelLayout(modernLayout: layout)
+            let traversalLayout = Jak2TraversalTouchLayout(modernLayout: layout)
             let reservesCapturedSessionRow = capturedSettingsButtonIsVisible
                 || sessionControl != nil
 
@@ -200,7 +201,8 @@ struct TouchControlsView: View {
                             .allowsHitTesting(false)
                     }
 
-                    ordinaryGameplayChrome(layout: layout)
+                    ordinaryGameplayChrome(layout: layout,
+                                           traversalLayout: traversalLayout)
                         .opacity(ordinaryGameplayChromeIsVisible ? 1 : 0)
                         .animation(.easeOut(duration: 0.16),
                                    value: ordinaryGameplayChromeIsVisible)
@@ -274,7 +276,8 @@ struct TouchControlsView: View {
     }
 
     /// Every eligible gameplay ornament shares this one idle-opacity transition.
-    private func ordinaryGameplayChrome(layout: ModernTouchLayout) -> some View {
+    private func ordinaryGameplayChrome(layout: ModernTouchLayout,
+                                        traversalLayout: Jak2TraversalTouchLayout) -> some View {
         return ZStack {
             MovementStickArtwork(touch: controls.stick,
                                  restingOrigin: CGPoint(x: layout.movementArtworkFrame.midX,
@@ -305,6 +308,11 @@ struct TouchControlsView: View {
             zoomButton(frame: layout.zoomFrame)
                 .opacity(zoomIsAvailable ? 1 : 0)
                 .allowsHitTesting(zoomIsAvailable)
+
+            if controls.gameTitle == .jak2, activeGameplayChromeIsAvailable {
+                shoulderButton(.rightShoulder, frame: traversalLayout.rightShoulderFrame)
+                    .allowsHitTesting(false)
+            }
         }
     }
 
@@ -312,7 +320,8 @@ struct TouchControlsView: View {
         let isDown = controls.isPillDown(button)
         let label = TouchControls.artworkLabel(for: button,
                                                sessionAction: sessionControl?.action,
-                                               cutsceneSkipAvailable: cutsceneSkipAvailable)
+                                               cutsceneSkipAvailable: cutsceneSkipAvailable,
+                                               gameTitle: controls.gameTitle)
         return Text(label)
             .font(.system(size: 12, weight: .semibold, design: .rounded))
             .tracking(1.4)
@@ -325,6 +334,23 @@ struct TouchControlsView: View {
             } action: {
                 controls.setPillFrame(button, $0)
             }
+    }
+
+    private func shoulderButton(_ button: TouchButton, frame: CGRect) -> some View {
+        let isDown = controls.isPillDown(button)
+        return Text(button.glyph)
+            .font(.system(size: 12, weight: .bold, design: .rounded))
+            .foregroundStyle(.white.opacity(isDown ? 1 : 0.82))
+            .frame(width: frame.width, height: frame.height)
+            .background(Circle().fill(.black.opacity(isDown ? 0.72 : 0.42)))
+            .overlay(Circle().strokeBorder(.white.opacity(isDown ? 0.9 : 0.35), lineWidth: 1))
+            .position(x: frame.midX, y: frame.midY)
+            .onGeometryChange(for: CGRect.self) { proxy in
+                proxy.frame(in: .named(Self.space)).insetBy(dx: -10, dy: -12)
+            } action: {
+                controls.setPillFrame(button, $0)
+            }
+            .accessibilityLabel("R1")
     }
 
     private var zoomSystemImage: String {

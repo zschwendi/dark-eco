@@ -649,6 +649,61 @@ private func jak2WeaponWheelMappingGeometryAndPulsesAreExact() {
 }
 
 @MainActor
+private func jak2TraversalShouldersAreHoldableAndTitleScoped() {
+    print("Jak II exposes holdable raw R1 and R2 traversal controls")
+    check(TouchControls.inputBit(for: .stats, gameTitle: .jak1) == [.L2, .R2]
+          && TouchControls.inputBit(for: .stats, gameTitle: .jak2) == .R2
+          && TouchControls.inputBit(for: .rightShoulder, gameTitle: .jak2) == .R1,
+          "Jak 1 keeps Stats while Jak II maps the same pill to raw R2")
+    check(TouchControls.artworkLabel(for: .stats, sessionAction: nil,
+                                     gameTitle: .jak1) == "STATS"
+          && TouchControls.artworkLabel(for: .stats, sessionAction: nil,
+                                        gameTitle: .jak2) == "R2",
+          "the shared pill tells each title the truth")
+
+    let sizes = [Runner.screen, CGSize(width: 834, height: 1210),
+                 CGSize(width: 852, height: 393), CGSize(width: 393, height: 852)]
+    for size in sizes {
+        let modern = ModernTouchLayout(size: size, safeAreaInsets: Runner.safeAreaInsets)
+        let traversal = Jak2TraversalTouchLayout(modernLayout: modern)
+        let shoulderHit = traversal.rightShoulderFrame.insetBy(dx: -10, dy: -12)
+        let overlap = shoulderHit.intersection(modern.rightStickHitFrame)
+        check(modern.safeBounds.contains(traversal.rightShoulderFrame)
+              && (overlap.isNull || overlap.width <= 0.001 || overlap.height <= 0.001),
+              "\(Int(size.width))x\(Int(size.height)) keeps R1 safe and clear of the R stick")
+    }
+
+    var jak2 = Runner(gameTitle: .jak2)
+    jak2.controls.setNativeMenuState(
+        .gameplay, progress: .unavailable, titleStartState: .notAwaiting,
+        runReadiness: .active)
+    let traversal = Jak2TraversalTouchLayout(modernLayout: ModernTouchLayout(
+        size: Runner.screen, safeAreaInsets: Runner.safeAreaInsets))
+    jak2.controls.setPillFrame(.rightShoulder,
+                               traversal.rightShoulderFrame.insetBy(dx: -10, dy: -12))
+    let r1 = Finger()
+    jak2.down(r1, CGPoint(x: traversal.rightShoulderFrame.midX,
+                          y: traversal.rightShoulderFrame.midY))
+    check(jak2.controls.consumeHapticEvents() == [.button(.rightShoulder)]
+          && jak2.frames(4).allSatisfy { $0.buttons == .R1 },
+          "holding the dedicated Jak II shoulder keeps raw R1 down")
+    jak2.up(r1)
+    check(jak2.frames(TouchControls.holdFrames + TouchControls.releaseFrames + 2).last!
+        .buttons.contains(.R1) == false,
+          "lifting the dedicated shoulder releases R1")
+
+    let r2 = Finger()
+    jak2.down(r2, CGPoint(x: Runner.stats.midX, y: Runner.stats.midY))
+    check(jak2.controls.consumeHapticEvents() == [.button(.stats)]
+          && jak2.frames(4).allSatisfy { $0.buttons == .R2 },
+          "holding Jak II's R2 pill emits R2 without the old L2 chord")
+    jak2.up(r2)
+    check(jak2.frames(TouchControls.holdFrames + TouchControls.releaseFrames + 2).last!
+        .buttons.contains(.R2) == false,
+          "lifting Jak II's R2 pill releases R2")
+}
+
+@MainActor
 private func rightStickIsFullyAnalog() {
     print("the bottom-right R stick is continuous rather than snapped")
     var run = Runner()
@@ -3298,6 +3353,7 @@ struct TouchControlsCheck {
         firstPersonTapFiresWithoutReplacingLeftSwipe()
         cameraRegionTapIsTitleAware()
         jak2WeaponWheelMappingGeometryAndPulsesAreExact()
+        jak2TraversalShouldersAreHoldableAndTitleScoped()
         rightStickIsFullyAnalog()
         downwardSwipeCanRollJump()
         downwardSwipeCanPunchLeft()
