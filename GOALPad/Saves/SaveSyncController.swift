@@ -73,39 +73,37 @@ nonisolated enum SaveDataLayout {
     /// OpenGOAL's existing desktop-compatible memcard directory. The kernel keeps using this
     /// exact local path; iCloud is never passed to native gameplay code.
     static var localSavesDirectory: URL {
-        #if GOALPAD_JAK2
-        let gamePath = "OpenGOAL/jak2/saves"
-        #else
-        let gamePath = "OpenGOAL/jak1/saves"
-        #endif
         return applicationSupportDirectory
-            .appending(path: gamePath, directoryHint: .isDirectory)
+            .appending(path: "OpenGOAL/jak1/saves", directoryHint: .isDirectory)
+    }
+
+    static var jak2LocalSavesDirectory: URL {
+        applicationSupportDirectory
+            .appending(path: "OpenGOAL/jak2/saves", directoryHint: .isDirectory)
     }
 
     static var localConflictsDirectory: URL {
-        #if GOALPAD_JAK2
-        let conflictsPath = "GOALPad/Jak2/SaveConflicts"
-        #else
-        let conflictsPath = "GOALPad/SaveConflicts"
-        #endif
-        return applicationSupportDirectory
-            .appending(path: conflictsPath, directoryHint: .isDirectory)
+        applicationSupportDirectory
+            .appending(path: "GOALPad/SaveConflicts", directoryHint: .isDirectory)
+    }
+
+    static var jak2LocalConflictsDirectory: URL {
+        applicationSupportDirectory
+            .appending(path: "GOALPad/Jak2/SaveConflicts", directoryHint: .isDirectory)
     }
 
     static var stateFile: URL {
-        #if GOALPAD_JAK2
-        let statePath = "GOALPad/Jak2/SaveSync/state-v1.json"
-        #else
-        let statePath = "GOALPad/SaveSync/state-v1.json"
-        #endif
-        return applicationSupportDirectory
-            .appending(path: statePath, directoryHint: .notDirectory)
+        applicationSupportDirectory
+            .appending(path: "GOALPad/SaveSync/state-v1.json", directoryHint: .notDirectory)
+    }
+
+    static var jak2StateFile: URL {
+        applicationSupportDirectory
+            .appending(path: "GOALPad/Jak2/SaveSync/state-v1.json",
+                       directoryHint: .notDirectory)
     }
 
     static func cloudLocations() -> CloudSaveLocations? {
-        #if GOALPAD_JAK2
-        return nil
-        #else
         let manager = FileManager.default
         guard let identityToken = manager.ubiquityIdentityToken,
               let accountIdentifier = try? NSKeyedArchiver.archivedData(
@@ -120,7 +118,6 @@ nonisolated enum SaveDataLayout {
             conflictsRoot: documents.appending(path: "GOALPad/SaveConflicts",
                                                 directoryHint: .isDirectory),
             accountIdentifier: accountIdentifier)
-        #endif
     }
 
     static func cloudUnavailableReason() -> CloudSaveUnavailableReason {
@@ -130,6 +127,44 @@ nonisolated enum SaveDataLayout {
             return .containerUnavailable
         }
         return .unknown
+    }
+}
+
+nonisolated struct SaveSyncProfile: Sendable {
+    let localSavesDirectory: URL
+    let localConflictsDirectory: URL
+    let stateFile: URL
+    let cloudLocations: @Sendable () -> CloudSaveLocations?
+    let cloudUnavailableReason: @Sendable () -> CloudSaveUnavailableReason
+    let coordinateCloudAccess: Bool
+    let supportsManagedSaveSync: Bool
+    let enabledDefaultsKey: String
+    let lastResolutionsDefaultsKey: String
+
+    static func jak1() -> SaveSyncProfile {
+        SaveSyncProfile(
+            localSavesDirectory: SaveDataLayout.localSavesDirectory,
+            localConflictsDirectory: SaveDataLayout.localConflictsDirectory,
+            stateFile: SaveDataLayout.stateFile,
+            cloudLocations: { SaveDataLayout.cloudLocations() },
+            cloudUnavailableReason: { SaveDataLayout.cloudUnavailableReason() },
+            coordinateCloudAccess: true,
+            supportsManagedSaveSync: true,
+            enabledDefaultsKey: "iCloudSavesEnabled",
+            lastResolutionsDefaultsKey: "lastSaveAutoResolutions")
+    }
+
+    static func jak2() -> SaveSyncProfile {
+        SaveSyncProfile(
+            localSavesDirectory: SaveDataLayout.jak2LocalSavesDirectory,
+            localConflictsDirectory: SaveDataLayout.jak2LocalConflictsDirectory,
+            stateFile: SaveDataLayout.jak2StateFile,
+            cloudLocations: { nil },
+            cloudUnavailableReason: { .containerUnavailable },
+            coordinateCloudAccess: false,
+            supportsManagedSaveSync: false,
+            enabledDefaultsKey: "jak2ICloudSavesEnabled",
+            lastResolutionsDefaultsKey: "jak2LastSaveAutoResolutions")
     }
 }
 
@@ -154,15 +189,8 @@ final class SaveSyncController {
         case failed(String)
     }
 
-    private static let enabledDefaultsKey = "iCloudSavesEnabled"
-    private static let lastResolutionsDefaultsKey = "lastSaveAutoResolutions"
-
     var supportsManagedSaveSync: Bool {
-        #if GOALPAD_JAK2
-        false
-        #else
-        true
-        #endif
+        profile.supportsManagedSaveSync
     }
 
     var isEnabled: Bool {
@@ -171,7 +199,7 @@ final class SaveSyncController {
                 if isEnabled { isEnabled = false }
                 return
             }
-            defaults.set(isEnabled, forKey: Self.enabledDefaultsKey)
+            defaults.set(isEnabled, forKey: profile.enabledDefaultsKey)
             if isEnabled {
                 cloudMetadataMonitor?.start()
                 markBidirectionalSyncRequired()
@@ -200,6 +228,7 @@ final class SaveSyncController {
     private(set) var lastSuccessfulSyncDate: Date?
 
     private let defaults: UserDefaults
+    private let profile: SaveSyncProfile
     private let engine: SaveSyncEngine
     private var gameplaySaveCheckTask: Task<Void, Never>?
     private var gameplaySaveCheckGeneration = 0
@@ -231,7 +260,8 @@ final class SaveSyncController {
     private let pregameWaitAttempts: Int
     private let pregameCancellationWaitAttempts: Int
 
-    init(defaults: UserDefaults = .standard, engine: SaveSyncEngine? = nil,
+    init(profile: SaveSyncProfile = .jak1(),
+         defaults: UserDefaults = .standard, engine: SaveSyncEngine? = nil,
          notificationCenter: NotificationCenter = .default,
          ubiquityIdentityDidChangeNotification: Notification.Name =
             .NSUbiquityIdentityDidChange,
@@ -243,6 +273,7 @@ final class SaveSyncController {
          pregameWaitAttempts: Int = 160,
          pregameCancellationWaitAttempts: Int = 20) {
         self.defaults = defaults
+        self.profile = profile
         self.notificationCenter = notificationCenter
         self.cloudContentChangeDebounce = cloudContentChangeDebounce
         self.gameplaySaveCompletionDebounce = gameplaySaveCompletionDebounce
@@ -250,18 +281,16 @@ final class SaveSyncController {
         self.pregameWaitAttempts = pregameWaitAttempts
         self.pregameCancellationWaitAttempts = pregameCancellationWaitAttempts
         let enabled: Bool
-        #if GOALPAD_JAK2
-        enabled = false
-        #else
-        if defaults.object(forKey: Self.enabledDefaultsKey) == nil {
+        if !profile.supportsManagedSaveSync {
+            enabled = false
+        } else if defaults.object(forKey: profile.enabledDefaultsKey) == nil {
             enabled = true
         } else {
-            enabled = defaults.bool(forKey: Self.enabledDefaultsKey)
+            enabled = defaults.bool(forKey: profile.enabledDefaultsKey)
         }
-        #endif
         isEnabled = enabled
         status = enabled ? .waiting : .disabled
-        if let data = defaults.data(forKey: Self.lastResolutionsDefaultsKey),
+        if let data = defaults.data(forKey: profile.lastResolutionsDefaultsKey),
            let stored = try? JSONDecoder().decode([SaveResolution].self, from: data) {
             recentResolutions = stored
         } else {
@@ -273,12 +302,12 @@ final class SaveSyncController {
         cloudMetadataMonitor = nil
         let usesProductionEngine = engine == nil
         self.engine = engine ?? SaveSyncEngine(configuration: .init(
-            localRoot: SaveDataLayout.localSavesDirectory,
-            localConflictsRoot: SaveDataLayout.localConflictsDirectory,
-            stateFile: SaveDataLayout.stateFile,
-            cloudLocations: { SaveDataLayout.cloudLocations() },
-            coordinateCloudAccess: true,
-            cloudUnavailableReason: { SaveDataLayout.cloudUnavailableReason() }))
+            localRoot: profile.localSavesDirectory,
+            localConflictsRoot: profile.localConflictsDirectory,
+            stateFile: profile.stateFile,
+            cloudLocations: profile.cloudLocations,
+            coordinateCloudAccess: profile.coordinateCloudAccess,
+            cloudUnavailableReason: profile.cloudUnavailableReason))
         ubiquityIdentityObserver = notificationCenter.addObserver(
             forName: ubiquityIdentityDidChangeNotification, object: nil, queue: nil
         ) { [weak self] _ in
@@ -296,7 +325,7 @@ final class SaveSyncController {
         if usesProductionEngine {
             let monitor = CloudSaveMetadataMonitor(
                 notificationCenter: notificationCenter,
-                cloudRoot: { SaveDataLayout.cloudLocations()?.savesRoot },
+                cloudRoot: { profile.cloudLocations()?.savesRoot },
                 didChange: {
                     notificationCenter.post(name: cloudContentDidChangeNotification,
                                             object: nil)
@@ -569,7 +598,7 @@ final class SaveSyncController {
 
     func acknowledgeRecentResolutions() {
         recentResolutions = []
-        defaults.removeObject(forKey: Self.lastResolutionsDefaultsKey)
+        defaults.removeObject(forKey: profile.lastResolutionsDefaultsKey)
     }
 
     func setGameplayActive(_ active: Bool) {
@@ -807,7 +836,7 @@ final class SaveSyncController {
         if !outcome.resolutions.isEmpty {
             recentResolutions = outcome.resolutions
             if let data = try? JSONEncoder().encode(recentResolutions) {
-                defaults.set(data, forKey: Self.lastResolutionsDefaultsKey)
+                defaults.set(data, forKey: profile.lastResolutionsDefaultsKey)
             }
         }
         if !cloudDownloadDeferred, !cloudUploadPending,

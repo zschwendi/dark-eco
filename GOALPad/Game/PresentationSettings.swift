@@ -242,6 +242,12 @@ nonisolated enum PresentationSettingsLayout {
             .appending(path: "GOALPad/Settings/presentation-v1.json", directoryHint: .notDirectory)
     }
 
+    static var jak2LocalDocumentURL: URL {
+        applicationSupportDirectory
+            .appending(path: "GOALPad/Jak2/Settings/presentation-v1.json",
+                       directoryHint: .notDirectory)
+    }
+
     static func cloudDocumentURL() -> URL? {
         let manager = FileManager.default
         guard manager.ubiquityIdentityToken != nil,
@@ -250,6 +256,17 @@ nonisolated enum PresentationSettingsLayout {
         }
         return container
             .appending(path: "Documents/GOALPad/Settings", directoryHint: .isDirectory)
+            .appending(path: "presentation-v1.json", directoryHint: .notDirectory)
+    }
+
+    static func jak2CloudDocumentURL() -> URL? {
+        let manager = FileManager.default
+        guard manager.ubiquityIdentityToken != nil,
+              let container = manager.url(forUbiquityContainerIdentifier: nil) else {
+            return nil
+        }
+        return container
+            .appending(path: "Documents/GOALPad/Jak2/Settings", directoryHint: .isDirectory)
             .appending(path: "presentation-v1.json", directoryHint: .notDirectory)
     }
 
@@ -266,6 +283,40 @@ nonisolated enum PresentationSettingsLayout {
             conflict.isResolved = true
         }
         try NSFileVersion.removeOtherVersionsOfItem(at: url)
+    }
+}
+
+nonisolated struct PresentationSettingsProfile: Sendable {
+    let configuration: PresentationSettingsConfiguration
+    let cloudSyncEnabledDefaultsKey: String
+    let writerIDDefaultsKey: String
+
+    static func jak1(configuration: PresentationSettingsConfiguration? = nil)
+        -> PresentationSettingsProfile {
+        PresentationSettingsProfile(
+            configuration: configuration ?? PresentationSettingsConfiguration(
+                localDocumentURL: PresentationSettingsLayout.localDocumentURL,
+                cloudDocumentURL: { PresentationSettingsLayout.cloudDocumentURL() },
+                coordinateCloudAccess: true,
+                cloudConflictDocumentData: {
+                    try PresentationSettingsLayout.unresolvedConflictData(at: $0)
+                }),
+            cloudSyncEnabledDefaultsKey: "iCloudPresentationSettingsSyncEnabled",
+            writerIDDefaultsKey: "presentationSettingsWriterID")
+    }
+
+    static func jak2(configuration: PresentationSettingsConfiguration? = nil)
+        -> PresentationSettingsProfile {
+        PresentationSettingsProfile(
+            configuration: configuration ?? PresentationSettingsConfiguration(
+                localDocumentURL: PresentationSettingsLayout.jak2LocalDocumentURL,
+                cloudDocumentURL: { PresentationSettingsLayout.jak2CloudDocumentURL() },
+                coordinateCloudAccess: true,
+                cloudConflictDocumentData: {
+                    try PresentationSettingsLayout.unresolvedConflictData(at: $0)
+                }),
+            cloudSyncEnabledDefaultsKey: "jak2ICloudPresentationSettingsSyncEnabled",
+            writerIDDefaultsKey: "jak2PresentationSettingsWriterID")
     }
 }
 
@@ -465,12 +516,9 @@ final class PresentationSettings {
         case failed(String)
     }
 
-    private static let cloudSyncEnabledKey = "iCloudPresentationSettingsSyncEnabled"
-    private static let writerIDKey = "presentationSettingsWriterID"
-
     var cloudSyncEnabled: Bool {
         didSet {
-            defaults.set(cloudSyncEnabled, forKey: Self.cloudSyncEnabledKey)
+            defaults.set(cloudSyncEnabled, forKey: profile.cloudSyncEnabledDefaultsKey)
             if cloudSyncEnabled {
                 syncStatus = .waiting
                 Task { [weak self] in await self?.syncNow() }
@@ -486,6 +534,7 @@ final class PresentationSettings {
     private(set) var lastSuccessfulSyncDate: Date?
 
     private let defaults: UserDefaults
+    private let profile: PresentationSettingsProfile
     private let configuration: PresentationSettingsConfiguration
     private let cloudStore: any PresentationSettingsCloudStoring
     private let localWriterID: String
@@ -496,21 +545,20 @@ final class PresentationSettings {
     private var syncRequested = false
     private var documentRevision: UInt64 = 0
 
-    init(defaults: UserDefaults = .standard,
-         configuration: PresentationSettingsConfiguration? = nil,
+    init(profile: PresentationSettingsProfile,
+         defaults: UserDefaults = .standard,
          writerID: String? = nil,
          cloudStore: (any PresentationSettingsCloudStoring)? = nil) {
         self.defaults = defaults
-        let storedWriterID = writerID ?? defaults.string(forKey: Self.writerIDKey) ?? UUID().uuidString
-        if writerID == nil, defaults.string(forKey: Self.writerIDKey) == nil {
-            defaults.set(storedWriterID, forKey: Self.writerIDKey)
+        self.profile = profile
+        let storedWriterID = writerID
+            ?? defaults.string(forKey: profile.writerIDDefaultsKey)
+            ?? UUID().uuidString
+        if writerID == nil, defaults.string(forKey: profile.writerIDDefaultsKey) == nil {
+            defaults.set(storedWriterID, forKey: profile.writerIDDefaultsKey)
         }
         localWriterID = storedWriterID
-        let resolvedConfiguration = configuration ?? PresentationSettingsConfiguration(
-            localDocumentURL: PresentationSettingsLayout.localDocumentURL,
-            cloudDocumentURL: { PresentationSettingsLayout.cloudDocumentURL() },
-            coordinateCloudAccess: true,
-            cloudConflictDocumentData: { try PresentationSettingsLayout.unresolvedConflictData(at: $0) })
+        let resolvedConfiguration = profile.configuration
         self.configuration = resolvedConfiguration
         self.cloudStore = cloudStore
             ?? PresentationSettingsCloudStore(configuration: resolvedConfiguration)
@@ -542,8 +590,8 @@ final class PresentationSettings {
                 modifiedAt: self.configuration.now(), writerID: storedWriterID)
             hasLocalTouchLayoutDocument = false
         }
-        let enabled = defaults.object(forKey: Self.cloudSyncEnabledKey) == nil
-            || defaults.bool(forKey: Self.cloudSyncEnabledKey)
+        let enabled = defaults.object(forKey: profile.cloudSyncEnabledDefaultsKey) == nil
+            || defaults.bool(forKey: profile.cloudSyncEnabledDefaultsKey)
         cloudSyncEnabled = enabled
         syncStatus = enabled ? .waiting : .disabled
         lastSuccessfulSyncDate = nil
@@ -555,6 +603,16 @@ final class PresentationSettings {
                 syncStatus = .failed(error.localizedDescription)
             }
         }
+    }
+
+    convenience init(defaults: UserDefaults = .standard,
+                     configuration: PresentationSettingsConfiguration? = nil,
+                     writerID: String? = nil,
+                     cloudStore: (any PresentationSettingsCloudStoring)? = nil) {
+        self.init(profile: .jak1(configuration: configuration),
+                  defaults: defaults,
+                  writerID: writerID,
+                  cloudStore: cloudStore)
     }
 
     var globalProfile: SettingsProfile? { document.globalProfile }

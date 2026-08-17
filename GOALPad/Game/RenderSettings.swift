@@ -1,5 +1,17 @@
 import Foundation
 
+nonisolated struct RenderSettingsConfiguration: Equatable, Sendable {
+    let defaultsKey: String
+    let defaultScale: Int
+
+    static let jak1 = RenderSettingsConfiguration(
+        defaultsKey: "internalResolutionScale",
+        defaultScale: 2)
+    static let jak2 = RenderSettingsConfiguration(
+        defaultsKey: "jak2InternalResolutionScale",
+        defaultScale: 4)
+}
+
 /// The game's internal render resolution.
 ///
 /// The PS2 games draw into a 640x480 target and the video hardware scans that out; OpenGOAL's
@@ -17,7 +29,8 @@ final class RenderSettings {
     static let baseHeight = 480
     static let availableScales = [1, 2, 3, 4]
 
-    private static let defaultsKey = "internalResolutionScale"
+    private let configuration: RenderSettingsConfiguration
+    private let defaults: UserDefaults
 
     var horizontalPlusEnabled = false {
         didSet { apply() }
@@ -30,7 +43,7 @@ final class RenderSettings {
                 internalResolutionScale = clamped
                 return
             }
-            UserDefaults.standard.set(clamped, forKey: Self.defaultsKey)
+            defaults.set(clamped, forKey: configuration.defaultsKey)
             apply()
         }
     }
@@ -38,15 +51,17 @@ final class RenderSettings {
     var internalWidth: Int { Self.baseWidth * internalResolutionScale }
     var internalHeight: Int { Self.baseHeight * internalResolutionScale }
 
-    init() {
-        let stored = UserDefaults.standard.integer(forKey: Self.defaultsKey)
-        #if GOALPAD_JAK2
-        let defaultScale = 4
-        #else
-        let defaultScale = 2
-        #endif
-        internalResolutionScale = Self.availableScales.contains(stored) ? stored : defaultScale
+    init(configuration: RenderSettingsConfiguration, defaults: UserDefaults = .standard) {
+        self.configuration = configuration
+        self.defaults = defaults
+        let stored = defaults.integer(forKey: configuration.defaultsKey)
+        internalResolutionScale = Self.availableScales.contains(stored)
+            ? stored : configuration.defaultScale
         apply()
+    }
+
+    convenience init() {
+        self.init(configuration: .jak1)
     }
 
     func apply() {

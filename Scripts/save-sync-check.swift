@@ -3121,6 +3121,62 @@ private func replacementSaveCheckKeepsTaskOwnershipAndCancelsQuietly() async thr
     check(becameIdle, "the replacement check clears its own busy and task state on completion")
 }
 
+@MainActor
+private func titleSaveProfilesKeepStorageIsolatedAndJak2FailClosed() async throws {
+    print("title save profiles isolate storage and keep Jak 2 cloud sync fail-closed")
+    let jak1 = SaveSyncProfile.jak1()
+    let jak2 = SaveSyncProfile.jak2()
+    check(jak1.localSavesDirectory.path.hasSuffix("OpenGOAL/jak1/saves")
+          && jak1.localConflictsDirectory.path.hasSuffix("GOALPad/SaveConflicts")
+          && jak1.stateFile.path.hasSuffix("GOALPad/SaveSync/state-v1.json"),
+          "Jak 1 keeps the Build 223 local save, conflict, and state paths")
+    check(jak1.enabledDefaultsKey == "iCloudSavesEnabled"
+          && jak1.lastResolutionsDefaultsKey == "lastSaveAutoResolutions"
+          && jak1.supportsManagedSaveSync,
+          "Jak 1 keeps the Build 223 save-sync keys and managed-sync behavior")
+    check(jak2.localSavesDirectory.path.hasSuffix("OpenGOAL/jak2/saves")
+          && jak2.localConflictsDirectory.path.hasSuffix("GOALPad/Jak2/SaveConflicts")
+          && jak2.stateFile.path.hasSuffix("GOALPad/Jak2/SaveSync/state-v1.json"),
+          "Jak 2 uses its existing isolated local save, conflict, and state paths")
+    check(jak2.enabledDefaultsKey == "jak2ICloudSavesEnabled"
+          && jak2.lastResolutionsDefaultsKey == "jak2LastSaveAutoResolutions"
+          && !jak2.supportsManagedSaveSync && !jak2.coordinateCloudAccess
+          && jak2.cloudLocations() == nil,
+          "Jak 2 has distinct keys and no managed cloud location or coordination")
+
+    let fixture = try Fixture()
+    let suiteName = "goalpad-title-save-profiles-\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suiteName)!
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+    defaults.set(false, forKey: jak1.enabledDefaultsKey)
+    defaults.set(true, forKey: jak2.enabledDefaultsKey)
+    let compatibilityController = SaveSyncController(
+        defaults: defaults, engine: fixture.engine)
+    let jak2Controller = SaveSyncController(
+        profile: jak2, defaults: defaults, engine: fixture.engine)
+    check(compatibilityController.supportsManagedSaveSync
+          && !compatibilityController.isEnabled,
+          "compatibility construction is explicitly Jak 1 and reads the Jak 1 opt-out")
+    check(!jak2Controller.supportsManagedSaveSync && !jak2Controller.isEnabled,
+          "Jak 2 stays disabled even when its isolated preference contains true")
+    jak2Controller.isEnabled = true
+    check(!jak2Controller.isEnabled && defaults.bool(forKey: jak2.enabledDefaultsKey),
+          "Jak 2 rejects managed-sync enablement without rewriting stored preferences")
+    let jak2GameplayReady = await jak2Controller.syncBeforeGameplay()
+    check(jak2GameplayReady,
+          "disabled Jak 2 managed save sync cannot gate local gameplay")
+
+    defaults.set(Data([1]), forKey: jak1.lastResolutionsDefaultsKey)
+    defaults.set(Data([2]), forKey: jak2.lastResolutionsDefaultsKey)
+    jak2Controller.acknowledgeRecentResolutions()
+    check(defaults.data(forKey: jak1.lastResolutionsDefaultsKey) == Data([1])
+          && defaults.data(forKey: jak2.lastResolutionsDefaultsKey) == nil,
+          "Jak 2 resolution acknowledgement cannot erase Jak 1 metadata")
+    compatibilityController.acknowledgeRecentResolutions()
+    check(defaults.data(forKey: jak1.lastResolutionsDefaultsKey) == nil,
+          "the compatibility controller continues to use the Jak 1 resolution key")
+}
+
 @main
 private struct SaveSyncCheck {
     static func main() async {
@@ -3193,6 +3249,7 @@ private struct SaveSyncCheck {
             try await combinedCloudPresentationCoordinatesEnabledDomains()
             try await controllerReportsObservedSaveStateTruthfully()
             try await replacementSaveCheckKeepsTaskOwnershipAndCancelsQuietly()
+            try await titleSaveProfilesKeepStorageIsolatedAndJak2FailClosed()
         } catch {
             print("  FAIL unexpected error: \(error)")
             failures += 1

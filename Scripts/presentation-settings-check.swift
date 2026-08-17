@@ -1263,6 +1263,84 @@ private func unresolvedTouchSidecarVersionParticipatesInConflictResolution() asy
           "the touch conflict winner replaces the current cloud sidecar")
 }
 
+@MainActor
+private func titleSettingsProfilesKeepKeysAndDocumentsIsolated() throws {
+    print("title settings profiles isolate render and presentation storage")
+    let root = FileManager.default.temporaryDirectory
+        .appending(path: "goalpad-title-settings-\(UUID().uuidString)",
+                   directoryHint: .isDirectory)
+    let suiteName = "goalpad-title-settings-\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suiteName)!
+    defer {
+        defaults.removePersistentDomain(forName: suiteName)
+        try? FileManager.default.removeItem(at: root)
+    }
+
+    check(RenderSettingsConfiguration.jak1.defaultsKey == "internalResolutionScale"
+          && RenderSettingsConfiguration.jak1.defaultScale == 2,
+          "Jak 1 keeps the Build 223 render key and default scale")
+    check(RenderSettingsConfiguration.jak2.defaultsKey == "jak2InternalResolutionScale"
+          && RenderSettingsConfiguration.jak2.defaultScale == 4,
+          "Jak 2 has a distinct render key and keeps its current default scale")
+    defaults.set(3, forKey: RenderSettingsConfiguration.jak1.defaultsKey)
+    defaults.set(4, forKey: RenderSettingsConfiguration.jak2.defaultsKey)
+    let jak1Render = RenderSettings(configuration: .jak1, defaults: defaults)
+    let jak2Render = RenderSettings(configuration: .jak2, defaults: defaults)
+    check(jak1Render.internalResolutionScale == 3 && jak2Render.internalResolutionScale == 4,
+          "each render profile reads only its own stored scale")
+    jak1Render.internalResolutionScale = 1
+    check(defaults.integer(forKey: "internalResolutionScale") == 1
+          && defaults.integer(forKey: "jak2InternalResolutionScale") == 4,
+          "changing Jak 1 render settings leaves Jak 2 untouched")
+
+    let productionJak1 = PresentationSettingsProfile.jak1()
+    let productionJak2 = PresentationSettingsProfile.jak2()
+    check(productionJak1.cloudSyncEnabledDefaultsKey
+            == "iCloudPresentationSettingsSyncEnabled"
+          && productionJak1.writerIDDefaultsKey == "presentationSettingsWriterID"
+          && productionJak1.configuration.localDocumentURL.path
+            .hasSuffix("GOALPad/Settings/presentation-v1.json"),
+          "Jak 1 keeps the Build 223 presentation keys and document path")
+    check(productionJak2.cloudSyncEnabledDefaultsKey
+            == "jak2ICloudPresentationSettingsSyncEnabled"
+          && productionJak2.writerIDDefaultsKey == "jak2PresentationSettingsWriterID"
+          && productionJak2.configuration.localDocumentURL.path
+            .hasSuffix("GOALPad/Jak2/Settings/presentation-v1.json"),
+          "Jak 2 uses distinct presentation keys and document path")
+
+    let jak1Local = root.appending(path: "GOALPad/Settings/presentation-v1.json")
+    let jak2Local = root.appending(path: "GOALPad/Jak2/Settings/presentation-v1.json")
+    let jak1Configuration = PresentationSettingsConfiguration(
+        localDocumentURL: jak1Local,
+        cloudDocumentURL: { nil },
+        coordinateCloudAccess: false)
+    let jak2Configuration = PresentationSettingsConfiguration(
+        localDocumentURL: jak2Local,
+        cloudDocumentURL: { nil },
+        coordinateCloudAccess: false)
+    defaults.set("jak1-writer", forKey: productionJak1.writerIDDefaultsKey)
+    defaults.set("jak2-writer", forKey: productionJak2.writerIDDefaultsKey)
+    defaults.set(true, forKey: productionJak1.cloudSyncEnabledDefaultsKey)
+    defaults.set(true, forKey: productionJak2.cloudSyncEnabledDefaultsKey)
+    let jak1Settings = PresentationSettings(
+        defaults: defaults, configuration: jak1Configuration)
+    let jak2Settings = PresentationSettings(
+        profile: .jak2(configuration: jak2Configuration), defaults: defaults)
+    check(jak1Settings.document.writerID == "jak1-writer"
+          && jak2Settings.document.writerID == "jak2-writer",
+          "compatibility construction is explicitly Jak 1 while Jak 2 is opt-in")
+    jak1Settings.cloudSyncEnabled = false
+    check(!defaults.bool(forKey: productionJak1.cloudSyncEnabledDefaultsKey)
+          && defaults.bool(forKey: productionJak2.cloudSyncEnabledDefaultsKey),
+          "changing Jak 1 presentation sync does not change the Jak 2 preference")
+    jak2Settings.cloudSyncEnabled = false
+    jak1Settings.setDeveloperLogsEnabled(true)
+    jak2Settings.setDeveloperLogsEnabled(true)
+    check(FileManager.default.fileExists(atPath: jak1Local.path)
+          && FileManager.default.fileExists(atPath: jak2Local.path),
+          "each presentation profile writes its own local document")
+}
+
 @main
 private struct PresentationSettingsCheck {
     static func main() async {
@@ -1292,6 +1370,7 @@ private struct PresentationSettingsCheck {
             try await newerCloudDocumentWinsDeterministically()
             try await unresolvedCloudVersionParticipatesInConflictResolution()
             try await unresolvedTouchSidecarVersionParticipatesInConflictResolution()
+            try titleSettingsProfilesKeepKeysAndDocumentsIsolated()
         } catch {
             print("  FAIL unexpected error: \(error)")
             failures += 1
