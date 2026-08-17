@@ -11,6 +11,7 @@ func inspect(_ snapshot: GOALPadGameFrameStateSnapshot) {
     let _: GOALPadCutsceneSkipTouchSnapshot = snapshot.cutsceneSkipTouch
     let _: GOALPadFacePromptTouchSnapshot = snapshot.facePromptTouch
     let _: GOALPadLookAroundState = snapshot.lookAroundState
+    let _: GOALPadJak2TraversalState = snapshot.jak2TraversalState
     let _: GOALPadSpeederState = snapshot.speederState
 }
 

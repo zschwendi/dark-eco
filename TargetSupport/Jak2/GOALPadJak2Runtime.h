@@ -55,6 +55,10 @@ FOUNDATION_EXPORT const char* GOALPadJak2RuntimeIdentifier(void);
 @end
 
 @interface GOALPadJak2RuntimeBridge : NSObject
++ (BOOL)selectGame:(GOALPadGameIdentifier)gameIdentifier NS_SWIFT_NAME(selectGame(_:));
+@property(class, nonatomic, readonly) GOALPadGameIdentifier activeGameIdentifier;
++ (BOOL)isGameCodeLinkedForGame:(GOALPadGameIdentifier)gameIdentifier
+    NS_SWIFT_NAME(isGameCodeLinked(for:));
 + (GOALPadJak2KernelStatus *)startKernelWithDataDirectory:(nullable NSString *)dataDirectory
                                           savesDirectory:(NSString *)savesDirectory;
 + (void)stopKernel;
@@ -75,6 +79,7 @@ FOUNDATION_EXPORT const char* GOALPadJak2RuntimeIdentifier(void);
 @property(class, nonatomic, readonly) GOALPadGameMode gameMode;
 @property(class, nonatomic, readonly) GOALPadTitleStartState titleStartState;
 @property(class, nonatomic, readonly) GOALPadLookAroundState lookAroundState;
+@property(class, nonatomic, readonly) GOALPadJak2TraversalState jak2TraversalState;
 @property(class, nonatomic, readonly) GOALPadSpeederState speederState;
 @property(class, nonatomic, readonly) GOALPadProgressMenuSnapshot progressMenuSnapshot;
 @property(class, nonatomic, readonly) GOALPadJak2ProgressMenuSemanticSnapshot jak2ProgressMenuSemanticSnapshot;

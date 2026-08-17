@@ -37,6 +37,29 @@ static_assert(GOALPadAnalogNeutral == GOAL_PAD_ANALOG_NEUTRAL, "analog neutral d
 static_assert(GOALPadPortCount == GOAL_PAD_PORTS, "port count drift");
 static_assert(sizeof(goal_jak2_progress_menu_semantic_snapshot) == 16,
               "Jak II progress semantic ABI drift");
+static_assert(sizeof(goal_jak2_player_context_snapshot) == 8,
+              "Jak II player context ABI drift");
+static_assert((int32_t)GOALPadJak2TraversalStateUnknown ==
+                  GOAL_JAK2_PLAYER_TRAVERSAL_UNKNOWN,
+              "Jak II unknown traversal drift");
+static_assert((int32_t)GOALPadJak2TraversalStateOnFoot ==
+                  GOAL_JAK2_PLAYER_TRAVERSAL_ON_FOOT,
+              "Jak II on-foot traversal drift");
+static_assert((int32_t)GOALPadJak2TraversalStateJetboard ==
+                  GOAL_JAK2_PLAYER_TRAVERSAL_JETBOARD,
+              "Jak II jetboard traversal drift");
+static_assert((int32_t)GOALPadJak2TraversalStateVehicleTransition ==
+                  GOAL_JAK2_PLAYER_TRAVERSAL_VEHICLE_TRANSITION,
+              "Jak II vehicle-transition traversal drift");
+static_assert((int32_t)GOALPadJak2TraversalStateVehicleRiding ==
+                  GOAL_JAK2_PLAYER_TRAVERSAL_VEHICLE_RIDING,
+              "Jak II vehicle-riding traversal drift");
+static_assert((int32_t)GOALPadLookAroundStateUnknown == GOAL_JAK2_PLAYER_LOOK_UNKNOWN,
+              "Jak II unknown look-state drift");
+static_assert((int32_t)GOALPadLookAroundStateNormal == GOAL_JAK2_PLAYER_LOOK_NORMAL,
+              "Jak II normal look-state drift");
+static_assert((int32_t)GOALPadLookAroundStateFirstPerson == GOAL_JAK2_PLAYER_LOOK_AROUND,
+              "Jak II look-around state drift");
 static_assert((int32_t)GOALPadJak2ProgressMenuPhaseSelectSaveTitle ==
                   GOAL_JAK2_PROGRESS_MENU_PHASE_SELECT_SAVE_TITLE,
               "Jak II progress phase drift");
@@ -1166,6 +1189,44 @@ GOALPadJak2ProgressMenuSemanticSnapshot unavailable_progress_semantic_snapshot()
   return snapshot;
 }
 
+GOALPadJak2TraversalState traversal_state_from_core(goal_jak2_player_traversal_state state) {
+  switch (state) {
+    case GOAL_JAK2_PLAYER_TRAVERSAL_ON_FOOT:
+      return GOALPadJak2TraversalStateOnFoot;
+    case GOAL_JAK2_PLAYER_TRAVERSAL_JETBOARD:
+      return GOALPadJak2TraversalStateJetboard;
+    case GOAL_JAK2_PLAYER_TRAVERSAL_VEHICLE_TRANSITION:
+      return GOALPadJak2TraversalStateVehicleTransition;
+    case GOAL_JAK2_PLAYER_TRAVERSAL_VEHICLE_RIDING:
+      return GOALPadJak2TraversalStateVehicleRiding;
+    case GOAL_JAK2_PLAYER_TRAVERSAL_UNKNOWN:
+      return GOALPadJak2TraversalStateUnknown;
+  }
+  return GOALPadJak2TraversalStateUnknown;
+}
+
+GOALPadLookAroundState look_state_from_core(goal_jak2_player_look_state state) {
+  switch (state) {
+    case GOAL_JAK2_PLAYER_LOOK_NORMAL:
+      return GOALPadLookAroundStateNormal;
+    case GOAL_JAK2_PLAYER_LOOK_AROUND:
+      return GOALPadLookAroundStateFirstPerson;
+    case GOAL_JAK2_PLAYER_LOOK_UNKNOWN:
+      return GOALPadLookAroundStateUnknown;
+  }
+  return GOALPadLookAroundStateUnknown;
+}
+
+goal_jak2_player_context_snapshot current_player_context_snapshot() {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  goal_jak2_player_context_snapshot snapshot = {};
+  if (g_state != SessionState::Running ||
+      goal_jak2_runtime_get_player_context_snapshot(&snapshot) != GOAL_JAK2_RUNTIME_OK) {
+    return {};
+  }
+  return snapshot;
+}
+
 bool valid_progress_semantic_snapshot(
     const goal_jak2_progress_menu_semantic_snapshot& snapshot) {
   if (snapshot.available != 1) {
@@ -1304,6 +1365,18 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
 }
 
 @implementation GOALPadRuntimeBridge
+
++ (BOOL)selectGame:(GOALPadGameIdentifier)gameIdentifier {
+  return gameIdentifier == GOALPadGameIdentifierJak2 ? YES : NO;
+}
+
++ (GOALPadGameIdentifier)activeGameIdentifier {
+  return GOALPadGameIdentifierJak2;
+}
+
++ (BOOL)isGameCodeLinkedForGame:(GOALPadGameIdentifier)gameIdentifier {
+  return gameIdentifier == GOALPadGameIdentifierJak2 ? YES : NO;
+}
 
 + (GOALPadKernelStatus*)startKernelWithDataDirectory:(NSString*)dataDirectory
                                       savesDirectory:(NSString*)savesDirectory {
@@ -1586,7 +1659,11 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
 }
 
 + (GOALPadLookAroundState)lookAroundState {
-  return GOALPadLookAroundStateUnknown;
+  return look_state_from_core(current_player_context_snapshot().look_state);
+}
+
++ (GOALPadJak2TraversalState)jak2TraversalState {
+  return traversal_state_from_core(current_player_context_snapshot().traversal);
 }
 
 + (GOALPadSpeederState)speederState {
@@ -1666,7 +1743,9 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
   snapshot.warpGateTouch = [self warpGateTouchSnapshot];
   snapshot.cutsceneSkipTouch = [self cutsceneSkipTouchSnapshot];
   snapshot.facePromptTouch = [self facePromptTouchSnapshot];
-  snapshot.lookAroundState = [self lookAroundState];
+  const auto player_context = current_player_context_snapshot();
+  snapshot.lookAroundState = look_state_from_core(player_context.look_state);
+  snapshot.jak2TraversalState = traversal_state_from_core(player_context.traversal);
   snapshot.speederState = [self speederState];
   // No Jak II managed-save publication is established for the shared session contract.
   snapshot.exitToLibraryRequested = NO;

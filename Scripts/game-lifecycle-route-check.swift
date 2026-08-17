@@ -287,6 +287,7 @@ check(bridge.contains("typedef struct GOALPadGameFrameStateSnapshot")
             "snapshot.cutsceneSkipTouch = GOALPadCutsceneSkipTouchSnapshotFromCore(core.cutscene_skip_touch);",
             "snapshot.facePromptTouch = GOALPadFacePromptTouchSnapshotFromCore(core.face_prompt_touch);",
             "snapshot.lookAroundState = GOALPadLookAroundStateFromCore(core.look_around_state);",
+            "snapshot.jak2TraversalState = GOALPadJak2TraversalStateUnknown;",
             "snapshot.speederState = GOALPadSpeederStateFromCore(core.speeder_state);",
         ], in: frameStateMapping),
       "the fixed C bridge maps every native frame field without object ownership")

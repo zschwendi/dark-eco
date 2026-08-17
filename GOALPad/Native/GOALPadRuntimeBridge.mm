@@ -233,6 +233,7 @@ static GOALPadGameFrameStateSnapshot GOALPadGameFrameStateSnapshotFromCore(
   snapshot.cutsceneSkipTouch = GOALPadCutsceneSkipTouchSnapshotFromCore(core.cutscene_skip_touch);
   snapshot.facePromptTouch = GOALPadFacePromptTouchSnapshotFromCore(core.face_prompt_touch);
   snapshot.lookAroundState = GOALPadLookAroundStateFromCore(core.look_around_state);
+  snapshot.jak2TraversalState = GOALPadJak2TraversalStateUnknown;
   snapshot.speederState = GOALPadSpeederStateFromCore(core.speeder_state);
   return snapshot;
 }
@@ -598,6 +599,15 @@ static GOALPadGameBootStatus *GOALPadGameBootStatusFromJak2(
   }
 #endif
   return GOALPadLookAroundStateFromCore(goalpad::look_around_state());
+}
+
++ (GOALPadJak2TraversalState)jak2TraversalState {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge jak2TraversalState];
+  }
+#endif
+  return GOALPadJak2TraversalStateUnknown;
 }
 
 + (GOALPadSpeederState)speederState {

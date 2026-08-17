@@ -22,6 +22,7 @@ namespace {
 
 goal_jak2_metal_host g_host = {1};
 goal_jak2_runtime_metrics g_runtime = {};
+goal_jak2_player_context_snapshot g_player_context = {};
 goal_jak2_progress_menu_snapshot g_progress = {};
 goal_jak2_progress_menu_semantic_snapshot g_progress_semantic = {};
 goal_jak2_progress_menu_diagnostics g_progress_diagnostics = {};
@@ -288,6 +289,15 @@ goal_jak2_runtime_status goal_jak2_runtime_get_metrics(goal_jak2_runtime_metrics
   return GOAL_JAK2_RUNTIME_OK;
 }
 
+goal_jak2_runtime_status goal_jak2_runtime_get_player_context_snapshot(
+    goal_jak2_player_context_snapshot* out) {
+  if (!out) {
+    return GOAL_JAK2_RUNTIME_INVALID_ARGUMENT;
+  }
+  *out = g_player_context;
+  return GOAL_JAK2_RUNTIME_OK;
+}
+
 goal_jak2_runtime_status goal_jak2_runtime_request_scene_preview(const char* scene_name) {
   (void)scene_name;
   return GOAL_JAK2_RUNTIME_OK;
@@ -384,6 +394,12 @@ int goal_game_sound_pull_audio(int16_t* out, int frames) {
 
 int main() {
   @autoreleasepool {
+    check([GOALPadRuntimeBridge selectGame:GOALPadGameIdentifierJak2] &&
+              ![GOALPadRuntimeBridge selectGame:GOALPadGameIdentifierJak1] &&
+              GOALPadRuntimeBridge.activeGameIdentifier == GOALPadGameIdentifierJak2 &&
+              [GOALPadRuntimeBridge isGameCodeLinkedForGame:GOALPadGameIdentifierJak2] &&
+              ![GOALPadRuntimeBridge isGameCodeLinkedForGame:GOALPadGameIdentifierJak1],
+          "the standalone runtime exposes only its fixed Jak II selection");
     GOALPadRenderSurface* surface = GOALPadRenderSurface.shared;
     GOALPadKernelStatus* no_layer =
         [GOALPadRuntimeBridge startKernelWithDataDirectory:@"/tmp/jak2-data"
@@ -550,6 +566,24 @@ int main() {
     check(!GOALPadRuntimeBridge.jak2ProgressMenuSemanticSnapshot.available,
           "the bridge rejects an unknown semantic phase");
     g_progress_semantic = {};
+
+    g_player_context = {GOAL_JAK2_PLAYER_TRAVERSAL_VEHICLE_RIDING,
+                        GOAL_JAK2_PLAYER_LOOK_AROUND};
+    check(GOALPadRuntimeBridge.jak2TraversalState ==
+                  GOALPadJak2TraversalStateVehicleRiding &&
+              GOALPadRuntimeBridge.lookAroundState == GOALPadLookAroundStateFirstPerson &&
+              GOALPadRuntimeBridge.speederState == GOALPadSpeederStateUnknown,
+          "the bridge maps typed Jak II vehicle and look-around context without reusing speeder");
+    g_player_context.traversal = static_cast<goal_jak2_player_traversal_state>(99);
+    check(GOALPadRuntimeBridge.jak2TraversalState == GOALPadJak2TraversalStateUnknown,
+          "the bridge rejects an unknown traversal ABI value");
+    g_player_context = {GOAL_JAK2_PLAYER_TRAVERSAL_ON_FOOT,
+                        static_cast<goal_jak2_player_look_state>(99)};
+    check(GOALPadRuntimeBridge.jak2TraversalState == GOALPadJak2TraversalStateOnFoot &&
+              GOALPadRuntimeBridge.lookAroundState == GOALPadLookAroundStateUnknown,
+          "an unknown look ABI value fails closed without suppressing valid traversal");
+    g_player_context = {GOAL_JAK2_PLAYER_TRAVERSAL_JETBOARD,
+                        GOAL_JAK2_PLAYER_LOOK_AROUND};
     check(!GOALPadRuntimeBridge.warpGateTouchSnapshot.valid &&
               !GOALPadRuntimeBridge.cutsceneSkipTouchSnapshot.valid &&
               !GOALPadRuntimeBridge.facePromptTouchSnapshot.valid,
@@ -588,8 +622,11 @@ int main() {
     check([GOALPadRuntimeBridge runFrameAtPresentationTime:1.0 stateSnapshot:&frame],
           "the runtime bridge ticks one frame and returns a state snapshot");
     check(!frame.exitToLibraryRequested && frame.successfulSaveGeneration == 0 &&
-              frame.framesRun == 1 && frame.gameMode == GOALPadGameModeProgress,
-          "Jak II frame snapshots fail closed for library exit and managed-save generation");
+              frame.framesRun == 1 && frame.gameMode == GOALPadGameModeProgress &&
+              frame.lookAroundState == GOALPadLookAroundStateFirstPerson &&
+              frame.jak2TraversalState == GOALPadJak2TraversalStateJetboard &&
+              frame.speederState == GOALPadSpeederStateUnknown,
+          "Jak II frame snapshots aggregate typed player context without inventing speeder state");
     check([surface endFrame], "the surface reports a submitted drawable");
     check(GOALPadRuntimeBridge.framesRun == 1, "the runtime frame counter advances");
     GOALPadRendererStats stats = surface.stats;

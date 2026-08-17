@@ -124,6 +124,14 @@ typedef NS_ENUM(NSInteger, GOALPadLookAroundState) {
   GOALPadLookAroundStateFirstPerson,
 };
 
+typedef NS_ENUM(NSInteger, GOALPadJak2TraversalState) {
+  GOALPadJak2TraversalStateUnknown,
+  GOALPadJak2TraversalStateOnFoot,
+  GOALPadJak2TraversalStateJetboard,
+  GOALPadJak2TraversalStateVehicleTransition,
+  GOALPadJak2TraversalStateVehicleRiding,
+};
+
 typedef NS_ENUM(NSInteger, GOALPadSpeederState) {
   GOALPadSpeederStateUnknown,
   GOALPadSpeederStateNotRiding,
@@ -268,6 +276,7 @@ typedef struct GOALPadGameFrameStateSnapshot {
   GOALPadCutsceneSkipTouchSnapshot cutsceneSkipTouch;
   GOALPadFacePromptTouchSnapshot facePromptTouch;
   GOALPadLookAroundState lookAroundState;
+  GOALPadJak2TraversalState jak2TraversalState;
   GOALPadSpeederState speederState;
 } GOALPadGameFrameStateSnapshot;
 
@@ -338,6 +347,8 @@ typedef NS_ENUM(NSInteger, GOALPadGameIdentifier) {
 @property(class, nonatomic, readonly) GOALPadTitleStartState titleStartState;
 /// Jak's live directional look-around state. Unavailable and other first-person modes are unknown.
 @property(class, nonatomic, readonly) GOALPadLookAroundState lookAroundState;
+/// Jak II's exact checked on-foot, jetboard, or vehicle traversal; Jak 1 remains unknown.
+@property(class, nonatomic, readonly) GOALPadJak2TraversalState jak2TraversalState;
 /// Exact checked target-state classification; unresolved level-bundled racer states stay unknown.
 @property(class, nonatomic, readonly) GOALPadSpeederState speederState;
 /// A fail-closed read of Jak's live progress process; reading it never advances or mutates GOAL.
