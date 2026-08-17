@@ -133,6 +133,7 @@ final class GameSession {
     init(profile: GameDataProfile) {
         self.profile = profile
         title = profile.title
+        touch.setGameTitle(profile.identifier == .jak2 ? .jak2 : .jak1)
         let renderConfiguration: RenderSettingsConfiguration
         let presentationProfile: PresentationSettingsProfile
         let saveProfile: SaveSyncProfile
