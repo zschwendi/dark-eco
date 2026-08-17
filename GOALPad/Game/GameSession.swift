@@ -22,18 +22,18 @@ nonisolated private let sessionLog = Logger(subsystem: "com.zephyrstudiosllc.eco
 final class GameSession {
     private static let saveRecoveryMessage =
         "Save recovery needs attention. Open Settings and retry iCloud Saves before playing."
-    private static let inactiveStartupMessage =
-        "Dark Eco became inactive before gameplay could start. Return to Dark Eco and choose Play again."
 
+    let profile: GameDataProfile
+    let title: GameLibraryTitle
     let input = ControllerInput()
     let touch = TouchControls()
     let audio = AudioOutput()
-    let settings = RenderSettings()
-    let presentationSettings = PresentationSettings()
-    let importer = GameDataImporter(profile: .jak1)
-    let saveSync = SaveSyncController()
+    let settings: RenderSettings
+    let presentationSettings: PresentationSettings
+    let importer: GameDataImporter
+    let saveSync: SaveSyncController
 
-    private(set) var dataReport = GameDataReport()
+    private(set) var dataReport: GameDataReport
     private(set) var kernel: GOALPadKernelStatus?
     private(set) var boot: GOALPadGameBootStatus?
     private(set) var isBooting = false
@@ -118,11 +118,42 @@ final class GameSession {
     private var reportedCameraDiagnosticsWriteFailure = false
     #endif
 
+    private let gameDataDirectory: URL
+    private let localSavesDirectory: URL
+
+    private var inactiveStartupMessage: String {
+        "\(title.name) became inactive before gameplay could start. "
+            + "Return to Dark Eco and choose Play again."
+    }
+
     var geometry: GOALPadSurfaceGeometry { GOALPadRenderSurface.shared.geometry() }
 
     // MARK: - Lifetime
 
-    init() {
+    init(profile: GameDataProfile) {
+        self.profile = profile
+        title = profile.title
+        let renderConfiguration: RenderSettingsConfiguration
+        let presentationProfile: PresentationSettingsProfile
+        let saveProfile: SaveSyncProfile
+        switch profile.identifier {
+        case .jak1:
+            renderConfiguration = .jak1
+            presentationProfile = .jak1()
+            saveProfile = .jak1()
+        case .jak2:
+            renderConfiguration = .jak2
+            presentationProfile = .jak2()
+            saveProfile = .jak2()
+        }
+        settings = RenderSettings(configuration: renderConfiguration)
+        presentationSettings = PresentationSettings(profile: presentationProfile)
+        importer = GameDataImporter(profile: profile)
+        saveSync = SaveSyncController(profile: saveProfile)
+        dataReport = GameDataReport(profile: profile)
+        gameDataDirectory = GameDataLayout.gameDirectory(
+            for: profile, in: GameDataLayout.documentsDirectory)
+        localSavesDirectory = saveProfile.localSavesDirectory
         saveSync.setGameplayReadinessHandler { [weak self] in
             self?.saveGameplayReadinessDidChange()
         }
@@ -132,11 +163,11 @@ final class GameSession {
         let processID = ProcessInfo.processInfo.processIdentifier
         sessionLog.notice("""
             ========== \(GOALPadBuildIdentity.displayText, privacy: .public) | \
-            PID \(processID) ==========
+            \(self.title.name, privacy: .public) | PID \(processID) ==========
             """)
         observeSystem()
         input.startWatching()
-        try? GameDataLayout.prepare()
+        try? GameDataLayout.prepare(profile: profile)
         await GameSessionPreparation.run(
             refreshDataReport: { await self.refreshDataReport() },
             prepareSettings: { await self.presentationSettings.prepare() },
@@ -152,7 +183,12 @@ final class GameSession {
         dataReportRefreshGeneration &+= 1
         var generation = dataReportRefreshGeneration
         isRefreshingDataReport = true
-        var refreshTask = Task.detached { GameDataInspector.inspect() }
+        let selectedProfile = profile
+        let selectedDirectory = gameDataDirectory
+        var refreshTask = Task.detached {
+            GameDataInspector.inspect(
+                gameDirectory: selectedDirectory, profile: selectedProfile)
+        }
         dataReportRefreshTask = refreshTask
 
         while true {
@@ -175,15 +211,20 @@ final class GameSession {
         startupError = nil
     }
 
-    /// Bring the session up. Refuses rather than half-starting when the active title's data cannot
+    /// Bring the session up. Refuses rather than half-starting when the selected title's data cannot
     /// launch its runtime, or when this build has no matching ahead-of-time game code.
     func start() async {
         guard !isRunning, !isBooting else { return }
+        guard profile.identifier == .jak1 else {
+            startupError = "\(title.name) is selected, but its runtime backend is not connected "
+                + "to this app session yet."
+            return
+        }
         guard GOALPadRuntimeBridge.isGameCodeLinked else {
-            let generator = GameDataProfile.active.identifier == .jak2
+            let generator = profile.identifier == .jak2
                 ? "Scripts/generate-jak2-aot.sh"
                 : "Scripts/generate-jak1-aot.sh"
-            startupError = "This build has no ahead-of-time \(GameLibraryTitle.active.name) code. "
+            startupError = "This build has no ahead-of-time \(title.name) code. "
                 + "Run \(generator) and build again."
             return
         }
@@ -219,7 +260,7 @@ final class GameSession {
             startupError = Self.saveRecoveryMessage
             return
         case .sceneInactive:
-            startupError = Self.inactiveStartupMessage
+            startupError = inactiveStartupMessage
             return
         }
         guard !isRunning, !isBooting else { return }
@@ -228,8 +269,8 @@ final class GameSession {
             presentationSettings.developerLogsEnabled)
 
         let status = GOALPadRuntimeBridge.startKernel(
-            withDataDirectory: GameDataLayout.gameDirectory.path,
-            savesDirectory: SaveDataLayout.localSavesDirectory.path)
+            withDataDirectory: gameDataDirectory.path,
+            savesDirectory: localSavesDirectory.path)
         kernel = status
         guard status.isRunning else {
             startupError = status.message
@@ -241,19 +282,22 @@ final class GameSession {
         handledNativeExitToLibraryRequest = false
         startupError = nil
         settings.apply()
-        #if GOALPAD_JAK2
-        let bootTargetFrameRate = 60
-        #elseif os(visionOS)
-        let bootTargetFrameRate = presentationSettings.graphicsVisionHighFrameRate ? 90 : 60
-        #elseif os(iOS)
-        let bootTargetFrameRate = presentationSettings.graphicsHighFrameRate ? 120 : 60
-        #else
-        let bootTargetFrameRate = 60
-        #endif
+        let bootTargetFrameRate: Int
+        if profile.identifier == .jak2 {
+            bootTargetFrameRate = 60
+        } else {
+            #if os(visionOS)
+            bootTargetFrameRate = presentationSettings.graphicsVisionHighFrameRate ? 90 : 60
+            #elseif os(iOS)
+            bootTargetFrameRate = presentationSettings.graphicsHighFrameRate ? 120 : 60
+            #else
+            bootTargetFrameRate = 60
+            #endif
+        }
         runReadiness = .preRun
         isBooting = true
         startupState.move(to: .booting, generation: startupGeneration)
-        sessionLog.notice("Booting \(GameLibraryTitle.active.name, privacy: .public)")
+        sessionLog.notice("Booting \(self.title.name, privacy: .public)")
         bootQueue.async {
             let boot = GOALPadRuntimeBridge.bootGame(targetFrameRate: bootTargetFrameRate)
             DispatchQueue.main.async {
@@ -308,26 +352,30 @@ final class GameSession {
         }
         #endif
         setIdleTimerDisabled(active)
-        sessionLog.notice("Session started: \(status.message)")
+        sessionLog.notice("\(self.title.name, privacy: .public) session started: \(status.message)")
     }
 
     /// Apply the persisted ProMotion choice between dispatcher frames. Boot captures the choice
     /// separately; if it changes during boot, `bootFinished` reconciles it before frames begin.
     func setHighFrameRateEnabled(_ enabled: Bool) {
-        #if GOALPAD_JAK2
-        _ = enabled
-        #elseif os(iOS)
+        #if os(iOS)
+        guard profile.identifier == .jak1 else { return }
         let requestedFrameRate = enabled ? 120 : 60
         guard requestedFrameRate != targetFrameRate else { return }
         guard !isBooting else { return }
         guard isRunning else { return }
         guard GOALPadRuntimeBridge.setTargetFrameRate(requestedFrameRate) else {
-            sessionLog.error("Could not switch the live gameplay timing domain to \(requestedFrameRate) Hz")
+            sessionLog.error("""
+                \(self.title.name, privacy: .public) could not switch live timing to \
+                \(requestedFrameRate) Hz
+                """)
             return
         }
         targetFrameRate = requestedFrameRate
         resetDisplayTiming()
-        sessionLog.notice("Live gameplay timing switched to \(requestedFrameRate) Hz")
+        sessionLog.notice("""
+            \(self.title.name, privacy: .public) timing switched to \(requestedFrameRate) Hz
+            """)
         #else
         _ = enabled
         #endif
@@ -336,20 +384,24 @@ final class GameSession {
     /// Apply the visionOS 90 Hz preference between dispatcher frames. The platform can still
     /// deliver a lower cadence; the native display clock preserves elapsed wall time.
     func setVisionHighFrameRateEnabled(_ enabled: Bool) {
-        #if GOALPAD_JAK2
-        _ = enabled
-        #elseif os(visionOS)
+        #if os(visionOS)
+        guard profile.identifier == .jak1 else { return }
         let requestedFrameRate = enabled ? 90 : 60
         guard requestedFrameRate != targetFrameRate else { return }
         guard !isBooting else { return }
         guard isRunning else { return }
         guard GOALPadRuntimeBridge.setTargetFrameRate(requestedFrameRate) else {
-            sessionLog.error("Could not switch the live gameplay timing domain to \(requestedFrameRate) Hz")
+            sessionLog.error("""
+                \(self.title.name, privacy: .public) could not switch live timing to \
+                \(requestedFrameRate) Hz
+                """)
             return
         }
         targetFrameRate = requestedFrameRate
         resetDisplayTiming()
-        sessionLog.notice("Live gameplay timing switched to \(requestedFrameRate) Hz")
+        sessionLog.notice("""
+            \(self.title.name, privacy: .public) timing switched to \(requestedFrameRate) Hz
+            """)
         #else
         _ = enabled
         #endif
@@ -396,7 +448,19 @@ final class GameSession {
         displaySlowCallbacks = 0
         displaySampleCount = 0
         setIdleTimerDisabled(false)
-        sessionLog.notice("Session shut down")
+        sessionLog.notice("\(self.title.name, privacy: .public) session shut down")
+    }
+
+    func retireForReplacement() {
+        importer.cancel()
+        shutdown()
+        dataReportRefreshGeneration &+= 1
+        dataReportRefreshTask?.cancel()
+        dataReportRefreshTask = nil
+        isRefreshingDataReport = false
+        input.stopWatching()
+        observers.forEach(NotificationCenter.default.removeObserver)
+        observers.removeAll()
     }
 
     func presentTouchControlsGuide() {
@@ -405,7 +469,7 @@ final class GameSession {
         touch.reset()
         resetDisplayTiming()
         audio.suspend()
-        sessionLog.notice("Touch controls guide suspended gameplay")
+        sessionLog.notice("\(self.title.name, privacy: .public) touch guide suspended gameplay")
     }
 
     func dismissTouchControlsGuide() {
@@ -413,7 +477,7 @@ final class GameSession {
         guard isRunning, currentScenePhase == .active, lifecycle.frameLoopEnabled else { return }
         touch.restoreGameplayChromeAfterInterruption()
         audio.resumeIfSuspended()
-        sessionLog.notice("Touch controls guide resumed gameplay")
+        sessionLog.notice("\(self.title.name, privacy: .public) touch guide resumed gameplay")
     }
 
     // MARK: - The frame loop
@@ -612,7 +676,8 @@ final class GameSession {
             - renderer.framesWithoutChain
             - renderer.framesWithMultipleChains
         sessionLog.notice("""
-            frame \(self.framesRun): \(self.framesPresented) ticks with a scheduled drawable, \
+            \(self.title.name, privacy: .public) frame \(self.framesRun): \
+            \(self.framesPresented) ticks with a scheduled drawable, \
             cadence \(self.displayMeanMilliseconds, format: .fixed(precision: 2))/\
             \(self.displayP95Milliseconds, format: .fixed(precision: 2))/\
             \(self.displayMaxMilliseconds, format: .fixed(precision: 2)) ms mean/p95/max over \
@@ -717,7 +782,9 @@ final class GameSession {
             reportCameraDiagnosticsWriteFailure()
             return
         }
-        let directory = caches.appendingPathComponent("GOALPadDiagnostics", isDirectory: true)
+        let directory = caches
+            .appendingPathComponent("GOALPadDiagnostics", isDirectory: true)
+            .appendingPathComponent(profile.identifier.rawValue, isDirectory: true)
         do {
             try FileManager.default.createDirectory(at: directory,
                                                     withIntermediateDirectories: true)
@@ -1320,6 +1387,7 @@ final class GameSession {
 
         let fields = [
             "goalpad_camera_provenance", "v=7", "run=\(cameraDiagnosticsRunID)",
+            "title=\(profile.identifier.rawValue)",
             "frame=\(framesRun)", "engine=\(renderer.lastEngineFrameID)",
             "tick=\(renderer.lastHostTickID)", "chain=\(renderer.lastChainOrdinal)",
             "fingerprint=\(renderer.lastCameraFingerprint)",
@@ -1628,7 +1696,9 @@ final class GameSession {
     private func reportCameraDiagnosticsWriteFailure() {
         guard !reportedCameraDiagnosticsWriteFailure else { return }
         reportedCameraDiagnosticsWriteFailure = true
-        sessionLog.error("Camera diagnostics snapshot could not be written.")
+        sessionLog.error("""
+            \(self.title.name, privacy: .public) camera diagnostics could not be written.
+            """)
     }
     #endif
 
@@ -1661,7 +1731,8 @@ final class GameSession {
             prepareOnActivation: !isBooting && !isStartingGameplay
         )
         sessionLog.notice("""
-            Lifecycle \(lifecyclePhase.rawValue, privacy: .public) generation \
+            \(self.title.name, privacy: .public) lifecycle \
+            \(lifecyclePhase.rawValue, privacy: .public) generation \
             \(self.lifecycle.generation), frame loop \
             \(self.lifecycle.frameLoopEnabled ? "enabled" : "suspended", privacy: .public), \
             preparation \(self.lifecycle.preparationGeneration ?? 0)
@@ -1715,7 +1786,9 @@ final class GameSession {
 
     private func beginForegroundPreparation(generation: UInt64) {
         guard foregroundPreparationTask == nil else { return }
-        sessionLog.notice("Preparing foreground generation \(generation)")
+        sessionLog.notice("""
+            \(self.title.name, privacy: .public) preparing foreground generation \(generation)
+            """)
         foregroundPreparationGeneration = generation
         foregroundPreparationTask = Task { [weak self] in
             guard let self else { return }
@@ -1733,13 +1806,18 @@ final class GameSession {
               !lifecycle.isPreparingForeground else { return }
         guard case .prepareForeground(let generation) = lifecycle.requestPreparationIfNeeded()
         else { return }
-        sessionLog.notice("Save readiness changed; retrying foreground generation \(generation)")
+        sessionLog.notice("""
+            \(self.title.name, privacy: .public) save readiness changed; retrying generation \
+            \(generation)
+            """)
         beginForegroundPreparation(generation: generation)
     }
 
     private func finishForegroundPreparation(generation: UInt64, savesReady: Bool) {
         guard foregroundPreparationGeneration == generation else {
-            sessionLog.notice("Ignored cancelled foreground generation \(generation)")
+            sessionLog.notice("""
+                \(self.title.name, privacy: .public) ignored cancelled generation \(generation)
+                """)
             return
         }
         foregroundPreparationTask = nil
@@ -1747,7 +1825,10 @@ final class GameSession {
         let action = lifecycle.completePreparation(generation: generation, succeeded: savesReady)
         switch action {
         case .prepareForeground(let nextGeneration):
-            sessionLog.notice("Foreground generation \(generation) became stale; preparing \(nextGeneration)")
+            sessionLog.notice("""
+                \(self.title.name, privacy: .public) generation \(generation) became stale; \
+                preparing \(nextGeneration)
+                """)
             beginForegroundPreparation(generation: nextGeneration)
         case .resumed:
             if startupError == Self.saveRecoveryMessage {
@@ -1758,18 +1839,29 @@ final class GameSession {
                 audio.resumeIfSuspended()
             }
             setIdleTimerDisabled(isRunning)
-            sessionLog.notice("Foreground generation \(generation) resumed")
+            sessionLog.notice("""
+                \(self.title.name, privacy: .public) foreground generation \(generation) resumed
+                """)
         case .failed:
             startupError = Self.saveRecoveryMessage
             saveSync.setGameplayActive(false)
             audio.suspend()
             setIdleTimerDisabled(false)
-            sessionLog.error("Foreground generation \(generation) remains suspended for save recovery")
+            sessionLog.error("""
+                \(self.title.name, privacy: .public) generation \(generation) remains suspended \
+                for save recovery
+                """)
         case .suspended:
             saveSync.setGameplayActive(false)
-            sessionLog.notice("Foreground generation \(generation) completed after suspension")
+            sessionLog.notice("""
+                \(self.title.name, privacy: .public) generation \(generation) completed after \
+                suspension
+                """)
         case .none:
-            sessionLog.notice("Ignored stale foreground completion for generation \(generation)")
+            sessionLog.notice("""
+                \(self.title.name, privacy: .public) ignored stale completion for generation \
+                \(generation)
+                """)
         }
     }
 
@@ -1800,7 +1892,9 @@ final class GameSession {
         observers.append(center.addObserver(forName: UIApplication.willTerminateNotification,
                                             object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
-                sessionLog.notice("willTerminate")
+                sessionLog.notice("""
+                    \(self?.title.name ?? "Unknown title", privacy: .public) willTerminate
+                    """)
                 self?.shutdown()
             }
         })
@@ -1813,7 +1907,8 @@ final class GameSession {
     private func handleMemoryWarning() {
         memoryWarnings += 1
         sessionLog.warning("""
-            Memory warning #\(self.memoryWarnings) - nothing safely reclaimable in the app shell; \
+            \(self.title.name, privacy: .public) memory warning #\(self.memoryWarnings) - \
+            nothing safely reclaimable in the app shell; \
             lifecycle \(self.lifecycle.phase.rawValue, privacy: .public) generation \
             \(self.lifecycle.generation), frame loop \
             \(self.lifecycle.frameLoopEnabled ? "enabled" : "suspended", privacy: .public), \

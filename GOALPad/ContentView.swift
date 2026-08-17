@@ -44,7 +44,7 @@ struct ContentView: View {
     #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
     @Environment(VisionPresentationCoordinator.self) private var visionPresentation
     #endif
-    @State private var session = GameSession()
+    @State private var session: GameSession
     @State private var artworkStore = GameArtworkStore()
     @State private var launcherDestination = LauncherDestination.library
     @State private var settingsPresentation: SettingsSheetPresentation?
@@ -55,6 +55,10 @@ struct ContentView: View {
     #endif
 
     init() {
+        let hasJak2DebugPreview = ProcessInfo.processInfo
+            .environment["GOALPAD_JAK2_DEBUG_PREVIEW_SCENE"]?.isEmpty == false
+        _session = State(initialValue: GameSession(
+            profile: hasJak2DebugPreview ? .jak2 : .jak1))
         #if GOALPAD_APPSTORE_CAPTURE
         let arguments = ProcessInfo.processInfo.arguments
         let opensSettings = arguments.contains("-EcoCaptureSettings")
@@ -108,7 +112,7 @@ struct ContentView: View {
                     GameLibraryView(
                         session: session,
                         artworkStore: artworkStore,
-                        openGameSetup: { launcherDestination = .gameSetup($0) },
+                        openGameSetup: openGameSetup,
                         openSettings: presentSettings
                     )
                     .onAppear { session.saveSync.launcherDidAppear() }
@@ -139,13 +143,15 @@ struct ContentView: View {
             )
         }
         #endif
-        .task {
-            await session.prepare()
-            #if GOALPAD_JAK2
-            if ProcessInfo.processInfo.environment["GOALPAD_JAK2_DEBUG_PREVIEW_SCENE"]?.isEmpty == false {
-                await session.start()
+        .task(id: session.title) {
+            let selectedSession = session
+            await selectedSession.prepare()
+            guard selectedSession === session else { return }
+            if selectedSession.title == .jak2,
+               ProcessInfo.processInfo
+                .environment["GOALPAD_JAK2_DEBUG_PREVIEW_SCENE"]?.isEmpty == false {
+                await selectedSession.start()
             }
-            #endif
         }
         .onChange(of: scenePhase) { _, phase in session.scenePhaseChanged(to: phase) }
         .onChange(of: session.presentationSettings.graphicsFillWidth, initial: true) {
@@ -246,6 +252,16 @@ struct ContentView: View {
     private func presentSettings() {
         nextSettingsPresentationID += 1
         settingsPresentation = SettingsSheetPresentation(id: nextSettingsPresentationID)
+    }
+
+    private func openGameSetup(_ title: GameLibraryTitle) {
+        guard let profile = GameDataProfile.profile(for: title) else { return }
+        if session.profile != profile {
+            settingsPresentation = nil
+            session.retireForReplacement()
+            session = GameSession(profile: profile)
+        }
+        launcherDestination = .gameSetup(title)
     }
 
     private var isGameDataReady: Bool {

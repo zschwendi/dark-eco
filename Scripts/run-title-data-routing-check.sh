@@ -19,3 +19,5 @@ swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
   -o "$out"
 
 "$out"
+swift "$root/Scripts/selected-session-routing-check.swift" "$root"
+swiftc -frontend -parse "$root/Scripts/selected-session-routing-check.swift"

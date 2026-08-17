@@ -75,8 +75,11 @@ check(surface.contains("window?.screen.maximumFramesPerSecond")
 check(surface.contains("#if os(visionOS)")
         && surface.contains("minimum: 90, maximum: 90, preferred: 90"),
       "the visionOS gameplay display link requests a fixed 90 Hz cadence")
-check(session.contains("#if os(visionOS)\n        let bootTargetFrameRate = presentationSettings.graphicsVisionHighFrameRate ? 90 : 60")
-        && session.contains("#elseif os(iOS)\n        let bootTargetFrameRate = presentationSettings.graphicsHighFrameRate ? 120 : 60")
+check(session.contains("if profile.identifier == .jak2 {\n            bootTargetFrameRate = 60")
+        && session.contains("#if os(visionOS)\n            bootTargetFrameRate = "
+            + "presentationSettings.graphicsVisionHighFrameRate ? 90 : 60")
+        && session.contains("#elseif os(iOS)\n            bootTargetFrameRate = "
+            + "presentationSettings.graphicsHighFrameRate ? 120 : 60")
         && session.contains("bootGame(targetFrameRate: bootTargetFrameRate)")
         && session.contains("self.bootFinished(boot, targetFrameRate: bootTargetFrameRate)")
         && session.contains("targetFrameRate = bootFrameRate\n        isRunning = true")

@@ -220,7 +220,7 @@ check(importer.contains("init(\n        profile: GameDataProfile,")
         && library.contains("case .openSetup(let title):")
         && library.contains("case .verifyData(let title):")
         && content.contains("case gameSetup(GameLibraryTitle)")
-        && content.contains("openGameSetup: { launcherDestination = .gameSetup($0) }")
+        && content.contains("openGameSetup: openGameSetup")
         && content.contains("GameDataSetupView(session: session, title: title)")
         && view.contains("GameDataProfile.profile(for: title)")
         && view.contains("GameDataImporter(profile: profile)"),

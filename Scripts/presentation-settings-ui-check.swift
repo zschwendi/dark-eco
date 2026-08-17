@@ -437,7 +437,7 @@ check(content.contains("@Environment(\\.dismiss) private var dismiss")
         && content.contains(".accessibilityLabel(\"Close Settings\")"),
       "Settings retains an app-owned iOS Done exit and a visible visionOS Close")
 check(occursInOrder([
-    "let presentationSettings = PresentationSettings()",
+    "presentationSettings = PresentationSettings(profile: presentationProfile)",
     "await GameSessionPreparation.run(",
     "refreshDataReport: { await self.refreshDataReport() }",
     "prepareSettings: { await self.presentationSettings.prepare() }",

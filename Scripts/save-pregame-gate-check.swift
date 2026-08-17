@@ -184,12 +184,12 @@ check(occursInOrder([
     "case .saveRecoveryFailed:",
     "startupError = Self.saveRecoveryMessage",
     "GOALPadRuntimeBridge.startKernel",
-    "savesDirectory: SaveDataLayout.localSavesDirectory.path",
+    "savesDirectory: localSavesDirectory.path",
 ], in: start), "startup rejects unsafe saves before starting the native kernel")
 check(start.contains("currentForegroundPreparation: { self.foregroundPreparationTask }")
         && start.contains("foregroundPreparationSucceeded: { self.lifecycle.frameLoopEnabled }")
         && start.contains("case .sceneInactive:")
-        && start.contains("startupError = Self.inactiveStartupMessage"),
+        && start.contains("startupError = inactiveStartupMessage"),
       "startup retains foreground preparation and reports scene loss instead of dropping Play")
 check(start.contains("startupState.begin(")
         && !start.contains("guard !isRunning, !isBooting, !isPreparingGameplay else { return }"),
