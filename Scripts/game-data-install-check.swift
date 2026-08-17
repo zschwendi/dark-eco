@@ -18,22 +18,27 @@ private final class Fixture: @unchecked Sendable {
     let root: URL
     let active: URL
     let staging: URL
+    let profile: GameDataProfile
     let worker: GameDataInstallWorker
 
-    init() throws {
+    init(profile: GameDataProfile = .jak1) throws {
+        self.profile = profile
         root = FileManager.default.temporaryDirectory.appending(
             path: "goalpad-game-data-install-\(UUID().uuidString)",
             directoryHint: .isDirectory
         )
-        active = root.appending(path: "Documents/Jak1", directoryHint: .isDirectory)
+        active = root.appending(
+            path: "Documents/\(profile.gameDirectoryName)", directoryHint: .isDirectory)
         staging = root.appending(
-            path: "Library/Application Support/GOALPad/GameDataImport/Jak1",
+            path: "Library/Application Support/GOALPad/GameDataImport/"
+                + profile.gameDirectoryName,
             directoryHint: .isDirectory
         )
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         worker = GameDataInstallWorker(configuration: .init(
             activeDirectory: active,
-            stagingRoot: staging
+            stagingRoot: staging,
+            profile: profile
         ))
     }
 
@@ -283,13 +288,13 @@ private func preparedFolder(
           "a later folder import completes in a new candidate and activates")
     check(read(fixture.active.appending(path: "iso/ACTIVE.DAT")) == "active",
           "the new attempt seeds the unchanged active install")
-    check(incompleteCandidate.map { !fixture.candidates.contains($0) } == true,
-          "the explicit later selection removes the prior abandoned candidate")
+    check(incompleteCandidate.map { fixture.candidates.contains($0) } == true,
+          "Jak 1 keeps the failed candidate recoverable across a later selection")
 }
 
 @MainActor private func abandonedCandidateCleanupIsExactAndSafe() async throws {
-    print("a new attempt removes only exact app-owned abandoned candidate directories")
-    let fixture = try Fixture()
+    print("a new Jak II attempt removes only exact app-owned abandoned candidate directories")
+    let fixture = try Fixture(profile: .jak2)
     let attempts = fixture.staging.appending(path: "Attempts", directoryHint: .isDirectory)
     let abandoned = attempts.appending(
         path: "\(UUID().uuidString).candidate", directoryHint: .isDirectory)
@@ -354,7 +359,7 @@ private func preparedFolder(
 }
 
 @MainActor private func cancellationKeepsActiveInstall() async throws {
-    print("cancellation preserves the active install and removes partial staging")
+    print("Jak 1 cancellation preserves the active install and recoverable staging")
     let fixture = try Fixture()
     let activeSource = try preparedFolder(under: fixture.root, payload: "active")
     _ = try await fixture.worker.install(
@@ -388,18 +393,73 @@ private func preparedFolder(
 
     check(read(fixture.active.appending(path: "iso/GAME.CGO")) == "active",
           "the previous install remains active after cancellation")
+    let cancelledCandidate = fixture.candidates.first
+    check(cancelledCandidate != nil,
+          "Jak 1 keeps the cancelled candidate available for recovery")
+    let partials = (try? FileManager.default.contentsOfDirectory(
+        at: cancelledCandidate?.appending(path: "iso", directoryHint: .isDirectory)
+            ?? fixture.staging,
+        includingPropertiesForKeys: nil
+    ))?.filter { $0.lastPathComponent.hasSuffix(".partial") } ?? []
+    check(partials.isEmpty, "cancelled per-file temporary output is removed")
+}
+
+@MainActor private func jak2CancellationRemovesPartialCandidate() async throws {
+    print("Jak II cancellation removes partial staging and releases its process lease")
+    let fixture = try Fixture(profile: .jak2)
+    let activeSource = try preparedFolder(
+        under: fixture.root,
+        profile: .jak2,
+        payload: "active"
+    )
+    _ = try await fixture.worker.install(
+        from: activeSource,
+        using: PreparedFolderCandidateProducer()
+    ) { _ in }
+
+    let replacement = try preparedFolder(
+        under: fixture.root.appending(path: "replacement", directoryHint: .isDirectory),
+        profile: .jak2,
+        payload: "replacement"
+    )
+    try Data(repeating: 0x7a, count: 3 * 1_024 * 1_024).write(
+        to: replacement.appending(path: "iso/KERNEL.CGO"),
+        options: .atomic
+    )
+
+    let cancelledImport = Task {
+        try await fixture.worker.install(
+            from: replacement,
+            using: PreparedFolderCandidateProducer()
+        ) { progress in
+            if progress.phase == .preparingCandidate,
+               progress.bytesCopied >= 1_024 * 1_024
+            {
+                withUnsafeCurrentTask { $0?.cancel() }
+            }
+        }
+    }
+    do {
+        _ = try await cancelledImport.value
+        check(false, "the cancelled Jak II import does not activate")
+    } catch is CancellationError {
+        check(true, "Jak II cancellation remains a distinct result")
+    }
+
+    check(read(fixture.active.appending(path: "iso/GAME.CGO")) == "active",
+          "Jak II cancellation leaves the prior active install unchanged")
     check(fixture.candidates.isEmpty,
-          "the cancelled candidate and per-file temporary output are removed")
+          "Jak II cancellation removes its partial candidate")
     _ = try await fixture.worker.install(
         from: replacement,
         using: PreparedFolderCandidateProducer()
     ) { _ in }
     check(read(fixture.active.appending(path: "iso/GAME.CGO")) == "replacement",
-          "a fresh retry acquires the released process lease")
+          "Jak II retry acquires the released process lease")
 }
 
 @MainActor private func concurrentAttemptIsRejected() async throws {
-    print("a second request cannot interleave with an active import")
+    print("a second request on the same Jak 1 worker cannot interleave")
     let fixture = try Fixture()
     let source = try preparedFolder(under: fixture.root)
     let gate = PauseGate()
@@ -425,10 +485,33 @@ private func preparedFolder(
         check(failure.code == .busy, "the second request gets an explicit busy failure")
     }
 
+    await gate.release()
+    _ = try await first.value
+    check(GameDataInspector.inspect(gameDirectory: fixture.active).status == .ready,
+          "the original request completes without interleaved writes")
+}
+
+@MainActor private func jak2ProcessLeaseIsProfileScoped() async throws {
+    print("Jak II process leasing blocks matching roots without blocking Jak 1")
+    let fixture = try Fixture(profile: .jak2)
+    let source = try preparedFolder(under: fixture.root, profile: .jak2)
+    let gate = PauseGate()
+    let first = Task {
+        try await fixture.worker.install(
+            from: source,
+            using: PreparedFolderCandidateProducer()
+        ) { progress in
+            if progress.phase == .scanning {
+                await gate.pause()
+            }
+        }
+    }
+
+    await gate.waitUntilPaused()
     let secondWindowWorker = GameDataInstallWorker(configuration: .init(
         activeDirectory: fixture.active,
         stagingRoot: fixture.staging,
-        profile: .jak1
+        profile: .jak2
     ))
     do {
         _ = try await secondWindowWorker.install(
@@ -445,7 +528,7 @@ private func preparedFolder(
         activeDirectory: fixture.root.appending(path: "OtherActive", directoryHint: .isDirectory),
         stagingRoot: fixture.staging.appending(path: "..")
             .appending(path: fixture.staging.lastPathComponent, directoryHint: .isDirectory),
-        profile: .jak1
+        profile: .jak2
     ))
     do {
         _ = try await equivalentStagingWorker.install(
@@ -461,7 +544,7 @@ private func preparedFolder(
     let alternateStagingWorker = GameDataInstallWorker(configuration: .init(
         activeDirectory: fixture.active,
         stagingRoot: fixture.root.appending(path: "OtherStaging", directoryHint: .isDirectory),
-        profile: .jak1
+        profile: .jak2
     ))
     do {
         _ = try await alternateStagingWorker.install(
@@ -474,38 +557,38 @@ private func preparedFolder(
               "the process lease also owns the active-install destination")
     }
 
-    let jak2Active = fixture.root.appending(
-        path: "Documents/Jak2", directoryHint: .isDirectory)
-    let jak2Staging = fixture.root.appending(
-        path: "Library/Application Support/GOALPad/GameDataImport/Jak2",
+    let jak1Active = fixture.root.appending(
+        path: "Documents/Jak1", directoryHint: .isDirectory)
+    let jak1Staging = fixture.root.appending(
+        path: "Library/Application Support/GOALPad/GameDataImport/Jak1",
         directoryHint: .isDirectory
     )
-    let jak2Source = try preparedFolder(
-        under: fixture.root.appending(path: "jak2-source", directoryHint: .isDirectory),
-        profile: .jak2
+    let jak1Source = try preparedFolder(
+        under: fixture.root.appending(path: "jak1-source", directoryHint: .isDirectory),
+        profile: .jak1
     )
-    let jak2Worker = GameDataInstallWorker(configuration: .init(
-        activeDirectory: jak2Active,
-        stagingRoot: jak2Staging,
-        profile: .jak2
+    let jak1Worker = GameDataInstallWorker(configuration: .init(
+        activeDirectory: jak1Active,
+        stagingRoot: jak1Staging,
+        profile: .jak1
     ))
-    _ = try await jak2Worker.install(
-        from: jak2Source,
+    _ = try await jak1Worker.install(
+        from: jak1Source,
         using: PreparedFolderCandidateProducer()
     ) { _ in }
-    check(GameDataInspector.inspect(gameDirectory: jak2Active, profile: .jak2).status == .ready,
-          "Jak II can import concurrently through its independent active and staging roots")
+    check(GameDataInspector.inspect(gameDirectory: jak1Active, profile: .jak1).status == .ready,
+          "Jak 1 can import concurrently through its independent active and staging roots")
 
     await gate.release()
     _ = try await first.value
-    check(GameDataInspector.inspect(gameDirectory: fixture.active).status == .ready,
-          "the original request completes without interleaved writes")
+    check(GameDataInspector.inspect(gameDirectory: fixture.active, profile: .jak2).status == .ready,
+          "the original Jak II request completes without interleaved writes")
     _ = try await secondWindowWorker.install(
         from: source,
         using: PreparedFolderCandidateProducer()
     ) { _ in }
-    check(GameDataInspector.inspect(gameDirectory: fixture.active).status == .ready,
-          "the same-title process lease is released after the original request completes")
+    check(GameDataInspector.inspect(gameDirectory: fixture.active, profile: .jak2).status == .ready,
+          "the Jak II process lease is released after the original request completes")
 }
 
 @MainActor private func cancellationAtActivationBoundaryDoesNotSwap() async throws {
@@ -538,8 +621,8 @@ private func preparedFolder(
     }
     check(read(fixture.active.appending(path: "iso/GAME.CGO")) == "active",
           "the atomic switch did not run after cancellation")
-    check(fixture.candidates.isEmpty,
-          "the cancelled validated candidate is removed after the worker settles")
+    check(fixture.candidates.count == 1,
+          "Jak 1 keeps the cancelled validated candidate recoverable")
 }
 
 @MainActor private func unsafeSourceIsRejectedBeforeStaging() async throws {
@@ -636,7 +719,9 @@ private struct GameDataInstallCheck {
             try await abandonedCandidateCleanupIsExactAndSafe()
             try await sourceFilesAreNotCopiedFromActiveFirst()
             try await cancellationKeepsActiveInstall()
+            try await jak2CancellationRemovesPartialCandidate()
             try await concurrentAttemptIsRejected()
+            try await jak2ProcessLeaseIsProfileScoped()
             try await cancellationAtActivationBoundaryDoesNotSwap()
             try await unsafeSourceIsRejectedBeforeStaging()
             try await activationFailurePreservesCandidate()

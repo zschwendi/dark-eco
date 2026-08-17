@@ -218,11 +218,11 @@ actor GameDataInstallWorker {
         using producer: any GameDataCandidateProducing,
         report: @escaping @Sendable (GameDataImportProgress) async -> Void
     ) async throws -> GameDataImportResult {
-        guard GameDataImportProcessLease.shared.acquire(
+        let requiresProcessLease = configuration.profile.identifier == .jak2
+        if requiresProcessLease && !GameDataImportProcessLease.shared.acquire(
             activeDirectory: configuration.activeDirectory,
             stagingRoot: configuration.stagingRoot
-        )
-        else {
+        ) {
             throw GameDataImportFailure(
                 code: .busy,
                 message: "Another game-data import is already running for this game.",
@@ -230,10 +230,12 @@ actor GameDataInstallWorker {
             )
         }
         defer {
-            GameDataImportProcessLease.shared.release(
-                activeDirectory: configuration.activeDirectory,
-                stagingRoot: configuration.stagingRoot
-            )
+            if requiresProcessLease {
+                GameDataImportProcessLease.shared.release(
+                    activeDirectory: configuration.activeDirectory,
+                    stagingRoot: configuration.stagingRoot
+                )
+            }
         }
         guard !isInstalling else {
             throw GameDataImportFailure(
@@ -255,7 +257,9 @@ actor GameDataInstallWorker {
             try manager.createDirectory(at: attempts,
                                         withIntermediateDirectories: true)
             try excludeFromBackup(configuration.stagingRoot)
-            try removeAbandonedCandidates(in: attempts)
+            if configuration.profile.identifier == .jak2 {
+                try removeAbandonedCandidates(in: attempts)
+            }
         } catch {
             throw GameDataImportFailure(
                 code: .stagingFailed,
@@ -301,17 +305,19 @@ actor GameDataInstallWorker {
             )
             return result
         } catch is CancellationError {
-            do {
-                if manager.fileExists(atPath: candidate.path) {
-                    try manager.removeItem(at: candidate)
+            if configuration.profile.identifier == .jak2 {
+                do {
+                    if manager.fileExists(atPath: candidate.path) {
+                        try manager.removeItem(at: candidate)
+                    }
+                } catch {
+                    throw GameDataImportFailure(
+                        code: .stagingFailed,
+                        message: "Import stopped, but its private partial candidate could not be removed: "
+                            + error.localizedDescription,
+                        candidatePreserved: manager.fileExists(atPath: candidate.path)
+                    )
                 }
-            } catch {
-                throw GameDataImportFailure(
-                    code: .stagingFailed,
-                    message: "Import stopped, but its private partial candidate could not be removed: "
-                        + error.localizedDescription,
-                    candidatePreserved: manager.fileExists(atPath: candidate.path)
-                )
             }
             throw CancellationError()
         } catch let failure as GameDataImportFailure {
