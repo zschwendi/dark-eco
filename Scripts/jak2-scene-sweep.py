@@ -18,6 +18,7 @@ RUNTIME_MARKER = "GOALPAD_JAK2_RUNTIME_STATE"
 SCENE_MARKER = "GOALPAD_JAK2_SCENE_STATE"
 STACK_MARKER = "GOALPAD_JAK2_STACK_STATE"
 FOREGROUND_MARKER = "GOALPAD_JAK2_FOREGROUND_STATE"
+RENDERER_MARKER = "GOALPAD_JAK2_RENDERER_STATE"
 TICK = re.compile(r"\btick=(\d+)\b")
 SCENE = re.compile(r"\bscene=(\d+)/(\d+)\b.*\bidentity=([^ ]*)")
 ANIMATION = re.compile(r"\banim=1/[^/]+/[-+0-9.eE]+/([-+0-9.eE]+)")
@@ -26,6 +27,16 @@ COMMAND = re.compile(r"\bcmd=(\d+)/(\d+)/(\d+)\b")
 SUBMIT = re.compile(r"\bsubmit=(\d+)/(\d+)/(\d+)\b")
 STACK = re.compile(r"\boverflows=(\d+)\s+failures=(\d+)\b")
 LEVELS = re.compile(r"\bdesired=([^ ]*)\s+active=([^ ]*)\b")
+OCEAN = re.compile(
+    r"\bocean=(\d+)/(\d+)/(\d+)/(\d+)/(\d+)\s+missing=(\d+)\s+cmd=(\d+)/(\d+)/(\d+)\b"
+)
+BACKGROUND = re.compile(
+    r"\btfrag=(\d+)/(\d+)\s+tie=(\d+)/(\d+)\s+"
+    r"background-missing=(\d+)/(\d+)\s+unexpected=(\d+)\b"
+)
+EYE_RESOURCE = re.compile(
+    r"\beye=(\d+)/(\d+)/(\d+)\s+vertex-stream=(\d+)/(\d+)/(\d+)/0x([0-9a-fA-F]+)\b"
+)
 PID = re.compile(r"\[(\d+):")
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 MAX_PNG_BYTES = 16 * 1024 * 1024
@@ -65,6 +76,60 @@ class SweepFailure(RuntimeError):
 class SceneObservation:
     tick: int
     aframe: float | None
+
+
+@dataclass(frozen=True)
+class RendererObservation:
+    tick: int
+    ocean_texture_vertices: int
+    ocean_mid_vertices: int
+    ocean_near_vertices: int
+    ocean_draws: int
+    ocean_triangles: int
+    ocean_missing_textures: int
+    ocean_command_buffers_committed: int
+    ocean_command_buffers_completed: int
+    ocean_command_buffer_errors: int
+    tfrag_draws: int
+    tfrag_triangles: int
+    tie_draws: int
+    tie_triangles: int
+    background_missing_levels: int
+    background_missing_textures: int
+    background_unexpected_dma: int
+    eyes_composed: int
+    eye_draws: int
+    eye_triangles: int
+    eye_vertex_stream_uploads: int
+    eye_vertex_bytes: int
+    eye_vertex_buffer_offset: int
+    eye_vertex_fingerprint: int
+
+    @property
+    def ocean_active(self) -> bool:
+        return (
+            self.ocean_texture_vertices > 0
+            and (self.ocean_mid_vertices > 0 or self.ocean_near_vertices > 0)
+            and self.ocean_draws > 0
+            and self.ocean_triangles > 0
+            and self.ocean_missing_textures == 0
+            and self.ocean_command_buffer_errors == 0
+        )
+
+    @property
+    def tfrag_active(self) -> bool:
+        return self.tfrag_draws > 0 and self.tfrag_triangles > 0
+
+    @property
+    def eyes_active(self) -> bool:
+        return (
+            self.eyes_composed > 0
+            and self.eye_draws > 0
+            and self.eye_triangles > 0
+            and self.eye_vertex_stream_uploads > 0
+            and self.eye_vertex_bytes == self.eyes_composed * 256
+            and self.eye_vertex_fingerprint != 0
+        )
 
 
 @dataclass(frozen=True)
@@ -113,6 +178,37 @@ def required_levels_for_scene(requirements: list[str], scene: str) -> set[str]:
         if requested_scene == scene:
             levels.add(level)
     return levels
+
+
+def required_renderers_for_scene(requirements: list[str], scene: str) -> set[str]:
+    signals: set[str] = set()
+    for requirement in requirements:
+        try:
+            requested_scene, signal = requirement.split("=", 1)
+        except ValueError as error:
+            raise SweepFailure(
+                f"invalid --required-renderer {requirement!r}; expected scene=ocean|tfrag|eyes"
+            ) from error
+        if not requested_scene or signal not in {"ocean", "tfrag", "eyes"}:
+            fail(f"invalid --required-renderer {requirement!r}; expected scene=ocean|tfrag|eyes")
+        if requested_scene == scene:
+            signals.add(signal)
+    return signals
+
+
+def parse_renderer_observation(line: str) -> RendererObservation:
+    tick = parse_tick(line)
+    ocean = OCEAN.search(line)
+    background = BACKGROUND.search(line)
+    eye = EYE_RESOURCE.search(line)
+    if tick is None or not ocean or not background or not eye:
+        fail("renderer telemetry omitted ocean, background, or eye-resource counters")
+    values = [
+        int(value)
+        for value in (*ocean.groups(), *background.groups(), *eye.groups()[:-1])
+    ]
+    values.append(int(eye.group(7), 16))
+    return RendererObservation(tick, *values)
 
 
 def collect_scene_observations(lines: list[str], scene: str) -> tuple[list[SceneObservation], int | None]:
@@ -295,7 +391,12 @@ def read_visual_sample_list(path: Path) -> list[Path]:
     return samples
 
 
-def validate(lines: list[str], scene: str, requirements: list[str]) -> str:
+def validate(
+    lines: list[str],
+    scene: str,
+    requirements: list[str],
+    renderer_requirements: list[str],
+) -> str:
     observations, completed_tick = collect_scene_observations(lines, scene)
     if not observations:
         fail(f"{scene}: no matching non-empty scene identity was observed")
@@ -311,12 +412,15 @@ def validate(lines: list[str], scene: str, requirements: list[str]) -> str:
     runtime_lines = [line for line in scoped if RUNTIME_MARKER in line]
     stack_lines = [line for line in scoped if STACK_MARKER in line]
     foreground_lines = [line for line in scoped if FOREGROUND_MARKER in line]
+    renderer_lines = [line for line in scoped if RENDERER_MARKER in line]
     if not runtime_lines:
         fail(f"{scene}: no runtime telemetry was captured between identity and completion")
     if not stack_lines:
         fail(f"{scene}: no stack telemetry was captured between identity and completion")
     if not foreground_lines:
         fail(f"{scene}: no foreground telemetry was captured between identity and completion")
+    if not renderer_lines:
+        fail(f"{scene}: no renderer A/B telemetry was captured between identity and completion")
 
     for line in runtime_lines:
         for label, pattern in (("chain", CHAIN), ("command", COMMAND), ("submit", SUBMIT)):
@@ -355,10 +459,78 @@ def validate(lines: list[str], scene: str, requirements: list[str]) -> str:
             f"observed {', '.join(sorted(observed_levels)) or '<none>'}"
         )
 
+    renderer_observations = [
+        parse_renderer_observation(line)
+        for line in renderer_lines
+        if parse_tick(line) in observation_ticks
+    ]
+    if not renderer_observations:
+        fail(f"{scene}: renderer telemetry did not overlap active scene observations")
+    for observation in renderer_observations:
+        if observation.ocean_command_buffer_errors != 0:
+            fail(f"{scene}: ocean command-buffer errors were nonzero at tick {observation.tick}")
+        if observation.ocean_command_buffers_completed > observation.ocean_command_buffers_committed:
+            fail(f"{scene}: ocean completion count exceeded submissions at tick {observation.tick}")
+        if observation.eyes_composed > 0 and not observation.eyes_active:
+            fail(
+                f"{scene}: eye composition at tick {observation.tick} did not use the merged "
+                "transient-stream vertex contract"
+            )
+
+    expected_renderers = required_renderers_for_scene(renderer_requirements, scene)
+    signal_checks = {
+        "ocean": lambda observation: observation.ocean_active,
+        "tfrag": lambda observation: observation.tfrag_active,
+        "eyes": lambda observation: observation.eyes_active,
+    }
+    missing_renderers = [
+        signal
+        for signal in sorted(expected_renderers)
+        if not any(signal_checks[signal](observation) for observation in renderer_observations)
+    ]
+    max_ocean = max(
+        renderer_observations,
+        key=lambda observation: (
+            observation.ocean_draws,
+            observation.ocean_triangles,
+            observation.ocean_texture_vertices,
+            observation.ocean_mid_vertices,
+            observation.ocean_near_vertices,
+            observation.ocean_missing_textures,
+        ),
+    )
+    max_tfrag = max(
+        renderer_observations,
+        key=lambda observation: (
+            observation.tfrag_draws,
+            observation.tfrag_triangles,
+            observation.background_missing_levels,
+            observation.background_missing_textures,
+            observation.background_unexpected_dma,
+        ),
+    )
+    max_eyes = max(renderer_observations, key=lambda observation: observation.eyes_composed)
+    if missing_renderers:
+        fail(
+            f"{scene}: required renderer signal(s) absent: {', '.join(missing_renderers)}; "
+            f"ocean verts={max_ocean.ocean_texture_vertices}/{max_ocean.ocean_mid_vertices}/"
+            f"{max_ocean.ocean_near_vertices} draws={max_ocean.ocean_draws}/"
+            f"{max_ocean.ocean_triangles}; tfrag={max_tfrag.tfrag_draws}/"
+            f"{max_tfrag.tfrag_triangles} background-missing="
+            f"{max_tfrag.background_missing_levels}/{max_tfrag.background_missing_textures}; "
+            f"eyes={max_eyes.eyes_composed} vertex-stream={max_eyes.eye_vertex_stream_uploads}/"
+            f"{max_eyes.eye_vertex_bytes}/0x{max_eyes.eye_vertex_fingerprint:016x}"
+        )
+
     return (
         f"PASS {scene}: identity ticks {first_tick}-{observations[-1].tick}; "
         f"aframe {min(aframes):.3f}->{max(aframes):.3f}; completion tick {completed_tick}; "
-        f"required levels subset {','.join(sorted(expected_levels)) or '<none>'}"
+        f"required levels subset {','.join(sorted(expected_levels)) or '<none>'}; "
+        f"renderer ocean={max_ocean.ocean_texture_vertices}/{max_ocean.ocean_mid_vertices}/"
+        f"{max_ocean.ocean_near_vertices}/{max_ocean.ocean_draws}/{max_ocean.ocean_triangles} "
+        f"tfrag={max_tfrag.tfrag_draws}/{max_tfrag.tfrag_triangles} "
+        f"eyes={max_eyes.eyes_composed}/{max_eyes.eye_vertex_stream_uploads}/"
+        f"{max_eyes.eye_vertex_bytes}/0x{max_eyes.eye_vertex_fingerprint:016x}"
     )
 
 
@@ -414,35 +586,81 @@ def self_test() -> None:
             "GOALPAD_JAK2_SCENE_STATE tick=100 scene=1/1 identity=entity|group|sample-scene anim=1/00000000/1.000/10.000",
             "GOALPAD_JAK2_STACK_STATE tick=100 overflows=0 failures=0",
             "GOALPAD_JAK2_FOREGROUND_STATE tick=100 merc=1/1/1 malformed=0 reject-reason=0 missing-models=0 merc-anim=0/0 merc-eyes=0/0/0/0 merc-missing-textures=0 bones=0/0/0/0 generic=0/0/0 missing-textures=0 unexpected-dma=0 eyes=0/0/0 missing=0 unexpected=0 duplicate=0 eye-cmd=0/0/0 sprite-placeholder=0/0",
+            "GOALPAD_JAK2_RENDERER_STATE tick=100 ocean=0/0/0/0/0 missing=0 cmd=0/0/0 tfrag=0/0 tie=0/0 background-missing=0/0 unexpected=0 eye=0/0/0 vertex-stream=0/0/0/0x0000000000000000",
             "GOALPAD_JAK2_RUNTIME_STATE tick=200 mode=game desired=alpha+beta active=alpha+beta chains=20/20/0 cmd=20/20/0 submit=20/20/0",
             "GOALPAD_JAK2_SCENE_STATE tick=200 scene=1/1 identity=entity|group|sample-scene anim=1/00000000/2.000/20.000",
             "GOALPAD_JAK2_STACK_STATE tick=200 overflows=0 failures=0",
             "GOALPAD_JAK2_FOREGROUND_STATE tick=200 merc=1/1/1 malformed=0 reject-reason=0 missing-models=0 merc-anim=1/0 merc-eyes=1/0/0/0 merc-missing-textures=0 bones=0/0/0/0 generic=1/1/1 missing-textures=0 unexpected-dma=0 eyes=1/1/1 missing=0 unexpected=0 duplicate=0 eye-cmd=1/1/0 sprite-placeholder=0/0",
+            "GOALPAD_JAK2_RENDERER_STATE tick=200 ocean=2112/120/80/9/18 missing=0 cmd=2/2/0 tfrag=3/6 tie=2/4 background-missing=0/0 unexpected=0 eye=2/8/16 vertex-stream=1/512/32/0x123456789abcdef0",
             "GOALPAD_JAK2_RUNTIME_STATE tick=300 mode=progress desired=alpha+beta active=alpha+beta chains=30/30/0 cmd=30/30/0 submit=30/30/0",
             "GOALPAD_JAK2_SCENE_STATE tick=300 scene=0/0 identity=|| anim=0/00000000/0.000/0.000",
             "GOALPAD_JAK2_STACK_STATE tick=300 overflows=0 failures=0",
             "GOALPAD_JAK2_FOREGROUND_STATE tick=300 merc=0/0/0 malformed=0 reject-reason=0 missing-models=0 merc-anim=0/0 merc-eyes=0/0/0/0 merc-missing-textures=0 bones=0/0/0/0 generic=0/0/0 missing-textures=0 unexpected-dma=0 eyes=0/0/0 missing=0 unexpected=0 duplicate=0 eye-cmd=0/0/0 sprite-placeholder=0/0",
+            "GOALPAD_JAK2_RENDERER_STATE tick=300 ocean=0/0/0/0/0 missing=0 cmd=0/0/0 tfrag=0/0 tie=0/0 background-missing=0/0 unexpected=0 eye=0/0/0 vertex-stream=0/0/0/0x0000000000000000",
         )
     )
-    assert validate(good_log.splitlines(), scene, ["sample-scene=alpha"]).startswith("PASS")
+    renderer_requirements = [
+        "sample-scene=ocean",
+        "sample-scene=tfrag",
+        "sample-scene=eyes",
+    ]
+    assert validate(
+        good_log.splitlines(), scene, ["sample-scene=alpha"], renderer_requirements
+    ).startswith("PASS")
     degenerate_log = good_log.replace("bones=0/0/0/0", "bones=0/0/0/1", 1)
-    assert validate(degenerate_log.splitlines(), scene, ["sample-scene=alpha"]).startswith("PASS")
+    assert validate(
+        degenerate_log.splitlines(), scene, ["sample-scene=alpha"], renderer_requirements
+    ).startswith("PASS")
     observations, _ = collect_scene_observations(good_log.splitlines(), scene)
     assert next_sample_observation(observations, 0, 1) == observations[1]
     assert next_sample_observation(observations, observations[0].tick, 1) == observations[1]
     assert next_sample_observation(observations, observations[1].tick, 1) is None
     try:
-        validate(good_log.replace("submit=20/20/0", "submit=20/20/1").splitlines(), scene, [])
+        validate(
+            good_log.replace("submit=20/20/0", "submit=20/20/1").splitlines(),
+            scene,
+            [],
+            [],
+        )
     except SweepFailure:
         pass
     else:
         raise AssertionError("self-test accepted a submit error")
     try:
-        validate(good_log.replace("merc-missing-textures=0", "merc-missing-textures=1", 1).splitlines(), scene, [])
+        validate(
+            good_log.replace("merc-missing-textures=0", "merc-missing-textures=1", 1).splitlines(),
+            scene,
+            [],
+            [],
+        )
     except SweepFailure:
         pass
     else:
         raise AssertionError("self-test accepted a missing Merc texture")
+    ocean_without_tfrag = good_log.replace(
+        "tfrag=3/6 tie=2/4 background-missing=0/0",
+        "tfrag=0/0 tie=2/4 background-missing=1/0",
+    )
+    assert validate(
+        ocean_without_tfrag.splitlines(), scene, [], ["sample-scene=ocean"]
+    ).startswith("PASS")
+    try:
+        validate(ocean_without_tfrag.splitlines(), scene, [], ["sample-scene=tfrag"])
+    except SweepFailure as error:
+        assert "ocean verts=2112/120/80 draws=9/18; tfrag=0/0 background-missing=1/0" in str(error)
+    else:
+        raise AssertionError("self-test accepted missing TFRAG geometry as an ocean failure")
+    try:
+        validate(
+            good_log.replace("vertex-stream=1/512/32", "vertex-stream=1/256/32").splitlines(),
+            scene,
+            [],
+            [],
+        )
+    except SweepFailure:
+        pass
+    else:
+        raise AssertionError("self-test accepted an eye vertex-byte mismatch")
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory) / "saves"
         root.mkdir()
@@ -485,6 +703,7 @@ def main() -> int:
     parser.add_argument("--log", type=Path)
     parser.add_argument("--pid", type=int)
     parser.add_argument("--required-level", action="append", default=[])
+    parser.add_argument("--required-renderer", action="append", default=[])
     parser.add_argument("--screenshot", action="append", type=Path, default=[])
     parser.add_argument("--visual-sample", action="append", type=Path, default=[])
     parser.add_argument("--visual-sample-list", type=Path)
@@ -551,7 +770,7 @@ def main() -> int:
             fail("telemetry validation requires active-scene visual samples and a visual report path")
         compare_saves(args.save_before, args.save_after)
         selected, _ = select_visual_samples(visual_samples, args.visual_report)
-        print(validate(lines, args.scene, args.required_level))
+        print(validate(lines, args.scene, args.required_level, args.required_renderer))
         print(
             f"VISUAL {args.scene}: selected {selected.path.name}; "
             f"central non-black {selected.non_black_fraction:.3%}; "

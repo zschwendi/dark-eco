@@ -23,12 +23,15 @@ passed to the final visual selection, so prior scene artifacts cannot satisfy a 
 A scene passes only when the Build20 telemetry observes its identity, aframe progress, no-save
 completion, zero chain/command/submit/stack errors, unchanged save manifest, required levels as a
 subset, and at least one content-bearing active-scene sample. Missing foreground models, textures,
-eye publications, Sprite3 textures, malformed DMA, and invalid bone data also fail the scene.
+eye publications, Sprite3 textures, malformed DMA, and invalid bone data also fail the scene. The
+renderer A/B line records actual ocean VU production/draws, TFRAG draws and missing-level state,
+plus the merged eye renderer's transient-stream vertex bytes and fingerprint.
 
 Options:
   --timeout SECONDS              Maximum wait per scene (default: 180)
   --save-root PATH               Override the app-container save root
   --required-level SCENE=LEVEL   Repeatable subset requirement; does not require an exact level set
+  --required-renderer SCENE=KIND Repeatable active-frame requirement: ocean, tfrag, or eyes
   --sample-count COUNT           Active-scene screenshots, from 1 through 5 (default: 4)
   --sample-minimum-ticks TICKS   Minimum telemetry-tick separation (default: 120)
   --sample-max-dimension PIXELS  Resample each screenshot's longest edge (default: 1600)
@@ -63,7 +66,8 @@ sample_max_dimension=1600
 
 scene_file=$(mktemp "${TMPDIR:-/tmp}/goalpad-jak2-scenes.XXXXXX")
 requirements_file=$(mktemp "${TMPDIR:-/tmp}/goalpad-jak2-requirements.XXXXXX")
-trap 'rm -f "$scene_file" "$requirements_file"' EXIT HUP INT TERM
+renderer_requirements_file=$(mktemp "${TMPDIR:-/tmp}/goalpad-jak2-renderers.XXXXXX")
+trap 'rm -f "$scene_file" "$requirements_file" "$renderer_requirements_file"' EXIT HUP INT TERM
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -74,6 +78,7 @@ while [ "$#" -gt 0 ]; do
     --save-root) save_root=$2; shift 2 ;;
     --timeout) timeout=$2; shift 2 ;;
     --required-level) printf '%s\n' "$2" >> "$requirements_file"; shift 2 ;;
+    --required-renderer) printf '%s\n' "$2" >> "$renderer_requirements_file"; shift 2 ;;
     --sample-count) sample_target=$2; shift 2 ;;
     --sample-minimum-ticks) sample_minimum_ticks=$2; shift 2 ;;
     --sample-max-dimension) sample_max_dimension=$2; shift 2 ;;
@@ -200,5 +205,8 @@ while IFS= read -r scene; do
   while IFS= read -r requirement; do
     set -- "$@" --required-level "$requirement"
   done < "$requirements_file"
+  while IFS= read -r requirement; do
+    set -- "$@" --required-renderer "$requirement"
+  done < "$renderer_requirements_file"
   "$@"
 done < "$scene_file"

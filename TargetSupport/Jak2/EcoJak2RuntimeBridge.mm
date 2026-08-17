@@ -558,6 +558,35 @@ void log_jak2_diagnostics_locked() {
         metal.last_sprite_first_placeholder_valid ? metal.last_sprite_first_placeholder_draw_mode
                                                   : 0);
 
+  NSLog(@"GOALPAD_JAK2_RENDERER_STATE tick=%llu "
+         "ocean=%llu/%llu/%llu/%llu/%llu missing=%llu cmd=%llu/%llu/%llu "
+         "tfrag=%llu/%llu tie=%llu/%llu background-missing=%llu/%llu unexpected=%llu "
+         "eye=%llu/%llu/%llu vertex-stream=%llu/%llu/%u/0x%016llx",
+        static_cast<unsigned long long>(runtime.ticks),
+        static_cast<unsigned long long>(metal.ocean_texture_vertices),
+        static_cast<unsigned long long>(metal.ocean_mid_vertices),
+        static_cast<unsigned long long>(metal.ocean_near_vertices),
+        static_cast<unsigned long long>(metal.ocean_draws),
+        static_cast<unsigned long long>(metal.ocean_triangles),
+        static_cast<unsigned long long>(metal.ocean_missing_textures),
+        static_cast<unsigned long long>(metal.ocean_command_buffers_committed),
+        static_cast<unsigned long long>(metal.ocean_command_buffers_completed),
+        static_cast<unsigned long long>(metal.ocean_command_buffer_errors),
+        static_cast<unsigned long long>(metal.last_tfrag_draws),
+        static_cast<unsigned long long>(metal.last_tfrag_triangles),
+        static_cast<unsigned long long>(metal.last_tie_draws),
+        static_cast<unsigned long long>(metal.last_tie_triangles),
+        static_cast<unsigned long long>(metal.last_background_missing_levels),
+        static_cast<unsigned long long>(metal.last_background_missing_textures),
+        static_cast<unsigned long long>(metal.last_background_unexpected_dma),
+        static_cast<unsigned long long>(metal.last_eye_composed),
+        static_cast<unsigned long long>(metal.last_eye_draws),
+        static_cast<unsigned long long>(metal.last_eye_triangles),
+        static_cast<unsigned long long>(metal.last_eye_vertex_stream_uploads),
+        static_cast<unsigned long long>(metal.last_eye_vertex_bytes),
+        metal.last_eye_vertex_buffer_offset,
+        static_cast<unsigned long long>(metal.last_eye_vertex_fingerprint));
+
   const auto& firstPalette = metal.first_merc_palette_health_event;
   const auto& lastPalette = metal.last_merc_palette_health_event;
   NSLog(@"GOALPAD_JAK2_MERC_PALETTE_STATE tick=%llu "
