@@ -506,6 +506,26 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(metal.skipped_bucket_bytes),
         g_metal_host ? goal_jak2_metal_host_last_error(g_metal_host) : "");
 
+  NSLog(@"GOALPAD_JAK2_OCEAN_GOAL_STATE tick=%llu valid=%d "
+         "map=0x%08x/0x%08x object=0x%08x false=0x%08x "
+         "mask=0x%016llx/0x%016llx blit=0x%08x menu=0x%08x "
+         "flags=0x%08x/0x%08x/0x%08x/0x%08x work=0x%08x/0x%08x",
+        static_cast<unsigned long long>(runtime.ticks), runtime.ocean_diagnostics_valid,
+        static_cast<unsigned int>(runtime.ocean_map),
+        static_cast<unsigned int>(runtime.ocean_map_city),
+        static_cast<unsigned int>(runtime.ocean_object),
+        static_cast<unsigned int>(runtime.ocean_false_object),
+        static_cast<unsigned long long>(runtime.ocean_renderer_mask),
+        static_cast<unsigned long long>(runtime.ocean_renderer_menu_mask),
+        static_cast<unsigned int>(runtime.ocean_blit_displays_work),
+        static_cast<unsigned int>(runtime.ocean_blit_menu_mode),
+        static_cast<unsigned int>(runtime.ocean_off),
+        static_cast<unsigned int>(runtime.ocean_near_off),
+        static_cast<unsigned int>(runtime.ocean_mid_off),
+        static_cast<unsigned int>(runtime.ocean_far_on),
+        static_cast<unsigned int>(runtime.ocean_heights),
+        static_cast<unsigned int>(runtime.ocean_verts));
+
   NSLog(@"GOALPAD_JAK2_SCENE_ACTOR_STATE tick=%llu valid=%d sequence=%u scene=%016llx "
          "count=%d total=%d overflow=%d",
         static_cast<unsigned long long>(runtime.ticks), runtime.scene_actor_diagnostics_valid,
@@ -612,6 +632,7 @@ void log_jak2_diagnostics_locked() {
 
   NSLog(@"GOALPAD_JAK2_RENDERER_STATE tick=%llu "
          "ocean=%llu/%llu/%llu/%llu/%llu missing=%llu cmd=%llu/%llu/%llu "
+         "phase=%d/%d transfers=%d/%d grammar=%d/%d calls=%d/%d "
          "tfrag=%llu/%llu tie=%llu/%llu background-missing=%llu/%llu unexpected=%llu "
          "eye=%llu/%llu/%llu vertex-stream=%llu/%llu/%u/0x%016llx",
         static_cast<unsigned long long>(runtime.ticks),
@@ -624,6 +645,10 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(metal.ocean_command_buffers_committed),
         static_cast<unsigned long long>(metal.ocean_command_buffers_completed),
         static_cast<unsigned long long>(metal.ocean_command_buffer_errors),
+        metal.ocean_mid_phase_order, metal.ocean_near_phase_order,
+        metal.ocean_mid_texture_transfers, metal.ocean_near_texture_transfers,
+        metal.ocean_mid_texture_grammar_errors, metal.ocean_near_texture_grammar_errors,
+        metal.ocean_mid_calls, metal.ocean_near_calls,
         static_cast<unsigned long long>(metal.last_tfrag_draws),
         static_cast<unsigned long long>(metal.last_tfrag_triangles),
         static_cast<unsigned long long>(metal.last_tie_draws),
