@@ -21081,3 +21081,35 @@ Build 236 build regenerated it. Source, imported game data, simulator data,
 device data, and saves were not deleted or inspected. Physical update-install
 still waits for the maintainer to confirm that `Z iPad Pro` is unlocked and
 awake; preserve the installed app by updating in place rather than uninstalling.
+
+## Build 237 title-aware touch guide checkpoint (2026-08-17)
+
+Outer commit `c28d6855` is pushed to `origin/v2.0`. The reusable touch guide now
+selects Jak 1 or Jak II content from the active settings/session title. Jak II's
+guide documents the shipped action swipes, colored D-pad weapon wheel,
+contextual Triangle actions, holdable R1/R2 controls, R3 look-around,
+jetboard/vehicle meanings, and pause/save controls. The standalone Jak II target
+can now open the same title-aware guide. First-run acknowledgement uses separate
+Jak 1 and Jak II defaults keys, so accepting one title's guide cannot suppress
+the other. All six target configurations were incremented to Build 237.
+
+Focused Settings/guide validation and changed-file parsing passed. The first
+incremental device build compiled and packaged the app but failed at the final
+code-sign step with Xcode's `internal error in Code Signing subsystem` after a
+111 MiB dSYM reduced disk headroom to 165 MiB. No source error occurred. The
+reproducible dSYM was deleted and the second build used
+`DEBUG_INFORMATION_FORMAT=dwarf`; it passed in 20.816 seconds without producing
+a separate dSYM. The resulting Dark Eco 2.0 (237), bundle
+`com.zephyrstudiosllc.eco`, contains the Jak II runtime and passes strict deep
+code-sign verification:
+
+```text
+/private/tmp/goalpad-build237-touch-guide-check.log
+/private/tmp/goalpad-build237-merged-device-build.log
+/private/tmp/goalpad-build237-merged-device-build-attempt2.log
+/private/tmp/GOALPad-v2-main-derived/Build/Products/Release-iphoneos/Dark Eco.app
+```
+
+This Build 237 product supersedes the queued Build 236 product for physical
+installation. Update it in place only after the maintainer confirms `Z iPad Pro`
+is unlocked and awake. No app container, imported data, or saves were accessed.
