@@ -1426,7 +1426,7 @@ struct SaveSettingsView: View {
             }
         }
         .foregroundStyle(.white)
-        .navigationTitle("Settings")
+        .navigationTitle("\(selectedTitle.settingsPickerLabel) Settings")
         .labelStyle(SettingsRowLabelStyle())
         .tint(DarkEcoTheme.accent)
         .fileImporter(isPresented: Binding(

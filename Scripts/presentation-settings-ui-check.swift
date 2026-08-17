@@ -151,6 +151,8 @@ check(view.components(separatedBy: "Section(\"iCloud\")").count - 1 == 1
         && view.contains("CloudSyncPresentation.synchronize")
         && !view.contains("saves upload only while playing"),
       "one iCloud status and action preserve independent domain dates")
+check(view.contains(".navigationTitle(\"\\(selectedTitle.settingsPickerLabel) Settings\")"),
+      "settings title identifies the selected Jak game")
 check(view.contains("if cloudState.progressMessage != nil")
         && view.contains(".disabled(!cloudState.isActionEnabled)"),
       "combined cloud progress disables its single conflicting action")
@@ -418,7 +420,7 @@ check(view.contains("private struct SettingsGamePicker")
         && view.contains("if showsAvailability")
         && view.contains("Locked while playing")
         && view.contains("\\(selectedTitle.settingsPickerLabel) selected")
-        && view.contains(".navigationTitle(\"Settings\")"),
+        && view.contains(".navigationTitle(\"\\(selectedTitle.settingsPickerLabel) Settings\")"),
       "settings selects either supported title before import, locks to gameplay, and labels Jak 3 Planned")
 check(content.contains("selectedTitle: session.title")
         && content.contains("selectSettingsTitle: selectSettingsTitle")
