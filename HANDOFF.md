@@ -21141,3 +21141,14 @@ The previously signed Build 237 fallback remains preserved at
 waits for the maintainer to confirm that `Z iPad Pro` is unlocked and awake;
 three earlier CoreDevice attempts timed out, so do not retry without that state
 change. No app container, imported data, or saves were accessed.
+
+The standalone migration route remains valid in source: the current
+`Eco Jak II Dev` target uses the old `com.zephyrstudiosllc.eco.jak2dev` bundle
+identifier and exposes title-safe Jak II Export Saves. A first Build 238
+standalone packaging attempt stopped at `errno=28` while libtool assembled its
+duplicate 840-object AOT archive; log:
+`/private/tmp/goalpad-build238-jak2dev-device-build.log`. The incomplete app and
+that target's 119 MiB of intermediates were deleted, while both signed Dark Eco
+bundles were reverified. Do not retry until disk headroom changes; after an
+in-place standalone update, the maintainer must explicitly export through
+Settings before the merged app can import those files.
