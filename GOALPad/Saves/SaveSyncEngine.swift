@@ -26,6 +26,41 @@ nonisolated enum CloudSaveUnavailableReason: Sendable, Equatable {
     }
 }
 
+/// The native OpenGOAL memcard envelope for one supported title. The save engine keeps the
+/// alternating-bank algorithm shared, but validates paths, sizes, checksums, and summary metadata
+/// against exactly one title at a time.
+nonisolated struct OpenGOALSaveFormat: Sendable, Equatable {
+    let titleName: String
+    let gameDirectoryName: String
+    let slotDirectoryName: String
+    let bankBodySize: Int
+    let previewCompletionOffset: Int
+    let bodyCompletionOffset: Int
+
+    private static let headerSize = 0x400
+
+    var bankFileSize: Int { bankBodySize + Self.headerSize * 2 }
+    var savesPathComponents: [String] { ["OpenGOAL", gameDirectoryName, "saves"] }
+    var savesPath: String { savesPathComponents.joined(separator: "/") }
+
+    // McHeader.preview_data begins at byte 12; serialized game-save info begins at byte 16.
+    static let jak1 = OpenGOALSaveFormat(
+        titleName: GameLibraryTitle.jak1.name,
+        gameDirectoryName: "jak1",
+        slotDirectoryName: "BASCUS-97124AYBABTU!",
+        bankBodySize: 0x10000,
+        previewCompletionOffset: 16,
+        bodyCompletionOffset: 32)
+
+    static let jak2 = OpenGOALSaveFormat(
+        titleName: GameLibraryTitle.jak2.name,
+        gameDirectoryName: "jak2",
+        slotDirectoryName: "BASCUS-97265AYBABTU!",
+        bankBodySize: 0x20000,
+        previewCompletionOffset: 12,
+        bodyCompletionOffset: 28)
+}
+
 nonisolated private enum SaveSyncError: LocalizedError {
     case cloudDownloadTimedOut(String)
     case cloudDiscoveryFailed
@@ -34,8 +69,9 @@ nonisolated private enum SaveSyncError: LocalizedError {
     case localChangedDuringMerge(String)
     case cloudChangedDuringMerge(String)
     case invalidPairMutationState(String)
-    case noSavesFound(String)
-    case unsafeImportSelection(String)
+    case noSavesFound(path: String, titleName: String)
+    case unsafeImportSelection(path: String, expectedSavesPath: String,
+                               titleName: String)
     case archivedSaveUnavailable(String)
 
     var errorDescription: String? {
@@ -54,11 +90,11 @@ nonisolated private enum SaveSyncError: LocalizedError {
             return "An iCloud save changed before this device could replace it: \(path). Try syncing again."
         case .invalidPairMutationState(let path):
             return "An interrupted save merge has an unexpected state at \(path). Try syncing again."
-        case .noSavesFound(let path):
-            return "No OpenGOAL saves for \(GameLibraryTitle.jak1.name) were found in \(path)."
-        case .unsafeImportSelection(let path):
-            return "Select the exact OpenGOAL/jak1/saves folder or its "
-                + "\(GameLibraryTitle.jak1.name) slot folder, not \(path)."
+        case .noSavesFound(let path, let titleName):
+            return "No OpenGOAL saves for \(titleName) were found in \(path)."
+        case .unsafeImportSelection(let path, let expectedSavesPath, let titleName):
+            return "Select the exact \(expectedSavesPath) folder or its "
+                + "\(titleName) slot folder, not \(path)."
         case .archivedSaveUnavailable:
             return "That preserved save is no longer available. Refresh the list and try again."
         }
@@ -179,6 +215,7 @@ nonisolated struct SaveResolution: Sendable, Equatable, Codable {
     nonisolated enum Basis: Sendable, Equatable, Codable {
         case completionPercentage(Float)
         case onlyValidJak1Bank
+        case onlyValidNativeBank
         case modificationDate
         case saveGeneration(UInt32)
         case localGameplayAuthority
@@ -267,6 +304,7 @@ actor SaveSyncEngine {
         let localRoot: URL
         let localConflictsRoot: URL
         let stateFile: URL
+        let format: OpenGOALSaveFormat
         let cloudLocations: CloudLocationsProvider
         let cloudUnavailableReason: @Sendable () -> CloudSaveUnavailableReason
         let coordinateCloudAccess: Bool
@@ -287,6 +325,7 @@ actor SaveSyncEngine {
         let operationAwaitHook: @Sendable () async -> Void
 
         init(localRoot: URL, localConflictsRoot: URL, stateFile: URL,
+             format: OpenGOALSaveFormat = .jak1,
              cloudLocations: @escaping CloudLocationsProvider, coordinateCloudAccess: Bool,
              fileSettleDelay: Duration = .milliseconds(100),
              downloadPollInterval: Duration = .milliseconds(100),
@@ -312,6 +351,7 @@ actor SaveSyncEngine {
             self.localRoot = localRoot
             self.localConflictsRoot = localConflictsRoot
             self.stateFile = stateFile
+            self.format = format
             self.cloudLocations = cloudLocations
             self.cloudUnavailableReason = cloudUnavailableReason
             self.coordinateCloudAccess = coordinateCloudAccess
@@ -344,18 +384,18 @@ actor SaveSyncEngine {
         let hash: String
     }
 
-    private struct Jak1BankMetadata {
+    private struct NativeBankMetadata {
         let saveCount: UInt32
         let completionPercentage: Float
     }
 
-    private struct Jak1SlotSnapshot {
+    private struct NativeSlotSnapshot {
         let evenPath: String
         let oddPath: String
         let even: SaveFile?
         let odd: SaveFile?
         let effectiveFile: SaveFile?
-        let effectiveMetadata: Jak1BankMetadata?
+        let effectiveMetadata: NativeBankMetadata?
 
         var hasFiles: Bool { even != nil || odd != nil }
         var identity: String {
@@ -385,7 +425,7 @@ actor SaveSyncEngine {
     private struct ArchivedSaveFile {
         let descriptor: ArchiveDescriptor
         let file: SaveFile
-        let metadata: Jak1BankMetadata
+        let metadata: NativeBankMetadata
     }
 
     private struct ConflictRecord: Codable, Equatable {
@@ -469,7 +509,6 @@ actor SaveSyncEngine {
     private var lastLocalStamps: [String: FileStamp]?
     private var operationInProgress = false
     private var operationWaiters: [CheckedContinuation<Void, Never>] = []
-    private static let jak1BankFileSize = 0x10800
     private static let maximumImportFiles = 8
 
     init(configuration: Configuration) {
@@ -532,8 +571,8 @@ actor SaveSyncEngine {
                 } else {
                     let localFiles = try await files(in: configuration.localRoot,
                                                      coordinated: false)
-                    let target = jak1SlotSnapshot(evenPath: intent.evenPath,
-                                                  files: localFiles)
+                    let target = nativeSlotSnapshot(evenPath: intent.evenPath,
+                                                    files: localFiles)
                     let normalized = try normalizePairMutationPhase(
                         intent, targetIdentity: target.identity, state: &state)
                     let source = journalSourceSnapshot(normalized)
@@ -561,7 +600,7 @@ actor SaveSyncEngine {
         }
         let allPaths = Set(localFiles.keys).union(cloudFiles.keys)
 
-        var slotEvenPaths = Set(allPaths.compactMap(jak1SlotEvenPath)).sorted()
+        var slotEvenPaths = Set(allPaths.compactMap(nativeSlotEvenPath)).sorted()
         if let pendingPath = state.pairMutationIntent?.evenPath {
             if let pendingIndex = slotEvenPaths.firstIndex(of: pendingPath) {
                 slotEvenPaths.remove(at: pendingIndex)
@@ -569,14 +608,14 @@ actor SaveSyncEngine {
             slotEvenPaths.insert(pendingPath, at: 0)
         }
         for evenPath in slotEvenPaths {
-            let result = try mergeJak1Slot(evenPath: evenPath,
-                                           localFiles: localFiles,
-                                           cloudFiles: cloudFiles,
-                                           cloud: cloud,
-                                           mode: mode,
-                                           state: &state,
-                                           processedLocalStamps: &processedLocalStamps,
-                                           resolutions: &resolutions)
+            let result = try mergeNativeSlot(evenPath: evenPath,
+                                             localFiles: localFiles,
+                                             cloudFiles: cloudFiles,
+                                             cloud: cloud,
+                                             mode: mode,
+                                             state: &state,
+                                             processedLocalStamps: &processedLocalStamps,
+                                             resolutions: &resolutions)
             uploaded += result.uploaded
             downloaded += result.downloaded
             requiresBidirectionalSync = requiresBidirectionalSync
@@ -592,7 +631,9 @@ actor SaveSyncEngine {
             }
         }
 
-        for relativePath in allPaths.sorted() where jak1BankIndex(relativePath) == nil {
+        for relativePath in allPaths.sorted()
+            where nativeBankIndex(relativePath) == nil
+                && !isUnrecognizedBankPath(relativePath) {
             let local = localFiles[relativePath]
             let remote = cloudFiles[relativePath]
 
@@ -747,7 +788,7 @@ actor SaveSyncEngine {
                 state.pairMutationIntent = nil
                 try saveState(state)
             } else if mode == .bidirectional, intent.phase != .prepared {
-                let target = jak1SlotSnapshot(evenPath: intent.evenPath, files: localFiles)
+                let target = nativeSlotSnapshot(evenPath: intent.evenPath, files: localFiles)
                 let normalized = try normalizePairMutationPhase(
                     intent, targetIdentity: target.identity, state: &state)
                 let source = journalSourceSnapshot(normalized)
@@ -792,7 +833,8 @@ actor SaveSyncEngine {
         return try await importSavesUnlocked(from: selectedDirectory)
     }
 
-    /// Lists only complete, checksum-valid native Jak 1 banks from the preservation mirrors.
+    /// Lists only complete, checksum-valid native banks for this engine's title from the
+    /// preservation mirrors.
     /// iCloud-only copies are first materialized locally so the existing promotion path remains
     /// local-first. Each bank is independently loadable, so legacy archives do not need an event
     /// manifest to remain recoverable. Internal archive filenames stay behind the UI boundary.
@@ -860,14 +902,14 @@ actor SaveSyncEngine {
         let sourceValues = try sourceURL.resourceValues(
             forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
         guard sourceValues.isRegularFile == true, sourceValues.isSymbolicLink != true,
-              sourceValues.fileSize == Self.jak1BankFileSize else {
+              sourceValues.fileSize == configuration.format.bankFileSize else {
             throw SaveSyncError.archivedSaveUnavailable(id)
         }
         let archived = try await stableFile(at: sourceURL, coordinated: false,
                                             relativeTo: configuration.localConflictsRoot,
-                                            expectedSize: Self.jak1BankFileSize)
+                                            expectedSize: configuration.format.bankFileSize)
         guard archived.hash == descriptor.hash,
-              let metadata = jak1BankMetadata(in: archived,
+              let metadata = nativeBankMetadata(in: archived,
                                               relativePath: descriptor.canonicalBankPath)
         else {
             throw SaveSyncError.archivedSaveUnavailable(id)
@@ -888,16 +930,16 @@ actor SaveSyncEngine {
         }
 
         let evenIndex = descriptor.bankIndex - descriptor.bankIndex % 2
-        let evenPath = jak1BankPath(beside: descriptor.canonicalBankPath, index: evenIndex)
+        let evenPath = nativeBankPath(beside: descriptor.canonicalBankPath, index: evenIndex)
         let existingFiles = try await files(in: configuration.localRoot, coordinated: false)
-        let existing = jak1SlotSnapshot(evenPath: evenPath, files: existingFiles)
+        let existing = nativeSlotSnapshot(evenPath: evenPath, files: existingFiles)
         for path in [existing.evenPath, existing.oddPath] {
             guard let file = existing.file(at: path), file.hash != archived.hash else { continue }
             try write(file, relativePath: path + ".before-restore-" + file.hash,
                       to: configuration.localConflictsRoot, coordinated: false)
         }
 
-        let source = jak1SlotSnapshot(evenPath: evenPath, files: [evenPath: archived])
+        let source = nativeSlotSnapshot(evenPath: evenPath, files: [evenPath: archived])
         guard source.effectiveMetadata != nil else {
             throw SaveSyncError.archivedSaveUnavailable(id)
         }
@@ -943,20 +985,20 @@ actor SaveSyncEngine {
                 at: selectedFile.url,
                 coordinated: configuration.coordinateCloudAccess,
                 relativeTo: selectedDirectory,
-                expectedSize: Self.jak1BankFileSize)
+                expectedSize: configuration.format.bankFileSize)
         }
-        guard containsLoadableJak1Slot(in: importFiles) else {
-            throw SaveSyncError.noSavesFound(selectedDirectory.lastPathComponent)
+        guard containsLoadableNativeSlot(in: importFiles) else {
+            throw noSavesFoundError(selectedDirectory.lastPathComponent)
         }
 
         try manager.createDirectory(at: configuration.localRoot,
                                     withIntermediateDirectories: true)
         let existingFiles = try await files(in: configuration.localRoot, coordinated: false)
         var imported = 0
-        let importedSlotPaths = Set(importFiles.keys.compactMap(jak1SlotEvenPath)).sorted()
+        let importedSlotPaths = Set(importFiles.keys.compactMap(nativeSlotEvenPath)).sorted()
         for evenPath in importedSlotPaths {
-            let incoming = jak1SlotSnapshot(evenPath: evenPath, files: importFiles)
-            let existing = jak1SlotSnapshot(evenPath: evenPath, files: existingFiles)
+            let incoming = nativeSlotSnapshot(evenPath: evenPath, files: importFiles)
+            let existing = nativeSlotSnapshot(evenPath: evenPath, files: existingFiles)
             for relativePath in [incoming.evenPath, incoming.oddPath] {
                 let incomingFile = incoming.file(at: relativePath)
                 let existingFile = existing.file(at: relativePath)
@@ -975,7 +1017,9 @@ actor SaveSyncEngine {
             _ = try beginPairMutation(intent, liveSource: incoming, liveTarget: existing,
                                       cloud: nil, state: &state)
         }
-        for relativePath in importFiles.keys.sorted() where jak1BankIndex(relativePath) == nil {
+        for relativePath in importFiles.keys.sorted()
+            where nativeBankIndex(relativePath) == nil
+                && !isUnrecognizedBankPath(relativePath) {
             guard let incoming = importFiles[relativePath] else { continue }
             if let existing = existingFiles[relativePath], existing.hash != incoming.hash {
                 try write(existing,
@@ -1003,7 +1047,7 @@ actor SaveSyncEngine {
         return intent.targetCopy == .local && intent.phase != .prepared
     }
 
-    /// Writes a stable desktop-compatible `OpenGOAL/jak1/saves` tree without changing local saves.
+    /// Writes a stable desktop-compatible OpenGOAL save tree without changing local saves.
     func exportSaves(to selectedDirectory: URL) async throws -> SaveTransferResult {
         await acquireOperation()
         defer { releaseOperation() }
@@ -1016,22 +1060,23 @@ actor SaveSyncEngine {
     private func exportSavesUnlocked(to selectedDirectory: URL) async throws
         -> SaveTransferResult {
         let localFiles = try await files(in: configuration.localRoot, coordinated: false)
-        guard localFiles.keys.contains(where: isJak1BankPath) else {
-            throw SaveSyncError.noSavesFound(configuration.localRoot.lastPathComponent)
+        guard localFiles.keys.contains(where: isNativeBankPath) else {
+            throw noSavesFoundError(configuration.localRoot.lastPathComponent)
         }
 
         let exportRoot = uniqueExportRoot(in: selectedDirectory)
-        let savesRoot = exportRoot.appending(path: "OpenGOAL/jak1/saves",
+        let savesRoot = exportRoot.appending(path: configuration.format.savesPath,
                                              directoryHint: .isDirectory)
-        for relativePath in localFiles.keys.sorted() {
+        let exportPaths = localFiles.keys.filter { !isUnrecognizedBankPath($0) }.sorted()
+        for relativePath in exportPaths {
             guard let file = localFiles[relativePath] else { continue }
             try write(file, relativePath: relativePath, to: savesRoot,
                       coordinated: configuration.coordinateCloudAccess)
         }
-        return SaveTransferResult(fileCount: localFiles.count, destination: savesRoot)
+        return SaveTransferResult(fileCount: exportPaths.count, destination: savesRoot)
     }
 
-    private func mergeJak1Slot(
+    private func mergeNativeSlot(
         evenPath: String,
         localFiles: [String: SaveFile],
         cloudFiles: [String: SaveFile],
@@ -1041,8 +1086,8 @@ actor SaveSyncEngine {
         processedLocalStamps: inout [String: FileStamp],
         resolutions: inout [SaveResolution]
     ) throws -> (uploaded: Int, downloaded: Int, requiresBidirectionalSync: Bool) {
-        var local = jak1SlotSnapshot(evenPath: evenPath, files: localFiles)
-        var remote = jak1SlotSnapshot(evenPath: evenPath, files: cloudFiles)
+        var local = nativeSlotSnapshot(evenPath: evenPath, files: localFiles)
+        var remote = nativeSlotSnapshot(evenPath: evenPath, files: cloudFiles)
         var recoveredUploaded = 0
         var recoveredDownloaded = 0
         let paths = [local.evenPath, local.oddPath]
@@ -1083,7 +1128,7 @@ actor SaveSyncEngine {
                 if remote.hasFiles {
                     try preserveSlotDivergence(local: local, remote: remote, cloud: cloud)
                 }
-                let changed = try replaceJak1SlotDuringSync(
+                let changed = try replaceNativeSlotDuringSync(
                     local, replacing: remote, targetCopy: .iCloud, cloud: cloud, state: &state,
                     resolution: remote.hasFiles ? SaveResolution(
                         relativePath: evenPath, winner: .local,
@@ -1118,7 +1163,7 @@ actor SaveSyncEngine {
             let resolution = remote.hasFiles ? SaveResolution(
                 relativePath: evenPath, winner: .local,
                 basis: .activeGameplayAuthority) : nil
-            let changed = try replaceJak1SlotDuringSync(local, replacing: remote,
+            let changed = try replaceNativeSlotDuringSync(local, replacing: remote,
                                                         targetCopy: .iCloud, cloud: cloud,
                                                         state: &state,
                                                         resolution: resolution)
@@ -1127,14 +1172,14 @@ actor SaveSyncEngine {
         }
 
         if local.hasFiles, !remote.hasFiles {
-            let changed = try replaceJak1SlotDuringSync(local, replacing: remote,
+            let changed = try replaceNativeSlotDuringSync(local, replacing: remote,
                                                         targetCopy: .iCloud, cloud: cloud,
                                                         state: &state)
             state.slotBaselineHashes[evenPath] = local.identity
             return (recoveredUploaded + changed, recoveredDownloaded, false)
         }
         if !local.hasFiles, remote.hasFiles {
-            let changed = try replaceJak1SlotDuringSync(remote, replacing: local,
+            let changed = try replaceNativeSlotDuringSync(remote, replacing: local,
                                                         targetCopy: .local, cloud: cloud,
                                                         state: &state)
             updateLocalStamps(for: remote, in: &processedLocalStamps)
@@ -1148,7 +1193,7 @@ actor SaveSyncEngine {
             || (local.odd != nil) != (remote.odd != nil)
         if !presenceDiffers, baseline == local.identity, baseline != remote.identity {
             try preserveSlotDivergence(local: local, remote: remote, cloud: cloud)
-            let changed = try replaceJak1SlotDuringSync(remote, replacing: local,
+            let changed = try replaceNativeSlotDuringSync(remote, replacing: local,
                                                         targetCopy: .local, cloud: cloud,
                                                         state: &state)
             updateLocalStamps(for: remote, in: &processedLocalStamps)
@@ -1157,7 +1202,7 @@ actor SaveSyncEngine {
         }
         if !presenceDiffers, baseline == remote.identity, baseline != local.identity {
             try preserveSlotDivergence(local: local, remote: remote, cloud: cloud)
-            let changed = try replaceJak1SlotDuringSync(local, replacing: remote,
+            let changed = try replaceNativeSlotDuringSync(local, replacing: remote,
                                                         targetCopy: .iCloud, cloud: cloud,
                                                         state: &state)
             state.slotBaselineHashes[evenPath] = local.identity
@@ -1169,14 +1214,14 @@ actor SaveSyncEngine {
         resolutions.append(resolution)
         switch resolution.winner {
         case .local:
-            let changed = try replaceJak1SlotDuringSync(local, replacing: remote,
+            let changed = try replaceNativeSlotDuringSync(local, replacing: remote,
                                                         targetCopy: .iCloud, cloud: cloud,
                                                         state: &state,
                                                         resolution: resolution)
             state.slotBaselineHashes[evenPath] = local.identity
             return (recoveredUploaded + changed, recoveredDownloaded, false)
         case .iCloud:
-            let changed = try replaceJak1SlotDuringSync(remote, replacing: local,
+            let changed = try replaceNativeSlotDuringSync(remote, replacing: local,
                                                         targetCopy: .local, cloud: cloud,
                                                         state: &state,
                                                         resolution: resolution)
@@ -1186,9 +1231,9 @@ actor SaveSyncEngine {
         }
     }
 
-    private func replaceJak1SlotDuringSync(
-        _ source: Jak1SlotSnapshot,
-        replacing target: Jak1SlotSnapshot,
+    private func replaceNativeSlotDuringSync(
+        _ source: NativeSlotSnapshot,
+        replacing target: NativeSlotSnapshot,
         targetCopy: SaveResolution.Copy,
         cloud: CloudSaveLocations,
         state: inout State,
@@ -1205,8 +1250,8 @@ actor SaveSyncEngine {
 
     private func recoverPairMutationIfPossible(
         evenPath: String,
-        local: Jak1SlotSnapshot,
-        remote: Jak1SlotSnapshot,
+        local: NativeSlotSnapshot,
+        remote: NativeSlotSnapshot,
         cloud: CloudSaveLocations,
         mode: SaveSyncMode,
         state: inout State,
@@ -1256,8 +1301,8 @@ actor SaveSyncEngine {
     }
 
     private func beginPairMutation(_ intent: PairMutationIntent,
-                                   liveSource: Jak1SlotSnapshot,
-                                   liveTarget: Jak1SlotSnapshot,
+                                   liveSource: NativeSlotSnapshot,
+                                   liveTarget: NativeSlotSnapshot,
                                    cloud: CloudSaveLocations?,
                                    state: inout State) throws -> Int {
         try validatePairMutationIntent(intent)
@@ -1280,8 +1325,8 @@ actor SaveSyncEngine {
                                       state: &state)
     }
 
-    private func pairMutationIntent(source: Jak1SlotSnapshot,
-                                    target: Jak1SlotSnapshot,
+    private func pairMutationIntent(source: NativeSlotSnapshot,
+                                    target: NativeSlotSnapshot,
                                     targetCopy: SaveResolution.Copy,
                                     sourceKind: PairMutationSource,
                                     cloudAccountIdentifier: Data?,
@@ -1300,8 +1345,8 @@ actor SaveSyncEngine {
     }
 
     private func resumePairMutation(_ storedIntent: PairMutationIntent,
-                                    liveSource: Jak1SlotSnapshot,
-                                    liveTarget: Jak1SlotSnapshot,
+                                    liveSource: NativeSlotSnapshot,
+                                    liveTarget: NativeSlotSnapshot,
                                     cloud: CloudSaveLocations?,
                                     state: inout State) throws -> Int {
         guard var intent = state.pairMutationIntent, intent == storedIntent else {
@@ -1397,7 +1442,7 @@ actor SaveSyncEngine {
                           hash: file.hash)
     }
 
-    private func journalSourceSnapshot(_ intent: PairMutationIntent) -> Jak1SlotSnapshot {
+    private func journalSourceSnapshot(_ intent: PairMutationIntent) -> NativeSlotSnapshot {
         var files: [String: SaveFile] = [:]
         if let even = intent.sourceEven {
             files[intent.evenPath] = SaveFile(data: even.data,
@@ -1409,15 +1454,15 @@ actor SaveSyncEngine {
                                              modificationDate: odd.modificationDate,
                                              hash: odd.hash)
         }
-        return jak1SlotSnapshot(evenPath: intent.evenPath, files: files)
+        return nativeSlotSnapshot(evenPath: intent.evenPath, files: files)
     }
 
     private func validatePairMutationIntent(_ intent: PairMutationIntent) throws {
         let evenComponents = URL(fileURLWithPath: intent.evenPath).pathComponents
         guard !intent.evenPath.hasPrefix("/"), !evenComponents.contains(".."),
-              jak1SlotEvenPath(intent.evenPath) == intent.evenPath,
-              jak1BankPath(beside: intent.evenPath,
-                           index: (jak1BankIndex(intent.evenPath) ?? -1) + 1) == intent.oddPath,
+              nativeSlotEvenPath(intent.evenPath) == intent.evenPath,
+              nativeBankPath(beside: intent.evenPath,
+                           index: (nativeBankIndex(intent.evenPath) ?? -1) + 1) == intent.oddPath,
               intent.sourceEven != nil || intent.sourceOdd != nil,
               (intent.targetEvenHash == nil || isSHA256(intent.targetEvenHash)),
               (intent.targetOddHash == nil || isSHA256(intent.targetOddHash)) else {
@@ -1442,7 +1487,7 @@ actor SaveSyncEngine {
             }
         }
         for file in [intent.sourceEven, intent.sourceOdd].compactMap({ $0 }) {
-            if file.data.count != Self.jak1BankFileSize {
+            if file.data.count != configuration.format.bankFileSize {
                 throw SaveSyncError.invalidPairMutationState(intent.evenPath)
             }
             let digest = SHA256.hash(data: file.data)
@@ -1516,7 +1561,7 @@ actor SaveSyncEngine {
         return advanced
     }
 
-    private func expectedTargetSnapshot(for intent: PairMutationIntent) -> Jak1SlotSnapshot {
+    private func expectedTargetSnapshot(for intent: PairMutationIntent) -> NativeSlotSnapshot {
         let hashes = expectedTargetHashes(for: intent)
         var files: [String: SaveFile] = [:]
         if let evenHash = hashes.even {
@@ -1527,7 +1572,7 @@ actor SaveSyncEngine {
             files[intent.oddPath] = SaveFile(data: Data(), modificationDate: nil,
                                              hash: oddHash)
         }
-        return jak1SlotSnapshot(evenPath: intent.evenPath, files: files)
+        return nativeSlotSnapshot(evenPath: intent.evenPath, files: files)
     }
 
     private func assertTargetMatchesJournalPhase(_ intent: PairMutationIntent,
@@ -1544,7 +1589,7 @@ actor SaveSyncEngine {
         }
     }
 
-    private func assertLivePairSourceMatches(_ liveSource: Jak1SlotSnapshot,
+    private func assertLivePairSourceMatches(_ liveSource: NativeSlotSnapshot,
                                              intent: PairMutationIntent,
                                              cloud: CloudSaveLocations?) throws {
         guard liveSource.identity == journalSourceSnapshot(intent).identity else {
@@ -1566,7 +1611,7 @@ actor SaveSyncEngine {
         }
     }
 
-    private func assertLivePairTargetMatches(_ liveTarget: Jak1SlotSnapshot,
+    private func assertLivePairTargetMatches(_ liveTarget: NativeSlotSnapshot,
                                              intent: PairMutationIntent,
                                              cloud: CloudSaveLocations?) throws {
         guard liveTarget.identity == expectedTargetIdentity(for: intent) else {
@@ -1583,7 +1628,7 @@ actor SaveSyncEngine {
         }
     }
 
-    private func assertJournalTargetMatches(_ source: Jak1SlotSnapshot,
+    private func assertJournalTargetMatches(_ source: NativeSlotSnapshot,
                                             intent: PairMutationIntent,
                                             cloud: CloudSaveLocations?) throws {
         if intent.targetCopy == .local {
@@ -1597,7 +1642,7 @@ actor SaveSyncEngine {
         }
     }
 
-    private func updateLocalStamps(for snapshot: Jak1SlotSnapshot,
+    private func updateLocalStamps(for snapshot: NativeSlotSnapshot,
                                    in stamps: inout [String: FileStamp]) {
         for path in [snapshot.evenPath, snapshot.oddPath] {
             if let file = snapshot.file(at: path) {
@@ -1609,7 +1654,7 @@ actor SaveSyncEngine {
         }
     }
 
-    private func legacyPairBaseline(local: Jak1SlotSnapshot, remote: Jak1SlotSnapshot,
+    private func legacyPairBaseline(local: NativeSlotSnapshot, remote: NativeSlotSnapshot,
                                     state: State) -> String? {
         let localMatches = legacyBaselineMatches(local, state: state)
         let remoteMatches = legacyBaselineMatches(remote, state: state)
@@ -1619,15 +1664,15 @@ actor SaveSyncEngine {
         return nil
     }
 
-    private func legacyBaselineMatches(_ snapshot: Jak1SlotSnapshot, state: State) -> Bool {
+    private func legacyBaselineMatches(_ snapshot: NativeSlotSnapshot, state: State) -> Bool {
         for path in [snapshot.evenPath, snapshot.oddPath] {
             if state.baselineHashes[path] != snapshot.file(at: path)?.hash { return false }
         }
         return true
     }
 
-    private func preserveSlotDivergence(local: Jak1SlotSnapshot,
-                                        remote: Jak1SlotSnapshot,
+    private func preserveSlotDivergence(local: NativeSlotSnapshot,
+                                        remote: NativeSlotSnapshot,
                                         cloud: CloudSaveLocations) throws {
         for path in [local.evenPath, local.oddPath] {
             let localFile = local.file(at: path)
@@ -1642,8 +1687,8 @@ actor SaveSyncEngine {
         }
     }
 
-    private func preserveCloudSlotDivergence(remote: Jak1SlotSnapshot,
-                                             against local: Jak1SlotSnapshot,
+    private func preserveCloudSlotDivergence(remote: NativeSlotSnapshot,
+                                             against local: NativeSlotSnapshot,
                                              cloud: CloudSaveLocations) throws {
         for path in [remote.evenPath, remote.oddPath] {
             guard let remoteFile = remote.file(at: path),
@@ -1671,15 +1716,17 @@ actor SaveSyncEngine {
         try archiveOriginal(remote, relativePath: relativePath, source: .iCloud, cloud: cloud)
     }
 
-    private func resolveSlotDivergence(local: Jak1SlotSnapshot,
-                                       remote: Jak1SlotSnapshot) -> SaveResolution {
+    private func resolveSlotDivergence(local: NativeSlotSnapshot,
+                                       remote: NativeSlotSnapshot) -> SaveResolution {
         let path = local.evenPath
         let localMetadata = local.effectiveMetadata
         let remoteMetadata = remote.effectiveMetadata
         if (localMetadata != nil) != (remoteMetadata != nil) {
             return SaveResolution(relativePath: path,
                                   winner: localMetadata != nil ? .local : .iCloud,
-                                  basis: .onlyValidJak1Bank)
+                                  basis: configuration.format == .jak1
+                                    ? .onlyValidJak1Bank
+                                    : .onlyValidNativeBank)
         }
 
         let localDate = localMetadata == nil
@@ -1704,7 +1751,7 @@ actor SaveSyncEngine {
                               basis: .localGameplayAuthority)
     }
 
-    private func slotModificationDate(_ snapshot: Jak1SlotSnapshot) -> Date? {
+    private func slotModificationDate(_ snapshot: NativeSlotSnapshot) -> Date? {
         [snapshot.even?.modificationDate, snapshot.odd?.modificationDate]
             .compactMap { $0 }.max()
     }
@@ -1724,29 +1771,29 @@ actor SaveSyncEngine {
                               basis: .localGameplayAuthority)
     }
 
-    private func containsLoadableJak1Slot(in files: [String: SaveFile]) -> Bool {
-        Set(files.keys.compactMap(jak1SlotEvenPath)).contains { evenPath in
-            jak1SlotSnapshot(evenPath: evenPath, files: files).effectiveMetadata != nil
+    private func containsLoadableNativeSlot(in files: [String: SaveFile]) -> Bool {
+        Set(files.keys.compactMap(nativeSlotEvenPath)).contains { evenPath in
+            nativeSlotSnapshot(evenPath: evenPath, files: files).effectiveMetadata != nil
         }
     }
 
-    private func jak1SlotSnapshot(evenPath: String,
-                                  files: [String: SaveFile]) -> Jak1SlotSnapshot {
-        let evenIndex = jak1BankIndex(evenPath) ?? 0
-        let oddPath = jak1BankPath(beside: evenPath, index: evenIndex + 1)
+    private func nativeSlotSnapshot(evenPath: String,
+                                    files: [String: SaveFile]) -> NativeSlotSnapshot {
+        let evenIndex = nativeBankIndex(evenPath) ?? 0
+        let oddPath = nativeBankPath(beside: evenPath, index: evenIndex + 1)
         let even = files[evenPath]
         let odd = files[oddPath]
         var effectiveFile: SaveFile?
-        var effectiveMetadata: Jak1BankMetadata?
+        var effectiveMetadata: NativeBankMetadata?
 
         // OpenGOAL gates the whole slot on the even bank and attempts to read an existing odd bank
         // before validating either. Only the writer's exact bank envelope is trusted here.
-        let totalBankSize = 0x10800
+        let totalBankSize = configuration.format.bankFileSize
         if let even, even.data.count == totalBankSize,
            odd == nil || odd?.data.count == totalBankSize {
-            let evenMetadata = jak1BankMetadata(in: even, relativePath: evenPath)
+            let evenMetadata = nativeBankMetadata(in: even, relativePath: evenPath)
             let oddMetadata = odd.flatMap {
-                jak1BankMetadata(in: $0, relativePath: oddPath)
+                nativeBankMetadata(in: $0, relativePath: oddPath)
             }
             if let evenMetadata, let oddMetadata, let odd {
                 if evenMetadata.saveCount > oddMetadata.saveCount {
@@ -1766,21 +1813,21 @@ actor SaveSyncEngine {
             }
         }
 
-        return Jak1SlotSnapshot(evenPath: evenPath, oddPath: oddPath,
-                                even: even, odd: odd,
-                                effectiveFile: effectiveFile,
-                                effectiveMetadata: effectiveMetadata)
+        return NativeSlotSnapshot(evenPath: evenPath, oddPath: oddPath,
+                                  even: even, odd: odd,
+                                  effectiveFile: effectiveFile,
+                                  effectiveMetadata: effectiveMetadata)
     }
 
-    /// Jak 1's OpenGOAL writer stores the progress menu's weighted completion percentage in the
-    /// 64-byte preview duplicated in each bank header. Only trust it after validating the complete
-    /// desktop bank envelope, checksum, duplicated header values, and checksummed game-save copy.
-    private func jak1BankMetadata(in file: SaveFile,
-                                  relativePath: String) -> Jak1BankMetadata? {
+    /// OpenGOAL stores the title's completion percentage in the 64-byte preview duplicated in
+    /// each bank header. Only trust it after validating the complete desktop bank envelope,
+    /// checksum, duplicated header values, and checksummed game-save copy.
+    private func nativeBankMetadata(in file: SaveFile,
+                                    relativePath: String) -> NativeBankMetadata? {
         let headerSize = 0x400
-        let bankSize = 0x10000
+        let bankSize = configuration.format.bankBodySize
         let footerOffset = headerSize + bankSize
-        guard isJak1BankPath(relativePath), file.data.count == footerOffset + headerSize else {
+        guard isNativeBankPath(relativePath), file.data.count == footerOffset + headerSize else {
             return nil
         }
 
@@ -1806,17 +1853,21 @@ actor SaveSyncEngine {
             return nil
         }
 
-        let previewProgressBits = uint32(in: file.data, at: 12 + 16)
-        let footerProgressBits = uint32(in: file.data, at: footerOffset + 12 + 16)
-        let bodyProgressBits = uint32(in: file.data, at: headerSize + 32)
+        let previewProgressBits = uint32(
+            in: file.data, at: 12 + configuration.format.previewCompletionOffset)
+        let footerProgressBits = uint32(
+            in: file.data,
+            at: footerOffset + 12 + configuration.format.previewCompletionOffset)
+        let bodyProgressBits = uint32(
+            in: file.data, at: headerSize + configuration.format.bodyCompletionOffset)
         guard previewProgressBits == footerProgressBits,
               previewProgressBits == bodyProgressBits else {
             return nil
         }
         let progress = Float(bitPattern: previewProgressBits)
         guard progress.isFinite, progress >= 0, progress <= 100 else { return nil }
-        return Jak1BankMetadata(saveCount: headerSaveCount,
-                                completionPercentage: progress)
+        return NativeBankMetadata(saveCount: headerSaveCount,
+                                  completionPercentage: progress)
     }
 
     private func openGOALChecksum(_ data: Data, bodyOffset: Int, bodySize: Int) -> UInt32 {
@@ -1836,23 +1887,36 @@ actor SaveSyncEngine {
             | (UInt32(data[offset + 3]) << 24)
     }
 
-    private func isJak1BankPath(_ relativePath: String) -> Bool {
-        jak1BankIndex(relativePath) != nil
+    private func isNativeBankPath(_ relativePath: String) -> Bool {
+        nativeBankIndex(relativePath) != nil
     }
 
-    private func jak1BankIndex(_ relativePath: String) -> Int? {
-        let name = URL(fileURLWithPath: relativePath).lastPathComponent
+    private func nativeBankIndex(_ relativePath: String) -> Int? {
+        let components = relativePath.split(separator: "/", omittingEmptySubsequences: false)
+        guard components.count == 2,
+              components[0] == Substring(configuration.format.slotDirectoryName) else {
+            return nil
+        }
+        return bankFileIndex(String(components[1]))
+    }
+
+    private func bankFileIndex(_ name: String) -> Int? {
         guard name.hasPrefix("bank"), name.hasSuffix(".bin"), name.count == 9,
               let digit = name.dropFirst(4).first?.wholeNumberValue else { return nil }
         return (0...7).contains(digit) ? digit : nil
     }
 
-    private func jak1SlotEvenPath(_ relativePath: String) -> String? {
-        guard let index = jak1BankIndex(relativePath) else { return nil }
-        return jak1BankPath(beside: relativePath, index: index - index % 2)
+    private func isUnrecognizedBankPath(_ relativePath: String) -> Bool {
+        nativeBankIndex(relativePath) == nil
+            && bankFileIndex((relativePath as NSString).lastPathComponent) != nil
     }
 
-    private func jak1BankPath(beside relativePath: String, index: Int) -> String {
+    private func nativeSlotEvenPath(_ relativePath: String) -> String? {
+        guard let index = nativeBankIndex(relativePath) else { return nil }
+        return nativeBankPath(beside: relativePath, index: index - index % 2)
+    }
+
+    private func nativeBankPath(beside relativePath: String, index: Int) -> String {
         let directory = (relativePath as NSString).deletingLastPathComponent
         let name = "bank\(index).bin"
         return directory.isEmpty ? name : directory + "/" + name
@@ -1875,7 +1939,7 @@ actor SaveSyncEngine {
             guard let range = relativePath.range(of: marker, options: .backwards) else { continue }
             let canonicalPath = String(relativePath[..<range.lowerBound])
             let hash = String(relativePath[range.upperBound...])
-            guard let bankIndex = jak1BankIndex(canonicalPath), isSHA256(hash) else { continue }
+            guard let bankIndex = nativeBankIndex(canonicalPath), isSHA256(hash) else { continue }
             return ArchiveDescriptor(relativePath: relativePath,
                                      canonicalBankPath: canonicalPath,
                                      bankIndex: bankIndex,
@@ -1887,12 +1951,12 @@ actor SaveSyncEngine {
 
     private func preservePreviousCanonicalBanks(cloud: CloudSaveLocations?) async throws {
         let files = try await files(in: configuration.localRoot, coordinated: false)
-        for evenPath in Set(files.keys.compactMap(jak1SlotEvenPath)).sorted() {
-            let slot = jak1SlotSnapshot(evenPath: evenPath, files: files)
+        for evenPath in Set(files.keys.compactMap(nativeSlotEvenPath)).sorted() {
+            let slot = nativeSlotSnapshot(evenPath: evenPath, files: files)
             guard let activeHash = slot.effectiveFile?.hash else { continue }
             for path in [slot.evenPath, slot.oddPath] {
                 guard let file = slot.file(at: path), file.hash != activeHash,
-                      jak1BankMetadata(in: file, relativePath: path) != nil else { continue }
+                      nativeBankMetadata(in: file, relativePath: path) != nil else { continue }
                 let archivePath = path + ".previous-" + file.hash
                 try write(file, relativePath: archivePath,
                           to: configuration.localConflictsRoot, coordinated: false)
@@ -1934,12 +1998,12 @@ actor SaveSyncEngine {
             let values = try standardizedURL.resourceValues(
                 forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
             guard values.isRegularFile == true, values.isSymbolicLink != true,
-                  values.fileSize == Self.jak1BankFileSize else { continue }
+                  values.fileSize == configuration.format.bankFileSize else { continue }
             let file = try await stableFile(at: standardizedURL, coordinated: coordinated,
                                             relativeTo: root,
-                                            expectedSize: Self.jak1BankFileSize)
+                                            expectedSize: configuration.format.bankFileSize)
             guard descriptor.hash == file.hash,
-                  let metadata = jak1BankMetadata(
+                  let metadata = nativeBankMetadata(
                     in: file, relativePath: descriptor.canonicalBankPath) else { continue }
             result[relativePath] = ArchivedSaveFile(
                 descriptor: descriptor, file: file, metadata: metadata)
@@ -1967,17 +2031,17 @@ actor SaveSyncEngine {
     }
 
     private func strictImportFiles(in selectedDirectory: URL) throws -> [ImportFile] {
-        let slotName = "BASCUS-97124AYBABTU!"
+        let slotName = configuration.format.slotDirectoryName
         let components = selectedDirectory.standardizedFileURL.pathComponents
         let slotDirectory: URL
 
         let selectedValues = try selectedDirectory.resourceValues(
             forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
         guard selectedValues.isDirectory == true, selectedValues.isSymbolicLink != true else {
-            throw SaveSyncError.unsafeImportSelection(selectedDirectory.lastPathComponent)
+            throw unsafeImportSelectionError(selectedDirectory.lastPathComponent)
         }
 
-        if Array(components.suffix(3)) == ["OpenGOAL", "jak1", "saves"] {
+        if Array(components.suffix(3)) == configuration.format.savesPathComponents {
             let children = try manager.contentsOfDirectory(
                 at: selectedDirectory,
                 includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
@@ -1987,13 +2051,13 @@ actor SaveSyncEngine {
             guard children.count == 1, children[0].lastPathComponent == slotName,
                   slotValues?.isDirectory == true, slotValues?.isSymbolicLink != true
             else {
-                throw SaveSyncError.unsafeImportSelection(selectedDirectory.lastPathComponent)
+                throw unsafeImportSelectionError(selectedDirectory.lastPathComponent)
             }
             slotDirectory = children[0]
         } else if selectedDirectory.lastPathComponent == slotName {
             slotDirectory = selectedDirectory
         } else {
-            throw SaveSyncError.unsafeImportSelection(selectedDirectory.lastPathComponent)
+            throw unsafeImportSelectionError(selectedDirectory.lastPathComponent)
         }
 
         let keys: Set<URLResourceKey> = [.isRegularFileKey, .isDirectoryKey,
@@ -2003,28 +2067,38 @@ actor SaveSyncEngine {
             includingPropertiesForKeys: Array(keys),
             options: [])
         guard !children.isEmpty, children.count <= Self.maximumImportFiles else {
-            throw SaveSyncError.unsafeImportSelection(slotDirectory.lastPathComponent)
+            throw unsafeImportSelectionError(slotDirectory.lastPathComponent)
         }
 
-        let maximumAggregateBytes = Self.jak1BankFileSize * Self.maximumImportFiles
+        let maximumAggregateBytes = configuration.format.bankFileSize * Self.maximumImportFiles
         var aggregateBytes = 0
         var result: [ImportFile] = []
         for url in children.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             let values = try url.resourceValues(forKeys: keys)
             guard values.isRegularFile == true, values.isDirectory != true,
                   values.isSymbolicLink != true,
-                  isJak1BankPath(url.lastPathComponent),
-                  values.fileSize == Self.jak1BankFileSize else {
-                throw SaveSyncError.unsafeImportSelection(url.lastPathComponent)
+                  bankFileIndex(url.lastPathComponent) != nil,
+                  values.fileSize == configuration.format.bankFileSize else {
+                throw unsafeImportSelectionError(url.lastPathComponent)
             }
             aggregateBytes += values.fileSize ?? 0
             guard aggregateBytes <= maximumAggregateBytes else {
-                throw SaveSyncError.unsafeImportSelection(slotDirectory.lastPathComponent)
+                throw unsafeImportSelectionError(slotDirectory.lastPathComponent)
             }
             result.append(ImportFile(relativePath: slotName + "/" + url.lastPathComponent,
                                      url: url))
         }
         return result
+    }
+
+    private func noSavesFoundError(_ path: String) -> SaveSyncError {
+        .noSavesFound(path: path, titleName: configuration.format.titleName)
+    }
+
+    private func unsafeImportSelectionError(_ path: String) -> SaveSyncError {
+        .unsafeImportSelection(path: path,
+                               expectedSavesPath: configuration.format.savesPath,
+                               titleName: configuration.format.titleName)
     }
 
     private func uniqueExportRoot(in selectedDirectory: URL) -> URL {
@@ -2147,13 +2221,13 @@ actor SaveSyncEngine {
             let firstData = try coordinatedData(at: url, coordinated: coordinated,
                                                 maximumBytes: expectedSize)
             if let expectedSize, firstData.count != expectedSize {
-                throw SaveSyncError.unsafeImportSelection(path)
+                throw unsafeImportSelectionError(path)
             }
             try await Task.sleep(for: configuration.fileSettleDelay)
             let secondData = try coordinatedData(at: url, coordinated: coordinated,
                                                  maximumBytes: expectedSize)
             if let expectedSize, secondData.count != expectedSize {
-                throw SaveSyncError.unsafeImportSelection(path)
+                throw unsafeImportSelectionError(path)
             }
             let secondStamp = try stamp(at: url)
             if firstStamp == secondStamp, firstData == secondData,
@@ -2230,17 +2304,17 @@ actor SaveSyncEngine {
         }
     }
 
-    private func assertLocalSlotMatches(_ expected: Jak1SlotSnapshot) throws {
+    private func assertLocalSlotMatches(_ expected: NativeSlotSnapshot) throws {
         try configuration.beforeLocalReplacement()
         try assertLocalSlotSnapshotMatches(expected)
     }
 
-    private func assertLocalSourceSlotMatches(_ expected: Jak1SlotSnapshot) throws {
+    private func assertLocalSourceSlotMatches(_ expected: NativeSlotSnapshot) throws {
         try configuration.beforeLocalSourceValidation()
         try assertLocalSlotSnapshotMatches(expected)
     }
 
-    private func assertLocalSlotSnapshotMatches(_ expected: Jak1SlotSnapshot) throws {
+    private func assertLocalSlotSnapshotMatches(_ expected: NativeSlotSnapshot) throws {
         for path in [expected.evenPath, expected.oddPath] {
             try assertLocalSnapshotFile(relativePath: path, matches: expected.file(at: path))
         }
@@ -2254,7 +2328,7 @@ actor SaveSyncEngine {
                             coordinated: configuration.coordinateCloudAccess)
     }
 
-    private func assertCloudSlotMatches(_ expected: Jak1SlotSnapshot, root: URL,
+    private func assertCloudSlotMatches(_ expected: NativeSlotSnapshot, root: URL,
                                         coordinated: Bool) throws {
         try configuration.beforeCloudReplacement()
         for path in [expected.evenPath, expected.oddPath] {
@@ -2271,7 +2345,7 @@ actor SaveSyncEngine {
                             coordinated: configuration.coordinateCloudAccess)
     }
 
-    private func assertCloudSourceSlotMatches(_ expected: Jak1SlotSnapshot, root: URL,
+    private func assertCloudSourceSlotMatches(_ expected: NativeSlotSnapshot, root: URL,
                                               coordinated: Bool) throws {
         try configuration.beforeCloudSourceValidation()
         for path in [expected.evenPath, expected.oddPath] {

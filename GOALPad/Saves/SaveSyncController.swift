@@ -104,6 +104,17 @@ nonisolated enum SaveDataLayout {
     }
 
     static func cloudLocations() -> CloudSaveLocations? {
+        cloudLocations(savesPath: "OpenGOAL/jak1/saves",
+                       conflictsPath: "GOALPad/SaveConflicts")
+    }
+
+    static func jak2CloudLocations() -> CloudSaveLocations? {
+        cloudLocations(savesPath: "OpenGOAL/jak2/saves",
+                       conflictsPath: "GOALPad/Jak2/SaveConflicts")
+    }
+
+    private static func cloudLocations(savesPath: String,
+                                       conflictsPath: String) -> CloudSaveLocations? {
         let manager = FileManager.default
         guard let identityToken = manager.ubiquityIdentityToken,
               let accountIdentifier = try? NSKeyedArchiver.archivedData(
@@ -113,9 +124,9 @@ nonisolated enum SaveDataLayout {
         }
         let documents = container.appending(path: "Documents", directoryHint: .isDirectory)
         return CloudSaveLocations(
-            savesRoot: documents.appending(path: "OpenGOAL/jak1/saves",
+            savesRoot: documents.appending(path: savesPath,
                                             directoryHint: .isDirectory),
-            conflictsRoot: documents.appending(path: "GOALPad/SaveConflicts",
+            conflictsRoot: documents.appending(path: conflictsPath,
                                                 directoryHint: .isDirectory),
             accountIdentifier: accountIdentifier)
     }
@@ -131,6 +142,7 @@ nonisolated enum SaveDataLayout {
 }
 
 nonisolated struct SaveSyncProfile: Sendable {
+    let format: OpenGOALSaveFormat
     let localSavesDirectory: URL
     let localConflictsDirectory: URL
     let stateFile: URL
@@ -138,11 +150,14 @@ nonisolated struct SaveSyncProfile: Sendable {
     let cloudUnavailableReason: @Sendable () -> CloudSaveUnavailableReason
     let coordinateCloudAccess: Bool
     let supportsManagedSaveSync: Bool
+    let supportsSaveTransfer: Bool
+    let managedSaveSyncUnavailableMessage: String
     let enabledDefaultsKey: String
     let lastResolutionsDefaultsKey: String
 
     static func jak1() -> SaveSyncProfile {
         SaveSyncProfile(
+            format: .jak1,
             localSavesDirectory: SaveDataLayout.localSavesDirectory,
             localConflictsDirectory: SaveDataLayout.localConflictsDirectory,
             stateFile: SaveDataLayout.stateFile,
@@ -150,21 +165,49 @@ nonisolated struct SaveSyncProfile: Sendable {
             cloudUnavailableReason: { SaveDataLayout.cloudUnavailableReason() },
             coordinateCloudAccess: true,
             supportsManagedSaveSync: true,
+            supportsSaveTransfer: true,
+            managedSaveSyncUnavailableMessage: "Managed save sync is unavailable.",
             enabledDefaultsKey: "iCloudSavesEnabled",
             lastResolutionsDefaultsKey: "lastSaveAutoResolutions")
     }
 
     static func jak2() -> SaveSyncProfile {
-        SaveSyncProfile(
+        #if GOALPAD_JAK2
+        let cloudLocations: @Sendable () -> CloudSaveLocations? = { nil }
+        let coordinateCloudAccess = false
+        let supportsManagedSaveSync = false
+        #else
+        let cloudLocations: @Sendable () -> CloudSaveLocations? = {
+            SaveDataLayout.jak2CloudLocations()
+        }
+        let coordinateCloudAccess = true
+        let supportsManagedSaveSync = true
+        #endif
+        return SaveSyncProfile(
+            format: .jak2,
             localSavesDirectory: SaveDataLayout.jak2LocalSavesDirectory,
             localConflictsDirectory: SaveDataLayout.jak2LocalConflictsDirectory,
             stateFile: SaveDataLayout.jak2StateFile,
-            cloudLocations: { nil },
-            cloudUnavailableReason: { .containerUnavailable },
-            coordinateCloudAccess: false,
-            supportsManagedSaveSync: false,
+            cloudLocations: cloudLocations,
+            cloudUnavailableReason: { SaveDataLayout.cloudUnavailableReason() },
+            coordinateCloudAccess: coordinateCloudAccess,
+            supportsManagedSaveSync: supportsManagedSaveSync,
+            supportsSaveTransfer: true,
+            managedSaveSyncUnavailableMessage:
+                "This standalone Jak II app has no iCloud save entitlement. "
+                + "Export saves through Files, then import them into Dark Eco.",
             enabledDefaultsKey: "jak2ICloudSavesEnabled",
             lastResolutionsDefaultsKey: "jak2LastSaveAutoResolutions")
+    }
+}
+
+nonisolated struct SaveSettingsSectionVisibility: Equatable, Sendable {
+    let showsICloudSection: Bool
+    let showsSaveTransferSection: Bool
+
+    init(supportsManagedSaveSync: Bool, supportsSaveTransfer: Bool) {
+        showsICloudSection = supportsManagedSaveSync
+        showsSaveTransferSection = supportsSaveTransfer
     }
 }
 
@@ -191,6 +234,18 @@ final class SaveSyncController {
 
     var supportsManagedSaveSync: Bool {
         profile.supportsManagedSaveSync
+    }
+
+    var supportsSaveTransfer: Bool {
+        profile.supportsSaveTransfer
+    }
+
+    var managedSaveSyncUnavailableMessage: String {
+        profile.managedSaveSyncUnavailableMessage
+    }
+
+    var saveTitleName: String {
+        profile.format.titleName
     }
 
     var isEnabled: Bool {
@@ -305,6 +360,7 @@ final class SaveSyncController {
             localRoot: profile.localSavesDirectory,
             localConflictsRoot: profile.localConflictsDirectory,
             stateFile: profile.stateFile,
+            format: profile.format,
             cloudLocations: profile.cloudLocations,
             coordinateCloudAccess: profile.coordinateCloudAccess,
             cloudUnavailableReason: profile.cloudUnavailableReason))
@@ -1207,135 +1263,136 @@ struct SaveSettingsView: View {
                 }
             }
 
-            Section("iCloud") {
-                HStack(spacing: 10) {
-                    ZStack {
-                        Color.clear
-                        if cloudState.progressMessage != nil {
-                            ProgressView()
-                                .controlSize(.small)
+            if sectionVisibility.showsICloudSection {
+                Section("iCloud") {
+                    HStack(spacing: 10) {
+                        ZStack {
+                            Color.clear
+                            if cloudState.progressMessage != nil {
+                                ProgressView()
+                                    .controlSize(.small)
+                            }
                         }
+                        .frame(width: 18, height: 18)
+                        .accessibilityHidden(cloudState.progressMessage == nil)
+                        Label(cloudState.summary, systemImage: cloudStatusSymbol)
                     }
-                    .frame(width: 18, height: 18)
-                    .accessibilityHidden(cloudState.progressMessage == nil)
-                    Label(cloudState.summary, systemImage: cloudStatusSymbol)
-                }
 
-                DisclosureGroup(isExpanded: expansion(for: .iCloud)) {
-                Toggle("Sync Settings", isOn: $settings.cloudSyncEnabled)
-                    .disabled(settings.syncStatus == .syncing)
-                if sync.supportsManagedSaveSync {
-                    Toggle("Sync Saves", isOn: $sync.isEnabled)
-                        .disabled(sync.isBusy)
-                } else {
-                    Text("Jak II saves stay local to this device in the experimental target.")
+                    DisclosureGroup(isExpanded: expansion(for: .iCloud)) {
+                        Toggle("Sync Settings", isOn: $settings.cloudSyncEnabled)
+                            .disabled(settings.syncStatus == .syncing)
+                        Toggle("Sync Saves", isOn: $sync.isEnabled)
+                            .disabled(sync.isBusy)
+                        if cloudState.settingsEnabled {
+                            LabeledContent("Settings", value: cloudState.settingsSummary)
+                            if let date = cloudState.settingsLastSyncDate {
+                                LabeledContent("Last settings sync", value: date.formatted(
+                                    date: .abbreviated, time: .shortened))
+                            }
+                        }
+                        if cloudState.savesEnabled {
+                            LabeledContent("Saves", value: cloudState.savesSummary)
+                            if let date = cloudState.savesLastSyncDate {
+                                LabeledContent("Last saves sync",
+                                               value: date.formatted(date: .abbreviated,
+                                                                     time: .shortened))
+                            }
+                        }
+                        Button(cloudState.actionTitle) {
+                            Task {
+                                await CloudSyncPresentation.synchronize(
+                                    settingsEnabled: settings.cloudSyncEnabled,
+                                    savesEnabled: sync.isEnabled,
+                                    syncSettings: { await settings.syncNow() },
+                                    syncSaves: { await sync.syncNow() })
+                            }
+                        }
+                        .disabled(!cloudState.isActionEnabled)
+                        Text("Choose settings and save sync independently on this device.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    } label: {
+                        Label("Sync Options", systemImage: "icloud")
+                    }
+                }
+            }
+
+            if sectionVisibility.showsSaveTransferSection {
+                if (sync.isTransferring || sync.activeOperation == .loadingArchives),
+                   let message = sync.progressMessage {
+                    ProgressView(message)
+                }
+                if sync.isGameplayActive {
+                    Text("Pause gameplay before importing saves.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
-                if cloudState.settingsEnabled {
-                    LabeledContent("Settings", value: cloudState.settingsSummary)
-                    if let date = cloudState.settingsLastSyncDate {
-                        LabeledContent("Last settings sync", value: date.formatted(
-                            date: .abbreviated, time: .shortened))
-                    }
+                if let message = sync.transferMessage {
+                    Text(message).font(.callout)
                 }
-                if cloudState.savesEnabled {
-                    LabeledContent("Saves", value: cloudState.savesSummary)
-                    if let date = cloudState.savesLastSyncDate {
-                        LabeledContent("Last saves sync",
-                                       value: date.formatted(date: .abbreviated,
-                                                             time: .shortened))
-                    }
-                }
-                Button(cloudState.actionTitle) {
-                    Task {
-                        await CloudSyncPresentation.synchronize(
-                            settingsEnabled: settings.cloudSyncEnabled,
-                            savesEnabled: sync.isEnabled,
-                            syncSettings: { await settings.syncNow() },
-                            syncSaves: { await sync.syncNow() })
-                    }
-                }
-                .disabled(!cloudState.isActionEnabled)
-                Text(sync.supportsManagedSaveSync
-                     ? "Choose settings and save sync independently on this device."
-                     : "Settings sync is independent of local Jak II game data and saves.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                } label: {
-                    Label("Sync Options", systemImage: "icloud")
-                }
-            }
 
-            #if !GOALPAD_JAK2
-            if (sync.isTransferring || sync.activeOperation == .loadingArchives),
-               let message = sync.progressMessage {
-                ProgressView(message)
-            }
-            if sync.isGameplayActive {
-                Text("Pause gameplay before importing saves.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-            if let message = sync.transferMessage {
-                Text(message).font(.callout)
-            }
-
-            DisclosureGroup(isExpanded: expansion(for: .saves)) {
-                Button {
-                    sync.clearTransferMessage()
-                    saveTransferPicker = .importSaves
-                } label: {
-                    Label("Import Saves", systemImage: "square.and.arrow.down")
-                }
-                .disabled(sync.isBusy || sync.isGameplayActive)
-                Button {
-                    sync.clearTransferMessage()
-                    saveTransferPicker = .exportSaves
-                } label: {
-                    Label("Export Saves", systemImage: "square.and.arrow.up")
-                }
-                .disabled(sync.isBusy)
-                Text("Dark Eco imports and exports four compatible save slots. When copies "
-                     + "differ, the older copy is preserved automatically.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-
-                Divider()
-                Text("Preserved Saves")
-                    .font(.headline)
-                if sync.archivedSaves.isEmpty {
-                    Text("No preserved save copies are available.")
+                DisclosureGroup(isExpanded: expansion(for: .saves)) {
+                    Button {
+                        sync.clearTransferMessage()
+                        saveTransferPicker = .importSaves
+                    } label: {
+                        Label("Import Saves", systemImage: "square.and.arrow.down")
+                    }
+                    .disabled(sync.isBusy || sync.isGameplayActive)
+                    Button {
+                        sync.clearTransferMessage()
+                        saveTransferPicker = .exportSaves
+                    } label: {
+                        Label("Export Saves", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(sync.isBusy)
+                    Text("Import and export four compatible \(sync.saveTitleName) "
+                         + "save slots. When copies differ, the older copy is preserved "
+                         + "automatically.")
+                        .font(.callout)
                         .foregroundStyle(.secondary)
-                } else {
-                    ForEach(sync.archivedSaves) { candidate in
-                        Button {
-                            archivedSaveToPromote = candidate
-                        } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Save Slot \(candidate.slotNumber)")
-                                Text(archiveSummary(candidate))
-                                    .font(.callout)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .disabled(sync.isBusy || sync.isGameplayActive)
+
+                    if !sync.supportsManagedSaveSync {
+                        Text(sync.managedSaveSyncUnavailableMessage)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
                     }
-                }
-                Button {
-                    Task { await sync.refreshArchivedSaves() }
+
+                    Divider()
+                    Text("Preserved Saves")
+                        .font(.headline)
+                    if sync.archivedSaves.isEmpty {
+                        Text("No preserved save copies are available.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(sync.archivedSaves) { candidate in
+                            Button {
+                                archivedSaveToPromote = candidate
+                            } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Save Slot \(candidate.slotNumber)")
+                                    Text(archiveSummary(candidate))
+                                        .font(.callout)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .disabled(sync.isBusy || sync.isGameplayActive)
+                        }
+                    }
+                    Button {
+                        Task { await sync.refreshArchivedSaves() }
+                    } label: {
+                        Label("Refresh Preserved Saves", systemImage: "arrow.clockwise")
+                    }
+                    .disabled(sync.isBusy)
+                    Text("Choose Make Active to restore a preserved native save. Dark Eco "
+                         + "preserves the current active copy before replacing it.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                 } label: {
-                    Label("Refresh Preserved Saves", systemImage: "arrow.clockwise")
+                    Label("Manage Save Files", systemImage: "externaldrive")
                 }
-                .disabled(sync.isBusy)
-                Text("Choose Make Active to restore a preserved native save. Dark Eco preserves "
-                     + "the current active copy before replacing it.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            } label: {
-                Label("Manage Save Files", systemImage: "externaldrive")
             }
-            #endif
 
             Section {
                 Button("Reset All to Defaults", role: .destructive) {
@@ -1442,6 +1499,12 @@ struct SaveSettingsView: View {
         }
         return "\(completion) · \(generation) · \(source) · "
             + date.formatted(date: .abbreviated, time: .shortened)
+    }
+
+    private var sectionVisibility: SaveSettingsSectionVisibility {
+        SaveSettingsSectionVisibility(
+            supportsManagedSaveSync: sync.supportsManagedSaveSync,
+            supportsSaveTransfer: sync.supportsSaveTransfer)
     }
 
     private var cloudState: CloudSyncPresentationState {

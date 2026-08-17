@@ -21,6 +21,7 @@ private func check(_ condition: @autoclosure () -> Bool, _ message: String) {
 }
 
 private final class Fixture {
+    let format: OpenGOALSaveFormat
     let root: URL
     let local: URL
     let localConflicts: URL
@@ -29,7 +30,8 @@ private final class Fixture {
     let state: URL
     let engine: SaveSyncEngine
 
-    init(cloudAvailable: Bool = true, accountIdentifier: String = "account-a",
+    init(format: OpenGOALSaveFormat = .jak1,
+         cloudAvailable: Bool = true, accountIdentifier: String = "account-a",
          fileSettleDelay: Duration = .milliseconds(1),
          cloudUnavailableReason: CloudSaveUnavailableReason = .unknown,
          mutationHook: @escaping @Sendable (SaveMutationPoint) throws -> Void = { _ in },
@@ -43,16 +45,21 @@ private final class Fixture {
             @escaping @Sendable (SaveMutationPoint) throws -> Void = { _ in },
          beforeStateWrite: @escaping @Sendable (String?) throws -> Void = { _ in },
          operationAwaitHook: @escaping @Sendable () async -> Void = {}) throws {
+        self.format = format
         root = FileManager.default.temporaryDirectory
             .appending(path: "goalpad-save-sync-\(UUID().uuidString)", directoryHint: .isDirectory)
-        local = root.appending(path: "local/OpenGOAL/jak1/saves", directoryHint: .isDirectory)
-        localConflicts = root.appending(path: "local/GOALPad/SaveConflicts",
+        local = root.appending(path: "local/\(format.savesPath)", directoryHint: .isDirectory)
+        let conflictsPath = format == .jak1
+            ? "GOALPad/SaveConflicts" : "GOALPad/Jak2/SaveConflicts"
+        localConflicts = root.appending(path: "local/\(conflictsPath)",
                                         directoryHint: .isDirectory)
-        cloud = root.appending(path: "cloud/Documents/OpenGOAL/jak1/saves",
+        cloud = root.appending(path: "cloud/Documents/\(format.savesPath)",
                                directoryHint: .isDirectory)
-        cloudConflicts = root.appending(path: "cloud/Documents/GOALPad/SaveConflicts",
+        cloudConflicts = root.appending(path: "cloud/Documents/\(conflictsPath)",
                                         directoryHint: .isDirectory)
-        state = root.appending(path: "local/GOALPad/SaveSync/state-v1.json",
+        let statePath = format == .jak1
+            ? "GOALPad/SaveSync/state-v1.json" : "GOALPad/Jak2/SaveSync/state-v1.json"
+        state = root.appending(path: "local/\(statePath)",
                                directoryHint: .notDirectory)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let locations = CloudSaveLocations(
@@ -63,6 +70,7 @@ private final class Fixture {
             localRoot: local,
             localConflictsRoot: localConflicts,
             stateFile: state,
+            format: format,
             cloudLocations: { cloudAvailable ? locations : nil },
             coordinateCloudAccess: false,
             fileSettleDelay: fileSettleDelay,
@@ -112,6 +120,7 @@ private func engine(for fixture: Fixture,
         localRoot: fixture.local,
         localConflictsRoot: fixture.localConflicts,
         stateFile: fixture.state,
+        format: fixture.format,
         cloudLocations: { cloudAvailable ? locations : nil },
         coordinateCloudAccess: coordinateCloudAccess,
         fileSettleDelay: .milliseconds(1),
@@ -307,8 +316,8 @@ private func file(_ relativePath: String, under root: URL) -> URL {
     root.appending(path: relativePath, directoryHint: .notDirectory)
 }
 
-private func bankFilePath(_ index: Int) -> String {
-    memcardDirectory + "/bank\(index).bin"
+private func bankFilePath(_ index: Int, format: OpenGOALSaveFormat = .jak1) -> String {
+    format.slotDirectoryName + "/bank\(index).bin"
 }
 
 private func write(_ text: String, to relativePath: String = bankPath, under root: URL) throws {
@@ -346,9 +355,10 @@ private func uint32(in data: Data, at offset: Int) -> UInt32 {
         | (UInt32(data[offset + 3]) << 24)
 }
 
-private func openGOALChecksum(_ data: Data) -> UInt32 {
+private func openGOALChecksum(_ data: Data,
+                              format: OpenGOALSaveFormat = .jak1) -> UInt32 {
     var checksum: UInt32 = 0
-    for offset in stride(from: 0x400, to: 0x10400, by: 4) {
+    for offset in stride(from: 0x400, to: 0x400 + format.bankBodySize, by: 4) {
         let signMask = UInt32(bitPattern: Int32(bitPattern: checksum) >> 31)
         checksum = (checksum << 1) ^ signMask ^ uint32(in: data, at: offset)
             ^ 0x1234_5678
@@ -356,36 +366,57 @@ private func openGOALChecksum(_ data: Data) -> UInt32 {
     return checksum ^ 0xedd1_e666
 }
 
-private func jak1Bank(progress: Float, saveCount: UInt32, marker: UInt8) -> Data {
-    var data = Data(repeating: 0, count: 0x10800)
-    let footer = 0x10400
+private func nativeBank(format: OpenGOALSaveFormat, progress: Float,
+                        saveCount: UInt32, marker: UInt8) -> Data {
+    var data = Data(repeating: 0, count: format.bankFileSize)
+    let footer = 0x400 + format.bankBodySize
     setUInt32(saveCount, in: &data, at: 0)
     setUInt32(0x1234_5678, in: &data, at: 8)
     setUInt32(saveCount, in: &data, at: 0x3fc)
     setUInt32(saveCount, in: &data, at: footer)
     setUInt32(0x1234_5678, in: &data, at: footer + 8)
     setUInt32(saveCount, in: &data, at: footer + 0x3fc)
-    setUInt32(progress.bitPattern, in: &data, at: 12 + 16)
-    setUInt32(progress.bitPattern, in: &data, at: footer + 12 + 16)
+    setUInt32(progress.bitPattern, in: &data,
+              at: 12 + format.previewCompletionOffset)
+    setUInt32(progress.bitPattern, in: &data,
+              at: footer + 12 + format.previewCompletionOffset)
     setUInt32(1, in: &data, at: 0x400 + 4)
-    setUInt32(progress.bitPattern, in: &data, at: 0x400 + 32)
+    setUInt32(progress.bitPattern, in: &data,
+              at: 0x400 + format.bodyCompletionOffset)
     data[0x500] = marker
-    let checksum = openGOALChecksum(data)
+    let checksum = openGOALChecksum(data, format: format)
     setUInt32(checksum, in: &data, at: 4)
     setUInt32(checksum, in: &data, at: footer + 4)
     return data
 }
 
-private func writeBank(progress: Float, saveCount: UInt32 = 1, marker: UInt8,
-                       to relativePath: String = bankPath, under root: URL,
-                       modificationDate: Date) throws {
+private func jak1Bank(progress: Float, saveCount: UInt32, marker: UInt8) -> Data {
+    nativeBank(format: .jak1, progress: progress, saveCount: saveCount, marker: marker)
+}
+
+private func jak2Bank(progress: Float, saveCount: UInt32, marker: UInt8) -> Data {
+    nativeBank(format: .jak2, progress: progress, saveCount: saveCount, marker: marker)
+}
+
+private func writeNativeBank(format: OpenGOALSaveFormat, progress: Float,
+                             saveCount: UInt32 = 1, marker: UInt8,
+                             to relativePath: String, under root: URL,
+                             modificationDate: Date) throws {
     let url = file(relativePath, under: root)
     try FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
                                             withIntermediateDirectories: true)
-    try jak1Bank(progress: progress, saveCount: saveCount, marker: marker)
+    try nativeBank(format: format, progress: progress, saveCount: saveCount, marker: marker)
         .write(to: url, options: .atomic)
     try FileManager.default.setAttributes([.modificationDate: modificationDate],
                                           ofItemAtPath: url.path)
+}
+
+private func writeBank(progress: Float, saveCount: UInt32 = 1, marker: UInt8,
+                       to relativePath: String = bankPath, under root: URL,
+                       modificationDate: Date) throws {
+    try writeNativeBank(format: .jak1, progress: progress, saveCount: saveCount,
+                        marker: marker, to: relativePath, under: root,
+                        modificationDate: modificationDate)
 }
 
 private func data(_ relativePath: String = bankPath, under root: URL) -> Data? {
@@ -3122,17 +3153,165 @@ private func replacementSaveCheckKeepsTaskOwnershipAndCancelsQuietly() async thr
 }
 
 @MainActor
-private func titleSaveProfilesKeepStorageIsolatedAndJak2FailClosed() async throws {
-    print("title save profiles isolate storage and keep Jak 2 cloud sync fail-closed")
+private func jak2FormatValidationAndCompletionExtractionAreTitleSafe() async throws {
+    print("Jak II banks use their native envelope, checksum, and completion layout")
+    check(OpenGOALSaveFormat.jak1.bankFileSize == 0x10800
+          && OpenGOALSaveFormat.jak1.previewCompletionOffset == 16
+          && OpenGOALSaveFormat.jak1.bodyCompletionOffset == 32,
+          "Jak 1 retains its exact 0x10800 envelope and completion offsets")
+    check(OpenGOALSaveFormat.jak2.slotDirectoryName == "BASCUS-97265AYBABTU!"
+          && OpenGOALSaveFormat.jak2.bankFileSize == 0x20800
+          && OpenGOALSaveFormat.jak2.previewCompletionOffset == 12
+          && OpenGOALSaveFormat.jak2.bodyCompletionOffset == 28,
+          "Jak II uses the verified slot, 0x20800 envelope, and info index 3")
+
+    let fixture = try Fixture(format: .jak2)
+    let older = Date(timeIntervalSince1970: 1_700_000_000)
+    let newer = older.addingTimeInterval(60)
+    let localPath = bankFilePath(0, format: .jak2)
+    try writeNativeBank(format: .jak2, progress: 72, saveCount: 4, marker: 72,
+                        to: localPath, under: fixture.local, modificationDate: older)
+    try writeNativeBank(format: .jak2, progress: 35, saveCount: 5, marker: 35,
+                        to: localPath, under: fixture.cloud, modificationDate: newer)
+
+    let outcome = try await fixture.engine.sync()
+    check(outcome.resolutions.first?.winner == .iCloud,
+          "Jak II pair ranking accepts checksum-valid native banks")
+    let candidates = try await fixture.engine.archivedSaveCandidates()
+    check(Set(candidates.map(\.completionPercentage)) == Set([72, 35]),
+          "Jak II archive metadata extracts completion from the matching preview and body fields")
+
+    let corruptFixture = try Fixture(format: .jak2)
+    try writeNativeBank(format: .jak2, progress: 64, saveCount: 2, marker: 1,
+                        to: localPath, under: corruptFixture.local,
+                        modificationDate: older)
+    var corrupt = jak2Bank(progress: 99, saveCount: 3, marker: 2)
+    corrupt[0x500] ^= 0xff
+    let corruptURL = file(localPath, under: corruptFixture.cloud)
+    try FileManager.default.createDirectory(at: corruptURL.deletingLastPathComponent(),
+                                            withIntermediateDirectories: true)
+    try corrupt.write(to: corruptURL, options: .atomic)
+    try FileManager.default.setAttributes([.modificationDate: newer],
+                                          ofItemAtPath: corruptURL.path)
+
+    let corruptOutcome = try await corruptFixture.engine.sync()
+    check(corruptOutcome.resolutions.first?.winner == .local
+          && corruptOutcome.resolutions.first?.basis == .onlyValidNativeBank,
+          "a valid Jak II bank beats a newer bank whose body checksum no longer matches")
+    check(data(localPath, under: corruptFixture.cloud)
+          == data(localPath, under: corruptFixture.local),
+          "the corrupt Jak II peer never becomes canonical")
+}
+
+private func jak2TransferPreservesLayoutAndRejectsCrossTitleSelections() async throws {
+    print("Jak II Files transfer preserves its namespace and rejects cross-title saves")
+    let fixture = try Fixture(format: .jak2, cloudAvailable: false)
+    let selectedRoot = fixture.root.appending(
+        path: "selected/OpenGOAL/jak2/saves", directoryHint: .isDirectory)
+    let banks = [
+        0: jak2Bank(progress: 58, saveCount: 7, marker: 58),
+        1: jak2Bank(progress: 57, saveCount: 6, marker: 57),
+        2: jak2Bank(progress: 40, saveCount: 4, marker: 40),
+        4: jak2Bank(progress: 20, saveCount: 2, marker: 20),
+    ]
+    for (index, bank) in banks {
+        let selectedBank = selectedRoot.appending(
+            path: "BASCUS-97265AYBABTU!/bank\(index).bin", directoryHint: .notDirectory)
+        try FileManager.default.createDirectory(at: selectedBank.deletingLastPathComponent(),
+                                                withIntermediateDirectories: true)
+        try bank.write(to: selectedBank, options: .atomic)
+    }
+
+    let imported = try await fixture.engine.importSaves(from: selectedRoot)
+    let jak2Path = bankFilePath(0, format: .jak2)
+    check(imported.fileCount == 4 && banks.allSatisfy {
+        data(bankFilePath($0.key, format: .jak2), under: fixture.local) == $0.value
+    }, "Jak II import keeps a sparse bank0/bank1/bank2/bank4 set byte-compatible")
+    let exportDestination = fixture.root.appending(path: "exports", directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: exportDestination,
+                                            withIntermediateDirectories: true)
+    let exported = try await fixture.engine.exportSaves(to: exportDestination)
+    check(exported.fileCount == 4
+          && exported.destination?.path.hasSuffix("OpenGOAL/jak2/saves") == true
+          && banks.allSatisfy { entry in
+              exported.destination.flatMap {
+                  data(bankFilePath(entry.key, format: .jak2), under: $0)
+              } == entry.value
+          }, "Jak II export writes the exact sparse OpenGOAL/jak2/saves tree")
+
+    let foreignPath = bankFilePath(0)
+    let foreignURL = file(foreignPath, under: fixture.local)
+    try FileManager.default.createDirectory(at: foreignURL.deletingLastPathComponent(),
+                                            withIntermediateDirectories: true)
+    try jak1Bank(progress: 20, saveCount: 2, marker: 1).write(to: foreignURL)
+    let isolatedExport = try await fixture.engine.exportSaves(to: exportDestination)
+    check(isolatedExport.fileCount == 4
+          && isolatedExport.destination.flatMap { data(foreignPath, under: $0) } == nil,
+          "Jak II export cannot include a misplaced Jak 1 bank")
+
+    let syncIsolationFixture = try Fixture(format: .jak2)
+    let syncForeignURL = file(foreignPath, under: syncIsolationFixture.local)
+    try FileManager.default.createDirectory(at: syncForeignURL.deletingLastPathComponent(),
+                                            withIntermediateDirectories: true)
+    try jak1Bank(progress: 30, saveCount: 3, marker: 2).write(to: syncForeignURL)
+    _ = try await syncIsolationFixture.engine.sync()
+    check(data(foreignPath, under: syncIsolationFixture.cloud) == nil,
+          "Jak II managed sync ignores a misplaced Jak 1 bank instead of treating it as metadata")
+
+    let jak2RejectFixture = try Fixture(format: .jak2, cloudAvailable: false)
+    let jak1Root = jak2RejectFixture.root.appending(
+        path: "foreign/OpenGOAL/jak1/saves", directoryHint: .isDirectory)
+    let jak1URL = file(bankFilePath(0), under: jak1Root)
+    try FileManager.default.createDirectory(at: jak1URL.deletingLastPathComponent(),
+                                            withIntermediateDirectories: true)
+    try jak1Bank(progress: 20, saveCount: 2, marker: 1).write(to: jak1URL)
+    var jak2RejectedJak1 = false
+    do {
+        _ = try await jak2RejectFixture.engine.importSaves(from: jak1Root)
+    } catch {
+        jak2RejectedJak1 = true
+    }
+    check(jak2RejectedJak1 && regularFiles(under: jak2RejectFixture.local).isEmpty,
+          "the Jak II engine rejects a valid Jak 1 save tree before local mutation")
+
+    let jak1RejectFixture = try Fixture(cloudAvailable: false)
+    let jak2Root = jak1RejectFixture.root.appending(
+        path: "foreign/OpenGOAL/jak2/saves", directoryHint: .isDirectory)
+    let jak2URL = file(jak2Path, under: jak2Root)
+    try FileManager.default.createDirectory(at: jak2URL.deletingLastPathComponent(),
+                                            withIntermediateDirectories: true)
+    try jak2Bank(progress: 58, saveCount: 7, marker: 58).write(to: jak2URL)
+    var jak1RejectedJak2 = false
+    do {
+        _ = try await jak1RejectFixture.engine.importSaves(from: jak2Root)
+    } catch {
+        jak1RejectedJak2 = true
+    }
+    check(jak1RejectedJak2 && regularFiles(under: jak1RejectFixture.local).isEmpty,
+          "the Jak 1 engine rejects a valid Jak II save tree before local mutation")
+}
+
+@MainActor
+private func titleSaveProfilesKeepStorageAndCloudIsolated() async throws {
+    print("title save profiles isolate storage and enable Jak II cloud only in the merged app")
     let jak1 = SaveSyncProfile.jak1()
     let jak2 = SaveSyncProfile.jak2()
+    let jak1Visibility = SaveSettingsSectionVisibility(
+        supportsManagedSaveSync: jak1.supportsManagedSaveSync,
+        supportsSaveTransfer: jak1.supportsSaveTransfer)
+    let jak2Visibility = SaveSettingsSectionVisibility(
+        supportsManagedSaveSync: jak2.supportsManagedSaveSync,
+        supportsSaveTransfer: jak2.supportsSaveTransfer)
     check(jak1.localSavesDirectory.path.hasSuffix("OpenGOAL/jak1/saves")
           && jak1.localConflictsDirectory.path.hasSuffix("GOALPad/SaveConflicts")
           && jak1.stateFile.path.hasSuffix("GOALPad/SaveSync/state-v1.json"),
           "Jak 1 keeps the Build 223 local save, conflict, and state paths")
     check(jak1.enabledDefaultsKey == "iCloudSavesEnabled"
           && jak1.lastResolutionsDefaultsKey == "lastSaveAutoResolutions"
-          && jak1.supportsManagedSaveSync,
+          && jak1.supportsManagedSaveSync && jak1.supportsSaveTransfer
+          && jak1Visibility.showsICloudSection
+          && jak1Visibility.showsSaveTransferSection
+          && jak1.format == .jak1,
           "Jak 1 keeps the Build 223 save-sync keys and managed-sync behavior")
     check(jak2.localSavesDirectory.path.hasSuffix("OpenGOAL/jak2/saves")
           && jak2.localConflictsDirectory.path.hasSuffix("GOALPad/Jak2/SaveConflicts")
@@ -3140,16 +3319,17 @@ private func titleSaveProfilesKeepStorageIsolatedAndJak2FailClosed() async throw
           "Jak 2 uses its existing isolated local save, conflict, and state paths")
     check(jak2.enabledDefaultsKey == "jak2ICloudSavesEnabled"
           && jak2.lastResolutionsDefaultsKey == "jak2LastSaveAutoResolutions"
-          && !jak2.supportsManagedSaveSync && !jak2.coordinateCloudAccess
-          && jak2.cloudLocations() == nil,
-          "Jak 2 has distinct keys and no managed cloud location or coordination")
+          && jak2.supportsManagedSaveSync && jak2.coordinateCloudAccess
+          && jak2.supportsSaveTransfer && jak2Visibility.showsICloudSection
+          && jak2Visibility.showsSaveTransferSection && jak2.format == .jak2,
+          "the merged app gives Jak II distinct keys, native format, transfer, and managed cloud")
 
     let fixture = try Fixture()
     let suiteName = "goalpad-title-save-profiles-\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: suiteName)!
     defer { defaults.removePersistentDomain(forName: suiteName) }
     defaults.set(false, forKey: jak1.enabledDefaultsKey)
-    defaults.set(true, forKey: jak2.enabledDefaultsKey)
+    defaults.set(false, forKey: jak2.enabledDefaultsKey)
     let compatibilityController = SaveSyncController(
         defaults: defaults, engine: fixture.engine)
     let jak2Controller = SaveSyncController(
@@ -3157,14 +3337,15 @@ private func titleSaveProfilesKeepStorageIsolatedAndJak2FailClosed() async throw
     check(compatibilityController.supportsManagedSaveSync
           && !compatibilityController.isEnabled,
           "compatibility construction is explicitly Jak 1 and reads the Jak 1 opt-out")
-    check(!jak2Controller.supportsManagedSaveSync && !jak2Controller.isEnabled,
-          "Jak 2 stays disabled even when its isolated preference contains true")
+    check(jak2Controller.supportsManagedSaveSync && jak2Controller.supportsSaveTransfer
+          && !jak2Controller.isEnabled,
+          "Jak II reads only its isolated merged-app opt-out")
     jak2Controller.isEnabled = true
-    check(!jak2Controller.isEnabled && defaults.bool(forKey: jak2.enabledDefaultsKey),
-          "Jak 2 rejects managed-sync enablement without rewriting stored preferences")
+    check(jak2Controller.isEnabled && defaults.bool(forKey: jak2.enabledDefaultsKey),
+          "Jak II managed sync can be enabled in the entitled merged app")
     let jak2GameplayReady = await jak2Controller.syncBeforeGameplay()
     check(jak2GameplayReady,
-          "disabled Jak 2 managed save sync cannot gate local gameplay")
+          "Jak II uses the same bounded pregame synchronization contract")
 
     defaults.set(Data([1]), forKey: jak1.lastResolutionsDefaultsKey)
     defaults.set(Data([2]), forKey: jak2.lastResolutionsDefaultsKey)
@@ -3249,7 +3430,9 @@ private struct SaveSyncCheck {
             try await combinedCloudPresentationCoordinatesEnabledDomains()
             try await controllerReportsObservedSaveStateTruthfully()
             try await replacementSaveCheckKeepsTaskOwnershipAndCancelsQuietly()
-            try await titleSaveProfilesKeepStorageIsolatedAndJak2FailClosed()
+            try await jak2FormatValidationAndCompletionExtractionAreTitleSafe()
+            try await jak2TransferPreservesLayoutAndRejectsCrossTitleSelections()
+            try await titleSaveProfilesKeepStorageAndCloudIsolated()
         } catch {
             print("  FAIL unexpected error: \(error)")
             failures += 1
