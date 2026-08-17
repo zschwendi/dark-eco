@@ -444,41 +444,43 @@ do {
     check(GameLibraryTitle.jak1.shelfName == "Jak and Daxter: The Precursor Legacy"
           && GameLibraryTitle.jak1.shelfName == GameLibraryTitle.jak1.name,
           "the first game uses its full canonical title instead of numbered shorthand")
-    check(GameLibraryCardAction.resolve(title: .jak1, state: .ready) == .start,
+    check(GameLibraryCardAction.resolve(title: .jak1, state: .ready) == .start(.jak1),
           "installed Jak 1 starts from its full card")
     check(GameLibraryCardAction.resolve(title: .jak1, state: .preparing(.importing(nil)))
-          == .openJak1Setup,
+          == .openSetup(.jak1),
           "an active Jak 1 import reopens its existing progress flow")
     check(GameLibraryCardAction.resolve(
-            title: .jak1, state: .preparing(.finishingSaveCheck)) == .start
+            title: .jak1, state: .preparing(.finishingSaveCheck)) == .start(.jak1)
           && GameLibraryCardAction.resolve(
-            title: .jak1, state: .preparing(.checkingSaves)) == .start,
+            title: .jak1, state: .preparing(.checkingSaves)) == .start(.jak1),
           "save preparation remains a coalesced Play request instead of opening import")
     check(GameLibraryCardAction.resolve(
-            title: .jak1, state: .preparing(.checkingLocalData)) == .verifyJak1Data,
+            title: .jak1, state: .preparing(.checkingLocalData)) == .verifyData(.jak1),
           "a tap during the local-data check retains verification instead of offering reimport")
     check(GameLibraryCardAction.resolve(title: .jak1, state: .notImported)
-          == .verifyJak1Data,
+          == .verifyData(.jak1),
           "apparently missing Jak 1 data is rechecked before the supported import offer")
     check(GameLibraryCardAction.resolve(title: .jak2, state: .ready)
-          == .showUnsupported(.jak2)
+          == .start(.jak2)
+          && GameLibraryCardAction.resolve(title: .jak2, state: .notImported)
+          == .verifyData(.jak2)
           && GameLibraryCardAction.resolve(title: .jak3, state: .planned)
           == .showUnsupported(.jak3),
-          "Jak II and Jak 3 fail closed even if a future state is misclassified")
+          "Jak 1 and Jak II actions retain their title while Jak 3 remains planned")
 
     let emptyTitles = GameLibraryTitle.allCases.map {
         GameLibraryPresentation.displayTitle(for: $0, isValidatedAndLinked: false)
     }
-    check(emptyTitles == ["Set Up Game Data", "Future Title", "Future Title"],
+    check(emptyTitles == ["Set Up Game Data", "Set Up Game Data", "Future Title"],
           "the empty Library uses only neutral shipping titles")
     check(GameLibraryPresentation.displayTitle(for: .jak1, isValidatedAndLinked: true)
             == GameLibraryTitle.jak1.name,
           "validated and linked game data reveals the canonical first title")
     check(GameLibraryPresentation.displayTitle(for: .jak2, isValidatedAndLinked: true)
-            == "Future Title"
+            == GameLibraryTitle.jak2.name
           && GameLibraryPresentation.displayTitle(for: .jak3, isValidatedAndLinked: true)
             == "Future Title",
-          "planned titles remain neutral even if future state is misclassified")
+          "both supported titles reveal their names only when ready and Jak 3 remains neutral")
 
     let offer = GameLibraryOfferCopy.jak1ImportMessage()
     check(offer == "Provide compatible game data from a copy you legally own.",
@@ -488,11 +490,10 @@ do {
           && GameLibraryOfferCopy.unsupportedMessage(for: .jak3)
             == "Support for this future title is planned.",
           "unsupported offers remain truthful without revealing planned titles")
-    check(GameLibraryTitle.jak2.availabilityLabel == "Coming Soon"
+    check(GameLibraryTitle.jak2.availabilityLabel == "Experimental"
           && GameLibraryTitle.jak3.availabilityLabel == "Planned"
-          && GameLibraryOfferCopy.unsupportedMessage(for: .jak2).contains("coming soon")
           && GameLibraryOfferCopy.unsupportedMessage(for: .jak3).contains("planned"),
-          "follow-on title availability uses the same truthful copy everywhere")
+          "Jak II is visibly experimental while Jak 3 stays planned")
     let emptyPresentationText = (emptyTitles + [
         "Not Imported",
         GameLibraryTitle.jak2.availabilityLabel,

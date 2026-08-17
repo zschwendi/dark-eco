@@ -37,7 +37,7 @@ private struct SettingsSheetPresentation: Identifiable {
 struct ContentView: View {
     private enum LauncherDestination {
         case library
-        case gameSetup
+        case gameSetup(GameLibraryTitle)
     }
 
     @Environment(\.scenePhase) private var scenePhase
@@ -59,7 +59,7 @@ struct ContentView: View {
         let arguments = ProcessInfo.processInfo.arguments
         let opensSettings = arguments.contains("-EcoCaptureSettings")
         _launcherDestination = State(initialValue: arguments.contains("-EcoCaptureGameSetup")
-            ? .gameSetup
+            ? .gameSetup(.jak1)
             : .library)
         _settingsPresentation = State(initialValue: opensSettings
             ? SettingsSheetPresentation(id: 1)
@@ -108,13 +108,13 @@ struct ContentView: View {
                     GameLibraryView(
                         session: session,
                         artworkStore: artworkStore,
-                        openJak1Setup: { launcherDestination = .gameSetup },
+                        openGameSetup: { launcherDestination = .gameSetup($0) },
                         openSettings: presentSettings
                     )
                     .onAppear { session.saveSync.launcherDidAppear() }
-                case .gameSetup:
+                case .gameSetup(let title):
                     NavigationStack {
-                        GameDataSetupView(session: session)
+                        GameDataSetupView(session: session, title: title)
                             .navigationTitle("Game Setup")
                             .toolbar {
                                 ToolbarItem(placement: .cancellationAction) {
@@ -432,7 +432,7 @@ private struct BootingView: View {
     var body: some View {
         VStack(spacing: 12) {
             ProgressView()
-            Text("Booting \(GameLibraryTitle.active.name)")
+            Text("Booting \(GameLibraryTitle.jak1.name)")
                 .font(.system(.headline, design: .monospaced))
             Text("KERNEL.CGO, GAME.CGO, then the title level")
                 .font(.system(.footnote, design: .monospaced))
@@ -483,7 +483,7 @@ private struct DiagnosticsOverlay: View {
             ("game data", flag(GOALPadRuntimeBridge.isDataSeamLinked)),
             ("controller", flag(GOALPadRuntimeBridge.isInputSeamLinked)),
             ("audio", flag(GOALPadRuntimeBridge.isAudioSeamLinked)),
-                ("\(GameLibraryTitle.active.name) GOAL code",
+                ("\(GameLibraryTitle.jak1.name) GOAL code",
                  flag(GOALPadRuntimeBridge.isGameCodeLinked)),
             ("renderer", flag(GOALPadRenderSurface.shared.isRendererLinked)),
         ])
@@ -494,7 +494,7 @@ private struct DiagnosticsOverlay: View {
     private var game: some View {
         if let boot = session.boot {
             let chain = session.frameChain
-            section(GameLibraryTitle.active.name, [
+            section(GameLibraryTitle.jak1.name, [
                 ("KERNEL.CGO", "\(boot.kernelObjects) objects"),
                 ("GAME.CGO", "\(boot.gameObjects) objects: \(boot.codeObjects) code, "
                     + "\(boot.dataObjects) data"),

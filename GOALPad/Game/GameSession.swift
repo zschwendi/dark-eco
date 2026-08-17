@@ -30,7 +30,7 @@ final class GameSession {
     let audio = AudioOutput()
     let settings = RenderSettings()
     let presentationSettings = PresentationSettings()
-    let importer = GameDataImporter()
+    let importer = GameDataImporter(profile: .jak1)
     let saveSync = SaveSyncController()
 
     private(set) var dataReport = GameDataReport()

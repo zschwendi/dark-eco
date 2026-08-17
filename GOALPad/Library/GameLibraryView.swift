@@ -5,14 +5,14 @@ import UIKit
 #endif
 
 private enum GameLibraryAlert: Identifiable {
-    case importJak1
+    case importGameData(GameLibraryTitle)
     case unsupported(GameLibraryTitle)
     case artwork(String)
     case startup(String)
 
     var id: String {
         switch self {
-        case .importJak1: "import-jak1"
+        case .importGameData(let title): "import-\(title.id)"
         case .unsupported(let title): "unsupported-\(title.id)"
         case .artwork: "artwork"
         case .startup: "startup"
@@ -24,7 +24,7 @@ struct GameLibraryView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Bindable var session: GameSession
     @Bindable var artworkStore: GameArtworkStore
-    let openJak1Setup: () -> Void
+    let openGameSetup: (GameLibraryTitle) -> Void
     let openSettings: () -> Void
 
     @State private var artworkTitle: GameLibraryTitle?
@@ -87,14 +87,18 @@ struct GameLibraryView: View {
         }
         .alert(item: $presentedAlert) { alert in
             switch alert {
-            case .importJak1:
+            case .importGameData(let title):
                 Alert(
                     title: Text("Set Up Game Data"),
                     message: Text(GameLibraryOfferCopy.importMessage(
-                        for: .active,
-                        canImportRawMedia: session.importer.profile.supportsRawMediaPreparation
+                        for: title,
+                        canImportRawMedia: GameDataProfile.profile(for: title)?
+                            .supportsRawMediaPreparation == true
                     )),
-                    primaryButton: .default(Text("Continue"), action: openJak1Setup),
+                    primaryButton: .default(
+                        Text("Continue"),
+                        action: { openGameSetup(title) }
+                    ),
                     secondaryButton: .cancel()
                 )
             case .unsupported(let title):
@@ -217,7 +221,7 @@ struct GameLibraryView: View {
                       cardWidth: CGFloat? = nil) -> some View {
         let displayTitle = GameLibraryPresentation.displayTitle(
             for: title,
-            isValidatedAndLinked: isGameDataValidatedAndLinked
+            isValidatedAndLinked: isGameDataValidatedAndLinked(for: title)
         )
         return GameLibraryTile(
             title: title,
@@ -235,8 +239,10 @@ struct GameLibraryView: View {
         )
     }
 
-    private var isGameDataValidatedAndLinked: Bool {
-        session.dataReport.status == .ready && GOALPadRuntimeBridge.isGameCodeLinked
+    private func isGameDataValidatedAndLinked(for title: GameLibraryTitle) -> Bool {
+        title == session.importer.profile.title
+            && session.dataReport.status == .ready
+            && GOALPadRuntimeBridge.isGameCodeLinked
     }
 
     private var isPhone: Bool {
@@ -253,7 +259,8 @@ struct GameLibraryView: View {
     }
 
     private func state(for title: GameLibraryTitle) -> GameLibraryState {
-        guard title == .active else { return .planned }
+        guard GameDataProfile.profile(for: title) != nil else { return .planned }
+        guard title == session.importer.profile.title else { return .notImported }
         switch session.importer.state {
         case .scanning:
             return .preparing(.importing(nil))
@@ -288,7 +295,7 @@ struct GameLibraryView: View {
     }
 
     private func progress(for title: GameLibraryTitle) -> GameDataImporter.Progress? {
-        guard title == .active,
+        guard title == session.importer.profile.title,
               case .copying(let progress) = session.importer.state else { return nil }
         return progress
     }
@@ -297,20 +304,45 @@ struct GameLibraryView: View {
         switch GameLibraryCardAction.resolve(
             title: title,
             state: state(for: title),
-            activeTitle: .active,
-            supportsRuntimeLaunch: session.importer.profile.supportsRuntimeLaunch
+            supportsRuntimeLaunch: GameDataProfile.profile(for: title)?
+                .supportsRuntimeLaunch == true
         ) {
-        case .start:
-            Task { await session.start() }
-        case .openJak1Setup:
-            openJak1Setup()
-        case .verifyJak1Data:
+        case .start(let title):
+            if title == session.importer.profile.title {
+                Task { await session.start() }
+            } else {
+                openGameSetup(title)
+            }
+        case .openSetup(let title):
+            openGameSetup(title)
+        case .verifyData(let title):
             Task {
-                let report = await session.refreshDataReport()
-                if report.status == .ready {
-                    await session.start()
+                guard let profile = GameDataProfile.profile(for: title) else {
+                    presentedAlert = .unsupported(title)
+                    return
+                }
+                let report: GameDataReport
+                if title == session.importer.profile.title {
+                    report = await session.refreshDataReport()
                 } else {
-                    presentedAlert = .importJak1
+                    report = await Task.detached {
+                        GameDataInspector.inspect(
+                            gameDirectory: GameDataLayout.gameDirectory(
+                                for: profile,
+                                in: GameDataLayout.documentsDirectory
+                            ),
+                            profile: profile
+                        )
+                    }.value
+                }
+                if report.status == .ready {
+                    if title == session.importer.profile.title {
+                        await session.start()
+                    } else {
+                        openGameSetup(title)
+                    }
+                } else {
+                    presentedAlert = .importGameData(title)
                 }
             }
         case .showUnsupported(let title):

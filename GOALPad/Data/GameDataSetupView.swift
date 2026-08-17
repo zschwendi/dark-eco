@@ -1,15 +1,31 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Imports player-supplied data for the compile-selected title without bundling or downloading
+/// Imports player-supplied data for one explicitly selected title without bundling or downloading
 /// game content.
 struct GameDataSetupView: View {
     private static let rawISOType = UTType(filenameExtension: "iso", conformingTo: .data)
     private static let sevenZipType = UTType(filenameExtension: "7z", conformingTo: .archive)
 
     @Bindable var session: GameSession
+    let title: GameLibraryTitle
+    let profile: GameDataProfile
+    @State private var routedImporter: GameDataImporter
+    @State private var routedDataReport: GameDataReport
+    @State private var isRefreshingRoutedDataReport = false
     @State private var isChoosingSource = false
     @State private var selectionError: String?
+
+    init(session: GameSession, title: GameLibraryTitle) {
+        guard let profile = GameDataProfile.profile(for: title) else {
+            preconditionFailure("Game setup requires a supported title")
+        }
+        self.session = session
+        self.title = title
+        self.profile = profile
+        _routedImporter = State(initialValue: GameDataImporter(profile: profile))
+        _routedDataReport = State(initialValue: GameDataReport(profile: profile))
+    }
 
     var body: some View {
         ScrollView {
@@ -26,7 +42,7 @@ struct GameDataSetupView: View {
                 } else {
                     importState
                 }
-                if let error = selectionError ?? session.startupError {
+                if let error = selectionError ?? (usesSessionData ? session.startupError : nil) {
                     messagePanel("Needs attention", message: error, color: DarkEcoTheme.danger)
                 }
             }
@@ -40,48 +56,36 @@ struct GameDataSetupView: View {
             DarkEcoLauncherBackground()
                 .ignoresSafeArea()
         }
-        .task { _ = await session.refreshDataReport() }
+        .task { _ = await refreshDataReport() }
         .fileImporter(isPresented: $isChoosingSource,
                       allowedContentTypes: importContentTypes,
                       allowsMultipleSelection: false) { result in
             switch result {
             case .success(let urls):
                 guard let source = urls.first else {
-                    #if GOALPAD_JAK2
                     selectionError = "No source was selected. Choose compatible "
-                        + "\(GameDataProfile.active.displayName) data and try again."
-                    #else
-                    selectionError = "No source was selected. Choose one compatible source and try again."
-                    #endif
+                        + "\(profile.displayName) data and try again."
                     return
                 }
                 selectionError = nil
-                session.importer.start(from: source) {
-                    session.saveSync.gameDataImportDidFinish()
-                    await session.refreshDataReport()
+                importer.start(from: source) {
+                    if usesSessionData {
+                        session.saveSync.gameDataImportDidFinish()
+                    }
+                    await refreshDataReport()
                 }
             case .failure:
-                #if GOALPAD_JAK2
                 selectionError = "Dark Eco could not open that source. Choose another compatible "
-                    + "\(GameDataProfile.active.displayName) source and try again."
-                #else
-                selectionError = "Dark Eco could not open that source. Choose another compatible source and try again."
-                #endif
+                    + "\(profile.displayName) source and try again."
             }
         }
     }
 
     private var header: some View {
-        Group {
-        #if GOALPAD_JAK2
         Text(GameLibraryOfferCopy.importMessage(
-            for: GameLibraryTitle.active,
+            for: title,
             canImportRawMedia: canImportRawISO
         ))
-        #else
-        Text(GameLibraryOfferCopy.jak1ImportMessage())
-        #endif
-        }
             .font(.subheadline)
             .foregroundStyle(.secondary)
     }
@@ -89,10 +93,10 @@ struct GameDataSetupView: View {
     private var dataStatus: some View {
         DarkEcoPanel {
             VStack(alignment: .leading, spacing: 7) {
-                Label(session.dataReport.summary, systemImage: statusIcon)
+                Label(dataReport.summary, systemImage: statusIcon)
                     .font(.headline)
                     .foregroundStyle(statusColor)
-                if session.dataReport.status == .ready {
+                if dataReport.status == .ready {
                     Text(GameDataImportPresentation.completedStorageGuidance)
                         .font(.body)
                         .foregroundStyle(.white.opacity(0.84))
@@ -125,7 +129,7 @@ struct GameDataSetupView: View {
 
     @ViewBuilder
     private var importState: some View {
-        switch session.importer.state {
+        switch importer.state {
         case .scanning:
             importProgress(GameDataImportProgress(phase: .scanning))
         case .copying(let progress):
@@ -191,7 +195,7 @@ struct GameDataSetupView: View {
 
                 if progress.phase != .activatingCandidate {
                     Button(role: .destructive) {
-                        session.importer.cancel()
+                        importer.cancel()
                     } label: {
                         Text("Cancel import")
                             .foregroundStyle(DarkEcoTheme.danger)
@@ -223,7 +227,7 @@ struct GameDataSetupView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(DarkEcoTheme.accent)
-            .disabled(!session.importer.canStart || session.isRefreshingDataReport)
+            .disabled(!importer.canStart || isRefreshingDataReport)
 
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 12) { recheckButton; playButton }
@@ -247,7 +251,10 @@ struct GameDataSetupView: View {
             }
 
             Button {
-                Task { await session.start() }
+                Task {
+                    guard usesSessionData else { return }
+                    await session.start()
+                }
             } label: {
                 Text("Play Now")
                     .font(.title3.weight(.bold))
@@ -257,16 +264,17 @@ struct GameDataSetupView: View {
             .buttonStyle(.borderedProminent)
             .tint(DarkEcoTheme.accent)
             .frame(maxWidth: 360)
-            .disabled(session.isRefreshingDataReport || session.startupPhase.isPreparing)
+            .disabled(!usesSessionData || isRefreshingDataReport
+                || session.startupPhase.isPreparing)
         }
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private var recheckButton: some View {
                 Button {
-                    Task { await session.refreshDataReport() }
+                    Task { _ = await refreshDataReport() }
                 } label: {
-                    if session.isRefreshingDataReport {
+                    if isRefreshingDataReport {
                         ProgressView()
                             .controlSize(.small)
                         Text("Rechecking…")
@@ -275,22 +283,23 @@ struct GameDataSetupView: View {
                     }
                 }
                 .buttonStyle(.bordered)
-                .disabled(session.isRefreshingDataReport)
+                .disabled(isRefreshingDataReport)
     }
 
     private var playButton: some View {
-        Button("Play Now") { Task { await session.start() } }
+        Button("Play Now") {
+            Task {
+                guard usesSessionData else { return }
+                await session.start()
+            }
+        }
             .buttonStyle(.bordered)
-            #if GOALPAD_JAK2
-            .disabled(!session.dataReport.canLaunchRuntime || session.isRefreshingDataReport
+            .disabled(!usesSessionData || !dataReport.canLaunchRuntime || isRefreshingDataReport
                 || session.startupPhase.isPreparing)
-            #else
-            .disabled(!session.dataReport.canBoot || session.isRefreshingDataReport
-                || session.startupPhase.isPreparing)
-            #endif
     }
 
     private var startupMessage: String? {
+        guard usesSessionData else { return nil }
         switch session.startupPhase {
         case .waitingForForegroundPreparation:
             "Finishing the current save check before gameplay…"
@@ -323,24 +332,24 @@ struct GameDataSetupView: View {
     }
 
     private var canImportRawISO: Bool {
-        GameDataProfile.active.supportsRawMediaPreparation
-            && RawISOCandidateProducer.isAvailable(for: .active)
+        profile.supportsRawMediaPreparation
+            && RawISOCandidateProducer.isAvailable(for: profile)
     }
 
     private var isImportComplete: Bool {
-        session.dataReport.status == .ready
+        dataReport.status == .ready
     }
 
     private var showsSourceSelection: Bool {
         guard !isImportComplete else { return false }
-        return switch session.importer.state {
+        return switch importer.state {
         case .scanning, .copying, .cancelling: false
         case .idle, .finished, .cancelled, .failed: true
         }
     }
 
     private var statusIcon: String {
-        switch session.dataReport.status {
+        switch dataReport.status {
         case .checking: "arrow.triangle.2.circlepath"
         case .empty: "tray"
         case .incomplete: "exclamationmark.triangle"
@@ -349,11 +358,48 @@ struct GameDataSetupView: View {
     }
 
     private var statusColor: Color {
-        switch session.dataReport.status {
+        switch dataReport.status {
         case .checking: return DarkEcoTheme.accentGlow
         case .empty: return .white.opacity(0.72)
         case .incomplete: return DarkEcoTheme.warning
         case .ready: return DarkEcoTheme.success
         }
+    }
+
+    private var usesSessionData: Bool {
+        session.importer.profile == profile
+    }
+
+    private var importer: GameDataImporter {
+        usesSessionData ? session.importer : routedImporter
+    }
+
+    private var dataReport: GameDataReport {
+        usesSessionData ? session.dataReport : routedDataReport
+    }
+
+    private var isRefreshingDataReport: Bool {
+        usesSessionData ? session.isRefreshingDataReport : isRefreshingRoutedDataReport
+    }
+
+    @discardableResult
+    private func refreshDataReport() async -> GameDataReport {
+        if usesSessionData {
+            return await session.refreshDataReport()
+        }
+        guard !isRefreshingRoutedDataReport else { return routedDataReport }
+        isRefreshingRoutedDataReport = true
+        let report = await Task.detached {
+            GameDataInspector.inspect(
+                gameDirectory: GameDataLayout.gameDirectory(
+                    for: profile,
+                    in: GameDataLayout.documentsDirectory
+                ),
+                profile: profile
+            )
+        }.value
+        routedDataReport = report
+        isRefreshingRoutedDataReport = false
+        return report
     }
 }

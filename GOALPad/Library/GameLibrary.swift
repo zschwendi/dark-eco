@@ -175,12 +175,7 @@ nonisolated enum GameLibraryTitle: String, CaseIterable, Equatable, Identifiable
     var availabilityLabel: String {
         switch self {
         case .jak1: "Available"
-        case .jak2:
-            #if GOALPAD_JAK2
-            "Experimental"
-            #else
-            "Coming Soon"
-            #endif
+        case .jak2: "Experimental"
         case .jak3: "Planned"
         }
     }
@@ -197,10 +192,12 @@ nonisolated enum GameLibraryTitle: String, CaseIterable, Equatable, Identifiable
 nonisolated enum GameLibraryPresentation {
     static func displayTitle(for title: GameLibraryTitle,
                              isValidatedAndLinked: Bool) -> String {
-        if title == .active {
-            return isValidatedAndLinked ? title.shelfName : "Set Up Game Data"
+        switch title {
+        case .jak1, .jak2:
+            isValidatedAndLinked ? title.shelfName : "Set Up Game Data"
+        case .jak3:
+            "Future Title"
         }
-        return "Future Title"
     }
 }
 
@@ -236,29 +233,28 @@ nonisolated enum GameLibraryPreparation: Equatable {
 }
 
 nonisolated enum GameLibraryCardAction: Equatable {
-    case start
-    case openJak1Setup
-    case verifyJak1Data
+    case start(GameLibraryTitle)
+    case openSetup(GameLibraryTitle)
+    case verifyData(GameLibraryTitle)
     case showUnsupported(GameLibraryTitle)
 
     static func resolve(
         title: GameLibraryTitle,
         state: GameLibraryState,
-        activeTitle: GameLibraryTitle = .jak1,
         supportsRuntimeLaunch: Bool = true
     ) -> Self {
-        guard title == activeTitle else { return .showUnsupported(title) }
+        guard title != .jak3 else { return .showUnsupported(title) }
         switch state {
         case .ready:
-            return supportsRuntimeLaunch ? .start : .openJak1Setup
+            return supportsRuntimeLaunch ? .start(title) : .openSetup(title)
         case .preparing(.importing), .preparing(.cancellingImport):
-            return .openJak1Setup
+            return .openSetup(title)
         case .preparing(.finishingSaveCheck), .preparing(.checkingSaves):
-            return .start
+            return .start(title)
         case .preparing(.checkingLocalData):
-            return .verifyJak1Data
+            return .verifyData(title)
         case .notImported, .needsAttention:
-            return .verifyJak1Data
+            return .verifyData(title)
         case .planned:
             return .showUnsupported(title)
         }

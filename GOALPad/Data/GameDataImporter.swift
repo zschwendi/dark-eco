@@ -63,7 +63,7 @@ final class GameDataImporter {
     }
 
     private(set) var state: State = .idle
-    let profile = GameDataProfile.active
+    let profile: GameDataProfile
     private let worker: GameDataInstallWorker
     private let preparedFolderProducer: any GameDataCandidateProducing
     private let rawISOProducer: RawISOCandidateProducer
@@ -74,16 +74,19 @@ final class GameDataImporter {
     private var highestReportedOverallProgress = 0.0
 
     init(
-        worker: GameDataInstallWorker = GameDataInstallWorker(),
+        profile: GameDataProfile,
+        worker: GameDataInstallWorker? = nil,
         preparedFolderProducer: any GameDataCandidateProducing = PreparedFolderCandidateProducer(),
         idleTimerAssertions: DeviceIdleTimerAssertions? = nil
     ) {
-        self.worker = worker
+        self.profile = profile
+        self.worker = worker ?? GameDataInstallWorker(configuration: .app(for: profile))
         self.preparedFolderProducer = preparedFolderProducer
         self.idleTimerAssertions = idleTimerAssertions ?? .shared
-        rawISOProducer = RawISOCandidateProducer()
+        rawISOProducer = RawISOCandidateProducer(profile: profile)
         archivedISOProducer = ZIPISOCandidateProducer(
             downstream: RawISOCandidateProducer(
+                profile: profile,
                 overallProgressRange: 0.25...0.85
             )
         )
@@ -100,7 +103,7 @@ final class GameDataImporter {
 
     var canImportRawMedia: Bool {
         profile.supportsRawMediaPreparation
-            && RawISOCandidateProducer.isAvailable()
+            && RawISOCandidateProducer.isAvailable(for: profile)
     }
 
     /// `source` may be a supported raw or archived disc image, the directory holding `iso/`

@@ -1,9 +1,12 @@
 import Foundation
 
 nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
-    static func isAvailable() -> Bool { false }
+    static func isAvailable(for _: GameDataProfile) -> Bool { false }
 
-    init(overallProgressRange _: ClosedRange<Double> = 0.15...0.85) {}
+    init(
+        profile _: GameDataProfile,
+        overallProgressRange _: ClosedRange<Double> = 0.15...0.85
+    ) {}
 
     func prepareCandidate(
         from source: URL,
@@ -173,11 +176,13 @@ private func importerCancellationWaitsForTeardown() async throws {
 
     let worker = GameDataInstallWorker(configuration: .init(
         activeDirectory: root.appending(path: "active", directoryHint: .isDirectory),
-        stagingRoot: root.appending(path: "staging", directoryHint: .isDirectory)))
+        stagingRoot: root.appending(path: "staging", directoryHint: .isDirectory),
+        profile: .jak1))
     let producer = ControlledCandidateProducer()
     let recorder = IdleTimerRecorder()
     let idleTimer = DeviceIdleTimerAssertions { recorder.record($0) }
     let importer = GameDataImporter(
+        profile: .jak1,
         worker: worker,
         preparedFolderProducer: producer,
         idleTimerAssertions: idleTimer)
@@ -239,9 +244,13 @@ private func cancellationDominatesLateProducerFailure() async throws {
 
     let worker = GameDataInstallWorker(configuration: .init(
         activeDirectory: root.appending(path: "active", directoryHint: .isDirectory),
-        stagingRoot: root.appending(path: "staging", directoryHint: .isDirectory)))
+        stagingRoot: root.appending(path: "staging", directoryHint: .isDirectory),
+        profile: .jak2))
     let producer = LateFailureCandidateProducer()
-    let importer = GameDataImporter(worker: worker, preparedFolderProducer: producer)
+    let importer = GameDataImporter(
+        profile: .jak2,
+        worker: worker,
+        preparedFolderProducer: producer)
     var finishCalls = 0
 
     importer.start(from: source) { finishCalls += 1 }
@@ -274,6 +283,17 @@ private func idleTimerOwnersDoNotClobberEachOther() {
           "the device idle timer is released after the final owner finishes")
 }
 
+@MainActor
+private func importerRetainsExplicitProfile() {
+    print("importers retain their explicitly selected data profile")
+    let jak1 = GameDataImporter(profile: .jak1)
+    let jak2 = GameDataImporter(profile: .jak2)
+    check(jak1.profile == .jak1 && jak2.profile == .jak2,
+          "Jak 1 and Jak II importers retain independent named profiles")
+    check(!jak1.canImportRawMedia && !jak2.canImportRawMedia,
+          "raw-media availability is queried for each explicit profile")
+}
+
 @main
 private struct GameDataImportLifecycleCheck {
     @MainActor
@@ -282,6 +302,7 @@ private struct GameDataImportLifecycleCheck {
             try await importerCancellationWaitsForTeardown()
             try await cancellationDominatesLateProducerFailure()
             idleTimerOwnersDoNotClobberEachOther()
+            importerRetainsExplicitProfile()
         } catch {
             print("  FAIL unexpected error: \(error)")
             failures += 1
