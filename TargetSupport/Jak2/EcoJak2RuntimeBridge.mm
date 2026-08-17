@@ -39,6 +39,8 @@ static_assert(sizeof(goal_jak2_progress_menu_semantic_snapshot) == 16,
               "Jak II progress semantic ABI drift");
 static_assert(sizeof(goal_jak2_player_context_snapshot) == 8,
               "Jak II player context ABI drift");
+static_assert(sizeof(goal_jak2_face_prompt_touch_snapshot) == 12,
+              "Jak II face prompt touch ABI drift");
 static_assert((int32_t)GOALPadJak2TraversalStateUnknown ==
                   GOAL_JAK2_PLAYER_TRAVERSAL_UNKNOWN,
               "Jak II unknown traversal drift");
@@ -1352,6 +1354,13 @@ GOALPadCutsceneSkipTouchSnapshot unavailable_cutscene_snapshot() {
   return snapshot;
 }
 
+bool valid_face_prompt_touch_snapshot(const goal_jak2_face_prompt_touch_snapshot& snapshot) {
+  constexpr uint32_t kFaceButtonMask = GOALPadButtonTriangle | GOALPadButtonCircle |
+                                       GOALPadButtonCross | GOALPadButtonSquare;
+  return snapshot.available == 1 && !(snapshot.sequence & 1u) && snapshot.requested_buttons &&
+         !(snapshot.requested_buttons & ~kFaceButtonMask);
+}
+
 }  // namespace
 
 @interface GOALPadKernelType ()
@@ -1796,7 +1805,19 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
 }
 
 + (GOALPadFacePromptTouchSnapshot)facePromptTouchSnapshot {
-  return {};
+  std::lock_guard<std::mutex> lock(g_mutex);
+  goal_jak2_face_prompt_touch_snapshot core = {};
+  if (g_state != SessionState::Running ||
+      goal_jak2_runtime_get_face_prompt_touch_snapshot(&core) != GOAL_JAK2_RUNTIME_OK ||
+      !valid_face_prompt_touch_snapshot(core)) {
+    return {};
+  }
+
+  GOALPadFacePromptTouchSnapshot snapshot = {};
+  snapshot.valid = YES;
+  snapshot.requestedButtons = core.requested_buttons;
+  snapshot.sequence = core.sequence;
+  return snapshot;
 }
 
 + (GOALPadGameFrameStateSnapshot)gameFrameStateSnapshot {

@@ -14,6 +14,9 @@
 #include "game/kernel/core/pad.h"
 #include "game/kernel/core/sound_rpc_jak2.h"
 
+static_assert(sizeof(goal_jak2_face_prompt_touch_snapshot) == 12,
+              "Jak II face prompt touch ABI drift");
+
 struct goal_jak2_metal_host {
   int marker;
 };
@@ -23,6 +26,7 @@ namespace {
 goal_jak2_metal_host g_host = {1};
 goal_jak2_runtime_metrics g_runtime = {};
 goal_jak2_player_context_snapshot g_player_context = {};
+goal_jak2_face_prompt_touch_snapshot g_face_prompt_touch = {};
 goal_jak2_progress_menu_snapshot g_progress = {};
 goal_jak2_progress_menu_semantic_snapshot g_progress_semantic = {};
 goal_jak2_progress_menu_diagnostics g_progress_diagnostics = {};
@@ -295,6 +299,15 @@ goal_jak2_runtime_status goal_jak2_runtime_get_player_context_snapshot(
     return GOAL_JAK2_RUNTIME_INVALID_ARGUMENT;
   }
   *out = g_player_context;
+  return GOAL_JAK2_RUNTIME_OK;
+}
+
+goal_jak2_runtime_status goal_jak2_runtime_get_face_prompt_touch_snapshot(
+    goal_jak2_face_prompt_touch_snapshot* out) {
+  if (!out) {
+    return GOAL_JAK2_RUNTIME_INVALID_ARGUMENT;
+  }
+  *out = g_face_prompt_touch;
   return GOAL_JAK2_RUNTIME_OK;
 }
 
@@ -584,10 +597,22 @@ int main() {
           "an unknown look ABI value fails closed without suppressing valid traversal");
     g_player_context = {GOAL_JAK2_PLAYER_TRAVERSAL_JETBOARD,
                         GOAL_JAK2_PLAYER_LOOK_AROUND};
+    g_face_prompt_touch = {1, GOALPadButtonTriangle, 8};
+    GOALPadFacePromptTouchSnapshot face_prompt = GOALPadRuntimeBridge.facePromptTouchSnapshot;
     check(!GOALPadRuntimeBridge.warpGateTouchSnapshot.valid &&
-              !GOALPadRuntimeBridge.cutsceneSkipTouchSnapshot.valid &&
-              !GOALPadRuntimeBridge.facePromptTouchSnapshot.valid,
-          "unsupported Jak II touch diagnostics fail closed");
+              !GOALPadRuntimeBridge.cutsceneSkipTouchSnapshot.valid && face_prompt.valid &&
+              face_prompt.requestedButtons == GOALPadButtonTriangle && face_prompt.sequence == 8,
+          "the bridge publishes only the supported Jak II face prompt touch snapshot");
+    g_face_prompt_touch.sequence = 9;
+    check(!GOALPadRuntimeBridge.facePromptTouchSnapshot.valid,
+          "the bridge rejects an odd native face prompt sequence");
+    g_face_prompt_touch = {1, GOALPadButtonTriangle | (1u << 11), 10};
+    check(!GOALPadRuntimeBridge.facePromptTouchSnapshot.valid,
+          "the bridge rejects a native mask containing a non-face button");
+    g_face_prompt_touch = {2, GOALPadButtonTriangle, 10};
+    check(!GOALPadRuntimeBridge.facePromptTouchSnapshot.valid,
+          "the bridge rejects a malformed native availability value");
+    g_face_prompt_touch = {1, GOALPadButtonTriangle, 10};
 
     GOALPadControllerState controller = {};
     controller.buttons = GOALPadButtonCross | GOALPadButtonL2;
@@ -623,10 +648,13 @@ int main() {
           "the runtime bridge ticks one frame and returns a state snapshot");
     check(!frame.exitToLibraryRequested && frame.successfulSaveGeneration == 0 &&
               frame.framesRun == 1 && frame.gameMode == GOALPadGameModeProgress &&
+              frame.facePromptTouch.valid &&
+              frame.facePromptTouch.requestedButtons == GOALPadButtonTriangle &&
+              frame.facePromptTouch.sequence == 10 &&
               frame.lookAroundState == GOALPadLookAroundStateFirstPerson &&
               frame.jak2TraversalState == GOALPadJak2TraversalStateJetboard &&
               frame.speederState == GOALPadSpeederStateUnknown,
-          "Jak II frame snapshots aggregate typed player context without inventing speeder state");
+          "Jak II frame snapshots aggregate face prompt and typed player context state");
     check([surface endFrame], "the surface reports a submitted drawable");
     check(GOALPadRuntimeBridge.framesRun == 1, "the runtime frame counter advances");
     GOALPadRendererStats stats = surface.stats;

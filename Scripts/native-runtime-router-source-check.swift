@@ -48,6 +48,8 @@ let jak2Bridge = try String(contentsOf: root.appendingPathComponent(
     "TargetSupport/Jak2/EcoJak2RuntimeBridge.mm"), encoding: .utf8)
 let jak2HostHeader = try String(contentsOf: root.appendingPathComponent(
     "OpenGOAL/game/graphics/pipelines/metal/metal_jak2_host_bridge.h"), encoding: .utf8)
+let jak2RuntimeHeader = try String(contentsOf: root.appendingPathComponent(
+    "OpenGOAL/game/kernel/core/jak2_runtime.h"), encoding: .utf8)
 
 check(header.contains("GOALPadGameIdentifierJak1 = 0") &&
       header.contains("GOALPadGameIdentifierJak2 = 1"),
@@ -118,6 +120,28 @@ check(jak2Bridge.contains("goal_kernel_core_set_portable_display_enabled") &&
       jak2Bridge.contains("goal_kernel_core_set_portable_display_size") &&
       jak2Bridge.contains("goal_jak2_metal_host_set_presentation_geometry"),
       "the Jak II bridge uses the existing portable display seam and explicit Metal geometry API")
+
+let publicFacePrompt = section(header,
+                               from: "typedef struct GOALPadFacePromptTouchSnapshot",
+                               to: "typedef struct GOALPadGameFrameStateSnapshot")
+let jak2FacePrompt = section(jak2Bridge,
+                             from: "+ (GOALPadFacePromptTouchSnapshot)facePromptTouchSnapshot",
+                             to: "+ (GOALPadGameFrameStateSnapshot)gameFrameStateSnapshot")
+check(publicFacePrompt.contains("BOOL valid;") &&
+      publicFacePrompt.contains("uint32_t requestedButtons;") &&
+      publicFacePrompt.contains("uint32_t sequence;") &&
+      !publicFacePrompt.contains("uint64_t owner;") &&
+      !publicFacePrompt.contains("uint32_t heartbeat;"),
+      "the shared face prompt ABI remains limited to its current public fields")
+check(jak2RuntimeHeader.contains("typedef struct goal_jak2_face_prompt_touch_snapshot") &&
+      jak2RuntimeHeader.contains("goal_jak2_runtime_get_face_prompt_touch_snapshot"),
+      "the nested Jak II runtime exposes one typed copied face prompt snapshot")
+check(jak2FacePrompt.contains("goal_jak2_runtime_get_face_prompt_touch_snapshot(&core)") &&
+      jak2FacePrompt.contains("valid_face_prompt_touch_snapshot(core)") &&
+      jak2FacePrompt.contains("snapshot.requestedButtons = core.requested_buttons;") &&
+      jak2FacePrompt.contains("snapshot.sequence = core.sequence;") &&
+      !jak2FacePrompt.contains("owner") && !jak2FacePrompt.contains("heartbeat"),
+      "the Jak II Objective-C bridge validates and copies only the public prompt fields")
 check(jak2HostHeader.contains("goal_jak2_metal_presentation_geometry") &&
       jak2HostHeader.contains("goal_jak2_metal_host_set_presentation_geometry") &&
       jak2HostHeader.contains("goal_jak2_metal_host_get_presentation_geometry"),
