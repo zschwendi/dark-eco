@@ -1,4 +1,5 @@
 #import "GOALPadRuntimeBridge.h"
+#import "GOALPadRuntimeRouterPrivate.h"
 
 #include "GOALPadEngineSeams.h"
 #include "GOALPadMetalHost.hpp"
@@ -400,6 +401,35 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
 
 @end
 
+#if GOALPAD_HAS_JAK2_RUNTIME
+@interface GOALPadJak2CameraCorrectionTailAdapter : GOALPadCameraCorrectionTailSnapshot {
+ @private
+  GOALPadJak2CameraCorrectionTailSnapshot *_snapshot;
+}
+- (instancetype)initWithSnapshot:(GOALPadJak2CameraCorrectionTailSnapshot *)snapshot;
+@end
+
+@implementation GOALPadJak2CameraCorrectionTailAdapter
+
+- (instancetype)initWithSnapshot:(GOALPadJak2CameraCorrectionTailSnapshot *)snapshot {
+  self = [super init];
+  if (self) {
+    _snapshot = snapshot;
+  }
+  return self;
+}
+
+- (GOALPadCameraCorrectionTailInfo)info {
+  return _snapshot.info;
+}
+
+- (GOALPadCameraCorrectionTailFrame)frameAtIndex:(uint32_t)index {
+  return [_snapshot frameAtIndex:index];
+}
+
+@end
+#endif
+
 @interface GOALPadRenderSurface ()
 @property(nonatomic, readwrite) NSString *lastError;
 @end
@@ -409,6 +439,8 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
   CGSize _drawableSize;
   int32_t _internalScale;
   BOOL _horizontalPlusEnabled;
+  BOOL _detailedFrameStatsEnabled;
+  NSString *_lastError;
 }
 
 + (GOALPadRenderSurface *)shared {
@@ -426,16 +458,40 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
     _drawableSize = CGSizeZero;
     _internalScale = 2;
     _horizontalPlusEnabled = NO;
+    _detailedFrameStatsEnabled = NO;
     self.lastError = @"";
   }
   return self;
 }
 
 - (BOOL)isRendererLinked {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return [GOALPadJak2RenderSurface shared].isRendererLinked;
+  }
+#else
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return NO;
+  }
+#endif
   return goalpad::metal_host_is_running();
 }
 
 - (void)attachLayer:(CAMetalLayer *)layer {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    _layer = layer;
+    [[GOALPadJak2RenderSurface shared] attachLayer:layer];
+    self.lastError = @"";
+    return;
+  }
+#else
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    _layer = layer;
+    self.lastError = @"The Jak II renderer is not linked in this build.";
+    return;
+  }
+#endif
   if (layer == nil) {
     // Scene deactivation and view removal are both idempotent. Close any armed tick before
     // dropping the only retained presentation-layer reference.
@@ -450,6 +506,26 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
 }
 
 - (void)setDrawableSize:(CGSize)size {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    if (size.width < 1 || size.height < 1) {
+      return;
+    }
+    _drawableSize = size;
+    _layer.drawableSize = size;
+    [[GOALPadJak2RenderSurface shared] setDrawableSize:size];
+    return;
+  }
+#else
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    if (size.width < 1 || size.height < 1) {
+      return;
+    }
+    _drawableSize = size;
+    _layer.drawableSize = size;
+    return;
+  }
+#endif
   if (size.width < 1 || size.height < 1) {
     return;
   }
@@ -459,16 +535,75 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
 }
 
 - (void)setInternalResolutionScale:(int32_t)scale {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    _internalScale = std::clamp(scale, (int32_t)1, kMaxInternalScale);
+    [[GOALPadJak2RenderSurface shared] setInternalResolutionScale:_internalScale];
+    return;
+  }
+#else
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    _internalScale = std::clamp(scale, (int32_t)1, kMaxInternalScale);
+    return;
+  }
+#endif
   _internalScale = std::clamp(scale, (int32_t)1, kMaxInternalScale);
 }
 
 - (void)setHorizontalPlusEnabled:(BOOL)enabled {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    _horizontalPlusEnabled = enabled;
+    [[GOALPadJak2RenderSurface shared] setHorizontalPlusEnabled:enabled];
+    return;
+  }
+#else
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    _horizontalPlusEnabled = enabled;
+    return;
+  }
+#endif
   _horizontalPlusEnabled = enabled;
   [self updatePortableDisplaySize];
 }
 
 - (void)setDetailedFrameStatsEnabled:(BOOL)enabled {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    _detailedFrameStatsEnabled = enabled;
+    [[GOALPadJak2RenderSurface shared] setDetailedFrameStatsEnabled:enabled];
+    return;
+  }
+#else
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    _detailedFrameStatsEnabled = enabled;
+    return;
+  }
+#endif
+  _detailedFrameStatsEnabled = enabled;
   goalpad::metal_host_set_detailed_frame_stats_enabled(enabled);
+}
+
+- (void)goalpadReplayConfigurationForActiveGame {
+  _lastError = @"";
+  [self attachLayer:_layer];
+  if (_drawableSize.width >= 1 && _drawableSize.height >= 1) {
+    [self setDrawableSize:_drawableSize];
+  }
+  [self setInternalResolutionScale:_internalScale];
+  [self setHorizontalPlusEnabled:_horizontalPlusEnabled];
+  [self setDetailedFrameStatsEnabled:_detailedFrameStatsEnabled];
+}
+
+- (void)goalpadDetachActiveBackendPreservingConfiguration {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    [[GOALPadJak2RenderSurface shared] attachLayer:nil];
+    return;
+  }
+#endif
+  goalpad::metal_host_end_frame();
+  goalpad::metal_host_attach_layer(nil);
 }
 
 - (void)updatePortableDisplaySize {
@@ -483,6 +618,15 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
 }
 
 - (GOALPadSurfaceGeometry)geometry {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return [[GOALPadJak2RenderSurface shared] geometry];
+  }
+#else
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return {};
+  }
+#endif
   const auto calculated = goalpad::presentation_geometry(
       (int32_t)_drawableSize.width, (int32_t)_drawableSize.height, _internalScale,
       _horizontalPlusEnabled);
@@ -497,6 +641,15 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
 }
 
 - (GOALPadRendererStats)stats {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return [GOALPadJak2RenderSurface shared].stats;
+  }
+#else
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return {};
+  }
+#endif
   const auto core = goalpad::metal_host_stats();
   GOALPadRendererStats stats = {core.chains_sent,   core.chains_rendered,  core.chains_dropped,
                                 core.frames_armed, core.frames_without_chain,
@@ -671,27 +824,98 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
 }
 
 - (GOALPadCameraCorrectionTailInfo)cameraCorrectionTailInfo {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return [GOALPadJak2RenderSurface shared].cameraCorrectionTailInfo;
+  }
+#else
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return {};
+  }
+#endif
   return makeCameraCorrectionTailInfo(goalpad::metal_host_camera_correction_tail());
 }
 
 - (GOALPadCameraCorrectionTailSnapshot *)cameraCorrectionTailSnapshot {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return [[GOALPadJak2CameraCorrectionTailAdapter alloc]
+        initWithSnapshot:[GOALPadJak2RenderSurface shared].cameraCorrectionTailSnapshot];
+  }
+#else
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return [[GOALPadCameraCorrectionTailSnapshot alloc] initWithNativeTail:nullptr];
+  }
+#endif
   const auto &tail = goalpad::metal_host_camera_correction_tail();
   return [[GOALPadCameraCorrectionTailSnapshot alloc] initWithNativeTail:&tail];
 }
 
 - (GOALPadTargetControlTelemetry)targetControlTelemetry {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return [GOALPadJak2RenderSurface shared].targetControlTelemetry;
+  }
+#else
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return {};
+  }
+#endif
   return makeTargetControlTelemetry(goalpad::metal_host_target_control_telemetry());
 }
 
 - (NSString *)levelsWanted {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return [GOALPadJak2RenderSurface shared].levelsWanted;
+  }
+#else
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return @"";
+  }
+#endif
   return @(goalpad::metal_host_stats().levels_wanted.c_str());
 }
 
 - (NSString *)levelsLoaded {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return [GOALPadJak2RenderSurface shared].levelsLoaded;
+  }
+#else
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return @"";
+  }
+#endif
   return @(goalpad::metal_host_stats().levels_loaded_names.c_str());
 }
 
+- (NSString *)lastError {
+  if (_lastError.length > 0) {
+    return _lastError;
+  }
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return [GOALPadJak2RenderSurface shared].lastError;
+  }
+#endif
+  return _lastError;
+}
+
+- (void)setLastError:(NSString *)lastError {
+  _lastError = lastError ?: @"";
+}
+
 - (BOOL)beginFrameAtTime:(CFTimeInterval)presentationTime {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return [[GOALPadJak2RenderSurface shared] beginFrameAtTime:presentationTime];
+  }
+#else
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return NO;
+  }
+#endif
   if (_layer == nil) {
     return NO;
   }
@@ -710,6 +934,10 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
 }
 
 - (GOALPadStereoFrameReservation)reserveStereoFrame {
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    self.lastError = @"Jak II stereoscopic rendering is unavailable.";
+    return GOALPadStereoFrameReservationFailed;
+  }
   switch (goalpad::metal_host_reserve_stereo_frame()) {
     case goalpad::MetalHostStereoFrameReservation::reserved:
       self.lastError = @"";
@@ -728,6 +956,10 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
                          commandBuffer:(id<MTLCommandBuffer>)commandBuffer
                                   left:(GOALPadStereoRenderTarget *)left
                                  right:(GOALPadStereoRenderTarget *)right {
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    self.lastError = @"Jak II stereoscopic rendering is unavailable.";
+    return NO;
+  }
   if (size.width < 1 || size.height < 1 || !std::isfinite(size.width) ||
       !std::isfinite(size.height) || size.width > std::numeric_limits<int>::max() ||
       size.height > std::numeric_limits<int>::max()) {
@@ -763,18 +995,37 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
 }
 
 - (void)cancelReservedStereoFrame {
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return;
+  }
   goalpad::metal_host_cancel_reserved_stereo_frame();
 }
 
 - (void)prepareStereoFallback {
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return;
+  }
   goalpad::metal_host_prepare_stereo_fallback();
 }
 
 - (BOOL)endFrame {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return [[GOALPadJak2RenderSurface shared] endFrame];
+  }
+#else
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return NO;
+  }
+#endif
   return goalpad::metal_host_end_frame();
 }
 
 - (GOALPadStereoFrameCompletion)endStereoFrame {
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    self.lastError = @"Jak II stereoscopic rendering is unavailable.";
+    return GOALPadStereoFrameCompletionFailed;
+  }
   switch (goalpad::metal_host_end_stereo_frame()) {
     case goalpad::MetalHostStereoFrameCompletion::skipped:
       self.lastError = @"";

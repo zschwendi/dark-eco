@@ -1,4 +1,5 @@
 #import "GOALPadRuntimeBridge.h"
+#import "GOALPadRuntimeRouterPrivate.h"
 
 #include "GOALPadMetalHost.hpp"
 
@@ -7,6 +8,7 @@
 #include "GOALPadRuntimeCore.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <string>
 
 #if GOALPAD_HAVE_PAD_SEAM
@@ -104,6 +106,14 @@ static GOALPadKernelStatus *GOALPadFailedStatus(NSString *message, NSString *dat
   NSLog(@"GOALPad kernel: %@", message);
   return status;
 }
+
+#if !GOALPAD_HAS_JAK2_RUNTIME
+static GOALPadGameBootStatus *GOALPadFailedBootStatus(NSString *message) {
+  GOALPadGameBootStatus *status = [[GOALPadGameBootStatus alloc] init];
+  status.message = message;
+  return status;
+}
+#endif
 
 static GOALPadGameMode GOALPadGameModeFromCore(goalpad::GameMode mode) {
   switch (mode) {
@@ -227,10 +237,139 @@ static GOALPadGameFrameStateSnapshot GOALPadGameFrameStateSnapshotFromCore(
   return snapshot;
 }
 
+static std::atomic<int32_t> gActiveGameIdentifier{GOALPadGameIdentifierJak1};
+
+GOALPadGameIdentifier GOALPadActiveGameIdentifier(void) {
+  return static_cast<GOALPadGameIdentifier>(
+      gActiveGameIdentifier.load(std::memory_order_acquire));
+}
+
+static bool GOALPadIsJak2Active(void) {
+  return GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2;
+}
+
+#if GOALPAD_HAS_JAK2_RUNTIME
+static GOALPadKernelStatus *GOALPadKernelStatusFromJak2(GOALPadJak2KernelStatus *source) {
+  if (source == nil) {
+    return GOALPadFailedStatus(@"The Jak II runtime returned no kernel status.", @"");
+  }
+
+  GOALPadKernelStatus *status = [[GOALPadKernelStatus alloc] init];
+  status.running = source.isRunning;
+  status.message = source.message ?: @"";
+  status.architecture = source.architecture ?: @"";
+  status.dataDirectory = source.dataDirectory ?: @"";
+  status.dataDirectoryAccepted = source.isDataDirectoryAccepted;
+  status.mainMemoryAddress = source.mainMemoryAddress;
+  status.mainMemorySize = source.mainMemorySize;
+  status.mainMemoryExecutable = source.isMainMemoryExecutable;
+  status.globalHeapBaseOffset = source.globalHeapBaseOffset;
+  status.globalHeapCurrentOffset = source.globalHeapCurrentOffset;
+  status.globalHeapTopBaseOffset = source.globalHeapTopBaseOffset;
+  status.globalHeapUsedBytes = source.globalHeapUsedBytes;
+  status.debugHeapBaseOffset = source.debugHeapBaseOffset;
+  status.symbolTableOffset = source.symbolTableOffset;
+  status.s7Offset = source.s7Offset;
+  status.lastSymbolOffset = source.lastSymbolOffset;
+  status.symbolCount = source.symbolCount;
+
+  NSMutableArray<GOALPadKernelType *> *types =
+      [NSMutableArray arrayWithCapacity:source.types.count];
+  for (GOALPadJak2KernelType *sourceType in source.types) {
+    GOALPadKernelType *type = [[GOALPadKernelType alloc] init];
+    type.symbolName = sourceType.symbolName ?: @"";
+    type.typeName = sourceType.typeName ?: @"";
+    type.parentName = sourceType.parentName ?: @"";
+    type.typeOffset = sourceType.typeOffset;
+    type.allocatedSize = sourceType.allocatedSize;
+    type.methodCount = sourceType.methodCount;
+    [types addObject:type];
+  }
+  status.types = types;
+  return status;
+}
+
+static GOALPadGameBootStatus *GOALPadGameBootStatusFromJak2(
+    GOALPadJak2GameBootStatus *source) {
+  GOALPadGameBootStatus *status = [[GOALPadGameBootStatus alloc] init];
+  if (source == nil) {
+    status.message = @"The Jak II runtime returned no game boot status.";
+    return status;
+  }
+  status.booted = source.isBooted;
+  status.message = source.message ?: @"";
+  status.kernelObjects = source.kernelObjects;
+  status.gameObjects = source.gameObjects;
+  status.codeObjects = source.codeObjects;
+  status.dataObjects = source.dataObjects;
+  status.kernelVersion = source.kernelVersion;
+  status.globalHeapUsedBytes = source.globalHeapUsedBytes;
+  status.symbolCount = source.symbolCount;
+  status.rendererInstalled = source.isRendererInstalled;
+  status.soundInstalled = source.isSoundInstalled;
+  status.soundSampleRate = source.soundSampleRate;
+  status.played = source.didPlay;
+  status.duration = source.duration;
+  return status;
+}
+#endif
+
 @implementation GOALPadRuntimeBridge
+
++ (BOOL)selectGame:(GOALPadGameIdentifier)gameIdentifier {
+  if (gameIdentifier != GOALPadGameIdentifierJak1 &&
+      gameIdentifier != GOALPadGameIdentifierJak2) {
+    return NO;
+  }
+  if (gameIdentifier == GOALPadActiveGameIdentifier()) {
+    return YES;
+  }
+  if (goalpad::kernel_is_running()) {
+    return NO;
+  }
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if ([GOALPadJak2RuntimeBridge isKernelRunning]) {
+    return NO;
+  }
+#endif
+  [[GOALPadRenderSurface shared] goalpadDetachActiveBackendPreservingConfiguration];
+  gActiveGameIdentifier.store(static_cast<int32_t>(gameIdentifier),
+                              std::memory_order_release);
+  [[GOALPadRenderSurface shared] goalpadReplayConfigurationForActiveGame];
+  return YES;
+}
+
++ (GOALPadGameIdentifier)activeGameIdentifier {
+  return GOALPadActiveGameIdentifier();
+}
+
++ (BOOL)isGameCodeLinkedForGame:(GOALPadGameIdentifier)gameIdentifier {
+  switch (gameIdentifier) {
+    case GOALPadGameIdentifierJak1:
+      return GOALPAD_HAVE_GAME_BOOT ? YES : NO;
+    case GOALPadGameIdentifierJak2:
+#if GOALPAD_HAS_JAK2_RUNTIME
+      return [GOALPadJak2RuntimeBridge isGameCodeLinked];
+#else
+      return NO;
+#endif
+  }
+  return NO;
+}
 
 + (GOALPadKernelStatus *)startKernelWithDataDirectory:(NSString *)dataDirectory
                                       savesDirectory:(NSString *)savesDirectory {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return GOALPadKernelStatusFromJak2(
+        [GOALPadJak2RuntimeBridge startKernelWithDataDirectory:dataDirectory
+                                               savesDirectory:savesDirectory]);
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return GOALPadFailedStatus(@"The Jak II runtime is not linked in this build.", dataDirectory);
+  }
+#endif
   NSString *path = dataDirectory ?: @"";
   NSString *savePath = savesDirectory ?: @"";
 
@@ -288,6 +427,16 @@ static GOALPadGameFrameStateSnapshot GOALPadGameFrameStateSnapshotFromCore(
 }
 
 + (GOALPadGameBootStatus *)bootGameWithTargetFrameRate:(NSInteger)targetFrameRate {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return GOALPadGameBootStatusFromJak2(
+        [GOALPadJak2RuntimeBridge bootGameWithTargetFrameRate:targetFrameRate]);
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return GOALPadFailedBootStatus(@"The Jak II runtime is not linked in this build.");
+  }
+#endif
   goalpad::BootStatus core;
   try {
     core = goalpad::boot_game(static_cast<int>(targetFrameRate));
@@ -315,15 +464,44 @@ static GOALPadGameFrameStateSnapshot GOALPadGameFrameStateSnapshotFromCore(
 }
 
 + (BOOL)setTargetFrameRate:(NSInteger)targetFrameRate {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge setTargetFrameRate:targetFrameRate];
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return NO;
+  }
+#endif
   return goalpad::set_target_frame_rate(static_cast<int>(targetFrameRate)) ? YES : NO;
 }
 
 + (BOOL)runFrameAtPresentationTime:(CFTimeInterval)targetPresentationTime {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge runFrameAtPresentationTime:targetPresentationTime];
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return NO;
+  }
+#endif
   return goalpad::run_frame(targetPresentationTime) ? YES : NO;
 }
 
 + (BOOL)runFrameAtPresentationTime:(CFTimeInterval)targetPresentationTime
                      stateSnapshot:(GOALPadGameFrameStateSnapshot *)stateSnapshot {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge runFrameAtPresentationTime:targetPresentationTime
+                                                  stateSnapshot:stateSnapshot];
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    *stateSnapshot = {};
+    return NO;
+  }
+#endif
   goalpad::GameFrameStateSnapshot core;
   const bool ran = goalpad::run_frame(targetPresentationTime, &core);
   *stateSnapshot = GOALPadGameFrameStateSnapshotFromCore(core);
@@ -331,42 +509,129 @@ static GOALPadGameFrameStateSnapshot GOALPadGameFrameStateSnapshotFromCore(
 }
 
 + (void)resetFrameTiming {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    [GOALPadJak2RuntimeBridge resetFrameTiming];
+    return;
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return;
+  }
+#endif
   goalpad::reset_frame_timing();
 }
 
 + (uint64_t)framesRun {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge framesRun];
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return 0;
+  }
+#endif
   return goalpad::frames_run();
 }
 
 + (BOOL)isGameBooted {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge isGameBooted];
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return NO;
+  }
+#endif
   return goalpad::game_is_booted() ? YES : NO;
 }
 
 + (BOOL)exitToLibraryRequested {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge exitToLibraryRequested];
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return NO;
+  }
+#endif
   return goalpad::exit_to_library_requested() ? YES : NO;
 }
 
 + (GOALPadGameMode)gameMode {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge gameMode];
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return GOALPadGameModeUnknown;
+  }
+#endif
   return GOALPadGameModeFromCore(goalpad::game_mode());
 }
 
 + (GOALPadTitleStartState)titleStartState {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge titleStartState];
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return GOALPadTitleStartStateUnknown;
+  }
+#endif
   return GOALPadTitleStartStateFromCore(goalpad::title_start_state());
 }
 
 + (GOALPadLookAroundState)lookAroundState {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge lookAroundState];
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return GOALPadLookAroundStateUnknown;
+  }
+#endif
   return GOALPadLookAroundStateFromCore(goalpad::look_around_state());
 }
 
 + (GOALPadSpeederState)speederState {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge speederState];
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return GOALPadSpeederStateUnknown;
+  }
+#endif
   return GOALPadSpeederStateFromCore(goalpad::speeder_state());
 }
 
 + (GOALPadProgressMenuSnapshot)progressMenuSnapshot {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge progressMenuSnapshot];
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return {};
+  }
+#endif
   return GOALPadProgressMenuSnapshotFromCore(goalpad::progress_menu_snapshot());
 }
 
 + (GOALPadJak2ProgressMenuSemanticSnapshot)jak2ProgressMenuSemanticSnapshot {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge jak2ProgressMenuSemanticSnapshot];
+  }
+#endif
   GOALPadJak2ProgressMenuSemanticSnapshot snapshot = {};
   snapshot.phase = GOALPadJak2ProgressMenuPhaseUnavailable;
   snapshot.optionIndex = -1;
@@ -374,22 +639,67 @@ static GOALPadGameFrameStateSnapshot GOALPadGameFrameStateSnapshotFromCore(
 }
 
 + (GOALPadWarpGateTouchSnapshot)warpGateTouchSnapshot {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge warpGateTouchSnapshot];
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return {};
+  }
+#endif
   return GOALPadWarpGateTouchSnapshotFromCore(goalpad::warp_gate_touch_snapshot());
 }
 
 + (GOALPadCutsceneSkipTouchSnapshot)cutsceneSkipTouchSnapshot {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge cutsceneSkipTouchSnapshot];
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return {};
+  }
+#endif
   return GOALPadCutsceneSkipTouchSnapshotFromCore(goalpad::cutscene_skip_touch_snapshot());
 }
 
 + (GOALPadFacePromptTouchSnapshot)facePromptTouchSnapshot {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge facePromptTouchSnapshot];
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return {};
+  }
+#endif
   return GOALPadFacePromptTouchSnapshotFromCore(goalpad::face_prompt_touch_snapshot());
 }
 
 + (GOALPadGameFrameStateSnapshot)gameFrameStateSnapshot {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge gameFrameStateSnapshot];
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return {};
+  }
+#endif
   return GOALPadGameFrameStateSnapshotFromCore(goalpad::game_frame_state_snapshot());
 }
 
 + (GOALPadFrameChainStats)frameChainStats {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge frameChainStats];
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return {};
+  }
+#endif
   const auto core = goalpad::frame_chain_stats();
   GOALPadFrameChainStats stats = {core.chains, core.last_payload_bytes,
                                   core.largest_payload_bytes, core.last_texture_uploads};
@@ -397,6 +707,16 @@ static GOALPadGameFrameStateSnapshot GOALPadGameFrameStateSnapshotFromCore(
 }
 
 + (void)stopKernel {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    [GOALPadJak2RuntimeBridge stopKernel];
+    return;
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return;
+  }
+#endif
   goalpad::reset_game();
   goalpad::metal_host_stop();
   goalpad::stop_kernel();
@@ -404,23 +724,59 @@ static GOALPadGameFrameStateSnapshot GOALPadGameFrameStateSnapshotFromCore(
 }
 
 + (BOOL)isKernelRunning {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge isKernelRunning];
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return NO;
+  }
+#endif
   return goalpad::kernel_is_running() ? YES : NO;
 }
 
 + (BOOL)isDataSeamLinked {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge isDataSeamLinked];
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return NO;
+  }
+#endif
   return GOALPAD_HAVE_DATA_SEAM ? YES : NO;
 }
 
 + (BOOL)isInputSeamLinked {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge isInputSeamLinked];
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return NO;
+  }
+#endif
   return GOALPAD_HAVE_PAD_SEAM ? YES : NO;
 }
 
 + (BOOL)isAudioSeamLinked {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge isAudioSeamLinked];
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return NO;
+  }
+#endif
   return GOALPAD_HAVE_SOUND_SEAM ? YES : NO;
 }
 
 + (BOOL)isGameCodeLinked {
-  return GOALPAD_HAVE_GAME_BOOT ? YES : NO;
+  return [self isGameCodeLinkedForGame:GOALPadActiveGameIdentifier()];
 }
 
 @end
@@ -428,6 +784,16 @@ static GOALPadGameFrameStateSnapshot GOALPadGameFrameStateSnapshotFromCore(
 #pragma mark - Controller input
 
 void GOALPadInputSetState(int32_t port, GOALPadControllerState state) {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    GOALPadJak2InputSetState(port, state);
+    return;
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return;
+  }
+#endif
 #if GOALPAD_HAVE_PAD_SEAM
   goal_pad_state pad;
   goal_pad_state_neutral(&pad);
@@ -458,6 +824,16 @@ void GOALPadInputSetState(int32_t port, GOALPadControllerState state) {
 }
 
 void GOALPadInputSetDisconnected(int32_t port) {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    GOALPadJak2InputSetDisconnected(port);
+    return;
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return;
+  }
+#endif
 #if GOALPAD_HAVE_PAD_SEAM
   goal_pad_state pad;
   goal_pad_state_neutral(&pad);
@@ -469,6 +845,16 @@ void GOALPadInputSetDisconnected(int32_t port) {
 }
 
 void GOALPadInputSetRumbleEnabled(int32_t port, BOOL enabled) {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    GOALPadJak2InputSetRumbleEnabled(port, enabled);
+    return;
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return;
+  }
+#endif
 #if GOALPAD_HAVE_PAD_SEAM
   goal_pad_set_rumble_enabled(port, enabled ? 1 : 0);
 #else
@@ -478,6 +864,15 @@ void GOALPadInputSetRumbleEnabled(int32_t port, BOOL enabled) {
 }
 
 GOALPadRumble GOALPadInputRumble(int32_t port) {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return GOALPadJak2InputRumble(port);
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return {0, 0};
+  }
+#endif
   GOALPadRumble rumble = {0, 0};
 #if GOALPAD_HAVE_PAD_SEAM
   uint8_t large = 0;
@@ -493,6 +888,15 @@ GOALPadRumble GOALPadInputRumble(int32_t port) {
 }
 
 int32_t GOALPadInputReadCount(int32_t port) {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return GOALPadJak2InputReadCount(port);
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return 0;
+  }
+#endif
 #if GOALPAD_HAVE_PAD_SEAM
   return goal_pad_read_count(port);
 #else
@@ -504,6 +908,15 @@ int32_t GOALPadInputReadCount(int32_t port) {
 #pragma mark - Audio output
 
 int32_t GOALPadAudioSampleRate(void) {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return GOALPadJak2AudioSampleRate();
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return 48000;
+  }
+#endif
 #if GOALPAD_HAVE_SOUND_SEAM
   return goal_game_sound_sample_rate();
 #else
@@ -514,6 +927,15 @@ int32_t GOALPadAudioSampleRate(void) {
 }
 
 int32_t GOALPadAudioPull(int16_t *out, int32_t frames) {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return GOALPadJak2AudioPull(out, frames);
+  }
+#else
+  if (GOALPadIsJak2Active()) {
+    return 0;
+  }
+#endif
 #if GOALPAD_HAVE_SOUND_SEAM
   return goal_game_sound_pull_audio(out, frames);
 #else

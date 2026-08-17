@@ -271,9 +271,24 @@ typedef struct GOALPadGameFrameStateSnapshot {
   GOALPadSpeederState speederState;
 } GOALPadGameFrameStateSnapshot;
 
+/// The independently linked game runtime selected for the next kernel session.
+typedef NS_ENUM(NSInteger, GOALPadGameIdentifier) {
+  GOALPadGameIdentifierJak1 = 0,
+  GOALPadGameIdentifierJak2 = 1,
+};
+
 /// The whole Swift-facing surface of the native runtime. The GOAL kernel is a process-wide
 /// singleton, so this is a class API rather than an instantiable object.
 @interface GOALPadRuntimeBridge : NSObject
+
+/// Select the runtime used by every bridge, input, audio, and render-surface call. The default is
+/// Jak 1. Switching titles is rejected while either title's kernel is live.
++ (BOOL)selectGame:(GOALPadGameIdentifier)gameIdentifier NS_SWIFT_NAME(selectGame(_:));
+@property(class, nonatomic, readonly) GOALPadGameIdentifier activeGameIdentifier;
+
+/// Report AOT game-code availability for a title without changing the active selection.
++ (BOOL)isGameCodeLinkedForGame:(GOALPadGameIdentifier)gameIdentifier
+    NS_SWIFT_NAME(isGameCodeLinked(for:));
 
 /// Bring the kernel up, pointed at the player's own prepared data. All-or-nothing: if the returned
 /// status is not `running`, nothing is live and `message` says why. `dataDirectory` is the
@@ -345,7 +360,7 @@ typedef struct GOALPadGameFrameStateSnapshot {
 @property(class, nonatomic, readonly, getter=isDataSeamLinked) BOOL dataSeamLinked;
 @property(class, nonatomic, readonly, getter=isInputSeamLinked) BOOL inputSeamLinked;
 @property(class, nonatomic, readonly, getter=isAudioSeamLinked) BOOL audioSeamLinked;
-/// NO when this build has no ahead-of-time Jak 1 code, in which case the game cannot boot at all.
+/// NO when this build has no ahead-of-time code for the active game.
 @property(class, nonatomic, readonly, getter=isGameCodeLinked) BOOL gameCodeLinked;
 
 @end
