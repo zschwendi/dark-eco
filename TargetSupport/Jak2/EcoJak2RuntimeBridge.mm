@@ -133,6 +133,7 @@ goal_jak2_metal_host* g_metal_host = nullptr;
 goal_jak2_runtime_metrics g_runtime_metrics = {};
 goal_jak2_metal_host_metrics g_metal_metrics = {};
 CGSize g_drawable_size = CGSizeZero;
+bool g_horizontal_plus_enabled = false;
 bool g_frame_armed = false;
 uint64_t g_frame_baseline_chains = 0;
 uint64_t g_frame_baseline_drawables = 0;
@@ -210,6 +211,34 @@ bool copy_metal_metrics_locked() {
   }
   g_metal_metrics = metrics;
   return true;
+}
+
+goalpad::PresentationGeometry presentation_geometry_locked() {
+  return goalpad::presentation_geometry(static_cast<int32_t>(g_drawable_size.width),
+                                        static_cast<int32_t>(g_drawable_size.height), 1,
+                                        g_horizontal_plus_enabled);
+}
+
+void update_portable_display_locked(const goalpad::PresentationGeometry& geometry) {
+  const bool has_drawable = geometry.drawable_width > 0 && geometry.drawable_height > 0;
+  goal_kernel_core_set_portable_display_enabled(has_drawable);
+  goal_kernel_core_set_portable_display_size(geometry.game_display_width,
+                                             geometry.game_display_height);
+}
+
+bool update_metal_presentation_geometry(goal_jak2_metal_host* host,
+                                        const goalpad::PresentationGeometry& geometry) {
+  if (!host || geometry.internal_width <= 0 || geometry.internal_height <= 0 ||
+      geometry.draw_region_width <= 0 || geometry.draw_region_height <= 0) {
+    return false;
+  }
+  const goal_jak2_metal_presentation_geometry metal_geometry = {
+      static_cast<uint32_t>(geometry.internal_width),
+      static_cast<uint32_t>(geometry.internal_height),
+      static_cast<uint32_t>(geometry.draw_region_width),
+      static_cast<uint32_t>(geometry.draw_region_height),
+  };
+  return goal_jak2_metal_host_set_presentation_geometry(host, &metal_geometry) != 0;
 }
 
 bool should_log_jak2_diagnostics(uint64_t tick) {
@@ -1418,6 +1447,7 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
   NSString* data_path = nil;
   NSString* saves_path = nil;
   CAMetalLayer* layer = nil;
+  goalpad::PresentationGeometry presentation_geometry;
   {
     std::lock_guard<std::mutex> lock(g_mutex);
     if (g_state != SessionState::Prepared) {
@@ -1427,6 +1457,8 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
     data_path = g_data_directory;
     saves_path = g_saves_directory;
     layer = g_attached_layer;
+    presentation_geometry = presentation_geometry_locked();
+    update_portable_display_locked(presentation_geometry);
   }
 
   const auto started_at = std::chrono::steady_clock::now();
@@ -1439,6 +1471,9 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
     host = goal_jak2_metal_host_create_presenting(layer);
     if (!host) {
       failure = @"The Jak II Metal presentation host could not be created.";
+    }
+    if (!failure && !update_metal_presentation_geometry(host, presentation_geometry)) {
+      failure = @"The Jak II Metal presentation host rejected the app display geometry.";
     }
     const char* shadow195_capture_tick_value =
         std::getenv("GOALPAD_JAK2_DEBUG_CAPTURE_SHADOW195_FRAME_TICK");
@@ -1934,6 +1969,11 @@ int32_t GOALPadAudioPull(int16_t* out, int32_t frames) {
   if (g_attached_layer) {
     g_attached_layer.drawableSize = size;
   }
+  const auto geometry = presentation_geometry_locked();
+  update_portable_display_locked(geometry);
+  if (g_metal_host && !update_metal_presentation_geometry(g_metal_host, geometry)) {
+    g_last_error = @"Jak II could not apply the updated presentation geometry.";
+  }
 }
 
 - (void)setInternalResolutionScale:(int32_t)scale {
@@ -1942,8 +1982,13 @@ int32_t GOALPadAudioPull(int16_t* out, int32_t frames) {
 }
 
 - (void)setHorizontalPlusEnabled:(BOOL)enabled {
-  // The current Jak II host exposes only its audited 4:3 draw region.
-  (void)enabled;
+  std::lock_guard<std::mutex> lock(g_mutex);
+  g_horizontal_plus_enabled = enabled;
+  const auto geometry = presentation_geometry_locked();
+  update_portable_display_locked(geometry);
+  if (g_metal_host && !update_metal_presentation_geometry(g_metal_host, geometry)) {
+    g_last_error = @"Jak II could not apply the selected presentation geometry.";
+  }
 }
 
 - (void)setDetailedFrameStatsEnabled:(BOOL)enabled {
@@ -1953,9 +1998,7 @@ int32_t GOALPadAudioPull(int16_t* out, int32_t frames) {
 
 - (GOALPadSurfaceGeometry)geometry {
   std::lock_guard<std::mutex> lock(g_mutex);
-  const auto geometry =
-      goalpad::presentation_geometry(static_cast<int32_t>(g_drawable_size.width),
-                                     static_cast<int32_t>(g_drawable_size.height), 1, false);
+  const auto geometry = presentation_geometry_locked();
   return {
       geometry.drawable_width,  geometry.drawable_height,   geometry.internal_width,
       geometry.internal_height, geometry.draw_region_width, geometry.draw_region_height,

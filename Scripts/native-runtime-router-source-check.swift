@@ -44,6 +44,10 @@ let surface = try String(contentsOf: root.appendingPathComponent(
     "GOALPad/Native/GOALPadRenderSurface.mm"), encoding: .utf8)
 let privateHeader = try String(contentsOf: root.appendingPathComponent(
     "GOALPad/Native/GOALPadRuntimeRouterPrivate.h"), encoding: .utf8)
+let jak2Bridge = try String(contentsOf: root.appendingPathComponent(
+    "TargetSupport/Jak2/EcoJak2RuntimeBridge.mm"), encoding: .utf8)
+let jak2HostHeader = try String(contentsOf: root.appendingPathComponent(
+    "OpenGOAL/game/graphics/pipelines/metal/metal_jak2_host_bridge.h"), encoding: .utf8)
 
 check(header.contains("GOALPadGameIdentifierJak1 = 0") &&
       header.contains("GOALPadGameIdentifierJak2 = 1"),
@@ -100,6 +104,24 @@ check(surface.contains("Jak II stereoscopic rendering is unavailable.") &&
       surface.contains("return GOALPadStereoFrameReservationFailed") &&
       surface.contains("return GOALPadStereoFrameCompletionFailed"),
       "Jak II stereo rendering fails closed")
+
+let jak2HorizontalPlus = section(
+    jak2Bridge,
+    from: "- (void)setHorizontalPlusEnabled:(BOOL)enabled",
+    to: "- (void)setDetailedFrameStatsEnabled:(BOOL)enabled")
+check(jak2HorizontalPlus.contains("g_horizontal_plus_enabled = enabled") &&
+      jak2HorizontalPlus.contains("presentation_geometry_locked()") &&
+      jak2HorizontalPlus.contains("update_portable_display_locked(geometry)") &&
+      jak2HorizontalPlus.contains("update_metal_presentation_geometry(g_metal_host, geometry)"),
+      "Jak II Hor+ updates both the portable GOAL aspect and Metal target geometry")
+check(jak2Bridge.contains("goal_kernel_core_set_portable_display_enabled") &&
+      jak2Bridge.contains("goal_kernel_core_set_portable_display_size") &&
+      jak2Bridge.contains("goal_jak2_metal_host_set_presentation_geometry"),
+      "the Jak II bridge uses the existing portable display seam and explicit Metal geometry API")
+check(jak2HostHeader.contains("goal_jak2_metal_presentation_geometry") &&
+      jak2HostHeader.contains("goal_jak2_metal_host_set_presentation_geometry") &&
+      jak2HostHeader.contains("goal_jak2_metal_host_get_presentation_geometry"),
+      "the nested Jak II host exposes a testable game-target and draw-region contract")
 
 if failures == 0 {
     print("native runtime router source checks passed")
