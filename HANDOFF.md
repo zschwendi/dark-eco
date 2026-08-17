@@ -21152,3 +21152,60 @@ that target's 119 MiB of intermediates were deleted, while both signed Dark Eco
 bundles were reverified. Do not retry until disk headroom changes; after an
 in-place standalone update, the maintainer must explicitly export through
 Settings before the merged app can import those files.
+
+## Build 238 continuation and physical acceptance gate (2026-08-17)
+
+The outer and nested integration checkouts remain clean and exactly equal to
+their pushed `origin/v2.0` branches at `e3bc8fed` and `c8666f88b`, respectively.
+The signed merged product was reverified after the standalone work and remains
+Dark Eco 2.0 (238):
+
+```text
+/private/tmp/GOALPad-v2-main-derived/Build/Products/Release-iphoneos/Dark Eco.app
+```
+
+Strict deep code-sign verification passes. Do not make a fourth physical install
+attempt until the maintainer confirms that `Z iPad Pro` is unlocked and awake;
+the prior three install attempts timed out without uninstalling or changing the
+existing app.
+
+A second and differently scoped standalone migration-helper packaging attempt
+reused the merged target's existing native and importer directories. It avoided
+the earlier `errno=28` archive failure but stopped while rebuilding the nested
+Metal product because Xcode's canonical `/tmp` build paths did not match the
+explicit `/private/tmp` override. The first useful errors were repeated PCH
+module-cache path mismatches:
+
+```text
+PCH was compiled with module cache path '/tmp/GOALPad-v2-main-derived/...',
+but the path is currently '/private/tmp/GOALPad-v2-main-derived/...'
+```
+
+Full log:
+`/private/tmp/goalpad-build238-jak2dev-device-build-attempt2.log`. This is
+standalone packaging attempt 2 of the maintainer's three-attempt maximum. Do not
+make a third command-line retry. A future attempt needs an explicitly approved,
+single shared build-root change (or materially more disk space), followed by an
+in-place update of `com.zephyrstudiosllc.eco.jak2dev`; never uninstall the old
+standalone app because its sandbox is the source of the saves to export.
+
+Current Jak II completion evidence and remaining gates:
+
+- Implemented and source/focused-test checked: independent launcher readiness,
+  Jak 1/Jak II Settings selection with Jak 3 Planned, title-safe local saves and
+  manual import/export, separate merged-app iCloud save namespace, Modern Fit to
+  Screen, high-refresh selection, title-aware touch guide, colored weapon D-pad,
+  R1/R2/R3, contextual Triangle prompts, jetboard/vehicle raw controls, dedicated
+  vehicle exit, and pause/progress/save menu touch controls.
+- Packaged but awaiting physical visual acceptance in Build 238: the managed-
+  display ocean repair and aliased eye-texture repair. Do not claim either fixed
+  from deterministic Metal tests alone.
+- Awaiting the same physical run: both Library cards simultaneously show Ready;
+  each opens the correct title without stale post-import UI; Jak II pause menus
+  visibly retain D-pad, Confirm, Back, Settings, and Resume; Haven/Sandover water,
+  character eyes, cutscenes, jetboard, and vehicles render and control correctly.
+- Save continuity from the old standalone bundle cannot happen by direct sandbox
+  access. The supported route remains: update the old bundle in place, export its
+  Jak II banks through Files, then import them from merged Dark Eco's Jak II
+  Settings. Normal Jak II saving uses file-backed app storage; no physical PS2
+  memory card is required.
