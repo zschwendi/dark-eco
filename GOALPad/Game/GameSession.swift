@@ -215,12 +215,14 @@ final class GameSession {
     /// launch its runtime, or when this build has no matching ahead-of-time game code.
     func start() async {
         guard !isRunning, !isBooting else { return }
-        guard profile.identifier == .jak1 else {
-            startupError = "\(title.name) is selected, but its runtime backend is not connected "
-                + "to this app session yet."
+        let nativeGameIdentifier = profile.identifier.nativeGameIdentifier
+        guard GOALPadRuntimeBridge.selectGame(nativeGameIdentifier) else {
+            startupError = "Could not select the \(title.name) runtime while another game is active."
             return
         }
-        guard GOALPadRuntimeBridge.isGameCodeLinked else {
+        input.setRumbleEnabled(presentationSettings.rumbleEnabled)
+        settings.apply()
+        guard GOALPadRuntimeBridge.isGameCodeLinked(for: nativeGameIdentifier) else {
             let generator = profile.identifier == .jak2
                 ? "Scripts/generate-jak2-aot.sh"
                 : "Scripts/generate-jak1-aot.sh"

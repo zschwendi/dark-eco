@@ -48,6 +48,7 @@ guard CommandLine.arguments.count == 2 else {
 let root = CommandLine.arguments[1]
 let session = source(at: root + "/GOALPad/Game/GameSession.swift")
 let content = source(at: root + "/GOALPad/ContentView.swift")
+let nativeRouting = source(at: root + "/GOALPad/Game/NativeGameRouting.swift")
 
 let initializer = section(session, from: "init(profile: GameDataProfile)", to: "func prepare() async")
 check(session.contains("let profile: GameDataProfile")
@@ -83,14 +84,19 @@ check(session.contains("GameDataLayout.prepare(profile: profile)")
 
 let start = section(session, from: "func start() async", to: "private func bootFinished")
 check(occursInOrder([
-    "guard profile.identifier == .jak1 else",
-    "runtime backend is not connected",
-    "GOALPadRuntimeBridge.isGameCodeLinked",
+    "profile.identifier.nativeGameIdentifier",
+    "GOALPadRuntimeBridge.selectGame(nativeGameIdentifier)",
+    "input.setRumbleEnabled(presentationSettings.rumbleEnabled)",
+    "settings.apply()",
+    "GOALPadRuntimeBridge.isGameCodeLinked(for: nativeGameIdentifier)",
     "GOALPadRuntimeBridge.startKernel(",
 ], in: start)
         && start.contains("withDataDirectory: gameDataDirectory.path")
-        && start.contains("savesDirectory: localSavesDirectory.path"),
-      "Jak II fails before any native startup while Jak 1 receives explicit session paths")
+        && start.contains("savesDirectory: localSavesDirectory.path")
+        && nativeRouting.contains("case .jak1: .jak1")
+        && nativeRouting.contains("case .jak2: .jak2")
+        && !start.contains("runtime backend is not connected"),
+      "each session selects its isolated runtime before title-aware AOT and kernel startup")
 check(start.contains("if profile.identifier == .jak2")
         && start.contains("sessionLog.notice(\"Booting \\(self.title.name")
         && !start.contains("#if GOALPAD_JAK2"),

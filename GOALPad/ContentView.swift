@@ -499,8 +499,9 @@ private struct DiagnosticsOverlay: View {
             ("game data", flag(GOALPadRuntimeBridge.isDataSeamLinked)),
             ("controller", flag(GOALPadRuntimeBridge.isInputSeamLinked)),
             ("audio", flag(GOALPadRuntimeBridge.isAudioSeamLinked)),
-                ("\(GameLibraryTitle.jak1.name) GOAL code",
-                 flag(GOALPadRuntimeBridge.isGameCodeLinked)),
+                ("\(session.title.name) GOAL code",
+                 flag(GOALPadRuntimeBridge.isGameCodeLinked(
+                    for: session.profile.identifier.nativeGameIdentifier))),
             ("renderer", flag(GOALPadRenderSurface.shared.isRendererLinked)),
         ])
     }
@@ -510,7 +511,7 @@ private struct DiagnosticsOverlay: View {
     private var game: some View {
         if let boot = session.boot {
             let chain = session.frameChain
-            section(GameLibraryTitle.jak1.name, [
+            section(session.title.name, [
                 ("KERNEL.CGO", "\(boot.kernelObjects) objects"),
                 ("GAME.CGO", "\(boot.gameObjects) objects: \(boot.codeObjects) code, "
                     + "\(boot.dataObjects) data"),

@@ -240,9 +240,11 @@ struct GameLibraryView: View {
     }
 
     private func isGameDataValidatedAndLinked(for title: GameLibraryTitle) -> Bool {
-        title == session.importer.profile.title
+        guard let profile = GameDataProfile.profile(for: title) else { return false }
+        return title == session.importer.profile.title
             && session.dataReport.status == .ready
-            && GOALPadRuntimeBridge.isGameCodeLinked
+            && GOALPadRuntimeBridge.isGameCodeLinked(
+                for: profile.identifier.nativeGameIdentifier)
     }
 
     private var isPhone: Bool {
@@ -290,7 +292,11 @@ struct GameLibraryView: View {
         case .incomplete:
             return .needsAttention
         case .ready:
-            return GOALPadRuntimeBridge.isGameCodeLinked ? .ready : .needsAttention
+            guard let profile = GameDataProfile.profile(for: title) else {
+                return .needsAttention
+            }
+            return GOALPadRuntimeBridge.isGameCodeLinked(
+                for: profile.identifier.nativeGameIdentifier) ? .ready : .needsAttention
         }
     }
 
