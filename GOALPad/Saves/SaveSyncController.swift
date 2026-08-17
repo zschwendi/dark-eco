@@ -1346,9 +1346,8 @@ struct SaveSettingsView: View {
                         Label("Export Saves", systemImage: "square.and.arrow.up")
                     }
                     .disabled(sync.isBusy)
-                    Text("Import and export four compatible \(sync.saveTitleName) "
-                         + "save slots. When copies differ, the older copy is preserved "
-                         + "automatically.")
+                    Text("Dark Eco imports and exports four compatible save slots. "
+                         + "When copies differ, the older copy is preserved automatically.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
 
