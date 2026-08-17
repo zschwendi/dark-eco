@@ -6,6 +6,10 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
     private let resources: GameDataNativePreparationResources?
     private let nativePreparationBackend: GameDataNativePreparationBackend
     private let overallProgressRange: ClosedRange<Double>
+    private let availableCapacity: @Sendable (URL) -> UInt64?
+
+    /// The validated extraction, bounded FR3 work tree, and final prepared output coexist.
+    static let jak2MinimumWorkingSpaceBytes: UInt64 = 5 * 1_024 * 1_024 * 1_024
 
     static func isAvailable(
         for profile: GameDataProfile,
@@ -23,13 +27,15 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
         profile: GameDataProfile,
         bundle: Bundle = .main,
         nativePreparationBackend: GameDataNativePreparationBackend = .appJak1Composer,
-        overallProgressRange: ClosedRange<Double> = 0.15...0.85
+        overallProgressRange: ClosedRange<Double> = 0.15...0.85,
+        availableCapacity: @escaping @Sendable (URL) -> UInt64? = volumeAvailableCapacity
     ) {
         self.init(
             profile: profile,
             resourceURL: { bundle.url(forResource: $0, withExtension: nil) },
             nativePreparationBackend: nativePreparationBackend,
-            overallProgressRange: overallProgressRange
+            overallProgressRange: overallProgressRange,
+            availableCapacity: availableCapacity
         )
     }
 
@@ -37,7 +43,8 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
         profile: GameDataProfile,
         resourceURL: (String) -> URL?,
         nativePreparationBackend: GameDataNativePreparationBackend,
-        overallProgressRange: ClosedRange<Double> = 0.15...0.85
+        overallProgressRange: ClosedRange<Double> = 0.15...0.85,
+        availableCapacity: @escaping @Sendable (URL) -> UInt64? = volumeAvailableCapacity
     ) {
         self.profile = profile
         let projectResourceURL = resourceURL(profile.projectResourceName)
@@ -52,6 +59,7 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
         }
         self.nativePreparationBackend = nativePreparationBackend
         self.overallProgressRange = overallProgressRange
+        self.availableCapacity = availableCapacity
     }
 
     var isAvailable: Bool {
@@ -87,6 +95,17 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
                 candidatePreserved: false
             )
         }
+        if profile.identifier == .jak2,
+           let capacity = availableCapacity(candidateDirectory.deletingLastPathComponent()),
+           capacity < Self.jak2MinimumWorkingSpaceBytes
+        {
+            throw GameDataImportFailure(
+                code: .insufficientStorage,
+                message: "Jak II preparation needs at least 5 GB of free working space. "
+                    + "Free more space and try again.",
+                candidatePreserved: false
+            )
+        }
         do {
             let filesWritten = try await nativePreparationBackend.prepare(
                 for: profile,
@@ -113,6 +132,16 @@ nonisolated struct RawISOCandidateProducer: GameDataCandidateProducing {
                 candidateDirectory: candidateDirectory
             )
         }
+    }
+
+    private static func volumeAvailableCapacity(at directory: URL) -> UInt64? {
+        let values = try? directory.resourceValues(forKeys: [
+            .volumeAvailableCapacityForImportantUsageKey,
+            .volumeAvailableCapacityKey,
+        ])
+        return values?.volumeAvailableCapacityForImportantUsage
+            .flatMap { $0 > 0 ? UInt64($0) : nil }
+            ?? values?.volumeAvailableCapacity.flatMap { $0 > 0 ? UInt64($0) : nil }
     }
 
     private func progress(

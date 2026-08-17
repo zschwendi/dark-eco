@@ -3494,6 +3494,13 @@ available-space behavior, throughput, and activation remain unrecorded,
 non-blocking presentation/distribution evidence rather than Jak 1 gameplay or
 Jak II continuation gates.
 
+The experimental v2 Jak II raw-ISO path uses the same private-candidate model.
+It requires at least 5 GiB of free space on the candidate volume before native
+preparation begins because the validated extraction, bounded FR3 work tree, and
+final prepared output coexist. If the system does not report capacity, the
+native writer remains responsible for returning a typed insufficient-storage
+failure.
+
 The Checkpoint 50 release preflight remains `518/10596/7`. The external public
 source pack verifies as 518 objects, aggregate `f1770cae6287a359`, and
 10,729,681 object bytes. The combined generic iOS Release build passed with:

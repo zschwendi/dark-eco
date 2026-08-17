@@ -253,7 +253,8 @@ private struct RawISOProfileRoutingCheck {
             resourceURL: { name in
                 name == GameDataProfile.jak2.projectResourceName ? jak2Project : jak2Pack
             },
-            nativePreparationBackend: uniqueJak2Backend
+            nativePreparationBackend: uniqueJak2Backend,
+            availableCapacity: { _ in nil }
         )
         check(injectedJak2Producer.isAvailable,
               "Jak II becomes available only when a Jak II-bound backend is injected")
@@ -265,6 +266,74 @@ private struct RawISOProfileRoutingCheck {
         )
         check(await jak2BackendCalls.value() == 1,
               "the injected Jak II backend receives the preparation request exactly once")
+
+        let storageBackendCalls = BackendInvocationRecorder()
+        let storageBackend = GameDataNativePreparationBackend(
+            profileIdentifier: .jak2,
+            isAvailable: { true },
+            prepare: { _, _, _, _ in
+                await storageBackendCalls.record()
+                return 1
+            }
+        )
+        let exactCapacityProducer = RawISOCandidateProducer(
+            profile: .jak2,
+            resourceURL: { name in
+                name == GameDataProfile.jak2.projectResourceName ? jak2Project : jak2Pack
+            },
+            nativePreparationBackend: storageBackend,
+            availableCapacity: { _ in RawISOCandidateProducer.jak2MinimumWorkingSpaceBytes }
+        )
+        _ = try? await exactCapacityProducer.prepareCandidate(
+            from: source,
+            activeDirectory: root,
+            candidateDirectory: candidate,
+            report: { _ in }
+        )
+        check(await storageBackendCalls.value() == 1,
+              "Jak II preparation starts when the required working space is available")
+
+        let lowCapacityProducer = RawISOCandidateProducer(
+            profile: .jak2,
+            resourceURL: { name in
+                name == GameDataProfile.jak2.projectResourceName ? jak2Project : jak2Pack
+            },
+            nativePreparationBackend: storageBackend,
+            availableCapacity: { _ in RawISOCandidateProducer.jak2MinimumWorkingSpaceBytes - 1 }
+        )
+        do {
+            _ = try await lowCapacityProducer.prepareCandidate(
+                from: source,
+                activeDirectory: root,
+                candidateDirectory: candidate,
+                report: { _ in }
+            )
+            check(false, "low Jak II working space fails before native preparation")
+        } catch let failure as GameDataImportFailure {
+            check(failure.code == .insufficientStorage && !failure.candidatePreserved,
+                  "low Jak II working space fails before native preparation")
+        } catch {
+            check(false, "low Jak II working space returns the expected typed failure")
+        }
+        check(await storageBackendCalls.value() == 1,
+              "the low-space gate does not invoke the native backend")
+
+        let unknownCapacityProducer = RawISOCandidateProducer(
+            profile: .jak2,
+            resourceURL: { name in
+                name == GameDataProfile.jak2.projectResourceName ? jak2Project : jak2Pack
+            },
+            nativePreparationBackend: storageBackend,
+            availableCapacity: { _ in nil }
+        )
+        _ = try? await unknownCapacityProducer.prepareCandidate(
+            from: source,
+            activeDirectory: root,
+            candidateDirectory: candidate,
+            report: { _ in }
+        )
+        check(await storageBackendCalls.value() == 2,
+              "unavailable capacity information defers to native ENOSPC handling")
 
         let jak2ErrorDomain = "synthetic.jak2.framework.preparation"
         let cancellingJak2Backend = GameDataNativePreparationBackend(
@@ -284,7 +353,8 @@ private struct RawISOProfileRoutingCheck {
             resourceURL: { name in
                 name == GameDataProfile.jak2.projectResourceName ? jak2Project : jak2Pack
             },
-            nativePreparationBackend: cancellingJak2Backend
+            nativePreparationBackend: cancellingJak2Backend,
+            availableCapacity: { _ in nil }
         )
         do {
             _ = try await cancellingJak2Producer.prepareCandidate(
