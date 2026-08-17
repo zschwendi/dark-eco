@@ -71,7 +71,7 @@ struct TouchControlsGuideView: View {
         guideRow(symbol: .text("↑↓←→"), title: "Weapons",
                  detail: "Use the colored wheel: red up, dark right, yellow down, blue left.")
         guideRow(symbol: .text("△"), title: "Game Prompts",
-                 detail: "Tap the visible action when Jak II offers Talk, Use, Play, or vehicle entry.")
+                 detail: "Tap the visible action for Talk, Use, Play, or vehicle entry. Triangle stays available while riding so you can exit.")
         guideRow(symbol: .systemImage("pause.fill"), title: "Menus",
                  detail: "Pause and save screens provide D-pad, Back, Confirm, Settings, and Resume controls.")
     }

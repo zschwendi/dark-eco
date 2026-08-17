@@ -75,6 +75,8 @@ if rg -Fq 'UIPinchGestureRecognizer' "$root/GOALPad/Game/TouchControlsView.swift
   exit 1
 fi
 rg -Fq 'Button { performZoomToggle() }' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'Button { performJak2VehicleExit() }' "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'controls.performJak2VehicleExit()' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'lookAroundState: lookAroundState' "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'lookAroundState == .firstPerson' "$root/GOALPad/Game/TouchControls.swift"
 rg -Fq 'arrow.up.left.and.arrow.down.right' "$root/GOALPad/Game/TouchControlsView.swift"

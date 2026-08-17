@@ -171,12 +171,13 @@ check(occursInOrder([
     "returnToLibraryRequestID &+= 1",
     "framesRun = nativeState.framesRun",
     "let currentMode = nativeState.gameMode",
-    "NativeProgressMenuSnapshot(nativeState.progressMenu)",
+    "NativeProgressMenuSnapshot(\n                nativeState.progressMenu,",
     "let currentTitleStartState = nativeState.titleStartState",
     "NativeWarpGateTouchSnapshot(\n                nativeState.warpGateTouch)",
     "NativeCutsceneSkipTouchSnapshot(\n                nativeState.cutsceneSkipTouch)",
     "NativeFacePromptTouchSnapshot(\n                nativeState.facePromptTouch)",
     "let currentLookAroundState = nativeState.lookAroundState",
+    "let currentJak2TraversalState = nativeState.jak2TraversalState",
     "let currentSpeederState = nativeState.speederState",
     "let framePresented = endFrame()",
 ], in: armedTick),
@@ -192,6 +193,7 @@ check(occurrenceCount("GOALPadRuntimeBridge.runFrame", in: armedTick) == 1
         && !armedTick.contains("GOALPadRuntimeBridge.cutsceneSkipTouchSnapshot")
         && !armedTick.contains("GOALPadRuntimeBridge.facePromptTouchSnapshot")
         && !armedTick.contains("GOALPadRuntimeBridge.lookAroundState")
+        && !armedTick.contains("GOALPadRuntimeBridge.jak2TraversalState")
         && !armedTick.contains("GOALPadRuntimeBridge.speederState")
         && !armedTick.contains("gameplayFrameCompleted")
         && occurrenceCount("saveSync.gameplaySaveCompleted()", in: armedTick) == 1,

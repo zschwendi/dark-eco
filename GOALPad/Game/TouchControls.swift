@@ -1297,8 +1297,10 @@ struct Jak2WeaponWheelLayout: Equatable, Sendable {
 struct Jak2TraversalTouchLayout: Equatable, Sendable {
     nonisolated static let shoulderDiameter: CGFloat = 44
     nonisolated static let cameraGap: CGFloat = 28
+    nonisolated static let actionGap: CGFloat = 12
 
     let rightShoulderFrame: CGRect
+    let vehicleExitFrame: CGRect
 
     init(modernLayout: ModernTouchLayout) {
         let safe = modernLayout.safeBounds
@@ -1316,6 +1318,21 @@ struct Jak2TraversalTouchLayout: Equatable, Sendable {
             y: min(max(requested.minY, safe.minY), maximumY),
             width: diameter,
             height: diameter)
+        let requestedExit = CGRect(
+            x: rightShoulderFrame.minX,
+            y: rightShoulderFrame.minY - Self.actionGap - diameter,
+            width: diameter,
+            height: diameter)
+        if requestedExit.minY >= safe.minY {
+            vehicleExitFrame = requestedExit
+        } else {
+            vehicleExitFrame = CGRect(
+                x: max(safe.minX,
+                       rightShoulderFrame.minX - Self.actionGap - diameter),
+                y: rightShoulderFrame.minY,
+                width: diameter,
+                height: diameter)
+        }
     }
 }
 
@@ -1594,6 +1611,7 @@ final class TouchControls {
     private(set) var warpGateTouchSnapshot: NativeWarpGateTouchSnapshot = .invalid
     private(set) var cutsceneSkipTouchSnapshot: NativeCutsceneSkipTouchSnapshot = .invalid
     private(set) var facePromptTouchSnapshot: NativeFacePromptTouchSnapshot = .invalid
+    private(set) var jak2TraversalState: GOALPadJak2TraversalState = .unknown
     private(set) var speederState: GOALPadSpeederState = .unknown
     @ObservationIgnored private var retainsWarpGateTouchCapture = false
 
@@ -1794,6 +1812,10 @@ final class TouchControls {
         }
     }
 
+    func setJak2TraversalState(_ state: GOALPadJak2TraversalState) {
+        jak2TraversalState = state
+    }
+
     /// The native target-state reader is authoritative. Leaving a racer state drops only the
     /// contextual shoulder chord; the original upward Cross gesture remains held until lift.
     func setSpeederState(_ state: GOALPadSpeederState) {
@@ -1905,6 +1927,24 @@ final class TouchControls {
         noteScreenInteraction()
         facePromptPulses[action.button.rawValue].press()
         facePromptHapticEvents.append(.button(action.button))
+    }
+
+    /// Jak II checks an ordinary Triangle edge to leave a controlled vehicle and publishes no
+    /// contextual query for that action. The exact traversal reader keeps this control off-foot.
+    @discardableResult
+    func performJak2VehicleExit() -> Bool {
+        guard Self.jak2VehicleExitIsVisible(
+            gameTitle: gameTitle,
+            mode: nativeMenuMode,
+            runReadiness: runReadiness,
+            isAwaitingTitleStart: titleStartState == .awaiting,
+            traversalState: jak2TraversalState),
+            !capturesNativeTouchInput,
+            !contextualFacePromptOwnsGameplayActions else { return false }
+        noteScreenInteraction()
+        press(.triangle)
+        enqueueHaptic(.button(.triangle))
+        return true
     }
 
     /// The destination responder is Left/Right-driven. A completed horizontal swipe maps to
@@ -2461,6 +2501,17 @@ final class TouchControls {
     ) -> Bool {
         gameTitle == .jak2 && mode == .gameplay && runReadiness == .active
             && !isAwaitingTitleStart
+    }
+
+    nonisolated static func jak2VehicleExitIsVisible(
+        gameTitle: TouchGameTitle,
+        mode: GOALPadGameMode,
+        runReadiness: GameplayRunReadiness,
+        isAwaitingTitleStart: Bool,
+        traversalState: GOALPadJak2TraversalState
+    ) -> Bool {
+        gameTitle == .jak2 && mode == .gameplay && runReadiness == .active
+            && !isAwaitingTitleStart && traversalState == .vehicleRiding
     }
 
     nonisolated static func cutsceneSkipIsAvailable(

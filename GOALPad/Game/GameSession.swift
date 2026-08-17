@@ -47,6 +47,7 @@ final class GameSession {
     private(set) var cutsceneSkipTouchSnapshot: NativeCutsceneSkipTouchSnapshot = .invalid
     private(set) var facePromptTouchSnapshot: NativeFacePromptTouchSnapshot = .invalid
     private(set) var lookAroundState: GOALPadLookAroundState = .unknown
+    private(set) var jak2TraversalState: GOALPadJak2TraversalState = .unknown
     private(set) var speederState: GOALPadSpeederState = .unknown
     @ObservationIgnored private(set) var framesRun: UInt64 = 0
     @ObservationIgnored private(set) var framesPresented: UInt64 = 0
@@ -345,6 +346,7 @@ final class GameSession {
         updateFacePromptTouchSnapshot(NativeFacePromptTouchSnapshot(
             GOALPadRuntimeBridge.facePromptTouchSnapshot))
         lookAroundState = GOALPadRuntimeBridge.lookAroundState
+        updateJak2TraversalState(GOALPadRuntimeBridge.jak2TraversalState)
         updateSpeederState(GOALPadRuntimeBridge.speederState)
         let active = lifecycle.activateWithoutPreparation()
         saveSync.setGameplayActive(active)
@@ -439,6 +441,7 @@ final class GameSession {
         updateCutsceneSkipTouchSnapshot(.invalid)
         updateFacePromptTouchSnapshot(.invalid)
         lookAroundState = .unknown
+        updateJak2TraversalState(.unknown)
         updateSpeederState(.unknown)
         saveSync.setGameplayActive(false)
         touch.reset()
@@ -625,6 +628,10 @@ final class GameSession {
             if currentLookAroundState != lookAroundState {
                 lookAroundState = currentLookAroundState
             }
+            let currentJak2TraversalState = nativeState.jak2TraversalState
+            if currentJak2TraversalState != jak2TraversalState {
+                updateJak2TraversalState(currentJak2TraversalState)
+            }
             let currentSpeederState = nativeState.speederState
             if currentSpeederState != speederState {
                 updateSpeederState(currentSpeederState)
@@ -673,6 +680,11 @@ final class GameSession {
     private func updateSpeederState(_ state: GOALPadSpeederState) {
         speederState = state
         touch.setSpeederState(state)
+    }
+
+    private func updateJak2TraversalState(_ state: GOALPadJak2TraversalState) {
+        jak2TraversalState = state
+        touch.setJak2TraversalState(state)
     }
 
     /// The same numbers the on-screen readout shows, every ten seconds, so a run can be checked

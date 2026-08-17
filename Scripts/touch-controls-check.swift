@@ -650,7 +650,7 @@ private func jak2WeaponWheelMappingGeometryAndPulsesAreExact() {
 
 @MainActor
 private func jak2TraversalShouldersAreHoldableAndTitleScoped() {
-    print("Jak II exposes holdable raw R1 and R2 traversal controls")
+    print("Jak II exposes holdable raw R1/R2 plus a vehicle-riding Triangle exit")
     check(TouchControls.inputBit(for: .stats, gameTitle: .jak1) == [.L2, .R2]
           && TouchControls.inputBit(for: .stats, gameTitle: .jak2) == .R2
           && TouchControls.inputBit(for: .rightShoulder, gameTitle: .jak2) == .R1,
@@ -668,9 +668,18 @@ private func jak2TraversalShouldersAreHoldableAndTitleScoped() {
         let traversal = Jak2TraversalTouchLayout(modernLayout: modern)
         let shoulderHit = traversal.rightShoulderFrame.insetBy(dx: -10, dy: -12)
         let overlap = shoulderHit.intersection(modern.rightStickHitFrame)
+        let exitShoulderOverlap = traversal.vehicleExitFrame
+            .intersection(traversal.rightShoulderFrame)
+        let exitCameraOverlap = traversal.vehicleExitFrame
+            .intersection(modern.rightStickHitFrame)
         check(modern.safeBounds.contains(traversal.rightShoulderFrame)
-              && (overlap.isNull || overlap.width <= 0.001 || overlap.height <= 0.001),
-              "\(Int(size.width))x\(Int(size.height)) keeps R1 safe and clear of the R stick")
+              && modern.safeBounds.contains(traversal.vehicleExitFrame)
+              && (overlap.isNull || overlap.width <= 0.001 || overlap.height <= 0.001)
+              && (exitShoulderOverlap.isNull || exitShoulderOverlap.width <= 0.001
+                  || exitShoulderOverlap.height <= 0.001)
+              && (exitCameraOverlap.isNull || exitCameraOverlap.width <= 0.001
+                  || exitCameraOverlap.height <= 0.001),
+              "\(Int(size.width))x\(Int(size.height)) keeps R1 and vehicle exit clear")
     }
 
     var jak2 = Runner(gameTitle: .jak2)
@@ -701,6 +710,29 @@ private func jak2TraversalShouldersAreHoldableAndTitleScoped() {
     check(jak2.frames(TouchControls.holdFrames + TouchControls.releaseFrames + 2).last!
         .buttons.contains(.R2) == false,
           "lifting Jak II's R2 pill releases R2")
+
+    check(!TouchControls.jak2VehicleExitIsVisible(
+        gameTitle: .jak1, mode: .gameplay, runReadiness: .active,
+        isAwaitingTitleStart: false, traversalState: .vehicleRiding)
+        && !TouchControls.jak2VehicleExitIsVisible(
+            gameTitle: .jak2, mode: .gameplay, runReadiness: .active,
+            isAwaitingTitleStart: false, traversalState: .onFoot)
+        && TouchControls.jak2VehicleExitIsVisible(
+            gameTitle: .jak2, mode: .gameplay, runReadiness: .active,
+            isAwaitingTitleStart: false, traversalState: .vehicleRiding),
+          "only an exact Jak II vehicle-riding snapshot exposes Triangle exit")
+    jak2.controls.setJak2TraversalState(.vehicleRiding)
+    check(jak2.controls.performJak2VehicleExit()
+          && jak2.controls.consumeHapticEvents() == [.button(.triangle)],
+          "vehicle exit accepts one exact Triangle action and haptic")
+    let exitFrames = jak2.frames(TouchControls.holdFrames + TouchControls.releaseFrames)
+    check(exitFrames.prefix(TouchControls.holdFrames).allSatisfy {
+        $0.buttons == .triangle
+    } && exitFrames.suffix(TouchControls.releaseFrames).allSatisfy { $0 == .neutral },
+          "vehicle exit emits only a native Triangle pulse with a release gap")
+    jak2.controls.setJak2TraversalState(.onFoot)
+    check(!jak2.controls.performJak2VehicleExit(),
+          "vehicle exit fails closed immediately after returning on-foot")
 }
 
 @MainActor

@@ -152,6 +152,16 @@ struct TouchControlsView: View {
             isAwaitingTitleStart: isAwaitingTitleStart)
     }
 
+    private var jak2VehicleExitIsVisible: Bool {
+        TouchControls.jak2VehicleExitIsVisible(
+            gameTitle: controls.gameTitle,
+            mode: gameMode,
+            runReadiness: runReadiness,
+            isAwaitingTitleStart: isAwaitingTitleStart,
+            traversalState: controls.jak2TraversalState)
+            && !cutsceneSkipAvailable && facePromptActions.isEmpty
+    }
+
     private var ecoSettingsIsVisible: Bool {
         NativeEcoSettingsPresentation.isVisible(
             mode: gameMode,
@@ -215,6 +225,10 @@ struct TouchControlsView: View {
                         Jak2WeaponWheelControl(controls: controls,
                                                frame: weaponWheelLayout.frame,
                                                reclaimTouchInput: reclaimTouchInput)
+                    }
+
+                    if jak2VehicleExitIsVisible {
+                        jak2VehicleExitButton(frame: traversalLayout.vehicleExitFrame)
                     }
 
                     if titleStartTouchTargetIsVisible {
@@ -357,6 +371,21 @@ struct TouchControlsView: View {
             .accessibilityLabel("R1")
     }
 
+    private func jak2VehicleExitButton(frame: CGRect) -> some View {
+        Button { performJak2VehicleExit() } label: {
+            Text(TouchButton.triangle.glyph)
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.86))
+                .frame(width: frame.width, height: frame.height)
+                .background(Circle().fill(.black.opacity(0.48)))
+                .overlay(Circle().strokeBorder(.white.opacity(0.42), lineWidth: 1))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .position(x: frame.midX, y: frame.midY)
+        .accessibilityLabel("Exit Vehicle")
+    }
+
     private var zoomSystemImage: String {
         lookAroundState == .firstPerson
             ? "arrow.down.right.and.arrow.up.left"
@@ -454,6 +483,12 @@ struct TouchControlsView: View {
     private func performZoomToggle() {
         _ = reclaimTouchInput()
         guard controls.performZoomToggle(lookAroundState: lookAroundState) else { return }
+        playChromeFeedback()
+    }
+
+    private func performJak2VehicleExit() {
+        _ = reclaimTouchInput()
+        guard controls.performJak2VehicleExit() else { return }
         playChromeFeedback()
     }
 
