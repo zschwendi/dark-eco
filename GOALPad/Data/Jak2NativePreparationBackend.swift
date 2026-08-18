@@ -1,16 +1,4 @@
-#if GOALPAD_JAK2
-import Foundation
-
-private typealias AppJak2GameDataPreparationJob = GOALPadGameDataPreparationJob
-private typealias AppJak2GameDataPreparationProgress = GOALPadGameDataPreparationProgress
-private typealias AppJak2GameDataPreparationSummary = GOALPadGameDataPreparationSummary
-nonisolated private let appJak2GameDataPreparationErrorDomain =
-    GOALPadGameDataPreparationErrorDomain
-
-nonisolated private func appJak2GameDataPreparationIsAvailable() -> Bool {
-    GOALPadGameDataPreparationIsAvailable()
-}
-#elseif os(iOS) && canImport(GOALPadJak2Runtime)
+#if os(iOS) && canImport(GOALPadJak2Runtime)
 import Foundation
 import GOALPadJak2Runtime
 
@@ -28,7 +16,7 @@ nonisolated private func appJak2GameDataPreparationIsAvailable() -> Bool {
 }
 #endif
 
-#if GOALPAD_JAK2 || (os(iOS) && canImport(GOALPadJak2Runtime))
+#if os(iOS) && canImport(GOALPadJak2Runtime)
 
 nonisolated extension GameDataNativePreparationBackend {
     static let appJak2Composer = GameDataNativePreparationBackend(

@@ -27,5 +27,4 @@ run_check() {
   "$out-$label"
 }
 
-run_check jak1
-run_check jak2 -D GOALPAD_JAK2
+run_check unified

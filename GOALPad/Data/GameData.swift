@@ -136,14 +136,10 @@ nonisolated struct GameDataProfile: Equatable, Sendable {
         readiness: .experimentalTitleAndGameplay,
         supportsRawMediaPreparation: true,
         supportsRuntimeLaunch: true,
-        supportsManagedSaveSync: false
+        supportsManagedSaveSync: true
     )
 
-    #if GOALPAD_JAK2
-    static let active = jak2
-    #else
     static let active = jak1
-    #endif
 }
 
 /// Where the player's own prepared data for the active single-game profile lives on the device.

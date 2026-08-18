@@ -21229,3 +21229,36 @@ both Library cards showing Ready, then Jak II Settings, pause-menu touch chrome,
 character eyes, Haven/Sandover water, and the first available vehicle/jetboard
 controls. Record the exact scene and visible symptom for each failure; do not
 infer renderer completion from the successful install and launch alone.
+
+## Build 239 unified Dark Eco product boundary (2026-08-17)
+
+Dark Eco is now the only application product. The obsolete `Eco Jak II Dev`
+application target, scheme, product, standalone build configurations, direct
+Swift compilation mode, and standalone-only save-profile check were removed.
+The `GOALPadJak2Runtime` framework remains a first-class target because Dark Eco
+links and embeds it; all Jak II renderer, input, importer, and runtime work must
+continue through the merged `GOALPad` scheme on branch `v2.0`.
+
+The unified app now owns both title profiles at runtime. Jak II raw-media
+preparation uses only the embedded framework adapter, and its existing isolated
+iCloud save namespace is enabled through Dark Eco's entitled save profile. All
+four remaining target configurations were incremented to Build 239.
+
+Focused validation passed:
+
+```text
+plutil -lint GOALPad.xcodeproj/project.pbxproj
+Scripts/run-jak2-import-target-config-check.sh
+swift Scripts/jak2-native-preparation-backend-check.swift "$PWD"
+swift Scripts/selected-session-routing-check.swift "$PWD"
+Scripts/run-raw-iso-profile-routing-check.sh
+Scripts/run-save-sync-check.sh
+xcodebuild -list -project GOALPad.xcodeproj
+git diff --check
+```
+
+`xcodebuild -list` reports only the `GOALPad` app target and the
+`GOALPadJak2Runtime` framework target. A signed Build 239 build is the next
+validation step. Do not uninstall the legacy `com.zephyrstudiosllc.eco.jak2dev`
+app from the iPad: its private sandbox may still be the only copy of older Jak II
+saves. It is a deprecated legacy install, not a development or release target.

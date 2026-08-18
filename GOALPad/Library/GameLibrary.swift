@@ -152,13 +152,7 @@ nonisolated enum GameLibraryTitle: String, CaseIterable, Equatable, Hashable, Id
 
     var id: String { rawValue }
 
-    static var active: GameLibraryTitle {
-        #if GOALPAD_JAK2
-        .jak2
-        #else
-        .jak1
-        #endif
-    }
+    static let active: GameLibraryTitle = .jak1
 
     var name: String {
         switch self {

@@ -172,17 +172,9 @@ nonisolated struct SaveSyncProfile: Sendable {
     }
 
     static func jak2() -> SaveSyncProfile {
-        #if GOALPAD_JAK2
-        let cloudLocations: @Sendable () -> CloudSaveLocations? = { nil }
-        let coordinateCloudAccess = false
-        let supportsManagedSaveSync = false
-        #else
         let cloudLocations: @Sendable () -> CloudSaveLocations? = {
             SaveDataLayout.jak2CloudLocations()
         }
-        let coordinateCloudAccess = true
-        let supportsManagedSaveSync = true
-        #endif
         return SaveSyncProfile(
             format: .jak2,
             localSavesDirectory: SaveDataLayout.jak2LocalSavesDirectory,
@@ -190,12 +182,10 @@ nonisolated struct SaveSyncProfile: Sendable {
             stateFile: SaveDataLayout.jak2StateFile,
             cloudLocations: cloudLocations,
             cloudUnavailableReason: { SaveDataLayout.cloudUnavailableReason() },
-            coordinateCloudAccess: coordinateCloudAccess,
-            supportsManagedSaveSync: supportsManagedSaveSync,
+            coordinateCloudAccess: true,
+            supportsManagedSaveSync: true,
             supportsSaveTransfer: true,
-            managedSaveSyncUnavailableMessage:
-                "This standalone Jak II app has no iCloud save entitlement. "
-                + "Export saves through Files, then import them into Dark Eco.",
+            managedSaveSyncUnavailableMessage: "Managed save sync is unavailable.",
             enabledDefaultsKey: "jak2ICloudSavesEnabled",
             lastResolutionsDefaultsKey: "jak2LastSaveAutoResolutions")
     }

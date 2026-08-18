@@ -200,19 +200,6 @@ private struct RawISOProfileRoutingCheck {
             },
             nativePreparationBackend: .appJak1Composer
         )
-        #if GOALPAD_JAK2
-        check(!jak1Producer.isAvailable,
-              "a Jak II-configured app cannot activate the in-process compatibility backend")
-        NativeJobRecorder.shared.reset()
-        _ = try? await jak1Producer.prepareCandidate(
-            from: source,
-            activeDirectory: root,
-            candidateDirectory: candidate,
-            report: { _ in }
-        )
-        check(NativeJobRecorder.shared.snapshot.starts == 0,
-              "a Jak II-configured app never reaches the compatibility native job")
-        #else
         check(jak1Producer.isAvailable,
               "the existing Jak 1 composer remains available with both verified resources")
         NativeJobRecorder.shared.reset()
@@ -232,7 +219,6 @@ private struct RawISOProfileRoutingCheck {
         } catch {
             check(false, "Jak 1 native preparation remains callable")
         }
-        #endif
         check(jak1ResourceNames == [
             GameDataProfile.jak1.projectResourceName,
             GameDataProfile.jak1.sourceObjectPackName,

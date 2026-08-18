@@ -1,5 +1,5 @@
 #!/bin/sh
-# Build the isolated Jak II iOS runtime archives consumed by the Eco Jak II Dev target.
+# Build the Jak II iOS runtime archives consumed by Dark Eco's embedded runtime framework.
 
 set -eu
 

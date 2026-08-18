@@ -265,13 +265,7 @@ nonisolated extension GameDataNativePreparationBackend {
     static let appJak1Composer = GameDataNativePreparationBackend(
         profileIdentifier: .jak1,
         nativeErrorDomain: GOALPadGameDataPreparationErrorDomain,
-        isAvailable: {
-            #if GOALPAD_JAK2
-            false
-            #else
-            GOALPadGameDataPreparationIsAvailable()
-            #endif
-        },
+        isAvailable: { GOALPadGameDataPreparationIsAvailable() },
         prepare: { sourceURL, candidateURL, resources, report in
             try await runAppJak1Composer(
                 sourceURL: sourceURL,

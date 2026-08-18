@@ -1,13 +1,7 @@
 import Foundation
 
 nonisolated extension GameDataProfile {
-    static var initialProfile: GameDataProfile {
-        #if GOALPAD_JAK2
-        .jak2
-        #else
-        .jak1
-        #endif
-    }
+    static let initialProfile: GameDataProfile = .jak1
 
     static func profile(for title: GameLibraryTitle) -> GameDataProfile? {
         switch title {

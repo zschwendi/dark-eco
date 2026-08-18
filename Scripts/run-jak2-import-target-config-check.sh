@@ -1,5 +1,5 @@
 #!/bin/sh
-# Source-level contract for the isolated Eco Jak II Dev import-composer phases, settings, and launch configuration.
+# Source-level contract for Dark Eco's single-app Jak II runtime and import wiring.
 
 set -eu
 
@@ -11,10 +11,6 @@ import sys
 
 root = pathlib.Path(sys.argv[1])
 project = (root / "GOALPad.xcodeproj/project.pbxproj").read_text(encoding="utf-8")
-debug = (root / "Configuration/Jak2Dev-Debug.xcconfig").read_text(encoding="utf-8")
-release = (root / "Configuration/Jak2Dev-Release.xcconfig").read_text(encoding="utf-8")
-scheme = (root / "GOALPad.xcodeproj/xcshareddata/xcschemes/Eco Jak II Dev.xcscheme").read_text(
-    encoding="utf-8")
 jak1_debug = (root / "Configuration/GOALPad-Importer-Debug.xcconfig").read_text(encoding="utf-8")
 jak1_release = (root / "Configuration/GOALPad-Importer-Release.xcconfig").read_text(encoding="utf-8")
 
@@ -27,43 +23,40 @@ def target_block(identifier: str) -> str:
     require(match is not None, f"missing native target {identifier}")
     return match.group(0)
 
-def object_block(identifier: str) -> str:
-    match = re.search(rf"\t\t{identifier} /\*[^*]+\*/ = \{{.*?\n\t\t\}};", project, re.DOTALL)
-    require(match is not None, f"missing project object {identifier}")
-    return match.group(0)
+for obsolete in (
+    "Eco Jak II Dev",
+    "EcoJak2Dev.app",
+    "Jak2Dev-Debug.xcconfig",
+    "Jak2Dev-Release.xcconfig",
+    "com.zephyrstudiosllc.eco.jak2dev",
+):
+    require(obsolete not in project, f"obsolete standalone product remains in project: {obsolete}")
 
-jak2_target = target_block("A74000000000000000000001")
-jak2_phase_names = re.findall(r"/\* ([^*]+) \*/", re.search(
-    r"buildPhases = \((.*?)\n\t\t\t\);", jak2_target, re.DOTALL
-).group(1))
-require(jak2_phase_names == [
-    "Verify Jak II AOT",
-    "Build Jak II native runtime",
-    "Build Jak II import composer",
-    "Sources",
-    "Frameworks",
-    "Resources",
-    "Stage Jak II importer resources",
-], f"unexpected Eco Jak II Dev phase order: {jak2_phase_names}")
+for obsolete_path in (
+    root / "Configuration/Jak2Dev-Debug.xcconfig",
+    root / "Configuration/Jak2Dev-Release.xcconfig",
+    root / "GOALPad.xcodeproj/xcshareddata/xcschemes/Eco Jak II Dev.xcscheme",
+):
+    require(not obsolete_path.exists(), f"obsolete standalone file remains: {obsolete_path}")
 
-jak2_runtime_target = target_block("F10200000000000000000002")
-jak2_runtime_phase_names = re.findall(r"/\* ([^*]+) \*/", re.search(
-    r"buildPhases = \((.*?)\n\t\t\t\);", jak2_runtime_target, re.DOTALL
+runtime_target = target_block("F10200000000000000000002")
+runtime_phases = re.findall(r"/\* ([^*]+) \*/", re.search(
+    r"buildPhases = \((.*?)\n\t\t\t\);", runtime_target, re.DOTALL
 ).group(1))
-require(jak2_runtime_phase_names == [
+require(runtime_phases == [
     "Verify Jak II AOT",
     "Build Jak II native runtime",
     "Build Jak II import composer",
     "Sources",
     "Frameworks",
     "Headers",
-], f"unexpected GOALPadJak2Runtime phase order: {jak2_runtime_phase_names}")
+], f"unexpected GOALPadJak2Runtime phase order: {runtime_phases}")
 
-jak1_target = target_block("92C2B201301C0D2F0025E4D5")
-jak1_phase_names = re.findall(r"/\* ([^*]+) \*/", re.search(
-    r"buildPhases = \((.*?)\n\t\t\t\);", jak1_target, re.DOTALL
+app_target = target_block("92C2B201301C0D2F0025E4D5")
+app_phases = re.findall(r"/\* ([^*]+) \*/", re.search(
+    r"buildPhases = \((.*?)\n\t\t\t\);", app_target, re.DOTALL
 ).group(1))
-require(jak1_phase_names == [
+require(app_phases == [
     "Verify generated AOT",
     "Compile Metal shaders",
     "Build Jak 1 import composer",
@@ -73,65 +66,33 @@ require(jak1_phase_names == [
     "Resources",
     "Stage Jak 1 importer resources",
     "Stage Jak II importer resources",
-], f"the GOALPad/Jak 1 target phase block changed: {jak1_phase_names}")
-require("Build Jak II" not in jak1_target and "Verify Jak II" not in jak1_target
-        and "GOALPAD_JAK2" not in jak1_target,
-        "Jak II compile or archive-build wiring entered the GOALPad/Jak 1 target")
+], f"unexpected Dark Eco phase order: {app_phases}")
+require("Build Jak II" not in app_target and "Verify Jak II" not in app_target,
+        "Dark Eco must consume Jak II through its embedded runtime framework")
+require("F10800000000000000000002 /* PBXTargetDependency */" in app_target,
+        "Dark Eco must depend on GOALPadJak2Runtime")
 
 for marker in (
-    "A74100000000000000000001 /* Build Jak II import composer */ = {",
-    '"$(SRCROOT)/Scripts/build-jak2-import-composer-apple.sh"',
-    '"$(GOALPAD_JAK2_IMPORT_ARCHIVE)"',
-    '"$(GOALPAD_JAK2_SOURCE_OBJECT_PACK_VERIFIER)"',
-    "A74100000000000000000002 /* Stage Jak II importer resources */ = {",
+    "F10100000000000000000002 /* GOALPadJak2Runtime.framework in Frameworks */",
+    "F10100000000000000000004 /* GOALPadJak2Runtime.framework in Embed Frameworks */",
+    "F11200000000000000000004 /* Stage Jak II importer resources */ = {",
     '"$(SRCROOT)/Scripts/stage-jak2-import-composer-resources.sh"',
-    '"$(SRCROOT)/Scripts/stage-jak2-import-resources.sh"',
     '"$(GOALPAD_JAK2_PROJECT_RESOURCES)"',
     '"$(GOALPAD_JAK2_SOURCE_OBJECT_PACK_RESOURCES)"',
-    "F11200000000000000000004 /* Stage Jak II importer resources */ = {",
-    "F10100000000000000000004 /* GOALPadJak2Runtime.framework in Embed Frameworks */",
 ):
-    require(marker in project, f"missing project contract: {marker}")
-
-jak2_frameworks = object_block("A74000000000000000000005")
-require("GOALPadJak2Runtime.framework" not in jak2_frameworks
-        and "GOALPadJak2Runtime.framework" not in jak2_target,
-        "Eco Jak II Dev must use its direct runtime instead of rebuilding the merged-app framework")
-require("EcoJak2RuntimeBridge.mm in Sources" in object_block("A74000000000000000000004"),
-        "Eco Jak II Dev must retain its direct runtime bridge")
-
-for marker in (
-    "GOALPAD_HAS_JAK1_IMPORT_COMPOSER = 0",
-    "GOALPAD_HAS_JAK2_IMPORT_COMPOSER = 0",
-    "GOALPAD_JAK2_SOURCE_OBJECT_PACK_ROOT = $(SRCROOT)/build/jak2-source-object-pack",
-    "GOALPAD_JAK2_IMPORT_BUILD_ROOT = $(DERIVED_FILE_DIR)/Jak2ImportComposer",
-    "GOALPAD_JAK2_IMPORT_ARCHIVE = $(DERIVED_FILE_DIR)/Jak2ImportComposer/$(PLATFORM_NAME)/jak2-import-composer-apple/libjak2-import-composer-apple.a",
-    "GOALPAD_JAK2_PROJECT_RESOURCES = $(GOALPAD_APP_RESOURCE_DESTINATION)/Jak2ProjectResources",
-    "GOALPAD_JAK2_SOURCE_OBJECT_PACK_RESOURCES = $(GOALPAD_APP_RESOURCE_DESTINATION)/Jak2SourceObjectPack",
-    "GOALPAD_HAS_JAK1_IMPORT_COMPOSER=$(GOALPAD_HAS_JAK1_IMPORT_COMPOSER)",
-    "GOALPAD_HAS_JAK2_IMPORT_COMPOSER=$(GOALPAD_HAS_JAK2_IMPORT_COMPOSER)",
-):
-    require(marker in debug, f"missing Jak II Debug setting: {marker}")
-
-for marker in (
-    '#include "Jak2Dev-Debug.xcconfig"',
-    "GOALPAD_HAS_JAK2_IMPORT_COMPOSER = 0",
-    "GOALPAD_HAS_JAK2_IMPORT_COMPOSER[sdk=iphoneos*] = 1",
-    "GOALPAD_HAS_JAK2_IMPORT_COMPOSER[sdk=iphonesimulator*] = 1",
-    'OTHER_LDFLAGS[sdk=iphoneos*] = $(inherited) "$(GOALPAD_JAK2_IMPORT_ARCHIVE)"',
-    'OTHER_LDFLAGS[sdk=iphonesimulator*] = $(inherited) "$(GOALPAD_JAK2_IMPORT_ARCHIVE)"',
-):
-    require(marker in release, f"missing Jak II Release setting: {marker}")
-
-require(re.search(r'<LaunchAction\s+buildConfiguration = "Release"', scheme) is not None,
-        "Eco Jak II Dev LaunchAction must use Release so raw-media preparation is available")
+    require(marker in project, f"missing unified-product contract: {marker}")
 
 require('#include "Jak2Packaging.xcconfig"' in jak1_debug
         and '#include "Jak2Packaging.xcconfig"' in jak1_release,
-        "the GOALPad target must receive only the shared Jak II resource paths")
+        "Dark Eco must receive the shared Jak II packaging paths")
 require("GOALPAD_HAS_JAK2_IMPORT_COMPOSER" not in jak1_debug
         and "GOALPAD_HAS_JAK2_IMPORT_COMPOSER" not in jak1_release,
-        "the GOALPad target must not compile the Jak II composer")
+        "Dark Eco must not compile the Jak II composer into the app target")
 
-print("Jak II import target/config source checks passed")
+native_target_ids = re.findall(r"\t\t([A-F0-9]{24}) /\*.*?\*/ = \{\n\t\t\tisa = PBXNativeTarget;",
+                               project)
+require(native_target_ids == ["F10200000000000000000002", "92C2B201301C0D2F0025E4D5"],
+        f"unexpected native target set: {native_target_ids}")
+
+print("Dark Eco unified Jak II target/config source checks passed")
 PY

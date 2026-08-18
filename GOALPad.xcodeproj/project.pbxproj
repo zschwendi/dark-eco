@@ -13,8 +13,6 @@
 		F10100000000000000000008 /* GOALPadJak2Runtime.h in Headers */ = {isa = PBXBuildFile; fileRef = F10000000000000000000004 /* GOALPadJak2Runtime.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		F10100000000000000000009 /* GOALPadRuntimeBridge.h in Headers */ = {isa = PBXBuildFile; fileRef = F10000000000000000000009 /* GOALPadRuntimeBridge.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		F1010000000000000000000A /* GOALPadGameDataPreparationBridge.h in Headers */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000A /* GOALPadGameDataPreparationBridge.h */; settings = {ATTRIBUTES = (Public, ); }; };
-		A74000000000000000020001 /* EcoJak2RuntimeBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = A74000000000000000010001 /* EcoJak2RuntimeBridge.mm */; };
-		A74000000000000000020002 /* PLzmaSDK in Frameworks */ = {isa = PBXBuildFile; productRef = D7A000000000000000010001 /* PLzmaSDK */; };
 		A73000000000000000020000 /* xdbg.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010000 /* xdbg.cpp */; };
 		A73000000000000000020001 /* log.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010001 /* log.cpp */; };
 		A73000000000000000020002 /* Assert.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A73000000000000000010002 /* Assert.cpp */; };
@@ -393,10 +391,7 @@
 		A73400000000000000010015 /* metal_jak2_common_tfrag_texture_upload_capture.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_jak2_common_tfrag_texture_upload_capture.cpp; path = game/graphics/pipelines/metal/metal_jak2_common_tfrag_texture_upload_capture.cpp; sourceTree = "<group>"; };
 		A73300000000000000010000 /* GOALPad-Importer-Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "GOALPad-Importer-Debug.xcconfig"; sourceTree = "<group>"; };
 		A73300000000000000010001 /* GOALPad-Importer-Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "GOALPad-Importer-Release.xcconfig"; sourceTree = "<group>"; };
-		A74000000000000000010000 /* EcoJak2Dev.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EcoJak2Dev.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A74000000000000000010001 /* EcoJak2RuntimeBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = EcoJak2RuntimeBridge.mm; path = TargetSupport/Jak2/EcoJak2RuntimeBridge.mm; sourceTree = SOURCE_ROOT; };
-		A74000000000000000010002 /* Jak2Dev-Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Jak2Dev-Debug.xcconfig"; sourceTree = "<group>"; };
-		A74000000000000000010003 /* Jak2Dev-Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Jak2Dev-Release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXContainerItemProxy section */
@@ -437,32 +432,6 @@
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		A74000000000000000000007 /* Exceptions for "GOALPad" folder in "Eco Jak II Dev" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Native/Generated/OpenGOALConstant42.s,
-				Native/Generated/OpenGOALJak1False.s,
-				Native/Generated/OpenGOALJak1FalseFunc.s,
-				Native/Generated/OpenGOALJak1Identity.s,
-				Native/Generated/OpenGOALJak1LevelGroupLoadCommandsSet.s,
-				Native/Generated/OpenGOALJak1LoadStateReset.s,
-				Native/Generated/OpenGOALJak1LoadStateValue.s,
-				Native/Generated/OpenGOALJak1Lognot.s,
-				Native/Generated/OpenGOALJak1TrueFunc.s,
-				Native/Generated/OpenGOALJak1WantLevels.s,
-				Native/Generated/OpenGOALJak1WantVis.s,
-				Native/GOALPadAOTExportRegistry.cpp,
-				Native/GOALPadAOTWorkload.cpp,
-				Native/GOALPadGameBoot.cpp,
-				Native/GOALPadGoalStateWrapper.s,
-				Native/GOALPadMetalHost.mm,
-				Native/GOALPadMetallib.c,
-				Native/GOALPadRenderSurface.mm,
-				Native/GOALPadRuntimeBridge.mm,
-				Native/GOALPadRuntimeCore.cpp,
-			);
-			target = A74000000000000000000001 /* Eco Jak II Dev */;
-		};
 		A73000000000000000000002 /* Exceptions for "Generated/jak1-aot" folder in "GOALPad" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -476,9 +445,6 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		92C2B204301C0D2F0025E4D5 /* GOALPad */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				A74000000000000000000007 /* Exceptions for "GOALPad" folder in "Eco Jak II Dev" target */,
-			);
 			path = GOALPad;
 			sourceTree = "<group>";
 		};
@@ -497,14 +463,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		A74000000000000000000005 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				A74000000000000000020002 /* PLzmaSDK in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -538,7 +496,6 @@
 			isa = PBXGroup;
 			children = (
 				92C2B202301C0D2F0025E4D5 /* Dark Eco.app */,
-				A74000000000000000010000 /* EcoJak2Dev.app */,
 				F10600000000000000000002 /* GOALPadJak2Runtime.framework */,
 			);
 			name = Products;
@@ -749,8 +706,6 @@
 				F10000000000000000000008 /* Jak2Runtime-Release.xcconfig */,
 				A73300000000000000010000 /* GOALPad-Importer-Debug.xcconfig */,
 				A73300000000000000010001 /* GOALPad-Importer-Release.xcconfig */,
-				A74000000000000000010002 /* Jak2Dev-Debug.xcconfig */,
-				A74000000000000000010003 /* Jak2Dev-Release.xcconfig */,
 			);
 			path = Configuration;
 			sourceTree = "<group>";
@@ -807,33 +762,6 @@
 			productReference = F10600000000000000000002 /* GOALPadJak2Runtime.framework */;
 			productType = "com.apple.product-type.framework";
 		};
-		A74000000000000000000001 /* Eco Jak II Dev */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = A7400000000000000000000A /* Build configuration list for PBXNativeTarget "Eco Jak II Dev" */;
-			buildPhases = (
-				A74000000000000000000002 /* Verify Jak II AOT */,
-				A74000000000000000000003 /* Build Jak II native runtime */,
-				A74100000000000000000001 /* Build Jak II import composer */,
-				A74000000000000000000004 /* Sources */,
-				A74000000000000000000005 /* Frameworks */,
-				A74000000000000000000006 /* Resources */,
-				A74100000000000000000002 /* Stage Jak II importer resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				92C2B204301C0D2F0025E4D5 /* GOALPad */,
-			);
-			name = "Eco Jak II Dev";
-			packageProductDependencies = (
-				D7A000000000000000010001 /* PLzmaSDK */,
-			);
-			productName = EcoJak2Dev;
-			productReference = A74000000000000000010000 /* EcoJak2Dev.app */;
-			productType = "com.apple.product-type.application";
-		};
 		92C2B201301C0D2F0025E4D5 /* GOALPad */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 92C2B20D301C0D300025E4D5 /* Build configuration list for PBXNativeTarget "GOALPad" */;
@@ -875,9 +803,6 @@
 				LastSwiftUpdateCheck = 2660;
 				LastUpgradeCheck = 2660;
 				TargetAttributes = {
-					A74000000000000000000001 = {
-						CreatedOnToolsVersion = 26.6;
-					};
 					92C2B201301C0D2F0025E4D5 = {
 						CreatedOnToolsVersion = 26.6;
 						SystemCapabilities = {
@@ -906,20 +831,12 @@
 			projectRoot = "";
 			targets = (
 				92C2B201301C0D2F0025E4D5 /* GOALPad */,
-				A74000000000000000000001 /* Eco Jak II Dev */,
 				F10200000000000000000002 /* GOALPadJak2Runtime */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		A74000000000000000000006 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		92C2B200301C0D2F0025E4D5 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1025,101 +942,6 @@
 			shellPath = /bin/sh;
 			shellScript = "case \"$PLATFORM_NAME\" in\n  iphoneos|iphonesimulator) ;;\n  *) echo \"Skipping Jak II importer resources for $PLATFORM_NAME\"; exit 0 ;;\nesac\n\"$SRCROOT/Scripts/stage-jak2-import-composer-resources.sh\"\n";
 		};
-		A74000000000000000000002 /* Verify Jak II AOT */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"$(SRCROOT)/Scripts/verify-generated-aot.sh",
-				"$(SRCROOT)/Generated/jak2-aot/aot_boot_manifest.c",
-				"$(SRCROOT)/Generated/jak2-aot/coverage.tsv",
-			);
-			name = "Verify Jak II AOT";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"$SRCROOT/Scripts/verify-generated-aot.sh\" \"$SRCROOT/Generated/jak2-aot\" 840\n";
-		};
-		A74000000000000000000003 /* Build Jak II native runtime */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"$(SRCROOT)/Scripts/build-jak2-native-apple.sh",
-				"$(SRCROOT)/OpenGOAL/CMakeLists.txt",
-				"$(SRCROOT)/Generated/jak2-aot/aot_boot_manifest.c",
-				"$(SRCROOT)/Generated/jak2-aot/coverage.tsv",
-			);
-			name = "Build Jak II native runtime";
-			outputPaths = (
-				"$(GOALPAD_JAK2_NATIVE_CONFIG_DIR)/libopengoal-jak2-runtime.a",
-				"$(GOALPAD_JAK2_NATIVE_CONFIG_DIR)/libjak2-iphoneos-metal-host.a",
-				"$(GOALPAD_JAK2_NATIVE_CONFIG_DIR)/libopengoal-jak2-aot-corpus.a",
-				"$(GOALPAD_JAK2_NATIVE_CONFIG_DIR)/libjak2-iphoneos-metal-product.a",
-				"$(GOALPAD_JAK2_NATIVE_CONFIG_DIR)/libjak2-kernel-core.a",
-				"$(GOALPAD_JAK2_ZSTD_CONFIG_DIR)/liblibzstd_static.a",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"$SRCROOT/Scripts/build-jak2-native-apple.sh\"\n";
-		};
-		A74100000000000000000001 /* Build Jak II import composer */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"$(SRCROOT)/Scripts/build-jak2-import-composer-apple.sh",
-				"$(SRCROOT)/Scripts/build-jak1-import-composer-apple.sh",
-				"$(GOALPAD_OPENGOAL_PHASE_INPUT)",
-				"$(GOALPAD_OPENGOAL_GITFILE_PHASE_INPUT)",
-				"$(GOALPAD_OPENGOAL_GIT_METADATA_PHASE_INPUT)",
-				"$(GOALPAD_JAK2_SOURCE_OBJECT_PACK_PHASE_INPUT)",
-			);
-			name = "Build Jak II import composer";
-			outputPaths = (
-				"$(GOALPAD_JAK2_IMPORT_BUILD_ROOT)",
-				"$(GOALPAD_JAK2_IMPORT_ARCHIVE)",
-				"$(GOALPAD_JAK2_SOURCE_OBJECT_PACK_VERIFIER)",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "if [ \"${GOALPAD_HAS_JAK2_IMPORT_COMPOSER:-0}\" != 1 ]; then\n  echo \"Skipping Jak II import composer for this configuration and architecture\"\n  exit 0\nfi\n\"$SRCROOT/Scripts/build-jak2-import-composer-apple.sh\"\n";
-		};
-		A74100000000000000000002 /* Stage Jak II importer resources */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"$(SRCROOT)/Scripts/stage-jak2-import-composer-resources.sh",
-				"$(SRCROOT)/Scripts/stage-jak1-import-composer-resources.sh",
-				"$(SRCROOT)/Scripts/stage-jak2-import-resources.sh",
-				"$(SRCROOT)/Scripts/stage-import-resources.sh",
-				"$(GOALPAD_OPENGOAL_PHASE_INPUT)",
-				"$(GOALPAD_OPENGOAL_GITFILE_PHASE_INPUT)",
-				"$(GOALPAD_OPENGOAL_GIT_METADATA_PHASE_INPUT)",
-				"$(GOALPAD_JAK2_SOURCE_OBJECT_PACK_PHASE_INPUT)",
-				"$(GOALPAD_JAK2_IMPORT_BUILD_ROOT_PHASE_INPUT)",
-				"$(GOALPAD_JAK2_IMPORT_ARCHIVE_PHASE_INPUT)",
-				"$(GOALPAD_JAK2_SOURCE_OBJECT_PACK_VERIFIER_PHASE_INPUT)",
-			);
-			name = "Stage Jak II importer resources";
-			outputPaths = (
-				"$(GOALPAD_JAK2_PROJECT_RESOURCES)",
-				"$(GOALPAD_JAK2_SOURCE_OBJECT_PACK_RESOURCES)",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "if [ \"${GOALPAD_HAS_JAK2_IMPORT_COMPOSER:-0}\" != 1 ]; then\n  echo \"Skipping Jak II importer resources for this configuration and architecture\"\n  exit 0\nfi\n\"$SRCROOT/Scripts/stage-jak2-import-composer-resources.sh\"\n";
-		};
 		A73100000000000000000001 /* Compile Metal shaders */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -1222,14 +1044,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				F10100000000000000000007 /* GOALPadJak2Runtime.mm in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		A74000000000000000000004 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				A74000000000000000020001 /* EcoJak2RuntimeBridge.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1439,7 +1253,7 @@
 			buildSettings = {
 				ARCHS = arm64;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 238;
+				CURRENT_PROJECT_VERSION = 239;
 				DEVELOPMENT_TEAM = V729QMY3V6;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1463,7 +1277,7 @@
 			buildSettings = {
 				ARCHS = arm64;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 238;
+				CURRENT_PROJECT_VERSION = 239;
 				DEVELOPMENT_TEAM = V729QMY3V6;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				ENABLE_DEBUG_DYLIB = NO;
@@ -1479,119 +1293,6 @@
 				SKIP_INSTALL = NO;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-			};
-			name = Release;
-		};
-		A74000000000000000030000 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = A74000000000000000010002 /* Jak2Dev-Debug.xcconfig */;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 238;
-				DEVELOPMENT_TEAM = V729QMY3V6;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SRCROOT)/GOALPad/Native",
-					"$(SRCROOT)/OpenGOAL",
-					"$(SRCROOT)/OpenGOAL/third-party",
-					"$(SRCROOT)/OpenGOAL/third-party/fmt/include",
-					"$(SRCROOT)/OpenGOAL/third-party/SDL/include",
-					"$(SRCROOT)/OpenGOAL/third-party/glad/include",
-					"$(SRCROOT)/OpenGOAL/third-party/zstd/lib",
-					"$(SRCROOT)/OpenGOAL/third-party/zstd/lib/common",
-					"$(SRCROOT)/Generated/jak2-aot",
-				);
-				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
-				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
-				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
-				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
-				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
-				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
-				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
-				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
-				INFOPLIST_FILE = "GOALPad-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Eco Jak II Dev";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
-				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				MARKETING_VERSION = 2.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.zephyrstudiosllc.eco.jak2dev;
-				PRODUCT_NAME = EcoJak2Dev;
-				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "GOALPad/Native/GOALPad-Bridging-Header.h";
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 2;
-			};
-			name = Debug;
-		};
-		A74000000000000000030001 /* Release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = A74000000000000000010003 /* Jak2Dev-Release.xcconfig */;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 238;
-				DEVELOPMENT_TEAM = V729QMY3V6;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_DEBUG_DYLIB = NO;
-				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_PREVIEWS = NO;
-				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SRCROOT)/GOALPad/Native",
-					"$(SRCROOT)/OpenGOAL",
-					"$(SRCROOT)/OpenGOAL/third-party",
-					"$(SRCROOT)/OpenGOAL/third-party/fmt/include",
-					"$(SRCROOT)/OpenGOAL/third-party/SDL/include",
-					"$(SRCROOT)/OpenGOAL/third-party/glad/include",
-					"$(SRCROOT)/OpenGOAL/third-party/zstd/lib",
-					"$(SRCROOT)/OpenGOAL/third-party/zstd/lib/common",
-					"$(SRCROOT)/Generated/jak2-aot",
-				);
-				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
-				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
-				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
-				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
-				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
-				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
-				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
-				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
-				INFOPLIST_FILE = "GOALPad-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Eco Jak II Dev";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
-				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				MARKETING_VERSION = 2.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.zephyrstudiosllc.eco.jak2dev;
-				PRODUCT_NAME = EcoJak2Dev;
-				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "GOALPad/Native/GOALPad-Bridging-Header.h";
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 2;
 			};
 			name = Release;
 		};
@@ -1717,7 +1418,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = GOALPad/GOALPad.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 238;
+				CURRENT_PROJECT_VERSION = 239;
 				DEVELOPMENT_TEAM = V729QMY3V6;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -1786,7 +1487,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = GOALPad/GOALPad.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 238;
+				CURRENT_PROJECT_VERSION = 239;
 				DEVELOPMENT_TEAM = V729QMY3V6;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_DEBUG_DYLIB = NO;
@@ -1856,15 +1557,6 @@
 			buildConfigurations = (
 				F10400000000000000000003 /* Debug */,
 				F10400000000000000000004 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		A7400000000000000000000A /* Build configuration list for PBXNativeTarget "Eco Jak II Dev" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				A74000000000000000030000 /* Debug */,
-				A74000000000000000030001 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

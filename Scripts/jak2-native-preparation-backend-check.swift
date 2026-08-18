@@ -27,13 +27,11 @@ func check(_ condition: Bool, _ message: String) {
     }
 }
 
-check(adapter.contains("#if GOALPAD_JAK2")
-        && adapter.contains("AppJak2GameDataPreparationJob = GOALPadGameDataPreparationJob")
-        && adapter.contains("GOALPadGameDataPreparationIsAvailable()")
-        && adapter.contains("#elseif os(iOS) && canImport(GOALPadJak2Runtime)")
+check(!adapter.contains("GOALPAD_JAK2")
+        && adapter.contains("#if os(iOS) && canImport(GOALPadJak2Runtime)")
         && adapter.contains("import GOALPadJak2Runtime")
         && adapter.contains("#else"),
-      "the standalone target uses its local composer while the merged app uses the framework")
+      "Dark Eco uses the isolated Jak II framework composer")
 check(adapter.contains("profileIdentifier: .jak2")
         && adapter.contains("nativeErrorDomain: appJak2GameDataPreparationErrorDomain")
         && adapter.contains("appJak2GameDataPreparationIsAvailable()"),
