@@ -21278,3 +21278,37 @@ acceptance build. Do not uninstall the legacy
 `com.zephyrstudiosllc.eco.jak2dev` app from the iPad: its private sandbox may
 still be the only copy of older Jak II saves. It is a deprecated legacy install,
 not a development or release target.
+
+### Build 239 first-prompt source-contract audit
+
+The post-consolidation audit passed every current deterministic contract that
+maps directly to the original Jak II finish request:
+
+- both supported titles retain independent ready/start routing and settings
+  selection, while Jak 3 remains Planned;
+- Modern touch remains shared with Jak 1, with Jak II-specific camera-tap R1,
+  holdable R1 and R2, R3 look mode, the always-available native-color weapon
+  wheel, contextual face prompts, warp actions, cutscene Skip, vehicle exit,
+  and native pause/progress/save-menu controls;
+- Fit to Screen geometry, presentation settings, title-selected runtime routing,
+  and the merged app's title-isolated save profile remain intact.
+
+Commands passed:
+
+```text
+Scripts/run-title-data-routing-check.sh
+Scripts/run-portrait-library-check.sh
+Scripts/run-touch-controls-check.sh
+Scripts/run-presentation-geometry-check.sh
+Scripts/run-presentation-settings-check.sh
+Scripts/run-native-runtime-router-check.sh
+Scripts/run-game-face-prompt-touch-state-check.sh
+Scripts/run-game-cutscene-skip-touch-state-check.sh
+```
+
+These checks do not prove retail-scene visual fidelity. The remaining first-
+prompt acceptance is now physical/playthrough evidence: Haven and Sandover
+water, character eyes, all cutscenes, both Library cards after real imports,
+pause chrome in the running Jak II menus, jetboard/vehicle feel, high-refresh
+cadence, iCloud behavior, and any later playthrough defects. Do not mark the Jak
+II finish goal complete until those are accepted on the signed merged app.
