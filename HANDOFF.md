@@ -21209,3 +21209,23 @@ Current Jak II completion evidence and remaining gates:
   Jak II banks through Files, then import them from merged Dark Eco's Jak II
   Settings. Normal Jak II saving uses file-backed app storage; no physical PS2
   memory card is required.
+
+### Physical Build 238 installation (2026-08-17)
+
+After the maintainer confirmed that `Z iPad Pro` was ready, the exact signed
+merged product above was update-installed in place and foreground-launched. The
+existing app was not uninstalled, and no app container, imported data, or saves
+were inspected. CoreDevice inventory confirms Dark Eco 2.0 (238), bundle
+`com.zephyrstudiosllc.eco`.
+
+```text
+/private/tmp/goalpad-build238-z-ipad-install.json
+/private/tmp/goalpad-build238-z-ipad-launch.json
+/private/tmp/goalpad-build238-z-ipad-inventory.json
+```
+
+Physical visual/gameplay acceptance now belongs to the maintainer. Start with
+both Library cards showing Ready, then Jak II Settings, pause-menu touch chrome,
+character eyes, Haven/Sandover water, and the first available vehicle/jetboard
+controls. Record the exact scene and visible symptom for each failure; do not
+infer renderer completion from the successful install and launch alone.
