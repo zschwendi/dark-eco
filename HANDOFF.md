@@ -13,6 +13,14 @@ do not develop, release, or push new product work from those lines.
 native/AOT runtime inside the single Dark Eco application. It is not a second
 app. Jak 3 remains Planned.
 
+The old/current history audit is recorded in
+`docs/JAK2_V2_DIVERGENCE_AUDIT.md`. Nested `jak2-best` tip `8e914809` is an
+ancestor of nested `v2.0` `c8666f88`. The outer old tip's final Jak II bridge
+and scene/import scripts were copied byte-for-byte at `a0648786`, after which
+the app shell was generalized for runtime title selection. The audit found no
+missing shipping behavior to cherry-pick; old-only remainder is standalone
+packaging, superseded compile-time routing, generalized tests, or diagnostics.
+
 Date: 2026-08-01
 
 Branch: `feat/ipados-native-boot`

@@ -106,6 +106,9 @@ missing from `v2.0`; any such behavior must be ported into the unified Dark Eco
 architecture instead of reviving the standalone app. `GOALPadJak2Runtime` is an
 embedded framework used by Dark Eco, not a second application product.
 
+The commit and behavior comparison supporting this boundary is recorded in
+[`JAK2_V2_DIVERGENCE_AUDIT.md`](JAK2_V2_DIVERGENCE_AUDIT.md).
+
 ### Foundation: Jak 1
 
 The first complete target is *Jak and Daxter: The Precursor Legacy*.
