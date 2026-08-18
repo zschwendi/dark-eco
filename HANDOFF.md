@@ -21312,3 +21312,23 @@ water, character eyes, all cutscenes, both Library cards after real imports,
 pause chrome in the running Jak II menus, jetboard/vehicle feel, high-refresh
 cadence, iCloud behavior, and any later playthrough defects. Do not mark the Jak
 II finish goal complete until those are accepted on the signed merged app.
+
+The current nested Build 239 pin `c8666f88b` was also checked directly. It
+contains both renderer repairs as ancestors: `5cf83fc0b` restores generated
+ocean rendering when the Apple host manages display geometry, and `7ebdce615`
+resolves Jak II eye sources that share a TBP but carry different texture IDs.
+The exact ocean DMA grammar test, Jak II managed-display tests, and synthetic
+scene-sweep validator passed:
+
+```text
+xcrun clang++ -std=c++20 -DNO_ASSERT=1 -IOpenGOAL \
+  -IOpenGOAL/third-party/fmt/include \
+  OpenGOAL/game/graphics/pipelines/metal/metal_jak2_ocean_grammar_test.cpp \
+  -o /private/tmp/jak2-metal-ocean-grammar-test
+/private/tmp/jak2-metal-ocean-grammar-test
+python3 OpenGOAL/test/goalc/test_jak2_managed_display_settings.py
+python3 Scripts/jak2-scene-sweep.py --self-test
+```
+
+This narrows the water/eye remainder to the signed physical retail-scene output;
+it is not evidence that those visuals have already been accepted.
