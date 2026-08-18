@@ -21258,7 +21258,19 @@ git diff --check
 ```
 
 `xcodebuild -list` reports only the `GOALPad` app target and the
-`GOALPadJak2Runtime` framework target. A signed Build 239 build is the next
-validation step. Do not uninstall the legacy `com.zephyrstudiosllc.eco.jak2dev`
-app from the iPad: its private sandbox may still be the only copy of older Jak II
-saves. It is a deprecated legacy install, not a development or release target.
+`GOALPadJak2Runtime` framework target. The first signed Build 239 attempt compiled
+and linked the merged app and produced the correct `com.zephyrstudiosllc.eco`
+2.0 (239) bundle, but Xcode stopped while signing the embedded framework with
+`internal error in Code Signing subsystem`. A single direct app-sign retry
+returned the same internal error. Free space fell from 236 MiB to 132 MiB, so do
+not retry this packaging route without first creating safe disk headroom. The
+incomplete Build 239 app is not signed and must not be installed. Full log:
+
+```text
+/private/tmp/goalpad-build239-unified-device-build.log
+```
+
+Build 238 remains the installed physical acceptance build. Do not uninstall the
+legacy `com.zephyrstudiosllc.eco.jak2dev` app from the iPad: its private sandbox
+may still be the only copy of older Jak II saves. It is a deprecated legacy
+install, not a development or release target.
