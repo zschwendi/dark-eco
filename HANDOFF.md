@@ -21258,19 +21258,23 @@ git diff --check
 ```
 
 `xcodebuild -list` reports only the `GOALPad` app target and the
-`GOALPadJak2Runtime` framework target. The first signed Build 239 attempt compiled
-and linked the merged app and produced the correct `com.zephyrstudiosllc.eco`
-2.0 (239) bundle, but Xcode stopped while signing the embedded framework with
-`internal error in Code Signing subsystem`. A single direct app-sign retry
-returned the same internal error. Free space fell from 236 MiB to 132 MiB, so do
-not retry this packaging route without first creating safe disk headroom. The
-incomplete Build 239 app is not signed and must not be installed. Full log:
+`GOALPadJak2Runtime` framework target. The first Build 239 attempt compiled and
+linked the merged app and produced the correct `com.zephyrstudiosllc.eco` 2.0
+(239) bundle, but Xcode stopped while signing with only 132 MiB free. The
+finished app and generated entitlements were preserved with an APFS clone,
+`xcodebuild clean` removed only this task's disposable DerivedData, and the
+framework and app were then signed with the same Apple Development identity.
+Strict deep verification passes. The signed 136 MiB product is:
 
 ```text
 /private/tmp/goalpad-build239-unified-device-build.log
+/private/tmp/goalpad-build239-sign-verification.txt
+/private/tmp/Dark Eco Build 239.app
 ```
 
-Build 238 remains the installed physical acceptance build. Do not uninstall the
-legacy `com.zephyrstudiosllc.eco.jak2dev` app from the iPad: its private sandbox
-may still be the only copy of older Jak II saves. It is a deprecated legacy
-install, not a development or release target.
+Build 239 has not been installed because this continuation did not newly
+authorize physical-device access. Build 238 remains the installed physical
+acceptance build. Do not uninstall the legacy
+`com.zephyrstudiosllc.eco.jak2dev` app from the iPad: its private sandbox may
+still be the only copy of older Jak II saves. It is a deprecated legacy install,
+not a development or release target.
