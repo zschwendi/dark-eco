@@ -2,6 +2,12 @@
 
 Status: **Implemented**, with the limits recorded at the end of this file.
 
+Current product authority: Dark Eco on outer `v2.0` is the only app product for
+Jak 1 and Jak II. Jak II's overlapping AOT symbols remain isolated in the
+embedded `GOALPadJak2Runtime` framework. The retired standalone app and
+`jak2-best` are comparison history only; shipping runtime changes land on
+nested OpenGOAL `v2.0` and are pinned by outer `v2.0`.
+
 Real Jak 1 GOAL code, compiled by the AOT C backend, executes inside the real
 OpenGOAL kernel on ARM64 with no writable-executable memory anywhere. Verified
 on the ARM64 macOS host and the iPad Pro 11-inch (M5) simulator, and link plus
@@ -207,6 +213,8 @@ The linked binary has only ordinary Mach-O segments, and the GOAL functions are
   coverage failures. The explicit user-data headless probe registers all 840
   units, loads KERNEL 8/8 and GAME 465/465, and runs 100 dispatcher frames. A
   separate thin iPhoneOS ARM64 product final-links all 840 translations plus
-  the manifest with `jak2-kernel-core`. Jak II is not wired into Dark Eco and has
-  no app signing, Apple simulator/device launch, renderer/audio, title-screen,
-  or gameplay validation. Jak 3 and Jak X remain outside this validated model.
+  the manifest with `jak2-kernel-core`. Those original bounded proofs have now
+  been integrated through Dark Eco's embedded Jak II runtime; the focused proof
+  alone still does not establish app signing, Apple launch, renderer/audio,
+  title-screen, or gameplay behavior. Jak 3 and Jak X remain outside this
+  validated model.

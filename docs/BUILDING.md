@@ -1,5 +1,17 @@
 # Building GOALPad
 
+## Current product and branch
+
+Build and release only the `GOALPad` scheme from outer branch `v2.0`. Dark Eco
+is the single app product and selects Jak 1 or Jak II at runtime. The
+`GOALPadJak2Runtime` target is an embedded framework required by that app; it is
+not a standalone product.
+
+The old `Eco Jak II Dev` application, `jak2-best`, and historical Jak II agent
+branches are archival comparison sources. Do not build or release them as the
+current product. If comparison finds behavior missing from `v2.0`, port it into
+Dark Eco and land any required OpenGOAL changes on nested `v2.0`.
+
 ## Requirements
 
 - Apple silicon Mac
@@ -229,7 +241,8 @@ expected identity must fail. Regenerate only when the source-pack writer or its
 embedded graph changes; otherwise regeneration wastes the checkpoint's heavy
 build budget without adding evidence.
 
-Jak II's corresponding generated corpus is prepared separately:
+Jak II's corresponding generated corpus is prepared separately before it is
+linked through Dark Eco's embedded Jak II runtime:
 
 ```sh
 Scripts/generate-jak2-aot.sh
@@ -237,11 +250,11 @@ Scripts/verify-generated-aot.sh Generated/jak2-aot 840
 ```
 
 That output contains 841 C files: 840 object translations plus its manifest.
-It is intentionally excluded from the Jak 1 app because the two games export
-overlapping AOT symbols. Use the documented Jak II iPhoneOS link-check target
-rather than adding both generated directories to one product.
+It is isolated inside `GOALPadJak2Runtime` because the two games export
+overlapping AOT symbols. Dark Eco embeds that framework; do not add both
+generated directories directly to the app target.
 
-The Jak II iPhoneOS final-link proof is a separate unsigned build product:
+The Jak II iPhoneOS final-link proof remains a useful focused unsigned check:
 
 ```sh
 cmake -S OpenGOAL -B /private/tmp/GOALPad-jak2-ios-aot -G Ninja \
@@ -263,13 +276,13 @@ and final-links only `jak2-kernel-core`. It proves iPhoneOS compilation and
 symbol resolution; it is not a signed app, launch, title-screen, or gameplay
 claim.
 
-The current separate ARM64 headless probe registers all 840 Jak II AOT units,
+The ARM64 headless probe registers all 840 Jak II AOT units,
 loads KERNEL 8/8 and GAME 465/465 from explicit user data, and runs 100 kernel
 dispatcher frames. The corpus contains 18,479 emitted functions plus 7 shared
-native routines with no coverage failures. This host result and the thin
-iPhoneOS final-link product do not wire Jak II into Dark Eco, initialize its
-renderer or audio on an Apple device, or establish signing, simulator, physical
-device, title-screen, or gameplay support.
+native routines with no coverage failures. These focused checks do not by
+themselves prove the integrated Dark Eco renderer, audio, signing, launch,
+title screen, or physical gameplay; those claims require the unified app's
+corresponding validation.
 
 Two target build settings are not optional:
 

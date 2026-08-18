@@ -1,12 +1,12 @@
 # GOALPad — Project Overview
 
-> **Status:** Experimental playable Jak 1 port; Build 154 is the accepted conventional-2D baseline within its physically tested scope
+> **Status:** Experimental unified Jak 1 and Jak II port; Dark Eco Build 239 is the current signed product checkpoint
 > **Working name:** GOALPad
 > **Public product name:** Dark Eco
 > **App Store subtitle:** Native OpenGOAL Runtime
 > **Primary target:** iPadOS on Apple silicon; the shared windowed app also supports macOS and visionOS
-> **Initial game target:** *Jak and Daxter: The Precursor Legacy*
-> **Later target:** *Jak II* after the first game is stable
+> **Supported game targets:** *Jak and Daxter: The Precursor Legacy* and experimental *Jak II*
+> **Planned game target:** *Jak 3*
 > **Upstream foundation:** OpenGOAL
 > **Affiliation:** Unofficial community project; not affiliated with Sony Interactive Entertainment, Naughty Dog, or the OpenGOAL team
 
@@ -91,11 +91,26 @@ component must be replaced for Apple-platform compatibility.
 
 ## Project scope
 
-### Initial scope: Jak 1
+### Active product and branch authority
+
+Dark Eco is the only application product. All shipping Jak II work must land on
+the outer repository's `v2.0` branch and use Dark Eco's runtime-selected Jak II
+profile. Changes to the embedded OpenGOAL runtime that are intended to ship
+must land on the nested OpenGOAL `v2.0` branch before the outer repository
+updates its gitlink.
+
+The old standalone Jak II application, `jak2-best`, and historical Jak II agent
+branches are read-only comparison history. Do not develop, release, or push new
+product work from them. They may be inspected to identify behavior that is
+missing from `v2.0`; any such behavior must be ported into the unified Dark Eco
+architecture instead of reviving the standalone app. `GOALPadJak2Runtime` is an
+embedded framework used by Dark Eco, not a second application product.
+
+### Foundation: Jak 1
 
 The first complete target is *Jak and Daxter: The Precursor Legacy*.
 
-The project must prove the following before Jak II becomes active scope:
+The project used the following gates before Jak II became active scope:
 
 - The iPad app launches reliably on physical hardware.
 - The runtime executes natively on ARM64.
@@ -105,9 +120,12 @@ The project must prove the following before Jak II becomes active scope:
 - A substantial portion of the game can be completed without platform-specific blockers.
 - The build remains reproducible and documented.
 
-### Later scope: Jak II
+### Active scope: Jak II
 
-Jak II begins only after Jak 1 has a stable platform foundation. Work that is naturally shared between games may account for Jak II, but Jak II-specific implementation must not delay the first playable Jak 1 milestone.
+Jak II is now active in the unified Dark Eco product because Jak 1 has reached
+the signed physical-playtesting stage and the maintainer explicitly activated
+the second title. Jak II work must preserve the established Jak 1 platform path
+and title isolation. Jak 3 remains planned and must not be presented as ready.
 
 ### Current enhancement direction
 

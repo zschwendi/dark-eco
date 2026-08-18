@@ -12,6 +12,15 @@ plan. The project overview remains authoritative if the documents conflict.
 [`HANDOFF.md`](HANDOFF.md) records the latest commands, commits, validation
 results, and blockers.
 
+### Current Jak II development authority
+
+The unified Dark Eco app on outer `v2.0` is the sole shipping product for both
+Jak 1 and Jak II. Shipping OpenGOAL changes land on nested `v2.0`, after which
+the outer gitlink is advanced. The retired standalone Jak II app, `jak2-best`,
+and old agent branches are comparison history only. Missing behavior found in
+those lines must be ported into Dark Eco; no new release or feature work belongs
+on the old lines. Jak 3 remains planned.
+
 The goal is to progress from the current native ARM64 iPad application probe to
 playing *Jak and Daxter: The Precursor Legacy* through the real OpenGOAL
 implementation on a normally signed, non-jailbroken physical iPad.
@@ -43,8 +52,8 @@ as completing the overall goal.
 - GitHub, TestFlight, and App Store archives fail closed unless the complete
   expected AOT manifest is linked. The development shell without generated
   game code is never a publishable artifact.
-- Jak 1 is the only active game implementation scope until its platform
-  foundation is stable.
+- Jak 1 and Jak II are active within the unified Dark Eco product. Jak II work
+  must preserve the accepted Jak 1 platform behavior and title isolation.
 - Keep game simulation separate from rendering and presentation. iPadOS is the
   first implementation, but the runtime must not become directly dependent on
   one view, layer, screen size, lifecycle, or fixed camera.

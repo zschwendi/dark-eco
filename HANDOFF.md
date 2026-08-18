@@ -1,5 +1,18 @@
 # GOALPad iPadOS Port Handoff
 
+## Current branch and product authority (2026-08-17)
+
+All Jak II product work now belongs on the unified Dark Eco outer `v2.0`
+branch. OpenGOAL changes intended to ship must land on nested OpenGOAL `v2.0`,
+then be pinned by the outer repository. `jak2-best`, the removed `Eco Jak II
+Dev` app, and historical agent branches are read-only comparison history. Use
+them only to identify missing behavior and port that behavior into Dark Eco;
+do not develop, release, or push new product work from those lines.
+
+`GOALPadJak2Runtime` remains embedded because it isolates Jak II's overlapping
+native/AOT runtime inside the single Dark Eco application. It is not a second
+app. Jak 3 remains Planned.
+
 Date: 2026-08-01
 
 Branch: `feat/ipados-native-boot`

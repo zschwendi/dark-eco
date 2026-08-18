@@ -8,11 +8,13 @@ Read `docs/PROJECT_OVERVIEW.md` before planning or changing code. That document 
 
 Build a native ARM64 iPadOS platform port of OpenGOAL for user-supplied, legally obtained Jak game data.
 
-The first supported game is **Jak and Daxter: The Precursor Legacy**. Jak II
-and Jak 3 are follow-on scope only after Jak 1 is complete, or after the port
-has reached physical playtesting and physical playtesting is the sole remaining
-Jak 1 blocker while all earlier platform/runtime work is healthy. Do not use
-the follow-on games to bypass an earlier unresolved Jak 1 platform problem.
+The supported application is the unified **Dark Eco** product on outer branch
+`v2.0`. It runtime-selects **Jak and Daxter: The Precursor Legacy** and
+experimental **Jak II**; Jak 3 remains planned. All shipping Jak II work belongs
+on outer `v2.0` and, when OpenGOAL changes are required, nested OpenGOAL
+`v2.0`. The retired standalone Jak II app, `jak2-best`, and historical agent
+branches are read-only comparison sources. Port missing behavior into Dark Eco;
+do not resume product development or releases on those old lines.
 
 This project is not a PS2 emulator, a Swift rewrite of OpenGOAL, a remake, or a repository for copyrighted game assets.
 
@@ -156,7 +158,8 @@ Agents must not:
 - Replace OpenGOAL with a new Swift engine.
 - Begin a wholesale GOAL-to-Swift or C++-to-Swift translation.
 - Add a PS2 emulator or wrap an emulator.
-- Begin Jak II-specific feature work when it delays the Jak 1 platform path.
+- Reintroduce a standalone Jak II application or develop shipping Jak II work
+  anywhere other than the unified outer and nested `v2.0` branches.
 - Claim iPad compatibility based only on the simulator.
 - Claim a feature works without a successful build or a clearly described manual validation.
 - make legal claims or guarantees. Document technical asset separation and defer legal conclusions to maintainers or qualified counsel.
@@ -426,8 +429,13 @@ When choosing between approaches, use this order:
 
 Until maintainers update this section, the priority is:
 
-> Preserve Build 130 as the known-good Jak 1 runtime baseline while finishing
-> the iPhone/iPad client polish in small, physically testable checkpoints.
+> Finish Jak II inside the unified Dark Eco `v2.0` product while preserving the
+> accepted Jak 1 runtime and presentation behavior.
+
+Dark Eco is the only application target. The embedded `GOALPadJak2Runtime`
+framework remains necessary, but it is not a separately released app. Audit
+old Jak II lines only to recover missing behavior, then implement and validate
+that behavior on `v2.0`. Never revive `Eco Jak II Dev` as a product target.
 
 Build 130 is accepted by the maintainer as the best known-good baseline for the
 physically tested gameplay, performance, graphics, touch, settings, and iCloud
