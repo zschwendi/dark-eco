@@ -131,6 +131,17 @@ if printf '%s\n' "$ordinary_layer" | rg -q 'shoulderButton|rightShoulder'; then
   echo "a dedicated R1 ornament is still mounted in ordinary gameplay chrome" >&2
   exit 1
 fi
+printf '%s\n' "$ordinary_layer" | rg -Fq 'if jak2WeaponWheelIsVisible {'
+printf '%s\n' "$ordinary_layer" | rg -Fq 'Jak2WeaponWheelControl('
+if test "$(rg -F -c 'Jak2WeaponWheelControl(' \
+    "$root/GOALPad/Game/TouchControlsView.swift")" -ne 1; then
+  echo "Jak II's weapon wheel is not owned solely by the shared gameplay fade layer" >&2
+  exit 1
+fi
+rg -Fq '.fill(action.color.opacity(0.48))' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq '.foregroundStyle(.white.opacity(0.86))' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
 if rg -q 'private func shoulderButton|setPillFrame\(\.rightShoulder' \
     "$root/GOALPad/Game/TouchControlsView.swift"; then
   echo "a dedicated R1 pill hit target is still registered" >&2

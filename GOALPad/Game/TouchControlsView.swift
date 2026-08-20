@@ -192,7 +192,6 @@ struct TouchControlsView: View {
                                            safeAreaInsets: safeAreaInsets,
                                            customization: controls.layoutCustomization,
                                            usesCompactSessionChrome: usesCompactSessionChrome)
-            let weaponWheelLayout = Jak2WeaponWheelLayout(modernLayout: layout)
             let traversalLayout = Jak2TraversalTouchLayout(modernLayout: layout)
             let reservesCapturedSessionRow = capturedSettingsButtonIsVisible
                 || sessionControl != nil
@@ -219,12 +218,6 @@ struct TouchControlsView: View {
                         .opacity(ordinaryGameplayChromeIsVisible ? 1 : 0)
                         .animation(.easeOut(duration: 0.16),
                                    value: ordinaryGameplayChromeIsVisible)
-
-                    if jak2WeaponWheelIsVisible {
-                        Jak2WeaponWheelControl(controls: controls,
-                                               frame: weaponWheelLayout.frame,
-                                               reclaimTouchInput: reclaimTouchInput)
-                    }
 
                     if jak2VehicleExitIsVisible {
                         jak2VehicleExitButton(frame: traversalLayout.vehicleExitFrame)
@@ -324,6 +317,13 @@ struct TouchControlsView: View {
             zoomButton(frame: layout.zoomFrame)
                 .opacity(zoomIsAvailable ? 1 : 0)
                 .allowsHitTesting(zoomIsAvailable)
+
+            if jak2WeaponWheelIsVisible {
+                Jak2WeaponWheelControl(
+                    controls: controls,
+                    frame: Jak2WeaponWheelLayout(modernLayout: layout).frame,
+                    reclaimTouchInput: reclaimTouchInput)
+            }
         }
     }
 
@@ -993,15 +993,15 @@ private struct Jak2WeaponWheelControl: View {
                 Button { perform(action) } label: {
                     ZStack {
                         shape
-                            .fill(action.color.opacity(0.68))
+                            .fill(action.color.opacity(0.48))
                         shape
-                            .strokeBorder(.white.opacity(0.52), lineWidth: 1.25)
+                            .strokeBorder(.white.opacity(0.38), lineWidth: 1.25)
                         Text(action.button.glyph)
                             .font(.system(size: max(14, frame.width * 0.22),
                                           weight: .bold,
                                           design: .rounded))
-                            .foregroundStyle(.white)
-                            .shadow(color: .black.opacity(0.72), radius: 2)
+                            .foregroundStyle(.white.opacity(0.86))
+                            .shadow(color: .black.opacity(0.56), radius: 2)
                             .offset(action.labelOffset(diameter: frame.width))
                             .allowsHitTesting(false)
                     }
@@ -1013,7 +1013,7 @@ private struct Jak2WeaponWheelControl: View {
             }
 
             Circle()
-                .strokeBorder(.white.opacity(0.58), lineWidth: 1.5)
+                .strokeBorder(.white.opacity(0.42), lineWidth: 1.5)
                 .allowsHitTesting(false)
         }
         .frame(width: frame.width, height: frame.height)
