@@ -557,22 +557,42 @@ private func cameraRegionTapIsTitleAware() {
     check(dragged.frames(TouchControls.holdFrames).allSatisfy { $0 == .neutral }
           && dragged.controls.consumeHapticEvents().isEmpty,
           "a Jak II drag beyond tap slop cannot become an accidental R1 shot")
+
+    var simultaneous = Runner(gameTitle: .jak2)
+    let movement = Finger()
+    let movementOrigin = CGPoint(x: 180, y: 600)
+    simultaneous.down(movement, movementOrigin)
+    simultaneous.move(movement, CGPoint(x: movementOrigin.x + TouchControls.movementRadius / 2,
+                                         y: movementOrigin.y))
+    let actionTap = Finger()
+    simultaneous.down(actionTap, tapPoint)
+    simultaneous.up(actionTap, lookAroundState: .normal)
+    let combinedFrames = simultaneous.frames(TouchControls.holdFrames)
+    check(combinedFrames.allSatisfy {
+        $0.buttons == .R1 && $0.isLeftDeflected && !$0.isRightDeflected
+    }, "a Jak II R1 tap preserves simultaneous movement input")
+    let continuedMovement = simultaneous.frames(TouchControls.releaseFrames + 1)
+    check(continuedMovement.last?.buttons.isEmpty == true
+          && continuedMovement.last?.isLeftDeflected == true,
+          "movement continues after the isolated R1 pulse releases")
 }
 
 @MainActor
 private func jak2WeaponWheelMappingGeometryAndPulsesAreExact() {
     print("Jak II's fixed weapon wheel mirrors R and emits only native D-pad bits")
-    let expected: [(Jak2WeaponTouchAction, TouchButton, Jak2WeaponTouchAction.Tint, String)] = [
-        (.scatterGun, .up, .red, "Scatter Gun"),
-        (.peaceMaker, .right, .dark, "Peace Maker"),
-        (.blaster, .down, .yellow, "Blaster"),
-        (.vulcanFury, .left, .blue, "Vulcan Fury"),
+    let expected: [(Jak2WeaponTouchAction, TouchButton, Jak2WeaponTouchAction.Tint, String,
+                    Double)] = [
+        (.scatterGun, .up, .red, "Scatter Gun", -135),
+        (.peaceMaker, .right, .dark, "Peace Maker", -45),
+        (.blaster, .down, .yellow, "Blaster", 45),
+        (.vulcanFury, .left, .blue, "Vulcan Fury", 135),
     ]
     check(Jak2WeaponTouchAction.allCases == expected.map(\.0),
           "weapon segments retain clockwise Up, Right, Down, Left order")
-    check(expected.allSatisfy { action, button, tint, name in
+    check(expected.allSatisfy { action, button, tint, name, startAngle in
         action.button == button && action.tint == tint && action.weaponName == name
-    }, "weapon directions preserve source-backed red, dark, yellow, and blue gun mapping")
+            && action.wheelStartAngleDegrees == startAngle
+    }, "weapon directions and rendered quadrants preserve the source-backed mapping")
     check(Jak2WeaponTouchAction.Tint.red.rgb == .init(red: 0.65, green: 0, blue: 0)
           && Jak2WeaponTouchAction.Tint.dark.rgb == .init(red: 0.6875, green: 0.6,
                                                          blue: 0.78125)
@@ -632,7 +652,7 @@ private func jak2WeaponWheelMappingGeometryAndPulsesAreExact() {
           && jak1.frame() == .neutral && jak1.controls.consumeHapticEvents().isEmpty,
           "Jak 1 rejects every Jak II weapon-wheel action")
 
-    for (action, button, _, _) in expected {
+    for (action, button, _, _, _) in expected {
         var jak2 = Runner(gameTitle: .jak2)
         jak2.controls.setNativeMenuState(
             .gameplay, progress: .unavailable, titleStartState: .notAwaiting,
@@ -649,8 +669,8 @@ private func jak2WeaponWheelMappingGeometryAndPulsesAreExact() {
 }
 
 @MainActor
-private func jak2TraversalShouldersAreHoldableAndTitleScoped() {
-    print("Jak II exposes holdable raw R1/R2 plus a vehicle-riding Triangle exit")
+private func jak2TraversalControlsAreTitleScopedWithoutR1Button() {
+    print("Jak II keeps tap-only R1, holdable raw R2, and a vehicle-riding Triangle exit")
     check(TouchControls.inputBit(for: .stats, gameTitle: .jak1) == [.L2, .R2]
           && TouchControls.inputBit(for: .stats, gameTitle: .jak2) == .R2
           && TouchControls.inputBit(for: .rightShoulder, gameTitle: .jak2) == .R1,
@@ -666,41 +686,18 @@ private func jak2TraversalShouldersAreHoldableAndTitleScoped() {
     for size in sizes {
         let modern = ModernTouchLayout(size: size, safeAreaInsets: Runner.safeAreaInsets)
         let traversal = Jak2TraversalTouchLayout(modernLayout: modern)
-        let shoulderHit = traversal.rightShoulderFrame.insetBy(dx: -10, dy: -12)
-        let overlap = shoulderHit.intersection(modern.rightStickHitFrame)
-        let exitShoulderOverlap = traversal.vehicleExitFrame
-            .intersection(traversal.rightShoulderFrame)
         let exitCameraOverlap = traversal.vehicleExitFrame
             .intersection(modern.rightStickHitFrame)
-        check(modern.safeBounds.contains(traversal.rightShoulderFrame)
-              && modern.safeBounds.contains(traversal.vehicleExitFrame)
-              && (overlap.isNull || overlap.width <= 0.001 || overlap.height <= 0.001)
-              && (exitShoulderOverlap.isNull || exitShoulderOverlap.width <= 0.001
-                  || exitShoulderOverlap.height <= 0.001)
+        check(modern.safeBounds.contains(traversal.vehicleExitFrame)
               && (exitCameraOverlap.isNull || exitCameraOverlap.width <= 0.001
                   || exitCameraOverlap.height <= 0.001),
-              "\(Int(size.width))x\(Int(size.height)) keeps R1 and vehicle exit clear")
+              "\(Int(size.width))x\(Int(size.height)) keeps vehicle exit clear of the camera")
     }
 
     var jak2 = Runner(gameTitle: .jak2)
     jak2.controls.setNativeMenuState(
         .gameplay, progress: .unavailable, titleStartState: .notAwaiting,
         runReadiness: .active)
-    let traversal = Jak2TraversalTouchLayout(modernLayout: ModernTouchLayout(
-        size: Runner.screen, safeAreaInsets: Runner.safeAreaInsets))
-    jak2.controls.setPillFrame(.rightShoulder,
-                               traversal.rightShoulderFrame.insetBy(dx: -10, dy: -12))
-    let r1 = Finger()
-    jak2.down(r1, CGPoint(x: traversal.rightShoulderFrame.midX,
-                          y: traversal.rightShoulderFrame.midY))
-    check(jak2.controls.consumeHapticEvents() == [.button(.rightShoulder)]
-          && jak2.frames(4).allSatisfy { $0.buttons == .R1 },
-          "holding the dedicated Jak II shoulder keeps raw R1 down")
-    jak2.up(r1)
-    check(jak2.frames(TouchControls.holdFrames + TouchControls.releaseFrames + 2).last!
-        .buttons.contains(.R1) == false,
-          "lifting the dedicated shoulder releases R1")
-
     let r2 = Finger()
     jak2.down(r2, CGPoint(x: Runner.stats.midX, y: Runner.stats.midY))
     check(jak2.controls.consumeHapticEvents() == [.button(.stats)]
@@ -3436,7 +3433,7 @@ struct TouchControlsCheck {
         firstPersonTapFiresWithoutReplacingLeftSwipe()
         cameraRegionTapIsTitleAware()
         jak2WeaponWheelMappingGeometryAndPulsesAreExact()
-        jak2TraversalShouldersAreHoldableAndTitleScoped()
+        jak2TraversalControlsAreTitleScopedWithoutR1Button()
         rightStickIsFullyAnalog()
         downwardSwipeCanRollJump()
         downwardSwipeCanPunchLeft()

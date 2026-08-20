@@ -215,8 +215,7 @@ struct TouchControlsView: View {
                             .allowsHitTesting(false)
                     }
 
-                    ordinaryGameplayChrome(layout: layout,
-                                           traversalLayout: traversalLayout)
+                    ordinaryGameplayChrome(layout: layout)
                         .opacity(ordinaryGameplayChromeIsVisible ? 1 : 0)
                         .animation(.easeOut(duration: 0.16),
                                    value: ordinaryGameplayChromeIsVisible)
@@ -294,8 +293,7 @@ struct TouchControlsView: View {
     }
 
     /// Every eligible gameplay ornament shares this one idle-opacity transition.
-    private func ordinaryGameplayChrome(layout: ModernTouchLayout,
-                                        traversalLayout: Jak2TraversalTouchLayout) -> some View {
+    private func ordinaryGameplayChrome(layout: ModernTouchLayout) -> some View {
         return ZStack {
             MovementStickArtwork(touch: controls.stick,
                                  restingOrigin: CGPoint(x: layout.movementArtworkFrame.midX,
@@ -326,11 +324,6 @@ struct TouchControlsView: View {
             zoomButton(frame: layout.zoomFrame)
                 .opacity(zoomIsAvailable ? 1 : 0)
                 .allowsHitTesting(zoomIsAvailable)
-
-            if controls.gameTitle == .jak2, activeGameplayChromeIsAvailable {
-                shoulderButton(.rightShoulder, frame: traversalLayout.rightShoulderFrame)
-                    .allowsHitTesting(false)
-            }
         }
     }
 
@@ -352,23 +345,6 @@ struct TouchControlsView: View {
             } action: {
                 controls.setPillFrame(button, $0)
             }
-    }
-
-    private func shoulderButton(_ button: TouchButton, frame: CGRect) -> some View {
-        let isDown = controls.isPillDown(button)
-        return Text(button.glyph)
-            .font(.system(size: 12, weight: .bold, design: .rounded))
-            .foregroundStyle(.white.opacity(isDown ? 1 : 0.82))
-            .frame(width: frame.width, height: frame.height)
-            .background(Circle().fill(.black.opacity(isDown ? 0.72 : 0.42)))
-            .overlay(Circle().strokeBorder(.white.opacity(isDown ? 0.9 : 0.35), lineWidth: 1))
-            .position(x: frame.midX, y: frame.midY)
-            .onGeometryChange(for: CGRect.self) { proxy in
-                proxy.frame(in: .named(Self.space)).insetBy(dx: -10, dy: -12)
-            } action: {
-                controls.setPillFrame(button, $0)
-            }
-            .accessibilityLabel("R1")
     }
 
     private func jak2VehicleExitButton(frame: CGRect) -> some View {
@@ -1069,8 +1045,8 @@ private struct Jak2WeaponWheelSegmentShape: InsettableShape {
         path.move(to: centre)
         path.addArc(center: centre,
                     radius: radius,
-                    startAngle: .degrees(action.startAngleDegrees),
-                    endAngle: .degrees(action.startAngleDegrees + 90),
+                    startAngle: .degrees(action.wheelStartAngleDegrees),
+                    endAngle: .degrees(action.wheelStartAngleDegrees + 90),
                     clockwise: false)
         path.closeSubpath()
         return path
@@ -1084,15 +1060,6 @@ private struct Jak2WeaponWheelSegmentShape: InsettableShape {
 }
 
 private extension Jak2WeaponTouchAction {
-    var startAngleDegrees: Double {
-        switch self {
-        case .scatterGun: -135
-        case .peaceMaker: -45
-        case .blaster: 45
-        case .vulcanFury: 135
-        }
-    }
-
     var color: Color {
         let rgb = tint.rgb
         return Color(red: rgb.red, green: rgb.green, blue: rgb.blue)

@@ -127,6 +127,19 @@ fi
 ordinary_layer=$(sed -n \
   '/private func ordinaryGameplayChrome(layout: ModernTouchLayout)/,/private func pill(/p' \
   "$root/GOALPad/Game/TouchControlsView.swift")
+if printf '%s\n' "$ordinary_layer" | rg -q 'shoulderButton|rightShoulder'; then
+  echo "a dedicated R1 ornament is still mounted in ordinary gameplay chrome" >&2
+  exit 1
+fi
+if rg -q 'private func shoulderButton|setPillFrame\(\.rightShoulder' \
+    "$root/GOALPad/Game/TouchControlsView.swift"; then
+  echo "a dedicated R1 pill hit target is still registered" >&2
+  exit 1
+fi
+if rg -Fq 'rightShoulderFrame' "$root/GOALPad/Game/TouchControls.swift"; then
+  echo "the removed dedicated R1 layout frame is still present" >&2
+  exit 1
+fi
 if printf '%s\n' "$ordinary_layer" | rg -Fq '.animation('; then
   echo "an ordinary gameplay child still owns a staggered animation" >&2
   exit 1
@@ -320,7 +333,7 @@ rg -Fq 'updateFacePromptTouchSnapshot(.invalid)' "$root/GOALPad/Game/GameSession
 touch_guide="$root/GOALPad/Game/TouchControlsGuideView.swift"
 test "$(sed -n '1p' "$touch_guide")" = '#if os(iOS)'
 test "$(tail -n 1 "$touch_guide")" = '#endif'
-for guide_title in 'Swipe Actions' 'Movement' 'Camera' 'Speeder controls'; do
+for guide_title in 'Swipe Actions' 'Movement' 'Camera' 'Speeder Controls'; do
   rg -Fq "title: \"$guide_title\"" "$touch_guide"
 done
 rg -Fq 'Swipe anywhere on the right side\n- Up: Jump' "$touch_guide"
@@ -330,6 +343,12 @@ rg -Fq '.systemImage("flag.pattern.checkered.2.crossed")' "$touch_guide"
 rg -Fq 'guideRow(symbol: .text("L"), title: "Movement")' "$touch_guide"
 rg -Fq 'guideRow(symbol: .text("R"), title: "Camera")' "$touch_guide"
 rg -Fq 'Swipe up and hold to accelerate. Swipe down to hop brake.' "$touch_guide"
+rg -Fq 'title: "Tap Action"' "$touch_guide"
+rg -Fq 'A single tap in the camera area sends R1 for firing and jetboard spins.' "$touch_guide"
+if rg -Fq 'Hold R1' "$touch_guide"; then
+  echo "the touch guide still advertises the removed holdable R1 control" >&2
+  exit 1
+fi
 rg -Fq 'Dark Eco also supports wireless gamepads for controller input.' "$touch_guide"
 if rg -Fq 'right side:' "$touch_guide" \
     || rg -Fq '• Up:' "$touch_guide" \

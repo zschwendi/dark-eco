@@ -62,8 +62,8 @@ struct TouchControlsGuideView: View {
     private var jak2GuideRows: some View {
         guideRow(symbol: .systemImage("hand.draw"), title: "Action Swipes",
                  detail: "Swipe and hold on the right side\n- Up: Jump or accelerate\n- Down: Crouch or jetboard trick\n- Left: Attack or vehicle brake\n- Right: Attack or vehicle action")
-        guideRow(symbol: .text("R1"), title: "Fire & Jetboard",
-                 detail: "Tap the camera area to fire. Hold R1 for sustained fire or a jetboard spin.")
+        guideRow(symbol: .systemImage("hand.tap"), title: "Tap Action",
+                 detail: "A single tap in the camera area sends R1 for firing and jetboard spins.")
         guideRow(symbol: .text("R2"), title: "Jetboard & Vehicles",
                  detail: "Hold R2 to mount or dismount the jetboard and switch vehicle flight height.")
         guideRow(symbol: .text("R3"), title: "Look Around",

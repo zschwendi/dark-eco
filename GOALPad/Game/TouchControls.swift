@@ -109,6 +109,15 @@ enum Jak2WeaponTouchAction: CaseIterable, Equatable, Hashable, Sendable {
         }
     }
 
+    var wheelStartAngleDegrees: Double {
+        switch self {
+        case .scatterGun: -135
+        case .peaceMaker: -45
+        case .blaster: 45
+        case .vulcanFury: 135
+        }
+    }
+
     var weaponName: String {
         switch self {
         case .scatterGun: "Scatter Gun"
@@ -1293,19 +1302,18 @@ struct Jak2WeaponWheelLayout: Equatable, Sendable {
     }
 }
 
-/// Keeps Jak II's holdable R1 beside the camera stick without overlapping its larger hit target.
+/// Keeps Jak II's contextual vehicle-exit action clear of the camera stick.
 struct Jak2TraversalTouchLayout: Equatable, Sendable {
-    nonisolated static let shoulderDiameter: CGFloat = 44
+    nonisolated static let actionDiameter: CGFloat = 44
     nonisolated static let cameraGap: CGFloat = 28
     nonisolated static let actionGap: CGFloat = 12
 
-    let rightShoulderFrame: CGRect
     let vehicleExitFrame: CGRect
 
     init(modernLayout: ModernTouchLayout) {
         let safe = modernLayout.safeBounds
         let camera = modernLayout.rightStickArtworkFrame
-        let diameter = min(Self.shoulderDiameter, safe.width, safe.height)
+        let diameter = min(Self.actionDiameter, safe.width, safe.height)
         let requested = CGRect(
             x: camera.minX - Self.cameraGap - diameter,
             y: camera.midY - diameter / 2,
@@ -1313,14 +1321,14 @@ struct Jak2TraversalTouchLayout: Equatable, Sendable {
             height: diameter)
         let maximumX = max(safe.minX, safe.maxX - diameter)
         let maximumY = max(safe.minY, safe.maxY - diameter)
-        rightShoulderFrame = CGRect(
+        let traversalAnchorFrame = CGRect(
             x: min(max(requested.minX, safe.minX), maximumX),
             y: min(max(requested.minY, safe.minY), maximumY),
             width: diameter,
             height: diameter)
         let requestedExit = CGRect(
-            x: rightShoulderFrame.minX,
-            y: rightShoulderFrame.minY - Self.actionGap - diameter,
+            x: traversalAnchorFrame.minX,
+            y: traversalAnchorFrame.minY - Self.actionGap - diameter,
             width: diameter,
             height: diameter)
         if requestedExit.minY >= safe.minY {
@@ -1328,8 +1336,8 @@ struct Jak2TraversalTouchLayout: Equatable, Sendable {
         } else {
             vehicleExitFrame = CGRect(
                 x: max(safe.minX,
-                       rightShoulderFrame.minX - Self.actionGap - diameter),
-                y: rightShoulderFrame.minY,
+                       traversalAnchorFrame.minX - Self.actionGap - diameter),
+                y: traversalAnchorFrame.minY,
                 width: diameter,
                 height: diameter)
         }

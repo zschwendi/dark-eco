@@ -87,7 +87,7 @@ check(view.contains("Label(\"Touch Controls Guide\", systemImage: \"hand.tap\")"
         && touchGuide.contains("guideRow(symbol: .text(\"L\"), title: \"Movement\")")
         && touchGuide.contains("guideRow(symbol: .text(\"R\"), title: \"Camera\")")
         && touchGuide.contains("Swipe up and hold to accelerate. Swipe down to hop brake.")
-        && touchGuide.contains("title: \"Fire & Jetboard\"")
+        && touchGuide.contains("title: \"Tap Action\"")
         && touchGuide.contains("title: \"Jetboard & Vehicles\"")
         && touchGuide.contains("title: \"Look Around\"")
         && touchGuide.contains("red up, dark right, yellow down, blue left")
