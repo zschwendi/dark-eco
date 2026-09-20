@@ -1,5 +1,39 @@
 # GOALPad iPadOS Port Handoff
 
+## Jak II GitHub-only resumption (2026-09-20)
+
+The maintainer explicitly selected GitHub-only distribution and real Jak II
+playability, preserving Dark Eco, Jak 1, and existing Jak II behavior. Do not
+use the v1.0 release or v1.1 App Store reviewer/demo launcher as the baseline.
+The active work is on `codex/jak2-github-playability`, created from clean outer
+`v2.0` `9fe17edf67a99f1b305443f8101e3e9d39ec94bc`, with clean nested OpenGOAL
+`c8666f88b31260c84b2e0adf8cbee3073d9deda5` (detached at the gitlink). The older
+ordinary checkout remains on `v1.0_RELEASE(222)` `317fda34` and is untouched.
+
+Current source edits update distribution/scope documentation only. No gameplay,
+renderer, importer, save, or launcher implementation has been changed, and no
+release has been published. This is **partially complete**, not a playability
+claim. The current execution record is [Jak II playability](docs/JAK2_PLAYABILITY.md).
+
+The new dedicated simulator is **Dark Eco Jak 2 - Isolated**, iPad Pro 11-inch
+(M5), iOS 26.5, UDID `E033177B-9F6B-48E2-B99F-CF81DB39EF80`. It booted
+successfully and was shut down while the build is blocked. Always target this
+exact UDID. Peel's existing `96C5C21A-B925-4213-82A3-90DCB8518339` simulator,
+its apps, and its data are outside this task. No physical device was accessed.
+
+First full simulator build failed before app installation because Xcode 27.0
+(`27A266a`) reports its MetalToolchain component as `uninstalled`. First error:
+`cannot execute tool 'metal' due to missing Metal Toolchain`. Installing the
+Apple component was requested from the maintainer and is pending approval.
+Preserve the partial build for an incremental retry after the toolchain is
+available; do not bypass shader compilation or substitute stale shaders.
+
+Local artifacts: `/private/tmp/goalpad-jak2-github-validation/` (build and
+focused-check logs), `/private/tmp/GOALPad-jak2-github-derived` (this task's
+DerivedData). Active AOT and public source-object packs remain in this worktree
+and passed completeness checks. Initial low disk space cleared externally;
+this task deleted no files or build outputs.
+
 ## Current branch and product authority (2026-08-17)
 
 All Jak II product work now belongs on the unified Dark Eco outer `v2.0`

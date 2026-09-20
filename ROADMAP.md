@@ -44,12 +44,11 @@ as completing the overall goal.
   jailbreak.
 - Retail game files remain user-supplied data and never enter the repository,
   CI artifacts, or hosted services.
-- The preferred public distribution path is TestFlight followed by the App
-  Store, while source and supported sideloading remain first-class. Storefront
-  and first-run presentation use the neutral **Eco** identity and calm
-  **compatible user-supplied data** language rather than franchise marketing;
-  technical documentation and App Review notes remain precise and transparent.
-- GitHub, TestFlight, and App Store archives fail closed unless the complete
+- The public distribution path is GitHub-only source and validated release
+  artifacts, with normal signing and supported sideloading. App Store,
+  TestFlight, v1.0 release work, and the v1.1 reviewer/demo launcher are outside
+  the active path. Preserve the real unified Dark Eco launcher and runtime.
+- GitHub release archives fail closed unless the complete
   expected AOT manifest is linked. The development shell without generated
   game code is never a publishable artifact.
 - Jak 1 and Jak II are active within the unified Dark Eco product. Jak II work
@@ -64,6 +63,15 @@ as completing the overall goal.
   not delay booting and making Jak 1 playable on iPad.
 - Simulator results support rapid iteration but do not establish physical-iPad
   compatibility.
+
+### September 20, 2026 priority
+
+Complete real Jak II playability from the unified v2.0 baseline while preserving
+Dark Eco, Jak 1, and the current Jak II implementation. Use a fresh dedicated
+iPad simulator, never Peel's simulator or its app containers. Establish current
+boot/gameplay evidence, reproduce a specific blocker, fix it narrowly, and run
+the affected regressions before moving to the next blocker. Build 239's source
+and packaging checks are historical evidence, not a completed Jak II playthrough.
 
 ## Current position
 

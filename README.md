@@ -8,8 +8,14 @@ GOALPad is a native ARM64 port of OpenGOAL for Apple platforms. The first
 supported game is *Jak and Daxter: The Precursor Legacy*, using game data
 supplied and prepared by the user.
 
-**Dark Eco** is the public App Store-facing product name; GOALPad remains the
+**Dark Eco** is the public product name; GOALPad remains the
 repository, Xcode target, and internal runtime name.
+
+The current release direction is **GitHub-only**, with source builds, normal
+signing, and supported sideloading. App Store/TestFlight and the old v1.1
+reviewer/demo launcher are outside this path. Active development uses the real
+unified `v2.0` runtime: preserve Jak 1 while completing experimental Jak II.
+See [Project Overview](docs/PROJECT_OVERVIEW.md#distribution-strategy).
 
 It is not a PS2 emulator, not a Swift rewrite of OpenGOAL, and not a source of
 retail game data. See [Project Overview](docs/PROJECT_OVERVIEW.md) for the
@@ -194,7 +200,8 @@ Interactive Entertainment, Naughty Dog, or the OpenGOAL team.
 
 ## Support
 
-The launcher Support screen provides project information, contact details, and
-three optional one-time StoreKit tips. Tips unlock no features or content. Their
-product identifiers and App Store Connect requirements are documented in
-[Dark Eco optional tips](docs/appstore/STOREKIT_TIPS.md).
+The existing launcher includes project information and contact details. Its
+legacy optional StoreKit tips unlock no features or content; their
+[historical setup](docs/appstore/STOREKIT_TIPS.md) is not a GitHub release
+requirement. The GitHub distribution change does not replace the working
+launcher or change gameplay access.

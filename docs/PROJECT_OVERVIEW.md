@@ -3,7 +3,7 @@
 > **Status:** Experimental unified Jak 1 and Jak II port; Dark Eco Build 239 is the current signed product checkpoint
 > **Working name:** GOALPad
 > **Public product name:** Dark Eco
-> **App Store subtitle:** Native OpenGOAL Runtime
+> **Distribution:** GitHub-only source and release artifacts; no App Store or TestFlight path
 > **Primary target:** iPadOS on Apple silicon; the shared windowed app also supports macOS and visionOS
 > **Supported game targets:** *Jak and Daxter: The Precursor Legacy* and experimental *Jak II*
 > **Planned game target:** *Jak 3*
@@ -130,6 +130,14 @@ the signed physical-playtesting stage and the maintainer explicitly activated
 the second title. Jak II work must preserve the established Jak 1 platform path
 and title isolation. Jak 3 remains planned and must not be presented as ready.
 
+The maintainer's September 20, 2026 direction is to complete real Jak II
+playability while preserving Dark Eco, Jak 1, and existing Jak II behavior.
+The v1.0 release and v1.1 App Store reviewer/demo launcher paths are historical
+and must not be used as the implementation or release baseline. Resume from
+the unified v2.0 runtime. Use a fresh, dedicated iPad simulator for iteration,
+separate from Peel's simulator and app data. Simulator results do not establish
+physical playthrough completion.
+
 ### Current enhancement direction
 
 Build 154 is the accepted conventional-2D regression baseline for subsequent
@@ -216,7 +224,7 @@ This project is not:
 - A full rewrite of OpenGOAL in Swift.
 - A repository for ROMs, ISOs, extracted game files, textures, models, audio, dialogue, cinematics, keys, or proprietary SDK material.
 - An attempt to bypass ownership verification or copyright protection.
-- An App Store-only project; source builds and user-controlled data workflows remain first-class.
+- An App Store or TestFlight product; current distribution is GitHub-only.
 - A promise to support every revision, region, mod, iPad, or controller immediately.
 - A reason to destabilize working OpenGOAL behavior merely to make the code look more “Apple-native.”
 
@@ -519,35 +527,27 @@ Modding must not block initial game boot.
 
 ### Preferred public distribution
 
-The maintainer's preferred end-user path is an App Store release so family and
-other users can install the native application without Xcode. TestFlight is the
-natural pre-release lane. Source code, reproducible Xcode builds, personal
-signing, and supported sideloading remain important project outputs rather than
-fallbacks to delete after a store release.
+The maintainer selected GitHub-only distribution on September 20, 2026.
+Publish source, reproducible Xcode build instructions, and validated release
+artifacts through GitHub, with personal signing or supported sideloading for
+iPad installation. App Store submission, TestFlight, and the v1.1 reviewer/demo
+launcher are outside the current release path. Existing historical store
+documents do not override this direction.
 
-App Store availability is a direction, not a current approval claim. Public
-binary distribution still requires a separate license, intellectual-property,
-and App Review assessment. This project policy documents the technical content
-boundary and does not make a legal guarantee.
+GitHub distribution does not change the normal signing, AOT, license, or
+asset-separation boundaries. This policy makes no legal guarantee and does not
+claim that a new release has already been published.
 
 ### Public product identity
 
-Public-facing product surfaces use **Dark Eco**, with the App Store subtitle
-**Native OpenGOAL Runtime**, and a calm, platform-oriented voice. GOALPad
-remains the repository, target, scheme, and internal runtime name. The App
-Store name, subtitle, icon, screenshots, preview media, and first-run setup
-should not market the application with a supported game's name, characters,
-official artwork, logos, or recognizable franchise symbols. Prefer concise
-language such as **Add compatible game data**, **Choose a prepared game
-folder**, and **No compatible data found**. Do not turn setup into a loud
-franchise prompt.
+Public-facing product surfaces retain **Dark Eco**. GOALPad remains the
+repository, target, scheme, and internal runtime name. Describe the real
+runtime and supported titles accurately, including experimental limitations
+and the requirement for user-supplied game data. Preserve the existing working
+launcher and title routing; do not substitute the App Store reviewer/demo
+launcher. The app must not imply affiliation or endorsement.
 
-Neutral branding is not concealment. Technical documentation may name the
-currently supported game where precision, attribution, compatibility, or
-contributor work requires it, and App Review notes must accurately explain the
-application's core behavior. The app must not imply affiliation or endorsement.
-
-### Store-safe technical boundary
+### Release content boundary
 
 The intended distribution package contains the open-source native runtime and
 the complete supported GOAL workload compiled ahead of time into the normally
@@ -556,7 +556,7 @@ prepared data locally; the app neither downloads it nor treats it as executable
 code. Data-only mods may follow the same boundary. Executable-code mods require
 a separate architecture and distribution review.
 
-Every GitHub, TestFlight, and App Store archive must fail closed if its expected
+Every GitHub release archive must fail closed if its expected
 AOT manifest is absent or incomplete. At the current Jak 1 pin, a distributable
 build contains all 518 AOT object entries. A shell that reports that game code
 is missing is useful only as an explicitly labeled development build and must
@@ -773,7 +773,7 @@ The following decisions are currently binding:
 - **Graphics direction:** iPad-compatible renderer with Metal as the preferred long-term backend.
 - **Game data:** Supplied and prepared by the user; never distributed by this repository.
 - **Runtime code generation:** Do not rely on unrestricted JIT; validate an AOT-compatible approach.
-- **Distribution:** Public source first; prebuilt binary strategy deferred.
+- **Distribution:** GitHub-only source and validated release artifacts, with normal signing and supported sideloading; no App Store or TestFlight lane.
 - **Modding:** Important, but secondary to reliable game boot and playability.
 - **Quality gate:** The project must remain buildable after each meaningful change.
 
