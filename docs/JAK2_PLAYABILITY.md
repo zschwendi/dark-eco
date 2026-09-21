@@ -1,6 +1,6 @@
 # Jak II playability work
 
-Updated: September 20, 2026. Status: **Partially complete; simulator app build blocked.**
+Updated: September 20, 2026. Status: **Partially complete; toolchain installed; work paused at maintainer request.**
 
 ## Direction and baseline
 
@@ -61,9 +61,16 @@ use: xcodebuild -downloadComponent MetalToolchain
 ```
 
 `xcodebuild -showComponent MetalToolchain -json` confirms build `27A266a`,
-status `uninstalled`. Maintainer approval to install the Apple component is
-pending. No runtime code was changed before this failure. No app was installed
-on the new simulator, and no physical device was accessed.
+status `uninstalled` at the first attempt. The maintainer then approved the
+installation and requested stopping after this checkpoint. Apple Metal
+Toolchain `27A266a` was installed successfully. One repeat of the exact build
+above passed its nested native runtime build in 132.227 seconds, then began
+rebuilding importer targets. The enclosing app build was deliberately cancelled
+(exit 75) to respect the maintainer's request to stop and limit usage. It did
+**not** complete; the nested success must not be reported as full app success. Logs:
+`metal-toolchain-install.log` and `simulator-build-after-metal.log`.
+No app was installed or launched on the new simulator, and no physical device
+was accessed. The build and its owned processes were stopped. No further tasks are running.
 
 Local logs are under `/private/tmp/goalpad-jak2-github-validation/`:
 `simulator-build.log`, `simulator-boot.log`, `touch-controls.log`,
@@ -228,19 +235,17 @@ The incomplete old directory was not modified.
 
 ## Next execution gate
 
-1. After installation approval, restore the missing Apple Metal component and
-   rerun the exact simulator build without disabling shader compilation.
-2. Install the real unified app on the dedicated simulator. Use the fresh
+1. After the maintainer resumes gameplay work, install the real unified app on the dedicated simulator. Use the fresh
    checked local candidate above with isolated test saves; separately exercise
    the app's import UI to measure simulator progress and cancellation.
-3. Record baseline title/new-game behavior, then reproduce the maintainer's
+2. Record baseline title/new-game behavior, then reproduce the maintainer's
    concrete missing gameplay/visual features. Use the existing scene-sweep and
    renderer diagnostics to distinguish an absent draw path from bad input,
    streaming failures, or presentation problems.
-4. Fix one reproduced blocker at a time. Keep title isolation and the existing
+3. Fix one reproduced blocker at a time. Keep title isolation and the existing
    Jak 1/Jak II input/save checks passing, with a full app build for runtime
    changes. Do not revive a previously rejected renderer just by enabling it.
-5. Track new game, traversal, missions, cutscenes, audio, save/load, level
+4. Track new game, traversal, missions, cutscenes, audio, save/load, level
    streaming, and return-to-library/relaunch as separate acceptance outcomes.
    A successful title screen or scene preview is not full playability.
 

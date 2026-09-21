@@ -2,6 +2,15 @@
 
 ## Jak II GitHub-only resumption (2026-09-20)
 
+**Latest checkpoint:** the maintainer approved installing Apple Metal
+Toolchain `27A266a`, then requested stopping to limit usage. Installation
+succeeded. One repeat build passed its nested native runtime build in 132.227
+seconds, then started rebuilding importer targets. The enclosing app build
+was deliberately cancelled (exit 75) to keep the work bounded. **The full
+app build did not complete.** No app installation, launch, gameplay testing,
+physical-device access, or Peel interaction occurred. The dedicated simulator
+remains stopped. Resume the cached full build and gameplay only on request.
+
 The maintainer explicitly selected GitHub-only distribution and real Jak II
 playability, preserving Dark Eco, Jak 1, and existing Jak II behavior. Do not
 use the v1.0 release or v1.1 App Store reviewer/demo launcher as the baseline.
@@ -24,7 +33,7 @@ Fresh data: `/private/tmp/goalpad-jak2-github-validation/jak2-prepared` (567 ISO
 files, 147 FR3 files, all 23 current app manifest files present). Do not reuse
 or overwrite the incomplete old `Jak2/projdata/out/jak2` directory. The user
 changed worker routing after the completed Cursor audit; use Astra going
-forward. The Metal component approval below is still pending.
+forward. The Metal component approval below was resolved at the latest checkpoint.
 
 The new dedicated simulator is **Dark Eco Jak 2 - Isolated**, iPad Pro 11-inch
 (M5), iOS 26.5, UDID `E033177B-9F6B-48E2-B99F-CF81DB39EF80`. It booted
@@ -35,7 +44,7 @@ its apps, and its data are outside this task. No physical device was accessed.
 First full simulator build failed before app installation because Xcode 27.0
 (`27A266a`) reports its MetalToolchain component as `uninstalled`. First error:
 `cannot execute tool 'metal' due to missing Metal Toolchain`. Installing the
-Apple component was requested from the maintainer and is pending approval.
+Apple component was subsequently approved and installed; the nested runtime build passed; enclosing app build was cancelled at the requested stopping boundary.
 Preserve the partial build for an incremental retry after the toolchain is
 available; do not bypass shader compilation or substitute stale shaders.
 
