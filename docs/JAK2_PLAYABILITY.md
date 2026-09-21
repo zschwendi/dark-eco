@@ -74,6 +74,11 @@ Fable 5.1 High**, with both exact source tips available. The coordinator also
 verified these paths locally. These are source findings, not a diagnosis of
 the maintainer's particular scene or new runtime evidence:
 
+- The level-art lifetime issue below is the first stability investigation.
+  `metal_jak2_host_bridge.mm:243-248` makes a load failure terminal, and
+  `:1706-1710` then rejects subsequent drawing chains. Reproduce failure and
+  observe app behavior before choosing recovery; do not remove fail-closed
+  checks while texture/resource ownership remains uncertain.
 - `OpenGOAL/game/graphics/pipelines/metal/metal_jak2_bucket_table.cpp:134-140`
   deliberately defers all six per-level GMerc PRIS and six GMerc PRIS2 paths.
   `metal_jak2_bucket_table_test.cpp:315` explicitly says their separate grammar
@@ -93,6 +98,19 @@ the maintainer's particular scene or new runtime evidence:
   then test the lifetime of common, requested, and in-flight render resources
   before introducing eviction. This is a memory-growth risk, not a measured
   out-of-memory diagnosis.
+- SUBTITLE bucket 322 is also deferred (`metal_jak2_bucket_table.cpp:173`).
+  Unlike the upstream `TextureUploadHandler` with direct fallback, the current
+  bucket-322 plan is explicitly a passive classifier, not an executor.
+  `goal_src/jak2/engine/scene/scene.gc:1588-1600` emits the cutscene subtitle
+  toggle confirmation into this path. Capture that exact action, then test
+  its upload/draw packets with readback before connecting an executor. This
+  does **not** mean all subtitles are missing: ordinary PC subtitle text uses
+  the already implemented `debug-no-zbuf2` path.
+
+The completed [Cursor audit](https://cursor.com/agents/bc-f17d70be-2453-4e46-93c6-86366c0421e3)
+is a source review only. Its proposed patches require coordinator review and
+runtime evidence; no worker edit was integrated. The redundant queued follow-up
+was stopped after the report completed.
 
 The old water/eye repairs are already in the nested baseline; their physical
 acceptance remains unverified. Source history convergence does not close the
