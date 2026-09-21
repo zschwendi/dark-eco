@@ -10,10 +10,21 @@ The active work is on `codex/jak2-github-playability`, created from clean outer
 `c8666f88b31260c84b2e0adf8cbee3073d9deda5` (detached at the gitlink). The older
 ordinary checkout remains on `v1.0_RELEASE(222)` `317fda34` and is untouched.
 
-Current source edits update distribution/scope documentation only. No gameplay,
-renderer, importer, save, or launcher implementation has been changed, and no
-release has been published. This is **partially complete**, not a playability
-claim. The current execution record is [Jak II playability](docs/JAK2_PLAYABILITY.md).
+The root branch now pins nested local `v2.0` at `f42edddc4`, one narrow change
+above the starting gitlink: remove duplicate Jak II finalization hashes while
+retaining all validation boundaries. The composer synthetic tests, strict
+Apple changed-file compilation, and a full local real-ISO import passed.
+The timed oracle completed in 38.014 seconds and produced the missing English
+voice archive in a fresh private candidate. No Jak 1, launcher, save, audio, or
+renderer implementation changed. No push or release occurred. This remains
+**partially complete**, not a playability claim. Exact commands, results, and
+paths are in [Jak II playability](docs/JAK2_PLAYABILITY.md).
+
+Fresh data: `/private/tmp/goalpad-jak2-github-validation/jak2-prepared` (567 ISO
+files, 147 FR3 files, all 23 current app manifest files present). Do not reuse
+or overwrite the incomplete old `Jak2/projdata/out/jak2` directory. The user
+changed worker routing after the completed Cursor audit; use Astra going
+forward. The Metal component approval below is still pending.
 
 The new dedicated simulator is **Dark Eco Jak 2 - Isolated**, iPad Pro 11-inch
 (M5), iOS 26.5, UDID `E033177B-9F6B-48E2-B99F-CF81DB39EF80`. It booted
