@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <chrono>
 #include <condition_variable>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <limits>
@@ -16,6 +17,9 @@
 #include "game/kernel/core/kernel_game.h"
 #include "game/kernel/core/pad.h"
 #include "game/kernel/core/sound_rpc_jak2.h"
+
+// kmemcard.h's OpenGOAL Ptr template conflicts with Apple's Ptr typedef in Objective-C++.
+std::uint64_t kmemcard_successful_save_generation();
 
 static_assert((uint32_t)GOALPadButtonSelect == (uint32_t)GOAL_PAD_SELECT, "pad bit drift");
 static_assert((uint32_t)GOALPadButtonL3 == (uint32_t)GOAL_PAD_L3, "pad bit drift");
@@ -1896,9 +1900,8 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
   snapshot.lookAroundState = look_state_from_core(player_context.look_state);
   snapshot.jak2TraversalState = traversal_state_from_core(player_context.traversal);
   snapshot.speederState = [self speederState];
-  // No Jak II managed-save publication is established for the shared session contract.
   snapshot.exitToLibraryRequested = NO;
-  snapshot.successfulSaveGeneration = 0;
+  snapshot.successfulSaveGeneration = kmemcard_successful_save_generation();
   return snapshot;
 }
 

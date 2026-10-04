@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -42,6 +43,7 @@ int32_t g_requested_target_frame_rate = 0;
 int32_t g_runtime_target_frame_rate = 60;
 double g_last_tick_time = 0.0;
 int g_timing_resets = 0;
+std::uint64_t g_successful_save_generation = 0;
 std::vector<double> g_pacing_seconds;
 std::string g_data_directory;
 std::string g_saves_directory;
@@ -63,6 +65,10 @@ size_t call_index(const char* call) {
 }
 
 }  // namespace
+
+std::uint64_t kmemcard_successful_save_generation() {
+  return g_successful_save_generation;
+}
 
 extern "C" {
 
@@ -194,6 +200,7 @@ goal_jak2_runtime_status goal_jak2_runtime_start(const goal_jak2_runtime_config*
   g_requested_target_frame_rate = config->target_frame_rate;
   g_runtime_target_frame_rate = config->target_frame_rate;
   g_runtime_running = true;
+  g_successful_save_generation = 0;
   g_runtime = {};
   g_runtime.state = GOAL_JAK2_RUNTIME_RUNNING;
   g_runtime.kernel_version = 0x40000;
@@ -695,6 +702,14 @@ int main() {
               frame.jak2TraversalState == GOALPadJak2TraversalStateJetboard &&
               frame.speederState == GOALPadSpeederStateUnknown,
           "Jak II frame snapshots aggregate face prompt and typed player context state");
+    g_successful_save_generation = 1;
+    const GOALPadGameFrameStateSnapshot completed_save =
+        GOALPadRuntimeBridge.gameFrameStateSnapshot;
+    const GOALPadGameFrameStateSnapshot repeated_completed_save =
+        GOALPadRuntimeBridge.gameFrameStateSnapshot;
+    check(completed_save.successfulSaveGeneration == 1 &&
+              repeated_completed_save.successfulSaveGeneration == 1,
+          "Jak II frame snapshots publish one stable native successful-save generation");
     check([surface endFrame], "the surface reports a submitted drawable");
     check(GOALPadRuntimeBridge.framesRun == 1, "the runtime frame counter advances");
     GOALPadRendererStats stats = surface.stats;
