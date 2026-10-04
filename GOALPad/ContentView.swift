@@ -76,6 +76,11 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
+            if session.isRunning {
+                Color.black
+                    .ignoresSafeArea()
+            }
+
             GameplaySurface(
                 session: session,
                 hidesCursorInFullScreen: session.isRunning && !session.isNativeMenuOpen
