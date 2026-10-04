@@ -170,6 +170,7 @@ while IFS= read -r scene; do
   python3 "$checker" --snapshot-saves "$scene_saves" --output "$scene_artifacts/before-saves.tsv"
 
   xcrun simctl terminate "$simulator" "$bundle_id" >/dev/null 2>&1 || true
+  start_log_stream "$scene_artifacts/runtime.log"
   SIMCTL_CHILD_GOALPAD_JAK2_DEBUG_PREVIEW_SCENE="$scene" \
     xcrun simctl launch --terminate-running-process "$simulator" "$bundle_id" > "$scene_artifacts/launch.txt"
   pid=$(parse_launch_pid < "$scene_artifacts/launch.txt")
@@ -177,7 +178,6 @@ while IFS= read -r scene; do
     printf '%s\n' "could not read launch PID for $scene" >&2
     exit 1
   fi
-  start_log_stream "$scene_artifacts/runtime.log"
 
   elapsed=0
   sample_captured=0
