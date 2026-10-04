@@ -209,8 +209,12 @@ while IFS= read -r scene; do
   if [ "$minimum_samples" -gt 3 ]; then
     minimum_samples=3
   fi
-  if [ "$sample_captured" -lt "$minimum_samples" ] || [ "$completed" -eq 0 ]; then
+  if [ "$sample_captured" -lt "$minimum_samples" ]; then
     printf '%s\n' "$scene: captured $sample_captured active-scene visual samples before completion; need at least $minimum_samples" >&2
+    exit 1
+  fi
+  if [ "$completed" -eq 0 ]; then
+    printf '%s\n' "$scene: no scene completion marker was observed before timeout; captured $sample_captured active-scene visual samples" >&2
     exit 1
   fi
 
