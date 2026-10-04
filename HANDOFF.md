@@ -2,8 +2,10 @@
 
 ## Jak II unified playability checkpoint (2026-10-04)
 
-The active outer checkout is `codex/jak2-github-playability` at
-`9724eb8e93903903d45acf07b977e138694fbbf4`; nested OpenGOAL is
+The active outer checkout is `codex/jak2-github-playability`; the code
+checkpoint is `9724eb8e93903903d45acf07b977e138694fbbf4` and this capture
+evidence is recorded by documentation checkpoint `a834a45f4e52b25855547a312ca482f9ca41e430`;
+nested OpenGOAL is
 `f42edddc42a761c9a18232bc2505329f87e7a97a`. The verified narrow commits in
 this checkpoint are `dd55537` (batch-aware Jak II diagnostic cadence),
 `152076f` (start scene log streaming before launch), `fdfb7a8` (black portrait
@@ -26,13 +28,21 @@ but no later `scene=0/0 identity=||` completion marker. The old wrapper message
 said “captured 3 ... need at least 3” even when the real failure was
 `completed == 0` after timeout; `9724eb8` makes that distinction explicit.
 
-The root agent is still running a longer intro-only capture under
+The longer intro-only capture under
 `/Users/zach/Developer/OS_Projects/GOALPad/.agent-builds/jak2-playability-20261003/later-scenes`
-with `--timeout 300 --sample-count 5 --sample-minimum-ticks 900`; this is
-ongoing capture evidence, not a finished playability claim. The earlier three
-samples at ticks 3242, 3362, and 3602 were captured before the later
-content-bearing frame, and the wrapper failed solely because completion was not
-observed before timeout.
+completed scene-level validation. An independent direct checker rerun exited
+0 with identity ticks `3122-10442`, aframe `47.578->3220.869`, completion tick
+`10560`, required level `introcst`, and required renderer maxima
+`ocean=2112/3124/4473/15/10257`, `tfrag=103/92611`, `eyes=8/4/2048/0x00e84fc5585acd85`;
+all observed `missing`, `background-missing`, and `unexpected` counters were
+zero. It selected `sample-04-tick-6122.png` for triage (`99.883%` central
+non-black). The before/after save manifests are both empty and byte-identical
+(SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`).
+The wrapper process itself exited 2 with `unexpected EOF` at line 237 because
+`9724eb8` was committed while that long-running shell was still reading the
+script. Treat that wrapper exit as an orchestration artifact; the separate
+checker result is the valid scene evidence. This is still scene-level evidence,
+not a full playability claim.
 
 ## Jak II GitHub-only resumption (2026-09-20)
 
