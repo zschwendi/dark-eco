@@ -1,5 +1,39 @@
 # GOALPad iPadOS Port Handoff
 
+## Jak II unified playability checkpoint (2026-10-04)
+
+The active outer checkout is `codex/jak2-github-playability` at
+`9724eb8e93903903d45acf07b977e138694fbbf4`; nested OpenGOAL is
+`f42edddc42a761c9a18232bc2505329f87e7a97a`. The verified narrow commits in
+this checkpoint are `dd55537` (batch-aware Jak II diagnostic cadence),
+`152076f` (start scene log streaming before launch), `fdfb7a8` (black portrait
+letterbox behind the constrained 4:3 gameplay surface), `cbd897c` (ignore a
+cancelled boot completion), and `9724eb8` (report missing scene completion
+separately from insufficient visual samples). No renderer implementation was
+changed by the presentation fix.
+
+Focused checks pass: `Scripts/run-portrait-library-check.sh`,
+`sh -n Scripts/run-jak2-scene-sweep.sh`,
+`Scripts/run-jak2-scene-sweep.sh --self-test`, and `git diff --check`.
+
+The earlier apparent tick stall was a telemetry false diagnosis. Runtime ticks
+continued through batched dispatch; `dd55537` now logs when a milestone or
+period boundary is crossed, so a tick sequence such as 1, 5, 9, 13 cannot miss
+all startup diagnostics. The prior artifact
+`/Users/zach/Developer/OS_Projects/GOALPad/.agent-builds/jak2-playability-20261003/current-scenes/intro-samos-hut/runtime.log`
+shows active `intro-samos-hut` identity and advancing ticks through 10562,
+but no later `scene=0/0 identity=||` completion marker. The old wrapper message
+said “captured 3 ... need at least 3” even when the real failure was
+`completed == 0` after timeout; `9724eb8` makes that distinction explicit.
+
+The root agent is still running a longer intro-only capture under
+`/Users/zach/Developer/OS_Projects/GOALPad/.agent-builds/jak2-playability-20261003/later-scenes`
+with `--timeout 300 --sample-count 5 --sample-minimum-ticks 900`; this is
+ongoing capture evidence, not a finished playability claim. The earlier three
+samples at ticks 3242, 3362, and 3602 were captured before the later
+content-bearing frame, and the wrapper failed solely because completion was not
+observed before timeout.
+
 ## Jak II GitHub-only resumption (2026-09-20)
 
 **Latest checkpoint:** the maintainer approved installing Apple Metal
