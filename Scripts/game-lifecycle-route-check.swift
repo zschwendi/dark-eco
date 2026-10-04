@@ -330,10 +330,20 @@ check(occursInOrder([
     "gameplaySaveGeneration.reset()",
     "bootQueue.async",
 ], in: start), "a successful kernel start resets the save baseline before asynchronous boot")
+check(start.contains("startupGeneration: startupGeneration"),
+      "asynchronous boot completion carries the startup generation it belongs to")
 
 let bootFinished = section(session,
                            from: "private func bootFinished",
                            to: "func shutdown")
+check(occursInOrder([
+    "startupGeneration: UInt64",
+    "guard isBooting, startupState.owns(generation: startupGeneration) else { return }",
+    "boot = status",
+    "isBooting = false",
+    "startupState.reset()",
+], in: bootFinished),
+      "boot completion rejects callbacks invalidated by shutdown or session replacement")
 check(occursInOrder([
     "if presentationSettings.developerLogsEnabled",
     "startCameraDiagnostics()",
@@ -346,9 +356,12 @@ check(bootFinished.contains("GOALPadRuntimeBridge.stopKernel()")
 
 let shutdown = section(session, from: "func shutdown()", to: "func presentTouchControlsGuide()")
 check(occursInOrder([
+    "isBooting = false",
+    "startupState.reset()",
     "GOALPadRuntimeBridge.stopKernel()",
     "gameplaySaveGeneration.reset()",
-], in: shutdown), "session shutdown clears the native save baseline")
+], in: shutdown),
+      "session shutdown invalidates boot completion before stopping native state and save tracking")
 
 let cameraPersistence = section(session,
                                 from: "private func persistCameraDiagnosticsForLifecycleEvent()",

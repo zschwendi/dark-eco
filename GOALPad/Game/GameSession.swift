@@ -306,13 +306,16 @@ final class GameSession {
             let boot = GOALPadRuntimeBridge.bootGame(targetFrameRate: bootTargetFrameRate)
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
-                    self.bootFinished(boot, targetFrameRate: bootTargetFrameRate)
+                    self.bootFinished(boot, targetFrameRate: bootTargetFrameRate,
+                                      startupGeneration: startupGeneration)
                 }
             }
         }
     }
 
-    private func bootFinished(_ status: GOALPadGameBootStatus, targetFrameRate bootFrameRate: Int) {
+    private func bootFinished(_ status: GOALPadGameBootStatus, targetFrameRate bootFrameRate: Int,
+                              startupGeneration: UInt64) {
+        guard isBooting, startupState.owns(generation: startupGeneration) else { return }
         boot = status
         isBooting = false
         startupState.reset()
@@ -420,6 +423,7 @@ final class GameSession {
         foregroundPreparationTask = nil
         foregroundPreparationGeneration = nil
         lifecycle.resetForStoppedSession()
+        isBooting = false
         startupState.reset()
         controlsGuideSuspension.reset()
         input.stopRumble()
