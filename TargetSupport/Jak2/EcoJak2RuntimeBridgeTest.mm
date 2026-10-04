@@ -15,6 +15,8 @@
 #include "game/kernel/core/pad.h"
 #include "game/kernel/core/sound_rpc_jak2.h"
 
+#include "Jak2DiagnosticCadence.hpp"
+
 static_assert(sizeof(goal_jak2_face_prompt_touch_snapshot) == 12,
               "Jak II face prompt touch ABI drift");
 
@@ -442,6 +444,31 @@ int goal_game_sound_pull_audio(int16_t* out, int frames) {
 
 int main() {
   @autoreleasepool {
+    goalpad::jak2::DiagnosticCadence diagnostic_cadence;
+    std::vector<std::uint64_t> diagnostic_ticks;
+    for (std::uint64_t tick = 1; tick <= 605; tick += 4) {
+      if (diagnostic_cadence.should_log(tick, false)) {
+        diagnostic_ticks.push_back(tick);
+      }
+    }
+    check(diagnostic_ticks == std::vector<std::uint64_t>({1, 13, 21, 33, 61, 121, 601}),
+          "batched frames log each startup milestone and normal cadence crossing once");
+    check(!diagnostic_cadence.should_log(605, false),
+          "repeating the same batched tick does not duplicate diagnostics");
+    diagnostic_cadence.reset();
+    check(diagnostic_cadence.should_log(1, false),
+          "a new runtime session restores the first diagnostic");
+
+    diagnostic_cadence.reset();
+    diagnostic_ticks.clear();
+    for (std::uint64_t tick = 121; tick <= 365; tick += 4) {
+      if (diagnostic_cadence.should_log(tick, true)) {
+        diagnostic_ticks.push_back(tick);
+      }
+    }
+    check(diagnostic_ticks == std::vector<std::uint64_t>({121, 241, 361}),
+          "preview diagnostics log every crossed 120-frame boundary");
+
     check([GOALPadRuntimeBridge selectGame:GOALPadGameIdentifierJak2] &&
               ![GOALPadRuntimeBridge selectGame:GOALPadGameIdentifierJak1] &&
               GOALPadRuntimeBridge.activeGameIdentifier == GOALPadGameIdentifierJak2 &&

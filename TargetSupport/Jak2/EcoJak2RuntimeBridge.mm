@@ -18,6 +18,8 @@
 #include "game/kernel/core/pad.h"
 #include "game/kernel/core/sound_rpc_jak2.h"
 
+#include "Jak2DiagnosticCadence.hpp"
+
 // kmemcard.h's OpenGOAL Ptr template conflicts with Apple's Ptr typedef in Objective-C++.
 std::uint64_t kmemcard_successful_save_generation();
 
@@ -151,6 +153,7 @@ uint64_t g_frames_with_multiple_chains = 0;
 uint64_t g_max_chains_per_frame = 0;
 bool g_shadow_bucket195_capture_written = false;
 bool g_shadow195_frame_capture_logged = false;
+goalpad::jak2::DiagnosticCadence g_diagnostic_cadence;
 
 NSString* string_from_utf8(const char* value) {
   if (!value || !value[0]) {
@@ -251,8 +254,7 @@ bool update_metal_presentation_geometry(goal_jak2_metal_host* host,
 bool should_log_jak2_diagnostics(uint64_t tick) {
   const char* preview_scene = std::getenv("GOALPAD_JAK2_DEBUG_PREVIEW_SCENE");
   const bool preview_active = preview_scene && preview_scene[0];
-  return tick == 1 || tick == 10 || tick == 20 || tick == 30 || tick == 60 || tick == 120 ||
-         (tick > 0 && ((preview_active && tick % 120 == 0) || tick % 600 == 0));
+  return g_diagnostic_cadence.should_log(tick, preview_active);
 }
 
 bool environment_is_exact_one(const char* name) {
@@ -1269,6 +1271,7 @@ void log_jak2_diagnostics_locked() {
 void clear_runtime_snapshots_locked() {
   g_runtime_metrics = {};
   g_metal_metrics = {};
+  g_diagnostic_cadence.reset();
   g_frame_armed = false;
   g_frame_baseline_chains = 0;
   g_frame_baseline_drawables = 0;
