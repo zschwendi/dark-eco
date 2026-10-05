@@ -1,11 +1,13 @@
 # Jak II playability work
 
-Updated: October 4, 2026. Status: **Partially complete; simulator build, ordinary
-New Game through prison, save creation, and save reload observed. Movement and
-full visual correctness remain unverified.**
+Updated: October 4, 2026. Status: **Partially complete; missing intro overlays
+restored, direct SFX pitch bend fixed, ordinary New Game through prison and
+save reload observed. Full rendering/audio fidelity and mission completion
+remain unverified.** Movement previously worked per the maintainer.
 
-The [October 4 resumption report](JAK2_RESUME_2026_10_04.md) is the current
-checkpoint. The September build/toolchain history below is retained as history.
+The [rendering/audio/mission report](JAK2_AV_MISSIONS_2026_10_04.md) is the current
+checkpoint. The [earlier resumption report](JAK2_RESUME_2026_10_04.md) and
+September build/toolchain sections below are historical evidence.
 
 ## Direction and baseline
 

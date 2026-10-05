@@ -1162,6 +1162,29 @@ void log_jak2_diagnostics_locked() {
         static_cast<unsigned long long>(subtitle322.malformed_transfers),
         static_cast<unsigned long long>(subtitle322.executions));
 
+  const auto& subtitleTyped = metal.subtitle_bucket322_typed;
+  NSLog(@"GOALPAD_JAK2_SUBTITLE322_TYPED tick=%llu observed=%llu matched=%llu rejected=%llu "
+         "mismatched=%llu variants=%llu/%llu/%llu/%llu/%llu status=%u variant=%u "
+         "reject=%u/%u transfers=%u linker=%u direct=%u opaque=%u hud=%u images=%u "
+         "bytes=%llu fingerprint=%016llx",
+        static_cast<unsigned long long>(runtime.ticks),
+        static_cast<unsigned long long>(subtitleTyped.observations),
+        static_cast<unsigned long long>(subtitleTyped.matched),
+        static_cast<unsigned long long>(subtitleTyped.rejected),
+        static_cast<unsigned long long>(subtitleTyped.semantic_mismatches),
+        static_cast<unsigned long long>(subtitleTyped.variants[0]),
+        static_cast<unsigned long long>(subtitleTyped.variants[1]),
+        static_cast<unsigned long long>(subtitleTyped.variants[2]),
+        static_cast<unsigned long long>(subtitleTyped.variants[3]),
+        static_cast<unsigned long long>(subtitleTyped.variants[4]),
+        subtitleTyped.last_status, subtitleTyped.last_variant,
+        subtitleTyped.last_reject_reason, subtitleTyped.last_reject_transfer_index,
+        subtitleTyped.last_transfer_count, subtitleTyped.last_linker_transfers,
+        subtitleTyped.last_direct_transfers, subtitleTyped.last_opaque_direct_transfers,
+        subtitleTyped.last_hud_sprite_pairs, subtitleTyped.last_image_upload_count,
+        static_cast<unsigned long long>(subtitleTyped.last_direct_payload_bytes),
+        static_cast<unsigned long long>(subtitleTyped.last_semantic_fingerprint));
+
   NSLog(@"GOALPAD_JAK2_SKY_POST_STATE tick=%llu executions=%llu",
         static_cast<unsigned long long>(runtime.ticks),
         static_cast<unsigned long long>(metal.sky_post_texture_upload_executions));

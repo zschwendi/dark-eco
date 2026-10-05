@@ -1,16 +1,37 @@
 # GOALPad iPadOS Port Handoff
 
-## Latest resumption — October 4 evening
+## Latest resumption — October 4 rendering/audio/mission pass
+
+The intro's missing Naughty Dog card, subtitle-toggle prompt, and Jak II logo
+are now visibly restored in the isolated simulator. Live/copied bucket-322
+plans match without rejection after recognizing the source terminal reset.
+Direct SFX pitch bend is also fixed with failing-before/passing-after PCM tests.
+Read-only mission logging distinguishes fortress entry from completion;
+ordinary Load Game returns to prison and reports the task entered, not complete.
+
+Active outer remains `codex/jak2-github-playability`. Nested `v2.0` is
+`090fd6c23`, including `284eb66ae` (metadata capture), `4ed6ff53f` (audio),
+`e2735ae9b` (mission observer), `ccc713e1a` (HUD route), and `090fd6c23`
+(exact font-only route). The maintainer confirmed movement previously worked;
+do not make short automated input attempts the primary blocker. See
+[the current report](docs/JAK2_AV_MISSIONS_2026_10_04.md) for commands,
+captures, remaining gaps, and exact validation boundaries. Full visual/audio
+fidelity and actual mission completion remain unverified. No physical device
+access or publication occurred.
+
+## Earlier resumption — October 4 evening
 
 Ordinary New Game now has observed simulator evidence through the four intro
 scenes into prison, real save creation, and a subsequent normal Load Game
-return to prison. Movement is still unverified. The attempted bucket-322 HUD
+return to prison. Automated movement was unverified; the maintainer subsequently
+confirmed it previously worked. The first attempted bucket-322 HUD
 change did not restore the observed intro card and was completely reverted;
 nested `v2.0` is `6e497c86c1a9b298edaf88220c4a5a04f04967b0`, with a source tree
 identical to starting `f42edddc4`. Its final restored simulator build passed
 in 64.153 seconds. The experiment remains on `agent/subtitle322-hud-direct`.
 See [the current report](docs/JAK2_RESUME_2026_10_04.md) for exact commands,
-artifacts, limitations, and the next input/packet-format investigations.
+artifacts and historical limitations. The later verified patch above supersedes
+the missing-card diagnosis.
 Do not mark Jak II fully playable or visually complete.
 
 ## Jak II unified playability checkpoint (2026-10-04)
