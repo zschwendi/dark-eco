@@ -1,6 +1,11 @@
 # Jak II playability work
 
-Updated: September 20, 2026. Status: **Partially complete; toolchain installed; work paused at maintainer request.**
+Updated: October 4, 2026. Status: **Partially complete; simulator build, ordinary
+New Game through prison, save creation, and save reload observed. Movement and
+full visual correctness remain unverified.**
+
+The [October 4 resumption report](JAK2_RESUME_2026_10_04.md) is the current
+checkpoint. The September build/toolchain history below is retained as history.
 
 ## Direction and baseline
 

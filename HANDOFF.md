@@ -1,5 +1,18 @@
 # GOALPad iPadOS Port Handoff
 
+## Latest resumption — October 4 evening
+
+Ordinary New Game now has observed simulator evidence through the four intro
+scenes into prison, real save creation, and a subsequent normal Load Game
+return to prison. Movement is still unverified. The attempted bucket-322 HUD
+change did not restore the observed intro card and was completely reverted;
+nested `v2.0` is `6e497c86c1a9b298edaf88220c4a5a04f04967b0`, with a source tree
+identical to starting `f42edddc4`. Its final restored simulator build passed
+in 64.153 seconds. The experiment remains on `agent/subtitle322-hud-direct`.
+See [the current report](docs/JAK2_RESUME_2026_10_04.md) for exact commands,
+artifacts, limitations, and the next input/packet-format investigations.
+Do not mark Jak II fully playable or visually complete.
+
 ## Jak II unified playability checkpoint (2026-10-04)
 
 The active outer checkout is `codex/jak2-github-playability`; the code
