@@ -1,5 +1,40 @@
 # GOALPad iPadOS Port Handoff
 
+## Latest source consolidation — October 21, 2026
+
+The MacBook and Mac mini now use the workspace's
+`GP-v2.0-jak2-integration` checkout with outer and nested OpenGOAL branches
+both named `v2.0`. The selected application code checkpoint is
+`65e54f58ccce751b24ea77c24ab44b8850ddef57`; its unchanged runtime gitlink is
+`090fd6c23b3580e56f3a2ad397a27c3fd50dba0d`. The MacBook's former
+`codex/jak2-github-playability` tip was 14 commits beyond outer `v2.0` and
+was promoted by fast-forward. The mini's older runtime `v2.0` was 34 commits
+behind the selected runtime. Both source trees matched and were clean after
+transfer; subsequent consolidation documentation does not change runtime code.
+
+The mini's old `review/v1.1-build230` checkout remains intact. Its three
+review-only commits are preserved on both Macs as
+`preserve/mini-review-v1.1-build230` at `3be15de7e`; they were not merged
+into the current product. Historical worktrees and generated data were not
+removed. Scoped Git bundles transferred source directly between the Macs;
+GitHub branches and published releases were not changed.
+
+Validation on the unchanged application code checkpoint:
+
+```sh
+sh Scripts/run-game-lifecycle-check.sh
+sh Scripts/run-native-runtime-router-check.sh
+git diff --check
+git -C OpenGOAL diff --check
+```
+
+All passed. Matching app/runtime commit and tree identities and clean status
+were checked on both machines. Full app builds, simulator gameplay and physical
+device validation were not repeated for this source-only consolidation.
+The October 4 rendering/audio/mission acceptance limits below remain in force.
+Audit inventories, transfer logs and check output are retained in the workspace's
+`.agent-builds/dark-eco-consolidation-20261021/` directory.
+
 ## Latest resumption — October 4 rendering/audio/mission pass
 
 The intro's missing Naughty Dog card, subtitle-toggle prompt, and Jak II logo

@@ -7,6 +7,13 @@ is the single app product and selects Jak 1 or Jak II at runtime. The
 `GOALPadJak2Runtime` target is an embedded framework required by that app; it is
 not a standalone product.
 
+For the synchronized MacBook/Mac mini development setup, use the workspace's
+`GP-v2.0-jak2-integration` checkout on both machines, with outer and nested
+OpenGOAL branches both on `v2.0`. The older review/release checkouts are retained
+as history. The October 21 source comparison and validation are recorded at the
+top of `HANDOFF.md`; source synchronization is not a new app-build or gameplay
+acceptance result.
+
 The old `Eco Jak II Dev` application, `jak2-best`, and historical Jak II agent
 branches are archival comparison sources. Do not build or release them as the
 current product. If comparison finds behavior missing from `v2.0`, port it into
