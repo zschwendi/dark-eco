@@ -1,10 +1,10 @@
 # Jak II playability work
 
-Updated: October 26, 2026. Status: **Partially complete. The fortress PRIS2 eye-upload rejection now passes its reproduced simulator scene in Build 251; full ordinary mission progression and physical-device validation remain pending.**
+Updated: October 26, 2026. Status: **Partially complete. PRIS2 eye uploads pass the reproduced fortress scene in Build 251. Build 253's full ordinary introduction reaches prison without rejected rendering chains after the source-bounded Lightning fix. Signed native Vision Pro Build 254 now includes the windowed Jak II runtime and disc importer and is installed for a wearer trial.**
 
-The [October 26 PRIS2 report](JAK2_PRIS2_EYES_2026_10_26.md) records the current renderer checkpoint and exact checks. Normal save creation and a cold process restart/load were also verified on the isolated iPad simulator. This does not establish a complete playthrough. Jak II immersive work remains deferred until ordinary playability is near-perfect.
+See the [windowed Vision Pro report](JAK2_VISIONOS_WINDOWED_2026_10_26.md) and [PRIS2 report](JAK2_PRIS2_EYES_2026_10_26.md). Ordinary simulator save creation and a cold restart/load were verified earlier. Full mission progression and physical-device acceptance remain open. The settled pause background still flips. No Jak II immersive work is authorized until ordinary playability is near-perfect.
 
-The canonical source lane is outer/native `v2.0` in `GP-v2.0-jak2-integration`, consolidated on October 21. The [October 4 report](JAK2_AV_MISSIONS_2026_10_04.md), [earlier resumption report](JAK2_RESUME_2026_10_04.md), and the sections below retain historical evidence; their branch/build/runtime snapshots are not current status.
+The shipping source lane is outer/native `v2.0` in `GP-v2.0-jak2-integration`. The separate Vision Pro branch retains the Jak 1 immersive work and the same reviewed Jak II fixes. The sections below and October 4 reports are historical snapshots, not current branch/build authority.
 
 ## Direction and baseline
 
