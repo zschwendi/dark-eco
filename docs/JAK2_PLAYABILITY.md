@@ -2,7 +2,7 @@
 
 Updated: October 26, 2026. Status: **Partially complete. PRIS2 eye uploads pass the reproduced fortress scene in Build 251. Build 253's full ordinary introduction reaches prison without rejected rendering chains after the source-bounded Lightning fix. Signed native Vision Pro Build 254 now includes the windowed Jak II runtime and disc importer and is installed for a wearer trial.**
 
-See the [windowed Vision Pro report](JAK2_VISIONOS_WINDOWED_2026_10_26.md) and [PRIS2 report](JAK2_PRIS2_EYES_2026_10_26.md). Ordinary simulator save creation and a cold restart/load were verified earlier. Full mission progression and physical-device acceptance remain open. The settled pause background still flips. No Jak II immersive work is authorized until ordinary playability is near-perfect.
+See the [windowed Vision Pro report](JAK2_VISIONOS_WINDOWED_2026_10_26.md) and [PRIS2 report](JAK2_PRIS2_EYES_2026_10_26.md). Ordinary simulator save creation and a cold restart/load were verified earlier. Full mission progression and physical-device acceptance remain open. A matched simulator comparison now validates the narrow pause-snapshot orientation correction, including second entry; see [the pause report](JAK2_PAUSE_ORIENTATION_2026_10_26.md). Vision Pro Build 254 does not yet include that correction. No Jak II immersive work is authorized until ordinary playability is near-perfect.
 
 The shipping source lane is outer/native `v2.0` in `GP-v2.0-jak2-integration`. The separate Vision Pro branch retains the Jak 1 immersive work and the same reviewed Jak II fixes. The sections below and October 4 reports are historical snapshots, not current branch/build authority.
 
