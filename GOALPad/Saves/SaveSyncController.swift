@@ -1191,7 +1191,7 @@ private struct SettingsRowLabelStyle: LabelStyle {
             configuration.icon
                 .foregroundStyle(DarkEcoTheme.accent)
             configuration.title
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
         }
     }
 }
@@ -1415,7 +1415,7 @@ struct SaveSettingsView: View {
                 .textCase(nil)
             }
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(.primary)
         .navigationTitle("\(selectedTitle.settingsPickerLabel) Settings")
         .labelStyle(SettingsRowLabelStyle())
         .tint(DarkEcoTheme.accent)
@@ -1589,7 +1589,7 @@ struct SaveSettingsView: View {
                 input.setBindings(settings.jak1InputBindings)
                 input.setRumbleEnabled(settings.rumbleEnabled)
             }
-            .foregroundStyle(.white.opacity(0.8))
+            .foregroundStyle(.secondary)
     }
 
     @ViewBuilder
@@ -1638,7 +1638,7 @@ struct SaveSettingsView: View {
             Button("Restore Graphics Defaults") {
                 settings.restoreDefaults(for: .graphics)
             }
-            .foregroundStyle(.white.opacity(0.8))
+            .foregroundStyle(.secondary)
     }
 
     private var primaryInputSourceChoices: [PrimaryInputSource] {
