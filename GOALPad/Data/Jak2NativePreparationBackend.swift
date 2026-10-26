@@ -1,4 +1,4 @@
-#if os(iOS) && canImport(GOALPadJak2Runtime)
+#if (os(iOS) || os(visionOS)) && canImport(GOALPadJak2Runtime)
 import Foundation
 import GOALPadJak2Runtime
 
@@ -16,7 +16,7 @@ nonisolated private func appJak2GameDataPreparationIsAvailable() -> Bool {
 }
 #endif
 
-#if os(iOS) && canImport(GOALPadJak2Runtime)
+#if (os(iOS) || os(visionOS)) && canImport(GOALPadJak2Runtime)
 
 nonisolated extension GameDataNativePreparationBackend {
     static let appJak2Composer = GameDataNativePreparationBackend(

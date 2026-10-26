@@ -2,7 +2,7 @@
 
 #import <TargetConditionals.h>
 
-#if TARGET_OS_IOS && __has_include(<GOALPadJak2Runtime/GOALPadJak2Runtime.h>)
+#if (TARGET_OS_IOS || TARGET_OS_VISION) && __has_include(<GOALPadJak2Runtime/GOALPadJak2Runtime.h>)
 #import <GOALPadJak2Runtime/GOALPadJak2Runtime.h>
 #define GOALPAD_HAS_JAK2_RUNTIME 1
 #else

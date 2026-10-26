@@ -1,5 +1,5 @@
 #!/bin/sh
-# Build the Jak II iOS runtime archives consumed by Dark Eco's embedded runtime framework.
+# Build the Jak II iOS/visionOS runtime archives consumed by Dark Eco's embedded runtime framework.
 
 set -eu
 
@@ -12,10 +12,19 @@ fail() {
 : "${DERIVED_FILE_DIR:?}"
 : "${PLATFORM_NAME:?}"
 : "${CONFIGURATION:?}"
-: "${IPHONEOS_DEPLOYMENT_TARGET:?}"
 
 case "$PLATFORM_NAME" in
-  iphoneos|iphonesimulator) ;;
+  iphoneos|iphonesimulator)
+    cmake_system_name=iOS
+    deployment_target=${IPHONEOS_DEPLOYMENT_TARGET:?}
+    try_compile_option=
+    ;;
+  xros|xrsimulator)
+    cmake_system_name=visionOS
+    deployment_target=${XROS_DEPLOYMENT_TARGET:?}
+    # Mirrors the Jak 1 import composer's visionOS configure path.
+    try_compile_option=-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
+    ;;
   *) fail "unsupported platform $PLATFORM_NAME" ;;
 esac
 
@@ -47,10 +56,11 @@ esac
   fail "missing generated Jak II AOT corpus at $aot_root"
 
 run_nested_build "$cmake_path" -S "$source_root" -B "$build_root" -G Xcode \
-  -DCMAKE_SYSTEM_NAME=iOS \
+  -DCMAKE_SYSTEM_NAME="$cmake_system_name" \
   -DCMAKE_OSX_SYSROOT="$PLATFORM_NAME" \
   -DCMAKE_OSX_ARCHITECTURES=arm64 \
-  -DCMAKE_OSX_DEPLOYMENT_TARGET="$IPHONEOS_DEPLOYMENT_TARGET" \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET="$deployment_target" \
+  ${try_compile_option:+"$try_compile_option"} \
   -DBUILD_TESTING=OFF \
   -DOPENGOAL_BUILD_JAK2_IPHONEOS_AOT_LINK_ONLY=ON \
   -DOPENGOAL_JAK2_AOT_DIR="$aot_root" \

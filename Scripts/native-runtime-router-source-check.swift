@@ -57,9 +57,9 @@ check(header.contains("GOALPadGameIdentifierJak1 = 0") &&
 check(header.contains("+ (BOOL)selectGame:(GOALPadGameIdentifier)gameIdentifier") &&
       header.contains("+ (BOOL)isGameCodeLinkedForGame:(GOALPadGameIdentifier)gameIdentifier"),
       "the public bridge exposes selection and title-aware AOT availability")
-check(privateHeader.contains("TARGET_OS_IOS && __has_include") &&
+check(privateHeader.contains("(TARGET_OS_IOS || TARGET_OS_VISION) && __has_include") &&
       privateHeader.contains("<GOALPadJak2Runtime/GOALPadJak2Runtime.h>"),
-      "the Jak II façade is compile-time gated to an available iOS framework")
+      "the Jak II façade is compile-time gated to an available iOS/visionOS framework")
 check(runtime.contains("static std::atomic<int32_t> gActiveGameIdentifier") &&
       runtime.contains("std::memory_order_acquire") &&
       runtime.contains("std::memory_order_release"),

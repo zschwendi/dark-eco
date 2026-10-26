@@ -28,7 +28,8 @@ func check(_ condition: Bool, _ message: String) {
 }
 
 check(!adapter.contains("GOALPAD_JAK2")
-        && adapter.contains("#if os(iOS) && canImport(GOALPadJak2Runtime)")
+        && adapter.contains("#if (os(iOS) || os(visionOS)) && canImport(GOALPadJak2Runtime)")
+        && !adapter.contains("#if os(iOS) && canImport(GOALPadJak2Runtime)")
         && adapter.contains("import GOALPadJak2Runtime")
         && adapter.contains("#else"),
       "Dark Eco uses the isolated Jak II framework composer")

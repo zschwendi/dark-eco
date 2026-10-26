@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		F10100000000000000000002 /* GOALPadJak2Runtime.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F10600000000000000000002 /* GOALPadJak2Runtime.framework */; platformFilter = ios; };
-		F10100000000000000000004 /* GOALPadJak2Runtime.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F10600000000000000000002 /* GOALPadJak2Runtime.framework */; platformFilter = ios; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		F10100000000000000000002 /* GOALPadJak2Runtime.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F10600000000000000000002 /* GOALPadJak2Runtime.framework */; platformFilters = (ios, xros, ); };
+		F10100000000000000000004 /* GOALPadJak2Runtime.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F10600000000000000000002 /* GOALPadJak2Runtime.framework */; platformFilters = (ios, xros, ); settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		F10100000000000000000007 /* GOALPadJak2Runtime.mm in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000003 /* GOALPadJak2Runtime.mm */; };
 		F10100000000000000000008 /* GOALPadJak2Runtime.h in Headers */ = {isa = PBXBuildFile; fileRef = F10000000000000000000004 /* GOALPadJak2Runtime.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		F10100000000000000000009 /* GOALPadRuntimeBridge.h in Headers */ = {isa = PBXBuildFile; fileRef = F10000000000000000000009 /* GOALPadRuntimeBridge.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -940,7 +940,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "case \"$PLATFORM_NAME\" in\n  iphoneos|iphonesimulator) ;;\n  *) echo \"Skipping Jak II importer resources for $PLATFORM_NAME\"; exit 0 ;;\nesac\n\"$SRCROOT/Scripts/stage-jak2-import-composer-resources.sh\"\n";
+			shellScript = "case \"$PLATFORM_NAME\" in\n  iphoneos|iphonesimulator|xros|xrsimulator) ;;\n  *) echo \"Skipping Jak II importer resources for $PLATFORM_NAME\"; exit 0 ;;\nesac\n\"$SRCROOT/Scripts/stage-jak2-import-composer-resources.sh\"\n";
 		};
 		A73100000000000000000001 /* Compile Metal shaders */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1240,7 +1240,7 @@
 /* Begin PBXTargetDependency section */
 		F10800000000000000000002 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			platformFilter = ios;
+			platformFilters = (ios, xros, );
 			target = F10200000000000000000002 /* GOALPadJak2Runtime */;
 			targetProxy = F10700000000000000000002 /* PBXContainerItemProxy */;
 		};
@@ -1266,8 +1266,11 @@
 				PRODUCT_MODULE_NAME = GOALPadJak2Runtime;
 				PRODUCT_NAME = GOALPadJak2Runtime;
 				SKIP_INSTALL = NO;
-				SDKROOT = iphoneos;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator xros xrsimulator";
+				"TARGETED_DEVICE_FAMILY[sdk=xros*]" = 7;
+				"TARGETED_DEVICE_FAMILY[sdk=xrsimulator*]" = 7;
+				XROS_DEPLOYMENT_TARGET = 26.5;
 			};
 			name = Debug;
 		};
@@ -1291,8 +1294,11 @@
 				PRODUCT_MODULE_NAME = GOALPadJak2Runtime;
 				PRODUCT_NAME = GOALPadJak2Runtime;
 				SKIP_INSTALL = NO;
-				SDKROOT = iphoneos;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator xros xrsimulator";
+				"TARGETED_DEVICE_FAMILY[sdk=xros*]" = 7;
+				"TARGETED_DEVICE_FAMILY[sdk=xrsimulator*]" = 7;
+				XROS_DEPLOYMENT_TARGET = 26.5;
 			};
 			name = Release;
 		};
