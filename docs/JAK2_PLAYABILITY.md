@@ -1,13 +1,10 @@
 # Jak II playability work
 
-Updated: October 4, 2026. Status: **Partially complete; missing intro overlays
-restored, direct SFX pitch bend fixed, ordinary New Game through prison and
-save reload observed. Full rendering/audio fidelity and mission completion
-remain unverified.** Movement previously worked per the maintainer.
+Updated: October 26, 2026. Status: **Partially complete. The fortress PRIS2 eye-upload rejection now passes its reproduced simulator scene in Build 251; full ordinary mission progression and physical-device validation remain pending.**
 
-The [rendering/audio/mission report](JAK2_AV_MISSIONS_2026_10_04.md) is the current
-checkpoint. The [earlier resumption report](JAK2_RESUME_2026_10_04.md) and
-September build/toolchain sections below are historical evidence.
+The [October 26 PRIS2 report](JAK2_PRIS2_EYES_2026_10_26.md) records the current renderer checkpoint and exact checks. Normal save creation and a cold process restart/load were also verified on the isolated iPad simulator. This does not establish a complete playthrough. Jak II immersive work remains deferred until ordinary playability is near-perfect.
+
+The canonical source lane is outer/native `v2.0` in `GP-v2.0-jak2-integration`, consolidated on October 21. The [October 4 report](JAK2_AV_MISSIONS_2026_10_04.md), [earlier resumption report](JAK2_RESUME_2026_10_04.md), and the sections below retain historical evidence; their branch/build/runtime snapshots are not current status.
 
 ## Direction and baseline
 

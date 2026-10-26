@@ -1,5 +1,18 @@
 # GOALPad iPadOS Port Handoff
 
+## Current checkpoint — October 26, 2026 (AI-assisted)
+
+Jak II remains the ordinary unified app playability task. Do not start Jak II immersive work until ordinary play is near-perfect. Canonical lane: `GP-v2.0-jak2-integration`, outer/native branches `v2.0`. Native checkpoint: `d144b76825a63556511c05dec74047395f8fab1a`. This fixes the reproduced PRIS2 eye-upload rejection; it does not establish full playability. See `docs/JAK2_PRIS2_EYES_2026_10_26.md` for source rationale, exact commands, results and remaining gates.
+
+- Focused CPU/GPU build passed; tests passed 3/3, including real Metal last-writer pixel proof.
+- Simulator app 2.0 (251) built, installed on only the isolated E033 simulator, and passed the previously failing fortress scene with zero failed chains. Five stills reviewed; saves unchanged. Generic iOS compilation also passed with signing disabled. No physical iPad was accessed.
+- Ordinary build239 Game2 save creation plus a full process restart/load passed. Original banks0/1 were preserved. Fresh ordinary New Game on251 was started in empty Game3 and intro playback/normal skip reached the prison checkpoint; no mission completion yet.
+- Actual Claude Code Opus5.5 authored the patch in scratch; root reviewed/integrated and owns all builds. Its API connection failed before the final report. An independent mini review did not start because macOS remote login is locked.
+- Mac mini answered one read-only reconnect snapshot with canonical outerdfd10d2/native090fd6c and VR outer9b88f2a/native d2aa744 clean. Subsequent SSH requires local macOS sign-in; no mini source changed. Do not infer a running mini worker.
+- Separate Jak1 VR tree remains intact: MacBook outer07bd535/native67b99d52c records the GPU-verified test-oracle-only correction. Build249 remains installed on VisionPro; user plans a repeat-entry/no-ornaments trial. Source bundles exist but were not transferred to the locked mini. Do not rebuild/install a headset app solely for that test-only commit.
+- Main ignored local evidence: `.agent-builds/jak2-playability-20261026/` in the parent workspace; `ACTIVE_HANDOFF.txt` there records live processes and simulator UI details. Active parent AstraBoard work w-746a982fbf3b4311842ae5357dabd225. Full game, physical iPad, settings contrast and flipped pause-world observations remain open.
+
+
 ## Latest source consolidation — October 21, 2026
 
 The MacBook and Mac mini now use the workspace's
