@@ -1,3 +1,11 @@
+## October 26, 2026 — Build 254 native Vision Pro Jak II checkpoint
+
+Signed native visionOS 2.0 (254) was installed in place and its installed version independently verified. It enables the ordinary windowed Jak II runtime and ISO/ZIP preparation previously excluded on visionOS; headset import/play acceptance is pending. No Jak II immersive implementation was added. See [the implementation and validation report](docs/JAK2_VISIONOS_WINDOWED_2026_10_26.md).
+
+Build253's normal unskipped Jak II introduction reached prison with zero rejected rendering chains after the source-bounded Lightning fix. Existing five simulator save-bank hashes stayed unchanged. Full mission progression remains incomplete. The settled pause-background flip remains open; the uncommitted consumer experiment and fixture are retained in the separate iPad investigation, outside Vision254. Do not expand that visual patch without a discriminating live capture.
+
+Detailed live source identities, dirty files, receipts and next executable tasks are in workspace `.agent-builds/jak2-playability-20261026/ACTIVE_HANDOFF.txt`. The Vision branch is clean; canonicalv2 retains only the explicitly recorded native pause experiment. Exact dedicated simulatorE033177B-9F6B-48E2-B99F-CF81DB39EF80 is shut down. No physical iPad was accessed, and no changes were pushed.
+
 # GOALPad iPadOS Port Handoff
 
 ## Current checkpoint — October 26, 2026 (AI-assisted)
