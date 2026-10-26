@@ -51,3 +51,9 @@ Exact command arrays, logs, source-patch identity, installed executable/framewor
 - Reconcile verified source checkpoints to the Mac mini once its local macOS sign-in restores remote access.
 
 An actual local Claude Code Opus 5.5 worker authored the proposed renderer patch in scratch. Codex reviewed and integrated it, corrected a diagnostic counter/include, and owned all canonical builds and GPU/simulator validation. The worker lost API connectivity before its final report. A proposed independent mini review did not start because remote login reported that macOS was locked.
+
+## Standalone product link correction
+
+The later pause spatial target exposed a missing dependency in `d144b7682`: the shared Metal eye executor called two producer-policy functions defined only in the PRIS2 host planner object. The eye test and whole app linked that object explicitly, masking the failure for standalone renderer products. Native `98a8aa3c7` keeps these two small predicates inline alongside their source bucket order; their policy is unchanged and general renderer consumers no longer need the host planner object.
+
+`cmake --build OpenGOAL/build/Release/bin --target jak2-metal-blit-display-spatial-test jak2-pris2-bucket228-plan-test jak2-metal-eye-renderer-test --parallel 2` now links successfully. The corresponding three tests passed, including the eye GPU checks. Build 252 also passed the same simulator app command above and generic iOS compilation (`-sdk iphoneos -destination generic/platform=iOS`, signing disabled), in 61.354 and 64.043 seconds respectively. Those builds include separate, still experimental pause diagnostics and are simulator/compiler evidence only; the settled pause submenu remains flipped and is not claimed fixed.
