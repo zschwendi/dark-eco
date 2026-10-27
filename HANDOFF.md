@@ -1,3 +1,7 @@
+## October 26 late — common PRIS eye-only fix, app266 replay pending
+
+The remaining reproduced normal-render rejection now has a concrete fix. Diagnostic265 map→Resume captured57records atbucket220/tick19023, with no ordinary/DarkJakprefix. Explicitprefixpresence nowgates parser,host preparation andrenderer cursor. Existing9/36/63forms staystrict; CPU+actualMetaleyetests3/3PASS aftermanualfixtureprefixflagswereupdatedwithoutremovingassertions. NewGPU57test commitsbothchunkswithnoerrors. Nextsinglecheckpoint: app266 build+in-place install preserving6banks, replaymap→world andconfirmzerochainfailures. Main rendering/assets/audio goal remainsactiveuntilreplay. No exhaustive gameplay gate (maintainerownsplaytesting), noJakIIimmersionyet. See docs/JAK2_COMMON_PRIS_EYE_ONLY_2026_10_26.md.
+
 ## October 26 late — narrowed completion scope and common PRIS diagnostic
 
 The maintainer now owns broad gameplay verification. Agents focus ordinary JakII completion on visuals, assets, rendering and audio; exhaustive mission/combat/vehicle/checkpoint playthrough is not an immersion gate. Sequence: ordinaryJakII→JakIIimmersion→ordinaryJak3→Jak3immersion; standardDualSense required for futureJakII/Jak3immersion. README/ROADMAP/overview updated locally at a88227e. LiveGitHub apprepo remainsPRIVATE, engineforkPUBLIC ISC. No publication or license change.
