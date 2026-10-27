@@ -598,8 +598,9 @@ final class GameSession {
                 handledNativeExitToLibraryRequest = true
                 returnToLibraryRequestID &+= 1
             }
+            let previousFramesRun = framesRun
             framesRun = nativeState.framesRun
-            if developerLogsEnabled, framesRun % 60 == 0 {
+            if developerLogsEnabled, framesRun / 60 != previousFramesRun / 60 {
                 diagnosticsRevision &+= 1
             }
             let currentMode = nativeState.gameMode
@@ -640,7 +641,7 @@ final class GameSession {
             if currentSpeederState != speederState {
                 updateSpeederState(currentSpeederState)
             }
-            shouldLog = developerLogsEnabled && framesRun % 600 == 0
+            shouldLog = developerLogsEnabled && framesRun / 600 != previousFramesRun / 600
         }
 
         let framePresented = endFrame()
