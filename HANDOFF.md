@@ -1,3 +1,11 @@
+## October 26 evening — map proof and save reload checkpoint
+
+The Jak II playability goal remains active. Native `62ec96b90` commits owned map planning/copy parity/decoding and two-frame GPU tests; `e8810955c` commits the default-off diagnostics. Six affected tests and the macOS host build pass. Simulator 261 builds and draws four map layers, but the later 39-transfer icon form still rejects. The eight-file host integration remains dirty and unaccepted; preserve it and its exact patch receipt. Opus is extending only the source-defined icon grammar in scratch. See `docs/JAK2_MAP_UPLOAD_2026_10_26.md` and the ignored `jak2-playability-20261026/ACTIVE_HANDOFF.txt` for exact current evidence.
+
+New Game 4 was saved and cold-loaded in simulator 260; all five original banks remained identical. All six banks survived the 261 update. No escape mission or later continue is complete. The dedicated simulator was shut down after validation. Do not access Z iPad Pro. Do not begin Jak II immersion. Vision Pro 259 is installed separately; Zach says he has not tried its pause/re-entry/cutscene checks yet. Jak 1 sky work is still CPU investigation, not a delivered fix.
+
+Earlier entries below are historical where superseded by this checkpoint.
+
 ## October 26 — pause orientation comparison checkpoint
 
 The persistent Jak II playability goal remains active. No Jak II immersive implementation is authorized yet. The maintainer is now trying Vision Pro build 254; it is unchanged and does not contain the newer pause correction.
