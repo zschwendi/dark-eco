@@ -770,11 +770,14 @@ final class GameSession {
             \(mercTransform.previousAspect, format: .fixed(precision: 6))->\
             \(mercTransform.currentAspect, format: .fixed(precision: 6)), rejects \
             \(renderer.mercBadBonePointers) pointers / \(renderer.mercBadDrawRanges) ranges, \
-            audio \(self.audio.framesProduced)/\(self.audio.framesRequested) frames at \
-            \(self.audio.sampleRate) Hz peak \(self.audio.peakAmplitude), \
             DMA chain \(chain.lastPayloadBytes) bytes \
             (largest \(chain.largestPayloadBytes)), pad reads \
             \(GOALPadInputReadCount(ControllerInput.primaryPort))
+            """)
+        sessionLog.notice("""
+            \(self.title.name, privacy: .public) audio \
+            \(self.audio.framesProduced)/\(self.audio.framesRequested) frames at \
+            \(self.audio.sampleRate) Hz peak \(self.audio.peakAmplitude)
             """)
     }
 

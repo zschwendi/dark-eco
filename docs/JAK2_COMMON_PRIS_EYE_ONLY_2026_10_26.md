@@ -1,6 +1,6 @@
 # Jak II common PRIS eye-only update (AI-assisted)
 
-Status: **Experimental; CPU/GPU checks passed, app replay pending.** The maintainer handles broad gameplay verification. This change addresses the known ordinary rendering rejection before Jak II immersion work; no immersion is added.
+Status: **Implemented and validated in the isolated iPad simulator; physical confirmation remains pending.** The maintainer handles broad gameplay verification. This change addresses the known ordinary rendering rejection before Jak II immersion work; no immersion is added.
 
 ## Reproduction and source evidence
 
@@ -31,6 +31,8 @@ Builds passed; final tests passed3/3 in0.68seconds. The earlier diagnostic/audio
 
 `git diff --check` passed. Exact commands, first failures, signed/source identities and screenshots are kept outside Git in `.agent-builds/jak2-playability-20261026/`.
 
-## Remaining gate
+Build 266 (outer `9cf41098`, OpenGOAL `0ac5b269`) also built successfully in Release for the approved isolated iPad simulator. The app loaded the preserved Game 4 save, displayed the complete Fortress map and player arrow, and returned through the native Resume control to the upright prison world twice. Runtime samples through tick 27002 reported zero failed chains and no plan-rejection records. Four screenshots and `pris266-map-replay-result.json` preserve the result. The first attempt was interrupted by inaccessible simulator controls while the large diagnostic overlay was enabled; it did not establish an app rendering failure. The successful replay used the ordinary presentation with that overlay disabled.
 
-Build and replay the same ordinary app transition with the prefix-aware plan. Preserve all six save-bank hashes and do not access a physical iPad. No full-game, later-level or physical-device rendering claim follows from these synthetic tests.
+## Remaining scope
+
+The reproduced map-return gate is closed within this simulator scope. Physical-device confirmation and the maintainer's broader gameplay pass remain separate. No full-game, later-level or physical-device rendering claim follows from the synthetic checks or these two transitions.
