@@ -1,10 +1,12 @@
-## October 27 — iPad Pro and iPhone Air delivery checkpoint 270
+## October 27 — iPad Pro and iPhone Air delivery complete: native iOS 270
 
-The maintainer explicitly requested the latest iOS Dark Eco on the physical iPad Pro (11-inch M5) and iPhone Air, excluding the A14/A16 iPads. The exact two requested devices are connected through the Mac mini; only those devices may be installed. Existing versions are 238 on the Pro and 223 (v1.0) on the Air. Preserve app containers with an in-place update; do not uninstall or automatically launch.
+Dark Eco 2.0 (270) is installed in place on exactly the explicitly requested **Z iPad Pro 11-inch (M5)** and **Z iPhone Air**, through the Mac mini. Both independent own-app metadata readbacks report version 2.0/build 270. The A14/A16 iPads and Vision Pro were left untouched. No app launch, uninstall, reset, data clearing or physical gameplay test was performed.
 
-The shared Generic2 per-draw eye-uniform correction and additive GPU regression have been ported from the Vision lane to canonical native v2.0. The port retained the default identity initializer because this branch lacks the Vision helper's named identity constant; the original first compile failure is preserved in local evidence. The corrected focused GPU target/test pass. Both retained AOT source packs remain unchanged. Build 270 uses canonical v2.0 and a normal iOS package, not the signed Vision-only 269 artifact. Build/sign/install results belong in workspace `.agent-builds/dark-eco-ios270-20261027/`; no device-success claim before readback receipts.
+Built clean outer `cefd732138849ff1f582be931e58bd06ef2a327c` and native `a49443d9646d12b305ca4aec4d4c44ae34267d7f`. The shared Generic2 per-draw eye-uniform correction and additive GPU regression were ported from the Vision lane; the branch-specific fixture initializer was corrected before validation. Focused GPU build/test passed (1/1); signed Release native iOS build passed (75.786s). Strict signatures, app/framework IOS platforms and both devices' provisioning were verified. Retained source packs were unchanged. Exact commands, original logs, signed package, readbacks and completion report are in workspace `.agent-builds/dark-eco-ios270-20261027/`.
 
-The Jak 1 immersive blockers and the prerequisite for Jak II immersion remain open. The user clarified that HUD flicker is in-game HUD/interaction prompts.
+Seven Jak 1 save files per device were backed up before updating. Post-update save-copy checks timed out; byte equality is unverified. Jak II backup on Pro timed out twice; Air's old app had no accessible Jak II saves folder. Preserve the private mini backups; no restoration was needed or attempted.
+
+Jak 1 immersive blockers remain open and still block Jak II immersion. The user clarified selected flicker affects in-game HUD/interaction prompts. Separate Vision test 269 is signed but not installed; this iOS delivery does not certify the remaining headset issues.
 
 ## October 27 — Jak 1 immersion is an explicit prerequisite for Jak II immersion
 
