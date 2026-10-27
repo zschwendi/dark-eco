@@ -4,6 +4,35 @@ Date established: 2026-07-30
 
 Status: Active
 
+## Current development sequence (2026-10-26)
+
+This section supersedes earlier "active product sequence" lists below, which are
+retained as historical record. It describes intent, not completed work.
+
+1. **Finish ordinary Jak II rendering, assets, and audio** (experimental:
+   ordinary gameplay runs; resolve reproducible visual, missing-asset, renderer,
+   and audio defects while preserving runtime correctness).
+2. **Add Jak II immersion** on Vision Pro, using a standard DualSense with no
+   Sense-controller gesture requirement; ordinary touch/keyboard input stays available
+   where supported.
+3. **Finish ordinary Jak 3** (planned).
+4. **Add Jak 3 immersion** under the same input rules.
+
+The maintainer owns broad gameplay verification. Agents focus on visuals,
+assets, rendering, and audio; exhaustive mission, combat, vehicle, or checkpoint
+playthroughs are not a prerequisite for beginning Jak II immersion. A concrete
+platform/runtime defect remains in scope when it blocks these paths.
+
+Constraints throughout: preserve the accepted Jak 1 conventional baseline
+(windowed core physically exercised; not a complete playthrough) and per-title
+isolation.
+
+The opt-in Jak 1 Vision Pro immersive lane is a separate maintainer experiment,
+developed separately from the canonical default windowed source/build lane.
+Availability must be verified for each source checkpoint or release. Installed Vision Build 263 has
+opt-in Jak 1 immersion; wearer pause/warp/HUD-sharpness acceptance is pending and
+black sky gaps are unresolved. It is not evidence that any step above is complete.
+
 ## Authority and scope
 
 This roadmap turns the project direction in
@@ -99,7 +128,8 @@ transition failure class represented by those two routes. This is not a
 complete-playthrough or every-transition claim. `HANDOFF.md` is the authoritative
 artifact, physical-test, and limitation record.
 
-The active product sequence is now:
+Historical Build 145-era Jak 1 product sequence (superseded by the current
+development sequence at the top of this roadmap):
 
 1. Preserve Build 145 as the locked physical baseline, while retaining Build
    143's Snowy rejection and Build 130's earlier acceptance as historical
