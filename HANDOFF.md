@@ -1,3 +1,9 @@
+## October 26 late — narrowed completion scope and common PRIS diagnostic
+
+The maintainer now owns broad gameplay verification. Agents focus ordinary JakII completion on visuals, assets, rendering and audio; exhaustive mission/combat/vehicle/checkpoint playthrough is not an immersion gate. Sequence: ordinaryJakII→JakIIimmersion→ordinaryJak3→Jak3immersion; standardDualSense required for futureJakII/Jak3immersion. README/ROADMAP/overview updated locally at a88227e. LiveGitHub apprepo remainsPRIVATE, engineforkPUBLIC ISC. No publication or license change.
+
+Native682f4220a adds only a default-off bounded two-record commonPRIS220 rejection logger, using existing owned scalar capture. Source grammar/rendering is unchanged. Host build and3/3capture/PRIS2/audioRPC testsPASS. Next: sim265build, preserve6savebankhashes, capture exact failing form by mapentry/exit, then smallest source-supported fix. No speculative planner relaxation. Vision264 independently installed (2160p option), wearer is trying it now: no headset changes during his trial. No physicaliPad access.
+
 ## October 26 evening — Fortress map repeat entry and save reload checkpoint
 
 The Jak II playability goal remains active. Native c140a62a5 integrates ordered map-layer publication and strict typed icon records on top of helper62ec96b90 and diagnosticse8810955c. App262 Release simulator build passed (30.388s); final affected Metal/CPU CTest passed6/6. Two Fortress map openings settled with player arrow visible, followed by Resume and movement. All six saves survived the update. Two bucket220 common PRIS texture-plan rejections remain open; no full escape mission or later checkpoint is claimed. The isolated simulator is shut down. No physical iPad was accessed; no JakII immersion was added.
