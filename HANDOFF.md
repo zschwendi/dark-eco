@@ -1,3 +1,21 @@
+## October 26 — pause orientation comparison checkpoint
+
+The persistent Jak II playability goal remains active. No Jak II immersive implementation is authorized yet. The maintainer is now trying Vision Pro build 254; it is unchanged and does not contain the newer pause correction.
+
+- Canonical outer/native branches remain `v2.0`. Native `28116b31df2309e9431dfa56816f88cde01a77d1` commits only the PC-BLIT V correction and deterministic orientation/repeated-UV tests. Outer pin/report checkpoint is `ff0e272` (this handoff is a later documentation update).
+- The matched ordinary Game 2 comparison is complete: simulator 256 with the correction stayed upright in the ring and settled Missions submenu on both entries; 257 with only that block removed inverted all four views. Same save, player position and initial camera. Live metadata confirms primary UV PC-BLIT lookup, texture640x480, mirror branch on/off. The post-gap records captured the strip batch; full-quad metadata remains from title menus. Do not conflate them.
+- Mac GPU `jak2-metal-blit-display-spatial-test` build/test passed (1/1, 0.78s), including two UV cycles with a different second capture and no restore masking the steady consumer. Root caught and Opus corrected an inverted assertion before GPU execution; the corrected CPU proof rejects flipped/stale images.
+- Simulator app builds 256/257 passed. Generic iOS Release258 compile passed, signing disabled, no physical device accessed. Vision source integration/compile and physical acceptance of the pause correction remain pending. Vision tree remains at its earlier clean checkpoint.
+- Only the default-off diagnostics remain dirty in native: `metal_direct_renderer.mm`, `metal_jak2_blit_display_renderer.mm`, and `game/kernel/core/jak2_runtime.cpp`. Preserve them. The test file is committed and clean. Ignored artifacts preserve patches, commands, logs, hashes and captures under `jak2-playability-20261026/`.
+- Mirror-on simulator app256 was restored after the negative control; its process is stopped. All five saved banks remain hash-identical to the originals. Reacquire the data-container path after every install.
+- Actual ordinary movement, a falling death and automatic respawn were observed in255. No mission completion is claimed. Opus found no concrete missing-crate/save-restore defect; crate placements are not in public source. Source region positions are reference data, not permission to force progress.
+- Player-position diagnostics work in256: prison-start is x474.22m/y8.42m/z67.27m. Enable at launch with `SIMCTL_CHILD_GOALPAD_JAK2_DEBUG_LOG_PLAYER_POSITION=1`; also use `SIMCTL_CHILD_GOALPAD_JAK2_DEBUG_LOG_PC_BLIT=1` for the bounded rendering metadata. Protected-low-memory and finite/bounds/type checks were tested. These are observation only, not gameplay input.
+- CUA note: a latched crouch modifier was cleared using `shift+w` for200ms. A modifier-only `shift` request is rejected by CUA. Do not diagnose slow/crouched traversal as a game bug without checking input state. Portrait controls remain as in the earlier handoff; refresh AX/screenshot before input.
+
+Next: respond to the maintainer's headset feedback without disrupting his session, then continue ordinary simulator fortress traversal, save to a free slot, cold reload and retry. No ordinary mission completion or near-perfect/full playability is established. Public report: `docs/JAK2_PAUSE_ORIENTATION_2026_10_26.md`. Exact continuation state: sibling ignored artifacts `ACTIVE_HANDOFF.txt` and `pause-ab-result.json`.
+
+Earlier material below is historical; its claim that the correction still flips a settled menu is superseded only within the matched scope above.
+
 ## October 26, 2026 — Build 254 native Vision Pro Jak II checkpoint
 
 Signed native visionOS 2.0 (254) was installed in place and its installed version independently verified. It enables the ordinary windowed Jak II runtime and ISO/ZIP preparation previously excluded on visionOS; headset import/play acceptance is pending. No Jak II immersive implementation was added. See [the implementation and validation report](docs/JAK2_VISIONOS_WINDOWED_2026_10_26.md).

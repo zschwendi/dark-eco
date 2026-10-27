@@ -36,7 +36,7 @@ cmake --build build/Release/bin --target jak2-metal-blit-display-spatial-test --
 ctest --test-dir build/Release/bin -R '^jak2-metal-blit-display-spatial-test$' --output-on-failure
 ```
 
-Both passed on the Mac GPU. The native application builds for simulator 256 and 257 also passed. Full command arrays, source-diff hashes, executable identities, screenshots and save-preservation receipts remain in the ignored local playability artifacts.
+Both passed on the Mac GPU. The native application builds for simulator 256 and 257 also passed. A generic iOS Release compile (build 258, signing disabled) passed in 33.16 seconds; it did not access a physical device. Full command arrays, source-diff hashes, executable identities, screenshots and save-preservation receipts remain in the ignored local playability artifacts.
 
 ## Remaining work
 
