@@ -1,3 +1,9 @@
+## October 27 — Jak 1 immersion is an explicit prerequisite for Jak II immersion
+
+The maintainer authorized the Jak II third-person immersive port with a normal DualSense, then explicitly made unresolved Jak 1 immersion a blocker. Do not begin Jak II immersive implementation until the duplicated death/pickup content, selected HUD flicker and forward-only rectangular sky are resolved. The ordinary Jak II baseline below remains complete within its stated scope; it does not certify Jak 1 immersion.
+
+The separate Vision lane contains a GPU-verified Generic2 per-bucket eye-transform correction at native `100a84d59`, with physical acceptance pending. It does not fix the collected-orb HUD path, HUD depth layering or sky generation. Source/first-failure evidence and next test-package status are recorded in that lane's `docs/VISION_JAK1_BLOCKERS_2026_10_27.md` and the workspace `.agent-builds/dark-eco-jak1-blockers-20261027/`. No Jak II immersive implementation was added.
+
 ## October 26 close — ordinary Jak II gate complete for starting immersion
 
 The scoped ordinary visuals/assets/rendering/audio gate is complete; broader gameplay belongs to the maintainer. This is not full-game or physical-device certification. See `docs/JAK2_ORDINARY_GATE_2026_10_26.md` for the requirement-by-requirement evidence and limits.
