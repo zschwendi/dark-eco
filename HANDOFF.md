@@ -1,10 +1,8 @@
-## October 26 evening — map proof and save reload checkpoint
+## October 26 evening — Fortress map repeat entry and save reload checkpoint
 
-The Jak II playability goal remains active. Native `62ec96b90` commits owned map planning/copy parity/decoding and two-frame GPU tests; `e8810955c` commits the default-off diagnostics. Six affected tests and the macOS host build pass. Simulator 261 builds and draws four map layers, but the later 39-transfer icon form still rejects. The eight-file host integration remains dirty and unaccepted; preserve it and its exact patch receipt. Opus is extending only the source-defined icon grammar in scratch. See `docs/JAK2_MAP_UPLOAD_2026_10_26.md` and the ignored `jak2-playability-20261026/ACTIVE_HANDOFF.txt` for exact current evidence.
+The Jak II playability goal remains active. Native c140a62a5 integrates ordered map-layer publication and strict typed icon records on top of helper62ec96b90 and diagnosticse8810955c. App262 Release simulator build passed (30.388s); final affected Metal/CPU CTest passed6/6. Two Fortress map openings settled with player arrow visible, followed by Resume and movement. All six saves survived the update. Two bucket220 common PRIS texture-plan rejections remain open; no full escape mission or later checkpoint is claimed. The isolated simulator is shut down. No physical iPad was accessed; no JakII immersion was added.
 
-New Game 4 was saved and cold-loaded in simulator 260; all five original banks remained identical. All six banks survived the 261 update. No escape mission or later continue is complete. The dedicated simulator was shut down after validation. Do not access Z iPad Pro. Do not begin Jak II immersion. Vision Pro 259 is installed separately; Zach says he has not tried its pause/re-entry/cutscene checks yet. Jak 1 sky work is still CPU investigation, not a delivered fix.
-
-Earlier entries below are historical where superseded by this checkpoint.
+Details: docs/JAK2_MAP_UPLOAD_2026_10_26.md and parent .agent-builds/jak2-playability-20261026/ map262 receipts. Vision259 is separately installed and newly wearer-rejected for pause/warp/HUD/clarity; root and actual Opus workers are preparing scoped fixes there. Preserve separate Vision source tree.
 
 ## October 26 — pause orientation comparison checkpoint
 
