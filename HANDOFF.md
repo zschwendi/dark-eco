@@ -1,4 +1,14 @@
-## October 26 late — common PRIS eye-only fix, app266 replay pending
+## October 26 close — ordinary Jak II gate complete for starting immersion
+
+The scoped ordinary visuals/assets/rendering/audio gate is complete; broader gameplay belongs to the maintainer. This is not full-game or physical-device certification. See `docs/JAK2_ORDINARY_GATE_2026_10_26.md` for the requirement-by-requirement evidence and limits.
+
+Clean-source simulator Build 268 used outer `f98ff9bf0f5e33e4e151d24420849d2c6f237b35`, native `0ac5b269c0a9e72a8dd7a1923ab0f22368d4c223`, both `v2.0`. Build 266 replayed Fortress map -> native Resume -> upright prison world twice with zero rejected chains through tick 27002. Build 268 verified increasing real PCM output at 48000 Hz with nonzero peak, plus advancing 44100 Hz source-stream ring and zero captured invalid reads/stalls. Its native runtime had zero failed chains through tick 8402. Both diagnostic fixes in `GameSession.swift` are default-off: short audio message and crossed-interval sampling for batched native frames.
+
+All six bank hashes are unchanged. Temporary local developer settings and their original mtime were restored exactly. The approved isolated simulator is shut down; no physical iPad or headset was accessed. Prior CUA control failures with the oversized diagnostic overlay are preserved in the local receipts, not reported as renderer failures. The actual Opus audio-observation worker timed out without an answer; its supervisor's source analysis and root's diagnostic correction are explicitly distinguished. Earlier renderer fixes used actual Opus candidates reviewed by root.
+
+Next: consolidate the verified ordinary Jak II source into the Vision lane, then implement Jak II immersion with standard DualSense. Preserve the separate Jak 1 lane; Vision Build 264 remains installed for the current wearer trial, and its black-sky issue is unresolved. No Jak II immersion, source push, repository publication or device delivery occurred in this checkpoint. Historical sections below are superseded by this checkpoint.
+
+## October 26 late — common PRIS eye-only fix, app266 replay pending (historical)
 
 The remaining reproduced normal-render rejection now has a concrete fix. Diagnostic265 map→Resume captured57records atbucket220/tick19023, with no ordinary/DarkJakprefix. Explicitprefixpresence nowgates parser,host preparation andrenderer cursor. Existing9/36/63forms staystrict; CPU+actualMetaleyetests3/3PASS aftermanualfixtureprefixflagswereupdatedwithoutremovingassertions. NewGPU57test commitsbothchunkswithnoerrors. Nextsinglecheckpoint: app266 build+in-place install preserving6banks, replaymap→world andconfirmzerochainfailures. Main rendering/assets/audio goal remainsactiveuntilreplay. No exhaustive gameplay gate (maintainerownsplaytesting), noJakIIimmersionyet. See docs/JAK2_COMMON_PRIS_EYE_ONLY_2026_10_26.md.
 

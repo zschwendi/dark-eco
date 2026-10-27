@@ -7,11 +7,13 @@ Status: Active
 ## Current development sequence (2026-10-26)
 
 This section supersedes earlier "active product sequence" lists below, which are
-retained as historical record. It describes intent, not completed work.
+retained as historical record. It records the current sequence and explicitly
+labels the verified baseline separately from planned work.
 
-1. **Finish ordinary Jak II rendering, assets, and audio** (experimental:
-   ordinary gameplay runs; resolve reproducible visual, missing-asset, renderer,
-   and audio defects while preserving runtime correctness).
+1. **Ordinary Jak II rendering, assets, and audio baseline — complete within
+   the documented simulator scope.** The [gate report](docs/JAK2_ORDINARY_GATE_2026_10_26.md)
+   records the actual rendering, map-return, save-preservation and PCM evidence.
+   Jak II remains experimental; the maintainer owns broader gameplay acceptance.
 2. **Add Jak II immersion** on Vision Pro, using a standard DualSense with no
    Sense-controller gesture requirement; ordinary touch/keyboard input stays available
    where supported.
@@ -29,7 +31,7 @@ isolation.
 
 The opt-in Jak 1 Vision Pro immersive lane is a separate maintainer experiment,
 developed separately from the canonical default windowed source/build lane.
-Availability must be verified for each source checkpoint or release. Installed Vision Build 263 has
+Availability must be verified for each source checkpoint or release. Installed Vision Build 264 has
 opt-in Jak 1 immersion; wearer pause/warp/HUD-sharpness acceptance is pending and
 black sky gaps are unresolved. It is not evidence that any step above is complete.
 

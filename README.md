@@ -14,7 +14,7 @@ architecture and scope rules live in the [Project Overview](docs/PROJECT_OVERVIE
 | Game | State |
 | --- | --- |
 | *Jak and Daxter: The Precursor Legacy* | Conventional windowed gameplay physically exercised on iPad and Vision Pro; the macOS app also builds and reaches the title screen. Full-game completion is not certified. |
-| *Jak II* | Experimental. Ordinary gameplay runs; rendering, assets, and audio remain the active completion work. The maintainer handles broad gameplay verification. |
+| *Jak II* | Experimental. The [ordinary rendering, asset and audio baseline](docs/JAK2_ORDINARY_GATE_2026_10_26.md) is validated in the isolated iPad simulator and ready for immersion work. The maintainer handles broad gameplay verification. |
 | *Jak 3* | Planned. |
 
 Ordinary play supports a game controller. iPadOS also has touch controls, and
@@ -22,7 +22,7 @@ macOS has keyboard/mouse input. The conventional visionOS path uses a controller
 
 ### Development sequence
 
-1. Finish ordinary Jak II rendering, assets, and audio.
+1. Ordinary Jak II rendering, assets, and audio baseline — complete within the documented simulator scope.
 2. Add Jak II immersion on Apple Vision Pro.
 3. Finish ordinary Jak 3.
 4. Add Jak 3 immersion.
