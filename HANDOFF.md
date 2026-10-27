@@ -1,3 +1,11 @@
+## October 27 — iPad Pro and iPhone Air delivery checkpoint 270
+
+The maintainer explicitly requested the latest iOS Dark Eco on the physical iPad Pro (11-inch M5) and iPhone Air, excluding the A14/A16 iPads. The exact two requested devices are connected through the Mac mini; only those devices may be installed. Existing versions are 238 on the Pro and 223 (v1.0) on the Air. Preserve app containers with an in-place update; do not uninstall or automatically launch.
+
+The shared Generic2 per-draw eye-uniform correction and additive GPU regression have been ported from the Vision lane to canonical native v2.0. The port retained the default identity initializer because this branch lacks the Vision helper's named identity constant; the original first compile failure is preserved in local evidence. The corrected focused GPU target/test pass. Both retained AOT source packs remain unchanged. Build 270 uses canonical v2.0 and a normal iOS package, not the signed Vision-only 269 artifact. Build/sign/install results belong in workspace `.agent-builds/dark-eco-ios270-20261027/`; no device-success claim before readback receipts.
+
+The Jak 1 immersive blockers and the prerequisite for Jak II immersion remain open. The user clarified that HUD flicker is in-game HUD/interaction prompts.
+
 ## October 27 — Jak 1 immersion is an explicit prerequisite for Jak II immersion
 
 The maintainer authorized the Jak II third-person immersive port with a normal DualSense, then explicitly made unresolved Jak 1 immersion a blocker. Do not begin Jak II immersive implementation until the duplicated death/pickup content, selected HUD flicker and forward-only rectangular sky are resolved. The ordinary Jak II baseline below remains complete within its stated scope; it does not certify Jak 1 immersion.
