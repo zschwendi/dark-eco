@@ -1,18 +1,19 @@
 # Dark Eco
 
-**Play Jak on iPhone, iPad, Mac, and Apple Vision Pro—with an app built for
-Apple devices.**
+**A simple launcher for playing Jak on your Apple devices.**
 
-Dark Eco brings [OpenGOAL](https://github.com/open-goal/jak-project) to Apple
-hardware with native game ports and a Swift/SwiftUI app. Choose a game from
-your library, import your own game files directly in the app, adjust your
-controls and graphics, and carry your saves and settings between Apple devices
-with optional iCloud sync.
+Once Dark Eco is installed, **add your own game files, choose a game, and
+play**. Game import, controls, graphics, and saves are managed inside the app;
+optional iCloud sync carries saves and settings between your Apple devices.
+Everyday setup and play happen in the app, without terminal commands.
 
-| Where you play | How you play |
+Dark Eco is built for **iPhone, iPad, and Apple Vision Pro**, with an
+**experimental Apple silicon Mac version** as well.
+
+| Device | Controls and availability |
 | --- | --- |
 | **iPhone and iPad** | **Touch controls or a gamepad.** |
-| **Mac (Apple silicon)** | **Gamepad or keyboard and mouse.** |
+| **Mac (Apple silicon) — experimental** | Earlier Jak 1 data import and title-screen boot demonstrated; full gameplay is not yet validated. |
 | **Apple Vision Pro** | **Gamepad or PSVR2 Sense controllers.** Sense motion gestures are currently a Jak 1 feature. |
 
 Vision Pro also has an experimental **immersive third-person mode**, with Jak
@@ -20,9 +21,9 @@ visible in the world around you. See [game support](#game-support) below for
 what is available and what remains unfinished.
 
 OpenGOAL provides the reconstructed game code, compiler, and runtime foundation.
-Dark Eco adds the Apple-native ports and Metal graphics, the app and game
-library, on-device file import, iCloud sync, Apple-device controls, and Vision
-Pro presentation.
+Dark Eco adds native Apple ports and Metal graphics, a Swift/SwiftUI launcher
+and game library, on-device file import, iCloud sync, Apple-device controls,
+and Vision Pro presentation.
 
 Bring compatible game data from your own legally obtained PlayStation 2 copy;
 Dark Eco does not include or download the games. Game code is compiled ahead
@@ -32,6 +33,10 @@ of time into the signed app, with no PS2 emulation, JIT, or jailbreak requiremen
 [Play](#install-and-play) · [Controls](#controls) · [Build from source](#build-from-source) · [Contributors and agents](#contributors-and-agents)
 
 ## Game support
+
+The progress below does not certify Mac gameplay. Mac shares application and
+runtime code with the other platforms, but current feature parity and full
+Mac gameplay have not been tested.
 
 | Game | Ordinary windowed play | Apple Vision Pro immersion |
 | --- | --- | --- |
@@ -97,7 +102,7 @@ from the internet or supplied with this repository.
 ### 3. Connect your controls
 
 - **iPhone / iPad:** use the on-screen touch controls or a compatible game controller.
-- **Mac:** use a compatible controller or the existing keyboard/mouse controls.
+- **Mac (experimental):** a complete gameplay/control pass remains unvalidated.
 - **Apple Vision Pro:** use a compatible game controller. A normal DualSense
   is the intended controller for future Jak II and Jak 3 immersive play.
 - **Jak 1 experimental Sense controls:** supported builds can use PSVR2 Sense

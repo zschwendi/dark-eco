@@ -1,5 +1,20 @@
 ## October 28 — Dark Eco README and Apple onboarding
 
+Latest clarification supersedes the earlier unqualified Mac control row: both
+README openings now describe a simple player launcher (install app, import
+own files, choose game, play; everyday use needs no terminal). Mac is
+explicitly experimental, with an earlier Jak1 import/title-screen proof
+(HANDOFF's Build84 section) and no claimed current feature-parity/full-gameplay
+pass. Current Xcode target includes macosx/AppKit, but this docs pass did not
+rebuild or launch Mac. Maintainer has never tested Mac gameplay. Source sharing
+is not a platform acceptance result.
+
+At the maintainer's fresh request, a read-only own-app query on exactly Z iPad
+Pro through mini confirmed 2.0(270) on October28; no reinstall/launch needed.
+Latest canonical executable changes match signed270; commits since are docs
+only. Mini's canonical source remains239 and was left untouched. Maintainer
+will test JakII iPad performance. No A14/A16/other device access.
+
 Opening refined at the maintainer's request: both READMEs now lead with a
 platform/control table (iPhone/iPad touch or gamepad, Mac gamepad or
 keyboard/mouse, Vision Pro gamepad or PSVR2 Sense, with Jak1-only Sense gestures
