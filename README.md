@@ -62,7 +62,7 @@ mode. This is an in-development build; the remaining issues are listed above.
 
 ### 1. Get the app for your Apple device
 
-Check the [Dark Eco releases](https://github.com/zschwendi/GOALPad/releases)
+Check the [Dark Eco releases](https://github.com/zschwendi/dark-eco/releases)
 for an available build and follow that release's installation and signing
 instructions. Use the package for your device: iPhone/iPad, Mac, or Vision Pro.
 A signed package is not necessarily provisioned for every device.
@@ -138,7 +138,7 @@ Dark Eco for Apple devices; upstream PC launcher instructions are not the app
 setup path.
 
 ```sh
-git clone --branch v2.0 --recurse-submodules https://github.com/zschwendi/GOALPad.git dark-eco
+git clone --branch v2.0 --recurse-submodules https://github.com/zschwendi/dark-eco.git dark-eco
 cd dark-eco
 ```
 
