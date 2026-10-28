@@ -1,3 +1,31 @@
+## October 28 — Dark Eco README and Apple onboarding
+
+The app and engine-fork README entry points now describe Dark Eco for iPhone,
+iPad, Apple silicon Mac and Apple Vision Pro. Inherited PC setup instructions,
+badges and upstream promo media were removed from the engine README. The app
+README covers player setup, supported disc revisions, controls, saves, source
+builds and contributor/agent entry points. Status now explicitly says Jak II
+ordinary support is almost finished but incomplete; Jak 3 is planned and not
+started; Jak 1 immersion is mostly finished but incomplete; Jak II immersion
+has not started and remains gated on Jak 1's known visual issues.
+
+The app README includes a four-second silent GIF from Zach's October 26 Vision
+Pro capture (source seconds20–24), with provenance in `docs/media/README.md`.
+Only gameplay was included; no original recording or private app/window content
+was added. `docs/BUILDING.md` now starts with both source packs and both AOT
+corpora, uses the parent gitlink as pin authority, and distinguishes local
+maintainer coordination from newcomer requirements.
+
+Documentation checks passed: 24 local/project links and anchors, README shell
+block/reference checks and four preparation scripts via `sh -n`, both Git diff
+checks, and ffprobe of the 640x360/40-frame/4-second GIF (3,382,412 bytes).
+Actual local Claude Code Opus5.5 HIGH performed the source-only onboarding
+review (exit0,92.361s, Max session). Root reviewed the UI/source evidence and all
+changes. No app build, clean-clone build, device operation, push, release,
+branch-default or repository-visibility change was performed. Runtime code and
+build number270 are unchanged; separate renderer work remains open. Evidence:
+workspace `.agent-builds/dark-eco-readme-20261028/`.
+
 ## October 27 — iPad Pro and iPhone Air delivery complete: native iOS 270
 
 Dark Eco 2.0 (270) is installed in place on exactly the explicitly requested **Z iPad Pro 11-inch (M5)** and **Z iPhone Air**, through the Mac mini. Both independent own-app metadata readbacks report version 2.0/build 270. The A14/A16 iPads and Vision Pro were left untouched. No app launch, uninstall, reset, data clearing or physical gameplay test was performed.

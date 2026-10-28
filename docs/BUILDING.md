@@ -1,4 +1,4 @@
-# Building GOALPad
+# Building Dark Eco (GOALPad scheme)
 
 ## Current product and branch
 
@@ -7,7 +7,8 @@ is the single app product and selects Jak 1 or Jak II at runtime. The
 `GOALPadJak2Runtime` target is an embedded framework required by that app; it is
 not a standalone product.
 
-For the synchronized MacBook/Mac mini development setup, use the workspace's
+Maintainer workstation note: for the synchronized MacBook/Mac mini setup, use
+the workspace's
 `GP-v2.0-jak2-integration` checkout on both machines, with outer and nested
 OpenGOAL branches both on `v2.0`. The older review/release checkouts are retained
 as history. The October 21 source comparison and validation are recorded at the
@@ -19,17 +20,40 @@ branches are archival comparison sources. Do not build or release them as the
 current product. If comparison finds behavior missing from `v2.0`, port it into
 Dark Eco and land any required OpenGOAL changes on nested `v2.0`.
 
+## First build of the current Apple app
+
+For a short current setup sequence covering both games, start with
+[Build from source](../README.md#build-from-source). A complete unified app
+requires both source packs and both generated AOT corpora; preparing Jak 1
+alone is insufficient. Run these commands sequentially from the app root:
+
+```sh
+Scripts/prepare-jak1-source-object-pack.sh
+Scripts/prepare-jak2-source-object-pack.sh
+Scripts/generate-jak1-aot.sh "$PWD/OpenGOAL/build/Release/bin"
+Scripts/generate-jak2-aot.sh "$PWD/OpenGOAL/build/Release/bin"
+```
+
+Use the pinned submodule and build the `GOALPad` Xcode scheme. The remainder
+of this guide includes detailed subsystem instructions and historical
+checkpoints; old App Store/TestFlight paths and retired standalone products
+are not the current distribution workflow.
+
 ## Requirements
 
 - Apple silicon Mac
-- Xcode 26.6 or a compatible toolchain with the iOS 26.5 SDK
+- Xcode with the iOS 26.5 SDK or newer, plus the macOS/visionOS SDKs for those destinations
 - CMake, Ninja, and OpenSSL 3 for the OpenGOAL host baseline
 
 ```sh
 brew install cmake ninja go-task openssl@3
 ```
 
-## Build-cache discipline
+## Maintainer build-cache discipline
+
+These cache locations and worker lanes coordinate the maintainers' shared
+machines; a new clone does not need those existing local directories. Keep one
+host build and one active Xcode cache of your own, and avoid concurrent heavy builds.
 
 Use `OpenGOAL/build/Release/bin` as the single canonical host CMake build and
 `/private/tmp/GOALPad-sim` as the current Xcode DerivedData directory. Run only
@@ -177,16 +201,13 @@ git submodule sync -- OpenGOAL
 git submodule update --init --recursive
 ```
 
-The authoritative child is the dedicated public fork
-`https://github.com/zschwendi/jak-pad.git`, branch
-`goalpad/ipad-demo-pacing`, pinned by the parent gitlink at
-`db376b727c52ffeb19788df4ac453693a07c40c8`. Checkpoint 59 retains this pin and
-incorporates the checked `jak1-base-retail` importer, source-pack verification,
-Apple composer, Jak 1 renderer diagnostics, and the reviewed Jak II sound and
-DGO RPC seams, including the bounded host `TITLE.DGO` play-frontier proof.
-Do not substitute a different OpenGOAL checkout when recording validation
-results, and pin that exact commit rather than a branch tip. The `sync` step
-updates existing clones that still remember the former upstream URL.
+The engine is the dedicated fork `https://github.com/zschwendi/jak-pad.git`.
+The outer repository's current gitlink selects the exact engine revision;
+initialize that pin rather than substituting upstream or a branch tip. Shipping
+engine work lands on nested `v2.0`, then the app updates its gitlink. Earlier
+checkpoint pins and branches mentioned later in this guide are historical
+evidence, not setup instructions. The `sync` step updates clones that still
+remember the former upstream URL.
 
 The pin includes the portable `jak1-kernel-core`, Metal renderer,
 display-time seam, and Jak 1 MIPS2C joint correction without replacing those
