@@ -1,18 +1,33 @@
 # Dark Eco
 
-**Play Jak on iPhone, iPad, Mac, and Apple Vision Pro.** Dark Eco is an
-unofficial native Apple-platform port of [OpenGOAL](https://github.com/open-goal/jak-project),
-with a Metal renderer, controller support, touch controls on iPhone and iPad,
-and experimental immersive third-person play on Vision Pro.
+**Play Jak on iPhone, iPad, Mac, and Apple Vision Pro—with an app built for
+Apple devices.**
 
-You bring compatible game data from your own legally obtained PlayStation 2
-copy. Dark Eco provides the app and runtime; it does not include or download
-the games. Game code is compiled ahead of time into the signed app, with no
-PS2 emulation, JIT, or jailbreak requirement.
+Dark Eco brings [OpenGOAL](https://github.com/open-goal/jak-project) to Apple
+hardware with native game ports and a Swift/SwiftUI app. Choose a game from
+your library, import your own game files directly in the app, adjust your
+controls and graphics, and carry your saves and settings between Apple devices
+with optional iCloud sync.
 
-This is the **Apple-device project**, not the Windows/Linux OpenGOAL PC port.
-Mac support is native to Apple silicon. **GOALPad** is the repository and Xcode
-scheme name; the app you install is **Dark Eco**.
+| Where you play | How you play |
+| --- | --- |
+| **iPhone and iPad** | **Touch controls or a gamepad.** |
+| **Mac (Apple silicon)** | **Gamepad or keyboard and mouse.** |
+| **Apple Vision Pro** | **Gamepad or PSVR2 Sense controllers.** Sense motion gestures are currently a Jak 1 feature. |
+
+Vision Pro also has an experimental **immersive third-person mode**, with Jak
+visible in the world around you. See [game support](#game-support) below for
+what is available and what remains unfinished.
+
+OpenGOAL provides the reconstructed game code, compiler, and runtime foundation.
+Dark Eco adds the Apple-native ports and Metal graphics, the app and game
+library, on-device file import, iCloud sync, Apple-device controls, and Vision
+Pro presentation.
+
+Bring compatible game data from your own legally obtained PlayStation 2 copy;
+Dark Eco does not include or download the games. Game code is compiled ahead
+of time into the signed app, with no PS2 emulation, JIT, or jailbreak requirement.
+**GOALPad** is the repository and Xcode scheme name; the app is **Dark Eco**.
 
 [Play](#install-and-play) · [Controls](#controls) · [Build from source](#build-from-source) · [Contributors and agents](#contributors-and-agents)
 

@@ -1,5 +1,14 @@
 ## October 28 — Dark Eco README and Apple onboarding
 
+Opening refined at the maintainer's request: both READMEs now lead with a
+platform/control table (iPhone/iPad touch or gamepad, Mac gamepad or
+keyboard/mouse, Vision Pro gamepad or PSVR2 Sense, with Jak1-only Sense gestures
+identified). The introduction explains the Swift/SwiftUI app, native Apple
+ports/Metal, in-app library/import, optional save/settings iCloud sync and
+Vision Pro presentation, while crediting OpenGOAL's compiler/game/runtime
+foundation. README-only follow-up; link/diff checks pass, no app build or device
+action, no GitHub push. Evidence is in the same README artifact directory.
+
 The app and engine-fork README entry points now describe Dark Eco for iPhone,
 iPad, Apple silicon Mac and Apple Vision Pro. Inherited PC setup instructions,
 badges and upstream promo media were removed from the engine README. The app
