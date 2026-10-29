@@ -1,3 +1,55 @@
+## 2026-10-28: Mac mini takeover verified; Build 274 validation blocked
+
+The new integration owner is running natively on the Mac mini in
+`DarkEco-handoff-20261028`, branch `work/astra-ultra-20261028`. Startup app
+`62f3e2fc705cc6ab7acb9fcbe9f3c7bf76c6a8f3` and engine/gitlink
+`f391f168e10ab4044d6056d4c2b8f98d2a0703c6` were clean and matched both
+published `handoff/mac-mini-astra-20261028` refs. This checkpoint changes
+handoff documentation only; Build 274 and runtime source are unchanged.
+
+- Transfer archive SHA-256 matches its receipt. All 4,085 installed generated
+  input files match the archive byte for byte. Both AOT preflights pass:
+  Jak 1 has 518 objects / 10,632 emitted + seven native functions; Jak II has
+  840 / 18,494 + seven. Pack manifests and all member sizes match the recorded
+  identities and byte totals. This reuses the transferred pack-verifier evidence;
+  a new host build has not run.
+- A bounded 180-second attempt found no clear heavy-build window. Unrelated
+  compiler workloads remained active; no Xcode build was started and no other
+  process or data was changed. Use two jobs and one fresh local DerivedData
+  directory when resources permit. Do not reuse MacBook caches.
+- No prepared Jak II retail data was found in the authorized local workspace,
+  transfer archive, or Dark Eco macOS container. The copied save banks are
+  present and hashed. The maintainer has been asked for the existing data
+  location. Do not fetch retail data or replace the copied originals.
+- A new isolated M5 simulator, `Dark Eco Build274 M5`, was created on iOS 27.0
+  and remains shut down. Its UUID is in the private run status; never substitute
+  the MacBook UUID or use another project's simulator. Creation on iOS 27.1
+  failed with CoreSimulator code 403 before the successful iOS 27.0 creation.
+- Astra Ultra source review found no new blocking defect. Actual Dark Jak
+  acceptance must include transformation and chained punches, including the
+  no-target or target-change fallback that reaches the repaired allocation.
+  Existing CPU tests cover 257/781 shadow transfers; the retained GPU batch
+  stress test does not prove full 781-transfer parse/copy/render integration.
+- Matching development signing identities and the Eco/iCloud profile are
+  available. Actual build, key access, strict signatures and package verification
+  remain pending. A bounded Claude CLI attempt configured for Opus 5.5 Max
+  timed out after 300 seconds without model confirmation or a result; its
+  supervisor's plan is separately attributed.
+
+Private startup identity, input hashes, resource observations, worker reports,
+exact next commands and pending physical gates are in
+`../.agent-builds/astra-ultra-handoff-20261028/RUN_STATUS.md`. None of that
+private bundle belongs in Git. AstraBoard journal/rejoin was delayed by an
+unrelated publisher lock; no lock or publisher was altered.
+
+Next: obtain the prepared-data location, finish Release simulator 274 once the
+heavy-build window is available, replay ordinary approach and at least 60
+seconds standing near Kor, exercise Dark Jak combos, then build and verify the
+generic signed iOS package. No whole-app 274 success, signed package, simulator
+replay or physical fix is claimed. Physical install/launch remains unauthorized;
+preserve the separate Vision 271 and Jak 1 teardown lanes. Issues #1–#5 remain
+open. Do not promote stable branches or begin Jak II immersion.
+
 ## 2026-10-28: Mac mini Astra handoff; Build 274 is unverified
 
 Current engine is `f391f168e10ab4044d6056d4c2b8f98d2a0703c6`, integrating

@@ -427,6 +427,15 @@ When choosing between approaches, use this order:
 
 ## Current project priority
 
+Latest ordinary-play takeover checkpoint (October 28): the Mac mini
+`work/astra-ultra-20261028` lane has verified the transferred source and all
+generated inputs. Build 274 remains unverified; simulator replay awaits the
+prepared Jak II data location, and a bounded build attempt waited out active
+unrelated compiler workloads without starting Xcode. The dedicated M5
+simulator remains shut down. Read the newest `HANDOFF.md` entry and private
+`RUN_STATUS.md` before resuming. No physical install/launch permission or
+Jak II immersion work is implied.
+
 Until maintainers update this section, the priority is:
 
 > Finish Jak II inside the unified Dark Eco `v2.0` product while preserving the
