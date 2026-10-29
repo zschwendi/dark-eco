@@ -1,4 +1,20 @@
-## 2026-10-28: stable Build 273; upstream integration isolated
+## 2026-10-28: Mac mini Astra handoff; Build 274 is unverified
+
+Current engine is `f391f168e10ab4044d6056d4c2b8f98d2a0703c6`, integrating
+upstream `94684e32f60008d3d9617621e7c3a478c9e2af56`. Build 274 is reserved;
+the outer simulator build was interrupted before success. Both regenerated
+AOT corpora, focused host/ABI/pack tests and the Dark Jak ASan regression pass.
+The broader desktop JIT failure is retained. Build 273's ordinary Kor replay
+is encouraging simulator evidence, not physical performance acceptance.
+
+The active transfer checkpoint and remaining GitHub issues are documented in
+[the compact handoff](docs/JAK2_ASTRA_HANDOFF_2026_10_28.md). Both repositories
+publish `handoff/mac-mini-astra-20261028` for continuation without promoting
+the unverified integration to a release. Preserve the separate Vision 271
+lane. The outgoing simulator originals/settings have been restored and the
+simulator is shut down. Private artifacts and saves remain outside Git.
+
+## Earlier checkpoint: stable Build 273; upstream integration isolated
 
 - Native checkpoint `3749f2c5ca60ce1c786eb6a8ab101d60d527c07b` includes the source-derived Jak II shadow-transfer budget and existing crash/lookup fixes. Build 273 Release iOS Simulator compilation passed; the Kor scene and physical performance remain unvalidated.
 - Upstream integration is in the separate `work/upstream-20261028` native worktree, targeting upstream `94684e32f60008d3d9617621e7c3a478c9e2af56`. It has not passed builds or runtime validation yet. Preserve stable `v2.0` and the separate Vision 271 lane.
