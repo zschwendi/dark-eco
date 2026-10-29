@@ -1,3 +1,10 @@
+## 2026-10-28: stable Build 273; upstream integration isolated
+
+- Native checkpoint `3749f2c5ca60ce1c786eb6a8ab101d60d527c07b` includes the source-derived Jak II shadow-transfer budget and existing crash/lookup fixes. Build 273 Release iOS Simulator compilation passed; the Kor scene and physical performance remain unvalidated.
+- Upstream integration is in the separate `work/upstream-20261028` native worktree, targeting upstream `94684e32f60008d3d9617621e7c3a478c9e2af56`. It has not passed builds or runtime validation yet. Preserve stable `v2.0` and the separate Vision 271 lane.
+- The app is public at `zschwendi/dark-eco`; engine `zschwendi/jak-pad` is public and its README, CLAUDE.md and AGENTS.md route app work to Dark Eco. No further renames.
+- Local evidence: `../.agent-builds/dark-eco-upstream-20261028/` and `../.agent-builds/jak2-performance-20261028/`. Private save copies and diagnostics stay ignored. Current physical iPad permission covers only copying saves/crash reports.
+
 ## October 28 — Jak II Kor encounter, build 272 investigation checkpoint
 
 Current native checkpoint: `b2b9b2eda` (`v2.0`), after README-only `4100f2ff2`.
