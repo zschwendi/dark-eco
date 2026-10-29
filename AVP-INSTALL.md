@@ -1,15 +1,13 @@
 # Install Dark Eco on Apple Vision Pro
 
-Dark Eco runs **Jak and Daxter: The Precursor Legacy** natively on Apple
+Dark Eco runs **Jak and Daxter** natively on Apple
 Vision Pro using [OpenGOAL](https://github.com/open-goal/jak-project), the
 pinned [jak-pad](https://github.com/zschwendi/jak-pad) engine fork, and a
 native Apple app with Metal graphics. You supply your own game data.
 
 This guide covers the public **`v2.0` source and its ordinary 2D game window**.
-The experimental immersive Jak 1 build shown in the README is developed
-separately and is not enabled by these build steps. Jak II is experimental in
-the wider project; its embedded runtime target in this branch is currently
-iOS-only. Jak 3 is planned. Start with Jak 1 on Vision Pro.
+The experimental immersive Jak and Daxter build shown in the README is developed
+separately and is not enabled by these build steps.
 
 ## Requirements
 
@@ -28,7 +26,7 @@ iOS-only. Jak 3 is planned. Start with Jak 1 on Vision Pro.
   ```
 
 - A compatible gamepad, such as DualSense.
-- A supported PlayStation 2 copy of Jak 1, and storage for your source data,
+- A supported PlayStation 2 copy of Jak and Daxter, and storage for your source data,
   prepared data, and build products. Import needs additional temporary space;
   keep the app's storage checks enabled.
 
@@ -36,7 +34,7 @@ iOS-only. Jak 3 is planned. Start with Jak 1 on Vision Pro.
 
 The repository supplies no game assets and does not download them. Prepare
 an image from your own compatible disc, or bring compatible data already
-prepared by OpenGOAL. The current on-device Jak 1 disc-preparation route
+prepared by OpenGOAL. The current on-device Jak and Daxter disc-preparation route
 accepts **SCUS-97124, NTSC v1 / Black Label**.
 
 After installing the app, choose **Jak and Daxter** in the Library, then
@@ -44,7 +42,7 @@ After installing the app, choose **Jak and Daxter** in the Library, then
 offered by your build:
 
 - A supported ISO, or a ZIP/7z containing exactly one supported ISO.
-- A prepared Jak 1 folder containing the matching `iso/` and `fr3/`
+- A prepared Jak and Daxter folder containing the matching `iso/` and `fr3/`
   directories from OpenGOAL's preparation output.
 
 Keep Dark Eco in the foreground until preparation and verification finish.
@@ -64,7 +62,7 @@ submodule revision; do not pull a newer branch or follow a second clone step
 while building the scanned source.
 
 Initialize the pinned OpenGOAL dependency, then generate the public source
-pack and ahead-of-time code for Jak 1. Run these commands sequentially:
+pack and ahead-of-time code for Jak and Daxter. Run these commands sequentially:
 
 ```sh
 git submodule sync -- OpenGOAL
@@ -107,7 +105,7 @@ earlier builds; the checked-out submodule pin remains authoritative.
 3. Complete the game-data import above. Pair your controller in the headset's
    Bluetooth settings before starting the game.
 4. Play in the ordinary window. On a PlayStation-layout controller,
-   **Cross jumps, Square punches, and Circle spins** in Jak 1. Use the game's
+   **Cross jumps, Square punches, and Circle spins** in Jak and Daxter. Use the game's
    menus for saving and loading.
 
 Before updating an existing installation, export a save backup through
@@ -125,8 +123,8 @@ the correctly provisioned container; it does not transfer your game assets.
 - **Signing or iCloud error:** check your own Team, bundle ID, container, and
   device provisioning. Do not use the maintainer's profile or identifiers.
 - **Rejected game data:** use the supported disc revision or compatible
-  prepared Jak 1 data. Keep the original source until import succeeds.
-- **Game compatibility:** Jak 1 is playable, but a full-game completion pass
+  prepared Jak and Daxter data. Keep the original source until import succeeds.
+- **Game compatibility:** Jak and Daxter is playable, but a full-game completion pass
   is not certified. Follow the [current support notes](README.md#game-support).
 
 For a reproducible problem, include the source commit, headset/OS, and exact
