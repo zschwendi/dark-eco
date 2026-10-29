@@ -1,200 +1,215 @@
-# GOALPad
+# Dark Eco — Jak trilogy on Apple platforms
 
-> **This project is based on the incredible work of the [OpenGOAL](https://github.com/open-goal/jak-project)
-> team. This fork focuses on bringing Jak and Daxter to Apple's platforms,
-> including iPad, macOS, and visionOS.**
+**A simple launcher for playing Jak on your Apple devices.**
 
-GOALPad is a native ARM64 port of OpenGOAL for Apple platforms. The first
-supported game is *Jak and Daxter: The Precursor Legacy*, using game data
-supplied and prepared by the user.
+Once Dark Eco is installed, **add your own game files, choose a game, and
+play**. Game import, controls, graphics, and saves are managed inside the app;
+optional iCloud sync carries saves and settings between your Apple devices.
+Everyday setup and play happen in the app, without terminal commands.
 
-**Dark Eco** is the public App Store-facing product name; GOALPad remains the
-repository, Xcode target, and internal runtime name.
+Dark Eco is built for **iPhone, iPad, and Apple Vision Pro**, with an
+**experimental Apple silicon Mac version** as well.
 
-It is not a PS2 emulator, not a Swift rewrite of OpenGOAL, and not a source of
-retail game data. See [Project Overview](docs/PROJECT_OVERVIEW.md) for the
-binding architecture, scope, and content-separation rules.
+| Device | Controls and availability |
+| --- | --- |
+| **iPhone and iPad** | **Touch controls or a gamepad.** |
+| **Mac (Apple silicon) — experimental** | Earlier Jak 1 data import and title-screen boot demonstrated; full gameplay is not yet validated. |
+| **Apple Vision Pro** | **Gamepad or PSVR2 Sense controllers.** Sense motion gestures are currently a Jak 1 feature. |
 
-## Current status
+Vision Pro also has an experimental **immersive third-person mode**, with Jak
+visible in the world around you. See [game support](#game-support) below for
+what is available and what remains unfinished.
 
-**The game runs.** Jak 1 boots, plays, and renders natively on Apple Silicon —
-all executable GOAL code is compiled ahead of time and shipped inside the
-normally signed application. There is no JIT, no writable-executable memory, and
-no private entitlement anywhere in the build.
+OpenGOAL provides the reconstructed game code, compiler, and runtime foundation.
+Dark Eco adds native Apple ports and Metal graphics, a Swift/SwiftUI launcher
+and game library, on-device file import, iCloud sync, Apple-device controls,
+and Vision Pro presentation.
 
-- **Implemented — compiler.** An AOT backend emits C from the GOAL IR so clang
-  is the ARM64 code generator. **10,596 of Jak 1's 10,603 functions** compile
-  this way; the remaining seven are native routines (GOAL's cooperative
-  thread, catch-frame and state-entry routines, which manipulate the machine
-  stack directly). All 518 object files compile for `arm64-apple-ios`.
-- **Implemented — runtime.** The real OpenGOAL kernel initializes real heaps, a
-  real symbol table and the real type system, loads the player's own DGO
-  archives through GOAL's own loader, and runs `kernel-dispatcher` — the game's
-  own main loop — indefinitely.
-- **Implemented — renderer.** A Metal backend behind OpenGOAL's existing
-  `GfxRendererModule` seam: sky, DirectRenderer, sprites, tfrag/tie/shrub world
-  geometry, ocean, Merc characters, eyes, Generic2 and shadows. Shaders are
-  compiled at build time and embedded; nothing is compiled at runtime.
-- **Implemented — audio.** Upstream's 989snd sequencer and sound banks, driven
-  through the real sound RPC, with a host-supplied output seam (CoreAudio on
-  macOS, AVAudioEngine on iPadOS).
-- **Implemented — controller input; Experimental — touch input.** A narrow pad
-  seam with no windowing dependency. A DualSense uses SDL on macOS;
-  GameController and the on-screen controls merge into one pad on iPadOS. The
-  current Classic Mode touch layout creates the movement stick under the first
-  left-half contact, keeps a continuous analog R stick at bottom right, and
-  maps right-half swipes to Cross, Square, Circle, or held L1. Reversing an L1
-  swipe upward adds Cross; short taps are deliberately inert. The deterministic
-  host check and macOS/iOS builds pass, and the named M5 simulator launches.
-  Physical multitouch ergonomics remain unvalidated. Diagnostics and resolution
-  controls remain hidden behind the three-line menu button.
-- **Experimental — Modern/Classic settings.** Controls, Graphics, Audio, and UI
-  each retain an independent Classic/Modern profile, section defaults, and a
-  Restore Defaults action. A global preset switches every section and reports
-  Mixed when profiles differ. Fresh settings and Reset All use Modern Graphics
-  with Fill Width (Hor+) enabled while Controls, Audio, and UI remain Classic;
-  that intentional combination appears as Mixed. Settings sync through iCloud
-  by default, with Jak 1 touch customization isolated in its own versioned
-  document so staggered older clients cannot erase it. The per-device opt-out
-  remains separate from iCloud saves. Hor+ is physically accepted on an 11-inch
-  iPad Pro.
-- **Experimental — iPad.** Jak 1 boots, renders, and plays on physical iPad. A
-  broad Build 89 early-game session established the accepted Classic behavior.
-  Build 90 preserves it, adds the settings shell, and is now the unified
-  baseline after the maintainer accepted its Hor+ presentation on an 11-inch
-  iPad Pro. This does not certify unvisited levels or completion.
-- **Experimental — visionOS.** Jak 1 uses the conventional Comfort/2D window in
-  Shared Space; that path has been physically accepted on Vision Pro. The
-  rejected bounded-stereo experiment remains in source behind an explicit
-  development-only compilation condition, with no shipping setting or runtime
-  activation. No immersive, world-tracking, or viewer-pose path is included.
-- **Experimental — macOS launcher.** The shared SwiftUI library, import flow,
-  Metal surface, AOT runtime, and audio host build for Apple Silicon. A Release
-  build imported prepared Jak 1 data and reached the title screen through the
-  real runtime. A controller is still required for gameplay; keyboard mapping
-  and a complete macOS gameplay pass remain unvalidated.
-- **Planned.** Level streaming without frame stalls, streamed cutscene audio,
-  and the remaining fidelity renderers (TIE wind, depth cue, sprite
-  distort/glow).
+Bring compatible game data from your own legally obtained PlayStation 2 copy;
+Dark Eco does not include or download the games. Game code is compiled ahead
+of time into the signed app, with no PS2 emulation, JIT, or jailbreak requirement.
+This is the **Dark Eco app repository**. The Xcode project and scheme retain the
+internal name **GOALPad**. Its OpenGOAL engine dependency lives in
+[`jak-pad`](https://github.com/zschwendi/jak-pad) and is pulled in automatically
+when cloning with submodules; players start here.
 
-Known issues and honest limits are tracked in `HANDOFF.md`.
+[Play](#install-and-play) · [Controls](#controls) · [Build from source](#build-from-source) · [Contributors and agents](#contributors-and-agents)
 
-## Architecture
+## Game support
 
-One shared core, two thin hosts:
+The progress below does not certify Mac gameplay. Mac shares application and
+runtime code with the other platforms, but current feature parity and full
+Mac gameplay have not been tested.
 
-```text
-game/kernel/core/          portable runtime: no SDL, no windowing, no input,
-                           no audio backend, no graphics API
-    + Metal renderer       behind OpenGOAL's GfxRendererModule seam
-          |
-          +-- goalpad-play     SDL window, SDL gamepad, CoreAudio    -> macOS
-          +-- Dark Eco.app     SwiftUI, CAMetalLayer, GameController,
-                               AVAudioEngine                          -> macOS
-                               + touch controls                       -> iPadOS
-                                                                   -> visionOS window
-```
+| Game | Ordinary windowed play | Apple Vision Pro immersion |
+| --- | --- | --- |
+| **Jak and Daxter: The Precursor Legacy** | Playable; the established Dark Eco baseline. A full-game completion pass is not certified. | **Mostly finished, but still incomplete.** Experimental third-person view with Jak visible. Known issues remain with sky coverage, stereo effects, and HUD/interaction prompts. |
+| **Jak II** | **Almost finished, but still incomplete.** Performance and a Dark Jak crash near the early Kor/child encounter are being fixed; broader gameplay and device verification continue. | **Not started.** Planned after the remaining Jak 1 immersive issues are resolved. |
+| **Jak 3** | **Planned; work has not started.** | **Planned; work has not started.** |
 
-Hosts meet the engine only at small C seams — `goal_pad_set_state`,
-`goal_sound_pull_audio`, `goal_kernel_core_set_data_directory`, and the
-`goal_gfx_host` table — so neither platform is privileged and a third
-(visionOS) needs no engine changes.
+Immersive availability depends on the build: it is developed in a separate
+experimental lane, so a windowed build does not automatically include it.
+Jak II and Jak 3 immersion are planned to use a normal DualSense controller.
 
-## Repository layout
+For development evidence and open work, see [HANDOFF](HANDOFF.md) and
+[ROADMAP](ROADMAP.md). The known issues above remain the player-facing status.
 
-```text
-GOALPad/                 SwiftUI application and narrow native bridge
-GOALPad-Info.plist       Partial Info.plist: Files/Finder access to the game directory
-GOALPad.xcodeproj/       Application project
-Scripts/                 AOT generation and Metal shader compilation
-docs/                    Project policy and build documentation
-OpenGOAL/                Pinned OpenGOAL fork submodule
-HANDOFF.md               Current state, open bugs, and next steps
-ROADMAP.md               Implementation stages and exit gates
-tests/native/            Deterministic signed-call boundary harnesses
-```
+## See Dark Eco
 
-## Build
+![Jak 1 immersive gameplay recorded by Zach on Apple Vision Pro](docs/media/dark-eco-vision-pro.gif)
 
-Initialize submodules, then follow the concise iOS flow in
-[iOS Build and Archive](docs/IOS_BUILD_AND_ARCHIVE.md).
-For the full historical/runbook-level detail, also see [Building](docs/BUILDING.md).
+Zach's own Vision Pro recording of Dark Eco's experimental Jak 1 immersive
+mode. This is an in-development build; the remaining issues are listed above.
 
-## Game data
+## Install and play
 
-GOALPad ships no game data and never will. Players supply their own legally
-obtained copy of *Jak and Daxter: The Precursor Legacy* and prepare it with
-OpenGOAL's own extraction tooling; see
-[the data pipeline](docs/setup/jak1-data-pipeline-macos-arm64.md). On iPadOS the
-prepared data is placed in the app's Documents directory via Finder or the Files
-app.
+### 1. Get the app for your Apple device
+
+Check the [Dark Eco releases](https://github.com/zschwendi/dark-eco/releases)
+for an available build and follow that release's installation and signing
+instructions. Use the package for your device: iPhone/iPad, Mac, or Vision Pro.
+A signed package is not necessarily provisioned for every device.
+
+Distribution is through GitHub source and release artifacts, **not the App
+Store or TestFlight**. If no suitable package is published, use the
+[source-build steps below](#build-from-source). Current project deployment
+targets require iOS/iPadOS 26.5, macOS 26.5, or visionOS 26.5 or newer.
+
+### 2. Add your game data
+
+1. Open Dark Eco and choose **Jak and Daxter** or **Jak II** in the **Library**.
+2. If **Set Up Game Data** appears, choose **Continue**.
+3. Select **Choose game data…** and choose a supported source for that game:
+   - A supported **ISO**, or a **ZIP/7z containing exactly one ISO**, when disc
+     preparation is enabled in that build.
+   - A compatible **prepared game data folder** containing OpenGOAL's `iso/`
+     and `fr3/` output. Use data for the selected game.
+4. Keep Dark Eco open and in the foreground while it prepares and imports the
+   data. The setup screen reports progress and explains unsupported sources.
+5. When setup finishes, choose **Play Now**.
+
+On-device disc preparation currently accepts **Jak 1 SCUS-97124 (NTSC v1,
+Black Label)** and **Jak II SCUS-97265 (NTSC-U v2)**. Other disc revisions may
+be rejected; the prepared-folder path remains an alternative for compatible
+data.
+
+The setup screen is the authority for the formats supported by your particular
+build. If a file is dimmed in the picker, check that you selected the intended
+game and that the build supports that input. A locally downloaded file can
+still be an unsupported format or disc revision.
+
+Keep Dark Eco's installed game-data copy on your device. Once setup succeeds,
+the app no longer needs the original import source. No game data is fetched
+from the internet or supplied with this repository.
+
+### 3. Connect your controls
+
+- **iPhone / iPad:** use the on-screen touch controls or a compatible game controller.
+- **Mac (experimental):** a complete gameplay/control pass remains unvalidated.
+- **Apple Vision Pro:** use a compatible game controller. A normal DualSense
+  is the intended controller for future Jak II and Jak 3 immersive play.
+- **Jak 1 experimental Sense controls:** supported builds can use PSVR2 Sense
+  gestures for punch, spin, and jump. Gesture support is a Jak 1 experiment;
+  it is not a requirement for ordinary play.
+
+## Controls
+
+The original game menus explain the normal buttons. On a PlayStation-layout
+controller, Cross jumps, Square punches, and Circle spins in Jak 1.
+
+In Jak 1 builds with Sense motion enabled, either-hand forward jabs punch,
+side-to-side shakes spin, and raising both controllers together jumps; repeat
+the jump gesture for a double jump. Normal buttons remain available if you
+prefer them. Availability and gesture tuning depend on the build.
 
 ## Saves
 
-Gameplay uses OpenGOAL's desktop-compatible memcard files under Application
-Support. The optional iCloud Saves setting mirrors those files into the app's
-iCloud Documents container; the runtime never plays from iCloud paths. Dark Eco
-treats OpenGOAL's alternating bank pairs as complete save slots, selects the
-generation OpenGOAL's loader would use, and compares its checksummed completion
-percentage. The farther valid slot wins as a unit, so banks from different
-devices cannot form a hybrid save. A loadable valid slot always beats a corrupt
-or unsupported peer. Slots where neither copy validates, and valid slots with
-equal progress, use the newest modification date. Hashes identify equal bytes
-but never rank saves. Divergent originals are archived locally and in iCloud
-before the winning pair becomes canonical. Pair changes then use a durable,
-phased intent containing the immutable source banks; restart recovery proceeds
-only when the target and recorded phase match exactly. A committed local-target
-intent can finish from its embedded banks while iCloud is unavailable or an
-account changes; a cloud-target intent can instead be abandoned because the local
-canonical source remains intact. A naturally missing odd bank without that intent
-remains ordinary divergence and is ranked and reported. Save operations are FIFO
-exclusive, and gameplay stays paused when unsafe local recovery cannot finish.
-Launch and foreground syncs run while
-gameplay is paused and may merge in either direction. Syncs triggered by completed
-gameplay frames are upload-only: they archive a divergent iCloud pair before
-mirroring the active local pair and never replace a local bank. Settings retains
-the latest automatic-resolution details until they are replaced or dismissed,
-without presenting them over gameplay.
+Save and load through the game's own menus. Dark Eco keeps each game's saves
+separate, using OpenGOAL-compatible memory-card files.
 
-Settings also provides **Import Saves** and **Export Saves**. These actions copy
-the unchanged desktop layout under `OpenGOAL/jak1/saves`, so transfers remain
-compatible with desktop OpenGOAL rather than introducing a Dark Eco save format.
-Import accepts only the exact `OpenGOAL/jak1/saves` directory with its single
-`BASCUS-97124AYBABTU!` slot, or that exact slot directory itself. Banks must be
-direct children, use the raw `bank0.bin` through `bank7.bin` names and sizes, and
-include at least one loadable Jak 1 pair that passes complete validation.
+Settings provides **Import Saves** and **Export Saves**. Optional **Sync Saves**
+in Settings' iCloud section can synchronize between your Apple devices; gameplay
+uses local saves and works offline. Export a backup before replacing an installation or changing
+signing identities. An app update should be installed in place, without first
+deleting the existing app and its data.
 
-The mirror is implemented with Apple's standard iCloud Documents entitlements;
-no CloudKit database or private entitlement is used. The canonical project now
-wires the selected paid-team app identifier and private container. Signed
-provisioning and real cross-device transfer remain validation gates; when
-iCloud is unavailable, gameplay continues on local saves.
+## Build from source
 
-## Content policy
+Use an **Apple silicon Mac**, Xcode with the required Apple SDKs, and the
+[build prerequisites](docs/BUILDING.md#requirements). These instructions build
+Dark Eco for Apple devices; upstream PC launcher instructions are not the app
+setup path.
 
-Do not commit disc images, extracted retail files, prepared game packages,
-signing identities, provisioning profiles, or secrets. Local game data and
-prepared packages are ignored by default.
+```sh
+git clone --branch v2.0 --recurse-submodules https://github.com/zschwendi/dark-eco.git dark-eco
+cd dark-eco
+```
+
+The OpenGOAL submodule is pinned by this repository. Preserve that pin rather
+than substituting upstream's current branch. For an existing clean checkout:
+
+```sh
+git submodule sync -- OpenGOAL
+git submodule update --init --recursive
+```
+
+Prepare both games' public source packs and generated code before opening
+Xcode. These steps compile open-source code, not retail game assets. Run them
+sequentially, using the same host build directory:
+
+```sh
+Scripts/prepare-jak1-source-object-pack.sh
+Scripts/prepare-jak2-source-object-pack.sh
+Scripts/generate-jak1-aot.sh "$PWD/OpenGOAL/build/Release/bin"
+Scripts/generate-jak2-aot.sh "$PWD/OpenGOAL/build/Release/bin"
+open GOALPad.xcodeproj
+```
+
+Choose the **GOALPad** scheme, select your Apple destination, and configure your
+own signing team, bundle identifiers, and iCloud capabilities when installing
+on hardware. The embedded
+**GOALPadJak2Runtime** framework is part of Dark Eco, not a separate app.
+See [Building](docs/BUILDING.md) for detailed commands, signing requirements,
+and platform validation notes. Do not use the retired standalone Jak II app
+or old App Store/reviewer-launcher instructions.
+
+## Contributors and agents
+
+Start here before changing anything:
+
+1. Read [AGENTS.md](AGENTS.md) and the authoritative [Project Overview](docs/PROJECT_OVERVIEW.md).
+2. Read the top of [HANDOFF.md](HANDOFF.md) for the latest source/build state,
+   then [ROADMAP.md](ROADMAP.md) for the current priorities.
+3. Inspect the parent and nested OpenGOAL Git state. Preserve dirty work,
+   saves, user game data, and the distinction between the windowed and
+   experimental immersive lanes.
+4. Work on the smallest scoped change. Follow the current task's device
+   authorization and run relevant checks; a simulator pass is not physical-device acceptance.
+5. Record exact commands, results, remaining issues, and the next step in the handoff.
+
+The unified product branch is `v2.0`. Runtime changes belong in the pinned
+[OpenGOAL fork](https://github.com/zschwendi/jak-pad); app/lifecycle/import UI
+changes belong here. Preserve per-game data and save isolation. Do not begin
+Jak II immersion until the remaining Jak 1 immersive blockers are resolved.
+
+| Location | Purpose |
+| --- | --- |
+| `GOALPad/` | SwiftUI app, settings, imports, saves, Apple hosts, native bridge |
+| `GOALPad.xcodeproj/` | Shared Apple application project |
+| `OpenGOAL/` | Pinned engine fork: runtime, compiler, GOAL source, Metal renderer |
+| `Scripts/` | Code generation, packaging, and focused checks |
+| `docs/` | Architecture, build instructions, and validation reports |
+| `tests/native/` | Native test harnesses |
+
+Do not commit disc images, extracted retail data, saves, signing material, or secrets.
 
 ## Credits
 
-Dark Eco is an app by Zach Schwendiman, published by Zephyr Studios, and made
-available free as a gift to fans of the Jak trilogy. Zach created the native
-Apple mobile port and its platform-runtime integration.
+Dark Eco is by Zach Schwendiman / Zephyr Studios. It is built on the
+[OpenGOAL team's work](https://github.com/open-goal/jak-project): their GOAL
+language tools, reconstructed game code, runtime, and data formats make this
+port possible. Dark Eco adds the Apple app, native ARM64 ahead-of-time path,
+and Metal/Apple-platform integration.
 
-Dark Eco exists because of the [OpenGOAL](https://github.com/open-goal/jak-project)
-project, which reimplemented the GOAL language, compiler, and runtime that
-Naughty Dog built Jak and Daxter on. The compiler front end, GOAL source, object
-and level formats, 989snd sound implementation, and renderer this port translates
-are all their work. This fork adds an ARM64 ahead-of-time code path, a Metal
-renderer, and Apple platform hosts on top of it.
-
-Dark Eco is an unofficial community project and is not affiliated with Sony
-Interactive Entertainment, Naughty Dog, or the OpenGOAL team.
-
-## Support
-
-The launcher Support screen provides project information, contact details, and
-three optional one-time StoreKit tips. Tips unlock no features or content. Their
-product identifiers and App Store Connect requirements are documented in
-[Dark Eco optional tips](docs/appstore/STOREKIT_TIPS.md).
+This is an unofficial community project, unaffiliated with Sony Interactive
+Entertainment, Naughty Dog, or the OpenGOAL team.
