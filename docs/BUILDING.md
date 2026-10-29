@@ -264,7 +264,7 @@ compile and final link prove that every manifest entry is present.
 
 At the current pin, generate the pack once on canonical code. Subsequent checks
 must use the existing-pack verifier and require 518 objects, aggregate identity
-`51d2b85ff1b53223`, and `10,756,270` object bytes. A caller-supplied wrong
+`806abc2b2667435a`, and `10,768,267` object bytes. A caller-supplied wrong
 expected identity must fail. Regenerate only when the source-pack writer or its
 embedded graph changes; otherwise regeneration wastes the checkpoint's heavy
 build budget without adding evidence.
