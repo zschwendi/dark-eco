@@ -1,4 +1,4 @@
-# Dark Eco
+# Dark Eco — Jak trilogy on Apple platforms
 
 **A simple launcher for playing Jak on your Apple devices.**
 
@@ -28,7 +28,10 @@ and Vision Pro presentation.
 Bring compatible game data from your own legally obtained PlayStation 2 copy;
 Dark Eco does not include or download the games. Game code is compiled ahead
 of time into the signed app, with no PS2 emulation, JIT, or jailbreak requirement.
-**GOALPad** is the repository and Xcode scheme name; the app is **Dark Eco**.
+This is the **Dark Eco app repository**. The Xcode project and scheme retain the
+internal name **GOALPad**. Its OpenGOAL engine dependency lives in
+[`jak-pad`](https://github.com/zschwendi/jak-pad) and is pulled in automatically
+when cloning with submodules; players start here.
 
 [Play](#install-and-play) · [Controls](#controls) · [Build from source](#build-from-source) · [Contributors and agents](#contributors-and-agents)
 
@@ -41,15 +44,15 @@ Mac gameplay have not been tested.
 | Game | Ordinary windowed play | Apple Vision Pro immersion |
 | --- | --- | --- |
 | **Jak and Daxter: The Precursor Legacy** | Playable; the established Dark Eco baseline. A full-game completion pass is not certified. | **Mostly finished, but still incomplete.** Experimental third-person view with Jak visible. Known issues remain with sky coverage, stereo effects, and HUD/interaction prompts. |
-| **Jak II** | **Almost finished, but still incomplete.** The ordinary rendering, asset, and audio baseline is working; broader gameplay and device verification continue. | **Not started.** Planned after the remaining Jak 1 immersive issues are resolved. |
+| **Jak II** | **Almost finished, but still incomplete.** Performance and a Dark Jak crash near the early Kor/child encounter are being fixed; broader gameplay and device verification continue. | **Not started.** Planned after the remaining Jak 1 immersive issues are resolved. |
 | **Jak 3** | **Planned; work has not started.** | **Planned; work has not started.** |
 
 Immersive availability depends on the build: it is developed in a separate
 experimental lane, so a windowed build does not automatically include it.
 Jak II and Jak 3 immersion are planned to use a normal DualSense controller.
 
-For the current evidence and open work, see [HANDOFF](HANDOFF.md),
-[ROADMAP](ROADMAP.md), and the [Jak II ordinary-play report](docs/JAK2_ORDINARY_GATE_2026_10_26.md).
+For development evidence and open work, see [HANDOFF](HANDOFF.md) and
+[ROADMAP](ROADMAP.md). The known issues above remain the player-facing status.
 
 ## See Dark Eco
 

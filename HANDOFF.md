@@ -1,3 +1,59 @@
+## October 28 — Jak II Kor encounter, build 272 investigation checkpoint
+
+Current native checkpoint: `b2b9b2eda` (`v2.0`), after README-only `4100f2ff2`.
+Build 272 Release simulator compiled in 94.239 seconds and installed in place
+on isolated simulator `E033177B-9F6B-48E2-B99F-CF81DB39EF80`. It is not a
+signed device delivery or a physical acceptance claim.
+
+Reviewed actual Opus candidates fix the linear AOT tag lookup and the demonstrated
+combo-tracker stack overwrite. Original and indexed public-API execution tests
+pass; a 400-tag synthetic lookup changed from 642.78 ns to 7.25 ns. The actual
+regenerated combo-tracker/array-constructor bodies pass ASan unchanged in the
+fixture; original code fails a 144-byte write over its undersized stack buffer.
+Full Jak II regeneration passed 840 objects / 18,493 emitted + seven native
+functions. Source-pack aggregate is `368b12c9d2c123bc`, with only trajectory,
+scene and progress objects changed. Old generated inputs are preserved locally.
+Existing prepared player data needs no reimport for this native code fix.
+
+The Kor cutscene still needs investigation: old build 268 dropped 698 chains,
+and one shadow packet reached 256 transfers before the bucket boundary. The
+new default-off `GOALPAD_JAK2_DEBUG_DIAGNOSE_SHADOW195=1` captures a bounded
+metadata-only continuation before failed live preflight. Acceptance limits
+remain unchanged. Three shadow CPU tests, full source-pack tests including
+the real pack, and the simulator build pass. See
+[the scoped report](docs/JAK2_KOR_CHECKPOINT_2026_10_28.md).
+
+The maintainer authorized copying the current physical iPad Pro Jak II saves
+and crash reports only; those read-only copies succeeded. Device build 270
+crash identifies combo-tracker method 13 from Dark Jak. A second recovered
+report is a separate Jak 1 ocean-renderer teardown termination, not this crash.
+No physical launch, profiling or installation was performed in this task.
+The Vision 271 sky-fix lane remains preserved for its deferred headset trial.
+
+Simulator originals (six save banks) are preserved as sibling directory
+`saves-before-perf-20261028`; copied physical save banks are being tested in
+`saves`. Temporary 60 Hz settings must be restored to exact original bytes and
+mtime, and the simulator shut down after testing. Current data container is
+`6EEB8CE1-F20A-49E7-98BC-E78C12C94590`; original and test bank hashes survived
+272 installation. All private paths/receipts and next commands are in
+`../.agent-builds/jak2-performance-20261028/ACTIVE_HANDOFF.txt` and CHECKPOINT.txt.
+
+Both GitHub repositories are now public by explicit request. The application
+is `zschwendi/dark-eco`; `zschwendi/jak-pad` retains its original name and is
+clearly documented as its engine dependency. Default/product branch READMEs
+and the app's own gameplay GIF were published separately and verified without
+authentication. No implementation commits from this investigation have been
+pushed. GitHub v2.0 branches received docs-only commits independently of local
+code; reconcile those carefully before a future source push. Public receipts:
+`../.agent-builds/dark-eco-public-20261028/public-readiness.json`.
+
+Next: replay the copied city save with build 272, capture the first shadow
+preflight failure, and change renderer limits/grammar only with concrete
+packet evidence. Re-measure the matched scene, validate Dark Jak, then make
+the next signed package. No Jak II immersion has been added.
+
+---
+
 ## October 28 — Dark Eco README and Apple onboarding
 
 Latest clarification supersedes the earlier unqualified Mac control row: both
