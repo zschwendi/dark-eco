@@ -1,3 +1,37 @@
+## 2026-10-28 late: prepared-data blocker resolved; storage gate remains
+
+The supplied private Jak II data is now present and verified. Do not ask the
+maintainer for an ISO or data location again. The private receipt and manifest
+are in the existing takeover evidence directory. A separate `private-replay-Jak2`
+tree was staged with successful per-file `clonefile(2)` calls, with no byte-copy
+fallback; every member, size and SHA-256 matches the supplied manifest. The
+canonical source tree, saves and physical devices were untouched. The staged
+tree can be moved into the dedicated simulator's app container on the same
+filesystem after the app exists.
+
+No Xcode/host compiler was active in the resume resource check, but storage
+remains below the unchanged 18 GiB start guard (latest observed 15.44 GiB).
+The private `run-simulator-build274.py` now reports `BLOCKED_STORAGE`,
+`BLOCKED_BUSY`, or both accurately, records the exact shortage, and supports
+`--check-only`. Syntax and the four threshold/combined-cause boundary cases
+pass. Its 18 GiB start and 8 GiB stop guards are unchanged. No build was started.
+
+The scoped storage audit found no task-owned DerivedData or canonical host
+build outputs. Active generated inputs, evidence, game data, saves, source and
+worktrees are preserved; no cleanup was performed. Do not inspect or reclaim
+other projects to clear this gate. `RUN_STATUS.md` contains exact byte counts,
+clone/resource receipts and the next command. Once enough storage is available,
+run the existing serialized simulator build, then the Kor standing and Dark Jak
+combo routes, then signed iOS package verification. All runtime/physical gates
+remain pending; the dedicated M5 simulator is still shut down.
+
+AstraBoard journal access recovered, but both requested performance/upstream
+work IDs returned `Unknown work ID`; the local sync status reports synced.
+No duplicate task or fabricated continuation record was created. The original
+work IDs and pending handoff remain in the private evidence for reconciliation.
+This is a documentation-only checkpoint; runtime source, engine gitlink and
+Build 274 are unchanged. Preserve Vision 271 and all physical-device limits.
+
 ## 2026-10-28: Mac mini takeover verified; Build 274 validation blocked
 
 The new integration owner is running natively on the Mac mini in

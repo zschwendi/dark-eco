@@ -428,13 +428,15 @@ When choosing between approaches, use this order:
 ## Current project priority
 
 Latest ordinary-play takeover checkpoint (October 28): the Mac mini
-`work/astra-ultra-20261028` lane has verified the transferred source and all
-generated inputs. Build 274 remains unverified; simulator replay awaits the
-prepared Jak II data location, and a bounded build attempt waited out active
-unrelated compiler workloads without starting Xcode. The dedicated M5
-simulator remains shut down. Read the newest `HANDOFF.md` entry and private
-`RUN_STATUS.md` before resuming. No physical install/launch permission or
-Jak II immersion work is implied.
+`work/astra-ultra-20261028` lane has verified the transferred source, generated
+inputs and supplied private Jak II data. The data-location blocker is resolved;
+an independently verified APFS clone is staged for replay. Build 274 remains
+unverified because free storage is below the unchanged 18 GiB start guard.
+The private runner now distinguishes storage from compiler contention. There
+are no disposable task-owned Xcode/host products sufficient to clear the gate.
+The dedicated M5 simulator remains shut down. Read the newest `HANDOFF.md`
+entry and private `RUN_STATUS.md` before resuming; do not ask for the data again.
+No physical install/launch permission or Jak II immersion work is implied.
 
 Until maintainers update this section, the priority is:
 
