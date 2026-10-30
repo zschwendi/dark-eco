@@ -178,6 +178,14 @@ Defaults and Reset All restore the selected title's configured scale. On
 visionOS, the setting is labeled Windowed Resolution and does not change the
 separate immersive renderer.
 
+**Experimental diagnostics:** A test launch with `GOALPAD_FRAME_TIMING_DIAGNOSTICS=1`
+records bounded callback-work and cadence statistics, then writes a single
+`Library/Caches/GOALPadDiagnostics/<title>/frame-timing.json` on inactive,
+background, or shutdown transitions. Reports include requested frame rate,
+resolution, drawable counters, thermal state, and Low Power Mode. No file is
+written by the display callback; normal launches leave the recorder disabled.
+This instrumentation is not a performance fix or physical smoothness pass.
+
 **Experimental:** On October 29, 2026 the maintainer authorized one exception to
 that frozen touch contract: an optional, default-off iOS **Controls › Touch
 Actions › Buttons** choice, stored as `touchFaceButtonsEnabledOverride` in each
