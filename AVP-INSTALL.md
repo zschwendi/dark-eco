@@ -1,3 +1,5 @@
+**[Download the IPA / install without a Mac](docs/SIDELOADING.md)**
+
 # Install Dark Eco on Apple Vision Pro
 
 Dark Eco runs **Jak and Daxter** natively on Apple

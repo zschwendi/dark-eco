@@ -1,3 +1,5 @@
+**[Download the IPA / install without a Mac](docs/SIDELOADING.md)**
+
 # Dark Eco — Jak trilogy on Apple platforms
 
 **A simple launcher for playing Jak on your Apple devices.**
