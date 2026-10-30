@@ -1,4 +1,6 @@
-**[Download the Vision Pro IPA / install without a Mac](https://github.com/zschwendi/dark-eco/blob/v2.0/docs/SIDELOADING.md)**
+**[Downloads and setup: iPhone/iPad, Vision Pro, and Apple Silicon Mac](https://github.com/zschwendi/dark-eco/blob/v2.0/docs/DOWNLOADS.md)**
+
+The downloadable previews use local saves. Choose your platform in that table for its current package, OS requirement, signing instructions and testing limits.
 
 # Dark Eco — Jak trilogy on Apple platforms
 
