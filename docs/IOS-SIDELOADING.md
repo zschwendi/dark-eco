@@ -1,18 +1,19 @@
 # Dark Eco for iPhone and iPad
 
-Download the [experimental iOS/iPadOS Build 270.1 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/ios-build270.1-preview).
-The **2.0 / Build 270.1** package is
-`DarkEco-iOS-2.0-build270.1-preview.ipa`. One native arm64 IPA supports both
+Download the [experimental iOS/iPadOS Build 275 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/ios-build275-preview).
+The **2.0 / Build 275** package is
+`DarkEco-iOS-2.0-build275-preview.ipa`. One native arm64 IPA supports both
 iPhone and iPad on **iOS/iPadOS 26.5 or later**. It contains the app runtime and
 reconstructed OpenGOAL code, with no retail game data.
 Its device-family metadata is `1,2`; this is a physical-device build, not a
 simulator app.
 
-This is a repack of the signed Build 270 app, not a new build of the current
-public branch. It predates later Jak II Dark Jak combo crash fixes and the
-Jak 1 ocean-renderer teardown investigation. Treat it as a preview. Signing,
-installation, gameplay and save-preserving refresh by a new recipient have
-not been verified; performance on lower-memory devices is also unverified.
+This is a fresh native build with optional on-screen face buttons, the current
+Jak II lookup-speed, Dark Jak allocation and shadow-rendering repairs, and
+updated OpenGOAL importer resources. The Jak II repairs still need physical
+gameplay acceptance; this is an experimental preview. A reported third-party
+import failure has not been reproduced or diagnosed. Recipient signing, fresh
+game import, gameplay and save-preserving refresh remain unverified.
 
 ## Install with your own signing identity
 
@@ -67,7 +68,14 @@ Put the input in Files on the device and download cloud files completely.
 Open **Dark Eco → Library → Jak and Daxter → Set Up Game Data → Continue →
 Choose game data…**. Keep the app open until import and validation finish;
 allow storage for both the input and imported data. Jak II remains experimental
-and has known Build 270 crashes. Do not upload retail files or saves to GitHub.
+and still needs gameplay validation of its latest repairs. Do not upload retail
+files or saves to GitHub.
+
+To try explicit touch buttons, open **Settings → Controls → Touch Actions →
+Buttons**. Gestures remain the default. This setting replaces action swipes with
+Cross, Square, Circle, Triangle and L1 while keeping movement and camera sticks.
+Use landscape orientation for this preview; portrait and extreme custom stick
+placements still need ergonomic testing.
 
 ## Keep the app and saves
 
@@ -87,9 +95,9 @@ addressing or JIT entitlements. The repack does not remove a required memory
 capability. Its ad-hoc transport signature must still be replaced by your
 sideloader's signature for your device.
 
-Build 270's exact source is [app `cefd732`](https://github.com/zschwendi/dark-eco/commit/cefd732138849ff1f582be931e58bd06ef2a327c)
-and [engine `a49443d`](https://github.com/zschwendi/jak-pad/commit/a49443d9646d12b305ca4aec4d4c44ae34267d7f).
+Build 275's exact compiled source is [app `1511546`](https://github.com/zschwendi/dark-eco/commit/1511546a05695b2bca585170ab831ca6d8a14475)
+and [engine `9088ff7a`](https://github.com/zschwendi/jak-pad/commit/9088ff7a252c8b48e01da39afd23e4a09b4b0435).
 Original hashes, changes and limitations are recorded in
-[IPA-IOS270-PROVENANCE.json](IPA-IOS270-PROVENANCE.json). The release includes
+[IPA-IOS275-PROVENANCE.json](IPA-IOS275-PROVENANCE.json). The release includes
 the complete package manifest and checksum. Local package checks are not
 physical-device or gameplay acceptance.

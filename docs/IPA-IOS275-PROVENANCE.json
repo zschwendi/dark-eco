@@ -1,0 +1,36 @@
+{
+  "product": "Dark Eco",
+  "version": "2.0",
+  "build": "275",
+  "package_build": "275",
+  "platform": "iOS",
+  "source_commit_recorded_at_build": "1511546a05695b2bca585170ab831ca6d8a14475",
+  "engine_commit_recorded_at_build": "9088ff7a252c8b48e01da39afd23e4a09b4b0435",
+  "source_status": "Fresh signed native iOS Release build with optional touch face buttons and current Jak II runtime repairs; experimental preview.",
+  "source_url": "https://github.com/zschwendi/dark-eco/commit/1511546a05695b2bca585170ab831ca6d8a14475",
+  "engine_url": "https://github.com/zschwendi/jak-pad/commit/9088ff7a252c8b48e01da39afd23e4a09b4b0435",
+  "input_executable_sha256": "4eaf33df1196d2a627fa0707d357710bfb50e8229f63202a06d6f632fd11d98e",
+  "input_framework_sha256": "f98917642a1a7c87b03de08d96eeb2a9766c246723aa27e72a68f5f443d98ceb",
+  "input_bundle_manifest_sha256": "4bf11a9645aaaf53359fa056dee0d0b85849093e532f52dfab4feabda8c4654a",
+  "source_pack_manifests_sha256": {
+    "Jak1": "1f6235f5c72509333d116235df63147aafb3b3453fc5676c8e15af627edb1ead",
+    "Jak2": "71a3da27a1d09b0fedd2905abe5c69982b06585bfe00d128fefe93b09afdc7fa"
+  },
+  "source_pack_audit": "Both bundled packs passed their current native verifier, all member sizes and XXH64 hashes, and matching aggregate IDs: Jak1 518 / 806abc2b2667435a; Jak2 840 / f2cdf82e9b913501.",
+  "repack_changes": [
+    "Keep build 275 and compiled runtime code",
+    "Remove maintainer provisioning and signatures",
+    "Apply transport ad-hoc signatures with empty entitlements",
+    "Add matching source notices and this receipt"
+  ],
+  "sideload_validation": "Recipient signing, fresh raw-disc import and gameplay acceptance are not certified by compilation or packaging checks.",
+  "limits": [
+    "Experimental preview",
+    "Jak II slowdown and Dark Jak crash repairs are included; physical acceptance remains pending",
+    "The reported recipient import failure has no reproduced diagnosis",
+    "Public package uses local saves; iCloud is not provisioned",
+    "Jak 1 ocean teardown investigation remains open",
+    "No retail game assets included"
+  ],
+  "license_notice_snapshot_engine_commit": "9088ff7a252c8b48e01da39afd23e4a09b4b0435"
+}

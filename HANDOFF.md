@@ -1,3 +1,38 @@
+# October 30 — iOS preview 275 and optional touch buttons
+
+Fresh signed iOS Release Build 275 compiled from app
+`1511546a05695b2bca585170ab831ca6d8a14475` and engine
+`9088ff7a252c8b48e01da39afd23e4a09b4b0435`. It is installed in place on the
+maintainer's explicitly requested iPhone Air; own-app metadata confirms 2.0(275).
+No iPad access, uninstall, data replacement or gameplay launch occurred. Save
+backup timed out; byte-for-byte save preservation is not claimed.
+
+Controls → Touch Actions offers Gestures (default) or Buttons for both games.
+The button path preserves shared UIKit ownership, multi-touch, cancellation,
+contextual menu priority and Zoomer braking. 644 touch and197 settings checks,
+iOS Swift parse and final generic signed iOS compilation passed. The two old
+settings UI assertions were corrected to match existing semantic text colors.
+Portrait ergonomics and extreme custom stick placements remain unvalidated.
+
+The first whole-app attempt caught eight stale importer-resource hashes after
+the upstream update. Both native manifests now describe the same53 tracked
+public resources with exact current hashes; file lists and fail-closed checks
+are unchanged. Public bundle rejection and both app staging fixtures pass.
+The whole build now passes; no source-pack/AOT regeneration was needed.
+
+This build includes the tag-lookup, Dark Jak allocation and shadow-transfer
+repairs. Kor slowdown and Dark Jak physical acceptance remain open. No specific
+later iPhone importer repair was identified: the reported recipient import
+failure remains undiagnosed, even though existing importer regressions pass.
+Do not close issues1,2 or claim complete gameplay from this delivery.
+
+The public275 preview is a fresh compilation with recipient re-signing and
+local saves, not a metadata-only repack. Its provenance records the exact build
+source; later release-document commits do not change that binary. Full private
+commands, source hashes, build logs, signature/package verification and delivery
+readback are in workspace `.agent-builds/ios-refresh-20261029/`.
+The separate Mac mini Astra source and Vision lane were preserved, not restarted.
+
 ## 2026-10-28: Mac mini Astra handoff; Build 274 is unverified
 
 Current engine is `f391f168e10ab4044d6056d4c2b8f98d2a0703c6`, integrating
