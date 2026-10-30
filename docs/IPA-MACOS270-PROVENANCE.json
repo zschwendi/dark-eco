@@ -1,0 +1,102 @@
+{
+  "product": "Dark Eco",
+  "version": "2.0",
+  "package_build": "270.1",
+  "platform": "macOS",
+  "architecture": "arm64",
+  "minimum_os": "26.5",
+  "games": [
+    "Jak 1"
+  ],
+  "source_commit_recorded_at_build": "cefd732138849ff1f582be931e58bd06ef2a327c",
+  "engine_commit_recorded_at_build": "a49443d9646d12b305ca4aec4d4c44ae34267d7f",
+  "source_status": "Fresh native Mac Release build from exact original Build 270 app and engine revisions; no runtime source patches. Not a Build 274 build or an iOS/Catalyst conversion.",
+  "build_overrides": {
+    "CURRENT_PROJECT_VERSION": "270.1",
+    "CODE_SIGNING_ALLOWED": "NO",
+    "ARCHS": "arm64",
+    "CONFIGURATION": "Release"
+  },
+  "source_pack_manifest_sha256": "6ee43f81273d4d488dd484c567839f7a19a9198cd31a3adbb0750376d3abbe2c",
+  "source_pack_identity": "518 objects; c75b9e971a2c3bad",
+  "generated_aot": {
+    "origin": "Freshly generated from the recorded exact engine revision",
+    "objects": 518,
+    "emitted_functions": 10632,
+    "native_functions": 7,
+    "linked_boot_file_count": 518,
+    "boot_manifest_sha256": "4240ae30b0917c1c0a2f17ea483f0fedba70b9d461b7675fed5cc6ecc01ba8f1",
+    "coverage_sha256": "3f990290b2e605cfd777594d9bc0aaea137e02d414563101a5e7a86a63df1b86",
+    "preflight": "Passed verify-generated-aot.sh for 518 objects"
+  },
+  "signing": "Ad-hoc hardened-runtime signature; not DeveloperID-signed or notarized",
+  "entitlements": {
+    "com.apple.security.app-sandbox": true,
+    "com.apple.security.files.user-selected.read-only": true
+  },
+  "icloud": "Not provisioned; local saves only",
+  "retail_payload": "Not included; user supplies supported Jak1 data",
+  "validation": "Host compiler, fresh AOT generation and preflight, native Mac Release build, architecture/platform/minimum-OS checks, source-object hashes and linked 518-object AOT manifest passed. Fresh-user launch, raw-data import, gameplay and save/update acceptance were not performed.",
+  "limits": [
+    "Jak1 only; Mac target excludes the JakII runtime framework",
+    "Experimental; fresh-user launch, import, gameplay, save persistence and updates have not been tested",
+    "Build270 predates later Jak1 ocean-renderer teardown investigation"
+  ],
+  "license_notice_snapshot_engine_commit": "a49443d9646d12b305ca4aec4d4c44ae34267d7f",
+  "source_url": "https://github.com/zschwendi/dark-eco/commit/cefd732138849ff1f582be931e58bd06ef2a327c",
+  "engine_url": "https://github.com/zschwendi/jak-pad/commit/a49443d9646d12b305ca4aec4d4c44ae34267d7f",
+  "input_executable_sha256": "db35be4efd1529a0fadb084af87e23d6f4498f38fd438a07a721771ddd5d3029",
+  "input_bundle_manifest_sha256": "1f494767042d38fdc0c90ae5ed1bf838b271b2a21539e91861d3fc94431c93d3",
+  "input_files": 553,
+  "input_bytes": 59268416,
+  "source_pack_audit": "All 518 reconstructed Jak 1 source objects match their manifest size and XXH64; source pack reused unchanged from audited iOS Build 270. No retail game data included.",
+  "toolchain": [
+    "Xcode 27.1",
+    "Build version 27A9275"
+  ],
+  "dynamic_libraries": [
+    "/usr/lib/libc++.1.dylib",
+    "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation",
+    "/usr/lib/libobjc.A.dylib",
+    "/usr/lib/libSystem.B.dylib",
+    "/System/Library/Frameworks/AVFAudio.framework/Versions/A/AVFAudio",
+    "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+    "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+    "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+    "/System/Library/Frameworks/CoreHaptics.framework/Versions/A/CoreHaptics",
+    "/System/Library/Frameworks/CryptoKit.framework/Versions/A/CryptoKit",
+    "/System/Library/Frameworks/GameController.framework/Versions/A/GameController",
+    "/System/Library/Frameworks/ImageIO.framework/Versions/A/ImageIO",
+    "/System/Library/Frameworks/Metal.framework/Versions/A/Metal",
+    "/System/Library/Frameworks/QuartzCore.framework/Versions/A/QuartzCore",
+    "/System/Library/Frameworks/StoreKit.framework/Versions/A/StoreKit",
+    "/System/Library/Frameworks/SwiftUI.framework/Versions/A/SwiftUI",
+    "/usr/lib/libz.1.dylib",
+    "/usr/lib/swift/libswiftAVFoundation.dylib",
+    "/usr/lib/swift/libswiftCore.dylib",
+    "/usr/lib/swift/libswiftCoreAudio.dylib",
+    "/usr/lib/swift/libswiftCoreFoundation.dylib",
+    "/usr/lib/swift/libswiftCoreImage.dylib",
+    "/usr/lib/swift/libswiftCoreMIDI.dylib",
+    "/usr/lib/swift/libswiftDispatch.dylib",
+    "/usr/lib/swift/libswiftIOKit.dylib",
+    "/usr/lib/swift/libswiftMetal.dylib",
+    "/usr/lib/swift/libswiftOSLog.dylib",
+    "/usr/lib/swift/libswiftObjectiveC.dylib",
+    "/usr/lib/swift/libswiftObservation.dylib",
+    "/usr/lib/swift/libswiftQuartzCore.dylib",
+    "/usr/lib/swift/libswiftSpatial.dylib",
+    "/usr/lib/swift/libswiftSynchronization.dylib",
+    "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+    "/usr/lib/swift/libswiftXPC.dylib",
+    "/usr/lib/swift/libswift_Builtin_float.dylib",
+    "/usr/lib/swift/libswift_Concurrency.dylib",
+    "/usr/lib/swift/libswift_DarwinFoundation1.dylib",
+    "/usr/lib/swift/libswiftos.dylib",
+    "/usr/lib/swift/libswiftsimd.dylib"
+  ],
+  "package_changes": [
+    "Add exact-source license notices and this provenance receipt",
+    "Apply an ad-hoc hardened-runtime signature retaining sandbox and user-selected read-only file access; omit maintainer iCloud identity"
+  ]
+}
