@@ -249,6 +249,7 @@ struct ContentView: View {
             SettingsSheetView(sync: session.saveSync,
                               settings: session.presentationSettings,
                               input: session.input,
+                              renderSettings: session.settings,
                               selectedTitle: session.title,
                               isGameRunning: session.isRunning,
                               selectSettingsTitle: selectSettingsTitle,
@@ -365,6 +366,7 @@ private struct SettingsSheetView: View {
     @Bindable var sync: SaveSyncController
     @Bindable var settings: PresentationSettings
     @Bindable var input: ControllerInput
+    @Bindable var renderSettings: RenderSettings
     let selectedTitle: GameLibraryTitle
     let isGameRunning: Bool
     let selectSettingsTitle: (GameLibraryTitle) -> Void
@@ -372,6 +374,7 @@ private struct SettingsSheetView: View {
     init(sync: SaveSyncController,
          settings: PresentationSettings,
          input: ControllerInput,
+         renderSettings: RenderSettings,
          selectedTitle: GameLibraryTitle,
          isGameRunning: Bool,
          selectSettingsTitle: @escaping (GameLibraryTitle) -> Void,
@@ -379,6 +382,7 @@ private struct SettingsSheetView: View {
         self.sync = sync
         self.settings = settings
         self.input = input
+        self.renderSettings = renderSettings
         self.selectedTitle = selectedTitle
         self.isGameRunning = isGameRunning
         self.selectSettingsTitle = selectSettingsTitle
@@ -390,6 +394,7 @@ private struct SettingsSheetView: View {
             SaveSettingsView(sync: sync,
                              settings: settings,
                              input: input,
+                             renderSettings: renderSettings,
                              selectedTitle: selectedTitle,
                              isGameRunning: isGameRunning,
                              selectSettingsTitle: selectSettingsTitle,

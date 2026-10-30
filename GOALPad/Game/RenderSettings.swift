@@ -70,6 +70,10 @@ final class RenderSettings {
         surface.setHorizontalPlusEnabled(horizontalPlusEnabled)
     }
 
+    func restoreDefaults() {
+        internalResolutionScale = configuration.defaultScale
+    }
+
     func label(for scale: Int) -> String {
         "\(Self.baseWidth * scale)x\(Self.baseHeight * scale)"
     }

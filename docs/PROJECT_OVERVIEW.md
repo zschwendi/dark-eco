@@ -171,6 +171,13 @@ configuration. Pinch input is not part of the frozen touch contract; camera zoom
 uses one explicit semantic toggle. A device-local settings-sync opt-out does not
 disable iCloud saves.
 
+The ordinary Graphics settings expose the existing 1x–4x internal-resolution
+selector without enabling Developer Logs. Resolution stays device-local and
+separate for each title: Jak 1 defaults to 2x and Jak II to 4x. Restore Graphics
+Defaults and Reset All restore the selected title's configured scale. On
+visionOS, the setting is labeled Windowed Resolution and does not change the
+separate immersive renderer.
+
 **Experimental:** On October 29, 2026 the maintainer authorized one exception to
 that frozen touch contract: an optional, default-off iOS **Controls › Touch
 Actions › Buttons** choice, stored as `touchFaceButtonsEnabledOverride` in each

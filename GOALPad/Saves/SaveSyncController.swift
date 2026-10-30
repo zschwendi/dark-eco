@@ -1212,6 +1212,7 @@ struct SaveSettingsView: View {
     @Bindable var sync: SaveSyncController
     @Bindable var settings: PresentationSettings
     @Bindable var input: ControllerInput
+    @Bindable var renderSettings: RenderSettings
     let selectedTitle: GameLibraryTitle
     let isGameRunning: Bool
     let selectSettingsTitle: (GameLibraryTitle) -> Void
@@ -1452,6 +1453,7 @@ struct SaveSettingsView: View {
         ) {
             Button("Reset All to Defaults", role: .destructive) {
                 settings.resetAll()
+                renderSettings.restoreDefaults()
                 input.setPrimarySource(settings.primaryInputSource)
                 input.setBindings(settings.jak1InputBindings)
             }
@@ -1646,8 +1648,26 @@ struct SaveSettingsView: View {
                 .foregroundStyle(.secondary)
             #endif
 
+            #if os(visionOS)
+            Picker("Windowed Resolution", selection: $renderSettings.internalResolutionScale) {
+                ForEach(RenderSettings.availableScales, id: \.self) { scale in
+                    Text("\(scale)x  \(renderSettings.label(for: scale))").tag(scale)
+                }
+            }
+            #else
+            Picker("Internal Resolution", selection: $renderSettings.internalResolutionScale) {
+                ForEach(RenderSettings.availableScales, id: \.self) { scale in
+                    Text("\(scale)x  \(renderSettings.label(for: scale))").tag(scale)
+                }
+            }
+            #endif
+            Text("Higher resolutions look sharper but use more power and heat.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
             Button("Restore Graphics Defaults") {
                 settings.restoreDefaults(for: .graphics)
+                renderSettings.restoreDefaults()
             }
             .foregroundStyle(.secondary)
     }
