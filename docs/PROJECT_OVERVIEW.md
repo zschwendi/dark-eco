@@ -1,6 +1,6 @@
 # GOALPad — Project Overview
 
-> **Status:** Experimental unified Jak 1 and Jak II port; Dark Eco Build 275 is the latest signed iOS test preview; gameplay acceptance is pending
+> **Status:** Experimental unified Jak 1 and Jak II port; Dark Eco Build 277 is the latest signed iOS test preview; gameplay acceptance is pending
 > **Working name:** GOALPad
 > **Public product name:** Dark Eco
 > **Distribution:** GitHub-only source and release artifacts; no App Store or TestFlight path

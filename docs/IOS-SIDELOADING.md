@@ -1,19 +1,25 @@
 # Dark Eco for iPhone and iPad
 
-Download the [experimental iOS/iPadOS Build 275 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/ios-build275-preview).
-The **2.0 / Build 275** package is
-`DarkEco-iOS-2.0-build275-preview.ipa`. One native arm64 IPA supports both
+Download the [experimental iOS/iPadOS Build 277 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/ios-build277-preview).
+The **2.0 / Build 277** package is
+`DarkEco-iOS-2.0-build277-preview.ipa`. One native arm64 IPA supports both
 iPhone and iPad on **iOS/iPadOS 26.5 or later**. It contains the app runtime and
 reconstructed OpenGOAL code, with no retail game data.
 Its device-family metadata is `1,2`; this is a physical-device build, not a
 simulator app.
 
-This is a fresh native build with optional on-screen face buttons, the current
+This native build adds **Graphics → Internal Resolution** alongside optional
+on-screen face buttons. It includes the current
 Jak II lookup-speed, Dark Jak allocation and shadow-rendering repairs, and
 updated OpenGOAL importer resources. The Jak II repairs still need physical
 gameplay acceptance; this is an experimental preview. A reported third-party
 import failure has not been reproduced or diagnosed. Recipient signing, fresh
 game import, gameplay and save-preserving refresh remain unverified.
+
+**Known performance issue:** Jak 1 can microstutter with ProMotion enabled.
+Start with **Graphics → ProMotion off** for 60 FPS, which was reported smooth
+in current iPhone Air testing. Build 277 does not fix the 120 Hz issue.
+Normal launches leave the optional developer timing recorder disabled.
 
 ## Install with your own signing identity
 
@@ -95,9 +101,9 @@ addressing or JIT entitlements. The repack does not remove a required memory
 capability. Its ad-hoc transport signature must still be replaced by your
 sideloader's signature for your device.
 
-Build 275's exact compiled source is [app `1511546`](https://github.com/zschwendi/dark-eco/commit/1511546a05695b2bca585170ab831ca6d8a14475)
+Build 277's exact compiled source is [app `9277ff1`](https://github.com/zschwendi/dark-eco/commit/9277ff1edb41790e83a405422bd1f27aa81f54de)
 and [engine `9088ff7a`](https://github.com/zschwendi/jak-pad/commit/9088ff7a252c8b48e01da39afd23e4a09b4b0435).
 Original hashes, changes and limitations are recorded in
-[IPA-IOS275-PROVENANCE.json](IPA-IOS275-PROVENANCE.json). The release includes
+[IPA-IOS277-PROVENANCE.json](IPA-IOS277-PROVENANCE.json). The release includes
 the complete package manifest and checksum. Local package checks are not
 physical-device or gameplay acceptance.

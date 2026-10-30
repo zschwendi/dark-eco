@@ -1,3 +1,31 @@
+# October 30 — iOS preview 277 and complete release delivery
+
+Build 277 compiles app `9277ff1edb41790e83a405422bd1f27aa81f54de` with native
+`9088ff7a252c8b48e01da39afd23e4a09b4b0435`. The matching development build is
+installed on the requested iPhone Air; the public package requires recipient
+re-signing and uses local saves. Later release-document commits do not change
+the compiled binary. Graphics now exposes the existing per-title resolution
+selector. Optional touch face buttons remain available; timing diagnostics are
+disabled on normal launches.
+
+The signed iOS Release build, focused settings/diagnostic checks, strict package
+signatures, all 1,432 packaged file hashes and executable code/data comparisons
+passed. The public IPA SHA256 is
+`ac1bfb16b4cd1fa9f340c118aae0beb4cd8ca3b51e67f4b296f29ecabf83a35c`.
+See `docs/IPA-IOS277-PROVENANCE.json` and `.agent-builds/ios-release277-20261030/`.
+
+Jak 1 120 Hz microstutter remains unresolved. The maintainer reports smooth
+locked 60 FPS; recommend ProMotion off for now. The measured 2x capture exceeds
+the 120 Hz frame budget, but CPU versus render/wait attribution is unresolved.
+The requested 1x comparison is deferred by the user. Preserve the investigation
+and do not restart tests or claim a fix. Jak II physical acceptance and the
+recipient import report remain open. The separate Vision and Mac packages are
+unchanged.
+
+The release workflow is now explicit in AGENTS.md: each passing current preview
+must include its matching downloadable IPA, current links, provenance/checksums
+and verified public download, not only a source push.
+
 # October 30 — iOS preview 275 and optional touch buttons
 
 Fresh signed iOS Release Build 275 compiled from app

@@ -195,6 +195,30 @@ Advance through small executable proofs in roughly this order:
 
 Do not skip several milestones by introducing a large unvalidated rewrite.
 
+## Release delivery includes downloadable builds
+
+Zach's standing instruction (October 30, 2026): when a build passes the checks
+required for its scoped change and is delivered as the current test preview,
+update the downloadable IPA as part of the same task. Source-only publication
+is not a completed delivery. This is the default workflow; do not wait for a
+second request to refresh an existing IPA distribution lane.
+
+1. Record the compiled app/native commits, build number, platform and checks.
+2. Package the matching signed build using the existing audited release path;
+   exclude private signing material and retail game data.
+3. Publish source and the matching versioned IPA, provenance, manifest and
+   checksums; update current README/setup/download links and superseded notes.
+4. Download the public asset without authentication and verify its build/hash
+   against the local receipt before saying it is available.
+5. Record delivery on AstraBoard and in the handoff. If publication is blocked
+   or the user explicitly requested a private build, say so rather than leaving
+   the public download silently behind.
+
+Passing compilation or packaging does not prove gameplay correctness. Keep
+experimental status and unresolved issues explicit; never call an unconfirmed
+performance repair fixed. Do not replace another platform's release with an
+incompatible IPA or publish unrelated work under this instruction.
+
 ## Build integrity
 
 A task is not complete merely because code was written.

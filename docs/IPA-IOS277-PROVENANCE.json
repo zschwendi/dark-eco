@@ -1,0 +1,38 @@
+{
+  "product": "Dark Eco",
+  "version": "2.0",
+  "build": "277",
+  "package_build": "277",
+  "platform": "iOS",
+  "source_commit_recorded_at_build": "9277ff1edb41790e83a405422bd1f27aa81f54de",
+  "engine_commit_recorded_at_build": "9088ff7a252c8b48e01da39afd23e4a09b4b0435",
+  "source_status": "Signed native iOS Release build matching installed iPhone Air Build 277: optional touch buttons, normal Graphics resolution selector, and opt-in diagnostics disabled on ordinary launch. Experimental preview; no 120 Hz performance fix.",
+  "source_url": "https://github.com/zschwendi/dark-eco/commit/9277ff1edb41790e83a405422bd1f27aa81f54de",
+  "engine_url": "https://github.com/zschwendi/jak-pad/commit/9088ff7a252c8b48e01da39afd23e4a09b4b0435",
+  "input_executable_sha256": "0cb9b381da6251ef0a633ba73c9eb4c44a1ebf7f6e71efd57eee478562980f4c",
+  "input_framework_sha256": "acf4a375c69535ecc33bae1ba2b0e969b416a496f8474d68429fc47ad9e5c619",
+  "input_bundle_manifest_sha256": "8f10b13a7c76f2ecfa52c7f4dcd9f8c6c1053ea3bc17b02d8e764511c60146f5",
+  "source_pack_manifests_sha256": {
+    "Jak1": "1f6235f5c72509333d116235df63147aafb3b3453fc5676c8e15af627edb1ead",
+    "Jak2": "71a3da27a1d09b0fedd2905abe5c69982b06585bfe00d128fefe93b09afdc7fa"
+  },
+  "source_pack_audit": "Both bundled packs passed their current native verifier, all member sizes and XXH64 hashes, and matching aggregate IDs: Jak1 518 / 806abc2b2667435a; Jak2 840 / f2cdf82e9b913501.",
+  "repack_changes": [
+    "Keep build 277 and compiled runtime code matching the installed development build",
+    "Remove maintainer provisioning and signatures",
+    "Apply transport ad-hoc signatures with empty entitlements",
+    "Add matching source notices and this receipt"
+  ],
+  "sideload_validation": "Recipient signing, fresh raw-disc import and gameplay acceptance are not certified by compilation or packaging checks.",
+  "limits": [
+    "Experimental preview",
+    "Jak 1 ProMotion 120 Hz microstutter is unresolved; 60 Hz was reported smooth by the maintainer",
+    "Diagnostic recording is disabled in ordinary launches",
+    "Jak II slowdown and Dark Jak crash repairs are included; physical acceptance remains pending",
+    "The reported recipient import failure has no reproduced diagnosis",
+    "Public package uses local saves; iCloud is not provisioned",
+    "Jak 1 ocean teardown investigation remains open",
+    "No retail game assets included"
+  ],
+  "license_notice_snapshot_engine_commit": "9088ff7a252c8b48e01da39afd23e4a09b4b0435"
+}
