@@ -35,6 +35,8 @@ struct TouchControlsGuideView: View {
                     }
                     guideRow(symbol: .text("L"), title: "Movement")
                     guideRow(symbol: .text("R"), title: "Camera")
+                    guideRow(symbol: .text("✕"), title: "Optional Buttons",
+                             detail: "Choose Controls > Touch Actions > Buttons to use Cross, Square, Circle, Triangle, and L1 (crouch) buttons instead of swipes. Taps outside the buttons keep their tap action. On the Zoomer, hold Cross to accelerate and L1 to brake.")
                 }
 
                 Text("Dark Eco also supports wireless gamepads for controller input.")

@@ -203,6 +203,10 @@ struct ContentView: View {
             _, enabled in
             session.touch.setDynamicLeftStick(enabled)
         }
+        .onChange(of: session.presentationSettings.touchFaceButtonsEnabled, initial: true) {
+            _, enabled in
+            session.touch.setFaceButtonsEnabled(enabled)
+        }
         #elseif os(visionOS)
         .onChange(of: session.presentationSettings.graphicsVisionHighFrameRate, initial: true) {
             _, enabled in

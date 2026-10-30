@@ -132,6 +132,18 @@ if printf '%s\n' "$ordinary_layer" | rg -q 'shoulderButton|rightShoulder'; then
   exit 1
 fi
 printf '%s\n' "$ordinary_layer" | rg -Fq 'if jak2WeaponWheelIsVisible {'
+# Optional face buttons are drawing only inside the shared idle/suppression layer; the UIKit
+# TouchSurfaceView remains their sole press/hold/release owner.
+printf '%s\n' "$ordinary_layer" | rg -Fq 'FaceButtonArtwork('
+face_button_view=$(sed -n \
+  '/private struct FaceButtonArtwork: View {/,/private struct Jak2WeaponWheelControl: View {/p' \
+  "$root/GOALPad/Game/TouchControlsView.swift")
+if printf '%s\n' "$face_button_view" \
+    | rg -q 'Button \{|DragGesture|onTapGesture|simultaneousGesture|highPriorityGesture'; then
+  echo "face-button artwork introduced a competing SwiftUI touch owner" >&2
+  exit 1
+fi
+rg -Fq 'controls.faceButtonsEnabled ? []' "$root/GOALPad/Game/TouchControlsView.swift"
 printf '%s\n' "$ordinary_layer" | rg -Fq 'Jak2WeaponWheelControl('
 if test "$(rg -F -c 'Jak2WeaponWheelControl(' \
     "$root/GOALPad/Game/TouchControlsView.swift")" -ne 1; then

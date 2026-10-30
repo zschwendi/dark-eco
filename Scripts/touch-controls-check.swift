@@ -3423,6 +3423,366 @@ private func nativeFacePromptPulsesRejectStaleWorkAndCancelOnLoss() {
           "cutscene SKIP prevents a duplicate contextual Triangle pulse")
 }
 
+@MainActor
+private func faceCentre(_ run: Runner, _ button: TouchButton) -> CGPoint {
+    let frame = run.controls.faceButtonLayout(in: run.screen,
+                                              safeAreaInsets: run.safeAreaInsets)
+        .hitFrames[button]!
+    return CGPoint(x: frame.midX, y: frame.midY)
+}
+
+private func disjoint(_ lhs: CGRect, _ rhs: CGRect) -> Bool {
+    let intersection = lhs.intersection(rhs)
+    return intersection.isNull || intersection.width <= 0.001 || intersection.height <= 0.001
+}
+
+@MainActor
+private func faceButtonModeIsOptInAndMapsExactButtons() {
+    print("optional face buttons are off by default and map exact held pad bits")
+    var gestures = Runner()
+    check(!gestures.controls.faceButtonsEnabled, "touch actions default to swipe gestures")
+    let crossInGestureMode = Finger()
+    let crossPoint = faceCentre(gestures, .cross)
+    gestures.down(crossInGestureMode, crossPoint)
+    check(gestures.controls.gestures.count == 1 && gestures.frame() == .neutral,
+          "gesture mode treats the button area as the unchanged swipe surface")
+    gestures.move(crossInGestureMode, CGPoint(x: crossPoint.x, y: crossPoint.y - 60))
+    check(gestures.frame().buttons == .cross, "gesture mode still swipes up to Cross")
+    gestures.up(crossInGestureMode)
+
+    for (button, bit) in [(TouchButton.cross, GOALPadButton.cross), (.square, .square),
+                          (.circle, .circle), (.triangle, .triangle), (.crouch, .L1)] {
+        for title in [TouchGameTitle.jak1, .jak2] {
+            var run = Runner(gameTitle: title)
+            run.controls.setFaceButtonsEnabled(true)
+            let finger = Finger()
+            run.down(finger, faceCentre(run, button))
+            check(run.controls.isFaceButtonDown(button)
+                  && run.controls.consumeHapticEvents() == [.button(button)],
+                  "\(title) \(ModernFaceButtonLayout.label(for: button)) owns its finger with one haptic")
+            check(run.frames(12).allSatisfy { $0.buttons == bit },
+                  "\(title) \(ModernFaceButtonLayout.label(for: button)) holds exactly its pad bit")
+            run.move(finger, CGPoint(x: 900, y: 360))
+            check(run.frame().buttons == bit,
+                  "\(title) dragging off \(ModernFaceButtonLayout.label(for: button)) keeps it held")
+            run.up(finger)
+            check(run.frames(TouchControls.holdFrames + 2).last! == .neutral
+                  && run.controls.touches.isEmpty,
+                  "\(title) lifting \(ModernFaceButtonLayout.label(for: button)) releases it")
+        }
+    }
+    let crouch = Runner()
+    crouch.controls.setFaceButtonsEnabled(true)
+    let crouchFinger = Finger()
+    crouch.down(crouchFinger, faceCentre(crouch, .crouch))
+    check(crouch.controls.isCrouching, "the explicit L1 target reports the shared crouch state")
+}
+
+@MainActor
+private func faceButtonsHoldTogetherAndCancelCleanly() {
+    print("face buttons share frames with both sticks and release on every lifecycle path")
+    var run = Runner()
+    run.controls.setFaceButtonsEnabled(true)
+    let movement = Finger()
+    let camera = Finger()
+    let jump = Finger()
+    let attack = Finger()
+    let crouch = Finger()
+    let centre = Runner.movementCentre
+    let cameraCentre = CGPoint(x: Runner.rightStick.midX, y: Runner.rightStick.midY)
+    run.down(movement, centre)
+    run.move(movement, CGPoint(x: centre.x + TouchControls.movementRadius, y: centre.y))
+    run.down(camera, cameraCentre)
+    run.move(camera, CGPoint(x: cameraCentre.x + TouchControls.rightStickRadius,
+                             y: cameraCentre.y))
+    run.down(jump, faceCentre(run, .cross))
+    run.down(attack, faceCentre(run, .square))
+    run.down(crouch, faceCentre(run, .crouch))
+    let together = run.frame()
+    check(together.leftX == 254 && together.rightX == 254
+          && together.buttons.isSuperset(of: [.cross, .square, .L1])
+          && together.buttons.intersection([.circle, .triangle]).isEmpty,
+          "movement, camera, Cross, Square, and L1 reach one frame together")
+
+    run.up(jump)
+    let afterJump = run.frames(TouchControls.holdFrames + 2).last!
+    check(!afterJump.buttons.contains(.cross)
+          && afterJump.buttons.contains(.square) && afterJump.buttons.contains(.L1)
+          && afterJump.isLeftDeflected,
+          "lifting Cross leaves the other held buttons and movement intact")
+    run.cancel(attack)
+    let afterCancel = run.frames(TouchControls.holdFrames + 2).last!
+    check(!afterCancel.buttons.contains(.square) && afterCancel.buttons.contains(.L1),
+          "a cancelled Square finger releases only Square")
+    run.controls.reconcileActiveTouches([ObjectIdentifier(movement)])
+    let afterReconcile = run.frames(TouchControls.holdFrames + 2).last!
+    check(afterReconcile.buttons.isEmpty && afterReconcile.isLeftDeflected
+          && run.controls.touches.count == 1,
+          "UIKit live-set reconciliation releases a missed L1 end")
+
+    let held = Finger()
+    run.down(held, faceCentre(run, .circle))
+    _ = run.frame()
+    run.controls.reset()
+    check(run.frame() == .neutral && run.controls.touches.isEmpty,
+          "lifecycle reset clears a held face button immediately")
+
+    let switching = Finger()
+    run.down(switching, faceCentre(run, .triangle))
+    _ = run.frame()
+    run.controls.setFaceButtonsEnabled(false)
+    check(run.frame() == .neutral && run.controls.touches.isEmpty
+          && !run.controls.faceButtonsEnabled,
+          "switching back to gestures cancels the held button before it reaches the game")
+    let swipe = Finger()
+    let swipePoint = faceCentre(run, .triangle)
+    run.down(swipe, swipePoint)
+    run.move(swipe, CGPoint(x: swipePoint.x - 70, y: swipePoint.y))
+    check(run.frame().buttons == .square, "the restored gesture mode swipes left to Square")
+}
+
+@MainActor
+private func faceButtonModeDisablesSwipesButKeepsTaps() {
+    print("button mode disables action swipes while keeping title-aware camera taps")
+    var run = Runner()
+    run.controls.setFaceButtonsEnabled(true)
+    let open = CGPoint(x: 900, y: 360)
+    for (dx, dy) in [(CGFloat(0), CGFloat(-70)), (-70, 0), (70, 0), (0, 70)] {
+        let finger = Finger()
+        run.down(finger, open)
+        run.move(finger, CGPoint(x: open.x + dx, y: open.y + dy))
+        check(run.frames(4).allSatisfy { $0 == .neutral }
+              && run.controls.gestures.allSatisfy { $0.swiped == nil
+                  && $0.trailSegments.isEmpty }
+              && run.controls.consumeHapticEvents().isEmpty,
+              "an open-area swipe (\(dx), \(dy)) emits no action, crouch, or trail")
+        run.up(finger)
+        _ = run.frames(TouchControls.holdFrames + TouchControls.releaseFrames)
+    }
+
+    var jak2 = Runner(gameTitle: .jak2)
+    jak2.controls.setFaceButtonsEnabled(true)
+    let tap = Finger()
+    jak2.down(tap, open)
+    jak2.up(tap)
+    check(jak2.frame().buttons == .R1, "a Jak II open-area tap still fires R1")
+
+    var firstPerson = Runner()
+    firstPerson.controls.setFaceButtonsEnabled(true)
+    let fire = Finger()
+    firstPerson.down(fire, open)
+    firstPerson.up(fire, lookAroundState: .firstPerson)
+    check(firstPerson.frame().buttons == .square,
+          "a Jak 1 first-person open-area tap still fires Square")
+    check(firstPerson.controls.performZoomToggle(lookAroundState: .normal),
+          "semantic zoom remains available in button mode")
+}
+
+@MainActor
+private func faceButtonsYieldToNativeAndContextualOwners() {
+    print("face buttons yield to native menus, contextual prompts, and SKIP")
+    var paused = Runner()
+    paused.controls.setFaceButtonsEnabled(true)
+    paused.controls.setNativeMenuMode(.pause)
+    let pausedFinger = Finger()
+    paused.down(pausedFinger, faceCentre(paused, .cross))
+    check(paused.controls.touches.isEmpty && paused.frame() == .neutral,
+          "a captured native menu ignores face-button touches")
+
+    var prompted = Runner()
+    prompted.controls.setFaceButtonsEnabled(true)
+    prompted.controls.setNativeMenuState(
+        .gameplay, progress: .unavailable, titleStartState: .notAwaiting,
+        runReadiness: .active)
+    let carried = Finger()
+    prompted.down(carried, faceCentre(prompted, .square))
+    check(prompted.frame().buttons == .square, "Square is held before a prompt appears")
+    let circle = facePrompt(NativeFacePromptTouchSnapshot.circleMask, sequence: 190)
+    prompted.controls.setFacePromptTouchSnapshot(circle)
+    check(prompted.frame() == .neutral && prompted.controls.touches.isEmpty,
+          "a contextual prompt cancels the carried face button")
+    let blocked = Finger()
+    prompted.down(blocked, faceCentre(prompted, .circle))
+    check(prompted.controls.touches.isEmpty && prompted.frame() == .neutral,
+          "the prompt-owned surface keeps ordinary face buttons inert")
+    prompted.controls.performFacePromptAction(.circle, for: circle)
+    check(prompted.frame().buttons == .circle,
+          "the requested contextual Circle remains the sole command action")
+
+    var skip = Runner()
+    skip.controls.setFaceButtonsEnabled(true)
+    skip.controls.setNativeMenuMode(.gameplay)
+    skip.controls.setCutsceneSkipTouchSnapshot(.triangleQueryAvailable(sequence: 192))
+    let triangle = Finger()
+    skip.down(triangle, faceCentre(skip, .triangle))
+    check(skip.controls.touches.isEmpty && skip.frame() == .neutral,
+          "authoritative SKIP keeps the Triangle face button inert")
+    let cross = Finger()
+    skip.down(cross, faceCentre(skip, .cross))
+    check(skip.frame().buttons == .cross, "Cross remains available during the cutscene")
+
+    var carriedSkip = Runner()
+    carriedSkip.controls.setFaceButtonsEnabled(true)
+    carriedSkip.controls.setNativeMenuMode(.gameplay)
+    let heldTriangle = Finger()
+    let heldCross = Finger()
+    carriedSkip.down(heldTriangle, faceCentre(carriedSkip, .triangle))
+    carriedSkip.down(heldCross, faceCentre(carriedSkip, .cross))
+    check(carriedSkip.frame().buttons == [.triangle, .cross],
+          "Triangle and Cross are both held before SKIP appears")
+    carriedSkip.controls.setCutsceneSkipTouchSnapshot(.triangleQueryAvailable(sequence: 194))
+    let afterSkip = carriedSkip.frames(TouchControls.holdFrames + 2)
+    check(afterSkip.allSatisfy { !$0.buttons.contains(.triangle) && $0.buttons.contains(.cross) }
+          && !carriedSkip.controls.isFaceButtonDown(.triangle)
+          && carriedSkip.controls.isFaceButtonDown(.cross),
+          "SKIP releases the carried Triangle and its pulse while Cross stays held")
+
+    var tappedSkip = Runner()
+    tappedSkip.controls.setFaceButtonsEnabled(true)
+    tappedSkip.controls.setNativeMenuMode(.gameplay)
+    let quickTriangle = Finger()
+    tappedSkip.down(quickTriangle, faceCentre(tappedSkip, .triangle))
+    tappedSkip.up(quickTriangle)
+    tappedSkip.controls.setCutsceneSkipTouchSnapshot(.triangleQueryAvailable(sequence: 196))
+    check(tappedSkip.frames(TouchControls.holdFrames + 2).allSatisfy {
+        !$0.buttons.contains(.triangle)
+    }, "a face Triangle tapped before any frame cannot auto-skip a newly published SKIP")
+
+    let skipPill = Finger()
+    tappedSkip.down(skipPill, CGPoint(x: Runner.stats.midX, y: Runner.stats.midY))
+    tappedSkip.up(skipPill)
+    tappedSkip.controls.setCutsceneSkipTouchSnapshot(.triangleQueryAvailable(sequence: 198))
+    check(tappedSkip.frame().buttons.contains(.triangle),
+          "an explicit semantic SKIP pulse survives the following query sequence change")
+
+    var replacedPulse = Runner()
+    replacedPulse.controls.setFaceButtonsEnabled(true)
+    replacedPulse.controls.setNativeMenuMode(.gameplay)
+    let replacedTriangle = Finger()
+    replacedPulse.down(replacedTriangle, faceCentre(replacedPulse, .triangle))
+    replacedPulse.up(replacedTriangle)
+    check(replacedPulse.controls.performZoomToggle(lookAroundState: .normal),
+          "semantic zoom can replace a pending ordinary face-Triangle pulse")
+    replacedPulse.controls.setCutsceneSkipTouchSnapshot(.triangleQueryAvailable(sequence: 200))
+    let semanticReplacement = replacedPulse.frames(
+        TouchControls.releaseFrames + TouchControls.holdFrames + 1)
+    check(!semanticReplacement[0].buttons.contains(.triangle)
+          && semanticReplacement.dropFirst().contains { $0.buttons.contains(.triangle) },
+          "SKIP takeover preserves the semantic Triangle after its required release gap")
+}
+
+@MainActor
+private func explicitL1BrakesTheRacerWithoutChangingOnFootL1() {
+    print("button-mode L1 reuses the racer brake chord and stays exact on foot")
+    var riding = Runner()
+    riding.controls.setFaceButtonsEnabled(true)
+    riding.controls.setSpeederState(.riding)
+    let accelerate = Finger()
+    let brake = Finger()
+    riding.down(accelerate, faceCentre(riding, .cross))
+    riding.down(brake, faceCentre(riding, .crouch))
+    check(riding.frames(6).allSatisfy { $0.buttons == [.cross, .L1, .R1] },
+          "held Cross plus held L1 accelerates with the L1+R1 brake chord")
+    riding.up(brake)
+    let released = riding.frame()
+    check(!released.buttons.contains(.R1) && released.buttons.contains(.cross),
+          "lifting L1 drops R1 immediately while Cross stays held")
+    check(riding.frames(TouchControls.holdFrames + 2).last!.buttons == .cross,
+          "the lifted brake fully releases L1")
+
+    let cancelled = Finger()
+    riding.down(cancelled, faceCentre(riding, .crouch))
+    check(riding.frame().buttons == [.cross, .L1, .R1], "a fresh L1 contact brakes again")
+    riding.cancel(cancelled)
+    check(!riding.frame().buttons.contains(.R1), "a cancelled L1 contact drops R1 immediately")
+    _ = riding.frames(TouchControls.holdFrames + 2)
+
+    let dismount = Finger()
+    riding.down(dismount, faceCentre(riding, .crouch))
+    check(riding.frame().buttons.contains(.R1), "L1 brakes while the racer state is riding")
+    riding.controls.setSpeederState(.notRiding)
+    check(riding.frames(3).allSatisfy { $0.buttons == [.cross, .L1] },
+          "leaving the racer keeps exact held L1 and Cross without R1")
+    riding.up(dismount)
+    riding.up(accelerate)
+    check(riding.frames(TouchControls.holdFrames + 2).last! == .neutral,
+          "lifting both fingers releases every racer input")
+}
+
+@MainActor
+private func faceButtonLayoutStaysSafeAndClear() {
+    print("face-button geometry stays inside landscape safe areas and clear of other controls")
+    let air = CGSize(width: 956, height: 440)
+    let airInsets = TouchSafeAreaInsets(top: 0, leading: 62, bottom: 21, trailing: 62)
+    let iPad = CGSize(width: 1210, height: 834)
+    let iPadInsets = TouchSafeAreaInsets(top: 24, leading: 0, bottom: 20, trailing: 0)
+    var largeCamera = TouchLayoutCustomization.standard
+    largeCamera.setStickSize(.large, for: .modernCamera)
+    var raisedCamera = TouchLayoutCustomization.standard
+    raisedCamera.setPosition(NormalizedTouchPosition(x: 0.85, y: 0.2), for: .modernCamera)
+    let devices: [(name: String, size: CGSize, insets: TouchSafeAreaInsets, compact: Bool,
+                   customization: TouchLayoutCustomization, fullSize: Bool)] = [
+        ("landscape iPhone Air", air, airInsets, true, .standard, true),
+        ("landscape iPhone", CGSize(width: 852, height: 393),
+         TouchSafeAreaInsets(top: 0, leading: 59, bottom: 21, trailing: 59), true,
+         .standard, true),
+        ("landscape 667x375 iPhone", CGSize(width: 667, height: 375), .zero, true,
+         .standard, true),
+        ("landscape 568x320 iPhone", CGSize(width: 568, height: 320), .zero, true,
+         .standard, false),
+        ("landscape iPad Pro 11-inch", iPad, iPadInsets, false, .standard, true),
+        ("landscape iPad test surface", Runner.screen, Runner.safeAreaInsets, false,
+         .standard, true),
+        ("iPhone Air with a large camera stick", air, airInsets, true, largeCamera, false),
+        ("iPhone Air with a raised camera stick", air, airInsets, true, raisedCamera, true),
+        ("iPad Pro 11-inch with a large camera stick", iPad, iPadInsets, false,
+         largeCamera, true),
+    ]
+    for device in devices {
+        let layout = ModernTouchLayout(size: device.size, safeAreaInsets: device.insets,
+                                       customization: device.customization,
+                                       usesCompactSessionChrome: device.compact)
+        let cameraHit = layout.rightStickArtworkFrame.insetBy(
+            dx: -ModernTouchLayout.rightStickHitSlop, dy: -ModernTouchLayout.rightStickHitSlop)
+        let faces = ModernFaceButtonLayout(modernLayout: layout, rightStickHitFrame: cameraHit)
+        check(faces.fitsWithoutOverlap,
+              "\(device.name) finds a bounded clear face-button placement")
+        check(faces.artworkFrames.values.allSatisfy {
+            $0.width == (device.fullSize ? ModernFaceButtonLayout.artworkDiameter
+                                         : ModernFaceButtonLayout.compactDiameter)
+        }, "\(device.name) uses the \(device.fullSize ? "preferred" : "44-point") target size")
+        let hits = ModernFaceButtonLayout.buttons.compactMap { faces.hitFrames[$0] }
+        check(hits.count == 5 && hits.allSatisfy { layout.safeBounds.contains($0) },
+              "\(device.name) keeps all five face-button targets inside the safe area")
+        check(hits.allSatisfy { $0.minX >= device.size.width / 2 },
+              "\(device.name) keeps every target in the right half, clear of dynamic L")
+        check(ModernFaceButtonLayout.buttons.allSatisfy {
+            faces.hitFrames[$0]!.contains(faces.artworkFrames[$0]!)
+                && faces.artworkFrames[$0]!.width >= 44
+        }, "\(device.name) draws each target at least 44 points inside its hit frame")
+        check(hits.indices.allSatisfy { lhs in
+            hits.indices.allSatisfy { rhs in lhs == rhs || disjoint(hits[lhs], hits[rhs]) }
+        }, "\(device.name) keeps the five targets mutually disjoint")
+        let pillHits = [layout.selectPillFrame, layout.statsPillFrame,
+                        layout.startPillFrame].map { $0.insetBy(dx: -10, dy: -12) }
+        let others = [cameraHit, layout.movementArtworkFrame, layout.zoomFrame,
+                      Jak2TraversalTouchLayout(modernLayout: layout).vehicleExitFrame,
+                      Jak2WeaponWheelLayout(modernLayout: layout).frame] + pillHits
+        check(hits.allSatisfy { hit in others.allSatisfy { disjoint(hit, $0) } },
+              "\(device.name) clears R, L, Zoom, pills, vehicle exit, and the weapon wheel")
+
+        var run = Runner(style: .modern, size: device.size, safeAreaInsets: device.insets,
+                         rightStickFrame: cameraHit)
+        run.controls.setLayoutCustomization(device.customization)
+        run.controls.setFaceButtonsEnabled(true)
+        let finger = Finger()
+        let frame = faces.hitFrames[.circle]!
+        run.down(finger, CGPoint(x: frame.midX, y: frame.midY))
+        check(run.frame().buttons == .circle,
+              "\(device.name) raw input hits the same Circle frame the artwork draws")
+    }
+}
+
 @main
 @MainActor
 struct TouchControlsCheck {
@@ -3469,6 +3829,12 @@ struct TouchControlsCheck {
         nativeFacePromptMappingOrderAndPriorityAreExact()
         contextualFacePromptExcludesOrdinaryGameplayCommands()
         nativeFacePromptPulsesRejectStaleWorkAndCancelOnLoss()
+        faceButtonModeIsOptInAndMapsExactButtons()
+        faceButtonsHoldTogetherAndCancelCleanly()
+        faceButtonModeDisablesSwipesButKeepsTaps()
+        faceButtonsYieldToNativeAndContextualOwners()
+        explicitL1BrakesTheRacerWithoutChangingOnFootL1()
+        faceButtonLayoutStaysSafeAndClear()
 
         print(failures == 0 ? "\nall checks passed" : "\n\(failures) checks FAILED")
         exit(failures == 0 ? 0 : 1)

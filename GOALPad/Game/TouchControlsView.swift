@@ -205,7 +205,8 @@ struct TouchControlsView: View {
                                  safeAreaInsets: safeAreaInsets,
                                  reclaimTouchInput: reclaimTouchInput)
 
-                    SwipeTrailArtwork(touches: controls.gestures)
+                    SwipeTrailArtwork(touches: controls.faceButtonsEnabled ? []
+                                                                           : controls.gestures)
                         .allowsHitTesting(false)
                     #endif
 
@@ -313,6 +314,18 @@ struct TouchControlsView: View {
                           y: layout.rightStickArtworkFrame.midY)
                 .opacity(rightStickArtworkIsAvailable ? 1 : 0)
                 .allowsHitTesting(false)
+
+            if controls.faceButtonsEnabled && activeGameplayChromeIsAvailable {
+                FaceButtonArtwork(
+                    controls: controls,
+                    layout: ModernFaceButtonLayout(
+                        modernLayout: layout,
+                        rightStickHitFrame: layout.rightStickArtworkFrame.insetBy(
+                            dx: -ModernTouchLayout.rightStickHitSlop,
+                            dy: -ModernTouchLayout.rightStickHitSlop)),
+                    triangleIsAvailable: !cutsceneSkipAvailable)
+                    .allowsHitTesting(false)
+            }
 
             zoomButton(frame: layout.zoomFrame)
                 .opacity(zoomIsAvailable ? 1 : 0)
@@ -974,6 +987,45 @@ private struct RightStickControl: View {
                                                  deadzone: touch.deadzone)
         let travel = radius - knobSize / 2
         return CGSize(width: push.x * travel, height: push.y * travel)
+    }
+}
+
+/// Drawing only: TouchSurfaceView owns every face-button press, hold, and release.
+private struct FaceButtonArtwork: View {
+    let controls: TouchControls
+    let layout: ModernFaceButtonLayout
+    let triangleIsAvailable: Bool
+
+    var body: some View {
+        ZStack {
+            ForEach(ModernFaceButtonLayout.buttons, id: \.self) { button in
+                let frame = layout.artworkFrames[button] ?? .zero
+                let isDown = controls.isFaceButtonDown(button)
+                let isAvailable = button != .triangle || triangleIsAvailable
+                Text(ModernFaceButtonLayout.label(for: button))
+                    .font(.system(size: button == .crouch ? 15 : 22, weight: .bold,
+                                  design: .rounded))
+                    .foregroundStyle(tint(for: button)
+                        .opacity(isAvailable ? (isDown ? 1 : 0.88) : 0.32))
+                    .frame(width: frame.width, height: frame.height)
+                    .background(Circle().fill(.black.opacity(isDown ? 0.72 : 0.42)))
+                    .overlay(Circle().strokeBorder(
+                        .white.opacity(isAvailable ? (isDown ? 0.9 : 0.35) : 0.15),
+                        lineWidth: 1))
+                    .position(x: frame.midX, y: frame.midY)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func tint(for button: TouchButton) -> Color {
+        switch button {
+        case .triangle: Color(red: 0.36, green: 0.86, blue: 0.62)
+        case .circle: Color(red: 1.0, green: 0.38, blue: 0.42)
+        case .cross: Color(red: 0.48, green: 0.68, blue: 1.0)
+        case .square: Color(red: 0.96, green: 0.52, blue: 0.86)
+        default: .white
+        }
     }
 }
 

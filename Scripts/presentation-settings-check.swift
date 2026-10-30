@@ -1341,6 +1341,64 @@ private func titleSettingsProfilesKeepKeysAndDocumentsIsolated() throws {
           "each presentation profile writes its own local document")
 }
 
+@MainActor
+private func touchFaceButtonsDefaultPersistAndReset() async throws {
+    print("optional touch face buttons default to gestures, persist per title, and reset")
+    let legacy = try JSONDecoder().decode(PresentationSettingsDocument.self, from: Data(
+        #"{"schemaVersion":1,"controlsProfile":"classic","graphicsProfile":"modern","audioProfile":"classic","interfaceProfile":"classic","modifiedAt":0,"writerID":"build274-device"}"#.utf8))
+    check(legacy.touchFaceButtonsEnabledOverride == nil && !legacy.touchFaceButtonsEnabled,
+          "a document without the new key decodes to the default swipe gestures")
+
+    let fixture = try Fixture(name: "touch-face-buttons")
+    let value = settings(fixture, writerID: "device-a", cloudAvailable: false)
+    check(!value.touchFaceButtonsEnabled, "a fresh title begins with swipe gestures")
+    value.setDeveloperLogsEnabled(true)
+    check(!((try? String(contentsOf: fixture.local, encoding: .utf8)) ?? "")
+            .contains("touchFaceButtonsEnabledOverride"),
+          "the default gesture choice is omitted from the persisted document")
+    value.setTouchFaceButtonsEnabled(true)
+    check(value.touchFaceButtonsEnabled
+          && value.document.touchFaceButtonsEnabledOverride == true
+          && readDocument(at: fixture.local)?.touchFaceButtonsEnabledOverride == true,
+          "choosing Buttons stores one explicit override")
+    check(!((try? String(contentsOf: fixture.localTouchLayout, encoding: .utf8)) ?? "")
+            .contains("touchFaceButtons"),
+          "the choice never enters the separate touch-layout sidecar")
+
+    let restored = settings(fixture, writerID: "device-b", cloudAvailable: false)
+    check(restored.touchFaceButtonsEnabled, "Buttons survives local relaunch decoding")
+    restored.setTouchFaceButtonsEnabled(false)
+    check(!restored.touchFaceButtonsEnabled
+          && restored.document.touchFaceButtonsEnabledOverride == nil,
+          "choosing Gestures removes the override instead of storing false")
+    restored.setTouchFaceButtonsEnabled(true)
+    restored.restoreDefaults(for: .controls)
+    check(!restored.touchFaceButtonsEnabled
+          && restored.document.touchFaceButtonsEnabledOverride == nil,
+          "Restore Controls Defaults returns to gestures")
+    restored.setTouchFaceButtonsEnabled(true)
+    restored.restoreDefaults(for: .graphics)
+    check(restored.touchFaceButtonsEnabled, "Restore Graphics Defaults leaves the choice alone")
+    restored.resetAll()
+    check(!restored.touchFaceButtonsEnabled
+          && restored.document.touchFaceButtonsEnabledOverride == nil,
+          "Reset All returns to gestures")
+
+    let jak2Fixture = try Fixture(name: "touch-face-buttons-jak2")
+    let jak1 = settings(jak2Fixture, writerID: "jak1-device", cloudAvailable: false)
+    let jak2Local = jak2Fixture.root.appending(path: "jak2/presentation-v1.json",
+                                               directoryHint: .notDirectory)
+    let jak2 = PresentationSettings(
+        profile: .jak2(configuration: PresentationSettingsConfiguration(
+            localDocumentURL: jak2Local, cloudDocumentURL: { nil },
+            coordinateCloudAccess: false)),
+        defaults: jak2Fixture.defaults, writerID: "jak2-device")
+    jak2.setTouchFaceButtonsEnabled(true)
+    check(jak2.touchFaceButtonsEnabled && !jak1.touchFaceButtonsEnabled
+          && readDocument(at: jak2Local)?.touchFaceButtonsEnabledOverride == true,
+          "the choice is scoped to the title whose settings document changed")
+}
+
 @main
 private struct PresentationSettingsCheck {
     static func main() async {
@@ -1351,6 +1409,7 @@ private struct PresentationSettingsCheck {
             try await developerLogsPersistAndReset()
             try await primaryInputSourcePersistsAndResets()
             try await inputBindingsPersistSyncAndReset()
+            try await touchFaceButtonsDefaultPersistAndReset()
             try await legacyTouchLayoutSidecarPersistsAcrossPresentationResets()
             try await explicitFreshResetBeatsOlderRemoteTouchLayout()
             try await defaultsUseModernGraphics()

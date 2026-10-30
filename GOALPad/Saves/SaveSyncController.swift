@@ -1550,6 +1550,17 @@ struct SaveSettingsView: View {
             } label: {
                 LabeledContent("Touch Sticks", value: "Size & Position")
             }
+            Picker("Touch Actions", selection: Binding(
+                get: { settings.touchFaceButtonsEnabled },
+                set: { settings.setTouchFaceButtonsEnabled($0) }
+            )) {
+                Text("Gestures").tag(false)
+                Text("Buttons").tag(true)
+            }
+            .pickerStyle(.segmented)
+            Text("Buttons replaces right-side swipes with Cross, Square, Circle, Triangle, and L1.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
             #endif
             #if !os(visionOS)
             Picker("Primary Controller", selection: Binding(

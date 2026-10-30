@@ -171,6 +171,20 @@ configuration. Pinch input is not part of the frozen touch contract; camera zoom
 uses one explicit semantic toggle. A device-local settings-sync opt-out does not
 disable iCloud saves.
 
+**Experimental:** On October 29, 2026 the maintainer authorized one exception to
+that frozen touch contract: an optional, default-off iOS **Controls › Touch
+Actions › Buttons** choice, stored as `touchFaceButtonsEnabledOverride` in each
+title's presentation document (absent means Gestures). Buttons mode replaces the
+right-side action swipes with a non-hit-testing Cross/Square/Circle/Triangle
+diamond plus an explicit L1 crouch target, all pressed, held, and released by
+the same UIKit touch owner. Open-area camera taps, zoom, Jak II weapon and
+vehicle controls, and native-menu, warp, SKIP, and contextual-prompt precedence
+are unchanged; authoritative SKIP also releases a held Triangle button, and held
+L1 on the Jak 1 racer supplies the existing L1+R1 brake chord. Short screens or
+moved/enlarged camera sticks fall back below or beside the camera, then to
+44-point targets or a two-column grid. Gesture mode remains the default. Deterministic host checks cover
+the mode; physical ergonomics and playability remain unvalidated.
+
 Enhancement work proceeds in this order:
 
 1. Preserve Build 154 as the accepted conventional-2D regression baseline.

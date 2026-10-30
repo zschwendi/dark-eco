@@ -55,6 +55,9 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
     /// Optional so every existing title-scoped document decodes as the exact established mapping.
     /// Only customized Jak 1 physical-input bindings need to occupy the synced document.
     var jak1InputBindingsOverride: Jak1InputBindings?
+    /// Optional so every existing document keeps the default swipe gestures. Only the explicit
+    /// on-screen face-button choice occupies the title-scoped document.
+    var touchFaceButtonsEnabledOverride: Bool?
     var modifiedAt: Date
     var writerID: String
 
@@ -119,6 +122,10 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         jak1InputBindingsOverride ?? .standard
     }
 
+    var touchFaceButtonsEnabled: Bool {
+        touchFaceButtonsEnabledOverride ?? false
+    }
+
     mutating func restoreDefaults(for section: SettingsSection) {
         switch section {
         case .graphics:
@@ -130,6 +137,7 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
             rumbleEnabledOverride = nil
             primaryInputSourceOverride = nil
             jak1InputBindingsOverride = nil
+            touchFaceButtonsEnabledOverride = nil
         case .audio, .interface:
             break
         }
@@ -148,6 +156,7 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         rumbleEnabledOverride = nil
         primaryInputSourceOverride = nil
         jak1InputBindingsOverride = nil
+        touchFaceButtonsEnabledOverride = nil
     }
 }
 
@@ -635,6 +644,8 @@ final class PresentationSettings {
 
     var jak1InputBindings: Jak1InputBindings { document.jak1InputBindings }
 
+    var touchFaceButtonsEnabled: Bool { document.touchFaceButtonsEnabled }
+
     var jak1TouchLayout: TouchLayoutCustomization { touchLayoutDocument.jak1TouchLayout }
 
     var dynamicLeftStick: Bool { touchLayoutDocument.dynamicLeftStick }
@@ -705,6 +716,11 @@ final class PresentationSettings {
 
     func setPrimaryInputSource(_ source: PrimaryInputSource) {
         change { $0.primaryInputSourceOverride = source == .automatic ? nil : source }
+    }
+
+    func setTouchFaceButtonsEnabled(_ enabled: Bool) {
+        guard enabled != touchFaceButtonsEnabled else { return }
+        change { $0.touchFaceButtonsEnabledOverride = enabled ? true : nil }
     }
 
     func setControllerAction(_ action: Jak1InputAction?, for control: Jak1ControllerControl) {

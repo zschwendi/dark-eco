@@ -31,6 +31,15 @@ private func occursInOrder(_ needles: [String], in source: String) -> Bool {
     return true
 }
 
+/// The source between two markers, so a style assertion cannot match an unrelated control.
+private func excerpt(from start: String, to end: String, in source: String) -> String {
+    guard let lower = source.range(of: start),
+          let upper = source.range(of: end, range: lower.upperBound..<source.endIndex) else {
+        return ""
+    }
+    return String(source[lower.lowerBound..<upper.upperBound])
+}
+
 guard CommandLine.arguments.count == 2 else {
     print("usage: swift Scripts/presentation-settings-ui-check.swift <repository-root>")
     Foundation.exit(2)
@@ -165,11 +174,10 @@ check(view.contains(".navigationTitle(\"\\(selectedTitle.settingsPickerLabel) Se
 check(view.contains("if cloudState.progressMessage != nil")
         && view.contains(".disabled(!cloudState.isActionEnabled)"),
       "combined cloud progress disables its single conflicting action")
-check(view.contains("private struct SettingsRowLabelStyle")
-        && view.contains("configuration.icon")
-        && view.contains("configuration.title")
-        && view.contains(".foregroundStyle(DarkEcoTheme.accent)")
-        && view.contains(".foregroundStyle(.white)")
+let rowLabelStyle = excerpt(from: "private struct SettingsRowLabelStyle",
+                            to: "struct SaveSettingsView", in: view)
+check(rowLabelStyle.contains("configuration.icon\n                .foregroundStyle(DarkEcoTheme.accent)")
+        && rowLabelStyle.contains("configuration.title\n                .foregroundStyle(.primary)")
         && view.contains(".labelStyle(SettingsRowLabelStyle())")
         && view.contains(".tint(DarkEcoTheme.accent)")
         && view.contains("Label(\"Controls\", systemImage: \"gamecontroller\")")
@@ -179,12 +187,19 @@ check(view.contains("private struct SettingsRowLabelStyle")
         && view.contains("Label(\"Import Saves\", systemImage: \"square.and.arrow.down\")")
         && view.contains("Label(\"Export Saves\", systemImage: \"square.and.arrow.up\")")
         && view.contains("Label(\"Sync Options\", systemImage: \"icloud\")"),
-      "Settings row icons use Eco purple while row labels stay white")
-check(view.contains("Button(\"Restore Controls Defaults\"")
-        && view.contains("Button(\"Restore Graphics Defaults\"")
-        && view.components(separatedBy: ".foregroundStyle(.white.opacity(0.8))").count - 1 >= 2
-        && touchSticks.contains("Button(\"Restore Default Positions\"")
-        && touchSticks.contains(".foregroundStyle(.white.opacity(0.8))")
+      "Settings row icons use Eco purple while row labels use the readable primary style")
+let restoreControls = excerpt(from: "Button(\"Restore Controls Defaults\")",
+                              to: "private var graphicsContent", in: view)
+let restoreGraphics = excerpt(from: "Button(\"Restore Graphics Defaults\")",
+                              to: "private var primaryInputSourceChoices", in: view)
+let restorePositions = excerpt(from: "Button(\"Restore Default Positions\")",
+                               to: ".navigationTitle(\"Touch Sticks\")", in: touchSticks)
+check(restoreControls.contains("settings.restoreDefaults(for: .controls)")
+        && restoreControls.contains("}\n            .foregroundStyle(.secondary)\n    }")
+        && restoreGraphics.contains("settings.restoreDefaults(for: .graphics)")
+        && restoreGraphics.contains("}\n            .foregroundStyle(.secondary)\n    }")
+        && restorePositions.contains("settings.setTouchControlPosition(nil, for: .modernCamera)")
+        && restorePositions.contains("}\n                .foregroundStyle(.secondary)")
         && view.contains("Button(\"Reset All to Defaults\", role: .destructive)")
         && view.contains("isConfirmingResetAll")
         && view.contains("\"Reset all settings?\"")
@@ -388,6 +403,16 @@ check(occursInOrder(["Label(\"Touch Controls Guide\"", "LabeledContent(\"Touch S
         && store.contains("func resetAll()")
         && store.contains("setDynamicLeftStick(true)"),
       "Touch Controls Guide leads Controls while Dynamic Left Stick stays inside Touch Sticks")
+check(occursInOrder(["LabeledContent(\"Touch Sticks\"", "Picker(\"Touch Actions\"",
+                     "Text(\"Gestures\").tag(false)", "Text(\"Buttons\").tag(true)",
+                     "#endif", "Button(\"Restore Controls Defaults\""], in: view)
+        && view.contains("settings.setTouchFaceButtonsEnabled($0)")
+        && store.contains("var touchFaceButtonsEnabledOverride: Bool?")
+        && store.contains("touchFaceButtonsEnabledOverride ?? false")
+        && content.contains("session.presentationSettings.touchFaceButtonsEnabled")
+        && content.contains("session.touch.setFaceButtonsEnabled(enabled)")
+        && touchGuide.contains("title: \"Optional Buttons\""),
+      "the iOS Touch Actions choice defaults to Gestures and reaches the live touch owner")
 check(content.contains("if session.isRunning")
         && content.contains("session.isNativeMenuOpen")
         && content.contains("session.presentationSettings.developerLogsEnabled")

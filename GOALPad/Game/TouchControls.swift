@@ -1047,10 +1047,17 @@ struct ModernTouchLayout: Sendable {
     let zoomFrame: CGRect
     let menuControlsBottomInset: CGFloat
     let warpPromptBottomInset: CGFloat
+    /// The inputs let derived layouts reproduce either session-chrome variant exactly.
+    let size: CGSize
+    let safeAreaInsets: TouchSafeAreaInsets
+    let customization: TouchLayoutCustomization
 
     init(size: CGSize, safeAreaInsets: TouchSafeAreaInsets = .zero,
          customization: TouchLayoutCustomization = .standard,
          usesCompactSessionChrome: Bool = false) {
+        self.size = size
+        self.safeAreaInsets = safeAreaInsets
+        self.customization = customization
         let bounds = CGRect(origin: .zero,
                             size: CGSize(width: max(0, size.width), height: max(0, size.height)))
         let leading = min(max(0, safeAreaInsets.leading), bounds.width)
@@ -1344,6 +1351,138 @@ struct Jak2TraversalTouchLayout: Equatable, Sendable {
     }
 }
 
+/// Opt-in right-hand buttons that replace the action swipes. The preferred PlayStation diamond
+/// sits in the trailing safe area immediately above the camera stick's hit frame, with L1 in the
+/// diamond's empty upper-left corner. When that does not fit, a short fixed candidate list tries
+/// below/beside the camera, then 44-point targets, then a two-column 44-point grid. A candidate
+/// must stay in the safe right half and clear the camera and every other gameplay control.
+struct ModernFaceButtonLayout: Sendable {
+    static let buttons: [TouchButton] = [.triangle, .circle, .cross, .square, .crouch]
+    nonisolated static let artworkDiameter: CGFloat = 50
+    nonisolated static let hitDiameter: CGFloat = 56
+    nonisolated static let step: CGFloat = 58
+    nonisolated static let compactDiameter: CGFloat = 44
+    nonisolated static let compactStep: CGFloat = 46
+    nonisolated static let cameraGap: CGFloat = 12
+    nonisolated static let edgeInset: CGFloat = 16
+
+    private struct Arrangement {
+        let units: [TouchButton: CGVector]
+        let artwork: CGFloat
+        let hit: CGFloat
+        let step: CGFloat
+
+        var halfWidth: CGFloat { (units.values.map { abs($0.dx) }.max() ?? 0) * step + hit / 2 }
+        var halfHeight: CGFloat { (units.values.map { abs($0.dy) }.max() ?? 0) * step + hit / 2 }
+    }
+
+    private static let diamond: [TouchButton: CGVector] = [
+        .triangle: CGVector(dx: 0, dy: -1), .circle: CGVector(dx: 1, dy: 0),
+        .cross: CGVector(dx: 0, dy: 1), .square: CGVector(dx: -1, dy: 0),
+        .crouch: CGVector(dx: -1, dy: -1),
+    ]
+    private static let grid: [TouchButton: CGVector] = [
+        .crouch: CGVector(dx: -0.5, dy: -1), .triangle: CGVector(dx: 0.5, dy: -1),
+        .square: CGVector(dx: -0.5, dy: 0), .circle: CGVector(dx: 0.5, dy: 0),
+        .cross: CGVector(dx: 0, dy: 1),
+    ]
+    private static let arrangements = [
+        Arrangement(units: diamond, artwork: artworkDiameter, hit: hitDiameter, step: step),
+        Arrangement(units: diamond, artwork: compactDiameter, hit: compactDiameter,
+                    step: compactStep),
+        Arrangement(units: grid, artwork: compactDiameter, hit: compactDiameter,
+                    step: compactStep),
+    ]
+
+    let artworkFrames: [TouchButton: CGRect]
+    let hitFrames: [TouchButton: CGRect]
+    /// False only when no candidate clears the safe area and every other gameplay control; the
+    /// preferred above-camera diamond is then kept, clamped into the safe area.
+    let fitsWithoutOverlap: Bool
+
+    init(modernLayout: ModernTouchLayout, rightStickHitFrame camera: CGRect) {
+        let safe = modernLayout.safeBounds
+        var obstacles = [camera]
+        for compact in [false, true] {
+            let chrome = ModernTouchLayout(size: modernLayout.size,
+                                           safeAreaInsets: modernLayout.safeAreaInsets,
+                                           customization: modernLayout.customization,
+                                           usesCompactSessionChrome: compact)
+            obstacles += [chrome.selectPillFrame, chrome.statsPillFrame, chrome.startPillFrame]
+                .map { $0.insetBy(dx: -10, dy: -12) }
+            obstacles += [chrome.zoomFrame, chrome.movementArtworkFrame,
+                          Jak2TraversalTouchLayout(modernLayout: chrome).vehicleExitFrame,
+                          Jak2WeaponWheelLayout(modernLayout: chrome).frame]
+        }
+        let minimumX = max(0, modernLayout.size.width) / 2
+
+        var candidates: [(arrangement: Arrangement, centre: CGPoint)] = []
+        for arrangement in Self.arrangements {
+            let edgeX = safe.maxX - Self.edgeInset - arrangement.halfWidth
+            let besideY = min(max(camera.midY, safe.minY + arrangement.halfHeight),
+                              safe.maxY - arrangement.halfHeight)
+            candidates += [
+                CGPoint(x: edgeX, y: camera.minY - Self.cameraGap - arrangement.halfHeight),
+                CGPoint(x: edgeX, y: camera.maxY + Self.cameraGap + arrangement.halfHeight),
+                CGPoint(x: edgeX, y: besideY),
+                CGPoint(x: camera.minX - Self.cameraGap - arrangement.halfWidth, y: besideY),
+            ].map { (arrangement: arrangement, centre: $0) }
+        }
+        let chosen = candidates.lazy.map { Self.frames($0.arrangement, centre: $0.centre) }
+            .first { Self.isClear($0.hits, safe: safe, minimumX: minimumX,
+                                  obstacles: obstacles) }
+        if let chosen {
+            artworkFrames = chosen.artwork
+            hitFrames = chosen.hits
+            fitsWithoutOverlap = true
+        } else {
+            let preferred = Self.arrangements[0]
+            let fallback = Self.frames(preferred, centre: CGPoint(
+                x: candidates[0].centre.x,
+                y: max(safe.minY + preferred.halfHeight, candidates[0].centre.y)))
+            artworkFrames = fallback.artwork
+            hitFrames = fallback.hits
+            fitsWithoutOverlap = false
+        }
+    }
+
+    private static func frames(_ arrangement: Arrangement, centre: CGPoint)
+        -> (artwork: [TouchButton: CGRect], hits: [TouchButton: CGRect]) {
+        var artwork: [TouchButton: CGRect] = [:]
+        var hits: [TouchButton: CGRect] = [:]
+        for (button, unit) in arrangement.units {
+            let point = CGPoint(x: centre.x + unit.dx * arrangement.step,
+                                y: centre.y + unit.dy * arrangement.step)
+            artwork[button] = frame(centre: point, diameter: arrangement.artwork)
+            hits[button] = frame(centre: point, diameter: arrangement.hit)
+        }
+        return (artwork, hits)
+    }
+
+    private static func isClear(_ hits: [TouchButton: CGRect], safe: CGRect,
+                                minimumX: CGFloat, obstacles: [CGRect]) -> Bool {
+        let tolerantSafe = safe.insetBy(dx: -0.001, dy: -0.001)
+        return hits.values.allSatisfy { hit in
+            hit.minX >= minimumX - 0.001 && tolerantSafe.contains(hit)
+                && obstacles.allSatisfy { !$0.insetBy(dx: 0.001, dy: 0.001).intersects(hit) }
+        }
+    }
+
+    func button(at point: CGPoint) -> TouchButton? {
+        Self.buttons.first { hitFrames[$0]?.contains(point) == true }
+    }
+
+    /// Crouch keeps the shared L1 mapping, so its target shows that controller identity.
+    static func label(for button: TouchButton) -> String {
+        button == .crouch ? TouchButton.leftShoulder.glyph : button.glyph
+    }
+
+    private static func frame(centre: CGPoint, diameter: CGFloat) -> CGRect {
+        CGRect(x: centre.x - diameter / 2, y: centre.y - diameter / 2,
+               width: diameter, height: diameter)
+    }
+}
+
 /// Deterministic Classic artwork and app-owned touch targets.
 struct ClassicTouchLayout {
     static let minimumButtonHitSize = CGSize(width: 44, height: 44)
@@ -1612,6 +1751,8 @@ final class TouchControls {
     private(set) var gameTitle: TouchGameTitle
     private(set) var layoutCustomization = TouchLayoutCustomization.standard
     private(set) var dynamicLeftStick = false
+    /// Off keeps the default action swipes; on replaces them with explicit face/L1 buttons.
+    private(set) var faceButtonsEnabled = false
     private(set) var nativeMenuMode: GOALPadGameMode = .unknown
     private(set) var progressMenuSnapshot: NativeProgressMenuSnapshot = .unavailable
     private(set) var titleStartState: GOALPadTitleStartState = .unknown
@@ -1628,6 +1769,7 @@ final class TouchControls {
         case rightStick
         case gesture
         case pill(TouchButton)
+        case faceButton(TouchButton)
         case skip(NativeCutsceneSkipTouchSnapshot)
     }
 
@@ -1669,7 +1811,9 @@ final class TouchControls {
     var gestures: [Tracked] { touches.values.filter { $0.role == .gesture } }
     var hasActiveGameplayGesture: Bool { !gestures.isEmpty }
     var isCrouching: Bool {
-        touches.values.contains { $0.role == .gesture && $0.swiped == .crouch }
+        touches.values.contains {
+            ($0.role == .gesture && $0.swiped == .crouch) || $0.role == .faceButton(.crouch)
+        }
     }
 
     func isPillDown(_ button: TouchButton) -> Bool {
@@ -1677,9 +1821,13 @@ final class TouchControls {
             switch $0.role {
             case .pill(let pressed): pressed == button
             case .skip: button == .stats
-            case .movement, .rightStick, .gesture: false
+            case .movement, .rightStick, .gesture, .faceButton: false
             }
         }
+    }
+
+    func isFaceButtonDown(_ button: TouchButton) -> Bool {
+        touches.values.contains { $0.role == .faceButton(button) }
     }
 
     @ObservationIgnored private var rightStickFrame = CGRect.zero
@@ -1689,6 +1837,9 @@ final class TouchControls {
     @ObservationIgnored private var facePromptHapticEvents: [TouchHapticEvent] = []
     @ObservationIgnored private var fadeToken = 0
     @ObservationIgnored private var dpad = DirectionRepeat()
+    /// True from a face-button Triangle touch until its ordinary pulse drains, so SKIP can
+    /// withdraw only that Triangle and never a semantic SKIP pulse.
+    @ObservationIgnored private var faceTriangleOwnsPulse = false
 
     init(style: TouchControlStyle = .modern, gameTitle: TouchGameTitle = .jak1) {
         self.style = style
@@ -1744,6 +1895,24 @@ final class TouchControls {
         guard enabled != dynamicLeftStick else { return }
         reset()
         dynamicLeftStick = enabled
+    }
+
+    /// Switching action input drops every held button or gesture from the prior mode.
+    func setFaceButtonsEnabled(_ enabled: Bool) {
+        guard enabled != faceButtonsEnabled else { return }
+        reset()
+        faceButtonsEnabled = enabled
+    }
+
+    /// The same deterministic geometry the artwork draws, anchored to the registered camera frame.
+    func faceButtonLayout(in size: CGSize,
+                          safeAreaInsets: TouchSafeAreaInsets) -> ModernFaceButtonLayout {
+        let layout = ModernTouchLayout(size: size, safeAreaInsets: safeAreaInsets,
+                                       customization: layoutCustomization)
+        return ModernFaceButtonLayout(
+            modernLayout: layout,
+            rightStickHitFrame: rightStickFrame.isEmpty ? layout.rightStickHitFrame
+                                                        : rightStickFrame)
     }
 
     /// Compatibility entry point for callers that only have the master-mode classification.
@@ -1805,7 +1974,17 @@ final class TouchControls {
             return nil
         }
         for id in pending { touches.removeValue(forKey: id) }
-        if !pending.isEmpty { fadeWhenIdle() }
+        // An authoritative SKIP owns Triangle, so a held or just-tapped face Triangle is withdrawn
+        // with its ordinary pulse while every other held control continues.
+        let carriedTriangle = Self.cutsceneSkipIsAvailable(in: nativeMenuMode, snapshot: snapshot)
+            ? touches.keys.filter { touches[$0]?.role == .faceButton(.triangle) } : []
+        for id in carriedTriangle { touches.removeValue(forKey: id) }
+        if faceTriangleOwnsPulse,
+           Self.cutsceneSkipIsAvailable(in: nativeMenuMode, snapshot: snapshot) {
+            pulses[TouchButton.triangle.rawValue] = Pulse()
+            faceTriangleOwnsPulse = false
+        }
+        if !pending.isEmpty || !carriedTriangle.isEmpty { fadeWhenIdle() }
     }
 
     /// A semantic or generation change invalidates prompt-owned pulses without disturbing raw
@@ -1992,6 +2171,17 @@ final class TouchControls {
         }
         if !contextualFacePromptOwnsGameplayActions,
            rightStick == nil, rightStickFrame.contains(point) { return .rightStick }
+        if faceButtonsEnabled,
+           let button = faceButtonLayout(in: size, safeAreaInsets: safeAreaInsets)
+            .button(at: point) {
+            // Contextual prompts own every command, and authoritative SKIP owns Triangle.
+            guard !contextualFacePromptOwnsGameplayActions,
+                  button != .triangle
+                    || !Self.cutsceneSkipIsAvailable(in: nativeMenuMode,
+                                                     snapshot: cutsceneSkipTouchSnapshot)
+            else { return nil }
+            return .faceButton(button)
+        }
         if stick == nil {
             if dynamicLeftStick, point.x < size.width / 2 { return .movement }
             if !dynamicLeftStick {
@@ -2040,7 +2230,7 @@ final class TouchControls {
             radius = 0
             deadzone = 0
             responseExponent = 1
-        case .pill, .skip:
+        case .pill, .faceButton, .skip:
             origin = point
             radius = 0
             deadzone = 0
@@ -2053,17 +2243,23 @@ final class TouchControls {
             press(button)
             enqueueHaptic(.button(button))
         }
+        if case .faceButton(let button) = role {
+            press(button)
+            enqueueHaptic(.button(button))
+            if button == .triangle { faceTriangleOwnsPulse = true }
+        }
         noteScreenInteraction()
     }
 
     func moved(_ id: ObjectIdentifier, to point: CGPoint) {
         guard var touch = touches[id] else { return }
-        if touch.role == .gesture {
+        // Button mode keeps the open right side only for its existing tap action.
+        if touch.role == .gesture, !faceButtonsEnabled {
             Self.updateSwipeTrail(&touch, to: point)
         }
         touch.point = point
         touch.travelled = max(touch.travelled, Self.distance(touch.origin, point))
-        if touch.role == .gesture, touch.swiped == nil,
+        if touch.role == .gesture, !faceButtonsEnabled, touch.swiped == nil,
            touch.travelled >= Self.swipeDistance,
            let direction = Self.swipeDirection(from: touch.origin, to: point) {
             let button: TouchButton = switch direction {
@@ -2221,6 +2417,7 @@ final class TouchControls {
         pulses = Self.emptyPulses()
         facePromptPulses = Self.emptyPulses()
         dpad = DirectionRepeat()
+        faceTriangleOwnsPulse = false
         hapticEvents.removeAll()
         facePromptHapticEvents.removeAll()
         fadeToken += 1
@@ -2338,6 +2535,10 @@ final class TouchControls {
             switch touch.role {
             case .pill(let button):
                 pulses[button.rawValue].sustain()
+            case .faceButton(let button):
+                pulses[button.rawValue].sustain()
+                // Held L1 reuses the racer brake chord; on foot it remains exact L1.
+                hasSpeederBrakeThisFrame = hasSpeederBrakeThisFrame || button == .crouch
             case .gesture:
                 isCrouchingThisFrame = isCrouchingThisFrame || touch.swiped == .crouch
                 hasSpeederBrakeThisFrame = hasSpeederBrakeThisFrame
@@ -2372,6 +2573,9 @@ final class TouchControls {
         if speederState == .riding, hasSpeederBrakeThisFrame {
             state.buttons.formUnion([TouchButton.leftShoulder.bit,
                                      TouchButton.rightShoulder.bit])
+        }
+        if faceTriangleOwnsPulse, pulses[TouchButton.triangle.rawValue].hasDrained {
+            faceTriangleOwnsPulse = false
         }
 
         (state.leftX, state.leftY) = Self.axes(movement)
@@ -2625,6 +2829,7 @@ final class TouchControls {
     // MARK: - Presses
 
     private func press(_ button: TouchButton) {
+        if button == .triangle { faceTriangleOwnsPulse = false }
         pulses[button.rawValue].press()
     }
 
@@ -2640,6 +2845,7 @@ final class TouchControls {
     private func cancelOrdinaryGameplayCommandInput() {
         touches = touches.filter { $0.value.role == .movement }
         pulses = Self.emptyPulses()
+        faceTriangleOwnsPulse = false
         hapticEvents.removeAll()
         fadeWhenIdle()
     }
@@ -2679,6 +2885,8 @@ final class TouchControls {
         var holdRemaining = 0
         var gapRemaining = 0
         var queued = 0
+
+        var hasDrained: Bool { holdRemaining == 0 && queued == 0 }
 
         mutating func press() {
             if holdRemaining == 0 && gapRemaining == 0 {
