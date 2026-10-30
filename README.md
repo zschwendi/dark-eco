@@ -1,3 +1,5 @@
+**[Download the Vision Pro IPA / install without a Mac](https://github.com/zschwendi/dark-eco/blob/v2.0/docs/SIDELOADING.md)**
+
 # Dark Eco — Jak trilogy on Apple platforms
 
 **A simple launcher for playing Jak on your Apple devices.**
