@@ -11,23 +11,40 @@ Jak II immersive play is not included, and later fixes are not in this package.
 
 ## Install the IPA with Windows, Linux or a Mac
 
-You need a Vision Pro, an Apple account, a computer for the initial setup, and
+You need a Vision Pro, your own Apple Account, a computer for the initial setup, and
 both devices on the same Wi-Fi. Xcode is not needed for this route.
 
+**Apple sign-in requirement, checked October 29, 2026:** Windows can install
+the app, but free-account signing needs a working, compatible **anisette-v3
+service** to supply Apple's login metadata. Use a compatible third-party
+service, a Mac on **macOS 26 or earlier**, or the supported macOS virtual-machine
+setup described by Apparition. A third-party service can stop working; this
+guide does not certify one. The built-in Android-library provider and the Linux
+Docker route no longer support Apple sign-in after Apple's October changes.
+Follow the current [anisette instructions](https://github.com/illixion/Apparition#anisette)
+and [Apparition 0.4.2 release notes](https://github.com/illixion/Apparition/releases/tag/v0.4.2),
+not older Docker setup instructions.
+
+If you already have your own paid developer certificate (`.p12`) and matching
+provisioning profiles that include your headset, Apparition can sign with those
+without Apple Account sign-in or anisette. Each person uses **their own account
+or signing material**. The Dark Eco maintainer never needs your password,
+verification codes, or private signing key.
+
 1. Download the desktop installer from [Apparition](https://apparition.illixion.com/).
-   Use its current instructions for your operating system. Windows also needs
-   an anisette service for Apple sign-in; its [setup documentation](https://github.com/illixion/Apparition#anisette)
-   explains the available and self-hosted options.
+   Use its current instructions for your operating system and configure one
+   of the signing methods above.
 2. On Vision Pro, open **Settings → General → Remote Devices**. Select the
    headset in Apparition on your computer and enter the pairing code.
-3. Follow Apparition's prompts to sign in with **your own Apple account** and
-   install Apparition on the headset. Complete Apple's verification prompts
-   yourself. Enable **Developer Mode** under **Privacy & Security** if prompted;
+3. Follow Apparition's prompts to sign in with **your own Apple Account**, or
+   choose your own certificate and profiles, then install Apparition on the
+   headset. Complete any Apple verification prompts yourself.
+   Enable **Developer Mode** under **Privacy & Security** if prompted;
    the headset restarts. A developer-trust prompt may also appear.
 4. Download this repo's **visionOS `.ipa`** from the release linked above. The
    automatically generated **Source code.zip** is not the app.
 5. On the headset, open the IPA from Files with Apparition, or use
-   **Library → Install from a File**. Let Apparition sign it for your account
+   **Library → Install from a File**. Let Apparition sign it for your device
    and install it. You can also use Apparition's desktop IPA installer.
 6. Open the installed app from Home View, then supply your game files using
    the instructions below.
@@ -51,6 +68,8 @@ containers and development profiles are not included.
 
 ## If something goes wrong
 
+- **Apple sign-in fails:** check the current anisette requirements above.
+  Installing the older Linux Docker provider does not resolve this limitation.
 - **It will not install:** check that you selected the visionOS IPA, enabled
   Developer Mode, completed trust prompts, and have a free signing slot.
 - **It stopped opening after a week:** refresh its signature in Apparition.
