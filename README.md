@@ -1,3 +1,5 @@
+**[Downloads by device](docs/DOWNLOADS.md) · [Vision Pro from Windows/Linux](docs/SIDELOADING.md) · [iPhone/iPad](docs/IOS-SIDELOADING.md) · [Mac](docs/MACOS-INSTALL.md)**
+
 # Dark Eco — Jak trilogy on Apple platforms
 
 **A simple launcher for playing Jak on your Apple devices.**
@@ -13,7 +15,7 @@ Dark Eco is built for **iPhone, iPad, and Apple Vision Pro**, with an
 | Device | Controls and availability |
 | --- | --- |
 | **iPhone and iPad** | **Touch controls or a gamepad.** |
-| **Mac (Apple silicon) — experimental** | Earlier Jak 1 data import and title-screen boot demonstrated; full gameplay is not yet validated. |
+| **Mac (Apple silicon) — experimental** | [Native Jak 1 app preview](docs/MACOS-INSTALL.md). Earlier data import and title-screen boot demonstrated; this package's launch and gameplay remain unverified. |
 | **Apple Vision Pro** | **Gamepad or PSVR2 Sense controllers.** Sense motion gestures are currently a Jak 1 feature. |
 
 Vision Pro also has an experimental **immersive third-person mode**, with Jak
@@ -64,6 +66,20 @@ mode. This is an in-development build; the remaining issues are listed above.
 ## Install and play
 
 ### 1. Get the app for your Apple device
+
+**Vision Pro from Windows or Linux:** use the [Build 264.1 IPA walkthrough](docs/SIDELOADING.md).
+
+**iPhone and iPad:** use the [Build 270.1 IPA guide](docs/IOS-SIDELOADING.md).
+
+**Apple Silicon Mac:** use the [native Build 270.1 app guide](docs/MACOS-INSTALL.md).
+
+See [downloads by device](docs/DOWNLOADS.md) for package versions. These packaged
+previews use local saves; the maintainer's iCloud identity is not included.
+
+The Vision Pro guide covers Apparition setup, the sign-in server setting, pairing, installation,
+your own Jak game-data import and refreshes. No Mac is needed to install that
+published preview. It requires visionOS 26.5+ and uses local saves; fresh-recipient
+installation and gameplay through this route remain unverified.
 
 Check the [Dark Eco releases](https://github.com/zschwendi/dark-eco/releases)
 for an available build and follow that release's installation and signing
