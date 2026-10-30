@@ -1,4 +1,4 @@
-**[Windows / Linux: download the IPA and follow the full installation guide](docs/SIDELOADING.md)**
+**[Downloads by device](docs/DOWNLOADS.md) · [Vision Pro from Windows/Linux](docs/SIDELOADING.md) · [iPhone/iPad](docs/IOS-SIDELOADING.md)**
 
 # Dark Eco — Jak trilogy on Apple platforms
 
@@ -68,6 +68,9 @@ mode. This is an in-development build; the remaining issues are listed above.
 ### 1. Get the app for your Apple device
 
 **Vision Pro from Windows or Linux:** use the [Build 264.1 IPA walkthrough](docs/SIDELOADING.md).
+
+**iPhone and iPad:** use the [Build 270.1 IPA guide](docs/IOS-SIDELOADING.md).
+See [downloads by device](docs/DOWNLOADS.md) for package versions and Mac availability.
 It covers Apparition setup, the sign-in server setting, pairing, installation,
 your own Jak game-data import and refreshes. No Mac is needed to install that
 published preview. It requires visionOS 26.5+ and uses local saves; fresh-recipient

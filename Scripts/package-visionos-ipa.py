@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package an audited, complete Dark Eco visionOS app for user re-signing.
+"""Package an audited, complete Dark Eco iOS or visionOS app for user re-signing.
 
 This never builds, installs, uploads, edits the input app, or uses a signing key.
 The output uses ad-hoc signatures with no developer/iCloud entitlements.
@@ -43,6 +43,12 @@ def audit_app(app, receipt):
                "OpenGOALProjectResources", "PLzmaSDK_PLzmaSDK.bundle",
                "PrivacyInfo.xcprivacy", "VisionStereoWindow.reality", "_CodeSignature",
                "default.metallib", "embedded.mobileprovision"}
+    platforms = {"visionOS": ("XROS", "VISIONOS", [7]),
+                 "iOS": ("iPhoneOS", "IOS", [1, 2])}
+    require(receipt["platform"] in platforms, "Unsupported receipt platform")
+    platform, native_platform, device_family = platforms[receipt["platform"]]
+    if receipt["platform"] == "iOS":
+        allowed.update({"AppIcon60x60@2x.png", "AppIcon76x76@2x~ipad.png"})
     require(set(p.name for p in app.iterdir()) <= allowed,
             "Unexpected top-level content: review it before releasing")
     for p in app.rglob("*"):
@@ -51,7 +57,9 @@ def audit_app(app, receipt):
                                          ".str", ".p12", ".pfx", ".key"},
                 "Retail payload or private signing file found")
     info = plistlib.loads((app / "Info.plist").read_bytes())
-    require(info["CFBundleSupportedPlatforms"] == ["XROS"], "A device visionOS app is required")
+    require(info["CFBundleSupportedPlatforms"] == [platform],
+            "Device app platform differs from receipt; simulator apps are not supported")
+    require(info["UIDeviceFamily"] == device_family, "Unexpected supported device family")
     require(info["CFBundleExecutable"] == "Dark Eco", "Unexpected app executable")
     require(info["CFBundleVersion"] == receipt["build"], "Build number differs from receipt")
     require(sha256(app / "Dark Eco") == receipt["input_executable_sha256"],
@@ -60,8 +68,20 @@ def audit_app(app, receipt):
     require(sha256(framework / "GOALPadJak2Runtime") == receipt["input_framework_sha256"],
             "Embedded Jak II runtime differs from audited build")
     for binary in [app / "Dark Eco", framework / "GOALPadJak2Runtime"]:
-        require("platform VISIONOS" in run("xcrun", "vtool", "-show-build", str(binary)).stdout,
-                "Native code is not built for physical visionOS")
+        require(f"platform {native_platform}\n" in
+                run("xcrun", "vtool", "-show-build", str(binary)).stdout,
+                "Native code platform differs from receipt")
+    removable_entitlements = {
+        "application-identifier", "com.apple.developer.team-identifier", "get-task-allow",
+        "keychain-access-groups", "com.apple.developer.icloud-container-environment",
+        "com.apple.developer.icloud-services", "com.apple.developer.icloud-container-identifiers",
+        "com.apple.developer.ubiquity-container-identifiers", "com.apple.developer.ubiquity-kvstore-identifier",
+    }
+    for bundle in [app, framework]:
+        entitlements = run("codesign", "-d", "--entitlements", "-", "--xml", str(bundle)).stdout
+        actual = plistlib.loads(entitlements.encode()) if entitlements.strip() else {}
+        require(set(actual) <= removable_entitlements,
+                "Additional capabilities require review; do not strip memory or other entitlements")
     for game, count in [("Jak1", 518), ("Jak2", 840)]:
         pack = app / (game + "SourceObjectPack")
         manifest = pack / "object_pack_manifest.tsv"
@@ -147,7 +167,7 @@ def main():
         for entry in original:
             if entry["path"] not in changed:
                 require(after.get(entry["path"]) == entry, "Packaging changed a runtime/resource file")
-        ipa = args.output / f"DarkEco-visionOS-2.0-build{receipt['package_build']}-preview.ipa"
+        ipa = args.output / f"DarkEco-{receipt['platform']}-{info['CFBundleShortVersionString']}-build{receipt['package_build']}-preview.ipa"
         with zipfile.ZipFile(ipa, "x", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
             for path in sorted(payload.rglob("*")):
                 archive.write(path, str(path.relative_to(stage)))
@@ -156,7 +176,8 @@ def main():
         report = {"ipa": ipa.name, "ipa_bytes": ipa.stat().st_size, "ipa_sha256": sha256(ipa),
                   "version": info["CFBundleShortVersionString"], "build": receipt["package_build"],
                   "original_build": info["CFBundleVersion"],
-                  "minimum_visionos": info["MinimumOSVersion"],
+                  "platform": receipt["platform"], "device_family": info["UIDeviceFamily"],
+                  "minimum_os": info["MinimumOSVersion"],
                   "bundle_identifier": info["CFBundleIdentifier"],
                   "signing": "ad-hoc, empty entitlements; user must re-sign",
                   "icloud": "not entitled; local saves and manual export/import only",

@@ -1,5 +1,9 @@
 # Install Dark Eco from Windows or Linux
 
+This guide is for **Vision Pro**. For phones and tablets, use the
+[iPhone/iPad guide](IOS-SIDELOADING.md); first pairing uses USB trust instead
+of Vision Pro's Remote Devices screen. See [all platform downloads](DOWNLOADS.md).
+
 Download the [Build 264.1 visionOS preview](https://github.com/zschwendi/dark-eco/releases/tag/visionos-build264.1-preview).
 Choose **DarkEco-visionOS-2.0-build264.1-preview.ipa**. It contains the native
 runtime and reconstructed OpenGOAL code, but **no retail game data**.

@@ -1,0 +1,46 @@
+{
+  "product": "Dark Eco",
+  "version": "2.0",
+  "build": "270",
+  "package_build": "270.1",
+  "platform": "iOS",
+  "source_commit_recorded_at_build": "cefd732138849ff1f582be931e58bd06ef2a327c",
+  "engine_commit_recorded_at_build": "a49443d9646d12b305ca4aec4d4c44ae34267d7f",
+  "source_status": "Existing native iOS Build 270 repack, not a new compilation. Exact app and engine revisions were verified available locally and from their public GitHub commit URLs on October 29, 2026.",
+  "source_url": "https://github.com/zschwendi/dark-eco/commit/cefd732138849ff1f582be931e58bd06ef2a327c",
+  "engine_url": "https://github.com/zschwendi/jak-pad/commit/a49443d9646d12b305ca4aec4d4c44ae34267d7f",
+  "input_executable_sha256": "b3f460ed0052518c7d8c05f6500ba54e1270e0bcfaa63ed30ddd1b5a6dc09c89",
+  "input_framework_sha256": "f388a072841d50d0ecffb56a1d27961e239481c59d56332870e462616067989d",
+  "input_bundle_manifest_sha256": "e3d13d57285b7928013da87f03c07f64c8f94b338cc591723097a140b5a888c3",
+  "source_pack_manifests_sha256": {
+    "Jak1": "6ee43f81273d4d488dd484c567839f7a19a9198cd31a3adbb0750376d3abbe2c",
+    "Jak2": "a452117d8dceeb793b56f6ea122b09eeb7eccbf1b19fe47f551d25537545979e"
+  },
+  "source_pack_audit": "All 518 Jak 1 and 840 Jak II files match their manifest byte count and XXH64. No retail ISO/DGO/CGO/FR3/VAG/STR payload files are bundled.",
+  "original_device_evidence": "Original signed Build 270 was installed in place on an iPhone Air and iPad Pro M5 on October 27, 2026. The delivery receipt did not certify physical gameplay acceptance.",
+  "platform_requirements": {
+    "architecture": "arm64",
+    "platform": "IOS (physical device, not simulator)",
+    "minimum_os": "26.5",
+    "device_families": [
+      "iPhone",
+      "iPad"
+    ]
+  },
+  "repack_changes": [
+    "Set CFBundleVersion to 270.1 for this packaging revision",
+    "Remove original provisioning profile and signatures",
+    "Apply ad-hoc signatures with empty entitlements to app and embedded runtime",
+    "Add notices from the exact recorded source and this provenance receipt"
+  ],
+  "entitlements": "Original app has identity, debug, and iCloud entitlements only; no increased-memory-limit, extended-virtual-addressing, or JIT entitlement is removed. Re-sign for your own device. iCloud is not provisioned.",
+  "sideload_validation": "No recipient signing, installation, launch, gameplay, or save-preserving refresh validation of this repack has been performed.",
+  "limits": [
+    "Experimental preview, not a stable release",
+    "Build 270 predates the later Jak II Dark Jak combo crash repair and Jak 1 ocean-renderer teardown investigation",
+    "Local saves only; iCloud is not provisioned",
+    "Supply your own supported game data through the in-app importer",
+    "Low-memory device performance and stability are unverified"
+  ],
+  "license_notice_snapshot_engine_commit": "a49443d9646d12b305ca4aec4d4c44ae34267d7f"
+}
