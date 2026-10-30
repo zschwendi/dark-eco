@@ -96,6 +96,10 @@ final class GameSession {
     }
     private var previousDisplayCallback: CFTimeInterval?
     private var displayIntervals: [Double] = []
+    private static let frameTimingDiagnosticsEnabled =
+        ProcessInfo.processInfo.environment["GOALPAD_FRAME_TIMING_DIAGNOSTICS"] == "1"
+    @ObservationIgnored private var frameWorkTiming = FrameWorkTimingHistogram()
+    @ObservationIgnored private var frameWorkSamplesAtLastReport = 0
     #if os(iOS) || os(visionOS)
     private var cameraDiagnosticsURL: URL?
     private var cameraDiagnosticsRunID: UInt64 = 0
@@ -330,6 +334,7 @@ final class GameSession {
         }
 
         targetFrameRate = bootFrameRate
+        resetFrameTimingDiagnostics()
         isRunning = true
         #if os(iOS)
         setHighFrameRateEnabled(presentationSettings.graphicsHighFrameRate)
@@ -431,6 +436,8 @@ final class GameSession {
         #if os(iOS) || os(visionOS)
         persistCameraDiagnosticsForLifecycleEvent()
         #endif
+        persistFrameTimingDiagnostics(event: "shutdown")
+        resetFrameTimingDiagnostics()
         GOALPadRuntimeBridge.stopKernel()
         handledNativeExitToLibraryRequest = false
         gameplaySaveGeneration.reset()
@@ -573,9 +580,12 @@ final class GameSession {
 
     private func runArmedTick(targetPresentationTime: CFTimeInterval,
                               endFrame: () -> Bool) -> Bool {
+        let frameWorkStart = Self.frameTimingDiagnosticsEnabled ? CACurrentMediaTime() : 0
         let developerLogsEnabled = presentationSettings.developerLogsEnabled
-        if developerLogsEnabled {
-            recordDisplayCallback()
+        if Self.frameTimingDiagnosticsEnabled {
+            recordDisplayCallback(at: frameWorkStart)
+        } else if developerLogsEnabled {
+            recordDisplayCallback(at: CACurrentMediaTime())
         }
         #if os(iOS)
         input.pushFrame(merging: touch.frameState())
@@ -652,6 +662,9 @@ final class GameSession {
         // display callback.
         if shouldLog { logRunningState(renderer: GOALPadRenderSurface.shared.stats) }
         input.applyRumble()
+        if Self.frameTimingDiagnosticsEnabled {
+            frameWorkTiming.record(milliseconds: (CACurrentMediaTime() - frameWorkStart) * 1_000)
+        }
         return framePresented
     }
 
@@ -1730,8 +1743,7 @@ final class GameSession {
     }
     #endif
 
-    private func recordDisplayCallback() {
-        let now = CACurrentMediaTime()
+    private func recordDisplayCallback(at now: CFTimeInterval) {
         if let previousDisplayCallback {
             displayIntervals.append((now - previousDisplayCallback) * 1_000)
         }
@@ -1746,6 +1758,97 @@ final class GameSession {
         displaySlowCallbacks = displayIntervals.count { $0 >= 24 }
         displaySampleCount = displayIntervals.count
         displayIntervals.removeAll(keepingCapacity: true)
+    }
+
+    private func resetFrameTimingDiagnostics() {
+        frameWorkTiming.reset()
+        frameWorkSamplesAtLastReport = 0
+    }
+
+    /// Replaces the previous report only when new frames were measured, so a background event
+    /// that follows an inactive one keeps the inactive report's cadence statistics.
+    private func persistFrameTimingDiagnostics(event: String) {
+        guard Self.frameTimingDiagnosticsEnabled, isRunning,
+              frameWorkTiming.count != frameWorkSamplesAtLastReport else { return }
+        let surface = GOALPadRenderSurface.shared
+        let renderer = surface.stats
+        let geometry = surface.geometry()
+        let processInfo = ProcessInfo.processInfo
+        let thermalState = switch processInfo.thermalState {
+        case .nominal: "nominal"
+        case .fair: "fair"
+        case .serious: "serious"
+        case .critical: "critical"
+        @unknown default: "unknown"
+        }
+        let pendingIntervals = displayIntervals.sorted()
+        let cadenceCount = pendingIntervals.isEmpty ? displaySampleCount : pendingIntervals.count
+        let cadenceMean = pendingIntervals.isEmpty ? displayMeanMilliseconds
+            : pendingIntervals.reduce(0, +) / Double(pendingIntervals.count)
+        let cadenceP95 = pendingIntervals.isEmpty ? displayP95Milliseconds
+            : pendingIntervals[Int(ceil(Double(pendingIntervals.count) * 0.95)) - 1]
+        let report: [String: Any] = [
+            "schema": "goalpad-frame-timing-v1",
+            "build": GOALPadBuildIdentity.displayText,
+            "event": event,
+            "title_id": profile.identifier.rawValue,
+            "target_frame_rate": targetFrameRate,
+            "frames_run": framesRun,
+            "frames_presented": framesPresented,
+            "frame_work_scope": "armed callback including native runFrame and endFrame; excludes drawable acquisition",
+            "frame_work_ms": [
+                "count": frameWorkTiming.count,
+                "mean": frameWorkTiming.mean,
+                "p95_upper_bound": frameWorkTiming.percentile(0.95),
+                "bucket_width": FrameWorkTimingHistogram.bucketMilliseconds,
+                "max": frameWorkTiming.max,
+            ],
+            "display_cadence_ms": [
+                "developer_logs_enabled": presentationSettings.developerLogsEnabled,
+                "samples": cadenceCount,
+                "mean": cadenceMean,
+                "p95": cadenceP95,
+                "max": pendingIntervals.last ?? displayMaxMilliseconds,
+                "fast_under_12": pendingIntervals.isEmpty ? displayFastCallbacks
+                    : pendingIntervals.count { $0 < 12 },
+                "slow_at_least_24": pendingIntervals.isEmpty ? displaySlowCallbacks
+                    : pendingIntervals.count { $0 >= 24 },
+            ],
+            "renderer": [
+                "drawables_acquired": renderer.drawablesAcquired,
+                "drawable_misses": renderer.drawableMisses,
+                "late_present_submissions": renderer.latePresentSubmissions,
+            ],
+            "geometry": [
+                "drawable": [geometry.drawableWidth, geometry.drawableHeight],
+                "internal": [geometry.internalWidth, geometry.internalHeight],
+                "draw_region": [geometry.drawRegionWidth, geometry.drawRegionHeight],
+            ],
+            "thermal_state": thermalState,
+            "low_power_mode": processInfo.isLowPowerModeEnabled,
+        ]
+
+        do {
+            guard let caches = FileManager.default.urls(for: .cachesDirectory,
+                                                         in: .userDomainMask).first else {
+                throw CocoaError(.fileNoSuchFile)
+            }
+            let directory = caches
+                .appendingPathComponent("GOALPadDiagnostics", isDirectory: true)
+                .appendingPathComponent(profile.identifier.rawValue, isDirectory: true)
+            try FileManager.default.createDirectory(at: directory,
+                                                    withIntermediateDirectories: true)
+            let data = try JSONSerialization.data(withJSONObject: report,
+                                                  options: [.prettyPrinted, .sortedKeys])
+            try data.write(to: directory.appendingPathComponent("frame-timing.json"),
+                           options: .atomic)
+            frameWorkSamplesAtLastReport = frameWorkTiming.count
+        } catch {
+            sessionLog.error("""
+                \(self.title.name, privacy: .public) frame timing diagnostics could not be \
+                written: \(error.localizedDescription, privacy: .public)
+                """)
+        }
     }
 
     // MARK: - App lifecycle
@@ -1791,6 +1894,7 @@ final class GameSession {
             #if os(iOS) || os(visionOS)
             persistCameraDiagnosticsForLifecycleEvent()
             #endif
+            persistFrameTimingDiagnostics(event: "inactive")
             touch.reset()
             resetDisplayTiming()
             // A transient state - the app switcher, a notification. Give up the audio device but
@@ -1802,6 +1906,7 @@ final class GameSession {
             #if os(iOS) || os(visionOS)
             persistCameraDiagnosticsForLifecycleEvent()
             #endif
+            persistFrameTimingDiagnostics(event: "background")
             touch.reset()
             resetDisplayTiming()
             audio.suspend()
@@ -1894,6 +1999,7 @@ final class GameSession {
     }
 
     private func resetDisplayTiming() {
+        if Self.frameTimingDiagnosticsEnabled { resetFrameTimingDiagnostics() }
         // Boot owns the native display clock until it publishes a running session. Avoid racing
         // its background boot queue if the app changes lifecycle state during startup.
         if isRunning {
@@ -1958,5 +2064,45 @@ private extension GameplayLifecycleState.Phase {
         case .background: self = .background
         @unknown default: self = .inactive
         }
+    }
+}
+
+/// Fixed-size histogram of per-callback frame work, so recording never allocates. Percentiles
+/// report the upper edge of their bucket; samples beyond the last bucket land in it.
+private struct FrameWorkTimingHistogram {
+    static let bucketMilliseconds = 0.25
+    static let bucketCount = 400
+
+    private var buckets = [Int](repeating: 0, count: bucketCount)
+    private(set) var count = 0
+    private var totalMilliseconds = 0.0
+    private(set) var max = 0.0
+
+    var mean: Double { count == 0 ? 0 : totalMilliseconds / Double(count) }
+
+    mutating func record(milliseconds: Double) {
+        let index = Swift.min(Swift.max(Int(milliseconds / Self.bucketMilliseconds), 0),
+                              Self.bucketCount - 1)
+        buckets[index] += 1
+        count += 1
+        totalMilliseconds += milliseconds
+        max = Swift.max(max, milliseconds)
+    }
+
+    func percentile(_ fraction: Double) -> Double {
+        guard count > 0 else { return 0 }
+        let rank = Swift.max(1, Int((Double(count) * fraction).rounded(.up)))
+        var seen = 0
+        for (index, bucketSamples) in buckets.enumerated() {
+            seen += bucketSamples
+            if seen >= rank, index < Self.bucketCount - 1 {
+                return Swift.min(Double(index + 1) * Self.bucketMilliseconds, max)
+            }
+        }
+        return max
+    }
+
+    mutating func reset() {
+        self = FrameWorkTimingHistogram()
     }
 }
