@@ -1,0 +1,33 @@
+{
+  "product": "Dark Eco",
+  "version": "2.0",
+  "build": "264",
+  "platform": "visionOS",
+  "source_commit_recorded_at_build": "caf7b65152efa0359a8d50cee7ca2742af859931",
+  "engine_commit_recorded_at_build": "561baff2a28ac390570ab534d02ed5db77c3e89f",
+  "source_status": "Existing Build 264 repack; not rebuilt from public v2.0. Exact recorded build source was not fetchable during packaging.",
+  "input_executable_sha256": "b7b4ef80766ed61cc23fb440966cb32702f06ae236366858dbf8c7d3c61fdf9b",
+  "input_framework_sha256": "7aa053d4df36ab00b1ca2c0c9bddc97067cd0164be50e30e7a6f4c85b61b4c5a",
+  "source_pack_manifests_sha256": {
+    "Jak1": "6ee43f81273d4d488dd484c567839f7a19a9198cd31a3adbb0750376d3abbe2c",
+    "Jak2": "a452117d8dceeb793b56f6ea122b09eeb7eccbf1b19fe47f551d25537545979e"
+  },
+  "source_pack_audit": "All 518 Jak 1 and 840 Jak II files match their manifest byte count and XXH64. Source names exist in OpenGOAL source. No retail ISO/DGO/CGO/FR3/VAG/STR payload files are bundled.",
+  "original_device_evidence": "Original signed Build 264 was installed in place on October 26, 2026. That receipt did not certify physical gameplay acceptance.",
+  "repack_changes": [
+    "Set CFBundleVersion to 264.1 for this packaging revision",
+    "Remove original provisioning profile and signatures",
+    "Apply ad-hoc signatures with empty entitlements to app and embedded runtime",
+    "Add upstream notices and this provenance receipt"
+  ],
+  "sideload_validation": "No installation, launch, free-account signing, or gameplay validation of this repack has been performed.",
+  "limits": [
+    "Local saves only; iCloud is not provisioned",
+    "Jak 1 immersive presentation remains experimental, including sky gaps and stereo/HUD issues",
+    "Jak II is an incomplete windowed runtime; this predates later Jak II fixes; no Jak II immersion",
+    "Supply your own supported game data through the in-app importer"
+  ],
+  "license_notice_snapshot_engine_commit": "f391f168e10ab4044d6056d4c2b8f98d2a0703c6",
+  "package_build": "264.1",
+  "input_bundle_manifest_sha256": "d781907575baa355dd9972e49a3bac0e10cc243e0514fbffdb787f1c816824e6"
+}
