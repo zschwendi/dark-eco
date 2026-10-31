@@ -169,6 +169,9 @@ final class GameSession {
         saveSync.setGameplayReadinessHandler { [weak self] in
             self?.saveGameplayReadinessDidChange()
         }
+        // ContentView's Fit to Screen onChange cannot fire when this replacement session loads
+        // the same value as the session it replaced, so adopt the stored choice here.
+        settings.horizontalPlusEnabled = presentationSettings.graphicsFillWidth
     }
 
     func prepare() async {

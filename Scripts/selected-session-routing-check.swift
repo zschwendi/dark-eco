@@ -71,6 +71,12 @@ check(session.contains("let profile: GameDataProfile")
             "dataReport = GameDataReport(profile: profile)",
         ], in: initializer),
       "one immutable selected profile initializes every title-scoped session dependency")
+check(occursInOrder([
+    "settings = RenderSettings(configuration: renderConfiguration)",
+    "presentationSettings = PresentationSettings(profile: presentationProfile)",
+    "settings.horizontalPlusEnabled = presentationSettings.graphicsFillWidth",
+], in: initializer),
+      "a replacement session adopts its stored Fit to Screen choice at construction")
 
 check(session.contains("GameDataLayout.prepare(profile: profile)")
         && occursInOrder(["GameDataInspector.inspect(",
