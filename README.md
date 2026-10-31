@@ -111,9 +111,9 @@ data.
 
 The setup screen is the authority for the formats supported by your particular
 build. When disc preparation is available, the picker leaves files selectable
-and Dark Eco checks the selection afterwards. If every file is dimmed, the
-build offers only prepared folders for that game. A selected file can still be
-an unsupported format or disc revision.
+and Dark Eco checks the selection afterwards. Without disc preparation for the
+selected game, the picker offers prepared folders only. A selected file can
+still be an unsupported format or disc revision.
 
 Keep Dark Eco's installed game-data copy on your device. Once setup succeeds,
 the app no longer needs the original import source. No game data is fetched
