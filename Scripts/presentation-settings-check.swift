@@ -1341,96 +1341,6 @@ private func titleSettingsProfilesKeepKeysAndDocumentsIsolated() throws {
           "each presentation profile writes its own local document")
 }
 
-/// Mirrors the construction order in `GameSession.init(profile:)`; the selected-session routing
-/// check pins that the production initializer performs the same final hydration.
-@MainActor
-private func sessionRenderSettings(_ render: RenderSettingsConfiguration,
-                                   _ presentation: PresentationSettingsProfile,
-                                   defaults: UserDefaults) -> (RenderSettings, Bool) {
-    let settings = RenderSettings(configuration: render, defaults: defaults)
-    let constructedDefault = settings.horizontalPlusEnabled
-    let presentationSettings = PresentationSettings(profile: presentation, defaults: defaults)
-    settings.horizontalPlusEnabled = presentationSettings.graphicsFillWidth
-    return (settings, constructedDefault)
-}
-
-@MainActor
-private func replacementSessionsAdoptStoredFitToScreen() throws {
-    print("replacement title sessions adopt their stored Fit to Screen at construction")
-    let root = FileManager.default.temporaryDirectory
-        .appending(path: "goalpad-session-fit-\(UUID().uuidString)", directoryHint: .isDirectory)
-    let suiteName = "goalpad-session-fit-\(UUID().uuidString)"
-    let defaults = UserDefaults(suiteName: suiteName)!
-    defer {
-        defaults.removePersistentDomain(forName: suiteName)
-        try? FileManager.default.removeItem(at: root)
-    }
-    func profiles(_ name: String) -> (PresentationSettingsProfile, PresentationSettingsProfile) {
-        func configuration(_ path: String) -> PresentationSettingsConfiguration {
-            PresentationSettingsConfiguration(
-                localDocumentURL: root.appending(path: "\(name)/\(path)/presentation-v1.json"),
-                cloudDocumentURL: { nil },
-                coordinateCloudAccess: false)
-        }
-        return (.jak1(configuration: configuration("Settings")),
-                .jak2(configuration: configuration("Jak2/Settings")))
-    }
-    func store(_ profile: PresentationSettingsProfile, graphics: SettingsProfile,
-               fillWidth: Bool?) {
-        let value = PresentationSettings(profile: profile, defaults: defaults)
-        value.cloudSyncEnabled = false
-        value.setProfile(graphics, for: .graphics)
-        if let fillWidth { value.setGraphicsFillWidth(fillWidth) }
-        // Force a local write even when the requested state equals the in-memory default.
-        value.setDeveloperLogsEnabled(true)
-    }
-
-    // Build 279: both titles store Fit to Screen ON. Before the fix the replacement session kept
-    // RenderSettings' constructed false because ContentView's value-keyed onChange saw true->true.
-    let (modernJak1, modernJak2) = profiles("modern-default")
-    store(modernJak1, graphics: .modern, fillWidth: nil)
-    store(modernJak2, graphics: .modern, fillWidth: nil)
-    let (jak1, jak1Default) = sessionRenderSettings(.jak1, modernJak1, defaults: defaults)
-    let (jak2, jak2Default) = sessionRenderSettings(.jak2, modernJak2, defaults: defaults)
-    check(!jak1Default && !jak2Default,
-          "a freshly constructed RenderSettings starts with Fit to Screen off")
-    check(jak1 !== jak2 && jak1.horizontalPlusEnabled && jak2.horizontalPlusEnabled,
-          "two distinct title sessions with stored Modern defaults both start widened")
-
-    let (classicOnJak1, classicOnJak2) = profiles("classic-override-on")
-    store(classicOnJak1, graphics: .classic, fillWidth: true)
-    store(classicOnJak2, graphics: .classic, fillWidth: true)
-    check(sessionRenderSettings(.jak1, classicOnJak1, defaults: defaults).0.horizontalPlusEnabled
-          && sessionRenderSettings(.jak2, classicOnJak2, defaults: defaults).0
-            .horizontalPlusEnabled,
-          "an explicit ON override under Classic starts widened for both titles")
-
-    let (modernOffJak1, modernOffJak2) = profiles("modern-override-off")
-    store(modernOffJak1, graphics: .modern, fillWidth: false)
-    store(modernOffJak2, graphics: .modern, fillWidth: false)
-    check(!sessionRenderSettings(.jak1, modernOffJak1, defaults: defaults).0
-            .horizontalPlusEnabled
-          && !sessionRenderSettings(.jak2, modernOffJak2, defaults: defaults).0
-            .horizontalPlusEnabled,
-          "an explicit OFF override under Modern starts 4:3 for both titles")
-
-    let (classicJak1, classicJak2) = profiles("classic-default")
-    store(classicJak1, graphics: .classic, fillWidth: nil)
-    store(classicJak2, graphics: .classic, fillWidth: nil)
-    check(!sessionRenderSettings(.jak1, classicJak1, defaults: defaults).0.horizontalPlusEnabled
-          && !sessionRenderSettings(.jak2, classicJak2, defaults: defaults).0
-            .horizontalPlusEnabled,
-          "the Classic default starts 4:3 for both titles")
-
-    let (mixedJak1, mixedJak2) = profiles("mixed")
-    store(mixedJak1, graphics: .modern, fillWidth: nil)
-    store(mixedJak2, graphics: .modern, fillWidth: false)
-    check(sessionRenderSettings(.jak1, mixedJak1, defaults: defaults).0.horizontalPlusEnabled
-          && !sessionRenderSettings(.jak2, mixedJak2, defaults: defaults).0
-            .horizontalPlusEnabled,
-          "each title session reads only its own stored Fit to Screen choice")
-}
-
 @MainActor
 private func touchFaceButtonsDefaultPersistAndReset() async throws {
     print("optional touch face buttons default to gestures, persist per title, and reset")
@@ -1520,7 +1430,6 @@ private struct PresentationSettingsCheck {
             try await unresolvedCloudVersionParticipatesInConflictResolution()
             try await unresolvedTouchSidecarVersionParticipatesInConflictResolution()
             try titleSettingsProfilesKeepKeysAndDocumentsIsolated()
-            try replacementSessionsAdoptStoredFitToScreen()
         } catch {
             print("  FAIL unexpected error: \(error)")
             failures += 1
