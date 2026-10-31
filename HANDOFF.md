@@ -1,4 +1,60 @@
-# October 31, 2026 — Build 278 diagnostics preview
+# October 31, 2026 — Build 280 picker and presentation candidate
+
+Compiled app: `75cd02ebc4097bd851a8b18482d789bf5d38f1f1`.
+Engine: `2154f2c3904242a6a41ed56bfaae6556c1497862` (includes the Jak II resource-pin correction).
+
+Changes since Build 279: broader Files picker filtering for ISO/archive
+selection (validation after selection unchanged); stored Fit to Screen applied
+at start for both games; Jak II pause sampling dimensions matched to the
+internal target; idle display link stopped when the game loop has no work,
+with the surface kept attached and sized. The native engine refreshes four importer resource pins; game code and
+presentation coalescing are unchanged from 279.
+
+Gates:
+
+- Final build matrix: signed iOS and simulator Release builds passed; macOS and visionOS compile checks passed
+- Real importer UI test: on the iPhone Duo iOS 27.1 simulator, ISO and ZIP were selectable for Jak 1 (closed) and Jak II (open); all four synthetic invalid-disc checks reached the expected disc rejection, with zero activated game-data files. This does not establish real-disc import or recipient file-provider acceptance
+- Public package: https://github.com/zschwendi/dark-eco/releases/tag/ios-build280-preview, `DarkEco-iOS-2.0-build280-preview.ipa`, `IPA-IOS280-PROVENANCE.json`;
+  package verification passed (1,432 inventory files, unchanged code/data sections, strict transport signatures); public download check pending.
+- Physical device: none for Build 280. Build 279 acceptance does not transfer.
+
+Issues:
+
+- [#10](https://github.com/zschwendi/dark-eco/issues/10) closed for the
+  previously affected loading-chamber area only (Build 279 physical test); not
+  full-game acceptance or a blanket slowdown fix.
+- [#6](https://github.com/zschwendi/dark-eco/issues/6) ProMotion app-wide
+  slowdown open, including cold Library; 280's idle-loop change is a candidate,
+  untested on device. Do not claim active 120 Hz gameplay fixed.
+- [#9](https://github.com/zschwendi/dark-eco/issues/9) recipient import:
+  Duo simulator selection passed; recipient acceptance pending.
+- [#15](https://github.com/zschwendi/dark-eco/issues/15) stale Jak II importer
+  pins corrected; native test and rebuilt Duo replay results recorded below.
+- [#12](https://github.com/zschwendi/dark-eco/issues/12) initial Fit to Screen:
+  physical acceptance pending.
+- [#14](https://github.com/zschwendi/dark-eco/issues/14) Jak II internal scale is
+  hardcoded 1x; the visible selector is ignored. Not fixed by the pause change.
+- [#11](https://github.com/zschwendi/dark-eco/issues/11) pause,
+  [#7](https://github.com/zschwendi/dark-eco/issues/7) red rectangular
+  taillights, [#8](https://github.com/zschwendi/dark-eco/issues/8) cutscene video
+  freeze with audio and [#13](https://github.com/zschwendi/dark-eco/issues/13)
+  water/reflection streaks remain open. #13's relation to other work is unproven;
+  no water fix.
+- [#1](https://github.com/zschwendi/dark-eco/issues/1) Kor and
+  [#2](https://github.com/zschwendi/dark-eco/issues/2) Dark Jak need physical
+  acceptance; not closed automatically.
+
+Native composer tests passed, including resource drift and corruption rejection.
+All 29 resource pins match both built bundles. See [Build 280 validation](docs/BUILD280-VALIDATION.md), including baseline source-text test failures.
+
+Next: publish and verify the public download; then obtain current permission
+for physical acceptance of Fit to Screen in both games, the Jak II pause screen
+and cold Library behavior. Active-game ProMotion remains unresolved; do not
+make speculative timing changes without a discriminating physical capture.
+
+---
+
+# October 31, 2026 — Build 278 diagnostics preview (superseded)
 
 Build 278 adds opt-in timing exports and a guarded Jak II clock snapshot. It
 does not fix [ProMotion stutter](https://github.com/zschwendi/dark-eco/issues/6)

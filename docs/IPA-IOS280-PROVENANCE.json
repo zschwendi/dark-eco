@@ -1,0 +1,39 @@
+{
+  "product": "Dark Eco",
+  "version": "2.0",
+  "build": "280",
+  "package_build": "280",
+  "platform": "iOS",
+  "source_commit_recorded_at_build": "75cd02ebc4097bd851a8b18482d789bf5d38f1f1",
+  "engine_commit_recorded_at_build": "2154f2c3904242a6a41ed56bfaae6556c1497862",
+  "source_status": "Signed native iOS Release test candidate for Files picker compatibility, corrected Jak II importer resource pins, initial Fit to Screen, Jak II pause background geometry and idle display-link lifecycle. Retains Build279 area-speed improvement. Physical recipient import/presentation acceptance pending; ProMotion is not fixed. Not installed.",
+  "source_url": "https://github.com/zschwendi/dark-eco/commit/75cd02ebc4097bd851a8b18482d789bf5d38f1f1",
+  "engine_url": "https://github.com/zschwendi/jak-pad/commit/2154f2c3904242a6a41ed56bfaae6556c1497862",
+  "input_executable_sha256": "485cb8f71c6855786480b6ae2a96737eec967841af6d2ed457c69d0e3551705b",
+  "input_framework_sha256": "556866b53ce3e9cc9622a67a8c30f84644aa12b242d4b0c62a49c985a766436c",
+  "input_bundle_manifest_sha256": "3551727ae6bc5791eccbcc4b4eb8266926b97ad6f2f2242e82ca48f43ffa49e1",
+  "source_pack_manifests_sha256": {
+    "Jak1": "1f6235f5c72509333d116235df63147aafb3b3453fc5676c8e15af627edb1ead",
+    "Jak2": "71a3da27a1d09b0fedd2905abe5c69982b06585bfe00d128fefe93b09afdc7fa"
+  },
+  "source_pack_audit": "Both bundled packs passed their current native verifier, all member sizes and XXH64 hashes, and matching aggregate IDs: Jak1 518 / 806abc2b2667435a; Jak2 840 / f2cdf82e9b913501.",
+  "repack_changes": [
+    "Keep build 280 and compiled runtime code matching the signed development build",
+    "Remove maintainer provisioning and signatures",
+    "Apply transport ad-hoc signatures with empty entitlements",
+    "Add matching source notices and this receipt"
+  ],
+  "simulator_import_validation": "iPhone Duo iOS 27.1 local-provider ISO and ZIP selection reached invalid-disc rejection for Jak 1 and Jak II; synthetic fixtures installed no game data. This does not validate real-disc preparation or the recipient file provider.",
+  "sideload_validation": "Recipient signing, fresh raw-disc import and gameplay acceptance are not certified by compilation or packaging checks.",
+  "limits": [
+    "ProMotion app-wide slowdown remains unresolved (issue6); idle Library display-link cleanup does not change active-game frame work",
+    "Recipient ISO/ZIP picker and import acceptance still requires that device; build/provider-specific cause not confirmed",
+    "Fit to Screen and JakII pause correction passed scoped code checks but await physical acceptance",
+    "Prior Build279 JakII area-speed improvement is retained; not a full-game certification",
+    "JakII water, vehicle light and cutscene defects remain tracked separately",
+    "JakII internal-resolution selector is currently ignored by its runtime (issue14)",
+    "Public package uses local saves; iCloud is not provisioned",
+    "No retail game assets included"
+  ],
+  "license_notice_snapshot_engine_commit": "2154f2c3904242a6a41ed56bfaae6556c1497862"
+}

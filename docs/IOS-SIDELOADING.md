@@ -1,21 +1,30 @@
 # Dark Eco for iPhone and iPad
 
-Download the [experimental iOS/iPadOS Build 279 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/ios-build279-preview).
-The **2.0 / Build 279** package is
-`DarkEco-iOS-2.0-build279-preview.ipa`. One native arm64 IPA supports both
-iPhone and iPad on **iOS/iPadOS 26.5 or later**. It contains the app runtime and
-reconstructed OpenGOAL code, with no retail game data.
-Its device-family metadata is `1,2`; this is a physical-device build, not a
-simulator app.
+Download the [experimental iOS/iPadOS Build 280 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/ios-build280-preview).
+The **2.0 / Build 280** package is `DarkEco-iOS-2.0-build280-preview.ipa`. One native arm64 IPA
+supports both iPhone and iPad on **iOS/iPadOS 26.5 or later**. It contains the
+app runtime and reconstructed OpenGOAL code, with no retail game data.
 
-Build 279 is a **performance test candidate**. It corrects irregular-callback
-time accounting in both games, preserves input across callbacks that run no
-game step, and avoids presenting Jak II's intermediate catch-up frames while
-still executing every game step and render pass. These changes passed focused
-logic tests and synthetic Metal output checks. The maintainer reports that the
-affected Jak II loading-chamber area now runs correctly on the physical iPad
-Pro. ProMotion still causes app-wide slowdown; this is not a complete-game or
-120 Hz acceptance result.
+Build 280 is a **test candidate**. It keeps Build 279's frame-timing changes
+and adds:
+
+- a wider range of selectable ISO and archive files in the Files picker; Dark
+  Eco still validates the selected format and disc contents;
+- corrected Jak II resource validation entries that blocked ISO/ZIP preparation;
+- saved Fit to Screen applied when either game starts;
+- Jak II pause-background sampling at the game's internal render size;
+- stopping the display loop when the game has no work, while keeping the game
+  view attached and sized.
+
+The signed iOS build, simulator build and macOS/visionOS compile checks passed.
+On an iPhone Duo iOS 27.1 simulator, ISO and ZIP files were selectable for
+both games and invalid test discs were correctly rejected. This tests the
+picker, not complete preparation of a valid disc or the recipient's storage
+provider. See the [validation results and limits](BUILD280-VALIDATION.md).
+Build 280 has not been installed or played on a physical device. The maintainer's Build 279 acceptance covered only the
+previously affected Jak II loading-chamber area
+([#10](https://github.com/zschwendi/dark-eco/issues/10)); it is not a
+complete-game result and does not carry over to Build 280.
 
 Optional reports remain available through **Settings → Graphics → Developer
 Logs**, enabled before starting a game. Reports appear in **Files → Dark Eco →
@@ -23,26 +32,24 @@ Diagnostics → jak1 or jak2**. Each title keeps one report that is replaced on 
 next write. Developer Logs adds measurement overhead; leave it off for ordinary
 play and smoothness comparisons.
 
-[ProMotion stutter](https://github.com/zschwendi/dark-eco/issues/6) and
-[Jak II persistent world slow motion](https://github.com/zschwendi/dark-eco/issues/10)
-have separate outcomes: the maintainer accepted the affected Jak II area, while
-ProMotion remains unresolved. Library stutter has no proven cause or fix in this
-build. The issues record the scope of that feedback.
+[ProMotion app-wide slowdown](https://github.com/zschwendi/dark-eco/issues/6)
+remains unresolved, including in the Library. Build 280's idle display-loop
+change is a candidate for the Library case but has not been tested on a device.
 The timing recorder covers game frames and menus, not Library animation.
 Start with **Graphics → ProMotion off** for 60 FPS, which was reported smooth
 in earlier iPhone Air testing. Keep one ProMotion mode and resolution per game
 boot when recording.
 
-Optional touch buttons, the internal-resolution selector, earlier Jak II
-lookup-speed/Dark Jak/shadow repairs, and importer resources are retained.
-A recipient reports ISO and ZIP files greyed out in the Files picker, before
-import starts; [that file-selection failure](https://github.com/zschwendi/dark-eco/issues/9)
-remains under investigation. The maintainer's
-signed Build 279 has been installed in place on a physical iPad Pro; existing
-game/save directories and Jak II save-bank files remain present. The affected
-Jak II area has scoped user acceptance. ProMotion, the [Jak II pause background](https://github.com/zschwendi/dark-eco/issues/11),
-[saved Fit to Screen application](https://github.com/zschwendi/dark-eco/issues/12)
-and [Jak II water rendering](https://github.com/zschwendi/dark-eco/issues/13)
+Optional touch buttons, earlier Jak II lookup-speed/Dark Jak/shadow repairs,
+and importer resources are retained. Jak II currently renders at a fixed
+internal scale and ignores the internal-resolution selector
+([#14](https://github.com/zschwendi/dark-eco/issues/14)). The picker change for
+[recipient file selection](https://github.com/zschwendi/dark-eco/issues/9) and
+[saved Fit to Screen](https://github.com/zschwendi/dark-eco/issues/12) still
+need physical acceptance. The [Jak II pause background](https://github.com/zschwendi/dark-eco/issues/11),
+[red rectangular taillights](https://github.com/zschwendi/dark-eco/issues/7),
+[cutscene video freezing while audio continues](https://github.com/zschwendi/dark-eco/issues/8)
+and [Jak II water/reflection streaks](https://github.com/zschwendi/dark-eco/issues/13)
 remain open. Recipient signing, fresh import and save-preserving refresh of
 this public package remain unverified.
 
@@ -126,9 +133,9 @@ addressing or JIT entitlements. The repack does not remove a required memory
 capability. Its ad-hoc transport signature must still be replaced by your
 sideloader's signature for your device.
 
-Build 279's exact compiled source is [app `3ed4df9`](https://github.com/zschwendi/dark-eco/commit/3ed4df9c2571cf8be81730d61e783539c242d1b7)
-and [engine `32dc7d80`](https://github.com/zschwendi/jak-pad/commit/32dc7d8039751d26e1eb9aad7987cfc2488c0fb9).
-Original hashes, changes and limitations are recorded in
-[IPA-IOS279-PROVENANCE.json](IPA-IOS279-PROVENANCE.json). The release includes
+Build 280's exact compiled source is [app `75cd02e`](https://github.com/zschwendi/dark-eco/commit/75cd02ebc4097bd851a8b18482d789bf5d38f1f1)
+and [engine `2154f2c3`](https://github.com/zschwendi/jak-pad/commit/2154f2c3904242a6a41ed56bfaae6556c1497862),
+with the Jak II resource-pin correction. Original hashes, changes and limitations are
+recorded in [IPA-IOS280-PROVENANCE.json](IPA-IOS280-PROVENANCE.json). The release includes
 the complete package manifest and checksum. Local package checks are not
 physical-device or gameplay acceptance.
