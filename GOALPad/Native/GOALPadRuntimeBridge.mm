@@ -648,6 +648,15 @@ static GOALPadGameBootStatus *GOALPadGameBootStatusFromJak2(
   return snapshot;
 }
 
++ (GOALPadJak2GameSpeedSnapshot)jak2GameSpeedSnapshot {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge jak2GameSpeedSnapshot];
+  }
+#endif
+  return {};
+}
+
 + (GOALPadWarpGateTouchSnapshot)warpGateTouchSnapshot {
 #if GOALPAD_HAS_JAK2_RUNTIME
   if (GOALPadIsJak2Active()) {

@@ -1882,6 +1882,29 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
   return snapshot;
 }
 
++ (GOALPadJak2GameSpeedSnapshot)jak2GameSpeedSnapshot {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  GOALPadJak2GameSpeedSnapshot snapshot = {};
+  if (!copy_runtime_metrics_locked()) {
+    return snapshot;
+  }
+  const auto& metrics = g_runtime_metrics;
+  snapshot.metricsAvailable = YES;
+  snapshot.nativeTargetFrameRate = metrics.native_target_frame_rate;
+  snapshot.lastDispatcherFrames = metrics.last_dispatcher_frames;
+  if (metrics.game_speed_valid != 1) {
+    return snapshot;
+  }
+  snapshot.gameSpeedValid = YES;
+  snapshot.timeFactor = metrics.time_factor;
+  snapshot.dogRatio = metrics.dog_ratio;
+  snapshot.targetClockRatio = metrics.target_clock_ratio;
+  snapshot.entityClockRatio = metrics.entity_clock_ratio;
+  snapshot.bgClockRatio = metrics.bg_clock_ratio;
+  snapshot.cameraClockRatio = metrics.camera_clock_ratio;
+  return snapshot;
+}
+
 + (GOALPadWarpGateTouchSnapshot)warpGateTouchSnapshot {
   return unavailable_warp_gate_snapshot();
 }

@@ -223,6 +223,22 @@ typedef struct GOALPadJak2ProgressMenuSemanticSnapshot {
   uint32_t actionMask;
 } GOALPadJak2ProgressMenuSemanticSnapshot;
 
+/// Jak II game-speed inputs for diagnostics. `gameSpeedValid` is NO when the GOAL values could not
+/// all be read; the GOAL fields are then meaningless. A zero native frame rate means native
+/// timing has not refreshed yet, and zero dispatcher frames means no tick has run.
+typedef struct GOALPadJak2GameSpeedSnapshot {
+  BOOL metricsAvailable;
+  BOOL gameSpeedValid;
+  float timeFactor;
+  float dogRatio;
+  float targetClockRatio;
+  float entityClockRatio;
+  float bgClockRatio;
+  float cameraClockRatio;
+  int32_t nativeTargetFrameRate;
+  uint32_t lastDispatcherFrames;
+} GOALPadJak2GameSpeedSnapshot;
+
 typedef NS_ENUM(NSInteger, GOALPadWarpGateTouchState) {
   GOALPadWarpGateTouchStateUnavailable = 0,
   GOALPadWarpGateTouchStateCircleUseAvailable = 1,
@@ -356,6 +372,8 @@ typedef NS_ENUM(NSInteger, GOALPadGameIdentifier) {
 /// A separate fail-closed Jak II semantic ABI; it never reuses Jak 1 progress screen numbers.
 @property(class, nonatomic, readonly)
     GOALPadJak2ProgressMenuSemanticSnapshot jak2ProgressMenuSemanticSnapshot;
+/// A read-only Jak II metrics copy for lifecycle diagnostics; Jak 1 reports it unavailable.
+@property(class, nonatomic, readonly) GOALPadJak2GameSpeedSnapshot jak2GameSpeedSnapshot;
 /// GOAL-owned warp-gate touch semantics. Invalid and valid-unavailable snapshots are distinct.
 @property(class, nonatomic, readonly) GOALPadWarpGateTouchSnapshot warpGateTouchSnapshot;
 /// GOAL-owned, fail-closed Triangle-query availability for explicitly skippable animations only.

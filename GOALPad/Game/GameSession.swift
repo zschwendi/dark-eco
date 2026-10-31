@@ -96,9 +96,15 @@ final class GameSession {
     }
     private var previousDisplayCallback: CFTimeInterval?
     private var displayIntervals: [Double] = []
-    private static let frameTimingDiagnosticsEnabled =
+    private static let frameTimingDiagnosticsRequestedByEnvironment =
         ProcessInfo.processInfo.environment["GOALPAD_FRAME_TIMING_DIAGNOSTICS"] == "1"
+    /// Captured when a session starts, alongside the renderer's detailed stats, so a mid-session
+    /// Developer Logs change cannot mix measured and unmeasured frames in one report.
+    @ObservationIgnored private var frameTimingDiagnosticsEnabled = false
     @ObservationIgnored private var frameWorkTiming = FrameWorkTimingHistogram()
+    @ObservationIgnored private var menuFrameWorkTiming = FrameWorkTimingHistogram()
+    @ObservationIgnored private var framesEndedAfterTargetTimestamp = 0
+    @ObservationIgnored private var detailedFrameStatsEnabled = false
     @ObservationIgnored private var frameWorkSamplesAtLastReport = 0
     #if os(iOS) || os(visionOS)
     private var cameraDiagnosticsURL: URL?
@@ -273,8 +279,10 @@ final class GameSession {
         }
         guard !isRunning, !isBooting else { return }
         audio.resumeIfSuspended()
-        GOALPadRenderSurface.shared.setDetailedFrameStatsEnabled(
-            presentationSettings.developerLogsEnabled)
+        detailedFrameStatsEnabled = presentationSettings.developerLogsEnabled
+        GOALPadRenderSurface.shared.setDetailedFrameStatsEnabled(detailedFrameStatsEnabled)
+        frameTimingDiagnosticsEnabled =
+            Self.frameTimingDiagnosticsRequestedByEnvironment || detailedFrameStatsEnabled
 
         let status = GOALPadRuntimeBridge.startKernel(
             withDataDirectory: gameDataDirectory.path,
@@ -438,6 +446,7 @@ final class GameSession {
         #endif
         persistFrameTimingDiagnostics(event: "shutdown")
         resetFrameTimingDiagnostics()
+        frameTimingDiagnosticsEnabled = false
         GOALPadRuntimeBridge.stopKernel()
         handledNativeExitToLibraryRequest = false
         gameplaySaveGeneration.reset()
@@ -580,9 +589,9 @@ final class GameSession {
 
     private func runArmedTick(targetPresentationTime: CFTimeInterval,
                               endFrame: () -> Bool) -> Bool {
-        let frameWorkStart = Self.frameTimingDiagnosticsEnabled ? CACurrentMediaTime() : 0
+        let frameWorkStart = frameTimingDiagnosticsEnabled ? CACurrentMediaTime() : 0
         let developerLogsEnabled = presentationSettings.developerLogsEnabled
-        if Self.frameTimingDiagnosticsEnabled {
+        if frameTimingDiagnosticsEnabled {
             recordDisplayCallback(at: frameWorkStart)
         } else if developerLogsEnabled {
             recordDisplayCallback(at: CACurrentMediaTime())
@@ -662,8 +671,16 @@ final class GameSession {
         // display callback.
         if shouldLog { logRunningState(renderer: GOALPadRenderSurface.shared.stats) }
         input.applyRumble()
-        if Self.frameTimingDiagnosticsEnabled {
-            frameWorkTiming.record(milliseconds: (CACurrentMediaTime() - frameWorkStart) * 1_000)
+        if frameTimingDiagnosticsEnabled {
+            let frameWorkEnd = CACurrentMediaTime()
+            let frameWorkMilliseconds = (frameWorkEnd - frameWorkStart) * 1_000
+            frameWorkTiming.record(milliseconds: frameWorkMilliseconds)
+            if isNativeMenuOpen {
+                menuFrameWorkTiming.record(milliseconds: frameWorkMilliseconds)
+            }
+            if frameWorkEnd > targetPresentationTime {
+                framesEndedAfterTargetTimestamp += 1
+            }
         }
         return framePresented
     }
@@ -1762,13 +1779,55 @@ final class GameSession {
 
     private func resetFrameTimingDiagnostics() {
         frameWorkTiming.reset()
+        menuFrameWorkTiming.reset()
+        framesEndedAfterTargetTimestamp = 0
         frameWorkSamplesAtLastReport = 0
+    }
+
+    private static func gameModeName(_ mode: GOALPadGameMode) -> String {
+        switch mode {
+        case .gameplay: "gameplay"
+        case .pause: "pause"
+        case .progress: "progress"
+        case .menu: "menu"
+        case .unknown: "unknown"
+        @unknown default: "unknown"
+        }
+    }
+
+    private static func jak2GameSpeedReport(_ snapshot: GOALPadJak2GameSpeedSnapshot)
+        -> [String: Any] {
+        var report: [String: Any] = [
+            "metrics_available": snapshot.metricsAvailable.boolValue,
+            "game_speed_valid": snapshot.gameSpeedValid.boolValue,
+        ]
+        guard snapshot.metricsAvailable.boolValue else { return report }
+        // Zero means native timing has not refreshed yet, not a 0 Hz domain or a zero-frame tick.
+        report["native_timing_valid"] = snapshot.nativeTargetFrameRate == 60
+            || snapshot.nativeTargetFrameRate == 120
+        report["native_target_frame_rate"] = snapshot.nativeTargetFrameRate
+        report["last_dispatcher_frames"] = snapshot.lastDispatcherFrames
+        let gameSpeed: [String: Float] = [
+            "time_factor": snapshot.timeFactor,
+            "dog_ratio": snapshot.dogRatio,
+            "target_clock_ratio": snapshot.targetClockRatio,
+            "entity_clock_ratio": snapshot.entityClockRatio,
+            "bg_clock_ratio": snapshot.bgClockRatio,
+            "camera_clock_ratio": snapshot.cameraClockRatio,
+        ]
+        // JSONSerialization cannot encode non-finite numbers; treat them as an invalid read.
+        guard snapshot.gameSpeedValid.boolValue, gameSpeed.values.allSatisfy(\.isFinite) else {
+            report["game_speed_valid"] = false
+            return report
+        }
+        report.merge(gameSpeed) { current, _ in current }
+        return report
     }
 
     /// Replaces the previous report only when new frames were measured, so a background event
     /// that follows an inactive one keeps the inactive report's cadence statistics.
     private func persistFrameTimingDiagnostics(event: String) {
-        guard Self.frameTimingDiagnosticsEnabled, isRunning,
+        guard frameTimingDiagnosticsEnabled, isRunning,
               frameWorkTiming.count != frameWorkSamplesAtLastReport else { return }
         let surface = GOALPadRenderSurface.shared
         let renderer = surface.stats
@@ -1787,7 +1846,7 @@ final class GameSession {
             : pendingIntervals.reduce(0, +) / Double(pendingIntervals.count)
         let cadenceP95 = pendingIntervals.isEmpty ? displayP95Milliseconds
             : pendingIntervals[Int(ceil(Double(pendingIntervals.count) * 0.95)) - 1]
-        let report: [String: Any] = [
+        var report: [String: Any] = [
             "schema": "goalpad-frame-timing-v1",
             "build": GOALPadBuildIdentity.displayText,
             "event": event,
@@ -1795,13 +1854,20 @@ final class GameSession {
             "target_frame_rate": targetFrameRate,
             "frames_run": framesRun,
             "frames_presented": framesPresented,
-            "frame_work_scope": "armed callback including native runFrame and endFrame; excludes drawable acquisition",
+            "frame_work_scope": "armed callback including native runFrame, synchronous drawable acquisition, render submission, and endFrame; excludes prior beginFrame",
             "frame_work_ms": [
                 "count": frameWorkTiming.count,
                 "mean": frameWorkTiming.mean,
                 "p95_upper_bound": frameWorkTiming.percentile(0.95),
                 "bucket_width": FrameWorkTimingHistogram.bucketMilliseconds,
                 "max": frameWorkTiming.max,
+                "ended_after_target_timestamp": framesEndedAfterTargetTimestamp,
+            ],
+            "menu_frame_work_ms": [
+                "count": menuFrameWorkTiming.count,
+                "mean": menuFrameWorkTiming.mean,
+                "p95_upper_bound": menuFrameWorkTiming.percentile(0.95),
+                "max": menuFrameWorkTiming.max,
             ],
             "display_cadence_ms": [
                 "developer_logs_enabled": presentationSettings.developerLogsEnabled,
@@ -1815,6 +1881,7 @@ final class GameSession {
                     : pendingIntervals.count { $0 >= 24 },
             ],
             "renderer": [
+                "counters_refreshed": detailedFrameStatsEnabled,
                 "drawables_acquired": renderer.drawablesAcquired,
                 "drawable_misses": renderer.drawableMisses,
                 "late_present_submissions": renderer.latePresentSubmissions,
@@ -1826,15 +1893,26 @@ final class GameSession {
             ],
             "thermal_state": thermalState,
             "low_power_mode": processInfo.isLowPowerModeEnabled,
+            "sampling": [
+                "frame_work_and_cadence":
+                    "since session start, the last live frame-rate switch, or the last lifecycle reset",
+                "target_frame_rate_geometry_and_game_speed": "read once when this report was written",
+            ],
+            "report_context": [
+                "native_menu_open": isNativeMenuOpen,
+                "last_frame_game_mode": Self.gameModeName(gameMode),
+            ],
         ]
+        if profile.identifier == .jak2 {
+            report["jak2_game_speed"] = Self.jak2GameSpeedReport(
+                GOALPadRuntimeBridge.jak2GameSpeedSnapshot)
+        }
 
         do {
-            guard let caches = FileManager.default.urls(for: .cachesDirectory,
-                                                         in: .userDomainMask).first else {
-                throw CocoaError(.fileNoSuchFile)
-            }
-            let directory = caches
-                .appendingPathComponent("GOALPadDiagnostics", isDirectory: true)
+            // Documents is shared through the Files app, so players can send the report without
+            // a Mac or a special launch.
+            let directory = GameDataLayout.documentsDirectory
+                .appendingPathComponent("Diagnostics", isDirectory: true)
                 .appendingPathComponent(profile.identifier.rawValue, isDirectory: true)
             try FileManager.default.createDirectory(at: directory,
                                                     withIntermediateDirectories: true)
@@ -1999,7 +2077,7 @@ final class GameSession {
     }
 
     private func resetDisplayTiming() {
-        if Self.frameTimingDiagnosticsEnabled { resetFrameTimingDiagnostics() }
+        if frameTimingDiagnosticsEnabled { resetFrameTimingDiagnostics() }
         // Boot owns the native display clock until it publishes a running session. Avoid racing
         // its background boot queue if the app changes lifecycle state during startup.
         if isRunning {

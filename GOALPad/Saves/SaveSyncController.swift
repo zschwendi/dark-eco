@@ -1665,6 +1665,17 @@ struct SaveSettingsView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
+            #if os(iOS)
+            Toggle("Developer Logs", isOn: Binding(
+                get: { settings.developerLogsEnabled },
+                set: { settings.setDeveloperLogsEnabled($0) }
+            ))
+            Text("Records frame timing from the next game start. Return to the Library to save "
+                + "the report in Files › Dark Eco › Diagnostics.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            #endif
+
             Button("Restore Graphics Defaults") {
                 settings.restoreDefaults(for: .graphics)
                 renderSettings.restoreDefaults()

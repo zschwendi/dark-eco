@@ -178,12 +178,31 @@ Defaults and Reset All restore the selected title's configured scale. On
 visionOS, the setting is labeled Windowed Resolution and does not change the
 separate immersive renderer.
 
-**Experimental diagnostics:** A test launch with `GOALPAD_FRAME_TIMING_DIAGNOSTICS=1`
-records bounded callback-work and cadence statistics, then writes a single
-`Library/Caches/GOALPadDiagnostics/<title>/frame-timing.json` on inactive,
-background, or shutdown transitions. Reports include requested frame rate,
-resolution, drawable counters, thermal state, and Low Power Mode. No file is
-written by the display callback; normal launches leave the recorder disabled.
+**Experimental diagnostics:** On iOS, **Settings › Graphics › Developer Logs**
+(or a test launch with `GOALPAD_FRAME_TIMING_DIAGNOSTICS=1`) arms a bounded
+frame-timing recorder from the next game start. It writes a single
+`Documents/Diagnostics/<title>/frame-timing.json`, visible in the Files app
+under Dark Eco, on inactive, background, or shutdown (Return to Library)
+transitions. Developer Logs also enables detailed renderer stats and the
+paused-menu diagnostics overlay, which add work of their own. Callback work
+includes synchronous drawable acquisition and render submission inside the
+native frame; it is not a CPU-only or GPU measurement. Reports include requested
+frame rate, resolution, drawable counters (refreshed only when Developer Logs
+were on at session start), the number of callbacks whose work ended after the
+display link's target timestamp, a separate paused/menu work histogram,
+thermal state, and Low Power Mode. Jak II reports also include a read-only
+game-speed snapshot (time factor, dog ratio, four clock ratios, native timing
+rate, and the last dispatcher frame count) with explicit validity; GOAL values
+are omitted when the native read is invalid, and a zero native rate means timing
+had not refreshed yet. Clock ratios below 1 can be legitimate (for example
+authored slow-time scenes), so a single snapshot is evidence, not a diagnosis.
+Each report records whether a native menu was open when it was written; open
+pause or Settings changes what the clock snapshot describes. Frame-rate, geometry, and
+game-speed values are read once when the report is written, while work and
+cadence cover the session since its last frame-rate switch or lifecycle reset.
+Capture one ProMotion mode per game boot. Developer Logs takes effect at the
+next game start. No file is written by the display callback; normal launches
+leave the recorder disabled.
 This instrumentation is not a performance fix or physical smoothness pass.
 
 **Experimental:** On October 29, 2026 the maintainer authorized one exception to

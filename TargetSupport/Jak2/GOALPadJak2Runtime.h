@@ -83,6 +83,7 @@ FOUNDATION_EXPORT const char* GOALPadJak2RuntimeIdentifier(void);
 @property(class, nonatomic, readonly) GOALPadSpeederState speederState;
 @property(class, nonatomic, readonly) GOALPadProgressMenuSnapshot progressMenuSnapshot;
 @property(class, nonatomic, readonly) GOALPadJak2ProgressMenuSemanticSnapshot jak2ProgressMenuSemanticSnapshot;
+@property(class, nonatomic, readonly) GOALPadJak2GameSpeedSnapshot jak2GameSpeedSnapshot;
 @property(class, nonatomic, readonly) GOALPadWarpGateTouchSnapshot warpGateTouchSnapshot;
 @property(class, nonatomic, readonly) GOALPadCutsceneSkipTouchSnapshot cutsceneSkipTouchSnapshot;
 @property(class, nonatomic, readonly) GOALPadFacePromptTouchSnapshot facePromptTouchSnapshot;

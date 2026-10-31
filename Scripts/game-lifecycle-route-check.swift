@@ -130,7 +130,8 @@ check(occursInOrder([
 let tick = section(session,
                    from: "func tick(targetPresentationTime",
                    to: "#if os(visionOS)\n    func tickStereo")
-check(session.contains("GOALPadRenderSurface.shared.setDetailedFrameStatsEnabled(\n            presentationSettings.developerLogsEnabled)"),
+check(session.contains("detailedFrameStatsEnabled = presentationSettings.developerLogsEnabled\n"
+                       + "        GOALPadRenderSurface.shared.setDetailedFrameStatsEnabled(detailedFrameStatsEnabled)"),
       "rich renderer frame evidence follows the opt-in Developer Logs setting")
 check(bridge.contains("- (void)setDetailedFrameStatsEnabled:(BOOL)enabled;")
         && renderSurface.contains("goalpad::metal_host_set_detailed_frame_stats_enabled(enabled);")
