@@ -47,6 +47,60 @@ int main() {
   check(clamped.internal_width == 2560 && clamped.internal_height == 1920,
         "the existing 4x internal-scale ceiling remains");
 
+  // Jak II reports the internal target to GOAL because its pause menu samples the PC-BLIT
+  // snapshot of that target in GOAL framebuffer pixels. The bridge currently uses scale 1;
+  // 2x and 4x cover the same geometry at the scales the shared helper supports.
+  std::puts("The internal target can stand in for the Jak II GOAL framebuffer");
+  struct Drawable {
+    int width;
+    int height;
+  };
+  const Drawable drawables[] = {
+      {2388, 1668}, {1668, 2388}, {2752, 2064}, {2064, 2752}, {2732, 2048},
+      {2048, 2732}, {2266, 1488}, {1488, 2266}, {2360, 1640}, {1800, 1125},
+      {1125, 1800}, {1024, 768},  {640, 480},
+  };
+  bool keeps_height = true;
+  bool classic_is_exact = true;
+  bool widened_within_one_column = true;
+  bool fills_drawable = true;
+  for (const int scale : {1, 2, 4}) {
+    for (const bool fit : {false, true}) {
+      for (const auto& drawable : drawables) {
+        const auto geometry =
+            goalpad::presentation_geometry(drawable.width, drawable.height, scale, fit);
+        const long long base_height = 480LL * scale;
+        keeps_height &= geometry.internal_height == base_height;
+        const bool wider = drawable.width * 3LL > drawable.height * 4LL;
+        if (!fit || !wider) {
+          classic_is_exact &= geometry.internal_width == 640LL * scale;
+          continue;
+        }
+        // internal_width - 1 < base_height * aspect <= internal_width
+        const long long exact = base_height * drawable.width;
+        const long long target = static_cast<long long>(geometry.internal_width) * drawable.height;
+        widened_within_one_column &= target >= exact && target - exact < drawable.height;
+        fills_drawable &= geometry.draw_region_width == drawable.width &&
+                          geometry.draw_region_height == drawable.height;
+      }
+    }
+  }
+  check(keeps_height, "every scale keeps a 480-line multiple target height");
+  check(classic_is_exact, "Fit to Screen off and narrow drawables keep an exact 4:3 target");
+  check(widened_within_one_column,
+        "a widened target matches the drawable aspect to within one target column");
+  check(fills_drawable, "a widened target still fills the whole drawable");
+
+  const auto active = goalpad::presentation_geometry(2388, 1668, 1, true);
+  check(active.internal_width == 688 && active.internal_height == 480,
+        "the active Jak II 1x Fit to Screen target on a 2388x1668 drawable is 688x480");
+  check(active.game_display_width != active.internal_width,
+        "the drawable-sized Jak 1 display size is not the Jak II snapshot size");
+  const auto active_classic = goalpad::presentation_geometry(2388, 1668, 1, false);
+  check(active_classic.internal_width == active_classic.game_display_width &&
+            active_classic.internal_height == active_classic.game_display_height,
+        "at the active 1x scale Fit to Screen off reports the same 640x480 as before");
+
   if (failures) {
     std::printf("\n%d presentation geometry check(s) failed\n", failures);
     return 1;

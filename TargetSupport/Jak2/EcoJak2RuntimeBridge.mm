@@ -232,8 +232,9 @@ goalpad::PresentationGeometry presentation_geometry_locked() {
 void update_portable_display_locked(const goalpad::PresentationGeometry& geometry) {
   const bool has_drawable = geometry.drawable_width > 0 && geometry.drawable_height > 0;
   goal_kernel_core_set_portable_display_enabled(has_drawable);
-  goal_kernel_core_set_portable_display_size(geometry.game_display_width,
-                                             geometry.game_display_height);
+  // Windowed Jak II treats this size as its game framebuffer, as upstream does. The pause menu
+  // samples the PC-BLIT snapshot in those pixels, so report the Metal game target it copies.
+  goal_kernel_core_set_portable_display_size(geometry.internal_width, geometry.internal_height);
 }
 
 bool update_metal_presentation_geometry(goal_jak2_metal_host* host,
