@@ -110,9 +110,10 @@ be rejected; the prepared-folder path remains an alternative for compatible
 data.
 
 The setup screen is the authority for the formats supported by your particular
-build. If a file is dimmed in the picker, check that you selected the intended
-game and that the build supports that input. A locally downloaded file can
-still be an unsupported format or disc revision.
+build. When disc preparation is available, the picker leaves files selectable
+and Dark Eco checks the selection afterwards. If every file is dimmed, the
+build offers only prepared folders for that game. A selected file can still be
+an unsupported format or disc revision.
 
 Keep Dark Eco's installed game-data copy on your device. Once setup succeeds,
 the app no longer needs the original import source. No game data is fetched

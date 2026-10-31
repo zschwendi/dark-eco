@@ -58,9 +58,7 @@ for (name, configuration) in [("Debug", debugImporter), ("Release", releaseImpor
 
 check(view.contains("GameDataImportPresentation.acceptedSources(")
         && view.contains("rawISOAvailable: canImportRawISO")
-        && view.contains("return [.folder, rawISOType, .zip] +")
-        && view.contains("sevenZipType")
-        && view.contains("return [.folder]"),
+        && view.contains("GameDataImportSource.pickerContentTypes(rawMediaAvailable: canImportRawISO)"),
       "the import copy and picker both follow the actual raw-ISO capability gate")
 check(view.contains("ForEach(GameDataImportPresentation.acceptedSources(")
         && view.contains("Text(\"•\")")

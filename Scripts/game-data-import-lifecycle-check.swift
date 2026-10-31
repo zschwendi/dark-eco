@@ -385,6 +385,51 @@ private func jak2RawMediaFailsClosedWithoutBlockingPreparedFolders() async throw
           "Jak II prepared-folder selection still reaches its candidate producer")
 }
 
+@MainActor
+private func unsupportedPickerSelectionsFailBeforeCandidateWork() async throws {
+    print("files the broadened picker allows still fail before candidate work")
+    let root = FileManager.default.temporaryDirectory.appending(
+        path: "goalpad-unsupported-selection-\(UUID().uuidString)", directoryHint: .isDirectory)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let stagingRoot = root.appending(path: "staging", directoryHint: .isDirectory)
+    let activeDirectory = root.appending(path: "active", directoryHint: .isDirectory)
+    let importer = GameDataImporter(
+        profile: .jak1,
+        worker: GameDataInstallWorker(configuration: .init(
+            activeDirectory: activeDirectory,
+            stagingRoot: stagingRoot,
+            profile: .jak1)))
+    check(importer.canImportRawMedia,
+          "Jak 1 offers disc preparation, so its picker accepts generic data")
+
+    let notes = root.appending(path: "notes.txt")
+    try Data("not game data".utf8).write(to: notes)
+    importer.start(from: notes) {}
+    for _ in 0..<200 where importer.isRunning {
+        try await Task.sleep(for: .milliseconds(10))
+    }
+    if case .failed(let failure) = importer.state {
+        check(failure.code == .invalidPreparedFolder && !failure.candidatePreserved,
+              "a plain file is rejected as invalid prepared data without a preserved candidate")
+    } else {
+        check(false, "a plain file is rejected as invalid prepared data without a preserved candidate")
+    }
+    let attempts = stagingRoot.appending(path: "Attempts", directoryHint: .isDirectory)
+    let candidates = (try? FileManager.default.contentsOfDirectory(atPath: attempts.path)) ?? []
+    check(candidates.isEmpty && !FileManager.default.fileExists(atPath: activeDirectory.path),
+          "rejecting a plain file creates no candidate and no installed data")
+    importer.reset()
+
+    importer.start(from: root.appending(path: "disc.rar")) {}
+    if case .failed(let failure) = importer.state {
+        check(failure.code == .unsupportedArchive,
+              "an unsupported archive fails before any import work starts")
+    } else {
+        check(false, "an unsupported archive fails before any import work starts")
+    }
+}
+
 @main
 private struct GameDataImportLifecycleCheck {
     @MainActor
@@ -395,6 +440,7 @@ private struct GameDataImportLifecycleCheck {
             idleTimerOwnersDoNotClobberEachOther()
             importerRetainsExplicitProfile()
             try await jak2RawMediaFailsClosedWithoutBlockingPreparedFolders()
+            try await unsupportedPickerSelectionsFailBeforeCandidateWork()
         } catch {
             print("  FAIL unexpected error: \(error)")
             failures += 1
