@@ -21833,3 +21833,8 @@ Validation: focused timing/input tests and synthetic Metal output/failure tests 
 Issues [#6](https://github.com/zschwendi/dark-eco/issues/6) and [#10](https://github.com/zschwendi/dark-eco/issues/10) remain open. The timing defect caused over-advancement in deterministic cases; it does not prove the cause of persistent slow world time. Library stutter has no identified cause or scoped fix. Next: user tests Jak II after the loading chamber with ProMotion off, then tests 120 Hz stutter separately in both titles and Library. Do not close issues based on compilation or synthetic tests.
 
 Latest IPA and provenance: [iPhone/iPad guide](docs/IOS-SIDELOADING.md). Physical installation remains pending saved/Library confirmation; preserve existing saves and app data. No ongoing implementation workers or heavy builds remain at this checkpoint.
+
+
+### Build 279 installation follow-up
+
+After current saved/Library confirmation, the signed Build 279 was installed in place on the physical iPad Pro 11-inch (M5), replacing 277. Device inventory confirms 279; existing game/save directories and both Jak II save-bank files were observed afterward. No uninstall, save-file write, simulator or agent gameplay run. The data-container path changed during installation; save contents were not hash-compared. [Delivery record](https://github.com/zschwendi/dark-eco/issues/5#issuecomment-6548781911). Issues #6/#10 remain pending the maintainer's separate physical gameplay tests.

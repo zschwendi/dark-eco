@@ -32,9 +32,11 @@ slowdown. Keep one ProMotion mode and resolution per game boot when recording.
 
 Optional touch buttons, the internal-resolution selector, earlier Jak II
 lookup-speed/Dark Jak/shadow repairs, and importer resources are retained.
-A reported recipient import failure remains undiagnosed. Build 279 has not
-been installed or tested on a physical device; recipient signing, fresh import,
-gameplay and save-preserving refresh remain unverified for this package.
+A reported recipient import failure remains undiagnosed. The maintainer's
+signed Build 279 has been installed in place on a physical iPad Pro; existing
+game/save directories and Jak II save-bank files remain present. Gameplay and
+performance acceptance, plus recipient signing, fresh import and
+save-preserving refresh of this public package, remain unverified.
 
 ## Install with your own signing identity
 
