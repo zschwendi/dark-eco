@@ -1,0 +1,39 @@
+{
+  "product": "Dark Eco",
+  "version": "2.0",
+  "build": "279",
+  "package_build": "279",
+  "platform": "iOS",
+  "source_commit_recorded_at_build": "3ed4df9c2571cf8be81730d61e783539c242d1b7",
+  "engine_commit_recorded_at_build": "32dc7d8039751d26e1eb9aad7987cfc2488c0fb9",
+  "source_status": "Signed native iOS Release test candidate with carried frame timing, zero-step input retention, and Jak II catch-up presentation coalescing. ProMotion smoothness and persistent Jak II world slow motion still require physical acceptance. Not installed or physically tested.",
+  "source_url": "https://github.com/zschwendi/dark-eco/commit/3ed4df9c2571cf8be81730d61e783539c242d1b7",
+  "engine_url": "https://github.com/zschwendi/jak-pad/commit/32dc7d8039751d26e1eb9aad7987cfc2488c0fb9",
+  "input_executable_sha256": "acfbc8dda6d6ab77c672dbfb3a515baffcc3ae168f74cff12d04d496e397c6fe",
+  "input_framework_sha256": "e0313450a807107a8657268a18663e0ae9985fb3239aa19baf8fa23c0949fbc7",
+  "input_bundle_manifest_sha256": "75043723c7160a11f2dee8fd519867ee3cf143fbd6c7f3b97e73285b25a99738",
+  "source_pack_manifests_sha256": {
+    "Jak1": "1f6235f5c72509333d116235df63147aafb3b3453fc5676c8e15af627edb1ead",
+    "Jak2": "71a3da27a1d09b0fedd2905abe5c69982b06585bfe00d128fefe93b09afdc7fa"
+  },
+  "source_pack_audit": "Both bundled packs passed their current native verifier, all member sizes and XXH64 hashes, and matching aggregate IDs: Jak1 518 / 806abc2b2667435a; Jak2 840 / f2cdf82e9b913501.",
+  "repack_changes": [
+    "Keep build 279 and compiled runtime code matching the signed development build",
+    "Remove maintainer provisioning and signatures",
+    "Apply transport ad-hoc signatures with empty entitlements",
+    "Add matching source notices and this receipt"
+  ],
+  "sideload_validation": "Recipient signing, fresh raw-disc import and gameplay acceptance are not certified by compilation or packaging checks.",
+  "limits": [
+    "Experimental test candidate; not a confirmed fix for issues 6 or 10",
+    "Library stutter has no proven cause or scoped fix in this build",
+    "Timing corrections address reproduced irregular-callback accounting defects, not a proven cause of the persistent Jak II slow world",
+    "Catch-up coalescing preserves all simulation and rendered chains; final-step chains still present individually",
+    "Earlier Jak II lookup and Dark Jak repairs are retained",
+    "Developer Logs adds measurement overhead; ordinary launches leave it off",
+    "The reported recipient import failure has no reproduced diagnosis",
+    "Public package uses local saves; iCloud is not provisioned",
+    "No retail game assets included"
+  ],
+  "license_notice_snapshot_engine_commit": "32dc7d8039751d26e1eb9aad7987cfc2488c0fb9"
+}

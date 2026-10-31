@@ -21822,3 +21822,14 @@ python3 Scripts/jak2-scene-sweep.py --self-test
 
 This narrows the water/eye remainder to the signed physical retail-scene output;
 it is not evidence that those visuals have already been accepted.
+
+
+## 2026-10-31 — Build 279 performance test candidate
+
+Compiled app `3ed4df9c2571cf8be81730d61e783539c242d1b7`, engine `32dc7d8039751d26e1eb9aad7987cfc2488c0fb9`. Actual Claude Opus workers produced carried timing quantization, zero-step input retention and Jak II presentation-only catch-up coalescing; root reviewed/integrated. Every logical frame, render chain and upload still executes. Error cleanup cancels pending presentation without GPU work.
+
+Validation: focused timing/input tests and synthetic Metal output/failure tests passed; generic iOS Release signed successfully; macOS and visionOS compile/link passed unsigned. IPA ZIP, all 1,432 inventory files, strict transport signatures and unchanged native code/data sections passed. SHA-256 `f73245b9673f71ebc8cdce0ad28ea5f80e4d9ae844fe74b0fe033f4dfd928df8`. Both source packs verified with unchanged identities. No simulator or physical-device testing was performed.
+
+Issues [#6](https://github.com/zschwendi/dark-eco/issues/6) and [#10](https://github.com/zschwendi/dark-eco/issues/10) remain open. The timing defect caused over-advancement in deterministic cases; it does not prove the cause of persistent slow world time. Library stutter has no identified cause or scoped fix. Next: user tests Jak II after the loading chamber with ProMotion off, then tests 120 Hz stutter separately in both titles and Library. Do not close issues based on compilation or synthetic tests.
+
+Latest IPA and provenance: [iPhone/iPad guide](docs/IOS-SIDELOADING.md). Physical installation remains pending saved/Library confirmation; preserve existing saves and app data. No ongoing implementation workers or heavy builds remain at this checkpoint.

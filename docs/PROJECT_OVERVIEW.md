@@ -1,6 +1,6 @@
 # GOALPad — Project Overview
 
-> **Status:** Experimental unified Jak 1 and Jak II port; Build 279 contains frame-timing and Jak II catch-up presentation candidates; ProMotion and persistent Jak II world slow motion still require physical acceptance
+> **Status:** Experimental unified Jak 1 and Jak II port; signed iOS Build 279 contains frame-timing and Jak II catch-up presentation candidates; ProMotion and persistent Jak II world slow motion still require physical acceptance
 > **Working name:** GOALPad
 > **Public product name:** Dark Eco
 > **Distribution:** GitHub-only source and release artifacts; no App Store or TestFlight path

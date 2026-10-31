@@ -1,22 +1,30 @@
 # Dark Eco for iPhone and iPad
 
-Download the [experimental iOS/iPadOS Build 278 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/ios-build278-preview).
-The **2.0 / Build 278** package is
-`DarkEco-iOS-2.0-build278-preview.ipa`. One native arm64 IPA supports both
+Download the [experimental iOS/iPadOS Build 279 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/ios-build279-preview).
+The **2.0 / Build 279** package is
+`DarkEco-iOS-2.0-build279-preview.ipa`. One native arm64 IPA supports both
 iPhone and iPad on **iOS/iPadOS 26.5 or later**. It contains the app runtime and
 reconstructed OpenGOAL code, with no retail game data.
 Its device-family metadata is `1,2`; this is a physical-device build, not a
 simulator app.
 
-Build 278 adds **opt-in diagnostics**, not a performance fix. In
-**Settings → Graphics → Developer Logs**, enable timing reports before starting
-a game. Reports appear in **Files → Dark Eco → Diagnostics → jak1 or jak2**.
-Each title keeps one report that is replaced on the next write. Developer Logs
-adds measurement overhead; turn it off after collecting a report.
+Build 279 is a **performance test candidate**. It corrects irregular-callback
+time accounting in both games, preserves input across callbacks that run no
+game step, and avoids presenting Jak II's intermediate catch-up frames while
+still executing every game step and render pass. These changes passed focused
+logic tests and synthetic Metal output checks; they are not yet confirmed to
+resolve the reported stutter or persistent slowdown on a device.
+
+Optional reports remain available through **Settings → Graphics → Developer
+Logs**, enabled before starting a game. Reports appear in **Files → Dark Eco →
+Diagnostics → jak1 or jak2**. Each title keeps one report that is replaced on the
+next write. Developer Logs adds measurement overhead; leave it off for ordinary
+play and smoothness comparisons.
 
 [ProMotion stutter](https://github.com/zschwendi/dark-eco/issues/6) and
 [Jak II persistent world slow motion](https://github.com/zschwendi/dark-eco/issues/10)
-remain unresolved. Those issues contain capture steps for the next iPad test.
+remain open. Library stutter has no proven cause or fix in this build. Those
+issues contain the separate physical acceptance steps.
 The timing recorder covers game frames and menus, not Library animation.
 Start with **Graphics → ProMotion off** for 60 FPS, which was reported smooth
 in earlier iPhone Air testing. This does not resolve the separate Jak II world
@@ -24,7 +32,7 @@ slowdown. Keep one ProMotion mode and resolution per game boot when recording.
 
 Optional touch buttons, the internal-resolution selector, earlier Jak II
 lookup-speed/Dark Jak/shadow repairs, and importer resources are retained.
-A reported recipient import failure remains undiagnosed. Build 278 has not
+A reported recipient import failure remains undiagnosed. Build 279 has not
 been installed or tested on a physical device; recipient signing, fresh import,
 gameplay and save-preserving refresh remain unverified for this package.
 
@@ -108,9 +116,9 @@ addressing or JIT entitlements. The repack does not remove a required memory
 capability. Its ad-hoc transport signature must still be replaced by your
 sideloader's signature for your device.
 
-Build 278's exact compiled source is [app `a569fec`](https://github.com/zschwendi/dark-eco/commit/a569fec680d9f05b2216b81a651dbe1171c5c666)
-and [engine `561f99d8`](https://github.com/zschwendi/jak-pad/commit/561f99d8a1eb2fd7a0b3b4ff541136bd3543674b).
+Build 279's exact compiled source is [app `3ed4df9`](https://github.com/zschwendi/dark-eco/commit/3ed4df9c2571cf8be81730d61e783539c242d1b7)
+and [engine `32dc7d80`](https://github.com/zschwendi/jak-pad/commit/32dc7d8039751d26e1eb9aad7987cfc2488c0fb9).
 Original hashes, changes and limitations are recorded in
-[IPA-IOS278-PROVENANCE.json](IPA-IOS278-PROVENANCE.json). The release includes
+[IPA-IOS279-PROVENANCE.json](IPA-IOS279-PROVENANCE.json). The release includes
 the complete package manifest and checksum. Local package checks are not
 physical-device or gameplay acceptance.
