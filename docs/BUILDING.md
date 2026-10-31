@@ -1204,6 +1204,29 @@ for 90 Hz, 60 Hz, 45 Hz, and 30 Hz callbacks. Fractional counters retain 300
 scaled game ticks, 90 integral target frames, and 60 sound vblanks per second;
 controller history ages by those integral target-frame deltas.
 
+The shared input bridge retains one sampled pad state until the native frame
+counter confirms that a dispatcher frame ran. This preserves queued touch
+press/release edges and mouse movement across zero-step callbacks. New input
+continues accumulating for the following game step; suspend, shutdown and the
+controls guide discard the retained sample. The executable regression is
+`sh Scripts/run-input-frame-delivery-check.sh`.
+
+Jak II catch-up batches still execute every logical frame, DMA chain, texture
+upload and render pass. When a callback runs multiple dispatcher frames, the
+earlier frames defer drawable acquisition and presentation. The final frame's
+chains present normally; if it sends no chain, normal batch completion may
+present the latest deferred color. Multiple chains in the final frame still
+present individually. Failure cleanup discards pending presentation without
+additional drawable or GPU work. Present-only command buffers have separate
+completion/error counters and participate in the existing lifetime wait.
+
+These timing and presentation changes are experimental until physical
+acceptance. They do not establish the cause of the persistent Jak II world
+slowdown or Library stutter. Focused native checks are
+`jak2-display-timing-test`, `jak2-gfx-host-presentation-test`,
+`jak2-presentation-batch-test`, `metal-present-coalescer-test` and
+`jak2-metal-host-bridge-test`.
+
 Booting runs the game's own startup - two DGO archives and `play` - so it runs
 on its own queue and the UI says `Booting Jak 1` until it finishes. The frame
 loop and the boot never overlap: the loop only starts once the boot has
