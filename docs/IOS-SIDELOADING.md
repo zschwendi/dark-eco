@@ -12,8 +12,10 @@ Build 279 is a **performance test candidate**. It corrects irregular-callback
 time accounting in both games, preserves input across callbacks that run no
 game step, and avoids presenting Jak II's intermediate catch-up frames while
 still executing every game step and render pass. These changes passed focused
-logic tests and synthetic Metal output checks; they are not yet confirmed to
-resolve the reported stutter or persistent slowdown on a device.
+logic tests and synthetic Metal output checks. The maintainer reports that the
+affected Jak II loading-chamber area now runs correctly on the physical iPad
+Pro. ProMotion still causes app-wide slowdown; this is not a complete-game or
+120 Hz acceptance result.
 
 Optional reports remain available through **Settings → Graphics → Developer
 Logs**, enabled before starting a game. Reports appear in **Files → Dark Eco →
@@ -23,20 +25,26 @@ play and smoothness comparisons.
 
 [ProMotion stutter](https://github.com/zschwendi/dark-eco/issues/6) and
 [Jak II persistent world slow motion](https://github.com/zschwendi/dark-eco/issues/10)
-remain open. Library stutter has no proven cause or fix in this build. Those
-issues contain the separate physical acceptance steps.
+have separate outcomes: the maintainer accepted the affected Jak II area, while
+ProMotion remains unresolved. Library stutter has no proven cause or fix in this
+build. The issues record the scope of that feedback.
 The timing recorder covers game frames and menus, not Library animation.
 Start with **Graphics → ProMotion off** for 60 FPS, which was reported smooth
-in earlier iPhone Air testing. This does not resolve the separate Jak II world
-slowdown. Keep one ProMotion mode and resolution per game boot when recording.
+in earlier iPhone Air testing. Keep one ProMotion mode and resolution per game
+boot when recording.
 
 Optional touch buttons, the internal-resolution selector, earlier Jak II
 lookup-speed/Dark Jak/shadow repairs, and importer resources are retained.
-A reported recipient import failure remains undiagnosed. The maintainer's
+A recipient reports ISO and ZIP files greyed out in the Files picker, before
+import starts; [that file-selection failure](https://github.com/zschwendi/dark-eco/issues/9)
+remains under investigation. The maintainer's
 signed Build 279 has been installed in place on a physical iPad Pro; existing
-game/save directories and Jak II save-bank files remain present. Gameplay and
-performance acceptance, plus recipient signing, fresh import and
-save-preserving refresh of this public package, remain unverified.
+game/save directories and Jak II save-bank files remain present. The affected
+Jak II area has scoped user acceptance. ProMotion, the [Jak II pause background](https://github.com/zschwendi/dark-eco/issues/11),
+[saved Fit to Screen application](https://github.com/zschwendi/dark-eco/issues/12)
+and [Jak II water rendering](https://github.com/zschwendi/dark-eco/issues/13)
+remain open. Recipient signing, fresh import and save-preserving refresh of
+this public package remain unverified.
 
 ## Install with your own signing identity
 

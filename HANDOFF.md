@@ -21838,3 +21838,10 @@ Latest IPA and provenance: [iPhone/iPad guide](docs/IOS-SIDELOADING.md). Physica
 ### Build 279 installation follow-up
 
 After current saved/Library confirmation, the signed Build 279 was installed in place on the physical iPad Pro 11-inch (M5), replacing 277. Device inventory confirms 279; existing game/save directories and both Jak II save-bank files were observed afterward. No uninstall, save-file write, simulator or agent gameplay run. The data-container path changed during installation; save contents were not hash-compared. [Delivery record](https://github.com/zschwendi/dark-eco/issues/5#issuecomment-6548781911). Issues #6/#10 remain pending the maintainer's separate physical gameplay tests.
+
+
+### Build 279 physical feedback and remaining issues (2026-10-31)
+
+The maintainer reports the affected Jak II loading-chamber/following area is now fixed on the installed iPad Pro Build 279. This is scoped user gameplay acceptance for #10, not a complete-game or ProMotion pass. ProMotion still causes app-wide slowdown (#6). Fit to Screen stored ON requires cycling (#12); the ordinary JakII pause background remains shrunken in the bottom-left (#11). A new swimming/water screenshot shows a dark surface, fragmented reflection and long coloured streaks; the user recalls a similar jail-breakout symptom (#13).
+
+The recipient import report is now narrowed to ISO and ZIP files greyed out in Files before extraction (#9). The latest device description is iPhone Duo; the earlier secondhand description said Air. Recipient build and a hardware-specific cause remain unknown. Actual Opus5.5 High workers are investigating picker/type policy, ProMotion scheduling, and Fit-to-Screen/pause geometry in separate trees. Root owns integration and the sole heavy build. No simulator testing or further device access. Public GitHub issues retain all reports; private evidence and exact worker state live under `.agent-builds/performance-followup-20261031` in the containing workspace. Parent AstraBoard work `w-72ec56fd9c9a433aad6af2e5f95e05be` is active again.
