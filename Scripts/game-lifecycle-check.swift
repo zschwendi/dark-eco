@@ -177,6 +177,90 @@ private func audioLifecycleOwnership() {
     check(policy.shouldRun, "notifications after explicit stop cannot poison a fresh start")
 }
 
+private func frameCallbacksFollowTheRunningSession() {
+    print("display callbacks are requested only while a running session can consume them")
+    var lifecycle = GameplayLifecycleState()
+    var guide = ControlsGuideSuspensionState()
+    func wants(_ isRunning: Bool) -> Bool {
+        GameplayFrameCallbackPolicy.wantsCallbacks(isRunning: isRunning, lifecycle: lifecycle,
+                                                   controlsGuide: guide)
+    }
+
+    check(lifecycle.frameLoopEnabled && !wants(false),
+          "a cold Library, setup, or boot without a running session requests no callbacks")
+    check(lifecycle.activateWithoutPreparation() && wants(true),
+          "boot completion in an active scene requests callbacks")
+    check(wants(true), "native pause and Settings over a running game keep callbacks")
+
+    _ = lifecycle.transition(to: .inactive, prepareOnActivation: false)
+    check(!wants(true), "an inactive scene stops callbacks")
+    _ = lifecycle.transition(to: .background, prepareOnActivation: false)
+    let preparation = generation(from:
+        lifecycle.transition(to: .active, prepareOnActivation: true))!
+    check(!wants(true), "foreground save preparation keeps callbacks stopped")
+    _ = lifecycle.completePreparation(generation: preparation, succeeded: false)
+    check(!wants(true), "a failed foreground preparation keeps callbacks stopped")
+    let retry = generation(from: lifecycle.requestPreparationIfNeeded())!
+    _ = lifecycle.completePreparation(generation: retry, succeeded: true)
+    check(wants(true), "a successful retry restores callbacks")
+
+    _ = guide.present()
+    check(!wants(true), "the controls guide stops callbacks")
+    _ = guide.dismiss()
+    check(wants(true), "dismissing the guide restores callbacks")
+
+    lifecycle.resetForStoppedSession()
+    guide.reset()
+    check(lifecycle.frameLoopEnabled && !wants(false),
+          "returning to the Library stops callbacks although the scene loop is open")
+    lifecycle = GameplayLifecycleState()
+    check(!wants(false), "a replacement session starts without callbacks")
+}
+
+private func presentationHostKeepsSurfaceWithoutIdleLink() {
+    print("a mounted host stays attached for boot while its display link idles")
+    var ownership = PresentationOwnershipState<String>()
+    var link = PresentationFrameLinkState()
+    link.setFramesRequested(false)
+    check(!link.runsDisplayLink, "a host not yet in an active window has no link")
+
+    ownership.activate("host")
+    link.setPresenting(true)
+    check(ownership.owner == "host" && !link.runsDisplayLink,
+          "a cold Library attaches the surface without a display link")
+    link.setFramesRequested(true)
+    check(link.runsDisplayLink, "a running session starts the link on the attached host")
+
+    ownership.deactivate("host")
+    link.setPresenting(false)
+    check(ownership.owner == nil && !link.runsDisplayLink,
+          "an inactive scene detaches and stops the link")
+    link.setFramesRequested(false)
+    ownership.activate("host")
+    link.setPresenting(true)
+    check(ownership.owner == "host" && !link.runsDisplayLink,
+          "reactivation during foreground preparation reattaches without a link")
+    link.setFramesRequested(true)
+    check(link.runsDisplayLink, "completed preparation restarts the link")
+
+    link.setFramesRequested(false)
+    check(ownership.owner == "host" && !link.runsDisplayLink,
+          "returning to the Library stops the link and keeps the surface for the next boot")
+    link.setFramesRequested(false)
+    check(!link.runsDisplayLink, "repeated Library updates cannot restart the link")
+    var replacement = PresentationFrameLinkState()
+    ownership.activate("replacement")
+    replacement.setPresenting(true)
+    ownership.unregister("host")
+    link.setPresenting(false)
+    link.setFramesRequested(true)
+    check(!link.runsDisplayLink, "an unmounted host never runs a link")
+    check(ownership.owner == "replacement" && !replacement.runsDisplayLink,
+          "a replacement host inherits the surface without an idle link")
+    replacement.setFramesRequested(true)
+    check(replacement.runsDisplayLink, "the replacement host runs once a session requests frames")
+}
+
 @main
 private enum GameLifecycleCheck {
     static func main() {
@@ -188,6 +272,8 @@ private enum GameLifecycleCheck {
         stoppedSessionInvalidatesPreparation()
         controlsGuideSuspendsIdempotently()
         audioLifecycleOwnership()
+        frameCallbacksFollowTheRunningSession()
+        presentationHostKeepsSurfaceWithoutIdleLink()
 
         if failures == 0 {
             print("game lifecycle checks passed")

@@ -172,3 +172,13 @@ nonisolated struct ControlsGuideSuspensionState: Equatable, Sendable {
         blocksGameplay = false
     }
 }
+
+/// The display callbacks a running session consumes. Every other callback would return before doing
+/// any frame work, so presentation hosts stop their display link instead of waking for it.
+nonisolated enum GameplayFrameCallbackPolicy {
+    static func wantsCallbacks(isRunning: Bool,
+                               lifecycle: GameplayLifecycleState,
+                               controlsGuide: ControlsGuideSuspensionState) -> Bool {
+        isRunning && lifecycle.frameLoopEnabled && !controlsGuide.blocksGameplay
+    }
+}

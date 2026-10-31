@@ -516,9 +516,14 @@ final class GameSession {
 
     // MARK: - The frame loop
 
+    var wantsFrameCallbacks: Bool {
+        GameplayFrameCallbackPolicy.wantsCallbacks(isRunning: isRunning,
+                                                   lifecycle: lifecycle,
+                                                   controlsGuide: controlsGuideSuspension)
+    }
+
     func tick(targetPresentationTime: CFTimeInterval) {
-        guard isRunning, lifecycle.frameLoopEnabled,
-              !controlsGuideSuspension.blocksGameplay else { return }
+        guard wantsFrameCallbacks else { return }
         let surface = GOALPadRenderSurface.shared
         guard surface.beginFrame(at: targetPresentationTime) else { return }
         // No simulated time elapsed: leave this callback's input pending and present nothing new.
@@ -533,8 +538,7 @@ final class GameSession {
 
     #if os(visionOS)
     func tickStereo(request: VisionWindowStereoRenderRequest) -> VisionStereoSubmissionDisposition {
-        guard isRunning, lifecycle.frameLoopEnabled,
-              !controlsGuideSuspension.blocksGameplay else { return .skipped }
+        guard wantsFrameCallbacks else { return .skipped }
 
         let surface = GOALPadRenderSurface.shared
         switch surface.reserveStereoFrame() {

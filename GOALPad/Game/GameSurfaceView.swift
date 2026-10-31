@@ -20,6 +20,9 @@ import AppKit
 struct GameSurfaceView: View {
     /// Called once per display refresh, on the main thread.
     let onFrame: (CFTimeInterval) -> Void
+    /// Whether the session consumes display callbacks. The surface stays mounted and attached either
+    /// way; only its display link stops.
+    let framesRequested: Bool
     var targetFrameRate = 60
     var hidesCursorInFullScreen = false
 
@@ -29,10 +32,12 @@ struct GameSurfaceView: View {
     let onStereoFrame: VisionWindowStereoFrameHandler?
 
     init(onFrame: @escaping (CFTimeInterval) -> Void,
+         framesRequested: Bool,
          targetFrameRate: Int = 60,
          isStereoRendererReady: Bool = false,
          onStereoFrame: VisionWindowStereoFrameHandler? = nil) {
         self.onFrame = onFrame
+        self.framesRequested = framesRequested
         self.targetFrameRate = targetFrameRate
         self.isStereoRendererReady = isStereoRendererReady
         self.onStereoFrame = onStereoFrame
@@ -68,6 +73,7 @@ struct GameSurfaceView: View {
 
     private var conventionalSurface: some View {
         SurfaceRepresentable(onFrame: onFrame,
+                             framesRequested: framesRequested,
                              targetFrameRate: targetFrameRate,
                              hidesCursorInFullScreen: hidesCursorInFullScreen)
             .ignoresSafeArea()
@@ -156,7 +162,14 @@ private final class MetalHostView: UIView {
             configureFrameRate(for: frameLink)
         }
     }
+    var framesRequested = false {
+        didSet {
+            frameLinkState.setFramesRequested(framesRequested)
+            reconcileDisplayLink()
+        }
+    }
     private var frameLink: CADisplayLink?
+    private var frameLinkState = PresentationFrameLinkState()
     private var observesSceneLifecycle = false
 
     override class var layerClass: AnyClass { CAMetalLayer.self }
@@ -167,7 +180,8 @@ private final class MetalHostView: UIView {
         super.didMoveToWindow()
         if window == nil {
             stopObservingSceneLifecycle()
-            stopDisplayLink()
+            frameLinkState.setPresenting(false)
+            reconcileDisplayLink()
             PresentationSurfaceCoordinator.shared.unregister(self)
             return
         }
@@ -187,11 +201,13 @@ private final class MetalHostView: UIView {
         #endif
         PresentationSurfaceCoordinator.shared.activate(self, layer: metalLayer)
         updateDrawableSize()
-        startDisplayLink()
+        frameLinkState.setPresenting(true)
+        reconcileDisplayLink()
     }
 
     private func suspendPresentation() {
-        stopDisplayLink()
+        frameLinkState.setPresenting(false)
+        reconcileDisplayLink()
         PresentationSurfaceCoordinator.shared.deactivate(self)
     }
 
@@ -204,6 +220,14 @@ private final class MetalHostView: UIView {
         let scale = layer.contentsScale
         PresentationSurfaceCoordinator.shared.updateDrawableSize(
             CGSize(width: bounds.width * scale, height: bounds.height * scale), for: self)
+    }
+
+    private func reconcileDisplayLink() {
+        if frameLinkState.runsDisplayLink {
+            startDisplayLink()
+        } else {
+            stopDisplayLink()
+        }
     }
 
     private func startDisplayLink() {
@@ -281,6 +305,7 @@ private final class MetalHostView: UIView {
 
 private struct SurfaceRepresentable: UIViewRepresentable {
     let onFrame: (CFTimeInterval) -> Void
+    let framesRequested: Bool
     let targetFrameRate: Int
     let hidesCursorInFullScreen: Bool
 
@@ -288,6 +313,7 @@ private struct SurfaceRepresentable: UIViewRepresentable {
         let view = MetalHostView()
         view.onFrame = onFrame
         view.targetFrameRate = targetFrameRate
+        view.framesRequested = framesRequested
         view.isOpaque = true
         return view
     }
@@ -296,6 +322,7 @@ private struct SurfaceRepresentable: UIViewRepresentable {
         guard let view = view as? MetalHostView else { return }
         view.onFrame = onFrame
         view.targetFrameRate = targetFrameRate
+        view.framesRequested = framesRequested
     }
 }
 
@@ -307,7 +334,14 @@ private final class MetalHostView: NSView {
     var hidesCursorInFullScreen = false {
         didSet { updateCursorVisibility() }
     }
+    var framesRequested = false {
+        didSet {
+            frameLinkState.setFramesRequested(framesRequested)
+            reconcileDisplayLink()
+        }
+    }
     private var frameLink: CADisplayLink?
+    private var frameLinkState = PresentationFrameLinkState()
     private var observesApplicationLifecycle = false
     private var cursorIsHidden = false
     private var mouseIsInside = false
@@ -322,8 +356,8 @@ private final class MetalHostView: NSView {
         guard window != nil else {
             stopObservingApplicationLifecycle()
             showCursorIfNeeded()
-            frameLink?.invalidate()
-            frameLink = nil
+            frameLinkState.setPresenting(false)
+            reconcileDisplayLink()
             PresentationSurfaceCoordinator.shared.unregister(self)
             return
         }
@@ -363,21 +397,30 @@ private final class MetalHostView: NSView {
             PresentationSurfaceCoordinator.shared.activate(self, layer: metalLayer)
         }
         updateDrawableSize()
-        if frameLink == nil {
-            let link = displayLink(target: self, selector: #selector(step(_:)))
-            // Match the game's 60 Hz clock even when the Mac display supports 120 Hz.
-            link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 60, preferred: 60)
-            link.add(to: .main, forMode: .common)
-            frameLink = link
-        }
+        frameLinkState.setPresenting(true)
+        reconcileDisplayLink()
         updateCursorVisibility()
     }
 
     private func suspendPresentation() {
-        frameLink?.invalidate()
-        frameLink = nil
+        frameLinkState.setPresenting(false)
+        reconcileDisplayLink()
         PresentationSurfaceCoordinator.shared.deactivate(self)
         updateCursorVisibility()
+    }
+
+    private func reconcileDisplayLink() {
+        guard frameLinkState.runsDisplayLink else {
+            frameLink?.invalidate()
+            frameLink = nil
+            return
+        }
+        guard frameLink == nil else { return }
+        let link = displayLink(target: self, selector: #selector(step(_:)))
+        // Match the game's 60 Hz clock even when the Mac display supports 120 Hz.
+        link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 60, preferred: 60)
+        link.add(to: .main, forMode: .common)
+        frameLink = link
     }
 
     private func startObservingApplicationLifecycle() {
@@ -456,6 +499,7 @@ private final class MetalHostView: NSView {
 
 private struct SurfaceRepresentable: NSViewRepresentable {
     let onFrame: (CFTimeInterval) -> Void
+    let framesRequested: Bool
     let targetFrameRate: Int
     let hidesCursorInFullScreen: Bool
 
@@ -464,12 +508,14 @@ private struct SurfaceRepresentable: NSViewRepresentable {
         view.wantsLayer = true
         view.onFrame = onFrame
         view.hidesCursorInFullScreen = hidesCursorInFullScreen
+        view.framesRequested = framesRequested
         return view
     }
 
     func updateNSView(_ view: NSView, context: Context) {
         (view as? MetalHostView)?.onFrame = onFrame
         (view as? MetalHostView)?.hidesCursorInFullScreen = hidesCursorInFullScreen
+        (view as? MetalHostView)?.framesRequested = framesRequested
     }
 }
 
