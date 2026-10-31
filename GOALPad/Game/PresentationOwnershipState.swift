@@ -39,20 +39,3 @@ nonisolated struct PresentationOwnershipState<Owner: Hashable & Sendable>: Equat
         owner = registrationOrder.first { activeOwners.contains($0) }
     }
 }
-
-/// A mounted presentation host stays attached to the shared surface whenever its scene is active, so
-/// boot always has a layer to render into. Its display link runs only while frames are also requested.
-nonisolated struct PresentationFrameLinkState: Equatable, Sendable {
-    private(set) var isPresenting = false
-    private(set) var framesRequested = false
-
-    var runsDisplayLink: Bool { isPresenting && framesRequested }
-
-    mutating func setPresenting(_ presenting: Bool) {
-        isPresenting = presenting
-    }
-
-    mutating func setFramesRequested(_ requested: Bool) {
-        framesRequested = requested
-    }
-}

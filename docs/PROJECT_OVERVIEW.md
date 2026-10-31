@@ -240,7 +240,8 @@ physical acceptance gate.
 
 The conventional visionOS renderer exposes a player-facing 90 Hz preference,
 enabled by default and independently switchable to 60 Hz. The Library and
-asynchronous boot UI remain at 60 Hz. The system still owns delivered cadence,
+asynchronous boot UI do not run the game display link; the Metal surface stays
+attached so boot can initialize the renderer. The system still owns delivered cadence,
 and sustained 90 Hz gameplay, audio, controller history, thermals, and power
 remain a physical Vision Pro acceptance gate.
 

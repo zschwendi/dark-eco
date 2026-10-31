@@ -83,8 +83,8 @@ struct GameSurfaceView: View {
 
 /// Xcode's generated iPad scene manifest supports multiple windows, while the native renderer has
 /// one process-wide surface. Keep that surface assigned to exactly one active host view. Other
-/// active windows retain their display links so ownership transfers without needing a second scene
-/// activation callback, but only the selected owner is allowed to drive or resize the renderer.
+/// active windows stay registered so ownership transfers without needing a second scene activation
+/// callback, but only the selected owner is allowed to drive or resize the renderer.
 @MainActor
 private final class PresentationSurfaceCoordinator {
     static let shared = PresentationSurfaceCoordinator()
@@ -164,12 +164,11 @@ private final class MetalHostView: UIView {
     }
     var framesRequested = false {
         didSet {
-            frameLinkState.setFramesRequested(framesRequested)
             reconcileDisplayLink()
         }
     }
     private var frameLink: CADisplayLink?
-    private var frameLinkState = PresentationFrameLinkState()
+    private var isPresenting = false
     private var observesSceneLifecycle = false
 
     override class var layerClass: AnyClass { CAMetalLayer.self }
@@ -180,7 +179,7 @@ private final class MetalHostView: UIView {
         super.didMoveToWindow()
         if window == nil {
             stopObservingSceneLifecycle()
-            frameLinkState.setPresenting(false)
+            isPresenting = false
             reconcileDisplayLink()
             PresentationSurfaceCoordinator.shared.unregister(self)
             return
@@ -201,12 +200,12 @@ private final class MetalHostView: UIView {
         #endif
         PresentationSurfaceCoordinator.shared.activate(self, layer: metalLayer)
         updateDrawableSize()
-        frameLinkState.setPresenting(true)
+        isPresenting = true
         reconcileDisplayLink()
     }
 
     private func suspendPresentation() {
-        frameLinkState.setPresenting(false)
+        isPresenting = false
         reconcileDisplayLink()
         PresentationSurfaceCoordinator.shared.deactivate(self)
     }
@@ -223,7 +222,7 @@ private final class MetalHostView: UIView {
     }
 
     private func reconcileDisplayLink() {
-        if frameLinkState.runsDisplayLink {
+        if isPresenting && framesRequested {
             startDisplayLink()
         } else {
             stopDisplayLink()
@@ -336,12 +335,11 @@ private final class MetalHostView: NSView {
     }
     var framesRequested = false {
         didSet {
-            frameLinkState.setFramesRequested(framesRequested)
             reconcileDisplayLink()
         }
     }
     private var frameLink: CADisplayLink?
-    private var frameLinkState = PresentationFrameLinkState()
+    private var isPresenting = false
     private var observesApplicationLifecycle = false
     private var cursorIsHidden = false
     private var mouseIsInside = false
@@ -356,7 +354,7 @@ private final class MetalHostView: NSView {
         guard window != nil else {
             stopObservingApplicationLifecycle()
             showCursorIfNeeded()
-            frameLinkState.setPresenting(false)
+            isPresenting = false
             reconcileDisplayLink()
             PresentationSurfaceCoordinator.shared.unregister(self)
             return
@@ -397,20 +395,20 @@ private final class MetalHostView: NSView {
             PresentationSurfaceCoordinator.shared.activate(self, layer: metalLayer)
         }
         updateDrawableSize()
-        frameLinkState.setPresenting(true)
+        isPresenting = true
         reconcileDisplayLink()
         updateCursorVisibility()
     }
 
     private func suspendPresentation() {
-        frameLinkState.setPresenting(false)
+        isPresenting = false
         reconcileDisplayLink()
         PresentationSurfaceCoordinator.shared.deactivate(self)
         updateCursorVisibility()
     }
 
     private func reconcileDisplayLink() {
-        guard frameLinkState.runsDisplayLink else {
+        guard isPresenting && framesRequested else {
             frameLink?.invalidate()
             frameLink = nil
             return

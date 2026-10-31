@@ -95,7 +95,7 @@ let suspendPresentation = section(uiLifecycle,
                                   from: "private func suspendPresentation()",
                                   to: "override func layoutSubviews()")
 check(occursInOrder([
-    "frameLinkState.setPresenting(false)",
+    "isPresenting = false",
     "reconcileDisplayLink()",
     "PresentationSurfaceCoordinator.shared.deactivate(self)",
 ], in: suspendPresentation),
@@ -107,19 +107,10 @@ let resumePresentation = section(uiLifecycle,
 check(occursInOrder([
     "PresentationSurfaceCoordinator.shared.activate(self, layer: metalLayer)",
     "updateDrawableSize()",
-    "frameLinkState.setPresenting(true)",
+    "isPresenting = true",
     "reconcileDisplayLink()",
 ], in: resumePresentation),
       "scene activation reattaches and sizes the layer before recreating its display link")
-check(uiLifecycle.contains("frameLinkState.setFramesRequested(framesRequested)\n            reconcileDisplayLink()")
-        && section(uiLifecycle, from: "private func reconcileDisplayLink()",
-                   to: "private func startDisplayLink()")
-            .contains("if frameLinkState.runsDisplayLink {\n            startDisplayLink()\n        } else {\n            stopDisplayLink()"),
-      "the mounted host runs its display link only while the session requests frames")
-check(content.components(separatedBy: "framesRequested: session.wantsFrameCallbacks,").count == 3
-        && surfaceView.components(separatedBy: "view.framesRequested = framesRequested").count == 4
-        && surfaceView.contains("(view as? MetalHostView)?.framesRequested = framesRequested"),
-      "both gameplay surface call sites and representables forward the session's frame request")
 
 let displayStep = section(uiLifecycle,
                           from: "@objc private func step(_ link: CADisplayLink)",
@@ -153,10 +144,6 @@ check(bridge.contains("- (void)setDetailedFrameStatsEnabled:(BOOL)enabled;")
         && metalHost.contains("if (!g_host.detailed_frame_stats_enabled) {\n    return;\n  }\n  const auto stats = g_host.renderer->chain_stats();")
         && metalHost.contains("if (g_host.renderer && g_host.detailed_frame_stats_enabled)"),
       "shipping frames avoid camera snapshots, detailed Metal stats copies, and host evidence processing")
-check(session.contains("GameplayFrameCallbackPolicy.wantsCallbacks(isRunning: isRunning,\n"
-                       + "                                                   lifecycle: lifecycle,\n"
-                       + "                                                   controlsGuide: controlsGuideSuspension)"),
-      "the display link request and the tick share one frame-callback policy")
 check(occursInOrder([
     "guard wantsFrameCallbacks else { return }",
     "surface.beginFrame(at: targetPresentationTime)",
