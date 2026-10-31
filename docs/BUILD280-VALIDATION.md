@@ -86,6 +86,9 @@ bundle files, ZIP integrity, absence of private profiles/entitlements and
 unchanged executable/framework code and data sections after transport signing.
 The release includes provenance, `SHA256SUMS`, `PACKAGE-MANIFEST.json` and
 `INDEPENDENT-PACKAGE-CHECKS.json`.
+The anonymous public download matched the local IPA SHA-256 and public
+checksum; provenance and the public guide were read back successfully.
+[Delivery receipt](BUILD280-DELIVERY.json).
 
 ## Still pending
 

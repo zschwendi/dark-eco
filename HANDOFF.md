@@ -15,7 +15,7 @@ Gates:
 - Final build matrix: signed iOS and simulator Release builds passed; macOS and visionOS compile checks passed
 - Real importer UI test: on the iPhone Duo iOS 27.1 simulator, ISO and ZIP were selectable for Jak 1 (closed) and Jak II (open); all four synthetic invalid-disc checks reached the expected disc rejection, with zero activated game-data files. This does not establish real-disc import or recipient file-provider acceptance
 - Public package: https://github.com/zschwendi/dark-eco/releases/tag/ios-build280-preview, `DarkEco-iOS-2.0-build280-preview.ipa`, `IPA-IOS280-PROVENANCE.json`;
-  package verification passed (1,432 inventory files, unchanged code/data sections, strict transport signatures); public download check pending.
+  package verification passed (1,432 inventory files, unchanged code/data sections, strict transport signatures); anonymous public download, checksum and provenance readback passed (see docs/BUILD280-DELIVERY.json).
 - Physical device: none for Build 280. Build 279 acceptance does not transfer.
 
 Issues:
@@ -47,8 +47,7 @@ Issues:
 Native composer tests passed, including resource drift and corruption rejection.
 All 29 resource pins match both built bundles. See [Build 280 validation](docs/BUILD280-VALIDATION.md), including baseline source-text test failures.
 
-Next: publish and verify the public download; then obtain current permission
-for physical acceptance of Fit to Screen in both games, the Jak II pause screen
+Next: obtain current permission for physical acceptance of Fit to Screen in both games, the Jak II pause screen
 and cold Library behavior. Active-game ProMotion remains unresolved; do not
 make speculative timing changes without a discriminating physical capture.
 

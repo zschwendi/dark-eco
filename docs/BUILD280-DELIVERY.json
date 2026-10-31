@@ -1,0 +1,22 @@
+{
+  "recorded_at": "2026-10-31T22:41:52.019992+00:00",
+  "release_url": "https://github.com/zschwendi/dark-eco/releases/tag/ios-build280-preview",
+  "build": "280",
+  "app_source": "75cd02ebc4097bd851a8b18482d789bf5d38f1f1",
+  "engine_source": "2154f2c3904242a6a41ed56bfaae6556c1497862",
+  "anonymous_download": "passed",
+  "download_bytes": 35318225,
+  "sha256": "ef8f71a94dd8db798e76a4928178c5cfbd35e84b87a9f2fa18965c5a78bcb9c2",
+  "checksums_match": true,
+  "public_provenance_match": true,
+  "public_guide_points_to_280": true,
+  "assets": [
+    "DarkEco-iOS-2.0-build280-preview.ipa",
+    "INDEPENDENT-PACKAGE-CHECKS.json",
+    "IPA-IOS280-PROVENANCE.json",
+    "PACKAGE-MANIFEST.json",
+    "SHA256SUMS"
+  ],
+  "physical_acceptance": "not performed for Build280",
+  "promotion": "unresolved"
+}
