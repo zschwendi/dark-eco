@@ -1017,6 +1017,13 @@ BootStatus boot_game() noexcept;
 bool set_target_frame_rate(int target_frame_rate) noexcept;
 
 /*!
+ * Advance the display clock for one callback before the host reads that callback's input. False
+ * means no simulated time elapsed (a repeated or sub-frame target), so the host must not read input
+ * or run the frame. Time prepared for a frame that then does not run stays pending.
+ */
+bool prepare_frame(double target_presentation_time) noexcept;
+
+/*!
  * Run one frame of the game: the GOAL kernel's own `kernel-dispatcher`, which runs every process
  * and state, and then the overlord's vblank work, which is what moves the music along. This is
  * `KernelCheckAndDispatch`'s loop body without the listener half.

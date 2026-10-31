@@ -214,11 +214,11 @@ int main() {
                                                      3.75 * kFramePeriod,
                                                      0.75 * kFramePeriod,
                                                      2.0 * kFramePeriod});
-  expect_trace("late then early", late_then_early, {2, 1});
-  expect_trace("early then late", early_then_late, {1, 2});
-  expect_trace("repeated boundary jitter", boundary_jitter, {2, 1, 2, 1});
-  expect_trace("repeated slow cadence", repeated_slow, {2, 2});
-  expect_trace("independent interval rounding", independently_rounded, {2, 4, 1, 2});
+  expect_trace("late then early", late_then_early, {2, 0});
+  expect_trace("early then late", early_then_late, {1, 1});
+  expect_trace("repeated boundary jitter", boundary_jitter, {2, 0, 2, 0});
+  expect_trace("repeated slow cadence", repeated_slow, {2, 1});
+  expect_trace("carried interval rounding", independently_rounded, {2, 3, 1, 2});
 
   const auto promotion_factors = high_frame_rate_trace(120,
       {1.0 / 120.0, 1.0 / 80.0, 1.0 / 60.0, 1.0 / 48.0, 1.0 / 40.0,
@@ -431,12 +431,127 @@ int main() {
   assert(near(blocker_auto_rotate_limit(fixed_step[1]), one_frame_correction));
   assert(near(blocker_auto_rotate_limit(skipped[1]), 2.0 * one_frame_correction));
 
+  // Irregular target timestamps keep elapsed time on the wall clock. A callback with no elapsed time
+  // prepares zero, so the host reads no input and runs no dispatcher or sound frame for it.
+  struct HostRun {
+    double frames = 0.0;
+    int dispatcher_frames = 0;
+    int sound_frames = 0;
+  };
+  const auto host_run = [](int target_frame_rate, const std::vector<double>& intervals) {
+    goalpad::DisplayClock clock;
+    goalpad::SoundFrameClock sound;
+    HostRun run;
+    double target = 700.0;
+    const auto callback = [&] {
+      if (clock.prepare(target, target_frame_rate) <= 0.0f) {
+        return;
+      }
+      const float ratio = clock.take_prepared();
+      run.frames += ratio;
+      run.dispatcher_frames++;
+      run.sound_frames += sound.advance(ratio, target_frame_rate);
+    };
+    callback();
+    for (const double interval : intervals) {
+      target += interval;
+      callback();
+    }
+    run.frames -= 1.0;  // The first callback has no history and counts as one frame.
+    return run;
+  };
+  int elapsed_failures = 0;
+  const auto expect_frames = [&](std::string_view name, double actual, double expected) {
+    if (std::abs(actual - expected) > 1e-6) {
+      std::cerr << name << " advanced " << actual << " frames for " << expected << '\n';
+      ++elapsed_failures;
+    }
+  };
+  std::vector<double> jitter_60;
+  for (int pair = 0; pair < 30; ++pair) {
+    jitter_60.push_back(1.6 * kFramePeriod);
+    jitter_60.push_back(0.4 * kFramePeriod);
+  }
+  expect_frames("60 Hz 26.7/6.7 ms jitter", host_run(60, jitter_60).frames, 60.0);
+
+  for (const int target_frame_rate : {60, 120}) {
+    const double period = 1.0 / static_cast<double>(target_frame_rate);
+    std::vector<double> repeated;
+    for (int group = 0; group < 40; ++group) {
+      repeated.push_back(0.0);
+      repeated.push_back(3.0 * period);
+    }
+    const auto run = host_run(target_frame_rate, repeated);
+    expect_frames(target_frame_rate == 60 ? "60 Hz repeated timestamps"
+                                          : "120 Hz repeated timestamps",
+                  run.frames, 120.0);
+    if (run.dispatcher_frames != 41) {
+      std::cerr << target_frame_rate << " Hz repeated timestamps ran " << run.dispatcher_frames
+                << " dispatcher frames for 41\n";
+      ++elapsed_failures;
+    }
+    if (target_frame_rate == 120 && std::abs(run.sound_frames - 60) > 1) {
+      std::cerr << "120 Hz repeated timestamps produced " << run.sound_frames
+                << " sound frames for 60\n";
+      ++elapsed_failures;
+    }
+  }
+
+  // Sub-period delivery in the 60 Hz domain: 8.3/16.7 ms callbacks run 2 dispatcher frames for
+  // every 3 callbacks and stay on the delivered timeline.
+  std::vector<double> alternating_60;
+  for (int pair = 0; pair < 60; ++pair) {
+    alternating_60.push_back(0.5 * kFramePeriod);
+    alternating_60.push_back(kFramePeriod);
+  }
+  const auto sub_period = host_run(60, alternating_60);
+  expect_frames("60 Hz 8.3/16.7 ms callbacks", sub_period.frames, 90.0);
+  if (sub_period.dispatcher_frames > 91 || sub_period.sound_frames != sub_period.dispatcher_frames) {
+    std::cerr << "60 Hz 8.3/16.7 ms callbacks ran " << sub_period.dispatcher_frames
+              << " dispatcher and " << sub_period.sound_frames << " sound frames\n";
+    ++elapsed_failures;
+  }
+  if (elapsed_failures != 0) {
+    std::abort();
+  }
+
+  // On-grid ProMotion delivery alternating 8.3/16.7 ms is already exact and stays unchanged.
+  std::vector<double> alternating_120;
+  for (int pair = 0; pair < 40; ++pair) {
+    alternating_120.push_back(1.0 / 120.0);
+    alternating_120.push_back(2.0 / 120.0);
+  }
+  const auto on_grid = host_run(120, alternating_120);
+  assert(near(on_grid.frames, 120.0));
+  assert(on_grid.dispatcher_frames == 81);
+  assert(std::abs(on_grid.sound_frames - 60) <= 1);
+
+  // A duplicate prepares zero; the next positive interval carries the full elapsed time.
+  goalpad::DisplayClock duplicate;
+  assert(duplicate.prepare(800.0, 60) == 1.0f && duplicate.take_prepared() == 1.0f);
+  assert(duplicate.prepare(800.0, 60) == 0.0f);
+  assert(duplicate.prepare(800.0 + 2.0 * kFramePeriod, 60) == 2.0f);
+  assert(duplicate.take_prepared() == 2.0f && duplicate.take_prepared() == 0.0f);
+  // Time prepared for a callback whose frame never ran stays pending, within the catch-up cap.
+  assert(duplicate.prepare(800.0 + 3.0 * kFramePeriod, 60) == 1.0f);
+  assert(duplicate.prepare(800.0 + 3.0 * kFramePeriod, 60) == 1.0f);
+  assert(duplicate.prepare(800.0 + 10.0 * kFramePeriod, 60) == 4.0f);
+  assert(duplicate.take_prepared() == 4.0f);
+  // Reset and a rate switch drop pending time and restart at one first frame.
+  assert(duplicate.prepare(800.0 + 11.0 * kFramePeriod, 60) == 1.0f);
+  duplicate.reset();
+  assert(duplicate.take_prepared() == 0.0f);
+  assert(duplicate.prepare(900.0, 60) == 1.0f && duplicate.take_prepared() == 1.0f);
+  assert(duplicate.prepare(900.0 + 1.0 / 120.0, 120) == 1.0f);
+  assert(duplicate.prepare(900.0 + 1.0 / 120.0, 120) == 1.0f);
+  assert(duplicate.take_prepared() == 1.0f);
+
   std::cout << "ordinary targets       [1, 1]\n"
             << "skipped targets        [1, 2]\n"
-            << "1.5 + 0.5 targets      [2, 1]\n"
-            << "0.5 + 1.5 targets      [1, 2]\n"
-            << "1.5 + 1.5 targets      [2, 2]\n"
-            << "independent rounding   [2, 4, 1, 2]\n"
+            << "1.5 + 0.5 targets      [2, 0]\n"
+            << "0.5 + 1.5 targets      [1, 1]\n"
+            << "1.5 + 1.5 targets      [2, 1]\n"
+            << "carried rounding       [2, 3, 1, 2]\n"
             << "workload-only targets  [1, 1]\n"
             << "pre-draw work timer    [2, 1]\n"
             << "rejected fixed step    [1, 1]\n"

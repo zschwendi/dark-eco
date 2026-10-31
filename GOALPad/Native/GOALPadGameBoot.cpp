@@ -744,6 +744,18 @@ bool set_target_frame_rate(int target_frame_rate) noexcept {
   return false;
 }
 
+bool prepare_frame(double target_presentation_time) noexcept {
+#if TARGET_OS_IOS || TARGET_OS_VISION
+  if (!g_booted) {
+    return true;
+  }
+  return g_display_clock.prepare(target_presentation_time, g_target_frame_rate) > 0.0f;
+#else
+  (void)target_presentation_time;
+  return true;
+#endif
+}
+
 bool run_frame(double target_presentation_time,
                GameFrameStateSnapshot* state_snapshot) noexcept {
   if (state_snapshot) {
@@ -757,7 +769,17 @@ bool run_frame(double target_presentation_time,
   // `display-frame-start` consumes this value at the same boundary as its upstream timer result,
   // before the next frame's process and camera updates. CADisplayLink's target timestamp measures
   // display cadence; callback workload does not move the ratio onto the wrong game frame.
-  display_time_ratio = g_display_clock.advance(target_presentation_time, g_target_frame_rate);
+  display_time_ratio = g_display_clock.take_prepared();
+  if (display_time_ratio <= 0.0f) {
+    display_time_ratio = g_display_clock.advance(target_presentation_time, g_target_frame_rate);
+  }
+  if (display_time_ratio <= 0.0f) {
+    // No simulated time elapsed. GOAL would read a zero ratio as a whole frame, so run nothing.
+    if (state_snapshot) {
+      *state_snapshot = game_frame_state_snapshot();
+    }
+    return true;
+  }
   int32_t display_time_ratio_bits = 0;
   static_assert(sizeof(display_time_ratio_bits) == sizeof(display_time_ratio));
   std::memcpy(&display_time_ratio_bits, &display_time_ratio, sizeof(display_time_ratio_bits));
@@ -1124,6 +1146,11 @@ BootStatus boot_game() noexcept {
 bool set_target_frame_rate(int target_frame_rate) noexcept {
   (void)target_frame_rate;
   return false;
+}
+
+bool prepare_frame(double target_presentation_time) noexcept {
+  (void)target_presentation_time;
+  return true;
 }
 
 bool run_frame(double target_presentation_time,

@@ -225,7 +225,8 @@ typedef struct GOALPadJak2ProgressMenuSemanticSnapshot {
 
 /// Jak II game-speed inputs for diagnostics. `gameSpeedValid` is NO when the GOAL values could not
 /// all be read; the GOAL fields are then meaningless. A zero native frame rate means native
-/// timing has not refreshed yet, and zero dispatcher frames means no tick has run.
+/// timing has not refreshed yet. Zero dispatcher frames means the latest callback ran none, either
+/// because no tick has run or because that callback delivered no elapsed time.
 typedef struct GOALPadJak2GameSpeedSnapshot {
   BOOL metricsAvailable;
   BOOL gameSpeedValid;
@@ -337,6 +338,12 @@ typedef NS_ENUM(NSInteger, GOALPadGameIdentifier) {
 /// Switch a running iOS session between the host-managed 60 and 120 Hz timing domains. Returns NO
 /// without changing the display request when the selected title cannot apply the rate.
 + (BOOL)setTargetFrameRate:(NSInteger)targetFrameRate;
+
+/// Advance the display clock for one callback before reading its input. NO means no simulated time
+/// elapsed for Jak 1, so the host neither reads input nor runs the frame. Jak II decides inside its
+/// own tick and always reports YES here.
++ (BOOL)prepareFrameAtPresentationTime:(CFTimeInterval)targetPresentationTime
+    NS_SWIFT_NAME(prepareFrame(at:));
 
 /// Run one frame of the game: `kernel-dispatcher`, then the overlord's vblank work. The target
 /// presentation time and selected 60/120 Hz simulation rate supply the display cadence. NO when

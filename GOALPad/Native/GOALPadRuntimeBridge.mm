@@ -477,6 +477,13 @@ static GOALPadGameBootStatus *GOALPadGameBootStatusFromJak2(
   return goalpad::set_target_frame_rate(static_cast<int>(targetFrameRate)) ? YES : NO;
 }
 
++ (BOOL)prepareFrameAtPresentationTime:(CFTimeInterval)targetPresentationTime {
+  if (GOALPadIsJak2Active()) {
+    return YES;
+  }
+  return goalpad::prepare_frame(targetPresentationTime) ? YES : NO;
+}
+
 + (BOOL)runFrameAtPresentationTime:(CFTimeInterval)targetPresentationTime {
 #if GOALPAD_HAS_JAK2_RUNTIME
   if (GOALPadIsJak2Active()) {

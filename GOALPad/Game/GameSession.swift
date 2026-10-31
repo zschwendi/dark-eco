@@ -515,6 +515,11 @@ final class GameSession {
               !controlsGuideSuspension.blocksGameplay else { return }
         let surface = GOALPadRenderSurface.shared
         guard surface.beginFrame(at: targetPresentationTime) else { return }
+        // No simulated time elapsed: leave this callback's input pending and present nothing new.
+        guard GOALPadRuntimeBridge.prepareFrame(at: targetPresentationTime) else {
+            _ = surface.endFrame()
+            return
+        }
         _ = runArmedTick(targetPresentationTime: targetPresentationTime) {
             surface.endFrame()
         }
@@ -542,6 +547,10 @@ final class GameSession {
             if reservationNeedsCancellation {
                 surface.cancelReservedStereoFrame()
             }
+        }
+        // No simulated time elapsed: keep input pending and leave the previous stereo pair shown.
+        guard GOALPadRuntimeBridge.prepareFrame(at: request.targetPresentationTime) else {
+            return .skipped
         }
         guard let frame = request.makeFrame() else { return .failed }
 

@@ -1187,11 +1187,14 @@ surface can be armed.
 
 On iOS and visionOS, consecutive `CADisplayLink.targetTimestamp` values pass through Swift
 and the Objective-C++ bridge to `DisplayClock`. The accepted 60 Hz path keeps
-its integral ratio from 1 through 4. A ProMotion session uses the 120 Hz
+whole-frame ratios up to 4. A ProMotion session uses the 120 Hz
 timing domain in half-frame units, including exact factors for 120, 80, 60, 48,
-40, 30, and 24 Hz; the 24 Hz factor is 5. The first sample, an invalid or
-non-positive sample, and a sample after lifecycle reset return 1; long intervals
-remain capped. The runtime stores the result in
+40, 30, and 24 Hz; the 24 Hz factor is 5. Rounding carries forward, so irregular
+callbacks stay on the delivered timeline. A repeated or sub-quantum timestamp
+advances zero: Jak 1 then skips the callback before reading input, without a
+dispatcher, sound, or render frame. The first sample, an invalid or backward
+sample, and a sample after lifecycle reset return 1; time beyond the cap is
+dropped. The runtime stores the result in
 `*host-display-time-ratio*`, which `display-frame-start` consumes immediately
 before `set-time-ratios`. A zero host value preserves the upstream fallback on
 other hosts.

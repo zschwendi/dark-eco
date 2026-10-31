@@ -121,7 +121,8 @@ check(boot.contains("g_display_clock.advance(target_presentation_time, g_target_
       "native timing drives gameplay cadence and resets both clocks on a live domain change")
 check(displayClock.contains("if (target_frame_rate == 90)")
         && displayClock.contains("const double quantization = target_frame_rate_ > 60 ? 0.5 : 1.0;")
-        && displayClock.contains("const double maximum_ratio = target_frame_rate_ == 120 ? 5.0 : 4.0;"),
+        && displayClock.contains(
+            "normalize_target_frame_rate(target_frame_rate) == 120 ? 5.0f : 4.0f;"),
       "native display and sound clocks retain a distinct 90 Hz timing domain")
 check(drawable.contains("(defun goalpad-set-target-frame-rate")
         && drawable.contains("(if (= requested-rate 90) 90 60)")
