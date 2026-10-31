@@ -1,0 +1,41 @@
+{
+  "product": "Dark Eco",
+  "version": "2.0",
+  "build": "281",
+  "package_build": "281",
+  "platform": "iOS",
+  "source_commit_recorded_at_build": "23c551c054f056f5d7c70018406fecb38750491a",
+  "engine_commit_recorded_at_build": "7d513d61d6014e869d974a687318d18ddb5754b3",
+  "source_status": "Signed native iOS Release test candidate correcting top-down framebuffer sampling in the Jak II Generic WARP shader. Retains Build280 importer and presentation changes and Build279 scoped area-speed improvement. Does not establish a fix for dark water, streaks, taillights, cutscene freeze or ProMotion. Not installed.",
+  "source_url": "https://github.com/zschwendi/dark-eco/commit/23c551c054f056f5d7c70018406fecb38750491a",
+  "engine_url": "https://github.com/zschwendi/jak-pad/commit/7d513d61d6014e869d974a687318d18ddb5754b3",
+  "input_executable_sha256": "3e1d2386ace95c0a768d75602454d2b83c1ff8e32b22d53cad2c5d44c4a970ea",
+  "input_framework_sha256": "baf63e6dabe20e359bce2883c905ca02bc6b4b6bc5074b1729e95ad4bcd7dee3",
+  "input_bundle_manifest_sha256": "eb7ba1c76a3873131c5eb0b24b90bede044e93bd81916869c0fa3a4c79d8d41f",
+  "source_pack_manifests_sha256": {
+    "Jak1": "1f6235f5c72509333d116235df63147aafb3b3453fc5676c8e15af627edb1ead",
+    "Jak2": "71a3da27a1d09b0fedd2905abe5c69982b06585bfe00d128fefe93b09afdc7fa"
+  },
+  "source_pack_audit": "Both bundled packs passed their current native verifier, all member sizes and XXH64 hashes, and matching aggregate IDs: Jak1 518 / 806abc2b2667435a; Jak2 840 / f2cdf82e9b913501.",
+  "repack_changes": [
+    "Keep build 281 and compiled runtime code matching the signed development build",
+    "Remove maintainer provisioning and signatures",
+    "Apply transport ad-hoc signatures with empty entitlements",
+    "Add matching source notices and this receipt"
+  ],
+  "simulator_import_validation": "No simulator UI or gameplay test in Build281. Build280 passed synthetic local-provider ISO/ZIP selection and invalid-disc checks on iPhone Duo; the corresponding importer source paths are unchanged. Recipient physical import remains unconfirmed.",
+  "sideload_validation": "Recipient signing, fresh raw-disc import and gameplay acceptance are not certified by compilation or packaging checks.",
+  "renderer_validation": "Artifact-isolated old/new shader and test matrix proves the top-down WARP correction; integrated canonical WARP, glow, Generic2 and warp-plan tests passed. The two-texture glow proof passed but did not reproduce the physical taillight defect.",
+  "limits": [
+    "Physical Build281 water/refraction acceptance pending; opaque plane and long streaks are not claimed fixed",
+    "Taillight blocks and frozen cutscene video remain unresolved",
+    "ProMotion app-wide slowdown remains unresolved",
+    "Fit to Screen and JakII pause candidate physical acceptance pending",
+    "Jak1 immersive belongs to a separate Vision lineage; this iOS package does not fix or validate its effects/HUD/sky",
+    "Recipient ISO/ZIP selection and full import need their own device acceptance",
+    "JakII internal-resolution selector remains ignored",
+    "Public package uses local saves; iCloud is not provisioned",
+    "No retail game assets included"
+  ],
+  "license_notice_snapshot_engine_commit": "7d513d61d6014e869d974a687318d18ddb5754b3"
+}

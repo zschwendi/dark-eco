@@ -69,8 +69,8 @@ mode. This is an in-development build; the remaining issues are listed above.
 
 **Vision Pro from Windows or Linux:** use the [Build 264.1 IPA walkthrough](docs/SIDELOADING.md).
 
-**iPhone and iPad:** use the [Build 280 IPA guide](docs/IOS-SIDELOADING.md).
-Build 280 is a preview awaiting physical acceptance; the guide lists
+**iPhone and iPad:** use the [Build 281 IPA guide](docs/IOS-SIDELOADING.md).
+Build 281 is a preview awaiting physical acceptance; the guide lists
 its current status and open issues.
 
 **Apple Silicon Mac:** use the [native Build 270.1 app guide](docs/MACOS-INSTALL.md).
