@@ -1,6 +1,6 @@
 # GOALPad — Project Overview
 
-> **Status:** Experimental unified Jak 1 and Jak II port; Build 278 adds opt-in diagnostics for unresolved ProMotion and Jak II world slow motion; build and physical acceptance are pending
+> **Status:** Experimental unified Jak 1 and Jak II port; Build 278 is a signed iOS diagnostics preview; ProMotion and Jak II world slow motion remain unresolved; physical acceptance is pending
 > **Working name:** GOALPad
 > **Public product name:** Dark Eco
 > **Distribution:** GitHub-only source and release artifacts; no App Store or TestFlight path
@@ -192,7 +192,7 @@ were on at session start), the number of callbacks whose work ended after the
 display link's target timestamp, a separate paused/menu work histogram,
 thermal state, and Low Power Mode. Jak II reports also include a read-only
 game-speed snapshot (time factor, dog ratio, four clock ratios, native timing
-rate, and the last dispatcher frame count) with explicit validity; GOAL values
+rate, and the frames selected for the last dispatcher tick) with explicit validity; GOAL values
 are omitted when the native read is invalid, and a zero native rate means timing
 had not refreshed yet. Clock ratios below 1 can be legitimate (for example
 authored slow-time scenes), so a single snapshot is evidence, not a diagnosis.

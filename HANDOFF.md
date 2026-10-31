@@ -1,3 +1,30 @@
+# October 31, 2026 — Build 278 diagnostics preview
+
+Build 278 adds opt-in timing exports and a guarded Jak II clock snapshot. It
+does not fix [ProMotion stutter](https://github.com/zschwendi/dark-eco/issues/6)
+or [persistent Jak II world slow motion](https://github.com/zschwendi/dark-eco/issues/10).
+Both remain open. The maintainer will test on iPad; no simulator testing was
+performed, and this build has not been installed or run on a physical device.
+The maintainer requested stopping for the night after this checkpoint.
+
+Compiled app: `a569fec680d9f05b2216b81a651dbe1171c5c666`.
+Engine: `561f99d8a1eb2fd7a0b3b4ff541136bd3543674b`.
+Signed generic iOS Release passed. macOS and visionOS compile/link checks also
+passed, with signing disabled; that is not runtime acceptance. Native reader
+checks passed 34/34 and the Swift report helper passed 7/7. Earlier worker
+source-text checks retained three baseline failures (two lifecycle, one stale
+ProMotion assertion); they were not hidden or disabled.
+
+See [the iOS guide](docs/IOS-SIDELOADING.md),
+[Build 278 provenance](docs/IPA-IOS278-PROVENANCE.json), and
+[delivery tracker #5](https://github.com/zschwendi/dark-eco/issues/5).
+Developer Logs adds measurement overhead. One mode/resolution per game boot;
+for the Jak II world snapshot, go Home from gameplay before opening pause or
+Settings, then preserve the report before the next flush. Library animation is
+outside the game recorder. The existing iPad installation remains Build 277.
+
+---
+
 # October 30 — iOS preview 277 and complete release delivery
 
 Build 277 compiles app `9277ff1edb41790e83a405422bd1f27aa81f54de` with native

@@ -1,25 +1,32 @@
 # Dark Eco for iPhone and iPad
 
-Download the [experimental iOS/iPadOS Build 277 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/ios-build277-preview).
-The **2.0 / Build 277** package is
-`DarkEco-iOS-2.0-build277-preview.ipa`. One native arm64 IPA supports both
+Download the [experimental iOS/iPadOS Build 278 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/ios-build278-preview).
+The **2.0 / Build 278** package is
+`DarkEco-iOS-2.0-build278-preview.ipa`. One native arm64 IPA supports both
 iPhone and iPad on **iOS/iPadOS 26.5 or later**. It contains the app runtime and
 reconstructed OpenGOAL code, with no retail game data.
 Its device-family metadata is `1,2`; this is a physical-device build, not a
 simulator app.
 
-This native build adds **Graphics → Internal Resolution** alongside optional
-on-screen face buttons. It includes the current
-Jak II lookup-speed, Dark Jak allocation and shadow-rendering repairs, and
-updated OpenGOAL importer resources. The Jak II repairs still need physical
-gameplay acceptance; this is an experimental preview. A reported third-party
-import failure has not been reproduced or diagnosed. Recipient signing, fresh
-game import, gameplay and save-preserving refresh remain unverified.
+Build 278 adds **opt-in diagnostics**, not a performance fix. In
+**Settings → Graphics → Developer Logs**, enable timing reports before starting
+a game. Reports appear in **Files → Dark Eco → Diagnostics → jak1 or jak2**.
+Each title keeps one report that is replaced on the next write. Developer Logs
+adds measurement overhead; turn it off after collecting a report.
 
-**Known performance issue:** Jak 1 can microstutter with ProMotion enabled.
+[ProMotion stutter](https://github.com/zschwendi/dark-eco/issues/6) and
+[Jak II persistent world slow motion](https://github.com/zschwendi/dark-eco/issues/10)
+remain unresolved. Those issues contain capture steps for the next iPad test.
+The timing recorder covers game frames and menus, not Library animation.
 Start with **Graphics → ProMotion off** for 60 FPS, which was reported smooth
-in current iPhone Air testing. Build 277 does not fix the 120 Hz issue.
-Normal launches leave the optional developer timing recorder disabled.
+in earlier iPhone Air testing. This does not resolve the separate Jak II world
+slowdown. Keep one ProMotion mode and resolution per game boot when recording.
+
+Optional touch buttons, the internal-resolution selector, earlier Jak II
+lookup-speed/Dark Jak/shadow repairs, and importer resources are retained.
+A reported recipient import failure remains undiagnosed. Build 278 has not
+been installed or tested on a physical device; recipient signing, fresh import,
+gameplay and save-preserving refresh remain unverified for this package.
 
 ## Install with your own signing identity
 
@@ -101,9 +108,9 @@ addressing or JIT entitlements. The repack does not remove a required memory
 capability. Its ad-hoc transport signature must still be replaced by your
 sideloader's signature for your device.
 
-Build 277's exact compiled source is [app `9277ff1`](https://github.com/zschwendi/dark-eco/commit/9277ff1edb41790e83a405422bd1f27aa81f54de)
-and [engine `9088ff7a`](https://github.com/zschwendi/jak-pad/commit/9088ff7a252c8b48e01da39afd23e4a09b4b0435).
+Build 278's exact compiled source is [app `a569fec`](https://github.com/zschwendi/dark-eco/commit/a569fec680d9f05b2216b81a651dbe1171c5c666)
+and [engine `561f99d8`](https://github.com/zschwendi/jak-pad/commit/561f99d8a1eb2fd7a0b3b4ff541136bd3543674b).
 Original hashes, changes and limitations are recorded in
-[IPA-IOS277-PROVENANCE.json](IPA-IOS277-PROVENANCE.json). The release includes
+[IPA-IOS278-PROVENANCE.json](IPA-IOS278-PROVENANCE.json). The release includes
 the complete package manifest and checksum. Local package checks are not
 physical-device or gameplay acceptance.

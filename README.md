@@ -69,7 +69,7 @@ mode. This is an in-development build; the remaining issues are listed above.
 
 **Vision Pro from Windows or Linux:** use the [Build 264.1 IPA walkthrough](docs/SIDELOADING.md).
 
-**iPhone and iPad:** use the [Build 277 IPA guide](docs/IOS-SIDELOADING.md).
+**iPhone and iPad:** use the [Build 278 IPA guide](docs/IOS-SIDELOADING.md).
 
 **Apple Silicon Mac:** use the [native Build 270.1 app guide](docs/MACOS-INSTALL.md).
 

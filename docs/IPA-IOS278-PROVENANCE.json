@@ -1,0 +1,40 @@
+{
+  "product": "Dark Eco",
+  "version": "2.0",
+  "build": "278",
+  "package_build": "278",
+  "platform": "iOS",
+  "source_commit_recorded_at_build": "a569fec680d9f05b2216b81a651dbe1171c5c666",
+  "engine_commit_recorded_at_build": "561f99d8a1eb2fd7a0b3b4ff541136bd3543674b",
+  "source_status": "Signed native iOS Release diagnostic preview. Adds opt-in Files-exported timing, menu work and guarded Jak II game-clock snapshots. No gameplay timing or Library animation changes; ProMotion stutter and persistent Jak II world slow motion remain unresolved. Not installed or physically tested.",
+  "source_url": "https://github.com/zschwendi/dark-eco/commit/a569fec680d9f05b2216b81a651dbe1171c5c666",
+  "engine_url": "https://github.com/zschwendi/jak-pad/commit/561f99d8a1eb2fd7a0b3b4ff541136bd3543674b",
+  "input_executable_sha256": "2d67525b18761602c10a4f2a42391872b2dc7d52b770c043220b13b777ba0edf",
+  "input_framework_sha256": "bc648d269aaf4ceb994785790b6bb83890d36a312c14dddbb607618e4d224b93",
+  "input_bundle_manifest_sha256": "921b19b0322b4b33fb2e08bce9fcc7b34fd9e06f0cfaf64853facb18babd3f99",
+  "source_pack_manifests_sha256": {
+    "Jak1": "1f6235f5c72509333d116235df63147aafb3b3453fc5676c8e15af627edb1ead",
+    "Jak2": "71a3da27a1d09b0fedd2905abe5c69982b06585bfe00d128fefe93b09afdc7fa"
+  },
+  "source_pack_audit": "Both bundled packs passed their current native verifier, all member sizes and XXH64 hashes, and matching aggregate IDs: Jak1 518 / 806abc2b2667435a; Jak2 840 / f2cdf82e9b913501.",
+  "repack_changes": [
+    "Keep build 278 and compiled runtime code matching the signed development build",
+    "Remove maintainer provisioning and signatures",
+    "Apply transport ad-hoc signatures with empty entitlements",
+    "Add matching source notices and this receipt"
+  ],
+  "sideload_validation": "Recipient signing, fresh raw-disc import and gameplay acceptance are not certified by compilation or packaging checks.",
+  "limits": [
+    "Experimental preview",
+    "Jak 1 ProMotion 120 Hz microstutter is unresolved; 60 Hz was reported smooth by the maintainer",
+    "Diagnostic recording is disabled in ordinary launches",
+    "Earlier Jak II lookup and Dark Jak repairs are retained; persistent world slow motion remains unresolved",
+    "Library stutter is outside the game timing recorder",
+    "Developer Logs adds measurement overhead; use one ProMotion mode and resolution per game boot",
+    "The reported recipient import failure has no reproduced diagnosis",
+    "Public package uses local saves; iCloud is not provisioned",
+    "Jak 1 ocean teardown investigation remains open",
+    "No retail game assets included"
+  ],
+  "license_notice_snapshot_engine_commit": "561f99d8a1eb2fd7a0b3b4ff541136bd3543674b"
+}
