@@ -440,6 +440,7 @@ final class GameSession {
         startupState.reset()
         controlsGuideSuspension.reset()
         input.stopRumble()
+        input.discardUndeliveredFrame()
         audio.stop()
         #if os(iOS) || os(visionOS)
         persistCameraDiagnosticsForLifecycleEvent()
@@ -465,6 +466,7 @@ final class GameSession {
         updateSpeederState(.unknown)
         saveSync.setGameplayActive(false)
         touch.reset()
+        input.discardUndeliveredFrame()
         framesRun = 0
         framesPresented = 0
         previousDisplayCallback = nil
@@ -495,6 +497,7 @@ final class GameSession {
         guard isRunning, controlsGuideSuspension.present() else { return }
         input.stopRumble()
         touch.reset()
+        input.discardUndeliveredFrame()
         resetDisplayTiming()
         audio.suspend()
         sessionLog.notice("\(self.title.name, privacy: .public) touch guide suspended gameplay")
@@ -617,6 +620,7 @@ final class GameSession {
         // Its DMA send renders synchronously while out-of-chain Merc bones still match the chain.
         var shouldLog = false
         var nativeState = GOALPadGameFrameStateSnapshot()
+        let framesRunBeforeTick = framesRun
         if GOALPadRuntimeBridge.runFrame(at: targetPresentationTime,
                                          stateSnapshot: &nativeState) {
             if gameplaySaveGeneration.observe(nativeState.successfulSaveGeneration) {
@@ -671,6 +675,7 @@ final class GameSession {
             }
             shouldLog = developerLogsEnabled && framesRun / 600 != previousFramesRun / 600
         }
+        input.finishFrame(goalFrameRan: framesRun != framesRunBeforeTick)
 
         let framePresented = endFrame()
         if framePresented {
@@ -1983,6 +1988,7 @@ final class GameSession {
             #endif
             persistFrameTimingDiagnostics(event: "inactive")
             touch.reset()
+            input.discardUndeliveredFrame()
             resetDisplayTiming()
             // A transient state - the app switcher, a notification. Give up the audio device but
             // keep the session, so returning is instant.
@@ -1995,6 +2001,7 @@ final class GameSession {
             #endif
             persistFrameTimingDiagnostics(event: "background")
             touch.reset()
+            input.discardUndeliveredFrame()
             resetDisplayTiming()
             audio.suspend()
             input.stopRumble()

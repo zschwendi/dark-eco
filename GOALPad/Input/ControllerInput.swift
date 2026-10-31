@@ -68,6 +68,7 @@ final class ControllerInput {
     @ObservationIgnored private var activity = InputActivityTracker()
     @ObservationIgnored private var controllerButtonSnapshots: [GOALPadButton] = []
     @ObservationIgnored private var lastObservedControllerButtons: GOALPadButton = []
+    @ObservationIgnored private var frameDelivery = InputFrameDelivery<SampledPad>()
     #if os(iOS)
     @ObservationIgnored private let deviceRumbleHaptics = DeviceRumbleHaptics()
     #endif
@@ -161,13 +162,13 @@ final class ControllerInput {
     /// Read the physical inputs and hand the engine this frame's pad state. Non-iOS hosts use this
     /// path so an attached keyboard or mouse can provide the otherwise-disconnected port.
     func pushFrame() {
-        pushFrame(merging: nil)
+        deliver { self.sampleFrame(merging: nil) }
     }
 
     /// Push only an ordinary extended gamepad. The bounded visionOS game window deliberately does
     /// not expose touch, keyboard, mouse, or spatial-controller gameplay paths.
     func pushControllerFrame() {
-        pushFrame(merging: nil, controllerOnly: true)
+        deliver { self.sampleFrame(merging: nil, controllerOnly: true) }
     }
 
     /// Read the physical inputs, merge the on-screen controls into them, and hand the engine this
@@ -176,11 +177,36 @@ final class ControllerInput {
     /// The sources are one pad: buttons are the union. A deflected controller stick wins first,
     /// then keyboard/mouse, then touch, so a stray finger cannot fight physical input. The port is
     /// reported as connected either way - on an iPad the on-screen controls are always present.
-    func pushFrame(merging touch: TouchPadState) {
-        pushFrame(merging: Optional(touch))
+    func pushFrame(merging touch: @autoclosure () -> TouchPadState) {
+        deliver { self.sampleFrame(merging: Optional(touch())) }
     }
 
-    private func pushFrame(merging touch: TouchPadState?, controllerOnly: Bool = false) {
+    /// Call after the engine tick. A frame no GOAL frame read is handed over again next time, so
+    /// its touch pulses, latched controller buttons and mouse movement are not lost.
+    func finishFrame(goalFrameRan: Bool) {
+        frameDelivery.finish(goalFrameRan: goalFrameRan)
+    }
+
+    func discardUndeliveredFrame() {
+        frameDelivery.reset()
+    }
+
+    private struct SampledPad {
+        let state: GOALPadControllerState
+        let isConnected: Bool
+    }
+
+    private func deliver(_ sample: () -> SampledPad) {
+        let pad = frameDelivery.frame(sampling: sample)
+        if pad.isConnected {
+            GOALPadInputSetState(Self.primaryPort, pad.state)
+        } else {
+            GOALPadInputSetDisconnected(Self.primaryPort)
+        }
+    }
+
+    private func sampleFrame(merging touch: TouchPadState?,
+                             controllerOnly: Bool = false) -> SampledPad {
         var state = Self.neutralState()
         let now = CACurrentMediaTime()
         let policy = controllerOnly
@@ -265,12 +291,9 @@ final class ControllerInput {
         if rightStick.x != state.rightX || rightStick.y != state.rightY {
             rightStick = (state.rightX, state.rightY)
         }
-        if policy.allowsController || policy.allowsKeyboardMouse
-            || (touch != nil && policy.allowsTouch) {
-            GOALPadInputSetState(Self.primaryPort, state)
-        } else {
-            GOALPadInputSetDisconnected(Self.primaryPort)
-        }
+        return SampledPad(state: state,
+                          isConnected: policy.allowsController || policy.allowsKeyboardMouse
+                              || (touch != nil && policy.allowsTouch))
     }
 
     /// Read what GOAL asked the two motors to do and drive them.
