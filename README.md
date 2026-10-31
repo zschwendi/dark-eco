@@ -51,6 +51,8 @@ Mac gameplay have not been tested.
 
 Immersive availability depends on the build: it is developed in a separate
 experimental lane, so a windowed build does not automatically include it.
+The current public source builds ordinary windowed play; reconciliation with
+the later immersive source is tracked in [#16](https://github.com/zschwendi/dark-eco/issues/16).
 Jak II and Jak 3 immersion are planned to use a normal DualSense controller.
 
 For development evidence and open work, see [HANDOFF](HANDOFF.md) and

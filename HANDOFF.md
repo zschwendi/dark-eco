@@ -4,7 +4,7 @@ Compiled app `23c551c054f056f5d7c70018406fecb38750491a`, native `7d513d61d6014e8
 
 The opaque water plane, long streaks, real taillights and cutscene freeze are not claimed fixed. #13, #7 and #8 remain open. ProMotion #6 is unresolved. #11 pause and #12 Fit candidates from280 await physical acceptance. No physical281 access has occurred; installation/log authorization is pending.
 
-Public delivery: https://github.com/zschwendi/dark-eco/releases/tag/ios-build281-preview. Package/readback verification passed locally; anonymous release download pending. Matching source, IPA and onboarding links must be published together.
+Public delivery: https://github.com/zschwendi/dark-eco/releases/tag/ios-build281-preview. Package checks and anonymous public download/hash/provenance readback passed. Matching source, IPA and onboarding links are published; see docs/BUILD281-DELIVERY.json.
 
 Jak1 immersive #3 remains physically unconfirmed. Signed Vision271 is a separate source line; public Vision264.1 predates its later Generic2/sky candidates. Collected-orb and HUD-flicker corrections are absent. [#16](https://github.com/zschwendi/dark-eco/issues/16) tracks reviewed reconciliation and public source/delivery alignment; do not wholesale merge the divergent lines.
 

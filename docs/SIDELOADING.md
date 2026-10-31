@@ -12,6 +12,10 @@ You need **visionOS 26.5 or later**, a compatible controller, and your own
 supported Jak and Daxter game data. Start with **Jak and Daxter: The Precursor
 Legacy**. This package includes an unfinished Jak II path from Build 264;
 Jak II immersive play is not included, and later fixes are not in this package.
+Jak 1 sky, stereo-effect and HUD problems remain unconfirmed
+([#3](https://github.com/zschwendi/dark-eco/issues/3)). The separate later Vision
+271 candidate is not a public delivery; source and download reconciliation
+is tracked in [#16](https://github.com/zschwendi/dark-eco/issues/16).
 
 ## Windows walkthrough
 

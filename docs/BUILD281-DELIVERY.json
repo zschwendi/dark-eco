@@ -1,0 +1,22 @@
+{
+  "recorded_at": "2026-10-31T23:10:33.533894+00:00",
+  "release_url": "https://github.com/zschwendi/dark-eco/releases/tag/ios-build281-preview",
+  "build": "281",
+  "app_source": "23c551c054f056f5d7c70018406fecb38750491a",
+  "engine_source": "7d513d61d6014e869d974a687318d18ddb5754b3",
+  "anonymous_download": "passed",
+  "download_bytes": 35318351,
+  "sha256": "f578384793295ed6f1718c192b0edc1079e7168ea2c801db331941fbb2b70d0c",
+  "checksums_match": true,
+  "public_provenance_match": true,
+  "public_guide_points_to_281": true,
+  "assets": [
+    "DarkEco-iOS-2.0-build281-preview.ipa",
+    "INDEPENDENT-PACKAGE-CHECKS.json",
+    "IPA-IOS281-PROVENANCE.json",
+    "PACKAGE-MANIFEST.json",
+    "SHA256SUMS"
+  ],
+  "physical_acceptance": "not performed for Build281",
+  "scope": "Generic WARP vertical sampling correction; other renderer and ProMotion issues remain open"
+}

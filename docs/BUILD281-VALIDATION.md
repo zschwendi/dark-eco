@@ -60,7 +60,9 @@ The input app passed strict signature verification and both source-pack
 verifiers (Jak 1: 518 objects; Jak II: 840). Independent IPA readback verified
 1,432 files, ZIP integrity, no private provisioning/entitlements, transport
 signatures, and unchanged executable/framework code and data sections.
-The recipient must re-sign the public package.
+The recipient must re-sign the public package. Anonymous public download,
+checksum and provenance readback passed; the public guide points to this
+release. [Delivery receipt](BUILD281-DELIVERY.json).
 
 ## Retained work and limits
 
