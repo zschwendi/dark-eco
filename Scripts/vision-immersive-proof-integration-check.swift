@@ -245,8 +245,7 @@ check(occursInOrder([
 let menuFrameTick = section(session, from: "func tickImmersiveMenuFrame(",
                             to: "func tickImmersive(")
 check(occursInOrder([
-    "isRunning, lifecycle.frameLoopEnabled",
-    "!controlsGuideSuspension.blocksGameplay",
+    "guard wantsFrameCallbacks",
     "immersiveFrameLoopOwner != nil",
     "switch surface.reserveStereoFrame()",
     "case .busy: return .busy",
