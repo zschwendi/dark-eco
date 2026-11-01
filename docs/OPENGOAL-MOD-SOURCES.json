@@ -1,0 +1,194 @@
+{
+  "fetched": "2026-11-01",
+  "method": "GitHub REST API, pinned raw files, release metadata.json (small JSON only; no binaries/assets downloaded), official docs; local read-only targeted searches",
+  "note": "Source-only Opus research reviewed November 1, 2026. Apple feasibility is inferred and untested. Repository-level license declarations do not replace per-file and asset review.",
+  "mods": [
+    {
+      "rank": 1,
+      "name": "Checkpoint Randomizer",
+      "urls": [
+        "https://github.com/OpenGOAL-Mods/OG-Randomizer",
+        "https://github.com/OpenGOAL-Mods/OG-Randomizer/blob/main/LICENSE",
+        "https://github.com/OpenGOAL-Mods/OG-Randomizer/releases/tag/v0.6.4",
+        "https://opengoal.dev/docs/developing/modding_examples/checkpoint_randomizer/"
+      ],
+      "head": "35a3529fda81cef63c69a8cd486be815a945c051 (2025-08-25)",
+      "release": "v0.6.4 metadata.json supportedGames [jak1], 2025-08-25",
+      "license": "ISC LICENSE file (Copyright 2020-2025 OpenGOAL Team)",
+      "evidence": "tree goal_src/jak1/engine/mods/checkpoint-randomizer.gc; official docs walkthrough; README is generic mod-base; trigger list catalog-only; custom_assets contains only mod-base template examples"
+    },
+    {
+      "rank": 2,
+      "name": "The Precursor Orb Hunt",
+      "urls": [
+        "https://github.com/dallmeyer/OG-OrbHunt",
+        "https://github.com/dallmeyer/OG-OrbHunt/blob/f5037c781a1da32e3f9675da2ffad39028a0ffdc/README_JAK1.md",
+        "https://github.com/dallmeyer/OG-OrbHunt/blob/main/LICENSE"
+      ],
+      "head": "f5037c781a1da32e3f9675da2ffad39028a0ffdc (2026-10-19)",
+      "release": "v1.10.15 metadata.json supportedGames [jak1, jak2], 2025-12-12",
+      "license": "ISC LICENSE file",
+      "evidence": "README_JAK1: existing actors relocated; level models/collision unchanged; no new actors; goggles needed for some collectables. Relocation mechanism unverified"
+    },
+    {
+      "rank": 3,
+      "name": "Speedrun Practice",
+      "urls": [
+        "https://github.com/OpenGOAL-Mods/OG-Speedrun-Practice/blob/main/README.md",
+        "https://github.com/OpenGOAL-Mods/OG-Speedrun-Practice/blob/main/LICENSE"
+      ],
+      "head": "28c9f62b02ece56c18bb0b8fd85f64acf928886b (2026-10-14)",
+      "release": "v0.5.7 metadata.json supportedGames [jak1, jak2, jak3], 2026-10-14",
+      "license": "ISC LICENSE file",
+      "evidence": "README chord table; tree goal_src/jak1/engine/mods/* and goal_src/jak2/engine/mods/*; upstream reference tree already has goal_src/jak1/pc/features/speedruns.gc; commits custom_assets/jak1/texture_replacements/title-vis-pris/precursor_legacy.png (provenance not established)"
+    },
+    {
+      "rank": 4,
+      "name": "The Zoomer Legacy",
+      "urls": [
+        "https://github.com/OpenGOAL-Mods/OG-Zoomer-Legacy",
+        "https://github.com/OpenGOAL-Mods/OG-Zoomer-Legacy/blob/2d55e2a346fdd5e80c2ea95442ea3450d85f17ee/goal_src/jak1/engine/mods/mod-custom-code.gc",
+        "https://github.com/OpenGOAL-Mods/OG-Zoomer-Legacy/blob/main/LICENSE"
+      ],
+      "head": "2d55e2a346fdd5e80c2ea95442ea3450d85f17ee (2025-05-11)",
+      "release": "v0.1.4 metadata.json supportedGames [jak1], 2025-05-11",
+      "license": "ISC LICENSE file (2020-2022)",
+      "evidence": "runs-every-frame wakes platforms/log elevator, removes cave water blocker, resets zoomer collision spheres, racer-state handling; 'whole game on Zoomer' catalog-only; no custom_assets"
+    },
+    {
+      "rank": 5,
+      "name": "The FlutFlut Legacy",
+      "urls": [
+        "https://github.com/OpenGOAL-Mods/OG-FlutFlut-Legacy",
+        "https://github.com/OpenGOAL-Mods/OG-FlutFlut-Legacy/blob/4680318fa31056d5bf3dad4c1a9f1c81f4bdfe95/goal_src/jak1/engine/mods/mod-custom-code.gc",
+        "https://github.com/OpenGOAL-Mods/OG-FlutFlut-Legacy/blob/main/LICENSE"
+      ],
+      "head": "4680318fa31056d5bf3dad4c1a9f1c81f4bdfe95 (2024-11-27)",
+      "release": "v0.2.5-mergetime1127.3 metadata.json supportedGames [jak1], 2025-10-09",
+      "license": "ISC LICENSE file",
+      "evidence": "*flut-bounce-count* softlock 'PRESS TRIANGLE TO DIE'; 'whole game on FlutFlut' catalog-only; tree also has localmulti.gc/jak-size.gc (use unverified); no custom_assets"
+    },
+    {
+      "rank": 6,
+      "name": "First-person-jak",
+      "urls": [
+        "https://github.com/OpenGOAL-Unofficial-Mods/First-person-jak",
+        "https://github.com/OpenGOAL-Unofficial-Mods/First-person-jak/blob/cdcfea9622/data/goal_src/jak1/engine/game/main.gc",
+        "https://github.com/OpenGOAL-Unofficial-Mods/First-person-jak/blob/cdcfea9622/data/goal_src/jak1/engine/camera/cam-states.gc",
+        "https://github.com/OpenGOAL-Unofficial-Mods/First-person-jak/commit/bdf6b8547c",
+        "https://github.com/OpenGOAL-Unofficial-Mods/First-person-jak/commit/bec855fd00",
+        "https://github.com/OpenGOAL-Unofficial-Mods/First-person-jak/commit/3f956c7d49"
+      ],
+      "head": "cdcfea9622 (2022-11-24)",
+      "release": "none",
+      "license": "ISC per GitHub API",
+      "evidence": "cam-firstperson bank shares cam-eye-bank rot-speed/fov constants; HEAD movie? hook switches cam-string->cam-firstperson, racer->cam-bike, hides Jak unless swim?; first version killed Jak in swim-stance, later 'Fix swimming'/'swim fixes'; no hands/VR/6DoF/toggle; base merged vanilla 0.1.26"
+    },
+    {
+      "rank": 7,
+      "name": "Gordon And Daxter",
+      "urls": [
+        "https://github.com/mfOliveira19/GordonAndDaxter-Mod/blob/main/README.md",
+        "https://github.com/mfOliveira19/GordonAndDaxter-Mod/blob/main/LICENSE"
+      ],
+      "head": "06d5e54b2af8f283d2822b4fbb0669d8f4574ebb (2026-07-17)",
+      "release": "v1.0.6 metadata.json supportedGames [jak1], 2026-07-17",
+      "license": "ISC LICENSE file; .glb viewmodel asset provenance/license not established",
+      "evidence": "target-hl-* states; desktop OpenGL Viewmodel renderer (game/graphics/opengl_renderer/foreground/Viewmodel*.cpp, shaders/viewmodel.*); custom_assets/jak1/models/viewmodel/*.glb; first-person camera inferred from README, not verified in code"
+    },
+    {
+      "rank": 8,
+      "name": "Rainy Precursor Legacy",
+      "urls": [
+        "https://github.com/DaMaskV/Rainy-Precursor-Legacy/blob/main/README.md",
+        "https://github.com/DaMaskV/Rainy-Precursor-Legacy/blob/main/LICENSE"
+      ],
+      "head": "6a86dce54081a226205b8f9c89edd3b85891f094 (2026-09-09)",
+      "release": "v1.0.1 metadata.json supportedGames [jak1], 2026-09-13",
+      "license": "ISC LICENSE file; texture provenance not established",
+      "evidence": "README change list; tree commits retail-named recolored PNGs under custom_assets/jak1/texture_replacements/ (e.g. beach-vis-shrub/bch-*.png)"
+    },
+    {
+      "rank": 9,
+      "name": "The JET-Board Legacy",
+      "urls": [
+        "https://github.com/Hat-Kid/og-j1-board/blob/main/README.md",
+        "https://github.com/Hat-Kid/og-j1-board/blob/main/LICENSE"
+      ],
+      "head": "a60efb8837099af14685ae177ce44ab01dc3ad8b (2026-07-05)",
+      "release": "tag v0.0.6 (2026-07-05); its metadata.json says version 0.0.7; supportedGames [jak1]",
+      "license": "ISC LICENSE file; committed board .glb models and BOARD .wav sfx provenance not established",
+      "evidence": "README: Jak 3 jetboard ported to Jak 1 using custom actor and animation import/export tooling"
+    },
+    {
+      "rank": 10,
+      "name": "ArchipelaGOAL",
+      "urls": [
+        "https://github.com/ArchipelaGOAL/ArchipelaGOAL",
+        "https://github.com/ArchipelaGOAL/ArchipelaGOAL/blob/main/LICENSE",
+        "https://github.com/ArchipelaGOAL/Archipelago/blob/main/worlds/jakanddaxter/docs/setup_en.md"
+      ],
+      "head": "repo pushed 2026-09-24 (sha not recorded)",
+      "release": "v0.5.9 metadata.json supportedGames [jak1], 2026-09-24",
+      "license": "ArchipelaGOAL repo ISC LICENSE file; separate Archipelago client fork reports NOASSERTION (not established)",
+      "evidence": "goal_src/jak1/pc/features/ap-struct*.gc; setup doc: client launches OpenGOAL compiler (must stay open) and a memory reader, then connects to multiworld server"
+    }
+  ],
+  "builtin_settings": [
+    {
+      "name": "Frame rate",
+      "upstream": "https://opengoal.dev/docs/usage/settings/ (experimental); pckernel-h.gc set-frame-rate!",
+      "darkeco": "present in source (not freshly validated): iOS ProMotion 120Hz if enabled else 60 (jak1+jak2); visionOS 90Hz if enabled else 60 (jak1 only) in GOALPad/Game/GameSession.swift; PresentationSettings.graphicsHighFrameRate default = graphicsProfile == .modern, graphicsVisionHighFrameRate default true; initial targetFrameRate=60 is a pre-boot value"
+    },
+    {
+      "name": "Stick deadzone / invert",
+      "upstream": "pckernel-h.gc stick-deadzone, first/third-camera-h/v-inverted? (reference tree 8aee69ce)",
+      "darkeco": "shipped app-layer: per-role Additional Dead Zone, Invert Horizontal/Vertical, mouse camera invert (GOALPad/Saves/SaveSyncController.swift, GOALPad/Game/PresentationSettings.swift)"
+    },
+    {
+      "name": "Cutscene skip",
+      "upstream": "https://opengoal.dev/docs/usage/settings/",
+      "darkeco": "shipped touch path: cutsceneSkipTouchSnapshot (GOALPad/Game/GameSession.swift, ContentView.swift)"
+    },
+    {
+      "name": "Cheats",
+      "upstream": "pckernel-h.gc update-cheats; goal_src/jak1/pc/pc-cheats.gc",
+      "darkeco": "no app-side reference found; exposure unknown"
+    },
+    {
+      "name": "Orb glow, PS2 LOD/culling, subtitles, hints",
+      "upstream": "https://opengoal.dev/docs/usage/settings/",
+      "darkeco": "no app-side reference found; in-game menu reachability unverified"
+    }
+  ],
+  "other_sources": [
+    {
+      "url": "https://raw.githubusercontent.com/OpenGOAL-Mods/jakmods.dev/HEAD/static/mods.json",
+      "role": "discovery catalog only; lastUpdated 2026-11-01T17:55:19Z; First-person-jak not listed"
+    },
+    {
+      "url": "https://jakmods.dev/index.html",
+      "role": "catalog front page"
+    },
+    {
+      "url": "https://opengoal.dev/docs/developing/modding_examples/appendix/",
+      "role": "modding appendix"
+    },
+    {
+      "url": "https://github.com/open-goal/jak-project",
+      "role": "upstream, ISC per API"
+    },
+    {
+      "url": "local: .agent-worktrees/unified-apple-app-20261101/docs/PROJECT_OVERVIEW.md",
+      "role": "Jak II active scope, Jak 3 planned (lines 8-9, 126-134)"
+    },
+    {
+      "url": "local: GOALPad/Vision/Immersive/VisionSenseMotionInput.swift; VisionImmersiveCameraContract.swift",
+      "role": "AccessoryTrackingProvider originFromAccessory/aim poses; per-eye projection/deviceFromView; attack gestures"
+    },
+    {
+      "url": "https://api.github.com/orgs/OpenGOAL-Unofficial-Mods/repos",
+      "role": "TEMPORARY-LINUX-FIRST-PERSON exists (not inspected)"
+    }
+  ]
+}
