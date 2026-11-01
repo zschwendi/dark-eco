@@ -69,6 +69,10 @@ let renderSurface = source(root, "GOALPad/Native/GOALPadRenderSurface.mm")
 let bridge = source(root, "GOALPad/Native/GOALPadRuntimeBridge.h")
 let ornament = source(root, "GOALPad/Vision/VisionControllerStatusOrnament.swift")
 let pausedEcoOrnament = source(root, "GOALPad/Vision/VisionPausedEcoOrnament.swift")
+let immersiveModeControl = source(
+    root,
+    "GOALPad/Vision/Immersive/VisionImmersiveModeControl.swift"
+)
 let metalRenderer = source(root, "OpenGOAL/game/graphics/pipelines/metal/metal_renderer.mm")
 let eyeMarker = source(
     root,
@@ -175,10 +179,20 @@ check(sharedTick.components(separatedBy: "saveSync.gameplaySaveCompleted()").cou
       "changed-save notification and rumble side effects remain single-shot")
 check(sharedTick.contains("#if os(iOS)")
         && sharedTick.contains("input.pushFrame(merging: touch.frameState())")
-        && sharedTick.contains("#elseif os(visionOS)\n        input.pushControllerFrame()")
+        && sharedTick.contains("#elseif os(visionOS)\n        #if GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE")
+        && sharedTick.contains("input.pushControllerFrame(allowSpatialAttacks: title == .jak1")
+        && sharedTick.contains("input.pushControllerFrame(allowSpatialAttacks: title == .jak1\n"
+                                   + "            && !usesControllerMenuNavigation,")
+        && sharedTick.contains("spatialReference: immersiveFrameLoopOwner == nil\n"
+                                   + "                                      ? .accessoryAim : .head,")
+        && sharedTick.contains("menuNavigationActive: usesControllerMenuNavigation)")
+        && sharedTick.contains(
+            "#else\n        input.pushControllerFrame(menuNavigationActive: usesControllerMenuNavigation)\n"
+                + "        #endif"
+        )
         && controllerInput.contains("controllerOnly: true")
         && controllerInput.contains("keyboardMouseConnected: false"),
-      "visionOS accepts only an ordinary gamepad while iOS retains its touch merge")
+      "visionOS keeps menu navigation physical and excludes synthetic attacks while menus own it")
 let startWatching = section(controllerInput,
                             from: "func startWatching()",
                             to: "func stopWatching()")
@@ -201,20 +215,31 @@ check(controlsSettings.contains("ControllerBindingsSettingsView")
 
 check(bridge.contains("GOALPadStereoRenderTarget")
         && bridge.contains("simd_float4x4 clipFromGameClip")
+        && bridge.contains("simd_float4x4 clipFromEye")
+        && bridge.contains("simd_float4x4 eyeFromGameCameraMeters")
+        && bridge.contains("simd_float4x4 binocularCullFromGameCameraMeters")
         && bridge.contains("reserveStereoFrame")
         && bridge.contains("beginReservedStereoFrameAtTime")
         && bridge.contains("cancelReservedStereoFrame")
         && bridge.contains("endStereoFrame"),
-      "the Objective-C bridge exposes reserve, lazy arm, cancel, and async submission")
+      "the bridge preserves legacy window stereo and adds typed physical per-eye cameras")
 check(renderSurface.contains("memcpy(leftView.clip_from_game_clip.data(), &leftTransform")
-        && renderSurface.contains("memcpy(rightView.clip_from_game_clip.data(), &rightTransform"),
-      "Objective-C++ copies both Swift matrices into native column-major storage")
+        && renderSurface.contains("memcpy(rightView.clip_from_game_clip.data(), &rightTransform")
+        && renderSurface.contains("destination.physical_camera.enabled = source.physicalCameraEnabled")
+        && renderSurface.contains("destination.binocular_cull.enabled = source.physicalCameraEnabled")
+        && renderSurface.contains("copyPhysicalCamera(left, leftView)")
+        && renderSurface.contains("copyPhysicalCamera(right, rightView)"),
+      "Objective-C++ mirrors both legacy and physical camera contracts into native storage")
 check(occursInOrder([
-    "const auto valid_view =",
-    "!valid_view(left)",
-    "!valid_view(right)",
+    "const auto view_error =",
+    "view_error(left)",
+    "view_error(right)",
+    "left.view_id == right.view_id",
+    "if (g_host.frame_open)",
     "const bool released_stale_art = evict_unwanted_level_art();",
-], in: host), "both borrowed target descriptors are rejected before native frame mutation")
+], in: host)
+        && host.contains("physical-camera-target-not-shader-readable"),
+      "both borrowed target descriptors are rejected before native frame mutation")
 
 let sendChain = section(host, from: "void host_send_chain", to: "uint32_t host_vsync")
 let liveChainValidation = section(host,
@@ -307,9 +332,19 @@ check(surface.components(separatedBy: "prepareStereoFallback()").count - 1 == 1
         && bridge.contains("prepareStereoFallback")
         && renderSurface.contains("metal_host_prepare_stereo_fallback()")
         && metalRenderer.contains("m_external_stream.quarantine_in_flight_pages()")
-        && metalRenderer.contains("m_external_stereo_disabled = true")
+        && metalRenderer.contains("m_external_stream_quarantine.hold(external_submission)")
         && metalRenderer.contains("m_external_stream_submission = 0"),
       "fallback quarantines stalled stream pages and removes the Comfort renderer wait")
+let rendererReserve = section(
+    metalRenderer,
+    from: "MetalExternalFrameReservation MetalRenderer::reserve_external_stereo_frame()",
+    to: "void MetalRenderer::cancel_external_stereo_frame()"
+)
+check(!metalRenderer.contains("m_external_stereo_disabled")
+        && rendererReserve.contains("m_external_stream_quarantine.still_in_flight(completion)")
+        && rendererReserve.contains("return MetalExternalFrameReservation::busy;")
+        && rendererReserve.contains("m_external_stream.release_quarantined_pages()"),
+      "re-entry stays busy until the quarantined submission completes, then releases its pages")
 
 let rendererStereo = section(
     metalRenderer,
@@ -379,7 +414,25 @@ let visionDirectory = root + "/GOALPad/Vision"
 let visionFiles = FileManager.default.enumerator(atPath: visionDirectory)?.compactMap {
     ($0 as? String).flatMap { $0.hasSuffix(".swift") ? $0 : nil }
 } ?? []
-let visionProductSource = visionFiles.map { source(root, "GOALPad/Vision/" + $0) }
+// The opt-in immersive compositor proof is the only vision source exempt from the Shared Space
+// scan, and only because every file in it is compiled out of normal builds.
+let immersiveProofFiles = visionFiles.filter { $0.hasPrefix("Immersive/") }
+let immersiveGate = "#if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE"
+check(!immersiveProofFiles.isEmpty
+        && immersiveProofFiles.allSatisfy { file in
+            let text = source(root, "GOALPad/Vision/" + file)
+            return (text.hasPrefix(immersiveGate + "\n")
+                    || text.hasPrefix("#if GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE\n"))
+                && text.hasSuffix("#endif\n")
+        }
+        && app.contains(immersiveGate + "\n        VisionImmersiveProofScene()\n        #endif")
+        && content.contains(
+            immersiveGate + "\n        .modifier(VisionImmersiveProofHost(session: session))\n"
+                + "        #endif")
+        && !project.contains("GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE"),
+      "the immersive proof is wholly source-gated and no normal configuration opts into it")
+let visionProductSource = visionFiles.filter { !$0.hasPrefix("Immersive/") }
+    .map { source(root, "GOALPad/Vision/" + $0) }
     .joined(separator: "\n") + app
 let forbiddenSpatialAPIs = [
     "ImmersiveSpace", "openImmersiveSpace", "dismissImmersiveSpace", "import ARKit",
@@ -410,30 +463,72 @@ let gameplayOverlay = section(content,
 check(gameplayOverlay.contains("#if !os(visionOS)")
         && gameplayOverlay.contains("DiagnosticsOverlay(session: session)"),
       "visionOS compiles out the gameplay diagnostics overlay")
-check(content.contains("visibility: session.input.isConnected ? .hidden : .visible")
+check(content.contains("visibility: isConventionalGameplayPresentationEnabled\n"
+                        + "                && !session.input.isConnected ? .visible : .hidden")
         && content.contains("attachmentAnchor: .scene(.top)"),
       "the controller ornament follows supported gamepad connection state at the window top")
-check(content.contains(
-            "visibility: visionEcoSettingsUsesCenteredPlacement ? .visible : .hidden"
-        )
-        && content.contains("attachmentAnchor: .scene(.top)")
-        && content.components(
-            separatedBy: "VisionPausedEcoOrnament { presentSettings() }"
-        ).count - 1 == 1
+let settingsOrnamentVisibility = "visibility: isConventionalGameplayPresentationEnabled\n"
+    + "                && session.isRunning ? .visible : .hidden"
+let settingsOrnament = section(
+    content,
+    from: settingsOrnamentVisibility,
+    to: "        #endif\n        #if os(iOS)"
+)
+check(content.components(separatedBy: "VisionPausedEcoOrnament(session: session)").count - 1 == 1
+        && occursInOrder([
+            immersiveGate + "\n        .modifier(VisionImmersiveProofHost(session: session))",
+            settingsOrnamentVisibility,
+        ], in: content)
+        && settingsOrnament.contains("attachmentAnchor: .scene(.top)")
+        && settingsOrnament.contains("#if GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE\n"
+            + "                VisionPausedEcoOrnament(session: session) { presentSettings() }")
+        && settingsOrnament.contains("#else\n"
+            + "                VisionPausedEcoOrnament { presentSettings() }")
+        && !content.contains("visibility: session.isRunning ? .visible : .hidden")
+        && !settingsOrnament.contains("session.input.isConnected")
+        && !settingsOrnament.contains("isNativeMenuOpen")
+        && !settingsOrnament.contains("runReadiness")
         && !content.contains("attachmentAnchor: .scene(.topLeading)")
-        && content.contains("session.input.isConnected && session.isRunning")
-        && content.contains("&& NativeEcoSettingsPresentation.isVisible(")
-        && content.contains("mode: session.gameMode")
-        && content.contains("progress: session.progressMenuSnapshot")
-        && content.contains("runReadiness: session.runReadiness"),
-      "one Settings ornament centers only for connected native menu state")
-check(pausedEcoOrnament.contains("Button(action: openSettings)")
+        && !content.contains("visionEcoSettingsUsesCenteredPlacement")
+        && content.contains(".padding(.bottom, session.isRunning ? 66 : 12)"),
+      "one centered Settings ornament shows for a running game only in the conventional window, "
+        + "independent of pause or controller state")
+// Ornaments escape the window's opacity, so each must gate itself on conventional presentation;
+// otherwise it floats in the full immersive space. The Digital Crown exits immersion.
+let ornamentVisibilities = content.components(separatedBy: ".ornament(\n            visibility: ")
+    .dropFirst()
+let senseHintGate = section(content,
+                            from: "private var showsSenseMotionHint: Bool {",
+                            to: "    }\n")
+check(content.components(separatedBy: ".ornament(").count - 1 == ornamentVisibilities.count
+        && ornamentVisibilities.count == 3
+        && ornamentVisibilities.allSatisfy {
+            $0.hasPrefix("isConventionalGameplayPresentationEnabled\n")
+                || $0.hasPrefix("showsSenseMotionHint ? .visible : .hidden")
+        }
+        && senseHintGate.contains("&& isConventionalGameplayPresentationEnabled"),
+      "every window ornament hides while the immersive space is opening, presenting or closing")
+check(pausedEcoOrnament.contains("HStack(spacing: 10)")
+        && pausedEcoOrnament.contains("Button(action: openSettings)")
         && pausedEcoOrnament.contains("Image(systemName: \"gearshape\")")
+        && pausedEcoOrnament.contains("if session.isRunning && session.title == .jak1")
+        && pausedEcoOrnament.contains("VisionImmersiveModeControl(session: session)")
         && !pausedEcoOrnament.contains("Text(\"DARK ECO\")")
         && pausedEcoOrnament.contains(".frame(width: 42, height: 42)")
         && pausedEcoOrnament.contains(".glassBackgroundEffect(in: Circle())")
         && pausedEcoOrnament.contains(".accessibilityLabel(\"Settings\")"),
-      "the always-available ornament is an icon-only accessible glass Settings control")
+      "the glass Settings control stays available beside the opt-in Jak 1 immersive control")
+check(immersiveModeControl.hasPrefix(
+            "#if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE\n"
+        )
+        && immersiveModeControl.contains("coordinator.canOpen(for: session)")
+        && immersiveModeControl.contains(".disabled(!isEnabled)")
+        && immersiveModeControl.contains(".frame(width: 42, height: 42)")
+        && immersiveModeControl.contains(".glassBackgroundEffect(in: Circle())")
+        && immersiveModeControl.contains(
+            ".accessibilityLabel(isReturningToWindow ? \"Return to Window\" : \"Enter Immersive\")"
+        ),
+      "the matching expansion arrow is opt-in, readiness-gated, and accessible")
 check(libraryUI.contains("ToolbarItem(placement: .principal)")
         && libraryUI.contains("} label: { mainMenuLabel }")
         && libraryUI.contains(".menuStyle(.button)")
@@ -462,12 +557,12 @@ check(content.contains("NavigationStack {\n            SaveSettingsView(")
         && content.contains("#if os(iOS)\n                .toolbar {")
         && content.contains("Button(\"Done\") { dismiss() }")
         && content.contains("#elseif !os(visionOS)\n        .toolbar {\n            ToolbarItem(placement: .confirmationAction)")
-        && content.contains("#else\n        .toolbar {\n            ToolbarItem(placement: .topBarLeading)")
-        && content.contains("Image(systemName: \"xmark\")")
+        && content.contains("#else\n        .safeAreaInset(edge: .top, spacing: 0) {\n            HStack {")
+        && content.contains("Button { dismiss() } label: {\n                    Label(\"Close\", systemImage: \"xmark\")")
         && content.contains(".accessibilityLabel(\"Close Settings\")")
-        && content.contains("ToolbarItem(placement: .topBarTrailing)")
+        && content.contains("if isGameRunning {\n                    Button(role: .destructive)")
         && content.contains("Image(systemName: \"power\")"),
-      "visionOS Settings owns top-leading Close and top-trailing power actions while iOS retains Done")
+      "visionOS Settings pins Close and Return to Library above navigation while iOS retains Done")
 check(visionCardActivation.contains(".contentShape([.interaction, .hoverEffect],")
         && visionCardActivation.contains("RoundedRectangle(cornerRadius: 16, style: .continuous)")
         && visionCardActivation.contains(".onTapGesture(perform: activate)")

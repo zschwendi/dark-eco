@@ -29,6 +29,8 @@
 #ifdef __OBJC__
 @class CAMetalLayer;
 @protocol MTLCommandBuffer;
+@protocol MTLCommandQueue;
+@protocol MTLDevice;
 @protocol MTLTexture;
 #endif
 
@@ -571,17 +573,52 @@ MetalHostTargetControlTelemetry metal_host_target_control_telemetry();
 
 #ifdef __OBJC__
 
+struct MetalHostPhysicalViewCamera {
+  bool enabled = false;
+  std::array<float, 16> clip_from_eye = {};
+  std::array<float, 16> eye_from_game_camera_meters = {};
+};
+
+struct MetalHostBinocularCull {
+  bool enabled = false;
+  std::array<float, 16> clip_from_game_camera_meters = {};
+};
+
+struct MetalHostHudPlane {
+  bool enabled = false;
+  std::array<float, 16> clip_from_screen_clip = {
+      1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f};
+};
+
+// Common gameCameraFromCurrentHead proper rotation (right/up/back, zero translation); identical
+// for both eyes of one compositor request.
+struct MetalHostSkyGeneration {
+  bool enabled = false;
+  std::array<float, 16> game_camera_from_head = {
+      1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f};
+};
+
 struct MetalHostStereoView {
   std::uint64_t view_id = 0;
   id<MTLTexture> color_texture = nullptr;
   id<MTLTexture> depth_texture = nullptr;
   std::array<float, 16> clip_from_game_clip = {};
+  MetalHostPhysicalViewCamera physical_camera;
+  MetalHostBinocularCull binocular_cull;
+  // Opt-in head-locked HUD plane, parallel to (never folded into) the physical world camera.
+  MetalHostHudPlane hud_plane;
+  // Opt-in sky-generation head rotation; disabled outside the immersive compositor path.
+  MetalHostSkyGeneration sky_generation;
 };
 
 enum class MetalHostStereoFrameCompletion {
   skipped,
   submitted,
   failed,
+  // The native update ran, but the renderer rejected stereo world encoding solely because this
+  // frame carried no world-camera packet. The paired black initialization was committed, so the
+  // targets no longer hold any earlier validated frame.
+  world_camera_packet_absent,
 };
 
 enum class MetalHostStereoFrameReservation {
@@ -624,6 +661,28 @@ void metal_host_cancel_reserved_stereo_frame();
 /*! Keep Comfort mode nonblocking if the last external stereo submission stopped completing. */
 void metal_host_prepare_stereo_fallback();
 
+/*! One host-owned color/depth target that receives a whole monoscopic game frame. */
+struct MetalHostExternalView {
+  std::uint64_t view_id = 0;
+  id<MTLTexture> color_texture = nullptr;
+  id<MTLTexture> depth_texture = nullptr;
+};
+
+/*!
+ * Arm one tick that renders the game frame into a host-owned target instead of the attached
+ * layer, through the renderer's existing single external-target path. That path commits the frame
+ * on the renderer's own queue, so host work committed later to `metal_host_command_queue()` runs
+ * after the game render. Close it with `metal_host_end_frame`.
+ */
+bool metal_host_begin_external_frame(const MetalHostFrame& frame, const MetalHostExternalView& view);
+
+/*! The renderer's device and command queue, or nil before `metal_host_start`. */
+id<MTLDevice> metal_host_device();
+id<MTLCommandQueue> metal_host_command_queue();
+
+/*! The PCRTC fade (pmode alpha) the last external frame was rendered under; 1 is fully visible. */
+float metal_host_external_frame_fade();
+
 /*!
  * Close the armed display-link tick and report whether its chain scheduled a drawable.
  *
@@ -634,6 +693,7 @@ bool metal_host_end_frame();
 
 /*! Commit the paired stereo command buffer once without waiting. */
 MetalHostStereoFrameCompletion metal_host_end_stereo_frame();
+std::string metal_host_stereo_error();
 
 /*! Point the layer at the renderer's device. Safe before `metal_host_start`. */
 void metal_host_attach_layer(CAMetalLayer* layer);

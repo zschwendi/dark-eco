@@ -1,4 +1,5 @@
 import Foundation
+import Metal
 import OSLog
 import QuartzCore
 import SwiftUI
@@ -32,6 +33,9 @@ final class GameSession {
     let presentationSettings: PresentationSettings
     let importer: GameDataImporter
     let saveSync: SaveSyncController
+
+    /// The native update result, read synchronously while the armed tick closes its frame.
+    @ObservationIgnored private var armedTickNativeUpdateSucceeded = false
 
     private(set) var dataReport: GameDataReport
     private(set) var kernel: GOALPadKernelStatus?
@@ -73,6 +77,12 @@ final class GameSession {
         }
     }
 
+    var usesControllerMenuNavigation: Bool {
+        isNativeMenuOpen || runReadiness != .active
+            || (warpGateTouchSnapshot.valid
+                && warpGateTouchSnapshot.state == .destinationListActive)
+    }
+
     /// Booting runs the game's own startup - two DGO archives and `play` - which takes seconds and
     /// must not block the frame loop or the UI.
     private let bootQueue = DispatchQueue(label: "com.zephyrstudiosllc.eco.boot",
@@ -106,6 +116,11 @@ final class GameSession {
     @ObservationIgnored private var framesEndedAfterTargetTimestamp = 0
     @ObservationIgnored private var detailedFrameStatsEnabled = false
     @ObservationIgnored private var frameWorkSamplesAtLastReport = 0
+    #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+    /// While set, the experimental immersive presenter, not the window's display link, runs frames.
+    @ObservationIgnored private var immersiveFrameLoopOwner: UInt64?
+    private var immersiveActivity = VisionImmersiveActivity()
+    #endif
     #if os(iOS) || os(visionOS)
     private var cameraDiagnosticsURL: URL?
     private var cameraDiagnosticsRunID: UInt64 = 0
@@ -352,6 +367,9 @@ final class GameSession {
         #elseif os(visionOS)
         setVisionHighFrameRateEnabled(presentationSettings.graphicsVisionHighFrameRate)
         #endif
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        refreshSpatialGestureTracking()
+        #endif
         updateNativeMenuState(mode: GOALPadRuntimeBridge.gameMode,
                               progress: NativeProgressMenuSnapshot(
                                 GOALPadRuntimeBridge.progressMenuSnapshot,
@@ -457,6 +475,14 @@ final class GameSession {
         kernel = nil
         boot = nil
         isRunning = false
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        input.setSpatialGesturesEnabled(false)
+        if let owner = immersiveFrameLoopOwner {
+            immersiveActivity.end(owner: owner)
+        }
+        immersiveFrameLoopOwner = nil
+        applyImmersiveActivity()
+        #endif
         targetFrameRate = 60
         runReadiness = .preRun
         updateNativeMenuState(mode: .unknown, progress: .unavailable,
@@ -516,6 +542,169 @@ final class GameSession {
 
     // MARK: - The frame loop
 
+    #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+    func claimImmersiveFrameLoop(_ owner: UInt64) {
+        guard immersiveFrameLoopOwner != owner else { return }
+        immersiveFrameLoopOwner = owner
+        immersiveActivity.begin(owner: owner)
+        applyImmersiveActivity()
+        resetDisplayTiming()
+    }
+
+    /// The window's display link resumes driving frames on its next refresh. Its Sense motion
+    /// route restarts after the immersive teardown cleared every partial gesture.
+    func releaseImmersiveFrameLoop(_ owner: UInt64) {
+        defer { refreshSpatialGestureTracking() }
+        guard immersiveFrameLoopOwner == owner else { return }
+        immersiveFrameLoopOwner = nil
+        immersiveActivity.end(owner: owner)
+        GOALPadRenderSurface.shared.prepareStereoFallback()
+        applyImmersiveActivity()
+        resetDisplayTiming()
+    }
+
+    func enableImmersiveGesturesIfActive() {
+        guard isRunning, title == .jak1, currentScenePhase == .active,
+              immersiveFrameLoopOwner != nil else { return }
+        input.setSpatialGesturesEnabled(true)
+    }
+
+    /// Sense accessory tracking follows active Jak 1 gameplay in either presentation. Menus,
+    /// pause, and title screens keep tracking alive but suppress attacks per frame.
+    private func refreshSpatialGestureTracking() {
+        input.setSpatialGesturesEnabled(isRunning && title == .jak1
+            && currentScenePhase == .active)
+    }
+
+    func setImmersivePresentationActive(_ active: Bool, owner: UInt64) {
+        guard immersiveFrameLoopOwner == owner else { return }
+        immersiveActivity.setRunning(active, owner: owner)
+        applyImmersiveActivity()
+    }
+
+    private func applyImmersiveActivity() {
+        let effective: ScenePhase = switch immersiveActivity.effectivePhase {
+        case .active: .active
+        case .inactive: .inactive
+        case .background: .background
+        }
+        guard currentScenePhase != effective else { return }
+        applyScenePhase(effective)
+    }
+
+    /// One game update renders the conventional frame, HUD and menus included, for the immersive
+    /// menu plane. The monoscopic path waits for the previous external submission, so a
+    /// nonblocking reservation first proves the shared stream idle and is then cancelled for it.
+    func tickImmersiveMenuFrame(targetPresentationTime: CFTimeInterval,
+                                viewID: UInt64,
+                                colorTexture: any MTLTexture,
+                                depthTexture: any MTLTexture) -> VisionStereoSubmissionDisposition {
+        guard wantsFrameCallbacks, immersiveFrameLoopOwner != nil else { return .skipped }
+        let surface = GOALPadRenderSurface.shared
+        switch surface.reserveStereoFrame() {
+        case .busy: return .busy
+        case .failed: return .failed
+        case .reserved: surface.cancelReservedStereoFrame()
+        @unknown default: return .failed
+        }
+        guard surface.beginMonoscopicFrame(at: targetPresentationTime, viewID: viewID,
+                                           colorTexture: colorTexture,
+                                           depthTexture: depthTexture) else {
+            return .failed
+        }
+        // No simulated time elapsed: keep input pending and present nothing new.
+        guard GOALPadRuntimeBridge.prepareFrame(at: targetPresentationTime) else {
+            _ = surface.endFrame()
+            return .skipped
+        }
+        let presented = runArmedTick(targetPresentationTime: targetPresentationTime) {
+            surface.endFrame()
+        }
+        return presented ? .submitted : .skipped
+    }
+
+    /// One game update, one reserved command buffer, and two native physical eye replays.
+    func tickImmersive(targetPresentationTime: CFTimeInterval,
+                       request: VisionImmersiveFrameRequest,
+                       target: VisionImmersiveGameTarget) -> VisionStereoSubmissionDisposition {
+        guard wantsFrameCallbacks, immersiveFrameLoopOwner != nil,
+              request.isValid, target.viewIDs.count == 2,
+              target.colorTextures.count == 2, target.depthTextures.count == 2 else {
+            return .skipped
+        }
+        let surface = GOALPadRenderSurface.shared
+        switch surface.reserveStereoFrame() {
+        case .busy: return .busy
+        case .failed: return .failed
+        case .reserved: break
+        @unknown default: return .failed
+        }
+        var reservationNeedsCancellation = true
+        defer {
+            if reservationNeedsCancellation { surface.cancelReservedStereoFrame() }
+        }
+        // No simulated time elapsed: keep input pending and leave the previous eye pair shown.
+        guard GOALPadRuntimeBridge.prepareFrame(at: targetPresentationTime) else {
+            return .skipped
+        }
+        guard let commandBuffer = surface.rendererCommandQueue?.makeCommandBuffer() else {
+            return .failed
+        }
+        let eyes = (0..<2).map { index in
+            let camera = request.cameras[index]
+            if let hud = camera.hudClipFromScreenClip {
+                return GOALPadStereoRenderTarget(
+                    viewID: target.viewIDs[index],
+                    colorTexture: target.colorTextures[index],
+                    depthTexture: target.depthTextures[index],
+                    clipFromEye: camera.clipFromEye,
+                    eyeFromGameCameraMeters: camera.eyeFromGameCameraMeters,
+                    binocularCullFromGameCameraMeters: camera.binocularCullFromGameCameraMeters,
+                    hudClipFromScreenClip: hud)
+            }
+            return GOALPadStereoRenderTarget(
+                viewID: target.viewIDs[index],
+                colorTexture: target.colorTextures[index],
+                depthTexture: target.depthTextures[index],
+                clipFromEye: camera.clipFromEye,
+                eyeFromGameCameraMeters: camera.eyeFromGameCameraMeters,
+                binocularCullFromGameCameraMeters: camera.binocularCullFromGameCameraMeters)
+        }
+        for (eye, camera) in zip(eyes, request.cameras) {
+            if let gameCameraFromHead = camera.gameCameraFromHead,
+               !eye.enableSkyGeneration(gameCameraFromHead: gameCameraFromHead) {
+                commandBuffer.commit()
+                return .failed
+            }
+        }
+        let color = target.colorTextures[0]
+        guard surface.beginReservedStereoFrame(
+            at: targetPresentationTime,
+            size: CGSize(width: CGFloat(color.width), height: CGFloat(color.height)),
+            commandBuffer: commandBuffer, left: eyes[0], right: eyes[1]) else {
+            commandBuffer.commit()
+            return .failed
+        }
+        reservationNeedsCancellation = false
+        var completion = GOALPadStereoFrameCompletion.skipped
+        var nativeUpdateSucceeded = false
+        let submitted = runArmedTick(targetPresentationTime: targetPresentationTime) {
+            nativeUpdateSucceeded = armedTickNativeUpdateSucceeded
+            completion = surface.endStereoFrame()
+            return completion == .submitted
+        }
+        switch completion {
+        case .submitted: return submitted ? .submitted : .failed
+        case .skipped: return .skipped
+        case .failed: return .failed
+        case .worldCameraPacketAbsent:
+            // A failed native update stays fatal even when the camera packet is also absent.
+            return nativeUpdateSucceeded ? .worldCameraPacketAbsent : .failed
+        @unknown default: return .failed
+        }
+    }
+    #endif
+
     var wantsFrameCallbacks: Bool {
         GameplayFrameCallbackPolicy.wantsCallbacks(isRunning: isRunning,
                                                    lifecycle: lifecycle,
@@ -524,6 +713,10 @@ final class GameSession {
 
     func tick(targetPresentationTime: CFTimeInterval) {
         guard wantsFrameCallbacks else { return }
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        guard immersiveFrameLoopOwner == nil else { return }
+        guard !VisionImmersiveProofCoordinator.shared.suppressesWindowRendering else { return }
+        #endif
         let surface = GOALPadRenderSurface.shared
         guard surface.beginFrame(at: targetPresentationTime) else { return }
         // No simulated time elapsed: leave this callback's input pending and present nothing new.
@@ -600,6 +793,9 @@ final class GameSession {
             return .skipped
         case .failed:
             return .failed
+        case .worldCameraPacketAbsent:
+            // The window stereo path has no nonterminal camera-absence handling.
+            return .failed
         @unknown default:
             return .failed
         }
@@ -618,7 +814,15 @@ final class GameSession {
         #if os(iOS)
         input.pushFrame(merging: touch.frameState())
         #elseif os(visionOS)
-        input.pushControllerFrame()
+        #if GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        input.pushControllerFrame(allowSpatialAttacks: title == .jak1
+            && !usesControllerMenuNavigation,
+                                  spatialReference: immersiveFrameLoopOwner == nil
+                                      ? .accessoryAim : .head,
+                                  menuNavigationActive: usesControllerMenuNavigation)
+        #else
+        input.pushControllerFrame(menuNavigationActive: usesControllerMenuNavigation)
+        #endif
         #else
         input.pushFrame()
         #endif
@@ -628,8 +832,10 @@ final class GameSession {
         var shouldLog = false
         var nativeState = GOALPadGameFrameStateSnapshot()
         let framesRunBeforeTick = framesRun
-        if GOALPadRuntimeBridge.runFrame(at: targetPresentationTime,
-                                         stateSnapshot: &nativeState) {
+        armedTickNativeUpdateSucceeded = GOALPadRuntimeBridge.runFrame(
+            at: targetPresentationTime, stateSnapshot: &nativeState)
+        defer { armedTickNativeUpdateSucceeded = false }
+        if armedTickNativeUpdateSucceeded {
             if gameplaySaveGeneration.observe(nativeState.successfulSaveGeneration) {
                 saveSync.gameplaySaveCompleted()
             }
@@ -1953,8 +2159,26 @@ final class GameSession {
     // MARK: - App lifecycle
 
     func scenePhaseChanged(to phase: ScenePhase) {
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        let windowPhase: VisionImmersiveActivity.Phase = switch phase {
+        case .active: .active
+        case .inactive: .inactive
+        case .background: .background
+        @unknown default: .inactive
+        }
+        immersiveActivity.setWindowPhase(windowPhase)
+        applyImmersiveActivity()
+        #else
+        applyScenePhase(phase)
+        #endif
+    }
+
+    private func applyScenePhase(_ phase: ScenePhase) {
         let wasPreparingGameplay = isPreparingGameplay
         currentScenePhase = phase
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        refreshSpatialGestureTracking()
+        #endif
         let lifecyclePhase = GameplayLifecycleState.Phase(phase)
         let action = lifecycle.transition(
             to: lifecyclePhase,

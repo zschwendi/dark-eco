@@ -55,6 +55,10 @@ struct ContentView: View {
     @AppStorage("jak1TouchControlsGuideVersion") private var jak1TouchControlsGuideVersion = 0
     @AppStorage("jak2TouchControlsGuideVersion") private var jak2TouchControlsGuideVersion = 0
     #endif
+    #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+    @State private var isShowingMotionControlsGuide = false
+    @AppStorage("senseMotionHintVersion") private var senseMotionHintVersion = 0
+    #endif
 
     init() {
         let hasJak2DebugPreview = ProcessInfo.processInfo
@@ -84,7 +88,8 @@ struct ContentView: View {
             GameplaySurface(
                 session: session,
                 hidesCursorInFullScreen: session.isRunning && !session.isNativeMenuOpen
-                    && settingsPresentation == nil
+                    && settingsPresentation == nil,
+                isPresentationEnabled: isConventionalGameplayPresentationEnabled
             )
 
             if session.isRunning {
@@ -143,6 +148,14 @@ struct ContentView: View {
                 }
             }
         }
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        // The plain window has no system glass, so this clip is the window's visible outline.
+        // Changing only the radius keeps the game surface's view identity stable.
+        .clipShape(RoundedRectangle(cornerRadius: visionWindowCornerRadius, style: .continuous))
+        .opacity(isConventionalGameplayPresentationEnabled ? 1 : 0)
+        .allowsHitTesting(isConventionalGameplayPresentationEnabled)
+        .accessibilityHidden(!isConventionalGameplayPresentationEnabled)
+        #endif
         #if os(visionOS)
         .background {
             VisionWindowGeometryView(
@@ -222,20 +235,63 @@ struct ContentView: View {
         }
         #if os(visionOS)
         .ornament(
-            visibility: session.input.isConnected ? .hidden : .visible,
+            visibility: isConventionalGameplayPresentationEnabled
+                && !session.input.isConnected ? .visible : .hidden,
             attachmentAnchor: .scene(.top),
             contentAlignment: .bottom
         ) {
+            // A running game keeps its Settings controls at the top, so the message sits above them.
             VisionControllerStatusOrnament()
-                .padding(.bottom, 12)
+                .padding(.bottom, session.isRunning ? 66 : 12)
         }
+        #endif
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        .modifier(VisionImmersiveProofHost(session: session))
+        #endif
+        #if os(visionOS)
+        // Ornaments are not covered by the window's opacity, so this one hides itself while the
+        // immersive space is opening, presenting or closing. The Digital Crown exits immersion.
         .ornament(
-            visibility: visionEcoSettingsUsesCenteredPlacement ? .visible : .hidden,
+            visibility: isConventionalGameplayPresentationEnabled
+                && session.isRunning ? .visible : .hidden,
             attachmentAnchor: .scene(.top),
             contentAlignment: .bottom
         ) {
-            VisionPausedEcoOrnament { presentSettings() }
-                .padding(.bottom, 12)
+            Group {
+                #if GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+                VisionPausedEcoOrnament(session: session) { presentSettings() }
+                #else
+                VisionPausedEcoOrnament { presentSettings() }
+                #endif
+            }
+            .padding(.bottom, 12)
+        }
+        #endif
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        .ornament(
+            visibility: showsSenseMotionHint ? .visible : .hidden,
+            attachmentAnchor: .scene(.bottom),
+            contentAlignment: .top
+        ) {
+            VisionSenseMotionHint(
+                showMoves: {
+                    senseMotionHintVersion = 1
+                    isShowingMotionControlsGuide = true
+                },
+                dismiss: { senseMotionHintVersion = 1 }
+            )
+            .padding(.top, 12)
+        }
+        .task(id: showsSenseMotionHint) {
+            // Hidden windows and Settings restart the wait instead of spending the one-time hint.
+            guard showsSenseMotionHint else { return }
+            try? await Task.sleep(for: .seconds(30))
+            guard !Task.isCancelled else { return }
+            senseMotionHintVersion = 1
+        }
+        .sheet(isPresented: $isShowingMotionControlsGuide) {
+            VisionMotionControlsGuideSheet(input: session.input)
+                .frame(minHeight: 360)
         }
         #endif
         #if os(iOS)
@@ -340,14 +396,32 @@ struct ContentView: View {
     }
 
     #if os(visionOS)
-    private var visionEcoSettingsUsesCenteredPlacement: Bool {
-        session.input.isConnected && session.isRunning
-            && NativeEcoSettingsPresentation.isVisible(
-                mode: session.gameMode,
-                progress: session.progressMenuSnapshot,
-                runReadiness: session.runReadiness
-            )
+    private var isConventionalGameplayPresentationEnabled: Bool {
+        #if GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        !VisionImmersiveProofCoordinator.shared.suppressesWindowRendering
+        #else
+        true
+        #endif
     }
+
+    #if GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+    private var visionWindowCornerRadius: CGFloat {
+        session.presentationSettings.visionWindowRoundedCorners ? 46 : 0
+    }
+
+    private var showsSenseMotionHint: Bool {
+        senseMotionHintVersion < 1
+            && session.isRunning && session.title == .jak1
+            && session.runReadiness == .active
+            && session.input.hasSenseControllers
+            && isConventionalGameplayPresentationEnabled
+            && settingsPresentation == nil && !isShowingMotionControlsGuide
+    }
+    #endif
+    #endif
+
+    #if !os(visionOS)
+    private var isConventionalGameplayPresentationEnabled: Bool { true }
     #endif
 
     #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
@@ -470,6 +544,7 @@ private struct SettingsSheetView: View {
 private struct GameplaySurface: View {
     let session: GameSession
     let hidesCursorInFullScreen: Bool
+    let isPresentationEnabled: Bool
 
     var body: some View {
         GeometryReader { proxy in
@@ -512,7 +587,8 @@ private struct GameplaySurface: View {
             onFrame: { session.tick(targetPresentationTime: $0) },
             framesRequested: session.wantsFrameCallbacks,
             targetFrameRate: session.targetFrameRate,
-            hidesCursorInFullScreen: hidesCursorInFullScreen
+            hidesCursorInFullScreen: hidesCursorInFullScreen,
+            isPresentationEnabled: isPresentationEnabled
         )
         #endif
     }

@@ -25,6 +25,9 @@ struct GameSurfaceView: View {
     let framesRequested: Bool
     var targetFrameRate = 60
     var hidesCursorInFullScreen = false
+    /// False while another presentation, such as the immersive space, owns rendering; the window
+    /// surface then releases its layer and display link.
+    var isPresentationEnabled = true
 
     #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
     @Environment(VisionPresentationCoordinator.self) private var visionPresentation
@@ -75,7 +78,9 @@ struct GameSurfaceView: View {
         SurfaceRepresentable(onFrame: onFrame,
                              framesRequested: framesRequested,
                              targetFrameRate: targetFrameRate,
-                             hidesCursorInFullScreen: hidesCursorInFullScreen)
+                             hidesCursorInFullScreen: hidesCursorInFullScreen,
+                             isPresentationEnabled: isPresentationEnabled)
+            .opacity(isPresentationEnabled ? 1 : 0)
             .ignoresSafeArea()
             .background(.black)
     }
@@ -167,6 +172,16 @@ private final class MetalHostView: UIView {
             reconcileDisplayLink()
         }
     }
+    var isPresentationEnabled = true {
+        didSet {
+            guard isPresentationEnabled != oldValue else { return }
+            if isPresentationEnabled, window != nil, isHostActive {
+                resumePresentation()
+            } else {
+                suspendPresentation()
+            }
+        }
+    }
     private var frameLink: CADisplayLink?
     private var isPresenting = false
     private var observesSceneLifecycle = false
@@ -193,6 +208,10 @@ private final class MetalHostView: UIView {
     }
 
     private func resumePresentation() {
+        guard isPresentationEnabled else {
+            suspendPresentation()
+            return
+        }
         #if os(visionOS)
         layer.contentsScale = contentScaleFactor
         #else
@@ -202,6 +221,10 @@ private final class MetalHostView: UIView {
         updateDrawableSize()
         isPresenting = true
         reconcileDisplayLink()
+    }
+
+    private var isHostActive: Bool {
+        window?.windowScene?.activationState == .foregroundActive
     }
 
     private func suspendPresentation() {
@@ -307,12 +330,14 @@ private struct SurfaceRepresentable: UIViewRepresentable {
     let framesRequested: Bool
     let targetFrameRate: Int
     let hidesCursorInFullScreen: Bool
+    let isPresentationEnabled: Bool
 
     func makeUIView(context: Context) -> UIView {
         let view = MetalHostView()
         view.onFrame = onFrame
         view.targetFrameRate = targetFrameRate
         view.framesRequested = framesRequested
+        view.isPresentationEnabled = isPresentationEnabled
         view.isOpaque = true
         return view
     }
@@ -322,6 +347,7 @@ private struct SurfaceRepresentable: UIViewRepresentable {
         view.onFrame = onFrame
         view.targetFrameRate = targetFrameRate
         view.framesRequested = framesRequested
+        view.isPresentationEnabled = isPresentationEnabled
     }
 }
 
@@ -336,6 +362,16 @@ private final class MetalHostView: NSView {
     var framesRequested = false {
         didSet {
             reconcileDisplayLink()
+        }
+    }
+    var isPresentationEnabled = true {
+        didSet {
+            guard isPresentationEnabled != oldValue else { return }
+            if isPresentationEnabled, window != nil, isHostActive {
+                resumePresentation()
+            } else {
+                suspendPresentation()
+            }
         }
     }
     private var frameLink: CADisplayLink?
@@ -388,6 +424,10 @@ private final class MetalHostView: NSView {
     }
 
     private func resumePresentation() {
+        guard isPresentationEnabled else {
+            suspendPresentation()
+            return
+        }
         guard let window else { return }
         wantsLayer = true
         layer?.contentsScale = window.backingScaleFactor
@@ -399,6 +439,8 @@ private final class MetalHostView: NSView {
         reconcileDisplayLink()
         updateCursorVisibility()
     }
+
+    private var isHostActive: Bool { NSApplication.shared.isActive }
 
     private func suspendPresentation() {
         isPresenting = false
@@ -500,6 +542,7 @@ private struct SurfaceRepresentable: NSViewRepresentable {
     let framesRequested: Bool
     let targetFrameRate: Int
     let hidesCursorInFullScreen: Bool
+    let isPresentationEnabled: Bool
 
     func makeNSView(context: Context) -> NSView {
         let view = MetalHostView()
@@ -507,6 +550,7 @@ private struct SurfaceRepresentable: NSViewRepresentable {
         view.onFrame = onFrame
         view.hidesCursorInFullScreen = hidesCursorInFullScreen
         view.framesRequested = framesRequested
+        view.isPresentationEnabled = isPresentationEnabled
         return view
     }
 
@@ -514,6 +558,7 @@ private struct SurfaceRepresentable: NSViewRepresentable {
         (view as? MetalHostView)?.onFrame = onFrame
         (view as? MetalHostView)?.hidesCursorInFullScreen = hidesCursorInFullScreen
         (view as? MetalHostView)?.framesRequested = framesRequested
+        (view as? MetalHostView)?.isPresentationEnabled = isPresentationEnabled
     }
 }
 

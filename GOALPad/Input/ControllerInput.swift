@@ -2,6 +2,7 @@ import CoreHaptics
 import GameController
 import OSLog
 import QuartzCore
+import simd
 
 #if canImport(UIKit)
 import UIKit
@@ -34,10 +35,18 @@ final class ControllerInput {
     private(set) var primarySource: PrimaryInputSource = .automatic
     private(set) var bindings = Jak1InputBindings.standard
 
-    var isConnected: Bool { controller != nil }
+    var isConnected: Bool { hasController }
     var isKeyboardConnected: Bool { keyboard != nil }
     var isMouseConnected: Bool { mouse != nil }
     var isKeyboardMouseConnected: Bool { keyboard != nil || mouse != nil }
+
+    var hasSenseControllers: Bool {
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        hasSpatialControllers
+        #else
+        false
+        #endif
+    }
     var effectivePrimarySource: PrimaryInputSource { sourcePolicy.effectiveSource }
 
     var availablePrimarySources: [PrimaryInputSource] {
@@ -45,7 +54,7 @@ final class ControllerInput {
             switch $0 {
             case .automatic: true
             case .touch: Self.touchAvailable
-            case .controller: controller != nil
+            case .controller: hasController
             case .keyboardMouse: isKeyboardMouseConnected
             }
         }
@@ -69,6 +78,11 @@ final class ControllerInput {
     @ObservationIgnored private var controllerButtonSnapshots: [GOALPadButton] = []
     @ObservationIgnored private var lastObservedControllerButtons: GOALPadButton = []
     @ObservationIgnored private var frameDelivery = InputFrameDelivery<SampledPad>()
+    @ObservationIgnored private var menuNavigation = ControllerMenuNavigation()
+    #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+    @ObservationIgnored private let senseMotionInput = VisionSenseMotionInput()
+    private var hasSpatialControllers = false
+    #endif
     #if os(iOS)
     @ObservationIgnored private let deviceRumbleHaptics = DeviceRumbleHaptics()
     #endif
@@ -91,6 +105,30 @@ final class ControllerInput {
         if !enabled { stopRumble() }
     }
 
+    /// Opt in only while Jak 1 gameplay is active, in the ordinary window or the immersive space.
+    /// Permission failure leaves ordinary controller input available and simply disables
+    /// motion-generated attacks.
+    func setSpatialGesturesEnabled(_ enabled: Bool) {
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        senseMotionInput.setEnabled(enabled)
+        #else
+        _ = enabled
+        #endif
+    }
+
+    /// Supply the compositor's timestamped device pose before the matching controller frame.
+    /// A nil pose resets gesture recognition without affecting buttons or sticks.
+    func updateSpatialGestureReference(originFromDevice: simd_float4x4?,
+                                       timestamp: TimeInterval) {
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        senseMotionInput.updateReference(originFromDevice: originFromDevice,
+                                         timestamp: timestamp)
+        #else
+        _ = originFromDevice
+        _ = timestamp
+        #endif
+    }
+
     /// End recent physical-input suppression as soon as the player touches the screen.
     @discardableResult
     func reclaimTouchInput() -> Bool {
@@ -101,6 +139,10 @@ final class ControllerInput {
 
     func startWatching() {
         guard observers.isEmpty else { return }
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        senseMotionInput.startWatching()
+        hasSpatialControllers = senseMotionInput.hasConnectedControllers
+        #endif
         let center = NotificationCenter.default
         observers = [
             center.addObserver(forName: .GCControllerDidConnect, object: nil, queue: .main) {
@@ -156,6 +198,10 @@ final class ControllerInput {
         #if !os(visionOS)
         GCController.stopWirelessControllerDiscovery()
         #endif
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        senseMotionInput.stopWatching()
+        hasSpatialControllers = false
+        #endif
         releaseAll()
     }
 
@@ -165,10 +211,20 @@ final class ControllerInput {
         deliver { self.sampleFrame(merging: nil) }
     }
 
-    /// Push only an ordinary extended gamepad. The bounded visionOS game window deliberately does
-    /// not expose touch, keyboard, mouse, or spatial-controller gameplay paths.
-    func pushControllerFrame() {
-        deliver { self.sampleFrame(merging: nil, controllerOnly: true) }
+    /// Push controller input without touch, keyboard, or mouse. Spatial attacks are an explicit
+    /// per-frame opt in so title screens and native menus cannot consume motion as face buttons.
+    /// `spatialReference` names the one presentation route allowed to emit them this frame.
+    /// Native menus may opt in to an unswapped physical-left-stick D-pad. Gameplay keeps the
+    /// physical stick exclusively analog by passing false.
+    func pushControllerFrame(allowSpatialAttacks: Bool = false,
+                             spatialReference: SpatialGestureReference = .accessoryAim,
+                             menuNavigationActive: Bool = false) {
+        deliver {
+            self.sampleFrame(merging: nil, controllerOnly: true,
+                             allowSpatialAttacks: allowSpatialAttacks,
+                             spatialReference: spatialReference,
+                             menuNavigationActive: menuNavigationActive)
+        }
     }
 
     /// Read the physical inputs, merge the on-screen controls into them, and hand the engine this
@@ -206,18 +262,26 @@ final class ControllerInput {
     }
 
     private func sampleFrame(merging touch: TouchPadState?,
-                             controllerOnly: Bool = false) -> SampledPad {
+                             controllerOnly: Bool = false,
+                             allowSpatialAttacks: Bool = false,
+                             spatialReference: SpatialGestureReference = .accessoryAim,
+                             menuNavigationActive: Bool = false) -> SampledPad {
         var state = Self.neutralState()
+        var physicalLeftStick: ControllerMenuStickSample?
+        var sensePhysicalLeftStick: ControllerMenuStickSample?
         let now = CACurrentMediaTime()
         let policy = controllerOnly
             ? InputSourcePolicy(
                 preference: .controller,
                 touchAvailable: false,
-                controllerConnected: controller != nil,
+                controllerConnected: hasController,
                 keyboardMouseConnected: false
             )
             : sourcePolicy
         if policy.allowsController, let gamepad = controller?.extendedGamepad {
+            physicalLeftStick = ControllerMenuStickSample(
+                x: gamepad.leftThumbstick.xAxis.value,
+                y: gamepad.leftThumbstick.yAxis.value)
             let controllerSnapshot = Self.controllerSnapshot(of: gamepad)
             let controllerFrame = bindings.controllerFrame(snapshot: controllerSnapshot)
             let controllerSticks = Jak1MappedControllerSticks(
@@ -237,6 +301,63 @@ final class ControllerInput {
             state.leftTrigger = controllerFrame.leftTrigger
             state.rightTrigger = controllerFrame.rightTrigger
             if Self.isActive(state) { activity.noteController(at: now) }
+        }
+
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        if policy.allowsController, let sense = senseMotionInput.controllerSample() {
+            if sense.hasLeftStick {
+                sensePhysicalLeftStick = ControllerMenuStickSample(
+                    x: sense.physicalLeftX,
+                    y: sense.physicalLeftY)
+            }
+            let controllerFrame = bindings.controllerFrame(snapshot: sense.snapshot)
+            let senseSticks = Jak1MappedControllerSticks(
+                roles: bindings.controllerStickRoles,
+                analog: bindings.controllerAnalog,
+                physicalLeftX: sense.physicalLeftX,
+                physicalLeftY: sense.physicalLeftY,
+                physicalRightX: sense.physicalRightX,
+                physicalRightY: sense.physicalRightY)
+            state.buttons.formUnion(controllerFrame.buttons)
+            var preferred = PadStickMerge.preferred(
+                primaryX: state.leftX,
+                primaryY: state.leftY,
+                fallbackX: senseSticks.leftX,
+                fallbackY: senseSticks.leftY,
+                fallbackActive: sense.hasLeftStick || (sense.hasRightStick
+                    && bindings.controllerStickRoles == .swapped))
+            state.leftX = preferred.x
+            state.leftY = preferred.y
+            preferred = PadStickMerge.preferred(
+                primaryX: state.rightX,
+                primaryY: state.rightY,
+                fallbackX: senseSticks.rightX,
+                fallbackY: senseSticks.rightY,
+                fallbackActive: sense.hasRightStick || (sense.hasLeftStick
+                    && bindings.controllerStickRoles == .swapped))
+            state.rightX = preferred.x
+            state.rightY = preferred.y
+            state.leftTrigger = max(state.leftTrigger, controllerFrame.leftTrigger)
+            state.rightTrigger = max(state.rightTrigger, controllerFrame.rightTrigger)
+            if Self.isActive(state) { activity.noteController(at: now) }
+        }
+        let spatialAttacks = senseMotionInput.consumeAttacks(allowed: allowSpatialAttacks,
+                                                             reference: spatialReference,
+                                                             now: now)
+        if spatialAttacks.contains(.punch) { state.buttons.insert(.square) }
+        if spatialAttacks.contains(.spin) { state.buttons.insert(.circle) }
+        if spatialAttacks.contains(.jump) { state.buttons.insert(.cross) }
+        #else
+        _ = allowSpatialAttacks
+        _ = spatialReference
+        #endif
+
+        if let direction = menuNavigation.update(
+            primary: physicalLeftStick,
+            fallback: sensePhysicalLeftStick,
+            enabled: menuNavigationActive && policy.allowsController
+        ) {
+            state.buttons.insert(Self.menuNavigationButton(for: direction))
         }
 
         var preferred = (x: state.leftX, y: state.leftY)
@@ -339,12 +460,23 @@ final class ControllerInput {
             || PadStickMerge.isDeflected(x: state.rightX, y: state.rightY)
     }
 
+    private static func menuNavigationButton(
+        for direction: ControllerMenuNavigation.Direction
+    ) -> GOALPadButton {
+        switch direction {
+        case .up: .up
+        case .down: .down
+        case .left: .left
+        case .right: .right
+        }
+    }
+
     /// Only assigned when it changes: this runs every frame and every assignment to an observed
     /// property redraws whatever is watching it.
     private func noteDriving(at time: TimeInterval = CACurrentMediaTime()) {
         let recentPhysicalActivity = activity.isDriving(
             at: time,
-            controllerConnected: controller != nil,
+            controllerConnected: hasController,
             keyboardConnected: keyboard != nil,
             mouseConnected: mouse != nil)
         let driving = sourcePolicy.suppressesTouchChrome(
@@ -363,8 +495,16 @@ final class ControllerInput {
     private var sourcePolicy: InputSourcePolicy {
         InputSourcePolicy(preference: primarySource,
                           touchAvailable: Self.touchAvailable,
-                          controllerConnected: controller != nil,
+                          controllerConnected: hasController,
                           keyboardMouseConnected: isKeyboardMouseConnected)
+    }
+
+    private var hasController: Bool {
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        controller != nil || hasSpatialControllers
+        #else
+        controller != nil
+        #endif
     }
 
     nonisolated private static func keyboardKey(for code: GCKeyCode) -> KeyboardMouseKey? {
@@ -454,20 +594,34 @@ final class ControllerInput {
     private static func preferredController(excluding excluded: GCController? = nil) -> GCController? {
         if let current = GCController.current,
            current !== excluded,
+           !isSpatialController(current),
            current.extendedGamepad != nil { return current }
         return GCController.controllers().first {
-            $0 !== excluded && $0.extendedGamepad != nil
+            $0 !== excluded && !isSpatialController($0) && $0.extendedGamepad != nil
         }
     }
 
+    private static func isSpatialController(_ candidate: GCController) -> Bool {
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        candidate.productCategory == GCProductCategorySpatialController
+        #else
+        false
+        #endif
+    }
+
     private func controllerDidConnect(_ candidate: GCController?) {
-        guard let candidate, candidate.extendedGamepad != nil else { return }
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        hasSpatialControllers = senseMotionInput.hasConnectedControllers
+        #endif
+        guard let candidate, !Self.isSpatialController(candidate),
+              candidate.extendedGamepad != nil else { return }
         guard controller == nil else { return }
         adoptController(Self.preferredController() ?? candidate)
     }
 
     private func adoptController(_ candidate: GCController?) {
-        guard let candidate, candidate.extendedGamepad != nil else { return }
+        guard let candidate, !Self.isSpatialController(candidate),
+              candidate.extendedGamepad != nil else { return }
         guard controller !== candidate else { return }
 
         releaseController()
@@ -498,6 +652,11 @@ final class ControllerInput {
 
     /// One controller went away. Another that is still attached takes over the port.
     private func dropController(_ leaving: GCController?) {
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        hasSpatialControllers = GCController.controllers().contains {
+            $0 !== leaving && Self.isSpatialController($0)
+        }
+        #endif
         guard leaving === controller else { return }
         releaseController()
         inputLog.notice("Controller disconnected")
@@ -713,6 +872,7 @@ final class ControllerInput {
         releaseMouse()
         keyboardMouseState.reset()
         activity.reset()
+        menuNavigation.reset()
         isDriving = false
         GOALPadInputSetDisconnected(Self.primaryPort)
     }

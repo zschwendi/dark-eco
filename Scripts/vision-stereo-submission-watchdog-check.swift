@@ -46,6 +46,10 @@ private enum VisionStereoSubmissionWatchdogCheck {
               "the product default fails closed on the first native error")
         check(watchdog.observe(.skipped) == .continueStereo,
               "an inactive-session skip resets the watchdog")
+        check(watchdog.observe(.worldCameraPacketAbsent) == .failClosed,
+              "camera absence stays fatal outside the immersive coordinator")
+        check(watchdog.observe(.submitted) == .continueStereo,
+              "a later submission clears the ordinary watchdog failure")
 
         var cadence = VisionStereoCadenceGate()
         var scheduledTimes: [Double] = []

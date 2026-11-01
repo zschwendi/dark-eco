@@ -37,5 +37,12 @@ struct GOALPadApp: App {
                 .task { await EcoTipTransactionObserver.run() }
             #endif
         }
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        .windowStyle(.plain)
+        #endif
+
+        #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+        VisionImmersiveProofScene()
+        #endif
     }
 }

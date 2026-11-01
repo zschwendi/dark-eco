@@ -49,6 +49,47 @@ if rg -Fq 'GOALPAD_EXPERIMENTAL_VISION_STEREO' "$root/GOALPad.xcodeproj/project.
   exit 1
 fi
 
+# The immersive compositor path is confined to GOALPad/Vision/Immersive and compiled only where
+# GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE is defined. The project defines it for visionOS SDKs only,
+# so iOS and macOS builds never compile it. Only that directory is exempt from the Shared Space
+# scan below.
+immersive_directory="$root/GOALPad/Vision/Immersive"
+if rg 'GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE' "$root/GOALPad.xcodeproj/project.pbxproj" \
+  | rg -v '\[sdk=(xros|xrsimulator)\*\]' | rg -q .; then
+  echo "Only visionOS SDK-scoped settings may enable the immersive path" >&2
+  exit 1
+fi
+for setting in SWIFT_ACTIVE_COMPILATION_CONDITIONS MTL_PREPROCESSOR_DEFINITIONS; do
+  for sdk in xros xrsimulator; do
+    test "$(rg -Fc "\"$setting[sdk=$sdk*]\"" "$root/GOALPad.xcodeproj/project.pbxproj")" -eq 2
+  done
+done
+test "$(rg -Fc '"INFOPLIST_FILE[sdk=xros*]" = "GOALPad-visionOS-Info.plist";' \
+  "$root/GOALPad.xcodeproj/project.pbxproj")" -eq 2
+for immersive_source in "$immersive_directory"/*; do
+  case "$immersive_source" in
+    *.swift)
+      case "$(sed -n '1p' "$immersive_source")" in
+        '#if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE') ;;
+        '#if GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE') ;;
+        *)
+          echo "$immersive_source must be compiled only for the immersive opt-in" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    *.metal)
+      test "$(sed -n '4p' "$immersive_source")" = \
+        '#if defined(GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE)'
+      ;;
+    *)
+      echo "$immersive_source is not a gated immersive proof source" >&2
+      exit 1
+      ;;
+  esac
+  test "$(tail -n 1 "$immersive_source")" = '#endif'
+done
+
 for forbidden in \
   'ImmersiveSpace' \
   'openImmersiveSpace' \
@@ -62,7 +103,16 @@ for forbidden in \
   'head-relative' \
   'CompositorLayer'
 do
-  if rg -Fq "$forbidden" "$root/GOALPad"; then
+  # The platform-independent gesture recognizer may describe physical accessory deltas in
+  # head-relative axes. It is consumed only by the separately gated immersive input source and is
+  # not a Shared Space scene or camera path; keep every actual spatial API in the broad scan.
+  if test "$forbidden" = 'head-relative'; then
+    forbidden_found=$(rg -Fl --glob '!**/Vision/Immersive/**' "$forbidden" "$root/GOALPad" \
+      | rg -v '/Input/SpatialAttackGestureRecognizer\.swift$' || true)
+  else
+    forbidden_found=$(rg -Fl --glob '!**/Vision/Immersive/**' "$forbidden" "$root/GOALPad" || true)
+  fi
+  if test -n "$forbidden_found"; then
     echo "Shared Space stereo must not contain $forbidden" >&2
     exit 1
   fi

@@ -3,6 +3,9 @@ nonisolated enum VisionStereoSubmissionDisposition: Equatable, Sendable {
     case submitted
     case busy
     case failed
+    /// The native update ran, but this frame had no world-camera packet; the eye targets hold the
+    /// committed black initialization. Only the immersive coordinator treats it as nonterminal.
+    case worldCameraPacketAbsent
 }
 
 nonisolated struct VisionStereoSubmissionWatchdog: Sendable {
@@ -41,7 +44,7 @@ nonisolated struct VisionStereoSubmissionWatchdog: Sendable {
             if consecutiveBusyUpdates >= maximumConsecutiveBusyUpdates {
                 return .failClosed
             }
-        case .failed:
+        case .failed, .worldCameraPacketAbsent:
             consecutiveBusyUpdates = 0
             consecutiveFailures += 1
             if consecutiveFailures >= maximumConsecutiveFailures {

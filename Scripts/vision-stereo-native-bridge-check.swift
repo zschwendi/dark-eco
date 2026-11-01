@@ -27,7 +27,7 @@ private func checkStereoBridge(
     surface.prepareStereoFallback()
 
     switch surface.endStereoFrame() {
-    case .skipped, .submitted, .failed:
+    case .skipped, .submitted, .failed, .worldCameraPacketAbsent:
         break
     @unknown default:
         break

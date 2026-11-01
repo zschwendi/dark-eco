@@ -29,11 +29,41 @@
 
 static const int32_t kMaxInternalScale = 4;
 
+static BOOL GOALPadIsProperRotation(simd_float4x4 m) {
+  constexpr float kTolerance = 1e-3f;
+  for (int c = 0; c < 4; ++c) {
+    for (int r = 0; r < 4; ++r) {
+      if (!std::isfinite(m.columns[c][r])) { return NO; }
+    }
+  }
+  if (m.columns[0].w != 0.f || m.columns[1].w != 0.f || m.columns[2].w != 0.f ||
+      m.columns[3].x != 0.f || m.columns[3].y != 0.f || m.columns[3].z != 0.f ||
+      m.columns[3].w != 1.f) {
+    return NO;
+  }
+  const simd_float3x3 basis = simd_matrix(m.columns[0].xyz, m.columns[1].xyz, m.columns[2].xyz);
+  const simd_float3x3 gram = simd_mul(simd_transpose(basis), basis);
+  for (int c = 0; c < 3; ++c) {
+    for (int r = 0; r < 3; ++r) {
+      if (std::fabs(gram.columns[c][r] - (c == r ? 1.f : 0.f)) > kTolerance) { return NO; }
+    }
+  }
+  return std::fabs(simd_determinant(basis) - 1.f) <= kTolerance;
+}
+
 @interface GOALPadStereoRenderTarget ()
 @property(nonatomic, readwrite) uint64_t viewID;
 @property(nonatomic, readwrite) id<MTLTexture> colorTexture;
 @property(nonatomic, readwrite) id<MTLTexture> depthTexture;
 @property(nonatomic, readwrite) simd_float4x4 clipFromGameClip;
+@property(nonatomic, readwrite) BOOL physicalCameraEnabled;
+@property(nonatomic, readwrite) simd_float4x4 clipFromEye;
+@property(nonatomic, readwrite) simd_float4x4 eyeFromGameCameraMeters;
+@property(nonatomic, readwrite) simd_float4x4 binocularCullFromGameCameraMeters;
+@property(nonatomic, readwrite) BOOL hudPlaneEnabled;
+@property(nonatomic, readwrite) simd_float4x4 hudClipFromScreenClip;
+@property(nonatomic, readwrite) BOOL skyGenerationEnabled;
+@property(nonatomic, readwrite) simd_float4x4 gameCameraFromHead;
 @end
 
 @implementation GOALPadStereoRenderTarget
@@ -48,8 +78,58 @@ static const int32_t kMaxInternalScale = 4;
     _colorTexture = colorTexture;
     _depthTexture = depthTexture;
     _clipFromGameClip = clipFromGameClip;
+    _clipFromEye = matrix_identity_float4x4;
+    _eyeFromGameCameraMeters = matrix_identity_float4x4;
+    _binocularCullFromGameCameraMeters = matrix_identity_float4x4;
+    _hudClipFromScreenClip = matrix_identity_float4x4;
+    _gameCameraFromHead = matrix_identity_float4x4;
   }
   return self;
+}
+
+- (instancetype)initWithViewID:(uint64_t)viewID
+                  colorTexture:(id<MTLTexture>)colorTexture
+                  depthTexture:(id<MTLTexture>)depthTexture
+                   clipFromEye:(simd_float4x4)clipFromEye
+        eyeFromGameCameraMeters:(simd_float4x4)eyeFromGameCameraMeters
+ binocularCullFromGameCameraMeters:(simd_float4x4)binocularCullFromGameCameraMeters {
+  self = [self initWithViewID:viewID colorTexture:colorTexture depthTexture:depthTexture
+             clipFromGameClip:matrix_identity_float4x4];
+  if (self) {
+    _physicalCameraEnabled = YES;
+    _clipFromEye = clipFromEye;
+    _eyeFromGameCameraMeters = eyeFromGameCameraMeters;
+    _binocularCullFromGameCameraMeters = binocularCullFromGameCameraMeters;
+  }
+  return self;
+}
+
+- (instancetype)initWithViewID:(uint64_t)viewID
+                  colorTexture:(id<MTLTexture>)colorTexture
+                  depthTexture:(id<MTLTexture>)depthTexture
+                   clipFromEye:(simd_float4x4)clipFromEye
+        eyeFromGameCameraMeters:(simd_float4x4)eyeFromGameCameraMeters
+ binocularCullFromGameCameraMeters:(simd_float4x4)binocularCullFromGameCameraMeters
+             hudClipFromScreenClip:(simd_float4x4)hudClipFromScreenClip {
+  self = [self initWithViewID:viewID colorTexture:colorTexture depthTexture:depthTexture
+                  clipFromEye:clipFromEye eyeFromGameCameraMeters:eyeFromGameCameraMeters
+binocularCullFromGameCameraMeters:binocularCullFromGameCameraMeters];
+  if (self) {
+    _hudPlaneEnabled = YES;
+    _hudClipFromScreenClip = hudClipFromScreenClip;
+  }
+  return self;
+}
+
+- (BOOL)enableSkyGenerationWithGameCameraFromHead:(simd_float4x4)gameCameraFromHead {
+  if (!_physicalCameraEnabled || !GOALPadIsProperRotation(gameCameraFromHead)) {
+    _skyGenerationEnabled = NO;
+    _gameCameraFromHead = matrix_identity_float4x4;
+    return NO;
+  }
+  _skyGenerationEnabled = YES;
+  _gameCameraFromHead = gameCameraFromHead;
+  return YES;
 }
 
 @end
@@ -988,9 +1068,55 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
   const simd_float4x4 rightTransform = right.clipFromGameClip;
   memcpy(rightView.clip_from_game_clip.data(), &rightTransform, sizeof(rightTransform));
 
+  const auto copyPhysicalCamera = [](GOALPadStereoRenderTarget *source,
+                                      goalpad::MetalHostStereoView &destination) {
+    destination.physical_camera.enabled = source.physicalCameraEnabled;
+    destination.binocular_cull.enabled = source.physicalCameraEnabled;
+    if (!source.physicalCameraEnabled) { return; }
+    const simd_float4x4 projection = source.clipFromEye;
+    const simd_float4x4 eyeFromCamera = source.eyeFromGameCameraMeters;
+    const simd_float4x4 cullFromCamera = source.binocularCullFromGameCameraMeters;
+    memcpy(destination.physical_camera.clip_from_eye.data(), &projection, sizeof(projection));
+    memcpy(destination.physical_camera.eye_from_game_camera_meters.data(),
+           &eyeFromCamera, sizeof(eyeFromCamera));
+    memcpy(destination.binocular_cull.clip_from_game_camera_meters.data(),
+           &cullFromCamera, sizeof(cullFromCamera));
+  };
+  copyPhysicalCamera(left, leftView);
+  copyPhysicalCamera(right, rightView);
+
+  const auto copyHudPlane = [](GOALPadStereoRenderTarget *source,
+                               goalpad::MetalHostStereoView &destination) {
+    destination.hud_plane.enabled = source.physicalCameraEnabled && source.hudPlaneEnabled;
+    if (!destination.hud_plane.enabled) { return; }
+    const simd_float4x4 hud = source.hudClipFromScreenClip;
+    memcpy(destination.hud_plane.clip_from_screen_clip.data(), &hud, sizeof(hud));
+  };
+  copyHudPlane(left, leftView);
+  copyHudPlane(right, rightView);
+
+  const auto copySkyGeneration = [](GOALPadStereoRenderTarget *source,
+                                    goalpad::MetalHostStereoView &destination) {
+    destination.sky_generation.enabled =
+        source.physicalCameraEnabled && source.skyGenerationEnabled;
+    if (!destination.sky_generation.enabled) { return; }
+    const simd_float4x4 gameCameraFromHead = source.gameCameraFromHead;
+    memcpy(destination.sky_generation.game_camera_from_head.data(), &gameCameraFromHead,
+           sizeof(gameCameraFromHead));
+  };
+  copySkyGeneration(left, leftView);
+  copySkyGeneration(right, rightView);
+
   const BOOL began = goalpad::metal_host_begin_reserved_stereo_frame(
       frame, commandBuffer, leftView, rightView);
-  self.lastError = began ? @"" : @"The stereoscopic render targets were rejected.";
+  if (began) {
+    self.lastError = @"";
+  } else {
+    const auto detail = goalpad::metal_host_stereo_error();
+    self.lastError = detail.empty() ? @"The stereoscopic render targets were rejected."
+        : [@"Immersive target: " stringByAppendingString:
+            [NSString stringWithUTF8String:detail.c_str()]];
+  }
   return began;
 }
 
@@ -1006,6 +1132,55 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
     return;
   }
   goalpad::metal_host_prepare_stereo_fallback();
+}
+
+- (id<MTLDevice>)rendererDevice {
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return nil;
+  }
+  return goalpad::metal_host_device();
+}
+
+- (id<MTLCommandQueue>)rendererCommandQueue {
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    return nil;
+  }
+  return goalpad::metal_host_command_queue();
+}
+
+- (BOOL)beginMonoscopicFrameAtTime:(CFTimeInterval)presentationTime
+                            viewID:(uint64_t)viewID
+                      colorTexture:(id<MTLTexture>)colorTexture
+                      depthTexture:(id<MTLTexture>)depthTexture {
+  if (GOALPadActiveGameIdentifier() == GOALPadGameIdentifierJak2) {
+    self.lastError = @"Jak II monoscopic external rendering is unavailable.";
+    return NO;
+  }
+  const GOALPadSurfaceGeometry geometry = [self geometry];
+  if (geometry.internalWidth <= 0 || geometry.internalHeight <= 0) {
+    self.lastError = @"The monoscopic frame has no internal render size.";
+    return NO;
+  }
+
+  goalpad::MetalHostFrame frame;
+  frame.game_res_w = geometry.internalWidth;
+  frame.game_res_h = geometry.internalHeight;
+  frame.draw_region_w = geometry.internalWidth;
+  frame.draw_region_h = geometry.internalHeight;
+  frame.presentation_time = presentationTime;
+
+  goalpad::MetalHostExternalView view;
+  view.view_id = viewID;
+  view.color_texture = colorTexture;
+  view.depth_texture = depthTexture;
+
+  const BOOL began = goalpad::metal_host_begin_external_frame(frame, view);
+  self.lastError = began ? @"" : @"The monoscopic render target was rejected.";
+  return began;
+}
+
+- (float)monoscopicFrameFade {
+  return goalpad::metal_host_external_frame_fade();
 }
 
 - (BOOL)endFrame {
@@ -1034,8 +1209,16 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
       self.lastError = @"";
       return GOALPadStereoFrameCompletionSubmitted;
     case goalpad::MetalHostStereoFrameCompletion::failed:
-      self.lastError = @"The stereoscopic frame did not complete.";
+      {
+        const auto detail = goalpad::metal_host_stereo_error();
+        self.lastError = detail.empty() ? @"The stereoscopic frame did not complete."
+            : [@"Immersive camera: " stringByAppendingString:
+                [NSString stringWithUTF8String:detail.c_str()]];
+      }
       return GOALPadStereoFrameCompletionFailed;
+    case goalpad::MetalHostStereoFrameCompletion::world_camera_packet_absent:
+      self.lastError = @"";
+      return GOALPadStereoFrameCompletionWorldCameraPacketAbsent;
   }
 }
 

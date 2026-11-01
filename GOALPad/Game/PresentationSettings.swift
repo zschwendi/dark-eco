@@ -44,6 +44,8 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
     /// Optional so existing same-schema documents default to 90 Hz on visionOS. This remains
     /// separate from iOS ProMotion because the supported rates and device preference differ.
     var graphicsVisionHighFrameRateOverride: Bool?
+    /// Optional so existing same-schema documents keep the rounded visionOS window.
+    var visionWindowRoundedCornersOverride: Bool?
     /// Optional so Build 93 settings documents decode without a migration. Developer logs are
     /// hidden by default and belong to this title's synced settings document.
     var developerLogsEnabledOverride: Bool?
@@ -106,6 +108,10 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         graphicsVisionHighFrameRateOverride ?? true
     }
 
+    var visionWindowRoundedCorners: Bool {
+        visionWindowRoundedCornersOverride ?? true
+    }
+
     var developerLogsEnabled: Bool {
         developerLogsEnabledOverride ?? false
     }
@@ -133,6 +139,7 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
             graphicsModernStereo3DOverride = nil
             graphicsHighFrameRateOverride = nil
             graphicsVisionHighFrameRateOverride = nil
+            visionWindowRoundedCornersOverride = nil
         case .controls:
             rumbleEnabledOverride = nil
             primaryInputSourceOverride = nil
@@ -152,6 +159,7 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
         graphicsModernStereo3DOverride = nil
         graphicsHighFrameRateOverride = nil
         graphicsVisionHighFrameRateOverride = nil
+        visionWindowRoundedCornersOverride = nil
         developerLogsEnabledOverride = nil
         rumbleEnabledOverride = nil
         primaryInputSourceOverride = nil
@@ -636,6 +644,8 @@ final class PresentationSettings {
 
     var graphicsVisionHighFrameRate: Bool { document.graphicsVisionHighFrameRate }
 
+    var visionWindowRoundedCorners: Bool { document.visionWindowRoundedCorners }
+
     var developerLogsEnabled: Bool { document.developerLogsEnabled }
 
     var rumbleEnabled: Bool { document.rumbleEnabled }
@@ -704,6 +714,10 @@ final class PresentationSettings {
 
     func setGraphicsVisionHighFrameRate(_ enabled: Bool) {
         change { $0.graphicsVisionHighFrameRateOverride = enabled ? nil : false }
+    }
+
+    func setVisionWindowRoundedCorners(_ enabled: Bool) {
+        change { $0.visionWindowRoundedCornersOverride = enabled ? nil : false }
     }
 
     func setDeveloperLogsEnabled(_ enabled: Bool) {

@@ -359,7 +359,7 @@ private final class VisionWindowStereoResources {
                 "The stereoscopic renderer stayed busy without submitting frames, so Dark Eco "
                     + "returned to Comfort mode."
             )
-        case .failed:
+        case .failed, .worldCameraPacketAbsent:
             scheduleFailure(
                 "The native two-view renderer stopped, so Dark Eco returned to Comfort mode."
             )

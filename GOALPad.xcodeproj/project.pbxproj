@@ -111,6 +111,7 @@
 		A73100000000000000020005 /* metal_ocean_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010005 /* metal_ocean_renderer.mm */; };
 		A73100000000000000020006 /* metal_pso_cache.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010006 /* metal_pso_cache.mm */; };
 		A73100000000000000020007 /* metal_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010007 /* metal_renderer.mm */; };
+		B8A4F21D7C3E4900A0010002 /* metal_immersive_camera.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B8A4F21D7C3E4900A0010001 /* metal_immersive_camera.cpp */; };
 		A73100000000000000020008 /* metal_shrub.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010008 /* metal_shrub.mm */; };
 		A73100000000000000020009 /* metal_sky_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A73100000000000000010009 /* metal_sky_renderer.mm */; };
 		A7310000000000000002000A /* metal_sprite_renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = A7310000000000000001000A /* metal_sprite_renderer.mm */; };
@@ -306,6 +307,7 @@
 		A73100000000000000010005 /* metal_ocean_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_ocean_renderer.mm; path = game/graphics/pipelines/metal/metal_ocean_renderer.mm; sourceTree = "<group>"; };
 		A73100000000000000010006 /* metal_pso_cache.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_pso_cache.mm; path = game/graphics/pipelines/metal/metal_pso_cache.mm; sourceTree = "<group>"; };
 		A73100000000000000010007 /* metal_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_renderer.mm; path = game/graphics/pipelines/metal/metal_renderer.mm; sourceTree = "<group>"; };
+		B8A4F21D7C3E4900A0010001 /* metal_immersive_camera.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = metal_immersive_camera.cpp; path = game/graphics/pipelines/metal/metal_immersive_camera.cpp; sourceTree = "<group>"; };
 		A73100000000000000010008 /* metal_shrub.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_shrub.mm; path = game/graphics/pipelines/metal/metal_shrub.mm; sourceTree = "<group>"; };
 		A73100000000000000010009 /* metal_sky_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_sky_renderer.mm; path = game/graphics/pipelines/metal/metal_sky_renderer.mm; sourceTree = "<group>"; };
 		A7310000000000000001000A /* metal_sprite_renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = metal_sprite_renderer.mm; path = game/graphics/pipelines/metal/metal_sprite_renderer.mm; sourceTree = "<group>"; };
@@ -634,6 +636,7 @@
 				A73400000000000000010000 /* metal_pool_texture.mm */,
 				A73100000000000000010006 /* metal_pso_cache.mm */,
 				A73100000000000000010007 /* metal_renderer.mm */,
+				B8A4F21D7C3E4900A0010001 /* metal_immersive_camera.cpp */,
 				A73100000000000000010008 /* metal_shrub.mm */,
 				A73100000000000000010009 /* metal_sky_renderer.mm */,
 				A7310000000000000001000A /* metal_sprite_renderer.mm */,
@@ -1172,6 +1175,7 @@
 				A73400000000000000020000 /* metal_pool_texture.mm in Sources */,
 				A73100000000000000020006 /* metal_pso_cache.mm in Sources */,
 				A73100000000000000020007 /* metal_renderer.mm in Sources */,
+				B8A4F21D7C3E4900A0010002 /* metal_immersive_camera.cpp in Sources */,
 				A73100000000000000020008 /* metal_shrub.mm in Sources */,
 				A73100000000000000020009 /* metal_sky_renderer.mm in Sources */,
 				A7310000000000000002000A /* metal_sprite_renderer.mm in Sources */,
@@ -1451,10 +1455,14 @@
 					"$(DERIVED_SOURCES_DIR)/goalpad-metal",
 				);
 				INFOPLIST_FILE = "GOALPad-Info.plist";
+				"INFOPLIST_FILE[sdk=xros*]" = "GOALPad-visionOS-Info.plist";
+				"INFOPLIST_FILE[sdk=xrsimulator*]" = "GOALPad-visionOS-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Dark Eco";
 				INFOPLIST_KEY_CFBundleName = "Dark Eco";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=xros*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=xrsimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
@@ -1468,12 +1476,16 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.5;
 				MARKETING_VERSION = 2.0;
+				"MTL_PREPROCESSOR_DEFINITIONS[sdk=xros*]" = "$(inherited) GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE=1";
+				"MTL_PREPROCESSOR_DEFINITIONS[sdk=xrsimulator*]" = "$(inherited) GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE=1";
 				PRODUCT_BUNDLE_IDENTIFIER = com.zephyrstudiosllc.eco;
 				PRODUCT_NAME = "Dark Eco";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=xros*]" = "$(inherited) GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE";
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=xrsimulator*]" = "$(inherited) GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -1521,10 +1533,14 @@
 					"$(DERIVED_SOURCES_DIR)/goalpad-metal",
 				);
 				INFOPLIST_FILE = "GOALPad-Info.plist";
+				"INFOPLIST_FILE[sdk=xros*]" = "GOALPad-visionOS-Info.plist";
+				"INFOPLIST_FILE[sdk=xrsimulator*]" = "GOALPad-visionOS-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Dark Eco";
 				INFOPLIST_KEY_CFBundleName = "Dark Eco";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=xros*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=xrsimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
@@ -1538,12 +1554,16 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.5;
 				MARKETING_VERSION = 2.0;
+				"MTL_PREPROCESSOR_DEFINITIONS[sdk=xros*]" = "$(inherited) GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE=1";
+				"MTL_PREPROCESSOR_DEFINITIONS[sdk=xrsimulator*]" = "$(inherited) GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE=1";
 				PRODUCT_BUNDLE_IDENTIFIER = com.zephyrstudiosllc.eco;
 				PRODUCT_NAME = "Dark Eco";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=xros*]" = "$(inherited) GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE";
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=xrsimulator*]" = "$(inherited) GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;

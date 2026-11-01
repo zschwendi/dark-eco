@@ -21,6 +21,9 @@ typedef NS_ENUM(NSInteger, GOALPadStereoFrameCompletion) {
   GOALPadStereoFrameCompletionSkipped = 0,
   GOALPadStereoFrameCompletionSubmitted = 1,
   GOALPadStereoFrameCompletionFailed = 2,
+  /// Nonterminal: the native update ran but this frame had no world-camera packet. The eye
+  /// targets now hold the committed black initialization, never an earlier frame.
+  GOALPadStereoFrameCompletionWorldCameraPacketAbsent = 3,
 };
 
 typedef NS_ENUM(NSInteger, GOALPadStereoFrameReservation) {
@@ -509,11 +512,46 @@ typedef struct GOALPadSurfaceGeometry {
               clipFromGameClip:(simd_float4x4)clipFromGameClip
     NS_SWIFT_NAME(init(viewID:colorTexture:depthTexture:clipFromGameClip:));
 
+/// Physical eye/head projection in meters, resolved against the current native game camera.
+- (instancetype)initWithViewID:(uint64_t)viewID
+                  colorTexture:(id<MTLTexture>)colorTexture
+                  depthTexture:(id<MTLTexture>)depthTexture
+                   clipFromEye:(simd_float4x4)clipFromEye
+        eyeFromGameCameraMeters:(simd_float4x4)eyeFromGameCameraMeters
+ binocularCullFromGameCameraMeters:(simd_float4x4)binocularCullFromGameCameraMeters
+    NS_SWIFT_NAME(init(viewID:colorTexture:depthTexture:clipFromEye:eyeFromGameCameraMeters:binocularCullFromGameCameraMeters:));
+
+/// Physical camera plus an opt-in head-locked HUD plane:
+/// P_eye * inverse(deviceFromView) * planeFromScreen, applied only to eligible Jak 1 HUD draws.
+- (instancetype)initWithViewID:(uint64_t)viewID
+                  colorTexture:(id<MTLTexture>)colorTexture
+                  depthTexture:(id<MTLTexture>)depthTexture
+                   clipFromEye:(simd_float4x4)clipFromEye
+        eyeFromGameCameraMeters:(simd_float4x4)eyeFromGameCameraMeters
+ binocularCullFromGameCameraMeters:(simd_float4x4)binocularCullFromGameCameraMeters
+             hudClipFromScreenClip:(simd_float4x4)hudClipFromScreenClip
+    NS_SWIFT_NAME(init(viewID:colorTexture:depthTexture:clipFromEye:eyeFromGameCameraMeters:binocularCullFromGameCameraMeters:hudClipFromScreenClip:));
+
 @property(nonatomic, readonly) uint64_t viewID;
 @property(nonatomic, readonly) id<MTLTexture> colorTexture;
 @property(nonatomic, readonly) id<MTLTexture> depthTexture;
 /// Column-major transform from the game's final Metal clip coordinates into this view.
 @property(nonatomic, readonly) simd_float4x4 clipFromGameClip;
+@property(nonatomic, readonly) BOOL physicalCameraEnabled;
+@property(nonatomic, readonly) simd_float4x4 clipFromEye;
+@property(nonatomic, readonly) simd_float4x4 eyeFromGameCameraMeters;
+@property(nonatomic, readonly) simd_float4x4 binocularCullFromGameCameraMeters;
+@property(nonatomic, readonly) BOOL hudPlaneEnabled;
+@property(nonatomic, readonly) simd_float4x4 hudClipFromScreenClip;
+/// Opt-in sky-generation context: common gameCameraFromCurrentHead proper rotation (right/up/back,
+/// zero translation). Disabled with identity until enabled on a physical-camera target.
+@property(nonatomic, readonly) BOOL skyGenerationEnabled;
+@property(nonatomic, readonly) simd_float4x4 gameCameraFromHead;
+
+/// Enables sky generation for this view. Returns NO, leaving it disabled, unless this is a
+/// physical-camera target and the matrix is a finite proper rotation with zero translation.
+- (BOOL)enableSkyGenerationWithGameCameraFromHead:(simd_float4x4)gameCameraFromHead
+    NS_SWIFT_NAME(enableSkyGeneration(gameCameraFromHead:));
 
 @end
 
@@ -1035,8 +1073,8 @@ typedef struct GOALPadRendererStats {
 
 @property(class, nonatomic, readonly) GOALPadRenderSurface *shared;
 
-/// Attach or detach the layer the game presents into. Detaching releases the surface's Metal
-/// resources, so a backgrounded app holds no drawables.
+/// Attach or detach the window layer. Detaching drops window drawables while retaining the
+/// renderer, device and offscreen resources used by immersive presentation.
 - (void)attachLayer:(nullable CAMetalLayer *)layer;
 
 /// The size of the layer's drawables, in pixels.
@@ -1073,6 +1111,24 @@ typedef struct GOALPadRendererStats {
 
 /// Ensure the ordinary Comfort renderer cannot inherit a wait on a stalled stereo submission.
 - (void)prepareStereoFallback;
+
+/// The renderer's Metal device and command queue; nil until the renderer has started. Work a host
+/// commits to this queue after a monoscopic frame runs after that frame's game render.
+@property(nonatomic, readonly, nullable) id<MTLDevice> rendererDevice;
+@property(nonatomic, readonly, nullable) id<MTLCommandQueue> rendererCommandQueue;
+
+/// Arm one synchronous game tick that renders the whole frame, HUD included, into a host-owned
+/// BGRA8 color and depth/stencil target at `geometry`'s internal size instead of the attached
+/// layer. Close it with `endFrame`, which reports whether a frame was rendered and committed.
+- (BOOL)beginMonoscopicFrameAtTime:(CFTimeInterval)presentationTime
+                            viewID:(uint64_t)viewID
+                      colorTexture:(id<MTLTexture>)colorTexture
+                      depthTexture:(id<MTLTexture>)depthTexture
+    NS_SWIFT_NAME(beginMonoscopicFrame(at:viewID:colorTexture:depthTexture:));
+
+/// The PCRTC fade the last monoscopic frame was rendered under; 1 is fully visible. The layer's
+/// present pass applies this blackout itself; a monoscopic host must apply it when presenting.
+@property(nonatomic, readonly) float monoscopicFrameFade;
 
 /// Close the armed frame and report whether its DMA chain scheduled a drawable.
 - (BOOL)endFrame;

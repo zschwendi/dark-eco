@@ -43,6 +43,7 @@ extern "C" std::uint64_t goal_call_on_stack_arm64(void* new_sp,
 #include "game/graphics/pipelines/metal/metal_renderer.h"
 #include "game/graphics/pipelines/metal/metal_texture.h"
 #include "game/graphics/texture/TexturePool.h"
+#include "game/graphics/sky_generation.h"
 #include "game/kernel/core/gfx_host.h"
 #include "game/mips2c/jak1_bones_provenance_trace.h"
 #include "game/runtime.h"
@@ -100,7 +101,15 @@ struct MetalHost {
   id<MTLCommandBuffer> stereo_command_buffer = nil;
   bool stereo_stream_reserved = false;
   bool stereo_submission_failed = false;
+  // Frame-scoped: set only when the first stereo rejection of this frame was the renderer's
+  // WorldPacketUnavailableThisFrame. Any other rejection or later failure clears it.
+  bool stereo_world_camera_packet_absent = false;
+  std::string stereo_preflight_error;
   bool frame_is_stereo = false;
+  // A monoscopic external frame renders into this host-owned target instead of frame_layer.
+  MetalExternalRenderTargetDescriptor external_target;
+  bool frame_is_external = false;
+  float external_frame_fade = 1.f;
   goalpad::MetalHostFrame frame;
   std::thread::id frame_thread;
   bool frame_open = false;
@@ -124,6 +133,11 @@ struct MetalHost {
   goalpad::PostFlagFrameGate post_flag_gate;
 };
 MetalHost g_host;
+
+std::uint64_t sky_generation_engine_frame_id() {
+  return goalpad::frames_run() + 1;
+}
+
 
 #if defined(__aarch64__)
 constexpr std::size_t kHostRenderStackBytes = 2 * 1024 * 1024;
@@ -650,18 +664,34 @@ void render_chain(const void* ee_base, std::uint32_t chain_offset) {
 
   const auto* chain_data = static_cast<const std::uint8_t*>(ee_base);
   const auto chain_size = static_cast<std::size_t>(EE_MAIN_MEM_SIZE);
-  const bool rendered = g_host.frame_is_stereo
+  const bool rendered = g_host.frame_is_external
+                            ? g_host.renderer->render_chain_frame_to_external_target(
+                                  opts, g_host.external_target, chain_data, chain_offset, chain_size)
+                        : g_host.frame_is_stereo
                             ? g_host.renderer->render_chain_frame_to_external_stereo_targets(
                                   opts, g_host.stereo_left, g_host.stereo_right,
                                   g_host.stereo_command_buffer, chain_data, chain_offset, chain_size)
                             : g_host.renderer->render_chain_frame(
                                   opts, g_host.frame_layer, chain_data, chain_offset, chain_size);
+  if (g_host.frame_is_external && rendered) {
+    // The external path has no present pass, so the host applies the same blackout itself.
+    g_host.external_frame_fade = opts.pmode_alp;
+  }
   if (g_host.frame_is_stereo && !rendered && g_host.stereo_stream_reserved) {
     // Both LowLevelTexture replacements already contain the paired black initialization pass.
     // Commit it once so a failed DMA encode cannot strand an acquired replacement.
-    (void)g_host.renderer->submit_external_stereo_frame(g_host.stereo_command_buffer);
+    const bool camera_packet_absent =
+        !g_host.stereo_submission_failed &&
+        g_host.renderer->last_immersive_camera_error() ==
+            metal_renderer::ImmersiveCameraError::WorldPacketUnavailableThisFrame;
+    const bool black_initialization_submitted =
+        g_host.renderer->submit_external_stereo_frame(g_host.stereo_command_buffer);
+    g_host.stereo_world_camera_packet_absent = camera_packet_absent && black_initialization_submitted;
     g_host.stereo_stream_reserved = false;
     g_host.stereo_submission_failed = true;
+  } else if (g_host.frame_is_stereo && !rendered) {
+    // A rejection after the reservation was already released is never the sole camera absence.
+    g_host.stereo_world_camera_packet_absent = false;
   }
   g_host.frame_rendered = rendered || g_host.frame_rendered;
 
@@ -1022,7 +1052,8 @@ void host_send_chain(const void* ee_base, uint32_t chain_offset) {
     return;
   }
   g_host.stats.chains_sent++;
-  if (!g_host.frame_open || (!g_host.frame_is_stereo && g_host.frame_layer == nil)) {
+  if (!g_host.frame_open ||
+      (!g_host.frame_is_stereo && !g_host.frame_is_external && g_host.frame_layer == nil)) {
     // Boot can send display chains before the first CADisplayLink tick. They cannot safely be
     // deferred because their live Merc bones will be gone, so there is deliberately no pending
     // chain outside an armed gameplay frame.
@@ -1172,6 +1203,8 @@ bool metal_host_start(std::string* error) {
 }
 
 void metal_host_stop() {
+  sky_generation::cancel_frame();
+  sky_generation::end_frame();
   if (!g_host.running) {
     return;
   }
@@ -1285,6 +1318,8 @@ bool metal_host_begin_frame(CAMetalLayer* layer, const MetalHostFrame& frame) {
   const bool released_stale_art = evict_unwanted_level_art();
   service_level_requests(released_stale_art);
 
+  sky_generation::end_frame();
+  sky_generation::cancel_frame();
   g_host.frame_layer = layer;
   g_host.stereo_left = {};
   g_host.stereo_right = {};
@@ -1318,11 +1353,13 @@ MetalHostStereoFrameReservation metal_host_reserve_stereo_frame() {
 }
 
 void metal_host_cancel_reserved_stereo_frame() {
+  sky_generation::cancel_frame();
   if (g_host.stereo_stream_reserved && g_host.renderer) {
     g_host.renderer->cancel_external_stereo_frame();
   }
   g_host.stereo_stream_reserved = false;
   g_host.stereo_command_buffer = nil;
+  g_host.stereo_world_camera_packet_absent = false;
 }
 
 void metal_host_prepare_stereo_fallback() {
@@ -1335,9 +1372,24 @@ bool metal_host_begin_reserved_stereo_frame(const MetalHostFrame& frame,
                                             id<MTLCommandBuffer> command_buffer,
                                             const MetalHostStereoView& left,
                                             const MetalHostStereoView& right) {
-  const auto valid_view = [&](const MetalHostStereoView& view) {
-    if (view.view_id == 0 || view.color_texture == nil || view.depth_texture == nil ||
-        view.color_texture.device != g_host.renderer->device() ||
+  g_host.stereo_preflight_error.clear();
+  const auto reject = [&](const std::string& reason) {
+    g_host.stereo_preflight_error = reason;
+    return false;
+  };
+  if (!g_host.running || !g_host.renderer) { return reject("renderer-not-running"); }
+  if (!g_host.stereo_stream_reserved) { return reject("stereo-stream-not-reserved"); }
+  if (command_buffer == nil || command_buffer.device != g_host.renderer->device() ||
+      command_buffer.status != MTLCommandBufferStatusNotEnqueued) {
+    return reject("stereo-command-buffer-invalid");
+  }
+  if (frame.game_res_w < 1 || frame.game_res_h < 1 ||
+      !std::isfinite(frame.presentation_time)) { return reject("stereo-frame-geometry-invalid"); }
+  const auto view_error = [&](const MetalHostStereoView& view) -> const char* {
+    if (view.view_id == 0 || view.color_texture == nil || view.depth_texture == nil) {
+      return "target-missing";
+    }
+    if (view.color_texture.device != g_host.renderer->device() ||
         view.depth_texture.device != g_host.renderer->device() ||
         view.color_texture.textureType != MTLTextureType2D ||
         view.depth_texture.textureType != MTLTextureType2D ||
@@ -1351,20 +1403,57 @@ bool metal_host_begin_reserved_stereo_frame(const MetalHostFrame& frame,
         view.color_texture.framebufferOnly ||
         !(view.color_texture.usage & MTLTextureUsageRenderTarget) ||
         !(view.depth_texture.usage & MTLTextureUsageRenderTarget)) {
-      return false;
+      return "target-format-size-or-usage-invalid";
     }
-    return std::all_of(view.clip_from_game_clip.begin(), view.clip_from_game_clip.end(),
-                       [](float value) { return std::isfinite(value); });
+    const auto finite = [](const auto& matrix) {
+      return std::all_of(matrix.begin(), matrix.end(),
+                         [](float value) { return std::isfinite(value); });
+    };
+    if (!finite(view.clip_from_game_clip)) { return "legacy-transform-nonfinite"; }
+    if (view.hud_plane.enabled &&
+        (!view.physical_camera.enabled || !finite(view.hud_plane.clip_from_screen_clip))) {
+      return "hud-plane-transform-invalid";
+    }
+    if (view.sky_generation.enabled &&
+        (!view.physical_camera.enabled || !finite(view.sky_generation.game_camera_from_head))) {
+      return "sky-generation-head-invalid";
+    }
+    if (view.physical_camera.enabled != view.binocular_cull.enabled) {
+      return "physical-camera-cull-mode-mismatch";
+    }
+    if (view.physical_camera.enabled &&
+        (!finite(view.physical_camera.clip_from_eye) ||
+         !finite(view.physical_camera.eye_from_game_camera_meters) ||
+         !finite(view.binocular_cull.clip_from_game_camera_meters))) {
+      return "physical-camera-transform-nonfinite";
+    }
+    if (view.physical_camera.enabled &&
+        (!(view.color_texture.usage & MTLTextureUsageShaderRead) ||
+         !(view.depth_texture.usage & MTLTextureUsageShaderRead))) {
+      return "physical-camera-target-not-shader-readable";
+    }
+    return nullptr;
   };
-  if (!g_host.running || !g_host.renderer || !g_host.stereo_stream_reserved ||
-      command_buffer == nil || command_buffer.device != g_host.renderer->device() ||
-      command_buffer.status != MTLCommandBufferStatusNotEnqueued || frame.game_res_w < 1 ||
-      frame.game_res_h < 1 || !std::isfinite(frame.presentation_time) || !valid_view(left) ||
-      !valid_view(right) ||
-      left.view_id == right.view_id || left.color_texture == right.color_texture ||
-      left.depth_texture == right.depth_texture ||
-      left.clip_from_game_clip == right.clip_from_game_clip) {
-    return false;
+  if (const char* reason = view_error(left)) { return reject(std::string("left-") + reason); }
+  if (const char* reason = view_error(right)) { return reject(std::string("right-") + reason); }
+  if (left.view_id == right.view_id || left.color_texture == right.color_texture ||
+      left.depth_texture == right.depth_texture) { return reject("stereo-eye-targets-aliased"); }
+  if (left.physical_camera.enabled != right.physical_camera.enabled) {
+    return reject("stereo-physical-camera-mode-mismatch");
+  }
+  if (left.hud_plane.enabled != right.hud_plane.enabled) {
+    return reject("stereo-hud-plane-mode-mismatch");
+  }
+  if (left.sky_generation.enabled != right.sky_generation.enabled ||
+      (left.sky_generation.enabled && left.sky_generation.game_camera_from_head !=
+                                           right.sky_generation.game_camera_from_head)) {
+    return reject("stereo-sky-generation-head-mismatch");
+  }
+  if (left.physical_camera.enabled
+          ? left.binocular_cull.clip_from_game_camera_meters !=
+                right.binocular_cull.clip_from_game_camera_meters
+          : left.clip_from_game_clip == right.clip_from_game_clip) {
+    return reject("stereo-cull-or-legacy-transform-mismatch");
   }
 
   if (g_host.frame_open) {
@@ -1384,12 +1473,30 @@ bool metal_host_begin_reserved_stereo_frame(const MetalHostFrame& frame,
                                   static_cast<double>(frame.game_res_h), 0.0, 1.0};
     target.clear_depth = 0.0;
     target.view_transform.clip_from_game_clip = view.clip_from_game_clip;
+    target.immersive_camera.view.enabled = view.physical_camera.enabled;
+    target.immersive_camera.view.clip_from_eye = view.physical_camera.clip_from_eye;
+    target.immersive_camera.view.eye_from_game_camera_meters =
+        view.physical_camera.eye_from_game_camera_meters;
+    target.immersive_camera.binocular_cull.enabled = view.binocular_cull.enabled;
+    target.immersive_camera.binocular_cull.clip_from_game_camera_meters =
+        view.binocular_cull.clip_from_game_camera_meters;
+    target.hud_plane.enabled = view.hud_plane.enabled && view.physical_camera.enabled;
+    target.hud_plane.clip_from_screen_clip = view.hud_plane.clip_from_screen_clip;
     return target;
   };
 
   g_host.frame_layer = nil;
   g_host.stereo_command_buffer = command_buffer;
   g_host.stereo_submission_failed = false;
+  g_host.stereo_world_camera_packet_absent = false;
+  sky_generation::cancel_frame();
+  if (left.sky_generation.enabled &&
+      !sky_generation::begin_frame(left.sky_generation.game_camera_from_head,
+                                    g_host.stats.frames_armed + 1,
+                                    sky_generation_engine_frame_id(),
+                                    &sky_generation_engine_frame_id)) {
+    return reject("sky-generation-context-invalid");
+  }
   g_host.stereo_left = make_target(left);
   g_host.stereo_right = make_target(right);
   g_host.frame_is_stereo = true;
@@ -1406,7 +1513,69 @@ bool metal_host_begin_reserved_stereo_frame(const MetalHostFrame& frame,
   return true;
 }
 
+bool metal_host_begin_external_frame(const MetalHostFrame& frame,
+                                     const MetalHostExternalView& view) {
+  if (!g_host.running || !g_host.renderer || view.view_id == 0 || view.color_texture == nil ||
+      view.depth_texture == nil || frame.game_res_w < 1 || frame.game_res_h < 1 ||
+      !std::isfinite(frame.presentation_time) ||
+      view.color_texture.device != g_host.renderer->device() ||
+      view.depth_texture.device != g_host.renderer->device() ||
+      view.color_texture.textureType != MTLTextureType2D ||
+      view.depth_texture.textureType != MTLTextureType2D ||
+      view.color_texture.pixelFormat != MTLPixelFormatBGRA8Unorm ||
+      view.depth_texture.pixelFormat != MTLPixelFormatDepth32Float_Stencil8 ||
+      view.color_texture.sampleCount != 1 || view.depth_texture.sampleCount != 1 ||
+      view.color_texture.width != static_cast<NSUInteger>(frame.game_res_w) ||
+      view.color_texture.height != static_cast<NSUInteger>(frame.game_res_h) ||
+      view.depth_texture.width != view.color_texture.width ||
+      view.depth_texture.height != view.color_texture.height ||
+      view.color_texture.framebufferOnly ||
+      !(view.color_texture.usage & MTLTextureUsageRenderTarget) ||
+      !(view.color_texture.usage & MTLTextureUsageShaderRead) ||
+      !(view.depth_texture.usage & MTLTextureUsageRenderTarget)) {
+    return false;
+  }
+
+  if (g_host.frame_open) {
+    os_log_error(gfx_log(),
+                 "Beginning an external Metal frame before the previous frame was closed.");
+    metal_host_end_frame();
+  }
+
+  const bool released_stale_art = evict_unwanted_level_art();
+  service_level_requests(released_stale_art);
+
+  MetalExternalRenderTargetDescriptor target;
+  target.view_id = view.view_id;
+  target.color_texture = view.color_texture;
+  target.depth_texture = view.depth_texture;
+  target.viewport = MTLViewport{0.0, 0.0, static_cast<double>(frame.game_res_w),
+                                static_cast<double>(frame.game_res_h), 0.0, 1.0};
+  target.clear_depth = 0.0;
+
+  sky_generation::end_frame();
+  sky_generation::cancel_frame();
+  g_host.frame_layer = nil;
+  g_host.stereo_left = {};
+  g_host.stereo_right = {};
+  g_host.frame_is_stereo = false;
+  g_host.external_target = target;
+  g_host.frame_is_external = true;
+  g_host.frame = frame;
+  g_host.frame_thread = std::this_thread::get_id();
+  g_host.frame_open = true;
+  g_host.frame_rendered = false;
+  g_host.weighted_skin_evidence.begin_frame();
+  g_host.chains_in_frame = 0;
+  g_host.stats.frames_armed++;
+  const auto post_flag = jak1_bones_provenance_trace::registry().latest_post_flag();
+  g_host.post_flag_gate.begin_frame(post_flag ? post_flag->serial : 0);
+  update_post_flag_counters();
+  return true;
+}
+
 bool close_frame(bool submit_stereo, bool* stereo_submission_succeeded = nullptr) {
+  sky_generation::end_frame();
   const bool rendered = g_host.frame_open && g_host.frame_rendered;
   bool completed = true;
   if (submit_stereo) {
@@ -1437,7 +1606,10 @@ bool close_frame(bool submit_stereo, bool* stereo_submission_succeeded = nullptr
   g_host.stereo_right = {};
   g_host.stereo_command_buffer = nil;
   g_host.stereo_submission_failed = false;
+  g_host.stereo_world_camera_packet_absent = false;
   g_host.frame_is_stereo = false;
+  g_host.external_target = {};
+  g_host.frame_is_external = false;
   g_host.frame_thread = std::thread::id();
   g_host.frame_open = false;
   g_host.frame_rendered = false;
@@ -1451,20 +1623,49 @@ bool metal_host_end_frame() {
   return close_frame(g_host.frame_is_stereo);
 }
 
+std::string metal_host_stereo_error() {
+  if (!g_host.stereo_preflight_error.empty()) { return g_host.stereo_preflight_error; }
+  if (!g_host.renderer) { return "renderer-not-running"; }
+  const auto error = g_host.renderer->last_immersive_camera_error();
+  if (error == metal_renderer::ImmersiveCameraError::None) { return {}; }
+  return metal_renderer::immersive_camera_error_name(error);
+}
+
 MetalHostStereoFrameCompletion metal_host_end_stereo_frame() {
   if (!g_host.frame_open || !g_host.frame_is_stereo) {
     return MetalHostStereoFrameCompletion::skipped;
   }
   const bool rendered = g_host.frame_rendered;
+  // Read before close_frame resets the frame-scoped latch. The absence is honoured only when it
+  // was the sole failure: no preflight error and no other rejection replaced it.
+  const bool camera_packet_absent = g_host.stereo_world_camera_packet_absent &&
+                                    g_host.stereo_submission_failed &&
+                                    g_host.stereo_preflight_error.empty() && g_host.renderer &&
+                                    g_host.renderer->last_immersive_camera_error() ==
+                                        metal_renderer::ImmersiveCameraError::
+                                            WorldPacketUnavailableThisFrame;
   bool submitted = false;
   (void)close_frame(true, &submitted);
   if (!submitted) {
-    return MetalHostStereoFrameCompletion::failed;
+    return camera_packet_absent ? MetalHostStereoFrameCompletion::world_camera_packet_absent
+                                : MetalHostStereoFrameCompletion::failed;
   }
   if (!rendered) {
     return MetalHostStereoFrameCompletion::skipped;
   }
   return MetalHostStereoFrameCompletion::submitted;
+}
+
+id<MTLDevice> metal_host_device() {
+  return g_host.renderer ? g_host.renderer->device() : nil;
+}
+
+id<MTLCommandQueue> metal_host_command_queue() {
+  return g_host.renderer ? g_host.renderer->queue() : nil;
+}
+
+float metal_host_external_frame_fade() {
+  return g_host.external_frame_fade;
 }
 
 #else  // GOALPAD_HAVE_GFX_SEAM
@@ -1523,12 +1724,28 @@ bool metal_host_begin_reserved_stereo_frame(const MetalHostFrame&,
   return false;
 }
 
+bool metal_host_begin_external_frame(const MetalHostFrame&, const MetalHostExternalView&) {
+  return false;
+}
+
 bool metal_host_end_frame() {
   return false;
 }
 
 MetalHostStereoFrameCompletion metal_host_end_stereo_frame() {
   return MetalHostStereoFrameCompletion::skipped;
+}
+
+id<MTLDevice> metal_host_device() {
+  return nullptr;
+}
+
+id<MTLCommandQueue> metal_host_command_queue() {
+  return nullptr;
+}
+
+float metal_host_external_frame_fade() {
+  return 1.f;
 }
 
 #endif  // GOALPAD_HAVE_GFX_SEAM

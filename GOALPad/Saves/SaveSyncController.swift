@@ -1588,6 +1588,17 @@ struct SaveSettingsView: View {
             } label: {
                 LabeledContent("Controller Bindings", value: controllerBindingStatus)
             }
+            #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+            if selectedTitle == .jak1 {
+                NavigationLink {
+                    VisionMotionControlsGuideView(input: input)
+                } label: {
+                    LabeledContent("Motion Controls",
+                                   value: input.hasSenseControllers
+                                       ? "Sense Connected" : "Sense Not Connected")
+                }
+            }
+            #endif
             #if !os(visionOS)
             NavigationLink {
                 KeyboardMouseBindingsSettingsView(settings: settings, input: input)
@@ -1637,6 +1648,26 @@ struct SaveSettingsView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
+            #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+            Toggle("Rounded Window Corners", isOn: Binding(
+                get: { settings.visionWindowRoundedCorners },
+                set: { settings.setVisionWindowRoundedCorners($0) }
+            ))
+            if selectedTitle == .jak1 {
+                Picker("Immersive resolution", selection: Binding(
+                    get: { renderSettings.immersiveResolutionScale },
+                    set: { renderSettings.immersiveResolutionScale = $0 }
+                )) {
+                    ForEach(RenderSettings.immersiveAvailableScales, id: \.self) { scale in
+                        Text(renderSettings.immersiveLabel(for: scale)).tag(scale)
+                    }
+                }
+                Text("Higher resolution makes immersive play sharper and uses more graphics power.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            #endif
+
             #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
             Toggle("Stereoscopic 3D", isOn: Binding(
                 get: { settings.graphicsStereo3D },
@@ -1679,6 +1710,11 @@ struct SaveSettingsView: View {
             Button("Restore Graphics Defaults") {
                 settings.restoreDefaults(for: .graphics)
                 renderSettings.restoreDefaults()
+                #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+                if selectedTitle == .jak1 {
+                    renderSettings.immersiveResolutionScale = RenderSettings.immersiveDefaultScale
+                }
+                #endif
             }
             .foregroundStyle(.secondary)
     }

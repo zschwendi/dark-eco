@@ -51,13 +51,55 @@ final class RenderSettings {
     var internalWidth: Int { Self.baseWidth * internalResolutionScale }
     var internalHeight: Int { Self.baseHeight * internalResolutionScale }
 
+    /// Immersive per-eye render height level. It is stored separately from the windowed scale so
+    /// the headset can render sharper eyes without changing the window. Levels 1...4 keep their
+    /// stored 480-line multiples; level 5 is 2160 lines per eye.
+    static let immersiveDefaultsKey = "immersiveResolutionScale"
+    static let immersiveAvailableScales = [1, 2, 3, 4, 5]
+    static let immersiveEyeHeights = [480, 960, 1440, 1920, 2160]
+    static let immersiveDefaultScale = 5
+
+    static func immersiveEyeHeight(for scale: Int) -> Int {
+        let index = min(max(scale, 1), immersiveEyeHeights.count) - 1
+        return immersiveEyeHeights[index]
+    }
+
+    var immersiveResolutionScale: Int {
+        didSet {
+            let clamped = min(max(immersiveResolutionScale, 1), Self.immersiveAvailableScales.count)
+            if clamped != immersiveResolutionScale {
+                immersiveResolutionScale = clamped
+                return
+            }
+            defaults.set(clamped, forKey: Self.immersiveDefaultsKey)
+        }
+    }
+
+    var immersiveEyeHeight: Int { Self.immersiveEyeHeight(for: immersiveResolutionScale) }
+
     init(configuration: RenderSettingsConfiguration, defaults: UserDefaults = .standard) {
         self.configuration = configuration
         self.defaults = defaults
         let stored = defaults.integer(forKey: configuration.defaultsKey)
         internalResolutionScale = Self.availableScales.contains(stored)
             ? stored : configuration.defaultScale
+        let storedImmersive = defaults.integer(forKey: Self.immersiveDefaultsKey)
+        immersiveResolutionScale = Self.immersiveAvailableScales.contains(storedImmersive)
+            ? storedImmersive : Self.immersiveDefaultScale
         apply()
+    }
+
+    /// Per-eye target size for a chosen height, widened to the widest eye's aspect so neither
+    /// eye's projection is cropped. Returns nil for a nonpositive height, an empty, nonfinite or
+    /// nonpositive aspect, or a width that does not fit in a 32-bit texture dimension.
+    nonisolated static func immersiveEyeDimensions(height: Int,
+                                                   aspects: [Float]) -> (width: Int, height: Int)? {
+        guard height > 0, height <= Int(Int32.max), !aspects.isEmpty,
+              aspects.allSatisfy({ $0.isFinite && $0 > 0 }),
+              let aspect = aspects.max() else { return nil }
+        let width = (Double(height) * Double(aspect)).rounded(.up)
+        guard width.isFinite, width >= 1, width <= Double(Int32.max) else { return nil }
+        return (Int(width), height)
     }
 
     convenience init() {
@@ -76,5 +118,9 @@ final class RenderSettings {
 
     func label(for scale: Int) -> String {
         "\(Self.baseWidth * scale)x\(Self.baseHeight * scale)"
+    }
+
+    func immersiveLabel(for scale: Int) -> String {
+        "\(Self.immersiveEyeHeight(for: scale))p per eye"
     }
 }
