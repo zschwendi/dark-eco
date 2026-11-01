@@ -1,0 +1,61 @@
+{
+  "checked_utc": "2026-11-01T21:03:16.544874+00:00",
+  "release_url": "https://github.com/zschwendi/dark-eco/releases/tag/build282-preview",
+  "tag": "build282-preview",
+  "release_published_utc": "2026-11-01T21:02:31Z",
+  "source_commit_recorded_at_build": "9107051ccee1929b9585c5d066529239978a2445",
+  "engine_commit_recorded_at_build": "8b2cd07517c738128f41d66a2a9602be3751273a",
+  "release_target_commit": "93fcf176b4f64586e3ebfc32b393f58b1b7ed56d",
+  "public_download": "passed without authentication",
+  "source_commits_publicly_reachable": true,
+  "readme_and_setup_links_current": true,
+  "downloaded_full_inventory_and_provenance": "passed for both IPAs",
+  "physical_validation": "not performed",
+  "assets": [
+    {
+      "name": "DarkEco-iOS-2.0-build282-preview.ipa",
+      "bytes": 35354349,
+      "sha256": "a89462604effcd6db9ede6fc3674b59e8f4af79c4202817ff1ae5c8acda209e9"
+    },
+    {
+      "name": "DarkEco-visionOS-2.0-build282-preview.ipa",
+      "bytes": 35068298,
+      "sha256": "9c9874b46394aba41461fed625112a8c8965de53097cd5c5667460493cd1b7b4"
+    },
+    {
+      "name": "IOS-INDEPENDENT-PACKAGE-CHECKS.json",
+      "bytes": 472,
+      "sha256": "0797e7a1559d183cd23c9cb45a47ffc7a1f181072826c0cbded8155d0b974791"
+    },
+    {
+      "name": "IOS-PACKAGE-MANIFEST.json",
+      "bytes": 247566,
+      "sha256": "966f29fad0234484e679dc40e63af0647c026f347359fabb3e007f17887c99f8"
+    },
+    {
+      "name": "IPA-IOS282-PROVENANCE.json",
+      "bytes": 3142,
+      "sha256": "ea75da5a7205420a224671faa139f42ce368b33d968d0a7f2f6a3d45efeef259"
+    },
+    {
+      "name": "IPA-VISIONOS282-PROVENANCE.json",
+      "bytes": 3147,
+      "sha256": "58eb4a02cff48aee5d0592ed610c414edd188f78a18f26e3cf6970f741aa633b"
+    },
+    {
+      "name": "SHA256SUMS",
+      "bytes": 800,
+      "sha256": "e60e0b78ba509599ceeec8ade3753d442458934b9f07c999bf3f72a52a21eaab"
+    },
+    {
+      "name": "VISIONOS-INDEPENDENT-PACKAGE-CHECKS.json",
+      "bytes": 477,
+      "sha256": "83d08abf210ee499455503e4940834c826048bd94b9d5226ab85e17331ca6075"
+    },
+    {
+      "name": "VISIONOS-PACKAGE-MANIFEST.json",
+      "bytes": 248012,
+      "sha256": "c1176bfe5a438b8ce4609bea489269b12d7a8f4fa8c60442fe7f2e3799fbacd9"
+    }
+  ]
+}

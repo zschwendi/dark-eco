@@ -8,7 +8,7 @@ Five CPU and seven affected native GPU targets, the integrated immersive proof, 
 
 [Ten-mod research](docs/OPENGOAL-MOD-RESEARCH.md) and its source ledger are complete. First-person/Sense hands (#17) and new settings/mod integration (#18) are investigations; third-person stays default. No mod assets or binaries were imported.
 
-Public delivery is gated on matching source, both IPAs, provenance, checksums and anonymous download readback. See `docs/BUILD282-DELIVERY.json` for the verified publication receipt once recorded. No installation authorization is implied.
+Public delivery verified: https://github.com/zschwendi/dark-eco/releases/tag/build282-preview. Both IPAs, matching public app/native source, provenance, checksums and onboarding links were independently downloaded without authentication; all full bundle inventories and embedded provenance matched. [Delivery receipt](docs/BUILD282-DELIVERY.json). No installation or physical acceptance is implied.
 
 ---
 
