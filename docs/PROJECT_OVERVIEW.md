@@ -4,7 +4,7 @@
 > **Working name:** GOALPad
 > **Public product name:** Dark Eco
 > **Distribution:** GitHub-only source and release artifacts; no App Store or TestFlight path
-> **Primary target:** iPadOS on Apple silicon; the shared windowed app also supports macOS and visionOS
+> **Primary target:** iPadOS on Apple silicon; one shared source also targets iPhone, Apple Silicon macOS and visionOS, including experimental Jak 1 immersive presentation
 > **Supported game targets:** *Jak and Daxter: The Precursor Legacy* and experimental *Jak II*
 > **Planned game target:** *Jak 3*
 > **Upstream foundation:** OpenGOAL
@@ -98,6 +98,23 @@ the outer repository's `v2.0` branch and use Dark Eco's runtime-selected Jak II
 profile. Changes to the embedded OpenGOAL runtime that are intended to ship
 must land on the nested OpenGOAL `v2.0` branch before the outer repository
 updates its gitlink.
+
+All Apple platforms use the current unified app and native engine source. The
+maintainer's November 1 direction includes Jak 1 immersive presentation in the
+normal visionOS project configuration, alongside the latest iPhone/iPad fixes.
+A release checkpoint has one global build number and source identity; iOS and
+visionOS need their own compatible install packages from that same checkpoint.
+Historical Vision branches and artifacts remain evidence, not a separate active
+product line. Platform compilation and signed packaging do not establish
+physical gameplay or headset acceptance.
+
+First-person immersive Jak 1 with Sense-tracked hands and additional OpenGOAL
+mods/settings are investigations tracked in issues #17 and #18. Third-person
+remains the default. A community camera mod is not evidence of tracked-hand,
+IK, collision, or Apple compatibility. Jak II remains on its existing controls
+until a separately validated extension is implemented. Code mods must fit the
+existing ahead-of-time compilation and signing path; data-only mods retain the
+same user-supplied asset boundary.
 
 The old standalone Jak II application, `jak2-best`, and historical Jak II agent
 branches are read-only comparison history. Do not develop, release, or push new
