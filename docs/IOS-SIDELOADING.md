@@ -1,12 +1,19 @@
 # Dark Eco for iPhone and iPad
 
-Download the [experimental iOS/iPadOS Build 281 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/ios-build281-preview).
-The **2.0 / Build 281** package is `DarkEco-iOS-2.0-build281-preview.ipa`.
+Download the [experimental Build 282 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/build282-preview).
+The **2.0 / Build 282** iPhone/iPad package is
+[`DarkEco-iOS-2.0-build282-preview.ipa`](https://github.com/zschwendi/dark-eco/releases/download/build282-preview/DarkEco-iOS-2.0-build282-preview.ipa).
 One native arm64 IPA supports iPhone and iPad on **iOS/iPadOS 26.5 or later**.
 It contains the app runtime and reconstructed OpenGOAL code, with no retail
 game data. You supply your own game data and signing identity.
 
-Build 281 corrects a vertical flip when Jak II samples the rendered world for
+Build 282 is built from the one shared Apple source and build number that also
+produces the separate Vision Pro package in the same release. Use the iOS IPA;
+the visionOS IPA cannot substitute for it. No physical Build 282 tests have
+been performed; the [Build 282 provenance](IPA-IOS282-PROVENANCE.json) records
+its package checks and limits.
+
+Build 282 keeps Build 281's correction of a vertical flip when Jak II samples the rendered world for
 a distortion effect. The old shader fails the focused top/bottom image test;
 the corrected shader passes. This is a **test candidate**: it does not yet
 establish a fix for the reported dark water plane or long coloured streaks.
@@ -15,12 +22,13 @@ It retains Build 280's ISO/archive picker compatibility, corrected Jak II
 importer resources, saved Fit to Screen at game start for both titles,
 Jak II pause-background sizing and idle display-loop changes. The Duo
 simulator picker/invalid-disc checks were performed on Build 280. Importer
-source is unchanged in 281; recipient selection and full real-disc import
+source is unchanged in 282; recipient selection and full real-disc import
 still need confirmation. See [Build 280 validation](BUILD280-VALIDATION.md).
 
-Signed iOS, simulator, macOS and visionOS build checks passed for 281, along
-with four focused native GPU/plan tests. No simulator gameplay tests or
-physical Build 281 tests were performed. See the [current validation results](BUILD281-VALIDATION.md).
+For the earlier Build 281 package, signed iOS, simulator, macOS and visionOS
+build checks passed, along with four focused native GPU/plan tests. No
+simulator gameplay tests or physical Build 281 tests were performed. See the
+[Build 281 validation results](BUILD281-VALIDATION.md).
 
 **Still open:** [ProMotion slowdown](https://github.com/zschwendi/dark-eco/issues/6),
 [taillight blocks](https://github.com/zschwendi/dark-eco/issues/7),
@@ -114,12 +122,18 @@ entitlements and provisioning profile. Back up saves before updating or
 changing signers; a different App ID can create a separate app and save
 container. Check that a new save survives closing and reopening the app.
 
-The original app did not request increased-memory-limit, extended-virtual-
-addressing or JIT entitlements. The repack does not remove a required memory
+The app does not request increased-memory-limit, extended-virtual-addressing
+or JIT entitlements. The package does not remove a required memory
 capability. Its ad-hoc transport signature must still be replaced by your
 sideloader's signature for your device.
 
-Build 281's exact compiled source is [app `23c551c`](https://github.com/zschwendi/dark-eco/commit/23c551c054f056f5d7c70018406fecb38750491a)
+Build 282's compiled source, hashes and validation limits are recorded in
+[IPA-IOS282-PROVENANCE.json](IPA-IOS282-PROVENANCE.json). The release includes
+the complete package manifest and `SHA256SUMS`. Package checks do not establish
+physical-device or gameplay acceptance.
+
+**History:** the earlier [Build 281 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/ios-build281-preview)
+(`DarkEco-iOS-2.0-build281-preview.ipa`) remains available. Its exact compiled source is [app `23c551c`](https://github.com/zschwendi/dark-eco/commit/23c551c054f056f5d7c70018406fecb38750491a)
 and [engine `7d513d61`](https://github.com/zschwendi/jak-pad/commit/7d513d61d6014e869d974a687318d18ddb5754b3).
 Original hashes, changes and limitations are recorded in
 [IPA-IOS281-PROVENANCE.json](IPA-IOS281-PROVENANCE.json). The release includes

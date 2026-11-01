@@ -243,10 +243,12 @@ Enhancement work proceeds in this order:
    settings, or graphics surfaces.
 3. Ship Jak 1 in conventional 2D across iOS/iPadOS and visionOS. Keep the
    physically accepted visionOS Comfort window on the normal launch path,
-   defer stereoscopic presentation until a later, separately gated project,
    and keep macOS compilation healthy while its release remains deferred.
+   Experimental Jak 1 immersion now ships in the normal visionOS
+   configuration; it does not replace the windowed path and its wearer
+   acceptance remains pending.
 
-As of October 26, the maintainer has also authorized a separate experimental Jak 1 immersive lane and ordinary windowed Jak II testing on Vision Pro. Signed native visionOS Build 254 includes Jak II's isolated runtime and disc importer; physical import and play acceptance remain pending. Jak II immersive implementation follows completion of the ordinary rendering, asset-loading, and audio work. The maintainer handles broad gameplay verification; agents do not need an exhaustive mission, combat, vehicle, or checkpoint playthrough before beginning immersion. Future Jak II and Jak 3 immersive modes require a standard DualSense controller; existing ordinary touch and keyboard paths remain available where supported. The current sequence is ordinary Jak II, Jak II immersion, ordinary Jak 3, then Jak 3 immersion, as recorded in ROADMAP.md. See [the windowed visionOS checkpoint](JAK2_VISIONOS_WINDOWED_2026_10_26.md).
+*Historical (superseded November 1 by the unified-source direction above):* As of October 26, the maintainer has also authorized a separate experimental Jak 1 immersive lane and ordinary windowed Jak II testing on Vision Pro. Signed native visionOS Build 254 includes Jak II's isolated runtime and disc importer; physical import and play acceptance remain pending. Jak II immersive implementation follows completion of the ordinary rendering, asset-loading, and audio work. The maintainer handles broad gameplay verification; agents do not need an exhaustive mission, combat, vehicle, or checkpoint playthrough before beginning immersion. Future Jak II and Jak 3 immersive modes require a standard DualSense controller; existing ordinary touch and keyboard paths remain available where supported. The current sequence is ordinary Jak II, Jak II immersion, ordinary Jak 3, then Jak 3 immersion, as recorded in ROADMAP.md. See [the windowed visionOS checkpoint](JAK2_VISIONOS_WINDOWED_2026_10_26.md).
 
 An experimental iOS ProMotion option is implemented on that conventional
 renderer. It uses a 120 Hz gameplay timing domain with adaptive display-link
@@ -454,8 +456,9 @@ configuration. Preserve the distinction between the gameplay camera and the
 final viewer/render camera where the existing architecture already allows it.
 
 Do not undertake a renderer rewrite, camera refactor, abstraction campaign,
-volumetric or immersive visionOS work, or speculative multi-platform work to
-satisfy this direction. The implemented conventional visionOS window reuses
+new volumetric visionOS work, or speculative multi-platform work to satisfy
+this direction; the experimental Jak 1 immersive mode is maintained in the
+shared source. The implemented conventional visionOS window reuses
 the shared Apple target and existing runtime seams. When two implementations
 are equally small, prefer the one that does not prevent Mac or iPhone targets,
 multiple render views, stereo rendering, externally supplied view/projection

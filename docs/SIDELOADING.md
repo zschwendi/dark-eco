@@ -4,18 +4,20 @@ This guide is for **Vision Pro**. For phones and tablets, use the
 [iPhone/iPad guide](IOS-SIDELOADING.md); first pairing uses USB trust instead
 of Vision Pro's Remote Devices screen. See [all platform downloads](DOWNLOADS.md).
 
-Download the [Build 264.1 visionOS preview](https://github.com/zschwendi/dark-eco/releases/tag/visionos-build264.1-preview).
-Choose **DarkEco-visionOS-2.0-build264.1-preview.ipa**. It contains the native
+Download the [Build 282 preview](https://github.com/zschwendi/dark-eco/releases/tag/build282-preview).
+Choose **DarkEco-visionOS-2.0-build282-preview.ipa**. It contains the native
 runtime and reconstructed OpenGOAL code, but **no retail game data**.
 
 You need **visionOS 26.5 or later**, a compatible controller, and your own
 supported Jak and Daxter game data. Start with **Jak and Daxter: The Precursor
-Legacy**. This package includes an unfinished Jak II path from Build 264;
-Jak II immersive play is not included, and later fixes are not in this package.
-Jak 1 sky, stereo-effect and HUD problems remain unconfirmed
-([#3](https://github.com/zschwendi/dark-eco/issues/3)). The separate later Vision
-271 candidate is not a public delivery; source and download reconciliation
-is tracked in [#16](https://github.com/zschwendi/dark-eco/issues/16).
+Legacy**. Build 282 comes from the one shared Apple source that also produces
+the iPhone/iPad package, including the latest iOS fixes, and its normal
+visionOS build includes experimental third-person Jak 1 immersion. Jak II has
+an unfinished windowed path; Jak II immersive play is not included. Jak 1
+collected-orb and 3D HUD icons still have placement/depth problems, and
+immersive sky, stereo and HUD behaviour still need wearer acceptance
+([#3](https://github.com/zschwendi/dark-eco/issues/3)). Earlier source
+reconciliation was tracked in [#16](https://github.com/zschwendi/dark-eco/issues/16).
 
 ## Windows walkthrough
 
@@ -127,10 +129,11 @@ different sideloader; Apparition does not automatically sign or refresh them.
 
 ### 5. Download and install this game's IPA
 
-Open [this game's release](https://github.com/zschwendi/dark-eco/releases/tag/visionos-build264.1-preview), expand **Assets**, and download:
+Open [this game's release](https://github.com/zschwendi/dark-eco/releases/tag/build282-preview), expand **Assets**, and download the
+Vision Pro IPA, not the iPhone/iPad IPA from the same release:
 
 ```text
-DarkEco-visionOS-2.0-build264.1-preview.ipa
+DarkEco-visionOS-2.0-build282-preview.ipa
 ```
 
 Leave it as an `.ipa`; do not extract it or choose GitHub's **Source code.zip**.
@@ -294,15 +297,20 @@ controls and platform limitations.
 
 ## What this preview contains
 
-This is an audited repack of the existing **2.0 / Build 264** app, numbered
-**264.1** for its sideload packaging. It was not rebuilt from the current
-public `v2.0` branch. The release's package manifest records the original
-source receipts; those exact historical source revisions are not currently
-available from the public repository. See [IPA-RELEASE.md](IPA-RELEASE.md).
+Build 282 is a fresh compilation of the unified Apple source, with one build
+number shared with the iPhone/iPad package. Its compiled source, hashes and
+validation limits are recorded in
+[IPA-VISIONOS282-PROVENANCE.json](IPA-VISIONOS282-PROVENANCE.json). Deterministic
+renderer checks, including an old/new HUD partial-scissor GPU comparison, pass;
+they prove that correction only, not every HUD issue. A fresh third-party
+install, gameplay and headset acceptance remain unverified. `SHA256SUMS` and the
+complete file manifest are attached to the release.
 
-Executable code/data sections are unchanged. The package removes the private
-provisioning profile and developer/iCloud signing, adds license notices and
-uses an ad-hoc transport signature. Your sideloader signs it again for your
-headset. Local package checks pass; a fresh third-party install and gameplay
-remain unverified. `SHA256SUMS` and the complete file manifest are attached to
-the release.
+**History:** the earlier [Build 264.1 preview](https://github.com/zschwendi/dark-eco/releases/tag/visionos-build264.1-preview)
+(`DarkEco-visionOS-2.0-build264.1-preview.ipa`) remains available. It is an
+audited repack of the existing **2.0 / Build 264** app, numbered **264.1** for
+its sideload packaging, and contains no later runtime fixes. The release's
+package manifest records the original source receipts; those exact historical
+source revisions are not currently available from the public repository. See
+[IPA-RELEASE.md](IPA-RELEASE.md) and
+[IPA-BUILD264-PROVENANCE.json](IPA-BUILD264-PROVENANCE.json).

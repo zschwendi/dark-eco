@@ -53,6 +53,9 @@ The maintainer's iCloud entitlements, profiles and signing credentials are not
 included. After importing, test a save, close the app and reopen it to check
 the save persists. Keep backups before changing versions or app identities.
 
+The Mac app shares the unified Apple source, but no newer Mac package exists;
+the Build 282 release contains iPhone/iPad and Vision Pro packages only.
+
 This Mac package does not use the seven-day free Apple Account signing cycle
 described in the iPhone/iPad guide. See [all platform downloads](DOWNLOADS.md)
 to choose the package for another device.

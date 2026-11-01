@@ -45,14 +45,16 @@ Mac gameplay have not been tested.
 
 | Game | Ordinary windowed play | Apple Vision Pro immersion |
 | --- | --- | --- |
-| **Jak and Daxter: The Precursor Legacy** | Playable; the established Dark Eco baseline. A full-game completion pass is not certified. | **Mostly finished, but still incomplete.** Experimental third-person view with Jak visible. Known issues remain with sky coverage, stereo effects, and HUD/interaction prompts. |
+| **Jak and Daxter: The Precursor Legacy** | Playable; the established Dark Eco baseline. A full-game completion pass is not certified. | **Mostly finished, but still incomplete.** Experimental third-person view with Jak visible. Known issues remain with sky coverage, stereo effects, HUD/interaction prompts, and collected-orb/3D HUD icon placement and depth. |
 | **Jak II** | **Almost finished, but still incomplete.** Performance and a Dark Jak crash near the early Kor/child encounter are being fixed; broader gameplay and device verification continue. | **Not started.** Planned after the remaining Jak 1 immersive issues are resolved. |
 | **Jak 3** | **Planned; work has not started.** | **Planned; work has not started.** |
 
-Immersive availability depends on the build: it is developed in a separate
-experimental lane, so a windowed build does not automatically include it.
-The current public source builds ordinary windowed play; reconciliation with
-the later immersive source is tracked in [#16](https://github.com/zschwendi/dark-eco/issues/16).
+All Apple platforms build from one shared app and engine source. The normal
+visionOS build includes the experimental Jak 1 immersive mode, and Build 282
+ships separate iPhone/iPad and Vision Pro packages from that same source.
+Collected-orb and 3D HUD icons still have placement/depth problems, and
+immersive HUD behaviour still needs wearer acceptance. Earlier source
+reconciliation was tracked in [#16](https://github.com/zschwendi/dark-eco/issues/16).
 Jak II and Jak 3 immersion are planned to use a normal DualSense controller.
 
 For development evidence and open work, see [HANDOFF](HANDOFF.md) and
@@ -69,15 +71,19 @@ mode. This is an in-development build; the remaining issues are listed above.
 
 ### 1. Get the app for your Apple device
 
-**Vision Pro from Windows or Linux:** use the [Build 264.1 IPA walkthrough](docs/SIDELOADING.md).
+**Vision Pro from Windows or Linux:** use the [Build 282 IPA walkthrough](docs/SIDELOADING.md)
+and `DarkEco-visionOS-2.0-build282-preview.ipa`.
 
-**iPhone and iPad:** use the [Build 281 IPA guide](docs/IOS-SIDELOADING.md).
-Build 281 is a preview awaiting physical acceptance; the guide lists
-its current status and open issues.
+**iPhone and iPad:** use the [Build 282 IPA guide](docs/IOS-SIDELOADING.md)
+and `DarkEco-iOS-2.0-build282-preview.ipa`. Both IPAs are in the same
+[Build 282 release](https://github.com/zschwendi/dark-eco/releases/tag/build282-preview).
+Build 282 is a preview awaiting physical acceptance; the guides list its
+current status and open issues.
 
 **Apple Silicon Mac:** use the [native Build 270.1 app guide](docs/MACOS-INSTALL.md).
 
-See [downloads by device](docs/DOWNLOADS.md) for package versions. These packaged
+See [downloads by device](docs/DOWNLOADS.md) for package versions and earlier
+releases. These packaged
 previews use local saves; the maintainer's iCloud identity is not included.
 
 The Vision Pro guide covers Apparition setup, the sign-in server setting, pairing, installation,
@@ -202,8 +208,9 @@ Start here before changing anything:
 2. Read the top of [HANDOFF.md](HANDOFF.md) for the latest source/build state,
    then [ROADMAP.md](ROADMAP.md) for the current priorities.
 3. Inspect the parent and nested OpenGOAL Git state. Preserve dirty work,
-   saves, user game data, and the distinction between the windowed and
-   experimental immersive lanes.
+   saves and user game data. Older immersive/windowed worktrees and branches
+   are history and evidence, not separate delivery lanes; new work uses the
+   one shared source.
 4. Work on the smallest scoped change. Follow the current task's device
    authorization and run relevant checks; a simulator pass is not physical-device acceptance.
 5. Record exact commands, results, remaining issues, and the next step in the handoff.
