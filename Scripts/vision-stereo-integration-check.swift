@@ -418,6 +418,9 @@ let visionFiles = FileManager.default.enumerator(atPath: visionDirectory)?.compa
 // scan, and only because every file in it is compiled out of normal builds.
 let immersiveProofFiles = visionFiles.filter { $0.hasPrefix("Immersive/") }
 let immersiveGate = "#if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE"
+let immersiveBuildSettings = project.split(separator: "\n").filter {
+    $0.contains("GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE")
+}
 check(!immersiveProofFiles.isEmpty
         && immersiveProofFiles.allSatisfy { file in
             let text = source(root, "GOALPad/Vision/" + file)
@@ -429,8 +432,11 @@ check(!immersiveProofFiles.isEmpty
         && content.contains(
             immersiveGate + "\n        .modifier(VisionImmersiveProofHost(session: session))\n"
                 + "        #endif")
-        && !project.contains("GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE"),
-      "the immersive proof is wholly source-gated and no normal configuration opts into it")
+        && immersiveBuildSettings.count == 8
+        && immersiveBuildSettings.allSatisfy {
+            $0.contains("[sdk=xros*]") || $0.contains("[sdk=xrsimulator*]")
+        },
+      "immersive sources are gated and enabled only by visionOS SDK settings")
 let visionProductSource = visionFiles.filter { !$0.hasPrefix("Immersive/") }
     .map { source(root, "GOALPad/Vision/" + $0) }
     .joined(separator: "\n") + app
@@ -440,7 +446,7 @@ let forbiddenSpatialAPIs = [
     "head tracking", "head-relative", "CompositorLayer",
 ]
 check(forbiddenSpatialAPIs.allSatisfy { !visionProductSource.contains($0) },
-      "vision product sources contain no immersive, tracking, or compositor scene path")
+      "conventional window sources contain no immersive, tracking, or compositor scene path")
 check(!FileManager.default.fileExists(
         atPath: root + "/GOALPad/Vision/VisionWindowStereoHeadTracker.swift")
         && !FileManager.default.fileExists(
@@ -557,12 +563,12 @@ check(content.contains("NavigationStack {\n            SaveSettingsView(")
         && content.contains("#if os(iOS)\n                .toolbar {")
         && content.contains("Button(\"Done\") { dismiss() }")
         && content.contains("#elseif !os(visionOS)\n        .toolbar {\n            ToolbarItem(placement: .confirmationAction)")
-        && content.contains("#else\n        .safeAreaInset(edge: .top, spacing: 0) {\n            HStack {")
-        && content.contains("Button { dismiss() } label: {\n                    Label(\"Close\", systemImage: \"xmark\")")
+        && content.contains("#else\n        .toolbar {\n            ToolbarItem(placement: .topBarLeading) {")
+        && content.contains("Button { dismiss() } label: {\n                    Image(systemName: \"xmark\")")
         && content.contains(".accessibilityLabel(\"Close Settings\")")
-        && content.contains("if isGameRunning {\n                    Button(role: .destructive)")
+        && content.contains("if isGameRunning {\n                ToolbarItem(placement: .topBarTrailing) {\n                    Button(role: .destructive)")
         && content.contains("Image(systemName: \"power\")"),
-      "visionOS Settings pins Close and Return to Library above navigation while iOS retains Done")
+      "visionOS Settings keeps Close and Return to Library in its toolbar while iOS retains Done")
 check(visionCardActivation.contains(".contentShape([.interaction, .hoverEffect],")
         && visionCardActivation.contains("RoundedRectangle(cornerRadius: 16, style: .continuous)")
         && visionCardActivation.contains(".onTapGesture(perform: activate)")
