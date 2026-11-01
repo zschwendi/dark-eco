@@ -179,7 +179,7 @@
       "role": "upstream, ISC per API"
     },
     {
-      "url": "local: .agent-worktrees/unified-apple-app-20261101/docs/PROJECT_OVERVIEW.md",
+      "url": "local: docs/PROJECT_OVERVIEW.md (reviewed unified Apple snapshot)",
       "role": "Jak II active scope, Jak 3 planned (lines 8-9, 126-134)"
     },
     {
