@@ -57,6 +57,9 @@ immersive HUD behaviour still needs wearer acceptance. Earlier source
 reconciliation was tracked in [#16](https://github.com/zschwendi/dark-eco/issues/16).
 Jak II and Jak 3 immersion are planned to use a normal DualSense controller.
 
+Optional first-person play, Sense-tracked hands and additional OpenGOAL mods
+are research, not shipped features. See the [ten-mod shortlist and staged plan](docs/OPENGOAL-MOD-RESEARCH.md).
+
 For development evidence and open work, see [HANDOFF](HANDOFF.md) and
 [ROADMAP](ROADMAP.md). The known issues above remain the player-facing status.
 
