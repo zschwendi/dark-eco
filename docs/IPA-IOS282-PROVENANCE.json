@@ -1,0 +1,39 @@
+{
+  "product": "Dark Eco",
+  "version": "2.0",
+  "build": "282",
+  "package_build": "282",
+  "platform": "iOS",
+  "source_commit_recorded_at_build": "9107051ccee1929b9585c5d066529239978a2445",
+  "engine_commit_recorded_at_build": "8b2cd07517c738128f41d66a2a9602be3751273a",
+  "source_url": "https://github.com/zschwendi/dark-eco/commit/9107051ccee1929b9585c5d066529239978a2445",
+  "engine_url": "https://github.com/zschwendi/jak-pad/commit/8b2cd07517c738128f41d66a2a9602be3751273a",
+  "source_status": "One shared Apple source checkpoint combining current iOS/Jak II changes and the later Jak 1 immersive foundation, with a new Direct HUD scissor correction. Test preview, not full gameplay acceptance.",
+  "input_executable_sha256": "af3ae40fc5a9ffd2327d2e8ad001d51ef8097469ede9c3b32ad12dd5c1b55d76",
+  "input_framework_sha256": "205412b013dd5648bc1e5c058033f15b529035842755df894e75ad9bd2126bd3",
+  "input_bundle_manifest_sha256": "4d75c8d2001566455b68e7155de556ef686d105e24e328cc02ae853efbfe6e5d",
+  "source_pack_manifests_sha256": {
+    "Jak1": "1f6235f5c72509333d116235df63147aafb3b3453fc5676c8e15af627edb1ead",
+    "Jak2": "71a3da27a1d09b0fedd2905abe5c69982b06585bfe00d128fefe93b09afdc7fa"
+  },
+  "source_pack_audit": "All source-pack members passed sizes and XXH64 hashes plus aggregate verification: Jak1 518 / 806abc2b2667435a; Jak2 840 / f2cdf82e9b913501.",
+  "repack_changes": [
+    "Keep Build 282 code and resources unchanged",
+    "Remove maintainer provisioning and signatures",
+    "Apply transport ad-hoc signatures with empty entitlements",
+    "Add source notices and provenance"
+  ],
+  "validation": "Five native CPU checks, seven affected native GPU targets, integrated Vision proof and a discriminating old/new Direct-shader GPU comparison passed. Default generic-platform compilation and signatures are recorded separately; these do not establish physical acceptance.",
+  "prior_import_validation": "Build280 synthetic local-provider ISO/ZIP selection and invalid-disc checks passed on iPhone Duo simulator. Corresponding importer code remains unchanged; no new simulator session was used here.",
+  "limits": [
+    "GenericHud collected-orb and 3D counter-icon stereo placement remains an unresolved implementation defect (#3).",
+    "All-view sky, effects, HUD clipping, pause/warp transitions and immersive re-entry require headset acceptance.",
+    "Jak II water/streaks, taillight blocks and frozen cutscene video remain unresolved; the corrected ocean test fixture is not a water fix.",
+    "ProMotion app-wide stutter remains unresolved; 60 Hz remains the reported smoother option.",
+    "Recipient ISO/ZIP selection and full import require recipient-device acceptance.",
+    "Fit to Screen and Jak II pause presentation candidates still need physical confirmation.",
+    "Jak II internal-resolution selection remains ignored; Jak II immersive, first-person mode and researched mods are not implemented.",
+    "Public re-signable packages use local saves; iCloud is not provisioned.",
+    "No retail game data is included. No physical device or simulator gameplay testing was performed for this checkpoint."
+  ]
+}

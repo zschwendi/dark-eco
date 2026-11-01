@@ -1,3 +1,17 @@
+# November 1, 2026 — Unified Apple Build 282 test preview
+
+Compiled app `9107051ccee1929b9585c5d066529239978a2445`, native `8b2cd07517c738128f41d66a2a9602be3751273a`. One shared source now includes current iOS/Jak II work and the later Jak 1 Vision immersive foundation; normal visionOS builds enable immersion. Separate iOS and visionOS IPAs share Build 282 and release `build282-preview`. Older isolated source trees remain preserved evidence, not separate shipping products.
+
+Five CPU and seven affected native GPU targets, the integrated immersive proof, all four platform compile checks and both signed/package audits passed. A new Direct HUD scissor regression fails the old shader and passes the correction. The old ocean test fixture was corrected without changing production ocean rendering. [Validation](docs/BUILD282-VALIDATION.md) records the scope. No physical access or simulator gameplay occurred.
+
+**Still unfinished:** GenericHud collected-orb/3D icon plane and logical-depth mismatch (#3), wearer acceptance of sky/effects/HUD/transition behavior, ProMotion (#6), Jak II taillights (#7), cutscene video (#8), water/streaks (#13), and existing import/presentation acceptance. A bounded Opus GenericHud test-artifact attempt timed out without a patch; no new fix is implied. The next discriminating test uses existing Generic2 color/depth fixtures to demonstrate HUD-vs-world projection and authored depth ordering; material blend values must be traced rather than assumed.
+
+[Ten-mod research](docs/OPENGOAL-MOD-RESEARCH.md) and its source ledger are complete. First-person/Sense hands (#17) and new settings/mod integration (#18) are investigations; third-person stays default. No mod assets or binaries were imported.
+
+Public delivery is gated on matching source, both IPAs, provenance, checksums and anonymous download readback. See `docs/BUILD282-DELIVERY.json` for the verified publication receipt once recorded. No installation authorization is implied.
+
+---
+
 # October 31, 2026 — Build 281 WARP orientation test candidate
 
 Compiled app `23c551c054f056f5d7c70018406fecb38750491a`, native `7d513d61d6014e869d974a687318d18ddb5754b3`. Corrects Generic WARP sampling of a top-down Metal framebuffer snapshot. Artifact-isolated old/new shader/test matrix distinguishes the error; canonical WARP/glow/Generic2/plan tests and all affected platform builds pass. Scope and exact commands: [Build 281 validation](docs/BUILD281-VALIDATION.md).

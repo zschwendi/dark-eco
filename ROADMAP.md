@@ -32,11 +32,16 @@ Constraints throughout: preserve the accepted Jak 1 conventional baseline
 (windowed core physically exercised; not a complete playthrough) and per-title
 isolation.
 
-The opt-in Jak 1 Vision Pro immersive lane is a separate maintainer experiment,
-developed separately from the canonical default windowed source/build lane.
-Availability must be verified for each source checkpoint or release. Installed Vision Build 264 has
-opt-in Jak 1 immersion; wearer pause/warp/HUD-sharpness acceptance is pending and
-black sky gaps are unresolved. It is not evidence that any step above is complete.
+As of November 1, all Apple targets share the current source and Build 282
+checkpoint. Experimental Jak 1 immersion is part of the normal visionOS build;
+iOS and visionOS have separate compatible packages within one release. Historical
+Vision/windowed trees are retained as evidence. GenericHud orb/icon depth and
+wearer acceptance remain open under #3; source reconciliation is tracked in #16.
+
+First-person Jak 1 with Sense-tracked hands and a later Jak II extension are
+research under #17. [Ten mod candidates and settings](docs/OPENGOAL-MOD-RESEARCH.md)
+are documented under #18; none is implemented by the research. Third-person
+remains the default and current renderer defects retain priority.
 
 ## Authority and scope
 
