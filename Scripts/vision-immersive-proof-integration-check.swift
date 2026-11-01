@@ -68,7 +68,7 @@ print("Frame-loop ownership")
 let conventionalTick = section(session, from: "func tick(targetPresentationTime",
                                to: "#if os(visionOS)\n    func tickStereo")
 check(occursInOrder([
-    "!controlsGuideSuspension.blocksGameplay else { return }",
+    "guard wantsFrameCallbacks else { return }",
     "guard immersiveFrameLoopOwner == nil else { return }",
     "guard !VisionImmersiveProofCoordinator.shared.suppressesWindowRendering else { return }",
     "surface.beginFrame(at: targetPresentationTime)",
@@ -76,8 +76,7 @@ check(occursInOrder([
       "the window's display link yields throughout exclusive immersive presentation")
 let immersiveTick = section(session, from: "func tickImmersive(", to: "    #endif")
 check(occursInOrder([
-    "lifecycle.frameLoopEnabled",
-    "!controlsGuideSuspension.blocksGameplay",
+    "guard wantsFrameCallbacks",
     "immersiveFrameLoopOwner != nil",
     "switch surface.reserveStereoFrame()",
     "var reservationNeedsCancellation = true",
@@ -117,12 +116,19 @@ let uiHost = section(surfaceView, from: "private final class MetalHostView: UIVi
 check(surfaceView.contains(".opacity(isPresentationEnabled ? 1 : 0)")
         && uiHost.contains("var isPresentationEnabled = true")
         && occursInOrder([
-            "guard isPresentationEnabled, window != nil,",
-            "window?.windowScene?.activationState == .foregroundActive else {",
-            "suspendPresentation()",
+            "if isPresentationEnabled, window != nil, isHostActive {",
             "resumePresentation()",
-        ], in: section(uiHost, from: "private func updatePresentationState()",
-                      to: "private func resumePresentation()")),
+            "} else {",
+            "suspendPresentation()",
+        ], in: section(uiHost, from: "var isPresentationEnabled = true",
+                      to: "private var frameLink:"))
+        && section(uiHost, from: "private var isHostActive:",
+                   to: "private func suspendPresentation()")
+            .contains("window?.windowScene?.activationState == .foregroundActive")
+        && section(uiHost, from: "private func resumePresentation()",
+                   to: "private var isHostActive:")
+            .contains("guard isPresentationEnabled else {")
+        && uiHost.contains("if isPresenting && framesRequested {"),
       "the mounted host hides, detaches, and resumes only in an active conventional scene")
 let detachWindowLayer = section(renderSurface, from: "- (void)attachLayer:",
                                 to: "- (void)setDrawableSize:")
