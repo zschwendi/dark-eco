@@ -1454,6 +1454,11 @@ struct SaveSettingsView: View {
             Button("Reset All to Defaults", role: .destructive) {
                 settings.resetAll()
                 renderSettings.restoreDefaults()
+                #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
+                if selectedTitle == .jak1 {
+                    renderSettings.immersiveResolutionScale = RenderSettings.immersiveDefaultScale
+                }
+                #endif
                 input.setPrimarySource(settings.primaryInputSource)
                 input.setBindings(settings.jak1InputBindings)
             }
