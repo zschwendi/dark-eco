@@ -1649,9 +1649,15 @@ struct SaveSettingsView: View {
                 get: { settings.graphicsFillWidth },
                 set: { settings.setGraphicsFillWidth($0) }
             ))
+            #if os(iOS)
+            Text("On fills the screen: wider in landscape, a taller 3:4 picture in portrait. Off preserves the original 4:3 view.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            #else
             Text("On widens the game to fill the window. Off preserves the original 4:3 view.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+            #endif
 
             #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
             Toggle("Rounded Window Corners", isOn: Binding(

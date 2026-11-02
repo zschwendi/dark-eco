@@ -28,6 +28,8 @@ struct GameSurfaceView: View {
     /// False while another presentation, such as the immersive space, owns rendering; the window
     /// surface then releases its layer and display link.
     var isPresentationEnabled = true
+    /// An explicitly framed iOS host passes no edges so its drawable keeps the framed aspect.
+    var ignoresSafeAreaEdges: Edge.Set = .all
 
     #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
     @Environment(VisionPresentationCoordinator.self) private var visionPresentation
@@ -81,7 +83,7 @@ struct GameSurfaceView: View {
                              hidesCursorInFullScreen: hidesCursorInFullScreen,
                              isPresentationEnabled: isPresentationEnabled)
             .opacity(isPresentationEnabled ? 1 : 0)
-            .ignoresSafeArea()
+            .ignoresSafeArea(.all, edges: ignoresSafeAreaEdges)
             .background(.black)
     }
 }

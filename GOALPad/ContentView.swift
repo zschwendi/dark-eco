@@ -9,24 +9,54 @@ nonisolated enum GameplaySurfaceLayout {
         let trailing: CGFloat
     }
 
-    /// Uses a 4:3 host surface in portrait so the renderer's existing Classic and Fit to Screen
-    /// geometry continues to choose the presentation. Landscape keeps its full existing surface.
-    static func frame(in container: CGSize, safeAreaInsets: SafeAreaInsets) -> CGRect {
+    /// A safe-area-respecting reader measures `safeSize` and the insets around it; the full
+    /// display is that size plus the insets.
+    static func displaySize(safeSize: CGSize, safeAreaInsets: SafeAreaInsets) -> CGSize {
+        CGSize(width: max(safeSize.width, 0) + max(safeAreaInsets.leading, 0)
+                   + max(safeAreaInsets.trailing, 0),
+               height: max(safeSize.height, 0) + max(safeAreaInsets.top, 0)
+                   + max(safeAreaInsets.bottom, 0))
+    }
+
+    /// Converts a full-display rect into the safe-area-respecting reader's local coordinates.
+    static func safeLocalRect(_ displayRect: CGRect, safeAreaInsets: SafeAreaInsets) -> CGRect {
+        displayRect.offsetBy(dx: -max(safeAreaInsets.leading, 0),
+                             dy: -max(safeAreaInsets.top, 0))
+    }
+
+    /// `container` and `safeAreaInsets` describe the full display, including its unsafe edges.
+    /// Portrait keeps the established 4:3 top band unless Fit to Screen asks for the largest
+    /// exact 3:4 picture inside the safe area. Ordinary landscape keeps its full existing surface.
+    static func frame(in container: CGSize, safeAreaInsets: SafeAreaInsets,
+                      fitToScreen: Bool = false) -> CGRect {
         let width = max(container.width, 0)
         let height = max(container.height, 0)
+        let insets = clamped(safeAreaInsets, width: width, height: height)
+
         guard height > width else {
             return CGRect(origin: .zero, size: CGSize(width: width, height: height))
         }
 
-        let top = min(max(safeAreaInsets.top, 0), height)
-        let bottom = min(max(safeAreaInsets.bottom, 0), height - top)
-        let leading = min(max(safeAreaInsets.leading, 0), width)
-        let trailing = min(max(safeAreaInsets.trailing, 0), width - leading)
-        let contentWidth = width - leading - trailing
-        let contentHeight = height - top - bottom
-        let rendererHeight = min(contentWidth * 3 / 4, contentHeight)
+        let safe = CGRect(x: insets.leading, y: insets.top,
+                          width: width - insets.leading - insets.trailing,
+                          height: height - insets.top - insets.bottom)
+        if fitToScreen {
+            // The largest exact 3:4 rect inside the safe area, top-aligned and centred.
+            let fittedWidth = min(safe.width, safe.height * 3 / 4)
+            return CGRect(x: safe.minX + (safe.width - fittedWidth) / 2, y: safe.minY,
+                          width: fittedWidth, height: fittedWidth * 4 / 3)
+        }
+        return CGRect(x: safe.minX, y: safe.minY, width: safe.width,
+                      height: min(safe.width * 3 / 4, safe.height))
+    }
 
-        return CGRect(x: leading, y: top, width: contentWidth, height: rendererHeight)
+    private static func clamped(_ insets: SafeAreaInsets, width: CGFloat,
+                                height: CGFloat) -> SafeAreaInsets {
+        let top = min(max(insets.top, 0), height)
+        let bottom = min(max(insets.bottom, 0), height - top)
+        let leading = min(max(insets.leading, 0), width)
+        let trailing = min(max(insets.trailing, 0), width - leading)
+        return SafeAreaInsets(top: top, leading: leading, bottom: bottom, trailing: trailing)
     }
 }
 
@@ -89,7 +119,8 @@ struct ContentView: View {
                 session: session,
                 hidesCursorInFullScreen: session.isRunning && !session.isNativeMenuOpen
                     && settingsPresentation == nil,
-                isPresentationEnabled: isConventionalGameplayPresentationEnabled
+                isPresentationEnabled: isConventionalGameplayPresentationEnabled,
+                fitToScreen: usesPortraitFitToScreen
             )
 
             if session.isRunning {
@@ -330,6 +361,12 @@ struct ContentView: View {
     }
 
     #if os(iOS)
+    private var usesPortraitFitToScreen: Bool { session.presentationSettings.graphicsFillWidth }
+    #else
+    private var usesPortraitFitToScreen: Bool { false }
+    #endif
+
+    #if os(iOS)
     private var touchGameTitle: TouchGameTitle {
         session.title == .jak2 ? .jak2 : .jak1
     }
@@ -545,8 +582,38 @@ private struct GameplaySurface: View {
     let session: GameSession
     let hidesCursorInFullScreen: Bool
     let isPresentationEnabled: Bool
+    var fitToScreen = false
 
     var body: some View {
+        #if os(iOS)
+        GeometryReader { proxy in
+            let insets = GameplaySurfaceLayout.SafeAreaInsets(
+                top: proxy.safeAreaInsets.top,
+                leading: proxy.safeAreaInsets.leading,
+                bottom: proxy.safeAreaInsets.bottom,
+                trailing: proxy.safeAreaInsets.trailing
+            )
+            let displaySize = GameplaySurfaceLayout.displaySize(safeSize: proxy.size,
+                                                                safeAreaInsets: insets)
+            let frame = GameplaySurfaceLayout.safeLocalRect(
+                GameplaySurfaceLayout.frame(
+                    in: displaySize,
+                    safeAreaInsets: insets,
+                    fitToScreen: fitToScreen
+                ),
+                safeAreaInsets: insets
+            )
+
+            // One unconditional path keeps the surface's identity, and so its renderer, stable
+            // across rotation and layout toggles. This reader respects the safe area, so its
+            // insets are measured; full-display rects are placed relative to the safe origin.
+            framedGameSurface(ignoring: Self.surfaceIgnoresSafeAreaEdges(
+                frame: frame, displaySize: displaySize))
+                .frame(width: frame.width, height: frame.height)
+                .clipped()
+                .position(x: frame.midX, y: frame.midY)
+        }
+        #else
         GeometryReader { proxy in
             let frame = GameplaySurfaceLayout.frame(
                 in: proxy.size,
@@ -570,10 +637,19 @@ private struct GameplaySurface: View {
                     .position(x: frame.midX, y: frame.midY)
             }
         }
+        #endif
+    }
+
+    private var gameSurface: some View { framedGameSurface(ignoring: .all) }
+
+    /// A full-display frame keeps ignoring every edge so landscape stays edge to edge; an inset
+    /// frame ignores none so the drawable keeps that frame's exact aspect.
+    static func surfaceIgnoresSafeAreaEdges(frame: CGRect, displaySize: CGSize) -> Edge.Set {
+        frame.size == displaySize ? .all : []
     }
 
     @ViewBuilder
-    private var gameSurface: some View {
+    private func framedGameSurface(ignoring surfaceIgnoresSafeAreaEdges: Edge.Set) -> some View {
         #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
         GameSurfaceView(
             onFrame: { session.tick(targetPresentationTime: $0) },
@@ -588,8 +664,13 @@ private struct GameplaySurface: View {
             framesRequested: session.wantsFrameCallbacks,
             targetFrameRate: session.targetFrameRate,
             hidesCursorInFullScreen: hidesCursorInFullScreen,
-            isPresentationEnabled: isPresentationEnabled
+            isPresentationEnabled: isPresentationEnabled,
+            ignoresSafeAreaEdges: surfaceIgnoresSafeAreaEdges
         )
+        #if os(iOS)
+        // The surface has no touch handling on iOS; TouchSurfaceView is the only touch owner.
+        .allowsHitTesting(false)
+        #endif
         #endif
     }
 }

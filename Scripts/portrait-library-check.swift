@@ -269,8 +269,13 @@ do {
                         "launcher startup progress or visible failure reporting regressed"])
     }
     print("  ok   launcher exposes startup preparation and failures")
-    guard gameplaySurface.contains("if frame.origin == .zero, frame.size == proxy.size"),
-          let fullSurfaceBranch = gameplaySurface.range(of: "if frame.origin == .zero, frame.size == proxy.size"),
+    guard let iOSPath = gameplaySurface.range(of: "#if os(iOS)\n        GeometryReader"),
+          let otherPath = gameplaySurface.range(of: "#else\n        GeometryReader",
+                                                range: iOSPath.upperBound..<gameplaySurface.endIndex),
+          !gameplaySurface[iOSPath.upperBound..<otherPath.lowerBound].contains("if frame.origin"),
+          gameplaySurface[iOSPath.upperBound..<otherPath.lowerBound].contains("displaySize(safeSize:"),
+          let fullSurfaceBranch = gameplaySurface.range(of: "if frame.origin == .zero, frame.size == proxy.size",
+                                                        range: otherPath.upperBound..<gameplaySurface.endIndex),
           let portraitBranch = gameplaySurface.range(of: "} else {", range: fullSurfaceBranch.upperBound..<gameplaySurface.endIndex),
           !gameplaySurface[fullSurfaceBranch.upperBound..<portraitBranch.lowerBound].contains(".frame(width:")
     else {
@@ -278,7 +283,7 @@ do {
                       userInfo: [NSLocalizedDescriptionKey:
                         "landscape no longer preserves the unconstrained edge-to-edge surface"])
     }
-    print("  ok   landscape preserves the unconstrained edge-to-edge renderer surface")
+    print("  ok   iOS keeps one stable surface path; other platforms keep the edge-to-edge branch")
     guard content.contains("#if os(iOS)\n                TouchControlsView")
             && !content.contains("#if os(visionOS)\n                TouchControlsView") else {
         throw NSError(domain: "portrait-library-check", code: 3,

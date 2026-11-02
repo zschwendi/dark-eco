@@ -57,6 +57,24 @@ inline PresentationGeometry presentation_geometry(std::int32_t drawable_width,
     return result;
   }
 
+  // A portrait or otherwise narrower-than-4:3 drawable keeps the Classic horizontal resolution
+  // and grows the target vertically, so GOAL's Vert+ camera can show more above and below.
+  const bool drawable_is_narrower_than_classic =
+      drawable_at_base_height < base_at_drawable_height;
+  if (horizontal_plus && drawable_is_narrower_than_classic) {
+    const std::int64_t numerator =
+        std::int64_t{result.internal_width} * result.drawable_height;
+    const std::int64_t heightened =
+        (numerator + result.drawable_width - 1) / result.drawable_width;
+    result.internal_height = static_cast<std::int32_t>(std::min<std::int64_t>(
+        heightened, std::numeric_limits<std::int32_t>::max()));
+    result.draw_region_width = result.drawable_width;
+    result.draw_region_height = result.drawable_height;
+    result.game_display_width = result.drawable_width;
+    result.game_display_height = result.drawable_height;
+    return result;
+  }
+
   const std::int64_t by_width =
       std::int64_t{result.drawable_width} * result.internal_height;
   const std::int64_t by_height =
