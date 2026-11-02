@@ -1,6 +1,6 @@
 import Foundation
 
-// Deterministic Fit to Screen portrait geometry and iOS surface-framing checks.
+// Deterministic Fit to Screen full-display geometry and iOS surface-framing checks.
 
 func source(at path: String) throws -> String {
     try String(contentsOfFile: path, encoding: .utf8)
@@ -66,6 +66,9 @@ do {
     try require(content.contains("fitToScreen: usesPortraitFitToScreen")
                     && content.contains("private var usesPortraitFitToScreen: Bool { false }"),
                 "portrait Fit to Screen is iOS-only")
+    try require(layout.contains("guard height > width, !fitToScreen else")
+                    && !layout.contains("fittedWidth"),
+                "Fit to Screen returns the full display rather than a capped 3:4 picture")
 
     let directory = FileManager.default.temporaryDirectory
         .appending(path: "goalpad-presentation-layout-\(UUID().uuidString)",
@@ -97,18 +100,16 @@ do {
     let off = GameplaySurfaceLayout.frame(in: phone, safeAreaInsets: phoneInsets)
     check(off == CGRect(x: 0, y: 59, width: 393, height: 294.75),
           "portrait Fit to Screen off keeps the 4:3 top band")
-    let fit = GameplaySurfaceLayout.frame(in: phone, safeAreaInsets: phoneInsets, fitToScreen: true)
-    check(near(fit.width * 4, fit.height * 3), "portrait Fit to Screen is exactly 3:4")
-    check(near(fit.width, 393) && near(fit.minY, 59), "phone 3:4 uses the full safe width at the safe top")
-    check(inside(fit, phone, phoneInsets), "phone 3:4 stays inside the safe area")
+    check(inside(off, phone, phoneInsets), "portrait Fit to Screen off stays inside the safe area")
+    check(GameplaySurfaceLayout.frame(in: phone, safeAreaInsets: phoneInsets, fitToScreen: true)
+            == CGRect(origin: .zero, size: phone),
+          "phone portrait Fit to Screen fills the full display under system chrome")
 
     let tall = CGSize(width: 834, height: 1000)
     let tallInsets = GameplaySurfaceLayout.SafeAreaInsets(top: 24, leading: 10, bottom: 20, trailing: 10)
-    let tallFit = GameplaySurfaceLayout.frame(in: tall, safeAreaInsets: tallInsets, fitToScreen: true)
-    check(near(tallFit.width * 4, tallFit.height * 3) && near(tallFit.height, 956),
-          "near-square portrait fits the largest 3:4 by safe height")
-    check(near(tallFit.midX, 417) && inside(tallFit, tall, tallInsets),
-          "height-limited 3:4 is centred inside the safe area")
+    check(GameplaySurfaceLayout.frame(in: tall, safeAreaInsets: tallInsets, fitToScreen: true)
+            == CGRect(origin: .zero, size: tall),
+          "near-square portrait Fit to Screen fills the full display")
 
     let landscape = CGSize(width: 1194, height: 834)
     let landscapeInsets = GameplaySurfaceLayout.SafeAreaInsets(top: 0, leading: 24, bottom: 21, trailing: 24)
@@ -125,13 +126,27 @@ do {
     let display = GameplaySurfaceLayout.displaySize(safeSize: safeSize, safeAreaInsets: asymmetric)
     check(display == CGSize(width: 396, height: 835), "display size adds measured asymmetric insets")
     let displayFit = GameplaySurfaceLayout.frame(in: display, safeAreaInsets: asymmetric, fitToScreen: true)
-    check(near(displayFit.minX, 11) && near(displayFit.minY, 47)
-            && near(displayFit.width, 380) && near(displayFit.height, 380 * 4 / 3),
-          "asymmetric 3:4 starts at the safe origin with the full safe width")
+    check(displayFit == CGRect(origin: .zero, size: display),
+          "asymmetric portrait Fit to Screen fills the full display")
     let local = GameplaySurfaceLayout.safeLocalRect(displayFit, safeAreaInsets: asymmetric)
-    check(near(local.minX, 0) && near(local.minY, 0)
-            && local.maxX <= safeSize.width + 0.001 && local.maxY <= safeSize.height + 0.001,
-          "safe-local coordinates place the 3:4 picture inside the measured reader")
+    check(near(local.minX, -11) && near(local.minY, -47)
+            && near(local.maxX, safeSize.width + 5) && near(local.maxY, safeSize.height + 29),
+          "safe-local portrait Fit to Screen extends past every safe edge to the full bounds")
+
+    // A trailing sidebar inset in portrait: Fit to Screen still runs beneath it.
+    let sidebar = GameplaySurfaceLayout.SafeAreaInsets(top: 24, leading: 0, bottom: 20, trailing: 320)
+    let sidebarSafe = CGSize(width: 514, height: 1150)
+    let sidebarDisplay = GameplaySurfaceLayout.displaySize(safeSize: sidebarSafe, safeAreaInsets: sidebar)
+    let sidebarFit = GameplaySurfaceLayout.frame(in: sidebarDisplay, safeAreaInsets: sidebar,
+                                                 fitToScreen: true)
+    let sidebarLocal = GameplaySurfaceLayout.safeLocalRect(sidebarFit, safeAreaInsets: sidebar)
+    check(sidebarFit == CGRect(origin: .zero, size: sidebarDisplay)
+            && near(sidebarLocal.minY, -24) && near(sidebarLocal.maxX, sidebarSafe.width + 320)
+            && near(sidebarLocal.maxY, sidebarSafe.height + 20),
+          "portrait Fit to Screen extends beneath a trailing sidebar and the bottom inset")
+    let sidebarOff = GameplaySurfaceLayout.frame(in: sidebarDisplay, safeAreaInsets: sidebar)
+    check(sidebarOff == CGRect(x: 0, y: 24, width: 514, height: 385.5),
+          "sidebar portrait Fit to Screen off keeps the safe 4:3 top band")
     let displayOff = GameplaySurfaceLayout.frame(in: display, safeAreaInsets: asymmetric)
     check(near(displayOff.width, 380) && near(displayOff.height, 285) && near(displayOff.minY, 47),
           "asymmetric Fit to Screen off keeps the 4:3 top band")
@@ -145,6 +160,19 @@ do {
             && GameplaySurfaceLayout.safeLocalRect(wideFrame, safeAreaInsets: .init(
                 top: 0, leading: 47, bottom: 21, trailing: 0)).minX == -47,
           "measured landscape stays full-display and extends past the safe leading edge")
+    let landscapeSidebar = GameplaySurfaceLayout.SafeAreaInsets(top: 24, leading: 0, bottom: 20, trailing: 320)
+    let landscapeSafe = CGSize(width: 874, height: 790)
+    let landscapeDisplay = GameplaySurfaceLayout.displaySize(safeSize: landscapeSafe,
+                                                             safeAreaInsets: landscapeSidebar)
+    for fitToScreen in [false, true] {
+        let frame = GameplaySurfaceLayout.frame(in: landscapeDisplay, safeAreaInsets: landscapeSidebar,
+                                                fitToScreen: fitToScreen)
+        let local = GameplaySurfaceLayout.safeLocalRect(frame, safeAreaInsets: landscapeSidebar)
+        check(frame == CGRect(origin: .zero, size: landscapeDisplay) && near(local.minY, -24)
+                && near(local.maxX, landscapeSafe.width + 320)
+                && near(local.maxY, landscapeSafe.height + 20),
+              "landscape extends beneath a trailing sidebar (Fit to Screen \\(fitToScreen))")
+    }
     """
     let programURL = directory.appending(path: "main.swift")
     try program.write(to: programURL, atomically: true, encoding: .utf8)

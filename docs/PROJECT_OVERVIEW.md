@@ -188,14 +188,17 @@ configuration. Pinch input is not part of the frozen touch contract; camera zoom
 uses one explicit semantic toggle. A device-local settings-sync opt-out does not
 disable iCloud saves.
 
-**Experimental portrait presentation (Build 283 candidate):** On iOS, Fit to
-Screen uses a true 3:4 gameplay viewport in portrait. The shared game-camera
-math preserves the normal horizontal field of view and extends the vertical
-view for aspects narrower than 4:3. Fit to Screen off keeps the previous 4:3
-portrait presentation; landscape, macOS and visionOS window layouts retain their
-existing behavior. HUD, cutscene and physical-device acceptance remain pending.
-Automatic Duo laptop posture switching is a separate planned follow-up; it is
-not part of this portrait checkpoint.
+**Experimental portrait presentation (Build 284 candidate):** On iOS, Fit to
+Screen fills the whole display in portrait and landscape, drawing behind the
+system sidebar and safe-area overlays. The shared game-camera math preserves
+the normal horizontal field of view and extends the vertical view for aspects
+narrower than 4:3. Fit to Screen off keeps the previous 4:3 portrait picture.
+Touch controls retain their existing safe-area layout. The iPhone configuration
+also allows upside-down portrait; actual orientation support depends on the
+device and system. macOS and visionOS
+window layouts retain their existing behavior. HUD, cutscene and physical-device
+acceptance remain pending. Automatic Duo laptop posture switching is a separate
+planned follow-up; it is not part of this portrait checkpoint.
 
 The ordinary Graphics settings expose the existing 1x–4x internal-resolution
 selector without enabling Developer Logs. Resolution stays device-local and

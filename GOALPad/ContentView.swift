@@ -25,27 +25,21 @@ nonisolated enum GameplaySurfaceLayout {
     }
 
     /// `container` and `safeAreaInsets` describe the full display, including its unsafe edges.
-    /// Portrait keeps the established 4:3 top band unless Fit to Screen asks for the largest
-    /// exact 3:4 picture inside the safe area. Ordinary landscape keeps its full existing surface.
+    /// Fit to Screen fills the full display, under system chrome, in every orientation. Without it
+    /// portrait keeps the established 4:3 top band and ordinary landscape its full existing surface.
     static func frame(in container: CGSize, safeAreaInsets: SafeAreaInsets,
                       fitToScreen: Bool = false) -> CGRect {
         let width = max(container.width, 0)
         let height = max(container.height, 0)
         let insets = clamped(safeAreaInsets, width: width, height: height)
 
-        guard height > width else {
+        guard height > width, !fitToScreen else {
             return CGRect(origin: .zero, size: CGSize(width: width, height: height))
         }
 
         let safe = CGRect(x: insets.leading, y: insets.top,
                           width: width - insets.leading - insets.trailing,
                           height: height - insets.top - insets.bottom)
-        if fitToScreen {
-            // The largest exact 3:4 rect inside the safe area, top-aligned and centred.
-            let fittedWidth = min(safe.width, safe.height * 3 / 4)
-            return CGRect(x: safe.minX + (safe.width - fittedWidth) / 2, y: safe.minY,
-                          width: fittedWidth, height: fittedWidth * 4 / 3)
-        }
         return CGRect(x: safe.minX, y: safe.minY, width: safe.width,
                       height: min(safe.width * 3 / 4, safe.height))
     }
