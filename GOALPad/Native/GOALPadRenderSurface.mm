@@ -694,6 +694,13 @@ static GOALPadCameraCorrectionTailFrame makeCameraCorrectionTailFrame(
   goal_kernel_core_set_portable_display_enabled(_horizontalPlusEnabled);
   goal_kernel_core_set_portable_display_size(geometry.game_display_width,
                                              geometry.game_display_height);
+#if TARGET_OS_IOS && !TARGET_OS_MACCATALYST && !TARGET_OS_VISION
+  goal_kernel_core_set_portrait_font_viewport(_horizontalPlusEnabled,
+                                             geometry.game_display_width,
+                                             geometry.game_display_height);
+#else
+  goal_kernel_core_set_portrait_font_viewport(false, 0, 0);
+#endif
 #endif
 }
 
