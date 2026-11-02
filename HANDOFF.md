@@ -1,3 +1,20 @@
+# November 2, 2026 — Private Build 287 ready; device acceptance pending
+
+Compiled app source `ca0ddcb0ce2d387cea56527068ffc728313091e0`; nested engine
+`b8d08811accfd1e5e77a1571bddd766ca6fa7d7e` unchanged. All six focused checks,
+the C++ history test, and Release iOS/simulator/visionOS/macOS builds passed.
+The iOS package passed signing, source-pack and archive/hash verification.
+Exact commands/receipts: workspace `.agent-builds/import-freeze-287-20261102/VALIDATION.json`.
+Private signed app/IPA and test plan are preserved in that artifact directory.
+
+Importer alternative and Jak II resolution fix are candidates awaiting device
+acceptance. Jak II freezing is NOT fixed: this build adds bounded opt-in
+scene/audio/render diagnostics for the next reproduction. No simulator
+playthrough or physical-device access performed. Device choice/save-safe
+permission requested. Public286 remains current. DO NOT PUSH source or public
+IPAs before Zach tests and accepts. Issue5 records this delivery gate;19/14/23
+contain scoped status. See artifact REPORT.md and ACTIVE_HANDOFF.md for next steps.
+
 # November 2, 2026 — Importer and Jak II freeze fixes, device test before publishing
 
 The maintainer requested actual Claude Code Opus workers to fix the newly
