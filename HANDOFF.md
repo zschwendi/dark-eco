@@ -1,3 +1,29 @@
+## 2026-11-02: Build 274 execution blocked on storage
+
+The same storage gate has now been confirmed on three consecutive goal turns.
+The final resource check reports 15,408,136,192 free bytes (14.35 GiB), below
+the unchanged 19,327,352,832-byte (18 GiB) start requirement by 3,919,216,640
+bytes (3.65 GiB). No competing compiler or live task build exists. Neither
+task-owned DerivedData nor the canonical host build directory exists, so no
+safe disposable output in this task can clear the shortfall. Do not lower
+guards or clean unrelated projects. The persistent goal is being marked
+blocked rather than continuing automatic no-progress retries.
+
+Both prepared-data trees remain present; data supply and APFS replay staging
+are complete. No whole-app 274 build, ordinary Kor/Dark Jak replay, signature
+verification or physical acceptance is claimed. Source was clean at app
+`918c4155ebdbfc95a684161be5c026e62d9b2bca` and engine/gitlink
+`f391f168e10ab4044d6056d4c2b8f98d2a0703c6` before this documentation-only
+checkpoint. Build 274 remains unchanged. The private `RUN_STATUS.md` records
+the resulting local/remote documentation hash and exact next command.
+
+Resume when at least 18 GiB is actually free: run the existing serialized
+two-job simulator build, then the already documented ordinary Kor approach
+and standing test, Dark Jak chained attacks, and signed generic-iOS package
+verification. Preserve all private data, Vision 271 and physical-device
+restrictions. Original AstraBoard work IDs are still absent locally; the
+pending handoff is retained privately without fabricating replacement scopes.
+
 ## 2026-10-28 late: prepared-data blocker resolved; storage gate remains
 
 The supplied private Jak II data is now present and verified. Do not ask the
