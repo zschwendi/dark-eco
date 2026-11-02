@@ -5,6 +5,12 @@ import SwiftUI
 import UIKit
 #endif
 
+/// The touch layer's local bounds and insets; any change retires held input.
+nonisolated struct TouchLayoutRegion: Equatable, Sendable {
+    let size: CGSize
+    let safeAreaInsets: TouchSafeAreaInsets
+}
+
 /// The frozen Build 96 gameplay controls plus the later native-menu touch layer.
 struct TouchControlsView: View {
     let controls: TouchControls
@@ -20,6 +26,10 @@ struct TouchControlsView: View {
     let facePromptTouchSnapshot: NativeFacePromptTouchSnapshot
     let reclaimTouchInput: () -> Bool
     let openSettings: () -> Void
+    /// The laptop lower region supplies its own (zero) insets; `nil` reads this view's safe area.
+    var layoutSafeAreaInsets: TouchSafeAreaInsets? = nil
+    /// The laptop lower region passes no edges so this layer, and its hit testing, stays framed.
+    var ignoresSafeAreaEdges: Edge.Set = .all
 
     fileprivate static let space = "GOALPadTouchControls"
     private var usesCompactSessionChrome: Bool {
@@ -183,7 +193,7 @@ struct TouchControlsView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let safeAreaInsets = TouchSafeAreaInsets(
+            let safeAreaInsets = layoutSafeAreaInsets ?? TouchSafeAreaInsets(
                 top: proxy.safeAreaInsets.top,
                 leading: proxy.safeAreaInsets.leading,
                 bottom: proxy.safeAreaInsets.bottom,
@@ -240,7 +250,7 @@ struct TouchControlsView: View {
                         .padding(.horizontal, 20)
                         .padding(.bottom, reservesCapturedSessionRow
                             ? layout.menuControlsBottomInset
-                            : max(20, proxy.safeAreaInsets.bottom))
+                            : max(20, safeAreaInsets.bottom))
 
                     capturedMenuChrome(in: proxy, layout: layout)
                 }
@@ -257,7 +267,7 @@ struct TouchControlsView: View {
                                                 reclaimTouchInput: reclaimTouchInput)
                         .padding(.horizontal, 20)
                         .padding(.bottom, capturesWarpGateTouchInput
-                            ? max(20, proxy.safeAreaInsets.bottom)
+                            ? max(20, safeAreaInsets.bottom)
                             : layout.warpPromptBottomInset)
                 }
 
@@ -271,12 +281,18 @@ struct TouchControlsView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity,
                                alignment: .bottomTrailing)
                         .padding(.horizontal, 20)
-                        .padding(.bottom, max(20, proxy.safeAreaInsets.bottom))
+                        .padding(.bottom, max(20, safeAreaInsets.bottom))
                 }
+            }
+            .onChange(of: TouchLayoutRegion(size: proxy.size, safeAreaInsets: safeAreaInsets)) {
+                // A held SwiftUI menu/warp/face button or repeating direction would otherwise
+                // outlive the region it was pressed in. Raw touches retire in TouchSurfaceView.
+                controls.reset()
+                controls.restoreGameplayChromeAfterInterruption()
             }
         }
         .coordinateSpace(.named(Self.space))
-        .ignoresSafeArea()
+        .ignoresSafeArea(.all, edges: ignoresSafeAreaEdges)
     }
 
     private func titleStartArtwork(frame: CGRect) -> some View {
@@ -1302,10 +1318,18 @@ private final class TouchSurfaceView: UIView {
     private(set) var controls: TouchControls?
     var lookAroundState: GOALPadLookAroundState = .unknown
     var isSuppressed = false
-    var surfaceSafeAreaInsets = TouchSafeAreaInsets.zero
+    var surfaceSafeAreaInsets = TouchSafeAreaInsets.zero {
+        didSet {
+            if surfaceSafeAreaInsets != oldValue { retireHeldTouchesForLayoutChange() }
+        }
+    }
     var reclaimTouchInput: (() -> Bool)?
     private let haptics = TouchHapticDriver()
     private var activeTouchIdentifiers: Set<ObjectIdentifier> = []
+    /// Fingers held across a layout change stay ignored until they lift, so an old finger never
+    /// becomes a fresh gesture in coordinates it was not pressed in.
+    private var retiredTouchIdentifiers: Set<ObjectIdentifier> = []
+    private var lastLayoutSize: CGSize?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -1317,7 +1341,40 @@ private final class TouchSurfaceView: UIView {
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
-        if window == nil { cancelAllTouches() }
+        if window == nil {
+            cancelAllTouches()
+            retiredTouchIdentifiers.removeAll()
+        }
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        defer { lastLayoutSize = bounds.size }
+        if let lastLayoutSize, lastLayoutSize != bounds.size {
+            retireHeldTouchesForLayoutChange()
+        }
+    }
+
+    /// TouchControlsView resets held button and menu state for the same region change.
+    /// The laptop lower region frames this view; no point outside it may become gameplay.
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        bounds.contains(point)
+    }
+
+    private func retireHeldTouchesForLayoutChange() {
+        guard !activeTouchIdentifiers.isEmpty else { return }
+        retiredTouchIdentifiers.formUnion(activeTouchIdentifiers)
+        cancelAllTouches()
+    }
+
+    private func liveTouches(_ touches: Set<UITouch>) -> [UITouch] {
+        touches.filter { !retiredTouchIdentifiers.contains(ObjectIdentifier($0)) }
+    }
+
+    private func forgetRetiredTouches(_ touches: Set<UITouch>) {
+        for touch in touches where !Self.isActive(touch.phase) {
+            retiredTouchIdentifiers.remove(ObjectIdentifier(touch))
+        }
     }
 
     func setControls(_ controls: TouchControls) {
@@ -1337,7 +1394,7 @@ private final class TouchSurfaceView: UIView {
         // raw multitouch path; recovery belongs here, before the same touches are mapped.
         reconcileTouchOwnership(with: event, updating: touches)
         TouchControlsView.forwardGameplayTouchBatch(
-            Array(touches), isSuppressed: isSuppressed,
+            liveTouches(touches), isSuppressed: isSuppressed,
             reclaim: { reclaimTouchInput?() ?? false }) { touch in
             controls?.began(ObjectIdentifier(touch), at: touch.location(in: self),
                             in: bounds.size, safeAreaInsets: surfaceSafeAreaInsets,
@@ -1348,26 +1405,28 @@ private final class TouchSurfaceView: UIView {
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         reconcileTouchOwnership(with: event, updating: touches)
-        for touch in touches {
+        for touch in liveTouches(touches) {
             controls?.moved(ObjectIdentifier(touch), to: touch.location(in: self))
         }
         flushHaptics()
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for touch in touches {
+        for touch in liveTouches(touches) {
             controls?.ended(ObjectIdentifier(touch), at: touch.timestamp,
                             lookAroundState: lookAroundState)
         }
         reconcileTouchOwnership(with: event, updating: touches)
+        forgetRetiredTouches(touches)
         flushHaptics()
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for touch in touches {
+        for touch in liveTouches(touches) {
             controls?.cancelled(ObjectIdentifier(touch))
         }
         reconcileTouchOwnership(with: event, updating: touches)
+        forgetRetiredTouches(touches)
         flushHaptics()
     }
 
@@ -1387,6 +1446,7 @@ private final class TouchSurfaceView: UIView {
                 liveIdentifiers.remove(id)
             }
         }
+        liveIdentifiers.subtract(retiredTouchIdentifiers)
         controls?.reconcileActiveTouches(liveIdentifiers)
         activeTouchIdentifiers = liveIdentifiers
     }

@@ -69,6 +69,31 @@ do {
     try require(layout.contains("guard height > width, !fitToScreen else")
                     && !layout.contains("fittedWidth"),
                 "Fit to Screen returns the full display rather than a capped 3:4 picture")
+    try require(content.contains("@State private var isAutomaticLaptopPosture = false")
+                    && content.contains("DuoPostureObserver(onChange: { isLaptop in isAutomaticLaptopPosture = isLaptop })")
+                    && content.contains("session.isRunning && isAutomaticLaptopPosture")
+                    && content.contains("private var usesAutomaticLaptopLayout: Bool { false }")
+                    && !content.contains("AppStorage(\"deviceLaptopLayout")
+                    && !content.contains("DevicePresentationPreferences")
+                    && !content.contains("CoreMotion"),
+                "laptop presentation is automatic, running-only, unpersisted and detector-owned")
+    try require(content.contains(".onChange(of: usesEffectiveFitToScreen, initial: true)")
+                    && content.contains("session.settings.horizontalPlusEnabled = enabled")
+                    && !content.contains("presentationSettings.setGraphicsFillWidth")
+                    && !content.contains("presentationSettings.graphicsFillWidth = "),
+                "native Fit follows the effective policy without rewriting the saved setting")
+    try require(gameplaySurface.contains("laptopLayout: laptopLayout")
+                    && gameplaySurface.contains("if laptopLayout { return [.top, .horizontal] }"),
+                "the laptop picture reaches top/side chrome on the same stable surface path")
+    try require(content.contains(".contentShape(Rectangle())")
+                    && content.contains("ignoresSafeAreaEdges: placement.ignoresSafeArea")
+                    && content.contains("laptopLayout: usesAutomaticLaptopLayout)"),
+                "one framed, clipped touch container uses the same laptop mode as the picture")
+    try require(content.contains(".frame(width: frame.width, height: frame.height)\n"
+                        + "                        // Inside the framed touch region")
+                    && content.contains(".overlay(alignment: .topLeading) {")
+                    && content.contains("#if !os(visionOS) && !os(iOS)\n                if session.isNativeMenuOpen"),
+                "iOS diagnostics live in the framed touch region; root diagnostics are Mac-only")
 
     let directory = FileManager.default.temporaryDirectory
         .appending(path: "goalpad-presentation-layout-\(UUID().uuidString)",
@@ -173,6 +198,48 @@ do {
                 && near(local.maxY, landscapeSafe.height + 20),
               "landscape extends beneath a trailing sidebar (Fit to Screen \\(fitToScreen))")
     }
+
+    check(!GameplaySurfaceLayout.effectiveFitToScreen(savedFitToScreen: false, automaticLaptopActive: false)
+            && GameplaySurfaceLayout.effectiveFitToScreen(savedFitToScreen: false, automaticLaptopActive: true)
+            && GameplaySurfaceLayout.effectiveFitToScreen(savedFitToScreen: true, automaticLaptopActive: false)
+            && GameplaySurfaceLayout.effectiveFitToScreen(savedFitToScreen: true, automaticLaptopActive: true),
+          "effective native Fit is saved Fit or the automatic laptop posture")
+
+    // Laptop posture: the picture fills the entire upper half; controls stay in the safe lower half.
+    let laptopSafe = CGSize(width: 380, height: 759)
+    let laptopDisplay = GameplaySurfaceLayout.displaySize(safeSize: laptopSafe, safeAreaInsets: asymmetric)
+    for fitToScreen in [false, true] {
+        check(GameplaySurfaceLayout.frame(in: laptopDisplay, safeAreaInsets: asymmetric,
+                                          fitToScreen: fitToScreen, laptopLayout: true)
+                == CGRect(x: 0, y: 0, width: 396, height: 417.5),
+              "laptop picture fills the full upper half without aspect fit (Fit to Screen \\(fitToScreen))")
+    }
+    let laptopPicture = GameplaySurfaceLayout.frame(in: laptopDisplay, safeAreaInsets: asymmetric,
+                                                    laptopLayout: true)
+    let laptopPictureLocal = GameplaySurfaceLayout.safeLocalRect(laptopPicture, safeAreaInsets: asymmetric)
+    check(near(laptopPictureLocal.minX, -11) && near(laptopPictureLocal.minY, -47)
+            && near(laptopPictureLocal.maxX, laptopSafe.width + 5),
+          "safe-local laptop picture reaches beneath the top and side insets")
+    let laptopControls = GameplaySurfaceLayout.touchControlsPlacement(
+        in: laptopDisplay, safeAreaInsets: asymmetric, laptopLayout: true)
+    check(laptopControls.frame == CGRect(x: 11, y: 417.5, width: 380, height: 388.5)
+            && !laptopControls.ignoresSafeArea
+            && laptopControls.safeAreaInsets == .init(top: 0, leading: 0, bottom: 0, trailing: 0),
+          "laptop controls take the safe lower half with zero local insets")
+    check(laptopControls.frame.minY >= laptopPicture.maxY
+            && !laptopControls.frame.intersects(laptopPicture)
+            && inside(laptopControls.frame, laptopDisplay, asymmetric),
+          "laptop controls are disjoint from the picture and inside every lower safe edge")
+    let laptopControlsLocal = GameplaySurfaceLayout.safeLocalRect(laptopControls.frame,
+                                                                  safeAreaInsets: asymmetric)
+    check(laptopControlsLocal == CGRect(x: 0, y: 370.5, width: 380, height: 388.5)
+            && near(laptopControlsLocal.maxY, laptopSafe.height),
+          "safe-local laptop controls end at the measured safe bottom")
+    let ordinaryControls = GameplaySurfaceLayout.touchControlsPlacement(
+        in: laptopDisplay, safeAreaInsets: asymmetric, laptopLayout: false)
+    check(ordinaryControls == .init(frame: CGRect(origin: .zero, size: laptopDisplay),
+                                    safeAreaInsets: nil, ignoresSafeArea: true),
+          "ordinary controls keep the full-display safe-area-ignoring layer")
     """
     let programURL = directory.appending(path: "main.swift")
     try program.write(to: programURL, atomically: true, encoding: .utf8)

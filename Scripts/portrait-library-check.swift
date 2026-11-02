@@ -284,8 +284,10 @@ do {
                         "landscape no longer preserves the unconstrained edge-to-edge surface"])
     }
     print("  ok   iOS keeps one stable surface path; other platforms keep the edge-to-edge branch")
-    guard content.contains("#if os(iOS)\n                TouchControlsView")
-            && !content.contains("#if os(visionOS)\n                TouchControlsView") else {
+    guard content.contains("#if os(iOS)\n                GeometryReader { proxy in")
+            && content.contains("                    TouchControlsView(")
+            && !content.contains("#if os(visionOS)\n                TouchControlsView")
+            && !content.contains("#if os(visionOS)\n                GeometryReader { proxy in") else {
         throw NSError(domain: "portrait-library-check", code: 3,
                       userInfo: [NSLocalizedDescriptionKey:
                         "visionOS gained a gameplay touch-control overlay behind library cards"])

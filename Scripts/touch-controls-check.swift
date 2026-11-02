@@ -99,6 +99,44 @@ private func close(_ lhs: CGFloat, _ rhs: CGFloat, tolerance: CGFloat = 0.001) -
 }
 
 @MainActor
+private func laptopLowerRegionKeepsLocalInput() {
+    print("The automatic laptop lower region keeps every target and input local")
+    let size = CGSize(width: 984, height: 371)
+    let bounds = CGRect(origin: .zero, size: size)
+    let layout = ModernTouchLayout(size: size, safeAreaInsets: .zero,
+                                   usesCompactSessionChrome: true)
+    for (name, frame) in [("movement capture", layout.movementCaptureFrame),
+                          ("right stick", layout.rightStickArtworkFrame),
+                          ("select", layout.selectPillFrame),
+                          ("start", layout.startPillFrame),
+                          ("stats", layout.statsPillFrame),
+                          ("zoom", layout.zoomFrame)] {
+        check(bounds.contains(frame), "lower-region \(name) frame stays inside local bounds")
+    }
+
+    var run = Runner(style: .modern, size: size, rightStickFrame: layout.rightStickArtworkFrame)
+    let movement = Finger()
+    let camera = Finger()
+    let home = CGPoint(x: layout.movementArtworkFrame.midX, y: layout.movementArtworkFrame.midY)
+    let right = CGPoint(x: layout.rightStickArtworkFrame.midX,
+                        y: layout.rightStickArtworkFrame.midY)
+    run.down(movement, home)
+    run.down(camera, right)
+    run.move(movement, CGPoint(x: home.x + 30, y: home.y))
+    run.move(camera, CGPoint(x: right.x - 30, y: right.y))
+    let held = run.frame()
+    check(run.controls.stick?.origin == home && run.controls.touches.count == 2
+            && held.leftX != neutral,
+          "movement and camera fingers own their roles simultaneously in local coordinates")
+
+    run.controls.reset()
+    let released = run.frame()
+    check(run.controls.touches.isEmpty && run.controls.stick == nil
+            && released.leftX == neutral && released.leftY == neutral,
+          "reset releases held lower-region input")
+}
+
+@MainActor
 private func modernLayoutIsCompactAndSafe() {
     print("Modern artwork geometry keeps input semantics and clears the centre controls")
     check(ModernTouchLayout.movementKnobSize == 32,
@@ -3813,6 +3851,7 @@ struct TouchControlsCheck {
         controllerSuppressionKeepsTouchRecovery()
         gameplayChromeUsesOneIdleStateWithoutGestureSuppression()
         modernLayoutIsCompactAndSafe()
+        laptopLowerRegionKeepsLocalInput()
         gameplayTouchBatchHasOneOrderedOwner()
         controllerTouchTransitionsNeverRetainGameplayOwnership()
         nativeMenuActionsAreTruthfullyGatedAndLabelled()

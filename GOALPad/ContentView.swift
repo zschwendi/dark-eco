@@ -9,6 +9,21 @@ nonisolated enum GameplaySurfaceLayout {
         let trailing: CGFloat
     }
 
+    struct TouchControlsPlacement: Equatable, Sendable {
+        /// Full-display coordinates.
+        let frame: CGRect
+        /// `nil` keeps the touch layer's own full-display safe area.
+        let safeAreaInsets: SafeAreaInsets?
+        /// The laptop lower region keeps the touch layer, and so its hit testing, inside `frame`.
+        let ignoresSafeArea: Bool
+    }
+
+    /// The renderer's Fit policy. The automatic laptop picture must fill its upper region even
+    /// when the saved setting is off; the saved value itself is never rewritten.
+    static func effectiveFitToScreen(savedFitToScreen: Bool, automaticLaptopActive: Bool) -> Bool {
+        savedFitToScreen || automaticLaptopActive
+    }
+
     /// A safe-area-respecting reader measures `safeSize` and the insets around it; the full
     /// display is that size plus the insets.
     static func displaySize(safeSize: CGSize, safeAreaInsets: SafeAreaInsets) -> CGSize {
@@ -27,11 +42,17 @@ nonisolated enum GameplaySurfaceLayout {
     /// `container` and `safeAreaInsets` describe the full display, including its unsafe edges.
     /// Fit to Screen fills the full display, under system chrome, in every orientation. Without it
     /// portrait keeps the established 4:3 top band and ordinary landscape its full existing surface.
+    /// The automatic laptop posture fills the entire upper half, under system chrome, without
+    /// aspect fitting.
     static func frame(in container: CGSize, safeAreaInsets: SafeAreaInsets,
-                      fitToScreen: Bool = false) -> CGRect {
+                      fitToScreen: Bool = false, laptopLayout: Bool = false) -> CGRect {
         let width = max(container.width, 0)
         let height = max(container.height, 0)
         let insets = clamped(safeAreaInsets, width: width, height: height)
+
+        if laptopLayout {
+            return CGRect(x: 0, y: 0, width: width, height: height / 2)
+        }
 
         guard height > width, !fitToScreen else {
             return CGRect(origin: .zero, size: CGSize(width: width, height: height))
@@ -42,6 +63,27 @@ nonisolated enum GameplaySurfaceLayout {
                           height: height - insets.top - insets.bottom)
         return CGRect(x: safe.minX, y: safe.minY, width: safe.width,
                       height: min(safe.width * 3 / 4, safe.height))
+    }
+
+    /// Ordinary layouts keep the full-display touch layer. The laptop lower region keeps every
+    /// touch target in the safe part of the display's lower half, so it needs no insets of its own.
+    static func touchControlsPlacement(in container: CGSize, safeAreaInsets: SafeAreaInsets,
+                                       laptopLayout: Bool) -> TouchControlsPlacement {
+        let width = max(container.width, 0)
+        let height = max(container.height, 0)
+        guard laptopLayout else {
+            return TouchControlsPlacement(
+                frame: CGRect(origin: .zero, size: CGSize(width: width, height: height)),
+                safeAreaInsets: nil, ignoresSafeArea: true)
+        }
+        let insets = clamped(safeAreaInsets, width: width, height: height)
+        let top = max(height / 2, insets.top)
+        return TouchControlsPlacement(
+            frame: CGRect(x: insets.leading, y: top,
+                          width: width - insets.leading - insets.trailing,
+                          height: max(height - insets.bottom - top, 0)),
+            safeAreaInsets: SafeAreaInsets(top: 0, leading: 0, bottom: 0, trailing: 0),
+            ignoresSafeArea: false)
     }
 
     private static func clamped(_ insets: SafeAreaInsets, width: CGFloat,
@@ -78,6 +120,8 @@ struct ContentView: View {
     @State private var isShowingTouchControlsGuide = false
     @AppStorage("jak1TouchControlsGuideVersion") private var jak1TouchControlsGuideVersion = 0
     @AppStorage("jak2TouchControlsGuideVersion") private var jak2TouchControlsGuideVersion = 0
+    /// Reported by DuoPostureObserver; never persisted and never set manually.
+    @State private var isAutomaticLaptopPosture = false
     #endif
     #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
     @State private var isShowingMotionControlsGuide = false
@@ -114,26 +158,64 @@ struct ContentView: View {
                 hidesCursorInFullScreen: session.isRunning && !session.isNativeMenuOpen
                     && settingsPresentation == nil,
                 isPresentationEnabled: isConventionalGameplayPresentationEnabled,
-                fitToScreen: usesPortraitFitToScreen
+                fitToScreen: usesPortraitFitToScreen,
+                laptopLayout: usesAutomaticLaptopLayout
             )
 
             if session.isRunning {
                 #if os(iOS)
-                TouchControlsView(controls: session.touch,
-                                  lookAroundState: session.lookAroundState,
-                                  isSuppressed: session.input.isDriving,
-                                  gameMode: session.gameMode,
-                                  titleStartState: session.titleStartState,
-                                  runReadiness: session.runReadiness,
-                                  progressMenuSnapshot: session.progressMenuSnapshot,
-                                  warpGateTouchSnapshot: session.warpGateTouchSnapshot,
-                                  cutsceneSkipTouchSnapshot: session.cutsceneSkipTouchSnapshot,
-                                  facePromptTouchSnapshot: session.facePromptTouchSnapshot,
-                                  reclaimTouchInput: session.input.reclaimTouchInput,
-                                  openSettings: presentSettings)
+                GeometryReader { proxy in
+                    // Same safe-area-respecting measurement as GameplaySurface, so the picture and
+                    // the controls come from one display rect.
+                    let insets = GameplaySurfaceLayout.SafeAreaInsets(
+                        top: proxy.safeAreaInsets.top,
+                        leading: proxy.safeAreaInsets.leading,
+                        bottom: proxy.safeAreaInsets.bottom,
+                        trailing: proxy.safeAreaInsets.trailing)
+                    let placement = GameplaySurfaceLayout.touchControlsPlacement(
+                        in: GameplaySurfaceLayout.displaySize(safeSize: proxy.size,
+                                                              safeAreaInsets: insets),
+                        safeAreaInsets: insets,
+                        laptopLayout: usesAutomaticLaptopLayout)
+                    let frame = GameplaySurfaceLayout.safeLocalRect(placement.frame,
+                                                                    safeAreaInsets: insets)
+                    TouchControlsView(controls: session.touch,
+                                      lookAroundState: session.lookAroundState,
+                                      isSuppressed: session.input.isDriving,
+                                      gameMode: session.gameMode,
+                                      titleStartState: session.titleStartState,
+                                      runReadiness: session.runReadiness,
+                                      progressMenuSnapshot: session.progressMenuSnapshot,
+                                      warpGateTouchSnapshot: session.warpGateTouchSnapshot,
+                                      cutsceneSkipTouchSnapshot: session.cutsceneSkipTouchSnapshot,
+                                      facePromptTouchSnapshot: session.facePromptTouchSnapshot,
+                                      reclaimTouchInput: session.input.reclaimTouchInput,
+                                      openSettings: presentSettings,
+                                      layoutSafeAreaInsets: placement.safeAreaInsets.map {
+                                          TouchSafeAreaInsets(top: $0.top, leading: $0.leading,
+                                                              bottom: $0.bottom,
+                                                              trailing: $0.trailing)
+                                      },
+                                      ignoresSafeAreaEdges: placement.ignoresSafeArea
+                                          ? .all : [])
+                        .frame(width: frame.width, height: frame.height)
+                        // Inside the framed touch region, so the laptop posture keeps these
+                        // interactive diagnostics below the split too.
+                        .overlay(alignment: .topLeading) {
+                            if session.isNativeMenuOpen
+                                && session.presentationSettings.developerLogsEnabled {
+                                DiagnosticsOverlay(session: session)
+                                    .frame(maxWidth: 620, alignment: .leading)
+                                    .padding()
+                            }
+                        }
+                        .contentShape(Rectangle())
+                        .clipped()
+                        .position(x: frame.midX, y: frame.midY)
+                }
                 #endif
 
-                #if !os(visionOS)
+                #if !os(visionOS) && !os(iOS)
                 if session.isNativeMenuOpen
                     && session.presentationSettings.developerLogsEnabled {
                     DiagnosticsOverlay(session: session)
@@ -173,6 +255,14 @@ struct ContentView: View {
                 }
             }
         }
+        #if os(iOS)
+        // The external detector alone decides the posture; one stable observer feeds this state.
+        .background {
+            DuoPostureObserver(onChange: { isLaptop in isAutomaticLaptopPosture = isLaptop })
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+        #endif
         #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
         // The plain window has no system glass, so this clip is the window's visible outline.
         // Changing only the radius keeps the game surface's view identity stable.
@@ -204,8 +294,7 @@ struct ContentView: View {
             }
         }
         .onChange(of: scenePhase) { _, phase in session.scenePhaseChanged(to: phase) }
-        .onChange(of: session.presentationSettings.graphicsFillWidth, initial: true) {
-            _, enabled in
+        .onChange(of: usesEffectiveFitToScreen, initial: true) { _, enabled in
             session.settings.horizontalPlusEnabled = enabled
         }
         #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_STEREO
@@ -356,8 +445,22 @@ struct ContentView: View {
 
     #if os(iOS)
     private var usesPortraitFitToScreen: Bool { session.presentationSettings.graphicsFillWidth }
+
+    /// Only a running game leaves its ordinary presentation for the detected laptop posture.
+    private var usesAutomaticLaptopLayout: Bool { session.isRunning && isAutomaticLaptopPosture }
+
+    /// The saved setting stays untouched; leaving the posture restores it immediately.
+    private var usesEffectiveFitToScreen: Bool {
+        GameplaySurfaceLayout.effectiveFitToScreen(
+            savedFitToScreen: session.presentationSettings.graphicsFillWidth,
+            automaticLaptopActive: usesAutomaticLaptopLayout)
+    }
     #else
     private var usesPortraitFitToScreen: Bool { false }
+
+    private var usesAutomaticLaptopLayout: Bool { false }
+
+    private var usesEffectiveFitToScreen: Bool { session.presentationSettings.graphicsFillWidth }
     #endif
 
     #if os(iOS)
@@ -577,6 +680,7 @@ private struct GameplaySurface: View {
     let hidesCursorInFullScreen: Bool
     let isPresentationEnabled: Bool
     var fitToScreen = false
+    var laptopLayout = false
 
     var body: some View {
         #if os(iOS)
@@ -593,7 +697,8 @@ private struct GameplaySurface: View {
                 GameplaySurfaceLayout.frame(
                     in: displaySize,
                     safeAreaInsets: insets,
-                    fitToScreen: fitToScreen
+                    fitToScreen: fitToScreen,
+                    laptopLayout: laptopLayout
                 ),
                 safeAreaInsets: insets
             )
@@ -602,7 +707,7 @@ private struct GameplaySurface: View {
             // across rotation and layout toggles. This reader respects the safe area, so its
             // insets are measured; full-display rects are placed relative to the safe origin.
             framedGameSurface(ignoring: Self.surfaceIgnoresSafeAreaEdges(
-                frame: frame, displaySize: displaySize))
+                frame: frame, displaySize: displaySize, laptopLayout: laptopLayout))
                 .frame(width: frame.width, height: frame.height)
                 .clipped()
                 .position(x: frame.midX, y: frame.midY)
@@ -637,9 +742,12 @@ private struct GameplaySurface: View {
     private var gameSurface: some View { framedGameSurface(ignoring: .all) }
 
     /// A full-display frame keeps ignoring every edge so landscape stays edge to edge; an inset
-    /// frame ignores none so the drawable keeps that frame's exact aspect.
-    static func surfaceIgnoresSafeAreaEdges(frame: CGRect, displaySize: CGSize) -> Edge.Set {
-        frame.size == displaySize ? .all : []
+    /// frame ignores none so the drawable keeps that frame's exact aspect. The laptop upper half
+    /// reaches under top and side system chrome but never past the split.
+    static func surfaceIgnoresSafeAreaEdges(frame: CGRect, displaySize: CGSize,
+                                            laptopLayout: Bool = false) -> Edge.Set {
+        if laptopLayout { return [.top, .horizontal] }
+        return frame.size == displaySize ? .all : []
     }
 
     @ViewBuilder

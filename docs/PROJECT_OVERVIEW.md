@@ -188,17 +188,22 @@ configuration. Pinch input is not part of the frozen touch contract; camera zoom
 uses one explicit semantic toggle. A device-local settings-sync opt-out does not
 disable iCloud saves.
 
-**Experimental portrait presentation (Build 284 candidate):** On iOS, Fit to
-Screen fills the whole display in portrait and landscape, drawing behind the
-system sidebar and safe-area overlays. The shared game-camera math preserves
-the normal horizontal field of view and extends the vertical view for aspects
-narrower than 4:3. Fit to Screen off keeps the previous 4:3 portrait picture.
-Touch controls retain their existing safe-area layout. The iPhone configuration
-also allows upside-down portrait; actual orientation support depends on the
-device and system. macOS and visionOS
-window layouts retain their existing behavior. HUD, cutscene and physical-device
-acceptance remain pending. Automatic Duo laptop posture switching is a separate
-planned follow-up; it is not part of this portrait checkpoint.
+**Experimental adaptive presentation (Build 285 candidate):** On iOS, Fit to
+Screen fills the display in portrait and landscape, including beneath the system
+sidebar. The shared camera keeps the normal horizontal field of view and extends
+the vertical view for aspects narrower than 4:3. Fit off retains the classic 4:3
+portrait picture.
+
+On iOS 27.1 and newer, a partially open hinge with a portrait interface
+selects the laptop layout automatically: gameplay fills the upper half and
+all game touch controls occupy the black lower half. This layout temporarily
+uses Fit to Screen, then restores the saved preference when leaving the posture.
+The split is a presentation policy; the public hinge API does not provide a fold
+rectangle. Devices without available hinge data keep the normal layout. There
+is no manual laptop setting. macOS and visionOS layouts remain unchanged.
+Simulator and physical-device acceptance are recorded separately; HUD, cutscene
+and hardware acceptance remain pending. A dim reflection beneath the laptop
+controls is a requested follow-up, not implemented in this checkpoint.
 
 The ordinary Graphics settings expose the existing 1x–4x internal-resolution
 selector without enabling Developer Logs. Resolution stays device-local and

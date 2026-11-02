@@ -56,7 +56,15 @@ rg -Fq 'TouchControlsView.forwardGameplayTouchBatch(' \
 rg -Fq 'controls?.reconcileActiveTouches(liveIdentifiers)' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'static func dismantleUIView' "$root/GOALPad/Game/TouchControlsView.swift"
-rg -Fq 'if window == nil { cancelAllTouches() }' \
+rg -Uq 'if window == nil \{\n\s+cancelAllTouches\(\)\n\s+retiredTouchIdentifiers.removeAll\(\)' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'retiredTouchIdentifiers.formUnion(activeTouchIdentifiers)' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'liveIdentifiers.subtract(retiredTouchIdentifiers)' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq 'override func point(inside point: CGPoint, with event: UIEvent?) -> Bool' \
+  "$root/GOALPad/Game/TouchControlsView.swift"
+rg -Fq '.ignoresSafeArea(.all, edges: ignoresSafeAreaEdges)' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 
 # Artwork never owns gameplay hit testing. Suppression changes only opacity; the raw UIKit owner
@@ -323,7 +331,7 @@ rg -Fq 'height: NativeMenuCommandLayout.height)' \
 rg -Fq 'in: RoundedRectangle(cornerRadius: 16)' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 rg -Fq 'alignment: .bottomTrailing)' "$root/GOALPad/Game/TouchControlsView.swift"
-rg -Fq '.padding(.bottom, max(20, proxy.safeAreaInsets.bottom))' \
+rg -Fq '.padding(.bottom, max(20, safeAreaInsets.bottom))' \
   "$root/GOALPad/Game/TouchControlsView.swift"
 face_prompt_view=$(sed -n \
   '/private struct NativeFacePromptTouchControls: View {/,/private struct NativeWarpGateTouchControls: View {/p' \
