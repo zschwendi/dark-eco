@@ -50,7 +50,7 @@ Mac gameplay have not been tested.
 | **Jak 3** | **Planned; work has not started.** | **Planned; work has not started.** |
 
 All Apple platforms build from one shared app and engine source. The normal
-visionOS build includes the experimental Jak 1 immersive mode, and Build 285
+visionOS build includes the experimental Jak 1 immersive mode, and Build 286
 ships separate iPhone/iPad and Vision Pro packages from that same source.
 Collected-orb and 3D HUD icons still have placement/depth problems, and
 immersive HUD behaviour still needs wearer acceptance. Earlier source
@@ -74,17 +74,20 @@ mode. This is an in-development build; the remaining issues are listed above.
 
 ### 1. Get the app for your Apple device
 
-**Vision Pro from Windows or Linux:** use the [Build 285 IPA walkthrough](docs/SIDELOADING.md)
-and `DarkEco-visionOS-2.0-build285-preview.ipa`.
+**Vision Pro from Windows or Linux:** use the [Build 286 IPA walkthrough](docs/SIDELOADING.md)
+and `DarkEco-visionOS-2.0-build286-preview.ipa`.
 
-**iPhone and iPad:** use the [Build 285 IPA guide](docs/IOS-SIDELOADING.md)
-and `DarkEco-iOS-2.0-build285-preview.ipa`. Both IPAs are in the same
-[Build 285 release](https://github.com/zschwendi/dark-eco/releases/tag/build285-preview).
-Build 285 is a preview awaiting physical acceptance; on iPhone/iPad it adds a
-full-display Fit to Screen and an experimental automatic Duo laptop layout
-for hinged devices. ProMotion defaults to off (60 FPS); existing explicit
-choices are preserved. The guides list its current status and open issues. The previous
-Build 282 release is listed under [earlier packages](docs/DOWNLOADS.md#earlier-packages).
+**iPhone and iPad:** use the [Build 286 IPA guide](docs/IOS-SIDELOADING.md)
+and `DarkEco-iOS-2.0-build286-preview.ipa`. Both IPAs are in the same
+[Build 286 release](https://github.com/zschwendi/dark-eco/releases/tag/build286-preview).
+Build 286 reduces default game-text size in conventional iPhone/iPad Fit to
+Screen portrait while keeping its anchor positions. It retains full-display
+Fit to Screen and the experimental automatic Duo laptop layout. ProMotion
+defaults to off (60 FPS); existing explicit choices are preserved. Duo
+simulator title/load menus, an existing Geyser Rock save and a pause view were
+checked. Build 286 Air visuals and physical-device acceptance remain pending.
+Existing valid imports do not need re-importing for this update. Build 285
+and older releases are listed under [earlier packages](docs/DOWNLOADS.md#earlier-packages).
 
 **Apple Silicon Mac:** use the [native Build 270.1 app guide](docs/MACOS-INSTALL.md).
 

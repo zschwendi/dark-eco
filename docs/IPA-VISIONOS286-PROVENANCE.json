@@ -1,0 +1,41 @@
+{
+  "product": "Dark Eco",
+  "version": "2.0",
+  "build": "286",
+  "package_build": "286",
+  "platform": "visionOS",
+  "source_commit_recorded_at_build": "0f04a8c8d9ad01ab4793a307dba1ead83adc16ea",
+  "engine_commit_recorded_at_build": "b8d08811accfd1e5e77a1571bddd766ca6fa7d7e",
+  "source_url": "https://github.com/zschwendi/dark-eco/commit/0f04a8c8d9ad01ab4793a307dba1ead83adc16ea",
+  "engine_url": "https://github.com/zschwendi/jak-pad/commit/b8d08811accfd1e5e77a1571bddd766ca6fa7d7e",
+  "source_status": "Build 286 sizes portrait in-game text to viewport width on conventional iOS Fit to Screen, preserving the full-screen world. Experimental preview; physical acceptance remains pending.",
+  "input_executable_sha256": "656b37c5cf9c3dddde2d3195598acf8716d4ddf71530958baacad1a5aa0a4d1f",
+  "input_framework_sha256": "4deee56885615c44e6fe45cc7ce25fd1bcd11080ec58469e041cbe8f0306ef78",
+  "input_bundle_manifest_sha256": "d8150123a52314f38f3b95c5b18a3f8e7d4f0d49dfb5ba7f0b0dea05e6bcecdf",
+  "source_pack_manifests_sha256": {
+    "Jak1": "a4c0670c6b8badc3e86159801e29cc810e793a9730183fff361f5dc0cca5586c",
+    "Jak2": "acb83112d2c2c258b9381bef275d0f7a143e88ecc41c919b2063064f178e8566"
+  },
+  "source_pack_audit": "All source-pack members passed sizes and XXH64 hashes plus aggregate verification: Jak1 518 / c1e79fbb50f33437; Jak2 840 / 52a48a48ebb03e70.",
+  "repack_changes": [
+    "Keep Build 286 code and resources unchanged",
+    "Remove maintainer provisioning and signatures",
+    "Apply transport ad-hoc signatures with empty entitlements",
+    "Add source notices and provenance"
+  ],
+  "validation": "Both native GOAL ABI tests and both public source-pack tests passed. Full GOAL source graphs generated successfully. Exact-source simulator and device-platform builds passed. On the Duo simulator, the existing Jak1 import booted and portrait menu text rendered smaller at its original anchors, with navigation working; this scoped observation is not all-menu, full-game or physical acceptance. This visionOS input also passed strict signature, source-pack and required-resource checks. Independent package readback is recorded separately.",
+  "prior_import_validation": "Build280 synthetic local-provider ISO/ZIP selection and invalid-disc checks passed on iPhone Duo simulator. GOALPad/Data and the native extractor remain checked against compiled Build 282. Existing valid imports do not require re-import for this font-code update; no new importer or recipient-device acceptance is claimed.",
+  "limits": [
+    "GenericHud collected-orb and 3D counter-icon stereo placement remains an unresolved implementation defect (#3).",
+    "All-view sky, effects, HUD clipping, pause/warp transitions and immersive re-entry require headset acceptance.",
+    "Jak II water/streaks, taillight blocks and frozen cutscene video remain unresolved.",
+    "ProMotion app-wide stutter remains unresolved; 60 Hz remains the reported smoother option.",
+    "Recipient ISO/ZIP selection and full import require recipient-device acceptance.",
+    "Full-display, Vert+ camera, automatic laptop layout, HUD/cutscene presentation and Jak II pause presentation need physical confirmation; ordinary iPhone Air hardware acceptance is not established.",
+    "The automatic laptop layout requires iOS 27.1 or newer and available hinge data; other iOS 26.5+ devices keep the normal layout. There is no manual laptop toggle.",
+    "The dim reflection beneath laptop controls is a requested follow-up and is not implemented.",
+    "Jak II internal-resolution selection remains ignored; Jak II immersive, first-person mode and researched mods are not implemented.",
+    "Public re-signable packages use local saves; iCloud is not provisioned.",
+    "No retail game data is included. Scoped simulator observation is not physical-device, full-game, all-scene visual, controller or save acceptance."
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "build": "286",
+  "release": "https://github.com/zschwendi/dark-eco/releases/tag/build286-preview",
+  "source": "0f04a8c8d9ad01ab4793a307dba1ead83adc16ea",
+  "native": "b8d08811accfd1e5e77a1571bddd766ca6fa7d7e",
+  "verified_at": "2026-11-02T03:07:05.317039+00:00",
+  "anonymous_download": true,
+  "packages": [
+    {
+      "platform": "IOS",
+      "ipa": "DarkEco-iOS-2.0-build286-preview.ipa",
+      "url": "https://github.com/zschwendi/dark-eco/releases/download/build286-preview/DarkEco-iOS-2.0-build286-preview.ipa",
+      "sha256": "ad12004d940832ccd282f0ae38956cc14f78121939954cf0a10f9ffc95022818",
+      "files_verified": 1432,
+      "embedded_provenance_matches": true
+    },
+    {
+      "platform": "VISIONOS",
+      "ipa": "DarkEco-visionOS-2.0-build286-preview.ipa",
+      "url": "https://github.com/zschwendi/dark-eco/releases/download/build286-preview/DarkEco-visionOS-2.0-build286-preview.ipa",
+      "sha256": "097667651e71963b96b189595d9603ba6568e9dbe407f60cb538fa57ecfca782",
+      "files_verified": 1434,
+      "embedded_provenance_matches": true
+    }
+  ],
+  "physical_acceptance": false,
+  "documentation_delivery": "Source and download documentation recorded in the following documentation commit; exact anonymous readback recorded separately.",
+  "normal_sha256sums_url_verified": true
+}

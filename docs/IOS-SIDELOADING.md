@@ -1,17 +1,17 @@
 # Dark Eco for iPhone and iPad
 
-Download the [experimental Build 285 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/build285-preview).
-The **2.0 / Build 285** iPhone/iPad package is
-[`DarkEco-iOS-2.0-build285-preview.ipa`](https://github.com/zschwendi/dark-eco/releases/download/build285-preview/DarkEco-iOS-2.0-build285-preview.ipa).
+Download the [experimental Build 286 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/build286-preview).
+The **2.0 / Build 286** iPhone/iPad package is
+[`DarkEco-iOS-2.0-build286-preview.ipa`](https://github.com/zschwendi/dark-eco/releases/download/build286-preview/DarkEco-iOS-2.0-build286-preview.ipa).
 One native arm64 IPA supports iPhone and iPad on **iOS/iPadOS 26.5 or later**.
 It contains the app runtime and reconstructed OpenGOAL code, with no retail
 game data. You supply your own game data and signing identity.
 
-Build 285 is built from the one shared Apple source and build number that also
+Build 286 is built from the one shared Apple source and build number that also
 produces the separate Vision Pro package in the same release. Use the iOS IPA;
-the visionOS IPA cannot substitute for it. No physical Build 285 tests have
-been performed; the [Build 285 provenance](IPA-IOS285-PROVENANCE.json) records
-its package checks and limits. See the [Build 285 validation](BUILD285-VALIDATION.md)
+the visionOS IPA cannot substitute for it. No physical Build 286 tests have
+been performed; the [Build 286 provenance](IPA-IOS286-PROVENANCE.json) records
+its package checks and limits. See the [Build 286 validation](BUILD286-VALIDATION.md)
 for exact checks and scoped simulator observations.
 
 **ProMotion defaults to off (60 FPS)** for new or reset settings. Existing
@@ -23,20 +23,27 @@ extends the camera's view with the matching projection instead of stretching
 or narrowing the landscape picture. Turning Fit to Screen off keeps the
 classic 4:3 picture. Presentation can still differ between devices.
 
+**Build 286 portrait text:** default game text is smaller in conventional
+iPhone/iPad Fit to Screen portrait, with the same anchor positions. Landscape,
+Fit to Screen off, Mac and Vision Pro keep their existing font scale.
+In an isolated Duo simulator, title/load-menu text was smaller at the same
+anchors, an existing Geyser Rock save loaded, and a pause view rendered.
+Build 286 has not had an Air visual check or physical-device testing.
+Existing valid imports do not need re-importing for this font-code update.
+
+iOS, iOS simulator, macOS and visionOS builds passed. Both native ABI checks
+and both source-pack checks passed; these do not establish full gameplay,
+performance or hardware acceptance. Exact results belong to the
+[Build 286 validation record](BUILD286-VALIDATION.md).
+
 **Experimental Duo laptop layout:** on iOS/iPadOS 27.1 or later, when the
 device reports a partially open hinge and the app is in a portrait interface,
 gameplay fills the upper half and the touch controls sit on a black lower
 half. Fully opening the hinge restores normal full-screen play. The layout is
 automatic, with no setting; unsupported OS versions, devices without a hinge
-and unknown hinge states use the normal presentation. In an isolated Duo
-simulator, the initial Build 285 layout checkpoint (`d09ad04`) showed Jak 1 Geyser Rock in the upper viewport,
-pause/resume, movement by dragging in the lower controls and full-screen
-restoration on opening. The final `e35b062` default-change build was separately
-installed and launched with ProMotion off and laptop presentation intact.
-Physical-device, performance and full-game validation
-are pending.
+and unknown hinge states use the normal presentation. Physical-device, performance and full-game validation remain pending.
 
-Build 285, like Build 282 before it, keeps Build 281's correction of a vertical flip when Jak II samples the rendered world for
+Build 286, like Build 282 before it, keeps Build 281's correction of a vertical flip when Jak II samples the rendered world for
 a distortion effect. The old shader fails the focused top/bottom image test;
 the corrected shader passes. This is a **test candidate**: it does not yet
 establish a fix for the reported dark water plane or long coloured streaks.
@@ -151,12 +158,25 @@ or JIT entitlements. The package does not remove a required memory
 capability. Its ad-hoc transport signature must still be replaced by your
 sideloader's signature for your device.
 
-Build 285's compiled source, hashes and validation limits are recorded in
-[IPA-IOS285-PROVENANCE.json](IPA-IOS285-PROVENANCE.json). The release includes
+Build 286's compiled source, hashes and validation limits are recorded in
+[IPA-IOS286-PROVENANCE.json](IPA-IOS286-PROVENANCE.json). The release includes
 the complete package manifest and `SHA256SUMS`. Package checks do not establish
 physical-device or gameplay acceptance.
 
 ## History
+
+The earlier [Build 285 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/build285-preview)
+(`DarkEco-iOS-2.0-build285-preview.ipa`) remains available. Its original
+[validation](BUILD285-VALIDATION.md) and [provenance](IPA-IOS285-PROVENANCE.json)
+remain unchanged.
+
+In an isolated Duo
+simulator, the initial Build 285 layout checkpoint (`d09ad04`) showed Jak 1 Geyser Rock in the upper viewport,
+pause/resume, movement by dragging in the lower controls and full-screen
+restoration on opening. The final `e35b062` default-change build was separately
+installed and launched with ProMotion off and laptop presentation intact.
+Physical-device, performance and full-game validation
+are pending.
 
 The earlier [Build 282 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/build282-preview)
 (`DarkEco-iOS-2.0-build282-preview.ipa`) remains available. Its compiled

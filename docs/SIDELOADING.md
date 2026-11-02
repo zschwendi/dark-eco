@@ -4,13 +4,13 @@ This guide is for **Vision Pro**. For phones and tablets, use the
 [iPhone/iPad guide](IOS-SIDELOADING.md); first pairing uses USB trust instead
 of Vision Pro's Remote Devices screen. See [all platform downloads](DOWNLOADS.md).
 
-Download the [Build 285 preview](https://github.com/zschwendi/dark-eco/releases/tag/build285-preview).
-Choose **DarkEco-visionOS-2.0-build285-preview.ipa**. It contains the native
+Download the [Build 286 preview](https://github.com/zschwendi/dark-eco/releases/tag/build286-preview).
+Choose **DarkEco-visionOS-2.0-build286-preview.ipa**. It contains the native
 runtime and reconstructed OpenGOAL code, but **no retail game data**.
 
 You need **visionOS 26.5 or later**, a compatible controller, and your own
 supported Jak and Daxter game data. Start with **Jak and Daxter: The Precursor
-Legacy**. Build 285 comes from the one shared Apple source that also produces
+Legacy**. Build 286 comes from the one shared Apple source that also produces
 the iPhone/iPad package, including the earlier iOS fixes, and its normal
 visionOS build includes experimental third-person Jak 1 immersion. Jak II has
 an unfinished windowed path; Jak II immersive play is not included. Jak 1
@@ -129,11 +129,11 @@ different sideloader; Apparition does not automatically sign or refresh them.
 
 ### 5. Download and install this game's IPA
 
-Open [this game's release](https://github.com/zschwendi/dark-eco/releases/tag/build285-preview), expand **Assets**, and download the
+Open [this game's release](https://github.com/zschwendi/dark-eco/releases/tag/build286-preview), expand **Assets**, and download the
 Vision Pro IPA, not the iPhone/iPad IPA from the same release:
 
 ```text
-DarkEco-visionOS-2.0-build285-preview.ipa
+DarkEco-visionOS-2.0-build286-preview.ipa
 ```
 
 Leave it as an `.ipa`; do not extract it or choose GitHub's **Source code.zip**.
@@ -297,16 +297,27 @@ controls and platform limitations.
 
 ## What this preview contains
 
-Build 285 is a fresh compilation of the unified Apple source, with one build
+Build 286 is a fresh compilation of the unified Apple source, with one build
 number shared with the iPhone/iPad package. Its compiled source, hashes and
 validation limits are recorded in
-[IPA-VISIONOS285-PROVENANCE.json](IPA-VISIONOS285-PROVENANCE.json). The
-iPhone/iPad Fit to Screen and Duo laptop layout changes do not add new Vision
-Pro features, and no new headset testing was performed for Build 285. A fresh
-third-party install, gameplay and headset acceptance remain unverified.
+[IPA-VISIONOS286-PROVENANCE.json](IPA-VISIONOS286-PROVENANCE.json). The
+Build 286 font adjustment applies only to conventional iPhone/iPad Fit to
+Screen portrait; it does not change Vision Pro font scaling or add immersive
+features. iOS, iOS simulator, macOS and visionOS builds passed, along with
+both native ABI and both source-pack checks. No new headset testing was
+performed. A fresh third-party install, gameplay and headset acceptance
+remain unverified. See [Build 286 validation](BUILD286-VALIDATION.md).
+Existing valid imports do not need re-importing for this update.
 `SHA256SUMS` and the complete file manifest are attached to the release.
 
 ## History
+
+The earlier [Build 285 preview](https://github.com/zschwendi/dark-eco/releases/tag/build285-preview)
+(`DarkEco-visionOS-2.0-build285-preview.ipa`) remains available. Its original
+[provenance](IPA-VISIONOS285-PROVENANCE.json) and
+[validation](BUILD285-VALIDATION.md) retain the shared-source package checks
+and limits. The iOS layout changes added no new Vision Pro features, and no
+new headset testing was performed for that build.
 
 The earlier [Build 282 preview](https://github.com/zschwendi/dark-eco/releases/tag/build282-preview)
 (`DarkEco-visionOS-2.0-build282-preview.ipa`) remains available. Its compiled
