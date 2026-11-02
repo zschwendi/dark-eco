@@ -1,3 +1,25 @@
+# November 2, 2026 — Build 288 integration; device testing deferred
+
+Zach asked to continue ordinary Jak II while he is not ready to install. New
+Jak II immersion remains gated on ordinary game blockers. No device access,
+simulator gameplay, source push or public IPA release is authorized in this phase.
+
+Active branches: `work/jak2-fixes-288-20261102` and nested
+`work/jak2-fixes-288-engine-20261102`. Actual Claude Code Opus 5.5 workers found
+a missing upstream texture-remap binding and a short-VAG natural-end defect.
+Both have deterministic failing-before/passing-after tests. Root integrated
+those and a Jak 1 renderer-before-texture-pool teardown correction. Five core
+native tests and refreshed lifecycle checks pass; full Apple builds are next.
+
+Private 287 and its evidence remain preserved. Issue7 taillights now have a
+strong source/data explanation but no physical acceptance. Exact scene freezes
+8/23, water13 and ProMotion6 remain unresolved. New immersive work has not begun.
+See docs/BUILD288-VALIDATION.md and workspace artifact
+`.agent-builds/jak2-continue-20261102` for current proof and next test plan.
+Parent AstraBoard work remains w-52d754e488224ad0b2dce3104c0cbacd.
+
+---
+
 # November 2, 2026 — Private Build 287 ready; device acceptance pending
 
 Compiled app source `ca0ddcb0ce2d387cea56527068ffc728313091e0`; nested engine

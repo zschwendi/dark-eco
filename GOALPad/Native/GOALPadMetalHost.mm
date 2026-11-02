@@ -1187,10 +1187,10 @@ bool metal_host_start(std::string* error) {
 #if defined(__aarch64__)
   if (!allocate_host_render_stack(error)) {
     metal_merc_models().shutdown();
-    metal_texture_release(g_host.texture_pool->get_placeholder_texture());
-    g_host.texture_pool.reset();
     delete renderer;
     g_host.renderer = nullptr;
+    metal_texture_release(g_host.texture_pool->get_placeholder_texture());
+    g_host.texture_pool.reset();
     return false;
   }
 #endif
@@ -1211,9 +1211,11 @@ void metal_host_stop() {
   goal_gfx_host_install(nullptr);
   metal_level_data::clear(*g_host.texture_pool);
   metal_merc_models().shutdown();
+  // Bucket destructors remove their textures from this pool.
+  delete g_host.renderer;
+  g_host.renderer = nullptr;
   metal_texture_release(g_host.texture_pool->get_placeholder_texture());
   g_host.texture_pool.reset();
-  delete g_host.renderer;
 #if defined(__aarch64__)
   release_host_render_stack();
 #endif

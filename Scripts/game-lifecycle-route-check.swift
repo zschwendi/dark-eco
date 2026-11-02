@@ -157,7 +157,7 @@ let armedTick = section(session,
 check(session.contains("@ObservationIgnored private(set) var framesRun: UInt64 = 0")
         && session.contains("@ObservationIgnored private(set) var framesPresented: UInt64 = 0"),
       "per-frame diagnostic counters do not publish Swift Observation invalidations")
-check(armedTick.contains("if developerLogsEnabled, framesRun % 60 == 0")
+check(armedTick.contains("if developerLogsEnabled, framesRun / 60 != previousFramesRun / 60")
         && armedTick.contains("diagnosticsRevision &+= 1")
         && content.contains("let _ = session.diagnosticsRevision"),
       "the opt-in diagnostics overlay refreshes at a bounded cadence")
@@ -165,8 +165,8 @@ check(occursInOrder([
     "let developerLogsEnabled = presentationSettings.developerLogsEnabled",
     "input.pushFrame",
     "var nativeState = GOALPadGameFrameStateSnapshot()",
-    "GOALPadRuntimeBridge.runFrame(at: targetPresentationTime,",
-    "stateSnapshot: &nativeState)",
+    "GOALPadRuntimeBridge.runFrame(",
+    "at: targetPresentationTime, stateSnapshot: &nativeState)",
     "gameplaySaveGeneration.observe(nativeState.successfulSaveGeneration)",
     "saveSync.gameplaySaveCompleted()",
     "nativeState.exitToLibraryRequested.boolValue",
@@ -204,8 +204,8 @@ check(gameplaySaveGeneration.contains("guard generation != observed else { retur
         && gameplaySaveGeneration.contains("observed = generation")
         && gameplaySaveGeneration.contains("observed = 0"),
       "the session save tracker emits only changed generations and treats wrap as a change")
-check(armedTick.contains("if developerLogsEnabled {\n            recordDisplayCallback()\n        }")
-        && armedTick.contains("shouldLog = developerLogsEnabled && framesRun % 600 == 0")
+check(armedTick.contains("if frameTimingDiagnosticsEnabled {\n            recordDisplayCallback(at: frameWorkStart)\n        } else if developerLogsEnabled {\n            recordDisplayCallback(at: CACurrentMediaTime())\n        }")
+        && armedTick.contains("shouldLog = developerLogsEnabled && framesRun / 600 != previousFramesRun / 600")
         && armedTick.contains("if shouldLog { logRunningState(renderer: GOALPadRenderSurface.shared.stats) }"),
       "display cadence samples and renderer logging remain opt-in developer diagnostics")
 
