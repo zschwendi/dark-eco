@@ -1,22 +1,27 @@
-# November 2, 2026 — Build 288 integration; device testing deferred
+# November 2, 2026 — Private Build 288 ready; ordinary Jak II still incomplete
 
-Zach asked to continue ordinary Jak II while he is not ready to install. New
-Jak II immersion remains gated on ordinary game blockers. No device access,
-simulator gameplay, source push or public IPA release is authorized in this phase.
+Zach asked to continue Jak II while not ready to install. Actual Opus 5.5
+workers found and root integrated upstream texture-remap wiring and robust
+short-VAG completion corrections. Root also corrected Jak1 renderer/pool
+teardown ordering. Five native regression targets, lifecycle checks and all
+four Apple Release builds pass. The signed iOS package passed signature,
+source-pack, archive and executable identity checks.
 
-Active branches: `work/jak2-fixes-288-20261102` and nested
-`work/jak2-fixes-288-engine-20261102`. Actual Claude Code Opus 5.5 workers found
-a missing upstream texture-remap binding and a short-VAG natural-end defect.
-Both have deterministic failing-before/passing-after tests. Root integrated
-those and a Jak 1 renderer-before-texture-pool teardown correction. Five core
-native tests and refreshed lifecycle checks pass; full Apple builds are next.
-
-Private 287 and its evidence remain preserved. Issue7 taillights now have a
-strong source/data explanation but no physical acceptance. Exact scene freezes
-8/23, water13 and ProMotion6 remain unresolved. New immersive work has not begun.
+Compiled app `28ab90b63ebeac108bc399fe800a1669da69214e`, engine
+`95cc8bf069655a5663547fedbe1bd1f39489f32c`. Active branches are
+`work/jak2-fixes-288-20261102` and `work/jak2-fixes-288-engine-20261102`.
 See docs/BUILD288-VALIDATION.md and workspace artifact
-`.agent-builds/jak2-continue-20261102` for current proof and next test plan.
-Parent AstraBoard work remains w-52d754e488224ad0b2dce3104c0cbacd.
+`.agent-builds/jak2-continue-20261102/VALIDATION.json` for exact commands,
+private package, proof receipts and later device checklist. Private287 remains preserved.
+
+No device or simulator gameplay was used. No installation, source push or
+public IPA release: Zach tests and accepts first. Most recently published
+preview remains286. Exact reported freezes8/23, water13 and ProMotion6 remain
+unresolved; taillight7 and teardown4 need physical acceptance. New Jak II
+immersion has not begun and remains behind ordinary playability. Avoid
+repeating completed audits or speculative renderer edits while awaiting
+symptom-aligned evidence. Parent AstraBoard work remains
+w-52d754e488224ad0b2dce3104c0cbacd, pending user testing.
 
 ---
 
