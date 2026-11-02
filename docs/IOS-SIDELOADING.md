@@ -1,19 +1,42 @@
 # Dark Eco for iPhone and iPad
 
-Download the [experimental Build 282 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/build282-preview).
-The **2.0 / Build 282** iPhone/iPad package is
-[`DarkEco-iOS-2.0-build282-preview.ipa`](https://github.com/zschwendi/dark-eco/releases/download/build282-preview/DarkEco-iOS-2.0-build282-preview.ipa).
+Download the [experimental Build 285 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/build285-preview).
+The **2.0 / Build 285** iPhone/iPad package is
+[`DarkEco-iOS-2.0-build285-preview.ipa`](https://github.com/zschwendi/dark-eco/releases/download/build285-preview/DarkEco-iOS-2.0-build285-preview.ipa).
 One native arm64 IPA supports iPhone and iPad on **iOS/iPadOS 26.5 or later**.
 It contains the app runtime and reconstructed OpenGOAL code, with no retail
 game data. You supply your own game data and signing identity.
 
-Build 282 is built from the one shared Apple source and build number that also
+Build 285 is built from the one shared Apple source and build number that also
 produces the separate Vision Pro package in the same release. Use the iOS IPA;
-the visionOS IPA cannot substitute for it. No physical Build 282 tests have
-been performed; the [Build 282 provenance](IPA-IOS282-PROVENANCE.json) records
-its package checks and limits.
+the visionOS IPA cannot substitute for it. No physical Build 285 tests have
+been performed; the [Build 285 provenance](IPA-IOS285-PROVENANCE.json) records
+its package checks and limits. See the [Build 285 validation](BUILD285-VALIDATION.md)
+for exact checks and scoped simulator observations.
 
-Build 282 keeps Build 281's correction of a vertical flip when Jak II samples the rendered world for
+**ProMotion defaults to off (60 FPS)** for new or reset settings. Existing
+explicit choices are preserved. You can opt into ProMotion in Graphics, but
+the reported 120 Hz stutter is still unresolved.
+
+**Fit to Screen** now fills the entire display in portrait and landscape. It
+extends the camera's view with the matching projection instead of stretching
+or narrowing the landscape picture. Turning Fit to Screen off keeps the
+classic 4:3 picture. Presentation can still differ between devices.
+
+**Experimental Duo laptop layout:** on iOS/iPadOS 27.1 or later, when the
+device reports a partially open hinge and the app is in a portrait interface,
+gameplay fills the upper half and the touch controls sit on a black lower
+half. Fully opening the hinge restores normal full-screen play. The layout is
+automatic, with no setting; unsupported OS versions, devices without a hinge
+and unknown hinge states use the normal presentation. In an isolated Duo
+simulator, the initial Build 285 layout checkpoint (`d09ad04`) showed Jak 1 Geyser Rock in the upper viewport,
+pause/resume, movement by dragging in the lower controls and full-screen
+restoration on opening. The final `e35b062` default-change build was separately
+installed and launched with ProMotion off and laptop presentation intact.
+Physical-device, performance and full-game validation
+are pending.
+
+Build 285, like Build 282 before it, keeps Build 281's correction of a vertical flip when Jak II samples the rendered world for
 a distortion effect. The old shader fails the focused top/bottom image test;
 the corrected shader passes. This is a **test candidate**: it does not yet
 establish a fix for the reported dark water plane or long coloured streaks.
@@ -22,8 +45,8 @@ It retains Build 280's ISO/archive picker compatibility, corrected Jak II
 importer resources, saved Fit to Screen at game start for both titles,
 Jak II pause-background sizing and idle display-loop changes. The Duo
 simulator picker/invalid-disc checks were performed on Build 280. Importer
-source is unchanged in 282; recipient selection and full real-disc import
-still need confirmation. See [Build 280 validation](BUILD280-VALIDATION.md).
+source was unchanged for Build 282; recipient-device selection and full
+import acceptance remain pending. See [Build 280 validation](BUILD280-VALIDATION.md).
 
 For the earlier Build 281 package, signed iOS, simulator, macOS and visionOS
 build checks passed, along with four focused native GPU/plan tests. No
@@ -106,8 +129,9 @@ files or saves to GitHub.
 To try explicit touch buttons, open **Settings → Controls → Touch Actions →
 Buttons**. Gestures remain the default. This setting replaces action swipes with
 Cross, Square, Circle, Triangle and L1 while keeping movement and camera sticks.
-Use landscape orientation for this preview; portrait and extreme custom stick
-placements still need ergonomic testing.
+Landscape remains the recommended orientation for this preview; portrait, the
+Duo laptop layout and extreme custom stick placements still need ergonomic
+testing.
 
 ## Keep the app and saves
 
@@ -127,12 +151,20 @@ or JIT entitlements. The package does not remove a required memory
 capability. Its ad-hoc transport signature must still be replaced by your
 sideloader's signature for your device.
 
-Build 282's compiled source, hashes and validation limits are recorded in
-[IPA-IOS282-PROVENANCE.json](IPA-IOS282-PROVENANCE.json). The release includes
+Build 285's compiled source, hashes and validation limits are recorded in
+[IPA-IOS285-PROVENANCE.json](IPA-IOS285-PROVENANCE.json). The release includes
 the complete package manifest and `SHA256SUMS`. Package checks do not establish
 physical-device or gameplay acceptance.
 
-**History:** the earlier [Build 281 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/ios-build281-preview)
+## History
+
+The earlier [Build 282 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/build282-preview)
+(`DarkEco-iOS-2.0-build282-preview.ipa`) remains available. Its compiled
+source, hashes and validation limits are recorded in
+[IPA-IOS282-PROVENANCE.json](IPA-IOS282-PROVENANCE.json). No physical Build 282
+tests were performed.
+
+The earlier [Build 281 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/ios-build281-preview)
 (`DarkEco-iOS-2.0-build281-preview.ipa`) remains available. Its exact compiled source is [app `23c551c`](https://github.com/zschwendi/dark-eco/commit/23c551c054f056f5d7c70018406fecb38750491a)
 and [engine `7d513d61`](https://github.com/zschwendi/jak-pad/commit/7d513d61d6014e869d974a687318d18ddb5754b3).
 Original hashes, changes and limitations are recorded in

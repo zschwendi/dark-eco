@@ -4,14 +4,14 @@ This guide is for **Vision Pro**. For phones and tablets, use the
 [iPhone/iPad guide](IOS-SIDELOADING.md); first pairing uses USB trust instead
 of Vision Pro's Remote Devices screen. See [all platform downloads](DOWNLOADS.md).
 
-Download the [Build 282 preview](https://github.com/zschwendi/dark-eco/releases/tag/build282-preview).
-Choose **DarkEco-visionOS-2.0-build282-preview.ipa**. It contains the native
+Download the [Build 285 preview](https://github.com/zschwendi/dark-eco/releases/tag/build285-preview).
+Choose **DarkEco-visionOS-2.0-build285-preview.ipa**. It contains the native
 runtime and reconstructed OpenGOAL code, but **no retail game data**.
 
 You need **visionOS 26.5 or later**, a compatible controller, and your own
 supported Jak and Daxter game data. Start with **Jak and Daxter: The Precursor
-Legacy**. Build 282 comes from the one shared Apple source that also produces
-the iPhone/iPad package, including the latest iOS fixes, and its normal
+Legacy**. Build 285 comes from the one shared Apple source that also produces
+the iPhone/iPad package, including the earlier iOS fixes, and its normal
 visionOS build includes experimental third-person Jak 1 immersion. Jak II has
 an unfinished windowed path; Jak II immersive play is not included. Jak 1
 collected-orb and 3D HUD icons still have placement/depth problems, and
@@ -129,11 +129,11 @@ different sideloader; Apparition does not automatically sign or refresh them.
 
 ### 5. Download and install this game's IPA
 
-Open [this game's release](https://github.com/zschwendi/dark-eco/releases/tag/build282-preview), expand **Assets**, and download the
+Open [this game's release](https://github.com/zschwendi/dark-eco/releases/tag/build285-preview), expand **Assets**, and download the
 Vision Pro IPA, not the iPhone/iPad IPA from the same release:
 
 ```text
-DarkEco-visionOS-2.0-build282-preview.ipa
+DarkEco-visionOS-2.0-build285-preview.ipa
 ```
 
 Leave it as an `.ipa`; do not extract it or choose GitHub's **Source code.zip**.
@@ -297,16 +297,25 @@ controls and platform limitations.
 
 ## What this preview contains
 
-Build 282 is a fresh compilation of the unified Apple source, with one build
+Build 285 is a fresh compilation of the unified Apple source, with one build
 number shared with the iPhone/iPad package. Its compiled source, hashes and
 validation limits are recorded in
-[IPA-VISIONOS282-PROVENANCE.json](IPA-VISIONOS282-PROVENANCE.json). Deterministic
-renderer checks, including an old/new HUD partial-scissor GPU comparison, pass;
-they prove that correction only, not every HUD issue. A fresh third-party
-install, gameplay and headset acceptance remain unverified. `SHA256SUMS` and the
-complete file manifest are attached to the release.
+[IPA-VISIONOS285-PROVENANCE.json](IPA-VISIONOS285-PROVENANCE.json). The
+iPhone/iPad Fit to Screen and Duo laptop layout changes do not add new Vision
+Pro features, and no new headset testing was performed for Build 285. A fresh
+third-party install, gameplay and headset acceptance remain unverified.
+`SHA256SUMS` and the complete file manifest are attached to the release.
 
-**History:** the earlier [Build 264.1 preview](https://github.com/zschwendi/dark-eco/releases/tag/visionos-build264.1-preview)
+## History
+
+The earlier [Build 282 preview](https://github.com/zschwendi/dark-eco/releases/tag/build282-preview)
+(`DarkEco-visionOS-2.0-build282-preview.ipa`) remains available. Its compiled
+source, hashes and validation limits are recorded in
+[IPA-VISIONOS282-PROVENANCE.json](IPA-VISIONOS282-PROVENANCE.json). For Build 282,
+deterministic renderer checks, including an old/new HUD partial-scissor GPU
+comparison, passed; they prove that correction only, not every HUD issue.
+
+The earlier [Build 264.1 preview](https://github.com/zschwendi/dark-eco/releases/tag/visionos-build264.1-preview)
 (`DarkEco-visionOS-2.0-build264.1-preview.ipa`) remains available. It is an
 audited repack of the existing **2.0 / Build 264** app, numbered **264.1** for
 its sideload packaging, and contains no later runtime fixes. The release's

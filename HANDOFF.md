@@ -1,3 +1,15 @@
+# November 1, 2026 — Build 285 public portrait and Duo laptop preview
+
+Compiled app `e35b062ea0414ff422cc69f4e69f32cae75b6ac4`, native `5e87ec78a5cf6397fbce40035cf5d015e9538702`. Public app/native `v2.0` source is pushed. Both iOS and visionOS IPAs are in [Build 285](https://github.com/zschwendi/dark-eco/releases/tag/build285-preview); Mac download remains 270.1. [Validation](docs/BUILD285-VALIDATION.md) and [delivery receipt](docs/BUILD285-DELIVERY.json) distinguish compilation, simulator observations and package verification from physical acceptance.
+
+Build 285 includes full-display iOS portrait/landscape Fit to Screen, matching portrait camera projection for both titles, automatic partially-open + portrait Duo laptop layout (upper gameplay / lower controls), and ProMotion off by default. Explicit saved choices are preserved. The ProMotion stutter itself is not fixed.
+
+All four platform builds passed sequentially. Both public IPAs were independently downloaded without authentication; complete inventories and embedded provenance matched. The initial `d09ad04` Build 285 layout checkpoint in the isolated Duo simulator showed Jak 1 Geyser Rock, pause/resume, movement through lower controls and restoration of full-screen play on opening. Final default-change build was reinstalled and launched with data preserved. No physical device was accessed; recipient, performance, full-game and Jak II laptop runtime acceptance remain pending.
+
+The maintainer canceled all upside-down work. The unintegrated draft is preserved privately and must not be resumed. Lower-half reflection remains a separate follow-up. The maintainer confirms portrait world framing works well; cramped portrait text is tracked in [#21](https://github.com/zschwendi/dark-eco/issues/21) and is not fixed in 285. Existing renderer/cutscene/water, ProMotion and immersive issues remain open. No new fixes for those are claimed by this release.
+
+---
+
 # November 1, 2026 — Unified Apple Build 282 test preview
 
 Compiled app `9107051ccee1929b9585c5d066529239978a2445`, native `8b2cd07517c738128f41d66a2a9602be3751273a`. One shared source now includes current iOS/Jak II work and the later Jak 1 Vision immersive foundation; normal visionOS builds enable immersion. Separate iOS and visionOS IPAs share Build 282 and release `build282-preview`. Older isolated source trees remain preserved evidence, not separate shipping products.

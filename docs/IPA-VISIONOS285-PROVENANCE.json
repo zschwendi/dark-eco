@@ -1,0 +1,41 @@
+{
+  "product": "Dark Eco",
+  "version": "2.0",
+  "build": "285",
+  "package_build": "285",
+  "platform": "visionOS",
+  "source_commit_recorded_at_build": "e35b062ea0414ff422cc69f4e69f32cae75b6ac4",
+  "engine_commit_recorded_at_build": "5e87ec78a5cf6397fbce40035cf5d015e9538702",
+  "source_url": "https://github.com/zschwendi/dark-eco/commit/e35b062ea0414ff422cc69f4e69f32cae75b6ac4",
+  "engine_url": "https://github.com/zschwendi/jak-pad/commit/5e87ec78a5cf6397fbce40035cf5d015e9538702",
+  "source_status": "One shared Apple source checkpoint adding Vert+ camera below 4:3, iOS full-display Fit to Screen and the automatic iOS 27.1 hinge laptop layout. Test preview, not full gameplay acceptance.",
+  "input_executable_sha256": "8ce144058d3099c0f05645417fbf59b964bc027bafd3d3d3274787191dee75e2",
+  "input_framework_sha256": "5980ff880f13ac716b339ec3888a87da0310bed92dd833b372bc445750766896",
+  "input_bundle_manifest_sha256": "8cb276f80f47e33ee94b33275829a5e8ac36065ac87ce252570381afd84fefab",
+  "source_pack_manifests_sha256": {
+    "Jak1": "086435cc7d7ae0a341c054f1e40fad037f4f13e5f37fcdb94ffa5f5e27817529",
+    "Jak2": "4adceff667dc7965a48bf827e69a3293fa393d308db6bb0c140e0fedef488117"
+  },
+  "source_pack_audit": "All source-pack members passed sizes and XXH64 hashes plus aggregate verification: Jak1 518 / 561e066fb203d182; Jak2 840 / c70c183115784045.",
+  "repack_changes": [
+    "Keep Build 285 code and resources unchanged",
+    "Remove maintainer provisioning and signatures",
+    "Apply transport ad-hoc signatures with empty entitlements",
+    "Add source notices and provenance"
+  ],
+  "validation": "Focused layout, library, settings, touch and Swift parse/type checks passed for the changed UI and posture code. The initial Build 285 checkpoint d09ad04 had simulator game/menu presentation and automatic laptop switching observed. That source was superseded by the requested ProMotion default change. A successful simulator build receipt matching the final source is required here; the earlier runtime observation is not final-source runtime acceptance. This visionOS input passed its build receipt, strict signature, source-pack and resource checks in this script. Independent package readback is recorded separately; none of this establishes physical acceptance.",
+  "prior_import_validation": "Build280 synthetic local-provider ISO/ZIP selection and invalid-disc checks passed on iPhone Duo simulator. GOALPad/Data and the native extractor are unchanged from compiled Build 282.",
+  "limits": [
+    "GenericHud collected-orb and 3D counter-icon stereo placement remains an unresolved implementation defect (#3).",
+    "All-view sky, effects, HUD clipping, pause/warp transitions and immersive re-entry require headset acceptance.",
+    "Jak II water/streaks, taillight blocks and frozen cutscene video remain unresolved.",
+    "ProMotion app-wide stutter remains unresolved; 60 Hz remains the reported smoother option.",
+    "Recipient ISO/ZIP selection and full import require recipient-device acceptance.",
+    "Full-display, Vert+ camera, automatic laptop layout, HUD/cutscene presentation and Jak II pause presentation need physical confirmation; ordinary iPhone Air and upside-down portrait hardware acceptance is not established.",
+    "The automatic laptop layout requires iOS 27.1 or newer and available hinge data; other iOS 26.5+ devices keep the normal layout. There is no manual laptop toggle.",
+    "The dim reflection beneath laptop controls is a requested follow-up and is not implemented.",
+    "Jak II internal-resolution selection remains ignored; Jak II immersive, first-person mode and researched mods are not implemented.",
+    "Public re-signable packages use local saves; iCloud is not provisioned.",
+    "No retail game data is included. Simulator observation is not physical-device, full-game, visual, controller or save acceptance."
+  ]
+}

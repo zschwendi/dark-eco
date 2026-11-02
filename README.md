@@ -50,7 +50,7 @@ Mac gameplay have not been tested.
 | **Jak 3** | **Planned; work has not started.** | **Planned; work has not started.** |
 
 All Apple platforms build from one shared app and engine source. The normal
-visionOS build includes the experimental Jak 1 immersive mode, and Build 282
+visionOS build includes the experimental Jak 1 immersive mode, and Build 285
 ships separate iPhone/iPad and Vision Pro packages from that same source.
 Collected-orb and 3D HUD icons still have placement/depth problems, and
 immersive HUD behaviour still needs wearer acceptance. Earlier source
@@ -74,14 +74,17 @@ mode. This is an in-development build; the remaining issues are listed above.
 
 ### 1. Get the app for your Apple device
 
-**Vision Pro from Windows or Linux:** use the [Build 282 IPA walkthrough](docs/SIDELOADING.md)
-and `DarkEco-visionOS-2.0-build282-preview.ipa`.
+**Vision Pro from Windows or Linux:** use the [Build 285 IPA walkthrough](docs/SIDELOADING.md)
+and `DarkEco-visionOS-2.0-build285-preview.ipa`.
 
-**iPhone and iPad:** use the [Build 282 IPA guide](docs/IOS-SIDELOADING.md)
-and `DarkEco-iOS-2.0-build282-preview.ipa`. Both IPAs are in the same
-[Build 282 release](https://github.com/zschwendi/dark-eco/releases/tag/build282-preview).
-Build 282 is a preview awaiting physical acceptance; the guides list its
-current status and open issues.
+**iPhone and iPad:** use the [Build 285 IPA guide](docs/IOS-SIDELOADING.md)
+and `DarkEco-iOS-2.0-build285-preview.ipa`. Both IPAs are in the same
+[Build 285 release](https://github.com/zschwendi/dark-eco/releases/tag/build285-preview).
+Build 285 is a preview awaiting physical acceptance; on iPhone/iPad it adds a
+full-display Fit to Screen and an experimental automatic Duo laptop layout
+for hinged devices. ProMotion defaults to off (60 FPS); existing explicit
+choices are preserved. The guides list its current status and open issues. The previous
+Build 282 release is listed under [earlier packages](docs/DOWNLOADS.md#earlier-packages).
 
 **Apple Silicon Mac:** use the [native Build 270.1 app guide](docs/MACOS-INSTALL.md).
 

@@ -188,7 +188,7 @@ configuration. Pinch input is not part of the frozen touch contract; camera zoom
 uses one explicit semantic toggle. A device-local settings-sync opt-out does not
 disable iCloud saves.
 
-**Experimental adaptive presentation (Build 285 candidate):** On iOS, Fit to
+**Experimental adaptive presentation (Build 285 preview):** On iOS, Fit to
 Screen fills the display in portrait and landscape, including beneath the system
 sidebar. The shared camera keeps the normal horizontal field of view and extends
 the vertical view for aspects narrower than 4:3. Fit off retains the classic 4:3

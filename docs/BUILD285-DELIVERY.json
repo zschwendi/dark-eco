@@ -1,0 +1,28 @@
+{
+  "build": "285",
+  "release": "https://github.com/zschwendi/dark-eco/releases/tag/build285-preview",
+  "source": "e35b062ea0414ff422cc69f4e69f32cae75b6ac4",
+  "native": "5e87ec78a5cf6397fbce40035cf5d015e9538702",
+  "verified_at": "2026-11-02T01:59:30.310983+00:00",
+  "anonymous_download": true,
+  "packages": [
+    {
+      "platform": "IOS",
+      "ipa": "DarkEco-iOS-2.0-build285-preview.ipa",
+      "url": "https://github.com/zschwendi/dark-eco/releases/download/build285-preview/DarkEco-iOS-2.0-build285-preview.ipa",
+      "sha256": "95d192ae2115c8e9eb3368288ab869a91976703dc3ec7bed3d646de06849d213",
+      "files_verified": 1432,
+      "embedded_provenance_matches": true
+    },
+    {
+      "platform": "VISIONOS",
+      "ipa": "DarkEco-visionOS-2.0-build285-preview.ipa",
+      "url": "https://github.com/zschwendi/dark-eco/releases/download/build285-preview/DarkEco-visionOS-2.0-build285-preview.ipa",
+      "sha256": "3d81939fda6a881cfb7eb708e305fa97615189a9e3510c687a9adfd22ac0d6ec",
+      "files_verified": 1434,
+      "embedded_provenance_matches": true
+    }
+  ],
+  "physical_acceptance": false,
+  "documentation_delivery": "Included with this receipt: README and download/setup guides point to Build 285."
+}
