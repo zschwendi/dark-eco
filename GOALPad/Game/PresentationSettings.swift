@@ -38,8 +38,9 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
     /// `nil` means the selected profile's default: enabled for Modern and disabled for Classic.
     /// An explicit override remains active while switching profiles.
     var graphicsModernStereo3DOverride: Bool?
-    /// Optional so existing same-schema documents decode unchanged. ProMotion follows the
-    /// selected graphics profile by default and applies live on iOS during gameplay.
+    /// Optional so existing same-schema documents decode unchanged. `nil` means 60 fps for both
+    /// graphics profiles; 120 fps ProMotion is an explicit opt-in that applies live on iOS.
+    /// Explicit choices are stored as-is so they survive profile switches and synced devices.
     var graphicsHighFrameRateOverride: Bool?
     /// Optional so existing same-schema documents default to 90 Hz on visionOS. This remains
     /// separate from iOS ProMotion because the supported rates and device preference differ.
@@ -101,7 +102,7 @@ nonisolated struct PresentationSettingsDocument: Codable, Equatable, Sendable {
     }
 
     var graphicsHighFrameRate: Bool {
-        graphicsHighFrameRateOverride ?? (graphicsProfile == .modern)
+        graphicsHighFrameRateOverride ?? false
     }
 
     var graphicsVisionHighFrameRate: Bool {
@@ -706,10 +707,7 @@ final class PresentationSettings {
     }
 
     func setGraphicsHighFrameRate(_ enabled: Bool) {
-        change { document in
-            let profileDefault = document.graphicsProfile == .modern
-            document.graphicsHighFrameRateOverride = enabled == profileDefault ? nil : enabled
-        }
+        change { $0.graphicsHighFrameRateOverride = enabled }
     }
 
     func setGraphicsVisionHighFrameRate(_ enabled: Bool) {

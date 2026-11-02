@@ -622,7 +622,9 @@ private func defaultsUseModernGraphics() async throws {
     check(value.profile(for: .interface) == .classic, "UI begins in Classic")
     check(value.graphicsFillWidth, "Modern Graphics begins with Fill Width enabled")
     check(value.graphicsStereo3D, "Modern Graphics begins with Stereoscopic 3D enabled")
-    check(value.graphicsHighFrameRate, "Modern Graphics begins with ProMotion enabled")
+    check(!value.graphicsHighFrameRate
+          && value.document.graphicsHighFrameRateOverride == nil,
+          "Modern Graphics begins at 60 fps with ProMotion off")
     check(value.graphicsVisionHighFrameRate,
           "visionOS high refresh begins at 90 Hz independently of the profile")
     check(value.document.graphicsModernFillWidthOverride == nil,
@@ -634,48 +636,53 @@ private func defaultsUseModernGraphics() async throws {
 
 @MainActor
 private func highFrameRatePersistsAndResets() async throws {
-    print("ProMotion follows the graphics profile and preserves explicit overrides")
+    print("ProMotion defaults to 60 fps in both profiles and preserves explicit choices")
     let fixture = try Fixture(name: "high-frame-rate")
     let value = settings(fixture, writerID: "device-a", cloudAvailable: false)
-    check(value.graphicsHighFrameRate
+    check(!value.graphicsHighFrameRate
           && value.document.graphicsHighFrameRateOverride == nil,
-          "Modern enables ProMotion without storing an override")
+          "Modern defaults ProMotion off without storing an override")
 
     value.setProfile(.classic, for: .graphics)
     check(!value.graphicsHighFrameRate
           && value.document.graphicsHighFrameRateOverride == nil,
-          "Classic disables ProMotion without storing an override")
+          "Classic defaults ProMotion off without storing an override")
 
     value.setGraphicsHighFrameRate(true)
     check(value.graphicsHighFrameRate
           && value.document.graphicsHighFrameRateOverride == true
           && readDocument(at: fixture.local)?.graphicsHighFrameRateOverride == true,
-          "Classic can persist an explicit ProMotion opt-in")
+          "Classic can persist an explicit 120 fps opt-in")
 
     let restored = settings(fixture, writerID: "device-b", cloudAvailable: false)
     check(restored.profile(for: .graphics) == .classic && restored.graphicsHighFrameRate,
           "the Classic opt-in survives local relaunch decoding")
-
-    restored.setGraphicsHighFrameRate(false)
-    check(!restored.graphicsHighFrameRate
-          && restored.document.graphicsHighFrameRateOverride == nil,
-          "returning Classic to its off default clears the override")
     restored.setProfile(.modern, for: .graphics)
+    check(restored.graphicsHighFrameRate
+          && restored.document.graphicsHighFrameRateOverride == true,
+          "the explicit opt-in remains active after switching to Modern")
+
     restored.setGraphicsHighFrameRate(false)
     check(!restored.graphicsHighFrameRate
           && restored.document.graphicsHighFrameRateOverride == false
           && readDocument(at: fixture.local)?.graphicsHighFrameRateOverride == false,
           "Modern can persist an explicit ProMotion opt-out")
+    let relaunched = settings(fixture, writerID: "device-c", cloudAvailable: false)
+    check(!relaunched.graphicsHighFrameRate
+          && relaunched.document.graphicsHighFrameRateOverride == false,
+          "the explicit opt-out survives local relaunch decoding")
 
-    restored.restoreDefaults(for: .graphics)
-    check(restored.graphicsHighFrameRate
-          && restored.document.graphicsHighFrameRateOverride == nil,
-          "Restore Graphics Defaults returns Modern ProMotion to on")
-    restored.setGraphicsHighFrameRate(false)
-    restored.resetAll()
-    check(restored.graphicsHighFrameRate
-          && restored.document.graphicsHighFrameRateOverride == nil,
-          "Reset All to Defaults restores Modern ProMotion")
+    relaunched.setGraphicsHighFrameRate(true)
+    relaunched.restoreDefaults(for: .graphics)
+    check(!relaunched.graphicsHighFrameRate
+          && relaunched.document.graphicsHighFrameRateOverride == nil,
+          "Restore Graphics Defaults returns ProMotion to 60 fps")
+    relaunched.setGraphicsHighFrameRate(true)
+    relaunched.resetAll()
+    check(relaunched.profile(for: .graphics) == .modern
+          && !relaunched.graphicsHighFrameRate
+          && relaunched.document.graphicsHighFrameRateOverride == nil,
+          "Reset All to Defaults returns Modern ProMotion to 60 fps")
 }
 
 @MainActor
@@ -782,6 +789,9 @@ private func savedChoicesSurviveNewDefaults() async throws {
           && !restoredModern.graphicsFillWidth
           && !restoredModern.graphicsStereo3D,
           "saved Modern graphics overrides load unchanged")
+    check(!restoredModern.graphicsHighFrameRate
+          && restoredModern.document.graphicsHighFrameRateOverride == nil,
+          "a saved Modern document without ProMotion resolves to 60 fps")
 }
 
 @MainActor
@@ -792,7 +802,7 @@ private func profilesCanBeMixedWithoutLosingOptions() async throws {
     value.setProfile(.modern, for: .graphics)
     check(value.graphicsFillWidth, "Modern graphics defaults Fill Width on")
     check(value.graphicsStereo3D, "Modern graphics defaults Stereoscopic 3D on")
-    check(value.graphicsHighFrameRate, "Modern graphics defaults ProMotion on")
+    check(!value.graphicsHighFrameRate, "Modern graphics defaults ProMotion off")
     value.setGraphicsFillWidth(false)
     value.setGraphicsStereo3D(false)
     value.setProfile(.classic, for: .graphics)
@@ -817,7 +827,7 @@ private func profilesCanBeMixedWithoutLosingOptions() async throws {
           && value.profile(for: .interface) == .classic
           && value.graphicsFillWidth
           && value.graphicsStereo3D
-          && value.graphicsHighFrameRate
+          && !value.graphicsHighFrameRate
           && value.document.graphicsModernFillWidthOverride == nil
           && value.document.graphicsModernStereo3DOverride == nil,
           "Reset All restores the default Modern Graphics mix")
