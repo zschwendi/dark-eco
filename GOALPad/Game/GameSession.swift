@@ -2133,6 +2133,10 @@ final class GameSession {
         if profile.identifier == .jak2 {
             report["jak2_game_speed"] = Self.jak2GameSpeedReport(
                 GOALPadRuntimeBridge.jak2GameSpeedSnapshot)
+            // Diagnostic only; absent until a validated sample exists in this session.
+            if let sceneStream = GOALPadRuntimeBridge.jak2SceneStreamDiagnostics {
+                report["jak2_scene_stream"] = sceneStream
+            }
         }
 
         do {

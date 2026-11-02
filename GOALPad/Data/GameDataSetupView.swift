@@ -12,6 +12,10 @@ struct GameDataSetupView: View {
     @State private var isRefreshingRoutedDataReport = false
     @State private var isChoosingSource = false
     @State private var selectionError: String?
+    @State private var localMediaFiles: [URL] = []
+    @State private var isChoosingLocalMediaFile = false
+    @State private var localMediaScan: Task<Void, Never>?
+    @State private var localMediaScanGeneration = 0
 
     init(session: GameSession, title: GameLibraryTitle) {
         guard let profile = GameDataProfile.profile(for: title) else {
@@ -54,6 +58,7 @@ struct GameDataSetupView: View {
                 .ignoresSafeArea()
         }
         .task { _ = await refreshDataReport() }
+        .onDisappear { cancelLocalMediaScan() }
         .fileImporter(isPresented: $isChoosingSource,
                       allowedContentTypes: importContentTypes,
                       allowsMultipleSelection: false) { result in
@@ -64,13 +69,7 @@ struct GameDataSetupView: View {
                         + "\(profile.displayName) data and try again."
                     return
                 }
-                selectionError = nil
-                importer.start(from: source) {
-                    if usesSessionData {
-                        session.saveSync.gameDataImportDidFinish()
-                    }
-                    await refreshDataReport()
-                }
+                beginImport(from: source)
             case .failure:
                 selectionError = "Dark Eco could not open that source. Choose another compatible "
                     + "\(profile.displayName) source and try again."
@@ -219,12 +218,43 @@ struct GameDataSetupView: View {
             }
 
             Button("Choose game data…") {
+                cancelLocalMediaScan()
                 selectionError = nil
                 isChoosingSource = true
             }
             .buttonStyle(.borderedProminent)
             .tint(DarkEcoTheme.accent)
-            .disabled(!importer.canStart || isRefreshingDataReport)
+            .disabled(!importer.canStart || isRefreshingDataReport || isFindingLocalMediaFiles)
+
+            if offersDarkEcoFolderImport {
+                Button {
+                    findLocalMediaFiles()
+                } label: {
+                    if isFindingLocalMediaFiles {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                    Text(GameDataImportPresentation.localFolderActionTitle)
+                }
+                .buttonStyle(.bordered)
+                .disabled(!importer.canStart || isRefreshingDataReport || isFindingLocalMediaFiles)
+                .confirmationDialog(GameDataImportPresentation.localFolderDialogTitle,
+                                    isPresented: $isChoosingLocalMediaFile,
+                                    titleVisibility: .visible) {
+                    ForEach(localMediaFiles, id: \.self) { file in
+                        Button(file.lastPathComponent) {
+                            importLocalMediaFile(file)
+                        }
+                    }
+                    Button("Cancel", role: .cancel) {
+                        localMediaFiles = []
+                    }
+                }
+
+                Text(GameDataImportPresentation.pickerTapGuidance)
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.72))
+            }
 
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 12) { recheckButton; playButton }
@@ -329,6 +359,19 @@ struct GameDataSetupView: View {
         importer.canImportRawMedia
     }
 
+    /// The app's Documents folder is reachable through the Files app only on iPhone and iPad.
+    private var offersDarkEcoFolderImport: Bool {
+        #if os(iOS)
+        return canImportRawISO
+            && !ProcessInfo.processInfo.isiOSAppOnMac
+            && !ProcessInfo.processInfo.isMacCatalystApp
+        #else
+        return false
+        #endif
+    }
+
+    private var isFindingLocalMediaFiles: Bool { localMediaScan != nil }
+
     private var isImportComplete: Bool {
         dataReport.status == .ready
     }
@@ -373,6 +416,72 @@ struct GameDataSetupView: View {
 
     private var isRefreshingDataReport: Bool {
         usesSessionData ? session.isRefreshingDataReport : isRefreshingRoutedDataReport
+    }
+
+    private func beginImport(from source: URL) {
+        selectionError = nil
+        importer.start(from: source) {
+            if usesSessionData {
+                session.saveSync.gameDataImportDidFinish()
+            }
+            await refreshDataReport()
+        }
+    }
+
+    /// Lists supported files placed directly in the app's own folder. Only the latest scan may
+    /// publish a result; leaving setup or opening the system picker cancels it.
+    private func findLocalMediaFiles() {
+        cancelLocalMediaScan()
+        selectionError = nil
+        let generation = localMediaScanGeneration
+        let rawMediaAvailable = canImportRawISO
+        localMediaScan = Task {
+            let scan = Task.detached { () -> GameDataLocalMediaListing? in
+                try? GameDataImportSource.localMediaListing(
+                    in: GameDataLayout.documentsDirectory,
+                    rawMediaAvailable: rawMediaAvailable
+                )
+            }
+            let listing = await withTaskCancellationHandler {
+                await scan.value
+            } onCancel: {
+                scan.cancel()
+            }
+            guard !Task.isCancelled, generation == localMediaScanGeneration,
+                  let listing else { return }
+            localMediaScan = nil
+            switch listing {
+            case .files(let files):
+                localMediaFiles = files
+                isChoosingLocalMediaFile = true
+            case .empty:
+                selectionError = GameDataImportPresentation.localFolderEmptyGuidance
+            case .tooManyItems:
+                selectionError = GameDataImportPresentation.localFolderTooManyItemsGuidance
+            case .unreadable:
+                selectionError = GameDataImportPresentation.localFolderUnreadableGuidance
+            }
+        }
+    }
+
+    private func cancelLocalMediaScan() {
+        localMediaScan?.cancel()
+        localMediaScan = nil
+        localMediaScanGeneration += 1
+        localMediaFiles = []
+        isChoosingLocalMediaFile = false
+    }
+
+    private func importLocalMediaFile(_ file: URL) {
+        localMediaFiles = []
+        guard importer.canStart, !isRefreshingDataReport, localMediaScan == nil else { return }
+        guard let source = GameDataImportSource.revalidatedLocalMediaFile(
+            file, in: GameDataLayout.documentsDirectory
+        ) else {
+            selectionError = GameDataImportPresentation.localFolderChangedGuidance
+            return
+        }
+        beginImport(from: source)
     }
 
     @discardableResult

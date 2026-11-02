@@ -1,3 +1,44 @@
+# November 2, 2026 — Importer and Jak II freeze fixes, device test before publishing
+
+The maintainer requested actual Claude Code Opus workers to fix the newly
+reported bugs, prioritizing importer #19/#9 and the pre-Haven-City Jak II
+video freeze #23 (keep #8's hideout scene separate). A secondary worker is
+checking the Settings pickup sound #22. Root owns integration and all heavy
+builds. Build 287 is in integration; no signed package or device acceptance yet. The importer fallback passes focused source/presentation/lifecycle checks. Jak II freeze diagnostics are integrated but are not a freeze fix; its physical cause remains unresolved.
+
+**Publication gate:** prepare one combined signed test build; Zach tests on a
+device before any source push or public IPA update. This current instruction
+overrides the earlier automatic preview-publishing flow for this batch.
+Preserve all saves, imports and existing source trees. Physical-device access
+still requires a current, specific authorized test/install window.
+
+Current public checkpoint is Build 286: compiled app `0f04a8c`, engine
+`b8d08811a`, documentation `6e28cce`. Both IPAs and their anonymous readback
+are recorded in `docs/BUILD286-DELIVERY.json`; scoped evidence is in
+`docs/BUILD286-VALIDATION.md`. Portrait font changes are not full HUD or
+physical-device acceptance.
+
+Integrated candidate scope: app-folder ISO/ZIP/7z selection alternative (#19),
+Jak II resolution setting wiring with a safe 1x preference transition (#14),
+and bounded opt-in scene/audio/render history for diagnosing #23. The freeze
+itself is NOT fixed. Settings orb sound #22 and ProMotion #6 remain unresolved.
+All six focused importer/settings/router/geometry checks and the standalone
+scene-history test pass. Full Xcode/signing checks are next. Device acceptance
+and all source/IPA publication remain pending. Nested engine source is unchanged.
+
+Active local branches are `work/import-freeze-287-20261102` and nested
+`work/import-freeze-287-engine-20261102`, starting from those public sources.
+Detailed current state and bounded actual-Opus receipts live in
+`.agent-builds/import-freeze-287-20261102/ACTIVE_HANDOFF.md` under the workspace
+container. AstraBoard parent work is `w-52d754e488224ad0b2dce3104c0cbacd`.
+
+The recipient's manual prepared-folder copy enabled gameplay but did not
+validate ISO/ZIP selection. Existing simulator evidence distinguishes grid
+filename taps from working icon/List selections; do not repeat it as a new
+fix or remove prepared-folder support without evidence. No upside-down work.
+
+---
+
 # November 1, 2026 — Build 285 public portrait and Duo laptop preview
 
 Compiled app `e35b062ea0414ff422cc69f4e69f32cae75b6ac4`, native `5e87ec78a5cf6397fbce40035cf5d015e9538702`. Public app/native `v2.0` source is pushed. Both iOS and visionOS IPAs are in [Build 285](https://github.com/zschwendi/dark-eco/releases/tag/build285-preview); Mac download remains 270.1. [Validation](docs/BUILD285-VALIDATION.md) and [delivery receipt](docs/BUILD285-DELIVERY.json) distinguish compilation, simulator observations and package verification from physical acceptance.

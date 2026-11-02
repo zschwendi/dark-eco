@@ -1289,9 +1289,12 @@ private func titleSettingsProfilesKeepKeysAndDocumentsIsolated() throws {
     check(RenderSettingsConfiguration.jak1.defaultsKey == "internalResolutionScale"
           && RenderSettingsConfiguration.jak1.defaultScale == 2,
           "Jak 1 keeps the Build 223 render key and default scale")
-    check(RenderSettingsConfiguration.jak2.defaultsKey == "jak2InternalResolutionScale"
-          && RenderSettingsConfiguration.jak2.defaultScale == 4,
-          "Jak 2 has a distinct render key and keeps its current default scale")
+    check(RenderSettingsConfiguration.jak2.defaultsKey == "jak2InternalResolutionScaleV2"
+          && RenderSettingsConfiguration.jak2.defaultScale == 1,
+          "Jak 2 has a distinct render key and defaults to the 1x target it has always drawn")
+    defaults.set(4, forKey: "jak2InternalResolutionScale")
+    check(RenderSettings(configuration: .jak2, defaults: defaults).internalResolutionScale == 1,
+          "a Jak 2 scale stored while the bridge ignored it does not activate on update")
     defaults.set(3, forKey: RenderSettingsConfiguration.jak1.defaultsKey)
     defaults.set(4, forKey: RenderSettingsConfiguration.jak2.defaultsKey)
     let jak1Render = RenderSettings(configuration: .jak1, defaults: defaults)
@@ -1300,8 +1303,13 @@ private func titleSettingsProfilesKeepKeysAndDocumentsIsolated() throws {
           "each render profile reads only its own stored scale")
     jak1Render.internalResolutionScale = 1
     check(defaults.integer(forKey: "internalResolutionScale") == 1
-          && defaults.integer(forKey: "jak2InternalResolutionScale") == 4,
+          && defaults.integer(forKey: "jak2InternalResolutionScaleV2") == 4,
           "changing Jak 1 render settings leaves Jak 2 untouched")
+    jak2Render.restoreDefaults()
+    check(jak2Render.internalResolutionScale == 1
+          && defaults.integer(forKey: "jak2InternalResolutionScaleV2") == 1
+          && defaults.integer(forKey: "internalResolutionScale") == 1,
+          "restoring Jak 2 render defaults selects 1x without touching Jak 1")
 
     let productionJak1 = PresentationSettingsProfile.jak1()
     let productionJak2 = PresentationSettingsProfile.jak2()

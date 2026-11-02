@@ -116,6 +116,22 @@ check(jak2HorizontalPlus.contains("g_horizontal_plus_enabled = enabled") &&
       jak2HorizontalPlus.contains("update_portable_display_locked(geometry)") &&
       jak2HorizontalPlus.contains("update_metal_presentation_geometry(g_metal_host, geometry)"),
       "Jak II Hor+ updates both the portable GOAL aspect and Metal target geometry")
+let jak2InternalScale = section(
+    jak2Bridge,
+    from: "- (void)setInternalResolutionScale:(int32_t)scale",
+    to: "- (void)setHorizontalPlusEnabled:(BOOL)enabled")
+check(jak2InternalScale.contains("g_internal_scale = std::clamp(scale") &&
+      !jak2InternalScale.contains("(void)scale") &&
+      jak2InternalScale.contains("presentation_geometry_locked()") &&
+      jak2InternalScale.contains("update_portable_display_locked(geometry)") &&
+      jak2InternalScale.contains("update_metal_presentation_geometry(g_metal_host, geometry)"),
+      "Jak II internal resolution updates the portable display size and Metal target geometry")
+let jak2Geometry = section(
+    jak2Bridge,
+    from: "goalpad::PresentationGeometry presentation_geometry_locked()",
+    to: "void update_portable_display_locked")
+check(jak2Geometry.contains("g_internal_scale, g_horizontal_plus_enabled"),
+      "Jak II presentation geometry uses the selected internal scale instead of a fixed 1x")
 check(jak2Bridge.contains("goal_kernel_core_set_portable_display_enabled") &&
       jak2Bridge.contains("goal_kernel_core_set_portable_display_size") &&
       jak2Bridge.contains("goal_jak2_metal_host_set_presentation_geometry"),

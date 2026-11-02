@@ -207,8 +207,13 @@ controls is a requested follow-up, not implemented in this checkpoint.
 
 The ordinary Graphics settings expose the existing 1x–4x internal-resolution
 selector without enabling Developer Logs. Resolution stays device-local and
-separate for each title: Jak 1 defaults to 2x and Jak II to 4x. Restore Graphics
-Defaults and Reset All restore the selected title's configured scale. On
+separate for each title: Jak 1 defaults to 2x and Jak II to 1x. Before the private
+Build 287 candidate, Jak II displayed a 4x default but its bridge ignored the
+setting and always rendered at 1x. A new device-local key leaves that prior
+value unused, preserving the actual 1x rendering load until the player chooses
+a higher scale. The bridge now applies 1x–4x to both the Metal target and the
+portable display size; device rendering and performance acceptance are pending.
+Restore Graphics Defaults and Reset All restore the selected title's configured scale. On
 visionOS, the setting is labeled Windowed Resolution and does not change the
 separate immersive renderer.
 
@@ -238,6 +243,17 @@ Capture one ProMotion mode per game boot. Developer Logs takes effect at the
 next game start. No file is written by the display callback; normal launches
 leave the recorder disabled.
 This instrumentation is not a performance fix or physical smoothness pass.
+
+The next private build also adds `jak2_scene_stream` to that report. It retains
+at most 12 samples of scene identity, animation/wait state, all four audio
+stream slots, and renderer counters, sampled every 60 native ticks or at a
+scene change. Change tick counts retain the last observed progress even after
+older samples leave the buffer. Invalid reads remain explicit and the history
+resets between game sessions. This is diagnostic evidence for the reported
+freeze before Haven City, not a freeze fix: advancing animation does not prove
+correct presentation, and a missing report does not prove the main thread hung.
+Enable Developer Logs before launching Jak II, reproduce the freeze, then go
+Home without force-quitting to save the report. This route needs device testing.
 
 **Experimental:** On October 29, 2026 the maintainer authorized one exception to
 that frozen touch contract: an optional, default-off iOS **Controls › Touch

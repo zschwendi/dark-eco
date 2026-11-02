@@ -664,6 +664,15 @@ static GOALPadGameBootStatus *GOALPadGameBootStatusFromJak2(
   return {};
 }
 
++ (nullable NSDictionary<NSString *, id> *)jak2SceneStreamDiagnostics {
+#if GOALPAD_HAS_JAK2_RUNTIME
+  if (GOALPadIsJak2Active()) {
+    return [GOALPadJak2RuntimeBridge jak2SceneStreamDiagnostics];
+  }
+#endif
+  return nil;
+}
+
 + (GOALPadWarpGateTouchSnapshot)warpGateTouchSnapshot {
 #if GOALPAD_HAS_JAK2_RUNTIME
   if (GOALPadIsJak2Active()) {

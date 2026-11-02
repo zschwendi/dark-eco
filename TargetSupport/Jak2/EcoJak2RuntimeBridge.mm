@@ -19,6 +19,7 @@
 #include "game/kernel/core/sound_rpc_jak2.h"
 
 #include "Jak2DiagnosticCadence.hpp"
+#include "Jak2SceneStreamHistory.hpp"
 
 // kmemcard.h's OpenGOAL Ptr template conflicts with Apple's Ptr typedef in Objective-C++.
 std::uint64_t kmemcard_successful_save_generation();
@@ -143,6 +144,7 @@ goal_jak2_metal_host_metrics g_metal_metrics = {};
 NSInteger g_target_frame_rate = 60;
 CGSize g_drawable_size = CGSizeZero;
 bool g_horizontal_plus_enabled = false;
+int32_t g_internal_scale = 1;
 bool g_frame_armed = false;
 uint64_t g_frame_baseline_chains = 0;
 uint64_t g_frame_baseline_drawables = 0;
@@ -154,6 +156,7 @@ uint64_t g_max_chains_per_frame = 0;
 bool g_shadow_bucket195_capture_written = false;
 bool g_shadow195_frame_capture_logged = false;
 goalpad::jak2::DiagnosticCadence g_diagnostic_cadence;
+goalpad::jak2::SceneStreamHistory g_scene_stream_history;
 
 NSString* string_from_utf8(const char* value) {
   if (!value || !value[0]) {
@@ -225,8 +228,8 @@ bool copy_metal_metrics_locked() {
 
 goalpad::PresentationGeometry presentation_geometry_locked() {
   return goalpad::presentation_geometry(static_cast<int32_t>(g_drawable_size.width),
-                                        static_cast<int32_t>(g_drawable_size.height), 1,
-                                        g_horizontal_plus_enabled);
+                                        static_cast<int32_t>(g_drawable_size.height),
+                                        g_internal_scale, g_horizontal_plus_enabled);
 }
 
 void update_portable_display_locked(const goalpad::PresentationGeometry& geometry) {
@@ -471,6 +474,146 @@ void log_shadow195_frame_capture_locked() {
         capture.renderer.last_actual_pipeline_failures,
         capture.renderer.last_actual_reached_boundary);
   g_shadow195_frame_capture_logged = true;
+}
+
+// Diagnostic only. Called from runFrame after the tick, under g_mutex, while g_state is Running:
+// boot has finished, stopKernel cannot have started shutdown, and the stream tables are only
+// written by boot, the tick and shutdown. The audio thread touches only atomic pull counters.
+void record_scene_stream_locked(bool metal_metrics_valid) {
+  const auto& runtime = g_runtime_metrics;
+  const bool scene_valid =
+      runtime.scene_diagnostics_valid == 1 && runtime.scene_identity_valid == 1;
+  if (!g_scene_stream_history.should_sample(runtime.ticks, scene_valid,
+                                            runtime.scene_animation_name,
+                                            sizeof(runtime.scene_animation_name))) {
+    return;
+  }
+  goal_jak2_sound_stream_state streams = {};
+  goal_jak2_sound_stream_state_get(&streams);
+
+  goalpad::jak2::SceneStreamSample sample = {};
+  sample.tick = runtime.ticks;
+  sample.scene_valid = scene_valid;
+  if (scene_valid) {
+    goalpad::jak2::copy_code_name(sample.scene, runtime.scene_animation_name,
+                                  sizeof(runtime.scene_animation_name));
+    sample.scene_elapsed = runtime.scene_elapsed;
+  }
+  sample.frame_valid = runtime.animation_diagnostics_valid == 1;
+  sample.frame = runtime.animation_frame;
+  sample.wait_valid = runtime.scene_wait_diagnostics_valid == 1;
+  if (sample.wait_valid) {
+    sample.wait_gate = runtime.scene_wait_gate;
+    goalpad::jak2::copy_code_name(sample.art_file_status, runtime.scene_wait_art_file_status_name,
+                                  sizeof(runtime.scene_wait_art_file_status_name));
+  }
+  sample.render_valid = metal_metrics_valid;
+  if (metal_metrics_valid) {
+    const auto& metal = g_metal_metrics;
+    sample.chains = static_cast<uint64_t>(metal.chains);
+    sample.completed_chains = static_cast<uint64_t>(metal.completed_chains);
+    sample.failed_chains = static_cast<uint64_t>(metal.failed_chains);
+    sample.submissions = static_cast<uint64_t>(metal.submissions);
+    sample.presentations = static_cast<uint64_t>(metal.presentations);
+    sample.draws = static_cast<uint64_t>(metal.draws);
+  }
+  sample.audio_pulls = streams.pull_calls;
+  static_assert(static_cast<size_t>(GOAL_JAK2_SOUND_STREAM_SLOT_COUNT) ==
+                    goalpad::jak2::kSceneStreamSlotCount,
+                "Jak II stream slot count drift");
+  for (size_t i = 0; i < goalpad::jak2::kSceneStreamSlotCount; i++) {
+    const auto& in = streams.slots[i];
+    auto& out = sample.slots[i];
+    out.active = in.active != 0;
+    goalpad::jak2::copy_code_name(out.name, in.name, sizeof(in.name));
+    out.id = in.id;
+    out.status = in.published_status;
+    out.position = in.published_position;
+    out.playing = in.playing != 0;
+    out.paused = in.paused != 0;
+    out.finished = in.finished != 0;
+    out.position_stalls = in.position_stalls;
+  }
+  g_scene_stream_history.record(sample);
+}
+
+NSString* code_name_string(const char* value) {
+  NSString* string = value ? [NSString stringWithUTF8String:value] : nil;
+  return string ?: @"";
+}
+
+NSDictionary<NSString*, id>* scene_stream_sample_dictionary(
+    const goalpad::jak2::SceneStreamSample& sample) {
+  NSMutableArray* slots =
+      [NSMutableArray arrayWithCapacity:goalpad::jak2::kSceneStreamSlotCount];
+  for (const auto& slot : sample.slots) {
+    [slots addObject:@{
+      @"active" : @(slot.active),
+      @"name" : code_name_string(slot.name),
+      @"id" : @(slot.id),
+      @"status" : [NSString stringWithFormat:@"0x%08x", slot.status],
+      @"position" : @(slot.position),
+      @"playing" : @(slot.playing),
+      @"paused" : @(slot.paused),
+      @"finished" : @(slot.finished),
+      @"position_stalls" : @(slot.position_stalls),
+    }];
+  }
+  // Frames are finite whenever frame_valid; the history normalizes non-finite values to invalid.
+  return @{
+    @"tick" : @(sample.tick),
+    @"scene_valid" : @(sample.scene_valid),
+    @"scene" : code_name_string(sample.scene),
+    @"scene_elapsed" : @(sample.scene_elapsed),
+    @"frame_valid" : @(sample.frame_valid),
+    @"frame" : sample.frame_valid ? (id)@(sample.frame) : (id)NSNull.null,
+    @"wait_valid" : @(sample.wait_valid),
+    @"wait_gate" : @(sample.wait_gate),
+    @"art_file_status" : code_name_string(sample.art_file_status),
+    @"render_valid" : @(sample.render_valid),
+    @"chains" : @(sample.chains),
+    @"completed_chains" : @(sample.completed_chains),
+    @"failed_chains" : @(sample.failed_chains),
+    @"submissions" : @(sample.submissions),
+    @"presentations" : @(sample.presentations),
+    @"draws" : @(sample.draws),
+    @"audio_pulls" : @(sample.audio_pulls),
+    @"slots" : slots,
+  };
+}
+
+NSDictionary<NSString*, id>* scene_stream_diagnostics_locked() {
+  const auto& history = g_scene_stream_history;
+  if (history.size() == 0) {
+    return nil;
+  }
+  NSMutableArray* samples = [NSMutableArray arrayWithCapacity:history.size()];
+  for (size_t i = 0; i < history.size(); i++) {
+    [samples addObject:scene_stream_sample_dictionary(history.at(i))];
+  }
+  const auto& progress = history.progress();
+  NSMutableArray* slot_identity = [NSMutableArray array];
+  NSMutableArray* slot_position = [NSMutableArray array];
+  for (size_t i = 0; i < goalpad::jak2::kSceneStreamSlotCount; i++) {
+    [slot_identity addObject:@(progress.slot_identity_changed_tick[i])];
+    [slot_position addObject:@(progress.slot_position_changed_tick[i])];
+  }
+  return @{
+    @"schema" : @"goalpad-jak2-scene-stream-v1",
+    @"period_ticks" : @(goalpad::jak2::kSceneStreamPeriodTicks),
+    @"samples_recorded" : @(history.recorded()),
+    @"changed_ticks" : @{
+      @"scene" : @(progress.scene_changed_tick),
+      @"frame" : @(progress.frame_changed_tick),
+      @"elapsed" : @(progress.elapsed_changed_tick),
+      @"completed_chains" : @(progress.completed_chains_changed_tick),
+      @"presentations" : @(progress.presentations_changed_tick),
+      @"audio_pulls" : @(progress.audio_pulls_changed_tick),
+      @"slot_identity" : slot_identity,
+      @"slot_position" : slot_position,
+    },
+    @"samples" : samples,
+  };
 }
 
 void log_jak2_diagnostics_locked() {
@@ -1313,6 +1456,7 @@ void clear_runtime_snapshots_locked() {
   g_shadow_bucket195_capture_written = false;
   g_shadow195_frame_capture_logged = false;
   g_target_frame_rate = 60;
+  g_scene_stream_history.reset();
 }
 
 GOALPadProgressMenuSnapshot unavailable_progress_snapshot() {
@@ -1743,8 +1887,11 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
     return NO;
   }
   const goal_jak2_runtime_status status = goal_jak2_runtime_tick_at(targetPresentationTime);
-  copy_runtime_metrics_locked();
-  copy_metal_metrics_locked();
+  const bool runtime_metrics_valid = copy_runtime_metrics_locked();
+  const bool metal_metrics_valid = copy_metal_metrics_locked();
+  if (runtime_metrics_valid) {
+    record_scene_stream_locked(metal_metrics_valid);
+  }
   if (should_log_jak2_diagnostics(g_runtime_metrics.ticks)) {
     log_jak2_diagnostics_locked();
   }
@@ -1910,6 +2057,14 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
   snapshot.bgClockRatio = metrics.bg_clock_ratio;
   snapshot.cameraClockRatio = metrics.camera_clock_ratio;
   return snapshot;
+}
+
++ (nullable NSDictionary<NSString*, id>*)jak2SceneStreamDiagnostics {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  if (g_state != SessionState::Running) {
+    return nil;
+  }
+  return scene_stream_diagnostics_locked();
 }
 
 + (GOALPadWarpGateTouchSnapshot)warpGateTouchSnapshot {
@@ -2150,8 +2305,13 @@ int32_t GOALPadAudioPull(int16_t* out, int32_t frames) {
 }
 
 - (void)setInternalResolutionScale:(int32_t)scale {
-  // The current Jak II host owns a fixed 640x480 game target.
-  (void)scale;
+  std::lock_guard<std::mutex> lock(g_mutex);
+  g_internal_scale = std::clamp(scale, int32_t{1}, int32_t{4});
+  const auto geometry = presentation_geometry_locked();
+  update_portable_display_locked(geometry);
+  if (g_metal_host && !update_metal_presentation_geometry(g_metal_host, geometry)) {
+    g_last_error = @"Jak II could not apply the selected internal resolution.";
+  }
 }
 
 - (void)setHorizontalPlusEnabled:(BOOL)enabled {

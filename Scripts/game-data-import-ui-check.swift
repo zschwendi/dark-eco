@@ -207,9 +207,32 @@ check(view.contains("importer.start(from: source)")
         && view.contains("if isRefreshingDataReport")
         && view.contains("Text(\"Rechecking…\")")
         && view.contains(".disabled(isRefreshingDataReport)")
-        && view.contains(".disabled(!importer.canStart || isRefreshingDataReport)")
+        && view.contains(".disabled(!importer.canStart || isRefreshingDataReport || isFindingLocalMediaFiles)")
         && view.contains("!dataReport.canLaunchRuntime || isRefreshingDataReport"),
       "import completion invalidates stale save snapshots before refreshing launcher readiness")
+check(view.components(separatedBy: "importer.start(from:").count - 1 == 1
+        && view.components(separatedBy: ".fileImporter(").count - 1 == 1
+        && view.contains("beginImport(from: source)")
+        && occursInOrder([
+            "private var offersDarkEcoFolderImport: Bool {",
+            "#if os(iOS)",
+            "!ProcessInfo.processInfo.isiOSAppOnMac",
+            "#else",
+            "return false",
+        ], in: view)
+        && view.contains("in: GameDataLayout.documentsDirectory")
+        && !view.contains("localMediaListing(in: source")
+        && view.contains(".onDisappear { cancelLocalMediaScan() }")
+        && view.contains("guard !Task.isCancelled, generation == localMediaScanGeneration")
+        && occursInOrder([
+            "private func importLocalMediaFile(_ file: URL)",
+            "guard importer.canStart, !isRefreshingDataReport, localMediaScan == nil",
+            "GameDataImportSource.revalidatedLocalMediaFile(",
+            "GameDataImportPresentation.localFolderChangedGuidance",
+            "beginImport(from: source)",
+        ], in: view),
+      "the iOS-only Dark Eco folder fallback scans only app Documents, is cancellation-safe, "
+        + "revalidates before import, and shares the single import path")
 check(importer.contains("init(\n        profile: GameDataProfile,")
         && importer.contains("self.profile = profile")
         && importer.contains("GameDataInstallWorker(configuration: .app(for: profile))")

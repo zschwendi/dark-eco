@@ -7,9 +7,11 @@ nonisolated struct RenderSettingsConfiguration: Equatable, Sendable {
     static let jak1 = RenderSettingsConfiguration(
         defaultsKey: "internalResolutionScale",
         defaultScale: 2)
+    // Jak II ignored its original key, so a value stored there was never rendered. A fresh key
+    // keeps every install at the 1x target it has actually been drawing.
     static let jak2 = RenderSettingsConfiguration(
-        defaultsKey: "jak2InternalResolutionScale",
-        defaultScale: 4)
+        defaultsKey: "jak2InternalResolutionScaleV2",
+        defaultScale: 1)
 }
 
 /// The game's internal render resolution.

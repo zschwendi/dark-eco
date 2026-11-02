@@ -384,6 +384,10 @@ typedef NS_ENUM(NSInteger, GOALPadGameIdentifier) {
     GOALPadJak2ProgressMenuSemanticSnapshot jak2ProgressMenuSemanticSnapshot;
 /// A read-only Jak II metrics copy for lifecycle diagnostics; Jak 1 reports it unavailable.
 @property(class, nonatomic, readonly) GOALPadJak2GameSpeedSnapshot jak2GameSpeedSnapshot;
+/// Diagnostic-only, bounded Jak II scene/stream/render progression for the Files frame-timing
+/// report. Nil when Jak II is not active or no validated sample was recorded this session.
+@property(class, nonatomic, readonly, nullable)
+    NSDictionary<NSString *, id> *jak2SceneStreamDiagnostics;
 /// GOAL-owned warp-gate touch semantics. Invalid and valid-unavailable snapshots are distinct.
 @property(class, nonatomic, readonly) GOALPadWarpGateTouchSnapshot warpGateTouchSnapshot;
 /// GOAL-owned, fail-closed Triangle-query availability for explicitly skippable animations only.

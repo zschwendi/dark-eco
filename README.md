@@ -134,6 +134,15 @@ and Dark Eco checks the selection afterwards. Without disc preparation for the
 selected game, the picker offers prepared folders only. A selected file can
 still be an unsupported format or disc revision.
 
+If tapping a file in the iPhone or iPad picker does nothing, try its icon or
+switch to List view. The next private test build also offers **Use a file in
+the Dark Eco folder…**: copy your ISO, ZIP, or 7z directly into **Files → Browse
+→ On My iPhone / On My iPad → Dark Eco**, then select it inside setup. This
+alternative uses the same game-data validation; it does not repair the system
+picker. It is not yet included in the public Build 286 download, and device
+acceptance is pending. The copied source uses extra storage until you remove
+it after a successful import; keep the installed game-data and save folders.
+
 Keep Dark Eco's installed game-data copy on your device. Once setup succeeds,
 the app no longer needs the original import source. No game data is fetched
 from the internet or supplied with this repository.
