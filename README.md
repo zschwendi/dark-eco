@@ -1,6 +1,4 @@
-**[Downloads and setup: iPhone/iPad, Vision Pro, and Apple Silicon Mac](https://github.com/zschwendi/dark-eco/blob/v2.0/docs/DOWNLOADS.md)**
-
-The downloadable previews use local saves. Choose your platform in that table for its current package, OS requirement, signing instructions and testing limits.
+**[Downloads by device](https://github.com/zschwendi/dark-eco/blob/v2.0/docs/DOWNLOADS.md) · [Vision Pro from Windows/Linux](https://github.com/zschwendi/dark-eco/blob/v2.0/docs/SIDELOADING.md) · [iPhone/iPad](https://github.com/zschwendi/dark-eco/blob/v2.0/docs/IOS-SIDELOADING.md) · [Mac](https://github.com/zschwendi/dark-eco/blob/v2.0/docs/MACOS-INSTALL.md)**
 
 # Dark Eco — Jak trilogy on Apple platforms
 
@@ -17,7 +15,7 @@ Dark Eco is built for **iPhone, iPad, and Apple Vision Pro**, with an
 | Device | Controls and availability |
 | --- | --- |
 | **iPhone and iPad** | **Touch controls or a gamepad.** |
-| **Mac (Apple silicon) — experimental** | Earlier Jak 1 data import and title-screen boot demonstrated; full gameplay is not yet validated. |
+| **Mac (Apple silicon) — experimental** | [Native Jak 1 app preview](https://github.com/zschwendi/dark-eco/blob/v2.0/docs/MACOS-INSTALL.md). Earlier data import and title-screen boot demonstrated; this package's launch and gameplay remain unverified. |
 | **Apple Vision Pro** | **Gamepad or PSVR2 Sense controllers.** Sense motion gestures are currently a Jak 1 feature. |
 
 Vision Pro also has an experimental **immersive third-person mode**, with Jak
@@ -32,7 +30,9 @@ and Vision Pro presentation.
 Bring compatible game data from your own legally obtained PlayStation 2 copy;
 Dark Eco does not include or download the games. Game code is compiled ahead
 of time into the signed app, with no PS2 emulation, JIT, or jailbreak requirement.
-This is the **Dark Eco app repository**. The Xcode project and scheme retain the
+This is the **Dark Eco app repository**. The current app source is on
+[`v2.0`](https://github.com/zschwendi/dark-eco/tree/v2.0); builders and agents
+should use that branch rather than this historical landing branch. The Xcode project and scheme retain the
 internal name **GOALPad**. Its OpenGOAL engine dependency lives in
 [`jak-pad`](https://github.com/zschwendi/jak-pad) and is pulled in automatically
 when cloning with submodules; players start here.
@@ -47,20 +47,27 @@ Mac gameplay have not been tested.
 
 | Game | Ordinary windowed play | Apple Vision Pro immersion |
 | --- | --- | --- |
-| **Jak and Daxter: The Precursor Legacy** | Playable; the established Dark Eco baseline. A full-game completion pass is not certified. | **Mostly finished, but still incomplete.** Experimental third-person view with Jak visible. Known issues remain with sky coverage, stereo effects, and HUD/interaction prompts. |
-| **Jak II** | **Almost finished, but still incomplete.** Performance and a Dark Jak crash near the early Kor/child encounter are being fixed; broader gameplay and device verification continue. | **Not started.** Planned after the remaining Jak 1 immersive issues are resolved. |
+| **Jak and Daxter: The Precursor Legacy** | Playable; the established Dark Eco baseline. A full-game completion pass is not certified. | **Mostly finished, but still incomplete.** Experimental third-person view with Jak visible. Known issues remain with sky coverage, stereo effects, HUD/interaction prompts, and collected-orb/3D HUD icon placement and depth. |
+| **Jak II** | **Almost finished, but still incomplete.** Known renderer, cutscene and performance issues remain. Mission-start simulator tests are not a full-game or physical-device acceptance pass. | **Not started.** Planned after the remaining Jak 1 immersive issues are resolved. |
 | **Jak 3** | **Planned; work has not started.** | **Planned; work has not started.** |
 
-Immersive availability depends on the build: it is developed in a separate
-experimental lane, so a windowed build does not automatically include it.
+All Apple platforms build from one shared app and engine source. The normal
+visionOS build includes the experimental Jak 1 immersive mode, and Build 290
+provides separate iPhone/iPad and Vision Pro packages from that same source.
+Collected-orb and 3D HUD icons still have placement/depth problems, and
+immersive HUD behaviour still needs wearer acceptance. Earlier source
+reconciliation was tracked in [#16](https://github.com/zschwendi/dark-eco/issues/16).
 Jak II and Jak 3 immersion are planned to use a normal DualSense controller.
 
-For development evidence and open work, see [HANDOFF](HANDOFF.md) and
-[ROADMAP](ROADMAP.md). The known issues above remain the player-facing status.
+Optional first-person play, Sense-tracked hands and additional OpenGOAL mods
+are research, not shipped features. See the [ten-mod shortlist and staged plan](https://github.com/zschwendi/dark-eco/blob/v2.0/docs/OPENGOAL-MOD-RESEARCH.md).
+
+For development evidence and open work, see [HANDOFF](https://github.com/zschwendi/dark-eco/blob/v2.0/HANDOFF.md) and
+[ROADMAP](https://github.com/zschwendi/dark-eco/blob/v2.0/ROADMAP.md). The known issues above remain the player-facing status.
 
 ## See Dark Eco
 
-![Jak 1 immersive gameplay recorded by Zach on Apple Vision Pro](docs/media/dark-eco-vision-pro.gif)
+![Jak 1 immersive gameplay recorded by Zach on Apple Vision Pro](https://raw.githubusercontent.com/zschwendi/dark-eco/v2.0/docs/media/dark-eco-vision-pro.gif)
 
 Zach's own Vision Pro recording of Dark Eco's experimental Jak 1 immersive
 mode. This is an in-development build; the remaining issues are listed above.
@@ -68,6 +75,45 @@ mode. This is an in-development build; the remaining issues are listed above.
 ## Install and play
 
 ### 1. Get the app for your Apple device
+
+**Vision Pro from Windows or Linux:** use the [Build 290 IPA walkthrough](https://github.com/zschwendi/dark-eco/blob/v2.0/docs/SIDELOADING.md)
+and `DarkEco-visionOS-2.0-build290-preview.ipa`.
+
+**iPhone and iPad:** use the [Build 290 IPA guide](https://github.com/zschwendi/dark-eco/blob/v2.0/docs/IOS-SIDELOADING.md)
+and `DarkEco-iOS-2.0-build290-preview.ipa`. Both are in the
+[Build 290 release](https://github.com/zschwendi/dark-eco/releases/tag/build290-preview).
+Both IPA downloads and their supporting files were independently downloaded and verified.
+
+Build 290 includes the app-folder import alternative, working Jak II internal
+resolution selection, texture-remap and short streamed-audio corrections,
+safer Jak 1 shutdown, and the sewer ocean-prefix and race-manager stack fixes.
+It retains the earlier Fit to Screen, portrait text and automatic Duo layout.
+Jak II still has known renderer and cutscene failures; this is a test preview.
+
+The latest simulator results cover 98 authored mission starts: 81 pass and
+17 fail, combining Build 289b and 290 attempts. These are short mission-start
+checks, not a playthrough. See [Build 290 validation](https://github.com/zschwendi/dark-eco/blob/v2.0/docs/BUILD290-VALIDATION.md)
+for the build split, test-fixture exception and remaining issues.
+
+**Updating an existing installation:** back up saves and update in place with
+the same signing identity when possible. Keep your installed game data; you
+do not need to re-import solely for this update or the race fix. Two isolated
+Build 290 mission-start checks passed with unchanged Build 288 prepared data.
+That is a limited compatibility check, not a guarantee for every import or
+device. A different App ID or signer can create a separate save container.
+
+Build 286 and older packages remain under [earlier packages](https://github.com/zschwendi/dark-eco/blob/v2.0/docs/DOWNLOADS.md#earlier-packages).
+
+**Apple Silicon Mac:** use the [native Build 270.1 app guide](https://github.com/zschwendi/dark-eco/blob/v2.0/docs/MACOS-INSTALL.md).
+
+See [downloads by device](https://github.com/zschwendi/dark-eco/blob/v2.0/docs/DOWNLOADS.md) for package versions and earlier
+releases. These packaged
+previews use local saves; the maintainer's iCloud identity is not included.
+
+The Vision Pro guide covers Apparition setup, the sign-in server setting, pairing, installation,
+your own Jak game-data import and refreshes. No Mac is needed to install that
+published preview. It requires visionOS 26.5+ and uses local saves; fresh-recipient
+installation and gameplay through this route remain unverified.
 
 Check the [Dark Eco releases](https://github.com/zschwendi/dark-eco/releases)
 for an available build and follow that release's installation and signing
@@ -98,9 +144,18 @@ be rejected; the prepared-folder path remains an alternative for compatible
 data.
 
 The setup screen is the authority for the formats supported by your particular
-build. If a file is dimmed in the picker, check that you selected the intended
-game and that the build supports that input. A locally downloaded file can
+build. When disc preparation is available, the picker leaves files selectable
+and Dark Eco checks the selection afterwards. Without disc preparation for the
+selected game, the picker offers prepared folders only. A selected file can
 still be an unsupported format or disc revision.
+
+If tapping a file in the iPhone or iPad picker does nothing, try its icon or
+switch to List view. Build 290 also offers **Use a file in the Dark Eco
+folder…**: copy your ISO, ZIP, or 7z directly into **Files → Browse → On My
+iPhone / On My iPad → Dark Eco**, then select it inside setup. This uses the
+same game-data validation. Recipient-device import acceptance remains pending.
+The copied source uses extra storage until you remove it after a successful
+import; keep the installed game-data and save folders.
 
 Keep Dark Eco's installed game-data copy on your device. Once setup succeeds,
 the app no longer needs the original import source. No game data is fetched
@@ -140,7 +195,7 @@ deleting the existing app and its data.
 ## Build from source
 
 Use an **Apple silicon Mac**, Xcode with the required Apple SDKs, and the
-[build prerequisites](docs/BUILDING.md#requirements). These instructions build
+[build prerequisites](https://github.com/zschwendi/dark-eco/blob/v2.0/docs/BUILDING.md#requirements). These instructions build
 Dark Eco for Apple devices; upstream PC launcher instructions are not the app
 setup path.
 
@@ -173,7 +228,7 @@ Choose the **GOALPad** scheme, select your Apple destination, and configure your
 own signing team, bundle identifiers, and iCloud capabilities when installing
 on hardware. The embedded
 **GOALPadJak2Runtime** framework is part of Dark Eco, not a separate app.
-See [Building](docs/BUILDING.md) for detailed commands, signing requirements,
+See [Building](https://github.com/zschwendi/dark-eco/blob/v2.0/docs/BUILDING.md) for detailed commands, signing requirements,
 and platform validation notes. Do not use the retired standalone Jak II app
 or old App Store/reviewer-launcher instructions.
 
@@ -181,12 +236,13 @@ or old App Store/reviewer-launcher instructions.
 
 Start here before changing anything:
 
-1. Read [AGENTS.md](AGENTS.md) and the authoritative [Project Overview](docs/PROJECT_OVERVIEW.md).
-2. Read the top of [HANDOFF.md](HANDOFF.md) for the latest source/build state,
-   then [ROADMAP.md](ROADMAP.md) for the current priorities.
+1. Read [AGENTS.md](https://github.com/zschwendi/dark-eco/blob/v2.0/AGENTS.md) and the authoritative [Project Overview](https://github.com/zschwendi/dark-eco/blob/v2.0/docs/PROJECT_OVERVIEW.md).
+2. Read the top of [HANDOFF.md](https://github.com/zschwendi/dark-eco/blob/v2.0/HANDOFF.md) for the latest source/build state,
+   then [ROADMAP.md](https://github.com/zschwendi/dark-eco/blob/v2.0/ROADMAP.md) for the current priorities.
 3. Inspect the parent and nested OpenGOAL Git state. Preserve dirty work,
-   saves, user game data, and the distinction between the windowed and
-   experimental immersive lanes.
+   saves and user game data. Older immersive/windowed worktrees and branches
+   are history and evidence, not separate delivery lanes; new work uses the
+   one shared source.
 4. Work on the smallest scoped change. Follow the current task's device
    authorization and run relevant checks; a simulator pass is not physical-device acceptance.
 5. Record exact commands, results, remaining issues, and the next step in the handoff.
@@ -217,7 +273,3 @@ and Metal/Apple-platform integration.
 
 This is an unofficial community project, unaffiliated with Sony Interactive
 Entertainment, Naughty Dog, or the OpenGOAL team.
-
-## Issues
-
-Found a reproducible bug or have a concrete feature request? [Check existing issues](https://github.com/zschwendi/dark-eco/issues) first, then open an issue if needed. For bugs, include your device/OS, app version, steps to reproduce, expected and actual behavior, and relevant logs. For features, explain the use case. Please keep Issues focused on bugs and feature requests.

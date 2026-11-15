@@ -1,3 +1,16 @@
+# Active Dark Eco source
+
+This default branch is a historical landing tree. Current Dark Eco app code,
+release instructions and agent rules are on `v2.0`:
+https://github.com/zschwendi/dark-eco/tree/v2.0
+
+Before source changes or builds, use `v2.0` and read its `AGENTS.md` and
+`docs/PROJECT_OVERVIEW.md`. The published Build 290 source is app76d3663;
+its package provenance records the exact engine identity. This landing update
+changes documentation only and preserves the older tree below.
+
+---
+
 # AGENTS.md
 
 This file defines the operating rules for coding agents working in this repository.
