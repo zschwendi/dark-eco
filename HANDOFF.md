@@ -1,3 +1,55 @@
+# November 15, 2026 — Jak II mission smoke testing and private Build 290
+
+The maintainer explicitly requested simulator developer-mode mission/environment smoke testing.
+Use only the dedicated task simulator; no physical-device access or public release is authorized
+for this phase. Public source/IPAs remain held until Zach tests and accepts.
+
+Build 289b tested 48 authored starts covering 48 primary environments: 33 passed the runtime
+smoke criteria and 15 failed. All copied save manifests stayed unchanged. Sampled stills for
+all 33 successful starts were reviewed. This is not campaign completion, audible-audio
+acceptance, physical performance or verification of every effect in each environment.
+
+Private simulator Build 290 (app checkpoint `ae5d1f4`, engine `d36fe150f`) contains:
+
+- A race-manager stack allocation correction, proven with actual generated-function ASan
+  before/after tests. Two race starts now pass; class 3 no longer crashes but exposes a separate
+  alpha bucket 157 rejection.
+- Exact recognition of the authored no-sky ocean setup prefix. Both sewer starts now pass.
+- Opt-in numeric metadata for selected rejected texture-upload chains. It changes no packet
+  acceptance or execution behavior.
+
+The rebuilt 12-case check passed seven and failed five: four expected unsupported animation
+cases plus the newly exposed class-3 alpha rejection. Ruins and atoll controls pass. The nest
+start passes only with a recorded test-only correction to an old private fixture containing
+extraneous trailing bytes; original data is preserved, and no product reader was relaxed.
+The additional 50 authored starts are still running. Ordinary audio output now starts after
+unlocking the Mac; the earlier Apple simulator audio-service abort is not occurring in this run.
+
+Current source pack: 840 objects, aggregate `4f3e512e091fae63`. AOT preflight, pack verification,
+three focused native tests, full simulator Release build and strict simulator signature check
+pass. The generic iOS/visionOS/macOS matrix has not started: free space fell below its 16 GiB
+start guard. No signed device Build 290 package or installation is claimed.
+
+Remaining failures are tracked in GitHub #25 (animated texture packets), #26 (sewer crash),
+#27 (race stack crash), and the construction-site eye-upload issue linked from the private
+issue receipts. #11 has a precise new UI reproduction: switch 1× to 2× while already paused;
+the frozen background shrinks, while resume then fresh pause restores it. No fix for that
+remaining transition has been made. Existing scene/audio, water appearance, ProMotion and
+physical acceptance gates from Build 288 remain open.
+
+Root owns integration and builds. Actual Claude Code Opus 5.5 hit its Max session limit;
+reported reset is November 15 at 1:50 AM America/Denver. Do not retry before reset or claim
+bounded local scouting/diagnostics were Opus work. Source-proven packet implementation must
+preserve blend/channel behavior and strict bounds; do not merely accept or ignore packets.
+
+Exact commands, private evidence, fixture identities and the live next step are under workspace
+`.agent-builds/jak2-full-regression-20261114/ACTIVE_HANDOFF.md`. Preserve baseline 288/289 data,
+source generations, original saves and both working checkouts. Parent AstraBoard work remains
+`w-52d754e488224ad0b2dce3104c0cbacd`, OPEN. The dedicated simulator was created by this task;
+shut down only that simulator at the end of validation.
+
+---
+
 # November 2, 2026 — Private Build 288 ready; ordinary Jak II still incomplete
 
 Zach asked to continue Jak II while not ready to install. Actual Opus 5.5
