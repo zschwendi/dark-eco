@@ -129,8 +129,10 @@ struct ContentView: View {
     #endif
 
     init() {
-        let hasJak2DebugPreview = ProcessInfo.processInfo
-            .environment["GOALPAD_JAK2_DEBUG_PREVIEW_SCENE"]?.isEmpty == false
+        let environment = ProcessInfo.processInfo.environment
+        let hasJak2DebugPreview =
+            environment["GOALPAD_JAK2_DEBUG_PREVIEW_SCENE"]?.isEmpty == false
+            || environment["GOALPAD_JAK2_DEBUG_PLAY_TASK"]?.isEmpty == false
         _session = State(initialValue: GameSession(
             profile: hasJak2DebugPreview ? .jak2 : .initialProfile))
         #if GOALPAD_APPSTORE_CAPTURE
@@ -287,9 +289,10 @@ struct ContentView: View {
                 startAfterPreparationTitle = nil
                 await selectedSession.start()
             }
+            let environment = ProcessInfo.processInfo.environment
             if selectedSession.title == .jak2,
-               ProcessInfo.processInfo
-                .environment["GOALPAD_JAK2_DEBUG_PREVIEW_SCENE"]?.isEmpty == false {
+               environment["GOALPAD_JAK2_DEBUG_PREVIEW_SCENE"]?.isEmpty == false
+                || environment["GOALPAD_JAK2_DEBUG_PLAY_TASK"]?.isEmpty == false {
                 await selectedSession.start()
             }
         }

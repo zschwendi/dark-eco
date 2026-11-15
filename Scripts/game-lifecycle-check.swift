@@ -217,6 +217,27 @@ private func frameCallbacksFollowTheRunningSession() {
     check(!wants(false), "a replacement session starts without callbacks")
 }
 
+private func manualAudioClockIsBounded() {
+    print("the simulator manual audio clock follows elapsed time without catch-up bursts")
+    var clock = ManualAudioClock(sampleRate: 48_000, maxFramesPerWake: 4096)
+    check(clock.framesDue(elapsed: .zero) == 0, "no time owes no frames")
+    check(clock.framesDue(elapsed: .milliseconds(10)) == 480, "10 ms owes 480 frames")
+    check(clock.framesDue(elapsed: .milliseconds(10)) == 0, "a repeated wake owes nothing")
+    var total = 480
+    for microseconds in [3_333, 6_667, 10_000] {
+        total += clock.framesDue(elapsed: .milliseconds(10) + .microseconds(microseconds))
+    }
+    check(total == 960, "fractional wakes sum to exact elapsed frames")
+    check(clock.framesDue(elapsed: .seconds(10)) == 4096, "a late wake renders at most one cap")
+    check(clock.droppedFrames == 480_000 - 960 - 4096, "the late backlog is dropped, not owed")
+    check(clock.framesDue(elapsed: .seconds(10) + .milliseconds(10)) == 480,
+          "the clock resumes real-time pacing after a drop")
+    check(clock.framesDue(elapsed: .seconds(9)) == 0, "time going backwards owes nothing")
+    var long = ManualAudioClock(sampleRate: 48_000, maxFramesPerWake: 4096)
+    check(long.framesDue(elapsed: .seconds(100 * 3600)) == 4096,
+          "very long elapsed time cannot overflow")
+}
+
 @main
 private enum GameLifecycleCheck {
     static func main() {
@@ -228,6 +249,7 @@ private enum GameLifecycleCheck {
         stoppedSessionInvalidatesPreparation()
         controlsGuideSuspendsIdempotently()
         audioLifecycleOwnership()
+        manualAudioClockIsBounded()
         frameCallbacksFollowTheRunningSession()
 
         if failures == 0 {

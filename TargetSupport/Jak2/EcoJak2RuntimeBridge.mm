@@ -263,7 +263,9 @@ bool update_metal_presentation_geometry(goal_jak2_metal_host* host,
 
 bool should_log_jak2_diagnostics(uint64_t tick) {
   const char* preview_scene = std::getenv("GOALPAD_JAK2_DEBUG_PREVIEW_SCENE");
-  const bool preview_active = preview_scene && preview_scene[0];
+  const char* play_task = std::getenv("GOALPAD_JAK2_DEBUG_PLAY_TASK");
+  const bool preview_active =
+      (preview_scene && preview_scene[0]) || (play_task && play_task[0]);
   return g_diagnostic_cadence.should_log(tick, preview_active);
 }
 
@@ -633,7 +635,7 @@ void log_jak2_diagnostics_locked() {
          "pmode=%.3f desired=%s active=%s dgo=%s/%s result=%d failures=%d "
          "dma=%d/%d/%d bytes=%u/%u chains=%llu/%llu/%llu cmd=%llu/%llu/%llu "
          "cmd-last=%d/%lld drawable=%llu/%llu submit=%llu/%llu/%llu draws=%llu/%llu "
-         "progress=%llu/%llu/%llu/%llu map=%llu/%u/%u buckets=%llu skipped=%llu error=%s",
+         "progress=%llu/%llu/%llu/%llu map=%llu/%u/%u buckets=%llu skipped=%llu error=%s smoke-target=%d/%d",
         static_cast<unsigned long long>(runtime.ticks), runtime.master_mode,
         runtime.title_control_state, runtime.scene_player_state, runtime.target_state,
         runtime.host_last_pmode_alpha, runtime.host_desired_levels, runtime.host_active_levels,
@@ -663,7 +665,8 @@ void log_jak2_diagnostics_locked() {
         metal.last_map_texture_upload.valid, metal.last_map_texture_upload.upload_count,
         static_cast<unsigned long long>(metal.last_buckets_dispatched),
         static_cast<unsigned long long>(metal.skipped_bucket_bytes),
-        g_metal_host ? goal_jak2_metal_host_last_error(g_metal_host) : "");
+        g_metal_host ? goal_jak2_metal_host_last_error(g_metal_host) : "",
+        runtime.task_smoke_target_valid, runtime.task_smoke_target_alive);
 
   NSLog(@"GOALPAD_JAK2_OCEAN_GOAL_STATE tick=%llu valid=%d "
          "map=0x%08x/0x%08x object=0x%08x false=0x%08x "
@@ -1777,6 +1780,15 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
       failure = string_from_utf8(goal_jak2_metal_host_last_error(host));
     }
 
+    const char* preview_scene = std::getenv("GOALPAD_JAK2_DEBUG_PREVIEW_SCENE");
+    const char* play_task = std::getenv("GOALPAD_JAK2_DEBUG_PLAY_TASK");
+    if (!failure && preview_scene && preview_scene[0] && play_task && play_task[0]) {
+      failure = @"GOALPAD_JAK2_DEBUG_PLAY_TASK and GOALPAD_JAK2_DEBUG_PREVIEW_SCENE are mutually "
+                @"exclusive; set only one.";
+      NSLog(@"GOALPAD_JAK2_DEBUG_PLAY_TASK result=error task=%s error=conflicts-with-preview-scene",
+            play_task);
+    }
+
     if (!failure) {
       goal_jak2_runtime_config config = {};
       config.data_directory = data_path.fileSystemRepresentation;
@@ -1795,10 +1807,18 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
     if (!failure && !goal_jak2_metal_host_get_metrics(host, &metal_metrics)) {
       failure = string_from_utf8(goal_jak2_metal_host_last_error(host));
     }
-    const char* preview_scene = std::getenv("GOALPAD_JAK2_DEBUG_PREVIEW_SCENE");
     if (!failure && preview_scene && preview_scene[0] &&
         goal_jak2_runtime_request_scene_preview(preview_scene) != GOAL_JAK2_RUNTIME_OK) {
       failure = string_from_utf8(goal_jak2_runtime_last_error());
+    }
+    if (!failure && play_task && play_task[0]) {
+      if (goal_jak2_runtime_request_debug_play_task(play_task) != GOAL_JAK2_RUNTIME_OK) {
+        failure = string_from_utf8(goal_jak2_runtime_last_error());
+        NSLog(@"GOALPAD_JAK2_DEBUG_PLAY_TASK result=error task=%s error=%s", play_task,
+              goal_jak2_runtime_last_error());
+      } else {
+        NSLog(@"GOALPAD_JAK2_DEBUG_PLAY_TASK request task=%s", play_task);
+      }
     }
   } catch (const std::exception& error) {
     failure = [NSString stringWithFormat:@"Jak II startup threw: %s", error.what()];

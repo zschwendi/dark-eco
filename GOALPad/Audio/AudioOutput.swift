@@ -33,6 +33,22 @@ final class AudioOutput {
     private var observers: [NSObjectProtocol] = []
     private var playbackPolicy = AudioPlaybackPolicy()
 
+    /// Simulator-only diagnostic: `GOALPAD_SIMULATOR_MANUAL_AUDIO=1` renders the same source node
+    /// through an offline manual-rendering engine and discards the PCM. No audio session, no
+    /// hardware, nothing audible; it exists only so the engine's audio clock advances on a
+    /// simulator whose RemoteIO setup aborts. Devices always take the hardware path.
+    #if targetEnvironment(simulator)
+    private static let usesManualRendering =
+        ProcessInfo.processInfo.environment["GOALPAD_SIMULATOR_MANUAL_AUDIO"] == "1"
+    #else
+    private static let usesManualRendering = false
+    #endif
+    private static let manualMaxFrames: AVAudioFrameCount = 4096
+    private static let manualWakeInterval = Duration.milliseconds(10)
+    private static let manualMarkerInterval = Duration.seconds(5)
+    private var manualPump: Task<Void, Never>?
+    private var manualGeneration: UInt64 = 0
+
     func start() {
         playbackPolicy.requestStart()
         startHardwareIfAllowed()
@@ -60,6 +76,10 @@ final class AudioOutput {
 
     private func startHardwareIfAllowed() {
         guard playbackPolicy.shouldRun, !isRunning else { return }
+        if Self.usesManualRendering {
+            startManualRendering()
+            return
+        }
         observeSession()
 
         do {
@@ -94,17 +114,132 @@ final class AudioOutput {
 
     private func stopHardware() {
         teardown()
-        deactivateSession()
+        if !Self.usesManualRendering {
+            deactivateSession()
+        }
         isRunning = false
     }
 
     private func teardown() {
+        stopManualPump()
         engine?.stop()
         if let engine, let sourceNode {
             engine.detach(sourceNode)
         }
         sourceNode = nil
         engine = nil
+    }
+
+    // MARK: - Simulator manual rendering
+
+    private func startManualRendering() {
+        do {
+            // Manual mode must be enabled before anything touches mainMixerNode, inputNode or
+            // outputNode, or the engine configures the hardware anyway.
+            let engine = AVAudioEngine()
+            guard let format = AVAudioFormat(standardFormatWithSampleRate: Double(sampleRate),
+                                             channels: 2)
+            else {
+                throw AudioOutputError.message("Could not describe a \(sampleRate) Hz stereo format.")
+            }
+            try engine.enableManualRenderingMode(.offline, format: format,
+                                                 maximumFrameCount: Self.manualMaxFrames)
+
+            let pull = self.pull
+            let node = AVAudioSourceNode(format: format) { silence, _, frameCount, buffers in
+                pull.render(frameCount: frameCount, silence: silence, buffers: buffers)
+            }
+            engine.attach(node)
+            engine.connect(node, to: engine.mainMixerNode, format: format)
+            guard let buffer = AVAudioPCMBuffer(pcmFormat: engine.manualRenderingFormat,
+                                                frameCapacity: Self.manualMaxFrames)
+            else {
+                throw AudioOutputError.message("Could not allocate the manual render buffer.")
+            }
+            engine.prepare()
+            try engine.start()
+
+            self.engine = engine
+            sourceNode = node
+            isRunning = true
+            lastError = nil
+            startManualPump(engine: engine, buffer: buffer)
+            audioLog.notice("""
+                GOALPAD_SIMULATOR_MANUAL_AUDIO active: offline render at \(self.sampleRate) Hz, \
+                output discarded, no audio session, no hardware or audible-audio acceptance
+                """)
+        } catch {
+            lastError = "Simulator manual audio: \(error.localizedDescription)"
+            audioLog.error("""
+                GOALPAD_SIMULATOR_MANUAL_AUDIO start failed: \(error.localizedDescription, privacy: .public)
+                """)
+            stopHardware()
+        }
+    }
+
+    /// Renders on the main actor, so `teardown()` stopping the pump is synchronous: once it
+    /// returns, the generation no longer matches and no wake can render into the stopped engine.
+    private func startManualPump(engine: AVAudioEngine, buffer: AVAudioPCMBuffer) {
+        stopManualPump()
+        manualGeneration &+= 1
+        let generation = manualGeneration
+        let sampleRate = self.sampleRate
+
+        manualPump = Task { @MainActor [weak self] in
+            var clock = ManualAudioClock(sampleRate: sampleRate,
+                                         maxFramesPerWake: Int(Self.manualMaxFrames))
+            let start = ContinuousClock.now
+            var nextMarker = start + Self.manualMarkerInterval
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: Self.manualWakeInterval)
+                } catch {
+                    return
+                }
+                guard let self, self.manualGeneration == generation, !Task.isCancelled else {
+                    return
+                }
+                let now = ContinuousClock.now
+                let frames = clock.framesDue(elapsed: now - start)
+                if frames > 0 {
+                    do {
+                        let status = try engine.renderOffline(AVAudioFrameCount(frames), to: buffer)
+                        guard status == .success else {
+                            throw AudioOutputError.message("render status \(status.rawValue)")
+                        }
+                    } catch {
+                        self.failManualRendering(error)
+                        return
+                    }
+                }
+                if now >= nextMarker {
+                    nextMarker = now + Self.manualMarkerInterval
+                    audioLog.notice("""
+                        GOALPAD_SIMULATOR_MANUAL_AUDIO progress: requested \(self.framesRequested) \
+                        produced \(self.framesProduced) dropped \(clock.droppedFrames)
+                        """)
+                }
+            }
+        }
+    }
+
+    private func stopManualPump() {
+        guard manualPump != nil else { return }
+        manualGeneration &+= 1
+        manualPump?.cancel()
+        manualPump = nil
+        audioLog.notice("""
+            GOALPAD_SIMULATOR_MANUAL_AUDIO stopped: requested \(self.framesRequested) \
+            produced \(self.framesProduced)
+            """)
+    }
+
+    private func failManualRendering(_ error: Error) {
+        lastError = "Simulator manual audio: \(error.localizedDescription)"
+        audioLog.error("""
+            GOALPAD_SIMULATOR_MANUAL_AUDIO render failed: \(error.localizedDescription, privacy: .public)
+            """)
+        stopHardware()
     }
 
     // MARK: - Session
