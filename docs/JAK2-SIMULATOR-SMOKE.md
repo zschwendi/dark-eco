@@ -23,7 +23,8 @@ an unacknowledged guide can prevent the test session from starting.
 
 Build/install the unified app using [BUILDING.md](BUILDING.md), with matching public source
 objects, generated AOT code, and native runtime. The test-hook generation checkpoint pins the
-840-object source pack to `007055c0f2867a88`; AOT preflight and pinned-pack verification were
+840-object source pack to `4f3e512e091fae63` (Build 290 race-stack correction;
+Build 289 used `007055c0f2867a88`); AOT preflight and pinned-pack verification were
 checked for that generation. This is generation evidence, with no full-runtime validation
 attached to that record. An older pack cannot exercise the new GOAL task hook. Refresh only the
 fixture's prepared public objects to match the tested app, retaining the user's original assets.
