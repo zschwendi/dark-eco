@@ -1,0 +1,76 @@
+{
+  "build": "290",
+  "release_url": "https://github.com/zschwendi/dark-eco/releases/tag/build290-preview",
+  "tag": "build290-preview",
+  "published_at": "2026-11-15T08:50:51Z",
+  "checked_at": "2026-11-15T08:51:24.763118+00:00",
+  "source": "76d3663a87686abfe578b924038a127c7956677d",
+  "engine": "d36fe150fc2c009db684e84cab20fa0f674b12b5",
+  "checks": "All9assets downloaded anonymously; byte counts and SHA256 match local independently verified package/manifests and GitHub digest. BothIPA bytes are identical to audited readbacks.",
+  "assets": [
+    {
+      "name": "DarkEco-iOS-2.0-build290-preview.ipa",
+      "url": "https://github.com/zschwendi/dark-eco/releases/download/build290-preview/DarkEco-iOS-2.0-build290-preview.ipa",
+      "bytes": 35454337,
+      "sha256": "c8cb61b50e32283e3f1e4c72b5eec728551bfdf9e37429d5de10d56600163cf8",
+      "anonymous_public_download": "PASS"
+    },
+    {
+      "name": "DarkEco-visionOS-2.0-build290-preview.ipa",
+      "url": "https://github.com/zschwendi/dark-eco/releases/download/build290-preview/DarkEco-visionOS-2.0-build290-preview.ipa",
+      "bytes": 35135985,
+      "sha256": "e29e9f56e3833a68fd9aa1ef537f52f97ff7efeeb5e82411ed77c1eba221f688",
+      "anonymous_public_download": "PASS"
+    },
+    {
+      "name": "IOS-INDEPENDENT-PACKAGE-CHECKS.json",
+      "url": "https://github.com/zschwendi/dark-eco/releases/download/build290-preview/IOS-INDEPENDENT-PACKAGE-CHECKS.json",
+      "bytes": 714,
+      "sha256": "ca66a18e272c4681f5df5dcd084a6ec2888dc37c39514b498d6b0dee77972941",
+      "anonymous_public_download": "PASS"
+    },
+    {
+      "name": "IOS-PACKAGE-MANIFEST.json",
+      "url": "https://github.com/zschwendi/dark-eco/releases/download/build290-preview/IOS-PACKAGE-MANIFEST.json",
+      "bytes": 246966,
+      "sha256": "2fd3351197266d87d73ca887a5807d71c2eb13bb43691ed3a518a35b06b81174",
+      "anonymous_public_download": "PASS"
+    },
+    {
+      "name": "IPA-IOS290-PROVENANCE.json",
+      "url": "https://github.com/zschwendi/dark-eco/releases/download/build290-preview/IPA-IOS290-PROVENANCE.json",
+      "bytes": 2552,
+      "sha256": "5a78ace2d975d16ef1208b1874d520aac167d1d9392e52cd2c9e0af64f2e7a29",
+      "anonymous_public_download": "PASS"
+    },
+    {
+      "name": "IPA-VISIONOS290-PROVENANCE.json",
+      "url": "https://github.com/zschwendi/dark-eco/releases/download/build290-preview/IPA-VISIONOS290-PROVENANCE.json",
+      "bytes": 2557,
+      "sha256": "f7219e4358c3b64325dc3580a64206ee54286cd81b59c367c84bae5b83fcd8c8",
+      "anonymous_public_download": "PASS"
+    },
+    {
+      "name": "SHA256SUMS",
+      "url": "https://github.com/zschwendi/dark-eco/releases/download/build290-preview/SHA256SUMS",
+      "bytes": 211,
+      "sha256": "fca7452217a98eff374370993c7b3164ac7d3ae2f870b7d5241728ad5782aae2",
+      "anonymous_public_download": "PASS"
+    },
+    {
+      "name": "VISIONOS-INDEPENDENT-PACKAGE-CHECKS.json",
+      "url": "https://github.com/zschwendi/dark-eco/releases/download/build290-preview/VISIONOS-INDEPENDENT-PACKAGE-CHECKS.json",
+      "bytes": 724,
+      "sha256": "b1877298b0f8c947ea0a408052abcb2042e4f5120bdf0d8928b1f0e366cc07cf",
+      "anonymous_public_download": "PASS"
+    },
+    {
+      "name": "VISIONOS-PACKAGE-MANIFEST.json",
+      "url": "https://github.com/zschwendi/dark-eco/releases/download/build290-preview/VISIONOS-PACKAGE-MANIFEST.json",
+      "bytes": 247412,
+      "sha256": "3e60cd9fef7b7857e0e842fd0ecb26f13af304342dd97c8861e8a5a098afdc95",
+      "anonymous_public_download": "PASS"
+    }
+  ],
+  "physical_acceptance": "not performed"
+}

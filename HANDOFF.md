@@ -1,3 +1,17 @@
+# Build 290 published checkpoint — 2026-11-15
+
+Zach requested that this checkpoint be committed/pushed and work stopped. He then explicitly authorized publishing the improved experimental IPAs without waiting for a complete physical playthrough. That supersedes the earlier private-only release gate below; it does not accept every gameplay issue.
+
+Build 290 is public for iPhone/iPad and Vision Pro at https://github.com/zschwendi/dark-eco/releases/tag/build290-preview . Compiled app 76d3663 and engine d36fe150; subsequent commits are documentation only. iOS, visionOS, macOS and simulator compilation passed. Both IPA packaging and all nine anonymous public downloads verified. Public Mac package remains270.1.
+
+See docs/BUILD290-VALIDATION.md, docs/BUILD290-DELIVERY.json and docs/BUILD290-MISSION-SMOKE.tsv. Latest 98 authored-start coverage is81 PASS / 17 FAIL across36 retained 289b and62Build 290 attempts. All 81 PASS stills reviewed; all 98 save manifests unchanged. Two additional starts pass with unchanged 288 prepared data. This is not a full story, physical performance, audio or save-roundtrip acceptance pass.
+
+Remaining work: animated texture opcodes 31/32/33/37 (#25); eye 196 capture (#28); city challenge nonfinite Merc diagnostic (#29); in-pause resolution resize (#11); water/ProMotion/scene reports (#13/#6/#8/#23); Jak 1 immersive acceptance (#3). Race stack and sewer prefix corrections have focused simulator evidence; race class 3 still rejects alpha 157. Nest data correction was test-fixture-only, with originals preserved. No claim of general Jak II completion.
+
+All workers stopped; owned simulator shut down; originals and saves retained. No physical devices accessed. No further Opus jobs or tests should be started from this checkpoint without a new request. Local reproduction artifacts remain in the workspace's .agent-builds/jak2-full-regression-20261114 directory; the active source worktree remains .agent-worktrees/ios-refresh-20261029. Root task is paused at Zach's request after delivery.
+
+---
+
 # November 15, 2026 — Jak II mission smoke testing and private Build 290
 
 The maintainer explicitly requested simulator developer-mode mission/environment smoke testing.

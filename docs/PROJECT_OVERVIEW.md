@@ -1,6 +1,6 @@
 # GOALPad — Project Overview
 
-> **Status:** Experimental unified Jak 1 and Jak II port; the maintainer reports the affected Jak II loading-chamber area fixed in signed iOS Build 279; ProMotion, presentation and recipient file-selection issues remain open
+> **Status:** Experimental unified Jak 1 and Jak II port; Build 290 iPhone/iPad and Vision Pro previews are published with sewer/race corrections and documented mission-start coverage. Jak II renderer/cutscene defects, ProMotion and physical acceptance remain open.
 > **Working name:** GOALPad
 > **Public product name:** Dark Eco
 > **Distribution:** GitHub-only source and release artifacts; no App Store or TestFlight path

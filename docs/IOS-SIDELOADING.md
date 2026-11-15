@@ -1,18 +1,31 @@
 # Dark Eco for iPhone and iPad
 
-Download the [experimental Build 286 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/build286-preview).
-The **2.0 / Build 286** iPhone/iPad package is
-[`DarkEco-iOS-2.0-build286-preview.ipa`](https://github.com/zschwendi/dark-eco/releases/download/build286-preview/DarkEco-iOS-2.0-build286-preview.ipa).
+Download the [experimental Build 290 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/build290-preview).
+The **2.0 / Build 290** iPhone/iPad package is
+[`DarkEco-iOS-2.0-build290-preview.ipa`](https://github.com/zschwendi/dark-eco/releases/download/build290-preview/DarkEco-iOS-2.0-build290-preview.ipa).
+Both IPA downloads and their supporting files were independently downloaded and verified.
 One native arm64 IPA supports iPhone and iPad on **iOS/iPadOS 26.5 or later**.
-It contains the app runtime and reconstructed OpenGOAL code, with no retail
-game data. You supply your own game data and signing identity.
+It contains no retail game data. You supply your own game data and signing identity.
+The separate Vision Pro IPA cannot substitute for this package.
 
-Build 286 is built from the one shared Apple source and build number that also
-produces the separate Vision Pro package in the same release. Use the iOS IPA;
-the visionOS IPA cannot substitute for it. No physical Build 286 tests have
-been performed; the [Build 286 provenance](IPA-IOS286-PROVENANCE.json) records
-its package checks and limits. See the [Build 286 validation](BUILD286-VALIDATION.md)
-for exact checks and scoped simulator observations.
+Build 290 includes the app-folder import alternative, working Jak II internal
+resolution selection, texture-remap and short streamed-audio corrections,
+safer Jak 1 shutdown, and the sewer ocean-prefix and race-manager stack fixes.
+It retains the earlier Fit to Screen, portrait text and automatic Duo layout.
+Jak II still has known renderer and cutscene failures; this is a test preview.
+
+**Release iOS, visionOS and macOS compilation passed. Both IPA package checks passed.** Exact results
+and limitations belong to [Build 290 validation](BUILD290-VALIDATION.md).
+
+No physical Build 290 acceptance is claimed. Package identity and limits are
+recorded in [iOS provenance](IPA-IOS290-PROVENANCE.json) (**recorded and verified**).
+
+**Updating an existing installation:** back up saves and update in place with
+the same signing identity when possible. Keep your installed game data; you
+do not need to re-import solely for this update or the race fix. Two isolated
+Build 290 mission-start checks passed with unchanged Build 288 prepared data.
+That is a limited compatibility check, not a guarantee for every import or
+device. A different App ID or signer can create a separate save container.
 
 **ProMotion defaults to off (60 FPS)** for new or reset settings. Existing
 explicit choices are preserved. You can opt into ProMotion in Graphics, but
@@ -23,18 +36,11 @@ extends the camera's view with the matching projection instead of stretching
 or narrowing the landscape picture. Turning Fit to Screen off keeps the
 classic 4:3 picture. Presentation can still differ between devices.
 
-**Build 286 portrait text:** default game text is smaller in conventional
-iPhone/iPad Fit to Screen portrait, with the same anchor positions. Landscape,
-Fit to Screen off, Mac and Vision Pro keep their existing font scale.
-In an isolated Duo simulator, title/load-menu text was smaller at the same
-anchors, an existing Geyser Rock save loaded, and a pause view rendered.
-Build 286 has not had an Air visual check or physical-device testing.
-Existing valid imports do not need re-importing for this font-code update.
-
-iOS, iOS simulator, macOS and visionOS builds passed. Both native ABI checks
-and both source-pack checks passed; these do not establish full gameplay,
-performance or hardware acceptance. Exact results belong to the
-[Build 286 validation record](BUILD286-VALIDATION.md).
+**Portrait text:** Build 290 retains the smaller default game text in conventional
+iPhone/iPad Fit to Screen portrait, at the same anchor positions. Landscape,
+Fit to Screen off, Mac and Vision Pro keep their existing font scale. Earlier
+Duo observations are retained in [Build 286 validation](BUILD286-VALIDATION.md);
+they do not establish Build 290 device acceptance.
 
 **Experimental Duo laptop layout:** on iOS/iPadOS 27.1 or later, when the
 device reports a partially open hinge and the app is in a portrait interface,
@@ -43,7 +49,7 @@ half. Fully opening the hinge restores normal full-screen play. The layout is
 automatic, with no setting; unsupported OS versions, devices without a hinge
 and unknown hinge states use the normal presentation. Physical-device, performance and full-game validation remain pending.
 
-Build 286, like Build 282 before it, keeps Build 281's correction of a vertical flip when Jak II samples the rendered world for
+Build 290 keeps Build 281's correction of a vertical flip when Jak II samples the rendered world for
 a distortion effect. The old shader fails the focused top/bottom image test;
 the corrected shader passes. This is a **test candidate**: it does not yet
 establish a fix for the reported dark water plane or long coloured streaks.
@@ -60,17 +66,16 @@ build checks passed, along with four focused native GPU/plan tests. No
 simulator gameplay tests or physical Build 281 tests were performed. See the
 [Build 281 validation results](BUILD281-VALIDATION.md).
 
-**Still open:** [ProMotion slowdown](https://github.com/zschwendi/dark-eco/issues/6),
-[taillight blocks](https://github.com/zschwendi/dark-eco/issues/7),
-[cutscene video freezes](https://github.com/zschwendi/dark-eco/issues/8),
-[remaining water defects](https://github.com/zschwendi/dark-eco/issues/13), and
-[Jak II's ignored internal-resolution setting](https://github.com/zschwendi/dark-eco/issues/14).
-The [pause background](https://github.com/zschwendi/dark-eco/issues/11),
-[Fit to Screen](https://github.com/zschwendi/dark-eco/issues/12) and
-[recipient import](https://github.com/zschwendi/dark-eco/issues/9) candidates
-remain pending physical acceptance. The maintainer accepted the previously
-affected Jak II loading-chamber area in Build 279; this is not complete-game
-certification. Start with **Graphics → ProMotion off** for the 60 FPS mode.
+Known issues remain: [animated texture uploads](https://github.com/zschwendi/dark-eco/issues/25),
+[eye uploads](https://github.com/zschwendi/dark-eco/issues/28), [pause resizing](https://github.com/zschwendi/dark-eco/issues/11),
+[water appearance](https://github.com/zschwendi/dark-eco/issues/13), [ProMotion](https://github.com/zschwendi/dark-eco/issues/6),
+[hideout](https://github.com/zschwendi/dark-eco/issues/8) and [pre-Haven cutscenes](https://github.com/zschwendi/dark-eco/issues/23),
+and [Jak 1 immersion](https://github.com/zschwendi/dark-eco/issues/3). The sewer and race fixes do not resolve all
+of these reports. Physical-device and full-game acceptance remain pending.
+
+Start with **Graphics → ProMotion off** for the 60 FPS mode. Jak II now applies
+the selected 1×–4× internal resolution; its default remains 1×. Keep the scale
+unchanged while paused until the pause-resize issue is resolved.
 
 Optional **Settings → Graphics → Developer Logs** saves frame-timing reports
 under **Files → Dark Eco → Diagnostics → jak1 or jak2**. It adds measurement
@@ -158,12 +163,17 @@ or JIT entitlements. The package does not remove a required memory
 capability. Its ad-hoc transport signature must still be replaced by your
 sideloader's signature for your device.
 
-Build 286's compiled source, hashes and validation limits are recorded in
-[IPA-IOS286-PROVENANCE.json](IPA-IOS286-PROVENANCE.json). The release includes
-the complete package manifest and `SHA256SUMS`. Package checks do not establish
+Build 290's compiled source, hashes and validation limits belong in
+[IPA-IOS290-PROVENANCE.json](IPA-IOS290-PROVENANCE.json) (**recorded and verified**).
+The package manifest, `SHA256SUMS` and independent package verification are
+**verified and included in the release**. Package checks do not establish
 physical-device or gameplay acceptance.
 
 ## History
+
+The earlier [Build 286 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/build286-preview)
+remains available with its original [validation](BUILD286-VALIDATION.md) and
+[provenance](IPA-IOS286-PROVENANCE.json).
 
 The earlier [Build 285 prerelease](https://github.com/zschwendi/dark-eco/releases/tag/build285-preview)
 (`DarkEco-iOS-2.0-build285-preview.ipa`) remains available. Its original

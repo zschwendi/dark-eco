@@ -1,0 +1,99 @@
+task	expected_level	build	status	sampled_visual_review	save_manifests	reason	fixture_note
+atoll-battle	atoll	290	PASS	RECORDED	UNCHANGED		
+atoll-sig	atoll	290	PASS	RECORDED	UNCHANGED		
+atoll-water	atoll	290	PASS	RECORDED	UNCHANGED		
+canyon-insert-items	mincan	289b	FAIL	NOT_RECORDED	UNCHANGED	hard error: chain errors=84 at tick 600	
+castle-boss	casboss	289b	FAIL	NOT_RECORDED	UNCHANGED	hard error: chain errors=84 at tick 600	
+castle-break-in	caspad	289b	PASS	RECORDED	UNCHANGED		
+city-burning-bush-bombbot-1	ctymarka	290	PASS	RECORDED	UNCHANGED		
+city-burning-bush-collection-1	ctygenb	289b	PASS	RECORDED	UNCHANGED		
+city-burning-bush-collection-2	ctygenc	289b	PASS	RECORDED	UNCHANGED		
+city-burning-bush-collection-3	ctyfarma	290	PASS	RECORDED	UNCHANGED		
+city-burning-bush-get-to-1	ctysluma	290	PASS	RECORDED	UNCHANGED		
+city-burning-bush-get-to-10	ctyinda	290	PASS	RECORDED	UNCHANGED		
+city-burning-bush-get-to-11	ctygena	289b	PASS	RECORDED	UNCHANGED		
+city-burning-bush-get-to-12	ctymarka	290	PASS	RECORDED	UNCHANGED		
+city-burning-bush-get-to-13	ctyslumb	290	PASS	RECORDED	UNCHANGED		
+city-burning-bush-get-to-14	ctygena	290	FAIL	NOT_RECORDED	UNCHANGED	hard error: nonfinite Merc bones=1 at tick 1321	
+city-burning-bush-get-to-15	ctypal	290	PASS	RECORDED	UNCHANGED		
+city-burning-bush-get-to-2	ctyindb	289b	PASS	RECORDED	UNCHANGED		
+city-burning-bush-get-to-3	ctyport	290	PASS	RECORDED	UNCHANGED		
+city-burning-bush-get-to-4	ctyslumc	290	PASS	RECORDED	UNCHANGED		
+city-burning-bush-get-to-5	ctyfarmb	289b	PASS	RECORDED	UNCHANGED		
+city-burning-bush-get-to-6	ctymarkb	290	PASS	RECORDED	UNCHANGED		
+city-burning-bush-get-to-7	ctymarkb	290	PASS	RECORDED	UNCHANGED		
+city-burning-bush-get-to-8	ctyfarma	289b	PASS	RECORDED	UNCHANGED		
+city-burning-bush-get-to-9	ctygenb	290	PASS	RECORDED	UNCHANGED		
+city-burning-bush-race-errol	ctyport	290	PASS	RECORDED	UNCHANGED		
+city-burning-bush-race-port	ctyport	290	PASS	RECORDED	UNCHANGED		
+city-burning-bush-racepoint-1	ctymarka	289b	PASS	RECORDED	UNCHANGED		
+city-burning-bush-ring-1	ctyslumb	290	PASS	RECORDED	UNCHANGED		
+city-burning-bush-ring-2	ctyport	290	PASS	RECORDED	UNCHANGED		
+city-burning-bush-ring-3	ctyslumb	290	PASS	RECORDED	UNCHANGED		
+city-burning-bush-shuttle-1	ctymarka	290	PASS	RECORDED	UNCHANGED		
+city-defend-stadium	stadium	289b	PASS	RECORDED	UNCHANGED		
+city-destroy-guard-vehicles	ctysluma	290	PASS	RECORDED	UNCHANGED		
+city-errol-challenge	ctyport	290	PASS	RECORDED	UNCHANGED		
+city-escort-kid	ctysluma	290	PASS	RECORDED	UNCHANGED		
+city-help-kid	ctyslumb	289b	PASS	RECORDED	UNCHANGED		
+city-intercept-tanker	ctymarkb	289b	PASS	RECORDED	UNCHANGED		
+city-keira-delivery	ctyport	289b	PASS	RECORDED	UNCHANGED		
+city-krew-collection	ctyport	290	PASS	RECORDED	UNCHANGED		
+city-krew-delivery	ctysluma	289b	PASS	RECORDED	UNCHANGED		
+city-meet-brutter	hiphog	289b	PASS	RECORDED	UNCHANGED		
+city-play-onin-game	onintent	289b	PASS	RECORDED	UNCHANGED		
+city-port-run	ctyport	290	PASS	RECORDED	UNCHANGED		
+city-power	ctyinda	289b	PASS	RECORDED	UNCHANGED		
+city-protect-water-slums	ctyslumc	289b	PASS	RECORDED	UNCHANGED		
+city-red-gun-training	gungame	289b	PASS	RECORDED	UNCHANGED		
+city-save-lurkers	kiosk	289b	PASS	RECORDED	UNCHANGED		
+city-shuttle	ctysluma	290	PASS	RECORDED	UNCHANGED		
+city-stop-bomb-bots	ctysluma	290	PASS	RECORDED	UNCHANGED		
+city-whack	hiphog	290	PASS	RECORDED	UNCHANGED		
+city-yellow-gun-training	gungame	290	PASS	RECORDED	UNCHANGED		
+consite-find-baron	consite	289b	FAIL	NOT_RECORDED	UNCHANGED	hard error: chain errors=65 at tick 600	
+dig-find-totem	dig3a	289b	FAIL	NOT_RECORDED	UNCHANGED	hard error: chain errors=84 at tick 600	
+dig-knock-down	dig1	290	FAIL	NOT_RECORDED	UNCHANGED	hard error: chain errors=84 at tick 600	
+drill-eggs	drillmid	289b	PASS	RECORDED	UNCHANGED		
+drill-mech	drillmid	290	PASS	RECORDED	UNCHANGED		
+drill-ship	drillmid	290	PASS	RECORDED	UNCHANGED		
+forest-hunt	forest	290	FAIL	NOT_RECORDED	UNCHANGED	hard error: chain errors=84 at tick 600	
+forest-protect	forest	290	FAIL	NOT_RECORDED	UNCHANGED	hard error: chain errors=84 at tick 600	
+forest-scouts	forest	290	FAIL	NOT_RECORDED	UNCHANGED	hard error: chain errors=84 at tick 600	
+fortress-dump	fordumpa	290	FAIL	NOT_RECORDED	UNCHANGED	hard error: chain errors=84 at tick 600	
+fortress-escape	prison	289b	PASS	RECORDED	UNCHANGED		
+fortress-save-friends	forresca	289b	PASS	RECORDED	UNCHANGED		
+mountain-gear	mountain	290	FAIL	NOT_RECORDED	UNCHANGED	hard error: chain errors=84 at tick 600	
+mountain-lens	mountain	290	FAIL	NOT_RECORDED	UNCHANGED	hard error: chain errors=84 at tick 600	
+mountain-shard	mountain	290	FAIL	NOT_RECORDED	UNCHANGED	hard error: chain errors=84 at tick 600	
+nest-boss	nestb	289b	PASS	RECORDED	UNCHANGED		
+nest-enter	nest	290	PASS	RECORDED	UNCHANGED		Test-only repaired nest fixture; originals preserved; not a product data-repair fix
+nest-get-to-gun	nest	290	PASS	RECORDED	UNCHANGED		Test-only repaired nest fixture; originals preserved; not a product data-repair fix
+palace-boss	palroof	289b	FAIL	NOT_RECORDED	UNCHANGED	hard error: chain errors=76 at tick 600	
+palace-cable	palcab	289b	PASS	RECORDED	UNCHANGED		
+palace-sneak-in	ctypal	289b	PASS	RECORDED	UNCHANGED		
+ruins-enemy	ruins	290	PASS	RECORDED	UNCHANGED		
+ruins-mech	ruins	290	PASS	RECORDED	UNCHANGED		
+ruins-tower	ruins	290	PASS	RECORDED	UNCHANGED		
+sewer-board	sewer	290	PASS	RECORDED	UNCHANGED		
+sewer-enemy	sewer	290	PASS	RECORDED	UNCHANGED		
+sewer-escort	sewesc	290	PASS	RECORDED	UNCHANGED		
+stadium-board1	skatea	289b	PASS	RECORDED	UNCHANGED		
+stadium-burning-bush-race-board	skatea	290	PASS	RECORDED	UNCHANGED		
+stadium-burning-bush-race-class1	stadiumd	290	PASS	RECORDED	UNCHANGED		
+stadium-burning-bush-race-class1-r	stadiumd	290	PASS	RECORDED	UNCHANGED		
+stadium-burning-bush-race-class2	stadiumc	290	PASS	RECORDED	UNCHANGED		
+stadium-burning-bush-race-class2-r	stadiumc	290	PASS	RECORDED	UNCHANGED		
+stadium-burning-bush-race-class3	stadiumb	290	FAIL	NOT_RECORDED	UNCHANGED	hard error: chain errors=74 at tick 600	
+stadium-burning-bush-race-class3-r	stadiumb	290	FAIL	NOT_RECORDED	UNCHANGED	hard error: chain errors=74 at tick 600	
+stadium-race-class1	stadiumd	290	PASS	RECORDED	UNCHANGED		
+stadium-race-class2	stadiumc	290	PASS	RECORDED	UNCHANGED		
+stadium-race-class3	stadiumb	290	FAIL	NOT_RECORDED	UNCHANGED	hard error: chain errors=74 at tick 600	
+strip-drop	strip	290	PASS	RECORDED	UNCHANGED		
+strip-grenade	strip	290	PASS	RECORDED	UNCHANGED		
+strip-rescue	strip	289b	PASS	RECORDED	UNCHANGED		
+tomb-boss	tombboss	289b	PASS	RECORDED	UNCHANGED		
+tomb-poles	tomba	289b	PASS	RECORDED	UNCHANGED		
+tomb-water	tomba	290	PASS	RECORDED	UNCHANGED		
+under-mech	underb	289b	PASS	RECORDED	UNCHANGED		
+under-sig	under	289b	PASS	RECORDED	UNCHANGED		

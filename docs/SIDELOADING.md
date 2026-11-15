@@ -4,13 +4,16 @@ This guide is for **Vision Pro**. For phones and tablets, use the
 [iPhone/iPad guide](IOS-SIDELOADING.md); first pairing uses USB trust instead
 of Vision Pro's Remote Devices screen. See [all platform downloads](DOWNLOADS.md).
 
-Download the [Build 286 preview](https://github.com/zschwendi/dark-eco/releases/tag/build286-preview).
-Choose **DarkEco-visionOS-2.0-build286-preview.ipa**. It contains the native
-runtime and reconstructed OpenGOAL code, but **no retail game data**.
+Download the [Build 290 preview](https://github.com/zschwendi/dark-eco/releases/tag/build290-preview).
+Choose **DarkEco-visionOS-2.0-build290-preview.ipa**.
+It contains the native runtime and reconstructed OpenGOAL code, but **no
+retail game data**.
+
+Both IPA downloads and their supporting files were independently downloaded and verified.
 
 You need **visionOS 26.5 or later**, a compatible controller, and your own
 supported Jak and Daxter game data. Start with **Jak and Daxter: The Precursor
-Legacy**. Build 286 comes from the one shared Apple source that also produces
+Legacy**. Build 290 comes from the one shared Apple source that also produces
 the iPhone/iPad package, including the earlier iOS fixes, and its normal
 visionOS build includes experimental third-person Jak 1 immersion. Jak II has
 an unfinished windowed path; Jak II immersive play is not included. Jak 1
@@ -129,11 +132,11 @@ different sideloader; Apparition does not automatically sign or refresh them.
 
 ### 5. Download and install this game's IPA
 
-Open [this game's release](https://github.com/zschwendi/dark-eco/releases/tag/build286-preview), expand **Assets**, and download the
+Open [this game's release](https://github.com/zschwendi/dark-eco/releases/tag/build290-preview), expand **Assets**, and download the
 Vision Pro IPA, not the iPhone/iPad IPA from the same release:
 
 ```text
-DarkEco-visionOS-2.0-build286-preview.ipa
+DarkEco-visionOS-2.0-build290-preview.ipa
 ```
 
 Leave it as an `.ipa`; do not extract it or choose GitHub's **Source code.zip**.
@@ -297,20 +300,43 @@ controls and platform limitations.
 
 ## What this preview contains
 
-Build 286 is a fresh compilation of the unified Apple source, with one build
-number shared with the iPhone/iPad package. Its compiled source, hashes and
-validation limits are recorded in
-[IPA-VISIONOS286-PROVENANCE.json](IPA-VISIONOS286-PROVENANCE.json). The
-Build 286 font adjustment applies only to conventional iPhone/iPad Fit to
-Screen portrait; it does not change Vision Pro font scaling or add immersive
-features. iOS, iOS simulator, macOS and visionOS builds passed, along with
-both native ABI and both source-pack checks. No new headset testing was
-performed. A fresh third-party install, gameplay and headset acceptance
-remain unverified. See [Build 286 validation](BUILD286-VALIDATION.md).
-Existing valid imports do not need re-importing for this update.
-`SHA256SUMS` and the complete file manifest are attached to the release.
+Build 290 includes the app-folder import alternative, working Jak II internal
+resolution selection, texture-remap and short streamed-audio corrections,
+safer Jak 1 shutdown, and the sewer ocean-prefix and race-manager stack fixes.
+It retains the earlier Fit to Screen, portrait text and automatic Duo layout.
+Jak II still has known renderer and cutscene failures; this is a test preview.
+
+The Vision Pro build keeps experimental third-person Jak 1 immersion; these
+changes do not add Jak II immersion or certify headset appearance. The
+compiled source, hashes and package limits belong in
+[IPA-VISIONOS290-PROVENANCE.json](IPA-VISIONOS290-PROVENANCE.json)
+(**recorded and verified**).
+
+**Release iOS, visionOS and macOS compilation passed. Both IPA package checks passed.** Exact results
+and limitations belong to [Build 290 validation](BUILD290-VALIDATION.md).
+
+**Updating an existing installation:** back up saves and update in place with
+the same signing identity when possible. Keep your installed game data; you
+do not need to re-import solely for this update or the race fix. Two isolated
+Build 290 mission-start checks passed with unchanged Build 288 prepared data.
+That is a limited compatibility check, not a guarantee for every import or
+device. A different App ID or signer can create a separate save container.
+
+Known issues remain: [animated texture uploads](https://github.com/zschwendi/dark-eco/issues/25),
+[eye uploads](https://github.com/zschwendi/dark-eco/issues/28), [pause resizing](https://github.com/zschwendi/dark-eco/issues/11),
+[water appearance](https://github.com/zschwendi/dark-eco/issues/13), [ProMotion](https://github.com/zschwendi/dark-eco/issues/6),
+[hideout](https://github.com/zschwendi/dark-eco/issues/8) and [pre-Haven cutscenes](https://github.com/zschwendi/dark-eco/issues/23),
+and [Jak 1 immersion](https://github.com/zschwendi/dark-eco/issues/3). The sewer and race fixes do not resolve all
+of these reports. Physical-device and full-game acceptance remain pending.
+
+The release includes verified `SHA256SUMS`, complete file manifests and independent package-check receipts. A fresh third-party install,
+gameplay, save-preserving refresh and headset acceptance remain unverified.
 
 ## History
+
+The earlier [Build 286 preview](https://github.com/zschwendi/dark-eco/releases/tag/build286-preview)
+remains available with its original [provenance](IPA-VISIONOS286-PROVENANCE.json)
+and [validation](BUILD286-VALIDATION.md).
 
 The earlier [Build 285 preview](https://github.com/zschwendi/dark-eco/releases/tag/build285-preview)
 (`DarkEco-visionOS-2.0-build285-preview.ipa`) remains available. Its original

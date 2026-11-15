@@ -46,12 +46,12 @@ Mac gameplay have not been tested.
 | Game | Ordinary windowed play | Apple Vision Pro immersion |
 | --- | --- | --- |
 | **Jak and Daxter: The Precursor Legacy** | Playable; the established Dark Eco baseline. A full-game completion pass is not certified. | **Mostly finished, but still incomplete.** Experimental third-person view with Jak visible. Known issues remain with sky coverage, stereo effects, HUD/interaction prompts, and collected-orb/3D HUD icon placement and depth. |
-| **Jak II** | **Almost finished, but still incomplete.** Performance and a Dark Jak crash near the early Kor/child encounter are being fixed; broader gameplay and device verification continue. | **Not started.** Planned after the remaining Jak 1 immersive issues are resolved. |
+| **Jak II** | **Almost finished, but still incomplete.** Known renderer, cutscene and performance issues remain. Mission-start simulator tests are not a full-game or physical-device acceptance pass. | **Not started.** Planned after the remaining Jak 1 immersive issues are resolved. |
 | **Jak 3** | **Planned; work has not started.** | **Planned; work has not started.** |
 
 All Apple platforms build from one shared app and engine source. The normal
-visionOS build includes the experimental Jak 1 immersive mode, and Build 286
-ships separate iPhone/iPad and Vision Pro packages from that same source.
+visionOS build includes the experimental Jak 1 immersive mode, and Build 290
+provides separate iPhone/iPad and Vision Pro packages from that same source.
 Collected-orb and 3D HUD icons still have placement/depth problems, and
 immersive HUD behaviour still needs wearer acceptance. Earlier source
 reconciliation was tracked in [#16](https://github.com/zschwendi/dark-eco/issues/16).
@@ -74,20 +74,33 @@ mode. This is an in-development build; the remaining issues are listed above.
 
 ### 1. Get the app for your Apple device
 
-**Vision Pro from Windows or Linux:** use the [Build 286 IPA walkthrough](docs/SIDELOADING.md)
-and `DarkEco-visionOS-2.0-build286-preview.ipa`.
+**Vision Pro from Windows or Linux:** use the [Build 290 IPA walkthrough](docs/SIDELOADING.md)
+and `DarkEco-visionOS-2.0-build290-preview.ipa`.
 
-**iPhone and iPad:** use the [Build 286 IPA guide](docs/IOS-SIDELOADING.md)
-and `DarkEco-iOS-2.0-build286-preview.ipa`. Both IPAs are in the same
-[Build 286 release](https://github.com/zschwendi/dark-eco/releases/tag/build286-preview).
-Build 286 reduces default game-text size in conventional iPhone/iPad Fit to
-Screen portrait while keeping its anchor positions. It retains full-display
-Fit to Screen and the experimental automatic Duo laptop layout. ProMotion
-defaults to off (60 FPS); existing explicit choices are preserved. Duo
-simulator title/load menus, an existing Geyser Rock save and a pause view were
-checked. Build 286 Air visuals and physical-device acceptance remain pending.
-Existing valid imports do not need re-importing for this update. Build 285
-and older releases are listed under [earlier packages](docs/DOWNLOADS.md#earlier-packages).
+**iPhone and iPad:** use the [Build 290 IPA guide](docs/IOS-SIDELOADING.md)
+and `DarkEco-iOS-2.0-build290-preview.ipa`. Both are in the
+[Build 290 release](https://github.com/zschwendi/dark-eco/releases/tag/build290-preview).
+Both IPA downloads and their supporting files were independently downloaded and verified.
+
+Build 290 includes the app-folder import alternative, working Jak II internal
+resolution selection, texture-remap and short streamed-audio corrections,
+safer Jak 1 shutdown, and the sewer ocean-prefix and race-manager stack fixes.
+It retains the earlier Fit to Screen, portrait text and automatic Duo layout.
+Jak II still has known renderer and cutscene failures; this is a test preview.
+
+The latest simulator results cover 98 authored mission starts: 81 pass and
+17 fail, combining Build 289b and 290 attempts. These are short mission-start
+checks, not a playthrough. See [Build 290 validation](docs/BUILD290-VALIDATION.md)
+for the build split, test-fixture exception and remaining issues.
+
+**Updating an existing installation:** back up saves and update in place with
+the same signing identity when possible. Keep your installed game data; you
+do not need to re-import solely for this update or the race fix. Two isolated
+Build 290 mission-start checks passed with unchanged Build 288 prepared data.
+That is a limited compatibility check, not a guarantee for every import or
+device. A different App ID or signer can create a separate save container.
+
+Build 286 and older packages remain under [earlier packages](docs/DOWNLOADS.md#earlier-packages).
 
 **Apple Silicon Mac:** use the [native Build 270.1 app guide](docs/MACOS-INSTALL.md).
 
@@ -135,13 +148,12 @@ selected game, the picker offers prepared folders only. A selected file can
 still be an unsupported format or disc revision.
 
 If tapping a file in the iPhone or iPad picker does nothing, try its icon or
-switch to List view. The next private test build also offers **Use a file in
-the Dark Eco folder…**: copy your ISO, ZIP, or 7z directly into **Files → Browse
-→ On My iPhone / On My iPad → Dark Eco**, then select it inside setup. This
-alternative uses the same game-data validation; it does not repair the system
-picker. It is not yet included in the public Build 286 download, and device
-acceptance is pending. The copied source uses extra storage until you remove
-it after a successful import; keep the installed game-data and save folders.
+switch to List view. Build 290 also offers **Use a file in the Dark Eco
+folder…**: copy your ISO, ZIP, or 7z directly into **Files → Browse → On My
+iPhone / On My iPad → Dark Eco**, then select it inside setup. This uses the
+same game-data validation. Recipient-device import acceptance remains pending.
+The copied source uses extra storage until you remove it after a successful
+import; keep the installed game-data and save folders.
 
 Keep Dark Eco's installed game-data copy on your device. Once setup succeeds,
 the app no longer needs the original import source. No game data is fetched

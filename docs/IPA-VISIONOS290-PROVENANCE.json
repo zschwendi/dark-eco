@@ -1,0 +1,34 @@
+{
+  "product": "Dark Eco",
+  "version": "2.0",
+  "build": "290",
+  "package_build": "290",
+  "platform": "visionOS",
+  "source_commit_recorded_at_build": "76d3663a87686abfe578b924038a127c7956677d",
+  "engine_commit_recorded_at_build": "d36fe150fc2c009db684e84cab20fa0f674b12b5",
+  "source_url": "https://github.com/zschwendi/dark-eco/commit/76d3663a87686abfe578b924038a127c7956677d",
+  "engine_url": "https://github.com/zschwendi/jak-pad/commit/d36fe150fc2c009db684e84cab20fa0f674b12b5",
+  "source_status": "Experimental improved preview; sewer prefix and race stack corrections plus prior287/288 import, resolution, texture remap, audio and teardown changes.",
+  "input_executable_sha256": "abc25fa5f7c5f9db9a822d8cde3765d6a3f7390403c5b09d3d5751ef8471cd27",
+  "input_framework_sha256": "a36c171cd9deef90cf5ddd72fc042a4f17f2bc1cd750e9ce8569f4404647904f",
+  "input_bundle_manifest_sha256": "1bcd03310337253e977a930d2d0caecfdc1e8145347e5ea86e92e11249c15ea0",
+  "source_pack_manifests_sha256": {
+    "Jak1": "a4c0670c6b8badc3e86159801e29cc810e793a9730183fff361f5dc0cca5586c",
+    "Jak2": "af2c86d3784b9e6b34d749047fb57c7ccd3dbae014d89765c97657106c53beb7"
+  },
+  "source_pack_audit": "All member sizes/XXH64 and aggregate verified:Jak1 518/c1e79fbb50f33437;Jak2 840/4f3e512e091fae63.",
+  "repack_changes": [
+    "Remove maintainer profiles and signing entitlements",
+    "Apply transport ad-hoc signatures",
+    "Add public source notices/provenance; game resources unchanged"
+  ],
+  "validation": "Matching successful platform build, simulator code identity, strict input signature, source-pack completeness and hashes checked. Public package readback verified separately. No physical installation or acceptance.",
+  "limits": [
+    "Jak II remains incomplete: animated-texture upload failures, construction-site eye upload, water rendering, in-pause resolution changes, portrait HUD and reported cutscene freezes remain open.",
+    "ProMotion stutter remains unresolved; new settings default to60FPS.",
+    "Jak1 immersive visual acceptance remains incomplete; no JakII immersive support.",
+    "Mission-start smoke coverage is mixed simulator289b/290:98 distinct authored starts, latest81 PASS/17 FAIL; no full story, physical performance, controller, audible audio or save roundtrip acceptance.",
+    "Nest smoke used a separately validated test-only correction of corrupt local prepared data; no retail assets or data repair are shipped.",
+    "Public packages use local saves and recipient re-signing; no iCloud provisioning or game data included."
+  ]
+}
