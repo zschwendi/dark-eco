@@ -1,3 +1,24 @@
+# Active: Jak II optional immersion (November 18, 2026)
+
+The maintainer reopened implementation after the Build 290 release stop: optional
+third-person/overhead stereo immersion, head tracking and both PSVR2 Sense
+controllers for Jak II. This supersedes the earlier DualSense-only restriction.
+Tracked in [issue #30](https://github.com/zschwendi/dark-eco/issues/30).
+
+Build 291 is reserved for this feature; it is not built or ready yet. Three
+Claude Code Opus 5.5 workers cover the engine, native bridge, and Swift/input.
+Root owns integration and full builds. The existing Build 290 downloads remain
+the published preview. Conventional Jak 1/Jak II and user data must be preserved.
+Installation on the user's Vision Pro is authorized once ready, if it remains
+awake, unlocked and reachable; installation is not wearer acceptance.
+
+The unchanged baseline immersive proof aggregate passed on November 18. Its
+separate stereo integration check exposed an outdated exact-string assertion
+from the Duo touch layout; checking the existing iOS-only block instead passes.
+No product behavior was changed by that test correction.
+
+---
+
 # Build 290 published checkpoint — 2026-11-15
 
 Zach requested that this checkpoint be committed/pushed and work stopped. He then explicitly authorized publishing the improved experimental IPAs without waiting for a complete physical playthrough. That supersedes the earlier private-only release gate below; it does not accept every gameplay issue.

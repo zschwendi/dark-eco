@@ -46,7 +46,7 @@ Mac gameplay have not been tested.
 | Game | Ordinary windowed play | Apple Vision Pro immersion |
 | --- | --- | --- |
 | **Jak and Daxter: The Precursor Legacy** | Playable; the established Dark Eco baseline. A full-game completion pass is not certified. | **Mostly finished, but still incomplete.** Experimental third-person view with Jak visible. Known issues remain with sky coverage, stereo effects, HUD/interaction prompts, and collected-orb/3D HUD icon placement and depth. |
-| **Jak II** | **Almost finished, but still incomplete.** Known renderer, cutscene and performance issues remain. Mission-start simulator tests are not a full-game or physical-device acceptance pass. | **Not started.** Planned after the remaining Jak 1 immersive issues are resolved. |
+| **Jak II** | **Almost finished, but still incomplete.** Known renderer, cutscene and performance issues remain. Mission-start simulator tests are not a full-game or physical-device acceptance pass. | **In development.** Optional third-person stereo, head tracking and PSVR2 Sense support are tracked in [#30](https://github.com/zschwendi/dark-eco/issues/30); not in the published Build 290 preview. |
 | **Jak 3** | **Planned; work has not started.** | **Planned; work has not started.** |
 
 All Apple platforms build from one shared app and engine source. The normal
@@ -55,7 +55,8 @@ provides separate iPhone/iPad and Vision Pro packages from that same source.
 Collected-orb and 3D HUD icons still have placement/depth problems, and
 immersive HUD behaviour still needs wearer acceptance. Earlier source
 reconciliation was tracked in [#16](https://github.com/zschwendi/dark-eco/issues/16).
-Jak II and Jak 3 immersion are planned to use a normal DualSense controller.
+Jak II immersion is being extended to support both normal gamepads and PSVR2 Sense
+controllers. Jak 3 remains planned.
 
 Optional first-person play, Sense-tracked hands and additional OpenGOAL mods
 are research, not shipped features. See the [ten-mod shortlist and staged plan](docs/OPENGOAL-MOD-RESEARCH.md).
@@ -247,8 +248,9 @@ Start here before changing anything:
 
 The unified product branch is `v2.0`. Runtime changes belong in the pinned
 [OpenGOAL fork](https://github.com/zschwendi/jak-pad); app/lifecycle/import UI
-changes belong here. Preserve per-game data and save isolation. Do not begin
-Jak II immersion until the remaining Jak 1 immersive blockers are resolved.
+changes belong here. Preserve per-game data and save isolation. The maintainer
+authorized Jak II immersion on November 18; existing Jak 1 visual defects remain
+tracked separately and must not be described as fixed by that extension.
 
 | Location | Purpose |
 | --- | --- |

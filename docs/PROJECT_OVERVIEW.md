@@ -111,8 +111,12 @@ physical gameplay or headset acceptance.
 First-person immersive Jak 1 with Sense-tracked hands and additional OpenGOAL
 mods/settings are investigations tracked in issues #17 and #18. Third-person
 remains the default. A community camera mod is not evidence of tracked-hand,
-IK, collision, or Apple compatibility. Jak II remains on its existing controls
-until a separately validated extension is implemented. Code mods must fit the
+IK, collision, or Apple compatibility. On November 18 the maintainer authorized
+extending the existing optional third-person immersive view, head tracking and
+PSVR2 Sense controls to Jak II under issue #30. This supersedes the earlier
+DualSense-only restriction and deferral behind Jak 1 visual acceptance. The
+extension is in development; windowed play stays available and existing
+renderer defects remain tracked separately. Code mods must fit the
 existing ahead-of-time compilation and signing path; data-only mods retain the
 same user-supplied asset boundary.
 

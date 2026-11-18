@@ -4,7 +4,7 @@ Date established: 2026-07-30
 
 Status: Active
 
-## Current development sequence (2026-10-26)
+## Current development sequence (updated 2026-11-18)
 
 This section supersedes earlier "active product sequence" lists below, which are
 retained as historical record. It records the current sequence and explicitly
@@ -14,14 +14,14 @@ labels the verified baseline separately from planned work.
    the documented simulator scope.** The [gate report](docs/JAK2_ORDINARY_GATE_2026_10_26.md)
    records the actual rendering, map-return, save-preservation and PCM evidence.
    Jak II remains experimental; the maintainer owns broader gameplay acceptance.
-2. **Add Jak II immersion — blocked on the remaining Jak 1 immersive visual issues.**
-   The maintainer's October 27 prerequisite covers duplicated effects/pickup HUD
-   objects, selected HUD flicker, and forward-only sky coverage. The port will use
-   the same third-person view as Jak 1 on Vision Pro, using a standard DualSense with no
-   Sense-controller gesture requirement; ordinary touch/keyboard input stays available
-   where supported.
+2. **Add optional Jak II immersion — in development under #30.**
+   The maintainer's November 18 direction supersedes the prior deferral and
+   DualSense-only restriction: reuse Jak 1's third-person/overhead stereo view,
+   head tracking and PSVR2 Sense buttons, sticks and motion controls. Windowed
+   play and standard gamepads remain available. Existing Jak 1 visual defects
+   remain open under #3; the extension does not establish their resolution.
 3. **Finish ordinary Jak 3** (planned).
-4. **Add Jak 3 immersion** under the same input rules.
+4. **Add Jak 3 immersion** (planned; controller scope remains to be validated).
 
 The maintainer owns broad gameplay verification. Agents focus on visuals,
 assets, rendering, and audio; exhaustive mission, combat, vehicle, or checkpoint

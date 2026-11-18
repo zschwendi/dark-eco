@@ -455,7 +455,10 @@ check(!FileManager.default.fileExists(
             atPath: root + "/GOALPad/Vision/VisionStereoCompositorProofRenderer.swift"),
       "the obsolete immersive and tracked proof files are absent")
 
-check(content.contains("#if os(iOS)\n                TouchControlsView")
+let gameplayTouchRegion = section(content,
+                                  from: "if session.isRunning {\n                #if os(iOS)",
+                                  to: "                #endif")
+check(gameplayTouchRegion.contains("TouchControlsView(")
         && content.contains("#if os(iOS)\n    @State private var isShowingTouchControlsGuide")
         && content.contains("#if os(iOS)\n        .sheet(isPresented: $isShowingTouchControlsGuide")
         && !gameplaySurface.contains("TouchControlsView"),
