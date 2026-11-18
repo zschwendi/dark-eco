@@ -21,7 +21,7 @@ struct VisionPausedEcoOrnament: View {
             .accessibilityLabel("Settings")
 
             #if GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
-            if session.isRunning && session.title == .jak1 {
+            if session.isRunning && session.supportsImmersiveTitle {
                 VisionImmersiveModeControl(session: session)
             }
             #endif

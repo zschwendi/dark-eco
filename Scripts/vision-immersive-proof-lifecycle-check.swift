@@ -223,6 +223,13 @@ private func pause(_ pause: Bool = false, progress: Bool = true, jak1: Bool = tr
         progressAvailable: available, startingScreenRawValue: start)
 }
 
+private func jak2Pause(_ pause: Bool = false, progress: Bool = true, active: Bool = true,
+                       title: Bool = false) -> Bool {
+    VisionImmersiveNativePausePolicy.isNativePause(
+        modeIsPause: pause, modeIsProgress: progress, isJak1: false, runIsActive: active,
+        progressAvailable: title, startingScreenRawValue: title ? 27 : -1, isJak2: true)
+}
+
 private func checkNativePausePolicy() {
     check(pause(true, progress: false, jak1: false, active: false, available: false, start: -2),
           "legacy pause is native pause regardless of progress state")
@@ -234,4 +241,9 @@ private func checkNativePausePolicy() {
     check(!pause(active: false), "an inactive run is not pause")
     check(!pause(jak1: false), "non-Jak1 progress is not pause")
     check(!pause(progress: false), "gameplay at origin 0 is not pause")
+    check(jak2Pause(), "active Jak II progress, including save/load/settings, stays in the window")
+    check(jak2Pause(true, progress: false, active: false), "Jak II legacy pause is native pause")
+    check(!jak2Pause(title: true), "the Jak II title progress screen keeps its existing route")
+    check(!jak2Pause(active: false), "an inactive Jak II run is not pause")
+    check(!jak2Pause(progress: false), "Jak II gameplay is not pause")
 }

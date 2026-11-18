@@ -1594,7 +1594,7 @@ struct SaveSettingsView: View {
                 LabeledContent("Controller Bindings", value: controllerBindingStatus)
             }
             #if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
-            if selectedTitle == .jak1 {
+            if GameSession.supportsImmersiveTitle(selectedTitle) {
                 NavigationLink {
                     VisionMotionControlsGuideView(input: input)
                 } label: {

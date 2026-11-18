@@ -151,7 +151,7 @@ let pauseAfterTick = "if disposition != .failed, Self.route(for: session) == .ex
 let gameTick = section(proof, from: "func tickGame(", to: "private func tickMenuPlane(")
 check(occursInOrder([
     "attempt == lifecycle.attempt, lifecycle.isActive, request.isValid",
-    "guard let session, session.isRunning, session.title == .jak1 else {",
+    "guard let session, session.isRunning, session.supportsImmersiveTitle else {",
     "close(reason: .sessionInvalidForTick)",
     "let route = Self.route(for: session)",
     "guard route != .exitForPause else { return exitForNativePause() }",
@@ -339,7 +339,7 @@ check(modeControl.hasPrefix(gate + "\n") && modeControl.hasSuffix("#endif\n")
         && modeControl.contains("struct VisionImmersiveModeControl: View"),
       "the shared entry control compiles only in the opt-in visionOS build")
 check(occursInOrder([
-    "guard session.isRunning, session.title == .jak1,",
+    "guard session.isRunning, session.supportsImmersiveTitle,",
     "coordinator.canOpen(for: session)",
     "coordinator.prepareToOpen(session: session)",
     "value: attempt",

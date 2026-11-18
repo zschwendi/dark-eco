@@ -64,7 +64,7 @@ struct VisionImmersiveModeControl: View {
         case .closing:
             "Dark Eco is returning gameplay to the window."
         case .closed, .failed:
-            "Opens the running Jak 1 game in full immersion."
+            "Opens the running game in full immersion."
         }
     }
 
@@ -80,7 +80,7 @@ struct VisionImmersiveModeControl: View {
     }
 
     private func open() {
-        guard session.isRunning, session.title == .jak1,
+        guard session.isRunning, session.supportsImmersiveTitle,
               coordinator.canOpen(for: session),
               let attempt = coordinator.prepareToOpen(session: session) else { return }
         Task {

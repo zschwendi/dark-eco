@@ -83,6 +83,17 @@ final class GameSession {
                 && warpGateTouchSnapshot.state == .destinationListActive)
     }
 
+    /// Optional immersion and Sense motion gestures are allowlisted per title; every other title,
+    /// including Jak 3, stays in the conventional window without gestures.
+    nonisolated static func supportsImmersiveTitle(_ title: GameLibraryTitle) -> Bool {
+        switch title {
+        case .jak1, .jak2: true
+        case .jak3: false
+        }
+    }
+
+    var supportsImmersiveTitle: Bool { Self.supportsImmersiveTitle(title) }
+
     /// Booting runs the game's own startup - two DGO archives and `play` - which takes seconds and
     /// must not block the frame loop or the UI.
     private let bootQueue = DispatchQueue(label: "com.zephyrstudiosllc.eco.boot",
@@ -564,15 +575,15 @@ final class GameSession {
     }
 
     func enableImmersiveGesturesIfActive() {
-        guard isRunning, title == .jak1, currentScenePhase == .active,
+        guard isRunning, supportsImmersiveTitle, currentScenePhase == .active,
               immersiveFrameLoopOwner != nil else { return }
         input.setSpatialGesturesEnabled(true)
     }
 
-    /// Sense accessory tracking follows active Jak 1 gameplay in either presentation. Menus,
+    /// Sense accessory tracking follows active supported-title gameplay in either presentation. Menus,
     /// pause, and title screens keep tracking alive but suppress attacks per frame.
     private func refreshSpatialGestureTracking() {
-        input.setSpatialGesturesEnabled(isRunning && title == .jak1
+        input.setSpatialGesturesEnabled(isRunning && supportsImmersiveTitle
             && currentScenePhase == .active)
     }
 
@@ -815,7 +826,7 @@ final class GameSession {
         input.pushFrame(merging: touch.frameState())
         #elseif os(visionOS)
         #if GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE
-        input.pushControllerFrame(allowSpatialAttacks: title == .jak1
+        input.pushControllerFrame(allowSpatialAttacks: supportsImmersiveTitle
             && !usesControllerMenuNavigation,
                                   spatialReference: immersiveFrameLoopOwner == nil
                                       ? .accessoryAim : .head,

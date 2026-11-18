@@ -180,8 +180,8 @@ check(sharedTick.components(separatedBy: "saveSync.gameplaySaveCompleted()").cou
 check(sharedTick.contains("#if os(iOS)")
         && sharedTick.contains("input.pushFrame(merging: touch.frameState())")
         && sharedTick.contains("#elseif os(visionOS)\n        #if GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE")
-        && sharedTick.contains("input.pushControllerFrame(allowSpatialAttacks: title == .jak1")
-        && sharedTick.contains("input.pushControllerFrame(allowSpatialAttacks: title == .jak1\n"
+        && sharedTick.contains("input.pushControllerFrame(allowSpatialAttacks: supportsImmersiveTitle")
+        && sharedTick.contains("input.pushControllerFrame(allowSpatialAttacks: supportsImmersiveTitle\n"
                                    + "            && !usesControllerMenuNavigation,")
         && sharedTick.contains("spatialReference: immersiveFrameLoopOwner == nil\n"
                                    + "                                      ? .accessoryAim : .head,")
@@ -520,13 +520,13 @@ check(content.components(separatedBy: ".ornament(").count - 1 == ornamentVisibil
 check(pausedEcoOrnament.contains("HStack(spacing: 10)")
         && pausedEcoOrnament.contains("Button(action: openSettings)")
         && pausedEcoOrnament.contains("Image(systemName: \"gearshape\")")
-        && pausedEcoOrnament.contains("if session.isRunning && session.title == .jak1")
+        && pausedEcoOrnament.contains("if session.isRunning && session.supportsImmersiveTitle")
         && pausedEcoOrnament.contains("VisionImmersiveModeControl(session: session)")
         && !pausedEcoOrnament.contains("Text(\"DARK ECO\")")
         && pausedEcoOrnament.contains(".frame(width: 42, height: 42)")
         && pausedEcoOrnament.contains(".glassBackgroundEffect(in: Circle())")
         && pausedEcoOrnament.contains(".accessibilityLabel(\"Settings\")"),
-      "the glass Settings control stays available beside the opt-in Jak 1 immersive control")
+      "the glass Settings control stays available beside the opt-in Jak 1 and Jak II immersive control")
 check(immersiveModeControl.hasPrefix(
             "#if os(visionOS) && GOALPAD_EXPERIMENTAL_VISION_IMMERSIVE\n"
         )

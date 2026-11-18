@@ -75,6 +75,25 @@ sed -n '/func releaseImmersiveFrameLoop/,/^    }/p' "$session" \
 sed -n '/private func applyScenePhase/,/let lifecyclePhase/p' "$session" \
   | rg -Fq 'refreshSpatialGestureTracking()'
 sed -n '/private func refreshSpatialGestureTracking/,/^    }/p' "$session" \
-  | rg -Fq 'isRunning && title == .jak1'
+  | rg -Fq 'isRunning && supportsImmersiveTitle'
+sed -n '/func enableImmersiveGesturesIfActive/,/^    }/p' "$session" \
+  | rg -Fq 'guard isRunning, supportsImmersiveTitle, currentScenePhase == .active,'
+rg -Fq 'input.pushControllerFrame(allowSpatialAttacks: supportsImmersiveTitle' "$session"
+# Immersion and gestures allow Jak 1 and Jak II only; Jak 3 and any later title fail closed.
+title_policy=$(sed -n '/static func supportsImmersiveTitle(_ title: GameLibraryTitle)/,/^    }/p' \
+  "$session")
+printf '%s\n' "$title_policy" | rg -Fq 'case .jak1, .jak2: true'
+printf '%s\n' "$title_policy" | rg -Fq 'case .jak3: false'
+if printf '%s\n' "$title_policy" | rg -Fq 'default'; then
+  echo "the immersive title allowlist must not admit titles by default" >&2; exit 1
+fi
+for gated in "$root/GOALPad/Vision/Immersive/VisionImmersiveProof.swift" \
+  "$root/GOALPad/Vision/Immersive/VisionImmersiveModeControl.swift" \
+  "$root/GOALPad/Vision/VisionPausedEcoOrnament.swift" "$root/GOALPad/ContentView.swift"; do
+  rg -Fq 'session.isRunning && session.supportsImmersiveTitle' "$gated" \
+    || rg -Fq 'session.isRunning, session.supportsImmersiveTitle' "$gated"
+done
+rg -Fq 'if GameSession.supportsImmersiveTitle(selectedTitle) {' \
+  "$root/GOALPad/Saves/SaveSyncController.swift"
 
 echo "spatial Sense input checks passed"

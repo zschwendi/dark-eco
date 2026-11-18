@@ -56,8 +56,8 @@ struct VisionMotionControlsGuideView: View {
                 }
 
                 Text("Rest your arms and use the buttons whenever you like. When motion is "
-                    + "available, you can use it during Jak 1 gameplay in either the game "
-                    + "window or Immersive mode.")
+                    + "available, you can use it during Jak and Daxter or Jak II gameplay in "
+                    + "either the game window or Immersive mode.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -105,8 +105,8 @@ struct VisionMotionControlsGuideView: View {
     }
 }
 
-/// A one-time, non-blocking pointer to the guide shown when Sense controllers first join Jak 1
-/// gameplay. It never pauses the game.
+/// A one-time, non-blocking pointer to the guide shown when Sense controllers first join
+/// supported-title gameplay. It never pauses the game.
 struct VisionSenseMotionHint: View {
     let showMoves: () -> Void
     let dismiss: () -> Void

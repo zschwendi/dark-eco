@@ -105,7 +105,7 @@ final class ControllerInput {
         if !enabled { stopRumble() }
     }
 
-    /// Opt in only while Jak 1 gameplay is active, in the ordinary window or the immersive space.
+    /// Opt in only while supported-title gameplay is active, in the ordinary window or the immersive space.
     /// Permission failure leaves ordinary controller input available and simply disables
     /// motion-generated attacks.
     func setSpatialGesturesEnabled(_ enabled: Bool) {

@@ -21,7 +21,7 @@ struct VisionImmersiveGameTarget {
     let depthTextures: [any MTLTexture]
 }
 
-/// The opt-in immersive renderer replays one Jak 1 game update into two physical eye cameras.
+/// The opt-in immersive renderer replays one supported-title game update into two physical eye cameras.
 /// Head motion is relative to the existing third-person game camera, so Jak remains in the world.
 @MainActor
 @Observable
@@ -84,7 +84,7 @@ final class VisionImmersiveProofCoordinator {
 
     /// A paused game stays in the window; immersion opens only after the player resumes there.
     func canOpen(for session: GameSession) -> Bool {
-        lifecycle.canBeginOpen && session.isRunning && session.title == .jak1
+        lifecycle.canBeginOpen && session.isRunning && session.supportsImmersiveTitle
             && session.runReadiness == .active && Self.route(for: session) != .exitForPause
     }
 
@@ -94,7 +94,8 @@ final class VisionImmersiveProofCoordinator {
     }
 
     /// Normal Start enters `progress` at the fuel-cell origin (screen 0); legacy `pause` remains.
-    /// Title, autosave, speedrun and unknown origins keep their existing routes.
+    /// Jak 1 title, autosave, speedrun and unknown origins keep their existing routes. Jak II
+    /// Start and its submenus stay in the window until gameplay resumes.
     static func isNativePause(_ session: GameSession) -> Bool {
         VisionImmersiveNativePausePolicy.isNativePause(
             modeIsPause: session.gameMode == .pause,
@@ -102,7 +103,8 @@ final class VisionImmersiveProofCoordinator {
             isJak1: session.title == .jak1,
             runIsActive: session.runReadiness == .active,
             progressAvailable: session.progressMenuSnapshot.available,
-            startingScreenRawValue: session.progressMenuSnapshot.startingScreenRawValue)
+            startingScreenRawValue: session.progressMenuSnapshot.startingScreenRawValue,
+            isJak2: session.title == .jak2)
     }
 
     func adoptDismissAction(_ action: DismissImmersiveSpaceAction) {
@@ -168,7 +170,7 @@ final class VisionImmersiveProofCoordinator {
     func tickGame(attempt: UInt64, request: VisionImmersiveFrameRequest)
         -> VisionImmersivePresentedFrame? {
         guard attempt == lifecycle.attempt, lifecycle.isActive, request.isValid else { return nil }
-        guard let session, session.isRunning, session.title == .jak1 else {
+        guard let session, session.isRunning, session.supportsImmersiveTitle else {
             close(reason: .sessionInvalidForTick)
             return nil
         }

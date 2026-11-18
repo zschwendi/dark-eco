@@ -193,13 +193,18 @@ nonisolated enum VisionImmersiveTickRoute: Equatable, Sendable {
 }
 /// Normal Start enters `progress` at the fuel-cell origin (starting screen 0); select/debug paths
 /// use legacy `pause`. Title (27), autosave (29), speedrun (64) and unknown origins are not pause.
+/// Jak II Start opens `main` and may navigate to save/load or settings screens. Its shared progress
+/// snapshot identifies only the title screen, so every other active progress screen stays windowed.
 nonisolated enum VisionImmersiveNativePausePolicy {
     static let fuelCellsStartingScreen = 0
 
     static func isNativePause(modeIsPause: Bool, modeIsProgress: Bool, isJak1: Bool,
                               runIsActive: Bool, progressAvailable: Bool,
-                              startingScreenRawValue: Int) -> Bool {
+                              startingScreenRawValue: Int, isJak2: Bool = false) -> Bool {
         if modeIsPause { return true }
+        if isJak2 {
+            return runIsActive && modeIsProgress && !progressAvailable
+        }
         return isJak1 && runIsActive && modeIsProgress && progressAvailable
             && startingScreenRawValue == fuelCellsStartingScreen
     }

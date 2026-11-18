@@ -548,7 +548,7 @@ struct ContentView: View {
 
     private var showsSenseMotionHint: Bool {
         senseMotionHintVersion < 1
-            && session.isRunning && session.title == .jak1
+            && session.isRunning && session.supportsImmersiveTitle
             && session.runReadiness == .active
             && session.input.hasSenseControllers
             && isConventionalGameplayPresentationEnabled
