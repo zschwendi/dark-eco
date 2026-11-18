@@ -1,6 +1,6 @@
 # Optional Jak II immersion
 
-Status: **Experimental**, integration validation in progress for Build 291.
+Status: **Experimental**, signed Build 291 ready for a headset trial.
 Tracked in [#30](https://github.com/zschwendi/dark-eco/issues/30).
 The published Build 290 preview does not include this extension.
 
@@ -59,7 +59,55 @@ and authored fog dimmed the quad below its exact-color detector. Projection
 oracles and tolerances were preserved. The host recovery fixture now uses a
 valid physical eye pair and a layer-backed host matching the application.
 
-Affected Apple app builds and signing remain pending at this source checkpoint.
+Release app builds passed for visionOS, iOS and macOS. The iOS signature and
+the separately staged visionOS development signature both passed strict deep
+verification. The signed visionOS app was copied to the delivery Mac and its
+entire file-tree hash and signature independently verified. The intended
+headset is included in the provisioning profile, but was unavailable, so no
+physical installation or gameplay validation occurred.
+
+Compiled source: app `8121568c4187680eaecaa02bec8d295f208a7182`, engine
+`d2856ee9c16a39ea0efc4f2d8731a0b0bf5d08d1`. Later documentation changes do not
+change that package identity. Public Build 290 downloads remain unchanged.
+
+### Commands and results
+
+The canonical host build used `cmake --build` with `--parallel 2` and explicit
+targets for all 26 cases. `ctest --output-on-failure -j 1 -R` selected exactly
+those registered tests; 26/26 passed. The selected targets cover DMA source
+mapping, Jak II camera/effects math, sky classification and generation, stereo
+GPU replay, native host recovery, terrain, shrubs, ties, generic effects,
+warp, glow, shadow and display blits, plus the shared/Jak 1 regressions.
+
+`sh Scripts/run-vision-immersive-proof-check.sh` passed, including shared
+Swift presentation/input checks, native bridge checks and the existing Metal
+proofs. `git diff --check` passed in both repositories.
+
+Each app build used this command, sequentially, with the same DerivedData
+directory and clean source identities recorded above:
+
+```sh
+xcodebuild -project GOALPad.xcodeproj -scheme GOALPad \
+  -configuration Release -sdk "$SDK" -destination "$DESTINATION" \
+  -derivedDataPath "$DERIVED_DATA" -jobs 2 \
+  DEVELOPMENT_TEAM=V729QMY3V6 CODE_SIGN_STYLE=Automatic \
+  CODE_SIGNING_ALLOWED="$SIGN" GOALPAD_BUILD_JOBS=2 \
+  GOALPAD_OPENGOAL_GIT_METADATA="$PWD/OpenGOAL/.git" ARCHS=arm64 build
+```
+
+| SDK | Destination | SIGN | Result |
+| --- | --- | --- | --- |
+| xros | generic/platform=visionOS | NO | Pass; development-signed staging copy verified afterward |
+| iphoneos | generic/platform=iOS | YES | Pass; signature verified |
+| macosx | generic/platform=macOS | NO | Pass; compile validation only |
+
+Staged app verification used `codesign --verify --deep --strict` on both Macs.
+Complete expanded command arrays, logs, source hashes and private delivery
+receipts are retained in the workspace's ignored
+`.agent-builds/jak2-immersive-20261118` directory.
+
+### Still unvalidated
+
 Headset acceptance is still required for comfort, real-world effects and sky,
 Sense gesture tuning, performance, and repeated enter/pause/resume/exit.
 Compilation or synthetic GPU checks do not establish those results. Existing

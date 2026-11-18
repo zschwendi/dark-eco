@@ -5,8 +5,8 @@ third-person/overhead stereo immersion, head tracking and both PSVR2 Sense
 controllers for Jak II. This supersedes the earlier DualSense-only restriction.
 Tracked in [issue #30](https://github.com/zschwendi/dark-eco/issues/30).
 
-Build 291 is reserved for this feature; the app package is not built or ready
-yet. Actual Claude Code Opus 5.5 workers completed the engine, native bridge,
+Build 291 is signed and ready for a headset trial. Actual Claude Code Opus 5.5
+workers completed the engine, native bridge,
 Swift/input and effects changes. The canonical host build and all 26 scoped
 native/GPU tests pass, alongside the shared Swift/visionOS proof aggregate.
 Root owns integration and full builds. See
@@ -14,6 +14,17 @@ Root owns integration and full builds. See
 the published preview. Conventional Jak 1/Jak II and user data must be preserved.
 Installation on the user's Vision Pro is authorized once ready, if it remains
 awake, unlocked and reachable; installation is not wearer acceptance.
+
+Release visionOS, iOS and macOS builds passed from app `8121568c` and engine
+`d2856ee9c`. The signed visionOS app is staged on both Macs with matching
+file-tree hashes and strict signature verification. At delivery check the
+physical headset was unavailable on the Mac mini and absent from this Mac's
+physical inventory; it was not installed. The private readiness receipt and
+exact commands are in `.agent-builds/jak2-immersive-20261118/DELIVERY-READINESS.json`.
+Next step: when the headset is reachable and unlocked, install the staged app
+in place, preserve game data/saves, and have the wearer confirm Jak II stereo,
+Sense controls, pause-to-window and repeated immersive entry. No new simulator
+or physical gameplay pass was performed for this feature.
 
 The unchanged baseline immersive proof aggregate passed on November 18. Its
 separate stereo integration check exposed an outdated exact-string assertion
