@@ -146,6 +146,9 @@ CGSize g_drawable_size = CGSizeZero;
 bool g_horizontal_plus_enabled = false;
 int32_t g_internal_scale = 1;
 bool g_frame_armed = false;
+// Immersive transport state mirrored from the host so windowed arming can refuse while it is live.
+bool g_stereo_reserved = false;
+bool g_external_frame_armed = false;
 uint64_t g_frame_baseline_chains = 0;
 uint64_t g_frame_baseline_drawables = 0;
 uint64_t g_frame_baseline_submissions = 0;
@@ -2156,6 +2159,12 @@ static GOALPadGameBootStatus* failed_boot_status(NSString* message, NSTimeInterv
     g_state = SessionState::Stopping;
     host = g_metal_host;
     g_metal_host = nullptr;
+    if (host) {
+      goal_jak2_metal_host_cancel_stereo(host);
+      (void)goal_jak2_metal_host_end_external_frame(host);
+    }
+    g_stereo_reserved = false;
+    g_external_frame_armed = false;
   }
 
   if (host) {
@@ -2362,7 +2371,7 @@ int32_t GOALPadAudioPull(int16_t* out, int32_t frames) {
   (void)presentationTime;
   std::lock_guard<std::mutex> lock(g_mutex);
   if (g_state != SessionState::Running || !g_metal_host || !g_attached_layer ||
-      g_attached_layer != g_host_layer || g_drawable_size.width < 1 || g_drawable_size.height < 1 ||
+      g_attached_layer != g_host_layer || g_external_frame_armed || g_stereo_reserved || g_drawable_size.width < 1 || g_drawable_size.height < 1 ||
       !copy_metal_metrics_locked()) {
     g_frame_armed = false;
     return NO;
@@ -2377,6 +2386,11 @@ int32_t GOALPadAudioPull(int16_t* out, int32_t frames) {
 
 - (BOOL)endFrame {
   std::lock_guard<std::mutex> lock(g_mutex);
+  if (g_external_frame_armed) {
+    // Monoscopic external frames end through the shared endFrame entry, like Jak 1.
+    g_external_frame_armed = false;
+    return g_metal_host && goal_jak2_metal_host_end_external_frame(g_metal_host) ? YES : NO;
+  }
   if (!g_frame_armed || !copy_metal_metrics_locked()) {
     g_frame_armed = false;
     return NO;
@@ -2396,6 +2410,189 @@ int32_t GOALPadAudioPull(int16_t* out, int32_t frames) {
 - (BOOL)isRendererLinked {
   std::lock_guard<std::mutex> lock(g_mutex);
   return g_metal_host ? YES : NO;
+}
+
+- (id<MTLDevice>)rendererDevice {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  if (g_state != SessionState::Running || !g_metal_host) {
+    return nil;
+  }
+  return (__bridge id<MTLDevice>)goal_jak2_metal_host_device(g_metal_host);
+}
+
+- (id<MTLCommandQueue>)rendererCommandQueue {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  if (g_state != SessionState::Running || !g_metal_host) {
+    return nil;
+  }
+  return (__bridge id<MTLCommandQueue>)goal_jak2_metal_host_command_queue(g_metal_host);
+}
+
+- (GOALPadStereoFrameReservation)reserveStereoFrame {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  if (g_state != SessionState::Running || !g_metal_host || g_frame_armed ||
+      g_external_frame_armed || g_stereo_reserved) {
+    g_last_error = @"The Jak II stereoscopic renderer is not ready for a reservation.";
+    return GOALPadStereoFrameReservationFailed;
+  }
+  switch (goal_jak2_metal_host_reserve_stereo(g_metal_host)) {
+    case GOAL_JAK2_METAL_STEREO_RESERVED:
+      g_stereo_reserved = true;
+      g_last_error = @"";
+      return GOALPadStereoFrameReservationReserved;
+    case GOAL_JAK2_METAL_STEREO_BUSY:
+      g_last_error = @"";
+      return GOALPadStereoFrameReservationBusy;
+    case GOAL_JAK2_METAL_STEREO_RESERVATION_FAILED:
+      break;
+  }
+  g_last_error = @"The Jak II stereoscopic renderer could not reserve its stream storage.";
+  return GOALPadStereoFrameReservationFailed;
+}
+
+static void copy_stereo_view(GOALPadStereoRenderTarget* source, goal_jak2_metal_stereo_view* out) {
+  *out = {};
+  out->view_id = source.viewID;
+  out->color_texture = (__bridge void*)source.colorTexture;
+  out->depth_texture = (__bridge void*)source.depthTexture;
+  const simd_float4x4 clipFromGameClip = source.clipFromGameClip;
+  memcpy(out->clip_from_game_clip, &clipFromGameClip, sizeof(out->clip_from_game_clip));
+  out->physical_camera_enabled = source.physicalCameraEnabled ? 1 : 0;
+  if (source.physicalCameraEnabled) {
+    const simd_float4x4 clipFromEye = source.clipFromEye;
+    const simd_float4x4 eyeFromCamera = source.eyeFromGameCameraMeters;
+    const simd_float4x4 cullFromCamera = source.binocularCullFromGameCameraMeters;
+    memcpy(out->clip_from_eye, &clipFromEye, sizeof(out->clip_from_eye));
+    memcpy(out->eye_from_game_camera_meters, &eyeFromCamera,
+           sizeof(out->eye_from_game_camera_meters));
+    memcpy(out->binocular_cull_from_game_camera_meters, &cullFromCamera,
+           sizeof(out->binocular_cull_from_game_camera_meters));
+  }
+  out->hud_plane_enabled = source.physicalCameraEnabled && source.hudPlaneEnabled ? 1 : 0;
+  if (out->hud_plane_enabled) {
+    const simd_float4x4 hud = source.hudClipFromScreenClip;
+    memcpy(out->hud_clip_from_screen_clip, &hud, sizeof(out->hud_clip_from_screen_clip));
+  }
+  out->sky_generation_enabled =
+      source.physicalCameraEnabled && source.skyGenerationEnabled ? 1 : 0;
+  if (out->sky_generation_enabled) {
+    const simd_float4x4 head = source.gameCameraFromHead;
+    memcpy(out->game_camera_from_head, &head, sizeof(out->game_camera_from_head));
+  }
+}
+
+- (BOOL)beginReservedStereoFrameAtTime:(CFTimeInterval)presentationTime
+                                  size:(CGSize)size
+                         commandBuffer:(id<MTLCommandBuffer>)commandBuffer
+                                  left:(GOALPadStereoRenderTarget*)left
+                                 right:(GOALPadStereoRenderTarget*)right {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  if (g_state != SessionState::Running || !g_metal_host || !g_stereo_reserved) {
+    g_last_error = @"The Jak II stereoscopic frame has no reservation.";
+    return NO;
+  }
+  if (!left || !right || size.width < 1 || size.height < 1 || !std::isfinite(size.width) ||
+      !std::isfinite(size.height) || size.width > std::numeric_limits<int>::max() ||
+      size.height > std::numeric_limits<int>::max()) {
+    g_last_error = @"The stereoscopic render size is invalid.";
+    return NO;
+  }
+  goal_jak2_metal_stereo_view left_view;
+  goal_jak2_metal_stereo_view right_view;
+  copy_stereo_view(left, &left_view);
+  copy_stereo_view(right, &right_view);
+  if (!goal_jak2_metal_host_begin_stereo(g_metal_host, static_cast<int>(size.width),
+                                         static_cast<int>(size.height), presentationTime,
+                                         (__bridge void*)commandBuffer, &left_view,
+                                         &right_view)) {
+    // The reservation stays held; the caller cancels it, exactly as on the Jak 1 seam.
+    NSString* detail = string_from_utf8(goal_jak2_metal_host_stereo_error(g_metal_host));
+    g_last_error = detail.length ? [@"Immersive target: " stringByAppendingString:detail]
+                                 : @"The stereoscopic render targets were rejected.";
+    return NO;
+  }
+  g_last_error = @"";
+  return YES;
+}
+
+- (void)cancelReservedStereoFrame {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  if (g_metal_host) {
+    goal_jak2_metal_host_cancel_stereo(g_metal_host);
+  }
+  g_stereo_reserved = false;
+}
+
+- (void)prepareStereoFallback {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  if (g_metal_host) {
+    goal_jak2_metal_host_prepare_stereo_fallback(g_metal_host);
+  }
+}
+
+- (GOALPadStereoFrameCompletion)endStereoFrame {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  if (!g_metal_host) {
+    g_stereo_reserved = false;
+    g_last_error = @"The Jak II stereoscopic renderer is not running.";
+    return GOALPadStereoFrameCompletionFailed;
+  }
+  NSString* detail = string_from_utf8(goal_jak2_metal_host_stereo_error(g_metal_host));
+  const goal_jak2_metal_stereo_completion completion =
+      goal_jak2_metal_host_end_stereo(g_metal_host);
+  g_stereo_reserved = false;
+  switch (completion) {
+    case GOAL_JAK2_METAL_STEREO_SKIPPED:
+      g_last_error = @"";
+      return GOALPadStereoFrameCompletionSkipped;
+    case GOAL_JAK2_METAL_STEREO_SUBMITTED:
+      g_last_error = @"";
+      return GOALPadStereoFrameCompletionSubmitted;
+    case GOAL_JAK2_METAL_STEREO_WORLD_CAMERA_PACKET_ABSENT:
+      g_last_error = @"";
+      return GOALPadStereoFrameCompletionWorldCameraPacketAbsent;
+    case GOAL_JAK2_METAL_STEREO_FAILED:
+      break;
+  }
+  g_last_error = detail.length ? [@"Immersive camera: " stringByAppendingString:detail]
+                               : @"The stereoscopic frame did not complete.";
+  return GOALPadStereoFrameCompletionFailed;
+}
+
+- (BOOL)beginMonoscopicFrameAtTime:(CFTimeInterval)presentationTime
+                            viewID:(uint64_t)viewID
+                      colorTexture:(id<MTLTexture>)colorTexture
+                      depthTexture:(id<MTLTexture>)depthTexture {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  if (g_external_frame_armed && g_metal_host) {
+    // A previous monoscopic frame was never closed; release its targets first.
+    (void)goal_jak2_metal_host_end_external_frame(g_metal_host);
+  }
+  g_external_frame_armed = false;
+  const auto geometry = presentation_geometry_locked();
+  if (g_state != SessionState::Running || !g_metal_host || g_frame_armed || g_stereo_reserved ||
+      geometry.internal_width <= 0 || geometry.internal_height <= 0) {
+    g_last_error = @"The monoscopic frame has no running renderer or internal render size.";
+    return NO;
+  }
+  goal_jak2_metal_stereo_view view = {};
+  view.view_id = viewID;
+  view.color_texture = (__bridge void*)colorTexture;
+  view.depth_texture = (__bridge void*)depthTexture;
+  if (!goal_jak2_metal_host_begin_external_frame(g_metal_host, geometry.internal_width,
+                                                 geometry.internal_height, presentationTime,
+                                                 &view)) {
+    g_last_error = @"The monoscopic render target was rejected.";
+    return NO;
+  }
+  g_external_frame_armed = true;
+  g_last_error = @"";
+  return YES;
+}
+
+- (float)monoscopicFrameFade {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  return g_metal_host ? goal_jak2_metal_host_external_frame_fade(g_metal_host) : 1.f;
 }
 
 - (GOALPadRendererStats)stats {

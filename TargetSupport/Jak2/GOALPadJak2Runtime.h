@@ -123,6 +123,23 @@ FOUNDATION_EXPORT int32_t GOALPadJak2AudioPull(int16_t *out, int32_t frames);
 - (GOALPadSurfaceGeometry)geometry;
 - (BOOL)beginFrameAtTime:(CFTimeInterval)presentationTime NS_SWIFT_NAME(beginFrame(at:));
 - (BOOL)endFrame;
+// Optional immersive transport, mirroring GOALPadRenderSurface. None require an attached layer.
+@property(nonatomic, readonly, nullable) id<MTLDevice> rendererDevice;
+@property(nonatomic, readonly, nullable) id<MTLCommandQueue> rendererCommandQueue;
+- (GOALPadStereoFrameReservation)reserveStereoFrame;
+- (BOOL)beginReservedStereoFrameAtTime:(CFTimeInterval)presentationTime
+                                  size:(CGSize)size
+                         commandBuffer:(id<MTLCommandBuffer>)commandBuffer
+                                  left:(GOALPadStereoRenderTarget *)left
+                                 right:(GOALPadStereoRenderTarget *)right;
+- (void)cancelReservedStereoFrame;
+- (void)prepareStereoFallback;
+- (GOALPadStereoFrameCompletion)endStereoFrame;
+- (BOOL)beginMonoscopicFrameAtTime:(CFTimeInterval)presentationTime
+                            viewID:(uint64_t)viewID
+                      colorTexture:(id<MTLTexture>)colorTexture
+                      depthTexture:(id<MTLTexture>)depthTexture;
+@property(nonatomic, readonly) float monoscopicFrameFade;
 @property(nonatomic, readonly, getter=isRendererLinked) BOOL rendererLinked;
 @property(nonatomic, readonly) GOALPadRendererStats stats;
 @property(nonatomic, readonly) GOALPadCameraCorrectionTailInfo cameraCorrectionTailInfo;

@@ -164,18 +164,17 @@ from the internet or supplied with this repository.
 
 - **iPhone / iPad:** use the on-screen touch controls or a compatible game controller.
 - **Mac (experimental):** a complete gameplay/control pass remains unvalidated.
-- **Apple Vision Pro:** use a compatible game controller. A normal DualSense
-  is the intended controller for future Jak II and Jak 3 immersive play.
-- **Jak 1 experimental Sense controls:** supported builds can use PSVR2 Sense
-  gestures for punch, spin, and jump. Gesture support is a Jak 1 experiment;
-  it is not a requirement for ordinary play.
+- **Apple Vision Pro:** use a compatible gamepad or a pair of PSVR2 Sense
+  controllers. The published Build 290 supports Sense gestures in Jak 1;
+  the experimental Jak II extension is tracked in [#30](https://github.com/zschwendi/dark-eco/issues/30).
+  A normal gamepad remains an option for both games.
 
 ## Controls
 
 The original game menus explain the normal buttons. On a PlayStation-layout
 controller, Cross jumps, Square punches, and Circle spins in Jak 1.
 
-In Jak 1 builds with Sense motion enabled, either-hand forward jabs punch,
+In builds with Sense motion enabled for the selected game, either-hand forward jabs punch,
 side-to-side shakes spin, and raising both controllers together jumps; repeat
 the jump gesture for a double jump. Normal buttons remain available if you
 prefer them. Availability and gesture tuning depend on the build.

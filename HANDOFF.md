@@ -5,9 +5,12 @@ third-person/overhead stereo immersion, head tracking and both PSVR2 Sense
 controllers for Jak II. This supersedes the earlier DualSense-only restriction.
 Tracked in [issue #30](https://github.com/zschwendi/dark-eco/issues/30).
 
-Build 291 is reserved for this feature; it is not built or ready yet. Three
-Claude Code Opus 5.5 workers cover the engine, native bridge, and Swift/input.
-Root owns integration and full builds. The existing Build 290 downloads remain
+Build 291 is reserved for this feature; the app package is not built or ready
+yet. Actual Claude Code Opus 5.5 workers completed the engine, native bridge,
+Swift/input and effects changes. The canonical host build and all 26 scoped
+native/GPU tests pass, alongside the shared Swift/visionOS proof aggregate.
+Root owns integration and full builds. See
+[the feature report](docs/JAK2_IMMERSIVE_2026_11_18.md). The existing Build 290 downloads remain
 the published preview. Conventional Jak 1/Jak II and user data must be preserved.
 Installation on the user's Vision Pro is authorized once ready, if it remains
 awake, unlocked and reachable; installation is not wearer acceptance.
